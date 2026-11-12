@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-all-ref-history-snapshot-audit",
+  "inputHash": "1B4C3916D55E150078C22F622E2CD221FB672171AFD7385489828786EA198D8C",
+  "benchmarkInputs": {
+    "scannerExecutable": "17157E2EE8B76FC8B1D8BEE607A250E34B8A8023C8BC81822D4B5EE4D78FCB7C",
+    "redactedScannerReport": "1E302585BC9F6C0AA639FEAC3086DB1FE6AD7A09C4DB8381FAB07EC023544177",
+    "refInventory": "1B4C3916D55E150078C22F622E2CD221FB672171AFD7385489828786EA198D8C",
+    "candidateDisposition": "62E5BF741AD9AC5160E70C6382971DB7318A5ACF8BF9174FA7E58DD27E83FC9F"
+  },
+  "snapshotMainCommit": "db2e036ce0cdf2544dfa9d07eccaa734c75ddfb3",
+  "scannerVersion": "v8.30.1",
+  "releaseChecksumVerified": true,
+  "privateSnapshotRefs": 419,
+  "localSourceRefs": 132,
+  "uniqueWorktreeHeads": 49,
+  "reachableCommits": 2061,
+  "gitObjectClosureVerified": true,
+  "rawScannerExitCode": 1,
+  "rawCandidateCount": 77,
+  "reviewedNonCredentialCandidates": 77,
+  "unresolvedCandidates": 0,
+  "categories": [
+    {
+      "count": 43,
+      "category": "Descriptive metric tuple"
+    },
+    {
+      "count": 26,
+      "category": "Evidence/source digest"
+    },
+    {
+      "count": 8,
+      "category": "Git source identity"
+    }
+  ],
+  "originalScannerLogSha256": "30B1F2EC6D5E422EED6C6AC0B8056F40B03D8382A9FB25DEF60DD2A1587C17AA",
+  "rawRedactedReportRetainedPrivately": true,
+  "scannerRulesOrAllowlistChanged": false,
+  "scope": "Private immutable remote/local-ref and worktree-head snapshot",
+  "remoteWritesPerformed": false,
+  "historyRewritten": false,
+  "visibilityChanged": false,
+  "dirtyWorktreeContentsBackedUp": false,
+  "limits": [
+    "The scanner returned findings; its result is not rewritten to zero. Context review identified source identities, source/artifact digests and descriptive metric names",
+    "This does not certify absence of all secrets or complete identity/workstation privacy review",
+    "The source repository is not frozen; coordinated rewrite, full private backups, commit-map validation, consumer repins and worktree repair remain pending"
+  ]
+}

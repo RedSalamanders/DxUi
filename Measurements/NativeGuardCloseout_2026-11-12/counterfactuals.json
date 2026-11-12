@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-directed-native-regression-guards-2026-11-12",
+  "inputHash": "59c4729c248dc3439a021123b4c9079d67852b2a9b719930322256043452abd4",
+  "inputHashKind": "DirectedEvidenceDescriptorSha256",
+  "benchmarkInputs": {
+    "Tests/Controls/Controls.Tests.RichTextAccessibility.cpp": "5e4d2467d40680879ec3131d1bfbe181a945ef7825046ab36cd4fc7c3e2e6bc2",
+    "Tests/Support/Support.Tests.RichSemanticGeometry.h": "8d95d2d17397068d03a8c412996d8e246858f5a73716e30b4d9997f6b4aa9360"
+  },
+  "role": "DirectedCounterfactualOnly",
+  "declaredInterventions": 11,
+  "firstCohort": {
+    "role": "TemporaryCounterfactualOnly",
+    "artifacts": [
+      {
+        "sha256": "EB543AEF2166AEAD73C6BFA3407FF5EA064CDCEE5B1C83F8EA82DA8574111E02",
+        "name": "DxUi.ControlTests.exe",
+        "bytes": 43400704
+      },
+      {
+        "sha256": "293EF1B8819159A0197B069FA3F16B11B201AACCB4FB5F1A988E07D9FE637479",
+        "name": "DxUi.ControlTests.pdb",
+        "bytes": 126734336
+      },
+      {
+        "sha256": "CCBCBE4EB79E82DF179D85FC27CB98AC396D1B09A1A62DA08A5A8A4870079004",
+        "name": "DxUi.EmbeddedTests.exe",
+        "bytes": 26080768
+      },
+      {
+        "sha256": "718E9DA0408210823D2E623248890EC97B043D05C1D0FC30B8687121CDBDEAE9",
+        "name": "DxUi.EmbeddedTests.pdb",
+        "bytes": 74452992
+      }
+    ],
+    "source": "78271932786559f29e6eec7023f5c58f834ccf0a",
+    "sourceRestoredByteForByte": true,
+    "mutations": [
+      {
+        "test": "TestGridGrowingViewportRevealsTheFirstBodyRow",
+        "negativeSha256": "CA6CE9F7E7FB363D2AAA073B30EA88357FE0226EC8000478BB8857085B5C66D7",
+        "negativeExit": 1,
+        "suite": "Grid",
+        "expectedAssertion": "growing to fit all rows clamps the old grid scroll offset",
+        "mutation": "grid-grow",
+        "positiveExit": 0,
+        "positiveSha256": "452C8BA70704E4D1936DE55491DBDED1026DD5476880A4E50A21B5F2FD164A6A"
+      },
+      {
+        "test": "TestGridHeaderSettersRequestTheirOwnRepaint",
+        "negativeSha256": "FB2910E0942F52012B403C82690C66908B02593B5C7B0419DD3E9802EF90A45E",
+        "negativeExit": 1,
+        "suite": "Grid",
+        "expectedAssertion": "setting the attached grid busy header explicitly invalidates",
+        "mutation": "grid-busy",
+        "positiveExit": 0,
+        "positiveSha256": "C550C764ACCC72DD8F4D4CBCFD0198094F681E2974BD2D531A8D514EE3DBA7D8"
+      },
+      {
+        "test": "TestGridHeaderSettersRequestTheirOwnRepaint",
+        "negativeSha256": "EC05A110D9C3974A0744ABD702273FD63EFFD40466A73AE641A83628DC093921",
+        "negativeExit": 1,
+        "suite": "Grid",
+        "expectedAssertion": "setting the attached grid sort direction explicitly invalidates",
+        "mutation": "grid-sort",
+        "positiveExit": 0,
+        "positiveSha256": "231DD39242D22D02D8074F832B82956EB15517F25115CF3720CFFC79B921830F"
+      },
+      {
+        "test": "TestTreeGrowingViewportClampsScrollAndSelectionSettersInvalidate",
+        "negativeSha256": "0D0FA6A935F85282F98935614427A37A108C6A99E2D05F66BCF01A5DEC5733B1",
+        "negativeExit": 1,
+        "suite": "Tree",
+        "expectedAssertion": "growing the tree to fit its rows clamps its retained scroll offset immediately",
+        "mutation": "tree-grow",
+        "positiveExit": 0,
+        "positiveSha256": "0670613A26FC547479FB94D8DC302DD9462A348B40F4AA3D2909F2101E1F2E44"
+      },
+      {
+        "test": "TestTreeGrowingViewportClampsScrollAndSelectionSettersInvalidate",
+        "negativeSha256": "571F3095DCE82E155F915981D3B0ADE28CB9C33CAD6BDF976636733F287B1EB9",
+        "negativeExit": 1,
+        "suite": "Tree",
+        "expectedAssertion": "single-id tree selection explicitly invalidates its attached host",
+        "mutation": "tree-single",
+        "positiveExit": 0,
+        "positiveSha256": "9827D34639CBB1655D2B48CC881C0B677B5684813422A8D268C4E2C96FAE1E1A"
+      },
+      {
+        "test": "TestTreeGrowingViewportClampsScrollAndSelectionSettersInvalidate",
+        "negativeSha256": "76CC415298BB4A3E3B0222ADE96C893F58133FD5F94F8035C14B8F12B2AD7240",
+        "negativeExit": 1,
+        "suite": "Tree",
+        "expectedAssertion": "multi-id tree selection explicitly invalidates its attached host",
+        "mutation": "tree-multi",
+        "positiveExit": 0,
+        "positiveSha256": "C68508C8DD0A8CCC17CA1DDC782BB9C1C9F559FDC61CA33CB9CC2990146152E0"
+      },
+      {
+        "test": "TestNativeUnhandledKeysReachApplicationFallback",
+        "negativeSha256": "0D7431BA668E99D4CA0CB1EA5ED214413B5C19EEA3F131803402BE9CDE9D1494",
+        "negativeExit": 1,
+        "suite": "WindowHost",
+        "expectedAssertion": "a printable key on the read-only rich editor reaches the real native application fallback exactly once",
+        "mutation": "readonly-key",
+        "positiveExit": 0,
+        "positiveSha256": "22DC1F236E95E050AF058B8E1527A7C7BD37BF20FA30D3CAB464685A81BA4757"
+      },
+      {
+        "test": "TestRichTextAccessibilityWindowScrollingCommands",
+        "negativeSha256": "85C07D18AD09D0D2754C37F8CAC90A1CD46957E3B7B68DCFFAFC5F8544FD1042",
+        "negativeExit": 1,
+        "suite": "Accessibility",
+        "expectedAssertion": "ScrollIntoView publishes its current visible source range before caller refresh",
+        "mutation": "uia-scroll",
+        "positiveExit": 0,
+        "positiveSha256": "05CEE13EE21C13B1127D30620A1731B634B058D0061DD0E5C86115652A3ABCCE"
+      },
+      {
+        "positiveExit": 0,
+        "negativeExit": 1,
+        "initialRecorderRefusal": "Expected assertion label said literal fallback instead of the actual literal math HelpText label; original native assertion failed as intended.",
+        "negativeSha256": "D3E308F341EEC8D67A74D50424653EDDC4AC853FB4D5426F36F691EB5493E4F9",
+        "test": "TestRichTextAccessibilityWindowMathLiteralFallback",
+        "suite": "Accessibility",
+        "expectedAssertion": "literal math HelpText agrees with its independently expected diagnostic kind and exact source owner",
+        "mutation": "typed-refusal",
+        "positiveSha256": "7AF41B93141ED55E3B9F5AE339096AAB63647D265A277C4E37B3DDA5DB773DD8"
+      },
+      {
+        "negativeExit": 1,
+        "negativeSha256": "226202E119FA2EFE2BABCB25F9295B29B0BC1F90B0B4E6E3C1A83249C928096E",
+        "positiveSha256": "34453A0EB982B398E40EC6B6592553945B2CC079B0221895CDFD26D0E44B3624",
+        "expectedAssertion": "one pending sibling cannot cancel another control's capture or preview",
+        "test": "",
+        "suite": "Embedded",
+        "mutation": "pending-sibling",
+        "positiveExit": 0
+      }
+    ],
+    "unusedExploratoryHook": "grid-rtl, never counted as a declared intervention",
+    "fullCurrentRepositoryQualified": false,
+    "originalAssertionsPreserved": true
+  },
+  "rtl": {
+    "negativeSha256": "6DA1F3FDA560BFAC9165652C583F49C7DB0D59263301B5749826EED1D7A54991",
+    "positiveSha256": "6D11988B226B8F7B486CEB7E993832615B6A74677198B93809D79A73C5F206FB",
+    "binarySha256": "844E9FC4D1B95B1EA759BB722AF30C807EE13086BBC3B67330B785CC98FB9CE8",
+    "expectedAssertion": "mirroring an unequal table preserves its first-strong header's prepared text fragments",
+    "mutation": "RTL text budget incorrectly subtracts physical placement",
+    "role": "TemporaryCounterfactualOnly",
+    "source": "ff4397adccc15fc6f0525e235251d443e818a965",
+    "suite": "EditorControls",
+    "positiveExit": 0,
+    "negativeExit": 1,
+    "widthSwapActivated": true,
+    "widthSwapExit": 1,
+    "test": "TestRichSemanticGeometryMarkdownSubtlePresentation"
+  },
+  "normalMatrixQualified": false,
+  "productionQualified": false,
+  "nativeArm64RuntimeQualified": false,
+  "pairedPerformanceQualified": false
+}

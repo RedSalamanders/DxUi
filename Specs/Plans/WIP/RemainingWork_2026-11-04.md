@@ -249,8 +249,15 @@ omitting an ID from this summary does not dispose of it.
   The separate regression-guard cohort adds actual grow-after-scroll, pending-sibling capture, unequal RTL
   cell widths, setter invalidations, native read-only fallback, unassisted UIA scroll publication and normal
   borrowed-model retirement assertions. API 5 supersedes R28-44's recoverable allocation proposal. These new
-  guards pass all three ordinary x64 profiles at `21fae0dc`; the remaining directed counterfactuals must
-  complete before this row closes. Native positives alone do not prove fail-before behavior.
+  guards originally passed the ordinary x64 profiles at `21fae0dc`. The named earlier-control cohort is
+  qualified separately below; do not infer counterfactual coverage for other retained findings from native
+  positives alone.
+- [x] Qualify the eleven declared earlier-control interventions and their final ordinary positive matrix.
+  The [source-bound closeout](../../../Measurements/NativeGuardCloseout_2026-11-12/README.md) retains
+  disabled-mutant passes, original-assertion failures, byte-for-byte restoration and the actual published-UIA/
+  mirrored-text-budget guards. Clean `c20a24e6` passes all nineteen ordinary suites in each x64 profile,
+  actual ASan detection and six zero-warning builds. Other retained-P1, foreground, native ARM64,
+  physical-input, consumer, performance and history obligations keep their existing owners.
 - [x] Replace self-referential crossing, CF_HTML and font-truncation oracles. The
   [scoped closeout](../Done/IndependentFormatOracles_2026-11-08.md) binds independent signed-area/wire/producer
   checks, actual private HGLOBAL bytes, exact-sized MATH prefixes and the safe 628-check ASan boundary proof.
@@ -376,10 +383,15 @@ policy, erase its findings or close this section.
 - [x] Record the owner's 7 November deferral of native ARM64 runtime, including opt-in
   MenuResources/MenuResourceScaling, for this delivery. Require all three ARM64 compilation checks and keep
   every historical runtime failure/refusal. Do not claim those cross-builds establish runtime acceptance.
-- [ ] Complete candidate-specific x64 foreground coverage. Ordinary noninteractive suites do not close it.
+- [x] Complete the implementation-`21fae0dc` x64 foreground gate at hosted source `2a26dfbd`.
+  The [original hosted record](../../../Measurements/EarlierControlsAndNativeRefusalCauses_2026-11-08/hosted-x64.json)
+  verifies all three x64 profiles: 21 Full suites each, including actual Menu and NativeTextInput restoring
+  leases, plus two Release resource suites. All native payload bytes and original wrapper digests verify;
+  actual ASan and both external-consumer annotation modes pass. The strengthened scroll-publication oracle
+  has its own later source qualification; these results are not relabeled as that test candidate.
 - [ ] Qualify physical device removal/occlusion, real IME during reflow, assistive technology and touch on named
   hosts. Arrange focus-taking runs at the agreed time through the existing restoring desktop lease.
-- [ ] Keep original failed/refused foreground runs and causes unassigned until independently demonstrated.
+- [x] Keep original failed/refused foreground runs and causes unassigned until independently demonstrated.
 
 <a id="d-c1"></a>
 ### D-C1 — consumer adoption and supported pilots
@@ -394,9 +406,13 @@ policy, erase its findings or close this section.
   application's remaining product, physical-input, packaging or performance acceptance.
 - [ ] Qualify each chosen General/card/prompt/profile pilot and exact pin through the consumer's own harness;
   leave optional additions deferred if the pilot has no demonstrated value.
-- [ ] Complete explicit API-5 adoption through the
+- [x] Complete explicit API-5 adoption through the
   [single RedTilde plan](https://github.com/RedSalamanders/RedTilde/blob/main/Specs/Plans/WIP/RemainingWork_2026-11-04.md).
-  Candidate `9feb787e` pins `21fae0dc`; its fresh native/production qualification remains in progress.
+  Candidate `9feb787e` pins `21fae0dc`. Its
+  [scoped adoption closeout](https://github.com/RedSalamanders/RedTilde/blob/main/Specs/Plans/Done/Api5ConsumerAdoption_2026-11-08.md)
+  verifies six local builds, fifteen actual production refusals and all three hosted x64 profiles at
+  `c80a8659`: 155 cases/40 captures per profile, including actual symbolic-link save. RedTilde
+  [PR96](https://github.com/RedSalamanders/RedTilde/pull/96) and its separate fold are merged.
   The earlier API-4 main qualification at `1c600d60` in
   [run 41853861400](https://github.com/RedSalamanders/RedTilde/actions/runs/41853861400): both native 75-case
   Release roles and production ZIPs passed. That historical run does not qualify the current API-5 candidate;
@@ -412,8 +428,15 @@ policy, erase its findings or close this section.
 - [ ] Apply forward evidence aliases/schema changes, then execute approved D9 history redaction as a separate
   coordinated operation with private originals, all-ref inventory, reviewed mirror, commit map, validation,
   consumer repins and worktree repair. This consolidation does not rewrite history or change repository access.
+- [x] Complete a read-only [history snapshot audit](../../../Measurements/HistorySnapshotAudit_2026-11-08/README.md):
+  419 private refs/2,061 commits, remote/local refs and worktree heads, verified object closure and official
+  Gitleaks bytes. Its 77 literal candidates are source identities, evidence digests and metric tuples;
+  dispositions and original exit 1 remain retained. This is not the coordinated D9 rewrite or privacy clearance.
 - [ ] Finish remaining DOCS/TOOL/HOST findings and separate normative contracts from evidence history in the
   large controls/rich-text guides. Record a disposition for legacy unchecked Done items without rewriting raw evidence.
+- [x] Address DOCS-19's entry-guide problem with [common Markdown editing tasks](../../../docs/rich-text-usage.md),
+  linked from the docs index and detailed reference. Correct stale API-5 migration wording while retaining
+  the exact source-bound library qualification and remaining consumer/physical/performance limits.
 - [ ] Follow the unchanged Changes/fold workflow; obsolete dated fragment counts are not instructions to squash
   notes or bypass the separate default-branch fold. Preserve pending owner decisions on broader administration.
 
@@ -438,11 +461,20 @@ remains consumer-owned. D7's aligned/gathered/alignat display-style behavior is 
 
 | Still open | Required owner choice |
 | --- | --- |
-| D6 | Platform-specific color-glyph/script fallback. |
-| D8 | Public Debug declarations and supported API boundary. |
 | D11 | Broader legacy Done-checkbox disposition. This cleanup handles transferred WIP items, not all old Done records. |
 | D12 | Broader fragment administration; current fragment/fold policy remains authoritative. |
 | D13 | Consumer adoption of the implemented API-5 callback/fatal host protocol; PR162's library contract and qualification are completed, while each product owns its migration. |
+
+Implementation dispositions under the requested finish-and-merge scope (**8 November**):
+
+- **D6:** retain the implemented capability-based color-glyph/script fallback. The
+  [control contract](../../UI/UI_ControlsAndLayout.md) requires one capability check per new preparation,
+  native scripts on capable targets and exact-leaf fallback on legacy targets. No unconditional newer-OS
+  import or new Windows 10 runtime qualification is implied.
+- **D8:** retain existing diagnostic declarations and classify their support boundary in
+  [architecture](../../Core/Core_Architecture.md#diagnostic-declarations) and the
+  [upgrade guide](../../../docs/upgrade.md). Exact-pin harness use remains possible; removal or consolidation
+  is a separate migration. This resolves the documentation choice without changing production behavior or ABI.
 
 <a id="d-h1"></a>
 **HOLD D-H1:** S3-S7 overlay sessions, variable-height lists, read-only Markdown help, motion and theme metadata

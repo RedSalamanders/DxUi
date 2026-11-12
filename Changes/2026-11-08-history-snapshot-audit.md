@@ -1,0 +1,1 @@
+- Record a private all-ref/worktree-head history scan and evidence-bound metadata-candidate review without changing public history, visibility or scanner rules.

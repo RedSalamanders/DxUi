@@ -162,6 +162,15 @@ messages through `HandleMessage(hwnd, message, wParam, lParam, handled)`; return
 otherwise continue normal window dispatch. This mode owns native graphics, text/accessibility and presentation
 services. The application still owns the top-level window and event-blocked message loop.
 
+When the attached HWND is a child window, forward top-level ancestor movement
+(for example, from the owner's `WM_WINDOWPOSCHANGED` handler) with
+`host.NotifyTextInputLayoutChanged(host.GetFocusControl())`. Moving an ancestor
+changes text's screen coordinates without sending `WM_MOVE` to the child.
+The notification ignores a control that does not own the active text session;
+call it on the attachment's UI thread after the new position takes effect.
+This forwarding is application-owned: DxUi does not install ancestor hooks.
+Physical IME candidate-window placement still requires the named input checks.
+
 An application that knows native presentation is unavailable can call
 `SetNativePresentationVisible(false)` on the attachment owner thread, then restore `true`
 when needed. The default is true per attachment. The signal suppresses native drawing and
@@ -243,6 +252,12 @@ its explicit `UpdateAccessibility` timing after coherent preparation, placement 
 Without a requested provider or UIA listener, native mutations retain dirty state without walking focus paths or
 posting new publication work. The next owner-thread provider query sees the latest state, and a flush already
 queued before interest ceased still includes later mutations. No additional application refresh call is required.
+
+Rich-text `ScrollIntoView` also dirties the native publication. An owner-thread
+query of `GetVisibleRanges` then reads the scrolled source interval without an
+application refresh or content-preparation call. Bounding rectangles can use
+live geometry, so they alone cannot prove that a cached publication is current.
+Foreign-thread clients continue to use the normal bounded publication timing.
 
 An element whose control was
 removed, or replaced at the same place in the tree, reports `UIA_E_ELEMENTNOTAVAILABLE`, and the replacement's

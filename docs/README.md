@@ -9,7 +9,8 @@ The API uses namespace `DxUi`. It supports a supplied-device embedded view and a
 
 - [Getting started](getting-started.md): prerequisites, builds, exact-pin consumption and a minimal control tree.
 - [Upgrade a consumer](upgrade.md): the 2 November delivery pin, API 3/4 migration, client changes, rebuild, validation and rollback.
-- [Unicode rich text](rich-text.md): bounded source transactions, projections, Unicode 17 logical graphemes, retained editor and native/embedded source TSF/IME/UIA adapters.
+- [Markdown editing tasks](rich-text-usage.md): create an editor, transform a selection, switch views/documents, paste files and handle source-preserving refusals.
+- [Unicode rich-text reference](rich-text.md): bounded source transactions, projections, Unicode 17 logical graphemes, retained editor and native/embedded source TSF/IME/UIA adapters.
 - [Hosting and lifetime](hosting.md): graphics, input, DPI, animation, native windows and recovery.
 - [Control guide](controls.md): all 35 controls, configuration, events and model ownership.
 - [Intrinsic layout and forms](layout.md): opt-in sizing, bounded preparation, stable editors and accessibility.
@@ -18,7 +19,7 @@ The API uses namespace `DxUi`. It supports a supplied-device embedded view and a
   usage rules and a guideline and preview for every control. Rendered captures are in the [gallery](gallery/README.md).
 - [Standalone samples](samples.md): minimal playground and the shared complex-UI benchmark scene.
 - [Performance and testing](performance.md): complex-UI FPS, memory, comparisons and ARM64 evidence.
-- [Failure and allocation policy](../Specs/Core/Core_FailureHandling.md): checked refusals, unexpected exceptions and the host fatal/dump contract; implementation migration is still open.
+- [Failure and allocation policy](../Specs/Core/Core_FailureHandling.md): implemented API-5 checked refusals and host fatal/dump boundaries; explicit consumer adoption and wider qualification remain separate.
 
 The [public example](../Samples/EmbeddedControls/EmbeddedScene.h) and its
 [application host](../Samples/EmbeddedControls/Main.cpp) are compilable references.

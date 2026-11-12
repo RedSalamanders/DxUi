@@ -548,6 +548,24 @@ void ScrollingCommands(bool embedded)
     const auto selection = fixture.editor->GetSelection();
     const auto revision  = fixture.editor->Revision();
     RequireSucceeded(target->ScrollIntoView(TRUE), "align source range to top");
+    if (! embedded)
+    {
+        // Bounding rectangles may read live editor geometry. Visible ranges
+        // instead consume the published snapshot, so this query cannot hide a
+        // missing scroll publication behind a correct live rectangle.
+        SAFEARRAY* rawVisible       = nullptr;
+        const HRESULT visibleResult = text->GetVisibleRanges(&rawVisible);
+        unique_safearray visible(rawVisible);
+        RequireSucceeded(visibleResult, "query published visible ranges after native scrolling");
+        Require(visible && visible->rgsabound[0].cElements == 1, "native scroll publishes one visible source interval");
+        LONG first = 0;
+        wil::com_ptr_nothrow<IUnknown> unknown;
+        RequireSucceeded(SafeArrayGetElement(visible.get(), &first, unknown.put_void()), "read published native visible interval");
+        wil::com_ptr_nothrow<ITextRangeProvider> visibleRange;
+        RequireSucceeded(unknown.query_to(visibleRange.put()), "published native visible range interface");
+        const auto visibleText = ReadTextRangeText(*visibleRange.get(), -1, "read published native visible source");
+        Require(visibleText.find(L"line40") != std::wstring::npos, "ScrollIntoView publishes its current visible source range before caller refresh");
+    }
     Require(RectangleValues(*target.get()) >= 4, "ScrollIntoView publishes visible rectangles before any caller snapshot refresh");
     fixture.PrepareAfterScroll();
     const float topOffset = fixture.editor->DebugGetState().scrollOffsetDip;

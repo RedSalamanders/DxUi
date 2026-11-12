@@ -1,0 +1,1 @@
+- Strengthen native rich-text scrolling coverage by checking the published visible source range before caller refresh; live bounding rectangles alone cannot detect a stale accessibility snapshot. Retain the earlier passing mutation experiments separately from negative evidence.

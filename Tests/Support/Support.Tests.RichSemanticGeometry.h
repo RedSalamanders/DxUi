@@ -2082,6 +2082,34 @@ inline void MarkdownSubtlePresentation()
             const auto wideCell  = layout->ElementBounds(cellIndices[1u]);
             Check(shortCell && wideCell && (wideCell->right - wideCell->left) > (shortCell->right - shortCell->left) + 40.f && shortCell->left > wideCell->left,
                   "RTL Subtle table retains the independently unequal authored column widths rather than collapsing a text extent");
+            // Keep this Latin paragraph's resolved direction identical in both
+            // layouts: only the table columns mirror. Default host direction
+            // intentionally also changes paragraph bidi and is covered above.
+            LayoutOptions headerOptions;
+            headerOptions.widthDip               = width;
+            headerOptions.markdownPresentation   = MarkdownPresentationStyle::Subtle;
+            headerOptions.autoParagraphDirection = true;
+            PreparedSemanticGeometry referenceHeader, mirroredHeader;
+            headerOptions.readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+            referenceHeader.Begin(factory.get(), document, headerOptions);
+            Complete(referenceHeader);
+            headerOptions.readingDirection = DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
+            mirroredHeader.Begin(factory.get(), document, headerOptions);
+            Complete(mirroredHeader);
+            const auto headerText   = std::wstring_view(L"a much wider second column");
+            const auto headerInk    = mirroredHeader.SourceRange({rightSource, rightSource + headerText.size()});
+            const auto referenceInk = referenceHeader.SourceRange({rightSource, rightSource + headerText.size()});
+            Check(! headerInk.empty() && headerInk.size() == referenceInk.size(),
+                  "mirroring an unequal table preserves its first-strong header's prepared text fragments");
+            for (std::size_t index = 0u; index < headerInk.size(); ++index)
+            {
+                const auto& actual   = headerInk[index];
+                const auto& expected = referenceInk[index];
+                Check(std::abs((actual.right - actual.left) - (expected.right - expected.left)) < .1f &&
+                          std::abs((actual.bottom - actual.top) - (expected.bottom - expected.top)) < .1f &&
+                          std::abs((actual.top - headerInk.front().top) - (expected.top - referenceInk.front().top)) < .1f,
+                      "mirroring an unequal table preserves its first-strong header's prepared text geometry");
+            }
         }
     }
 

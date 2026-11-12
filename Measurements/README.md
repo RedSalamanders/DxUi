@@ -1,5 +1,13 @@
 # Independent DxUi measurements
 
+- [Directed native guard evidence, 12 November](NativeGuardCloseout_2026-11-12/README.md): eleven declared interventions with paired positives and original assertion failures, preserved exploratory survivors and corrected oracle refusals. Current normal profile qualification remains a separate record.
+
+- [Earlier control guards and native refusal causes](EarlierControlsAndNativeRefusalCauses_2026-11-08/README.md): API-5 typed capacity/unsupported diagnostics, six zero-warning builds, 66 ordinary x64 suites and source-bound native-input reconciliation. The packet states the current counterfactual and foreground limits.
+
+- [Private history snapshot audit](HistorySnapshotAudit_2026-11-08/README.md): exact ref/object and scanner provenance, raw candidate counts and reviewed noncredential dispositions. This read-only snapshot does not execute the coordinated history rewrite or establish privacy clearance.
+
+- [Independent format oracles](IndependentFormatOracles_2026-11-08/README.md): independent crossing, CF_HTML, exact-sized font tables and fixed-seed bounded adversarial checks, with original native/source evidence.
+
 - [Independent editor cosmetic preparation](EditorCosmeticPreparation_2026-11-06/README.md): D1 content/input independence, bounded viewport ink/guides, source-coordinate and clipping oracles, retained failures, six zero-warning builds and 57 noninteractive suite executions. Consumer, native-platform and performance-policy acceptance remain separate.
 
 - [Diagram spacing, text insets and task presentation](DiagramSpacing_2026-11-03/README.md): retained detour reproduction,

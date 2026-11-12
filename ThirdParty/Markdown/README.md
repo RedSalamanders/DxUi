@@ -8,7 +8,7 @@ URLs, repository paths, Git blob IDs and SHA-256 hashes for all 24 files;
 These are reference/corpus inputs, never a compiled or deployed Mermaid runtime.
 Original Markdown and grammar files use `.txt` suffixes so their upstream-relative
 links remain unmodified data rather than becoming repository documentation links.
-The owned C++ flowchart, state and class profiles each implement a limited local
+The owned C++ flowchart, state, class, sequence, pie, ER, Gantt and mind-map profiles each implement a limited local
 subset; reference availability does not establish full grammar, coordinate or
 rendering compatibility. Unsupported families and constructs remain exact
 editable source with explicit diagnostics.
@@ -17,14 +17,17 @@ editable source with explicit diagnostics.
 flowchart fences with reviewed reasons, exact issue codes and UTF-16 diagnostic offsets: 30 admitted graphs and 75 unsupported definitions, including
 the supported legacy stadium form. The local flowchart subset also expands
 bounded `&` endpoint groups as a stable Cartesian product, including chained
-groups; class and state grammar remain isolated. `dxui-family-matrix.json` accounts for the 22
-syntax documents: the limited flowchart, state and class profiles, the example
-collection, and 18 unsupported diagram families. It also records an independent
+groups; each diagram family's grammar remains isolated. `dxui-family-matrix.json` accounts for the 22
+syntax documents: eight limited profiles, the example collection, and 13
+unsupported diagram families. It also records an independent
 first-example outcome, diagnostic classification, graph counts, direction and
 reason for each of the 20 diagram-family documents. The original state example
-prepares five nodes and six transitions. The class profile is limited, but its
-first original example falls back because it starts with a `note` directive;
-the remaining 18 family examples fall back as unsupported families.
+prepares five nodes and six transitions. The first class example now prepares
+six nodes and four relationships, including its bounded notes and members.
+The first sequence, pie and ER examples prepare; the first Gantt and mind-map
+examples still decline unsupported statements within their limited profiles.
+The other 13 family examples decline with `UnsupportedFamily`. These outcomes
+describe the pinned examples rather than complete support for any family.
 `Tools/Generate-NativeFlowchartTestData.ps1` checks every original file hash,
 the MIT notice, inventory and expectation pins before generating native vectors.
 Original snippets use LF in test vectors; original file bytes remain unchanged.

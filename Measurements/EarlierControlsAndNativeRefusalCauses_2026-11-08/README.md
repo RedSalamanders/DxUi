@@ -14,19 +14,30 @@ All three ARM64 configurations are compilation-only under the owner's delivery
 scope. Original archives verify all 685 actual compiled inputs and every retained
 native/run member; executed images match their preserved original hashes.
 
+The [hosted x64 record](hosted-x64.json) separately verifies merged source
+`2a26dfbd5df4ea2af9cd7742677c17326f3bfa94`: 21 Full suites per x64 profile,
+including Menu and NativeTextInput through restoring hosted desktop leases.
+Release also passes two resource suites. Original wrapper digests and all native
+payload file bytes verify; ASan detection and both external-consumer annotation
+modes pass. The later published-visible-range test has its own source identity.
+The receipt's fixture hashes describe unfiltered Git blob bytes for the named
+foreground fixtures at that hosted commit. They do not stand in for a retained
+physical hosted checkout or its complete compiled-input identity; run, build and
+artifact identities remain those verified from the original wrappers.
+
 The [input reconciliation](input-reconciliation.json) verifies four named native
 TSF/file-paste cases in each x64 profile. They cover silent composition preview,
 one-step commit/history, exact-boundary capacity admission, atomic oversized
 refusal, owner disconnection, escaped/opaque file-path fallback and private
 clipboard transport. No desktop clipboard or physical IME was used.
 
-The separate private counterfactual cohort remains in progress. Its declared
-old-behavior mutations target viewport growth, pending-sibling capture, unequal
-RTL columns, attached setter invalidations, native read-only key forwarding,
-unassisted UIA scroll publication and typed refusal causes. Source restoration,
-original assertion evidence and the final positive suite union must verify before
-those earlier review obligations close. API 5 explicitly supersedes R28-44's
-recoverable allocation proposal; a Grid allocation-fault experiment is not claimed.
+The later [directed cohort](../NativeGuardCloseout_2026-11-12/README.md) now closes its eleven declared
+interventions and final ordinary positive matrix at `c20a24e6e8d89ec3afe9864d8aac43b59072925f`.
+Its source-bound disabled/enabled controls cover viewport growth, pending-sibling capture, unequal
+RTL text budgets, setter invalidations, native read-only key forwarding, unassisted UIA publication
+and typed refusal causes. Current native image/source/archive hashes and per-suite receipts are
+separate from the historical qualification above. API 5 supersedes R28-44's recoverable allocation
+proposal; a Grid allocation-fault experiment is not claimed. Other parent acceptance remains open.
 
 The first capacity-HelpText oracle failure at `ebacb208` and its subsequent
 300-second watchdog remain retained separately. The new oracle requires the
@@ -34,8 +45,9 @@ actual diagnostic kind, exact source owner and capacity-specific HelpText. All
 three current x64 Accessibility suites pass. The earlier teardown watchdog's
 cause remains unassigned.
 
-The canonical compiled-input identity differs from the D: working checkout only
-in `Tests/native-test-files.json` line endings. The recorded identities remain
+In the original source-21 qualification, the canonical compiled-input identity
+differed from that source's D: checkout only in `Tests/native-test-files.json`
+line endings. Those recorded identities remain
 distinct; original canonical bytes are preserved, not reconstructed by guessing
 checkout attributes. Complete-checkout static validation and formatting passed
 for the qualified source; subsequent documentation is checked separately.
