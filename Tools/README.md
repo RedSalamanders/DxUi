@@ -1,5 +1,35 @@
 # Tool inventory
 
+Explicit foreground batches in `test.ps1` enter the shared engine's session
+admission before the existing native DxUi lease. This coordinates with canonical
+Root tests without editing a consumer's managed dependency pin. The Root mutex
+precedes the native DxUi mutex; consent, warning, watchdog and verified restoration
+remain owned by that native harness. Ordinary noninteractive work takes no session
+admission. `Test-SharedDesktopAdmission.ps1` records both actual hosted/local call
+branches without taking focus or launching a native child.
+
+`New-LocalSdkSnapshot.ps1 -ProducerRoot <checkout> -Platform x64|ARM64` captures an
+existing matching Release library/PDB build into a separate local-unpinned immutable
+snapshot. It accepts the exact built dirty source, holds/rechecks the producer
+profile, headers, symbols, licenses, imports and provenance, then releases the lease
+before returning a create-only descriptor. Output stays under owned `.build`
+directories. It performs no build, native test or SDK qualification; hosted use
+refuses before discovery. Candidate consumer linking and isolated application
+outputs remain pending. `SdkLocalCandidate.psm1` owns orchestration;
+`SdkPayload.psm1` shares the unchanged byte staging with normal SDK packaging.
+`Test-SdkLocalCandidate.ps1` exercises real storage and lease order with explicitly
+synthetic native guards; `Test-SdkPayload.ps1` preserves the preceding integration
+artifact on both architecture substitutions. See the [capture contract](../Specs/Build/Build_ToolchainAndConsumption.md#local-unpinned-release-snapshot-capture).
+
+Local build/test identity includes the actual clean pinned engine. Paired diagnostics
+retain each historical engine pin and use a separately verified current harness
+reader through explicit `ToolingEngineRoot`; both identities remain frozen and
+recorded. Historical separate-source SDK builds also use that distinct two-engine
+key when their old pin predates the input reader. The original engine is unchanged
+and byte-verified; an explicit missing reader, dirty/wrong-pin engine or missing
+current reader still refuses. Cold preparation creates only an absent side checkout and never resets an
+existing engine. Default qualification and production/SDK roles retain their gates.
+
 Scoped tooling publishes its independently verified success before later native execution.
 An identical continuation can reuse it after a native failure; failed or changed tooling,
 instrumented work and incomplete native/foreground obligations retain their separate outcomes.
@@ -38,6 +68,14 @@ dependency pins. Other source roles, custom outputs and dirty source refuse. Cur
 process ownership, complete v2 identity and zero-warning guards remain required. A separate data descriptor
 binds the clean producer-tooling commit/content, library input digest, actual command identity and original log.
 `New-SdkPackage.ps1 -SourceRoot` requires that descriptor and rechecks tooling before/after packaging.
+An explicit local developer request may add `-LocalUnpinnedSource` for an actually
+dirty separate source checkout. It retains the same Release library-only role,
+source/API profile checks, leases, complete native input identity and diagnostics.
+Hosted requests and a missing or clean SourceRoot refuse before output discovery.
+This route removes stale pinned-source descriptors and writes no replacement;
+its dirty library receipt can feed only explicit local snapshot capture, while
+ordinary pinned SDK packaging continues to refuse it. It grants no native test,
+Full or production qualification.
 SdkSourceProfiles.psm1 owns named historical API-4 recipes and the source-owned API-5 failure-host recipe;
 unknown API-4 source has no implicit fallback. These library/SDK input records grant no native test or Full result.
 The 29 October source uses a bounded public frame-runtime smoke because it predates the richer SDK sample.
@@ -244,3 +282,12 @@ Keep that lease through compilation/linking and call `Close-DxUiSdkInputBytes` i
 inputs and every stored byte again. Missing versions return no bytes; malformed/corrupt/incompatible inputs
 fail reuse. Publication/opening grant no test verdict. Consumer profile admission, local-candidate refusal,
 authenticated hosted producer trust and product qualification remain separate requirements.
+
+### SDK ABI host selection
+
+`Get-DxUiNativeMSBuild` in `VisualStudio.psm1` owns the read-only native SDK
+host selection: amd64 on x64, arm64 on ARM64. Ordinary SDK packaging and local
+snapshot ABI capture share it. A missing native host refuses without falling
+back to the root MSBuild executable. Original library build provenance remains
+independently bound to its actual build inputs; capturing an ABI reference never
+rewrites that record or bypasses current source/library/tool checks.

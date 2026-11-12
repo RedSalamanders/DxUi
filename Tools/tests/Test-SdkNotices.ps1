@@ -75,7 +75,13 @@ foreach($profile in @(
 }
 # Bind the public package wrapper to both admission boundaries and its receipt.
 $wrapper=[IO.File]::ReadAllText((Join-Path $root 'Tools/New-SdkPackage.ps1'))
-Require ($wrapper.Contains('Copy-DxUiSdkNotices -Root $root') -and [regex]::Matches($wrapper,'Assert-DxUiSdkNotices -Root \$root').Count -eq 2 -and
+$payloadHelper=[IO.File]::ReadAllText((Join-Path $root 'Tools/SdkPayload.psm1'))
+Require ($wrapper.Contains("Import-Module (Join-Path `$toolingRoot 'Tools/SdkPayload.psm1')") -and
+         $wrapper.Contains('New-DxUiSdkPayload -Root $root -Stage $stage -Platform $Platform -SourceCommit $sourceCommit') -and
+         $wrapper.Contains('$licenseInventory=@($payload.Licenses)') -and
+         $payloadHelper.Contains('Copy-DxUiSdkNotices -Root $root') -and
+         [regex]::Matches($payloadHelper,'Assert-DxUiSdkNotices -Root \$root').Count -eq 1 -and
+         [regex]::Matches($wrapper,'Assert-DxUiSdkNotices -Root \$root').Count -eq 1 -and
          $wrapper.Contains('licenses=$licenseInventory') -and $wrapper.Contains("`$manifest['licenseClosurePassed']=`$true")) 'Real SDK staging/extraction and receipt use the license guard'
 $project=Get-Content -LiteralPath (Join-Path $root '.ci/project.json') -Raw|ConvertFrom-Json
 foreach($inputPath in @('LICENSE.txt','THIRD-PARTY-NOTICES.md','docs/licenses/**')){

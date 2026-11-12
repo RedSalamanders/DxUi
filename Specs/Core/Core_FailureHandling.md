@@ -207,6 +207,13 @@ proof of the original failure callstack. Microsoft recommends a separate dumper 
 dedicated thread, and supplying the previously captured thread state; DbgHelp access must be serialized.
 [MiniDumpWriteDump documentation](https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/nf-minidumpapiset-minidumpwritedump).
 
+The application-owned sample reporter loads and retains system PSAPI during `Host::Start`, before installing
+hooks or starting its reporting worker. DbgCore's module enumeration must not first load that dependency after
+self-dump thread suspension: the reporting worker can otherwise wait on suspended loader work, preventing even
+the failing thread's timeout from running. Startup reports dependency-load failure. This preparation addresses
+that observed loader wait; it does not make in-process dumps infallible or replace the bounded fatal fallback,
+the original-context dump checks, or an application's separately owned crash infrastructure.
+
 Static SDK distribution also retains the matching compiler PDB beside `DxUi.lib`, and binds both hashes in its
 manifest/receipt. A successful link on the producer machine can silently borrow its original PDB path; header
 dependency closure alone does not prove portable symbol closure. Qualification must link the extracted pair

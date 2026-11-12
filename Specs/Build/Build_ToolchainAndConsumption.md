@@ -1,5 +1,29 @@
 # Toolchain and consumer integration
 
+## Pinned engine inputs and paired diagnostic readers
+
+Local source/build/runtime identities bind the actual clean `.ci-engine` at the
+checkout's exact `.ci/project.json` pin through the shared source-input reader.
+Keep engine identity outside product file/iteration maps; generated engine `.build`
+output does not participate. Missing, dirty, foreign or wrong-pin inputs refuse reuse.
+
+Paired diagnostics may pass an explicit `ToolingEngineRoot` from their common current
+harness to `build.ps1` and `performance.ps1`. Historical sides retain their original
+manifest and actual engine pin. The current reader is a separate independent clean
+checkout at its own owner's exact pin; both raw engine identities enter build and
+measurement identity before and after execution. External-reader keys differ from
+the default qualification key. Production-only and external-source SDK builds reject
+this diagnostic reader option before discovery or mutation.
+
+Pair preparation restores only an absent side engine from the local clean harness
+checkout, then checks out the side's original exact pin with Git long paths enabled.
+Existing engines are verified and preserved; no dirty or wrong-pin checkout is reset.
+Pre-CI historical sides acquire no engine. Freeze both engine identities across side
+preparation, build, SkipBuild/preflight and every measurement. Record them per side;
+changed inputs refuse the study. Never copy current reader code into an older engine
+or advance a historical pin to make the comparison work. This supplies diagnostic
+input provenance, not native/SDK/Full acceptance.
+
 ## Selected native target builds
 
 `build.ps1 -Projects DxUi.FoundationTests,DxUi.EmbeddedTests` selects one owned project union instead of
@@ -52,6 +76,21 @@ come from the invoking producer checkout. The feature supports only that Release
 outputs, dirty source, selected unions or Full/test proof. The existing profile lease, owned-process/output
 checks, complete before/after v2 identities and zero-warning/error acceptance still apply.
 
+When that historical source's exact engine predates the input-reader module, the invoking tooling's
+reader authenticates the original source engine without replacing it. The source and tooling engines
+both enter the existing distinct two-engine identity. Current ordinary inputs keep their original key;
+missing explicit readers, missing current readers, wrong pins and changed raw engine bytes still refuse.
+
+An explicit local developer build may instead add `-LocalUnpinnedSource` for an
+actually dirty separate `SourceRoot`. It retains Release/ProductionOnly, default
+producer outputs, reviewed source/API recipes, native input barriers, profile
+leases and zero-warning diagnostics. Hosted execution, a missing SourceRoot and
+clean source with this flag refuse before output discovery. The local route
+records its exact dirty library inputs, revokes any earlier pinned-source build
+descriptor and writes no pinned-source replacement. The dirty receipt can feed
+`Tools/New-LocalSdkSnapshot.ps1`; ordinary pinned SDK packaging still rejects
+dirty source. No native test, Full, application or production result is implied.
+
 The producer tooling must itself be clean and committed. A separate input descriptor binds its repository,
 commit and complete content identity, exact library record digest, actual command identity and original build
 log hash. Any source-build failure revokes both records. SDK packaging with separate source requires this
@@ -68,6 +107,54 @@ API-5 source retains both FailureHost files and their independent header-closure
 profiles refuse. Dependency source pins never advance as part of this packaging route.
 
 ## Native metadata acquisition
+
+### Local unpinned Release snapshot capture
+
+`Tools/New-LocalSdkSnapshot.ps1 -ProducerRoot <DxUi checkout> -Platform x64|ARM64`
+captures an existing current Release library/PDB build; it does not compile or
+qualify an SDK. ProducerRoot may be dirty only when its exact state has matching
+canonical library provenance. The tooling's engine must be clean and exactly
+pinned. Local dirty tooling uses the explicitly distinct
+`LocalUnpinnedProducerTooling` record from `Get-DxUiSdkToolingProvenance
+-LocalCandidate`; normal SDK and pinned source-build paths retain their clean,
+exact three-field descriptor and refuse this local record.
+
+The command holds the canonical producer Release profile lease through fresh
+source/API, complete native tool/profile/dependency/environment and library/PDB
+checks. It captures headers, restored dependency headers, library, matching
+compiler PDB, native policy/imports, the complete reviewed license set, original
+library provenance and the canonical actual portable ABI/toolchain reference.
+The evaluated Release compiler version must match the ABI reference. Complete
+input/library barriers run before staging, after capture and before descriptor
+publication. Source or library mutation fails with staging retained.
+
+`SdkPayload.psm1` owns common byte staging for this capture and `New-SdkPackage.ps1`.
+Its fresh destination must be under the producer's owned `.build`; occupied,
+foreign and reparse paths refuse. It verifies the independently supplied library
+and PDB hashes. Its integration props preserve the preceding SDK artifact byte
+for byte, covered by a frozen fixture on both platform substitutions. All ordinary
+SDK extraction, smoke, profile, symbol isolation and publication gates remain.
+`SdkLibraryInputs.psm1` exports its existing `Assert-DxUiSdkOwnedPath` guard for
+these callers rather than introducing another ownership algorithm.
+
+Capture publishes the complete immutable payload through the exact pinned shared
+engine's separate `LocalUnpinnedSdkSnapshot` storage role. The descriptor and
+diagnostic staging are create-only, under `.build/local-sdk-capture`; the default
+owned store is `.build/local-sdk-snapshots`. An explicit StoreRoot also stays
+under the tooling checkout's `.build`. Initialization refuses nonempty unowned
+storage. The descriptor binds store/key/original manifest hash, producer identity,
+local tooling identity and an independently readable bootstrap record containing
+tooling root, raw source bytes and actual pinned-engine bytes. A consumer must
+verify that bootstrap before importing producer tooling. The producer lease is
+released before returning any result to a consumer, including a downstream
+pipeline; no consumer write lease is held while awaiting producer capture.
+
+Hosted qualification/publication refuses this command before discovery. It emits
+no test, native SDK, package or qualification verdict and changes no dependency
+pin or ordinary consumer output. Application candidate linking, full current-input
+reacquisition, isolated local-unpinned outputs/receipts and PrePush/package refusal
+remain pending. Pinned readers do not accept this descriptor. Debug, ASan and
+annotation variants retain their source paths.
 
 ### Immutable SDK byte publication and use
 
@@ -496,3 +583,13 @@ Provider runner-file hashes and exact source Git-blob hashes have explicitly dif
 The [native policy, console and dependency-path contract](Build_ConsoleAndPaths.md) owns /Wall without /WX, zero-warning acceptance, Debug/ASan symbols, Release-only ICF, common terminal results and verified short dependency folders.
 
 The relocatable Release SDK distribution and extracted-consumer proof are governed by Specs/Build/Build_UnifiedCI.md. Its exact compiler/LTCG/CRT identity and packaged build policy do not change the independently pinned source-consumer interface above.
+
+### Local snapshot ABI host consistency
+
+Local snapshot capture selects the same native SDK MSBuild host as ordinary
+packaging through `Get-DxUiNativeMSBuild`. Capturing an ABI reference with the
+root 32-bit MSBuild executable produces a different file reference from a native
+consumer even when compiler versions agree. Native x64/ARM64 selection and
+missing-host refusal are explicit. The original library record still retains
+its actual complete build inputs and must pass its original reader unchanged;
+the ABI reference does not reconstruct or replace producer build provenance.

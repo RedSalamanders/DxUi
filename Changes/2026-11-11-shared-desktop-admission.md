@@ -1,0 +1,1 @@
+- Add shared session admission before explicit foreground batches so canonical Root and DxUi tests coordinate while the existing native lease retains consent, warnings, watchdogs and exact restoration checks. Ordinary noninteractive work remains outside that session lease; routing controls execute no foreground input.

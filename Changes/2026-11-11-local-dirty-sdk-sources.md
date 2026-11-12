@@ -1,0 +1,1 @@
+- Added an explicit local-only Release library build role for dirty separate DxUi sources, preserving pinned SDK refusal, source/API compatibility checks and native input ownership.

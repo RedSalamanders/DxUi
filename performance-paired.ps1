@@ -1,6 +1,9 @@
 <#
 .SYNOPSIS Measure a baseline against a candidate on one machine with an identical benchmark harness.
 .DESCRIPTION
+CI-aware sides retain their own engine pin. Only an absent generated checkout is restored; an existing
+dirty/wrong-pin engine refuses. The common current reader and each actual side engine are independently
+verified before/after build and measurement and recorded per side. No source pin is advanced.
 The baseline (A) is a revision, measured in a detached worktree under .build/paired/<run>, or an existing tree named with
 BaselinePath. The candidate (B) is this checkout, another revision, or an existing tree named with CandidatePath. This
 checkout's measurement driver, comparator and benchmark inputs (the harness list) are copied onto both trees, so one
@@ -53,13 +56,14 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Tools/PerformanceComparison.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/PairedRun.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Tools/PairedEngineInputs.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
 
 $harnessRoot = $PSScriptRoot
 # The measurement driver with its comparator, and every input performance.ps1 hashes into benchmarkSha256. Both trees
 # use this checkout's copies, so a comparison between them rejects any fixture difference, and a revision older than
 # the PowerShell comparator still has one.
-$harness = @(Get-PairedHarness) + @('build.ps1','Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1',
+$harness = @(Get-PairedHarness) + @('build.ps1','Tools/ScopedTesting.psm1','Tools/PairedEngineInputs.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1',
     'Tests/Embedded/DxUi.EmbeddedTests.vcxproj')
 
 function Get-PairedBuildChanges([object[]] $Records) {
@@ -227,8 +231,12 @@ function Get-ReportMedians([string] $Path) {
 function Invoke-Measurement([System.Collections.IDictionary] $Side, [string] $Name, [string] $ScenarioName) {
     $path = Join-Path $reports "$ScenarioName-$Name.json"
     Assert-HarnessOverlay -Target $Side.Root -Records $Side.Overlay
+    Assert-PairedEngineInputs -Target $Side.Root -Context $Side['EngineInputs']
     # Console output must not join the function's result.
-    & (Join-Path $Side.Root 'performance.ps1') -Configuration $Configuration -Platform $Platform -Scenario $ScenarioName -OutputPath $path -SkipBuild | Out-Host
+    $engineArguments=@{}
+    if($null -ne $Side['EngineInputs']){$engineArguments.ToolingEngineRoot=$Side['EngineInputs']['ReaderRoot']}
+    & (Join-Path $Side.Root 'performance.ps1') -Configuration $Configuration -Platform $Platform -Scenario $ScenarioName -OutputPath $path -SkipBuild @engineArguments | Out-Host
+    Assert-PairedEngineInputs -Target $Side.Root -Context $Side['EngineInputs']
     Assert-HarnessOverlay -Target $Side.Root -Records $Side.Overlay
     return $path
 }
@@ -261,6 +269,7 @@ function Get-SideSummary([System.Collections.IDictionary] $Side) {
         kind = $Side.Kind
         revision = $(if ($Side.Kind -eq 'revision') { $Side.Spec } elseif ($Side.Kind -eq 'checkout') { 'HEAD' } else { $null })
         path = $Side.Root; commit = $Side.Commit; sourceFingerprint = $Side.Fingerprint
+        engineInputs = $Side['EngineInputs']
         # The harness files written into the tree; a named tree has them removed again when the run ends.
         harnessOverlay = @($Side.Overlay | Where-Object { $_['action'] -ne 'unchanged' } | ForEach-Object { '{0} {1}' -f $_['action'], $_['path'] })
     }
@@ -283,12 +292,14 @@ try {
         # A named tree is put back afterwards, so the originals are saved; a worktree made for this run is disposable.
         $side['Backup'] = if ($side.Existing) { Join-Path $runRoot "overlay-backup/$($side.Role)" } else { '' }
         $side['Overlay'] = @(Copy-HarnessOverlay -Source $harnessRoot -Target $side.Root -Paths $harness -BackupDirectory $side.Backup)
+        $side['EngineInputs'] = Initialize-PairedEngineInputs -Source $harnessRoot -Target $side.Root
         $side['Fingerprint'] = Get-SourceFingerprint -Root $side.Root
     }
     if ($CalibrationAA) {
         $candidate['Backup'] = $baseline['Backup']
         $candidate['Overlay'] = $baseline['Overlay']
         $candidate['Fingerprint'] = $baseline['Fingerprint']
+        $candidate['EngineInputs'] = $baseline['EngineInputs']
     }
     try { if (-not $CalibrationAA) { Assert-PairedSidesDiffer $baseline $candidate } }
     catch {
@@ -306,25 +317,31 @@ try {
     }
     foreach ($side in $physicalSides) {
         Assert-HarnessOverlay -Target $side.Root -Records $side.Overlay
+        Assert-PairedEngineInputs -Target $side.Root -Context $side['EngineInputs']
+        $engineArguments=@{}
+        if($null -ne $side['EngineInputs']){$engineArguments.ToolingEngineRoot=$side['EngineInputs']['ReaderRoot']}
         if ($SkipBuild -and $side.Existing) {
             # Only an existing tree has a build to reuse, and only one made from the harness the receipts will name.
             $executable = Join-Path $side.Root ".build/$Platform/$Configuration/DxUi.EmbeddedTests.exe"
             if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw "-SkipBuild needs an existing $Platform $Configuration build of the $($side.Role); there is none at $executable" }
             $changed = @(Get-PairedBuildChanges $side.Overlay)
             if ($changed.Count) { throw "-SkipBuild cannot reuse the $($side.Role)'s build: the harness overlay changed $($changed -join ', '), which that build does not contain. Omit -SkipBuild to build it." }
-            Assert-PerformanceBuildAttestation -Root $side.Root -Platform $Platform -Configuration $Configuration
+            Assert-PerformanceBuildAttestation -Root $side.Root -Platform $Platform -Configuration $Configuration @engineArguments
             continue
         }
         # The wrapper attests old baseline entrypoints too. The benchmark project
         # is shared; baseline library and library-project inputs stay their own.
-        $buildBefore = Start-PerformanceBuildAttestation -Root $side.Root -Platform $Platform -Configuration $Configuration
-        & (Join-Path $side.Root 'build.ps1') -Configuration $Configuration -Platform $Platform
+        $buildBefore = Start-PerformanceBuildAttestation -Root $side.Root -Platform $Platform -Configuration $Configuration @engineArguments
+        & (Join-Path $side.Root 'build.ps1') -Configuration $Configuration -Platform $Platform @engineArguments
         if ($LASTEXITCODE -ne 0) { throw "The $($side.Role) build failed with exit code $LASTEXITCODE." }
-        Complete-PerformanceBuildAttestation -Root $side.Root -Platform $Platform -Configuration $Configuration -Before $buildBefore
+        Complete-PerformanceBuildAttestation -Root $side.Root -Platform $Platform -Configuration $Configuration -Before $buildBefore @engineArguments
+        Assert-PairedEngineInputs -Target $side.Root -Context $side['EngineInputs']
     }
 
-    $baselineState = Get-PerformanceMeasurementState -Root $baseline.Root -Platform $Platform -Configuration $Configuration
-    $candidateState = Get-PerformanceMeasurementState -Root $candidate.Root -Platform $Platform -Configuration $Configuration
+    $baselineEngineArguments=@{};if($null -ne $baseline['EngineInputs']){$baselineEngineArguments.ToolingEngineRoot=$baseline['EngineInputs']['ReaderRoot']}
+    $candidateEngineArguments=@{};if($null -ne $candidate['EngineInputs']){$candidateEngineArguments.ToolingEngineRoot=$candidate['EngineInputs']['ReaderRoot']}
+    $baselineState = Get-PerformanceMeasurementState -Root $baseline.Root -Platform $Platform -Configuration $Configuration @baselineEngineArguments
+    $candidateState = Get-PerformanceMeasurementState -Root $candidate.Root -Platform $Platform -Configuration $Configuration @candidateEngineArguments
     $preflight = [ordered]@{ status='not-validated'; baseline=$baselineState; candidate=$candidateState }
     $preflightPath = Join-Path $reports 'build-preflight.json'
     $preflight | ConvertTo-Json -Depth 24 | Set-Content -LiteralPath $preflightPath -Encoding utf8

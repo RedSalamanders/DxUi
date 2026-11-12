@@ -211,21 +211,25 @@ try {
         $bound = if ($TestTimeout -eq 0) { 0 } elseif ($null -ne $TestTimeout) { [Math]::Max(900, 3 * $TestTimeout) } else { 900 }
         $leaseStart = if ($hostedForegroundLease) { 'under verified hosted-runner authorization' } elseif ($InteractiveAutoStart) { 'after an approved automatic Start countdown (30 seconds; Cancel stops it)' } else { 'after local confirmation' }
         Write-Host "Foreground run: $label takes the desktop for about $([Math]::Ceiling($estimate / 60.0)) minute(s) $leaseStart."
-        if ($hostedForegroundLease) {
-            # A desktop that cannot be prepared fails only the foreground suites: the others still run and leave receipts.
-            $preparationProblem = $null
-            if ($Platform -eq 'ARM64') {
-                try { & (Join-Path $PSScriptRoot 'Tools/Prepare-HostedArmDesktop.ps1') }
-                catch { $preparationProblem = "hosted desktop preparation failed: $($_.Exception.Message)" }
-            }
-            if ($preparationProblem) {
-                Write-Host "FAIL $preparationProblem"
-                $lease = [pscustomobject]@{ ExitCode = -1; Result = $null; RequestedAutoStart = $false; RequestedConfirmationSeconds = $null; PolicyProblems = @($preparationProblem) }
+        Import-Module (Join-Path $PSScriptRoot '.ci-engine/Tools/Modules/Ci.DesktopLease.psm1') -ErrorAction Stop
+        $lease = Invoke-CiInteractiveDesktopOperation -RequiresInteractiveDesktop $true -Operation {
+            if ($hostedForegroundLease) {
+                # A desktop that cannot be prepared fails only the foreground suites: the others still run and leave receipts.
+                $preparationProblem = $null
+                if ($Platform -eq 'ARM64') {
+                    try { & (Join-Path $PSScriptRoot 'Tools/Prepare-HostedArmDesktop.ps1') }
+                    catch { $preparationProblem = "hosted desktop preparation failed: $($_.Exception.Message)" }
+                }
+                if ($preparationProblem) {
+                    Write-Host "FAIL $preparationProblem"
+                    $lease = [pscustomobject]@{ ExitCode = -1; Result = $null; RequestedAutoStart = $false; RequestedConfirmationSeconds = $null; PolicyProblems = @($preparationProblem) }
+                } else {
+                    $lease = Invoke-DxUiHostedForegroundLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound
+                }
             } else {
-                $lease = Invoke-DxUiHostedForegroundLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound
+                $lease = Invoke-DxUiInteractiveLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound -AutoStart:$InteractiveAutoStart
             }
-        } else {
-            $lease = Invoke-DxUiInteractiveLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound -AutoStart:$InteractiveAutoStart
+            return $lease
         }
         $leaseProblems = @(Get-DxUiLeaseProblems -Result $lease.Result -ExitCode $lease.ExitCode) + @($lease.PolicyProblems)
         $leaseResult = if ($null -ne $lease.Result) { $lease.Result } else {

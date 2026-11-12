@@ -1,5 +1,12 @@
 # Validation and evidence
 
+Local build, native and tooling identities also bind the actual ignored `.ci-engine`
+through the shared `Get-CiPinnedEngineInputsIdentity`. The generated checkout must be
+ordinary, independent, clean and at `.ci/project.json`'s exact pin before evidence
+reuse. Fresh raw engine bytes participate; generated engine `.build` output does not.
+This input is separate from product iteration maps, grants no qualification or CI
+delegation, and preserves the current local and main gates.
+
 Status: normative intended contract
 
 Direct OLE adapter fixtures run in a dedicated COM worker with an owned neutral thread keyboard state.
@@ -8,6 +15,23 @@ physical input, another thread, activation or product modifier rules. Explicit m
 still exercise the actual adapter (including Alt rejecting a same-editor move). No foreground lease is
 needed for these direct, windowless calls.
 Last reviewed: 2026-10-25
+
+## Paired engine input integrity
+
+The paired harness uses the build contract's explicit current reader with each
+historical side's own exact actual engine. Both independent clean checkouts and
+fresh raw bytes are inputs; equal-size/backdated edits hidden by Git index flags
+must change identity or refuse. Frozen study context is reverified before/after
+builds and each measurement, including existing-build and preflight paths. Reader
+and actual engine identities are retained per side. Generated engine output is
+excluded; product iteration maps remain unchanged. No diagnostic reader receipt
+can satisfy the default qualification reader's different key.
+
+Cold fixtures cover original pin preservation, exact existing reuse, refusal without
+reset of wrong-pin inputs, raw hidden-reader mutation, default/diagnostic separation
+and pre-CI sources without an engine. Measurement relevance includes the engine
+manifest and generated engine implementation closure. Preserve native paired-study,
+SDK, architecture, sanitizer and product gates separately.
 
 ## Independent format oracles
 
@@ -330,6 +354,12 @@ identify which host or desktop action delayed or changed a cursor position.
 Keyboard root-switch fixtures require modal-dispatch readiness before posted state probes, using the remainder
 of the same five-second discovery budget. They run under the existing bounded foreground-attempt helper with
 a fresh owner per admitted attempt; a held behavioral failure and exhausted admission remain failures.
+Modal state-probe fixtures establish an owned physical pointer at their menu anchor
+before opening each fresh popup, including a retry after simulated foreground loss.
+Reuse the scoped pointer fixture and its verified ownership-aware restoration so
+an activation gesture outside the popup cannot dismiss it before the readiness
+hook is exercised. Readiness, probe deadlines and foreground-loss assertions remain
+unchanged.
 A stationary-pointer assertion must establish and read back the owned physical cursor at the matching owner
 client point. Posting the same virtual coordinate alone does not establish stationarity. Fresh same-point mouse
 messages remain covered after keyboard navigation: retain the original 120 ms popup-alive check immediately
@@ -698,6 +728,15 @@ and module teardown to finish through the normal runner return. The runner MUST
 return 1 and omit its success footer if any such observation failed; a caller MUST
 stop dependent work after a false result. This does not soften immediate `Require`
 checks for an invalid fixture. Original abrupt-exit/timeout evidence remains failed.
+Cross-thread accessibility probes wait for readiness with the canonical sent-message
+wait under the original absolute 500 ms limit. Synchronous setup callbacks may run;
+queued provider operations and input remain queued for the ordinary dispatch phase.
+The RangeFromPoint probe preserves its 50 ms pending observation and two-second
+dispatch limit, retires the actual worker under the existing UIA teardown allowance,
+and reports those captured observations through normal fixture unwind. Its withheld
+readiness control must miss that same deadline, retire the real provider worker and
+still verify the original returned range. A passing repeat never supersedes the
+original readiness failure or its subsequent watchdog timeout.
 The sent modal-cancellation fixture first places its owner onscreen and verifies that the owner holds the
 foreground and thread focus. This makes the explicitly sent deactivation or cancellation message the action
 under test; a hidden, inactive owner is not a valid setup for that assertion.
@@ -1434,6 +1473,16 @@ and consumer adoption stay open in [the qualification plan](../Plans/Done/Consum
 Ordinary qualification and main/release acceptance requirements remain unchanged.
 
 `Test-Changes.ps1` prints `INTERACTIVE_NOT_RUN` for the menu, native text-input and menu-resource suites affected by changed sources. Full/PrePush accounting lists those separate suites as well. Run them only through `test.ps1 -Interactive` after the person at the desktop agrees to the time; a noninteractive result or capability allowance does not close that gate.
+
+Each explicit foreground batch enters the shared engine's
+`Invoke-CiInteractiveDesktopOperation` with `RequiresInteractiveDesktop=true`
+before its existing local or hosted native lease. Root's existing session mutex
+precedes the native DxUi mutex, coordinating canonical cross-project callers.
+The native harness still owns consent, warning, watchdog and exact foreground,
+keyboard-focus and cursor restoration. Missing or gone targets remain failures.
+Ordinary noninteractive batches acquire no session admission. Actual call-branch
+controls record both native routes without input; the shared engine separately
+tests real uniquely named mutexes and exception/recovery behavior.
 
 RedSalamander defers only entries whose complete portable entry contracts equal the PR plan, retaining writers, in-product cases and extra scenarios locally. Its `-NonInteractive` option omits focus-taking entries and records incomplete coverage; it cannot alter an exact Resume. DxUi foreground suites remain explicit `test.ps1 -Interactive` work after agreement to the time. Noninteractive iteration and CI do not claim those manual gates. No screenshot or desktop automation is introduced.
 

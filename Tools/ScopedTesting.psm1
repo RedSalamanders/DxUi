@@ -161,8 +161,33 @@ function Get-ScopedDigest {
 }
 
 function Get-ScopedSourceIdentity {
-    param([string] $Root, [switch] $CompiledOnly)
-    return Get-ScopedMapIdentity (Get-ScopedSourceMap -Root $Root -CompiledOnly:$CompiledOnly)
+    param([string] $Root, [switch] $CompiledOnly, [string] $ToolingEngineRoot = '')
+    $source = Get-ScopedMapIdentity (Get-ScopedSourceMap -Root $Root -CompiledOnly:$CompiledOnly)
+    if ($ToolingEngineRoot -and -not (Test-Path -LiteralPath (Join-Path $Root '.ci/project.json') -PathType Leaf)) {
+        throw 'An explicit tooling engine reader requires the side own .ci/project.json.'
+    }
+    # Generated engine code is outside Git's product inventory, but executes the governed tools.
+    # Keep it separate from iteration maps so it cannot masquerade as a changed product file.
+    if (Test-Path -LiteralPath (Join-Path $Root '.ci/project.json') -PathType Leaf) {
+        $actualEngine = Join-Path $Root '.ci-engine'
+        $readerEngine = if ($ToolingEngineRoot) { [IO.Path]::GetFullPath($ToolingEngineRoot).TrimEnd('\','/') } else { $actualEngine }
+        if (-not $ToolingEngineRoot -and -not (Test-Path -LiteralPath (Join-Path $readerEngine 'Tools/Modules/Ci.SourceInputs.psm1') -PathType Leaf)) {
+            # Historical SDK sources retain their exact engine, which predates this reader.
+            # Use the tooling owner's reader and bind BOTH engines through the distinct key below.
+            $readerEngine = Join-Path (Split-Path $PSScriptRoot -Parent) '.ci-engine'
+        }
+        Import-Module (Join-Path (Split-Path $readerEngine -Parent) '.ci-engine/Tools/Modules/Ci.SourceInputs.psm1') -ErrorAction Stop
+        $engineInputs = Get-CiPinnedEngineInputsIdentity -Root $Root -EngineRoot $actualEngine
+        $pathComparison=if($IsWindows){[StringComparison]::OrdinalIgnoreCase}else{[StringComparison]::Ordinal}
+        if (-not [IO.Path]::GetFullPath($readerEngine).TrimEnd('\','/').Equals([IO.Path]::GetFullPath($actualEngine).TrimEnd('\','/'), $pathComparison)) {
+            # Paired diagnostics keep historical source pins while using one frozen current reader.
+            # Bind BOTH real independent checkouts; default qualification cannot reuse this key.
+            $readerInputs = Get-CiPinnedEngineInputsIdentity -Root (Split-Path $readerEngine -Parent) -EngineRoot $readerEngine
+            return Get-ScopedDigest ("$source`0$engineInputs`0$readerInputs")
+        }
+        return Get-ScopedDigest ("$source`0$engineInputs")
+    }
+    return $source
 }
 
 function Get-ScopedSourceMap {
@@ -356,8 +381,9 @@ function Get-ScopedDependencyIdentity {
 }
 
 function Get-ScopedBuildInputIdentity {
-    param([string] $Root, [ValidateSet('x64','ARM64')][string] $Platform)
-    return Get-ScopedDigest (@((Get-ScopedSourceIdentity -Root $Root -CompiledOnly),
+    param([string] $Root, [ValidateSet('x64','ARM64')][string] $Platform, [string] $ToolingEngineRoot = '')
+    $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
+    return Get-ScopedDigest (@((Get-ScopedSourceIdentity -Root $Root -CompiledOnly @readerArguments),
         (Get-ScopedDependencyIdentity -Root $Root -Platform $Platform)) -join "`n")
 }
 

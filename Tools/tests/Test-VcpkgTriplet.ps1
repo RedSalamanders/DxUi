@@ -228,4 +228,16 @@ Invoke-TestCase 'the installer and its modules stay ASCII and parse in Windows P
     }
 }
 
+Invoke-FixtureCase 'SDK MSBuild uses the native host and never falls back to the root executable' {
+    param($fixture)
+    $visual=Get-Module VisualStudio
+    Assert-Equal 'amd64' (& $visual {Get-DxUiNativeMSBuildHost -Architecture X64}) 'x64 chooses native amd64 MSBuild'
+    Assert-Equal 'arm64' (& $visual {Get-DxUiNativeMSBuildHost -Architecture Arm64}) 'ARM64 chooses native arm64 MSBuild'
+    Assert-Throws {& $visual {Get-DxUiNativeMSBuildHost -Architecture X86}} 'unsupported native host refuses'
+    Set-FixtureFile $fixture 'MSBuild/Current/Bin/MSBuild.exe' 'legacy root host must not be used'
+    Assert-Throws {Get-DxUiNativeMSBuild -Installation $fixture} 'missing native host never chooses the root executable'
+    foreach($folder in @('amd64','arm64')){Set-FixtureFile $fixture ("MSBuild/Current/Bin/$folder/MSBuild.exe") 'synthetic host, never executed'}
+    $folder=if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64'){'arm64'}else{'amd64'}
+    Assert-Equal ([IO.Path]::GetFullPath((Join-Path $fixture "MSBuild/Current/Bin/$folder/MSBuild.exe"))) (Get-DxUiNativeMSBuild -Installation $fixture) 'the actual helper returns the existing native host'
+}
 Complete-TestRun 'VcpkgTriplet'
