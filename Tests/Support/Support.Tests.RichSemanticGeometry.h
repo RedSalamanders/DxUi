@@ -2082,6 +2082,12 @@ inline void MarkdownSubtlePresentation()
             const auto wideCell  = layout->ElementBounds(cellIndices[1u]);
             Check(shortCell && wideCell && (wideCell->right - wideCell->left) > (shortCell->right - shortCell->left) + 40.f && shortCell->left > wideCell->left,
                   "RTL Subtle table retains the independently unequal authored column widths rather than collapsing a text extent");
+            const auto headerText = std::wstring_view(L"a much wider second column");
+            const auto headerInk  = layout->SourceRange({rightSource, rightSource + headerText.size()});
+            Check(! headerInk.empty() && std::ranges::all_of(headerInk, [&](const auto& rectangle) {
+                      return std::abs(rectangle.top - headerInk.front().top) < .1f && std::abs(rectangle.bottom - headerInk.front().bottom) < .1f;
+                  }),
+                  "RTL Subtle wide header stays on one prepared line inside its authored column");
         }
     }
 

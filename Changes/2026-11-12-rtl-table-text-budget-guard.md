@@ -1,0 +1,1 @@
+- Check actual prepared header text lines in unequal RTL tables as well as outer cell rectangles, so wrapping caused by an incorrect text budget cannot hide behind correct cell bounds.
