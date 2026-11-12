@@ -1,5 +1,6 @@
 # Which trees a paired run measures, when it refuses a pair, how the harness reaches a named tree and the run order.
-# Everything here runs against fixture trees and dictionaries; no build or benchmark is needed.
+# Fixtures need no build or benchmark. The historical engine acquisition control
+# fetches its exact public pin from GitHub when the shallow reader lacks it.
 [CmdletBinding()] param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -39,10 +40,14 @@ Invoke-FixtureCase 'historical sides keep their pin while the independently veri
         Set-FixtureFile $directory 'source.cpp' 'synthetic compiled input'
     }
     $reader=Join-Path $source '.ci-engine'
-    $null=Invoke-CiGit $source @('-c','core.longpaths=true','clone','--quiet','--no-hardlinks',(Join-Path $repository '.ci-engine'),$reader)
+    $readerUrl=([uri][IO.Path]::GetFullPath((Join-Path $repository '.ci-engine'))).AbsoluteUri
+    $null=Invoke-CiGit $source @('-c','core.longpaths=true','clone','--quiet','--no-hardlinks','--depth=1',$readerUrl,$reader)
     $null=Invoke-CiGit $reader @('config','core.longpaths','true')
     $project=Get-Content (Join-Path $target '.ci/project.json') -Raw|ConvertFrom-Json
     $historical='5233b5271f268cbe7aa420c18250347c297da63a'
+    Assert-Equal 'true' (Invoke-CiGit $reader @('rev-parse','--is-shallow-repository')).stdout.Trim() 'the control reproduces hosted shallow history'
+    $missing=Invoke-CiGit $reader @('cat-file','-e',($historical+'^{commit}')) -AllowFailure
+    Assert-True ($missing.exitCode -ne 0) 'the historical commit is genuinely absent before acquisition'
     $project.engine.ref=$historical
     Set-FixtureFile $target '.ci/project.json' ($project|ConvertTo-Json -Depth 10)
     $context=Initialize-PairedEngineInputs -Source $source -Target $target

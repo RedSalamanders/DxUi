@@ -18,6 +18,13 @@ Last reviewed: 2026-10-25
 
 ## Paired engine input integrity
 
+Cold historical engine preparation must work from a shallow common-reader
+checkout. If its clone lacks the side's exact declared commit, fetch only that
+commit from the declared canonical engine repository, then verify and detach at
+the original pin. Never advance the side, change the common reader or repair an
+existing wrong-pin/dirty/foreign engine. The shallow-history acquisition control
+requires access to that exact public GitHub commit; no compiler or benchmark runs.
+
 The paired harness uses the build contract's explicit current reader with each
 historical side's own exact actual engine. Both independent clean checkouts and
 fresh raw bytes are inputs; equal-size/backdated edits hidden by Git index flags
