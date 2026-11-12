@@ -1,0 +1,1 @@
+- Keep DirectWrite's internally handled overhang-formatting exceptions inside the existing native-call boundary, preserving HRESULT refusal and observation of subsequent SDK work; the maximum-document geometry regression remains required.

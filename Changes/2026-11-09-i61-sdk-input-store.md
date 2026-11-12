@@ -1,0 +1,1 @@
+- Publish native-checked SDK inputs into the shared immutable byte store and retain reader leases with complete before/after input and payload verification, without reusing product test results.

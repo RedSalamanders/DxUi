@@ -1,0 +1,1 @@
+- Add an explicit main-only SDK-input producer for the three unchanged application source pins, with independent native x64/ARM64 selection, canonical byte checks and every existing extracted-SDK gate; application consumption and native acceptance remain separate.

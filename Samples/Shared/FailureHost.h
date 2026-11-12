@@ -46,6 +46,7 @@ private:
 
     std::array<wchar_t, 1024> prefix_{};
     DxUi::Failure::ProcessHooks hooks_;
+    wil::unique_hmodule dumpPsApi_;
     wil::unique_handle request_, stop_, done_, thread_;
     DxUi::Failure::Record record_{};
     std::atomic<LONG> reporting_{};

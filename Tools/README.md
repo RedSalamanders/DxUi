@@ -1,5 +1,48 @@
 # Tool inventory
 
+Explicit foreground batches in `test.ps1` enter the shared engine's session
+admission before the existing native DxUi lease. This coordinates with canonical
+Root tests without editing a consumer's managed dependency pin. The Root mutex
+precedes the native DxUi mutex; consent, warning, watchdog and verified restoration
+remain owned by that native harness. Ordinary noninteractive work takes no session
+admission. `Test-SharedDesktopAdmission.ps1` records both actual hosted/local call
+branches without taking focus or launching a native child.
+
+`New-LocalSdkSnapshot.ps1 -ProducerRoot <checkout> -Platform x64|ARM64` captures an
+existing matching Release library/PDB build into a separate local-unpinned immutable
+snapshot. It accepts the exact built dirty source, holds/rechecks the producer
+profile, headers, symbols, licenses, imports and provenance, then releases the lease
+before returning a create-only descriptor. Output stays under owned `.build`
+directories. It performs no build, native test or SDK qualification; hosted use
+refuses before discovery. Candidate consumer linking and isolated application
+outputs remain pending. `SdkLocalCandidate.psm1` owns orchestration;
+`SdkPayload.psm1` shares the unchanged byte staging with normal SDK packaging.
+`Test-SdkLocalCandidate.ps1` exercises real storage and lease order with explicitly
+synthetic native guards; `Test-SdkPayload.ps1` preserves the preceding integration
+artifact on both architecture substitutions. See the [capture contract](../Specs/Build/Build_ToolchainAndConsumption.md#local-unpinned-release-snapshot-capture).
+
+Local build/test identity includes the actual clean pinned engine. Paired diagnostics
+retain each historical engine pin and use a separately verified current harness
+reader through explicit `ToolingEngineRoot`; both identities remain frozen and
+recorded. Historical separate-source SDK builds also use that distinct two-engine
+key when their old pin predates the input reader. The original engine is unchanged
+and byte-verified; an explicit missing reader, dirty/wrong-pin engine or missing
+current reader still refuses. Cold preparation creates only an absent side checkout and never resets an
+existing engine. Default qualification and production/SDK roles retain their gates.
+An absent historical engine may fetch its exact declared pin from the canonical
+repository when a hosted shallow reader lacks the commit; the common reader stays
+unchanged. The paired acquisition regression explicitly starts without that Git
+object and requires GitHub access, without invoking a compiler or benchmark.
+
+Scoped tooling publishes its independently verified success before later native execution.
+An identical continuation can reuse it after a native failure; failed or changed tooling,
+instrumented work and incomplete native/foreground obligations retain their separate outcomes.
+
+`VcpkgRestore.psm1` owns shared checkout/bootstrap and platform install leases for `vcpkg-install.ps1`.
+Current tooling admits simultaneous readers; mutations wait until all installs release it. Platform installs
+serialize only with the same output-root/platform. `Test-VcpkgRestore.ps1` covers sharing, refusal, failure
+release and isolation; actual concurrent cold restores additionally verify the public entrypoint.
+
 Repository tooling is PowerShell. Consumer-facing entry points keep the version promises listed in
 [`capabilities.json`](../capabilities.json); internal validation and scoped-iteration tools require PowerShell 7.
 Root entry points (`build.ps1`, `test.ps1`, `Test-Changes.ps1`, `Test-PrePush.ps1`, `format.ps1`, `gallery.ps1`,
@@ -8,7 +51,48 @@ are the stable developer interface. `validate.ps1` runs the five
 validators and the tooling tests in turn and reports every failure before it fails; CI's validation job runs it, and
 `test.ps1` runs the tooling tests beside its native suites. CI gives `build.ps1` and the subsequent
 `test.ps1 -Full -SkipTooling -SkipBuild` separate finite windows; SkipBuild verifies both the canonical v2 and complete native test-source/artifact attestations
-before native probes or self-checks. Fixed top-level timing records diagnose orchestration and do not qualify native performance.
+before native probes or self-checks. Hosted Release regression selects two independent ordinary suite workers;
+foreground, preflight and performance remain serial and public/Debug/ASan defaults stay unchanged. Fixed top-level
+timing records diagnose orchestration and do not qualify native performance.
+`build.ps1 -Projects DxUi.FoundationTests,DxUi.EmbeddedTests` builds a validated target union; affected and explicit
+suite routes include their benchmark, sanitizer and desktop helper dependencies. Selected build receipts cover
+only that union and cannot grant Full. Missing outputs and failed builds revoke/refuse proof. Omit Projects for
+the full solution; custom output roots remain diagnostic/consumer builds. See the [build contract](../Specs/Build/Build_ToolchainAndConsumption.md#selected-native-target-builds).
+
+Complete native property acquisition uses one evaluation-only MSBuild response-file query rather than repeated
+200-property process launches. Every discovered property remains required; items, imports, profiles and byte
+closure are unchanged. Owned query files stay beneath `.build/msbuild-queries`, refuse reparse/foreign paths
+and are removed after success or failure. Test-MetadataQueries.ps1 compares against independent original
+batches beyond Windows command-line limits, preserves Unicode/data values and checks failure/target refusal.
+
+Default Release builds additionally record the exact library/PDB input provenance through SdkLibraryInputs.psm1.
+For reviewed pinned SDK inputs, `build.ps1 -Configuration Release -ProductionOnly -SourceRoot <clean-source>`
+uses this checkout's governed tooling with the separate source checkout's solution/default output and unchanged
+dependency pins. Other source roles, custom outputs and dirty source refuse. Current profile/output leases,
+process ownership, complete v2 identity and zero-warning guards remain required. A separate data descriptor
+binds the clean producer-tooling commit/content, library input digest, actual command identity and original log.
+`New-SdkPackage.ps1 -SourceRoot` requires that descriptor and rechecks tooling before/after packaging.
+An explicit local developer request may add `-LocalUnpinnedSource` for an actually
+dirty separate source checkout. It retains the same Release library-only role,
+source/API profile checks, leases, complete native input identity and diagnostics.
+Hosted requests and a missing or clean SourceRoot refuse before output discovery.
+This route removes stale pinned-source descriptors and writes no replacement;
+its dirty library receipt can feed only explicit local snapshot capture, while
+ordinary pinned SDK packaging continues to refuse it. It grants no native test,
+Full or production qualification.
+SdkSourceProfiles.psm1 owns named historical API-4 recipes and the source-owned API-5 failure-host recipe;
+unknown API-4 source has no implicit fallback. These library/SDK input records grant no native test or Full result.
+The 29 October source uses a bounded public frame-runtime smoke because it predates the richer SDK sample.
+The exact 29 October and 2 November pins retain their original compiled-dependency license sets.
+The record binds the complete v2 source/dependency/evaluated-toolchain state and exact image/symbol bytes;
+it grants no native test or Full result. SDK packaging requires matching clean-source provenance before staging
+and after qualification. Failed attempts revoke the library record; custom-output and non-Release builds do not
+create it. Test-SdkLibraryInputs.ps1 uses real Git/files with synthetic native metadata to test these boundaries.
+Successful hosted regression exports a current-run/attempt library-only handoff; production verifies its complete
+native state and bytes after dependency restore and omits the library build only on an exact match. Missing or
+incompatible input invokes the normal source build. Imports revoke broader receipts. SDK package smoke, license,
+symbol isolation and evaluated SDK profile checks remain required. Test controls exercise both production routes
+without claiming native compilation; actual native acceptance is recorded separately.
 The build-console checker also rejects structured nonzero child-tool exception
 dumps, even when MSBuild exits zero and writes a successful final footer. Its
 fixtures distinguish actual dump records from ordinary text mentioning a code.
@@ -34,7 +118,12 @@ status. Callers still use fresh-process completion or immediate invocation succe
 `test.ps1 -Full -ParallelSuites 4` opts into at most four concurrent non-foreground suite processes; the default
 is one. Build, performance and native preflights precede the batch. Foreground suites keep their serial lease.
 Each child has its own raw stdout/stderr and combined suite log, and normal suite receipts and artifact ownership
-still apply. Passing `-ParallelSuites` directly selects the lower-level suite runner; use `-Full` to make full scope explicit.
+still apply. Passing `-ParallelSuites` preserves ordinary affected routing; use `-Full` to make full scope explicit.
+Local affected execution retains its successful profile baseline for up to 24 hours, selecting subsequent source/index deltas while preserving cumulative foreground obligations. Full/PrePush/Force/explicit selectors bypass it. Native baseline reuse checks canonical compiler/SDK, installed dependencies and artifact bytes; failed reruns revoke it. A reentrant checkout/profile lease refuses competing test operations without blocking disjoint work.
+Local affected execution may reuse successful native filter/watchdog verification for 24 hours when the complete
+source (including native harness code), installed dependencies, artifacts, host binary and environment match.
+Failure, instrumentation, mutation or expiry refuses reuse. Full and hosted execution always verify freshly.
+Desktop availability, foreground leases, product suites and performance are outside this preflight cache.
 Benchmark native-input discovery retains the exact `ScopedTesting.psm1` instance imported beside its own
 `PerformancePolicy.psm1`. A paired process may load another checkout's module with the same name; that
 module cannot redirect discovery or turn a module-name lookup into an ambiguous command. The regression
@@ -177,3 +266,32 @@ Dependency metadata validation checks the independently pinned ports baseline an
 PrePush requires changelog and fragment inputs to match the candidate commit; uncommitted note changes fail before the changelog gate rather than being attributed to the pushed commit.
 
 The relocated consumer receipt derives negative checks from its completed phase ledger and native-module totals from the driver's single validated observed-probe record; a missing or inconsistent record fails qualification.
+
+`SdkCacheInputs.psm1` acquires strict dependency-input keys through the complete canonical native profile,
+source/dependency bytes and installed toolchain closure. It requires clean source and producer tooling,
+checks the supported Release profile and detects source/tooling mutation. It creates no cache, compiles
+nothing and grants no test or SDK acceptance. `Get-DxUiSdkCacheInputIdentity -Root <pinned-source> -Platform x64`
+requires restored dependencies and the selected toolchain; an unverifiable input refuses reuse.
+
+`New-SdkPackage.ps1 -SdkStoreRoot <store> [-SdkStoreRepositoryRoot <owner>]` can publish its fully checked
+SDK payload into an immutable input store beneath the owner's `.build`. Native SDK gates run before
+publication and complete input identity is checked again. The outer SDK receipt retains the independent
+store manifest SHA-256 and input key. An unowned nonempty store, drive root or reparse path refuses.
+The complete SDK payload is byte-snapshotted before archive creation; publication requires that same
+independently held snapshot, so edits to staged headers or policy after native smoke cannot become a hit.
+
+`SdkInputStore.psm1` uses the exact clean engine pinned by this producer. `Open-DxUiSdkInputBytes` requires
+independently trusted manifest SHA-256 and recomputes actual pinned inputs before returning a reader lease.
+Keep that lease through compilation/linking and call `Close-DxUiSdkInputBytes` in finally; close checks both
+inputs and every stored byte again. Missing versions return no bytes; malformed/corrupt/incompatible inputs
+fail reuse. Publication/opening grant no test verdict. Consumer profile admission, local-candidate refusal,
+authenticated hosted producer trust and product qualification remain separate requirements.
+
+### SDK ABI host selection
+
+`Get-DxUiNativeMSBuild` in `VisualStudio.psm1` owns the read-only native SDK
+host selection: amd64 on x64, arm64 on ARM64. Ordinary SDK packaging and local
+snapshot ABI capture share it. A missing native host refuses without falling
+back to the root MSBuild executable. Original library build provenance remains
+independently bound to its actual build inputs; capturing an ABI reference never
+rewrites that record or bypasses current source/library/tool checks.

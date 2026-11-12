@@ -5,11 +5,36 @@ This specification owns the project's CI routing. The versioned implementation a
 in .ci/project.json and every reusable workflow caller. Update those pins together through a reviewed PR.
 Older references to automatic native PR matrices or nightly native runs are superseded by this contract.
 
+The manual `sdk-inputs.yml` caller produces dependency inputs for one of the three explicitly reviewed
+application source pins; it does not advance them. Select All, x64 or ARM64 on main. The pinned shared
+controller verifies canonical full checkout bytes and normally integrated producer tooling before native
+setup, then builds Release/MD inputs and runs all extracted-SDK/header/license/symbol/warning gates on
+the selected native architecture. Successful attempt-bound artifacts contain immutable dependency bytes
+and their independently retained descriptors. They grant no application, main, merge or publication verdict.
+Missing or incompatible SDK inputs retain governed source builds. Application adoption and authenticated
+cross-repository consumption remain separately tracked by the organization acceleration plan.
+
+The explicit `sdk_contract` choice retains `LegacyV1` as its default and offers
+`QualifiedAbiV2` producer references. V2 selects the native compiler host before
+restore/build, retains every existing SDK qualification gate and emits a separate
+portable tool/header/library reference bound to the unchanged source/API, original
+input key/manifest, public-header Git tree and native SDK receipt. The successful
+source/platform/attempt archive includes that reference. It does not change the
+SDK payload or qualify an application. Consumer trust in a new attempt still
+requires its reviewed caller/engine, archive authentication and actual ABI checks;
+the reference cannot authenticate itself. Missing or incompatible qualified inputs
+cannot remove the existing source-build and native consumer obligations.
+
 PRs run changed-source clang-format feedback and the reviewed compiler-free static subset. Formatting drift
 fails and retains a patch. The explicit Commit PR formatting action accepts an open same-repository PR,
 checks its current head, commits only selected formatted source paths by ordinary fast-forward push and
 explicitly dispatches fresh compiler-free checks for that exact head. Forks retain a patch for their author.
 PR checks never count as native acceptance. Compiler-dependent tooling runs in main qualification.
+
+The compiler-free static adapter also runs the scoped planner's Git/recording-process controls with native
+builds disabled. Local-iteration child fixtures isolate CI markers, and a separate hosted control verifies
+that CI executes fresh work and never adopts or publishes a local iteration baseline. These controls report
+before native build setup and do not satisfy native/runtime qualification or the complete tooling obligation.
 
 After main has remained unchanged for five continuous minutes, its cheap coordinator submits one native
 admission. Cumulative native identity uses the complete committed Git input tree, file modes, dependencies,
@@ -32,6 +57,13 @@ pipeline freezes one commit, input digest, engine and version. Both native x64 a
 2. Actual normal regression execution through the canonical test harness and an always-on Release failure probe.
 3. A global AND gate verifies both architectures before either production Release job may begin.
 4. Separate production-only Release outputs, clean-extraction native smoke and ZIP artifact retention.
+
+The canonical Release regression invocation selects `-ParallelSuites 2` for the complete normal set.
+Only independent non-foreground suite children overlap. Native build, tooling, performance, filter/watchdog
+preflight, relocated consumer qualification, gallery and foreground suites keep their existing execution
+and desktop ownership contracts. Every suite retains its actual log/count/receipt; failures and skips retain
+their gates. Debug and ASan diagnostic qualification keep the serial default. This changes scheduling,
+not declared coverage. New native x64/ARM64 results are required before acceptance of this hosted rollout.
 
 These are separate test and production roles. They intentionally compile production code twice; neither a PR
 matrix nor a second push matrix repeats the same role. Test receipts and production artifacts never share
@@ -111,3 +143,53 @@ This preserves diagnostics after failure without moving test data or bypassing n
 The PR delegation identity binds exact bytes and the membership of `.github/`, `.ci/`, `Build/`, `Tools/`, `Tests/`, root PowerShell entrypoints, `Directory.Build.*`, and the manifest (excluding its own digest). Coverage remains empty for compiler-free PRs; a stale or unreviewed digest cannot delegate execution. CODEOWNERS covers those tracked policy surfaces, subject to the repository's independently configured review rules.
 
 The extracted SDK smoke directly includes the public FileDrop and RichImage headers, validates the source-owned Unicode drag data object without a window, and admits a bounded SVG. These paths exercise the packaged archive's file-drop and SVG link closure; the source-pin consumer independently compiles FileDrop as a standalone public header. Smoke qualification requires a fresh actual package/link/run and is not established by syntax checking.
+## Dependency cache reuse
+
+Default Release library build provenance is separate from native test results. Its SDK input record binds the
+complete canonical v2 source/dependency/evaluated-profile/toolchain identity, exact source commit and root,
+dirty-state classification, and the library/compiler-PDB bytes. Record only after zero-warning compilation and
+matching before/after native inputs; revoke before another attempt and on failure. Library-only provenance must
+never create Full, test-execution or publication evidence. Custom outputs and other configurations retain their
+own existing contracts. SDK packaging requires matching clean committed source and checks provenance again after
+extracted-consumer qualification. A library/PDB pair with stale provenance cannot be labelled as current source.
+
+After successful regression, the adapter exports only the Release library/PDB and input record for the current
+workflow run and attempt. The shared workflow transfers that immutable input set to production using an
+attempt-specific artifact name. Production recomputes the complete native state after dependency restore;
+only an exact clean-source/profile/toolchain/byte match omits the library rebuild. Missing/incompatible inputs
+use the governed ProductionOnly source build; unsafe paths or malformed transfers refuse with retained evidence.
+Import revokes unrelated Full, selected-target, iteration and performance receipts. It never imports test executables,
+objects or test verdicts. Both architecture regression branches and extracted-SDK smoke remain required.
+Packaging separately admits only evaluated /MD, latest C++, LTCG, compiler-PDB Release inputs with STL annotations
+enabled, without ASan, forced-definition overrides or opaque CL/_CL_/additional options. Source and extracted
+consumer qualification, all license checks, header closure and PDB-isolation negative controls remain mandatory.
+This handoff does not yet implement cross-repository SDK distribution, consumer source pins or local candidates.
+
+The pinned shared engine restores vcpkg's ABI-indexed package cache for normal and manual native qualification. Exact engine/input keys are preferred; fallback lookup stays within the same runner OS, host architecture and target platform, and the pinned vcpkg restore still selects each package by its computed ABI. A miss rebuilds the package. This supplies dependency inputs only: product objects, DxUi SDK outputs and build/test receipts are not restored by this cache. Dependency pins, native execution, failure detectors and production/publication gates remain required. The owning behavior is the shared engine's Specs/CI.md.
+
+The pinned shared conformance rejects extension-wide Markdown exclusions. Pin maintenance migrates only the original global default to owned prose locations and known guides. Runtime/test include exceptions retain precedence; historical artifacts keep their original source identity.
+
+CI callers and the manifest pin the reviewed qualified-distribution controller together.
+Previously qualified producer artifacts retain their original caller/controller identity;
+updating this checkout never rewrites their provenance or grants a verdict to consumers.
+Main still executes both native regressions before production SDK smoke qualification.
+
+## Optional isolated native shadow execution
+
+The generated manual `integration-execution.yml` caller runs one frozen candidate
+under a unique branch pointing at trusted current main. Trusted operator admission
+checks exact candidate/controller/caller identity before requesting read-only native
+x64/ARM64 test execution. It retains original attempt-bound inputs, receipts, profile
+bytes and diagnostics. Shadow execution supplies no required merge check, local
+coverage delegation, production/package authorization or main-result adoption.
+Those gates remain with the current contracts until their separate implementation
+and hosted enforcement are qualified. Use the exact pinned shared engine's
+`Specs/Integration_Candidates.md` and `Tools/Start-CandidateShadow.ps1`; no caller
+may run candidate code in a main cache/writer context or cancel another execution.
+
+Hosted project-script children receive a fresh private MSVC compiler metadata
+endpoint from the pinned shared engine before process creation. Build/restore
+descendants inherit that child namespace; the controller environment is preserved.
+Compiler options, source/artifact attestations, native probes and production gates
+retain their existing contracts. Local direct build and benchmark-harness routing
+has its own ownership and qualification boundary.

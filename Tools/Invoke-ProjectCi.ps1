@@ -48,6 +48,7 @@ if ($Phase -eq 'Static') {
     $baseCommit = Resolve-CiCommit $root $Base
     Run 'Tools/Test-Changelog.ps1' @('-Base',$baseCommit)
     foreach ($script in @('validate-skills.ps1','validate-specs.ps1','validate-dependencies.ps1','validate-test-port.ps1','validate-build-matrix.ps1')) { Run $script }
+    Run 'Tools/tests/Test-ScopedTesting.ps1'
     return
 }
 if ($Phase -ne 'Qualification') { $Configuration = 'Release' }
@@ -60,8 +61,13 @@ if ($env:GITHUB_OUTPUT) { Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value ('e
 if ($Phase -in @('ReleaseTestBuild','Qualification','Production')) {
     Run 'vcpkg-install.ps1' @('-Platform',$Platform)
     $buildArguments = $profile
-    if ($Phase -eq 'Production') { $buildArguments += '-ProductionOnly' }
-    Run 'build.ps1' $buildArguments
+    if ($Phase -eq 'Production') {
+        $buildArguments += '-ProductionOnly'
+        Import-Module (Join-Path $root 'Tools/SdkLibraryInputs.psm1') -Force
+        Invoke-DxUiSdkProductionLibrary -Root $root -Platform $Platform -Directory $env:CI_SDK_LIBRARY_INPUTS `
+            -RunId $env:GITHUB_RUN_ID -RunAttempt ([int]$env:GITHUB_RUN_ATTEMPT) `
+            -BuildFromSource { Run 'build.ps1' $buildArguments }|Out-Null
+    } else { Run 'build.ps1' $buildArguments }
     if ($Phase -eq 'ReleaseTestBuild') { return }
 }
 if ($Phase -eq 'Production') {
@@ -75,7 +81,9 @@ if ($Phase -eq 'Production') {
     return
 }
 if ($Platform -eq 'x64') { Run 'Tools/tests/Invoke-ToolingTests.ps1' }
-Run 'test.ps1' ($profile + @('-Full','-SkipTooling','-SkipBuild'))
+$normalTestArguments=$profile+@('-Full','-SkipTooling','-SkipBuild')
+if($Configuration -ceq 'Release'){$normalTestArguments+=@('-ParallelSuites','2')}
+Run 'test.ps1' $normalTestArguments
 Run 'test-consumer.ps1' $profile
 if ($Configuration -eq 'ASan Debug') { Run 'test-consumer.ps1' ($profile + @('-DisableStlAnnotations')) }
 if ($Platform -eq 'x64' -and $Configuration -eq 'Release') {
@@ -93,4 +101,7 @@ $countUnit=if($evidence.Contains('countUnit')){$evidence.countUnit}else{'suite'}
 $registered=if($evidence.Contains('registered')){[int]$evidence.registered}else{[int]$evidence.discovered}
 $expectedSkipped=if($evidence.Contains('expectedSkipped')){[int]$evidence.expectedSkipped}else{0}
 Write-CiRegressionReceipt -Context $context -Discovered $evidence.discovered -Executed $evidence.executed -AssertionProbePassed $probe -Artifacts $binaries -EvidenceDirectory $receiptDirectory -CanonicalEvidence $evidence.evidence -CountUnit $countUnit -Registered $registered -ExpectedSkipped $expectedSkipped
+Import-Module (Join-Path $root 'Tools/SdkLibraryInputs.psm1') -Force
+$sdkInputs=Export-DxUiSdkLibraryInputs -Root $root -Platform $Platform -RunId $env:GITHUB_RUN_ID -RunAttempt ([int]$env:GITHUB_RUN_ATTEMPT)
+if($env:GITHUB_OUTPUT){Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value ('sdk_inputs_directory='+$sdkInputs)}
 if ($env:GITHUB_OUTPUT) { Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value ('evidence_directory=' + $evidenceDirectory) }

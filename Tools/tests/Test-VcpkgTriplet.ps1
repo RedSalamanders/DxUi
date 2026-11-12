@@ -213,7 +213,7 @@ Invoke-TestCase 'build.ps1 and vcpkg-install.ps1 share one Visual Studio discove
 }
 
 Invoke-TestCase 'the installer and its modules stay ASCII and parse in Windows PowerShell 5.1, which RedSalamander runs the pinned installer with' {
-    $paths = @('vcpkg-install.ps1', 'Tools/VisualStudio.psm1', 'Tools/VcpkgTriplet.psm1') | ForEach-Object { Join-Path $repository $_ }
+    $paths = @('vcpkg-install.ps1', 'Tools/VisualStudio.psm1', 'Tools/VcpkgTriplet.psm1', 'Tools/VcpkgRestore.psm1') | ForEach-Object { Join-Path $repository $_ }
     foreach ($path in $paths) {
         # 5.1 reads a file without a byte-order mark as ANSI, so anything beyond ASCII would be read differently there.
         Assert-Equal 0 @([IO.File]::ReadAllBytes($path) | Where-Object { $_ -gt 127 }).Count "$([IO.Path]::GetFileName($path)) is ASCII"
@@ -228,4 +228,16 @@ Invoke-TestCase 'the installer and its modules stay ASCII and parse in Windows P
     }
 }
 
+Invoke-FixtureCase 'SDK MSBuild uses the native host and never falls back to the root executable' {
+    param($fixture)
+    $visual=Get-Module VisualStudio
+    Assert-Equal 'amd64' (& $visual {Get-DxUiNativeMSBuildHost -Architecture X64}) 'x64 chooses native amd64 MSBuild'
+    Assert-Equal 'arm64' (& $visual {Get-DxUiNativeMSBuildHost -Architecture Arm64}) 'ARM64 chooses native arm64 MSBuild'
+    Assert-Throws {& $visual {Get-DxUiNativeMSBuildHost -Architecture X86}} 'unsupported native host refuses'
+    Set-FixtureFile $fixture 'MSBuild/Current/Bin/MSBuild.exe' 'legacy root host must not be used'
+    Assert-Throws {Get-DxUiNativeMSBuild -Installation $fixture} 'missing native host never chooses the root executable'
+    foreach($folder in @('amd64','arm64')){Set-FixtureFile $fixture ("MSBuild/Current/Bin/$folder/MSBuild.exe") 'synthetic host, never executed'}
+    $folder=if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64'){'arm64'}else{'amd64'}
+    Assert-Equal ([IO.Path]::GetFullPath((Join-Path $fixture "MSBuild/Current/Bin/$folder/MSBuild.exe"))) (Get-DxUiNativeMSBuild -Installation $fixture) 'the actual helper returns the existing native host'
+}
 Complete-TestRun 'VcpkgTriplet'

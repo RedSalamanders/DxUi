@@ -53,13 +53,18 @@ $ErrorActionPreference = 'Stop'
 if ($InteractiveAutoStart -and -not $Interactive) { throw '-InteractiveAutoStart requires -Interactive and prior agreement to automatic start and the time.' }
 # Ordinary iteration uses source impact. Explicit suites and Full retain the lower-level runner surface.
 if (-not $Full -and -not $PSBoundParameters.ContainsKey('Suites') -and
-    @($PSBoundParameters.Keys | Where-Object { $_ -notin @('Platform','Configuration','SkipBuild') }).Count -eq 0) {
-    & (Join-Path $PSScriptRoot 'Test-Changes.ps1') -Configuration $Configuration -Platform $Platform -SkipBuild:$SkipBuild
+    @($PSBoundParameters.Keys | Where-Object { $_ -notin @('Platform','Configuration','SkipBuild','ParallelSuites') }).Count -eq 0) {
+    & (Join-Path $PSScriptRoot 'Test-Changes.ps1') -Configuration $Configuration -Platform $Platform -SkipBuild:$SkipBuild -ParallelSuites $ParallelSuites
     exit $LASTEXITCODE
 }
 Import-Module (Join-Path $PSScriptRoot 'Tools/SuiteFailure.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/InteractiveRun.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+$profileLease=Enter-ScopedProfileLease $PSScriptRoot $Platform $Configuration
+try {
+# Every direct attempt invalidates earlier affected no-work state, including failures
+# before a suite report exists. Only the affected owner may republish its completed lane.
+Remove-ScopedIteration -Root $PSScriptRoot -Path (Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/iteration.json")
 Import-Module (Join-Path $PSScriptRoot 'Tools/CapabilitySkipPolicy.psm1') -Force
 $instrumentation = @(Get-ScopedInstrumentation)
 # A comma-separated single value is accepted like an array, so -Tests 'A,B' and -Tests A,B are the same request.
@@ -94,7 +99,11 @@ if (-not $SkipTooling) {
 }
 $nativeArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 if (($Platform -eq 'ARM64') -and ($nativeArchitecture -ne 'Arm64')) { throw 'ARM64 runtime tests require an ARM64 host; use build.ps1 for cross-compilation.' }
-if (-not $SkipBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform }
+$buildProjects=@(Get-ScopedRequiredBuildProjects -Suites $Suites -Configuration $Configuration -Full:$Full)
+if (-not $SkipBuild) {
+    if ($Full) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform }
+    else { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform -Projects $buildProjects }
+}
 else {
     Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
     Invoke-DxUiBuildPhase -Phase SkipBuildGate -Body {
@@ -103,7 +112,7 @@ else {
         $inputIdentity = Get-ScopedBuildInputIdentity $PSScriptRoot $Platform
         $artifactIdentity = Get-ScopedArtifactIdentity $PSScriptRoot $Platform $Configuration
         $receipt = Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
-        if (-not (Test-ScopedReceipt $receipt (Get-ScopedDigest ($inputIdentity+"`n"+$artifactIdentity)))) {
+        if (-not (Test-ScopedBuildCoverage $PSScriptRoot $Platform $Configuration $buildProjects $inputIdentity $artifactIdentity -Full:$Full)) {
             throw 'SkipBuild refused: native test sources, dependencies or artifacts changed, or no complete native test receipt exists. Run build.ps1 or test.ps1 without -SkipBuild.'
         }
     }
@@ -135,8 +144,8 @@ try {
 # against the executable this run is about to use; an interactive run needs the second most, since the watchdog is what bounds a
 # hung test while the suites hold the person's desktop.
 if (@($Suites | Where-Object { $_ -notin @('Foundation','Embedded') }).Count) {
-    & (Join-Path $PSScriptRoot 'Tools/tests/Test-TestFilter.ps1') -Configuration $Configuration -Platform $Platform
-    & (Join-Path $PSScriptRoot 'Tools/tests/Test-TestWatchdog.ps1') -Configuration $Configuration -Platform $Platform
+    Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+    Invoke-ScopedHarnessPreflight -Root $PSScriptRoot -Configuration $Configuration -Platform $Platform -Force:$Full
 }
 # The lease's Windows services (its children, its confirmation and its warning, on a private desktop) are proved with the suite that
 # covers the lease's decisions, and before an interactive run takes a person's desktop.
@@ -202,21 +211,25 @@ try {
         $bound = if ($TestTimeout -eq 0) { 0 } elseif ($null -ne $TestTimeout) { [Math]::Max(900, 3 * $TestTimeout) } else { 900 }
         $leaseStart = if ($hostedForegroundLease) { 'under verified hosted-runner authorization' } elseif ($InteractiveAutoStart) { 'after an approved automatic Start countdown (30 seconds; Cancel stops it)' } else { 'after local confirmation' }
         Write-Host "Foreground run: $label takes the desktop for about $([Math]::Ceiling($estimate / 60.0)) minute(s) $leaseStart."
-        if ($hostedForegroundLease) {
-            # A desktop that cannot be prepared fails only the foreground suites: the others still run and leave receipts.
-            $preparationProblem = $null
-            if ($Platform -eq 'ARM64') {
-                try { & (Join-Path $PSScriptRoot 'Tools/Prepare-HostedArmDesktop.ps1') }
-                catch { $preparationProblem = "hosted desktop preparation failed: $($_.Exception.Message)" }
-            }
-            if ($preparationProblem) {
-                Write-Host "FAIL $preparationProblem"
-                $lease = [pscustomobject]@{ ExitCode = -1; Result = $null; RequestedAutoStart = $false; RequestedConfirmationSeconds = $null; PolicyProblems = @($preparationProblem) }
+        Import-Module (Join-Path $PSScriptRoot '.ci-engine/Tools/Modules/Ci.DesktopLease.psm1') -ErrorAction Stop
+        $lease = Invoke-CiInteractiveDesktopOperation -RequiresInteractiveDesktop $true -Operation {
+            if ($hostedForegroundLease) {
+                # A desktop that cannot be prepared fails only the foreground suites: the others still run and leave receipts.
+                $preparationProblem = $null
+                if ($Platform -eq 'ARM64') {
+                    try { & (Join-Path $PSScriptRoot 'Tools/Prepare-HostedArmDesktop.ps1') }
+                    catch { $preparationProblem = "hosted desktop preparation failed: $($_.Exception.Message)" }
+                }
+                if ($preparationProblem) {
+                    Write-Host "FAIL $preparationProblem"
+                    $lease = [pscustomobject]@{ ExitCode = -1; Result = $null; RequestedAutoStart = $false; RequestedConfirmationSeconds = $null; PolicyProblems = @($preparationProblem) }
+                } else {
+                    $lease = Invoke-DxUiHostedForegroundLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound
+                }
             } else {
-                $lease = Invoke-DxUiHostedForegroundLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound
+                $lease = Invoke-DxUiInteractiveLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound -AutoStart:$InteractiveAutoStart
             }
-        } else {
-            $lease = Invoke-DxUiInteractiveLease -Executable $leaseExecutable -Runs $plan -Label $label -EstimateSeconds $estimate -WorkDirectory $logs -ChildTimeoutSeconds $bound -AutoStart:$InteractiveAutoStart
+            return $lease
         }
         $leaseProblems = @(Get-DxUiLeaseProblems -Result $lease.Result -ExitCode $lease.ExitCode) + @($lease.PolicyProblems)
         $leaseResult = if ($null -ne $lease.Result) { $lease.Result } else {
@@ -344,3 +357,4 @@ $runPassed = $true
 # Nested native probes can leave a failing child exit code even when every requested suite passed.
 # Reset only after successful evidence finalization so callers observe the runner's final result.
 $global:LASTEXITCODE = 0
+} finally { Exit-ScopedProfileLease $profileLease }

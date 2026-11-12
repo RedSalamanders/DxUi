@@ -699,6 +699,15 @@ private:
         {
             const auto run    = ChildOf(hangs ? L"descendant-timeout" : L"descendant-exit", hangs ? L"descendant-hang" : L"descendant-exit");
             const auto result = IL::RunChildProcess(run, 2u, nullptr, false);
+            if (! (result.launched && result.error.empty() && result.timedOut == hangs && result.exitCode == (hangs ? TS::kTestTimeoutExitCode : 0u)))
+                std::printf("descendant diagnostic hangs=%d launched=%d timedOut=%d interrupted=%d exit=%lu seconds=%.3f error=%s\n",
+                            static_cast<int>(hangs),
+                            static_cast<int>(result.launched),
+                            static_cast<int>(result.timedOut),
+                            static_cast<int>(result.interrupted),
+                            static_cast<unsigned long>(result.exitCode),
+                            result.seconds,
+                            result.error.c_str());
             Check(result.launched && result.error.empty() && result.timedOut == hangs && result.exitCode == (hangs ? TS::kTestTimeoutExitCode : 0u),
                   "a contained descendant fixture reports its parent's normal exit or timeout");
             const auto log    = ReadText(run.logPath);

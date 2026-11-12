@@ -45,6 +45,10 @@ HRESULT NativeTextMetrics(IDWriteTextLayout* layout, DWRITE_TEXT_METRICS* metric
 {
     return layout->GetMetrics(metrics);
 }
+HRESULT NativeOverhangMetrics(IDWriteTextLayout* layout, DWRITE_OVERHANG_METRICS* metrics)
+{
+    return layout->GetOverhangMetrics(metrics);
+}
 // A positioning-only first line lets DirectWrite perform its own sequential
 // document-coordinate rounding, mixed-font caret math and color-font drawing.
 // Its two private text units never enter source/display ACP mappings.
@@ -444,7 +448,7 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         RETURN_IF_FAILED(layout->SetInlineObject(inlineObject.object, {inlineObject.first + textOffset, inlineObject.length}));
     RETURN_IF_FAILED(Failure::InvokeNative(&NativeTextMetrics, layout.get(), &metrics));
     DWRITE_OVERHANG_METRICS overhang{};
-    RETURN_IF_FAILED(layout->GetOverhangMetrics(&overhang));
+    RETURN_IF_FAILED(Failure::InvokeNative(&NativeOverhangMetrics, layout.get(), &overhang));
     const auto drawingTop    = std::min(verticalOrigin, verticalTranslation - overhang.top) - scriptTopOutset;
     const auto drawingBottom = verticalTranslation + std::max(metrics.height, metrics.layoutHeight + overhang.bottom) + scriptBottomOutset;
     if (! std::isfinite(metrics.height) || ! std::isfinite(drawingTop) || ! std::isfinite(drawingBottom))

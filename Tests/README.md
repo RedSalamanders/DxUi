@@ -9,7 +9,7 @@
 ./Test-Changes.ps1 -Mode Full -Configuration Debug
 ```
 
-The default uses local merge-base changes plus staged, unstaged and untracked work. Read the explanation before a large run. Unknown code/build inputs widen coverage. Selected work is partial evidence. PR delegation is pending CI work, and only an enabled workflow with matching reviewed candidate bytes/profile can justify it.
+The default uses changes since the last successful local affected iteration in this profile (up to 24 hours), falling back to local merge-base changes plus staged, unstaged and untracked work. Native baselines recheck dependency, compiler/SDK and output bytes. Full, PrePush, Force, explicit scopes and explicit BaseRef keep their cumulative/explicit obligations. A failed rerun revokes the old baseline; foreground debt remains visible. Read the explanation before a large run. Unknown code/build inputs widen coverage. Selected work is partial evidence. PR delegation is pending CI work, and only an enabled workflow with matching reviewed candidate bytes/profile can justify it.
 An empty plan reports `NO_WORK; repository NOT_EVALUATED`; a fully delegated plan reports `NO_LOCAL_WORK; CI_PENDING`.
 Capability skips are reported explicitly and prevent native-suite receipt reuse. `FULL_SCOPES_PASSED` covers the scope
 manifest, while foreground, consumer, gallery and native-platform qualification remain separate obligations.
@@ -127,7 +127,12 @@ directory and keep its synthetic cases separate from runtime evidence.
 ./test.ps1 -Full -ParallelSuites 4
 ```
 
-Repeated unchanged scopes print REUSED. Force reruns them. SkipBuild requires matching full native test-source/artifact and v2 toolchain receipts established by a prior default build; stale source or binaries are rejected. Explicit test.ps1 suite/named-test calls retain the lower-level diagnostic interface. Its ordinary call now routes to affected iteration; Full is explicit. An unknown local comparison ref fails with Git's diagnostic rather than silently selecting no work.
+Repeated unchanged scopes print REUSED. Force reruns them. SkipBuild requires matching requested native target/source/artifact coverage and v2 toolchain receipts established by a prior canonical build; stale source or binaries are rejected, and Full requires full-solution coverage. Explicit test.ps1 suite/named-test calls retain the lower-level diagnostic interface. Its ordinary call now routes to affected iteration; Full is explicit. An unknown local comparison ref fails with Git's diagnostic rather than silently selecting no work.
+
+Affected and explicit suite calls build their native target union, including the performance executable, sanitizer
+probe and desktop helper when required. `build.ps1 -Projects DxUi.FoundationTests,DxUi.EmbeddedTests` exposes that
+union directly. A selected receipt can satisfy matching subsets but cannot satisfy Full or an added target.
+Full/PrePush keep the full solution; missing symbols/runtime assets or incompatible proof refuse SkipBuild.
 
 `-ParallelSuites` opts the lower-level runner into 1–8 simultaneous non-foreground
 suite processes (default 1). Performance and preflight run before the batch; a

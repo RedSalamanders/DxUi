@@ -30,16 +30,19 @@ Invoke-TestCase 'the actual benchmark call extends only native argv and preserve
     $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '../../performance.ps1'),[ref]$tokens,[ref]$errors)
     Assert-Equal 0 $errors.Count 'the performance entrypoint parses'
     $before = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$before' },$true)
+    $engineInit = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$engineArguments' },$true)
+    $engineSelection = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.StartsWith('if($ToolingEngineRoot)') },$true)
     $gate = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.CommandAst] -and $Node.GetCommandName() -ceq 'Assert-PerformanceBuildAttestation' -and $Node.Extent.Text.Contains('-State $before') },$true)
     $nativeTry = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.TryStatementAst] -and $Node.Body.Extent.Text.Contains('& $exe $benchmarkArgument') -and -not $Node.Body.Extent.Text.Contains('$benchmarkArgument = switch') },$true)
     Assert-True ($null -ne $before -and $null -ne $gate -and $null -ne $nativeTry) 'extract the actual before gate and complete native try/catch'
     # Execute production statements, including the conversion, native call, exit check and after gates. The
     # scriptblock sentinel observes argv without opening files, running native code or evaluating real identity.
     $stage = [scriptblock]::Create(@'
-param($OutputPath,$Probe,$exe)
+param($OutputPath,$Probe,$exe,[string]$ToolingEngineRoot='')
 $Platform='x64'; $Configuration='Release'; $Scenario='Default'; $benchmarkArgument='--benchmark'
 function Get-PerformanceMeasurementState {
-    param($Root,$Platform,$Configuration)
+    param($Root,$Platform,$Configuration,$ToolingEngineRoot='')
+    $Probe['engineReader']=$ToolingEngineRoot
     $Probe.states++; $Probe.events.Add("state-$($Probe.states)")
     return @{ ordinal=$Probe.states }
 }
@@ -62,7 +65,7 @@ function Move-Item {
     param($LiteralPath,$Destination)
     $Probe.invalidated.Add($LiteralPath)
 }
-'@ + "`n" + $before.Extent.Text + "`n" + $gate.Extent.Text + "`n" + $nativeTry.Extent.Text)
+'@ + "`n" + $engineInit.Extent.Text + "`n" + $engineSelection.Extent.Text + "`n" + $before.Extent.Text + "`n" + $gate.Extent.Text + "`n" + $nativeTry.Extent.Text)
     $native = {
         param($Flag,$Path)
         $Probe.events.Add('native'); $Probe.arguments.Add($Flag); $Probe.arguments.Add($Path)
@@ -74,7 +77,7 @@ function Move-Item {
     $unc = '\\fixture.invalid\share space\' + ('long Unicode β\' * 24) + 'receipt.json'
     Assert-True ($drive.Length -gt 260 -and $unc.Length -gt 260) 'long drive and UNC fixture paths exceed MAX_PATH'
     $cases = @(
-        @($drive, ('\\?\' + $drive)),
+        @($drive, ('\\?\' + $drive), 'synthetic-reader'),
         @($unc, ('\\?\UNC\' + $unc.Substring(2))),
         @('\\?\C:\fixture space\β.json', '\\?\C:\fixture space\β.json'),
         @('\\?\UNC\fixture.invalid\share space\β.json', '\\?\UNC\fixture.invalid\share space\β.json'),
@@ -85,7 +88,9 @@ function Move-Item {
             paths=[Collections.Generic.List[string]]::new(); invalidated=[Collections.Generic.List[string]]::new();
             failBefore=$false; failAfter=$false; nativeThrows=$false; exitCode=0; outputExists=$true }
         $logical = $case[0]
-        $output = @(& $stage $logical $probe $native)
+        $reader=if($case.Count -gt 2){$case[2]}else{''}
+        $output = @(& $stage $logical $probe $native $reader)
+        Assert-Equal $reader $probe.engineReader 'actual before/after measurement state receives the explicit reader without changing default calls'
         Assert-Equal '--benchmark' $probe.arguments[0] 'benchmark selection is unchanged'
         Assert-Equal $case[1] $probe.arguments[1] 'actual native call receives the extended spelling exactly once'
         Assert-Equal $logical $probe.paths[0] 'output existence checks retain the logical evidence path'
@@ -272,7 +277,7 @@ Invoke-FixtureCase 'Full identity requires the harness while PlatformOnly skips 
     param($root)
     foreach ($relative in @('performance.ps1','performance-paired.ps1','build.ps1','vcpkg-install.ps1',
             'Tools/Compare-Performance.ps1','Tools/PerformanceComparison.psm1','Tools/PairedRun.psm1','Tools/BenchmarkGate.psm1','Tools/PerformancePolicy.psm1',
-            'Tools/VisualStudio.psm1','Tools/VcpkgTriplet.psm1','vcpkg.json','vcpkg-tool.json','src/DxUi.vcxproj')) {
+            'Tools/VisualStudio.psm1','Tools/VcpkgTriplet.psm1','Tools/VcpkgRestore.psm1','vcpkg.json','vcpkg-tool.json','src/DxUi.vcxproj')) {
         Set-FixtureFile $root $relative 'fixture input'
     }
     Set-FixtureFile $root 'Tools/VisualStudio.psm1' @'
@@ -652,7 +657,7 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
         Set-FixtureFile $root $path "original tool input: $path"
     }
     foreach ($path in @('performance.ps1','performance-paired.ps1','build.ps1','vcpkg-install.ps1','Tools/Compare-Performance.ps1','Tools/PerformanceComparison.psm1',
-            'Tools/PairedRun.psm1','Tools/BenchmarkGate.psm1','Tools/PerformancePolicy.psm1','Tools/PerformanceAcceptancePolicy.v1.json','Tools/VcpkgTriplet.psm1',
+            'Tools/PairedRun.psm1','Tools/BenchmarkGate.psm1','Tools/PerformancePolicy.psm1','Tools/PerformanceAcceptancePolicy.v1.json','Tools/VcpkgTriplet.psm1','Tools/VcpkgRestore.psm1',
             'Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1','Build/BuildConsole.psm1','vcpkg.json','vcpkg-tool.json')) { Set-FixtureFile $root $path "fixed fixture harness: $path" }
     Set-FixtureFile $root '.build/vcpkg_installed/x64/vcpkg/status' 'fixture installed dependency'
     Set-FixtureFile $root '.build/vcpkg_installed/x64/vcpkg/info/wil_x64-windows.list' 'x64-windows/include/wil.h'
@@ -1089,6 +1094,7 @@ function Invoke-PerformanceBuildFixture([string] $Root, [scriptblock] $Body) {
         @('.build/vcpkg_installed/x64/vcpkg/info/wil_fixture_x64-windows.list', 'original package inventory'),
         @('.build/x64/Release/DxUi.EmbeddedTests.exe', 'original benchmark executable'),
         @('.build/x64/Release/DxUi.lib', 'original static library'),
+        @('.build/x64/Release/DxUi.pdb', 'original static library symbols'),
         @('.build/x64/Release/runtime.dll', 'original runtime DLL'))) {
         Set-FixtureFile $Root $entry[0] $entry[1]
     }
@@ -1253,12 +1259,16 @@ Invoke-FixtureCase 'default build entrypoint rebuilds stale inputs and preserves
     $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '../../build.ps1'), [ref]$tokens, [ref]$errors)
     Assert-Equal 0 $errors.Count 'the production build entrypoint parses'
     $initial = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$target' }, $true)
+    $engineInit = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$engineArguments' },$true)
+    $engineSelection = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.StartsWith('if($ToolingEngineRoot)') },$true)
     $guard = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.Contains('Start-PerformanceBuildAttestation') }, $true)
     $consumerGuard = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.StartsWith('if (-not $attestPerformanceBuild)') }, $true)
     $arguments = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$arguments' }, $true)
     # Execute the actual pre-MSBuild entrypoint stage with real v2 attestation logic. No native build is invoked;
     # only its import is suppressed because the test already imported the production module and supplies a VS fixture.
-    $stageText = 'param($Platform,$Configuration,$attestPerformanceBuild,$Rebuild)' + "`n" +
+    $stageText = 'param($Platform,$Configuration,$attestPerformanceBuild,$Rebuild,[string]$ToolingEngineRoot='''')' + "`n" +
+        '$partialBuild=$false; $selectedProjects=@(); $buildRoot=$PSScriptRoot' + "`n" +
+        $engineInit.Extent.Text + "`n" + $engineSelection.Extent.Text + "`n" +
         "function Import-Module { param(`$Name, [switch]`$Force) }`n" + $initial.Extent.Text + "`n" + $consumerGuard.Extent.Text + "`n" + $guard.Extent.Text + "`n" +
         '$log="fixture.log"; $output=(Join-Path $PSScriptRoot ''.build'')' + "`n" + $arguments.Extent.Text + "`n" +
         '[ordered]@{ arguments=$arguments; state=$(if ($attestPerformanceBuild) { $performanceBuildBefore } else { $null }) }'
@@ -1295,6 +1305,7 @@ Invoke-FixtureCase 'the timed production MSBuild stage preserves arguments, diag
     # PowerShell fixtures. No native child, build, build receipt or environment discovery runs in this test.
     $stageText = 'param($Probe,$Code,$Failure)' + "`n" + @'
 $Platform='x64'; $Configuration='Release'; $attestPerformanceBuild=$true
+$buildRoot=$PSScriptRoot
 $arguments=@('fixture.sln','/t:Build','/p:Configuration=Release')
 $msbuild='Invoke-FixtureCompiler'; $log='fixture.log'; $stopwatch=[Diagnostics.Stopwatch]::StartNew()
 function Invoke-FixtureCompiler {
@@ -1414,7 +1425,7 @@ Invoke-FixtureCase 'the actual SkipBuild runner gate rejects invalid v2 identity
     # Execute the production gate, suppressing only its already-loaded module import. The sentinel represents the
     # next native operation; real source/dependency/output bytes and v2 receipts use the existing build fixture.
     $stageText = 'param($Sentinel)' + "`n" +
-        '$Platform="x64"; $Configuration="Release"; $SkipBuild=$true' + "`n" +
+        '$Platform="x64"; $Configuration="Release"; $SkipBuild=$true; $Full=$false; $buildProjects=@("DxUi","DxUi.EmbeddedTests")' + "`n" +
         'function Import-Module { param($Name,[switch]$Force) }' + "`n" + $guard.Extent.Text + "`n" +
         '$Sentinel.nativeCalls++; "native operation reached"'
     Set-FixtureFile $root 'skip-build-gate-stage.ps1' $stageText

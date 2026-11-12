@@ -118,6 +118,13 @@ HRESULT Host::Start(std::wstring_view outputPrefix) noexcept
 {
     if (thread_ || outputPrefix.empty() || outputPrefix.size() + 8u >= prefix_.size() || outputPrefix.find(L'\0') != std::wstring_view::npos)
         return E_INVALIDARG;
+    // DbgCore loads PSAPI while enumerating the target's modules. Doing that
+    // after a self-dump suspends target threads can wait on their loader work
+    // forever. Prepare and retain this system dependency before hooks/workers;
+    // the fatal path must not be its first load. Dumps remain best effort.
+    dumpPsApi_.reset(LoadLibraryExW(L"psapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32));
+    if (! dumpPsApi_)
+        return LastError();
     std::copy(outputPrefix.begin(), outputPrefix.end(), prefix_.begin());
     prefix_[outputPrefix.size()] = L'\0';
     request_.reset(CreateEventW(nullptr, FALSE, FALSE, nullptr));

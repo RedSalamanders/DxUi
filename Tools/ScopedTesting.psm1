@@ -89,6 +89,14 @@ function Assert-ScopedTestNames {
     return $declared.Count
 }
 
+function Test-ScopedDocumentationPath {
+    param([string] $Path)
+    # Markdown fixtures are executable data. Unknown .md locations keep the normal rule/fallback path.
+    if ($Path -match '^Tests/(Data|Fixtures)/') { return $false }
+    return $Path -match '\.md$' -and ($Path -match '^(Specs|docs|Measurements|Changes|legacy|\.agents|\.github/(skills|ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))/' -or
+        $Path -match '^[^/]+\.md$|(^|/)(README|AGENTS|CLAUDE)\.md$')
+}
+
 function Get-ScopedTestPlan {
     param([object] $Manifest, [AllowEmptyCollection()][string[]] $ChangedPaths, [string[]] $Scopes = @(), [switch] $Full)
     $names = @($Manifest.scopes | ForEach-Object { $_.name })
@@ -103,7 +111,7 @@ function Get-ScopedTestPlan {
     if (-not $Scopes.Count -and -not $Full) {
         foreach ($path in $ChangedPaths) {
             if ($path -match '(^/|(^|/)\.\.(/|$)|:|\\)') { throw "Expected a repository-relative Git path: $path" }
-            if ($path -match '\.md$') {
+            if (Test-ScopedDocumentationPath $path) {
                 $targets = @($Manifest.scopes | Where-Object { -not $_.native } | ForEach-Object name)
                 foreach ($name in $targets) { [void]$selected.Add($name) }
                 $reasons.Add([pscustomobject]@{path=$path; scopes=$targets; reason='documentation/skill validation; no native test input'})
@@ -153,23 +161,190 @@ function Get-ScopedDigest {
 }
 
 function Get-ScopedSourceIdentity {
+    param([string] $Root, [switch] $CompiledOnly, [string] $ToolingEngineRoot = '')
+    $source = Get-ScopedMapIdentity (Get-ScopedSourceMap -Root $Root -CompiledOnly:$CompiledOnly)
+    if ($ToolingEngineRoot -and -not (Test-Path -LiteralPath (Join-Path $Root '.ci/project.json') -PathType Leaf)) {
+        throw 'An explicit tooling engine reader requires the side own .ci/project.json.'
+    }
+    # Generated engine code is outside Git's product inventory, but executes the governed tools.
+    # Keep it separate from iteration maps so it cannot masquerade as a changed product file.
+    if (Test-Path -LiteralPath (Join-Path $Root '.ci/project.json') -PathType Leaf) {
+        $actualEngine = Join-Path $Root '.ci-engine'
+        $readerEngine = if ($ToolingEngineRoot) { [IO.Path]::GetFullPath($ToolingEngineRoot).TrimEnd('\','/') } else { $actualEngine }
+        if (-not $ToolingEngineRoot -and -not (Test-Path -LiteralPath (Join-Path $readerEngine 'Tools/Modules/Ci.SourceInputs.psm1') -PathType Leaf)) {
+            # Historical SDK sources retain their exact engine, which predates this reader.
+            # Use the tooling owner's reader and bind BOTH engines through the distinct key below.
+            $readerEngine = Join-Path (Split-Path $PSScriptRoot -Parent) '.ci-engine'
+        }
+        Import-Module (Join-Path (Split-Path $readerEngine -Parent) '.ci-engine/Tools/Modules/Ci.SourceInputs.psm1') -ErrorAction Stop
+        $engineInputs = Get-CiPinnedEngineInputsIdentity -Root $Root -EngineRoot $actualEngine
+        $pathComparison=if($IsWindows){[StringComparison]::OrdinalIgnoreCase}else{[StringComparison]::Ordinal}
+        if (-not [IO.Path]::GetFullPath($readerEngine).TrimEnd('\','/').Equals([IO.Path]::GetFullPath($actualEngine).TrimEnd('\','/'), $pathComparison)) {
+            # Paired diagnostics keep historical source pins while using one frozen current reader.
+            # Bind BOTH real independent checkouts; default qualification cannot reuse this key.
+            $readerInputs = Get-CiPinnedEngineInputsIdentity -Root (Split-Path $readerEngine -Parent) -EngineRoot $readerEngine
+            return Get-ScopedDigest ("$source`0$engineInputs`0$readerInputs")
+        }
+        return Get-ScopedDigest ("$source`0$engineInputs")
+    }
+    return $source
+}
+
+function Get-ScopedSourceMap {
     param([string] $Root, [switch] $CompiledOnly)
-    $rows = [Collections.Generic.List[string]]::new()
+    $map = [Collections.Specialized.OrderedDictionary]::new([StringComparer]::Ordinal)
     foreach ($path in @(Get-ScopedTrackedPaths $Root)) {
         # Validators read prose, skills and archived mappings too. Their full identity includes every versioned input.
         if ($path -match '^\.build/') { continue }
         # Build attestation excludes immutable evidence/prose, but has no extension whitelist: .inl and new generators count.
-        if ($CompiledOnly -and ($path -match '^(Measurements|docs|Changes|legacy|Specs/(Plans|Done|TestRuns|Reviews|Mockups))/' -or $path -match '\.md$')) { continue }
+        if ($CompiledOnly -and ($path -match '^(Measurements|docs|Changes|legacy|Specs/(Plans|Done|TestRuns|Reviews|Mockups))/' -or (Test-ScopedDocumentationPath $path))) { continue }
         $full = Join-Path $Root $path
         # A tracked path removed from the worktree is absent source content whether or not
         # the deletion has been staged. The changed-path identity records the deletion.
         if (-not (Test-Path -LiteralPath $full -PathType Leaf)) {
             continue
         }
-        $value = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash
-        $rows.Add("$path`0$value")
+        $map.Add($path, (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash)
     }
+    return ,$map
+}
+
+function Get-ScopedMapIdentity {
+    param([Collections.IDictionary] $Map)
+    $rows = foreach ($path in @(Get-ScopedOrdinalUniquePaths @($Map.Keys))) { "$path`0$($Map[$path])" }
     return Get-ScopedDigest ($rows -join "`n")
+}
+
+function Get-ScopedIndexMap {
+    param([string] $Root)
+    $map = [Collections.Specialized.OrderedDictionary]::new([StringComparer]::Ordinal)
+    foreach ($entry in ((Invoke-ScopedGit $Root @('ls-files','--stage','-z')) -split '\x00')) {
+        if (-not $entry) { continue }
+        if ($entry -cnotmatch '^(\d{6}) ([a-f0-9]+) ([0-3])\t([\s\S]+)$') { throw 'Unrecognized Git index record.' }
+        if ($Matches[3] -cne '0') { throw 'Resolve Git conflicts before selecting affected tests.' }
+        $map.Add($Matches[4], "$($Matches[1]) $($Matches[2])")
+    }
+    # Preserve assume-unchanged/skip-worktree and intent-to-add state as well as blob and mode.
+    foreach ($entry in ((Invoke-ScopedGit $Root @('ls-files','-v','-z')) -split '\x00')) {
+        if (-not $entry) { continue }
+        if ($entry -cnotmatch '^([A-Za-z?]) ([\s\S]+)$' -or -not $map.Contains($Matches[2])) { throw 'Unrecognized Git index flags.' }
+        $map[$Matches[2]] += ' ' + $Matches[1]
+    }
+    return ,$map
+}
+
+function Get-ScopedMapDelta {
+    param([Collections.IDictionary] $Before, [Collections.IDictionary] $After)
+    return @(Get-ScopedOrdinalUniquePaths (@($Before.Keys) + @($After.Keys)) | Where-Object {
+        -not $Before.Contains($_) -or -not $After.Contains($_) -or $Before[$_] -cne $After[$_]
+    })
+}
+
+function Get-ScopedPendingIndexDelta {
+    param([string] $Root, [Collections.IDictionary] $Before, [Collections.IDictionary] $After)
+    $working = @((Invoke-ScopedGit $Root @('diff','--name-only','--no-renames','-z','--')) -split '\x00')
+    foreach ($path in @(Get-ScopedMapDelta $Before $After)) {
+        # Staging tested bytes needs no repeated execution. Mode/flag changes and a staged blob
+        # hidden by different working bytes remain obligations, including index-only deletions.
+        $oldMetadata = if ($Before.Contains($path)) { ([string]$Before[$path] -split ' ')[0,2] -join ' ' } else { '' }
+        $newMetadata = if ($After.Contains($path)) { ([string]$After[$path] -split ' ')[0,2] -join ' ' } else { '' }
+        if ($path -cin $working -or ($Before.Contains($path) -and -not $After.Contains($path)) -or
+            ($Before.Contains($path) -and $After.Contains($path) -and $oldMetadata -cne $newMetadata)) { $path }
+    }
+}
+
+function Get-ScopedIterationNativeContext {
+    param([string] $Root, [string] $Platform, [string] $Configuration)
+    # Reuse the canonical evaluated compiler/SDK byte closure; do not trust installation timestamps.
+    $policy = Import-Module (Join-Path $Root 'Tools/PerformancePolicy.psm1') -PassThru -ErrorAction Stop
+    $tools = & $policy { param($r,$p,$c) Get-PerformanceToolIdentities -Root $r -Platform $p -Configuration $c -IdentityScope Build } $Root $Platform $Configuration
+    if ($tools.identityStatus -cne 'build-only' -or $tools.buildIdentityVersion -ne 2 -or [string]$tools.toolchainIdentity -cnotmatch '^[A-Fa-f0-9]{64}$') {
+        throw 'Cannot verify the native toolchain for an affected iteration baseline.'
+    }
+    return Get-ScopedDigest (@($tools.toolchainIdentity, (Get-ScopedDependencyIdentity $Root $Platform)) -join "`n")
+}
+
+function Get-ScopedIterationDigest {
+    param([Collections.IDictionary] $State)
+    return Get-ScopedDigest (@($State.version,$State.root,$State.platform,$State.configuration,$State.environment,$State.options,
+        $State.completedUtc,$State.nativeContext,$State.artifact,(Get-ScopedMapIdentity $State.source),(Get-ScopedMapIdentity $State.index)) -join "`n")
+}
+
+function Enter-ScopedProfileLease {
+    param([string] $Root, [string] $Platform, [string] $Configuration, [string] $OutputRoot = '')
+    # Reentrant for a nested test.ps1 call on the owning thread; disjoint profiles/worktrees remain independent.
+    if (-not $OutputRoot) { $OutputRoot=Join-Path $Root '.build' }
+    $rootIdentity=[IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/')
+    if ([OperatingSystem]::IsWindows()) { $rootIdentity=$rootIdentity.ToUpperInvariant() }
+    $key=Get-ScopedDigest (@($rootIdentity,$Platform,$Configuration) -join "`n")
+    $mutex=[Threading.Mutex]::new($false,"DxUi.ScopedProfile.$key")
+    $owned=$false
+    try {
+        try { $owned=$mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $owned=$true }
+        if (-not $owned) { throw 'Another test operation owns this checkout/profile. Retry when it completes.' }
+        return $mutex
+    } catch { $mutex.Dispose(); throw }
+}
+
+function Exit-ScopedProfileLease {
+    param([Threading.Mutex] $Lease)
+    try { $Lease.ReleaseMutex() } finally { $Lease.Dispose() }
+}
+
+function Assert-ScopedIterationPath {
+    param([string] $Path, [string] $Root)
+    $prefix = [IO.Path]::GetFullPath((Join-Path $Root '.build/reports/scoped-tests')).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+    $resolved = [IO.Path]::GetFullPath($Path)
+    if (-not $resolved.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)) { throw 'Iteration baseline escaped its local report root.' }
+    $cursor = $resolved
+    while ($cursor.Length -gt [IO.Path]::GetFullPath($Root).TrimEnd('\','/').Length) {
+        if ((Test-Path -LiteralPath $cursor) -and ((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Reparse iteration baseline paths are unsupported.' }
+        $cursor = Split-Path -Parent $cursor
+    }
+}
+
+function Read-ScopedIteration {
+    param([string] $Path, [string] $Root, [string] $Platform, [string] $Configuration, [string] $Environment, [string] $Options)
+    Assert-ScopedIterationPath $Path $Root
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+    try {
+        if ((Get-Item -LiteralPath $Path).Length -gt 16MB) { return $null }
+        # -AsHashtable uses ordinal ordered keys on supported PowerShell; preserve distinct Git path casing.
+        $state = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json -AsHashtable
+        if ($state.completedUtc -is [DateTime]) { $state.completedUtc=$state.completedUtc.ToUniversalTime().ToString('o') }
+        if ($state.version -ne 2 -or $state.root -cne [IO.Path]::GetFullPath($Root) -or $state.platform -cne $Platform -or
+            $state.configuration -cne $Configuration -or $state.environment -cne $Environment -or $state.options -cne $Options -or
+            $state.source -isnot [Collections.IDictionary] -or $state.index -isnot [Collections.IDictionary] -or
+            ([string]$state.nativeContext -and [string]$state.nativeContext -cnotmatch '^[A-Fa-f0-9]{64}$') -or
+            ([bool]$state.nativeContext -ne [bool]$state.artifact) -or
+            $state.digest -cne (Get-ScopedIterationDigest $state)) { return $null }
+        $age = [DateTime]::UtcNow - [DateTime]::Parse($state.completedUtc,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()
+        if ($age.TotalHours -lt 0 -or $age.TotalHours -ge 24) { return $null }
+        return $state
+    } catch [ArgumentException] { return $null }
+    catch [System.Management.Automation.RuntimeException] { return $null }
+}
+
+function Remove-ScopedIteration {
+    param([string] $Path, [string] $Root)
+    Assert-ScopedIterationPath $Path $Root
+    if (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -ErrorAction Stop }
+}
+
+function Write-ScopedIteration {
+    param([string] $Path, [string] $Root, [string] $Platform, [string] $Configuration, [string] $Environment, [string] $Options,
+        [Collections.IDictionary] $Source, [Collections.IDictionary] $Index, [string] $NativeContext, [string] $Artifact)
+    Assert-ScopedIterationPath $Path $Root
+    $state = [ordered]@{ version=2;root=[IO.Path]::GetFullPath($Root);platform=$Platform;configuration=$Configuration;
+        environment=$Environment;options=$Options;completedUtc=[DateTime]::UtcNow.ToString('o');source=$Source;index=$Index;nativeContext=$NativeContext;artifact=$Artifact }
+    $state['digest'] = Get-ScopedIterationDigest $state
+    [void](New-Item -ItemType Directory -Path (Split-Path -Parent $Path) -Force)
+    Assert-ScopedIterationPath $Path $Root
+    $temporary = $Path + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
+    try {
+        [IO.File]::WriteAllText($temporary,($state | ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+        Move-Item -LiteralPath $temporary -Destination $Path -Force
+    } finally { if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary } }
 }
 
 function Get-ScopedDependencyIdentity {
@@ -206,9 +381,133 @@ function Get-ScopedDependencyIdentity {
 }
 
 function Get-ScopedBuildInputIdentity {
-    param([string] $Root, [ValidateSet('x64','ARM64')][string] $Platform)
-    return Get-ScopedDigest (@((Get-ScopedSourceIdentity -Root $Root -CompiledOnly),
+    param([string] $Root, [ValidateSet('x64','ARM64')][string] $Platform, [string] $ToolingEngineRoot = '')
+    $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
+    return Get-ScopedDigest (@((Get-ScopedSourceIdentity -Root $Root -CompiledOnly @readerArguments),
         (Get-ScopedDependencyIdentity -Root $Root -Platform $Platform)) -join "`n")
+}
+
+function Get-ScopedBuildProjectCatalog {
+    return [ordered]@{
+        'DxUi'='src/DxUi.vcxproj'
+        'DxUi.FoundationTests'='Tests/Foundation/DxUi.FoundationTests.vcxproj'
+        'DxUi.ControlTests'='Tests/Controls/DxUi.ControlTests.vcxproj'
+        'DxUi.EmbeddedControls'='Samples/EmbeddedControls/DxUi.EmbeddedControls.vcxproj'
+        'DxUi.EmbeddedTests'='Tests/Embedded/DxUi.EmbeddedTests.vcxproj'
+        'DxUi.InteractiveLease'='Tests/InteractiveLease/DxUi.InteractiveLease.vcxproj'
+    }
+}
+
+function Resolve-ScopedBuildProjects {
+    param([string[]] $Projects)
+    $catalog=Get-ScopedBuildProjectCatalog
+    foreach ($project in $Projects) { if ($project -cnotin @($catalog.Keys)) { throw "Unknown native build project: $project" } }
+    # All current application/test projects reference the single static library.
+    return @($catalog.Keys | Where-Object { $_ -ceq 'DxUi' -or $_ -cin $Projects })
+}
+
+function Get-ScopedRequiredBuildProjects {
+    param([string[]] $Suites, [string] $Configuration, [switch] $Full)
+    if ($Full) { return @((Get-ScopedBuildProjectCatalog).Keys) }
+    # Every test invocation runs performance.ps1 through the benchmark executable.
+    $projects=@('DxUi','DxUi.EmbeddedTests')
+    if ('Foundation' -in $Suites -or $Configuration -eq 'ASan Debug') { $projects+='DxUi.FoundationTests' }
+    if (@($Suites | Where-Object { $_ -notin @('Foundation','Embedded') }).Count) { $projects+='DxUi.ControlTests' }
+    if (@($Suites | Where-Object { $_ -in @('InteractiveLease','Menu','NativeTextInput','MenuResources','MenuResourceScaling','MenuTextLayoutResources') }).Count) { $projects+='DxUi.InteractiveLease' }
+    return @(Resolve-ScopedBuildProjects $projects)
+}
+
+function Assert-ScopedSelectedBuildGraph {
+    param([string] $Root, [string] $MSBuildPath, [string] $Platform, [string] $Configuration, [string] $OutputRoot, [string[]] $Projects)
+    $catalog=Get-ScopedBuildProjectCatalog
+    $selected=@(Resolve-ScopedBuildProjects $Projects)
+    # Evaluate actual references, including imported and conditional items. Opaque/new
+    # dependencies refuse partial admission until their build/runtime contract is reviewed.
+    foreach ($project in $selected) {
+        $projectPath=[IO.Path]::GetFullPath((Join-Path $Root $catalog[$project]))
+        $text=& $MSBuildPath $projectPath /nologo "/p:Platform=$Platform" "/p:Configuration=$Configuration" "/p:DxUiOutputRoot=$OutputRoot" '-getItem:ProjectReference' '-getProperty:TargetPath,ConfigurationType'
+        if ($LASTEXITCODE) { throw "Cannot evaluate selected native project: $project" }
+        $evaluation=($text -join "`n") | ConvertFrom-Json
+        $extension=if ($project -ceq 'DxUi') {'.lib'} else {'.exe'}
+        $expected=[IO.Path]::GetFullPath((Join-Path $OutputRoot "$Platform/$Configuration/$project$extension"))
+        if ([IO.Path]::GetFullPath($evaluation.Properties.TargetPath) -ine $expected -or
+            $evaluation.Properties.ConfigurationType -cne $(if ($project -ceq 'DxUi') {'StaticLibrary'} else {'Application'})) { throw "Unsupported selected output contract: $project" }
+        $references=@($evaluation.Items.ProjectReference)
+        if (($project -ceq 'DxUi' -and $references.Count) -or ($project -cne 'DxUi' -and $references.Count -ne 1)) { throw "Unsupported selected reference inventory: $project" }
+        foreach ($reference in $references) {
+            $path=[IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $projectPath) $reference.Identity))
+            if ($path -ine [IO.Path]::GetFullPath((Join-Path $Root $catalog['DxUi']))) { throw "Unreviewed selected native dependency: $project" }
+        }
+    }
+}
+
+function Assert-ScopedBuildOutputs {
+    param([string] $Root, [string] $Platform, [string] $Configuration, [string[]] $Projects)
+    $profile=Join-Path $Root ".build/$Platform/$Configuration"
+    $cursor=[IO.Path]::GetFullPath($profile)
+    while ($cursor.Length -gt [IO.Path]::GetFullPath($Root).TrimEnd('\','/').Length) {
+        if ((Test-Path -LiteralPath $cursor) -and ((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Reparse selected build profile is unsupported.' }
+        $cursor=Split-Path -Parent $cursor
+    }
+    $outputs=@(foreach ($project in @(Resolve-ScopedBuildProjects $Projects)) {
+        if ($project -ceq 'DxUi') { 'DxUi.lib'; 'DxUi.pdb' } else { "$project.exe"; "$project.pdb" }
+    })
+    if ($Configuration -eq 'ASan Debug') { $outputs+=if ($Platform -eq 'ARM64') {'clang_rt.asan_dynamic-aarch64.dll'} else {'clang_rt.asan_dynamic-x86_64.dll'} }
+    foreach ($name in $outputs) {
+        $path=Join-Path $profile $name
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item -LiteralPath $path).Length -eq 0) { throw "Incomplete selected build output: $name" }
+        if ((Get-Item -LiteralPath $path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Reparse selected build output: $name" }
+    }
+}
+
+function Get-ScopedTargetBuildReceipt {
+    param([string] $Root, [string] $Platform, [string] $Configuration, [string[]] $Projects)
+    $targets=@(Resolve-ScopedBuildProjects $Projects) -join "`n"
+    $path=Join-Path $Root ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build-targets/$(Get-ScopedDigest $targets).json"
+    Assert-ScopedIterationPath $path $Root
+    return $path
+}
+
+function Remove-ScopedBuildReceipts {
+    param([string] $Root, [string] $Platform, [string] $Configuration)
+    $profile=Join-Path $Root ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')"
+    $full=Join-Path $profile 'build.json'
+    Assert-ScopedIterationPath $full $Root
+    if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full }
+    $targets=Join-Path $profile 'build-targets'
+    Assert-ScopedIterationPath (Join-Path $targets 'probe.json') $Root
+    if (Test-Path -LiteralPath $targets -PathType Container) {
+        foreach ($file in @(Get-ChildItem -LiteralPath $targets -File -Filter '*.json')) {
+            Assert-ScopedIterationPath $file.FullName $Root
+            Remove-Item -LiteralPath $file.FullName
+        }
+    }
+}
+
+function Write-ScopedTargetBuildReceipt {
+    param([string] $Root, [string] $Platform, [string] $Configuration, [string[]] $Projects, [string] $InputIdentity, [string] $ArtifactIdentity)
+    Assert-ScopedBuildOutputs $Root $Platform $Configuration $Projects
+    $targets=@(Resolve-ScopedBuildProjects $Projects) -join "`n"
+    Write-ScopedReceipt (Get-ScopedTargetBuildReceipt $Root $Platform $Configuration $Projects) (Get-ScopedDigest (@('dxui-selected-build-v1',$targets,$InputIdentity,$ArtifactIdentity) -join "`n"))
+}
+
+function Test-ScopedBuildCoverage {
+    param([string] $Root, [string] $Platform, [string] $Configuration, [string[]] $Projects, [string] $InputIdentity, [string] $ArtifactIdentity, [switch] $Full)
+    Assert-ScopedBuildOutputs $Root $Platform $Configuration $Projects
+    $report=Join-Path $Root ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
+    if (Test-ScopedReceipt $report (Get-ScopedDigest ($InputIdentity+"`n"+$ArtifactIdentity))) { return $true }
+    if ($Full) { return $false }
+    # Six bounded catalog entries => at most 64 exact, content-bound candidate sets.
+    # A larger selected union can satisfy a subset; a partial receipt never grants Full.
+    $catalog=@((Get-ScopedBuildProjectCatalog).Keys)
+    for ($mask=1; $mask -lt (1 -shl $catalog.Count); $mask++) {
+        $set=@(for ($i=0; $i -lt $catalog.Count; $i++) { if ($mask -band (1 -shl $i)) { $catalog[$i] } })
+        if ('DxUi' -cnotin $set -or @($Projects | Where-Object { $_ -cnotin $set }).Count) { continue }
+        $targets=$set -join "`n"
+        $identity=Get-ScopedDigest (@('dxui-selected-build-v1',$targets,$InputIdentity,$ArtifactIdentity) -join "`n")
+        if (Test-ScopedReceipt (Get-ScopedTargetBuildReceipt $Root $Platform $Configuration $set) $identity) { return $true }
+    }
+    return $false
 }
 
 function Get-ScopedArtifactIdentity {
@@ -290,16 +589,47 @@ function Get-ScopedRunIdentity {
 }
 
 function Test-ScopedReceipt {
-    param([string] $Path, [string] $Identity)
+    param([string] $Path, [string] $Identity, [ValidateRange(0,8760)][int] $MaxAgeHours = 0)
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
     try {
         $receipt = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
         # PowerShell 7.5 parses ISO JSON strings into DateTime; preserve the canonical UTC spelling on earlier hosts too.
         $completed = if ($receipt.completedUtc -is [DateTime]) { $receipt.completedUtc.ToUniversalTime().ToString('o') } else { [string]$receipt.completedUtc }
+        $age = [DateTime]::UtcNow - [DateTime]::Parse($completed, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()
         return $receipt.version -eq 1 -and $receipt.outcome -eq 'PASSED' -and $receipt.identity -ceq $Identity -and
+            $age.TotalHours -ge 0 -and ($MaxAgeHours -eq 0 -or $age.TotalHours -lt $MaxAgeHours) -and
             $receipt.digest -ceq (Get-ScopedDigest ($receipt.identity + "`n" + $completed + "`nPASSED"))
     } catch [ArgumentException] { return $false }
     catch [System.Management.Automation.RuntimeException] { return $false }
+}
+
+function Invoke-ScopedHarnessPreflight {
+    # Only deterministic filter/watchdog verification is reusable. Desktop availability,
+    # foreground leases, performance and product suites still execute under their owners.
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string] $Root,
+        [Parameter(Mandatory)][ValidateSet('x64','ARM64')][string] $Platform,
+        [Parameter(Mandatory)][ValidateSet('Debug','Release','ASan Debug')][string] $Configuration,
+        [switch] $Force)
+    $hostPath = (Get-Process -Id $PID).Path
+    $options = 'filter-watchdog-v1:' + (Get-FileHash -LiteralPath $hostPath -Algorithm SHA256).Hash
+    $before = Get-ScopedRunIdentity $Root $Platform $Configuration '(harness-preflight)' $options
+    $path = Join-Path $Root ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/harness.json"
+    $instrumented = @(Get-ScopedInstrumentation).Count -gt 0
+    $fresh = $Force -or $instrumented -or $env:CI -eq 'true' -or $env:GITHUB_ACTIONS -eq 'true'
+    if (-not $fresh -and (Test-ScopedReceipt $path $before -MaxAgeHours 24)) {
+        Write-Host 'REUSED native filter/watchdog preflight (exact local inputs, artifacts and environment; under 24 hours)'
+        return
+    }
+    if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path }
+    foreach ($script in @('Test-TestFilter.ps1','Test-TestWatchdog.ps1')) {
+        & $hostPath -NoProfile -NonInteractive -File (Join-Path $Root "Tools/tests/$script") -Platform $Platform -Configuration $Configuration
+        if ($LASTEXITCODE -ne 0) { throw "Native harness preflight failed: $script ($LASTEXITCODE)." }
+    }
+    if ((Get-ScopedRunIdentity $Root $Platform $Configuration '(harness-preflight)' $options) -cne $before) {
+        throw 'Harness preflight inputs or artifacts changed during verification; no reusable result was published.'
+    }
+    if (-not $instrumented) { Write-ScopedReceipt $path $before }
 }
 
 function Write-ScopedReceipt {
@@ -406,4 +736,9 @@ function Get-ScopedPrCoverage {
 Export-ModuleMember -Function Get-ScopedChangedPaths, Get-ScopedPrContractDigest, Read-ScopedTestManifest, Assert-ScopedTestNames, Get-ScopedTestPlan,
     Get-ScopedSourceIdentity, Get-ScopedDependencyIdentity, Get-ScopedBuildInputIdentity, Get-ScopedArtifactIdentity, Get-ScopedRunIdentity, Get-ScopedDigest,
     Test-ScopedReceipt, Write-ScopedReceipt, Get-ScopedPrCoverage, Get-ScopedPrCandidateScopes, Get-ScopedEnvironmentIdentity,
-    Get-ScopedToolIdentity, Get-ScopedInstrumentation, Test-ScopedPattern, Get-ScopedInteractiveObligations
+    Get-ScopedToolIdentity, Get-ScopedInstrumentation, Test-ScopedPattern, Get-ScopedInteractiveObligations, Invoke-ScopedHarnessPreflight
+Export-ModuleMember -Function Get-ScopedSourceMap, Get-ScopedIndexMap, Get-ScopedMapIdentity, Get-ScopedMapDelta, Get-ScopedPendingIndexDelta,
+    Get-ScopedIterationNativeContext, Read-ScopedIteration, Write-ScopedIteration, Remove-ScopedIteration, Enter-ScopedProfileLease, Exit-ScopedProfileLease
+Export-ModuleMember -Function Get-ScopedBuildProjectCatalog, Resolve-ScopedBuildProjects, Get-ScopedRequiredBuildProjects, Assert-ScopedSelectedBuildGraph,
+    Assert-ScopedBuildOutputs, Get-ScopedTargetBuildReceipt, Write-ScopedTargetBuildReceipt, Test-ScopedBuildCoverage
+Export-ModuleMember -Function Remove-ScopedBuildReceipts

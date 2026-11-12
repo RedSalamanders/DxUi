@@ -118,12 +118,12 @@ gate open if no supported mechanism meets both the catch restriction and the con
 Windows ABI implementations may raise and handle C++ exceptions internally before
 returning an HRESULT. Such an internal event is not evidence that an exception
 escaped into DxUi. Audited UI Automation calls, D3D11 device creation, deferred Direct2D `EndDraw` work and
-DirectWrite's lazy `IDWriteTextLayout::GetMetrics` formatting use `Failure::InvokeNative` with
+DirectWrite's lazy `IDWriteTextLayout::GetMetrics` and `GetOverhangMetrics` formatting use `Failure::InvokeNative` with
 pre-evaluated POD arguments. Its native allowance masks only the synchronous
 foreign implementation; every nested DxUi scope reactivates observation for
 reentrant providers and application callbacks. Never apply this allowance to an
 application delegate or use it to ignore WIL exception types or whole modules.
-The DirectWrite allowance covers only the opaque metrics call: source/projection allocation, publication and
+The DirectWrite allowance covers only each opaque metrics call: source/projection allocation, publication and
 subsequent SDK work remain observed. An HRESULT refusal must retain the previous prepared layout. The real
 65,536-code-unit unbroken source regression must retain source and caret geometry; an internal Windows
 formatting exception handled before HRESULT return must not become an application fatal report.
@@ -206,6 +206,13 @@ matching EXE/DLL/PDB identities. Dumping after unwinding and capturing only the 
 proof of the original failure callstack. Microsoft recommends a separate dumper process where possible, or a
 dedicated thread, and supplying the previously captured thread state; DbgHelp access must be serialized.
 [MiniDumpWriteDump documentation](https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/nf-minidumpapiset-minidumpwritedump).
+
+The application-owned sample reporter loads and retains system PSAPI during `Host::Start`, before installing
+hooks or starting its reporting worker. DbgCore's module enumeration must not first load that dependency after
+self-dump thread suspension: the reporting worker can otherwise wait on suspended loader work, preventing even
+the failing thread's timeout from running. Startup reports dependency-load failure. This preparation addresses
+that observed loader wait; it does not make in-process dumps infallible or replace the bounded fatal fallback,
+the original-context dump checks, or an application's separately owned crash infrastructure.
 
 Static SDK distribution also retains the matching compiler PDB beside `DxUi.lib`, and binds both hashes in its
 manifest/receipt. A successful link on the producer machine can silently borrow its original PDB path; header

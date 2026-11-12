@@ -14,6 +14,12 @@ Frozen batch version (0.1.build).
 .PARAMETER SmokeRoot
 Existing approved workspace outside a Git checkout for SDK consumer scratch.
 Hosted runs default to RUNNER_TEMP; local invocation requires an explicit root.
+.PARAMETER SourceRoot
+Optional separate clean pinned source checkout built by this producer tooling. Requires its matching source-build descriptor; dependency pins and source bytes remain unchanged.
+.PARAMETER SdkStoreRoot
+Optional immutable dependency-input store. Publication occurs only after every native SDK gate passes and complete input identity is rechecked.
+.PARAMETER SdkStoreRepositoryRoot
+Repository owning SdkStoreRoot beneath its .build directory; defaults to this producer tooling repository. Never authorizes a drive root or an unowned nonempty directory.
 .OUTPUTS
 .build/sdk/DxUi-SDK-<version>-<platform>.zip and source/compiler/archive identity receipt.
 The manifest and receipt include every shipped license path and SHA-256.
@@ -32,10 +38,11 @@ an active user of the producer PDB makes qualification fail rather than weakenin
 [CmdletBinding()]
 param([Parameter(Mandatory)][ValidateSet('x64','ARM64')][string]$Platform,
     [Parameter(Mandatory)][ValidatePattern('^0\.1\.[0-9]+$')][string]$Version,
-    [string]$SmokeRoot='')
+    [string]$SmokeRoot='', [string]$SourceRoot='', [string]$SdkStoreRoot='', [string]$SdkStoreRepositoryRoot='')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-$root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$toolingRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$root=if($SourceRoot){[IO.Path]::GetFullPath($SourceRoot)}else{$toolingRoot}
 if(-not $SmokeRoot -and $env:GITHUB_ACTIONS -eq 'true' -and $env:RUNNER_ENVIRONMENT -eq 'github-hosted'){$SmokeRoot=$env:RUNNER_TEMP}
 if(-not $SmokeRoot){throw 'Pass an existing approved SmokeRoot outside a Git checkout for local SDK qualification.'}
 $SmokeRoot=[IO.Path]::GetFullPath($SmokeRoot).TrimEnd('\','/')
@@ -46,15 +53,28 @@ for($component=$SmokeRoot;$component;$component=[IO.Path]::GetDirectoryName($com
 }
 $null=& git -C $SmokeRoot rev-parse --show-toplevel 2>$null
 if($LASTEXITCODE -eq 0){throw 'SDK SmokeRoot must be outside all producer Git checkouts.'}
-Import-Module (Join-Path $root 'Tools/VisualStudio.psm1') -Force
-Import-Module (Join-Path $root 'Tools/ConsumerBuild.psm1') -Force
-Import-Module (Join-Path $root 'Build/BuildConsole.psm1') -Force
-Import-Module (Join-Path $root 'Tools/SdkNotices.psm1') -Force
-$sourceCommit=(& git -C $root rev-parse HEAD).Trim()
+Import-Module (Join-Path $toolingRoot 'Tools/VisualStudio.psm1') -Force
+Import-Module (Join-Path $toolingRoot 'Tools/ConsumerBuild.psm1') -Force
+Import-Module (Join-Path $toolingRoot 'Build/BuildConsole.psm1') -Force
+Import-Module (Join-Path $toolingRoot 'Tools/SdkNotices.psm1') -Force
+Import-Module (Join-Path $toolingRoot 'Tools/SdkLibraryInputs.psm1') -Force
+Import-Module (Join-Path $toolingRoot 'Tools/SdkSourceProfiles.psm1')
+$toolingBefore=Get-DxUiSdkToolingProvenance -Root $toolingRoot
+if($SdkStoreRepositoryRoot -and -not $SdkStoreRoot){throw 'SdkStoreRepositoryRoot requires an explicit SdkStoreRoot.'}
+if($SdkStoreRoot){
+    Import-Module (Join-Path $toolingRoot 'Tools/SdkCacheInputs.psm1')
+    Import-Module (Join-Path $toolingRoot 'Tools/SdkInputStore.psm1')
+    if(-not $SdkStoreRepositoryRoot){$SdkStoreRepositoryRoot=$toolingRoot}
+    $sdkInputIdentity=Get-DxUiSdkCacheInputIdentity -Root $root -Platform $Platform
+}
+Assert-DxUiSdkReleaseProfile -Root $root -Platform $Platform
+$libraryInputs=Assert-DxUiSdkLibraryBuild -Root $root -Platform $Platform -RequireClean
+$sourceCommit=$libraryInputs.inputState.sourceCommit
+$sourceProfile=Get-DxUiSdkSourceProfile -Root $root -SourceCommit $sourceCommit
+$separateSource=-not [string]::Equals($root.TrimEnd('\','/'),$toolingRoot.TrimEnd('\','/'),[StringComparison]::OrdinalIgnoreCase)
+$sourceBuild=if($separateSource){Assert-DxUiSdkSourceBuildRecord -Root $root -Platform $Platform -Tooling $toolingBefore -LibraryRecord $libraryInputs}else{$null}
 $installation=Get-DxUiVisualStudioInstallation
-$hostArchitecture=if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64'){'arm64'}else{'amd64'}
-$msbuild=Join-Path $installation "MSBuild/Current/Bin/$hostArchitecture/MSBuild.exe"
-if(-not(Test-Path -LiteralPath $msbuild)){throw 'Native MSBuild is missing from the selected installation.'}
+$msbuild=Get-DxUiNativeMSBuild -Installation $installation
 $identity=Get-DxUiConsumerBuildIdentity -DxUiRoot $root -MSBuildPath $msbuild -Platform $Platform
 $library=Join-Path $root ".build/$Platform/Release/DxUi.lib"
 $libraryPdb=Join-Path $root ".build/$Platform/Release/DxUi.pdb"
@@ -67,46 +87,11 @@ $native=if($Platform -eq 'ARM64'){'Arm64'}else{'X64'}
 if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -cne $native){throw 'SDK smoke must execute on its native architecture.'}
 $directory=Join-Path $root '.build/sdk'
 $stage=Join-Path $directory ('stage-'+[guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path (Join-Path $stage "lib/$Platform/Release") -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $root 'include') -Destination $stage -Recurse
-$triplet=if($Platform -eq 'ARM64'){'arm64-windows'}else{'x64-windows'}
-$installed=Join-Path $root ".build/vcpkg_installed/$Platform/$triplet"
-Copy-Item -Path (Join-Path $installed 'include/*') -Destination (Join-Path $stage 'include') -Recurse
-Copy-Item -LiteralPath $library -Destination (Join-Path $stage "lib/$Platform/Release/DxUi.lib")
-Copy-Item -LiteralPath $libraryPdb -Destination (Join-Path $stage "lib/$Platform/Release/DxUi.pdb")
-if((Get-FileHash -LiteralPath (Join-Path $stage "lib/$Platform/Release/DxUi.lib") -Algorithm SHA256).Hash.ToLowerInvariant() -cne $libraryHash -or
-   (Get-FileHash -LiteralPath (Join-Path $stage "lib/$Platform/Release/DxUi.pdb") -Algorithm SHA256).Hash.ToLowerInvariant() -cne $libraryPdbHash){
-    throw 'The staged library or compiler PDB changed during packaging.'
-}
-New-Item -ItemType Directory -Path (Join-Path $stage 'build') | Out-Null
-Copy-Item -LiteralPath (Join-Path $root 'Build/NativeBuildPolicy.targets') -Destination (Join-Path $stage 'build/NativeBuildPolicy.targets')
-Copy-DxUiSdkNotices -Root $root -InstalledRoot $installed -Stage $stage -SourceCommit $sourceCommit
-$licenseInventory=@(Assert-DxUiSdkNotices -Root $root -InstalledRoot $installed -Stage $stage -SourceCommit $sourceCommit)
-$props=@'
-<Project>
-  <PropertyGroup>
-    <DxUiSdkRoot>$(MSBuildThisFileDirectory)</DxUiSdkRoot>
-    <ExternalIncludePath>$(DxUiSdkRoot)include;$(ExternalIncludePath)</ExternalIncludePath>
-  </PropertyGroup>
-  <ItemDefinitionGroup>
-    <ClCompile>
-      <AdditionalIncludeDirectories>$(DxUiSdkRoot)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpplatest</LanguageStandard><RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <ExceptionHandling>Sync</ExceptionHandling><AdditionalOptions>/utf-8 /Zc:preprocessor %(AdditionalOptions)</AdditionalOptions>
-      <PreprocessorDefinitions>UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <Link><AdditionalDependencies>$(DxUiSdkRoot)lib\$(Platform)\Release\DxUi.lib;%(AdditionalDependencies)</AdditionalDependencies><LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration></Link>
-  </ItemDefinitionGroup>
-  <Target Name="ValidateDxUiSdkProfile" BeforeTargets="PrepareForBuild">
-    <Error Condition="'$(Configuration)'!='Release'" Text="This SDK ZIP contains Release only." />
-    <Error Condition="'$(Platform)'!='@PLATFORM@'" Text="This SDK ZIP has another native architecture." />
-    <Error Condition="'$(VCToolsVersion)'!='@COMPILER@'" Text="Use the SDK manifest's exact MSVC compiler version for LTCG compatibility." />
-  </Target>
-  <Import Project="$(MSBuildThisFileDirectory)build\NativeBuildPolicy.targets" />
-</Project>
-'@
-$props=$props.Replace('@PLATFORM@',$Platform).Replace('@COMPILER@',$identity.Identity.vcToolsVersion)
-[IO.File]::WriteAllText((Join-Path $stage 'DxUi.Sdk.props'),$props,[Text.UTF8Encoding]::new($false))
+Import-Module (Join-Path $toolingRoot 'Tools/SdkPayload.psm1')
+$payload=New-DxUiSdkPayload -Root $root -Stage $stage -Platform $Platform -SourceCommit $sourceCommit `
+    -CompilerVersion $identity.Identity.vcToolsVersion -ExpectedLibraryHash $libraryHash -ExpectedPdbHash $libraryPdbHash
+$installed=$payload.InstalledRoot
+$licenseInventory=@($payload.Licenses)
 @'
 Import DxUi.Sdk.props after Microsoft.Cpp.props in a Release project for the archive's architecture.
 Use the exact MSVC compiler version in sdk-manifest.json; the library contains LTCG objects and uses /MD.
@@ -118,13 +103,20 @@ The included native policy preserves /Wall for your sources and the producer's r
 $manifest=[ordered]@{schemaVersion=1;version=$Version;platform=$Platform;configuration='Release';kind='sdk';
     source=$sourceCommit;apiRevision=$identity.Identity.apiRevision;compiler=$identity.Identity;licenses=$licenseInventory;
     librarySha256=$libraryHash;libraryPdbSha256=$libraryPdbHash;runtime='MD';testsIncluded=$false}
+$manifest['libraryInputDigest']=$libraryInputs.digest
+$manifest['nativeBuildIdentity']=$libraryInputs.inputState.nativeInputs
+$manifest['producerTooling']=$toolingBefore
+$manifest['sourceProfile']=$sourceProfile.name
+$manifest['sourceBuildInputs']=$sourceBuild
+if($SdkStoreRoot){$manifest['sdkCacheIdentity']=$sdkInputIdentity}
 $manifest|ConvertTo-Json -Depth 12|Set-Content -LiteralPath (Join-Path $stage 'sdk-manifest.json') -Encoding utf8
 New-Item -ItemType Directory -Path (Join-Path $stage 'samples/Smoke') -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $root 'Samples/SdkSmoke/Main.cpp') -Destination (Join-Path $stage 'samples/Smoke/Main.cpp')
+Copy-Item -LiteralPath $sourceProfile.main -Destination (Join-Path $stage 'samples/Smoke/Main.cpp')
 New-Item -ItemType Directory -Path (Join-Path $stage 'samples/Shared') -Force | Out-Null
-foreach($name in @('FailureHost.h','FailureHost.cpp')){Copy-Item -LiteralPath (Join-Path $root "Samples/Shared/$name") -Destination (Join-Path $stage 'samples/Shared')}
+foreach($file in $sourceProfile.shared){Copy-Item -LiteralPath $file -Destination (Join-Path $stage 'samples/Shared')}
 $archive=Join-Path $directory "DxUi-SDK-$Version-$Platform.zip"
 if(Test-Path -LiteralPath $archive){throw 'A previous SDK ZIP already occupies this identity; use a fresh production workspace.'}
+if($SdkStoreRoot){$sdkPayloadDigest=Get-DxUiSdkInputPayloadDigest -PayloadRoot $stage}
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $archive
 $smoke=Join-Path $SmokeRoot ('dxui-sdk-'+[guid]::NewGuid().ToString('N'))
 if(Test-Path -LiteralPath $smoke){throw 'SDK consumer scratch identity is already occupied.'}
@@ -155,6 +147,7 @@ $project=@'
 </Project>
 '@
 $project=$project.Replace('@PLATFORM@',$Platform).Replace('@SDK@',$identity.Identity.windowsSdkVersion)
+if('FailureHost' -cnotin $sourceProfile.units){$project=$project.Replace('<ClCompile Include="extracted SDK\samples\Shared\FailureHost.cpp" />','')}
 $projectPath=Join-Path $smoke 'SdkSmoke.vcxproj'
 [IO.File]::WriteAllText($projectPath,$project,[Text.UTF8Encoding]::new($false))
 $extractedLibrary=Join-Path $extracted "lib/$Platform/Release/DxUi.lib"
@@ -203,7 +196,7 @@ $propertiesJson=& $msbuild $projectPath /nologo /p:Configuration=Release "/p:Pla
 if($LASTEXITCODE -ne 0){throw 'Cannot evaluate the extracted consumer toolchain roots.'}
 $properties=($propertiesJson -join [Environment]::NewLine|ConvertFrom-Json).Properties
 $allowedRoots=@($extracted,$installation,$properties.WindowsSdkDir)|ForEach-Object{[IO.Path]::GetFullPath($_).TrimEnd('\','/')+[IO.Path]::DirectorySeparatorChar}
-foreach($unit in @('Main','FailureHost')){
+foreach($unit in $sourceProfile.units){
     $dependenciesPath=Join-Path $smoke "obj/$unit.source-dependencies.json"
     $dependencies=Get-Content -LiteralPath $dependenciesPath -Raw|ConvertFrom-Json
     if(@($dependencies.Data.Includes).Count -eq 0){throw "SDK smoke $unit has no compiler header-closure proof."}
@@ -244,6 +237,11 @@ foreach($entry in @(@($library,$libraryHash),@($libraryPdb,$libraryPdbHash),@($e
         throw "SDK library or compiler PDB changed during qualification: $($entry[0])"
     }
 }
+$finalLibraryInputs=Assert-DxUiSdkLibraryBuild -Root $root -Platform $Platform -RequireClean
+if($finalLibraryInputs.digest -cne $libraryInputs.digest){throw 'SDK native library input provenance changed during packaging.'}
+$toolingAfter=Get-DxUiSdkToolingProvenance -Root $toolingRoot
+if(($toolingBefore|ConvertTo-Json -Compress) -cne ($toolingAfter|ConvertTo-Json -Compress)){throw 'SDK producer tooling changed during packaging.'}
+if($separateSource){Assert-DxUiSdkSourceBuildRecord -Root $root -Platform $Platform -Tooling $toolingAfter -LibraryRecord $finalLibraryInputs|Out-Null}
 $manifest['smokePassed']=$true
 $manifest['producerPdbIsolationPassed']=$true
 $manifest['missingPackagedPdbControlPassed']=$true
@@ -253,5 +251,12 @@ $manifest['headerClosurePassed']=$true
 $manifest['headerCount']=@($dependencies.Data.Includes).Count
 $manifest['nativePolicySha256']=(Get-FileHash -LiteralPath (Join-Path $extracted 'build/NativeBuildPolicy.targets')).Hash.ToLowerInvariant()
 $manifest['archiveSha256']=(Get-FileHash -LiteralPath $archive).Hash.ToLowerInvariant()
+if($SdkStoreRoot){
+    $sdkInputAfter=Get-DxUiSdkCacheInputIdentity -Root $root -Platform $Platform
+    if(($sdkInputIdentity|ConvertTo-Json -Depth 8 -Compress) -cne ($sdkInputAfter|ConvertTo-Json -Depth 8 -Compress)){throw 'SDK input identity changed during native qualification; no store entry was published.'}
+    $published=Publish-DxUiSdkInputBytes -StoreRoot $SdkStoreRoot -StoreRepositoryRoot $SdkStoreRepositoryRoot -PayloadRoot $stage -Identity $sdkInputIdentity -ExpectedPayloadDigest $sdkPayloadDigest
+    $manifest['sdkStoreManifestSha256']=$published.ManifestSha256
+    $manifest['sdkStoreInputKey']=$published.Key
+}
 $manifest|ConvertTo-Json -Depth 12|Set-Content -LiteralPath ($archive+'.receipt.json') -Encoding utf8
 Write-Host "Qualified extracted SDK ZIP: $archive"

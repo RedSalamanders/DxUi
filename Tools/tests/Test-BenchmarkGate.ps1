@@ -41,7 +41,7 @@ Invoke-TestCase 'every library, build, benchmark and measurement path is measure
         'Tests/Embedded/Embedded.Tests.Embedded.cpp' = 'benchmark executable'; 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' = 'benchmark executable'; 'Tests/Support/Support.Tests.TestWatchdog.h' = 'benchmark executable'
         'Samples/EmbeddedControls/EmbeddedScene.h' = 'fixture or sample compiled into it'
         'DxUi.sln' = 'build or restore'; 'build.ps1' = 'build or restore'; 'vcpkg-install.ps1' = 'build or restore'; 'vcpkg-configuration.json' = 'build or restore'
-        'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'; 'Tools/ProcessInspection.psm1' = 'build or restore'
+        'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/VcpkgRestore.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'; 'Tools/SdkLibraryInputs.psm1' = 'build or restore'; 'Tools/SdkSourceProfiles.psm1' = 'build or restore'; 'Tools/ProcessInspection.psm1' = 'build or restore'
         'Tools/Validation.psm1' = 'build or restore'; 'Tools/Changelog.psm1' = 'build or restore'; 'Tools/Modules/Documentation/Changelog.psm1' = 'build or restore'
         'Tools/PairedRun.psm1' = 'benchmark harness'; 'Tools/BenchmarkGate.psm1' = 'benchmark harness'
         'Tools/PerformancePolicy.psm1' = 'benchmark harness'; 'Tools/PerformanceAcceptancePolicy.v1.json' = 'paired measurement or gate'
@@ -173,7 +173,7 @@ Invoke-TestCase 'every module the build and measurement scripts import is measur
             if ($seen.Add($import)) { $pending.Enqueue($import) }
         }
     }
-    Assert-True ($seen.Contains('Tools/PerformanceComparison.psm1') -and $seen.Contains('Tools/PairedRun.psm1') -and $seen.Contains('Tools/VcpkgTriplet.psm1')) 'the walk reaches the comparator, the schedule and the restore'
+    Assert-True ($seen.Contains('Tools/PerformanceComparison.psm1') -and $seen.Contains('Tools/PairedRun.psm1') -and $seen.Contains('Tools/VcpkgTriplet.psm1') -and $seen.Contains('Tools/VcpkgRestore.psm1')) 'the walk reaches the comparator, the schedule and the restore'
     Assert-True ($seen.Contains('Tools/Validation.psm1') -and $seen.Contains('Tools/Changelog.psm1')) 'the solution attestation helper closure is measured too'
 }
 

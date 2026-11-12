@@ -475,6 +475,56 @@ function Get-PerformanceProjectEvaluationCore {
         solutionIdentity=$metadata.solutionIdentity; projectSha256=$metadata.projectSha256 }
 }
 
+function Assert-PerformanceQueryPath {
+    # Query files are disposable metadata inputs under this caller's build tree, never native runtime data.
+    param([string]$Root,[string]$Path)
+    $rootPath=[IO.Path]::GetFullPath($Root).TrimEnd('\','/')
+    if($rootPath -eq [IO.Path]::GetPathRoot($rootPath).TrimEnd('\','/') -or -not(Test-Path -LiteralPath $rootPath -PathType Container)){
+        throw 'MSBuild metadata queries require an existing project workspace.'
+    }
+    $path=[IO.Path]::GetFullPath($Path)
+    $prefix=(Join-Path $rootPath '.build')+[IO.Path]::DirectorySeparatorChar
+    $comparison=if([OperatingSystem]::IsWindows()){[StringComparison]::OrdinalIgnoreCase}else{[StringComparison]::Ordinal}
+    if(-not $path.StartsWith($prefix,$comparison)){throw 'MSBuild metadata query files must stay under the project build tree.'}
+    for($cursor=$path;$cursor;$cursor=Split-Path -Parent $cursor){
+        if((Test-Path -LiteralPath $cursor) -and ((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)){
+            throw 'Reparse MSBuild metadata query paths are unsupported.'
+        }
+    }
+    return $path
+}
+
+function Get-PerformancePropertyValues {
+    param([string]$Root,[string]$MSBuildPath,[string[]]$Arguments,
+        [ValidateCount(2,10000)][string[]]$Names,[string]$Role)
+    $unique=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach($name in $Names){
+        if($name -cnotmatch '^[A-Za-z_][A-Za-z0-9_.]{0,199}$' -or -not $unique.Add($name)){
+            throw 'MSBuild metadata queries require distinct plain property names.'
+        }
+    }
+    $directory=Assert-PerformanceQueryPath $Root (Join-Path $Root '.build/msbuild-queries')
+    [void][IO.Directory]::CreateDirectory($directory)
+    $response=Assert-PerformanceQueryPath $Root (Join-Path $directory ([guid]::NewGuid().ToString('N')+'.rsp'))
+    try{
+        $file=[IO.File]::Open($response,'CreateNew','Write','None')
+        try{$bytes=[Text.UTF8Encoding]::new($false).GetBytes(('-getProperty:'+($Names -join ',')));$file.Write($bytes,0,$bytes.Length)}finally{$file.Dispose()}
+        # One evaluation returns the same complete property set. The response file avoids Windows argv limits.
+        # No target/getTargetResult is added: source, profile and toolchain acquisition still evaluates only.
+        $json=@(& $MSBuildPath @Arguments ('@'+$response) 2>&1)
+        if($LASTEXITCODE -ne 0){throw "MSBuild could not evaluate $Role toolchain properties. $($json -join ' ')"}
+        $values=($json -join "`n"|ConvertFrom-Json -AsHashtable)['Properties']
+        $properties=[ordered]@{}
+        foreach($name in $Names){
+            if(-not $values.Contains($name)){throw "MSBuild omitted the requested $name property."}
+            $properties[$name]=$values[$name]
+        }
+        return $properties
+    }finally{
+        if(Test-Path -LiteralPath $response){[void](Assert-PerformanceQueryPath $Root $response);[IO.File]::Delete($response)}
+    }
+}
+
 function Get-PerformanceProjectMetadataCore {
     # Evaluation only: no targets, compiler, native-input hashing or build attestation. Kept separate so the
     # installed-MSBuild regression can inspect the exact same complete profile as the production evaluator.
@@ -484,18 +534,7 @@ function Get-PerformanceProjectMetadataCore {
     [xml]$project = $expanded['text']
     $names = Get-PerformanceToolPropertyNames $project
     $arguments = @($ProjectPath, '/nologo', "/p:Configuration=$Configuration", "/p:Platform=$Platform", "/p:DxUiOutputRoot=$OutputRoot") + @(ConvertTo-PerformanceMSBuildProperties $solution.properties)
-    $properties = [ordered]@{}
-    # The installed target closure references more than a thousand properties. Bound command-line size on Windows.
-    for ($offset = 0; $offset -lt $names.Count; $offset += 200) {
-        $batch = $names[$offset..([Math]::Min($offset + 199, $names.Count - 1))]
-        $json = @(& $MSBuildPath @arguments "-getProperty:$($batch -join ',')" 2>&1)
-        if ($LASTEXITCODE -ne 0) { throw "MSBuild could not evaluate $Role toolchain properties. $($json -join ' ')" }
-        $values = ($json -join "`n" | ConvertFrom-Json -AsHashtable)['Properties']
-        foreach ($name in $batch) {
-            if (-not $values.Contains($name)) { throw "MSBuild omitted the requested $name property." }
-            $properties[$name] = $values[$name]
-        }
-    }
+    $properties=Get-PerformancePropertyValues -Root $Root -MSBuildPath $MSBuildPath -Arguments $arguments -Names $names -Role $Role
     if ($properties['ForceImportAfterCppTargets']) { throw 'A real ForceImportAfterCppTargets override cannot be replaced by a performance metadata probe.' }
     $originalKinds = @('ClCompile','FxCompile','ProjectReference','CustomBuild','ResourceCompile','Midl','MASM','ARMASM','BuildMacro')
     $json = @(& $MSBuildPath @arguments "-getItem:$($originalKinds -join ',')" 2>&1)
@@ -808,7 +847,7 @@ function Get-PerformanceToolIdentities {
         if ($IdentityScope -eq 'Full') {
             $harness = & $hashFiles -Paths @('performance.ps1','performance-paired.ps1','build.ps1','vcpkg-install.ps1',
                 'Tools/Compare-Performance.ps1','Tools/PerformanceComparison.psm1','Tools/PairedRun.psm1','Tools/BenchmarkGate.psm1','Tools/PerformancePolicy.psm1','Tools/PerformanceAcceptancePolicy.v1.json',
-                'Tools/VisualStudio.psm1','Tools/VcpkgTriplet.psm1','Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1','Build/BuildConsole.psm1','vcpkg.json','vcpkg-tool.json')
+                'Tools/VisualStudio.psm1','Tools/VcpkgTriplet.psm1','Tools/VcpkgRestore.psm1','Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1','Build/BuildConsole.psm1','vcpkg.json','vcpkg-tool.json')
         }
         Import-Module (Join-Path $rootPath 'Tools/VisualStudio.psm1') -Force
         $installation = Get-DxUiVisualStudioInstallation
@@ -821,6 +860,7 @@ function Get-PerformanceToolIdentities {
             "MSBuildFiles=$(& $hashTree -Paths @((Split-Path -Parent $msbuildPath)) -AllFiles)",
             "ToolsetSelection=$((Get-FileHash -LiteralPath $toolsetProps -Algorithm SHA256).Hash)")
         $resolvedProjects = [ordered]@{}
+        $sdkProjects = [ordered]@{}
         $closureCache = @{}
         foreach ($entry in Get-PerformanceProjectCatalog) {
             $role = $entry.role
@@ -830,6 +870,12 @@ function Get-PerformanceToolIdentities {
             if ([string]::IsNullOrWhiteSpace([string]$evaluation['solutionIdentity'])) { throw 'The resolved solution configuration identity is missing.' }
             if (-not $evaluation.Contains('inputs') -or [string]::IsNullOrWhiteSpace([string]$evaluation['inputs']['identity'])) { throw 'The resolved native source byte identity is missing.' }
             $resolvedProjects[$role] = [ordered]@{ path=$entry.path; projectSha256=$evaluation['projectSha256']; solutionIdentity=$evaluation['solutionIdentity']; expandedProjectIdentity=$profile['expandedProjectIdentity']; resolvedItemsIdentity=$profile['resolvedItemsIdentity']; nativeInputIdentity=$evaluation['inputs']['identity'] }
+            # SDK inputs have a separate portable projection. MSBuild's Directory/RootDir item metadata is derived
+            # from checkout location; its existing resolvedItemsIdentity remains binding for build/test receipts.
+            # Source membership/bytes, every supported per-source effective option, expanded imports/targets and
+            # solution mappings remain binding here through the checked native closure and complete profile.
+            $sdkProjects[$role] = [ordered]@{ path=$entry.path; projectSha256=$evaluation['projectSha256']; solutionIdentity=$evaluation['solutionIdentity'];
+                expandedProjectIdentity=$profile['expandedProjectIdentity']; profileIdentity=$profile['profileIdentity']; nativeInputIdentity=$evaluation['inputs']['identity'] }
             $toolchainLines += "$role.Profile=$($profile['profileIdentity'])"
             $toolPaths = Get-PerformanceResolvedToolPaths -Properties $properties -Platform $Platform
             foreach ($name in $toolPaths.Keys) { $toolchainLines += "$role.$name=$((Get-FileHash -LiteralPath $toolPaths[$name] -Algorithm SHA256).Hash)" }
@@ -859,6 +905,7 @@ function Get-PerformanceToolIdentities {
             }
         }
         $resolvedBuildIdentity = Get-ScopedDigest ("dxui-resolved-projects-v2`n" + ($resolvedProjects | ConvertTo-Json -Depth 12 -Compress))
+        $sdkInputIdentity = Get-ScopedDigest ("dxui-sdk-resolved-inputs-v1`n" + ($sdkProjects | ConvertTo-Json -Depth 12 -Compress))
         # cl.exe also consumes CL/_CL_ independently of evaluated project metadata. Hash values without publishing them.
         foreach ($name in @('CL','_CL_','INCLUDE','LIB','LIBPATH','PATH','VCToolsVersion','WindowsSDKVersion','PreferredToolArchitecture')) {
             $value = [Environment]::GetEnvironmentVariable($name)
@@ -870,7 +917,7 @@ function Get-PerformanceToolIdentities {
         # Build guards run before output/runtime directories exist. Their limited scope binds both compiled projects,
         # CL/FXC/link/lib profiles and installed tool inputs, and cannot qualify a full measurement receipt.
         if ($IdentityScope -eq 'Build') {
-            return [ordered]@{ buildIdentityVersion=2; resolvedBuildIdentity=$resolvedBuildIdentity; identityStatus='build-only'; identityScope=$scopeName; harnessIdentity=''; toolchainIdentity=$toolchain; dependencyIdentity=''; environmentIdentity='' }
+            return [ordered]@{ buildIdentityVersion=2; resolvedBuildIdentity=$resolvedBuildIdentity; sdkInputIdentity=$sdkInputIdentity; identityStatus='build-only'; identityScope=$scopeName; harnessIdentity=''; toolchainIdentity=$toolchain; dependencyIdentity=''; environmentIdentity='' }
         }
 
         $triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
@@ -957,29 +1004,32 @@ function Get-PerformanceIncrementalAttestationIdentity([string] $BuildIdentity, 
 
 function Get-PerformanceBuildState {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration)
+    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration, [string] $ToolingEngineRoot = '')
+    $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
     $tools = Get-PerformanceToolIdentities -Root $Root -Platform $Platform -Configuration $Configuration -IdentityScope Build
     if ($tools.identityStatus -cne 'build-only' -or $tools['buildIdentityVersion'] -ne 2 -or [string]::IsNullOrWhiteSpace([string]$tools.toolchainIdentity) -or
             [string]::IsNullOrWhiteSpace([string]$tools['resolvedBuildIdentity'])) {
         throw "Cannot attest benchmark build toolchain: $($tools['identityError'])"
     }
     return [ordered]@{ buildIdentityVersion=2; resolvedBuildIdentity=$tools['resolvedBuildIdentity'];
-        buildInputIdentity=(Get-PerformanceBuildInputIdentity -Root $Root -Platform $Platform -ResolvedBuildIdentity $tools['resolvedBuildIdentity']); toolchainIdentity=$tools.toolchainIdentity }
+        buildInputIdentity=(Get-PerformanceBuildInputIdentity -Root $Root -Platform $Platform -ResolvedBuildIdentity $tools['resolvedBuildIdentity'] @readerArguments); toolchainIdentity=$tools.toolchainIdentity }
 }
 
 function Get-PerformanceBuildInputIdentity {
-    param([string] $Root, [string] $Platform, [string] $ResolvedBuildIdentity)
+    param([string] $Root, [string] $Platform, [string] $ResolvedBuildIdentity, [string] $ToolingEngineRoot = '')
     if ([string]::IsNullOrWhiteSpace($ResolvedBuildIdentity)) { throw 'The resolved build input identity is missing.' }
-    return Get-ScopedDigest (@('dxui-performance-input-v2', (Get-ScopedBuildInputIdentity $Root $Platform), $ResolvedBuildIdentity) -join "`n")
+    $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
+    return Get-ScopedDigest (@('dxui-performance-input-v2', (Get-ScopedBuildInputIdentity $Root $Platform @readerArguments), $ResolvedBuildIdentity) -join "`n")
 }
 
 function Start-PerformanceBuildAttestation {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration)
+    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration, [string] $ToolingEngineRoot = '')
+    $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
     $path = Get-PerformanceBuildAttestationPath $Root $Platform $Configuration
     $incrementalPath = Get-PerformanceIncrementalAttestationPath $Root $Platform $Configuration
     try {
-        $state = Get-PerformanceBuildState -Root $Root -Platform $Platform -Configuration $Configuration
+        $state = Get-PerformanceBuildState -Root $Root -Platform $Platform -Configuration $Configuration @readerArguments
         $rebuildRequired = $true
         $executable = Join-Path $Root ".build/$Platform/$Configuration/DxUi.EmbeddedTests.exe"
         if ((Test-Path -LiteralPath $path -PathType Leaf) -and (Test-Path -LiteralPath $executable -PathType Leaf)) {
@@ -1020,11 +1070,12 @@ function Get-PerformanceBuildAttestationIdentity {
 function Complete-PerformanceBuildAttestation {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration,
-        [Parameter(Mandatory)][System.Collections.IDictionary] $Before)
+        [Parameter(Mandatory)][System.Collections.IDictionary] $Before, [switch] $PassThru, [string] $ToolingEngineRoot = '')
+    $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
     $path = Get-PerformanceBuildAttestationPath $Root $Platform $Configuration
     $incrementalPath = Get-PerformanceIncrementalAttestationPath $Root $Platform $Configuration
     try {
-        $after = Get-PerformanceBuildState -Root $Root -Platform $Platform -Configuration $Configuration
+        $after = Get-PerformanceBuildState -Root $Root -Platform $Platform -Configuration $Configuration @readerArguments
         foreach ($key in @('buildIdentityVersion','resolvedBuildIdentity','buildInputIdentity','toolchainIdentity')) {
             if ([string]$Before[$key] -cne [string]$after[$key]) { throw "Benchmark $key changed during build; no build attestation was published." }
         }
@@ -1035,6 +1086,7 @@ function Complete-PerformanceBuildAttestation {
         $intermediate = Get-PerformanceIntermediateIdentity $Root $Platform $Configuration
         Write-ScopedReceipt -Path $path -Identity $identity
         Write-ScopedReceipt -Path $incrementalPath -Identity (Get-PerformanceIncrementalAttestationIdentity $identity $intermediate)
+        if($PassThru){return $after}
     } catch {
         # A nested modern build may have published a receipt before the outer, legacy-compatible guard notices drift.
         if (Test-Path -LiteralPath $path -PathType Leaf) { Remove-Item -LiteralPath $path }
@@ -1046,9 +1098,10 @@ function Complete-PerformanceBuildAttestation {
 function Assert-PerformanceBuildAttestation {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration,
-        [System.Collections.IDictionary] $State)
+        [System.Collections.IDictionary] $State, [string] $ToolingEngineRoot = '')
     if ($null -eq $State) {
-        $State = Get-PerformanceBuildState -Root $Root -Platform $Platform -Configuration $Configuration
+        $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
+        $State = Get-PerformanceBuildState -Root $Root -Platform $Platform -Configuration $Configuration @readerArguments
         $State['buildArtifactIdentity'] = Get-ScopedArtifactIdentity $Root $Platform $Configuration
     }
     $identity = Get-PerformanceBuildAttestationIdentity -State $State -ArtifactIdentity ([string]$State['buildArtifactIdentity'])
@@ -1060,7 +1113,8 @@ function Assert-PerformanceBuildAttestation {
 
 function Get-PerformanceMeasurementState {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration)
+    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Platform, [Parameter(Mandatory)][string] $Configuration, [string] $ToolingEngineRoot = '')
+    $readerArguments=@{};if($ToolingEngineRoot){$readerArguments.ToolingEngineRoot=$ToolingEngineRoot}
     $tools = Get-PerformanceToolIdentities -Root $Root -Platform $Platform -Configuration $Configuration
     if ($tools.identityStatus -cne 'verifiable' -or $tools.identityScope -cne 'full' -or $tools['buildIdentityVersion'] -ne 2) { throw "Cannot attest benchmark measurement: $($tools['identityError'])" }
     $commit = @(& git -C $Root rev-parse HEAD)
@@ -1083,7 +1137,7 @@ function Get-PerformanceMeasurementState {
         executableSha256=(Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash; benchmarkInputs=$inputs
         # Keep the historical receipt's uppercase SHA-256 and literal path/hash lines.
         benchmarkSha256=(Get-ScopedDigest $fixture).ToUpperInvariant()
-        buildInputIdentity=(Get-PerformanceBuildInputIdentity -Root $Root -Platform $Platform -ResolvedBuildIdentity $tools['resolvedBuildIdentity']); buildArtifactIdentity=(Get-ScopedArtifactIdentity $Root $Platform $Configuration)
+        buildInputIdentity=(Get-PerformanceBuildInputIdentity -Root $Root -Platform $Platform -ResolvedBuildIdentity $tools['resolvedBuildIdentity'] @readerArguments); buildArtifactIdentity=(Get-ScopedArtifactIdentity $Root $Platform $Configuration)
     }
     foreach ($key in $tools.Keys) { $state[$key] = $tools[$key] }
     $state['buildAttestationIdentity'] = Get-PerformanceBuildAttestationIdentity -State $state -ArtifactIdentity $state['buildArtifactIdentity']

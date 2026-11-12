@@ -1,0 +1,1 @@
+- Reuse exact successful local filter/watchdog verification for up to 24 hours, with source, binary, dependency, host and environment checks; keep Full and hosted preflights fresh and revoke reusable success on failure or mutation.

@@ -1,7 +1,44 @@
 # Validation and evidence
 
+Local build, native and tooling identities also bind the actual ignored `.ci-engine`
+through the shared `Get-CiPinnedEngineInputsIdentity`. The generated checkout must be
+ordinary, independent, clean and at `.ci/project.json`'s exact pin before evidence
+reuse. Fresh raw engine bytes participate; generated engine `.build` output does not.
+This input is separate from product iteration maps, grants no qualification or CI
+delegation, and preserves the current local and main gates.
+
 Status: normative intended contract
+
+Direct OLE adapter fixtures run in a dedicated COM worker with an owned neutral thread keyboard state.
+Save and restore that worker's complete key bytes; do not inherit Alt from thread creation or change
+physical input, another thread, activation or product modifier rules. Explicit modifier-refusal controls
+still exercise the actual adapter (including Alt rejecting a same-editor move). No foreground lease is
+needed for these direct, windowless calls.
 Last reviewed: 2026-10-25
+
+## Paired engine input integrity
+
+Cold historical engine preparation must work from a shallow common-reader
+checkout. If its clone lacks the side's exact declared commit, fetch only that
+commit from the declared canonical engine repository, then verify and detach at
+the original pin. Never advance the side, change the common reader or repair an
+existing wrong-pin/dirty/foreign engine. The shallow-history acquisition control
+requires access to that exact public GitHub commit; no compiler or benchmark runs.
+
+The paired harness uses the build contract's explicit current reader with each
+historical side's own exact actual engine. Both independent clean checkouts and
+fresh raw bytes are inputs; equal-size/backdated edits hidden by Git index flags
+must change identity or refuse. Frozen study context is reverified before/after
+builds and each measurement, including existing-build and preflight paths. Reader
+and actual engine identities are retained per side. Generated engine output is
+excluded; product iteration maps remain unchanged. No diagnostic reader receipt
+can satisfy the default qualification reader's different key.
+
+Cold fixtures cover original pin preservation, exact existing reuse, refusal without
+reset of wrong-pin inputs, raw hidden-reader mutation, default/diagnostic separation
+and pre-CI sources without an engine. Measurement relevance includes the engine
+manifest and generated engine implementation closure. Preserve native paired-study,
+SDK, architecture, sanitizer and product gates separately.
 
 ## Independent format oracles
 
@@ -333,6 +370,12 @@ identify which host or desktop action delayed or changed a cursor position.
 Keyboard root-switch fixtures require modal-dispatch readiness before posted state probes, using the remainder
 of the same five-second discovery budget. They run under the existing bounded foreground-attempt helper with
 a fresh owner per admitted attempt; a held behavioral failure and exhausted admission remain failures.
+Modal state-probe fixtures establish an owned physical pointer at their menu anchor
+before opening each fresh popup, including a retry after simulated foreground loss.
+Reuse the scoped pointer fixture and its verified ownership-aware restoration so
+an activation gesture outside the popup cannot dismiss it before the readiness
+hook is exercised. Readiness, probe deadlines and foreground-loss assertions remain
+unchanged.
 A stationary-pointer assertion must establish and read back the owned physical cursor at the matching owner
 client point. Posting the same virtual coordinate alone does not establish stationarity. Fresh same-point mouse
 messages remain covered after keyboard navigation: retain the original 120 ms popup-alive check immediately
@@ -466,6 +509,9 @@ Duplicate suite names are refused in parallel mode. Owned children are terminate
 runner failure; foreground suites remain serial under their one restoring lease and
 do not overlap the ordinary batch. Specifying this option selects the lower-level
 suite runner; `-Full -ParallelSuites 4` explicitly requests the full normal set.
+The hosted adapter explicitly selects two ordinary workers for complete Release regression; public/local
+defaults and Debug/ASan diagnostic qualification remain serial. Native architecture acceptance is recorded
+per campaign and cannot be inferred from local scheduler controls or the earlier serial architecture passes.
 `-Interactive` selects the control suites that need the real desktop and runs them under the desktop lease after all of this
 (see Interactive tests below); no other option or run reaches the lease.
 Use the [performance contract](../Core/Core_PerformanceAndResources.md) for before/after acceptance and regression advice.
@@ -698,6 +744,15 @@ and module teardown to finish through the normal runner return. The runner MUST
 return 1 and omit its success footer if any such observation failed; a caller MUST
 stop dependent work after a false result. This does not soften immediate `Require`
 checks for an invalid fixture. Original abrupt-exit/timeout evidence remains failed.
+Cross-thread accessibility probes wait for readiness with the canonical sent-message
+wait under the original absolute 500 ms limit. Synchronous setup callbacks may run;
+queued provider operations and input remain queued for the ordinary dispatch phase.
+The RangeFromPoint probe preserves its 50 ms pending observation and two-second
+dispatch limit, retires the actual worker under the existing UIA teardown allowance,
+and reports those captured observations through normal fixture unwind. Its withheld
+readiness control must miss that same deadline, retire the real provider worker and
+still verify the original returned range. A passing repeat never supersedes the
+original readiness failure or its subsequent watchdog timeout.
 The sent modal-cancellation fixture first places its owner onscreen and verifies that the owner holds the
 foreground and thread focus. This makes the explicitly sent deactivation or cancellation message the action
 under test; a hidden, inactive owner is not a valid setup for that assertion.
@@ -1369,8 +1424,44 @@ Git path discovery and changed-path aggregation MUST preserve exact path identit
 
 `Test-Changes.ps1` is the ordinary iteration entrypoint. Its default is affected coverage, including committed changes since a local merge base and independent staged, unstaged, deletion, rename-side and untracked discovery. No ref is fetched. Unknown executable inputs widen coverage; prose alone does not require native tests. Explanations name paths, consumers and fallback reasons. Explicit selectors reject unknown scopes. Affected, filtered and environment-reduced coverage MUST NOT be reported as a full repository pass.
 
+An ordinary local affected success may retain a profile-specific iteration baseline for at most 24 hours.
+The next default invocation selects content and pending index changes since that success rather than
+reselecting every already-tested branch change. Source maps retain every input of the full validator
+identity, exact ordinal Git path spelling and byte hashes; index maps retain blob, mode and flags.
+Staging tested working bytes alone adds no work, while distinct staged content, mode/flag changes and
+index-only deletion remain visible. Missing, malformed, expired or incompatible state falls back to the
+cumulative branch comparison. Explicit BaseRef, Force, scope selection, Full, PrePush, instrumentation
+and hosted execution never narrow their obligation using this baseline. No-work/Explain calls do not
+advance it. It records only the completed noninteractive affected lane, never repository qualification.
+
+When a baseline includes native work, reuse rechecks installed dependency bytes, the canonical evaluated
+compiler/SDK byte identity and the entire executable/library/DLL/PDB profile. A mismatch selects full
+noninteractive coverage. Successful tooling-only edits preserve that native context. Publishing a new
+baseline requires stable source, index, tools/environment and native context before and after execution;
+capability skips, instrumentation, delegation or failure cannot publish one. Every selected affected
+attempt and every direct test.ps1 attempt revokes the prior baseline before work, including forced,
+filtered and explicit attempts. A failed rerun therefore cannot be hidden by an older no-work baseline.
+Affected and direct test operations hold one reentrant checkout/profile lease; competing processes refuse
+before execution while other profiles/worktrees remain independent. Native builds retain their own output
+ownership checks. Cumulative branch-based foreground obligations remain printed after a no-work result;
+only separately authorized interactive execution can satisfy them.
+
+Documentation-only Markdown classification is restricted to owned prose/guidance locations and named
+repository/readme guidance. Markdown under Tests/Data or Tests/Fixtures is runtime data, including a file
+named README.md. Unknown Markdown beside implementation uses normal scope rules or conservative fallback,
+and remains in compiled input identity. A Markdown extension alone cannot waive native coverage.
+
 Successful whole-scope results are reused only for equal repository content, installed dependency inputs, complete executable/static-library/DLL/PDB output closure, architecture, configuration, scope, runner and environment. Native build and run identities hash the selected platform's installed vcpkg triplet files plus its status, package inventory and ABI metadata; missing dependency metadata fails closed. Build attestation binds compiled source and installed dependencies to those artifacts before `SkipBuild`. Invalid, missing, failed, interrupted or concurrently mutated evidence is never reusable. Force bypasses test-result reuse. Independent tooling receipts are shared across profiles because their execution has no profile argument. Receipt identity is content-based; staging/committing the same source tree does not itself invalidate it.
 PowerShell tooling fixtures that mutate process environment variables MUST restore whether each value was unset, empty or nonempty. A test-generated empty value is a distinct identity input and MUST NOT leak into a later build or SkipBuild gate.
+
+After all selected tooling commands succeed, the scoped runner rechecks their complete content/environment/tool
+identity and publishes the independent tooling receipt before entering native execution. A subsequent native
+failure or interruption leaves that completed tooling obligation available for an identical continuation;
+it does not publish native success, a completed iteration baseline or whole-repository qualification.
+A fresh failed or interrupted tooling attempt revokes its earlier success. Changed inputs before tooling
+completion and instrumented execution publish no reusable ordinary tooling proof. If later native work
+changes tooling inputs, the retained original tooling identity cannot match those new inputs; never refresh
+its digest or claim it covered the changed source.
 
 Scoped reuse qualifies the existing attested artifact bytes in the recorded environment. Its environment identity
 includes Visual Studio installation metadata, the default toolset file and graphics-runtime bytes; it does not hash
@@ -1398,6 +1489,16 @@ and consumer adoption stay open in [the qualification plan](../Plans/Done/Consum
 Ordinary qualification and main/release acceptance requirements remain unchanged.
 
 `Test-Changes.ps1` prints `INTERACTIVE_NOT_RUN` for the menu, native text-input and menu-resource suites affected by changed sources. Full/PrePush accounting lists those separate suites as well. Run them only through `test.ps1 -Interactive` after the person at the desktop agrees to the time; a noninteractive result or capability allowance does not close that gate.
+
+Each explicit foreground batch enters the shared engine's
+`Invoke-CiInteractiveDesktopOperation` with `RequiresInteractiveDesktop=true`
+before its existing local or hosted native lease. Root's existing session mutex
+precedes the native DxUi mutex, coordinating canonical cross-project callers.
+The native harness still owns consent, warning, watchdog and exact foreground,
+keyboard-focus and cursor restoration. Missing or gone targets remain failures.
+Ordinary noninteractive batches acquire no session admission. Actual call-branch
+controls record both native routes without input; the shared engine separately
+tests real uniquely named mutexes and exception/recovery behavior.
 
 RedSalamander defers only entries whose complete portable entry contracts equal the PR plan, retaining writers, in-product cases and extra scenarios locally. Its `-NonInteractive` option omits focus-taking entries and records incomplete coverage; it cannot alter an exact Resume. DxUi foreground suites remain explicit `test.ps1 -Interactive` work after agreement to the time. Noninteractive iteration and CI do not claim those manual gates. No screenshot or desktop automation is introduced.
 
@@ -1481,3 +1582,9 @@ The native root-child batch failure fixture explicitly includes a pending CPU-pr
 neither the injected flush failure nor a presentation. A bounded sequence of directed native paints stops at the
 first admitted batch before checking its exact flush/presentation counters, so a failed frame's later retry cannot
 hide the failure. The subsequent retry and EndDraw-failure checks retain their original exact counter assertions.
+
+## Scoped parallel execution
+
+Test-Changes accepts -ParallelSuites (1–8, default 1), forwards it only to native execution and binds it into native result identity before and after execution. Ordinary test.ps1 calls retain affected routing when this option is present. The hosted Release adapter explicitly selects two ordinary workers; public/local defaults and Debug/ASan diagnostics remain serial. Native architecture acceptance is recorded per actual campaign, while a controlled serial/concurrent performance comparison remains a separate gate. Performance/preflight and foreground lease execution remain serial. Changing the limit invalidates native result reuse; coverage and failure handling are unchanged.
+
+Local native filter/watchdog preflight may reuse an exact successful receipt for at most 24 hours. Identity covers the complete executable source closure (native harness files outside Tools included), installed dependency bytes, profile artifacts, environment and the actual PowerShell host binary. Verification rechecks identity before publishing success and revokes prior success before a fresh attempt. Instrumented attempts cannot publish a reusable result. Full and hosted qualification always execute these probes freshly. Desktop availability, interactive lease checks, performance campaigns and product suites retain their existing execution contracts.

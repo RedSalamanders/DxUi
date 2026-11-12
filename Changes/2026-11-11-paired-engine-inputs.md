@@ -1,0 +1,1 @@
+- Preserve historical engine pins in paired diagnostics while binding both the actual side and common reader inputs, refusing changed or incompatible evidence and retaining default qualification and production gates.

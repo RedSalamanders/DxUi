@@ -1,0 +1,1 @@
+- Acquire the complete native build-property set in one evaluation using an owned response file, preserving every property and profile check while reducing repeated build-engine startup during validation.

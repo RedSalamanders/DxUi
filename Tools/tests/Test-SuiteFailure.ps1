@@ -82,7 +82,9 @@ Invoke-TestCase 'test.ps1 reports a failing suite through it, gives its receipt 
     Assert-True $script.Contains('Get-SuiteFailureReport -Suite $suite -ExitCode $testExit -LogPath $log') 'and asks it about a failing suite'
     Assert-True $script.Contains("`$receipt['timeout'] = `$failure.Timeout") 'the receipt records the timeout'
     Assert-True $script.Contains('"--test-timeout=$TestTimeout"') 'the option reaches the control executable'
-    Assert-True $script.Contains("Tools/tests/Test-TestWatchdog.ps1") 'the watchdog test runs after the build'
+    $preflight=$script.IndexOf('Invoke-ScopedHarnessPreflight -Root $PSScriptRoot',[StringComparison]::Ordinal)
+    $build=$script.IndexOf("& (Join-Path `$PSScriptRoot 'build.ps1')",[StringComparison]::Ordinal)
+    Assert-True ($build -ge 0 -and $preflight -gt $build) 'canonical filter/watchdog preflight runs after build admission'
     Assert-True $script.Contains('Write-SuiteSkips -LogPath $log') 'every suite prints its skips by test'
 }
 Complete-TestRun 'Suite failure report'

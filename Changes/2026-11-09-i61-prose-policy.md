@@ -1,0 +1,1 @@
+- Adopt owned-prose exclusions and run compiler-free planner controls in PR checks. Isolate simulated local child environments while proving hosted CI refuses local iteration baselines; preserve native gates and historical artifact identity.

@@ -1,7 +1,62 @@
 # Toolchain and consumer integration
 
+## Pinned engine inputs and paired diagnostic readers
+
+Local source/build/runtime identities bind the actual clean `.ci-engine` at the
+checkout's exact `.ci/project.json` pin through the shared source-input reader.
+Keep engine identity outside product file/iteration maps; generated engine `.build`
+output does not participate. Missing, dirty, foreign or wrong-pin inputs refuse reuse.
+
+Paired diagnostics may pass an explicit `ToolingEngineRoot` from their common current
+harness to `build.ps1` and `performance.ps1`. Historical sides retain their original
+manifest and actual engine pin. The current reader is a separate independent clean
+checkout at its own owner's exact pin; both raw engine identities enter build and
+measurement identity before and after execution. External-reader keys differ from
+the default qualification key. Production-only and external-source SDK builds reject
+this diagnostic reader option before discovery or mutation.
+
+Pair preparation restores only an absent side engine from the local clean harness
+checkout, then checks out the side's original exact pin with Git long paths enabled.
+Existing engines are verified and preserved; no dirty or wrong-pin checkout is reset.
+Pre-CI historical sides acquire no engine. Freeze both engine identities across side
+preparation, build, SkipBuild/preflight and every measurement. Record them per side;
+changed inputs refuse the study. Never copy current reader code into an older engine
+or advance a historical pin to make the comparison work. This supplies diagnostic
+input provenance, not native/SDK/Full acceptance.
+
+## Selected native target builds
+
+`build.ps1 -Projects DxUi.FoundationTests,DxUi.EmbeddedTests` selects one owned project union instead of
+the full solution. Project names use their catalog spelling; unknown names refuse. The union always includes
+the static library. Evaluation checks the actual project references, output paths and target roles for the
+selected profile, including imported/conditional references; a new or opaque dependency requires a reviewed
+closure update before partial admission. The current owned targets have no app-local plugin/data deployment
+beyond their executables, symbols, static library and ASan runtime. New runtime assets must extend the catalog,
+staging and negative controls together. System graphics/Windows DLLs retain their environment/native gates.
+
+Affected execution maps Foundation to its executable, Embedded and ordinary performance to EmbeddedTests,
+other scopes to ControlTests, foreground/private lease scenarios to InteractiveLease, and ASan's failure probe
+to FoundationTests. The EmbeddedTests benchmark is required even when it is not an explicitly selected suite.
+Full and PrePush retain a full solution build request. Explicit direct test suite calls may build their union;
+`test.ps1 -Full` remains full. Unknown source input still widens the affected plan conservatively.
+
+Default-output selected test builds that include the benchmark retain canonical v2 source/toolchain/artifact
+and intermediate verification. Stale inputs or unverified objects force Rebuild of the selected union; a warm
+Build is allowed only with exact existing final and intermediate proof. Selected receipts bind the actual
+target set, complete current compiled/dependency inputs and profile artifact bytes. They require every selected
+EXE/PDB, the library and the selected ASan runtime. An exact full proof can cover a subset, and a proved selected
+superset can cover a subset. A selected proof never grants a full build request. Missing assets, changed
+targets/source/dependencies/outputs or failed builds cannot inherit an old success. Partial operations revoke
+full build proof and publish no solution-wide receipt. Custom output roots and selections lacking the benchmark
+remain diagnostic builds under the existing consumer-output contract and do not establish test-run attestation.
+
+Build/test operations coordinate by resolved output root plus architecture/configuration, including nested
+calls. Other profiles and output roots remain independent. Foreign output processes are still diagnosed and
+never terminated. Failed default-output builds revoke full/selected build proof; failures before compilation
+also cannot retain an affected no-work baseline. Existing package/production and native architecture gates remain.
+
 Status: normative intended contract
-Last reviewed: 2026-11-07
+Last reviewed: 2026-11-09
 
 Failed relocated-consumer qualification retains its original compiler/linker logs
 under the owning repository's `.build/reports`, where hosted workspace evidence
@@ -11,6 +66,150 @@ images/PDBs/dumps. Exclude the relocated SDK checkout, Git history and dependenc
 caches. Collection is bounded to 8,192 files and 2 GiB of source bytes. An archive
 failure reports an additional diagnostic and leaves both original artifacts and
 the original qualification failure intact; it never changes failure into success.
+
+## Pinned-source SDK inputs
+
+The current producer may build a separate clean immutable DxUi source with
+`build.ps1 -Configuration Release -ProductionOnly -SourceRoot <source>`. The source checkout's solution,
+default build outputs and dependency pins remain authoritative for its native bytes; build modules and guards
+come from the invoking producer checkout. The feature supports only that Release library role, never custom
+outputs, dirty source, selected unions or Full/test proof. The existing profile lease, owned-process/output
+checks, complete before/after v2 identities and zero-warning/error acceptance still apply.
+
+When that historical source's exact engine predates the input-reader module, the invoking tooling's
+reader authenticates the original source engine without replacing it. The source and tooling engines
+both enter the existing distinct two-engine identity. Current ordinary inputs keep their original key;
+missing explicit readers, missing current readers, wrong pins and changed raw engine bytes still refuse.
+
+An explicit local developer build may instead add `-LocalUnpinnedSource` for an
+actually dirty separate `SourceRoot`. It retains Release/ProductionOnly, default
+producer outputs, reviewed source/API recipes, native input barriers, profile
+leases and zero-warning diagnostics. Hosted execution, a missing SourceRoot and
+clean source with this flag refuse before output discovery. The local route
+records its exact dirty library inputs, revokes any earlier pinned-source build
+descriptor and writes no pinned-source replacement. The dirty receipt can feed
+`Tools/New-LocalSdkSnapshot.ps1`; ordinary pinned SDK packaging still rejects
+dirty source. No native test, Full, application or production result is implied.
+
+The producer tooling must itself be clean and committed. A separate input descriptor binds its repository,
+commit and complete content identity, exact library record digest, actual command identity and original build
+log hash. Any source-build failure revokes both records. SDK packaging with separate source requires this
+descriptor, matching clean producer tooling and all normal SDK extraction, license, header, symbol and warning
+negative controls. Recompute the producer identity after build and package operations. A local JSON descriptor
+alone establishes no hosted producer trust, native suite pass or publication acceptance.
+
+Only the exact API-4 pins 4cdf1ce52c7785446698e346b8aec058ed6a9283 and
+f2e328a0a26a18ca66bf4b2aea77bf010c9515e1 have historical packaging recipes. The former predates SDK samples
+and links/checks the public frame runtime with a current reviewed compatibility sample; this establishes its
+bounded smoke, not later RichText/drag/SVG behavior. The latter retains its own richer source-owned sample.
+Their exact original dependency-license sets are required; missing required files never select a smaller set.
+API-5 source retains both FailureHost files and their independent header-closure checks. Unsupported source/API
+profiles refuse. Dependency source pins never advance as part of this packaging route.
+
+## Native metadata acquisition
+
+### Local unpinned Release snapshot capture
+
+`Tools/New-LocalSdkSnapshot.ps1 -ProducerRoot <DxUi checkout> -Platform x64|ARM64`
+captures an existing current Release library/PDB build; it does not compile or
+qualify an SDK. ProducerRoot may be dirty only when its exact state has matching
+canonical library provenance. The tooling's engine must be clean and exactly
+pinned. Local dirty tooling uses the explicitly distinct
+`LocalUnpinnedProducerTooling` record from `Get-DxUiSdkToolingProvenance
+-LocalCandidate`; normal SDK and pinned source-build paths retain their clean,
+exact three-field descriptor and refuse this local record.
+
+The command holds the canonical producer Release profile lease through fresh
+source/API, complete native tool/profile/dependency/environment and library/PDB
+checks. It captures headers, restored dependency headers, library, matching
+compiler PDB, native policy/imports, the complete reviewed license set, original
+library provenance and the canonical actual portable ABI/toolchain reference.
+The evaluated Release compiler version must match the ABI reference. Complete
+input/library barriers run before staging, after capture and before descriptor
+publication. Source or library mutation fails with staging retained.
+
+`SdkPayload.psm1` owns common byte staging for this capture and `New-SdkPackage.ps1`.
+Its fresh destination must be under the producer's owned `.build`; occupied,
+foreign and reparse paths refuse. It verifies the independently supplied library
+and PDB hashes. Its integration props preserve the preceding SDK artifact byte
+for byte, covered by a frozen fixture on both platform substitutions. All ordinary
+SDK extraction, smoke, profile, symbol isolation and publication gates remain.
+`SdkLibraryInputs.psm1` exports its existing `Assert-DxUiSdkOwnedPath` guard for
+these callers rather than introducing another ownership algorithm.
+
+Capture publishes the complete immutable payload through the exact pinned shared
+engine's separate `LocalUnpinnedSdkSnapshot` storage role. The descriptor and
+diagnostic staging are create-only, under `.build/local-sdk-capture`; the default
+owned store is `.build/local-sdk-snapshots`. An explicit StoreRoot also stays
+under the tooling checkout's `.build`. Initialization refuses nonempty unowned
+storage. The descriptor binds store/key/original manifest hash, producer identity,
+local tooling identity and an independently readable bootstrap record containing
+tooling root, raw source bytes and actual pinned-engine bytes. A consumer must
+verify that bootstrap before importing producer tooling. The producer lease is
+released before returning any result to a consumer, including a downstream
+pipeline; no consumer write lease is held while awaiting producer capture.
+
+Hosted qualification/publication refuses this command before discovery. It emits
+no test, native SDK, package or qualification verdict and changes no dependency
+pin or ordinary consumer output. Application candidate linking, full current-input
+reacquisition, isolated local-unpinned outputs/receipts and PrePush/package refusal
+remain pending. Pinned readers do not accept this descriptor. Debug, ASan and
+annotation variants retain their source paths.
+
+### Immutable SDK byte publication and use
+
+`New-SdkPackage.ps1` optionally publishes its exact staged SDK payload through `Tools/SdkInputStore.psm1`
+with `-SdkStoreRoot` and an explicit/default repository owner. Store initialization is limited to an owned
+`.build` descendant with the shared ownership marker; unowned nonempty roots and reparse paths refuse.
+The SDK manifest binds its independently acquired strict input identity, source/API/profile and actual
+library/compiler-PDB hashes. Every existing extracted native smoke, source/header/license, PDB isolation,
+missing-PDB and warning control must pass before publication, and complete input identity must still match.
+The complete bounded SDK payload inventory/byte digest is captured before creating the archive that is
+smoke-tested. Publication requires that independently held digest to match every current staged byte,
+including headers and integration policy, before the generic atomic-copy checks run. A late stage edit
+cannot inherit the extracted archive's passed smoke.
+The outer SDK receipt retains the full immutable store manifest SHA-256 separately from the stored entry.
+
+`Open-DxUiSdkInputBytes` accepts that independently retained/trusted manifest SHA-256, reacquires complete
+current pinned inputs and opens the shared reader lease. It verifies the full payload plus SDK source/API,
+Release/MD identity, library/PDB and required public header/integration policy before returning bytes.
+Consumers retain the lease through all compiler/linker use, independently admit their exact compatible
+consumer profile and linker provenance, and close in finally. Close rechecks complete current input identity
+and the immutable inventory/bytes. An input mutation or byte-integrity failure invalidates the operation;
+failure still releases the reader lease and preserves diagnostics. A missing exact version supplies no bytes.
+
+Only a clean matching shared-engine checkout at the producer's exact `.ci/project.json` pin may implement
+storage. The byte snapshot reuses that exact pin's canonical payload catalog, including its bounds and
+reparse refusal; the pin-bound private-helper integration is covered by actual store tests. Generic
+publication itself establishes no native SDK or product test verdict; mutable receipt
+flags cannot authenticate a hosted producer. Cross-repository artifacts still require independent workflow,
+source/run/attempt and transport-digest verification. Debug, ASan, disabled annotations and unpinned local
+candidates retain source fallback until their distinct profiles and taint/output boundaries are implemented.
+
+`Tools/SdkCacheInputs.psm1` acquires the shared v1 `DependencySdkInputs` identity without compiling or
+granting a result. It binds clean exact source/API and raw bytes, restored dependency inventory/bytes,
+complete supported Release/MD/stdcpplatest/GL-LTCG/enabled-annotation profile, selected toolchain files and
+compiler environment, runtime environment, and exact clean producer tooling. Source/tooling mutations
+during acquisition refuse. Consumers must reacquire and compare the input key after use, retain immutable
+payload leases, independently verify producer trust and output manifests, and fall back to source on a miss.
+Acquiring a key alone establishes no cache hit, native SDK acceptance or product test result.
+
+The SDK's separate semantic project projection binds project files, solution mapping, expanded imports and
+targets, complete evaluated compiler/linker/shader profile, resolved native source membership and bytes.
+MSBuild's checkout-derived `Directory`/`RootDir` metadata remains bound by existing v2 build/test receipts;
+those receipts are unchanged and are never portable SDK proof. All existing unsupported-input/profile,
+ignored-header, toolchain/dependency byte and before/after checks remain. System installation paths and
+compiler environment are retained conservatively: an otherwise compatible differently installed toolchain
+may miss the cache and build from source.
+
+Native identity acquisition requests the entire discovered MSBuild property set in one evaluation-only
+response-file query. This reduces repeated process/evaluation cost without narrowing the property, item,
+import, toolchain or source-byte closure. Response files contain only validated distinct property names;
+queries add no targets and must fail on nonzero execution, invalid JSON or omitted properties. Query scratch
+is operation-owned beneath the caller's `.build/msbuild-queries`, refuses reparse/foreign paths and is removed
+after each attempt. Independent old-batch and installed-project controls establish value/profile equivalence.
+See [MSBuild evaluation](https://learn.microsoft.com/en-us/visualstudio/msbuild/evaluate-items-and-properties)
+and [response files](https://learn.microsoft.com/en-us/visualstudio/msbuild/msbuild-response-files).
 
 ## MSVC 14.52 Release policy
 
@@ -108,6 +307,14 @@ and notification targets keep a module lifetime pin, so detach/uninstall must ha
 does not authorize unloading a module with retained provider state.
 
 Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
+Restore coordinates by the canonical output root. Checkout selection and bootstrap take an exclusive tooling
+lease; each installer retains a shared tooling lease until vcpkg exits. A current checkout is verified under
+that read lease without waiting for another platform's install. Platform-private install, buildtree, package
+and overlay mutations take a separate root/platform lease. Same-platform contenders wait; disjoint platforms
+and output roots may proceed together. Initialization is rechecked after exclusive acquisition and before
+returning the shared lease. Failure releases leases, retains evidence and never terminates another owner.
+Stable lease files are retained; deleting them while readers exist would break coordination. A finite
+15-minute acquisition bound reports the contested path without accepting partial restore state.
 The manifest's ports builtin-baseline and vcpkg-tool.json's executable checkout are independent nonzero full Git
 revisions. Restore uses each for its own role; metadata validation checks both immutable identities and never
 requires equality or rewrites either pin. Their compatibility still requires actual source-bound native qualification.
@@ -376,3 +583,13 @@ Provider runner-file hashes and exact source Git-blob hashes have explicitly dif
 The [native policy, console and dependency-path contract](Build_ConsoleAndPaths.md) owns /Wall without /WX, zero-warning acceptance, Debug/ASan symbols, Release-only ICF, common terminal results and verified short dependency folders.
 
 The relocatable Release SDK distribution and extracted-consumer proof are governed by Specs/Build/Build_UnifiedCI.md. Its exact compiler/LTCG/CRT identity and packaged build policy do not change the independently pinned source-consumer interface above.
+
+### Local snapshot ABI host consistency
+
+Local snapshot capture selects the same native SDK MSBuild host as ordinary
+packaging through `Get-DxUiNativeMSBuild`. Capturing an ABI reference with the
+root 32-bit MSBuild executable produces a different file reference from a native
+consumer even when compiler versions agree. Native x64/ARM64 selection and
+missing-host refusal are explicit. The original library record still retains
+its actual complete build inputs and must pass its original reader unchanged;
+the ABI reference does not reconstruct or replace producer build provenance.

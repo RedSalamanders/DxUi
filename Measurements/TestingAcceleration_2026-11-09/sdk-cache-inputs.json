@@ -1,0 +1,110 @@
+{
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-portable-sdk-input-acquisition-v1",
+  "evidenceKind": "Complete installed metadata/input acquisition on x64; no cache hit or new native execution.",
+  "source": "40fa3e3c89aa74db3a72e1d4e0da197527fd3cbc",
+  "benchmarkInputs": {
+    "Tools/PerformancePolicy.psm1": "F4E947C06EBD5A8FDC3CC7A47D80ECC3F640F0A2C32409A463C1B69B2E24CEFA",
+    "Tools/SdkCacheInputs.psm1": "6023947CFE7DF7245DB91A9752A7B301D6ACD64CC8B3A509BF5196EAFF0E9119",
+    "Tools/SdkSourceProfiles.psm1": "675E4FEB2E278BE99E6E2EF497D147B753008B076C71B2BE3E9B45778EF5A174"
+  },
+  "observations": [
+    {
+      "location": "original-pinned-source-checkout",
+      "inputKey": "b88a9de2758026cfb93761494194eca1bee1af61d9fb6640a2bd2d75ae09d8be",
+      "identity": {
+        "schemaVersion": 1,
+        "role": "DependencySdkInputs",
+        "sourceRepository": "RedSalamanders/DxUi",
+        "sourceCommit": "4cdf1ce52c7785446698e346b8aec058ed6a9283",
+        "sourceBytes": "15925973bd8e7bd9934c1c21db7e70a7e20a8919522e7fc435461685a921f698",
+        "apiRevision": 4,
+        "platform": "x64",
+        "configuration": "Release",
+        "runtimeFamily": "MD",
+        "annotationPolicy": "enabled",
+        "languageStandard": "stdcpplatest",
+        "optimizationPolicy": "GL-LTCG-full",
+        "toolchainIdentity": "0b5d03be524fa2390e807e31f8149f92903b68f52cfacc99a3120ea744c72f91",
+        "compilerProfileIdentity": "46ea2c78be0288660a2b10dbf2595682ea341e063dec1812eccf9afd33a23c84",
+        "dependencyIdentity": "f83e1e10e74418525ad4dc3cbb81e6a99aeefcd73a00e7f042ff9de5073216a8",
+        "integrationPolicyIdentity": "e02ef0a61914470810e8a2f07dfbf4ff5264412748745198ef431ab1ed3e9984",
+        "environmentIdentity": "5669a893097882a211bb936cbdf1fdbfb68897188071c40001f30fa668119c01"
+      },
+      "elapsedMs": 33737
+    },
+    {
+      "location": "independent-relocated-checkout",
+      "inputKey": "b88a9de2758026cfb93761494194eca1bee1af61d9fb6640a2bd2d75ae09d8be",
+      "identity": {
+        "schemaVersion": 1,
+        "role": "DependencySdkInputs",
+        "sourceRepository": "RedSalamanders/DxUi",
+        "sourceCommit": "4cdf1ce52c7785446698e346b8aec058ed6a9283",
+        "sourceBytes": "15925973bd8e7bd9934c1c21db7e70a7e20a8919522e7fc435461685a921f698",
+        "apiRevision": 4,
+        "platform": "x64",
+        "configuration": "Release",
+        "runtimeFamily": "MD",
+        "annotationPolicy": "enabled",
+        "languageStandard": "stdcpplatest",
+        "optimizationPolicy": "GL-LTCG-full",
+        "toolchainIdentity": "0b5d03be524fa2390e807e31f8149f92903b68f52cfacc99a3120ea744c72f91",
+        "compilerProfileIdentity": "46ea2c78be0288660a2b10dbf2595682ea341e063dec1812eccf9afd33a23c84",
+        "dependencyIdentity": "f83e1e10e74418525ad4dc3cbb81e6a99aeefcd73a00e7f042ff9de5073216a8",
+        "integrationPolicyIdentity": "e02ef0a61914470810e8a2f07dfbf4ff5264412748745198ef431ab1ed3e9984",
+        "environmentIdentity": "5669a893097882a211bb936cbdf1fdbfb68897188071c40001f30fa668119c01"
+      },
+      "elapsedMs": 29841
+    },
+    {
+      "location": "original-pinned-source-checkout",
+      "inputKey": "4e6ad44d97a2e49e81b324fd2bc1e2d83a6982fff4123c490245759d521bb441",
+      "identity": {
+        "schemaVersion": 1,
+        "role": "DependencySdkInputs",
+        "sourceRepository": "RedSalamanders/DxUi",
+        "sourceCommit": "f2e328a0a26a18ca66bf4b2aea77bf010c9515e1",
+        "sourceBytes": "fdcc91006d4ac75d9fb2eaddc2709358aa1354cc5aa365f634eaa6c014d0d773",
+        "apiRevision": 4,
+        "platform": "x64",
+        "configuration": "Release",
+        "runtimeFamily": "MD",
+        "annotationPolicy": "enabled",
+        "languageStandard": "stdcpplatest",
+        "optimizationPolicy": "GL-LTCG-full",
+        "toolchainIdentity": "0b5d03be524fa2390e807e31f8149f92903b68f52cfacc99a3120ea744c72f91",
+        "compilerProfileIdentity": "ae4acaea8b96cd122cfac50098dcd3db35d1331f73e21abd96c64bde58c10c9e",
+        "dependencyIdentity": "ced0e108d251d1911dec328475844de27ab967e3e8d603da1938a81922bb0d08",
+        "integrationPolicyIdentity": "e02ef0a61914470810e8a2f07dfbf4ff5264412748745198ef431ab1ed3e9984",
+        "environmentIdentity": "5669a893097882a211bb936cbdf1fdbfb68897188071c40001f30fa668119c01"
+      },
+      "elapsedMs": 29502
+    },
+    {
+      "location": "original-pinned-source-checkout",
+      "inputKey": "37bd01d8299a9c89f79084a98da757624ee6c17337227d7bf95766aacf2adb8f",
+      "identity": {
+        "schemaVersion": 1,
+        "role": "DependencySdkInputs",
+        "sourceRepository": "RedSalamanders/DxUi",
+        "sourceCommit": "21fae0dc66000b04504ba7862169533ac2943be8",
+        "sourceBytes": "6a6e264296e40b02c87389be76d616e7756f236900b88b5f1020e160acf4082a",
+        "apiRevision": 5,
+        "platform": "x64",
+        "configuration": "Release",
+        "runtimeFamily": "MD",
+        "annotationPolicy": "enabled",
+        "languageStandard": "stdcpplatest",
+        "optimizationPolicy": "GL-LTCG-full",
+        "toolchainIdentity": "6360e8acb00a7dc2f942508af74d32574d6235dde8b49f815a8a86d3bd1a73a5",
+        "compilerProfileIdentity": "85b2e7068981ded73e038deb566a421e17169f84e70bb23e806d37ae8aaf92a5",
+        "dependencyIdentity": "ced0e108d251d1911dec328475844de27ab967e3e8d603da1938a81922bb0d08",
+        "integrationPolicyIdentity": "e02ef0a61914470810e8a2f07dfbf4ff5264412748745198ef431ab1ed3e9984",
+        "environmentIdentity": "5669a893097882a211bb936cbdf1fdbfb68897188071c40001f30fa668119c01"
+      },
+      "elapsedMs": 33493
+    }
+  ],
+  "relocationKeysEqual": true
+}

@@ -1726,6 +1726,10 @@ void RunContextMenuDebugStateProbeBoundsWedgedWindowThread(bool holdVisibleIniti
             dispatchReady.SimulateForegroundLossFromThread(GetThreadId(driver.native_handle()));
         const std::vector<MenuFlyoutItem> items{{.text = L"State probe", .enabled = true, .commandId = 91501}};
         const POINT menuAnchor = ClientScreenPointForTest(ownerWindow.Hwnd(), 24, 60, "menu debug-state timeout anchor converts to screen coordinates");
+        // Each foreground retry owns a fresh host. Do not let an activation
+        // gesture's outside pointer dismiss it before the modal-readiness hook.
+        ScopedMenuPointerFixture initialPointer(ownerWindow.Hwnd());
+        Require(initialPointer.AlignCursor(menuAnchor, ownerWindow.Hwnd()), "menu debug-state fixture aligns its owned pointer before every fresh popup");
         const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), menuAnchor, items, ownerWindow.Host().GetTheme());
         driver.join();
         if (releaser.joinable())

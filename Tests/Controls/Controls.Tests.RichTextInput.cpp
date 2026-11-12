@@ -44,6 +44,15 @@ void RunFileDropApartmentFixture(DWORD model, void (*test)())
             const HRESULT initialized = CoInitializeEx(nullptr, model);
             RequireSucceeded(initialized, "initialize isolated file-drop apartment");
             const auto apartment = wil::scope_exit([] { CoUninitialize(); });
+            // These direct OLE calls supply synthetic key flags. The adapter also
+            // reads Alt from this worker's message-thread keyboard; do not inherit
+            // a modifier held when the worker was created. No hardware state or
+            // other thread is changed, and this fixture does not take focus.
+            BYTE previousKeys[256]{};
+            BYTE neutralKeys[256]{};
+            Require(GetKeyboardState(previousKeys) != FALSE, "read the isolated OLE worker keyboard");
+            Require(SetKeyboardState(neutralKeys) != FALSE, "initialize the isolated OLE worker keyboard");
+            const auto keyboard = wil::scope_exit([&] { static_cast<void>(SetKeyboardState(previousKeys)); });
             test();
         }
         catch (const std::bad_alloc&)
@@ -145,7 +154,17 @@ void RichTextOleSourceMoveOnSta()
             "OLE drop commits one exact undoable transaction");
     receiver->editor.SetSelection({4u, 7u});
     receiver->move = receiver->editor.BeginSourceMove();
-    effect         = DROPEFFECT_MOVE;
+    BYTE priorKeys[256]{};
+    Require(GetKeyboardState(priorKeys) != FALSE, "read the OLE modifier control state");
+    BYTE altKeys[256]{};
+    altKeys[VK_MENU] = 0x80u;
+    Require(SetKeyboardState(altKeys) != FALSE, "set Alt only on the isolated OLE worker");
+    const auto restoreKeys = wil::scope_exit([&] { static_cast<void>(SetKeyboardState(priorKeys)); });
+    effect                 = DROPEFFECT_MOVE;
+    Require(adapter.Target()->DragEnter(data.get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_NONE, "Alt still refuses the same-editor text move");
+    Require(adapter.Target()->DragLeave() == S_OK, "leave the Alt-refused OLE target");
+    Require(SetKeyboardState(priorKeys) != FALSE, "restore the isolated OLE modifier control state");
+    effect = DROPEFFECT_MOVE;
     Require(adapter.Target()->DragEnter(data.get(), 0u, {}, &effect) == S_OK && effect == DROPEFFECT_MOVE, "new move is offered");
     receiver->editor.CancelSourceMove();
     effect = DROPEFFECT_MOVE;

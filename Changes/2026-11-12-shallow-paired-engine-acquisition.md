@@ -1,0 +1,1 @@
+- Restore an absent historical paired-study engine by fetching only its exact pin when the hosted common reader has shallow history. Keep existing wrong/dirty engines fail-closed and both reader identities frozen; exercise the real shallow acquisition without compiling or benchmarking.

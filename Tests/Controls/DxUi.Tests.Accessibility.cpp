@@ -2681,7 +2681,7 @@ void TestAccessibilityTextFieldMultilineRangeFromPointUsesNativeHitTest()
             "multiline RangeFromPoint maps the second-line point to the native logical ACP");
 }
 
-void TestAccessibilityTextRangeFromPointDispatchesToWindowThread()
+void ExerciseAccessibilityTextRangeFromPointWindowThread(bool withholdReadiness)
 {
     using namespace DxUi;
 
@@ -2715,29 +2715,22 @@ void TestAccessibilityTextRangeFromPointDispatchesToWindowThread()
     const UiaPoint rangePoint{static_cast<double>(queryPoint.x), static_cast<double>(queryPoint.y)};
 
     constexpr HRESULT kPendingRange = E_PENDING;
-    std::atomic<bool> workerStarted{false};
+    wil::unique_event_nothrow workerStarted(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(workerStarted != nullptr, "create cross-thread accessibility readiness event");
     std::atomic<HRESULT> rangeResult{kPendingRange};
-    ITextRangeProvider* returnedRange = nullptr;
+    wil::com_ptr_nothrow<ITextRangeProvider> pointRange;
     std::thread worker([&]
     {
-        workerStarted.store(true, std::memory_order_release);
-        const HRESULT hr = textPattern->RangeFromPoint(rangePoint, &returnedRange);
+        if (! withholdReadiness)
+            static_cast<void>(SetEvent(workerStarted.get()));
+        const HRESULT hr = textPattern->RangeFromPoint(rangePoint, pointRange.put());
         rangeResult.store(hr, std::memory_order_release);
     });
 
-    const auto startDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
-    while (! workerStarted.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < startDeadline)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-    Require(workerStarted.load(std::memory_order_acquire), "cross-thread RangeFromPoint worker starts");
+    const bool startedOnTime = WaitForDxUiEventWithSentMessagesUntil(workerStarted.get(), GetTickCount64() + 500u) == WAIT_OBJECT_0;
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    if (rangeResult.load(std::memory_order_acquire) != kPendingRange)
-    {
-        worker.join();
-        Require(false, "cross-thread RangeFromPoint waits for host window-thread dispatch");
-    }
+    const bool waitedForDispatch = rangeResult.load(std::memory_order_acquire) == kPendingRange;
 
     const auto rangeDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
     while (rangeResult.load(std::memory_order_acquire) == kPendingRange && std::chrono::steady_clock::now() < rangeDeadline)
@@ -2747,12 +2740,19 @@ void TestAccessibilityTextRangeFromPointDispatchesToWindowThread()
     }
 
     const HRESULT result = rangeResult.load(std::memory_order_acquire);
+    // Keep the original observations/deadlines, then retire the actual thread before reporting failure.
+    // Abrupt exit while the retained UIA STA is alive can deadlock instead of returning the failed case.
+    Require(WaitForDxUiEventWithSentMessagesUntil(worker.native_handle(), GetTickCount64() + 20000u) == WAIT_OBJECT_0,
+            "cross-thread RangeFromPoint worker retires within the existing UIA teardown allowance");
     worker.join();
-    Require(result != kPendingRange, "cross-thread RangeFromPoint completes after host window-thread dispatch");
-    RequireSucceeded(result, "cross-thread RangeFromPoint succeeds after dispatch");
-    wil::com_ptr_nothrow<ITextRangeProvider> pointRange;
-    pointRange.attach(returnedRange);
-    Require(pointRange != nullptr, "cross-thread RangeFromPoint returns a range after dispatch");
+    if (! CheckDxUiTestResult(withholdReadiness ? ! startedOnTime : startedOnTime,
+                              withholdReadiness ? "withheld readiness fails the original deadline after safely retiring the actual UIA worker"
+                                                : "cross-thread RangeFromPoint worker starts") ||
+        ! CheckDxUiTestResult(waitedForDispatch, "cross-thread RangeFromPoint waits for host window-thread dispatch") ||
+        ! CheckDxUiTestResult(result != kPendingRange, "cross-thread RangeFromPoint completes after host window-thread dispatch") ||
+        ! CheckDxUiTestResult(SUCCEEDED(result), "cross-thread RangeFromPoint succeeds after dispatch") ||
+        ! CheckDxUiTestResult(pointRange != nullptr, "cross-thread RangeFromPoint returns a range after dispatch"))
+        return;
 
     int moved = 0;
     RequireSucceeded(pointRange->MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, 1, &moved),
@@ -2760,6 +2760,16 @@ void TestAccessibilityTextRangeFromPointDispatchesToWindowThread()
     Require(moved == 1, "cross-thread RangeFromPoint range expands by one character");
     const std::wstring expandedText = ReadTextRangeText(*pointRange.get(), -1, "cross-thread RangeFromPoint expanded range exposes text");
     Require(expandedText == L"t", "cross-thread RangeFromPoint maps the second-line point to the native logical ACP");
+}
+
+void TestAccessibilityTextRangeFromPointDispatchesToWindowThread()
+{
+    ExerciseAccessibilityTextRangeFromPointWindowThread(false);
+}
+
+void TestAccessibilityTextRangeFromPointReadinessRefusalRetiresWorker()
+{
+    ExerciseAccessibilityTextRangeFromPointWindowThread(true);
 }
 
 void TestAccessibilityTextFieldMultilineSameLineRangeBoundingRectanglesUseCaretGeometry()
@@ -3156,24 +3166,21 @@ void TestAccessibilityTextRangeEndpointLineMovementDispatchesToWindowThread()
     RequireSucceeded(textPattern->get_DocumentRange(documentRange.put()), "cross-thread endpoint line movement TextPattern exposes a document range");
 
     constexpr HRESULT kPendingMove = E_PENDING;
-    std::atomic<bool> workerStarted{false};
+    wil::unique_event_nothrow workerStarted(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(workerStarted != nullptr, "create cross-thread accessibility readiness event");
     std::atomic<HRESULT> moveResult{kPendingMove};
     std::atomic<int> movedResult{0};
     std::thread worker([&]
     {
         int moved = 0;
-        workerStarted.store(true, std::memory_order_release);
+        static_cast<void>(SetEvent(workerStarted.get()));
         const HRESULT hr = documentRange->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Line, 1, &moved);
         movedResult.store(moved, std::memory_order_release);
         moveResult.store(hr, std::memory_order_release);
     });
 
-    const auto startDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
-    while (! workerStarted.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < startDeadline)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-    Require(workerStarted.load(std::memory_order_acquire), "cross-thread TextRange endpoint line movement worker starts");
+    Require(WaitForDxUiEventWithSentMessagesUntil(workerStarted.get(), GetTickCount64() + 500u) == WAIT_OBJECT_0,
+            "cross-thread TextRange endpoint line movement worker starts");
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     if (moveResult.load(std::memory_order_acquire) != kPendingMove)
@@ -3205,20 +3212,17 @@ void TestAccessibilityTextRangeEndpointLineMovementDispatchesToWindowThread()
         "cross-thread line expansion moves the range start inside the second visual line");
 
     constexpr HRESULT kPendingExpansion = E_PENDING;
-    std::atomic<bool> expansionWorkerStarted{false};
+    wil::unique_event_nothrow expansionWorkerStarted(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(expansionWorkerStarted != nullptr, "create cross-thread accessibility readiness event");
     std::atomic<HRESULT> expansionResult{kPendingExpansion};
     std::thread expansionWorker([&]
     {
-        expansionWorkerStarted.store(true, std::memory_order_release);
+        static_cast<void>(SetEvent(expansionWorkerStarted.get()));
         expansionResult.store(expandingRange->ExpandToEnclosingUnit(TextUnit_Line), std::memory_order_release);
     });
 
-    const auto expansionStartDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
-    while (! expansionWorkerStarted.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < expansionStartDeadline)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-    Require(expansionWorkerStarted.load(std::memory_order_acquire), "cross-thread TextRange line expansion worker starts");
+    Require(WaitForDxUiEventWithSentMessagesUntil(expansionWorkerStarted.get(), GetTickCount64() + 500u) == WAIT_OBJECT_0,
+            "cross-thread TextRange line expansion worker starts");
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     if (expansionResult.load(std::memory_order_acquire) != kPendingExpansion)
     {
@@ -3287,24 +3291,21 @@ void TestAccessibilityTextRangeSpanLineMovementDispatchesToWindowThread()
         GetSingleTextRangeFromArray(selectionRanges, "cross-thread span line movement TextPattern exposes one selection range");
 
     constexpr HRESULT kPendingMove = E_PENDING;
-    std::atomic<bool> workerStarted{false};
+    wil::unique_event_nothrow workerStarted(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(workerStarted != nullptr, "create cross-thread accessibility readiness event");
     std::atomic<HRESULT> moveResult{kPendingMove};
     std::atomic<int> movedResult{0};
     std::thread worker([&]
     {
         int moved = 0;
-        workerStarted.store(true, std::memory_order_release);
+        static_cast<void>(SetEvent(workerStarted.get()));
         const HRESULT hr = selectedRange->Move(TextUnit_Line, 1, &moved);
         movedResult.store(moved, std::memory_order_release);
         moveResult.store(hr, std::memory_order_release);
     });
 
-    const auto startDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
-    while (! workerStarted.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < startDeadline)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-    Require(workerStarted.load(std::memory_order_acquire), "cross-thread TextRange span line movement worker starts");
+    Require(WaitForDxUiEventWithSentMessagesUntil(workerStarted.get(), GetTickCount64() + 500u) == WAIT_OBJECT_0,
+            "cross-thread TextRange span line movement worker starts");
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     if (moveResult.load(std::memory_order_acquire) != kPendingMove)
@@ -3667,20 +3668,17 @@ void TestAccessibilityTextRangeSelectDispatchesToWindowThread()
     Require(moved == 6, "cross-thread text range start endpoint reports moved characters");
 
     constexpr HRESULT kPendingSelect = E_PENDING;
-    std::atomic<bool> workerStarted{false};
+    wil::unique_event_nothrow workerStarted(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(workerStarted != nullptr, "create cross-thread accessibility readiness event");
     std::atomic<HRESULT> selectResult{kPendingSelect};
     std::thread worker([&]
     {
-        workerStarted.store(true, std::memory_order_release);
+        static_cast<void>(SetEvent(workerStarted.get()));
         selectResult.store(documentRange->Select(), std::memory_order_release);
     });
 
-    const auto startDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
-    while (! workerStarted.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < startDeadline)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-    Require(workerStarted.load(std::memory_order_acquire), "cross-thread TextRange Select worker starts");
+    Require(WaitForDxUiEventWithSentMessagesUntil(workerStarted.get(), GetTickCount64() + 500u) == WAIT_OBJECT_0,
+            "cross-thread TextRange Select worker starts");
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     if (selectResult.load(std::memory_order_acquire) != kPendingSelect)
@@ -5656,21 +5654,18 @@ void TestAccessibilityTextRangeBoundingRectanglesDispatchesToWindowThread()
     Require(moved == 6, "cross-thread bounds range start endpoint reports moved characters");
 
     constexpr HRESULT kPendingBounds = E_PENDING;
-    std::atomic<bool> workerStarted{false};
+    wil::unique_event_nothrow workerStarted(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(workerStarted != nullptr, "create cross-thread accessibility readiness event");
     std::atomic<HRESULT> boundsResult{kPendingBounds};
     SAFEARRAY* workerRectangles = nullptr;
     std::thread worker([&]
     {
-        workerStarted.store(true, std::memory_order_release);
+        static_cast<void>(SetEvent(workerStarted.get()));
         boundsResult.store(documentRange->GetBoundingRectangles(&workerRectangles), std::memory_order_release);
     });
 
-    const auto startDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
-    while (! workerStarted.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < startDeadline)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-    Require(workerStarted.load(std::memory_order_acquire), "cross-thread TextRange bounds worker starts");
+    Require(WaitForDxUiEventWithSentMessagesUntil(workerStarted.get(), GetTickCount64() + 500u) == WAIT_OBJECT_0,
+            "cross-thread TextRange bounds worker starts");
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     if (boundsResult.load(std::memory_order_acquire) != kPendingBounds)
@@ -5760,7 +5755,8 @@ void TestAccessibilityTextRangeBoundingRectanglesTimeoutKeepsLateHandlerStorageA
 
     constexpr HRESULT kPendingBounds   = E_PENDING;
     constexpr HRESULT kExpectedTimeout = HRESULT_FROM_WIN32(ERROR_TIMEOUT);
-    std::atomic<bool> workerStarted{false};
+    wil::unique_event_nothrow workerStarted(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    Require(workerStarted != nullptr, "create cross-thread accessibility readiness event");
     std::atomic<bool> handlerEnteredObserved{false};
     std::atomic<bool> timeoutObservedBeforeRelease{false};
     std::atomic<HRESULT> boundsResult{kPendingBounds};
@@ -5768,7 +5764,7 @@ void TestAccessibilityTextRangeBoundingRectanglesTimeoutKeepsLateHandlerStorageA
 
     std::thread worker([&]
     {
-        workerStarted.store(true, std::memory_order_release);
+        static_cast<void>(SetEvent(workerStarted.get()));
         boundsResult.store(documentRange->GetBoundingRectangles(&workerRectangles), std::memory_order_release);
     });
 
@@ -5788,12 +5784,8 @@ void TestAccessibilityTextRangeBoundingRectanglesTimeoutKeepsLateHandlerStorageA
         static_cast<void>(::SetEvent(releaseHandler.get()));
     });
 
-    const auto startDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
-    while (! workerStarted.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < startDeadline)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-    Require(workerStarted.load(std::memory_order_acquire), "late-handler TextRange bounds worker starts");
+    Require(WaitForDxUiEventWithSentMessagesUntil(workerStarted.get(), GetTickCount64() + 500u) == WAIT_OBJECT_0,
+            "late-handler TextRange bounds worker starts");
 
     const auto completionDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(9);
     while (boundsResult.load(std::memory_order_acquire) == kPendingBounds && std::chrono::steady_clock::now() < completionDeadline)
@@ -11874,6 +11866,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityTextFieldSimpleRangeBoundingRectanglesUseCaretGeometry);
     DXUI_RUN_TEST(TestAccessibilityTextFieldMultilineRangeFromPointUsesNativeHitTest);
     DXUI_RUN_TEST(TestAccessibilityTextRangeFromPointDispatchesToWindowThread);
+    DXUI_RUN_TEST(TestAccessibilityTextRangeFromPointReadinessRefusalRetiresWorker);
     DXUI_RUN_TEST(TestAccessibilityTextFieldMultilineSameLineRangeBoundingRectanglesUseCaretGeometry);
     DXUI_RUN_TEST(TestAccessibilityTextFieldMultilineRangeBoundingRectanglesUseLineCaretGeometry);
     DXUI_RUN_TEST(TestAccessibilityTextFieldWrappedRangeBoundingRectanglesUseVisualLineGeometry);

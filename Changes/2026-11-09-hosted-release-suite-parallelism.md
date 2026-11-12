@@ -1,0 +1,1 @@
+- Run the complete hosted Release regression with two independent non-foreground suite workers, preserving per-suite evidence, serial foreground/preflight/performance and every existing gate; native architecture acceptance remains campaign-specific.

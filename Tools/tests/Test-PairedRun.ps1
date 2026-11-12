@@ -1,11 +1,13 @@
 # Which trees a paired run measures, when it refuses a pair, how the harness reaches a named tree and the run order.
-# Everything here runs against fixture trees and dictionaries; no build or benchmark is needed.
+# Fixtures need no build or benchmark. The historical engine acquisition control
+# fetches its exact public pin from GitHub when the shallow reader lacks it.
 [CmdletBinding()] param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformanceComparison.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PairedRun.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '../PairedEngineInputs.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformancePolicy.psm1') -Force
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 
@@ -24,6 +26,90 @@ function New-Side([string] $Kind, [string] $Commit, [string] $Root = '', [string
     if ($Root) { $side['Root'] = $Root }
     if ($Fingerprint) { $side['Fingerprint'] = $Fingerprint }
     return $side
+}
+
+Invoke-FixtureCase 'historical sides keep their pin while the independently verified common engine reader remains frozen' {
+    param($root)
+    Import-Module (Join-Path $repository 'Tools/ScopedTesting.psm1')
+    Import-Module (Join-Path $repository '.ci-engine/Tools/Modules/Ci.Policy.psm1')
+    $source=Join-Path $root 'reader-owner';$target=Join-Path $root 'historical-side'
+    foreach($directory in @($source,$target)){
+        Set-FixtureFile $directory '.gitignore' ".build/`n.ci-engine/`n"
+        $null=Invoke-CiGit $directory @('init','--quiet')
+        Set-FixtureFile $directory '.ci/project.json' ([IO.File]::ReadAllText((Join-Path $repository '.ci/project.json')))
+        Set-FixtureFile $directory 'source.cpp' 'synthetic compiled input'
+    }
+    $reader=Join-Path $source '.ci-engine'
+    $readerUrl=([uri][IO.Path]::GetFullPath((Join-Path $repository '.ci-engine'))).AbsoluteUri
+    $null=Invoke-CiGit $source @('-c','core.longpaths=true','clone','--quiet','--no-hardlinks','--depth=1',$readerUrl,$reader)
+    $null=Invoke-CiGit $reader @('config','core.longpaths','true')
+    $project=Get-Content (Join-Path $target '.ci/project.json') -Raw|ConvertFrom-Json
+    $historical='5233b5271f268cbe7aa420c18250347c297da63a'
+    Assert-Equal 'true' (Invoke-CiGit $reader @('rev-parse','--is-shallow-repository')).stdout.Trim() 'the control reproduces hosted shallow history'
+    $missing=Invoke-CiGit $reader @('cat-file','-e',($historical+'^{commit}')) -AllowFailure
+    Assert-True ($missing.exitCode -ne 0) 'the historical commit is genuinely absent before acquisition'
+    $project.engine.ref=$historical
+    Set-FixtureFile $target '.ci/project.json' ($project|ConvertTo-Json -Depth 10)
+    $context=Initialize-PairedEngineInputs -Source $source -Target $target
+    Assert-True $context.Created 'a cold historical side restores only its absent engine'
+    $engine=Join-Path $target '.ci-engine'
+    Assert-Equal $historical (Invoke-CiGit $engine @('rev-parse','HEAD')).stdout.Trim() 'the historical engine pin is not advanced'
+    Assert-PairedEngineInputs -Target $target -Context $context
+    $second=Initialize-PairedEngineInputs -Source $source -Target $target
+    Assert-True (-not $second.Created) 'an existing exact engine is preserved'
+    $before=Get-ScopedSourceIdentity -Root $target -CompiledOnly -ToolingEngineRoot $reader
+    Assert-Equal $before (Get-ScopedSourceIdentity -Root $target -CompiledOnly -ToolingEngineRoot $reader) 'historical input acquisition is stable'
+    $policy=Join-Path $reader 'Tools/Modules/Ci.Policy.psm1'
+    $bytes=[IO.File]::ReadAllBytes($policy);$stamp=[IO.File]::GetLastWriteTimeUtc($policy)
+    $null=Invoke-CiGit $reader @('update-index','--assume-unchanged','--','Tools/Modules/Ci.Policy.psm1')
+    try{
+        $changed=[byte[]]$bytes.Clone();$changed[$changed.Length-1]=$changed[$changed.Length-1] -bxor 1
+        [IO.File]::WriteAllBytes($policy,$changed);[IO.File]::SetLastWriteTimeUtc($policy,$stamp)
+        Assert-Equal '' (Invoke-CiGit $reader @('status','--porcelain')).stdout.Trim() 'the adversarial reader edit stays hidden from status'
+        Assert-True ((Get-ScopedSourceIdentity -Root $target -CompiledOnly -ToolingEngineRoot $reader) -cne $before) 'raw reader bytes invalidate the diagnostic identity despite equal size/time and clean status'
+        Assert-True ((Get-ErrorMessage {Assert-PairedEngineInputs -Target $target -Context $context}) -like '*changed during the paired study*') 'the frozen study refuses a changed common reader'
+    }finally{
+        [IO.File]::WriteAllBytes($policy,$bytes);[IO.File]::SetLastWriteTimeUtc($policy,$stamp)
+        $null=Invoke-CiGit $reader @('update-index','--no-assume-unchanged','--','Tools/Modules/Ci.Policy.psm1')
+    }
+    Assert-PairedEngineInputs -Target $target -Context $context
+    $current=(Get-Content (Join-Path $source '.ci/project.json') -Raw|ConvertFrom-Json).engine.ref
+    $null=Invoke-CiGit $engine @('checkout','--quiet','--detach',$current)
+    $message=Get-ErrorMessage {Initialize-PairedEngineInputs -Source $source -Target $target|Out-Null}
+    Assert-True ($message -like '*does not match*exact pin*') 'an existing wrong-pin engine refuses'
+    Assert-Equal $current (Invoke-CiGit $engine @('rev-parse','HEAD')).stdout.Trim() 'refusal never resets an existing engine'
+    $project.engine.ref=$current;Set-FixtureFile $target '.ci/project.json' ($project|ConvertTo-Json -Depth 10)
+    $currentContext=Initialize-PairedEngineInputs -Source $source -Target $target
+    Assert-PairedEngineInputs -Target $target -Context $currentContext
+    Assert-True ((Get-ScopedSourceIdentity -Root $target -CompiledOnly -ToolingEngineRoot $reader) -cne (Get-ScopedSourceIdentity -Root $target -CompiledOnly)) 'external-reader diagnostic proof cannot be reused by the default qualification reader'
+}
+
+Invoke-FixtureCase 'legacy paired sides do not acquire an engine and changing that requirement refuses' {
+    param($root)
+    $context=Initialize-PairedEngineInputs -Source (Join-Path $root 'absent-source') -Target $root
+    Assert-True ($null -eq $context) 'pre-CI source needs no engine reader'
+    Assert-True (-not(Test-Path -LiteralPath (Join-Path $root '.ci-engine'))) 'no unrelated checkout is created'
+    Assert-PairedEngineInputs -Target $root -Context $null
+    Set-FixtureFile $root '.ci/project.json' '{}'
+    Assert-True ((Get-ErrorMessage {Assert-PairedEngineInputs -Target $root -Context $null}) -like '*requirement changed*') 'new engine requirements cannot enter an old study silently'
+}
+
+Invoke-TestCase 'the public build refuses a diagnostic engine reader for production and external-source SDK roles before imports' {
+    $tokens=$null;$errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'build.ps1'),[ref]$tokens,[ref]$errors)
+    Assert-Equal 0 $errors.Count 'actual build entrypoint parses'
+    $guards=@($ast.FindAll({param($node)$node -is [Management.Automation.Language.IfStatementAst] -and $node.Extent.Text.StartsWith('if ($ToolingEngineRoot -and ($ProductionOnly -or $SourceRoot))')},$true))
+    Assert-Equal 1 $guards.Count 'there is one explicit role boundary'
+    $imports=@($ast.FindAll({param($node)$node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Import-Module'},$true))
+    Assert-True ($guards[0].Extent.StartOffset -lt ($imports|Sort-Object {$_.Extent.StartOffset}|Select-Object -First 1).Extent.StartOffset) 'role refusal precedes imported discovery/mutation tools'
+    $guard=[scriptblock]::Create($guards[0].Extent.Text)
+    foreach($mode in @('Production','SdkSource')){
+        & {
+            param($roleGuard,$mode)
+            $ToolingEngineRoot='synthetic-reader';$ProductionOnly=($mode -ceq 'Production');$SourceRoot=if($mode -ceq 'SdkSource'){'synthetic-source'}else{''}
+            Assert-True ((Get-ErrorMessage {. $roleGuard}) -like '*ordinary paired diagnostic builds*') 'diagnostic reader cannot enter a qualification source role'
+        } $guard $mode
+    }
 }
 
 Invoke-TestCase 'paired benchmark stages one measured driver without changing either library project' {
