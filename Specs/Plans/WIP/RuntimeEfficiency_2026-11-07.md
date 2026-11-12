@@ -1,7 +1,7 @@
 # Runtime efficiency and rendering quality, 7 November 2026 (revised 11 November 2026)
 
 Status: SPEC READY — the 7 November draft (`rune` `0772373`, `gpui-fast` `61dccec`) was red-team reviewed on
-8 November 2026 (`DxUi` `c0ead00a`, `rune` `a7f276c`, `gpui-fast` `fb8cf94`, `BUI` `e8126ca`) and then re-audited from
+8 November 2026 (`DxUi` `c0ead00a`, `rune` `a7f276c`, `gpui-fast` `fb8cf94`) and then re-audited from
 the ground up on 11 November 2026 across the full `DxUi` C++ tree (`4acabe0e`) and 15 external reference codebases:
 [`longbridge/gpui-fast`](https://github.com/longbridge/gpui-fast/tree/af019de83a26f0d94c65ef408fdecebca1c25e9c) at
 `af019de`, [`anomalyco/rune`](https://github.com/anomalyco/rune/tree/0ea75abef0a6caa014067a88f89518b9a04cce2b) at
@@ -25,9 +25,9 @@ at `301a3f2f` (BSD-3-Clause — Viz/DComp, VSync, TSF `ITextStoreACP` and Window
 [`DioxusLabs/taffy`](https://github.com/DioxusLabs/taffy/tree/d0345bac609a10b25278ecc0850e862be9504e74) at `d0345bac`
 (MIT), [`nicbarker/clay`](https://github.com/nicbarker/clay/tree/e6cc36941ab2af5d81107617039d6f527a1c660b) at `e6cc3694`
 (zlib), [`ocornut/imgui`](https://github.com/ocornut/imgui/tree/abaca051e8799037e5b57d007fe35827422057ad) at `abaca051`
-(MIT; see [Cross-ecosystem reference synthesis](#cross-ecosystem-reference-synthesis)), and clean-room
-[`ppmpreetham/BUI`](https://github.com/ppmpreetham/BUI/tree/ae284781c2ae9b030aa795c7c0c1816678aafcf5) at `ae284781`
-(see [BUI review](#bui-review-ppmpreethambui-at-ae284781)). Decisions D1, D2 and D4 stand; revised D3 and D5–D12 await
+(MIT; see [Cross-ecosystem reference synthesis](#cross-ecosystem-reference-synthesis)), and the GPL-licensed `BUI`,
+which is not a source for this plan (see [Optional items and license boundary](#optional-items-and-license-boundary)).
+Decisions D1, D2 and D4 stand; revised D3 and D5–D12 await
 the developer's confirmation (see [Decisions](#decisions)). Plan only; no code has been implemented.
 
 - **Owning contracts**: [performance and resources](../../Core/Core_PerformanceAndResources.md),
@@ -201,7 +201,7 @@ the baseline before the item closes; ledger numbers are hypotheses to measure, n
 | --- | --- | --- |
 | Lockstep incremental-versus-fresh verifier (`gpui-fast` `tests/oracle.rs`, `layers/verify.rs`) | As-is | P0.3 |
 | Per-thread allocation counters, debug stall warnings & `wall_ms - cpu_ms` driver-stall split (`rune` `procwatch`, `tooling/perf_warn.rs`, `research/38`) | Adapted to test-only `operator new` hooks plus deterministic counters | P0.1 |
-| Deadline wakes run without view, layout or GPU work unless visible state changed (`rune` `motion/timer_wake.rs`, `BUI` `kit_custom.c`); covered/minimized timer latch (`rune` `#324`) | Adapted | P2.1 |
+| Deadline wakes run without view, layout or GPU work unless visible state changed (`rune` `motion/timer_wake.rs`); covered/minimized timer latch (`rune` `#324`) | Adapted | P2.1 |
 | Multi-HWND `16 ms` `WM_PAINT` starvation guard (`rune` `#392`) and unified `Backoff` reset only on `Presented`/`Uncovered` (`rune` `627c2b3e`, `#492`) | Adapted | P1.12, P2.1, P2.7 |
 | Hover held still for 100 ms after wheel under stationary pointer, immediate `release_unhovered` on leave, draw-only typing suppression (`gpui-fast` `#124`, `#105`, `hover_freeze.rs`) | As-is | P2.5 |
 | 5-state tooltip machine (`Idle`, `Armed`, `Open`, `Grace`, `Suppressed`, `rune` `#383`) | Adapted | P2.3 |
@@ -209,7 +209,7 @@ the baseline before the item closes; ledger numbers are hypotheses to measure, n
 | Sample animations at predicted presentation time (`rune` `research/15` §1); guard `< 1 ms` `qpcRefreshPeriod` and immediate 1st-strike `< 1 ms` / `PBT_APMSUSPEND` sleep fallback (`gpui-fast` `vsync.rs:62-79`, `chromium` `vsync_thread_win.cc:131-150`); focused-only VRR `Steady` (`rune` `#497`) | Adapted to waitable swap chain plus `DwmGetCompositionTimingInfo` | P2.7 |
 | Zero-poll TDR device-loss event (`gpui-fast` `device_wake.rs` `ID3D11Device4::RegisterDeviceRemovedEvent`) and borrow-safe FIFO deferral of reentrant Win32 display/power messages (`gpui-fast` `#125`) | Adapted | P1.12 |
 | Boundary-clamped wheel no-op (`gpui-fast` `#104`), multi-button chord capture refcount & stationary `WM_MOUSEMOVE` filter (`gpui-fast` `#130`, `events.rs:369`), drag-out press disarm (`rune` `0ea75abe`) | As-is | P1.12 |
-| Unchanged-value setter guards & old+new bounds dirty union (`BUI` `3ec5a5e`), premultiplied `(0,0,0,0)` dirty-rect clear (`BUI` `5cea7a6`), and central detach/close pointer scrubbing (`BUI` `9080f51`) | Clean-room architectural invariants | P1.14, P2.1, P3.1, P3.2 |
+| Unchanged-value setter guards & old+new bounds dirty union, premultiplied `(0,0,0,0)` dirty-rect clear, and central detach/close pointer scrubbing (no external source cited; each item rests on its own `DxUi` evidence) | `DxUi` invariants | P1.14, P2.1, P3.1, P3.2 |
 | Two-generation color-independent shaped-run cache (`gpui-fast` `text.rs` `RecentShapes`, 16 Ki glyphs/generation) + single `heavy` outlier slot (`gpui-fast` `path_cache.rs`) | Adapted: capture `DWRITE_GLYPH_RUN` via private `IDWriteTextRenderer`, replay via `DrawGlyphRun` | P4.1, P4.5 |
 | Grapheme-safe shaped-width truncation (`gpui-fast` `#132` `truncation.rs`) | Adapted via DirectWrite cluster hit-testing | P1.14 |
 | Width-independent shaping, re-breaking in place on resize (`rune` `research/28`: `16.1 → 4.6 ms`; `parley` `layout/mod.rs`) and `hold_landing_width` during collapse (`rune` `#248`) | Adapted: split `SameShapingOptions` from `widthDip` + `IDWriteTextLayout::SetMaxWidth` in place | P4.3, P5.3, P6.1, P6.2 |
@@ -408,11 +408,13 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
   grayscale contrast requires harness A/B captures.
 - [ ] **D9. Order.** `P0`, then `P1`, are mandatory first. `P2` through `P8` and `V1` through `V8` follow the
   [dependency graph](#sequencing). `V`-items may run in parallel with `P`-items when they touch different files.
-- [ ] **D10. Clean-room BUI additions.** Adopt visibility-latched animated image clocks, two-buffer ping-pong and
+- [ ] **D10. Optional `B` items.** Adopt visibility-latched animated image clocks, two-buffer ping-pong and
   hysteresis-bounded target-size WIC decode scaling (`B1`), per-corner radius masks and 1-DIP analytical bevel/emboss
-  rims for joined controls (`B2`), and evaluate optional Blender-style numeric scrubbing and menu typeahead (`B3`),
+  rims for joined controls (`B2`), and evaluate optional numeric scrubbing and menu typeahead (`B3`),
   zoomed curve text (`B4`), 8-slot radial `PieMenu` (`B5`), and `2 DIP` segment-swept multi-control boolean drag-toggle
-  (`B6`). Zero GPL-2.0/3.0 code, shader source, comments or tables may be copied from `BUI`.
+  (`B6`). Each item stands only on the permissive or Microsoft source named in
+  [Optional items and license boundary](#optional-items-and-license-boundary); `BUI` is not a source
+  ([frontier](Frontier_2026-11-11.md) `FD8`, confirmed 12 November 2026).
 - [ ] **D11. MIT-licensed Makepad additions.** Fold Makepad's verified Win32/DXGI/cache/virtualization/text/math fixes
   directly into `P0`–`P8` (`_frameLatencyCreditHeld` deadlock guard, `DCompositionCreateDevice2(nullptr)` TDR survival,
   modal `WM_SIZING` synchronous coalesce, `FrameClock::SmoothDeltaUs` EMA jitter filter, working-set-protected
@@ -742,7 +744,7 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
       `TabControl`/`PageHost`/`Expander` subtrees use a 2-bit `NextFrameGate` (`(scheduled, pendingWhileHidden)`,
       `makepad` `next_frame_gate.rs:1-88`) so hidden subtrees schedule **0** ticks and run **1** catch-up sync on re-show.
     - Enforce central `ControlHost::ForgetControl` scrubbing of pending deadlines, hover/freeze targets, dirty-region
-      owners and pointer captures on detach, hide and popup close (`BUI` `9080f51`), reclaiming large retired resource
+      owners and pointer captures on detach, hide and popup close, reclaiming large retired resource
       batches within a bounded `200 µs` per-frame budget (`makepad` `draw_list.rs:942`).
   - **Gate (`S1`)**: wakes in 10 s drop from ~640 to **≤ 20**; wakes while minimized/hidden **0**; detach fuzz passes
     ASan with **0** stale pointers.
@@ -787,11 +789,11 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
 ## P3 — Dirty regions and culling
 
 - [ ] **P3.1 Region invalidation API (`D3.2`).** `Control::InvalidateVisual()` unions **both previous and current**
-  bounds plus `GetVisualOverhangDip()` (`BUI` `3ec5a5e`) into an 8-rect device-snapped `DirtyRegion` (merging under 25%
+  bounds plus `GetVisualOverhangDip()` into an 8-rect device-snapped `DirtyRegion` (merging under 25%
   area overhead, falling back to full above 50% coverage or on topology/theme/DPI/size/device/smoke-overlay change).
   `RequestInvalidate()` stays full. Migrate caret, hover/press/focus, scalar values, scroll thumb and tooltip first.
 - [ ] **P3.2 Embedded partial preparation (`E5`).** Push aliased axis-aligned clip per dirty rect, explicitly clear the
-  clipped premultiplied rect to `D2D1::ColorF(0, 0, 0, 0)` (`BUI` `5cea7a6`) so translucent pixels never accumulate,
+  clipped premultiplied rect to `D2D1::ColorF(0, 0, 0, 0)` so translucent pixels never accumulate,
   paint with `P3.4` culling, and pop. **Gates**: `P0.3` parity (**0** BGRA diffs); caret blink paints at most caret rect + 2 px.
 - [ ] **P3.3 Native partial present (`E7`).** Enforce the **asymmetric `Present1` invariant** (`terminal`
   `AtlasEngine.r.cpp:504-526`, `chromium` `skia_output_device_dcomp.cc:138-170`): clip D2D drawing and `(0, 0, 0, 0)`
@@ -1071,44 +1073,32 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
 - [ ] **V8 Text glide stability.** Snap animated Y translation of text-bearing subtrees to whole device pixels; snap X
   within a `1/64` px dead-zone at rest (`rune` `e1bd315`). **Gate**: zero baseline jitter across slow `PageHost` slide.
 
-## BUI review (`ppmpreetham/BUI` at `ae284781`)
-
-`BUI` adapts Blender's immediate-mode widget architecture into a C11 library with a tile-diffing CPU rasterizer
-(`gpu/intern/gpu_raster.c`), a Direct3D 11 instanced backend (`gpu/intern/gpu_d3d11.c`), a single uber-shader
-(`gpu/shaders/bui_ui.hlsl`), radial/grouped chrome, and a worker-pooled media subsystem (`kit/intern/image/`).
+## Optional items and license boundary
 
 ### License boundary (mandatory)
 
-- `BUI` is licensed under **GPL-3.0-or-later** (`LICENSE`), with individual source and shader files under
+- `BUI` (`ppmpreetham/BUI`) is licensed under **GPL-3.0-or-later**, with individual source and shader files under
   **GPL-2.0-or-later**. `DxUi` is **MIT** ([LICENSE.txt](../../../LICENSE.txt)).
-- **Rule**: Zero source code, HLSL statements, struct definitions, verbatim comments or lookup tables from `BUI` may
-  ever be copied into `DxUi` or its specifications. Only clean-room architectural observations, standard Win32/DXGI
-  platform mechanics, general UX interaction models and independently MIT-licensed algorithms (such as Eric Lengyel's
-  reference Slug paper/code or `rune`'s clean-room `Windfoil`) may inform `DxUi`.
+- **Rule**: `BUI` is not a source for `DxUi`. No source code, HLSL statement, struct definition, comment or lookup
+  table from it may be copied into `DxUi` or its specifications, and no specification cites its files, line ranges
+  or commits.
+- Earlier revisions of this plan cited `BUI` files, line ranges and commits and carried a review of its internals
+  under the label "clean-room". Reading a GPL source and citing it line by line is not a clean-room process, so
+  [frontier](Frontier_2026-11-11.md) decision `FD8` (confirmed 12 November 2026) removed that material. Git history
+  retains it.
+- A `B` item is kept only where a permissive or Microsoft source independently supports it, as the table below
+  names. A part of an item that cites no external source is designed from `DxUi`'s own contracts and evidence rows.
 
-### Where BUI independently confirms this plan's findings
+| Item | Independent source | Frontier disposition |
+| --- | --- | --- |
+| `B1` | `makepad` (MIT) image cache, tile scheduling and retry embargo, cited on the item; Windows Imaging Component scaling (`IWICBitmapScaler`) | Keep |
+| `B2` | Microsoft's Windows 11 [geometry](https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/geometry) guidance (corners are not rounded where the parts of one control touch, such as a split button) and [layering and elevation](https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/layering) guidance (a 1-pixel contour on controls) | Keep |
+| `B3` | `makepad` (MIT) raw-input scrubbing and `imgui` (MIT) drag accumulation, cited on the item | Move to `K12` |
+| `B4` | The Slug formulation, `rive-runtime` (MIT) and `imgui` (MIT), as cited on the item | Drop |
+| `B5` | `makepad` (MIT) radial menu, cited on the item | Move to `K12` |
+| `B6` | `imgui` (MIT) box selection, cited on the item | Move to `K12` |
 
-1. **Flip-model partial-present hazard (`E7`, `P0.4`, `P3.3`).** `BUI`'s D3D11 backend (`gpu_d3d11.c:1618-1652`) uses a
-   two-buffer `DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL` swap chain with `Present1` dirty rects and has to copy its entire
-   persistent offscreen render target onto the back buffer before every partial present because the rotated back buffer
-   holds two-frames-old pixels. `DxUi`'s `P3.3` avoids that full-window GPU copy by unioning the last `BufferCount − 1`
-   dirty regions (or copying only dirty sub-rectangles).
-2. **Single earliest-deadline host timer (`P2.1`–`P2.3`).** `BUI`'s context timer (`kit_custom.c:249-300`) computes the
-   minimum due timestamp across media playback, text-caret blink and custom widget timers and arms one Win32 `SetTimer`
-   only when a deadline exists and moves earlier, dropping idle CPU to `0.0%`.
-3. **Transparent composition swap chain and premultiplied `(0, 0, 0, 0)` partial clears (`P3.2`, `P3.3`).** Commits
-   `5cea7a6` and `f660180` show `BUI` abandoning layered-HWND hacks in favor of `IDComposition` +
-   `CreateSwapChainForComposition` (`DXGI_ALPHA_MODE_PREMULTIPLIED`) with scissor-clipped transparent `(0, 0, 0, 0)`
-   clears before redrawing dirty regions — confirming `DxUi`'s existing `CompositionSwapChain` architecture and proving
-   `P3.2`/`P3.3` must clear dirty clips to transparent zero before painting so semi-transparent pixels never accumulate.
-4. **Unchanged-value suppression + old/new bounds dirty union (`P1.14`, `P3.1`).** Commit `3ec5a5e` measured a `6.3×`
-   D3D11 frame-rate gain from suppressing unchanged widget state and unioning both previous and current widget bounds on
-   geometry moves.
-5. **Central pointer/timer scrubbing on detach and popup close (`P2.1`).** Commit `9080f51` fixed use-after-free crashes
-   when cached hover, active or timer pointers outlived a closed popup or removed widget, reinforcing `P2.1`'s central
-   `ControlHost::ForgetControl` invariant.
-
-### Clean-room items proposed for review (D10)
+### Items proposed for review (D10)
 
 - [ ] **B1 Visibility-latched media clock, two-buffer ping-pong, retry embargo and hysteresis decode (`E75`; extends `P1.13`, `P2.6`, `P6.1`).**
   - **Change**: Latch a `drawn` bit on animated images in [DxUi.RichImage.cpp](../../../src/Controls/DxUi.RichImage.cpp)
@@ -1145,7 +1135,7 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
     `Escape` cancel-revert), `ClipCursor` restoration on focus-loss/cancel, UIA parity, updated `docs/controls.md` and
     gallery tiles.
 - [ ] **B4 Resolution-independent GPU curve text for zoomed vector surfaces (research option after `P4.1` and `P6.1`).**
-  - **Change**: Keep DirectWrite (`P4.1`) at 1:1 UI scale; evaluate a clean-room `ID2D1DrawTransform` quadratic-Bezier
+  - **Change**: Keep DirectWrite (`P4.1`) at 1:1 UI scale; evaluate an original `ID2D1DrawTransform` quadratic-Bezier
     outline shader (from Eric Lengyel's MIT-licensed Slug formulation and `rune` `#390`/`#482` `Windfoil` scale-motion
     switch, fed by `IDWriteFontFace::GetGlyphRunOutline` with `rive-runtime` `wangs_formula.hpp:58-80` `nextlog16` closed-form
     segment pre-sizing and `imgui` `imgui_impl_dx11.cpp:326` `BaseVertexLocation` 16-bit index reuse past 65k vertices)
@@ -1156,7 +1146,7 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
     shader-compile stall from unrolled supersampling (`draw_text.rs:197-205`). `B4` ships **only** if horizontal/vertical
     band culling and `< 50 ms` HLSL compile times pass on WARP, Intel, AMD, NVIDIA and Qualcomm D3D11 drivers.
 - [ ] **B5 Radial 8-slot `PieMenu` control (optional new catalog control; `D10`, `D11`).**
-  - **Change**: Clean-room retained radial menu (`ControlCatalog`, factory, `docs/controls.md`, design-system guide and
+  - **Change**: Retained radial menu (`ControlCatalog`, factory, `docs/controls.md`, design-system guide and
     preview, gallery tile) supporting hold-drag-release directional flick (≥ dead-zone DIP radius, unbounded outer radial
     pick while captured), tight per-sector AABB bounds (`sector_bounds` cutting fragment overdraw ~`4.5×`, `makepad`
     `radial_menu.rs:464-530`), hit-testing against **resting** ring radii rather than spring-overshot animated radii
@@ -1169,23 +1159,6 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
     `UnclipRects[0..1]` range selection and fractional `ScrollAccum` edge auto-scroll (`144–500 Hz` sub-pixel accumulation)
     so virtualized off-viewport items swept while auto-scrolling are never skipped, applied in a single undo/UIA batch and
     disarmed cleanly on `Escape`.
-
-### BUI mechanisms explicitly rejected for DxUi
-
-- **Cold-start CPU rasterizer vs GPUI startup framing (`gpu_raster.c:267-306`)**: `EmbeddedHost` borrows the host's
-  existing D3D11 device (`0 ms` init) and already prepares clean frames in `0.0003 ms`.
-- **Full-frame `CopyResource` on every `Present1` (`gpu_d3d11.c:1632`) and UI-thread `DwmFlush()`**: wasteful bandwidth
-  and UI-thread stalls compared with `P3.3` history-union partial present and `P2.7` waitable swap chains.
-- **UI-thread `WaitForSingleObject(..., INFINITE)` on worker pool during resize** and **`Sleep(1)` busy-wait fallback**:
-  violate `DxUi`'s non-blocking UI/composition and zero-polling contracts.
-- **24× per-frame `Map(WRITE_DISCARD)` + `DrawInstanced` flushes per z-layer** and **per-frame `CreateTexture2D` uploads
-  without a staging/sub-rect pool**: Direct2D batching + `P1.14` `UpdateSubresource` avoid this driver churn.
-- **64×32 CPU pixel-diff tile filtering (`gpu_raster.c:405-425`)**: redundant on a GPU D2D target once `P1.14`/`P3.1`
-  suppress unchanged invalidations before rasterization.
-- **`1,256 B` fixed inline immediate-mode widget struct** and **single-page clear-all glyph atlas cliff**: opposite of
-  `P8.1` (`≤ 176 B` `Control`) and `P4.1`/`P4.5` two-generation caches.
-- **Single-font `stb_truetype` text, hardcoded English strings, no RTL and no UIA/TSF IME/High Contrast**: incompatible
-  with `DxUi` accessibility, localization and Unicode requirements.
 
 ## Makepad study (`makepad/makepad` at `506ec051`)
 

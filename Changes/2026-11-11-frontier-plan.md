@@ -3,4 +3,6 @@
   retained Direct2D command-list scene, regions, frame clock, compositor layers and pointer input, properties,
   semantics platform, scale and a conditional owned GPU backend), smart features `K1`–`K12`, a triage of every
   `P`/`V`/`B` item and decisions `FD1`–`FD10` (all confirmed except `FD4`, composition by default, which waits for
-  the `F0.9` presentation-mode comparison). Plan only; no code or contract change.
+  the `F0.9` presentation-mode comparison). Under `FD8`, remove the `BUI` review and every `BUI` file, line and
+  commit citation from the runtime efficiency plan; each `B` item now names its independent permissive or Microsoft
+  source. Plan only; no code or contract change.
