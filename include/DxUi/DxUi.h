@@ -5234,6 +5234,7 @@ private:
     std::optional<uint64_t> _singleClickInvokeItemId;
     bool _singleClickCaptureArmed = false;
     std::optional<size_t> _hoveredVisibleIndex;
+    D2D1_POINT_2F _hoveredRowTooltipOriginDip{};
     float _rowHeightBaseDip    = 28.0f;
     float _rowHeightDip        = 28.0f;
     float _indentDip           = 16.0f;

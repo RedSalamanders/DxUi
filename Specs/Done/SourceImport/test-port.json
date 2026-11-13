@@ -5811,6 +5811,7 @@
       "file": "Tests/Controls/DxUiTests.Tooltip.cpp",
       "currentFile": "Tests/Controls/DxUi.Tests.Tooltip.cpp",
       "test": "TestTreeTooltipTracksPointerWithinSameRow",
+      "currentTest": "TestTreeTooltipStaysAtRowEntryOriginWithinSameRow",
       "status": "ported",
       "reason": "Runtime control contract retained."
     },

@@ -491,7 +491,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
     layout; at 125% and 150% the selection rectangles equal the text layout's hit-test ranges. Harness gallery captures
     of the `StatusStrip` and multiline `TextField` tiles at 100%, 125% and 150%.
   - **Needs**: nothing. **Size**: L.
-- [ ] **W1.6 Tooltip repaint.**
+- [x] **W1.6 Tooltip repaint.**
   - **Why**: while a tooltip is pending, `TooltipLayer::SetTooltipDelayed` reports a change whenever only the pending
     origin moved (`DxUi.Controls.cpp:12044-12050`) and the host requests animation and invalidates the window
     (`DxUi.WindowHost.cpp:1788-1792`), so every pointer move over a tooltip-bearing control during the hover delay is a
@@ -1721,9 +1721,12 @@ with an open row is not accepted for closeout until that row closes.
 | --- | --- | --- |
 | `W1.1` | Embedded dispatch has no right-button action (`PointerAction` carries the primary and middle buttons only), so the embedded chord test holds capture across primary and middle; the native test uses Left and Right as the gate says. | A right button in embedded dispatch belongs to the API revision 6 pointer shape (`W5.8`) |
 | `W1.1` | Adds the public, additive virtual `Control::OnMouseMiddleUp` (default declines), because a middle release had no control-level hook. The retry's first step, "one frame", is declared as 16 ms. | Recorded addition; nothing to run |
+| `W1.2` | `Tree` still takes the Shift branch for `Ctrl+Shift+Click`, replacing the selection; the item names `Grid` only. | Recorded limit; a `Tree` change needs its own item |
 | `W1.4` | The Japanese IME composition check and the `NativeTextInput` suite were not run: both take focus. The display-attribute path from the edit sink to the host is proved only through its pure mapping. | `test.ps1 -Interactive`, with the developer's agreement to the time |
 | `W1.4` | Three clauses publish four boundaries (the composition start, the two interior edges and the end), following the existing IMM convention; the gate text says three. | Recorded difference; nothing to run |
 | `W1.4` | Adds the public, additive `TextInputScope` with `TextField::SetInputScope` and `GetInputScope`, because no field could declare a numeric or URL scope before. | Recorded addition; nothing to run |
+| `W1.6` | No gallery capture was published: the gallery has no `Tree` tooltip tile and no existing tile changes. | Recorded difference; a tile with a synthetic hover would be a gallery addition |
+| `W1.6` | A `Tree` row tooltip now stays where the pointer entered the row. A tooltip that is already shown still follows the pointer and repaints on each move; the gate covers the hover delay only. | Recorded behaviour; the shown case is a developer decision if `FX14` should repaint nothing while shown |
 
 ## Decisions carried into this plan
 

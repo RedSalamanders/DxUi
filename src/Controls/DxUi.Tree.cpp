@@ -1648,8 +1648,12 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     const std::optional<size_t> hoveredIndex =
         (hit.zone == HitZone::Item || hit.zone == HitZone::Expander) ? std::optional<size_t>(hit.visibleIndex) : std::optional<size_t>();
     _hoveredVisibleIndex = hoveredIndex;
+    // A row's tooltip is anchored where the pointer entered the row, so moves within the row change no pixels.
+    if (hoveredIndex.has_value() && hoveredIndex != previousHoveredIndex)
+        _hoveredRowTooltipOriginDip = point;
 
-    bool tooltipChanged = false;
+    bool tooltipChanged   = false;
+    bool tooltipRepainted = false;
     if (_hoveredVisibleIndex.has_value())
     {
         TreeItemData item;
@@ -1677,7 +1681,14 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
             if (! guard.IsCurrent())
                 return false;
         }
-        tooltipChanged = tooltipText.empty() ? host.BeginTooltipHideDelay() : host.SetTooltip(std::move(tooltipText), point);
+        if (tooltipText.empty())
+            tooltipChanged = host.BeginTooltipHideDelay();
+        else
+        {
+            // ControlHost::SetTooltip invalidates the host when it reports a change.
+            tooltipChanged   = host.SetTooltip(std::move(tooltipText), _hoveredRowTooltipOriginDip);
+            tooltipRepainted = tooltipChanged;
+        }
     }
     else
     {
@@ -1686,7 +1697,7 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     if (! guard.IsCurrent())
         return true;
 
-    if (previousHoveredIndex != _hoveredVisibleIndex || previousHotPart != _verticalScrollbarHotPart || tooltipChanged)
+    if ((previousHoveredIndex != _hoveredVisibleIndex || previousHotPart != _verticalScrollbarHotPart || tooltipChanged) && ! tooltipRepainted)
     {
         Invalidate(host);
     }

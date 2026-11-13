@@ -1,4 +1,5 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "GraphicsFixture.h"
 #include "Support/AnimationDispatcher.h"
 
 namespace
@@ -102,6 +103,13 @@ private:
 [[nodiscard]] uint64_t GetHideDelayWithTicksBeforeItsDeadlineMs() noexcept
 {
     return 2u * DxUi::Ui::AnimationDispatcher::GetInstance().DebugGetHitchClampUsForTest() / 1'000u;
+}
+
+void RequireRectNear(const D2D1_RECT_F& actual, const D2D1_RECT_F& expected, const char* message)
+{
+    Require(std::abs(actual.left - expected.left) <= 0.5f && std::abs(actual.top - expected.top) <= 0.5f && std::abs(actual.right - expected.right) <= 0.5f &&
+                std::abs(actual.bottom - expected.bottom) <= 0.5f,
+            message);
 }
 
 void TestTooltipLayerTrackingUpdateReusesVisibleTooltip()
@@ -524,7 +532,8 @@ void TestInteractiveTooltipSurvivesEmptySupplementalTargetPass()
             "an interactive control tooltip remains visible when the supplemental hit-test has no target");
 }
 
-void TestTreeTooltipTracksPointerWithinSameRow()
+// A row's tooltip is anchored where the pointer entered the row (W1.6); it no longer follows the pointer within the row.
+void TestTreeTooltipStaysAtRowEntryOriginWithinSameRow()
 {
     using namespace DxUi;
 
@@ -560,7 +569,7 @@ void TestTreeTooltipTracksPointerWithinSameRow()
 
     RequireRectHasArea(firstBounds, "tree tooltip tracking starts with tooltip bounds");
     RequireRectHasArea(secondBounds, "tree tooltip tracking keeps tooltip bounds after pointer movement");
-    Require(secondBounds.left > firstBounds.left, "tree tooltip tracking moves the tooltip when the pointer moves within the same row");
+    RequireRectNear(secondBounds, firstBounds, "tree tooltip stays at the row-entry origin when the pointer moves within the same row");
     Require(host.GetTooltipText() == firstTooltipText, "tree tooltip tracking keeps the same tooltip text within the same hovered row");
 }
 
@@ -661,6 +670,116 @@ void TestPassiveSupplementalTooltipUsesHostHitTestingDelayLifetimeAndClickThroug
     Require(! window.Host().HasTooltip(), "host mouse-leave clears passive tooltip state");
 }
 
+// The tooltip hover path: the pointer enters one tooltip-bearing control and then makes 50 further moves inside it, all
+// within the hover delay. Points are view pixels; the path stays inside a control placed at (8, 8)-(200, 100) DIPs at any
+// DPI from 96 to 192.
+constexpr size_t kTooltipHoverPathMoves = 50u;
+
+[[nodiscard]] POINT TooltipHoverPathPixel(size_t move) noexcept
+{
+    return POINT{static_cast<LONG>(20u + 2u * move), static_cast<LONG>(20u + move)};
+}
+
+[[nodiscard]] std::unique_ptr<DxUi::Panel> MakeTooltipHoverPathRoot(std::wstring_view tooltipText)
+{
+    auto root  = std::make_unique<DxUi::Panel>();
+    auto* help = root->AddChild<DxUi::Label>(L"Help");
+    help->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 100.0f));
+    help->SetTooltipText(std::wstring(tooltipText));
+    return root;
+}
+
+// W1.6: while a tooltip waits for its show delay, a pointer moving inside the same control only moves the pending origin.
+// That changes no pixels, so it must not invalidate the window; the tooltip still appears at the last pointer origin.
+void TestTooltipPendingOriginMovesDoNotInvalidateNativeHost()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    constexpr std::wstring_view tooltipText = L"Pending origin help";
+    window.Host().SetRoot(MakeTooltipHoverPathRoot(tooltipText));
+    const UINT dpi   = GetDpiForWindow(window.Hwnd());
+    const auto toDip = [dpi](POINT pixel) noexcept
+    { return D2D1::Point2F(static_cast<float>(pixel.x) * 96.0f / static_cast<float>(dpi), static_cast<float>(pixel.y) * 96.0f / static_cast<float>(dpi)); };
+    const auto movePixel = [&](POINT pixel) { SendMessageW(window.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(pixel.x, pixel.y)); };
+
+    movePixel(TooltipHoverPathPixel(0u));
+    Require(! window.Host().HasTooltip() && window.Host().DebugGetPendingTooltipText() == tooltipText, "entering the control schedules its tooltip");
+
+    const uint64_t invalidationsBefore = window.Host().DebugGetInvalidateCount();
+    for (size_t move = 1u; move <= kTooltipHoverPathMoves; ++move)
+        movePixel(TooltipHoverPathPixel(move));
+    const uint64_t pendingMoveInvalidations = window.Host().DebugGetInvalidateCount() - invalidationsBefore;
+    std::cerr << "    [W1.6] native pending-origin moves: " << kTooltipHoverPathMoves << ", invalidations: " << pendingMoveInvalidations << '\n';
+    Require(pendingMoveInvalidations == 0u, "50 moves inside one control during the hover delay cause 0 native invalidations");
+    Require(! window.Host().HasTooltip() && window.Host().DebugGetPendingTooltipText() == tooltipText, "the tooltip is still pending after the moves");
+
+    Require(window.Host().DebugAdvanceTooltipDelayForTest() && window.Host().HasTooltip(), "the injected clock passes the show delay");
+    const D2D1_RECT_F shownBounds = window.Host().DebugGetTooltipBoundsDip();
+
+    Require(window.Host().ClearTooltip(), "reference: clear the shown tooltip");
+    Require(window.Host().SetTooltip(std::wstring(tooltipText), toDip(TooltipHoverPathPixel(0u))), "reference: tooltip at the entry origin");
+    const D2D1_RECT_F entryBounds = window.Host().DebugGetTooltipBoundsDip();
+    Require(window.Host().SetTooltip(std::wstring(tooltipText), toDip(TooltipHoverPathPixel(kTooltipHoverPathMoves))), "reference: tooltip at the last origin");
+    const D2D1_RECT_F lastBounds = window.Host().DebugGetTooltipBoundsDip();
+    RequireRectHasArea(shownBounds, "the shown tooltip has area");
+    Require(lastBounds.left > entryBounds.left && lastBounds.top > entryBounds.top, "the hover path's entry and last origins place the tooltip differently");
+    RequireRectNear(shownBounds, lastBounds, "the tooltip shows at the last pointer origin, not where the pointer entered");
+}
+
+// The embedded host reports invalidation through its preparation request and shares the native tooltip layer.
+void TestTooltipPendingOriginMovesDoNotInvalidateEmbeddedHost()
+{
+    using namespace DxUi;
+
+    GraphicsFixture gpu;
+    RequireSucceeded(gpu.Create(), "create the embedded tooltip WARP device");
+    std::shared_ptr<GraphicsDevice> pool;
+    RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), pool), "share the embedded tooltip graphics");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(pool), "attach the embedded tooltip view");
+    constexpr std::wstring_view tooltipText = L"Pending origin help";
+    view.Controls().SetRoot(MakeTooltipHoverPathRoot(tooltipText));
+    constexpr UINT width  = 320u;
+    constexpr UINT height = 180u;
+    RequireSucceeded(view.Prepare(width, height), "prepare the embedded tooltip view");
+    const auto movePixel = [&view](POINT pixel)
+    {
+        return view.DispatchPointer(
+            PointerEvent{.action = PointerAction::Move, .xPixels = static_cast<float>(pixel.x), .yPixels = static_cast<float>(pixel.y)});
+    };
+
+    static_cast<void>(movePixel(TooltipHoverPathPixel(0u)));
+    Require(! view.Controls().HasTooltip() && view.Controls().DebugGetPendingTooltipText() == tooltipText,
+            "entering the embedded control schedules its tooltip");
+    RequireSucceeded(view.Prepare(width, height), "prepare after the tooltip was scheduled");
+    Require(! view.NeedsPreparation(), "the embedded view is clean before the hover moves");
+
+    size_t dirtyMoves = 0u;
+    for (size_t move = 1u; move <= kTooltipHoverPathMoves; ++move)
+    {
+        static_cast<void>(movePixel(TooltipHoverPathPixel(move)));
+        if (view.NeedsPreparation())
+        {
+            ++dirtyMoves;
+            RequireSucceeded(view.Prepare(width, height), "prepare after a dirty hover move");
+        }
+    }
+    std::cerr << "    [W1.6] embedded pending-origin moves: " << kTooltipHoverPathMoves << ", invalidations: " << dirtyMoves << '\n';
+    Require(dirtyMoves == 0u, "50 moves inside one control during the hover delay cause 0 embedded invalidations");
+
+    // The first tick after animation was requested starts the view's clock; the next one passes every show delay.
+    static_cast<void>(view.AdvanceAnimation(1'000u));
+    static_cast<void>(view.AdvanceAnimation(11'000u));
+    Require(view.Controls().HasTooltip(), "the embedded tooltip shows after the view's clock passes the show delay");
+    const D2D1_RECT_F shownBounds = view.Controls().DebugGetTooltipBoundsDip();
+    Require(view.Controls().ClearTooltip(), "reference: clear the shown embedded tooltip");
+    const POINT last = TooltipHoverPathPixel(kTooltipHoverPathMoves);
+    Require(view.Controls().SetTooltip(std::wstring(tooltipText), D2D1::Point2F(static_cast<float>(last.x), static_cast<float>(last.y))),
+            "reference: embedded tooltip at the last origin");
+    RequireRectNear(shownBounds, view.Controls().DebugGetTooltipBoundsDip(), "the embedded tooltip shows at the last pointer origin");
+}
+
 } // namespace
 
 void RunTooltipTests()
@@ -680,7 +799,9 @@ void RunTooltipTests()
     DXUI_RUN_TEST(TestTooltipLayerTrackingMoveCancelsPendingHideDelay);
     DXUI_RUN_TEST(TestGridTooltipTracksPointerWithinSameCell);
     DXUI_RUN_TEST(TestInteractiveTooltipSurvivesEmptySupplementalTargetPass);
-    DXUI_RUN_TEST(TestTreeTooltipTracksPointerWithinSameRow);
+    DXUI_RUN_TEST(TestTreeTooltipStaysAtRowEntryOriginWithinSameRow);
     DXUI_RUN_TEST(TestTreeTooltipFallsBackToClippedItemText);
     DXUI_RUN_TEST(TestPassiveSupplementalTooltipUsesHostHitTestingDelayLifetimeAndClickThrough);
+    DXUI_RUN_TEST(TestTooltipPendingOriginMovesDoNotInvalidateNativeHost);
+    DXUI_RUN_TEST(TestTooltipPendingOriginMovesDoNotInvalidateEmbeddedHost);
 }

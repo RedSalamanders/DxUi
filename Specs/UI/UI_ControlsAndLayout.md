@@ -110,7 +110,8 @@ may omit decorative editor focus chrome for a document surface, without retiring
 the caret remains independent and high contrast always forces the focus indicator.
 
 Tree row painting, hit testing, tooltip and accessibility geometry use one canonical row calculation, including
-hidden/reserved expanders. Neutral decorations opt into subdued unselected icons and count badges; a dot badge
+hidden/reserved expanders. A Tree row's tooltip is anchored at the pointer position where the pointer entered that
+row: moves within the row neither move the tooltip nor invalidate, and entering another row invalidates the host once. Neutral decorations opt into subdued unselected icons and count badges; a dot badge
 retains its textual accessible description as the TreeItem's UI Automation `ItemStatus`; `Name` remains the row text.
 For a legacy mutable model, `NotifyItemPresentationChanged(itemId)` publishes a badge text/tone/dot-only update for
 an existing visible row after the caller updates its data. IDs, order, row text, depth, child/expanded state and visible
@@ -1035,6 +1036,12 @@ preserving the separate document. Raster drawing is preparation; embedding must
 not call it from composition. No HWND/device/thread/timer/worker belongs to the
 core. The caller supplies scheduling and stale-result/lifetime checks until the
 retained/shared preparation integration is implemented.
+
+While a delayed tooltip waits for its show delay, a request for the same text at a
+different origin only stores that origin: it reports no change, neither invalidates
+nor wakes the native or embedded host and keeps the deadline, and the tooltip shows
+at the last requested pointer origin. A shown delayed tooltip with the same text
+still follows a moved origin.
 
 Rich view exposes an authored link or image title through the host's delayed
 supplemental tooltip when its visible content is hovered. Editable editors require

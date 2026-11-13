@@ -12052,11 +12052,9 @@ bool TooltipLayer::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& ori
     const uint64_t nextShowTickMs = delayMs > (std::numeric_limits<uint64_t>::max)() - nowTickMs ? (std::numeric_limits<uint64_t>::max)() : nowTickMs + delayMs;
     if (_showScheduled && _pendingText == text)
     {
-        if (! TooltipPointsMatch(_pendingOriginDip, originDip))
-        {
-            _pendingOriginDip = originDip;
-            return true;
-        }
+        // A pending tooltip paints nothing, so a moved origin is only stored: it changes no pixels and no deadline, and the
+        // tooltip shows at the last pointer origin.
+        _pendingOriginDip = originDip;
         return false;
     }
 

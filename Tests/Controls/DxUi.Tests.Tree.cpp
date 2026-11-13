@@ -1763,6 +1763,61 @@ void TestTreeHoveredClippedTextShowsFullTextTooltip()
     Require(tree->DebugGetTooltipGeometryCount() == geometryCount, "explicit tooltip needs neither badge nor overflow geometry");
 }
 
+// W1.6: a row's tooltip is anchored where the pointer entered the row, so moves within the row change no pixels and do
+// not invalidate; crossing to the next row invalidates exactly once.
+void TestTreeTooltipMovesWithinRowDoNotInvalidate()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_SIZE, 0, MAKELPARAM(420, 140), handled));
+    Require(handled, "host size update handled for tree tooltip invalidation");
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 420.0f, 140.0f));
+    host.SetRoot(std::move(root));
+
+    MutableTreeModel model;
+    model.SetVisibleItems({
+        TreeItemData{.id = 1u, .text = L"Plugins", .tooltipText = L"First row help"},
+        TreeItemData{.id = 2u, .text = L"Viewers", .tooltipText = L"Second row help"},
+    });
+    tree->SetModel(&model);
+
+    const TreeItemLayoutMetrics first  = tree->GetItemLayoutMetrics(host, 0u);
+    const TreeItemLayoutMetrics second = tree->GetItemLayoutMetrics(host, 1u);
+    const float rowHeight              = first.rowRect.bottom - first.rowRect.top;
+    const auto pointInFirstRow         = [&](size_t move) noexcept
+    {
+        return D2D1::Point2F(first.textRect.left + 4.0f + 3.0f * static_cast<float>(move),
+                             first.rowRect.top + 1.0f + (rowHeight - 2.0f) * static_cast<float>(move) / 50.0f);
+    };
+
+    const D2D1_POINT_2F entry = pointInFirstRow(0u);
+    Require(tree->OnMouseMove(host, entry, 0) && host.GetTooltipText() == L"First row help", "entering the first row shows its tooltip");
+    const D2D1_RECT_F entryBounds = host.DebugGetTooltipBoundsDip();
+
+    const uint64_t beforeMoves = host.DebugGetInvalidateCount();
+    for (size_t move = 1u; move <= 50u; ++move)
+        Require(tree->OnMouseMove(host, pointInFirstRow(move), 0), "a move within the first row is handled");
+    const uint64_t withinRowInvalidations = host.DebugGetInvalidateCount() - beforeMoves;
+    std::cerr << "    [W1.6] tree moves within one row: 50, invalidations: " << withinRowInvalidations << '\n';
+    Require(withinRowInvalidations == 0u, "50 moves within one tree row cause 0 invalidations");
+    Require(host.GetTooltipText() == L"First row help", "the row keeps its tooltip text");
+    const D2D1_RECT_F afterMovesBounds = host.DebugGetTooltipBoundsDip();
+    Require(afterMovesBounds.left == entryBounds.left && afterMovesBounds.top == entryBounds.top, "the row tooltip stays at the row-entry origin");
+
+    const D2D1_POINT_2F nextRow   = D2D1::Point2F(second.textRect.left + 20.0f, (second.rowRect.top + second.rowRect.bottom) * 0.5f);
+    const uint64_t beforeCrossing = host.DebugGetInvalidateCount();
+    Require(tree->OnMouseMove(host, nextRow, 0), "crossing to the next row is handled");
+    const uint64_t crossingInvalidations = host.DebugGetInvalidateCount() - beforeCrossing;
+    std::cerr << "    [W1.6] tree crossing to the next row, invalidations: " << crossingInvalidations << '\n';
+    Require(crossingInvalidations == 1u, "crossing to the next tree row causes exactly 1 invalidation");
+    Require(host.GetTooltipText() == L"Second row help", "the next row shows its own tooltip");
+    Require(host.DebugGetTooltipBoundsDip().top > entryBounds.top, "the next row's tooltip is anchored where the pointer entered that row");
+}
+
 } // namespace
 
 void TestTreeDragReorderReportsDropAndEscapeCancels()
@@ -3882,6 +3937,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeRowMetricsClampToSegoeVariableBodyLineHeight);
     DXUI_RUN_TEST(TestTreeCompactDensityShrinksRowMetrics);
     DXUI_RUN_TEST(TestTreeHoveredClippedTextShowsFullTextTooltip);
+    DXUI_RUN_TEST(TestTreeTooltipMovesWithinRowDoNotInvalidate);
     DXUI_RUN_TEST(TestTreeMultiSelectIsOptInAndSingleSelectIsUnchanged);
     DXUI_RUN_TEST(TestTreeCtrlAndShiftClickBuildTheSelectionInVisibleOrder);
     DXUI_RUN_TEST(TestTreeCtrlAndShiftClickThroughTheHostMessages);
