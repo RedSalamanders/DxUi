@@ -1543,7 +1543,7 @@ the document at most once per lock. Exit: `G9` met; the `FX6` and `FX7` gates be
     `RichTextEditor`; `FX2` typed through an IME: 0 popup rebuilds before commit.
   - **Needs**: `W0.1`, `W1.4`. **Size**: L.
 
-- [ ] **W8.6 Grapheme stepping.**
+- [x] **W8.6 Grapheme stepping.**
   - **Why**: off the ASCII fast path `StepToNextTextElement` segments from 0 (`DxUi.SingleLineTextEditing.cpp:81-95`)
     and `SnapCaretIndexToTextElementBoundary` always does (`:117-144`), so each non-ASCII arrow key and each UI
     Automation character expansion (`DxUi.Accessibility.cpp:4598`) is O(caret offset).
@@ -1719,6 +1719,7 @@ with an open row is not accepted for closeout until that row closes.
 
 | Item | Left open or different | Closes with |
 | --- | --- | --- |
+| `W0.1` | Landed and not ticked: the counter record, the counted creation helpers at every call site, the source matcher and the gate on the 83-control fixture. Not built: the counting COM wrappers in the test executables and the Direct2D draw-call count. The pacer wake counter arrives with `W3.6`. A dirty frame reports 54 allocations in Release, which the gate asserts, and 257 in Debug and ASan Debug, where debug iterators allocate. | A second `W0.1` commit with the wrappers and the draw-call count |
 | `W1.1` | Embedded dispatch has no right-button action (`PointerAction` carries the primary and middle buttons only), so the embedded chord test holds capture across primary and middle; the native test uses Left and Right as the gate says. | A right button in embedded dispatch belongs to the API revision 6 pointer shape (`W5.8`) |
 | `W1.1` | Adds the public, additive virtual `Control::OnMouseMiddleUp` (default declines), because a middle release had no control-level hook. The retry's first step, "one frame", is declared as 16 ms. | Recorded addition; nothing to run |
 | `W1.1` | `ScrollPanel` now forwards the middle release to its child, and no longer holds a forwarded capture for a middle press its child handled without capturing. In the embedded chord primary down, middle down, primary up, middle up, the child receives the final middle release only when it happens over that child. | Recorded limit; closing it needs `ScrollPanel` to track the middle button inside its forwarded gesture |
@@ -1732,6 +1733,7 @@ with an open row is not accepted for closeout until that row closes.
 | `W1.5` | Two other word classifiers still treat every surrogate pair as a word character: whole-word find in rich documents and undo word grouping. | Recorded limit, outside the item |
 | `W1.6` | No gallery capture was published: the gallery has no `Tree` tooltip tile and no existing tile changes. | Recorded difference; a tile with a synthetic hover would be a gallery addition |
 | `W1.6` | A `Tree` row tooltip now stays where the pointer entered the row. A tooltip that is already shown still follows the pointer and repaints on each move; the gate covers the hover delay only. | Recorded behaviour; the shown case is a developer decision if `FX14` should repaint nothing while shown |
+| `W8.6` | The UI Automation character expansion visits up to 63 of the gate's 64 code units, because it reads the same sequence three times. Runs of regional indicators, pictographs joined by ZWJ and Indic linker chains are still read back to their start, as the item says. | `W8.4` gives the expansion headroom; the unbounded runs are by design |
 
 ## Decisions carried into this plan
 

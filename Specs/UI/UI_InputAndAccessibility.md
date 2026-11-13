@@ -408,8 +408,23 @@ records functional tests separately from the open performance and real AT gates.
 
 Shared text-element segmentation uses a pure allocation-free forward walker,
 with pinned generated property data and all original Unicode 17 GraphemeBreakTest
-vectors, without exclusions. Arbitrary-caret wrappers recover context from the
-beginning; callers already walking established boundaries use the forward service
+vectors, without exclusions. Arbitrary-caret wrappers (next, previous and nearest
+snapping) recover context from an anchor rather than from the beginning: they search
+backward from the caret's code point to the nearest pair that UAX #29 breaks under
+every possible preceding context, then walk forward. Such a pair breaks by GB4/GB5
+(Control, CR or LF on either side, except CR LF under GB3), or by GB999 when the pair
+alone excludes GB6-GB8 (Hangul L/V/T/LV/LVT joins), GB9/GB9a/GB9b (right Extend, ZWJ
+or SpacingMark; left Prepend), GB9c (right InCB=Consonant after InCB Extend or
+Linker), GB11 (ZWJ before Extended_Pictographic) and GB12/GB13 (two regional
+indicators). Offset 0 and the end are boundaries (GB1/GB2). A caret between
+surrogate halves starts from the lead; unpaired halves remain single code points.
+The result equals the walk from 0, so a step costs its element span; only
+regional-indicator runs, pictographic ZWJ chains and Indic linker chains, whose
+pairs depend on earlier context, extend the backward search across several
+elements. ASCII neighbours keep their direct boundary. On 65,536 units of CJK and
+emoji, a step, a snap, a `TextField` arrow key and a UIA character expansion or
+single move each read at most 64 code units. Callers already walking
+established boundaries use the forward service
 instead of rescanning each prefix. Password masking and source/display mapping
 follow these same elements. Legacy malformed UTF-16 still makes bounded progress;
 the rich model rejects malformed source. See the [data provenance and generator](../../ThirdParty/Unicode/README.md).

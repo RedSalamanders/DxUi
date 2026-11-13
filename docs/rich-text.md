@@ -986,7 +986,11 @@ Rich arrows, deletion, UIA character commands and mouse hit stops use the shared
 Unicode 17.0.0 default extended grapheme rules. Hangul, Indic conjuncts, contextual
 emoji ZWJ and regional-indicator sequences are covered by all 766 original
 conformance vectors at every UTF-16 offset. Prepared stops and password mask
-indices use a forward walker with no C++ heap requests. Font glyph clusters
+indices use a forward walker with no C++ heap requests. A single arrow step,
+caret snap or UIA character expansion starts that walker at the nearest preceding
+position where the rules always break, so it reads about one element rather than
+the text before the caret; long regional-indicator runs and emoji ZWJ chains are
+the cases that read further back. Font glyph clusters
 still belong to DirectWrite; explicit ACP caret/range geometry remains available
 inside an element for text services. [Pinned data and regeneration](../ThirdParty/Unicode/README.md)
 are kept in the repository. Logical grapheme support does not establish visual

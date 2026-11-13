@@ -40,7 +40,11 @@ or qualify the performance policy.
 
 `EditorControls` runs `TestUnicode17DefaultGraphemeCorpus`: all 766 pinned original
 vectors, every UTF-16 offset, next/previous movement, nearest snapping and counts.
-`TextField` adds Unicode 17 password-mask source geometry/hit/deletion cases;
+`TestTextElementAnchoredSteppingMatchesFromZero` compares the anchored wrappers with
+the from-zero segmentation on that corpus and on 4,096 seeded mixes (CJK, emoji,
+combining marks, regional indicators, Hangul jamo, Indic, controls, lone surrogates);
+`TestTextElementSteppingVisitsBoundedUnits` counts code units visited per step on
+65,536 units of CJK and emoji. `TextField` adds Unicode 17 password-mask source geometry/hit/deletion cases;
 `Accessibility` checks rich character range commands, arrows, deletion and undo
 in native and embedded hosts. `Embedded` measures a 49,152-unit mixed-script
 forward walk (16,384 elements, zero C++ allocation calls/bytes) and oversized

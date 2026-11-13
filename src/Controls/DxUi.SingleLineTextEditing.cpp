@@ -82,7 +82,9 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
     // cluster scan locally, including combining marks after the ASCII unit.
     if (text[caret] <= 0x7fu && (! caret || (text[caret - 1u] <= 0x7fu && ! (text[caret - 1u] == L'\r' && text[caret] == L'\n'))))
         return finish(FindNextTextElementBoundary(text, caret));
-    size_t cursor = 0u;
+    // Otherwise walk forward from the nearest unconditional break, which costs
+    // the containing element rather than the caret offset.
+    size_t cursor = FindTextElementSearchAnchor(text, caret);
     while (cursor < text.size())
     {
         const size_t nextBoundary = FindNextTextElementBoundary(text, cursor);
@@ -122,7 +124,11 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
         return caret;
     }
 
-    size_t cursor = 0u;
+    size_t cursor = FindTextElementSearchAnchor(text, caret);
+    if (cursor == caret)
+    {
+        return caret;
+    }
     while (cursor < text.size())
     {
         const size_t nextBoundary = FindNextTextElementBoundary(text, cursor);
