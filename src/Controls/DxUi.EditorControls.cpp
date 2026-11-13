@@ -756,6 +756,7 @@ NumericStepper::NumericStepper()
     _field     = AddChild<TextField>();
     _increment = AddChild<Button>(std::wstring(1, kChevronUpGlyph));
     _decrement = AddChild<Button>(std::wstring(1, kChevronDownGlyph));
+    _field->SetInputScope(TextInputScope::Number);
     _increment->SetVariant(ButtonVariant::IconOnly);
     _decrement->SetVariant(ButtonVariant::IconOnly);
     _increment->SetFocusable(false);

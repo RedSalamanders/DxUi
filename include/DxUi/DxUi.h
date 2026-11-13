@@ -602,6 +602,15 @@ enum class PasswordRevealMode : uint8_t
     Hidden,
 };
 
+// The kind of text a TextField expects, reported to text services (TSF input scope) so a touch keyboard or IME can
+// choose a matching layout. A masked field always reports a password scope.
+enum class TextInputScope : uint8_t
+{
+    Default,
+    Number,
+    Url,
+};
+
 enum class PasswordRevealState : uint8_t
 {
     Hidden,
@@ -3841,6 +3850,9 @@ public:
     void ReplaceSelectionAndNotify(std::wstring_view replacement);
     void SetMasked(bool masked) noexcept;
     [[nodiscard]] bool IsMasked() const noexcept;
+    // Text services read the scope when they query the focused field; Default is the default.
+    void SetInputScope(TextInputScope scope) noexcept;
+    [[nodiscard]] TextInputScope GetInputScope() const noexcept;
     void SetPasswordRevealMode(PasswordRevealMode mode) noexcept;
     [[nodiscard]] PasswordRevealMode GetPasswordRevealMode() const noexcept;
     void SetPasswordRevealState(PasswordRevealState state) noexcept;
@@ -3993,6 +4005,7 @@ private:
     bool _multiline                                 = false;
     bool _readOnly                                  = false;
     bool _masked                                    = false;
+    TextInputScope _inputScope                      = TextInputScope::Default;
     PasswordRevealMode _passwordRevealMode          = PasswordRevealMode::Peek;
     PasswordRevealState _passwordRevealState        = PasswordRevealState::Hidden;
     PasswordMaskLengthPolicy _maskLengthPolicy      = PasswordMaskLengthPolicy::Exact;
@@ -6624,6 +6637,10 @@ private:
                                                           std::optional<size_t> start,
                                                           std::optional<size_t> end,
                                                           std::optional<size_t> cursor) noexcept;
+    [[nodiscard]] bool SetNativeTextInputCompositionAttributes(Control* control,
+                                                               std::optional<size_t> targetStart,
+                                                               std::optional<size_t> targetEnd,
+                                                               const std::vector<size_t>& clauseBoundaries) noexcept;
     void DestroyNativeTextInputCaret() noexcept;
     void RaiseNativeTextInputAccessibilityEvent(TextInputAutomationEventKind kind) noexcept;
     void RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState) noexcept;

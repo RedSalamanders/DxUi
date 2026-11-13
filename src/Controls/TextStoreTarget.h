@@ -3,13 +3,47 @@
 #include <DxUi/DxUi.h>
 #include <DxUi/TextInputServices.h>
 #include <cstdint>
+#include <inputscope.h>
 #include <limits>
 #include <memory>
 #include <msctf.h>
+#include <optional>
+#include <span>
+#include <string_view>
 #include <textstor.h>
+#include <vector>
 
 namespace DxUi
 {
+// One GUID_PROP_ATTRIBUTE range of a TSF composition, resolved to its TF_DISPLAYATTRIBUTE::bAttr.
+struct TextStoreAttributeSpan
+{
+    size_t start              = 0u;
+    size_t end                = 0u;
+    TF_DA_ATTR_INFO attribute = TF_ATTR_OTHER;
+};
+// The conversion target and clause boundaries of one composition, in document ACPs. Boundaries follow the IMM
+// GCS_COMPCLAUSE convention: the composition start, every interior clause edge and the composition end.
+struct TextStoreCompositionAttributes
+{
+    std::optional<size_t> targetStart;
+    std::optional<size_t> targetEnd;
+    std::vector<size_t> clauseBoundaries;
+};
+// GUID_PROP_INPUTSCOPE. InputScope.h declares it with DEFINE_GUID and no import library defines it.
+inline constexpr GUID kTextStoreInputScopeProperty = {0x1713dd5a, 0x68e7, 0x4a5b, {0x9a, 0xf6, 0x59, 0x2a, 0x59, 0x5c, 0x77, 0x8d}};
+// The most clause boundaries one composition publishes, matching the embedded snapshot ceiling.
+inline constexpr size_t kMaximumTextStoreClauseBoundaries = 256u;
+// The TS_TEXTCHANGE for replacing `before` with `after`: the common prefix and suffix are excluded, and neither cut
+// splits a surrogate pair or a CRLF pair in either text.
+[[nodiscard]] TS_TEXTCHANGE ComputeTextStoreTextChange(std::wstring_view before, std::wstring_view after) noexcept;
+// Pure mapping from display-attribute spans to the conversion target (the first contiguous run of target spans) and
+// clause boundaries. Spans are clipped to the composition; empty, reversed or out-of-order spans are ignored. `result`
+// keeps its capacity so a composition reuses it; growth beyond that capacity may throw std::bad_alloc.
+void ResolveTextStoreCompositionAttributes(size_t compositionStart,
+                                           size_t compositionEnd,
+                                           std::span<const TextStoreAttributeSpan> spans,
+                                           TextStoreCompositionAttributes& result);
 // Private UI-thread adapter shared by native controls and application-side text services.
 // The COM store retains the adapter; Disconnect invalidates borrowed application/control state.
 struct TextStoreDispatch
@@ -28,6 +62,8 @@ public:
         bool readOnly  = false;
         bool masked    = false;
         bool multiline = false;
+        // Reported through ITfInputScope and GUID_PROP_INPUTSCOPE; a masked target reports IS_PASSWORD instead.
+        InputScope inputScope = IS_DEFAULT;
     };
     virtual ~TextStoreTarget()                                                 = default;
     virtual void Disconnect() noexcept                                         = 0;
@@ -78,6 +114,12 @@ public:
     {
         return S_OK;
     }
+    // Publishes the composition's conversion target and clauses read from GUID_PROP_ATTRIBUTE. Targets without
+    // composition metadata ignore it.
+    virtual bool SetCompositionAttributes(const TextStoreCompositionAttributes&) noexcept
+    {
+        return false;
+    }
 };
 
 [[nodiscard]] ITextStoreACP* CreateTextStore(std::shared_ptr<TextStoreTarget> target) noexcept;
@@ -92,6 +134,10 @@ HRESULT DispatchPendingTextStoreLock(ITextStoreACP* store) noexcept;
 HRESULT DispatchDeferredTextStoreLock(ITextStoreACP* store, bool& messagePosted) noexcept;
 void NotifyTextStoreChanged(ITextStoreACP* store) noexcept;
 void NotifyTextStoreLayoutChanged(ITextStoreACP* store) noexcept;
+// Advises the store as the context's ITfTextEditSink so it can read GUID_PROP_ATTRIBUTE after each edit session.
+// Failure leaves composition attributes unpublished and is not an activation failure.
+HRESULT AdviseTextStoreEditSink(ITfContext* context, ITextStoreACP* store) noexcept;
+void UnadviseTextStoreEditSink(ITfContext* context, IUnknown* store) noexcept;
 // Mark an activated production store for a bounded posted reconciliation after TSF callbacks finish.
 void ScheduleTextStoreReconciliation(ITextStoreACP* store) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS

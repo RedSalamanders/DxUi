@@ -910,6 +910,9 @@ bool ControlHost::ActivateNativeTextInputTsf(Control* control) noexcept
     {
         return failActivation();
     }
+    // Composition target and clauses come from GUID_PROP_ATTRIBUTE after each edit session. Without the sink the
+    // composition still works, without that metadata.
+    static_cast<void>(AdviseTextStoreEditSink(context.get(), textStore.get()));
 
     hr     = documentMgr->Push(context.get());
     pushed = SUCCEEDED(hr);
@@ -1009,6 +1012,12 @@ void ControlHost::DeactivateNativeTextInputTsf() noexcept
         }
     }
 
+    if (contextUnknown)
+    {
+        wil::com_ptr_nothrow<ITfContext> context;
+        if (SUCCEEDED(contextUnknown.query_to(context.put())))
+            UnadviseTextStoreEditSink(context.get(), textStoreToDisconnect.get());
+    }
     if (documentMgr)
     {
         static_cast<void>(documentMgr->Pop(TF_POPF_ALL));
@@ -1317,9 +1326,19 @@ bool ControlHost::SetNativeTextInputCompositionRange(Control* control,
     _nativeTextInputCompositionStartIndex  = start;
     _nativeTextInputCompositionEndIndex    = end;
     _nativeTextInputCompositionCursorIndex = cursor;
-    _nativeTextInputConversionTargetStartIndex.reset();
-    _nativeTextInputConversionTargetEndIndex.reset();
-    _nativeTextInputCompositionClauseBoundaries.clear();
+    // GUID_PROP_ATTRIBUTE metadata arrives after the edit session that moved the range. Keep the published target and
+    // clauses while they still lie inside the new range; the next attribute read replaces them.
+    const auto insideRange  = [&start, &end](size_t index) noexcept { return start && end && index >= *start && index <= *end; };
+    const bool targetInside = _nativeTextInputConversionTargetStartIndex && _nativeTextInputConversionTargetEndIndex &&
+                              insideRange(*_nativeTextInputConversionTargetStartIndex) && insideRange(*_nativeTextInputConversionTargetEndIndex);
+    if (! targetInside)
+    {
+        _nativeTextInputConversionTargetStartIndex.reset();
+        _nativeTextInputConversionTargetEndIndex.reset();
+    }
+    if (! _nativeTextInputTsfComposing ||
+        ! std::all_of(_nativeTextInputCompositionClauseBoundaries.begin(), _nativeTextInputCompositionClauseBoundaries.end(), insideRange))
+        _nativeTextInputCompositionClauseBoundaries.clear();
     ApplyNativeTextInputCompositionStateToCache();
     RaiseNativeTextInputAccessibilityEvents(previousState);
 
@@ -1328,6 +1347,49 @@ bool ControlHost::SetNativeTextInputCompositionRange(Control* control,
         return false;
     }
     UpdateNativeTextInputCaret();
+    return ! _nativeTextInputControlLifetime.expired() && control == _nativeTextInputControl && IsControlInTree(_root.get(), control);
+}
+
+bool ControlHost::SetNativeTextInputCompositionAttributes(Control* control,
+                                                          std::optional<size_t> targetStart,
+                                                          std::optional<size_t> targetEnd,
+                                                          const std::vector<size_t>& clauseBoundaries) noexcept
+{
+    const Failure::Scope failureScope;
+    if (! control || control != _nativeTextInputControl || _nativeTextInputControlLifetime.expired() || ! IsControlInTree(_root.get(), control) ||
+        ! _nativeTextInputStateCacheValid || ! _nativeTextInputTsfComposing || ! _nativeTextInputCompositionStartIndex || ! _nativeTextInputCompositionEndIndex)
+    {
+        return false;
+    }
+    const size_t first   = *_nativeTextInputCompositionStartIndex;
+    const size_t last    = *_nativeTextInputCompositionEndIndex;
+    const auto inside    = [first, last](size_t index) noexcept { return index >= first && index <= last; };
+    const bool hasTarget = targetStart && targetEnd;
+    if (targetStart.has_value() != targetEnd.has_value() || (hasTarget && (*targetEnd < *targetStart || ! inside(*targetStart) || ! inside(*targetEnd))) ||
+        ! std::is_sorted(clauseBoundaries.begin(), clauseBoundaries.end()) || ! std::all_of(clauseBoundaries.begin(), clauseBoundaries.end(), inside))
+    {
+        return false;
+    }
+    if (_nativeTextInputConversionTargetStartIndex == targetStart && _nativeTextInputConversionTargetEndIndex == targetEnd &&
+        _nativeTextInputCompositionClauseBoundaries == clauseBoundaries)
+    {
+        return true;
+    }
+
+    NativeTextInputState previousState;
+    try
+    {
+        previousState                               = _nativeTextInputStateCache;
+        _nativeTextInputCompositionClauseBoundaries = clauseBoundaries;
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    _nativeTextInputConversionTargetStartIndex = targetStart;
+    _nativeTextInputConversionTargetEndIndex   = targetEnd;
+    ApplyNativeTextInputCompositionStateToCache();
+    RaiseNativeTextInputAccessibilityEvents(previousState);
     return ! _nativeTextInputControlLifetime.expired() && control == _nativeTextInputControl && IsControlInTree(_root.get(), control);
 }
 

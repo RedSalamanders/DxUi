@@ -956,6 +956,28 @@ The defensive text-store adapter returns `S_OK` with `TS_SD_READONLY` for a mask
 through `ITfInputScope`, without granting a read/write lock or exporting secret text. Plain controls report their
 actual read-only policy; an unavailable target remains disconnected. Application-bridged stores use the same metadata
 contract and securely clear temporary masked snapshots. Logical policy changes never transfer native keyboard focus.
+
+The shared ACP store follows the documented TSF query semantics. `GetACPFromPoint` ([ITextStoreACP::GetACPFromPoint](https://learn.microsoft.com/en-us/windows/win32/api/textstor/nf-textstor-itextstoreacp-getacpfrompoint))
+returns, by default, the start of the character whose bounding box contains the point and `TS_E_INVALIDPOINT` for a
+point outside every visible character box, including any point outside the text view. `GXFPF_ROUND_NEAREST` returns
+the nearer edge of the containing box; `GXFPF_NEAREST` returns the closest position for a point outside every box;
+the flags combine. That page's prose and its per-point list disagree on `GXFPF_ROUND_NEAREST` outside a box; the
+store follows the flag table and the per-point list, so rounding alone never resolves such a point. Without a layout
+every flag returns `TS_E_NOLAYOUT`, and a refused query clears its output. A surrogate pair and a CRLF pair are one
+character box; no result falls between their units. The store supports one attribute, `GUID_PROP_INPUTSCOPE`:
+`RequestSupportedAttrs`, `RequestAttrsAtPosition` and `RetrieveRequestedAttrs` return the store's own `ITfInputScope`
+as `VT_UNKNOWN` (`VT_EMPTY` for a support query without `TS_ATTR_FIND_WANT_VALUE`), and it never transitions inside the
+document. `TextField::SetInputScope` selects `Default`, `Number` (`IS_NUMBER`) or `Url` (`IS_URL`); a NumericStepper
+field reports `Number`, and a masked field always reports `IS_PASSWORD`. An external text change notifies
+`TS_TEXTCHANGE` with the common prefix and suffix excluded, so only the changed middle re-anchors text-service ranges;
+neither edge splits a surrogate pair or a CRLF pair in the old or new text. After each TSF edit session the native
+store reads the composition's `GUID_PROP_ATTRIBUTE` ranges and their `TF_DISPLAYATTRIBUTE::bAttr`; a pure mapping
+publishes the first contiguous run of `TF_ATTR_TARGET_CONVERTED`/`TF_ATTR_TARGET_NOTCONVERTED` ranges as the conversion
+target and the range edges, clipped to the composition, as clause boundaries in the IMM convention (composition start,
+interior edges, composition end; at most 256). A later range update keeps that metadata while it lies inside the new
+range. Masked fields keep TSF deactivated, so they publish no attributes. Application-bridged stores report the same
+point and input-scope semantics; they do not yet read display attributes. A real Japanese IME composition remains the
+acceptance check for the attribute path; the automated suites cover the mapping and the store queries.
 Its UI Automation Text pattern is unavailable,
 and its accessible name/value/text never contains the password. Host `WM_GETTEXT`, `WM_GETTEXTLENGTH` and
 `WM_SETTEXT` remain window-caption messages while an editor has focus; editor state is exposed by the supported

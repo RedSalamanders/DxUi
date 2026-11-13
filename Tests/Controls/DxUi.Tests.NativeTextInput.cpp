@@ -7511,7 +7511,7 @@ void TestNativeTextInputTextStoreRequiresLockAndExposesTextSelectionGeometry()
         }
 
         POINT queryPoint{screenExt.left + 2, (screenExt.top + screenExt.bottom) / 2};
-        callbackHr = store->GetACPFromPoint(activeView, &queryPoint, 0u, &pointAcp);
+        callbackHr = store->GetACPFromPoint(activeView, &queryPoint, GXFPF_ROUND_NEAREST | GXFPF_NEAREST, &pointAcp);
         return callbackHr;
     };
 
@@ -8250,7 +8250,7 @@ void TestNativeTextInputTextStoreExposesAcp2Surface()
         }
 
         POINT queryPoint{screenExt.left + 2, (screenExt.top + screenExt.bottom) / 2};
-        callbackHr = store2->GetACPFromPoint(activeView, &queryPoint, 0u, &pointAcp);
+        callbackHr = store2->GetACPFromPoint(activeView, &queryPoint, GXFPF_ROUND_NEAREST | GXFPF_NEAREST, &pointAcp);
         return callbackHr;
     };
 
@@ -8434,7 +8434,7 @@ void TestNativeTextInputTextStoreMixedBiDiGeometryUsesTextViewport()
                 }
 
                 const POINT queryPoint = DipPointToScreenPoint(window, probes[index].pointDip);
-                callbackHr             = store->GetACPFromPoint(activeView, &queryPoint, 0u, &pointAcps[index]);
+                callbackHr             = store->GetACPFromPoint(activeView, &queryPoint, GXFPF_ROUND_NEAREST | GXFPF_NEAREST, &pointAcps[index]);
                 if (FAILED(callbackHr))
                 {
                     return callbackHr;
@@ -8640,7 +8640,7 @@ void TestNativeTextInputTextStoreMultilinePointMapsToLineCaretAcp()
             return callbackHr;
         }
 
-        callbackHr = store->GetACPFromPoint(activeView, &queryPoint, 0u, &pointAcp);
+        callbackHr = store->GetACPFromPoint(activeView, &queryPoint, GXFPF_ROUND_NEAREST | GXFPF_NEAREST, &pointAcp);
         return callbackHr;
     };
 
@@ -8708,7 +8708,7 @@ void TestNativeTextInputTextStoreWrappedPointMapsToVisualLineCaretAcp()
             return callbackHr;
         }
 
-        callbackHr = store->GetACPFromPoint(activeView, &queryPoint, 0u, &pointAcp);
+        callbackHr = store->GetACPFromPoint(activeView, &queryPoint, GXFPF_ROUND_NEAREST | GXFPF_NEAREST, &pointAcp);
         return callbackHr;
     };
 

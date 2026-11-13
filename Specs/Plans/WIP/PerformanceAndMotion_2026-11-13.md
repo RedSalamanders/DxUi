@@ -452,7 +452,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
     before `Detach` disconnects its provider and leaks no target; unregistration allocates nothing; an unnamed field
     with text reports an empty Name and raises no Name change while typing.
   - **Needs**: nothing. **Size**: M.
-- [ ] **W1.4 TSF conformance.**
+- [x] **W1.4 TSF conformance.**
   - **Why**: `GetACPFromPoint` ignores `dwFlags` (`DxUi.TextStoreACP.cpp:1728`), acts as nearest-and-round inside the
     view (`:558-567`) and returns `TS_E_INVALIDPOS` outside (`:553-556`), where the contract defines `TS_E_INVALIDPOINT`
     and `TS_E_NOLAYOUT`
@@ -1709,6 +1709,18 @@ Exit: `G15` met; `W10.4` either meets its go criterion or is closed unbuilt.
   - **Gate**: go only with ≥ 3× lower hardware CPU per dirty frame on `FX5` and the antialiasing differences accepted in
     a harness gallery review of the `FX5` and `FX12` captures; exact BGRA parity is not claimed.
   - **Needs**: `W0.7`, `W4.1`, `W4.2`. **Size**: L.
+
+## Implementation record
+
+A ticked item has its code, deterministic tests, contract text and changelog fragment on the implementation branch.
+This table lists what a ticked item still leaves open and where its implementation differs from its text. An item
+with an open row is not accepted for closeout until that row closes.
+
+| Item | Left open or different | Closes with |
+| --- | --- | --- |
+| `W1.4` | The Japanese IME composition check and the `NativeTextInput` suite were not run: both take focus. The display-attribute path from the edit sink to the host is proved only through its pure mapping. | `test.ps1 -Interactive`, with the developer's agreement to the time |
+| `W1.4` | Three clauses publish four boundaries (the composition start, the two interior edges and the end), following the existing IMM convention; the gate text says three. | Recorded difference; nothing to run |
+| `W1.4` | Adds the public, additive `TextInputScope` with `TextField::SetInputScope` and `GetInputScope`, because no field could declare a numeric or URL scope before. | Recorded addition; nothing to run |
 
 ## Decisions carried into this plan
 

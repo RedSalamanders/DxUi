@@ -1,4 +1,5 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.TextStoreComposition.h"
 #include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.MaskedInputPolicy.h"
 #include <DxUi/Failure.h>
@@ -2416,12 +2417,21 @@ void TestTextFieldBuffersSurrogatesBeforePublishing()
         Require(packet.OnKeyDown(host, 'Z', MK_CONTROL) && packet.GetText() == L"A", "the scalar remains one transaction across every preserving key");
     }
 }
+
+using TextStoreConformanceTests::TestTextStoreDisplayAttributesResolveClausesAndTarget;
+using TextStoreConformanceTests::TestTextStoreExternalChangeExcludesCommonPrefixAndSuffix;
+using TextStoreConformanceTests::TestTextStorePointQueriesHonorDocumentedFlags;
+using TextStoreConformanceTests::TestTextStoreReportsFieldInputScopes;
 } // namespace
 
 void RunTextFieldTests()
 {
     DXUI_RUN_TEST(TestMaskedTextStoreReportsReadOnlyStatusWithoutChangingSource);
     DXUI_RUN_TEST(TestMaskedTextStorePublishesPasswordInputScope);
+    DXUI_RUN_TEST(TestTextStorePointQueriesHonorDocumentedFlags);
+    DXUI_RUN_TEST(TestTextStoreReportsFieldInputScopes);
+    DXUI_RUN_TEST(TestTextStoreExternalChangeExcludesCommonPrefixAndSuffix);
+    DXUI_RUN_TEST(TestTextStoreDisplayAttributesResolveClausesAndTarget);
     DXUI_RUN_TEST(TestMaskedNativeWindowPreservesBorrowedImeContexts);
     DXUI_RUN_TEST(TestTextFieldDirectCallbackFailure);
     DXUI_RUN_TEST(TestTextFieldBlurCallbackKeepsItsCaptureWhenItDestroysTheField);

@@ -59,6 +59,60 @@ struct AcpRange
     return range;
 }
 
+// A position TSF may observe as a change edge or a character edge: never between the units of a surrogate pair or
+// between the CR and LF of a CRLF pair.
+[[nodiscard]] bool IsTextStoreCut(std::wstring_view text, size_t position) noexcept
+{
+    if (position == 0u || position >= text.size())
+        return true;
+    const wchar_t before = text[position - 1u];
+    const wchar_t after  = text[position];
+    if (IsUtf16LeadSurrogate(before) && IsUtf16TrailSurrogate(after))
+        return false;
+    return ! (before == L'\r' && after == L'\n');
+}
+
+[[nodiscard]] size_t NextTextStoreCut(std::wstring_view text, size_t position) noexcept
+{
+    if (position >= text.size())
+        return text.size();
+    size_t next = StepToNextCodePoint(text, position);
+    if (next < text.size() && text[position] == L'\r' && text[next] == L'\n')
+        ++next;
+    return next;
+}
+
+[[nodiscard]] size_t PreviousTextStoreCut(std::wstring_view text, size_t position) noexcept
+{
+    if (position == 0u)
+        return 0u;
+    size_t previous = StepToPreviousCodePoint(text, (std::min)(position, text.size()));
+    if (previous > 0u && text[previous] == L'\n' && text[previous - 1u] == L'\r')
+        --previous;
+    return previous;
+}
+
+[[nodiscard]] bool IsInputScopeRequested(ULONG count, const TS_ATTRID* attributes) noexcept
+{
+    for (ULONG index = 0u; attributes && index < count; ++index)
+    {
+        if (IsEqualGUID(attributes[index], kTextStoreInputScopeProperty))
+            return true;
+    }
+    return false;
+}
+
+[[nodiscard]] InputScope ToTsfInputScope(TextInputScope scope) noexcept
+{
+    switch (scope)
+    {
+        case TextInputScope::Number: return IS_NUMBER;
+        case TextInputScope::Url: return IS_URL;
+        case TextInputScope::Default: break;
+    }
+    return IS_DEFAULT;
+}
+
 [[nodiscard]] bool HasSelection(const TextInputState& state) noexcept
 {
     return state.selectionAnchorIndex.has_value() && state.selectionAnchorIndex.value() != state.caretIndex;
@@ -550,11 +604,8 @@ public:
             *pacp = 0;
             return TS_E_NOLAYOUT;
         }
-        if (! PointInRect(bounds, D2D1::Point2F(pointDip->x, pointDip->y)))
-        {
-            return TS_E_INVALIDPOS;
-        }
 
+        // The nearest caret position for any point; the store applies the GetACPFromPoint flags and character boxes.
         const D2D1_POINT_2F queryPoint = D2D1::Point2F(pointDip->x, pointDip->y);
         if (const std::optional<size_t> hitIndex = control->TryHitTestTextInputPoint(*_host, queryPoint); hitIndex.has_value())
         {
@@ -622,6 +673,13 @@ public:
         *prc = RECT{topLeft.x, topLeft.y, bottomRight.x, bottomRight.y};
         return S_OK;
     }
+    bool SetCompositionAttributes(const TextStoreCompositionAttributes& attributes) noexcept override
+    {
+        Control* const control = GetLiveControl();
+        if (! control || ! _compositionBase || ! IsCurrentTextServiceTarget())
+            return false;
+        return _host->SetNativeTextInputCompositionAttributes(control, attributes.targetStart, attributes.targetEnd, attributes.clauseBoundaries);
+    }
     [[nodiscard]] Control* GetLiveControl() const noexcept
     {
         if (! _host || ! _control || _controlLifetime.expired() || ! IsControlInTree(_host->GetRoot(), _control))
@@ -638,7 +696,7 @@ public:
             return false;
         if (const auto* field = dynamic_cast<const TextField*>(control))
         {
-            policy = {field->IsReadOnly(), field->IsMasked(), field->IsMultiline()};
+            policy = {field->IsReadOnly(), field->IsMasked(), field->IsMultiline(), ToTsfInputScope(field->GetInputScope())};
             return true;
         }
         return TextStoreTarget::ReadPolicy(policy);
@@ -1031,7 +1089,7 @@ private:
 namespace
 {
 
-class TextStoreACP final : public ITextStoreACP, public ITextStoreACP2, public ITfContextOwnerCompositionSink, public ITfInputScope
+class TextStoreACP final : public ITextStoreACP, public ITextStoreACP2, public ITfContextOwnerCompositionSink, public ITfInputScope, public ITfTextEditSink
 {
 public:
     explicit TextStoreACP(std::shared_ptr<TextStoreTarget> target) noexcept : _target(std::move(target))
@@ -1085,6 +1143,12 @@ public:
         if (riid == __uuidof(ITfInputScope))
         {
             *ppvObject = static_cast<ITfInputScope*>(this);
+            AddRef();
+            return S_OK;
+        }
+        if (riid == __uuidof(ITfTextEditSink))
+        {
+            *ppvObject = static_cast<ITfTextEditSink*>(this);
             AddRef();
             return S_OK;
         }
@@ -1145,6 +1209,38 @@ public:
     {
         const Failure::Scope failureScope;
         return _target->EndComposition(composition);
+    }
+
+    // After each edit session TSF grants a read-only cookie; GUID_PROP_ATTRIBUTE then describes the composition's
+    // clauses and conversion target, which the target publishes beside the composition range.
+    HRESULT STDMETHODCALLTYPE OnEndEdit(ITfContext* context, TfEditCookie readCookie, ITfEditRecord* /*editRecord*/) noexcept override
+    {
+        const Failure::Scope failureScope;
+        if (! context)
+            return E_INVALIDARG;
+        try
+        {
+            if (ReadCompositionAttributeSpans(*context, readCookie))
+            {
+                ResolveTextStoreCompositionAttributes(_attributeCompositionStart, _attributeCompositionEnd, _attributeSpans, _compositionAttributes);
+                static_cast<void>(_target->SetCompositionAttributes(_compositionAttributes));
+            }
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
+        return S_OK;
+    }
+
+    void SetTextEditSinkCookie(DWORD cookie) noexcept
+    {
+        _textEditSinkCookie = cookie;
+    }
+
+    [[nodiscard]] DWORD TakeTextEditSinkCookie() noexcept
+    {
+        return std::exchange(_textEditSinkCookie, TF_INVALID_COOKIE);
     }
 
     HRESULT STDMETHODCALLTYPE AdviseSink(REFIID riid, IUnknown* punk, DWORD dwMask) noexcept override
@@ -1398,7 +1494,7 @@ public:
         wil::unique_cotaskmem_ptr<InputScope> value(static_cast<InputScope*>(CoTaskMemAlloc(sizeof(InputScope))));
         if (! value)
             return E_OUTOFMEMORY;
-        *value.get() = policy.masked ? IS_PASSWORD : IS_DEFAULT;
+        *value.get() = policy.masked ? IS_PASSWORD : policy.inputScope;
         *scopes      = value.release(); // The COM caller takes this CoTaskMem allocation.
         *count       = 1u;
         return S_OK;
@@ -1634,18 +1730,25 @@ public:
         return E_NOTIMPL;
     }
 
-    HRESULT STDMETHODCALLTYPE RequestSupportedAttrs(DWORD /*dwFlags*/, ULONG /*cFilterAttrs*/, const TS_ATTRID* /*paFilterAttrs*/) noexcept override
+    // The store supports one attribute, GUID_PROP_INPUTSCOPE, whose value is this store's ITfInputScope for the whole
+    // document. TS_ATTR_FIND_WANT_VALUE asks for the value; otherwise the support query reports VT_EMPTY.
+    HRESULT STDMETHODCALLTYPE RequestSupportedAttrs(DWORD dwFlags, ULONG cFilterAttrs, const TS_ATTRID* paFilterAttrs) noexcept override
     {
         const Failure::Scope failureScope;
+        if (cFilterAttrs > 0u && ! paFilterAttrs)
+            return E_INVALIDARG;
+        _inputScopeRequested      = IsInputScopeRequested(cFilterAttrs, paFilterAttrs);
+        _inputScopeValueRequested = (dwFlags & TS_ATTR_FIND_WANT_VALUE) != 0u;
         return S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE RequestAttrsAtPosition(LONG /*acpPos*/,
-                                                     ULONG /*cFilterAttrs*/,
-                                                     const TS_ATTRID* /*paFilterAttrs*/,
-                                                     DWORD /*dwFlags*/) noexcept override
+    HRESULT STDMETHODCALLTYPE RequestAttrsAtPosition(LONG /*acpPos*/, ULONG cFilterAttrs, const TS_ATTRID* paFilterAttrs, DWORD /*dwFlags*/) noexcept override
     {
         const Failure::Scope failureScope;
+        if (cFilterAttrs > 0u && ! paFilterAttrs)
+            return E_INVALIDARG;
+        _inputScopeRequested      = IsInputScopeRequested(cFilterAttrs, paFilterAttrs);
+        _inputScopeValueRequested = true;
         return S_OK;
     }
 
@@ -1655,6 +1758,8 @@ public:
                                                                   DWORD /*dwFlags*/) noexcept override
     {
         const Failure::Scope failureScope;
+        // The input scope covers the whole document, so no attribute transitions anywhere.
+        _inputScopeRequested = false;
         return S_OK;
     }
 
@@ -1679,7 +1784,7 @@ public:
         return S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE RetrieveRequestedAttrs(ULONG /*ulCount*/, TS_ATTRVAL* /*paAttrVals*/, ULONG* pcFetched) noexcept override
+    HRESULT STDMETHODCALLTYPE RetrieveRequestedAttrs(ULONG ulCount, TS_ATTRVAL* paAttrVals, ULONG* pcFetched) noexcept override
     {
         const Failure::Scope failureScope;
         if (! pcFetched)
@@ -1688,6 +1793,22 @@ public:
         }
 
         *pcFetched = 0u;
+        if (ulCount > 0u && ! paAttrVals)
+            return E_INVALIDARG;
+        if (! std::exchange(_inputScopeRequested, false) || ulCount == 0u)
+            return S_OK;
+        TS_ATTRVAL& value = paAttrVals[0];
+        value.idAttr      = kTextStoreInputScopeProperty;
+        value.dwOverlapId = 0u;
+        VariantInit(&value.varValue);
+        if (_inputScopeValueRequested)
+        {
+            // The caller owns the VARIANT and releases this reference with VariantClear.
+            value.varValue.vt      = VT_UNKNOWN;
+            value.varValue.punkVal = static_cast<ITfInputScope*>(this);
+            AddRef();
+        }
+        *pcFetched = 1u;
         return S_OK;
     }
 
@@ -1725,7 +1846,9 @@ public:
         return S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE GetACPFromPoint(TsViewCookie vcView, const POINT* ptScreen, DWORD /*dwFlags*/, LONG* pacp) noexcept override
+    // ITextStoreACP::GetACPFromPoint: by default the character whose box contains the point, else TS_E_INVALIDPOINT;
+    // GXFPF_ROUND_NEAREST returns the nearer edge of that box and GXFPF_NEAREST the closest position outside every box.
+    HRESULT STDMETHODCALLTYPE GetACPFromPoint(TsViewCookie vcView, const POINT* ptScreen, DWORD dwFlags, LONG* pacp) noexcept override
     {
         const Failure::Scope failureScope;
         if (! HasReadLock())
@@ -1736,12 +1859,54 @@ public:
         {
             return E_POINTER;
         }
+        *pacp = 0;
         if (vcView != kTextStoreView)
         {
             return E_INVALIDARG;
         }
 
-        return _target->GetAcpFromScreenPoint(ptScreen, pacp);
+        LONG nearestAcp  = 0;
+        const HRESULT hr = _target->GetAcpFromScreenPoint(ptScreen, &nearestAcp);
+        if (FAILED(hr))
+            return hr;
+        TextInputState state{};
+        if (! ReadState(state))
+            return TS_E_INVALIDPOS;
+        const std::wstring_view text(state.text);
+        size_t nearest = nearestAcp < 0 ? 0u : (std::min)(static_cast<size_t>(nearestAcp), text.size());
+        if (! IsTextStoreCut(text, nearest))
+            --nearest;
+
+        RECT view{};
+        const bool inView = _target->GetScreenRect(&view) == S_OK && PtInRect(&view, *ptScreen) != FALSE;
+        const auto inBox  = [this, ptScreen](size_t start, size_t end) noexcept
+        {
+            RECT box{};
+            BOOL clipped = FALSE;
+            return start < end && _target->GetRangeScreenRect(ToAcp(start), ToAcp(end), &box, &clipped) == S_OK && PtInRect(&box, *ptScreen) != FALSE;
+        };
+        std::optional<AcpRange> containing;
+        if (inView)
+        {
+            const size_t next     = NextTextStoreCut(text, nearest);
+            const size_t previous = PreviousTextStoreCut(text, nearest);
+            if (inBox(nearest, next))
+                containing = AcpRange{nearest, next};
+            else if (inBox(previous, nearest))
+                containing = AcpRange{previous, nearest};
+        }
+        if (containing)
+        {
+            // The hit test's nearest position is always one edge of the box that contains the point.
+            *pacp = ToAcp((dwFlags & GXFPF_ROUND_NEAREST) != 0u ? nearest : containing->start);
+            return S_OK;
+        }
+        if ((dwFlags & GXFPF_NEAREST) != 0u)
+        {
+            *pacp = ToAcp(nearest);
+            return S_OK;
+        }
+        return TS_E_INVALIDPOINT;
     }
 
     HRESULT STDMETHODCALLTYPE GetTextExt(TsViewCookie vcView, LONG acpStart, LONG acpEnd, RECT* prc, BOOL* pfClipped) noexcept override
@@ -2009,7 +2174,8 @@ public:
                                       currentState.masked != _observedState.masked || currentState.multiline != _observedState.multiline ||
                                       ! IsSameRect(currentViewport, _observedViewport);
 
-        const TS_TEXTCHANGE textChange{0, ToAcp(_observedState.text.size()), ToAcp(currentState.text.size())};
+        // Only the changed middle re-anchors TIP ranges; the common prefix and suffix keep theirs.
+        const TS_TEXTCHANGE textChange = textChanged ? ComputeTextStoreTextChange(_observedState.text, currentState.text) : TS_TEXTCHANGE{};
 
         TextInputState notificationState{};
         try
@@ -2118,6 +2284,73 @@ private:
         return _target->ResolveTextViewportBounds();
     }
 
+    [[nodiscard]] bool EnsureDisplayAttributeServices() noexcept
+    {
+        // Created once per store on its first composition and reused for every later edit session.
+        if (! _categoryMgr)
+            static_cast<void>(CoCreateInstance(CLSID_TF_CategoryMgr, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(_categoryMgr.put())));
+        if (! _displayAttributeMgr)
+            static_cast<void>(CoCreateInstance(CLSID_TF_DisplayAttributeMgr, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(_displayAttributeMgr.put())));
+        return _categoryMgr && _displayAttributeMgr;
+    }
+
+    [[nodiscard]] std::optional<TF_DA_ATTR_INFO> ReadDisplayAttribute(ITfProperty& property, TfEditCookie readCookie, ITfRange& range) noexcept
+    {
+        VARIANT value;
+        VariantInit(&value);
+        if (FAILED(property.GetValue(readCookie, &range, &value)))
+            return std::nullopt;
+        const bool isAtom = value.vt == VT_I4;
+        const auto atom   = static_cast<TfGuidAtom>(isAtom ? value.lVal : 0);
+        static_cast<void>(VariantClear(&value));
+        GUID guid{};
+        if (! isAtom || FAILED(_categoryMgr->GetGUID(atom, &guid)))
+            return std::nullopt;
+        wil::com_ptr_nothrow<ITfDisplayAttributeInfo> info;
+        TF_DISPLAYATTRIBUTE attribute{};
+        if (FAILED(_displayAttributeMgr->GetDisplayAttributeInfo(guid, info.put(), nullptr)) || ! info || FAILED(info->GetAttributeInfo(&attribute)))
+            return std::nullopt;
+        return attribute.bAttr;
+    }
+
+    // Reads the first composition's range and its GUID_PROP_ATTRIBUTE spans. False when no composition is active.
+    [[nodiscard]] bool ReadCompositionAttributeSpans(ITfContext& context, TfEditCookie readCookie)
+    {
+        _attributeSpans.reserve(kMaximumTextStoreClauseBoundaries);
+        _compositionAttributes.clauseBoundaries.reserve(kMaximumTextStoreClauseBoundaries);
+        _attributeSpans.clear();
+        wil::com_ptr_nothrow<ITfContextComposition> compositions;
+        wil::com_ptr_nothrow<IEnumITfCompositionView> views;
+        if (FAILED(context.QueryInterface(IID_PPV_ARGS(compositions.put()))) || ! compositions || FAILED(compositions->EnumCompositions(views.put())) ||
+            ! views)
+            return false;
+        wil::com_ptr_nothrow<ITfCompositionView> view;
+        ULONG fetched = 0u;
+        wil::com_ptr_nothrow<ITfRange> compositionRange;
+        if (views->Next(1u, view.put(), &fetched) != S_OK || fetched != 1u || ! view || FAILED(view->GetRange(compositionRange.put())) || ! compositionRange ||
+            ! TryGetCompositionAcpRange(view.get(), compositionRange.get(), _attributeCompositionStart, _attributeCompositionEnd))
+            return false;
+
+        wil::com_ptr_nothrow<ITfProperty> property;
+        wil::com_ptr_nothrow<IEnumTfRanges> ranges;
+        if (! EnsureDisplayAttributeServices() || FAILED(context.GetProperty(GUID_PROP_ATTRIBUTE, property.put())) || ! property ||
+            FAILED(property->EnumRanges(readCookie, ranges.put(), compositionRange.get())) || ! ranges)
+            return true; // A composition without readable attributes publishes no target or clauses.
+        while (_attributeSpans.size() < kMaximumTextStoreClauseBoundaries)
+        {
+            wil::com_ptr_nothrow<ITfRange> range;
+            ULONG count = 0u;
+            if (ranges->Next(1u, range.put(), &count) != S_OK || count != 1u || ! range)
+                break;
+            size_t start                                   = 0u;
+            size_t end                                     = 0u;
+            const std::optional<TF_DA_ATTR_INFO> attribute = ReadDisplayAttribute(*property, readCookie, *range);
+            if (attribute && TryGetCompositionAcpRange(nullptr, range.get(), start, end))
+                _attributeSpans.push_back(TextStoreAttributeSpan{start, end, attribute.value()});
+        }
+        return true;
+    }
+
     std::atomic<ULONG> _referenceCount{1u};
     std::shared_ptr<TextStoreTarget> _target;
     DWORD _pendingLockFlags = 0;
@@ -2131,6 +2364,15 @@ private:
     bool _pendingExternalNotification = false;
     bool _pendingLayoutNotification   = false;
     bool _hasSelfEditInLock           = false;
+    bool _inputScopeRequested         = false;
+    bool _inputScopeValueRequested    = false;
+    DWORD _textEditSinkCookie         = TF_INVALID_COOKIE;
+    wil::com_ptr_nothrow<ITfCategoryMgr> _categoryMgr;
+    wil::com_ptr_nothrow<ITfDisplayAttributeMgr> _displayAttributeMgr;
+    std::vector<TextStoreAttributeSpan> _attributeSpans;
+    TextStoreCompositionAttributes _compositionAttributes;
+    size_t _attributeCompositionStart = 0u;
+    size_t _attributeCompositionEnd   = 0u;
 #if DXUI_ENABLE_DIAGNOSTICS
     uint64_t _debugTextChangeNotifications      = 0u;
     uint64_t _debugSelectionChangeNotifications = 0u;
@@ -2138,6 +2380,99 @@ private:
 #endif
 };
 } // namespace
+
+TS_TEXTCHANGE ComputeTextStoreTextChange(std::wstring_view before, std::wstring_view after) noexcept
+{
+    const size_t limit = (std::min)(before.size(), after.size());
+    size_t prefix      = 0u;
+    while (prefix < limit && before[prefix] == after[prefix])
+        ++prefix;
+    while (prefix > 0u && (! IsTextStoreCut(before, prefix) || ! IsTextStoreCut(after, prefix)))
+        --prefix;
+    size_t suffix = 0u;
+    while (suffix < limit - prefix && before[before.size() - 1u - suffix] == after[after.size() - 1u - suffix])
+        ++suffix;
+    while (suffix > 0u && (! IsTextStoreCut(before, before.size() - suffix) || ! IsTextStoreCut(after, after.size() - suffix)))
+        --suffix;
+    return TS_TEXTCHANGE{ToAcp(prefix), ToAcp(before.size() - suffix), ToAcp(after.size() - suffix)};
+}
+
+void ResolveTextStoreCompositionAttributes(size_t compositionStart,
+                                           size_t compositionEnd,
+                                           std::span<const TextStoreAttributeSpan> spans,
+                                           TextStoreCompositionAttributes& result)
+{
+    result.targetStart.reset();
+    result.targetEnd.reset();
+    result.clauseBoundaries.clear();
+    if (compositionEnd <= compositionStart)
+        return;
+
+    std::vector<size_t>& boundaries = result.clauseBoundaries;
+    const auto addBoundary          = [&boundaries](size_t boundary)
+    {
+        // The last slot is kept for the composition end.
+        if (boundaries.size() < kMaximumTextStoreClauseBoundaries - 1u && boundary > boundaries.back())
+            boundaries.push_back(boundary);
+    };
+    size_t previousEnd = compositionStart;
+    bool targetClosed  = false;
+    for (const TextStoreAttributeSpan& span : spans)
+    {
+        const size_t start = (std::max)(span.start, compositionStart);
+        const size_t end   = (std::min)(span.end, compositionEnd);
+        if (end <= start || start < previousEnd)
+            continue;
+        if (boundaries.empty())
+            boundaries.push_back(compositionStart);
+        addBoundary(start);
+        addBoundary(end);
+        previousEnd = end;
+
+        const bool isTarget = span.attribute == TF_ATTR_TARGET_CONVERTED || span.attribute == TF_ATTR_TARGET_NOTCONVERTED;
+        if (targetClosed)
+            continue;
+        if (isTarget && ! result.targetStart)
+        {
+            result.targetStart = start;
+            result.targetEnd   = end;
+        }
+        else if (isTarget && result.targetEnd == start)
+            result.targetEnd = end;
+        else if (result.targetStart)
+            targetClosed = true;
+    }
+    if (! boundaries.empty() && boundaries.back() < compositionEnd)
+        boundaries.push_back(compositionEnd);
+}
+
+HRESULT AdviseTextStoreEditSink(ITfContext* context, ITextStoreACP* store) noexcept
+{
+    auto* const concrete = dynamic_cast<TextStoreACP*>(store);
+    wil::com_ptr_nothrow<ITfSource> source;
+    if (! context || ! concrete)
+        return E_INVALIDARG;
+    HRESULT hr = context->QueryInterface(IID_PPV_ARGS(source.put()));
+    if (FAILED(hr))
+        return hr;
+    DWORD cookie = TF_INVALID_COOKIE;
+    hr           = source->AdviseSink(__uuidof(ITfTextEditSink), static_cast<ITfTextEditSink*>(concrete), &cookie);
+    if (SUCCEEDED(hr))
+        concrete->SetTextEditSinkCookie(cookie);
+    return hr;
+}
+
+void UnadviseTextStoreEditSink(ITfContext* context, IUnknown* store) noexcept
+{
+    wil::com_ptr_nothrow<ITextStoreACP> textStore;
+    if (! context || ! store || FAILED(store->QueryInterface(IID_PPV_ARGS(textStore.put()))) || ! textStore)
+        return;
+    auto* const concrete = dynamic_cast<TextStoreACP*>(textStore.get());
+    const DWORD cookie   = concrete ? concrete->TakeTextEditSinkCookie() : TF_INVALID_COOKIE;
+    wil::com_ptr_nothrow<ITfSource> source;
+    if (cookie != TF_INVALID_COOKIE && SUCCEEDED(context->QueryInterface(IID_PPV_ARGS(source.put()))))
+        static_cast<void>(source->UnadviseSink(cookie));
+}
 
 ITextStoreACP* CreateTextStore(std::shared_ptr<TextStoreTarget> target) noexcept
 {

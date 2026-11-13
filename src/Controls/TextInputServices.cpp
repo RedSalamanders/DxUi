@@ -370,8 +370,9 @@ public:
         const HRESULT hr  = client->HitTest(*point, index);
         if (client != _client)
             return TF_E_DISCONNECTED;
+        // An application that resolves no position for the point (S_FALSE) reports it outside every character box.
         if (hr != S_OK || index > state.text.size())
-            return FAILED(hr) ? hr : TS_E_INVALIDPOS;
+            return FAILED(hr) ? hr : (hr == S_FALSE ? TS_E_INVALIDPOINT : TS_E_INVALIDPOS);
         *acp = static_cast<LONG>(index);
         return S_OK;
     }

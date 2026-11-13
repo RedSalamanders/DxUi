@@ -1164,6 +1164,16 @@ bool TextField::IsMasked() const noexcept
     return _masked;
 }
 
+void TextField::SetInputScope(TextInputScope scope) noexcept
+{
+    _inputScope = scope;
+}
+
+TextInputScope TextField::GetInputScope() const noexcept
+{
+    return _inputScope;
+}
+
 void TextField::SetPasswordRevealMode(PasswordRevealMode mode) noexcept
 {
     const auto lifetime = GetLifetimeToken();
