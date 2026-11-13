@@ -4828,6 +4828,7 @@ public:
     bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override;
+    bool OnMouseMiddleUp(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override;
     bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override;
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT modifiers) override;

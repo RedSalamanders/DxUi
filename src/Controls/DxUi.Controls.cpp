@@ -11435,6 +11435,44 @@ bool ScrollPanel::OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT
     return DispatchPress(host, point, false, modifiers, 4u);
 }
 
+bool ScrollPanel::OnMouseMiddleUp(ControlHost& host, D2D1_POINT_2F point, UINT modifiers)
+{
+    if ((_innerCapturedChild || _dragThumb) && ! HostCaptureCarriesGesture(host))
+    {
+        // The capture went away without a capture-loss callback: that gesture ended, and this release is ordinary.
+        const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+        OnCaptureLost(host);
+        if (selfLifetime.expired())
+            return true;
+    }
+    const D2D1_POINT_2F contentPoint = ToContentSpace(point);
+    if (_innerCapturedChild)
+    {
+        // The release reaches the child that owns the forwarded gesture, as its press did. As in a host, the middle
+        // release ends no gesture by itself: the gesture stays the child's until its own button is up or it releases it.
+        Control* const capturedChild = LiveInnerCaptured();
+        return capturedChild && capturedChild->OnMouseMiddleUp(host, contentPoint, modifiers);
+    }
+    if (_dragThumb)
+        return false;
+
+    const std::weak_ptr<int> queryLifetime = GetLifetimeToken();
+    Control* overlayChild                  = FindOverlayChildAtContent(contentPoint);
+    if (queryLifetime.expired())
+        return false;
+    if (overlayChild)
+        return overlayChild->OnMouseMiddleUp(host, contentPoint, modifiers);
+    if (PointInRect(GetViewportRect(), point))
+    {
+        Control* const child = FindChildAtContent(contentPoint);
+        if (queryLifetime.expired())
+            return false;
+        if (child)
+            return child->OnMouseMiddleUp(host, contentPoint, modifiers);
+    }
+    return false;
+}
+
 bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers, unsigned clickCount)
 {
     const auto forward = [&](Control& child, D2D1_POINT_2F contentPoint)
@@ -11444,6 +11482,9 @@ bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rig
                : clickCount == 2u ? child.OnMouseDoubleClick(host, contentPoint, rightButton, modifiers)
                                   : child.OnMouseDown(host, contentPoint, rightButton, modifiers);
     };
+    // A host takes no capture for a middle press: the panel forwards one as a gesture only when the child captured itself.
+    const auto takesGesture = [&](Control& liveChild) noexcept
+    { return clickCount != 4u ? PressStillOwnsPointer(host, rightButton) : host.GetCapturedControl() == &liveChild; };
     if ((_innerCapturedChild || _dragThumb) && ! HostCaptureCarriesGesture(host))
     {
         // The capture went away without a capture-loss callback: that gesture ended, and this press begins another.
@@ -11484,7 +11525,7 @@ bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rig
         }
         if (childHandled)
         {
-            if (Control* const liveChild = RevalidateScrollPanelChild(childLifetime, this, overlayChild); liveChild && PressStillOwnsPointer(host, rightButton))
+            if (Control* const liveChild = RevalidateScrollPanelChild(childLifetime, this, overlayChild); liveChild && takesGesture(*liveChild))
             {
                 SetInnerCaptured(liveChild, rightButton);
                 host.CaptureMouse(this);
@@ -11547,7 +11588,7 @@ bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rig
             }
             if (childHandled)
             {
-                if (Control* const liveChild = RevalidateScrollPanelChild(childLifetime, this, child); liveChild && PressStillOwnsPointer(host, rightButton))
+                if (Control* const liveChild = RevalidateScrollPanelChild(childLifetime, this, child); liveChild && takesGesture(*liveChild))
                 {
                     SetInnerCaptured(liveChild, rightButton);
                     host.CaptureMouse(this);

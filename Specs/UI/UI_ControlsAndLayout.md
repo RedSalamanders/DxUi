@@ -136,6 +136,9 @@ RadioButton's optional group is a lifetime-checked observer of its direct owning
 reparented choice selects independently until added/configured in its new group; it cannot change or dereference
 its former group. ScrollPanel forwards primary and secondary child presses/releases in content coordinates,
 including nonzero scroll offsets and captured release; its scrollbar responds only to the primary button.
+It forwards middle presses and releases the same way. A middle press becomes a forwarded gesture only when the child
+captured the pointer itself, because a host takes no capture for a middle press. A middle release reaches the child
+owning a forwarded gesture but does not end that gesture.
 A wheel that a ScrollPanel's children decline scrolls the panel; when its offset cannot move (it already sits at the
 bound the wheel points to, or has no extent), the panel invalidates nothing and reports the wheel unhandled, so an
 enclosing ScrollPanel, or the application, scrolls instead.

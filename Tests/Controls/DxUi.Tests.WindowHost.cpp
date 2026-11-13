@@ -7642,6 +7642,42 @@ void TestWindowHostDeliversTheMiddleRelease()
     Require(host.GetCapturedControl() == nullptr, "the primary release ends the gesture");
 }
 
+// A ScrollPanel forwards the middle button's release as it forwards its press: to the child under the pointer in content
+// coordinates, taking no capture for a press the child did not capture, and to the child that owns a forwarded gesture.
+void TestScrollPanelForwardsTheMiddleReleaseToItsChild()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    Panel* rootPanel = root.get();
+    auto* scroll     = root->AddChild<ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f));
+    scroll->SetContentHeight(400.0f);
+    auto* probe = scroll->AddChild<PointerButtonProbe>();
+    probe->SetBounds(D2D1::RectF(10.0f, 60.0f, 110.0f, 110.0f));
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+    scroll->SetScrollOffset(20.0f);
+    Require(scroll->GetScrollOffset() == 20.0f, "the panel is scrolled");
+
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MBUTTONDOWN, MK_MBUTTON, MAKELPARAM(40, 60), handled));
+    Require(probe->middleDowns == 1u && host.GetCapturedControl() == nullptr, "a middle press reaches the scrolled child and takes no capture");
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MBUTTONUP, 0u, MAKELPARAM(42, 61), handled));
+    Require(probe->middleUps == 1u && handled, "the middle release reaches the scrolled child");
+    Require(probe->lastMiddleUp.x == 42.0f && probe->lastMiddleUp.y == 81.0f, "in content coordinates");
+
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(40, 60), handled));
+    Require(host.GetCapturedControl() == scroll, "a primary press on the child is a forwarded gesture");
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MBUTTONUP, MK_LBUTTON, MAKELPARAM(250, 150), handled));
+    Require(probe->middleUps == 2u && handled, "a middle release outside the child reaches the child that owns the gesture");
+    Require(host.GetCapturedControl() == scroll, "and leaves the gesture to its own release");
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0u, MAKELPARAM(40, 60), handled));
+    Require(host.GetCapturedControl() == nullptr, "the primary release ends the gesture");
+}
+
 // A wheel at a scroll bound moves nothing: the panel repaints nothing and leaves the wheel to an enclosing scroller.
 void TestScrollPanelWheelAtTheBoundIsUnhandledAndChains()
 {
@@ -7753,6 +7789,7 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostChordKeepsCaptureUntilTheLastButtonIsUp);
     DXUI_RUN_TEST(TestWindowHostDeliversTheMiddleRelease);
     DXUI_RUN_TEST(TestScrollPanelWheelAtTheBoundIsUnhandledAndChains);
+    DXUI_RUN_TEST(TestScrollPanelForwardsTheMiddleReleaseToItsChild);
     DXUI_RUN_TEST(TestWindowHostContainsThrowingCallbacksOnNoexceptPaths);
     DXUI_RUN_TEST(TestWindowHostRefusedFocusRequestInABlurHandlerKeepsTheOuterRequest);
     DXUI_RUN_TEST(TestWindowHostCaptureLossCallbackCanRemoveTheHoveredControl);

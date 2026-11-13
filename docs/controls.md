@@ -44,7 +44,9 @@ scrollbar as a press, so a second click on the track pages again. A second butto
 reaches the child that owns the gesture, and only the release of the gesture's own button ends it. A wheel at the
 scroll bound repaints nothing and returns unhandled, so a nested ScrollPanel passes it to the panel around it. A custom
 control that needs the middle button's release overrides `OnMouseMiddleUp`: both hosts deliver it to the captured
-control or the control under the pointer (a ScrollPanel does not forward it to its children yet). Pointer and keyboard
+control or the control under the pointer, and a ScrollPanel forwards it to the child under the pointer, or to the child
+that owns its forwarded gesture, in content coordinates. A ScrollPanel takes no capture for a middle press unless the
+child captured the pointer itself. Pointer and keyboard
 menu anchors account for nested scroll offsets, including through PageHost and for Tree/Grid delegates. A keyboard menu
 opens at the control's reading-order start (its right edge in a right-to-left layout), kept inside the visible scroll
 viewports when the control is scrolled out of view. Extracting a RadioButton with `TakeChild` removes its effective association with the

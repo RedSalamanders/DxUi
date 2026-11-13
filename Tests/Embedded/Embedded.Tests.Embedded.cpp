@@ -557,6 +557,47 @@ __declspec(noinline) static void TestEmbeddedCaptureEndsWithTheLastButtonUp(Grap
           "and its own release ends that capture: the earlier chord left nothing held");
 }
 
+// Inside a ScrollPanel the middle release reaches the child as its press does, in content coordinates, and a chord of a
+// forwarded primary gesture still ends with the last button up.
+__declspec(noinline) static void TestEmbeddedScrollPanelForwardsTheMiddleRelease(GraphicsFixture& gpu)
+{
+    using DxUi::PointerAction;
+    std::shared_ptr<DxUi::GraphicsDevice> pool;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "scrolled middle device pool");
+    DxUi::EmbeddedHost view;
+    Hr(view.Attach(pool), "scrolled middle embedded host");
+    auto root    = std::make_unique<DxUi::Panel>();
+    auto* scroll = root->AddChild<DxUi::ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 170.0f));
+    scroll->SetContentHeight(400.0f);
+    auto* probe = scroll->AddChild<EmbeddedPointerButtonProbe>();
+    probe->SetBounds(D2D1::RectF(10.0f, 60.0f, 110.0f, 110.0f));
+    view.Controls().SetRoot(std::move(root));
+    scroll->SetScrollOffset(20.0f);
+    Hr(view.Prepare(320u, 180u), "prepare scrolled middle host");
+    Check(scroll->GetScrollOffset() == 20.0f, "the panel is scrolled");
+
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 40.0f, 60.0f}) && probe->middleDowns == 1u, "a middle press reaches the scrolled child");
+    Check(view.Controls().GetCapturedControl() == nullptr, "and takes no capture the child did not take");
+    Check(view.DispatchPointer({PointerAction::MiddleUp, 42.0f, 61.0f}) && probe->middleUps == 1u, "the middle release reaches the scrolled child");
+    Check(probe->lastMiddleUp.x == 42.0f && probe->lastMiddleUp.y == 81.0f, "in content coordinates");
+
+    Check(view.DispatchPointer({PointerAction::Down, 40.0f, 60.0f}) && view.Controls().GetCapturedControl() == scroll,
+          "a primary press is a forwarded gesture");
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 40.0f, 60.0f}) && probe->middleDowns == 2u, "a middle press joins it at the child");
+    Check(view.DispatchPointer({PointerAction::MiddleUp, 300.0f, 170.0f}) && probe->middleUps == 2u,
+          "a middle release outside the child reaches the child that owns the gesture");
+    Check(view.Controls().GetCapturedControl() == scroll, "and leaves the gesture to its primary release");
+    Check(view.DispatchPointer({PointerAction::Up, 40.0f, 60.0f}) && view.Controls().GetCapturedControl() == nullptr, "which ends it");
+
+    Check(view.DispatchPointer({PointerAction::Down, 40.0f, 60.0f}) && view.Controls().GetCapturedControl() == scroll, "a second forwarded gesture");
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 40.0f, 60.0f}) && probe->middleDowns == 3u, "joined by a middle press");
+    Check(view.DispatchPointer({PointerAction::Up, 40.0f, 60.0f}) && view.Controls().GetCapturedControl() == scroll,
+          "keeps the capture through the primary release");
+    Check(view.DispatchPointer({PointerAction::MiddleUp, 42.0f, 61.0f}) && probe->middleUps == 3u, "the middle release over the child reaches it");
+    Check(view.Controls().GetCapturedControl() == nullptr, "and the last button up ends the capture");
+}
+
 __declspec(noinline) static void TestTooltipInspectionDismissalConsumesEmbeddedGesture(GraphicsFixture& gpu)
 {
     std::shared_ptr<DxUi::GraphicsDevice> pool;
@@ -2227,6 +2268,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedTouchDragShowsTheSliderTouchHalo(gpu);
     TestEmbeddedFailedSurfaceRecreationIsReportedAndRecovers(gpu);
     TestEmbeddedCaptureEndsWithTheLastButtonUp(gpu);
+    TestEmbeddedScrollPanelForwardsTheMiddleRelease(gpu);
     TestTooltipInspectionDismissalConsumesEmbeddedGesture(gpu);
     TestTickDirtying(gpu);
     TestCacheBounds(gpu);

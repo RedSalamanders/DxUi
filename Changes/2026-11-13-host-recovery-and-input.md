@@ -11,5 +11,6 @@
   non-diagnostic `Render` body is deleted, and the partial-present comment now names the real reason a `Present1`
   frame stays correct. New test hooks: `DebugSetRecoveryRetryClockForTest`, `DebugAdvanceRecoveryRetryClockForTest`,
   `DebugGetArmedRecoveryRetryDelayMs` and `DebugGetSolidBrushCreateCount`; the size-resource fault injection also fails
-  an embedded surface's target bitmap at stage 3. A ScrollPanel does not yet forward the middle release to its
-  children. Validated with new WindowHost and Embedded suite cases on x64; ARM64 execution remains a separate gate.
+  an embedded surface's target bitmap at stage 3. A ScrollPanel forwards the middle release to its child in content
+  coordinates (the child under the pointer, or the one owning its forwarded gesture) and no longer turns a middle press
+  the child did not capture into a held capture. Validated with new WindowHost and Embedded suite cases on x64; ARM64 execution remains a separate gate.
