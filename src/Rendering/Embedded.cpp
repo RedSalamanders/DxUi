@@ -1703,6 +1703,76 @@ void EmbeddedHost::CancelTextInput() noexcept
     _host.DeactivateTextInput();
     _host.SetFocusControl(nullptr);
 }
+// Counts what controls keep between preparations, for GetStatistics only: a read-only walk of the logical tree that
+// allocates nothing, so a query never changes the work or memory it reports.
+struct RetainedResourceAccess final
+{
+    static void AddLayout(EmbeddedStatistics& stats, const IDWriteTextLayout* layout, size_t units) noexcept
+    {
+        if (layout)
+        {
+            ++stats.retainedTextLayouts;
+            stats.retainedTextLayoutUnits += units;
+        }
+    }
+    static void AddBitmap(EmbeddedStatistics& stats, ID2D1Bitmap1* bitmap) noexcept
+    {
+        if (! bitmap)
+            return;
+        const D2D1_SIZE_U size = bitmap->GetPixelSize();
+        ++stats.retainedBitmaps;
+        stats.retainedBitmapBytes += uint64_t(size.width) * size.height * 4u; // DxUi bitmaps are 32-bit BGRA.
+    }
+    static void AddGrid(EmbeddedStatistics& stats, const Grid& grid) noexcept
+    {
+        // An omitted multiline tail is one layout shared by the value entries showing the same visible text: count it
+        // once, through the tail table, and skip the value entries that hold it.
+        const auto sharedTail = [&](const IDWriteTextLayout* layout) noexcept
+        {
+            for (const auto& tail : grid._cellDisplayLayouts)
+                if (tail.layout.get() == layout)
+                    return true;
+            return false;
+        };
+        for (const auto& tail : grid._cellDisplayLayouts)
+            AddLayout(stats, tail.layout.get(), tail.text.size());
+        for (const auto& entry : grid._cellTextLayouts)
+            if (entry.layout && ! (entry.truncated && sharedTail(entry.layout.get())))
+                AddLayout(stats, entry.layout.get(), entry.text.size());
+    }
+    static void Add(EmbeddedStatistics& stats, const Control& control) noexcept
+    {
+        if (const auto* label = dynamic_cast<const Label*>(&control))
+            AddLayout(stats, label->_typographyLayout.get(), label->_text.size());
+        else if (const auto* button = dynamic_cast<const Button*>(&control))
+            AddLayout(stats, button->_preparedIconTextLayout.get(), button->_preparedIconTextLength);
+        else if (const auto* field = dynamic_cast<const TextField*>(&control))
+        {
+            AddLayout(stats, field->_singleLineLayoutCache.layout.get(), field->_singleLineLayoutCache.text.size());
+            AddLayout(stats, field->_cachedMultilineLayout.get(), field->_cachedLayoutText.size());
+        }
+        else if (const auto* combo = dynamic_cast<const ComboBox*>(&control))
+        {
+            AddLayout(stats, combo->_singleLineLayoutCache.layout.get(), combo->_singleLineLayoutCache.text.size());
+            AddBitmap(stats, combo->_popupBackdropBitmap.get());
+        }
+        else if (const auto* grid = dynamic_cast<const Grid*>(&control))
+            AddGrid(stats, *grid);
+        else if (const auto* editor = dynamic_cast<const RichTextEditor*>(&control))
+        {
+            const RichText::RichImageResourceStatistics images = editor->GetImageResourceStatistics();
+            stats.retainedBitmaps += images.readySources;
+            stats.retainedBitmapBytes += images.decodedBytes;
+        }
+        for (size_t index = 0u, count = control.GetLogicalChildCount(); index < count; ++index)
+            if (const Control* child = control.GetLogicalChild(index))
+                Add(stats, *child);
+    }
+    static void AddTooltip(EmbeddedStatistics& stats, const TooltipLayer& tooltip) noexcept
+    {
+        AddLayout(stats, tooltip._layoutCache.layout.get(), tooltip._text.size());
+    }
+};
 EmbeddedStatistics EmbeddedHost::GetStatistics() const noexcept
 {
     if (! _state)
@@ -1710,6 +1780,9 @@ EmbeddedStatistics EmbeddedHost::GetStatistics() const noexcept
     auto stats              = _state->stats;
     stats.cachedBrushes     = _host._brushCache.size();
     stats.cachedTextFormats = _host._configuredTextFormats.size();
+    if (_host._root)
+        RetainedResourceAccess::Add(stats, *_host._root);
+    RetainedResourceAccess::AddTooltip(stats, _host._tooltipLayer);
     return stats;
 }
 } // namespace DxUi

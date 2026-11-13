@@ -154,7 +154,11 @@ idle and hidden views. Call `SetVisible(false)` when a view is unavailable:
 hiding, like preparing a zero extent, releases the cached surface (`GetStatistics().surfaceBytes` becomes 0), and
 the next visible sized `Prepare` allocates one surface and re-rasterizes the content. `cachedBrushes` and
 `cachedTextFormats` report the bounded per-view caches (256 solid brushes, 96 configured text formats, trimmed at
-preparation start). Change layout in DIPs and pass the new physical extent/DPI to Prepare; do not rasterize at each
+preparation start). `retainedTextLayouts` and `retainedTextLayoutUnits` report the text layouts controls keep between
+frames and the UTF-16 units they shape; `retainedBitmaps` and `retainedBitmapBytes` report kept bitmaps and decoded
+images other than the surface. These are counted when you call `GetStatistics`, so query them outside your frame
+loop's hot path; hiding a view returns a Grid's layouts and the surface. `DXUI_HAS_RETAINED_RESOURCE_STATISTICS` marks
+headers that have these fields. Change layout in DIPs and pass the new physical extent/DPI to Prepare; do not rasterize at each
 intermediate animation scale. Theme and layout changes need refreshed docs/gallery when changing the library.
 
 ## Native HWND host

@@ -112,7 +112,18 @@ struct EmbeddedStatistics
     // kConfiguredTextFormatCacheLimit); a cache beyond its bound is cleared at the next preparation start.
     uint64_t cachedBrushes     = 0;
     uint64_t cachedTextFormats = 0;
+    // Resources the view's controls and tooltip keep between preparations, counted by GetStatistics (never during
+    // Composite). Covered: Label, Button and its derived controls, TextField, ComboBox, Grid, RichTextEditor images and
+    // the tooltip; RichTextEditor text layouts are not yet counted. DirectWrite and Direct2D keep their objects' storage
+    // privately, so layout bytes are not observable: the UTF-16 units the layouts shape are the size that drives it.
+    uint64_t retainedTextLayouts     = 0;
+    uint64_t retainedTextLayoutUnits = 0;
+    // Retained Direct2D bitmaps and decoded images, the cached surface excluded, and their pixel bytes.
+    uint64_t retainedBitmaps     = 0;
+    uint64_t retainedBitmapBytes = 0;
 };
+// Header capability: EmbeddedStatistics reports retained text layouts and bitmaps.
+#define DXUI_HAS_RETAINED_RESOURCE_STATISTICS 1
 
 // One retained view and cached surface. Applications with two density variants create two views with one shared pool
 // and bind both views to the same application model. No rendering HWND, swap chain, render worker, timer or device is created here.

@@ -2127,6 +2127,7 @@ protected:
     void OnHostDpiChanged(ControlHost& host) noexcept override;
 
 private:
+    friend struct RetainedResourceAccess;
     void InvalidateTypographyPreparation() noexcept;
     std::wstring _text;
     FontRole _fontRole               = FontRole::Body;
@@ -2310,6 +2311,7 @@ private:
     [[nodiscard]] bool IsDropDownInvocationPoint(D2D1_POINT_2F point) const noexcept;
     [[nodiscard]] bool InvokeDropDown(ControlHost& host);
     [[nodiscard]] IDWriteTextFormat* ResolveContentTextFormat(const ControlHost& host, FontRole role, bool wrap = false) const noexcept;
+    friend struct RetainedResourceAccess;
     void RetirePreparedIconTextLayout() noexcept;
     [[nodiscard]] bool HasCurrentPreparedIconTextLayout(const ControlHost& host, const D2D1_RECT_F& bounds, FlowDirection flowDirection) const noexcept;
 
@@ -3961,6 +3963,7 @@ private:
                                                                              float heightDip) const noexcept;
     [[nodiscard]] wil::com_ptr<IDWriteTextLayout> GetOrCreateSingleLineLayout(
         const ControlHost* host, std::wstring_view text, float minimumWidthDip, float heightDip, DWRITE_READING_DIRECTION readingDirection) const noexcept;
+    friend struct RetainedResourceAccess;
     void InvalidateSingleLineLayoutCache() const noexcept;
     void InvalidateMultilineLayoutCache() const noexcept;
     void EnsureCaretVisible(const ControlHost* host, float availableWidthDip) const noexcept;
@@ -4154,6 +4157,7 @@ private:
     [[nodiscard]] D2D1_RECT_F GetEditableTextRect() const noexcept;
     [[nodiscard]] wil::com_ptr<IDWriteTextLayout> GetOrCreateSingleLineLayout(
         const ControlHost* host, std::wstring_view text, float minimumWidthDip, float heightDip, DWRITE_READING_DIRECTION readingDirection) const noexcept;
+    friend struct RetainedResourceAccess;
     void InvalidateSingleLineLayoutCache() const noexcept;
     float EnsureEditableCaretVisible(const ControlHost* host, float availableWidthDip) const noexcept;
     void ResetEditableCaretBlink(ControlHost& host) noexcept;
@@ -4940,6 +4944,7 @@ private:
         bool valid                  = false;
     };
 
+    friend struct RetainedResourceAccess;
     void InvalidateLayoutCache() noexcept;
     [[nodiscard]] bool EnsureLayoutCache(const ControlHost& host) const noexcept;
     [[nodiscard]] D2D1_RECT_F ComputeBoundsDip(const ControlHost& host) const noexcept;
@@ -5655,6 +5660,7 @@ private:
     // Returns every retained layout, its string storage and the tables themselves, for a grid that stops painting (hidden,
     // detached from its host or given another model): the next paint, if any, rebuilds what it shows.
     void ReleaseCellTextResources() noexcept;
+    friend struct RetainedResourceAccess;
     mutable std::vector<CellTextLayoutCache> _cellTextLayouts;
     mutable std::vector<CellDisplayLayoutCache> _cellDisplayLayouts;
     mutable std::wstring _cellVisibleText; // Scratch for an omitted tail's visible text.

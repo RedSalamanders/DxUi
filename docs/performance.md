@@ -292,7 +292,11 @@ Receipts record completed offscreen WARP FPS, p50/p95 total frame milliseconds, 
 times, C++ allocation counts with the gated dirty per-frame ceiling (`dirtyAllocationCeilingPerFrame`: 64 in
 Release, 320 in Debug where the debug STL allocates container proxies; clean rounds must allocate nothing), exact
 surface payload and replacement peak, process private bytes and working set
-with sampled peaks and private-byte growth. Source commit/content fingerprint, executable/fixture hashes, compiler,
+with sampled peaks and private-byte growth. A separate FX5 memory receipt (written by every Embedded run to
+`.build/test-artifacts/complex-ui-memory.json`; `DxUi.EmbeddedTests.exe --memory-receipt <report.json>` or
+`--memory-receipt-hardware <report.json>` on demand) records live tracked C++ bytes, the view's retained text layouts
+and bitmaps, the hidden residency delta, control object sizes and, on a hardware adapter, local and non-local video
+memory per phase; see [memory metrics](../Specs/Core/Core_PerformanceAndResources.md#memory-metrics). Source commit/content fingerprint, executable/fixture hashes, compiler,
 machine, CPU, OS, WARP binary version, active power policy, native architecture and configuration make the comparison
 auditable. The fixture fingerprint covers the minimal benchmark entry (`Embedded.Tests.BenchmarkMain.h`), benchmark, shared
 sample scene and graphics helper; receipts declare `workloadOwner: DxUi`. Functional tests run in a separate

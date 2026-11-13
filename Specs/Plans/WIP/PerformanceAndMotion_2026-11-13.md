@@ -229,7 +229,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
     same-binary spread stays below the declared margin, or the metric is recorded as advisory with its noise floor.
   - **Needs**: nothing. **Size**: M.
 
-- [ ] **W0.3 Memory metrics.**
+- [x] **W0.3 Memory metrics.**
   - **Why**: receipts record private bytes, working set, `surfaceBytes`, `replacementPeakBytes` and allocation counts
     only ([Embedded.Tests.ComplexUiBenchmark.h](../../../Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h) `:200-206`);
     same-binary private-bytes noise is about 315 KB, and on WARP video memory is folded into private bytes. No

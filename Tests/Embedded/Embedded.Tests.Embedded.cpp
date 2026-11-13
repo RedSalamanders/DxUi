@@ -74,6 +74,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.GridSelectionBenchmark.h"
 #include "Embedded.Tests.InteractionLayout.h"
 #include "Embedded.Tests.LocalizedLayout.h"
+#include "Embedded.Tests.MemoryMetrics.h"
 #include "Embedded.Tests.RichDocumentStorageResources.h"
 #include "Embedded.Tests.RichGeometryResources.h"
 #include "Embedded.Tests.RichImageCapture.h"
@@ -1790,6 +1791,17 @@ __declspec(noinline) static int RunFunctionalTests()
 #endif
         return 0;
     }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-memory-metrics")
+    {
+        MemoryMetricsTests::TestRetainedResourceStatistics();
+        MemoryMetricsTests::TestComplexUiTeardownReturnsTrackedMemory();
+        return 0;
+    }
+    if (__argc == 3 && (std::wstring_view(__wargv[1]) == L"--memory-receipt" || std::wstring_view(__wargv[1]) == L"--memory-receipt-hardware"))
+    {
+        MemoryMetricsTests::WriteComplexUiMemoryReceipt(__wargv[2], std::wstring_view(__wargv[1]) == L"--memory-receipt-hardware");
+        return 0;
+    }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-closed-roots")
     {
         MarkdownSourceCorrelationTests::ClosedRootDifferential(Check);
@@ -1992,6 +2004,9 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRightToLeftCheckboxCaptionHugsIndicator(gpu);
     TestRightToLeftTabTitleStartsAtTheRight(gpu);
     TestSurfaceLifetime(gpu);
+    MemoryMetricsTests::TestRetainedResourceStatistics();
+    MemoryMetricsTests::TestComplexUiTeardownReturnsTrackedMemory();
+    MemoryMetricsTests::WriteComplexUiMemoryReceipt(L".build/test-artifacts/complex-ui-memory.json", false);
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();

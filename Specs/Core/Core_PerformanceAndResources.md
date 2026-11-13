@@ -1056,6 +1056,40 @@ unpaced and must not replace ordinary unpaced performance/resource acceptance. D
 includes sampling overhead. [The grid investigation](../../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md)
 records the implemented opt-in diagnostics and their unresolved conclusions.
 
+### Memory metrics
+
+The FX5 memory receipt (`fixture` `dxui-complex-ui-memory-v1`) is what later memory budgets are judged with. It is
+written by the Embedded suite, not by the timed benchmark, whose inputs a paired run compiles against older libraries:
+every Embedded run writes the WARP receipt to `.build/test-artifacts/complex-ui-memory.json`, and
+`DxUi.EmbeddedTests.exe --memory-receipt <report.json>` or `--memory-receipt-hardware <report.json>` writes it on
+demand, the latter on the default hardware adapter. It builds the 83-control ComplexUi scene and samples six untimed
+phases: device, scene, 20 warm frames, 200 scrolling frames, shown and hidden, each after an immediate-context flush.
+Counted fields are exact and deterministic on one build; private bytes and working set remain advisory bands and never
+become pass/fail gates.
+
+- `trackedLiveBytes`: the bytes the counting `operator new` and the checked control heap hold, from the built model
+  to the end of scene creation, warm-up and scrolling. Aligned `operator new` forms are not tracked.
+- `retained` per phase: the view's `EmbeddedStatistics` surface and cache fields, including the retained text layouts,
+  the UTF-16 units they shape, and retained bitmaps with their pixel bytes. DirectWrite and Direct2D keep object
+  storage privately, so per-layout, per-brush and per-format native bytes are not observable; the shaped units are
+  their size driver, and the hidden residency delta attributes what hiding returns.
+- Video memory: on a hardware adapter, each phase's `IDXGIAdapter3::QueryVideoMemoryInfo` local and non-local usage
+  and budget for the process. On a software adapter (WARP) `videoMemory.applicable` is false: rendering uses system
+  memory, which private bytes already count.
+- `hiddenResidencyDelta`: hidden minus shown surface bytes, retained layouts and bitmap bytes, private bytes, working set
+  and, on hardware, local and non-local video memory. An embedded view is minimized by hiding it, so
+  `minimizedResidency` is the hidden residency; native-window minimized residency belongs to the native fixtures.
+- `controlBytes`: `sizeof` of `Control`, `Label`, `Button`, `Toggle`, `Checkbox` and `RadioButton`. Compile-time
+  probes (`Tests/Embedded/Embedded.Tests.MemoryMetrics.h`) hold each at or below its measured size, separately for
+  Debug STL and Release layouts; a growth fails the build until memory is recovered or the probe is re-measured with
+  its reason.
+
+Teardown accounting: after one FX5 lifetime (scene build, 20 warm and 20 changing frames, hide, destruction) has
+created the process's first-use state, a second lifetime MUST return every tracked C++ byte (0 live tracked bytes) in
+every configuration, and in Debug on a D3D11 debug-layer WARP device MUST leave the debug layer's live-object report
+equal to the fixture's own objects (0 DxUi-created live device objects). Without the SDK layers the device report is
+skipped and says so; the tracked-byte check still runs.
+
 The opt-in `--benchmark-clean-prepare-floor <fresh-report.json> <seed>` diagnostic is dispatched outside the
 canonical six-input complex-UI benchmark. It measures the already prepared default scene on WARP with one QPC
 bracket per batch of 1, 8, 64 or 512 no-op Prepare calls. Retain the seeded size ordering, balanced group positions,

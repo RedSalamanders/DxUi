@@ -100,6 +100,7 @@
   "Tests/Embedded/Embedded.Tests.GridSelectionBenchmark.h",
   "Tests/Embedded/Embedded.Tests.InteractionLayout.h",
   "Tests/Embedded/Embedded.Tests.LocalizedLayout.h",
+  "Tests/Embedded/Embedded.Tests.MemoryMetrics.h",
   "Tests/Embedded/Embedded.Tests.PairedBenchmark.cpp",
   "Tests/Embedded/Embedded.Tests.PreparedTreeAccessibilityBenchmark.h",
   "Tests/Embedded/Embedded.Tests.PreparedTreeAccessibilityFixture.h",

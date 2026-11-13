@@ -212,7 +212,12 @@ one, so the single-surface cap bounds the transactional replacement peak to 128 
 the view stays dirty, requests no preparation of its own and owns no timer, and the application's next Prepare creates
 it again (the native host's own retry schedule is in the [Win32 host contract](Rendering_Win32Host.md)). Graphics resources are shared at the pool; surface bytes,
 replacement peak, allocation/preparation/composition counts and the per-view cache sizes (`cachedBrushes`,
-`cachedTextFormats`) are queryable. Solid brushes are bounded to 256 entries and configured text formats to 96
+`cachedTextFormats`) are queryable. `GetStatistics` also counts, by a read-only walk of the tree that allocates
+nothing and never runs inside Composite, the text layouts the view's controls and tooltip keep between preparations
+(`retainedTextLayouts`, with the UTF-16 units they shape in `retainedTextLayoutUnits`) and their retained bitmaps and
+decoded images other than the surface (`retainedBitmaps`, `retainedBitmapBytes`). It covers Label, Button and its
+derived controls, TextField, ComboBox, Grid (an omitted tail shared by several cells counts once), RichTextEditor
+images and the tooltip; RichTextEditor text layouts are not yet counted. Solid brushes are bounded to 256 entries and configured text formats to 96
 (`ControlHost::kSolidBrushCacheLimit`, `kConfiguredTextFormatCacheLimit`); a cache beyond its bound is cleared at the
 start of the next preparation, never mid-paint. Consumers must additionally admit the combined cost of every
 simultaneous view.
