@@ -2151,6 +2151,17 @@ bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta
         _wheelDeltaRemainder = 0.0f;
         return false;
     }
+    // The user's lines per notch; one page, as Page Down moves, for "one screen at a time".
+    const D2D1_RECT_F contentRect = GetContentRect();
+    if (! guard.IsCurrent())
+        return false;
+    const size_t pageRows   = (std::max<size_t>)(1u, static_cast<size_t>(std::floor((std::max)(1.0f, contentRect.bottom - contentRect.top) / _rowHeightDip)));
+    const size_t wheelLines = ResolveWheelScrollLineCount(pageRows);
+    if (wheelLines == 0u)
+    {
+        _wheelDeltaRemainder = 0.0f;
+        return false;
+    }
     _wheelDeltaRemainder += wheelDelta;
     const int wheelStepCount = static_cast<int>(_wheelDeltaRemainder / static_cast<float>(WHEEL_DELTA));
     if (wheelStepCount == 0)
@@ -2159,7 +2170,7 @@ bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta
     }
 
     _wheelDeltaRemainder -= static_cast<float>(wheelStepCount * WHEEL_DELTA);
-    _verticalScrollDip -= static_cast<float>(wheelStepCount) * (_rowHeightDip * 3.0f);
+    _verticalScrollDip -= static_cast<float>(wheelStepCount) * (_rowHeightDip * static_cast<float>(wheelLines));
     ClampScrollOffset();
     if (! guard.IsCurrent())
         return true;

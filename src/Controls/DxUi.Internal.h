@@ -771,6 +771,12 @@ void UpdateScrollbarAnimation(ControlHost& host, ScrollbarAnimationState& animat
 
 void PaintScrollbar(ControlHost& host, const D2D1_RECT_F& trackRect, const D2D1_RECT_F& thumbRect, const ResolvedScrollbarVisuals& visuals) noexcept;
 
+// Lines one wheel notch scrolls in Grid, Tree and TextField: the user's SPI_GETWHEELSCROLLLINES setting (3 when it cannot
+// be read), read at first use and again whenever a window host receives WM_SETTINGCHANGE. WHEEL_PAGESCROLL scrolls
+// `pageLineCount` lines (at least one); a setting of 0 scrolls nothing.
+[[nodiscard]] size_t ResolveWheelScrollLineCount(size_t pageLineCount) noexcept;
+void RefreshWheelScrollLines() noexcept;
+
 // Typeahead / case-insensitive search helpers (shared by Tree and ComboBox)
 constexpr uint64_t kTypeaheadResetMs = 1000u;
 

@@ -994,6 +994,48 @@ void TestTreeAccumulatesPartialWheelDelta()
             "two half tree wheel deltas accumulate to the same row movement as one full step");
 }
 
+// A notch scrolls the lines the user chose in the mouse settings, read again when a window host receives WM_SETTINGCHANGE;
+// "one screen at a time" (WHEEL_PAGESCROLL) scrolls the page Page Down moves.
+void TestTreeWheelScrollsTheUsersLinesPerNotch()
+{
+    using namespace DxUi;
+
+    const auto populate = [](Tree& tree, MutableTreeModel& model)
+    {
+        std::vector<TreeItemData> items;
+        items.reserve(60u);
+        for (uint64_t id = 1u; id <= 60u; ++id)
+            items.push_back(TreeItemData{.id = id, .text = L"Item " + std::to_wstring(id)});
+        model.SetVisibleItems(std::move(items));
+        tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 236.0f));
+        tree.SetModel(&model);
+    };
+    const auto notch = [](WindowHost& host, Tree& tree) { return tree.OnMouseWheel(host, D2D1::Point2F(40.0f, 16.0f), -static_cast<float>(WHEEL_DELTA), 0u); };
+
+    WindowHost host;
+    ApplyWheelScrollLinesForTest(host, 5u);
+    Tree lines;
+    MutableTreeModel linesModel;
+    populate(lines, linesModel);
+    Require(notch(host, lines), "a notch is handled");
+    Require(lines.GetFirstVisibleItemIndex() == 5u, "with the setting at 5 one notch moves 5 rows");
+
+    Tree keyed;
+    MutableTreeModel keyedModel;
+    populate(keyed, keyedModel);
+    Require(keyed.OnKeyDown(host, VK_NEXT, 0u) && keyed.GetFocusedItemId().has_value(), "Page Down moves the focus a page");
+    const size_t pageRows = static_cast<size_t>(keyed.GetFocusedItemId().value() - 1u);
+    Require(pageRows > 5u, "the tree's page is longer than five rows");
+
+    ApplyWheelScrollLinesForTest(host, WHEEL_PAGESCROLL);
+    Tree paged;
+    MutableTreeModel pagedModel;
+    populate(paged, pagedModel);
+    Require(notch(host, paged) && paged.GetFirstVisibleItemIndex() == pageRows, "with one screen at a time a notch moves the page Page Down moves");
+
+    ApplyWheelScrollLinesForTest(host, std::nullopt);
+}
+
 // Rows sit at whole-row positions offset by the scroll, so after a scrollbar drag the first and last visible rows straddle
 // the viewport's edges. Nothing such a row paints, nor the reorder marker on it, may reach past the tree's frame: outside
 // the frame the window looks as it does with an empty tree, while inside the viewport the rows' visible parts still paint.
@@ -3826,6 +3868,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeScrollbarThumbGutterDragThroughWindowHost);
     DXUI_RUN_TEST(TestTreeLargeWheelDeltaUsesFullMagnitude);
     DXUI_RUN_TEST(TestTreeAccumulatesPartialWheelDelta);
+    DXUI_RUN_TEST(TestTreeWheelScrollsTheUsersLinesPerNotch);
     DXUI_RUN_TEST(TestTreeScrollbarFeedbackFollowsHoverAndDragState);
     DXUI_RUN_TEST(TestTreeDoubleClicksWithoutARowMeaningActAsPresses);
     DXUI_RUN_TEST(TestTreeRowsStraddlingTheViewportEdgesPaintOnlyInsideIt);

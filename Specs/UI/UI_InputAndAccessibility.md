@@ -824,6 +824,12 @@ editing shortcut and types its character. Alt alone types nothing in an editor; 
 mnemonics and leaves one that names none to `DefWindowProc`, so Alt+Space opens the window menu and a menu bar takes its
 access keys, as over a Win32 edit control.
 
+Wheel scrolling honours the user's lines per notch, `WHEEL_PAGESCROLL` included, in Grid, Tree and a multiline
+TextField through one shared reading that a window host refreshes on `WM_SETTINGCHANGE` and leaves to the application's
+window procedure as well; Grid sums fractional precision-touchpad deltas without losing or rounding them up (see
+[controls and layout](UI_ControlsAndLayout.md)). Tests replace the setting through `DebugSetWheelScrollLinesForTest`,
+never by changing the user's setting.
+
 EmbeddedHost dispatches pointer Down/Move/Up/Wheel/Leave/Cancel, keyboard down/up and character events to its retained
 tree, with stale-focus/capture pruning. A second Down on the same control within the system double-click interval and a
 16 DIP slop calls `OnMouseDoubleClick` (word selection, row activation) instead of `OnMouseDown`. Pointer Down/Move/Up/Wheel switch the host to pointer modality so keyboard-only

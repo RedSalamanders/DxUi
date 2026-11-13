@@ -2735,7 +2735,11 @@ bool PageHost::FinishTransition() noexcept
 
 void CardPanel::SetCornerRadius(float cornerRadiusDip) noexcept
 {
-    _cornerRadiusDip = (std::max)(0.0f, cornerRadiusDip);
+    const float next = (std::max)(0.0f, cornerRadiusDip);
+    if (next == _cornerRadiusDip)
+        return;
+    _cornerRadiusDip = next;
+    RequestInvalidate();
 }
 
 float CardPanel::GetCornerRadius() const noexcept

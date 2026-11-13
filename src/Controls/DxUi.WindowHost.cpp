@@ -3534,6 +3534,11 @@ try
             NotifyTextInputLayoutChanged(_nativeTextInputControl);
             handled = false;
             return 0;
+        case WM_SETTINGCHANGE:
+            // Lines per wheel notch (Grid, Tree, TextField) follow the user's setting; reading it is one system call.
+            RefreshWheelScrollLines();
+            handled = false;
+            return 0;
         case WM_DPICHANGED:
             OnDpiChanged(hwnd, static_cast<UINT>(HIWORD(wp)), reinterpret_cast<const RECT*>(lp));
             handled = true;

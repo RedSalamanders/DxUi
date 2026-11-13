@@ -5887,15 +5887,38 @@ bool Grid::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelD
         return false;
     }
 
-    const float beforeScrollDip = _verticalScrollDip;
-    _verticalScrollDip -= (wheelDelta / WHEEL_DELTA) * (_rowHeightDip * 3.0f);
-    ClampScrollOffsets();
-    if (std::fabs(_verticalScrollDip - beforeScrollDip) <= kVisibleBoundaryEpsilonDip)
+    const D2D1_RECT_F viewport = GetContentRect();
+    if (! guard.IsCurrent())
     {
         return false;
     }
+    const float rowHeightDip = std::max(1.0f, _rowHeightDip);
+    const size_t pageRows    = std::max<size_t>(1u, static_cast<size_t>(std::floor(std::max(0.0f, viewport.bottom - viewport.top) / rowHeightDip)));
+    const float lines        = static_cast<float>(ResolveWheelScrollLineCount(pageRows));
 
-    Invalidate(host);
+    // An offset the wheel did not draw (keys, the scrollbar, a reveal, a model or size change) restarts the wheel from it.
+    if (! _wheelTargetScrollDip || _verticalScrollDip != _wheelDrawnScrollDip)
+    {
+        _wheelTargetScrollDip = _verticalScrollDip;
+    }
+    const float target = std::clamp(*_wheelTargetScrollDip - (wheelDelta / WHEEL_DELTA) * (rowHeightDip * lines), 0.0f, extent);
+    if (std::fabs(target - *_wheelTargetScrollDip) <= kVisibleBoundaryEpsilonDip)
+    {
+        // At either end, or a setting of no lines: an enclosing scroller may take the wheel.
+        return false;
+    }
+    _wheelTargetScrollDip = target;
+
+    // The row boundary nearest to the target is drawn: the normalization floors, so start half a row further.
+    // W5.7 replaces this row snapping with pixel scrolling.
+    const float beforeScrollDip = _verticalScrollDip;
+    _verticalScrollDip          = target + (rowHeightDip * 0.5f);
+    ClampScrollOffsets();
+    _wheelDrawnScrollDip = _verticalScrollDip;
+    if (std::fabs(_verticalScrollDip - beforeScrollDip) > kVisibleBoundaryEpsilonDip)
+    {
+        Invalidate(host);
+    }
     return true;
 }
 
@@ -6743,6 +6766,54 @@ bool Grid::SelectRow(size_t rowIndex, UINT modifiers)
         {
             _selectionModel.SetSingle(rowId);
         }
+        _currentRowId    = rowId;
+        _focusedRowIndex = rowIndex;
+    }
+    else if (ModifiersContainShift(modifiers) && ModifiersContainCtrl(modifiers) && _selectionModel.GetAnchor())
+    {
+        // The Windows list convention: Ctrl+Shift adds the visible rows from the anchor to the row to the selection and
+        // keeps the anchor. The rows that join follow the selected ones, from the anchor toward the row, which ends primary.
+        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const std::vector<uint64_t> visibleRows = CollectVisibleOrderedRowIds(model, groups, &guard);
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const uint64_t anchorId = _selectionModel.GetAnchor().value();
+        const auto anchorIt     = std::ranges::find(visibleRows, anchorId);
+        const auto rowIt        = std::ranges::find(visibleRows, rowId);
+        std::vector<uint64_t> combined(previousSelection);
+        std::optional<uint64_t> anchor = anchorId;
+        if (anchorIt == visibleRows.end() || rowIt == visibleRows.end())
+        {
+            // An anchor that is no longer a visible row: the row joins alone and anchors the next range.
+            if (! _selectionModel.IsSelected(rowId))
+            {
+                combined.push_back(rowId);
+            }
+            anchor = rowId;
+        }
+        else
+        {
+            const ptrdiff_t step = anchorIt <= rowIt ? 1 : -1;
+            for (auto it = anchorIt;; it += step)
+            {
+                if (! _selectionModel.IsSelected(*it))
+                {
+                    combined.push_back(*it);
+                }
+                if (it == rowIt)
+                {
+                    break;
+                }
+            }
+        }
+        // The combined ids are already in the order to keep, so they are both the order and the request.
+        _selectionModel.AssignInOrder(combined, combined, anchor);
         _currentRowId    = rowId;
         _focusedRowIndex = rowIndex;
     }

@@ -11115,6 +11115,11 @@ void ExpectClientHearsGridSelectionEvents(SelectionGridWindow& test, bool diagno
         {row(L"Added", 6u), row(L"IsSelected:true", 6u), row(L"Added", 7u), row(L"IsSelected:true", 7u), row(L"Removed", 3u), row(L"IsSelected:false", 3u)},
         "Shift+click");
     ExpectHeard(walk, hear(2u, [&] { click(4u, MK_CONTROL); }), {row(L"Added", 4u), row(L"IsSelected:true", 4u)}, "Ctrl+click adds a row outside the range");
+    // Ctrl+Shift+click adds the range from the anchor, Ligne 4, to Ligne 9: only the rows that joined are named.
+    ExpectHeard(walk,
+                hear(4u, [&] { click(9u, MK_CONTROL | MK_SHIFT); }),
+                {row(L"Added", 8u), row(L"IsSelected:true", 8u), row(L"Added", 9u), row(L"IsSelected:true", 9u)},
+                "Ctrl+Shift+click");
 
     // Clearing a selection removes each of its rows.
     const auto clear = [&]
@@ -11122,17 +11127,7 @@ void ExpectClientHearsGridSelectionEvents(SelectionGridWindow& test, bool diagno
         grid.GetSelectionModel().Clear();
         grid.NotifyDataChanged();
     };
-    ExpectHeard(walk,
-                hear(8u, clear),
-                {row(L"Removed", 4u),
-                 row(L"Removed", 5u),
-                 row(L"Removed", 6u),
-                 row(L"Removed", 7u),
-                 row(L"IsSelected:false", 4u),
-                 row(L"IsSelected:false", 5u),
-                 row(L"IsSelected:false", 6u),
-                 row(L"IsSelected:false", 7u)},
-                "clearing the selection");
+    ExpectHeard(walk, hear(12u, clear), both(rows(L"Removed", 4u, 9u), rows(L"IsSelected:false", 4u, 9u)), "clearing the selection");
 
     // Selecting every row is more changes than a client is told of one by one, and so is a click that leaves one of them.
     ExpectHeard(walk, hear(1u, [&] { SendKey(test.window, 'A', VK_CONTROL); }), {invalidated}, "Ctrl+A");

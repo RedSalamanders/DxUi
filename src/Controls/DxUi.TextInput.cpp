@@ -2,6 +2,7 @@
 #include <DxUi/Failure.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cwctype>
@@ -151,6 +152,55 @@ void DrawTextInputUnderlineRects(ControlHost& host, const std::vector<D2D1_RECT_
 
 namespace
 {
+// Not a value SPI_GETWHEELSCROLLLINES reports (WHEEL_PAGESCROLL is UINT_MAX): the setting has not been read yet.
+constexpr UINT kWheelScrollLinesUnread = std::numeric_limits<UINT>::max() - 1u;
+std::atomic<UINT> wheelScrollLines{kWheelScrollLinesUnread};
+#if DXUI_ENABLE_DIAGNOSTICS
+std::atomic<bool> wheelScrollLinesOverridden{false};
+std::atomic<UINT> wheelScrollLinesOverride{0u};
+#endif
+
+[[nodiscard]] UINT ReadWheelScrollLinesSetting() noexcept
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (wheelScrollLinesOverridden.load(std::memory_order_acquire))
+        return wheelScrollLinesOverride.load(std::memory_order_relaxed);
+#endif
+    UINT systemLines = 0u;
+    if (SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &systemLines, 0) == FALSE)
+        systemLines = 3u;
+    return systemLines;
+}
+} // namespace
+
+void RefreshWheelScrollLines() noexcept
+{
+    wheelScrollLines.store(ReadWheelScrollLinesSetting(), std::memory_order_relaxed);
+}
+
+size_t ResolveWheelScrollLineCount(size_t pageLineCount) noexcept
+{
+    UINT lines = wheelScrollLines.load(std::memory_order_relaxed);
+    if (lines == kWheelScrollLinesUnread)
+    {
+        lines = ReadWheelScrollLinesSetting();
+        wheelScrollLines.store(lines, std::memory_order_relaxed);
+    }
+    if (lines == WHEEL_PAGESCROLL)
+        return std::max<size_t>(1u, pageLineCount);
+    return static_cast<size_t>(lines);
+}
+
+#if DXUI_ENABLE_DIAGNOSTICS
+void DebugSetWheelScrollLinesForTest(std::optional<UINT> lines) noexcept
+{
+    wheelScrollLinesOverride.store(lines.value_or(0u), std::memory_order_relaxed);
+    wheelScrollLinesOverridden.store(lines.has_value(), std::memory_order_release);
+}
+#endif
+
+namespace
+{
 
 [[nodiscard]] std::wstring NormalizeMultilineLineEndings(std::wstring_view text, bool multiline)
 {
@@ -295,27 +345,6 @@ struct MultilineViewportMetrics
 {
     const float effectiveLineHeightDip = std::max(1.0f, lineHeightDip);
     return std::max<size_t>(1u, static_cast<size_t>(std::floor(std::max(1.0f, viewportHeightDip) / effectiveLineHeightDip)));
-}
-
-[[nodiscard]] size_t ComputeMultilineWheelLineCount(size_t pageLineCount) noexcept
-{
-    UINT systemLines = 0u;
-    if (SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &systemLines, 0) == FALSE)
-    {
-        systemLines = 3u;
-    }
-
-    if (systemLines == WHEEL_PAGESCROLL)
-    {
-        return std::max<size_t>(1u, pageLineCount);
-    }
-
-    if (systemLines == 0u)
-    {
-        return 0u;
-    }
-
-    return static_cast<size_t>(systemLines);
 }
 
 [[nodiscard]] size_t MoveCaretByPage(
@@ -2191,7 +2220,7 @@ bool TextField::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float w
     const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
     const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(&host, _fontRole);
     const MultilineViewportMetrics viewportMetrics     = BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
-    const size_t wheelLineCount                        = ComputeMultilineWheelLineCount(viewportMetrics.visibleLineCount);
+    const size_t wheelLineCount                        = ResolveWheelScrollLineCount(viewportMetrics.visibleLineCount);
     if (wheelLineCount == 0u)
     {
         return true;

@@ -706,8 +706,19 @@ Page Up and Page Down use the body viewport height and prepared row/group geomet
 
 Growing a Grid or Tree clamps its retained scroll to the new viewport. When all rows fit, the offset is zero and
 the first body hit identifies the first authored row. Changed Grid header busy/sort state and Tree selection
-setters request repaint from their attached host. Pending content in an unrelated sibling does not retire another
+setters request repaint from their attached host, and so does a CardPanel corner radius set to a new value (once; the
+same value requests nothing). Pending content in an unrelated sibling does not retire another
 control's capture or preview.
+
+A wheel notch scrolls Grid, Tree and a multiline TextField by the lines the user chose in the mouse settings
+(`SPI_GETWHEELSCROLLLINES`, 3 when it cannot be read), read at first use and again whenever a window host receives
+`WM_SETTINGCHANGE`; an embedded host forwards no such message, so its controls keep the value read last. "One screen at
+a time" (`WHEEL_PAGESCROLL`) scrolls one page: the rows (lines) the viewport shows, as Page Down moves. A setting of 0
+scrolls nothing and leaves the wheel unhandled. Grid accumulates partial deltas exactly: it keeps the unrounded offset
+the wheel's deltas lead to and draws the row boundary nearest to it, so four 30-unit precision-touchpad deltas scroll
+what one 120-unit notch scrolls and four opposite ones return to the starting row. A delta that moves only that target
+is handled without a repaint; one that cannot move it (at either end) is unhandled. Any other change of the offset
+(keys, scrollbar, reveal, a model or size change) restarts the target from the new offset. Tree steps whole notches.
 
 Grid borrows its model. After a normal SetModel return the caller may destroy the previous model; subsequent
 geometry and input use the replacement. Unexpected C++ allocation/callback failures use the
@@ -839,7 +850,11 @@ of these alters selection or anchor. `GetFocusedRowId` names the focused row. A 
 cleared and publication raises no focused-row callback; `SetSelectedRowIds` silently selects the listed visible rows and
 makes the last one the focused row and the anchor. The keys start from the focused row, else from the last selected row,
 else from the first row. A normal row gesture replaces membership and moves the anchor to that row; Shift extends from the anchor;
-Ctrl toggles the touched row and moves the anchor there, even when it toggles the row off. Ctrl+Space toggles the focused
+Ctrl toggles the touched row and moves the anchor there, even when it toggles the row off. Ctrl+Shift, with a click or a
+movement key, follows the Windows list convention: it adds the visible rows from the anchor to the row (the rows of
+collapsed groups are not visible and are skipped) to the selection, focuses that row and keeps the anchor; an anchor
+that is no longer a visible row adds the row alone and anchors there, and with no anchor it toggles as Ctrl does. Only
+the rows that joined raise `ElementAddedToSelection`. Ctrl+Space toggles the focused
 row. Ctrl+A selects all visible rows and focuses the final row in visible order. A single-selection Grid permits an
 empty selection through Ctrl+Space or UIA removal. UIA AddToSelection is idempotent for an already selected row and
 preserves the current anchor; in single-selection mode it refuses to add another row while one is selected.

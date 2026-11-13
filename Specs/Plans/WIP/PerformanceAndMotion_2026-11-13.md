@@ -412,7 +412,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
     down, Left up keeps capture and Right up releases it; a middle release reaches the control in both hosts; a wheel at
     the bound is unhandled with 0 invalidations and the outer `ScrollPanel` scrolls; 30 resize steps create 0 brushes.
   - **Needs**: nothing. **Size**: L.
-- [ ] **W1.2 Control correctness.**
+- [x] **W1.2 Control correctness.**
   - **Why**: `CardPanel::SetCornerRadius` stores the radius without invalidating (`DxUi.Controls.cpp:2736-2739`).
     `Grid` applies the wheel delta as a float (`DxUi.Grid.cpp:5891`), then `ClampScrollOffsets(normalizeVertical = true)`
     (`include/DxUi/DxUi.h:5525`) floors the offset to a row (`DxUi.Grid.cpp:7311`): a downward touchpad delta under a

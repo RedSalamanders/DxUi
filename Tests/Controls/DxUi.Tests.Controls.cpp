@@ -3814,6 +3814,44 @@ void TestMutableCallbackCaptureStatePersistsForScrollPanel()
     Require(callbackCounts == std::vector<size_t>{1u, 2u}, "ScrollPanel retains mutable callback state across offset changes");
 }
 
+// A new corner radius repaints the card: one invalidation, and the corner of the card's frame on WARP shows what lies
+// behind the rounded corner instead of the card's fill. Setting the same radius again repaints nothing.
+void TestCardPanelCornerRadiusChangeRepaintsTheCorner()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+    auto root  = std::make_unique<Panel>();
+    auto* card = root->AddChild<CardPanel>();
+    card->SetBounds(D2D1::RectF(20.0f, 20.0f, 140.0f, 100.0f));
+    card->SetCornerRadius(0.0f);
+    window.Host().SetRoot(std::move(root));
+    window.Host().GetRoot()->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 140.0f));
+
+    const auto cornerPixel = [&](const WindowHostBitmapCapture& capture)
+    {
+        // Two DIPs inside the card's top-left corner: inside a square card, outside a 16 DIP rounded one.
+        const auto x = static_cast<UINT>(std::lround(window.Host().DipsToPixels(22.0f)));
+        const auto y = static_cast<UINT>(std::lround(window.Host().DipsToPixels(22.0f)));
+        Require(x < capture.widthPx && y < capture.heightPx, "the corner sample lies inside the captured frame");
+        const size_t offset = (static_cast<size_t>(y) * capture.widthPx + x) * 4u;
+        return std::array<uint8_t, 4>{
+            capture.bgraPixels[offset], capture.bgraPixels[offset + 1u], capture.bgraPixels[offset + 2u], capture.bgraPixels[offset + 3u]};
+    };
+
+    WindowHostBitmapCapture square;
+    Require(window.Host().DebugCaptureBitmap(square, true), "the square card's frame is captured");
+    const uint64_t invalidationsBefore = window.Host().DebugGetInvalidateCount();
+    card->SetCornerRadius(16.0f);
+    Require(window.Host().DebugGetInvalidateCount() == invalidationsBefore + 1u, "a new corner radius invalidates the card once");
+    WindowHostBitmapCapture rounded;
+    Require(window.Host().DebugCaptureBitmap(rounded, true), "the rounded card's frame is captured");
+    Require(cornerPixel(rounded) != cornerPixel(square), "the rounded corner changes the pixels at the card's corner");
+
+    const uint64_t invalidationsAfter = window.Host().DebugGetInvalidateCount();
+    card->SetCornerRadius(16.0f);
+    Require(window.Host().DebugGetInvalidateCount() == invalidationsAfter, "setting the same corner radius again invalidates nothing");
+}
+
 } // namespace
 
 void RunControlTests()
@@ -3821,6 +3859,7 @@ void RunControlTests()
     DXUI_RUN_TEST(TestMenuPopupDiscoveryRejectsHiddenInitializationWindows);
     DXUI_RUN_TEST(TestPhysicalCursorReadbackWaitIsBoundedAndExact);
     DXUI_RUN_TEST(TestExtractedRadioDoesNotUseItsFormerGroup);
+    DXUI_RUN_TEST(TestCardPanelCornerRadiusChangeRepaintsTheCorner);
     RunIntrinsicLayoutTests();
     RunFormLayoutTests();
     DXUI_RUN_TEST(TestLocalizedActionLayout);

@@ -60,6 +60,16 @@ inline void Require(bool condition, const char* message)
     }
 }
 
+// Gives the process a lines-per-notch setting through the test seam, never the real system setting, and applies it as a
+// real change arrives: a window host receives WM_SETTINGCHANGE. Nullopt returns to the user's setting.
+inline void ApplyWheelScrollLinesForTest(DxUi::WindowHost& host, std::optional<UINT> lines)
+{
+    DxUi::DebugSetWheelScrollLinesForTest(lines);
+    bool handled = true;
+    static_cast<void>(host.HandleMessage(host.GetHwnd(), WM_SETTINGCHANGE, SPI_SETWHEELSCROLLLINES, 0, handled));
+    Require(! handled, "a window host leaves WM_SETTINGCHANGE to the application's window procedure as well");
+}
+
 inline std::atomic<bool>& DeferredDxUiTestFailure() noexcept
 {
     static std::atomic<bool> failed{false};

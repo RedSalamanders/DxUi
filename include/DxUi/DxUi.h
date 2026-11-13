@@ -4956,6 +4956,13 @@ private:
 };
 #pragma warning(pop)
 
+#if DXUI_ENABLE_DIAGNOSTICS
+// Replaces the user's lines-per-notch setting (SPI_GETWHEELSCROLLLINES) that Grid, Tree and TextField read, so a test
+// never changes the real setting. It takes effect when a window host next receives WM_SETTINGCHANGE, as a real change
+// does; nullopt reads the system setting again.
+void DebugSetWheelScrollLinesForTest(std::optional<UINT> lines) noexcept;
+#endif
+
 struct TreeAppearance final
 {
     bool drawBackground                                   = true;
@@ -5688,6 +5695,10 @@ private:
     float _headerHeightDip          = 32.0f;
     float _verticalScrollDip        = 0.0f;
     float _horizontalScrollDip      = 0.0f;
+    // Where the wheel's deltas lead, unrounded; the grid draws the row boundary nearest to it. It holds while the offset is
+    // the one the wheel last drew (_wheelDrawnScrollDip): any other scroll restarts the wheel from the offset.
+    std::optional<float> _wheelTargetScrollDip;
+    float _wheelDrawnScrollDip = 0.0f;
     std::optional<float> _effectiveRowHeightDip;
     FontRole _cellTextFontRole = FontRole::Body;
     float _iconSizeDip         = 18.0f;
