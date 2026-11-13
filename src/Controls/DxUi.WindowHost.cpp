@@ -4205,11 +4205,29 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
         return false;
     if (! _dwriteFactory)
     {
-        if (! EnsureSharedWindowHostGraphicsResources())
+        if (_hwnd)
         {
-            return false;
+            if (! EnsureSharedWindowHostGraphicsResources())
+            {
+                return false;
+            }
+            _dwriteFactory = GetSharedWindowHostGraphicsResources().dwriteFactory;
         }
-        _dwriteFactory = GetSharedWindowHostGraphicsResources().dwriteFactory;
+        else
+        {
+            // A host that is not attached only measures and lays out text. It borrows the
+            // process-shared DirectWrite factory, the same object the thread's graphics pool
+            // holds, and creates no pool: only the last attachment's detach releases a pool,
+            // so one created here would outlive this host and its default adapter policy
+            // would refuse every later forced-WARP attachment on this thread.
+            const HRESULT hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(_dwriteFactory.put()));
+            if (FAILED(hr) || ! _dwriteFactory)
+            {
+                Debug::Error(L"DxUi::ControlHost: unattached DWriteCreateFactory failed: 0x{:08X}", hr);
+                _dwriteFactory.reset();
+                return false;
+            }
+        }
         ++_typographyRevision;
     }
     if (! _dwriteFactory)

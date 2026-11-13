@@ -25,7 +25,8 @@ physical interoperability remains a separate acceptance step. See the [format-or
 For a deterministic native software-rendering host, call `Attach(hwnd, {.forceWarp = true})` before creating
 other native graphics on that UI thread. Default peers inherit the thread pool's selection. An incompatible
 forced request returns false with `ERROR_INVALID_STATE` and preserves existing attachments; detach the last
-attachment before selecting another pool policy. Device replacement preserves WARP. The default option retains
+attachment before selecting another pool policy. An unattached host used only to measure text creates no
+native graphics and never blocks that choice. Device replacement preserves WARP. The default option retains
 hardware creation with its existing WARP fallback. This option does not create an embedded device or scheduler.
 
 Device creation preserves native HRESULT failures and the existing retry without an unavailable optional debug

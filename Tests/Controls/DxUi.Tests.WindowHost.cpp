@@ -7754,10 +7754,39 @@ template <unsigned Case> void WindowHostFatalChild()
     DxUiFailureTests::RegisterFatalChildCase({L"window-character-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<16u>}) &&
     DxUiFailureTests::RegisterFatalChildCase({L"window-mnemonic-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<17u>}) &&
     DxUiFailureTests::RegisterFatalChildCase({L"window-tick-callback", "WindowHostCallbackFailureOrigin", WindowHostFatalChild<18u>});
+
+// A host that is never attached and only measures text leaves no graphics pool on its thread, so the thread's adapter
+// policy stays free: a later forced-WARP or default attachment succeeds in either order.
+void TestUnattachedHostTextMeasurementLeavesAdapterPolicyFree()
+{
+    using namespace DxUi;
+    const auto measure = []
+    {
+        ControlHost measuring;
+        IDWriteFactory* const factory = measuring.GetWriteFactory();
+        Require(factory != nullptr && measuring.GetTextFormat(FontRole::Body) != nullptr, "an unattached host measures text");
+        return factory;
+    };
+    IDWriteFactory* const unattachedFactory = measure();
+    {
+        AttachedHostWindow warp(WindowHost::PresentationMode::HwndSwapChain, true);
+        Require(warp.Host().GetWriteFactory() == unattachedFactory, "attached and unattached hosts share the process DirectWrite factory");
+        Require(measure() == unattachedFactory, "an unattached host beside a forced-WARP attachment measures with the same factory");
+    }
+    static_cast<void>(measure());
+    {
+        AttachedHostWindow ordinary;
+        Require(ordinary.Host().GetWriteFactory() == unattachedFactory, "a default attachment after unattached measurement succeeds");
+    }
+    static_cast<void>(measure());
+    AttachedHostWindow warpAgain(WindowHost::PresentationMode::HwndSwapChain, true);
+    Require(warpAgain.Host().GetWriteFactory() == unattachedFactory, "a forced-WARP attachment after unattached measurement succeeds");
+}
 } // namespace
 
 void RunWindowHostTests()
 {
+    DXUI_RUN_TEST(TestUnattachedHostTextMeasurementLeavesAdapterPolicyFree);
     DXUI_RUN_TEST(TestWindowHostKeyboardMessageKeepsActivationCharactersWithTheirOwner);
     DXUI_RUN_TEST(TestWindowHostKeyboardMessageIsolatesPreviewAndReentrantCharacters);
     DXUI_RUN_TEST(TestWindowHostKeyboardMessageRejectsRetiredForeignAndFailedOwners);

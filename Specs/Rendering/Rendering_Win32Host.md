@@ -85,6 +85,10 @@ A rejected attachment preserves the existing host, accessibility peers, payloads
 Default attachments inherit that pool's policy, including native peers/menus. A forced request incompatible with
 an attached/default-created pool fails with `ERROR_INVALID_STATE`; it never replaces peers' resources. Matching
 repeated attachments are idempotent. Device loss retains the selected policy; the final attachment releases it.
+Only an attachment creates or holds the owner thread's graphics pool. A host that is not attached and only measures or
+lays out text (`GetWriteFactory`, `GetTextFormat`) borrows the process-shared DirectWrite factory, the same object
+attached hosts use, and creates no device or pool, so after it a forced-WARP or default attachment on that thread
+succeeds in either order.
 This additive option supports deterministic native validation and leaves the default hardware/fallback path intact.
 `CreateD3D11DeviceWithWarpFallback` places each `D3D11CreateDevice` attempt inside the
 audited synchronous native-call boundary. A C++ exception handled within the native
