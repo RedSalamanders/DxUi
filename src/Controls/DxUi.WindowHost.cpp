@@ -1592,8 +1592,10 @@ void ControlHost::Detach(bool processExit) noexcept
         // message delivery cannot re-enter this host while its tree is partially cleared.
         UnregisterWindowHostAccessibilityTarget(attachedHwnd, this);
     }
-    _attachmentOwnerThreadId = 0u;
-    _hwnd                    = nullptr;
+    CancelRecoveryRetry();
+    _recoveryRetryNextDelayMs = 0u;
+    _attachmentOwnerThreadId  = 0u;
+    _hwnd                     = nullptr;
 
     if (_animationSubscriptionId != 0u)
     {
@@ -2890,6 +2892,9 @@ ID2D1SolidColorBrush* ControlHost::GetSolidBrush(const D2D1_COLOR_F& color) cons
         }
         return nullptr;
     }
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++_debugSolidBrushCreateCount;
+#endif
     _brushCache[key] = brush;
     return brush.get();
 }
@@ -3084,6 +3089,33 @@ void ControlHost::DebugSetNextSizeResourceFailureForTest(unsigned stage, HRESULT
 {
     _debugSizeResourceFailureStage = stage;
     _debugSizeResourceFailure      = failure;
+}
+
+void ControlHost::DebugSetRecoveryRetryClockForTest(std::optional<uint64_t> nowTickMs) noexcept
+{
+    // A retry armed on one clock is not carried to the other.
+    CancelRecoveryRetry();
+    _debugRecoveryRetryClockMs = nowTickMs;
+    _debugRecoveryRetryDueMs   = 0u;
+}
+
+void ControlHost::DebugAdvanceRecoveryRetryClockForTest(uint64_t elapsedMs) noexcept
+{
+    if (! _debugRecoveryRetryClockMs.has_value())
+        return;
+    *_debugRecoveryRetryClockMs += elapsedMs;
+    if (_recoveryRetryArmedDelayMs != 0u && *_debugRecoveryRetryClockMs >= _debugRecoveryRetryDueMs)
+        OnRecoveryRetryDue();
+}
+
+uint32_t ControlHost::DebugGetArmedRecoveryRetryDelayMs() const noexcept
+{
+    return _recoveryRetryArmedDelayMs;
+}
+
+uint64_t ControlHost::DebugGetSolidBrushCreateCount() const noexcept
+{
+    return _debugSolidBrushCreateCount;
 }
 void ControlHost::DebugSimulateDeviceLoss() noexcept
 {
@@ -3626,10 +3658,16 @@ try
             break;
         }
         case WM_MBUTTONUP:
-            handled = _capturedControl != nullptr;
+        {
+            // The release reaches the control as its press did; a gesture holding the capture consumes it either way.
+            const auto point          = PointFromLParam(lp);
+            Control* const target     = _capturedControl ? _capturedControl : HitTestControl(point);
+            const bool controlHandled = target && target->OnMouseMiddleUp(*this, point, static_cast<UINT>(wp));
+            handled                   = controlHandled || _capturedControl != nullptr;
             if (handled)
                 return 0;
             break;
+        }
         case WM_LBUTTONDOWN:
         case WM_RBUTTONDOWN:
         case WM_LBUTTONDBLCLK:
@@ -4319,6 +4357,9 @@ bool ControlHost::EnsureDeviceResources() noexcept
         CancelPreparedContent();
         CancelPreparedVisualContent();
         DiscardSizeDependentResources(L"shared-generation-change");
+        // A new device: the brushes of the old device context go with it.
+        _brushCache.clear();
+        _fallbackBrush.reset();
         _dcompVisual.reset();
         _dcompTarget.reset();
         _dcompDevice.reset();
@@ -4413,7 +4454,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         DiscardDeviceResources();
         ResetSharedWindowHostGraphicsResources();
         _forceFullPresentAfterBufferReset = true;
-        Invalidate();
+        ScheduleRecoveryRetry();
     };
     const auto injected = [&](unsigned stage, HRESULT actual) noexcept
     {
@@ -4548,8 +4589,8 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
             recoverDeviceLoss(hrBitmap);
             return false;
         }
+        // Brushes belong to the device context, not to its target: a new back buffer keeps them.
         _d2dContext->SetTarget(_targetBitmap.get());
-        RecreateBrushCache();
         return true;
     };
 
@@ -4581,7 +4622,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
                 DiscardDeviceResources();
                 ResetSharedWindowHostGraphicsResources();
                 _forceFullPresentAfterBufferReset = true;
-                Invalidate();
+                ScheduleRecoveryRetry();
             }
             return false;
         }
@@ -4609,7 +4650,7 @@ void ControlHost::PrepareForSwapChainResize() noexcept
         _d2dContext->SetTarget(nullptr);
     }
     _targetBitmap.reset();
-    _brushCache.clear();
+    // The brush cache survives: brushes are device-context resources, which DiscardDeviceResources clears.
     // Embedded hosts release only their own D2D targets/resources. The supplied immediate context can still
     // contain the application's bindings and queued work; native swap-chain retirement alone clears/flushes it.
     if (_d3dContext && ! _embedded)
@@ -4697,263 +4738,91 @@ void ControlHost::RecreateBrushCache() const
     {
         Debug::Warning(L"DxUi::ControlHost: failed to create fallback solid brush: 0x{:08X}", hr);
     }
+#if DXUI_ENABLE_DIAGNOSTICS
+    else
+    {
+        ++_debugSolidBrushCreateCount;
+    }
+#endif
 }
 
+// Diagnostics are fixed on (Configuration.h), so the capturing overload is the one render path.
+static_assert(DXUI_ENABLE_DIAGNOSTICS, "WindowHost renders through its capturing overload.");
 void ControlHost::Render(const RECT* dirtyRectPx, bool allowHidden) noexcept
-try
 {
-    const Failure::Scope failureScope;
-    if (! _nativePresentationVisible)
-        return;
-#if DXUI_ENABLE_DIAGNOSTICS
     Render(dirtyRectPx, nullptr, allowHidden);
-#else
-    const auto presentationRevision = _nativePresentationRevision;
-    if (_initialRootChildBatchFrame)
+}
+
+namespace
+{
+// The first retry after a failed recreation or a device loss waits one frame; each further failure doubles the wait up
+// to one second, and a successful Present returns it to one frame (Win32 host contract).
+constexpr uint32_t kRecoveryRetryFirstDelayMs   = 16u;
+constexpr uint32_t kRecoveryRetryMaximumDelayMs = 1000u;
+// One timer on the host's own window; its procedure runs from that window's message loop, never from its window procedure.
+constexpr UINT_PTR kRecoveryRetryTimerId = 0x44785252u;
+} // namespace
+
+void ControlHost::ScheduleRecoveryRetry() noexcept
+{
+    if (_embedded || ! _hwnd || _recoveryRetryArmedDelayMs != 0u)
+        return;
+    const uint32_t delayMs    = _recoveryRetryNextDelayMs == 0u ? kRecoveryRetryFirstDelayMs : _recoveryRetryNextDelayMs;
+    _recoveryRetryNextDelayMs = std::min(delayMs * 2u, kRecoveryRetryMaximumDelayMs);
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (_debugRecoveryRetryClockMs.has_value())
     {
-        // A nested render cannot safely begin another D2D frame while the opted-in root batch is active.
-        InitialRootChildBatchFrame* const frame = _initialRootChildBatchFrame;
-        if (SUCCEEDED(frame->firstFlushFailure))
-            frame->firstFlushFailure = E_ABORT;
-        frame->flushesRemaining = 0u;
+        _recoveryRetryArmedDelayMs = delayMs;
+        _debugRecoveryRetryDueMs   = *_debugRecoveryRetryClockMs + delayMs;
         return;
     }
-    TrimCaches();
-    FrameClock frameClock;
-    FrameStage frameStage       = FrameStage::Idle;
-    const auto frameStartedAt   = frameClock.Now();
-    uint64_t updateUs           = 0u;
-    uint64_t renderUs           = 0u;
-    uint64_t presentUs          = 0u;
-    const auto dirtyRectMetrics = ResolveWindowHostDirtyRectMetrics(dirtyRectPx, _widthPx, _heightPx);
-    const auto emitFrameMetrics = wil::scope_exit([&]
-    { EmitWindowHostFrameMetrics(frameClock.ElapsedUs(frameStartedAt, frameClock.Now()), updateUs, renderUs, presentUs, dirtyRectMetrics); });
-
-    Debug::Perf::Scope paintPerf(L"DxUi::Paint");
-    paintPerf.SetValue0(_widthPx);
-    paintPerf.SetValue1(_heightPx);
-
-    {
-        FrameStageScope updateScope(frameStage, FrameStage::Update);
-        const auto updateStartedAt  = frameClock.Now();
-        const auto recordUpdateTime = wil::scope_exit([&]() noexcept { updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now()); });
-        if (! EnsureSizeDependentResources(allowHidden))
-        {
-            paintPerf.SetHr(E_FAIL);
-            EmitPendingNativeTextInputPaintMetric(E_FAIL);
-            return;
-        }
-        if (_root)
-        {
-            // A root installed by a paint callback receives its bounds in this update stage.
-            _root->SetBounds(GetClientBoundsDip());
-        }
-        if (! PreparePendingPageLayout() || ! _nativePresentationVisible || _nativePresentationRevision != presentationRevision)
-        {
-            if (_contentPreparationContinues)
-                Invalidate();
-            paintPerf.SetHr(E_ABORT);
-            EmitPendingNativeTextInputPaintMetric(E_ABORT);
-            return;
-        }
-    }
-
-    const bool forceFullPresentAfterBufferReset = _forceFullPresentAfterBufferReset;
-    const bool isPartialDirty                   = dirtyRectMetrics.isPartialDirty && ! forceFullPresentAfterBufferReset;
-    paintPerf.SetDetail(isPartialDirty ? L"partial" : L"full");
-
-    D2D1_RECT_F clipDip{};
-    if (isPartialDirty)
-    {
-        clipDip = D2D1::RectF(PixelsToDip(static_cast<float>(dirtyRectPx->left)),
-                              PixelsToDip(static_cast<float>(dirtyRectPx->top)),
-                              PixelsToDip(static_cast<float>(dirtyRectPx->right)),
-                              PixelsToDip(static_cast<float>(dirtyRectPx->bottom)));
-    }
-
-    HRESULT hrDraw       = S_OK;
-    HRESULT hrBatchFlush = S_OK;
-    {
-        FrameStageScope renderScope(frameStage, FrameStage::Render);
-        const auto renderStartedAt = frameClock.Now();
-        bool clipPushed            = false;
-        _d2dContext->BeginDraw();
-        auto endDrawGuard = wil::scope_exit([&]
-        {
-            if (clipPushed)
-            {
-                _d2dContext->PopAxisAlignedClip();
-            }
-            (void)Detail::EndDrawNative(_d2dContext.get());
-        });
-        _d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
-
-        if (isPartialDirty)
-        {
-            _d2dContext->PushAxisAlignedClip(clipDip, D2D1_ANTIALIAS_MODE_ALIASED);
-            clipPushed = true;
-        }
-
-        Control* const paintRoot           = _root.get();
-        const auto rootLifetime            = paintRoot ? paintRoot->GetLifetimeToken() : std::weak_ptr<int>{};
-        const uint64_t interactionRevision = _interactionRevision;
-        const auto treeStillCurrent        = [&]() noexcept
-        {
-            return _nativePresentationVisible && _nativePresentationRevision == presentationRevision && (! paintRoot || ! rootLifetime.expired()) &&
-                   _root.get() == paintRoot && _interactionRevision == interactionRevision;
-        };
-        InitialRootChildBatchFrame initialBatchFrame{};
-        const bool batchInitialFrame =
-            _initialRootChildBatchPending && ! isPartialDirty && _batchInitialRootChildren && ! _embedded && _swapChain && dynamic_cast<Panel*>(paintRoot);
-        if (batchInitialFrame)
-        {
-            initialBatchFrame.root                = static_cast<Panel*>(paintRoot);
-            initialBatchFrame.interactionRevision = interactionRevision;
-            initialBatchFrame.flushesRemaining    = 8u;
-            _initialRootChildBatchFrame           = &initialBatchFrame;
-        }
-        auto batchFrameGuard = wil::scope_exit([&]
-        {
-            if (_initialRootChildBatchFrame == &initialBatchFrame)
-                _initialRootChildBatchFrame = nullptr;
-        });
-        _d2dContext->Clear(_presentationMode == PresentationMode::CompositionSwapChain ? D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f) : _palette.windowBackground);
-        if (_root)
-        {
-            _root->Paint(*this);
-        }
-        if (_initialRootChildBatchFrame == &initialBatchFrame)
-        {
-            hrBatchFlush                = initialBatchFrame.firstFlushFailure;
-            _initialRootChildBatchFrame = nullptr;
-        }
-        if (! treeStillCurrent())
-        {
-            EmitPendingNativeTextInputPaintMetric(E_ABORT);
-            return;
-        }
-        if (_smokeOverlayVisible)
-        {
-            if (auto* brush = GetSolidBrush(_palette.smokeOverlay))
-            {
-                _d2dContext->FillRectangle(GetClientBoundsDip(), brush);
-            }
-        }
-        if (_root)
-        {
-            _root->PaintOverlay(*this);
-        }
-        if (! treeStillCurrent())
-        {
-            EmitPendingNativeTextInputPaintMetric(E_ABORT);
-            return;
-        }
-        if (_tooltipLayer.HasTooltip())
-        {
-            _tooltipLayer.Paint(*this);
-        }
-
-        if (clipPushed)
-        {
-            _d2dContext->PopAxisAlignedClip();
-            clipPushed = false;
-        }
-
-        endDrawGuard.release();
-        const HRESULT actualEndDrawResult = Detail::EndDrawNative(_d2dContext.get());
-        hrDraw                            = actualEndDrawResult;
-#if DXUI_ENABLE_DIAGNOSTICS
-        if (const HRESULT injectedEndDrawResult = std::exchange(_debugNextInitialRootChildBatchEndDrawResult, S_OK);
-            SUCCEEDED(actualEndDrawResult) && FAILED(injectedEndDrawResult))
-            hrDraw = injectedEndDrawResult;
 #endif
-        renderUs = frameClock.ElapsedUs(renderStartedAt, frameClock.Now());
-    }
-
-    // An occluded Present still follows a completed D2D draw. Do not repeat the
-    // initial submission boundaries on hidden warm frames while full presentation remains pending.
-    if (hrBatchFlush == S_OK && hrDraw == S_OK)
-        _initialRootChildBatchPending = false;
-
-    HRESULT hrPresent = S_OK;
+    if (SetTimer(_hwnd, kRecoveryRetryTimerId, delayMs, &ControlHost::RecoveryRetryTimerProc) == 0u)
     {
-        FrameStageScope presentScope(frameStage, FrameStage::Present);
-        const auto presentStartedAt = frameClock.Now();
-        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
-        {
-            if (isPartialDirty)
-            {
-#if DXUI_ENABLE_DIAGNOSTICS
-                ++_debugPartialPresentAttemptCount;
-#endif
-                RECT dirtyRect = *dirtyRectPx;
-                DXGI_PRESENT_PARAMETERS params{};
-                params.DirtyRectsCount = 1;
-                params.pDirtyRects     = &dirtyRect;
-                hrPresent              = _swapChain->Present1(1u, 0u, &params);
-            }
-            else
-            {
-#if DXUI_ENABLE_DIAGNOSTICS
-                ++_debugFullPresentAttemptCount;
-#endif
-                hrPresent = _swapChain->Present(1u, 0u);
-            }
-        }
-#if DXUI_ENABLE_DIAGNOSTICS
-        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
-        {
-            _debugLastPresentResult = hrPresent;
-        }
-#endif
-        presentUs = frameClock.ElapsedUs(presentStartedAt, frameClock.Now());
-    }
-
-    if (IsDeviceLossHResult(hrBatchFlush) || IsDeviceLossHResult(hrDraw) || IsDeviceLossHResult(hrPresent))
-    {
-        const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : hrPresent);
-        paintPerf.SetHr(renderHr);
-        EmitPendingNativeTextInputPaintMetric(renderHr);
-        DiscardSizeDependentResources(L"render-device-lost");
-        DiscardDeviceResources();
-        ResetSharedWindowHostGraphicsResources();
-        _forceFullPresentAfterBufferReset = true;
+        // Without the timer the window would stay blank until something else repaints it: retry on the next paint instead.
+        Debug::Error(L"DxUi::ControlHost: SetTimer for the recovery retry failed: {}", GetLastError());
         Invalidate();
         return;
     }
-    if (forceFullPresentAfterBufferReset && hrBatchFlush == S_OK && hrDraw == S_OK && hrPresent == S_OK)
-    {
-        _forceFullPresentAfterBufferReset = false;
-    }
-    const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : hrPresent);
-    paintPerf.SetHr(renderHr);
-    EmitPendingNativeTextInputPaintMetric(renderHr);
-    if (FAILED(hrDraw))
-    {
-        Debug::Error(L"DxUi::ControlHost: EndDraw failed: 0x{:08X}", hrDraw);
-    }
-    if (FAILED(hrBatchFlush))
-    {
-        Debug::Error(L"DxUi::ControlHost: initial root-child D2D flush failed: 0x{:08X}", hrBatchFlush);
-    }
-    if (FAILED(hrPresent))
-    {
-#if DXUI_ENABLE_DIAGNOSTICS
-        ++_debugPresentFailureCount;
-#endif
-        Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
-    }
-    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
-    {
-        if (_pendingVisualPreparation)
-            Invalidate(); // Another cosmetic turn does not withhold this completed frame.
-        PublishPreparedContent();
-    }
-#endif
+    _recoveryRetryArmedDelayMs = delayMs;
 }
-catch (const std::exception&)
+
+void ControlHost::CancelRecoveryRetry() noexcept
 {
-    Failure::FailUnexpected();
+    if (_recoveryRetryArmedDelayMs == 0u)
+        return;
+    _recoveryRetryArmedDelayMs = 0u;
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (_debugRecoveryRetryClockMs.has_value())
+        return;
+#endif
+    if (_hwnd)
+        static_cast<void>(KillTimer(_hwnd, kRecoveryRetryTimerId));
+}
+
+void ControlHost::OnRecoveryRetryDue() noexcept
+{
+    _recoveryRetryArmedDelayMs = 0u;
+    // The retry is an ordinary paint: a hidden window waits for its show, which paints anyway.
+    Invalidate();
+}
+
+void CALLBACK ControlHost::RecoveryRetryTimerProc(HWND hwnd, UINT, UINT_PTR timerId, DWORD) noexcept
+{
+    if (timerId != kRecoveryRetryTimerId)
+        return;
+    static_cast<void>(KillTimer(hwnd, timerId));
+    ControlHost* host = nullptr;
+    {
+        const std::scoped_lock lock(GetAttachedWindowHostsMutex());
+        const auto& hosts = GetAttachedWindowHosts();
+        const auto found  = std::ranges::find(hosts, hwnd, &WindowHostAttachment::hwnd);
+        if (found != hosts.end() && found->ownerThreadId == GetCurrentThreadId())
+            host = found->host;
+    }
+    // Attachment changes are owner-thread-only, so the host found here stays attached while it handles the retry.
+    if (host)
+        host->OnRecoveryRetryDue();
 }
 
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -5042,8 +4911,12 @@ try
         FrameStageScope updateScope(frameStage, FrameStage::Update);
         const auto updateStartedAt  = frameClock.Now();
         const auto recordUpdateTime = wil::scope_exit([&]() noexcept { updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now()); });
+        // A window that can present but whose resources fail to recreate retries by itself: nothing else may repaint it.
+        const bool presentable = _hwnd && _widthPx != 0u && _heightPx != 0u && IsSwapChainActiveHostWindow(_hwnd, _widthPx, _heightPx);
         if (! EnsureSizeDependentResources(allowHidden))
         {
+            if (presentable)
+                ScheduleRecoveryRetry();
             paintPerf.SetHr(E_FAIL);
             EmitPendingNativeTextInputPaintMetric(E_FAIL);
             return;
@@ -5068,9 +4941,9 @@ try
 #endif
 
     // Determine whether rcPaint describes a partial dirty region.
-    // FLIP_SEQUENTIAL preserves back buffer content between frames, so
-    // clipping to the dirty rect and using Present1 with dirty-rect params
-    // is safe: non-dirty regions retain previously-presented content.
+    // A partial frame draws only the dirty rectangle into the back buffer. Present1 with that rectangle keeps the
+    // presented frame correct: the runtime copies the previous frame's updated areas into the buffer being presented.
+    // Only a reader of the back buffer before Present (a debug capture) can see older content outside the rectangle.
     const bool forceFullPresentAfterBufferReset = _forceFullPresentAfterBufferReset;
     const bool isPartialDirty                   = dirtyRectMetrics.isPartialDirty && ! forceFullPresentAfterBufferReset;
     paintPerf.SetDetail(isPartialDirty ? L"partial" : L"full");
@@ -5246,8 +5119,14 @@ try
         DiscardDeviceResources();
         ResetSharedWindowHostGraphicsResources();
         _forceFullPresentAfterBufferReset = true;
-        Invalidate();
+        ScheduleRecoveryRetry();
         return;
+    }
+    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
+    {
+        // The window presents again: the next failure retries after one frame.
+        _recoveryRetryNextDelayMs = 0u;
+        CancelRecoveryRetry();
     }
     if (forceFullPresentAfterBufferReset && hrBatchFlush == S_OK && hrDraw == S_OK && hrPresent == S_OK)
     {

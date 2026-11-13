@@ -596,6 +596,11 @@ bool Control::OnMouseMiddleDown(ControlHost&, D2D1_POINT_2F, UINT)
     return false;
 }
 
+bool Control::OnMouseMiddleUp(ControlHost&, D2D1_POINT_2F, UINT)
+{
+    return false;
+}
+
 bool Control::OnMouseUp(ControlHost& /*host*/, D2D1_POINT_2F /*point*/, bool /*rightButton*/, UINT /*modifiers*/)
 {
     return false;

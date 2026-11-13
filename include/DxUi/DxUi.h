@@ -1701,6 +1701,8 @@ public:
     virtual bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
     virtual bool OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
     virtual bool OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT modifiers);
+    // The middle button's release reaches the captured control, or else the control under the pointer. The default declines.
+    virtual bool OnMouseMiddleUp(ControlHost& host, D2D1_POINT_2F point, UINT modifiers);
     virtual bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
     virtual bool OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT modifiers);
     virtual bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers);
@@ -6441,8 +6443,17 @@ public:
     void DebugSetAnimationClockForTest(std::optional<uint64_t> nowTickMs) noexcept;
     [[nodiscard]] IRawElementProviderFragmentRoot* DebugCreateAccessibilityProvider() const noexcept;
     void DebugSimulateDeviceLoss() noexcept;
-    // Stage 1 = swap-chain creation, 2 = back buffer, 3 = target bitmap, 4 = ResizeBuffers.
+    // Stage 1 = swap-chain creation, 2 = back buffer, 3 = target bitmap, 4 = ResizeBuffers. An embedded host applies stage 3
+    // to the target bitmap of its surface.
     void DebugSetNextSizeResourceFailureForTest(unsigned stage, HRESULT failure) noexcept;
+    // Tests only. While set, a native host's recovery retry is armed against this clock instead of a timer on its window;
+    // DebugAdvanceRecoveryRetryClockForTest moves the clock and fires a retry that has come due. Reset with nullopt.
+    void DebugSetRecoveryRetryClockForTest(std::optional<uint64_t> nowTickMs) noexcept;
+    void DebugAdvanceRecoveryRetryClockForTest(uint64_t elapsedMs) noexcept;
+    // The delay of the armed recovery retry in milliseconds, 0 when none is armed.
+    [[nodiscard]] uint32_t DebugGetArmedRecoveryRetryDelayMs() const noexcept;
+    // Solid-color brushes this host has created, its fallback brush included.
+    [[nodiscard]] uint64_t DebugGetSolidBrushCreateCount() const noexcept;
     [[nodiscard]] size_t DebugGetBrushCacheSize() const noexcept;
     [[nodiscard]] bool DebugHasFallbackBrush() const noexcept;
     [[nodiscard]] bool DebugHasD2DContext() const noexcept;
@@ -6607,6 +6618,12 @@ private:
     void RecreateBrushCache() const;
     void TrimCaches() noexcept;
     void Render(const RECT* dirtyRectPx = nullptr, bool allowHidden = false) noexcept;
+    // A failed recreation or a device loss arms one retry on this host's window, backing off on repeated failure;
+    // a successful Present resets the backoff and disarms it (Win32 host contract).
+    void ScheduleRecoveryRetry() noexcept;
+    void CancelRecoveryRetry() noexcept;
+    void OnRecoveryRetryDue() noexcept;
+    static void CALLBACK RecoveryRetryTimerProc(HWND hwnd, UINT message, UINT_PTR timerId, DWORD tickMs) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     void Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden = false) noexcept;
     [[nodiscard]] bool CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcept;
@@ -6759,6 +6776,9 @@ private:
     uint64_t _resourceGeneration           = 1u;
     bool _forceFullPresentAfterBufferReset = false;
     bool _initialRootChildBatchPending     = false;
+    // The delay of the next recovery retry (0 = the first, one frame) and whether one is armed.
+    uint32_t _recoveryRetryNextDelayMs  = 0u;
+    uint32_t _recoveryRetryArmedDelayMs = 0u;
 
     mutable std::unordered_map<uint32_t, wil::com_ptr<ID2D1SolidColorBrush>> _brushCache = std::unordered_map<uint32_t, wil::com_ptr<ID2D1SolidColorBrush>>(0u);
     mutable wil::com_ptr<ID2D1SolidColorBrush> _fallbackBrush;
@@ -6828,6 +6848,9 @@ private:
     mutable uint64_t _debugResizeCount                          = 0u;
     unsigned _debugSizeResourceFailureStage                     = 0u;
     HRESULT _debugSizeResourceFailure                           = S_OK;
+    std::optional<uint64_t> _debugRecoveryRetryClockMs          = std::nullopt;
+    uint64_t _debugRecoveryRetryDueMs                           = 0u;
+    mutable uint64_t _debugSolidBrushCreateCount                = 0u;
     mutable uint64_t _debugResizeFailureCount                   = 0u;
     mutable uint64_t _debugSwapChainPrepareD2DFlushFailureCount = 0u;
     mutable uint64_t _debugPresentFailureCount                  = 0u;

@@ -1,7 +1,8 @@
 # Performance and motion plan: speed, frame rate, memory and animation, 13 November 2026
 
 Status: ACTIVE — implementation started on 13 November 2026. A ticked item is implemented, with the commit whose
-subject carries its id; an unticked item is not. This is the single plan for making DxUi faster, raising
+subject carries its id; an unticked item is not. Line anchors in unticked items were read before implementation
+began and implemented items move the cited code, so locate it by symbol. This is the single plan for making DxUi faster, raising
 its frame rate, lowering its memory use and animating every interactive change. It replaces three documents, now
 archived as records: the [runtime efficiency study](../Done/RuntimeEfficiency_2026-11-07.md), its
 [challenge review](../Done/RuntimeEfficiencyReview_2026-11-12.md) and the
@@ -387,7 +388,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
 Fix defects that have deterministic functional tests, independently of the measurement wave. Exit: every item's named
 regression test passes in x64 Debug, Release and ASan Debug and asserts the behaviour stated in its gate.
 
-- [ ] **W1.1 Host recovery and input.**
+- [x] **W1.1 Host recovery and input.**
   - **Why**: a failed device or swap-chain recreation returns from `Render` without invalidating or scheduling a retry,
     so the window stays blank (`DxUi.WindowHost.cpp:5045-5050`; failure paths `:754-808`), and a loss → recreate → loss
     loop has no backoff (`:5240-5250`). `EmbeddedHost::DispatchPointer` releases capture on the first button-up of a
@@ -682,7 +683,7 @@ something is due, and pace native animation frames to the display. Exit: `G1` me
   - **Why**: native ticks come from `SetTimer(8 ms)` (`src/Support/AnimationDispatcher.h:182, 348`), which Windows
     raises to the 10 ms `USER_TIMER_MINIMUM`; it runs while any `Tick` returns `true` (`:331-391`), so a focused caret
     keeps it running (about 640 wakes in 10 s, inferred). Each tick walks the whole tree (`Panel::Tick`,
-    `DxUi.Controls.cpp:1571-1585`, from `DxUi.WindowHost.cpp:6146` and `src/Rendering/Embedded.cpp:433`); the first
+    `DxUi.Controls.cpp:1571-1585`, from `DxUi.WindowHost.cpp:6025` and `src/Rendering/Embedded.cpp:433`); the first
     tick after idle adds a phantom 8 ms (`src/Support/AnimationDispatcher.h:431-447`).
   - **Change**: `ControlHost` keeps one schedule of `Continuous`, `Deadline(tickMs)` and `Once` requests and ticks only
     the controls holding one, not the tree. Native: one `SetCoalescableTimer` on the dispatcher window for the earliest
@@ -1458,8 +1459,8 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
 - [ ] **W7.9 Hover and hit index.**
   - **Why**: `RichTextEditor::HoveredTitle` hit-tests and then scans every semantic element for the smallest titled
     span (`DxUi.RichTextEditor.cpp:7391-7401`). Tooltip revalidation runs it twice per animation tick while a target is
-    live (`DxUi.WindowHost.cpp:6022-6023`, called from `:6127` and `src/Rendering/Embedded.cpp:431`), each time after a
-    recursive control-tree search (`DxUi.WindowHost.cpp:5948-5955`).
+    live (`DxUi.WindowHost.cpp:5901-5902`, called from `:6006` and `src/Rendering/Embedded.cpp:431`), each time after a
+    recursive control-tree search (`DxUi.WindowHost.cpp:5827-5834`).
   - **Change**: at preparation, index link, footnote, image and abbreviation spans by display range in the semantic
     geometry generation; a hover does a binary search. The host keeps the last (point, modifiers, geometry generation)
     and its title and re-resolves only when one changes. Coordinate with `W3.3` and the explicit-state-machines tooltip
@@ -1718,6 +1719,8 @@ with an open row is not accepted for closeout until that row closes.
 
 | Item | Left open or different | Closes with |
 | --- | --- | --- |
+| `W1.1` | Embedded dispatch has no right-button action (`PointerAction` carries the primary and middle buttons only), so the embedded chord test holds capture across primary and middle; the native test uses Left and Right as the gate says. | A right button in embedded dispatch belongs to the API revision 6 pointer shape (`W5.8`) |
+| `W1.1` | Adds the public, additive virtual `Control::OnMouseMiddleUp` (default declines), because a middle release had no control-level hook. The retry's first step, "one frame", is declared as 16 ms. | Recorded addition; nothing to run |
 | `W1.4` | The Japanese IME composition check and the `NativeTextInput` suite were not run: both take focus. The display-attribute path from the edit sink to the host is proved only through its pure mapping. | `test.ps1 -Interactive`, with the developer's agreement to the time |
 | `W1.4` | Three clauses publish four boundaries (the composition start, the two interior edges and the end), following the existing IMM convention; the gate text says three. | Recorded difference; nothing to run |
 | `W1.4` | Adds the public, additive `TextInputScope` with `TextField::SetInputScope` and `GetInputScope`, because no field could declare a numeric or URL scope before. | Recorded addition; nothing to run |

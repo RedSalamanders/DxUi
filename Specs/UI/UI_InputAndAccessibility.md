@@ -850,7 +850,11 @@ tree-membership checks still reject retired pointers before dereferencing them.
 Embedded preparation and coherent pointer-input admission MUST apply this same gesture-owner availability rule.
 A press during a captured gesture goes to the captured control, and the release of that second button keeps the
 capture: only a release that leaves neither the primary nor the secondary button down ends it, so a right-click while a
-slider's thumb is held neither ends the drag nor strands it. A ScrollPanel retains the forwarded gesture owner through its own-button release callback; after that callback it clears only the unchanged forwarded gesture. A release handler MUST NOT release a newer capture selected by a callback. An unhandled press clears the focus only when it continued
+slider's thumb is held neither ends the drag nor strands it. EmbeddedHost, which has no secondary-button action, applies
+the same rule to a middle press the captured control accepts; the
+[embedded contract](../Rendering/Rendering_EmbeddedD3D11.md) states its button mask. Both hosts deliver the middle
+button's release to the captured control, or else to the control under the pointer, through `Control::OnMouseMiddleUp`
+(the default declines); a held capture consumes that release either way. A ScrollPanel retains the forwarded gesture owner through its own-button release callback; after that callback it clears only the unchanged forwarded gesture. A release handler MUST NOT release a newer capture selected by a callback. An unhandled press clears the focus only when it continued
 no captured gesture and moved no focus itself, so a container that forwards presses (ScrollPanel) does not blur a child
 that focused itself on a press it then declined. A control with no meaning of its own for a double-click treats it as a
 press: a second right-click within the double-click time opens a Grid's, Tree's or ComboBox's context menu again, and a

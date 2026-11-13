@@ -94,7 +94,9 @@ Pass view-local physical pixel coordinates to `DispatchPointer`. Convert applica
 through the actual displayed viewport transform, including animation offsets. Pass Move/Down/Up/Wheel/Leave/Cancel
 and the appropriate modifiers. Set `device` to the contact's device so a touch drag gets touch feedback (a slider's touch
 halo): for a mouse message your window received, `PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())` while you
-handle it. An event that names no device is the mouse. A paint-dirty view still accepts hit-tested pointer gestures while its geometry is
+handle it. An event that names no device is the mouse. Pass MiddleDown/MiddleUp too: the release reaches the control
+(`OnMouseMiddleUp`), and a captured primary drag that the control let a middle press join keeps its capture until the
+last of the two buttons is up. A paint-dirty view still accepts hit-tested pointer gestures while its geometry is
 coherent; Prepare before composition, and after bounds, tree, visibility or enabled changes that bump the interaction
 revision. Pending intrinsic layout does not bump it. Keys, characters and text-service calls go to the focused control
 between preparations too; a hidden or suspended view, one never prepared, or one a failed callback suspended until its
@@ -161,6 +163,12 @@ call `Attach(hwnd)` and check its boolean result, then install the tree and them
 messages through `HandleMessage(hwnd, message, wParam, lParam, handled)`; return that result when handled and
 otherwise continue normal window dispatch. This mode owns native graphics, text/accessibility and presentation
 services. The application still owns the top-level window and event-blocked message loop.
+
+When the host cannot recreate its device or swap chain, or loses the device, it retries by itself: it arms a one-shot
+timer on the attached HWND (its timer procedure runs from your message loop's `DispatchMessage`, not from your window
+procedure) that repaints after one frame, doubling the wait on each further failure up to one second, and a successful
+present resets it. Keep dispatching messages; nothing else is required. An embedded view keeps no timer: its failed
+`Prepare` returns the HRESULT and you schedule the next one.
 
 When the attached HWND is a child window, forward top-level ancestor movement
 (for example, from the owner's `WM_WINDOWPOSCHANGED` handler) with

@@ -462,6 +462,101 @@ __declspec(noinline) static void TestEmbeddedTouchDragShowsTheSliderTouchHalo(Gr
     static_cast<void>(scene.view.DispatchPointer({DxUi::PointerAction::Up, x, y}));
 }
 
+// A surface recreation that fails is reported to the application, which owns the schedule: the view requests no
+// preparation of its own and keeps no timer, stays dirty, and its next Prepare presents the full frame again.
+__declspec(noinline) static void TestEmbeddedFailedSurfaceRecreationIsReportedAndRecovers(GraphicsFixture& gpu)
+{
+    EmbeddedScene scene;
+    size_t requests = 0;
+    Hr(scene.Initialize(gpu.device.get(), {&requests, [](void* p) noexcept { ++*static_cast<size_t*>(p); }}), "failed recreation scene");
+    Hr(scene.view.Prepare(480, 240), "prepare failed recreation scene");
+    gpu.Bind();
+    Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "composite before the failure");
+    std::vector<uint8_t> shown;
+    Hr(gpu.Read(shown), "read pixels before the failure");
+    scene.view.SetVisible(false);
+    scene.view.SetVisible(true);
+    const size_t requestsBeforeFailure = requests;
+    scene.view.Controls().DebugSetNextSizeResourceFailureForTest(3u, E_FAIL);
+    Check(scene.view.Prepare(480, 240) == E_FAIL, "the failed surface recreation is reported");
+    Check(requests == requestsBeforeFailure, "the view retries nothing by itself");
+    Check(scene.view.NeedsPreparation(), "and stays dirty for the application's next preparation");
+    Hr(scene.view.Prepare(480, 240), "the application's next preparation recreates the surface");
+    gpu.Bind();
+    Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "composite after the fault clears");
+    std::vector<uint8_t> recovered;
+    Hr(gpu.Read(recovered), "read pixels after the fault clears");
+    Check(recovered == shown, "the full frame presents again");
+}
+
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+// Takes the primary press, so the view captures it, accepts middle presses and counts the middle button's releases.
+class EmbeddedPointerButtonProbe final : public DxUi::Control
+{
+public:
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+    bool OnMouseDown(DxUi::ControlHost&, D2D1_POINT_2F, bool, UINT) override
+    {
+        return true;
+    }
+    bool OnMouseUp(DxUi::ControlHost&, D2D1_POINT_2F, bool, UINT) override
+    {
+        return true;
+    }
+    bool OnMouseMiddleDown(DxUi::ControlHost&, D2D1_POINT_2F, UINT) override
+    {
+        ++middleDowns;
+        return true;
+    }
+    bool OnMouseMiddleUp(DxUi::ControlHost&, D2D1_POINT_2F point, UINT) override
+    {
+        ++middleUps;
+        lastMiddleUp = point;
+        return true;
+    }
+    unsigned middleDowns = 0u;
+    unsigned middleUps   = 0u;
+    D2D1_POINT_2F lastMiddleUp{};
+};
+#pragma warning(pop)
+
+// Embedded capture follows the buttons its gesture holds: a primary gesture joined by a middle press keeps the capture
+// through the primary release and ends with the middle release. The middle release reaches the control in either case.
+__declspec(noinline) static void TestEmbeddedCaptureEndsWithTheLastButtonUp(GraphicsFixture& gpu)
+{
+    using DxUi::PointerAction;
+    std::shared_ptr<DxUi::GraphicsDevice> pool;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "chord device pool");
+    DxUi::EmbeddedHost view;
+    Hr(view.Attach(pool), "chord embedded host");
+    auto root   = std::make_unique<DxUi::Panel>();
+    auto* probe = root->AddChild<EmbeddedPointerButtonProbe>();
+    probe->SetBounds(D2D1::RectF(20.0f, 20.0f, 220.0f, 120.0f));
+    view.Controls().SetRoot(std::move(root));
+    Hr(view.Prepare(320u, 180u), "prepare chord host");
+
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 60.0f, 60.0f}) && probe->middleDowns == 1u, "a middle press reaches the control");
+    Check(view.DispatchPointer({PointerAction::MiddleUp, 62.0f, 61.0f}) && probe->middleUps == 1u, "a middle release reaches the control");
+    Check(probe->lastMiddleUp.x == 62.0f && probe->lastMiddleUp.y == 61.0f, "at the release's own point");
+
+    Check(view.DispatchPointer({PointerAction::Down, 60.0f, 60.0f}) && view.Controls().GetCapturedControl() == probe, "a primary press captures");
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 60.0f, 60.0f}) && probe->middleDowns == 2u, "a middle press joins the gesture");
+    Check(view.DispatchPointer({PointerAction::Up, 60.0f, 60.0f}), "the primary release reaches the control");
+    Check(view.Controls().GetCapturedControl() == probe, "Primary down, Middle down, Primary up keeps the capture");
+    Check(view.DispatchPointer({PointerAction::MiddleUp, 300.0f, 170.0f}) && probe->middleUps == 2u,
+          "the middle release outside the control reaches the control holding the capture");
+    Check(view.Controls().GetCapturedControl() == nullptr, "and the last button's release ends the capture");
+
+    Check(view.DispatchPointer({PointerAction::Down, 60.0f, 60.0f}) && view.Controls().GetCapturedControl() == probe, "a later primary press captures");
+    Check(view.DispatchPointer({PointerAction::Up, 60.0f, 60.0f}) && view.Controls().GetCapturedControl() == nullptr,
+          "and its own release ends that capture: the earlier chord left nothing held");
+}
+
 __declspec(noinline) static void TestTooltipInspectionDismissalConsumesEmbeddedGesture(GraphicsFixture& gpu)
 {
     std::shared_ptr<DxUi::GraphicsDevice> pool;
@@ -2130,6 +2225,8 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedMultilineGridFrenchCells(gpu);
     TestPointerGesturesOnPaintDirtyView(gpu);
     TestEmbeddedTouchDragShowsTheSliderTouchHalo(gpu);
+    TestEmbeddedFailedSurfaceRecreationIsReportedAndRecovers(gpu);
+    TestEmbeddedCaptureEndsWithTheLastButtonUp(gpu);
     TestTooltipInspectionDismissalConsumesEmbeddedGesture(gpu);
     TestTickDirtying(gpu);
     TestCacheBounds(gpu);

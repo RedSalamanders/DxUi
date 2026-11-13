@@ -130,6 +130,11 @@ HRESULT GraphicsDevice::Create(ID3D11Device* device, std::shared_ptr<GraphicsDev
         Failure::FailAllocation();
     }
 }
+namespace
+{
+constexpr uint8_t kCapturePrimaryButton = 1u;
+constexpr uint8_t kCaptureMiddleButton  = 2u;
+} // namespace
 struct EmbeddedHost::State
 {
     std::shared_ptr<GraphicsDevice> graphics;
@@ -149,6 +154,7 @@ struct EmbeddedHost::State
     bool preparing                       = false;
     bool prepareCallActive               = false;
     bool contentPending                  = false;
+    uint8_t captureButtons               = 0u; // Buttons held in the captured gesture a primary press began.
     uint64_t contentInteractionRevision  = 0u;
     uint64_t revision                    = 0;
     uint64_t preparedInteractionRevision = 0;
@@ -561,7 +567,18 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
             RETURN_IF_FAILED(texture->QueryInterface(IID_PPV_ARGS(surface.put())));
             auto properties = D2D1::BitmapProperties1(
                 D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1::PixelFormat(desc.Format, D2D1_ALPHA_MODE_PREMULTIPLIED), dpi, dpi);
-            RETURN_IF_FAILED(_host._d2dContext->CreateBitmapFromDxgiSurface(surface.get(), &properties, bitmap.put()));
+            HRESULT hrBitmap = _host._d2dContext->CreateBitmapFromDxgiSurface(surface.get(), &properties, bitmap.put());
+#if DXUI_ENABLE_DIAGNOSTICS
+            if (_host._debugSizeResourceFailureStage == 3u)
+            {
+                _host._debugSizeResourceFailureStage = 0u;
+                hrBitmap                             = _host._debugSizeResourceFailure;
+                bitmap.reset();
+            }
+#endif
+            // A failed surface is reported to the caller, which owns the schedule: the view keeps no timer and retries
+            // nothing by itself, and stays dirty for the caller's next Prepare.
+            RETURN_IF_FAILED(hrBitmap);
             _host._d2dContext->SetTarget(nullptr);
             s.stats.replacementPeakBytes = std::max(s.stats.replacementPeakBytes, s.stats.surfaceBytes + bytes);
             s.texture                    = std::move(texture);
@@ -805,6 +822,8 @@ void EmbeddedHost::CancelPointer(bool clearPendingDoubleClick) noexcept
     const Failure::Scope failureScope;
     auto* captured         = _host._capturedControl;
     _host._capturedControl = nullptr;
+    if (_state)
+        _state->captureButtons = 0u;
     try
     {
         // Hidden/disabled controls still need their draft canceled before ordinary interaction pruning. Tree
@@ -948,10 +967,35 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
         auto* target = _host._capturedControl ? _host._capturedControl : _host.HitTestControl(point);
         if (! InputIsCoherent(true) || ! target)
             return false;
+        // A capture that ended another way (a control's own release, a cancellation) holds no buttons.
+        auto& captureButtons = _state->captureButtons;
+        if (! _host._capturedControl)
+            captureButtons = 0u;
         switch (event.action)
         {
-            case PointerAction::MiddleDown: return target->OnMouseMiddleDown(_host, point, event.modifiers);
-            case PointerAction::MiddleUp: return _host.GetCapturedControl() != nullptr;
+            case PointerAction::MiddleDown:
+            {
+                // A middle press the gesture's control accepts joins its primary gesture, which then lasts until both
+                // buttons are up. A declined press leaves the gesture to its primary release.
+                const bool inGesture = captureButtons != 0u;
+                const bool handled   = target->OnMouseMiddleDown(_host, point, event.modifiers);
+                if (inGesture && handled && _state && _host._capturedControl)
+                    _state->captureButtons |= kCaptureMiddleButton;
+                return handled;
+            }
+            case PointerAction::MiddleUp:
+            {
+                const bool chorded                   = (captureButtons & kCaptureMiddleButton) != 0u;
+                const bool captured                  = _host._capturedControl != nullptr;
+                const uint64_t captureBeforeDispatch = _host._captureRequestRevision;
+                captureButtons                       = static_cast<uint8_t>(captureButtons & ~kCaptureMiddleButton);
+                const bool lastButtonUp              = chorded && captureButtons == 0u;
+                const bool handled                   = target->OnMouseMiddleUp(_host, point, event.modifiers);
+                // The last button of a chord ends the gesture, unless a callback has already chosen a newer capture.
+                if (lastButtonUp && _host._captureRequestRevision == captureBeforeDispatch)
+                    _host.ReleaseMouseCapture();
+                return handled || captured;
+            }
             case PointerAction::Down:
             {
                 const auto lifetime          = target->GetLifetimeToken();
@@ -966,6 +1010,8 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
                 if (handled && live && ! _host.IsTooltipInspectionActive())
                 {
                     _host.CaptureMouse(live);
+                    if (_state && _host._capturedControl)
+                        _state->captureButtons |= kCapturePrimaryButton;
                     if (tripleClick)
                     {
                         _host.ClearPendingPointerDoubleClick();
@@ -986,7 +1032,14 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
             case PointerAction::Move: return target->OnMouseMove(_host, point, event.modifiers);
             case PointerAction::Up:
             {
-                auto release = wil::scope_exit([&] { _host.ReleaseMouseCapture(); });
+                // The gesture ends with its last button: a middle button still held keeps the capture for its release.
+                const bool middleHeld = (captureButtons & kCaptureMiddleButton) != 0u;
+                captureButtons        = static_cast<uint8_t>(captureButtons & ~kCapturePrimaryButton);
+                auto release          = wil::scope_exit([&]
+                {
+                    if (! middleHeld)
+                        _host.ReleaseMouseCapture();
+                });
                 return target->OnMouseUp(_host, point, false, event.modifiers);
             }
             case PointerAction::Wheel: return target->OnMouseWheel(_host, point, event.wheelDelta, event.modifiers);

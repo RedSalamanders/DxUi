@@ -208,7 +208,9 @@ indeterminate progress bar, a busy grid) does not re-dirty the view inside the p
 Prepare receives width/height in pixels and DPI (48..768), checks D3D dimension limits and a 64 MiB surface ceiling,
 then performs changed layout/raster work. A resize allocates the replacement surface before releasing the previous
 one, so the single-surface cap bounds the transactional replacement peak to 128 MiB per view by construction;
-`replacementPeakBytes` reports the observed peak. Graphics resources are shared at the pool; surface bytes,
+`replacementPeakBytes` reports the observed peak. A surface that fails to be created returns its HRESULT from Prepare:
+the view stays dirty, requests no preparation of its own and owns no timer, and the application's next Prepare creates
+it again (the native host's own retry schedule is in the [Win32 host contract](Rendering_Win32Host.md)). Graphics resources are shared at the pool; surface bytes,
 replacement peak, allocation/preparation/composition counts and the per-view cache sizes (`cachedBrushes`,
 `cachedTextFormats`) are queryable. Solid brushes are bounded to 256 entries and configured text formats to 96
 (`ControlHost::kSolidBrushCacheLimit`, `kConfiguredTextFormatCacheLimit`); a cache beyond its bound is cleared at the
@@ -241,7 +243,12 @@ on the next preparation. The check resolves the capture through the live tree be
 control is only released. Moving the captured control itself, hiding or disabling it or an ancestor, removing it, and
 any change of the view's size or DPI, cancels capture and disables input until prepare succeeds. A second Down on the
 same control within the system double-click interval and a 16 DIP slop is
-`OnMouseDoubleClick`. Ordinary dispatch refuses an unacknowledged bounds revision. Keyboard continuation uses the
+`OnMouseDoubleClick`. A capture that a handled Down began follows a button mask: a MiddleDown that the captured control
+accepts joins the gesture, an Up while that middle button is still down keeps the capture, and the MiddleUp that leaves
+no button down releases it (unless a callback already chose a newer capture). A declined MiddleDown does not join, and
+a middle gesture the control captured by itself (rich-text auto-scroll) is not released by its MiddleUp. MiddleUp reaches
+the captured control, or else the control under the pointer, through `Control::OnMouseMiddleUp`; it reports handled
+when that control does or a capture is held. The view has no secondary-button action. Ordinary dispatch refuses an unacknowledged bounds revision. Keyboard continuation uses the
 same prepared interaction revision. After interaction geometry changes, a consumer calls Prepare before the next
 independent hit-tested gesture, or finishes arranging every live control bound and calls PrepareInteraction at the
 last successfully painted width, height and DPI. PrepareInteraction only acknowledges that layout; it does no

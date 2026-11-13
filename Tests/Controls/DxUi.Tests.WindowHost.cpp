@@ -7429,6 +7429,255 @@ void TestWindowHostSecondaryPressCapturesOnlyWhileItOwnsThePointer()
 
 namespace
 {
+// Paints the window's first frame through its own paint message, as the system would.
+void PaintAttachedHostWindowNow(HWND hwnd)
+{
+    Require(RedrawWindow(hwnd, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW) != FALSE, "the window paints now");
+}
+
+[[nodiscard]] bool HasPendingPaint(HWND hwnd) noexcept
+{
+    return GetUpdateRect(hwnd, nullptr, FALSE) != FALSE;
+}
+
+// Takes the primary press, so the host captures it, and counts the middle button's releases.
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: repository maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+class PointerButtonProbe final : public DxUi::Control
+{
+public:
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+    bool OnMouseDown(DxUi::ControlHost&, D2D1_POINT_2F, bool rightButton, UINT) override
+    {
+        return ! rightButton || pressed;
+    }
+    bool OnMouseUp(DxUi::ControlHost&, D2D1_POINT_2F, bool, UINT) override
+    {
+        return true;
+    }
+    bool OnMouseMiddleDown(DxUi::ControlHost&, D2D1_POINT_2F, UINT) override
+    {
+        ++middleDowns;
+        return true;
+    }
+    bool OnMouseMiddleUp(DxUi::ControlHost&, D2D1_POINT_2F point, UINT) override
+    {
+        ++middleUps;
+        lastMiddleUp = point;
+        return true;
+    }
+    bool pressed         = false;
+    unsigned middleDowns = 0u;
+    unsigned middleUps   = 0u;
+    D2D1_POINT_2F lastMiddleUp{};
+};
+#pragma warning(pop)
+} // namespace
+
+// A recreation that fails while the window can present leaves no update region behind: the host retries on its own
+// window, and a full frame presents once the fault has cleared, though nothing invalidates the window again.
+void TestWindowHostRetriesAFailedRecreationWithoutInvalidation()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    auto root = std::make_unique<Panel>();
+    root->AddChild<Label>(L"Recovers by itself")->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    window.Host().SetRoot(std::move(root));
+    PaintAttachedHostWindowNow(window.Hwnd());
+    Require(SUCCEEDED(window.Host().DebugGetLastPresentResult()), "the first frame presents");
+
+    // One recreation fails: resizing the swap chain succeeds, then its back buffer cannot be read.
+    window.Host().DebugSetNextSizeResourceFailureForTest(2u, E_FAIL);
+    const uint64_t resizes = window.Host().DebugGetResizeCount();
+    Require(SetWindowPos(window.Hwnd(), nullptr, 0, 0, 360, 240, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE, "the window grows");
+    Require(UpdateWindow(window.Hwnd()) != FALSE, "the resize paints now");
+    Require(window.Host().DebugGetResizeCount() == resizes + 1u, "the paint resized the swap chain");
+    const uint64_t fullPresents = window.Host().DebugGetFullPresentAttemptCount();
+    Require(! HasPendingPaint(window.Hwnd()), "the failed paint left no update region");
+    Require(window.Host().DebugGetArmedRecoveryRetryDelayMs() == 16u, "the failure armed one retry, one frame away");
+
+    // Nothing but the window's own message loop runs from here on.
+    const ULONGLONG deadline = GetTickCount64() + 3'000u;
+    while (window.Host().DebugGetFullPresentAttemptCount() == fullPresents && GetTickCount64() < deadline)
+    {
+        static_cast<void>(MsgWaitForMultipleObjects(0u, nullptr, FALSE, 10u, QS_ALLINPUT));
+        window.PumpMessages(50u);
+    }
+    Require(window.Host().DebugGetFullPresentAttemptCount() > fullPresents, "a full frame presents after the fault clears");
+    Require(SUCCEEDED(window.Host().DebugGetLastPresentResult()), "and that present succeeds");
+    Require(window.Host().DebugGetArmedRecoveryRetryDelayMs() == 0u, "the successful present disarms the retry");
+}
+
+// A loss that persists is retried on the declared schedule, read on a test clock: one frame (16 ms), doubling to a one
+// second cap, never early and never late; a successful present returns the schedule to one frame.
+void TestWindowHostRecoveryRetryBacksOffOnTheDeclaredSchedule()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    auto root = std::make_unique<Panel>();
+    root->AddChild<Label>(L"Backs off")->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    window.Host().SetRoot(std::move(root));
+    PaintAttachedHostWindowNow(window.Hwnd());
+    window.Host().DebugSetRecoveryRetryClockForTest(0u);
+    const auto restoreClock = wil::scope_exit([&] { window.Host().DebugSetRecoveryRetryClockForTest(std::nullopt); });
+
+    // Every recreation loses the device again when it creates the swap chain.
+    const auto paintIntoPersistentLoss = [&]
+    {
+        window.Host().DebugSetNextSizeResourceFailureForTest(1u, DXGI_ERROR_DEVICE_REMOVED);
+        Require(UpdateWindow(window.Hwnd()) != FALSE, "the retry paints");
+        Require(! HasPendingPaint(window.Hwnd()), "a failed recreation leaves no update region");
+    };
+    window.Host().DebugSimulateDeviceLoss();
+    Require(HasPendingPaint(window.Hwnd()), "the loss asks for a paint");
+    paintIntoPersistentLoss();
+
+    constexpr std::array<uint32_t, 9u> schedule{16u, 32u, 64u, 128u, 256u, 512u, 1'000u, 1'000u, 1'000u};
+    for (const uint32_t delayMs : schedule)
+    {
+        Require(window.Host().DebugGetArmedRecoveryRetryDelayMs() == delayMs, "the retry is armed on the declared schedule");
+        window.Host().DebugAdvanceRecoveryRetryClockForTest(delayMs - 1u);
+        Require(window.Host().DebugGetArmedRecoveryRetryDelayMs() == delayMs && ! HasPendingPaint(window.Hwnd()), "no retry before it is due");
+        window.Host().DebugAdvanceRecoveryRetryClockForTest(1u);
+        Require(window.Host().DebugGetArmedRecoveryRetryDelayMs() == 0u && HasPendingPaint(window.Hwnd()), "the retry asks for a paint when due");
+        paintIntoPersistentLoss();
+    }
+
+    // The fault clears: the next retry presents and resets the schedule.
+    window.Host().DebugAdvanceRecoveryRetryClockForTest(1'000u);
+    const uint64_t fullPresents = window.Host().DebugGetFullPresentAttemptCount();
+    Require(UpdateWindow(window.Hwnd()) != FALSE, "the retry paints after the fault clears");
+    Require(window.Host().DebugGetFullPresentAttemptCount() == fullPresents + 1u && SUCCEEDED(window.Host().DebugGetLastPresentResult()),
+            "the cleared retry presents a full frame");
+    Require(window.Host().DebugGetArmedRecoveryRetryDelayMs() == 0u, "nothing stays armed after the present");
+    window.Host().DebugSimulateDeviceLoss();
+    paintIntoPersistentLoss();
+    Require(window.Host().DebugGetArmedRecoveryRetryDelayMs() == 16u, "after a present the next loss retries one frame later again");
+    window.Host().DebugAdvanceRecoveryRetryClockForTest(16u);
+    Require(UpdateWindow(window.Hwnd()) != FALSE && SUCCEEDED(window.Host().DebugGetLastPresentResult()), "and recovers");
+}
+
+// Brushes belong to the device context, so resizing the swap chain keeps them; only a device change clears them.
+void TestWindowHostResizeKeepsItsBrushes()
+{
+    using namespace DxUi;
+    AttachedHostWindow window;
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    auto root = std::make_unique<Panel>();
+    root->AddChild<Label>(L"Resizing")->SetBounds(D2D1::RectF(8.0f, 8.0f, 160.0f, 40.0f));
+    root->AddChild<Button>(std::wstring(L"Keeps brushes"))->SetBounds(D2D1::RectF(8.0f, 48.0f, 160.0f, 80.0f));
+    window.Host().SetRoot(std::move(root));
+    WindowHostBitmapCapture frame;
+    Require(window.Host().DebugCaptureBitmap(frame), "the first frame renders");
+    const uint64_t brushes = window.Host().DebugGetSolidBrushCreateCount();
+    Require(brushes > 0u && window.Host().DebugGetBrushCacheSize() > 0u, "the first frame creates its brushes");
+    const uint64_t resizes = window.Host().DebugGetResizeCount();
+    for (int step = 1; step <= 30; ++step)
+    {
+        Require(SetWindowPos(window.Hwnd(), nullptr, 0, 0, 320 + step * 3, 200 + step * 2, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+                "the window resizes");
+        Require(window.Host().DebugCaptureBitmap(frame), "each resize step renders");
+    }
+    Require(window.Host().DebugGetResizeCount() >= resizes + 30u, "every step resized the swap chain");
+    Require(window.Host().DebugGetSolidBrushCreateCount() == brushes, "30 resize steps create 0 brushes");
+
+    window.Host().DebugSimulateDeviceLoss();
+    Require(window.Host().DebugGetBrushCacheSize() == 0u, "a device change still clears the brushes");
+    Require(window.Host().DebugCaptureBitmap(frame), "the recovered frame renders");
+    Require(window.Host().DebugGetSolidBrushCreateCount() > brushes, "and creates them again on the new device");
+}
+
+// A press of a second button during a capture belongs to it, and only the last button's release ends it.
+void TestWindowHostChordKeepsCaptureUntilTheLastButtonIsUp()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    Panel* rootPanel = root.get();
+    auto* probe      = root->AddChild<PointerButtonProbe>();
+    probe->SetBounds(D2D1::RectF(10.0f, 10.0f, 110.0f, 60.0f));
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(40, 30), handled));
+    Require(host.GetCapturedControl() == probe, "the left press captures");
+    probe->pressed = true;
+    static_cast<void>(host.HandleMessage(nullptr, WM_RBUTTONDOWN, MK_LBUTTON | MK_RBUTTON, MAKELPARAM(40, 30), handled));
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, MK_RBUTTON, MAKELPARAM(40, 30), handled));
+    Require(host.GetCapturedControl() == probe, "Left down, Right down, Left up keeps the capture");
+    static_cast<void>(host.HandleMessage(nullptr, WM_RBUTTONUP, 0u, MAKELPARAM(40, 30), handled));
+    Require(host.GetCapturedControl() == nullptr, "and Right up releases it");
+}
+
+// The middle button's release reaches the control, under the pointer or holding the capture.
+void TestWindowHostDeliversTheMiddleRelease()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    Panel* rootPanel = root.get();
+    auto* probe      = root->AddChild<PointerButtonProbe>();
+    probe->SetBounds(D2D1::RectF(10.0f, 10.0f, 110.0f, 60.0f));
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MBUTTONDOWN, MK_MBUTTON, MAKELPARAM(40, 30), handled));
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MBUTTONUP, 0u, MAKELPARAM(42, 31), handled));
+    Require(probe->middleDowns == 1u && probe->middleUps == 1u && handled, "a middle release reaches the control under the pointer");
+    Require(probe->lastMiddleUp.x == 42.0f && probe->lastMiddleUp.y == 31.0f, "at the release's own point");
+
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(40, 30), handled));
+    Require(host.GetCapturedControl() == probe, "a primary press captures");
+    handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_MBUTTONUP, MK_LBUTTON, MAKELPARAM(250, 150), handled));
+    Require(probe->middleUps == 2u && handled, "a middle release outside the control reaches the control holding the capture");
+    static_cast<void>(host.HandleMessage(nullptr, WM_LBUTTONUP, 0u, MAKELPARAM(40, 30), handled));
+    Require(host.GetCapturedControl() == nullptr, "the primary release ends the gesture");
+}
+
+// A wheel at a scroll bound moves nothing: the panel repaints nothing and leaves the wheel to an enclosing scroller.
+void TestScrollPanelWheelAtTheBoundIsUnhandledAndChains()
+{
+    using namespace DxUi;
+    WindowHost host;
+    auto root        = std::make_unique<Panel>();
+    Panel* rootPanel = root.get();
+    auto* outer      = root->AddChild<ScrollPanel>();
+    outer->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f));
+    outer->SetContentHeight(600.0f);
+    auto* inner = outer->AddChild<ScrollPanel>();
+    inner->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 150.0f));
+    inner->SetContentHeight(400.0f);
+    host.SetRoot(std::move(root));
+    rootPanel->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 240.0f));
+    const D2D1_POINT_2F point = D2D1::Point2F(100.0f, 60.0f);
+    const auto wheelDown      = -static_cast<float>(WHEEL_DELTA);
+
+    // The inner panel at its top bound declines an upward wheel.
+    uint64_t invalidations = host.DebugGetInvalidateCount();
+    Require(! inner->OnMouseWheel(host, point, static_cast<float>(WHEEL_DELTA), 0u), "a wheel up at the top bound is unhandled");
+    Require(host.DebugGetInvalidateCount() == invalidations && inner->GetScrollOffset() == 0.0f, "and invalidates nothing");
+
+    inner->SetScrollOffset(10'000.0f);
+    const float innerBottom = inner->GetScrollOffset();
+    Require(innerBottom > 0.0f, "the inner panel sits at its bottom bound");
+    invalidations = host.DebugGetInvalidateCount();
+    Require(! inner->OnMouseWheel(host, point, wheelDown, 0u), "a wheel down at the bottom bound is unhandled");
+    Require(host.DebugGetInvalidateCount() == invalidations && inner->GetScrollOffset() == innerBottom, "with 0 invalidations");
+
+    Require(outer->OnMouseWheel(host, point, wheelDown, 0u), "the outer panel takes the wheel its child declined");
+    Require(outer->GetScrollOffset() > 0.0f && inner->GetScrollOffset() == innerBottom, "and the outer ScrollPanel scrolls");
+}
+
+namespace
+{
 template <unsigned Case> void WindowHostFatalChild()
 {
     windowHostFatalCase = Case;
@@ -7498,6 +7747,12 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestPacketSurrogatesThroughNativeAndEmbeddedHosts);
     DXUI_RUN_TEST(TestWindowHostPageHostContentTakesTextInputAndTab);
     DXUI_RUN_TEST(TestWindowHostSecondaryPressCapturesOnlyWhileItOwnsThePointer);
+    DXUI_RUN_TEST(TestWindowHostRetriesAFailedRecreationWithoutInvalidation);
+    DXUI_RUN_TEST(TestWindowHostRecoveryRetryBacksOffOnTheDeclaredSchedule);
+    DXUI_RUN_TEST(TestWindowHostResizeKeepsItsBrushes);
+    DXUI_RUN_TEST(TestWindowHostChordKeepsCaptureUntilTheLastButtonIsUp);
+    DXUI_RUN_TEST(TestWindowHostDeliversTheMiddleRelease);
+    DXUI_RUN_TEST(TestScrollPanelWheelAtTheBoundIsUnhandledAndChains);
     DXUI_RUN_TEST(TestWindowHostContainsThrowingCallbacksOnNoexceptPaths);
     DXUI_RUN_TEST(TestWindowHostRefusedFocusRequestInABlurHandlerKeepsTheOuterRequest);
     DXUI_RUN_TEST(TestWindowHostCaptureLossCallbackCanRemoveTheHoveredControl);

@@ -11820,6 +11820,11 @@ bool ScrollPanel::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float whe
     const float previousOffset = _scrollOffsetDip;
     _scrollOffsetDip -= steps * _scrollStepDip;
     ClampScrollOffset();
+    if (_scrollOffsetDip == previousOffset)
+    {
+        // At the bound nothing moves: repaint nothing and leave the wheel to an enclosing scroller.
+        return false;
+    }
     RequestInvalidate();
     static_cast<void>(NotifyScrollChanged(previousOffset));
     return true;

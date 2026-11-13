@@ -148,6 +148,21 @@ chain with a pending full-frame presentation, so an initial partial WM_PAINT is 
 The pending state clears only when every enabled initial root-child Flush, EndDraw, and Present return S_OK; an
 occluded status or any failure keeps the next render full. EmbeddedHost does not own or present a swap chain and
 is unaffected by this rule.
+A render that cannot recreate what it presents with (the device, the swap chain, its back buffer or target bitmap, or a
+`ResizeBuffers`) while its window is visible and sized, and a render that loses the device, leave no update region
+behind, so nothing else would paint the window again. WindowHost therefore arms one one-shot retry on its own HWND
+(a timer whose procedure invalidates the window; never a periodic timer) and backs off: the first retry waits one
+frame (16 ms), each further failure or loss before a successful present doubles the wait, up to 1 s (16, 32, 64, 128,
+256, 512, 1,000, 1,000 ms ...). A successful `Present` disarms a pending retry and returns the next wait to one frame;
+detachment disarms it. A hidden window's retry invalidates nothing, and its show paints. EmbeddedHost keeps no timer:
+`Prepare` returns the failure, the view stays dirty and requests no preparation of its own, and the application
+decides when to prepare again ([embedded contract](Rendering_EmbeddedD3D11.md)). `DebugSetRecoveryRetryClockForTest`
+drives the schedule from a test clock.
+Solid-color brushes are device-context resources: a swap-chain resize or a new target bitmap keeps the host's brush
+cache, and only a device change (`DiscardDeviceResources`, a shared-device generation change) clears it.
+A partial frame redraws only its dirty rectangle and presents it with `Present1`; the presented frame stays correct
+because the runtime copies the previous frame's updated areas into the buffer being presented, and only a reader of the
+back buffer before `Present` (a debug capture) can see older content outside the rectangle.
 `AttachOptions::batchInitialRootChildren` is an opt-in native swap-chain rendering policy, defaulting to false. While
 the initial draw remains pending after swap-chain creation or resize, a full frame may flush after each visible
 direct child of a root `Panel`, with at most eight intermediate Flush boundaries in addition to the final EndDraw
