@@ -2,6 +2,7 @@
 
 #include "DxUi.AccessibilityTextUnits.h"
 #include "DxUi.Internal.h"
+#include "DxUi.RetainedCaches.h"
 #include "DxUi.RichAccessibilityEpoch.h"
 #include "DxUi.RichEditorAccessibilityAccess.h"
 #include "DxUi.RichSemanticGeometry.h"
@@ -14107,6 +14108,38 @@ void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) n
     if (auto live = target->snapshot.load(std::memory_order_acquire); live && live->alive)
         target->diffBaseline = std::move(live);
     PublishEmptyAccessibilitySnapshot(*target);
+}
+void DropRetainedAccessibilitySnapshot(ControlHost& host) noexcept
+{
+    if (HWND const hwnd = host.GetHwnd())
+    {
+        const std::scoped_lock lock(GetAccessibilityTargetMutex());
+        auto* const target = FindRegisteredAccessibilityTarget(hwnd);
+        if (! target || target->host.load(std::memory_order_acquire) != &host)
+            return;
+        // Nothing stands in for the dropped snapshot; the next provider query flushes the dirty publication from the tree.
+        PublishEmptyAccessibilitySnapshot(*target);
+        ++target->dirtyRevision;
+        return;
+    }
+    auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(host));
+    // UpdateAccessibility builds a snapshot again whenever none is published.
+    if (target && target->threadId == GetCurrentThreadId())
+        PublishAccessibilitySnapshot(*target, nullptr);
+}
+
+size_t CountRetainedAccessibilitySnapshotRecords(const ControlHost& host) noexcept
+{
+    std::shared_ptr<const AccessibilitySnapshot> snapshot;
+    if (HWND const hwnd = host.GetHwnd())
+    {
+        const std::scoped_lock lock(GetAccessibilityTargetMutex());
+        if (auto* const target = FindRegisteredAccessibilityTarget(hwnd); target && target->host.load(std::memory_order_acquire) == &host)
+            snapshot = target->snapshot.load(std::memory_order_acquire);
+    }
+    else if (auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(const_cast<ControlHost&>(host))))
+        snapshot = target->snapshot.load(std::memory_order_acquire);
+    return snapshot ? snapshot->controlNavigationRecords.size() + snapshot->pointHitRecords.size() : 0u;
 }
 
 LRESULT ReturnWindowHostAccessibilityProvider(HWND hwnd, WPARAM wp, LPARAM lp) noexcept

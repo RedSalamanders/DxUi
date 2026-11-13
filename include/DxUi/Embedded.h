@@ -222,9 +222,18 @@ public:
     // The application keeps that module mapped while any external provider references can survive.
     void DisconnectAccessibility() noexcept;
     [[nodiscard]] EmbeddedStatistics GetStatistics() const noexcept;
+#if DXUI_ENABLE_DIAGNOSTICS
+    // Tests only. Drops every registered retained cache of the view (DxUi.RetainedCaches.h), the cached surface included, and
+    // marks it dirty: the next Prepare draws what a freshly attached view would (incremental-versus-fresh oracle).
+    void DebugDropRetainedStateForTest() noexcept;
+    // Tests only. Copies the prepared surface's premultiplied BGRA pixels through a staging texture on the view's device.
+    // S_FALSE when the view holds no surface. Not for composition or any production path.
+    [[nodiscard]] HRESULT DebugReadSurfaceForTest(WindowHostBitmapCapture& out) noexcept;
+#endif
 
 private:
     friend struct EmbeddedAccessibilityAccess;
+    friend struct RetainedCacheAccess;
     struct State;
     class InputScope;
     std::unique_ptr<State> _state;

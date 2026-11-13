@@ -813,6 +813,12 @@ in the corresponding product repositories.
 
 ### Ongoing validation and resource budgets
 
+Every retained cache (state derived from model, theme, DPI, typography or device state and rebuilt on demand) MUST be a row
+of the retained-cache registry (`src/Controls/DxUi.RetainedCaches.cpp`) with an entries count and a drop, or an exemption
+with its reason, and a change that adds retention, partial frames or skipped paint MUST pass the incremental-versus-fresh
+oracle of the [validation contract](../Testing/Testing_Validation.md#incremental-versus-fresh-oracle). Counters cannot see
+a stale pixel; the oracle is the evidence that a cache is correct, not only that it is cheap.
+
 Canonical benchmark output keeps its fully qualified logical path for evidence ownership,
 receipt reads, comparisons and diagnostics. Only the Windows native benchmark argument uses
 an extended-length spelling: preserve an existing `\\?\` prefix, map ordinary UNC to

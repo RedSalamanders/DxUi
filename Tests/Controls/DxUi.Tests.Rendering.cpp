@@ -1,6 +1,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
 #include "Controls.Tests.HostControlRegressions.h"
+#include "Controls.Tests.IncrementalParity.h"
 #include "Controls.Tests.WorkCounters.h"
 
 #include <DxUi/FrameRuntime.h>
@@ -3304,4 +3305,5 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestAttachedHostNestedCaptureAbortsTheActiveInitialBatch);
     DXUI_RUN_TEST(TestAttachedHostResizeDoesNotFlushD2DInWrongState);
     DXUI_RUN_TEST(TestAttachedHostRecoversAfterSimulatedDeviceLoss);
+    RunIncrementalParityTests();
 }

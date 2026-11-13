@@ -20,6 +20,8 @@
   "Tests/Controls/Controls.Tests.GridUiaPattern.h",
   "Tests/Controls/Controls.Tests.HostControlRegressions.cpp",
   "Tests/Controls/Controls.Tests.HostControlRegressions.h",
+  "Tests/Controls/Controls.Tests.IncrementalParity.cpp",
+  "Tests/Controls/Controls.Tests.IncrementalParity.h",
   "Tests/Controls/Controls.Tests.IntrinsicLayout.cpp",
   "Tests/Controls/Controls.Tests.IntrinsicLayout.h",
   "Tests/Controls/Controls.Tests.LocalizedLayoutFixture.h",
@@ -98,6 +100,7 @@
   "Tests/Embedded/Embedded.Tests.FormLayoutBenchmark.h",
   "Tests/Embedded/Embedded.Tests.FrameTiming.h",
   "Tests/Embedded/Embedded.Tests.GridSelectionBenchmark.h",
+  "Tests/Embedded/Embedded.Tests.IncrementalParity.h",
   "Tests/Embedded/Embedded.Tests.InteractionLayout.h",
   "Tests/Embedded/Embedded.Tests.LocalizedLayout.h",
   "Tests/Embedded/Embedded.Tests.MemoryMetrics.h",
@@ -142,6 +145,7 @@
   "Tests/Support/Support.Tests.Footnotes.h",
   "Tests/Support/Support.Tests.ForegroundThief.h",
   "Tests/Support/Support.Tests.HeapDiagnostic.h",
+  "Tests/Support/Support.Tests.IncrementalParity.h",
   "Tests/Support/Support.Tests.InteractiveLease.h",
   "Tests/Support/Support.Tests.LayoutFaultScenarios.h",
   "Tests/Support/Support.Tests.MarkdownBlocks.h",
@@ -177,5 +181,6 @@
   "Tests/Support/Support.Tests.UniformSourceChunks.h",
   "Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp",
   "Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp",
-  "src/Support/Failure.Tests.Hooks.h"
+  "src/Support/Failure.Tests.Hooks.h",
+  "src/Support/RetainedCaches.Tests.Hooks.h"
 ]

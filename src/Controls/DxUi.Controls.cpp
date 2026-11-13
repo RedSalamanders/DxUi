@@ -1,4 +1,5 @@
 #include "DxUi.Internal.h"
+#include "DxUi.RetainedCaches.h"
 
 #include <algorithm>
 #include <cmath>
@@ -2866,7 +2867,9 @@ void Label::SetText(std::wstring text)
     {
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         _text                             = std::move(text);
-        InvalidateTypographyPreparation();
+        // Test seam: the oracle's negative control leaves the retained layout current, as a forgotten invalidation would.
+        if (! IsStaleLabelLayoutInjectedForTest())
+            InvalidateTypographyPreparation();
         InvalidateMeasure();
         // Embedded preparation can synchronously retire the owning root.
         if (lifetime.expired())

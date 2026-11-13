@@ -72,6 +72,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.EmbeddedUia.h"
 #include "Embedded.Tests.FrameTiming.h"
 #include "Embedded.Tests.GridSelectionBenchmark.h"
+#include "Embedded.Tests.IncrementalParity.h"
 #include "Embedded.Tests.InteractionLayout.h"
 #include "Embedded.Tests.LocalizedLayout.h"
 #include "Embedded.Tests.MemoryMetrics.h"
@@ -1505,6 +1506,14 @@ __declspec(noinline) static int RunFunctionalTests()
             TestFormClearPreparationRetirement(gpu);
         return 0;
     }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-incremental-parity")
+    {
+        // Replays the oracle alone; DXUI_PARITY_SEED selects one seed.
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "incremental parity WARP fixture");
+        EmbeddedParity::TestEmbeddedIncrementalParity(gpu);
+        return 0;
+    }
     if (__argc == 4 && std::wstring_view(__wargv[1]) == L"--capture-rich-images")
     {
         const std::wstring_view theme(__wargv[3]);
@@ -2007,6 +2016,7 @@ __declspec(noinline) static int RunFunctionalTests()
     MemoryMetricsTests::TestRetainedResourceStatistics();
     MemoryMetricsTests::TestComplexUiTeardownReturnsTrackedMemory();
     MemoryMetricsTests::WriteComplexUiMemoryReceipt(L".build/test-artifacts/complex-ui-memory.json", false);
+    EmbeddedParity::TestEmbeddedIncrementalParity(gpu);
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();

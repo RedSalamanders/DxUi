@@ -410,6 +410,37 @@
       "reason": "owning suite source"
     },
     {
+      "pattern": "src/Controls/DxUi.RetainedCaches.*",
+      "scopes": [
+        "Rendering",
+        "Embedded"
+      ],
+      "reason": "retained-cache registry behind the incremental-versus-fresh oracle in both hosts"
+    },
+    {
+      "pattern": "src/Support/RetainedCaches.Tests.Hooks.h",
+      "scopes": [
+        "Rendering",
+        "Embedded"
+      ],
+      "reason": "stale-cache injection seam of the oracle negative control"
+    },
+    {
+      "pattern": "Tests/Controls/Controls.Tests.IncrementalParity.*",
+      "scopes": [
+        "Rendering"
+      ],
+      "reason": "native incremental-versus-fresh oracle in the Rendering suite"
+    },
+    {
+      "pattern": "Tests/Support/Support.Tests.IncrementalParity.h",
+      "scopes": [
+        "Rendering",
+        "Embedded"
+      ],
+      "reason": "shared oracle scripts and comparison for both hosts"
+    },
+    {
       "pattern": "Tests/Controls/DxUi.Tests.Animation.cpp",
       "scopes": [
         "Animation"

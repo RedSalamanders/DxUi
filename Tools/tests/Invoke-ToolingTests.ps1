@@ -17,6 +17,7 @@ $names+=@('Test-ProcessInspection.ps1')
 $names+=@('Test-VcpkgRestore.ps1')
 $names+=@('Test-PlanAnchors.ps1')
 $names+=@('Test-CountedCreation.ps1')
+$names+=@('Test-RetainedCacheRegistry.ps1')
 Invoke-DxUiToolingTestRoster -Scripts @($names | ForEach-Object { Join-Path $PSScriptRoot $_ })
 Write-Host 'All tooling tests passed.'
 exit 0

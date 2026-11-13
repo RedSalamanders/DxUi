@@ -180,6 +180,9 @@ harness, not a library API: `DwmFlush`, then `PrintWindow(PW_CLIENTONLY | PW_REN
 window placed off-screen at the bottom of the z-order, answering PrintWindow's own `WM_PAINT` so the host neither renders
 nor presents during the read; the [receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W0.6/README.md) records the
 adapters, driver and captures.
+The incremental-versus-fresh oracle therefore reads only full native frames (`DebugCaptureBitmap`) until the
+presented-frame truth test supplies a presented-image reader; `DebugDropRetainedStateForTest` drops every registered
+retained cache of the host and its controls and invalidates the window ([validation](../Testing/Testing_Validation.md#incremental-versus-fresh-oracle)).
 `AttachOptions::batchInitialRootChildren` is an opt-in native swap-chain rendering policy, defaulting to false. While
 the initial draw remains pending after swap-chain creation or resize, a full frame may flush after each visible
 direct child of a root `Panel`, with at most eight intermediate Flush boundaries in addition to the final EndDraw

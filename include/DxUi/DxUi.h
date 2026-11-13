@@ -1767,6 +1767,7 @@ protected:
     friend class ControlHost;
     friend class NativeTextStoreTarget;
     friend class EmbeddedHost;
+    friend struct RetainedCacheAccess;
     friend std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept;
 
     [[nodiscard]] virtual Control* HitTest(D2D1_POINT_2F point);
@@ -2058,6 +2059,7 @@ private:
 
     std::unique_ptr<Control> _currentPage;
     std::unique_ptr<Control> _outgoingPage;
+    friend struct RetainedCacheAccess;
     bool _childBoundsPending = false;
     TransitionState _transition;
 };
@@ -2135,6 +2137,7 @@ private:
     bool _multiline                  = false;
     std::optional<D2D1_COLOR_F> _textColor;
     std::optional<LabelTypography> _typographyOverride;
+    friend struct RetainedCacheAccess;
     mutable wil::com_ptr<IDWriteTextLayout> _typographyLayout;
     mutable D2D1_SIZE_F _typographyLayoutSize{};
     mutable uint64_t _typographyLayoutGeneration = 0u;
@@ -2334,6 +2337,7 @@ private:
     std::optional<bool> _toggleState;
     std::optional<ButtonThemePreview> _themePreview;
     std::optional<float> _contentFontSizeDip;
+    friend struct RetainedCacheAccess;
     wil::com_ptr<IDWriteTextFormat> _preparedIconTextFormat;
     wil::com_ptr<IDWriteTextLayout> _preparedIconTextLayout;
     ControlHost* _preparedIconTextHost   = nullptr;
@@ -2967,6 +2971,7 @@ private:
     std::optional<size_t> _pressedIndex;
     bool _retainSelectedIndexOnFocusLost = false;
     mutable MenuBarLayoutCache _menuBarLayoutCache;
+    friend struct RetainedCacheAccess;
 };
 #pragma warning(pop)
 
@@ -3175,6 +3180,7 @@ private:
     float _headerScrollOffsetDip  = 0.0f;
     bool _tabReorderingEnabled    = true;
     bool _dragReordering          = false;
+    friend struct RetainedCacheAccess;
     mutable TabHeaderLayoutCache _tabHeaderLayoutCache;
     PreparedAttachedGeometry _selectedHeaderGeometry;
     PreparedAttachedGeometry _hoveredHeaderGeometry;
@@ -3791,6 +3797,7 @@ private:
     void RequireCurrentLayout(const ControlHost& host) const;
     HRESULT UpdateCaretScroll() const;
     void RetireLayout(bool retainGeometry = false) const noexcept;
+    friend struct RetainedCacheAccess;
     void ResetDocumentBinding();
     void UpdateSemanticSourceRegion() noexcept;
     void SourcePresentationChanged(ControlHost& host, bool revealCaret = true);
@@ -4003,6 +4010,7 @@ private:
     std::optional<uint64_t> _caretBlinkAnchorTickMs;
     bool _caretVisible                 = true;
     mutable float _horizontalScrollDip = 0.0f;
+    friend struct RetainedCacheAccess;
     mutable SingleLineTextLayoutCache _singleLineLayoutCache;
     mutable std::vector<size_t> _maskedSourceTextElementBoundaries;
     mutable wil::com_ptr<IDWriteTextLayout> _cachedMultilineLayout;
@@ -4227,6 +4235,7 @@ private:
     uint64_t _lastTypeaheadTickMs              = 0u;
     bool _caretVisible                         = true;
     mutable float _editableHorizontalScrollDip = 0.0f;
+    friend struct RetainedCacheAccess;
     mutable SingleLineTextLayoutCache _singleLineLayoutCache;
     mutable D2D1_RECT_F _popupBounds      = D2D1::RectF();
     mutable size_t _popupVisibleItemCount = 0u;
@@ -4581,6 +4590,7 @@ private:
                         std::array<PartLayout, 4>& staged) const noexcept;
     bool ArePartsCurrent(const std::array<PartLayout, 4>& parts, size_t completed) const noexcept;
     HRESULT ApplyLayoutFor(const ControlHost& host, LabelPlacement placement, float labelWidthDip, const std::array<PartLayout, 4>* staged = nullptr) noexcept;
+    friend struct RetainedCacheAccess;
     mutable std::array<PartMeasure, 4> _measureCache;
     mutable PartMeasure _sharedLabelCache;
     mutable uint64_t _measureCount = 0;
@@ -4752,6 +4762,7 @@ private:
     float _gapDip                 = 0.0f;
     D2D1_RECT_F _padding{};
     bool _wrap = false;
+    friend struct RetainedCacheAccess;
     mutable std::vector<ChildRecord> _records;
     mutable std::vector<LineRecord> _lines;
     mutable uint64_t _measureCount    = 0u;
@@ -4953,6 +4964,7 @@ private:
     std::wstring _pendingText       = std::wstring(0u, L' ');
     D2D1_POINT_2F _originDip        = D2D1::Point2F();
     D2D1_POINT_2F _pendingOriginDip = D2D1::Point2F();
+    friend struct RetainedCacheAccess;
     mutable LayoutCache _layoutCache{};
     mutable float _scrollOffsetDip = 0.0f;
     bool _inspecting               = false;
@@ -5285,6 +5297,7 @@ private:
     };
     std::vector<ExpanderAnimationState> _expanderAnimations{};
     std::optional<TreeExpansionAnimationState> _treeExpansionAnimation;
+    friend struct RetainedCacheAccess;
     mutable std::vector<TreeBadgeWidthCacheEntry> _badgeWidthCache;
     mutable TreeTooltipOverflowCache _tooltipOverflowCache;
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -5661,6 +5674,7 @@ private:
     // detached from its host or given another model): the next paint, if any, rebuilds what it shows.
     void ReleaseCellTextResources() noexcept;
     friend struct RetainedResourceAccess;
+    friend struct RetainedCacheAccess;
     mutable std::vector<CellTextLayoutCache> _cellTextLayouts;
     mutable std::vector<CellDisplayLayoutCache> _cellDisplayLayouts;
     mutable std::wstring _cellVisibleText; // Scratch for an omitted tail's visible text.
@@ -6227,6 +6241,7 @@ private:
     // recreates them. The retained device reference keeps a recreated device from aliasing the cached one. They
     // belong to the host being painted for, so a host change releases them (PropagateHost). The arrangement follows
     // the flow direction through OnFlowDirectionChanged, which a move announces (Control::Reparent).
+    friend struct RetainedCacheAccess;
     mutable wil::com_ptr<ID2D1Device> _brushDevice;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _saturationBrush;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _valueBrush;
@@ -6463,6 +6478,9 @@ public:
     // The same partial render, also reading the back buffer after drawing and before Present. Outside the dirty rectangle
     // that buffer holds an older frame: only the presented image (Present1 with the rectangle) is current there.
     [[nodiscard]] bool DebugRenderDirtyRectForTest(const RECT& dirtyRectPx, WindowHostBitmapCapture& prePresentBackBuffer) noexcept;
+    // Tests only. Drops every registered retained cache of this host and its controls (DxUi.RetainedCaches.h) and asks for a
+    // full preparation, so the next frame is drawn as a freshly built host would draw it (incremental-versus-fresh oracle).
+    void DebugDropRetainedStateForTest() noexcept;
     [[nodiscard]] bool DebugHasActiveAnimationSubscription() const noexcept;
     [[nodiscard]] bool DebugAnimationTickForTest(uint64_t nowTickMs) noexcept;
     // Tests only. A native host's animation clock reads nowTickMs until reset with nullopt, while ticks still carry the time a
@@ -6537,6 +6555,7 @@ private:
     friend class FormPanel;
     friend class NativeTextStoreTarget;
     friend struct EmbeddedAccessibilityAccess;
+    friend struct RetainedCacheAccess;
     struct InitialRootChildBatchFrame final
     {
         Panel* root                  = nullptr;

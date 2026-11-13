@@ -81,6 +81,11 @@ and return their native HRESULT through the checked preparation result.
    Clean views do not repaint merely because other content animates. Hidden/occluded work waits for visibility.
 4. A preparation failure must suppress stale interaction and follow the documented unavailable/retry contract;
    it must not start an automatic retry loop.
+5. The prepared surface is a retained cache of the view. `DebugDropRetainedStateForTest` (diagnostics, tests only) drops it
+   with every registered cache of the view and its controls, keeps the view's size, marks it dirty and suspends input until
+   the next `Prepare`; `DebugReadSurfaceForTest` copies the surface's premultiplied BGRA pixels through a staging texture for
+   the incremental-versus-fresh oracle ([validation](../Testing/Testing_Validation.md#incremental-versus-fresh-oracle)).
+   Neither is used by preparation or composition.
 
 Different simultaneous layouts use independent views with a shared pool. Presentation transforms do not require
 rerasterizing unchanged content. Consumers map input to the displayed view and account for every raster extent.

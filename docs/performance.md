@@ -495,6 +495,21 @@ close the candidate's separately measured resource regression. A
 [hosted paired benchmark](../Measurements/GridTextOverflow/2026-09-27/paired-hosted/README.md) of the
 merged grid stays within the accepted V11 memory envelope.
 
+## Incremental-versus-fresh oracle
+
+A change that retains more between frames (a layout cache, a retained drawing, a partial frame, skipped paint) proves its
+pixels with the incremental-versus-fresh oracle: two identical scenes run a seeded mutation script, and after every step
+the second drops every retained cache (`DebugDropRetainedStateForTest()` on `ControlHost` or `EmbeddedHost`) before it
+draws. Pixels (exact BGRA on WARP), control bounds and the UI Automation tree must match. Run it natively with
+`./test.ps1 -Configuration Debug -Platform x64 -Suites Rendering -Tests TestNativeIncrementalParityLayout` (or
+`...Interaction`, `...Rich`); the embedded scripts run in the Embedded suite and alone with
+`DxUi.EmbeddedTests.exe --test-incremental-parity`. A failure prints the script, seed, step, pixel and control; set
+`DXUI_PARITY_SEED` to that seed to replay it alone. A new cache adds its row to `src/Controls/DxUi.RetainedCaches.cpp`
+(an entries count and a drop) or an exemption with its reason; a new script is one build and one step function beside
+the others in `Tests/Support/Support.Tests.IncrementalParity.h`. Native frames are read from the back buffer of a full
+frame, so native partial frames wait for the presented-image reader; see the
+[validation contract](../Specs/Testing/Testing_Validation.md#incremental-versus-fresh-oracle).
+
 ## Other checks and formatting
 
 Run `validate.ps1` and `format.ps1 -Check`. `validate.ps1` is the one validation entry point: it runs

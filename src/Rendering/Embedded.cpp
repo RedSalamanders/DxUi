@@ -1,6 +1,7 @@
 #include <DxUi/Failure.h>
 
 #include "Controls/DxUi.Internal.h"
+#include "Controls/DxUi.RetainedCaches.h"
 #include "Support/Diagnostics.h"
 #include "Support/NativeRendering.h"
 #include <DxUi/Embedded.h>
@@ -1785,4 +1786,65 @@ EmbeddedStatistics EmbeddedHost::GetStatistics() const noexcept
     RetainedResourceAccess::AddTooltip(stats, _host._tooltipLayer);
     return stats;
 }
+void RetainedCacheAccess::Drop(EmbeddedHost& host) noexcept
+{
+    if (! host._state || host._state->preparing || host._detaching || host._replacingDevice)
+        return;
+    auto& s = *host._state;
+    // The surface persists between preparations while its size is unchanged; a fresh view has none. The size is kept, so
+    // the next Prepare allocates a replacement without treating the frame as a resize (which would cancel a capture).
+    if (host._host._d2dContext)
+        host._host._d2dContext->SetTarget(nullptr);
+    s.bitmap.reset();
+    s.view.reset();
+    s.texture.reset();
+    s.stats.surfaceBytes         = 0u;
+    s.coherent                   = false;
+    s.interactionLayoutAvailable = false;
+    Drop(host._host);
+    host.MarkDirty();
+}
+void RetainedCacheAccess::Count(EmbeddedHost& host, std::vector<RetainedCacheCount>& out)
+{
+    Count(host._host, out);
+    out.push_back({"EmbeddedHost.State.texture", host._state && host._state->texture ? 1u : 0u});
+}
+#if DXUI_ENABLE_DIAGNOSTICS
+void EmbeddedHost::DebugDropRetainedStateForTest() noexcept
+{
+    RetainedCacheAccess::Drop(*this);
+}
+HRESULT EmbeddedHost::DebugReadSurfaceForTest(WindowHostBitmapCapture& out) noexcept
+{
+    const Failure::Scope failureScope;
+    out = {};
+    if (! _state || ! _state->texture || ! _state->graphics)
+        return S_FALSE;
+    auto& g = *_state->graphics->_state;
+    if (g.thread != GetCurrentThreadId())
+        return RPC_E_WRONG_THREAD;
+    D3D11_TEXTURE2D_DESC desc{};
+    _state->texture->GetDesc(&desc);
+    desc.BindFlags      = 0u;
+    desc.MiscFlags      = 0u;
+    desc.Usage          = D3D11_USAGE_STAGING;
+    desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    wil::com_ptr_nothrow<ID3D11Texture2D> staging;
+    RETURN_IF_FAILED(g.device->CreateTexture2D(&desc, nullptr, staging.put()));
+    wil::com_ptr_nothrow<ID3D11DeviceContext> context;
+    g.device->GetImmediateContext(context.put());
+    context->CopyResource(staging.get(), _state->texture.get());
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    RETURN_IF_FAILED(context->Map(staging.get(), 0u, D3D11_MAP_READ, 0u, &mapped));
+    const auto unmap = wil::scope_exit([&]() noexcept { context->Unmap(staging.get(), 0u); });
+    out.widthPx      = desc.Width;
+    out.heightPx     = desc.Height;
+    out.bgraPixels.resize(static_cast<size_t>(desc.Width) * desc.Height * 4u);
+    for (UINT row = 0u; row < desc.Height; ++row)
+        std::copy_n(static_cast<const uint8_t*>(mapped.pData) + static_cast<size_t>(mapped.RowPitch) * row,
+                    static_cast<size_t>(desc.Width) * 4u,
+                    out.bgraPixels.data() + static_cast<size_t>(row) * desc.Width * 4u);
+    return S_OK;
+}
+#endif
 } // namespace DxUi

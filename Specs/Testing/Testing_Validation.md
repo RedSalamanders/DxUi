@@ -79,6 +79,40 @@ Check lossless Markdown partitions/forest integrity, typed all-or-nothing refusa
 authored diagram endpoints and successful layout invariants. Require actual admitted and declined paths;
 deterministic structural checks do not establish semantic equivalence to a reference renderer or performance acceptance.
 
+## Incremental-versus-fresh oracle
+
+Retention, regions and culling can leave stale pixels that no counter sees, so every change that adds or extends a
+retained cache, a partial frame or a skipped paint MUST pass the incremental-versus-fresh oracle
+(`Tests/Support/Support.Tests.IncrementalParity.h`; native suite `Rendering`, `Controls.Tests.IncrementalParity.cpp`;
+embedded `Embedded.Tests.IncrementalParity.h`). Two identical scenes run one seeded mutation script. After every step
+the incremental scene draws with what it retained; the fresh scene first calls `DebugDropRetainedStateForTest()` (on
+`ControlHost` and `EmbeddedHost`), every registered cache MUST then report 0 entries, and it draws from scratch. The
+two frames MUST agree exactly in premultiplied BGRA on WARP, in the bounds, visibility, enabled, focus and hover state of
+every control, and in the UI Automation tree (control type, name, automation id, state, value, toggle, expand, selection,
+range value, help text and bounding rectangle per element). A failure names the script, seed, step, first differing
+pixel and the deepest control under it, and how to replay that seed alone (`DXUI_PARITY_SEED`; natively
+`--suite=Rendering --test=<name>`, embedded `--test-incremental-parity`). Seeds are checked in beside each script.
+Scripts cover text, bounds, visibility, hover, focus, press, captured drags, typing, keys, wheel scrolling, theme, DPI 96,
+144 and 192, left-to-right and right-to-left flow, density, the `ComboBox` popup, the frozen animation clock (caret,
+tooltip delay), detaching a hovered control and rich-document edits. A per-pixel channel tolerance is allowed only where an
+item's gate declares one.
+
+Every retained cache registers with the drop hook as one row of `src/Controls/DxUi.RetainedCaches.cpp`: a name, an
+entries count and a drop from the same row, or an exemption with its reason. A test populates every row its scenes
+exercise and requires 0 entries after the drop; `Tools/tests/Test-RetainedCacheRegistry.ps1` refuses an underscore member
+whose name contains `cache` or `cached` that the registry does not name, so a retained cache SHOULD carry such a name.
+Time is the host's frozen animation clock (`DebugSetAnimationClockForTest` natively, `AdvanceAnimation` embedded). Oracle
+scenes pin `OverlayMaterial::Solid`, because a blurred popup backdrop is a screen capture that two scenes cannot share; other
+effects run at the library's own optimization mode in both scenes. The negative control injects a stale `Label` layout
+through a private test seam (`src/Support/RetainedCaches.Tests.Hooks.h`, declared in no public header) and MUST yield a
+nonzero BGRA difference at that label.
+
+The embedded oracle reads the view's surface texture (`EmbeddedHost::DebugReadSurfaceForTest`). The native oracle reads the
+back buffer of a full frame (`DebugCaptureBitmap`), which equals the presented frame only while every native frame is full.
+A partial native frame leaves older pixels outside its dirty rectangle in the back buffer until `Present1`, so partial-frame
+scripts MUST read the presented image of the presented-frame truth test (`W0.6`) through the reader seam in
+`Controls.Tests.IncrementalParity.cpp`; until it exists, the oracle does not qualify native partial frames.
+
 ## Earlier review regression contracts
 
 Retained R28 guards must exercise observable behavior rather than repair it from the fixture:
