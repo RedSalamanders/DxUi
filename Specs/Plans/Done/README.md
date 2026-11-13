@@ -1,5 +1,15 @@
 # Completed and archived plans
 
+## Superseded studies — 13 November 2026
+
+Archived as records when the [performance and motion plan](../WIP/PerformanceAndMotion_2026-11-13.md) replaced them. None was implemented.
+
+- [Runtime efficiency and rendering quality](RuntimeEfficiency_2026-11-07.md) — the 7 November study, re-audited on 11 November and corrected for fact on 12 November: the full 84-row evidence ledger with its re-read verdicts, the external reference studies, and items `P0`–`P8`, `V1`–`V8` and `B1`–`B6` with their `Challenged` notes.
+
+- [Runtime efficiency plan: challenge review](RuntimeEfficiencyReview_2026-11-12.md) — the 12 November adversarial review: every ledger row re-read against source, 123 external citations fetched at their pinned commits, the `Present1` claim checked against Microsoft's documentation, and a proposed disposition for every item.
+
+- [Frontier: retained scene, compositor motion and smart features](Frontier_2026-11-11.md) — the 11 November challenge and architecture moves `F0`–`F8` with decisions `FD1`–`FD10`; the only record of the smart features `K1`–`K12`, which are not scheduled.
+
 ## Completed scopes — 8 November 2026
 
 - [Independent format oracles](IndependentFormatOracles_2026-11-08.md) — independent route/CF_HTML/MATH boundaries and fixed-seed adversarial coverage; six zero-warning builds, 66 ordinary x64 suite executions and actual ASan. Earlier regression obligations remain separately owned.

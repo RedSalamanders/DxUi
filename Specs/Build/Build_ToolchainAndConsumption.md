@@ -240,10 +240,14 @@ old policy's writable archive output is never reused. API pin changes remain sep
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 
-The required matrix is Windows 10/11 for the embedded baseline, x64 and ARM64, Debug/Release/ASan Debug, Unicode, the current
-shared VS 2026/v145/Windows SDK baseline and `stdcpplatest`. Exact SDK, dependency versions and supported capabilities
-are recorded once in machine-owned build/lock files. Windows-11-only backdrop features remain optional WindowHost
-capabilities; they must not introduce unconditional imports that break the RedXe Windows 10 baseline. OS-specific
+The supported runtime minimum is Windows 11 version 25H2 (build 10.0.26200). The required matrix is x64 and ARM64,
+Debug/Release/ASan Debug, Unicode, the current shared VS 2026/v145/Windows SDK baseline and `stdcpplatest`. Exact SDK,
+dependency versions and supported capabilities are recorded once in machine-owned build/lock files. Facilities present
+on the minimum build may be imported unconditionally; anything introduced by a later build needs run-time detection and
+a tested fallback. Hosted x64 qualification runs on Windows Server 2025 (build 10.0.26100), the same servicing branch
+one build label below the minimum: an unconditional import must resolve there as well, and a hosted pass does not
+qualify client-only, GPU or interactive behaviour. System backdrop features remain optional WindowHost capabilities.
+OS-specific
 text and accessibility paths require actual verification. All library, sample, test and generated consumer projects
 map each of the six configurations explicitly. ASan Debug uses compiler AddressSanitizer instrumentation, the debug
 DLL CRT, non-incremental linking and separate configuration outputs. The public consumer targets explicitly disable incremental linking for ASan Debug;

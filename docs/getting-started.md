@@ -1,7 +1,8 @@
 # Getting started
 
 Install Visual Studio 2026 with the Desktop development with C++ workload, v145, Windows SDK 10.0.26100,
-and the Clang tools for formatting. Use Windows 10/11, Unicode, `stdcpplatest`, and a matching x64 or ARM64 target.
+and the Clang tools for formatting. Use Windows 11 version 25H2 (build 10.0.26200) or later, Unicode, `stdcpplatest`,
+and a matching x64 or ARM64 target.
 Git restores the repository-pinned vcpkg/WIL dependency, and vcpkg builds it with the Visual Studio installation and
 default MSVC toolset that MSBuild uses (not the newest toolset it finds); the first restore after a change of either
 rebuilds it. The build, test and validation tools are
