@@ -716,3 +716,57 @@ static void TestEmbeddedAccessibility(GraphicsFixture& gpu)
     Check(nextRoot->GetFocus(focused.put()) == UIA_E_ELEMENTNOTAVAILABLE, "root replacement invalidates providers immediately");
     view.Detach();
 }
+
+// W1.3: a window host's accessibility retires without allocating. The empty snapshot that stands in after a root swap or a
+// detach was made once, when the window was registered, so these noexcept paths have nothing to allocate and no failure to
+// report.
+static LRESULT CALLBACK RetirementAllocationWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    auto* host = reinterpret_cast<DxUi::ControlHost*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    if (message == WM_NCCREATE)
+    {
+        host = static_cast<DxUi::ControlHost*>(reinterpret_cast<CREATESTRUCTW*>(lParam)->lpCreateParams);
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(host));
+    }
+    if (host)
+    {
+        bool handled      = false;
+        const auto result = host->HandleMessage(hwnd, message, wParam, lParam, handled);
+        if (handled)
+            return result;
+    }
+    return DefWindowProcW(hwnd, message, wParam, lParam);
+}
+
+static void TestWindowHostAccessibilityRetirementAllocatesNothing()
+{
+    using namespace DxUi;
+    const auto instance        = GetModuleHandleW(nullptr);
+    constexpr PCWSTR className = L"DxUi.Tests.AccessibilityRetirement";
+    WNDCLASSW windowClass{};
+    windowClass.lpfnWndProc   = RetirementAllocationWindowProc;
+    windowClass.hInstance     = instance;
+    windowClass.lpszClassName = className;
+    Check(RegisterClassW(&windowClass) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS, "register the accessibility retirement window class");
+    ControlHost host;
+    wil::unique_hwnd window(
+        CreateWindowExW(WS_EX_NOACTIVATE, className, L"Accessibility retirement", WS_OVERLAPPED, -32000, -32000, 320, 200, nullptr, nullptr, instance, &host));
+    Check(bool(window) && host.Attach(window.get()), "attach the hidden accessibility retirement window without focus");
+    const auto detach = wil::scope_exit([&] { host.Detach(); });
+    auto root         = std::make_unique<Panel>();
+    root->AddChild<Button>(L"Run")->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 32.0f));
+    host.SetRoot(std::move(root));
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(CreateWindowHostAccessibilityProvider(window.get()));
+    Check(bool(provider), "the window publishes a live snapshot behind its canonical root");
+
+    const auto allocationsBefore = allocations;
+    countAllocations             = true;
+    PublishEmptyWindowHostAccessibilitySnapshot(window.get(), &host); // A root swap's stand-in.
+    PublishEmptyWindowHostAccessibilitySnapshot(window.get(), &host);
+    UnregisterWindowHostAccessibilityTarget(window.get(), &host); // Detach's retirement, root provider disconnected included.
+    countAllocations = false;
+    Check(allocations == allocationsBefore, "publishing the empty stand-in and unregistering a window host allocate nothing");
+    provider->AddRef();
+    Check(provider->Release() == 1u, "unregistering released and disconnected the window's canonical root");
+}

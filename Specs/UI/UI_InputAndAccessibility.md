@@ -496,6 +496,24 @@ field stops the old event batch too, even while a snapshot and provider keep the
 embedded properties still use the last published snapshot until the application's next coherent publication;
 actions already return `UIA_E_ELEMENTNOTAVAILABLE` for an unavailable editor and never change its retained draft.
 
+An editable control's `Name` comes from its explicit accessible name or its associated label, or stays empty. A
+`TextField` (masked or not) or a `ComboBox` without either has an empty `Name`; its content is exposed only as
+`Value` and `Text`, so typing changes `Value` and raises no `Name` change. A `Button` with a toggle state exposes
+Toggle and not Invoke, since a button supports one of them but not both
+([Button control type](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-supportbuttoncontroltype));
+clearing the state restores Invoke. Text-edit events follow
+[UiaRaiseTextEditTextChangedEvent](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcoreapi/nf-uiautomationcoreapi-uiaraisetextedittextchangedevent):
+while a composition is active, a published change of its string raises `TextEditChangeType_Composition` with only the
+part that changed, and no event when only its offsets moved; the publication in which composition ends raises one
+`TextEditChangeType_CompositionFinalized` with the committed string, empty when the composition was cancelled. A
+window host compares `WM_GETOBJECT`'s object id as a `DWORD`, as
+[WM_GETOBJECT](https://learn.microsoft.com/en-us/windows/win32/winauto/wm-getobject) requires on 64-bit Windows, so a
+zero-extended `UiaRootObjectId` returns the root provider. A window host's accessibility target is found through its
+window property and, when that property is gone (the window was destroyed before its host detached), through the
+targets the process registered, so `Detach` still releases the target and disconnects its root provider. The empty
+snapshot published after a detach or a root swap is made once, when the window registers, so those `noexcept` paths
+allocate nothing.
+
 Opt-in layout prepares matching visible, hit and provider bounds before publishing. Reflow preserves editor
 identity, focus, draft, selection and composition; it does not take HWND focus. A captured press whose control
 geometry moved is cancelled before a later button-up can commit through the old rectangle. An unchanged layout

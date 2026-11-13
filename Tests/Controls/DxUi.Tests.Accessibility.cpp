@@ -13,6 +13,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <commctrl.h>
 #include <cstdio>
 #include <fstream>
 #include <functional>
@@ -1729,8 +1730,9 @@ void TestAccessibilityProviderRefreshesLabelAssociations()
         GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 40.0f, 88.0f, "label association field provider is resolved by point");
     wil::com_ptr_nothrow<IRawElementProviderSimple> fieldSimple;
     RequireSucceeded(fieldProvider.query_to(fieldSimple.put()), "label association field provider exposes IRawElementProviderSimple");
-    Require(ReadProviderStringProperty(*fieldSimple.get(), UIA_NamePropertyId, "unassociated field exposes fallback name") == L"*.tmp",
-            "text field starts with its fallback accessible name while the label targets the toggle");
+    // W1.3: an unlabelled field is unnamed; its content is its Value, not its Name.
+    Require(ReadProviderStringProperty(*fieldSimple.get(), UIA_NamePropertyId, "unassociated field exposes an empty name").empty(),
+            "text field starts unnamed while the label targets the toggle");
 
     label->SetMnemonicTarget(pattern);
     Require(ReadProviderStringProperty(*fieldSimple.get(), UIA_NamePropertyId, "retargeted label updates field name") == L"Ignore files",
@@ -11756,6 +11758,204 @@ void TestAccessibilityPageHostPageContentHasElements()
             "the page field takes its name from the label on the same page");
 }
 
+// W1.3: a server casts WM_GETOBJECT's object id to DWORD before comparing it, since on 64-bit Windows the sign extension of
+// lParam can interfere (WM_GETOBJECT, dwObjId), so a zero-extended UiaRootObjectId still asks for the root provider. A
+// subclass zero-extends each request of a real UI Automation client, which then takes the answer itself (an answer left
+// untaken keeps its provider referenced), and reaches the host's elements only through the root provider.
+constexpr UINT_PTR kZeroExtendingSubclassId = 0x57313300u;
+size_t g_zeroExtendedRequests               = 0u;
+
+LRESULT CALLBACK ZeroExtendingSubclassProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR) noexcept
+{
+    if (message == WM_GETOBJECT && static_cast<DWORD>(lParam) == static_cast<DWORD>(UiaRootObjectId))
+    {
+        lParam = static_cast<LPARAM>(static_cast<DWORD>(lParam));
+        ++g_zeroExtendedRequests;
+    }
+    return DefSubclassProc(hwnd, message, wParam, lParam);
+}
+
+void TestAccessibilityWmGetObjectAcceptsAZeroExtendedRootObjectId()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* button = root->AddChild<Button>(L"Run");
+    button->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 32.0f));
+    button->SetAccessibleName(L"zero-extended-request-button");
+    window.Host().SetRoot(std::move(root));
+    g_zeroExtendedRequests = 0u;
+    Require(SetWindowSubclass(window.Hwnd(), ZeroExtendingSubclassProc, kZeroExtendingSubclassId, 0) != FALSE,
+            "subclass the host window to zero-extend WM_GETOBJECT");
+    const auto restore = wil::scope_exit([&] { static_cast<void>(RemoveWindowSubclass(window.Hwnd(), ZeroExtendingSubclassProc, kZeroExtendingSubclassId)); });
+    {
+        UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
+        const std::wstring tree = client.Dump(client.Root());
+        Require(g_zeroExtendedRequests != 0u, "the client's requests reach the host zero-extended");
+        Require(tree.find(L"zero-extended-request-button") != std::wstring::npos, "a zero-extended UiaRootObjectId returns the window's root provider");
+    }
+}
+
+// W1.3: a Button that carries a toggle state is a toggle button: UI Automation's Toggle pattern stands for its action, and it
+// has no Invoke pattern beside it, since a button supports Invoke or Toggle but not both (UI Automation's Button control type);
+// a plain Button keeps Invoke and has no Toggle.
+void TestAccessibilityToggleButtonExposesToggleAndNotInvoke()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    auto root    = std::make_unique<Panel>();
+    auto* plain  = root->AddChild<Button>(L"Run");
+    auto* toggle = root->AddChild<Button>(L"Bold");
+    plain->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 32.0f));
+    toggle->SetBounds(D2D1::RectF(0.0f, 40.0f, 120.0f, 72.0f));
+    toggle->SetToggleState(false);
+    toggle->SetOnClick([toggle] { toggle->SetToggleState(! toggle->GetToggleState().value_or(false)); });
+    window.Host().SetRoot(std::move(root));
+
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> rootProvider;
+    rootProvider.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
+    Require(rootProvider != nullptr, "the toggle-button window has a root provider");
+    const auto patterns = [&](float y, const char* context)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragment> fragment =
+            GetProviderAtDipPoint(window.Hwnd(), window.Host(), *rootProvider.get(), 24.0f, y, context);
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        RequireSucceeded(fragment.query_to(simple.put()), context);
+        wil::com_ptr_nothrow<IUnknown> invoke, toggled;
+        RequireSucceeded(simple->GetPatternProvider(UIA_InvokePatternId, invoke.put()), context);
+        RequireSucceeded(simple->GetPatternProvider(UIA_TogglePatternId, toggled.put()), context);
+        return std::pair{invoke != nullptr, toggled != nullptr};
+    };
+    Require(patterns(16.0f, "the plain button's patterns") == std::pair{true, false}, "a plain Button exposes Invoke and not Toggle");
+    Require(patterns(56.0f, "the toggle button's patterns") == std::pair{false, true}, "a toggle Button exposes Toggle and not Invoke");
+    toggle->SetToggleState(std::nullopt);
+    Require(patterns(56.0f, "the former toggle button's patterns") == std::pair{true, false}, "clearing the toggle state restores Invoke");
+}
+
+// W1.3: an application that stops routing messages to its host and destroys the window before it detaches the host (the host
+// never sees WM_NCDESTROY) still has the target released and the window's root provider disconnected at Detach.
+DxUi::ControlHost* g_detachAfterDestroyHost = nullptr;
+
+LRESULT CALLBACK DetachAfterDestroyWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    if (auto* host = g_detachAfterDestroyHost)
+    {
+        bool handled      = false;
+        const auto result = host->HandleMessage(hwnd, message, wParam, lParam, handled);
+        if (handled)
+            return result;
+    }
+    return DefWindowProcW(hwnd, message, wParam, lParam);
+}
+
+void TestAccessibilityWindowDestroyedBeforeDetachDisconnectsItsProvider()
+{
+    using namespace DxUi;
+
+    constexpr PCWSTR className = L"DxUiTests.DetachAfterDestroy";
+    WNDCLASSW windowClass{};
+    windowClass.lpfnWndProc   = DetachAfterDestroyWindowProc;
+    windowClass.hInstance     = GetModuleHandleW(nullptr);
+    windowClass.lpszClassName = className;
+    Require(RegisterClassW(&windowClass) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS, "register the detach-after-destroy window class");
+
+    const size_t targetsBefore = DebugGetLiveAccessibilityTargetCountForTest();
+    {
+        ControlHost host;
+        HWND hwnd = CreateWindowExW(WS_EX_NOACTIVATE,
+                                    className,
+                                    L"Detach after destroy",
+                                    WS_OVERLAPPED,
+                                    -32000,
+                                    -32000,
+                                    320,
+                                    200,
+                                    nullptr,
+                                    nullptr,
+                                    GetModuleHandleW(nullptr),
+                                    nullptr);
+        Require(hwnd != nullptr, "create the detach-after-destroy window");
+        g_detachAfterDestroyHost = &host;
+        const auto stopRouting   = wil::scope_exit([] { g_detachAfterDestroyHost = nullptr; });
+        Require(host.Attach(hwnd), "attach the host without taking focus");
+        auto root = std::make_unique<Panel>();
+        root->AddChild<Button>(L"Run")->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 32.0f));
+        host.SetRoot(std::move(root));
+
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+        provider.attach(CreateWindowHostAccessibilityProvider(hwnd));
+        Require(provider != nullptr, "the window answers with its root provider");
+        Require(DebugGetLiveAccessibilityTargetCountForTest() == targetsBefore + 1u, "the attached window has one accessibility target");
+
+        // The application stops routing to the host, then destroys the window: the host sees neither WM_DESTROY nor WM_NCDESTROY.
+        g_detachAfterDestroyHost = nullptr;
+        Require(DestroyWindow(hwnd) != FALSE && IsWindow(hwnd) == FALSE, "the application destroys its window");
+        host.Detach();
+
+        // The target let go of its canonical root: the reference this test holds is the only one left.
+        provider->AddRef();
+        Require(provider->Release() == 1u, "Detach releases and disconnects the destroyed window's root provider");
+    }
+    Require(DebugGetLiveAccessibilityTargetCountForTest() == targetsBefore, "a window destroyed before Detach leaks no accessibility target");
+}
+
+// W1.3: a TextField or ComboBox without a label or an explicit name has an empty Name: its content is its Value and its Text,
+// never its Name, so a screen reader does not announce the content twice and typing raises no Name change.
+void TestAccessibilityUnnamedFieldsKeepTheirContentOutOfTheirName()
+{
+    using namespace DxUi;
+
+    AttachedHostWindow window;
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"draft");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 260.0f, 32.0f));
+    auto* combo = root->AddChild<ComboBox>();
+    combo->SetEditable(true);
+    combo->SetText(L"current");
+    combo->SetBounds(D2D1::RectF(0.0f, 40.0f, 260.0f, 72.0f));
+    window.Host().SetRoot(std::move(root));
+
+    UiaTest::Subscription subscription;
+    subscription.properties = {UIA_NamePropertyId, UIA_ValueValuePropertyId};
+    UiaTest::Client client(window.Hwnd(), subscription, [&window] { window.PumpMessages(); });
+    UiaTest::ElementId fieldElement = 0u, comboElement = 0u;
+    for (const auto child : client.Children(client.Root()))
+    {
+        const auto info = client.Describe(child);
+        if (info.controlType == UIA_EditControlTypeId)
+            fieldElement = child;
+        else if (info.controlType == UIA_ComboBoxControlTypeId)
+            comboElement = child;
+    }
+    Require(fieldElement != 0u && comboElement != 0u, "the client reaches the unnamed field and combo box");
+    Require(client.Describe(fieldElement).name.empty() && client.StringProperty(fieldElement, UIA_ValueValuePropertyId) == L"draft",
+            "an unnamed TextField has an empty Name and its content as Value");
+    Require(client.Describe(comboElement).name.empty() && client.StringProperty(comboElement, UIA_ValueValuePropertyId) == L"current",
+            "an unnamed ComboBox has an empty Name and its content as Value");
+
+    const size_t mark = client.Mark();
+    window.Host().SetFocusControl(field, false);
+    for (const wchar_t typed : std::wstring_view(L" text"))
+    {
+        bool handled = false;
+        static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_CHAR, typed, 0, handled));
+    }
+    Require(field->GetText() == L"draft text", "the characters reach the unnamed field");
+    const auto heardValue = [](const UiaTest::HeardEvent& event)
+    { return event.kind == UiaTest::EventKind::Property && event.id == UIA_ValueValuePropertyId && event.value == L"draft text"; };
+    Require(client.WaitForEvent(heardValue), "a client hears the typed Value");
+    client.WaitOutTheStream();
+    const auto events      = client.DistinctSince(mark);
+    const bool nameChanged = std::ranges::any_of(
+        events, [](const UiaTest::HeardEvent& event) { return event.kind == UiaTest::EventKind::Property && event.id == UIA_NamePropertyId; });
+    if (nameChanged)
+        client.PrintEvents();
+    Require(! nameChanged, "typing into an unnamed field raises no Name change");
+    Require(client.Describe(fieldElement).name.empty(), "the typed field's Name stays empty");
+}
+
 } // namespace
 
 #include "Controls.Tests.PreparedTreeAccessibilityEvents.h"
@@ -11836,6 +12036,11 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityTextUnitHelperSharesGraphemeWordLineAndFallbackPolicy);
     DXUI_RUN_TEST(TestAccessibilityProviderTraversalSurvivesConcurrentRootReplacement);
     DXUI_RUN_TEST(TestAttachedWindowHostWmGetObjectReturnsAccessibilityProvider);
+    DXUI_RUN_TEST(TestAccessibilityWmGetObjectAcceptsAZeroExtendedRootObjectId);
+    DXUI_RUN_TEST(TestAccessibilityToggleButtonExposesToggleAndNotInvoke);
+    DXUI_RUN_TEST(TestAccessibilityCompositionCommitRaisesCompositionFinalizedWithItsText);
+    DXUI_RUN_TEST(TestAccessibilityWindowDestroyedBeforeDetachDisconnectsItsProvider);
+    DXUI_RUN_TEST(TestAccessibilityUnnamedFieldsKeepTheirContentOutOfTheirName);
     DXUI_RUN_TEST(TestAccessibilityRootRuntimeIdIncludesProviderSpecificValues);
     DXUI_RUN_TEST(TestAccessibilityProviderExposesInvokeToggleAndLabeledValuePatterns);
     DXUI_RUN_TEST(TestAccessibilityProviderRefreshesButtonSemanticProperties);

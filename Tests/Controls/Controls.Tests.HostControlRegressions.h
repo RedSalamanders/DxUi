@@ -16,3 +16,4 @@ void TestNativeUnhandledKeysReachApplicationFallback();
 void TestPacketSurrogatesThroughNativeAndEmbeddedHosts();
 void TestExtractedRadioDoesNotUseItsFormerGroup();
 void TestEmbeddedGraphicsRetirementPreservesApplicationBindings();
+void TestAccessibilityCompositionCommitRaisesCompositionFinalizedWithItsText();

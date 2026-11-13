@@ -1938,6 +1938,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedInputCallbackAllocationBoundary(gpu);
     TestEmbeddedTranslatedCharacterOwnership(gpu);
     TestEmbeddedAccessibility(gpu);
+    TestWindowHostAccessibilityRetirementAllocatesNothing();
     TestPreparedTreeAccessibilitySemantics(gpu);
 #if DXUI_ENABLE_DIAGNOSTICS
     TestPreparedTreeUnfocusedExpansionAction(gpu);

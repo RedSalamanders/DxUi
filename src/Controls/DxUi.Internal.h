@@ -671,6 +671,8 @@ void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t
 // How many calls of `hwnd`'s fragment-root GetFocus have begun: each counts itself before it reads the snapshot. The
 // largest uint64_t when the window has no registered host.
 [[nodiscard]] uint64_t DebugGetAccessibilityFocusResolutionCountForTest(HWND hwnd) noexcept;
+// Window-host and embedded accessibility targets alive in this process.
+[[nodiscard]] size_t DebugGetLiveAccessibilityTargetCountForTest() noexcept;
 [[nodiscard]] uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept;
 // Owner-thread-only deterministic failure at the rich snapshot font query.
 void DebugSetRichAccessibilityFontFailureForTest(HRESULT failure) noexcept;

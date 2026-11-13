@@ -432,7 +432,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
     to the start row (today: 0 rows down, 4 rows up); with the lines setting overridden to 5, one notch moves 5 rows in
     `Grid` and `Tree`; `Ctrl+Click` rows 2 and 10, then `Ctrl+Shift+Click` row 14, selects {2, 10–14}.
   - **Needs**: nothing. **Size**: M.
-- [ ] **W1.3 UI Automation conformance.**
+- [x] **W1.3 UI Automation conformance.**
   - **Why**: Win64 `WM_GETOBJECT` compares the sign-extended `lParam` (`DxUi.Accessibility.cpp:13954`), so a
     zero-extended `UiaRootObjectId` falls through to the MSAA proxy and an empty window
     ([WM_GETOBJECT](https://learn.microsoft.com/en-us/windows/win32/winauto/wm-getobject)). A toggle `Button` exposes
@@ -1723,6 +1723,7 @@ with an open row is not accepted for closeout until that row closes.
 | `W1.1` | Adds the public, additive virtual `Control::OnMouseMiddleUp` (default declines), because a middle release had no control-level hook. The retry's first step, "one frame", is declared as 16 ms. | Recorded addition; nothing to run |
 | `W1.1` | `ScrollPanel` now forwards the middle release to its child, and no longer holds a forwarded capture for a middle press its child handled without capturing. In the embedded chord primary down, middle down, primary up, middle up, the child receives the final middle release only when it happens over that child. | Recorded limit; closing it needs `ScrollPanel` to track the middle button inside its forwarded gesture |
 | `W1.2` | `Tree` still takes the Shift branch for `Ctrl+Shift+Click`, replacing the selection; the item names `Grid` only. | Recorded limit; a `Tree` change needs its own item |
+| `W1.3` | An unlabelled `TextField` or `ComboBox`, editable or not, now reports an empty Name; one existing test that expected the content as Name was updated. A toggle `Button` reports Toggle and no longer Invoke. | Recorded behaviour change; acceptance with a physical screen reader stays with D-Q1 |
 | `W1.4` | The Japanese IME composition check and the `NativeTextInput` suite were not run: both take focus. The display-attribute path from the edit sink to the host is proved only through its pure mapping. | `test.ps1 -Interactive`, with the developer's agreement to the time |
 | `W1.4` | Three clauses publish four boundaries (the composition start, the two interior edges and the end), following the existing IMM convention; the gate text says three. | Recorded difference; nothing to run |
 | `W1.4` | Adds the public, additive `TextInputScope` with `TextField::SetInputScope` and `GetInputScope`, because no field could declare a numeric or URL scope before. | Recorded addition; nothing to run |

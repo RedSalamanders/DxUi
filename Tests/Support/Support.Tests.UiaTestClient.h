@@ -80,6 +80,7 @@ enum class EventKind
     Property,   // A property change: `id` is its PROPERTYID and `value` the new value.
     Structure,  // A change of structure: `id` is its StructureChangeType.
     Focus,      // The keyboard focus moved to the sender.
+    TextEdit,   // A TextEdit text change: `id` is its TextEditChangeType and `value` its strings, joined by U+001F.
 };
 enum class TextRangeCommand
 {
@@ -202,6 +203,7 @@ template <typename Clock, typename Count, typename Pump>
     const wchar_t* kind = heard.kind == EventKind::Automation  ? L"event"
                           : heard.kind == EventKind::Property  ? L"property"
                           : heard.kind == EventKind::Structure ? L"structure"
+                          : heard.kind == EventKind::TextEdit  ? L"textedit"
                                                                : L"focus";
     std::wstring text   = std::wstring(kind) + L" " + std::to_wstring(heard.id) + L" from " + ControlTypeName(heard.controlType) + L" '" + heard.name + L"'";
     if (! heard.value.empty())
@@ -218,6 +220,7 @@ class Recorder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::Runti
                                                            IUIAutomationPropertyChangedEventHandler,
                                                            IUIAutomationStructureChangedEventHandler,
                                                            IUIAutomationFocusChangedEventHandler,
+                                                           IUIAutomationTextEditTextChangedEventHandler,
                                                            Microsoft::WRL::FtmBase>
 {
 public:
@@ -257,6 +260,12 @@ public:
     HRESULT STDMETHODCALLTYPE HandleFocusChangedEvent(IUIAutomationElement* sender) noexcept override
     {
         Add(EventKind::Focus, 0, sender, nullptr);
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE HandleTextEditTextChangedEvent(IUIAutomationElement* sender, TextEditChangeType change, SAFEARRAY* strings) noexcept override
+    {
+        Add(EventKind::TextEdit, static_cast<long>(change), sender, nullptr, strings);
         return S_OK;
     }
 
@@ -322,7 +331,27 @@ private:
         }
     }
 
-    void Add(EventKind kind, long id, IUIAutomationElement* sender, const VARIANT* newValue) noexcept
+    // A TextEdit event's strings, joined by U+001F: an empty array and an array of one empty string both read as empty.
+    [[nodiscard]] static std::wstring Join(SAFEARRAY* strings)
+    {
+        std::wstring joined;
+        LONG first = 0, last = -1;
+        if (! strings || SafeArrayGetDim(strings) != 1u || FAILED(SafeArrayGetLBound(strings, 1, &first)) || FAILED(SafeArrayGetUBound(strings, 1, &last)))
+            return joined;
+        for (LONG index = first; index <= last; ++index)
+        {
+            wil::unique_bstr text;
+            if (FAILED(SafeArrayGetElement(strings, &index, text.put())))
+                continue;
+            if (index != first)
+                joined += L'\x1f';
+            if (text)
+                joined.append(text.get(), SysStringLen(text.get()));
+        }
+        return joined;
+    }
+
+    void Add(EventKind kind, long id, IUIAutomationElement* sender, const VARIANT* newValue, SAFEARRAY* strings = nullptr) noexcept
     {
         const uint64_t sequence = _timeline ? _timeline->sequence.fetch_add(1u, std::memory_order_relaxed) + 1u : 0u;
         const ULONGLONG entered = _timeline ? GetTickCount64() : 0u;
@@ -334,6 +363,8 @@ private:
             heard.id   = id;
             if (newValue)
                 heard.value = Render(*newValue);
+            if (strings)
+                heard.value = Join(strings);
             if (sender)
             {
                 CONTROLTYPEID controlType = 0;
@@ -375,7 +406,8 @@ struct Subscription
     std::vector<EVENTID> automationEvents;
     std::vector<PROPERTYID> properties;
     bool structure = false;
-    bool focus     = false; // Focus changes of the whole desktop, not only of the window's subtree.
+    bool focus     = false;                          // Focus changes of the whole desktop, not only of the window's subtree.
+    std::vector<TextEditChangeType> textEditChanges; // TextEdit text changes of these types (IUIAutomation3).
 };
 
 enum class Direction
@@ -1363,6 +1395,16 @@ private:
             hr = session.automation->AddStructureChangedEventHandler(root.get(), TreeScope_Subtree, cache.get(), _recorder.get());
         if (SUCCEEDED(hr) && _subscription.focus)
             hr = session.automation->AddFocusChangedEventHandler(cache.get(), _recorder.get());
+        if (SUCCEEDED(hr) && ! _subscription.textEditChanges.empty())
+        {
+            wil::com_ptr_nothrow<IUIAutomation3> automation3;
+            hr = session.automation.query_to(automation3.put());
+            for (const TextEditChangeType change : _subscription.textEditChanges)
+            {
+                if (SUCCEEDED(hr))
+                    hr = automation3->AddTextEditTextChangedEventHandler(root.get(), TreeScope_Subtree, change, cache.get(), _recorder.get());
+            }
+        }
         _setup.store(hr);
         _ready.store(true);
         if (SUCCEEDED(hr))
