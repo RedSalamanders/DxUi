@@ -1,5 +1,11 @@
 # Runtime efficiency and rendering quality, 7 November 2026 (revised 11 November 2026)
 
+Archived on 13 November 2026 and superseded by the
+[performance and motion plan](../WIP/PerformanceAndMotion_2026-11-13.md), whose appendix maps each item here to where
+its surviving content now lives. This file remains the full evidence ledger and the record of the external studies;
+nothing in it is scheduled work, and its references to a Windows 10 baseline no longer apply. The text below is kept
+as written.
+
 Status: SPEC READY — the 7 November draft (`rune` `0772373`, `gpui-fast` `61dccec`) was red-team reviewed on
 8 November 2026 (`DxUi` `c0ead00a`, `rune` `a7f276c`, `gpui-fast` `fb8cf94`) and then re-audited from
 the ground up on 11 November 2026 across the full `DxUi` C++ tree (`4acabe0e`) and 15 external reference codebases:
@@ -40,8 +46,8 @@ review's decisions and the frontier triage.
   [embedded rendering](../../Rendering/Rendering_EmbeddedD3D11.md), [Win32 host](../../Rendering/Rendering_Win32Host.md),
   [toolchain and consumption](../../Build/Build_ToolchainAndConsumption.md),
   [validation](../../Testing/Testing_Validation.md) and [documentation](../../Core/Core_Documentation.md).
-- **Coordinated plans**: [remaining work](RemainingWork_2026-11-04.md) owns D-P1 (the timing policy), D-Q1
-  (platform/consumer acceptance) and every closed item cited below; [explicit state machines](ExplicitStateMachines_2026-11-10.md)
+- **Coordinated plans**: [remaining work](../WIP/RemainingWork_2026-11-04.md) owns D-P1 (the timing policy), D-Q1
+  (platform/consumer acceptance) and every closed item cited below; [explicit state machines](../WIP/ExplicitStateMachines_2026-11-10.md)
   owns private non-breaking state-machine refactors and lifetime fixes (`DXUI-SM-01`..`DXUI-SM-08`) coordinated with
   `P2.1`/`P2.3`/`P1.15`; [frontier](Frontier_2026-11-11.md) orders this plan's items through its triage (kept
   separate by its `FD1`, confirmed 11 November 2026): it records a 16-claim re-read of this ledger, disputes `E7` and
@@ -90,7 +96,7 @@ claims from refuted ones. Full subsystem auditing on 11 November closed the rema
    backing relies on the same runtime copy. A `dirty_N ∪ dirty_{N-1}` redraw is needed only by code that reads the
    target before present (the back-buffer capture, an own-surface blur), so `P0.4` must observe the presented image
    (`E7`).
-5. **No qualified timing acceptance signal yet.** D-P1 in [remaining work](RemainingWork_2026-11-04.md) records that
+5. **No qualified timing acceptance signal yet.** D-P1 in [remaining work](../WIP/RemainingWork_2026-11-04.md) records that
    paired timing is inconclusive: 71 of 72 controls are unstable and the base policy is unqualified. A "control" there
    is a same-binary run pair, flagged unstable if any of 26 metrics moves beyond its band (5% timing, 2% memory) in
    either direction (`Tools/BenchmarkGate.psm1:305-324`), so the figure describes the sampling design, not proof that
@@ -400,7 +406,7 @@ figures remain inference until measured.
 
 Confirmed on 7 November 2026 and retained:
 
-- [x] **D1.** This plan stays separate from [remaining work](RemainingWork_2026-11-04.md) and is sequenced after
+- [x] **D1.** This plan stays separate from [remaining work](../WIP/RemainingWork_2026-11-04.md) and is sequenced after
   D9's history rewrite on shared files.
 - [x] **D2.** A popup keeps publishing every row to UI Automation. The draft's "6.10 ms/step" was unsubstantiated,
   so `P7.4` runs only if `P0.2` (`S10`) measures a real cost.
@@ -952,7 +958,7 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
     wakes while minimized/hidden **0**; detach fuzz passes ASan with **0** stale pointers.
   - **Challenged (12 November 2026)**: an embedded host may own no timer, so `SetCoalescableTimer` wakes apply to
     `WindowHost` only and embedded deadlines go through `P2.4`; the item overlaps the
-    [explicit state machines](ExplicitStateMachines_2026-11-10.md) plan without declaring it, and the `200 µs` budget is
+    [explicit state machines](../WIP/ExplicitStateMachines_2026-11-10.md) plan without declaring it, and the `200 µs` budget is
     a timing gate; the review keeps it native-only with a named fixture — see the
     [challenge review](RuntimeEfficiencyReview_2026-11-12.md#7-item-dispositions).
 - [ ] **P2.2 Shared caret policy (`E2`, `E3`).** One `CaretBlinkClock` across `TextField`, `ComboBox` and
@@ -968,7 +974,7 @@ Proposed (revised 11 November 2026); each needs the developer's confirmation bef
   wakes while shown drop from ~320 to **≤ 2**.
 
   **Challenged (12 November 2026)**: a five-state machine conflicts with the seven-state `TooltipLayer::Mode` in
-  [explicit state machines](ExplicitStateMachines_2026-11-10.md), and while a tooltip is pending every mouse move over
+  [explicit state machines](../WIP/ExplicitStateMachines_2026-11-10.md), and while a tooltip is pending every mouse move over
   the control repaints the whole window (`DxUi.Controls.cpp:12044-12050`); the review proposes merging into that
   machine and adding that fix — see the [challenge review](RuntimeEfficiencyReview_2026-11-12.md#37-scope-and-bookkeeping).
 - [ ] **P2.4 Embedded animation request (`D3.1`).**

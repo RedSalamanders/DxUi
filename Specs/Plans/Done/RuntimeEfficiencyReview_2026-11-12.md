@@ -1,5 +1,10 @@
 # Runtime efficiency plan: challenge review, 12 November 2026
 
+Archived on 13 November 2026 and superseded by the
+[performance and motion plan](../WIP/PerformanceAndMotion_2026-11-13.md), which adopts its findings; decisions
+`RD2`–`RD7` are settled there as stated assumptions. Its remarks that rest on a Windows 10 baseline no longer apply:
+the minimum system is Windows 11 version 25H2 (build 10.0.26200). The text below is kept as written.
+
 Status: REVIEW — findings and proposed dispositions for the
 [runtime efficiency plan](RuntimeEfficiency_2026-11-07.md). `RD1` was confirmed on 12 November 2026 and the plan was then
 corrected for fact; no item's disposition and no code was changed. Decisions `RD2`–`RD7` in
@@ -11,8 +16,8 @@ corrected for fact; no item's disposition and no code was changed. Decisions `RD
   study), still without a change under `src` or `include`.
 - **Goal the plan was judged against**: a best-in-class graphics library — high frame rate, small memory, advanced
   features and animation.
-- **Coordinated plans**: [remaining work](RemainingWork_2026-11-04.md) (D-P1 timing policy),
-  [explicit state machines](ExplicitStateMachines_2026-11-10.md), and the [frontier plan](Frontier_2026-11-11.md), which
+- **Coordinated plans**: [remaining work](../WIP/RemainingWork_2026-11-04.md) (D-P1 timing policy),
+  [explicit state machines](../WIP/ExplicitStateMachines_2026-11-10.md), and the [frontier plan](Frontier_2026-11-11.md), which
   merged after this review was written and was withheld from the reviewers;
   [§8](#8-reconciliation-with-the-frontier-plan) reconciles the two.
 
@@ -230,7 +235,7 @@ Estimates from the declarations and existing receipts; see the limits in §2.
 - **Size.** 67 top-level items, about 300 distinct changes (`P1.12` alone has about 25 across ten ledger rows), 62–110
   pull requests under the plan's own rule, each needing three x64 test profiles and three ARM64 builds.
 - **Status.** "SPEC READY" while nine of twelve decisions are unconfirmed. `D12` asks for approval of about twenty
-  mechanisms from eleven codebases in one sentence. The [WIP index](README.md) says to add work to the current plan
+  mechanisms from eleven codebases in one sentence. The [WIP index](../WIP/README.md) says to add work to the current plan
   rather than open another queue.
 - **Order.** `D9` says `P0` then `P1` first; the graph starts `P2`, `P3` and `V2` straight after `P0`. `P1.1`, `P1.7`
   and `P1.14` depend forward on `P4.1`.

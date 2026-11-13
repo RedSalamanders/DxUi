@@ -7,7 +7,7 @@ Prepared: 2026-11-10.
 Planned-at commit: `8af272753cec60a68cbdb3a8b2a7bef0563116ac` (`RedSalamanders/DxUi`).
 
 - **Owning contracts**: [repository guidance](../../../AGENTS.md), [specification authority](../../README.md), [architecture](../../Core/Core_Architecture.md), [performance and resources](../../Core/Core_PerformanceAndResources.md), [failure handling](../../Core/Core_FailureHandling.md), [documentation](../../Core/Core_Documentation.md), [changes workflow](../../Core/Core_Changes.md), [controls and layout](../../UI/UI_ControlsAndLayout.md), [input and accessibility](../../UI/UI_InputAndAccessibility.md), [design system](../../UI/UI_DesignSystem.md), [embedded D3D11 rendering](../../Rendering/Rendering_EmbeddedD3D11.md), [Win32 host rendering](../../Rendering/Rendering_Win32Host.md), [toolchain and consumption](../../Build/Build_ToolchainAndConsumption.md), [unified CI](../../Build/Build_UnifiedCI.md), [validation](../../Testing/Testing_Validation.md), and [run evidence](../../Testing/Testing_RunEvidence.md).
-- **Coordinated plans**: [RemainingWork_2026-11-04.md](RemainingWork_2026-11-04.md) retains ownership of formal performance-policy qualification, broader admission, and consumer adoption; [RuntimeEfficiency_2026-11-07.md](RuntimeEfficiency_2026-11-07.md) retains ownership of `P0`–`P8`, `V1`–`V8`, `B1`–`B4`, and API-revision-6 decisions (`D3`, `D5`–`D10`). This plan introduces **zero public ABI changes**, **zero new controls**, and **zero consumer pin bumps**; it refactors private state representations and `Tools/` lock/iteration state machines to eliminate state-tearing bugs.
+- **Coordinated plans**: [RemainingWork_2026-11-04.md](RemainingWork_2026-11-04.md) retains ownership of formal performance-policy qualification, broader admission, and consumer adoption; [PerformanceAndMotion_2026-11-13.md](PerformanceAndMotion_2026-11-13.md) retains ownership of performance and motion work (`W0`–`W10`) and the API-revision-6 content (its `A8`). This plan introduces **zero public ABI changes**, **zero new controls**, and **zero consumer pin bumps**; it refactors private state representations and `Tools/` lock/iteration state machines to eliminate state-tearing bugs.
 
 ## 1. Mandatory pre-execution drift check
 
@@ -41,7 +41,7 @@ Across `EmbeddedHost`, `ControlHost`, `RichTextEditor`, `MenuController`/`MenuPo
 
 ### Hard invariants (zero breaking changes)
 
-- **Public API & ABI stability**: Public signatures, class layouts used across consumer pins, and `DXUI_API_REVISION` remain unchanged unless explicitly coordinated with `D3` in [RuntimeEfficiency_2026-11-07.md](RuntimeEfficiency_2026-11-07.md). Slices `S0`–`S2` touch only `.cpp`-private `State`/`Impl` structs, `src/Support/AnimationDispatcher.h`, and `Tools/*.psm1`.
+- **Public API & ABI stability**: Public signatures, class layouts used across consumer pins, and `DXUI_API_REVISION` remain unchanged unless explicitly coordinated with `A8` in [PerformanceAndMotion_2026-11-13.md](PerformanceAndMotion_2026-11-13.md). Slices `S0`–`S2` touch only `.cpp`-private `State`/`Impl` structs, `src/Support/AnimationDispatcher.h`, and `Tools/*.psm1`.
 - **Zero consumer coupling**: A library change never implicitly edits `RedXe`, `RedPrism`, `RedTilde`, `RedSalamander`, or `RedMonitor`.
 - **Zero interactive desktop takeover without authorization**: Focus-taking suites (`Menu`, `NativeTextInput`, and the two menu resource fixtures) run only via `test.ps1 -Interactive` with explicit user time agreement.
 
@@ -118,7 +118,7 @@ pwsh -NoProfile -File ./build.ps1 -Platform ARM64 -Configuration "ASan Debug"
 
 ## 6. Out-of-scope boundaries, rollback and stop conditions
 
-- **Out of scope**: Editing consumer repositories, bumping `DXUI_API_REVISION` without explicit coordination with [RuntimeEfficiency_2026-11-07.md](RuntimeEfficiency_2026-11-07.md), adding new catalog controls, or running `test.ps1 -Interactive` without the desktop owner's explicit agreement.
+- **Out of scope**: Editing consumer repositories, bumping `DXUI_API_REVISION` without explicit coordination with [PerformanceAndMotion_2026-11-13.md](PerformanceAndMotion_2026-11-13.md), adding new catalog controls, or running `test.ps1 -Interactive` without the desktop owner's explicit agreement.
 - **Stop conditions**:
   - Stop immediately if a slice alters `include/DxUi/*` public signatures or breaks consumer compilation without an explicitly authorized API-revision bump.
   - Stop and request developer direction with measured options if paired complex-UI FPS/memory regresses against the retained pre-change baseline.
