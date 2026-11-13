@@ -3,6 +3,7 @@
 #include "DxUi.NativeColor.h"
 #include "DxUi.NativeColorPalette.h"
 #include "DxUi.NativeMathDimension.h"
+#include "Support/CountedCreation.h"
 #include <DxUi/Configuration.h>
 #include <DxUi/Failure.h>
 #include <DxUi/RichDocument.h>
@@ -127,17 +128,18 @@ public:
             scriptVerified_ = true;
         }
         wil::com_ptr<IDWriteTextFormat> format;
-        RETURN_IF_FAILED(factory_->CreateTextFormat(textFamily == MathTextFamily::Sans        ? sansFamily_.c_str()
-                                                    : textFamily == MathTextFamily::Monospace ? monoFamily_.c_str()
-                                                    : textFamily == MathTextFamily::Script    ? scriptFamily_.c_str()
-                                                                                              : family_.c_str(),
-                                                    nullptr,
-                                                    bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
-                                                    italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
-                                                    DWRITE_FONT_STRETCH_NORMAL,
-                                                    size,
-                                                    locale_.c_str(),
-                                                    format.put()));
+        RETURN_IF_FAILED(CountedCreateTextFormat(factory_,
+                                                 textFamily == MathTextFamily::Sans        ? sansFamily_.c_str()
+                                                 : textFamily == MathTextFamily::Monospace ? monoFamily_.c_str()
+                                                 : textFamily == MathTextFamily::Script    ? scriptFamily_.c_str()
+                                                                                           : family_.c_str(),
+                                                 nullptr,
+                                                 bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
+                                                 italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
+                                                 DWRITE_FONT_STRETCH_NORMAL,
+                                                 size,
+                                                 locale_.c_str(),
+                                                 format.put()));
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichMathTextFormats;
 #endif
@@ -2852,7 +2854,8 @@ public:
             if (FAILED(lastResult))
                 return AdvanceResult::Failed;
             wil::com_ptr<IDWriteTextLayout> layout;
-            lastResult = factory->CreateTextLayout(leaf.node->text.data(), static_cast<UINT32>(leaf.node->text.size()), format, 65536.f, 65536.f, layout.put());
+            lastResult =
+                CountedCreateTextLayout(factory, leaf.node->text.data(), static_cast<UINT32>(leaf.node->text.size()), format, 65536.f, 65536.f, layout.put());
             if (FAILED(lastResult))
                 return AdvanceResult::Failed;
             DWRITE_TEXT_METRICS metrics{};

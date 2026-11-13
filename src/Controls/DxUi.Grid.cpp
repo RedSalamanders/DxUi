@@ -3608,7 +3608,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
         measured.reset();
         ++_debugTextLayoutCreations;
         _debugTextLayoutShapedUnits += measuredLength;
-        if (FAILED(factory->CreateTextLayout(content.data(), static_cast<UINT32>(measuredLength), format, width, height, measured.put())) ||
+        if (FAILED(CountedCreateTextLayout(factory, content.data(), static_cast<UINT32>(measuredLength), format, width, height, measured.put())) ||
             FAILED(measured->GetMetrics(&metrics)))
             return nullptr;
         if (measuredLength < paragraphsEnd)
@@ -3753,7 +3753,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
     {
         ++_debugTextLayoutCreations;
         _debugTextLayoutShapedUnits += text.size();
-        return SUCCEEDED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, cache.paintHeight, layout.put())) &&
+        return SUCCEEDED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format, width, cache.paintHeight, layout.put())) &&
                SUCCEEDED(layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP)) && trim(*layout.get());
     };
     if (visibleText.size() > kMaxRetainedCellTextUnits)
@@ -3862,7 +3862,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareSingleLineCellLayout(const Control
             DWRITE_TEXT_METRICS metrics{};
             ++_debugTextLayoutCreations;
             _debugTextLayoutShapedUnits += measured;
-            if (FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(measured), format, width, height, layout.put())) ||
+            if (FAILED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(measured), format, width, height, layout.put())) ||
                 FAILED(layout->GetMetrics(&metrics)))
                 return nullptr;
             if (metrics.width > width)
@@ -3878,7 +3878,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareSingleLineCellLayout(const Control
     {
         ++_debugTextLayoutCreations;
         _debugTextLayoutShapedUnits += text.size();
-        if (FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.put())))
+        if (FAILED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.put())))
             return nullptr;
     }
 

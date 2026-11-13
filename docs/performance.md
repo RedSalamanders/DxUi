@@ -317,6 +317,29 @@ Record GPU/driver, power policy, resolution, controls/data size, texture/cache t
 CPU time, allocations and bytes, handles, threads, wake-ups and long-run retained memory. Hidden/idle work must stay
 zero. WARP numbers cannot stand in for native graphics hardware, physical input or screen-reader checks.
 
+## Work counters
+
+Timing varies from run to run; work counts do not. The library counts, per thread and in every configuration, the work
+behind a frame: `Paint` executions, controls visited by paint, tick and hit-test walks, preparations, renders, presents
+and pixels repainted, wakes by source, every text layout, text format, geometry, brush, bitmap, effect, layer, command
+list, device context and D3D11 device it creates (and each implicit `DrawText` layout), GDI backdrop captures, and UI
+Automation snapshot builds with their records and bytes. The counters are private test instruments, not public API; the
+[performance and resources contract](../Specs/Core/Core_PerformanceAndResources.md#work-counters) defines each one.
+
+A library test measures an action with `Detail::WorkCounterScope` and asserts exact counts, for example that a clean
+frame creates nothing or that an action paints exactly the controls it changed. To count destructions and churn, it installs a
+`Detail::ResourceLifetimeTracker` over storage it allocates beforehand. New library code creates those resources only
+through the counted helpers (`CountedCreateTextLayout(factory, …)` instead of `factory->CreateTextLayout(…)`);
+`Tools/tests/Test-CountedCreation.ps1` fails on a raw call, whatever its receiver.
+
+```powershell
+# The ComplexUi work receipt: per-frame counters for 40 clean and 40 dirty frames, with the C++ allocation sink.
+.\.build\x64\Release\DxUi.EmbeddedTests.exe --test-work-counters .build\work-counters.json
+```
+
+Today a dirty ComplexUi frame paints all 83 controls and makes 54 C++ allocations in Release; a clean frame makes none
+and creates nothing ([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W0.1/README.md)).
+
 ## Dedicated library evidence
 
 The [no-capture menu scaling record](../Measurements/MenuDescriptions/2026-09-21/scaling-v1/README.md)

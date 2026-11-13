@@ -284,7 +284,7 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
     if (_host._root)
         ControlModelQueryAccess::RequestIntrinsicLayoutOfTree(*_host._root);
     g.device->GetImmediateContext(_host._d3dContext.put());
-    RETURN_IF_FAILED(g.d2d->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _host._d2dContext.put()));
+    RETURN_IF_FAILED(CountedCreateDeviceContext(g.d2d, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _host._d2dContext.put()));
     _host._d2dContext->SetUnitMode(D2D1_UNIT_MODE_DIPS);
     _host._d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
     if (! _host.EnsureDeviceIndependentResources())
@@ -432,10 +432,13 @@ bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
     _host._lastSuppliedAnimationTickMs = tick;
     _host._animationTimelineRebase     = false;
     const uint64_t nowTickMs           = _host._animationTimelineMs;
+    ++Detail::Work().wakes.embeddedAdvance;
     try
     {
         _host.ValidateSupplementalTooltipTarget();
         // Ticks dirty the view only through control invalidation; an idle tick leaves a clean surface clean.
+        if (_host._root)
+            ++Detail::Work().frame.treeVisitsTick;
         const bool rootTicking            = _host._root && _host._root->Tick(_host, nowTickMs);
         const bool tooltipTicking         = _host._tooltipLayer.Tick(_host, nowTickMs);
         _host._embeddedAnimationRequested = rootTicking || tooltipTicking;
@@ -567,7 +570,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
             RETURN_IF_FAILED(texture->QueryInterface(IID_PPV_ARGS(surface.put())));
             auto properties = D2D1::BitmapProperties1(
                 D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1::PixelFormat(desc.Format, D2D1_ALPHA_MODE_PREMULTIPLIED), dpi, dpi);
-            HRESULT hrBitmap = _host._d2dContext->CreateBitmapFromDxgiSurface(surface.get(), &properties, bitmap.put());
+            HRESULT hrBitmap = CountedCreateBitmapFromDxgiSurface(_host._d2dContext, surface.get(), &properties, bitmap.put());
 #if DXUI_ENABLE_DIAGNOSTICS
             if (_host._debugSizeResourceFailureStage == 3u)
             {
@@ -655,6 +658,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         };
         if (_host._root)
         {
+            Detail::NotePaintDispatch();
             _host._root->Paint(_host);
             if (! treeStillCurrent())
                 return E_ABORT;
@@ -677,6 +681,8 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         s.interactionLayoutAvailable  = true;
         s.dirty                       = s.revision != revision;
         ++s.stats.preparations;
+        ++Detail::Work().frame.preparations;
+        Detail::Work().frame.pixelsPainted += uint64_t(width) * height;
         _host.PublishPreparedContent();
         if (auto* focused = _host.GetFocusControl(); focused && focused != _host._nativeTextInputControl)
         {
@@ -798,6 +804,7 @@ HRESULT EmbeddedHost::Composite(ID3D11DeviceContext* context, const D3D11_VIEWPO
     view = nullptr;
     context->PSSetShaderResources(0, 1, &view);
     ++s.stats.composites;
+    ++Detail::Work().frame.composites;
     return S_OK;
 }
 bool EmbeddedHost::CapturedDragContinues() const noexcept

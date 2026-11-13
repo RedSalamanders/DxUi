@@ -2,6 +2,7 @@
 
 #include "DxUi.TextElements.h"
 #include "DxUi.h"
+#include "Support/CountedCreation.h"
 #include <DxUi/Failure.h>
 
 #include <algorithm>

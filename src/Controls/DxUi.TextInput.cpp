@@ -553,12 +553,13 @@ struct MultilineViewportMetrics
     }
 
     wil::com_ptr<IDWriteTextLayout> layout;
-    if (FAILED(factory->CreateTextLayout(text.data(),
-                                         static_cast<UINT32>(text.size()),
-                                         format,
-                                         std::max(1.0f, widthDip),
-                                         std::max(kMultilineLayoutHeightDip, heightDip),
-                                         layout.addressof())) ||
+    if (FAILED(CountedCreateTextLayout(factory,
+                                       text.data(),
+                                       static_cast<UINT32>(text.size()),
+                                       format,
+                                       std::max(1.0f, widthDip),
+                                       std::max(kMultilineLayoutHeightDip, heightDip),
+                                       layout.addressof())) ||
         ! layout)
     {
         return {};
@@ -611,8 +612,8 @@ struct MultilineViewportMetrics
 
     static constexpr wchar_t kSampleText[] = L"Ag";
     wil::com_ptr<IDWriteTextLayout> layout;
-    if (FAILED(factory->CreateTextLayout(
-            kSampleText, static_cast<UINT32>(std::size(kSampleText) - 1u), format, 1024.0f, kMultilineLayoutHeightDip, layout.addressof())) ||
+    if (FAILED(CountedCreateTextLayout(
+            factory, kSampleText, static_cast<UINT32>(std::size(kSampleText) - 1u), format, 1024.0f, kMultilineLayoutHeightDip, layout.addressof())) ||
         ! layout)
     {
         return 20.0f;

@@ -256,8 +256,14 @@ void DrawTreeRow(ControlHost& host,
         if (dc && format)
         {
             if (auto* brush = host.GetSolidBrush(textColor))
-                dc->DrawTextW(
-                    item.text.data(), static_cast<UINT32>(item.text.size()), format, layout.textRect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
+                CountedDrawText(dc,
+                                item.text.data(),
+                                static_cast<UINT32>(item.text.size()),
+                                format,
+                                layout.textRect,
+                                brush,
+                                kTextDrawOptions,
+                                DWRITE_MEASURING_MODE_NATURAL);
         }
     }
     else
@@ -2607,12 +2613,13 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
             if (auto* factory = host.GetWriteFactory())
             {
                 wil::com_ptr<IDWriteTextLayout> measuredLayout;
-                if (SUCCEEDED(factory->CreateTextLayout(item.text.data(),
-                                                        static_cast<UINT32>(item.text.size()),
-                                                        textFormat,
-                                                        (std::numeric_limits<float>::max)(),
-                                                        (std::numeric_limits<float>::max)(),
-                                                        measuredLayout.put())) &&
+                if (SUCCEEDED(CountedCreateTextLayout(factory,
+                                                      item.text.data(),
+                                                      static_cast<UINT32>(item.text.size()),
+                                                      textFormat,
+                                                      (std::numeric_limits<float>::max)(),
+                                                      (std::numeric_limits<float>::max)(),
+                                                      measuredLayout.put())) &&
                     measuredLayout)
                 {
                     DWRITE_TEXT_METRICS metrics{};

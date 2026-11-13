@@ -71,7 +71,8 @@ void ApplyMinimum(const LayoutConstraints& constraints, DesiredSize& result) noe
     const float width =
         wrap && constraints.maximumWidthDip ? (std::max)(0.0f, *constraints.maximumWidthDip - horizontalChrome) : (std::numeric_limits<float>::max)();
     wil::com_ptr<IDWriteTextLayout> layout;
-    HRESULT hr = factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, (std::numeric_limits<float>::max)(), layout.put());
+    HRESULT hr =
+        CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format, width, (std::numeric_limits<float>::max)(), layout.put());
     if (FAILED(hr) || ! layout)
         return FAILED(hr) ? hr : E_FAIL;
     hr = layout->SetWordWrapping(wrap && ! empty ? DWRITE_WORD_WRAPPING_WRAP : DWRITE_WORD_WRAPPING_NO_WRAP);
@@ -263,7 +264,8 @@ HRESULT Label::MeasureOverride(const MeasureContext& context, const LayoutConstr
         const std::wstring_view text = _text.empty() ? std::wstring_view(L"Ag") : std::wstring_view(_text);
         const float width            = _multiline && constraints.maximumWidthDip ? *constraints.maximumWidthDip : (std::numeric_limits<float>::max)();
         wil::com_ptr<IDWriteTextLayout> layout;
-        HRESULT hr = factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, (std::numeric_limits<float>::max)(), layout.put());
+        HRESULT hr =
+            CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format, width, (std::numeric_limits<float>::max)(), layout.put());
         if (FAILED(hr) || ! layout)
             return FAILED(hr) ? hr : E_FAIL;
         const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(text.size())};

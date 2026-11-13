@@ -221,6 +221,59 @@ can authorize its own pass. Historical receipts remain readable under their orig
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
 
+## Work counters
+
+Status: implemented (performance and motion plan item W0.1, 13 November 2026). Private; nothing here is public API.
+
+Deterministic work is counted by `Detail::WorkCounters` (`src/Support/WorkCounters.h`): one thread-local record of
+plain `uint64_t` increments, present in every configuration, Release included. Counting is dormant until a test reads
+the record; its cost is an increment, with no allocation, lock, I/O, worker or timer, so composition and clean or hidden
+frames keep their contracts. A reading is per thread: work another thread does is in that thread's record. Counters only
+grow; a test measures an action as the difference of two readings (`WorkCounterScope::Delta`). Counters are grouped by
+subsystem, each group a list kept in alphabetical order: frame, wakes, resources, text, popups, lists, rich and
+accessibility, and a reserved memory group. A new counter is one line in its group's list and is then present in every
+snapshot, delta and receipt.
+
+- **Frame and walks.** `paintExecutions` counts each control whose `Paint` a host, `Panel` or `PageHost` dispatched;
+  `treeVisitsPaint`, `treeVisitsTick` and `treeVisitsHitTest` count each control such a walk examined, visible or not.
+  `preparations` and `composites` count embedded preparations that painted and compositions; `renders` and `presents`
+  count native render passes and swap-chain presents; `pixelsPainted` adds the device pixels a preparation or render
+  cleared and repainted (the dirty rectangle of a partial native frame).
+- **Wakes by source.** `animationTimer` (the animation dispatcher's `WM_TIMER`), `menuHoverTimer`, `paintMessage`
+  (`WM_PAINT`) and `embeddedAdvance` (each `EmbeddedHost::AdvanceAnimation` the application made while animation was
+  requested).
+- **Resources.** Library code creates text layouts and formats, geometries, stroke styles, brushes, gradient stop
+  collections, bitmaps, effects, command lists, layers, Direct2D device contexts and D3D11 devices only through the
+  counted helpers of `src/Support/CountedCreation.h` (available through `DxUi.Internal.h`), and draws `DrawText` only
+  through `CountedDrawText`. Each helper forwards to the method unchanged and counts the object it returns; a refused
+  creation is not counted. D3D11 devices are counted where `Detail::CreateD3D11DeviceWithWarpFallback` receives one from
+  its creator. `DrawText` lays out its whole string on every call, so each call counts one implicit text layout created
+  and destroyed. GDI backdrop captures count `popups.backdropCaptures` and their pixels.
+- **UI Automation.** Each whole-window snapshot build counts `snapshotBuilds`, its control records (`snapshotNodes`) and
+  the bytes its per-control record arrays reserve (`snapshotBytes`, owned strings excluded). It counts the same builds as
+  the diagnostic `DebugGetAccessibilitySnapshotBuildCountForTest`, which remains.
+
+Destruction is observed only by a test-owned `ResourceLifetimeTracker`, in storage the test supplies: while installed on
+a thread it holds one extra reference to each resource the helpers create there, and `Sweep` counts and releases those
+whose owners released them. Destruction therefore happens at the sweep instead of at the owner's release; nothing else
+changes. Objects beyond the storage are counted as overflow. Per-interval churn is `min(created, destroyed)` per resource
+kind, summed over kinds, and is meaningful only under a tracker.
+
+Enforcement: `Tools/tests/Test-CountedCreation.ps1` (run by the tooling tests) fails on any occurrence under `src` of a
+counted method name, whatever the receiver (`->`, `.`, `::`, a call split across lines, a member-function pointer or a
+function pointer such as `&::D3D11CreateDevice`), outside the helper header and the creator type in
+`src/Support/NativeRendering.h`. Comments and literals are ignored. Counting wrappers around the factory, device and
+device context in test executables, and a Direct2D draw-call count, are not implemented; the source matcher is today's
+enforcement.
+
+Baseline on the ComplexUi fixture (83 controls, 1280×720, 96 DPI, WARP, reduced motion; `DxUi.EmbeddedTests.exe
+--test-work-counters <receipt>`, also run by the Embedded suite): a dirty frame prepares and composites once, paints
+every visible control once (83 `Paint` executions and 83 paint visits), repaints 921,600 pixels and, in a Release build,
+makes 54 C++ allocations; a clean frame composites once and reports 0 allocations, 0 created resources, 0 churn and no
+paint. The receipt is retained under
+[Measurements/PerformanceAndMotion_2026-11-13/W0.1](../../Measurements/PerformanceAndMotion_2026-11-13/W0.1/README.md).
+These are counts, not timing; a change to them is a measured change with its own receipt, never a silent rebaseline.
+
 ## Mandatory performance policy
 
 Paired setup MUST share the benchmark project and its effective compiler options,

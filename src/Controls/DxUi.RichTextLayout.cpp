@@ -2,6 +2,7 @@
 #include "DxUi.RichTextScriptRenderer.h"
 #include "DxUi.RichTextSourceInkRenderer.h"
 #include "DxUi.TextElements.h"
+#include "Support/CountedCreation.h"
 #include <DxUi/Failure.h>
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
@@ -287,14 +288,15 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     }
     // Create the retained text format through the supplied DirectWrite factory.
     wil::com_ptr<IDWriteTextFormat> format;
-    RETURN_IF_FAILED(factory->CreateTextFormat(options.fontFamily.c_str(),
-                                               nullptr,
-                                               DWRITE_FONT_WEIGHT_NORMAL,
-                                               DWRITE_FONT_STYLE_NORMAL,
-                                               DWRITE_FONT_STRETCH_NORMAL,
-                                               fontSize,
-                                               options.locale.c_str(),
-                                               format.put()));
+    RETURN_IF_FAILED(CountedCreateTextFormat(factory,
+                                             options.fontFamily.c_str(),
+                                             nullptr,
+                                             DWRITE_FONT_WEIGHT_NORMAL,
+                                             DWRITE_FONT_STYLE_NORMAL,
+                                             DWRITE_FONT_STRETCH_NORMAL,
+                                             fontSize,
+                                             options.locale.c_str(),
+                                             format.put()));
     RETURN_IF_FAILED(format->SetWordWrapping(marker || object || ! options.wrap ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP));
     RETURN_IF_FAILED(format->SetReadingDirection(options.readingDirection));
     RETURN_IF_FAILED(format->SetTextAlignment(options.textAlignment));
@@ -325,7 +327,7 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             std::fill_n(positionedText.begin() + inlineObject.first + textOffset, inlineObject.length, L'\ufffc');
     }
     const auto text = textOffset || ! objects.empty() ? std::wstring_view(positionedText) : std::wstring_view(projection.text);
-    RETURN_IF_FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format.get(), width, 1000000.0f, layout.put()));
+    RETURN_IF_FAILED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format.get(), width, 1000000.0f, layout.put()));
     wil::com_ptr<IDWriteInlineObject> positioning;
     if (textOffset)
     {

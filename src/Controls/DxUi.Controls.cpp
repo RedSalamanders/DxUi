@@ -255,7 +255,7 @@ bool DrawShadowEffectPass(ControlHost& host, const D2D1_RECT_F& targetRect, floa
     dc->GetTarget(previousTarget.put());
 
     wil::com_ptr<ID2D1CommandList> mask;
-    if (FAILED(dc->CreateCommandList(mask.put())) || ! mask)
+    if (FAILED(CountedCreateCommandList(dc, mask.put())) || ! mask)
     {
         return false;
     }
@@ -280,7 +280,7 @@ bool DrawShadowEffectPass(ControlHost& host, const D2D1_RECT_F& targetRect, floa
     }
 
     wil::com_ptr<ID2D1Effect> shadowEffect;
-    if (FAILED(dc->CreateEffect(kD2DShadowEffectId, shadowEffect.put())) || ! shadowEffect)
+    if (FAILED(CountedCreateEffect(dc, kD2DShadowEffectId, shadowEffect.put())) || ! shadowEffect)
     {
         return false;
     }
@@ -444,8 +444,8 @@ constexpr float kSliderTouchHaloRingWidthDip = 2.0f;
     }
 
     wil::com_ptr<IDWriteTextLayout> layout;
-    if (FAILED(factory->CreateTextLayout(
-            text.data(), static_cast<UINT32>(text.size()), format, (std::max)(1.0f, widthDip), (std::max)(1.0f, heightDip), layout.addressof())) ||
+    if (FAILED(CountedCreateTextLayout(
+            factory, text.data(), static_cast<UINT32>(text.size()), format, (std::max)(1.0f, widthDip), (std::max)(1.0f, heightDip), layout.addressof())) ||
         ! layout)
     {
         return {};
@@ -691,7 +691,7 @@ void PrepareTopRoundedAttachedRect(ControlHost& host,
     wil::com_ptr<ID2D1PathGeometry> fillGeometry;
     if (creationCount)
         ++*creationCount;
-    if (FAILED(factory->CreatePathGeometry(fillGeometry.addressof())) || ! fillGeometry)
+    if (FAILED(CountedCreatePathGeometry(factory, fillGeometry.addressof())) || ! fillGeometry)
     {
         return;
     }
@@ -727,7 +727,7 @@ void PrepareTopRoundedAttachedRect(ControlHost& host,
     wil::com_ptr<ID2D1PathGeometry> strokeGeometry;
     if (creationCount)
         ++*creationCount;
-    if (FAILED(factory->CreatePathGeometry(strokeGeometry.addressof())) || ! strokeGeometry)
+    if (FAILED(CountedCreatePathGeometry(factory, strokeGeometry.addressof())) || ! strokeGeometry)
     {
         return;
     }
@@ -881,7 +881,7 @@ void DrawRawCenteredText(ID2D1RenderTarget* target,
     }
 
     brush->SetColor(color);
-    target->DrawTextW(text.data(), static_cast<UINT32>(text.size()), format, rect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
+    CountedDrawText(target, text.data(), static_cast<UINT32>(text.size()), format, rect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
 }
 
 } // namespace
@@ -1090,7 +1090,7 @@ void DrawCenteredText(ControlHost& host,
 
     if (auto* brush = host.GetSolidBrush(color))
     {
-        dc->DrawTextW(text.data(), static_cast<UINT32>(text.size()), format, rect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
+        CountedDrawText(dc, text.data(), static_cast<UINT32>(text.size()), format, rect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
     }
 }
 
@@ -1200,7 +1200,7 @@ void DrawTextWithMnemonic(ControlHost& host,
 #if DXUI_ENABLE_DIAGNOSTICS
     ++testMnemonicLayoutCreations;
 #endif
-    if (FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.addressof())) || ! layout)
+    if (FAILED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.addressof())) || ! layout)
     {
         DrawCenteredText(host, text, rect, fontRole, color, alignment, paragraphAlignment, wrap, flowDirection);
         return;
@@ -1534,8 +1534,10 @@ void Panel::Paint(ControlHost& host) const
 {
     const auto paintChild = [&host](const Control& child)
     {
+        ++Detail::Work().frame.treeVisitsPaint;
         if (child.IsVisible())
         {
+            ++Detail::Work().frame.paintExecutions;
             child.Paint(host);
         }
     };
@@ -1576,6 +1578,7 @@ bool Panel::Tick(ControlHost& host, uint64_t nowTickMs)
                               ownerLifetime,
                               [&host, nowTickMs, &keepTicking](Control& child)
     {
+        ++Detail::Work().frame.treeVisitsTick;
         if (child.IsVisible())
         {
             keepTicking = child.Tick(host, nowTickMs) || keepTicking;
@@ -1592,7 +1595,13 @@ Control* Panel::HitTest(D2D1_POINT_2F point)
     }
 
     const auto ownerLifetime = GetLifetimeToken();
-    if (Control* const hit = FindPanelChildHit(*this, ownerLifetime, [point](Control& child) { return child.HitTest(point); }))
+    if (Control* const hit = FindPanelChildHit(*this,
+                                               ownerLifetime,
+                                               [point](Control& child)
+    {
+        ++Detail::Work().frame.treeVisitsHitTest;
+        return child.HitTest(point);
+    }))
         return hit;
     return ownerLifetime.expired() ? nullptr : this;
 }
@@ -1800,9 +1809,10 @@ void PageHost::PaintPage(ControlHost& host, const Control* page, float opacity, 
     dc->GetTransform(&previousTransform);
     auto restoreTransform = wil::scope_exit([dc, previousTransform] { dc->SetTransform(previousTransform); });
     wil::com_ptr<ID2D1Layer> layer;
-    if (FAILED(dc->CreateLayer(layer.addressof())) || ! layer)
+    if (FAILED(CountedCreateLayer(dc, layer.addressof())) || ! layer)
     {
         dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
+        Detail::NotePaintDispatch();
         page->Paint(host);
         return;
     }
@@ -1813,6 +1823,7 @@ void PageHost::PaintPage(ControlHost& host, const Control* page, float opacity, 
     dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
     dc->PushLayer(layerParameters, layer.get());
     auto restoreLayer = wil::scope_exit([dc] { dc->PopLayer(); });
+    Detail::NotePaintDispatch();
     page->Paint(host);
 }
 
@@ -1857,6 +1868,7 @@ void PageHost::Paint(ControlHost& host) const
     const auto state = ResolveDebugState(host.GetTheme(), 0u);
     if (! state.active)
     {
+        Detail::NotePaintDispatch();
         current->Paint(host);
         return;
     }
@@ -1933,7 +1945,7 @@ void PageHost::PaintOverlay(ControlHost& host) const
         dc->GetTransform(&previousTransform);
         auto restoreTransform = wil::scope_exit([dc, previousTransform] { dc->SetTransform(previousTransform); });
         wil::com_ptr<ID2D1Layer> layer;
-        if (FAILED(dc->CreateLayer(layer.addressof())) || ! layer)
+        if (FAILED(CountedCreateLayer(dc, layer.addressof())) || ! layer)
         {
             dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
             page->PaintOverlay(host);
@@ -1990,6 +2002,7 @@ bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
     bool keepTicking                          = false;
     if (current && ! currentLifetime.expired() && current->IsVisible())
     {
+        ++Detail::Work().frame.treeVisitsTick;
         keepTicking = current->Tick(host, nowTickMs) || keepTicking;
         if (ownerLifetime.expired())
         {
@@ -1999,6 +2012,7 @@ bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
     if (outgoing && outgoing != current && ! outgoingLifetime.expired() && (_currentPage.get() == outgoing || _outgoingPage.get() == outgoing) &&
         outgoing->IsVisible())
     {
+        ++Detail::Work().frame.treeVisitsTick;
         keepTicking = outgoing->Tick(host, nowTickMs) || keepTicking;
         if (ownerLifetime.expired())
         {
@@ -2113,7 +2127,8 @@ Control* PageHost::HitTest(D2D1_POINT_2F point)
     if (page)
     {
         const std::weak_ptr<int> pageLifetime = GetControlLifetimeToken(*page);
-        Control* const hit                    = page->HitTest(point);
+        ++Detail::Work().frame.treeVisitsHitTest;
+        Control* const hit = page->HitTest(point);
         if (ownerLifetime.expired())
             return nullptr;
         if (pageLifetime.expired() || _currentPage.get() != page || _transition.active)
@@ -2146,7 +2161,8 @@ const Control* PageHost::HitTest(D2D1_POINT_2F point) const
     if (page)
     {
         const std::weak_ptr<int> pageLifetime = GetControlLifetimeToken(*page);
-        const Control* const hit              = page->HitTest(point);
+        ++Detail::Work().frame.treeVisitsHitTest;
+        const Control* const hit = page->HitTest(point);
         if (ownerLifetime.expired())
             return nullptr;
         if (pageLifetime.expired() || _currentPage.get() != page || _transition.active)
@@ -3008,7 +3024,8 @@ void Label::PrepareVisualContent(ControlHost& host) noexcept
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testMnemonicLayoutCreations;
 #endif
-        if (FAILED(host.GetWriteFactory()->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.put())) || ! layout)
+        if (FAILED(CountedCreateTextLayout(host.GetWriteFactory(), text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.put())) ||
+            ! layout)
             return;
         const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(text.size())};
         const float spacing = typography ? typography->characterSpacingDip * .5f : 0.f;
@@ -3381,7 +3398,7 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
     else
 #endif
     {
-        createResult = factory->CreateTextLayout(text, length, format.get(), widthDip, heightDip, layout.put());
+        createResult = CountedCreateTextLayout(factory, text, length, format.get(), widthDip, heightDip, layout.put());
     }
     if (FAILED(createResult))
         layout.reset();
@@ -5759,7 +5776,7 @@ namespace
 
     wil::com_ptr<ID2D1Factory> factory;
     context->GetFactory(factory.addressof());
-    if (! factory || FAILED(factory->CreatePathGeometry(geometry.addressof())) || ! geometry)
+    if (! factory || FAILED(CountedCreatePathGeometry(factory, geometry.addressof())) || ! geometry)
     {
         geometry.reset();
         return geometry;
@@ -5853,7 +5870,7 @@ ThroughputGraphBandPaintMetrics PaintThroughputGraphBands(ID2D1RenderTarget* tar
     metrics.bandsActive = ShouldRenderThroughputGraphBands(options.rainbowMode, options.perStreamBands, options.highContrast, maximumConcurrentColorSlots);
 
     wil::com_ptr<ID2D1SolidColorBrush> brush;
-    if (FAILED(target->CreateSolidColorBrush(options.baseFillColor, brush.addressof())) || ! brush)
+    if (FAILED(CountedCreateSolidColorBrush(target, options.baseFillColor, brush.addressof())) || ! brush)
     {
         return finish();
     }
@@ -5989,11 +6006,12 @@ ThroughputGraphBandPaintMetrics PaintThroughputGraphBands(ID2D1RenderTarget* tar
     const D2D1_BITMAP_PROPERTIES bitmapProperties =
         D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
     wil::com_ptr<ID2D1Bitmap> bandBitmap;
-    if (FAILED(target->CreateBitmap(D2D1::SizeU(static_cast<UINT32>(sampleCount), static_cast<UINT32>(kRasterRows)),
-                                    pixels.data(),
-                                    static_cast<UINT32>(sampleCount * sizeof(uint32_t)),
-                                    &bitmapProperties,
-                                    bandBitmap.addressof())) ||
+    if (FAILED(CountedCreateBitmap(target,
+                                   D2D1::SizeU(static_cast<UINT32>(sampleCount), static_cast<UINT32>(kRasterRows)),
+                                   pixels.data(),
+                                   static_cast<UINT32>(sampleCount * sizeof(uint32_t)),
+                                   &bitmapProperties,
+                                   bandBitmap.addressof())) ||
         ! bandBitmap)
     {
         return finish();
@@ -6005,7 +6023,7 @@ ThroughputGraphBandPaintMetrics PaintThroughputGraphBands(ID2D1RenderTarget* tar
         return finish();
     }
     wil::com_ptr<ID2D1Layer> layer;
-    if (FAILED(target->CreateLayer(layer.addressof())) || ! layer)
+    if (FAILED(CountedCreateLayer(target, layer.addressof())) || ! layer)
     {
         return finish();
     }
@@ -6281,12 +6299,13 @@ void ThroughputGraph::Paint(ControlHost& host) const
             {
                 if (auto* textBrush = host.GetSolidBrush(palette.text))
                 {
-                    context->DrawTextW(_currentValueLabel.data(),
-                                       static_cast<UINT32>(_currentValueLabel.size()),
-                                       format,
-                                       leadingBounds,
-                                       textBrush,
-                                       D2D1_DRAW_TEXT_OPTIONS_CLIP);
+                    CountedDrawText(context,
+                                    _currentValueLabel.data(),
+                                    static_cast<UINT32>(_currentValueLabel.size()),
+                                    format,
+                                    leadingBounds,
+                                    textBrush,
+                                    D2D1_DRAW_TEXT_OPTIONS_CLIP);
                 }
             }
 
@@ -6298,12 +6317,13 @@ void ThroughputGraph::Paint(ControlHost& host) const
                     {
                         const D2D1_RECT_F trailingBounds =
                             D2D1::RectF(labelCenter + kLabelGapDip * 0.5f, bounds.top + 3.0f, bounds.right - kLabelInsetDip, bounds.bottom);
-                        context->DrawTextW(_currentValueTrailingLabel.data(),
-                                           static_cast<UINT32>(_currentValueTrailingLabel.size()),
-                                           format,
-                                           trailingBounds,
-                                           textBrush,
-                                           D2D1_DRAW_TEXT_OPTIONS_CLIP);
+                        CountedDrawText(context,
+                                        _currentValueTrailingLabel.data(),
+                                        static_cast<UINT32>(_currentValueTrailingLabel.size()),
+                                        format,
+                                        trailingBounds,
+                                        textBrush,
+                                        D2D1_DRAW_TEXT_OPTIONS_CLIP);
                     }
                 }
             }
@@ -6316,7 +6336,7 @@ void ThroughputGraph::Paint(ControlHost& host) const
         {
             if (auto* textBrush = host.GetSolidBrush(palette.text))
             {
-                context->DrawTextW(_overlayText.data(), static_cast<UINT32>(_overlayText.size()), format, bounds, textBrush, D2D1_DRAW_TEXT_OPTIONS_CLIP);
+                CountedDrawText(context, _overlayText.data(), static_cast<UINT32>(_overlayText.size()), format, bounds, textBrush, D2D1_DRAW_TEXT_OPTIONS_CLIP);
             }
         }
     }
@@ -8579,7 +8599,8 @@ float MenuBar::MeasureItemWidth(const ControlHost& host, const MenuBarItem& item
     }
 
     wil::com_ptr<IDWriteTextLayout> layout;
-    if (FAILED(factory->CreateTextLayout(item.text.data(), static_cast<UINT32>(item.text.size()), format, 512.0f, measureHeightDip, layout.addressof())) ||
+    if (FAILED(
+            CountedCreateTextLayout(factory, item.text.data(), static_cast<UINT32>(item.text.size()), format, 512.0f, measureHeightDip, layout.addressof())) ||
         ! layout)
     {
         return (itemPaddingXDip * 2.0f) + 24.0f;
@@ -10415,11 +10436,11 @@ std::wstring StatusStrip::ElideLeadingForWidth(const ControlHost* host, std::wst
             constexpr float kMeasureWidthDip = 32768.0f;
             wil::com_ptr<IDWriteTextLayout> layout;
 #if DXUI_ENABLE_DIAGNOSTICS
-            ++testSingleLineMeasureLayoutCreations; // The single-line measuring counter; W0.1 may fold it into its work counters.
+            ++testSingleLineMeasureLayoutCreations; // The single-line measuring counter; the layout is also counted by kind.
 #endif
             UINT32 count = 0u;
-            if (SUCCEEDED(factory->CreateTextLayout(
-                    measured.data(), static_cast<UINT32>(measured.size()), format, kMeasureWidthDip, heightDip, layout.addressof())) &&
+            if (SUCCEEDED(CountedCreateTextLayout(
+                    factory, measured.data(), static_cast<UINT32>(measured.size()), format, kMeasureWidthDip, heightDip, layout.addressof())) &&
                 layout && layout->GetClusterMetrics(nullptr, 0u, &count) == HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))
             {
                 clusters.resize(count);

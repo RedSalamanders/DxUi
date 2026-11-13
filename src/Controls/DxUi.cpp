@@ -136,8 +136,8 @@ namespace
         D2D1_BITMAP_OPTIONS_NONE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), host.GetDpi(), host.GetDpi());
     wil::com_ptr<ID2D1Bitmap1> bitmap;
     const UINT32 pitch = backdrop.capture.widthPx * 4u;
-    const HRESULT hr   = dc->CreateBitmap(
-        D2D1::SizeU(backdrop.capture.widthPx, backdrop.capture.heightPx), backdrop.capture.bgraPixels.data(), pitch, &bitmapProperties, bitmap.put());
+    const HRESULT hr   = CountedCreateBitmap(
+        dc, D2D1::SizeU(backdrop.capture.widthPx, backdrop.capture.heightPx), backdrop.capture.bgraPixels.data(), pitch, &bitmapProperties, bitmap.put());
     if (FAILED(hr) || ! bitmap)
     {
         Debug::Warning(L"DxUi::PaintTransientSurface: failed to create backdrop bitmap: 0x{:08X}", hr);
@@ -169,14 +169,15 @@ void PaintTransientSurfaceBackdrop(ControlHost& host, const D2D1_RECT_F& surface
     wil::com_ptr<ID2D1Factory> factory;
     dc->GetFactory(factory.put());
     wil::com_ptr<ID2D1RoundedRectangleGeometry> roundedGeometry;
-    if (! factory || FAILED(factory->CreateRoundedRectangleGeometry(D2D1::RoundedRect(surfaceRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
+    if (! factory ||
+        FAILED(CountedCreateRoundedRectangleGeometry(factory, D2D1::RoundedRect(surfaceRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
         ! roundedGeometry)
     {
         return;
     }
 
     wil::com_ptr<ID2D1Effect> blurEffect;
-    if (FAILED(dc->CreateEffect(kTransientSurfaceGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
+    if (FAILED(CountedCreateEffect(dc, kTransientSurfaceGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
     {
         return;
     }
@@ -324,7 +325,7 @@ bool CaptureBackdropScreenRegion(const RECT& screenRect, WindowHostBitmapCapture
     }
 
     [[maybe_unused]] const auto oldBitmap = wil::SelectObject(memoryDc.get(), bitmap.get());
-    if (BitBlt(memoryDc.get(), 0, 0, widthPx, heightPx, screenDc.get(), screenRect.left, screenRect.top, SRCCOPY | CAPTUREBLT) == FALSE)
+    if (CountedBitBlt(memoryDc.get(), 0, 0, widthPx, heightPx, screenDc.get(), screenRect.left, screenRect.top, SRCCOPY | CAPTUREBLT) == FALSE)
     {
         Debug::Warning(L"DxUi::{}: BitBlt failed for popup backdrop capture (lastError={})", componentName, GetLastError());
         return false;

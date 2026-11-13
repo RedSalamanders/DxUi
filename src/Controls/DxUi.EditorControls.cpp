@@ -92,12 +92,12 @@ void StrokeLine(ControlHost& host, D2D1_POINT_2F from, D2D1_POINT_2F to, const D
     ID2D1DeviceContext* dc, D2D1_POINT_2F start, D2D1_POINT_2F end, const D2D1_GRADIENT_STOP* stops, UINT32 stopCount) noexcept
 {
     wil::com_ptr<ID2D1GradientStopCollection> collection;
-    if (! dc || FAILED(dc->CreateGradientStopCollection(stops, stopCount, collection.put())))
+    if (! dc || FAILED(CountedCreateGradientStopCollection(dc, stops, stopCount, collection.put())))
     {
         return {};
     }
     wil::com_ptr<ID2D1LinearGradientBrush> brush;
-    if (FAILED(dc->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(start, end), collection.get(), brush.put())))
+    if (FAILED(CountedCreateLinearGradientBrush(dc, D2D1::LinearGradientBrushProperties(start, end), collection.get(), brush.put())))
     {
         return {};
     }

@@ -82,6 +82,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.RichSemanticGeometryResources.h"
 #include "Embedded.Tests.RichSemanticResources.h"
 #include "Embedded.Tests.RichTextResources.h"
+#include "Embedded.Tests.WorkCounters.h"
 #include "Support.Tests.RichSemantic.h"
 #include "Support.Tests.RichSemanticEditor.h"
 #include "Support.Tests.RichSemanticGeometry.h"
@@ -1678,6 +1679,12 @@ __declspec(noinline) static int RunFunctionalTests()
         ComplexUiBoundaries::Run(__wargv[2], timers == L"On", mode);
         return 0;
     }
+    // The work-counter gate on the ComplexUi fixture, alone, writing its receipt (Measurements/PerformanceAndMotion_2026-11-13/W0.1).
+    if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--test-work-counters")
+    {
+        WorkCountersComplexUi::Run(__wargv[2]);
+        return 0;
+    }
     // Opt-in diagnostics stay outside the canonical benchmark dispatcher/closure.
     if (__argc == 5 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-profile")
     {
@@ -2027,6 +2034,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichProjectionMappingAndUnchangedAllocationBudget();
     TestRichSnapshotSliceAllocationFailureAtomicity();
     ComplexUiBoundaries::TestDevicePolicies();
+    WorkCountersComplexUi::Run(nullptr);
     TestRichFlatProjectionFailureAtomicity();
     TestRichProjectionPreparationAllocationFailureAtomicity();
     TestRichProjectionRetainedStorageBudget();

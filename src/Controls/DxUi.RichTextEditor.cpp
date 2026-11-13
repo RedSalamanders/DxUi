@@ -3817,7 +3817,7 @@ HRESULT RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
                 return E_UNEXPECTED;
             wil::com_ptr<ID2D1Factory> factory;
             context->GetFactory(factory.put());
-            RETURN_IF_FAILED(factory->CreatePathGeometry(mask.put()));
+            RETURN_IF_FAILED(CountedCreatePathGeometry(factory, mask.put()));
             wil::com_ptr<ID2D1GeometrySink> sink;
             RETURN_IF_FAILED(mask->Open(sink.put()));
             sink->SetFillMode(D2D1_FILL_MODE_WINDING);
@@ -3832,7 +3832,7 @@ HRESULT RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
             RETURN_IF_FAILED(sink->Close());
             if (! layer || state.selectionLayerWidth != width || state.selectionLayerHeight != height ||
                 state.selectionLayerGeneration != host.GetResourceGeneration())
-                RETURN_IF_FAILED(context->CreateLayer(D2D1::SizeF(width, height), layer.put()));
+                RETURN_IF_FAILED(CountedCreateLayer(context, D2D1::SizeF(width, height), layer.put()));
         }
         std::vector<D2D1_RECT_F> composition(0u), conversion(0u);
         NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};

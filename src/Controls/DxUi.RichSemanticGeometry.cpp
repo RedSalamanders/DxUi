@@ -6,6 +6,7 @@
 #include "DxUi.RichImageResources.h"
 #include "DxUi.RichLayoutOptions.h"
 #include "DxUi.SemanticExtensions.h"
+#include "Support/CountedCreation.h"
 #include "Support/Diagnostics.h"
 #include "Support/NativeRendering.h"
 #include <array>
@@ -76,7 +77,7 @@ HRESULT UploadImageBitmap(
     if (testRichImageRasterCalls && testRichImageRasterCalls->createBitmap)
         return testRichImageRasterCalls->createBitmap(target, size, pixels, stride, properties, bitmap);
 #endif
-    return target->CreateBitmap(size, pixels, stride, properties, bitmap);
+    return CountedCreateBitmap(target, size, pixels, stride, properties, bitmap);
 }
 HRESULT CopyImageBitmap(ID2D1Bitmap* bitmap, const D2D1_RECT_U& rectangle, const void* pixels, UINT32 stride) noexcept
 {
@@ -472,7 +473,7 @@ struct NativeImageGeometry
                 if (! device)
                     return reject();
                 wil::com_ptr<ID2D1DeviceContext> privateContext;
-                const auto contextResult = device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, privateContext.put());
+                const auto contextResult = CountedCreateDeviceContext(device, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, privateContext.put());
                 if (contextResult == E_NOTIMPL || contextResult == D2DERR_UNSUPPORTED_OPERATION)
                     return reject();
                 if (FAILED(contextResult))
@@ -495,8 +496,8 @@ struct NativeImageGeometry
                     return {false, true, false, 0u, create};
                 const auto properties = D2D1::BitmapProperties1(
                     D2D1_BITMAP_OPTIONS_TARGET, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.f, 96.f);
-                const auto bitmapResult = placement.svgContext->CreateBitmap(
-                    D2D1::SizeU(placement.svgWidth, placement.svgHeight), nullptr, 0u, &properties, placement.svgTarget.put());
+                const auto bitmapResult = CountedCreateBitmap(
+                    placement.svgContext, D2D1::SizeU(placement.svgWidth, placement.svgHeight), nullptr, 0u, &properties, placement.svgTarget.put());
                 if (bitmapResult == E_NOTIMPL || bitmapResult == D2DERR_UNSUPPORTED_OPERATION)
                     return reject();
                 if (FAILED(bitmapResult))

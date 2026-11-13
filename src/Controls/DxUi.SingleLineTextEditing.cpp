@@ -371,8 +371,8 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
 #if DXUI_ENABLE_DIAGNOSTICS
             ++testSingleLineMeasureLayoutCreations;
 #endif
-            if (SUCCEEDED(factory->CreateTextLayout(
-                    text.data(), static_cast<UINT32>(text.size()), format, kSingleLineMeasureWidthDip, heightDip, layout.addressof())) &&
+            if (SUCCEEDED(CountedCreateTextLayout(
+                    factory, text.data(), static_cast<UINT32>(text.size()), format, kSingleLineMeasureWidthDip, heightDip, layout.addressof())) &&
                 layout)
             {
                 DWRITE_TEXT_METRICS metrics{};
@@ -410,8 +410,8 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
     }
 
     wil::com_ptr<IDWriteTextLayout> layout;
-    if (FAILED(factory->CreateTextLayout(
-            text.data(), static_cast<UINT32>(text.size()), format, std::max(1.0f, widthDip), std::max(1.0f, heightDip), layout.addressof())) ||
+    if (FAILED(CountedCreateTextLayout(
+            factory, text.data(), static_cast<UINT32>(text.size()), format, std::max(1.0f, widthDip), std::max(1.0f, heightDip), layout.addressof())) ||
         ! layout)
     {
         return {};
@@ -480,8 +480,8 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
         const float initialLayoutWidthDip = std::max(resolvedMinimumWidthDip, kSingleLineMeasureWidthDip);
         const bool perfEnabled            = Debug::Perf::IsCaptureEnabled();
         const auto createStartedAt        = perfEnabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        const HRESULT createHr =
-            factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, initialLayoutWidthDip, resolvedHeightDip, layout.addressof());
+        const HRESULT createHr            = CountedCreateTextLayout(
+            factory, text.data(), static_cast<UINT32>(text.size()), format, initialLayoutWidthDip, resolvedHeightDip, layout.addressof());
         if (perfEnabled)
         {
             const std::wstring_view detail = readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT ? L"rtl" : L"ltr";
@@ -690,13 +690,14 @@ void DrawSingleLineTextClippedWithLayout(ControlHost& host,
     if (auto* format = host.GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, readingDirection))
     {
         dc->PushAxisAlignedClip(snappedRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-        dc->DrawTextW(text.data(),
-                      static_cast<UINT32>(text.size()),
-                      format,
-                      D2D1::RectF(snappedRect.left - scrollDip, snappedRect.top, snappedRect.right - scrollDip, snappedRect.bottom),
-                      brush,
-                      kTextDrawOptions,
-                      DWRITE_MEASURING_MODE_NATURAL);
+        CountedDrawText(dc,
+                        text.data(),
+                        static_cast<UINT32>(text.size()),
+                        format,
+                        D2D1::RectF(snappedRect.left - scrollDip, snappedRect.top, snappedRect.right - scrollDip, snappedRect.bottom),
+                        brush,
+                        kTextDrawOptions,
+                        DWRITE_MEASURING_MODE_NATURAL);
         dc->PopAxisAlignedClip();
     }
 }

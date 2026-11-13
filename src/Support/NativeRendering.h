@@ -10,6 +10,11 @@ namespace DxUi::Detail
 // Private host helper. The factory seam permits deterministic native-ABI
 // failure tests without a device, driver or process-wide replacement hook.
 using D3D11DeviceCreator = decltype(&::D3D11CreateDevice);
+// The system creator. Every device a creator returns is counted by CreateD3D11DeviceWithWarpFallback (work counters).
+[[nodiscard]] inline D3D11DeviceCreator SystemD3D11DeviceCreator() noexcept
+{
+    return &::D3D11CreateDevice;
+}
 [[nodiscard]] HRESULT CreateD3D11DeviceWithWarpFallback(UINT creationFlags,
                                                         std::span<const D3D_FEATURE_LEVEL> featureLevels,
                                                         bool forceWarp,

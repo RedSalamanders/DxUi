@@ -61,7 +61,8 @@ namespace DxUi
                                                         ID3D11DeviceContext** context,
                                                         D3D_DRIVER_TYPE* driverType) noexcept
 {
-    return Detail::CreateD3D11DeviceWithWarpFallback(creationFlags, featureLevels, forceWarp, device, featureLevel, context, driverType, &::D3D11CreateDevice);
+    return Detail::CreateD3D11DeviceWithWarpFallback(
+        creationFlags, featureLevels, forceWarp, device, featureLevel, context, driverType, Detail::SystemD3D11DeviceCreator());
 }
 
 [[nodiscard]] HRESULT Detail::CreateD3D11DeviceWithWarpFallback(UINT creationFlags,
@@ -103,17 +104,20 @@ namespace DxUi
 
         // Drivers may handle a C++ exception internally before returning an
         // HRESULT. Keep the allowance at the native ABI, including each retry.
-        return Failure::InvokeNative(creator,
-                                     nullptr,
-                                     requestedDriverType,
-                                     nullptr,
-                                     creationFlags,
-                                     featureLevels.data(),
-                                     static_cast<UINT>(featureLevels.size()),
-                                     static_cast<UINT>(D3D11_SDK_VERSION),
-                                     createdDevice.addressof(),
-                                     &createdFeatureLevel,
-                                     createdContext.addressof());
+        const HRESULT created = Failure::InvokeNative(creator,
+                                                      nullptr,
+                                                      requestedDriverType,
+                                                      nullptr,
+                                                      creationFlags,
+                                                      featureLevels.data(),
+                                                      static_cast<UINT>(featureLevels.size()),
+                                                      static_cast<UINT>(D3D11_SDK_VERSION),
+                                                      createdDevice.addressof(),
+                                                      &createdFeatureLevel,
+                                                      createdContext.addressof());
+        if (SUCCEEDED(created))
+            Detail::NoteResourceCreated(Detail::ResourceKind::d3d11Device, createdDevice.get());
+        return created;
     };
 
     D3D_DRIVER_TYPE createdDriverType = D3D_DRIVER_TYPE_WARP;
@@ -2765,7 +2769,7 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
 
     const Typography::Spec spec = Typography::GetSpec(role);
     wil::com_ptr<IDWriteTextFormat> format;
-    const HRESULT hrCreate = Typography::CreateTextFormat(_dwriteFactory.get(), spec, format.addressof());
+    const HRESULT hrCreate = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, format.addressof());
     if (FAILED(hrCreate) || ! format)
     {
         Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for configured font role {}: 0x{:08X}", static_cast<uint32_t>(role), hrCreate);
@@ -2829,7 +2833,7 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
     spec.sizeDip          = normalizedSize;
     spec.weight           = fontWeight;
     wil::com_ptr<IDWriteTextFormat> format;
-    const HRESULT hr = Typography::CreateTextFormat(_dwriteFactory.get(), spec, format.addressof());
+    const HRESULT hr = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, format.addressof());
     if (FAILED(hr) || ! format)
         return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
     if (FAILED(format->SetTextAlignment(alignment)) || FAILED(format->SetParagraphAlignment(paragraphAlignment)) ||
@@ -2873,7 +2877,7 @@ ID2D1SolidColorBrush* ControlHost::GetSolidBrush(const D2D1_COLOR_F& color) cons
     }
 
     wil::com_ptr<ID2D1SolidColorBrush> brush;
-    const HRESULT hr = _d2dContext->CreateSolidColorBrush(color, brush.addressof());
+    const HRESULT hr = CountedCreateSolidColorBrush(_d2dContext, color, brush.addressof());
     if (FAILED(hr) || ! brush)
     {
         if (std::ranges::find(_brushFailureLogKeys, key) == _brushFailureLogKeys.end())
@@ -2883,7 +2887,7 @@ ID2D1SolidColorBrush* ControlHost::GetSolidBrush(const D2D1_COLOR_F& color) cons
         }
         if (! _fallbackBrush && _d2dContext)
         {
-            static_cast<void>(_d2dContext->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f), _fallbackBrush.addressof()));
+            static_cast<void>(CountedCreateSolidColorBrush(_d2dContext, D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f), _fallbackBrush.addressof()));
         }
         if (_fallbackBrush)
         {
@@ -3474,6 +3478,7 @@ try
     {
         case WM_PAINT:
             handled = true;
+            ++Detail::Work().wakes.paintMessage;
             {
                 PAINTSTRUCT paint{};
                 wil::unique_hdc_paint paintHdc = wil::BeginPaint(hwnd, &paint);
@@ -4205,7 +4210,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _bodyTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Body);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _bodyTextFormat.addressof());
         if (FAILED(hr) || ! _bodyTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for body text: 0x{:08X}", hr);
@@ -4215,7 +4220,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _bodyStrongTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::BodyStrong);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyStrongTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _bodyStrongTextFormat.addressof());
         if (FAILED(hr) || ! _bodyStrongTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for body-strong text: 0x{:08X}", hr);
@@ -4225,7 +4230,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _bodyLargeTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::BodyLarge);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyLargeTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _bodyLargeTextFormat.addressof());
         if (FAILED(hr) || ! _bodyLargeTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for body-large text: 0x{:08X}", hr);
@@ -4235,7 +4240,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _listItemTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::ListItem);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _listItemTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _listItemTextFormat.addressof());
         if (FAILED(hr) || ! _listItemTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for list-item text: 0x{:08X}", hr);
@@ -4245,7 +4250,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _titleTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Title);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _titleTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _titleTextFormat.addressof());
         if (FAILED(hr) || ! _titleTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for title text: 0x{:08X}", hr);
@@ -4255,7 +4260,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _subtitleTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Subtitle);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _subtitleTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _subtitleTextFormat.addressof());
         if (FAILED(hr) || ! _subtitleTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for subtitle text: 0x{:08X}", hr);
@@ -4265,7 +4270,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _titleLargeTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::TitleLarge);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _titleLargeTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _titleLargeTextFormat.addressof());
         if (FAILED(hr) || ! _titleLargeTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for title-large text: 0x{:08X}", hr);
@@ -4275,7 +4280,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _displayTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Display);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _displayTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _displayTextFormat.addressof());
         if (FAILED(hr) || ! _displayTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for display text: 0x{:08X}", hr);
@@ -4285,7 +4290,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _headerTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Header);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _headerTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _headerTextFormat.addressof());
         if (FAILED(hr) || ! _headerTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for header text: 0x{:08X}", hr);
@@ -4295,7 +4300,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _smallTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Small);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _smallTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _smallTextFormat.addressof());
         if (FAILED(hr) || ! _smallTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for small text: 0x{:08X}", hr);
@@ -4310,7 +4315,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (_fluentIconFontAvailable && ! _iconTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Icon);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _iconTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _iconTextFormat.addressof());
         if (FAILED(hr) || ! _iconTextFormat)
         {
             Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent icon text: 0x{:08X}", hr);
@@ -4321,7 +4326,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (_fluentIconFontAvailable && ! _heroIconTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::HeroIcon);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _heroIconTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _heroIconTextFormat.addressof());
         if (FAILED(hr) || ! _heroIconTextFormat)
         {
             Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent hero icon text: 0x{:08X}", hr);
@@ -4331,7 +4336,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (_fluentIconFontAvailable && ! _iconLargeTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::IconLarge);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _iconLargeTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _iconLargeTextFormat.addressof());
         if (FAILED(hr) || ! _iconLargeTextFormat)
         {
             Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent large icon text: 0x{:08X}", hr);
@@ -4341,7 +4346,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _monoTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Monospace);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _monoTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _monoTextFormat.addressof());
         if (FAILED(hr) || ! _monoTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for monospace text: 0x{:08X}", hr);
@@ -4409,7 +4414,7 @@ bool ControlHost::EnsureDeviceResources() noexcept
         }
     }
 
-    const HRESULT hrContext = _d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _d2dContext.addressof());
+    const HRESULT hrContext = CountedCreateDeviceContext(_d2dDevice, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _d2dContext.addressof());
     if (FAILED(hrContext) || ! _d2dContext)
     {
         Debug::Error(L"DxUi::ControlHost: ID2D1Device::CreateDeviceContext failed: 0x{:08X}", hrContext);
@@ -4587,7 +4592,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
                               _presentationMode == PresentationMode::CompositionSwapChain ? D2D1_ALPHA_MODE_PREMULTIPLIED : D2D1_ALPHA_MODE_IGNORE),
             static_cast<float>(_dpi),
             static_cast<float>(_dpi));
-        const HRESULT hrBitmap = injected(3u, _d2dContext->CreateBitmapFromDxgiSurface(surface.get(), &props, _targetBitmap.addressof()));
+        const HRESULT hrBitmap = injected(3u, CountedCreateBitmapFromDxgiSurface(_d2dContext, surface.get(), &props, _targetBitmap.addressof()));
         if (FAILED(hrBitmap) || ! _targetBitmap)
         {
             Debug::Error(L"DxUi::ControlHost: CreateBitmapFromDxgiSurface failed: 0x{:08X}", hrBitmap);
@@ -4738,7 +4743,7 @@ void ControlHost::RecreateBrushCache() const
         return;
     }
 
-    const HRESULT hr = _d2dContext->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f), _fallbackBrush.addressof());
+    const HRESULT hr = CountedCreateSolidColorBrush(_d2dContext, D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f), _fallbackBrush.addressof());
     if (FAILED(hr) || ! _fallbackBrush)
     {
         Debug::Warning(L"DxUi::ControlHost: failed to create fallback solid brush: 0x{:08X}", hr);
@@ -4753,6 +4758,21 @@ void ControlHost::RecreateBrushCache() const
 
 // Diagnostics are fixed on (Configuration.h), so the capturing overload is the one render path.
 static_assert(DXUI_ENABLE_DIAGNOSTICS, "WindowHost renders through its capturing overload.");
+namespace
+{
+// Work counters for one native render pass: the area it clears and repaints (the dirty rectangle of a partial frame).
+void CountWindowHostRender(const RECT* dirtyRectPx, UINT widthPx, UINT heightPx) noexcept
+{
+    auto& frame = Detail::Work().frame;
+    ++frame.renders;
+    if (dirtyRectPx)
+        frame.pixelsPainted += static_cast<uint64_t>((std::max)(dirtyRectPx->right - dirtyRectPx->left, 0L)) *
+                               static_cast<uint64_t>((std::max)(dirtyRectPx->bottom - dirtyRectPx->top, 0L));
+    else
+        frame.pixelsPainted += static_cast<uint64_t>(widthPx) * heightPx;
+}
+} // namespace
+
 void ControlHost::Render(const RECT* dirtyRectPx, bool allowHidden) noexcept
 {
     Render(dirtyRectPx, nullptr, allowHidden);
@@ -4969,6 +4989,7 @@ try
         FrameStageScope renderScope(frameStage, FrameStage::Render);
         const auto renderStartedAt = frameClock.Now();
         bool clipPushed            = false;
+        CountWindowHostRender(isPartialDirty ? dirtyRectPx : nullptr, _widthPx, _heightPx);
         _d2dContext->BeginDraw();
         auto endDrawGuard = wil::scope_exit([&]
         {
@@ -5012,6 +5033,7 @@ try
         _d2dContext->Clear(_presentationMode == PresentationMode::CompositionSwapChain ? D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f) : _palette.windowBackground);
         if (_root)
         {
+            Detail::NotePaintDispatch();
             _root->Paint(*this);
         }
         if (_initialRootChildBatchFrame == &initialBatchFrame)
@@ -5096,13 +5118,15 @@ try
                 DXGI_PRESENT_PARAMETERS params{};
                 params.DirtyRectsCount = 1;
                 params.pDirtyRects     = &dirtyRect;
-                hrPresent              = _swapChain->Present1(1u, 0u, &params);
+                ++Detail::Work().frame.presents;
+                hrPresent = _swapChain->Present1(1u, 0u, &params);
             }
             else
             {
 #if DXUI_ENABLE_DIAGNOSTICS
                 ++_debugFullPresentAttemptCount;
 #endif
+                ++Detail::Work().frame.presents;
                 hrPresent = _swapChain->Present(1u, 0u);
             }
         }
@@ -5698,6 +5722,7 @@ try
         return overlayTarget;
     }
 
+    ++Detail::Work().frame.treeVisitsHitTest;
     Control* const target = root->HitTest(pointDip);
     return ! rootLifetime.expired() && _root.get() == root && _interactionRevision == interactionRevision && target &&
                    IsControlEffectivelyInteractive(root, target)
@@ -6027,6 +6052,7 @@ bool ControlHost::OnAnimationTick(uint64_t nowTickMs) noexcept
 
     // A tree whose Tick throws stops ticking until a control asks for animation again, rather than failing every frame.
     bool rootTicking = false;
+    ++Detail::Work().frame.treeVisitsTick;
     static_cast<void>(TryControlCallback([&] { rootTicking = _root->Tick(*this, nowTickMs); }));
     if (! tickCurrent())
         return false;

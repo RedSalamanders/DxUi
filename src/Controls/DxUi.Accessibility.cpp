@@ -1466,6 +1466,7 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
 #if DXUI_ENABLE_DIAGNOSTICS
     g_accessibilitySnapshotBuildCount.fetch_add(1u, std::memory_order_relaxed);
 #endif
+    ++Detail::Work().accessibility.snapshotBuilds;
     auto snapshot              = std::make_shared<AccessibilitySnapshot>();
     snapshot->hwnd             = target.hwnd;
     snapshot->buildThreadId    = GetCurrentThreadId();
@@ -1503,6 +1504,11 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     if (! AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *snapshot, build))
         return {};
     IndexAccessibilitySnapshot(*snapshot);
+    auto& accessibilityWork = Detail::Work().accessibility;
+    accessibilityWork.snapshotNodes += snapshot->controlNavigationRecords.size();
+    accessibilityWork.snapshotBytes += snapshot->controlNavigationRecords.capacity() * sizeof(AccessibilityControlNavigationSnapshot) +
+                                       snapshot->semanticControlOrder.capacity() * sizeof(ControlPath) +
+                                       snapshot->controlsByAddress.capacity() * sizeof(AccessibilityControlAddress);
 
     // The host prunes a focused control that left the tree only at its next message, so find it by pointer before
     // touching it: one removed with its panel's children in the meantime is gone, not focused. The records are the

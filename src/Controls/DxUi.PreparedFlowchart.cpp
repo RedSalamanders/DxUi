@@ -1,4 +1,5 @@
 #include "DxUi.PreparedFlowchart.h"
+#include "Support/CountedCreation.h"
 #include "Support/Utilities.h"
 #include <algorithm>
 #include <cmath>
@@ -83,7 +84,7 @@ D2D1_RECT_F Rect(FlowchartRect rect) noexcept
 wil::com_ptr<ID2D1PathGeometry> Path(ID2D1Factory* factory, std::span<const FlowchartPoint> points, HRESULT& result)
 {
     wil::com_ptr<ID2D1PathGeometry> path;
-    if (FAILED(result = factory->CreatePathGeometry(path.put())))
+    if (FAILED(result = CountedCreatePathGeometry(factory, path.put())))
         return {};
     wil::com_ptr<ID2D1GeometrySink> sink;
     if (FAILED(result = path->Open(sink.put())))
@@ -99,7 +100,7 @@ wil::com_ptr<ID2D1PathGeometry> Path(ID2D1Factory* factory, std::span<const Flow
 wil::com_ptr<ID2D1PathGeometry> CylinderPath(ID2D1Factory* factory, FlowchartRect rect, HRESULT& result)
 {
     wil::com_ptr<ID2D1PathGeometry> path;
-    if (FAILED(result = factory->CreatePathGeometry(path.put())))
+    if (FAILED(result = CountedCreatePathGeometry(factory, path.put())))
         return {};
     wil::com_ptr<ID2D1GeometrySink> sink;
     if (FAILED(result = path->Open(sink.put())))
@@ -120,7 +121,7 @@ wil::com_ptr<ID2D1PathGeometry> CylinderPath(ID2D1Factory* factory, FlowchartRec
 wil::com_ptr<ID2D1PathGeometry> PiePath(ID2D1Factory* factory, FlowchartRect circle, double start, double end, HRESULT& result)
 {
     wil::com_ptr<ID2D1PathGeometry> path;
-    if (FAILED(result = factory->CreatePathGeometry(path.put())))
+    if (FAILED(result = CountedCreatePathGeometry(factory, path.put())))
         return {};
     wil::com_ptr<ID2D1GeometrySink> sink;
     if (FAILED(result = path->Open(sink.put())))
@@ -322,7 +323,8 @@ struct PreparedFlowchart::State
     }
     HRESULT Format()
     {
-        RETURN_IF_FAILED(write->CreateTextFormat(options.fontFamily.c_str(),
+        RETURN_IF_FAILED(CountedCreateTextFormat(write,
+                                                 options.fontFamily.c_str(),
                                                  nullptr,
                                                  DWRITE_FONT_WEIGHT_NORMAL,
                                                  DWRITE_FONT_STYLE_NORMAL,
@@ -340,7 +342,7 @@ struct PreparedFlowchart::State
             const auto properties = D2D1::StrokeStyleProperties(
                 D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_ROUND, D2D1_LINE_JOIN_ROUND, 10.f, D2D1_DASH_STYLE_CUSTOM, 0.f);
             constexpr std::array<FLOAT, 2u> dashes{1.f, 3.f};
-            RETURN_IF_FAILED(drawing->CreateStrokeStyle(properties, dashes.data(), static_cast<UINT32>(dashes.size()), dottedStyle.put()));
+            RETURN_IF_FAILED(CountedCreateStrokeStyle(drawing, properties, dashes.data(), static_cast<UINT32>(dashes.size()), dottedStyle.put()));
         }
         if (std::ranges::any_of(graph->nodes, [](const auto& node) { return node.borderDashed; }) ||
             std::ranges::any_of(graph->edges, [](const auto& edge) { return edge.dashed; }))
@@ -348,7 +350,7 @@ struct PreparedFlowchart::State
             const auto properties = D2D1::StrokeStyleProperties(
                 D2D1_CAP_STYLE_FLAT, D2D1_CAP_STYLE_FLAT, D2D1_CAP_STYLE_FLAT, D2D1_LINE_JOIN_MITER, 10.f, D2D1_DASH_STYLE_CUSTOM, 0.f);
             constexpr std::array<FLOAT, 2u> dashes{5.f, 5.f};
-            RETURN_IF_FAILED(drawing->CreateStrokeStyle(properties, dashes.data(), static_cast<UINT32>(dashes.size()), dashedStyle.put()));
+            RETURN_IF_FAILED(CountedCreateStrokeStyle(drawing, properties, dashes.data(), static_cast<UINT32>(dashes.size()), dashedStyle.put()));
         }
         return S_OK;
     }
@@ -358,7 +360,7 @@ struct PreparedFlowchart::State
         constexpr auto maximum = static_cast<float>(NativeFlowchartLayout::MaximumExtent);
         const auto labelWidth =
             options.diagramLabelWidthDip > 0.f ? options.diagramLabelWidthDip : std::min(maximum, std::max(1.f, options.fontSizeDip * 12.5f));
-        RETURN_IF_FAILED(write->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format.get(), labelWidth, maximum, layout.put()));
+        RETURN_IF_FAILED(CountedCreateTextLayout(write, text.data(), static_cast<UINT32>(text.size()), format.get(), labelWidth, maximum, layout.put()));
         if (styles)
             for (std::size_t index = 0u; index < styles->count; ++index)
             {

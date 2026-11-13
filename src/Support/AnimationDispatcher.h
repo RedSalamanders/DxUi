@@ -18,6 +18,7 @@
 #pragma warning(pop)
 
 #include "Diagnostics.h"
+#include "WorkCounters.h"
 #include <DxUi/Failure.h>
 #include <DxUi/FrameRuntime.h>
 
@@ -418,6 +419,7 @@ private:
     void OnTimerTick() noexcept
     {
         const Failure::Scope failureScope;
+        ++::DxUi::Detail::Work().wakes.animationTimer;
         if (_subscriptions.empty())
         {
             GarbageCollect();

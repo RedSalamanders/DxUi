@@ -202,7 +202,7 @@ struct ComboBoxPopupMaterialStyle
     wil::com_ptr<ID2D1Bitmap1> bitmap;
     const UINT32 pitch = static_cast<UINT32>(capture.widthPx * 4u);
     const HRESULT hr =
-        d2dContext->CreateBitmap(D2D1::SizeU(capture.widthPx, capture.heightPx), capture.bgraPixels.data(), pitch, &bitmapProperties, bitmap.put());
+        CountedCreateBitmap(d2dContext, D2D1::SizeU(capture.widthPx, capture.heightPx), capture.bgraPixels.data(), pitch, &bitmapProperties, bitmap.put());
     if (FAILED(hr) || ! bitmap)
     {
         Debug::Warning(L"DxUi::ComboBox: failed to create popup backdrop bitmap: 0x{:08X}", hr);
@@ -229,14 +229,16 @@ struct ComboBoxPopupMaterialStyle
     };
 
     wil::com_ptr<ID2D1GradientStopCollection> stopCollection;
-    if (FAILED(dc->CreateGradientStopCollection(stops, static_cast<UINT32>(std::size(stops)), stopCollection.put())))
+    if (FAILED(CountedCreateGradientStopCollection(dc, stops, static_cast<UINT32>(std::size(stops)), stopCollection.put())))
     {
         return {};
     }
 
     wil::com_ptr<ID2D1LinearGradientBrush> brush;
-    if (FAILED(dc->CreateLinearGradientBrush(
-            D2D1::LinearGradientBrushProperties(D2D1::Point2F(rect.left, rect.top), D2D1::Point2F(rect.left, rect.bottom)), stopCollection.get(), brush.put())))
+    if (FAILED(CountedCreateLinearGradientBrush(dc,
+                                                D2D1::LinearGradientBrushProperties(D2D1::Point2F(rect.left, rect.top), D2D1::Point2F(rect.left, rect.bottom)),
+                                                stopCollection.get(),
+                                                brush.put())))
     {
         return {};
     }
@@ -338,14 +340,15 @@ void PaintComboBoxBackdropSurface(ControlHost& host,
     dc->GetFactory(factory.put());
 
     wil::com_ptr<ID2D1RoundedRectangleGeometry> roundedGeometry;
-    if (! factory || FAILED(factory->CreateRoundedRectangleGeometry(D2D1::RoundedRect(popupRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
+    if (! factory ||
+        FAILED(CountedCreateRoundedRectangleGeometry(factory, D2D1::RoundedRect(popupRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
         ! roundedGeometry)
     {
         return;
     }
 
     wil::com_ptr<ID2D1Effect> blurEffect;
-    if (FAILED(dc->CreateEffect(kComboBoxGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
+    if (FAILED(CountedCreateEffect(dc, kComboBoxGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
     {
         return;
     }
@@ -356,7 +359,7 @@ void PaintComboBoxBackdropSurface(ControlHost& host,
     blurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_BORDER_MODE_HARD);
 
     wil::com_ptr<ID2D1Layer> layer;
-    if (FAILED(dc->CreateLayer(layer.put())) || ! layer)
+    if (FAILED(CountedCreateLayer(dc, layer.put())) || ! layer)
     {
         return;
     }

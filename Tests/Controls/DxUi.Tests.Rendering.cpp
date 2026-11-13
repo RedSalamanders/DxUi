@@ -1,6 +1,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
 #include "Controls.Tests.HostControlRegressions.h"
+#include "Controls.Tests.WorkCounters.h"
 
 #include <DxUi/FrameRuntime.h>
 #include <array>
@@ -3239,6 +3240,11 @@ void TestAttachedHostRecoversAfterSimulatedDeviceLoss()
 
 void RunRenderingTests()
 {
+    DXUI_RUN_TEST(TestWorkCounterScopeReportsExactDeltasAndChurn);
+    DXUI_RUN_TEST(TestCountedCreationHelpersCountEveryResourceKind);
+    DXUI_RUN_TEST(TestResourceLifetimeTrackerCountsDestructionAtSweep);
+    DXUI_RUN_TEST(TestWorkCountersCountNativeFramesWalksAndWakes);
+    DXUI_RUN_TEST(TestWorkCountersCountAccessibilitySnapshotBuilds);
     DXUI_RUN_TEST(TestEmbeddedGraphicsRetirementPreservesApplicationBindings);
     DXUI_RUN_TEST(TestGridMultilineClampPreservesCompleteModelText);
     DXUI_RUN_TEST(TestGridMultilineShortRowsPaintClippedFirstLine);
