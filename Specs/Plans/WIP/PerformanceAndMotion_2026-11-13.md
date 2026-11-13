@@ -1,6 +1,7 @@
 # Performance and motion plan: speed, frame rate, memory and animation, 13 November 2026
 
-Status: SPEC READY — plan only; no code has been implemented. This is the single plan for making DxUi faster, raising
+Status: ACTIVE — implementation started on 13 November 2026. A ticked item is implemented, with the commit whose
+subject carries its id; an unticked item is not. This is the single plan for making DxUi faster, raising
 its frame rate, lowering its memory use and animating every interactive change. It replaces three documents, now
 archived as records: the [runtime efficiency study](../Done/RuntimeEfficiency_2026-11-07.md), its
 [challenge review](../Done/RuntimeEfficiencyReview_2026-11-12.md) and the
@@ -345,7 +346,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
 
 - [ ] **W0.9 Presentation-mode comparison.**
   - **Why**: composition mode renders to a premultiplied target cleared to transparent, HWND mode to an opaque target
-    cleared to the window background; `DXGI_SCALING_STRETCH` at `:4446` is shared by both modes and is required only
+    cleared to the window background; `DXGI_SCALING_STRETCH` at `DxUi.WindowHost.cpp:4446` is shared by both modes and is required only
     for composition. What a consumer relying on the default would see change is unrecorded.
   - **Change**: run `FX5` and a text-heavy page in `HwndSwapChain` and `CompositionSwapChain`, on WARP and one hardware
     adapter. Pixels: antialiasing mode used, rounded-edge pixels, transparent areas (presented image, `W0.6`). Cost:
@@ -371,7 +372,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
     (a) already does, neither adds scroll-specific work.
   - **Needs**: `W0.2`, `W0.3`, `W0.4`, `W0.8`. **Size**: M.
 
-- [ ] **W0.11 Evidence anchors.**
+- [x] **W0.11 Evidence anchors.**
   - **Why**: plan claims cite `path:line` anchors that drift as source changes; nothing checks them against `HEAD`.
   - **Change**: a tooling test under `Tools/tests`, run by
     [Invoke-ToolingTests.ps1](../../../Tools/tests/Invoke-ToolingTests.ps1), resolves every source anchor in
@@ -394,7 +395,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
     `DxUi.WindowHost.cpp:3628-3632`). `ScrollPanel::OnMouseWheel` invalidates and reports handled at a clamped bound
     (`DxUi.Controls.cpp:11820-11825`), repainting the window and blocking scroll chaining. Each swap-chain resize clears
     the brush cache (`DxUi.WindowHost.cpp:4612`, `:4552`) though brushes are device-context resources. The `#else`
-    `Render` body is dead (`:4708-4952`, `include/DxUi/Configuration.h:4`); the comment at `:5070-5073` gives the wrong
+    `Render` body is dead (`:4708-4952`, `include/DxUi/Configuration.h:4`); the comment at `DxUi.WindowHost.cpp:5070-5073` gives the wrong
     reason why partial frames present correctly.
   - **Change**: `WindowHost` schedules a one-shot retry on its own HWND after a failed recreation and backs off on
     repeated failure or loss, resetting after a successful `Present`; the embedded host reports the failure and owns no
@@ -530,7 +531,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
 - [ ] **W2.2 `ComboBox` popup layout.**
   - **Why**: each `UpdatePopupLayout` measures every filtered item with a fresh DirectWrite layout
     (`DxUi.ComboBox.cpp:2577-2681`, `:2689-2700`; `DxUi.SingleLineTextEditing.cpp:374-381`), and paint calls it
-    `1 + 2V` times (`:857`, `:3095`, `:3118`): 8,500 layouts per paint at 500 items. When every row fits, `V = M`
+    `1 + 2V` times (`DxUi.ComboBox.cpp:857`, `:3095`, `:3118`): 8,500 layouts per paint at 500 items. When every row fits, `V = M`
     (`:2616-2622`), giving `(1 + 2M) × M` (20,100 at 100 items). Three hit-tests per `WM_MOUSEMOVE` repeat it (1,500
     layouts per message at 500 items), and each typed character runs it while closed (`:2114-2115`).
   - **Change**: measure each item's width once per items and typography/DPI revision into a `float` per item; the popup
@@ -546,7 +547,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
     `:2447`) and every edit builds a new semantic document (`DxUi.RichSemanticDocument.cpp:2848-2855`), so each
     keystroke re-uploads every raster image (up to `MaximumDecodedBytes`, 64 MiB, `DxUi.RichImageResources.h:26`),
     re-parses and re-rasterizes every SVG, and rebuilds every formula and diagram. Raster lookup is already keyed by
-    pixels (`:289`), SVG by pixels and size (`:310`); math and diagrams look up by element index (`:364`, `:2671`).
+    pixels (`DxUi.RichSemanticGeometry.cpp:289`), SVG by pixels and size (`:310`); math and diagrams look up by element index (`:364`, `:2671`).
   - **Change**: drop the `document ==` condition from raster and SVG reuse, keeping the target, epoch and option checks.
     Math carries by expression source, font size, display mode, DPI, reading direction, math font family and resource
     generation; diagrams by graph source, revision, palette, DPI and resource generation. The carry reads only the
@@ -682,7 +683,7 @@ something is due, and pace native animation frames to the display. Exit: `G1` me
     raises to the 10 ms `USER_TIMER_MINIMUM`; it runs while any `Tick` returns `true` (`:331-391`), so a focused caret
     keeps it running (about 640 wakes in 10 s, inferred). Each tick walks the whole tree (`Panel::Tick`,
     `DxUi.Controls.cpp:1571-1585`, from `DxUi.WindowHost.cpp:6146` and `src/Rendering/Embedded.cpp:433`); the first
-    tick after idle adds a phantom 8 ms (`AnimationDispatcher.h:431-447`).
+    tick after idle adds a phantom 8 ms (`src/Support/AnimationDispatcher.h:431-447`).
   - **Change**: `ControlHost` keeps one schedule of `Continuous`, `Deadline(tickMs)` and `Once` requests and ticks only
     the controls holding one, not the tree. Native: one `SetCoalescableTimer` on the dispatcher window for the earliest
     deadline; `Continuous` frames come from `W3.6`. A deadline wake runs `Tick` and renders only if something
@@ -948,11 +949,11 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
 - [ ] **W5.1 Animation core.**
   - **Why**: at least six hand-rolled patterns (eased snapshot restarted on retarget, `Slider`
     [DxUi.Controls.cpp](../../../src/Controls/DxUi.Controls.cpp) `:6605-6651`; constant-rate linear `:4445-4454`,
-    [DxUi.Scrollbar.cpp](../../../src/Controls/DxUi.Scrollbar.cpp) `:117-142`; clamped accumulation `:4468-4508`; `Tree`
-    stamps `DxUi.Tree.cpp:3507-3571`; inline `1-(1-t)^3` `:6349-6350`, `DxUi.Menu.cpp:1695-1698`; phase loop
-    `:5418-5445`). A `Slider` retarget restarts the full 100 ms and resets velocity (`:6619-6641`); linear patterns
-    reverse velocity instantly. Durations are constants, several in the public header (`DxUi.h:2040`, `2301-2302`,
-    `2709`, `2849-2850`, `5223-5224`); `tokens.json` has only `caretPhaseMs` (`:815`); `MotionPolicy` has no caller
+    [DxUi.Scrollbar.cpp](../../../src/Controls/DxUi.Scrollbar.cpp) `:117-142`; clamped accumulation `DxUi.Controls.cpp:4468-4508`; `Tree`
+    stamps `DxUi.Tree.cpp:3507-3571`; inline `1-(1-t)^3` `DxUi.Controls.cpp:6349-6350`, `DxUi.Menu.cpp:1695-1698`; phase loop
+    `DxUi.Controls.cpp:5418-5445`). A `Slider` retarget restarts the full 100 ms and resets velocity (`:6619-6641`); linear patterns
+    reverse velocity instantly. Durations are constants, several in the public header (`include/DxUi/DxUi.h:2040`, `2301-2302`,
+    `2709`, `2849-2850`, `5223-5224`); `tokens.json` has only `caretPhaseMs` (`Specs/DesignSystem/tokens.json:815`); `MotionPolicy` has no caller
     ([FrameRuntime.cpp](../../../src/Foundation/FrameRuntime.cpp) `:152-159`).
   - **Change**: private `MotionValue` (scalar; colors use four, `W5.2`), about 24 B, no `alignas`: `float target, x0,
     v0`; `uint64_t t0Us`; `uint16_t token`; `uint8_t mode, flags`; `static_assert(sizeof ≤ 24)`. Spring: displacement
@@ -963,11 +964,11 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
     Retarget at `t`: `x0 = x(t) + oldTarget − newTarget`, `v0 = x'(t)`, `t0 = t`. Settle bound for tolerance `ε`:
     `t_s = ln((|A|+|B|)/ε)/(ζω)`; critical `t_s = 2 ln((|A| + 2|B|/(eω))/ε)/ω`; over-damped
     `t_s = ln((|C1|+|C2|)/ε)/|r1|`; at `t_s` the value lands on target and stops ticking. Timed mode: cubic-bezier
-    (Newton with bisection fallback, replacing the 14-step solver `:376-401`), `steps(n, jump-start|end|none|both)`,
+    (Newton with bisection fallback, replacing the 14-step solver `DxUi.Controls.cpp:376-401`), `steps(n, jump-start|end|none|both)`,
     repeat and reverse; a timed retarget builds a cubic Hermite segment from `(x, x')` to `(target, 0)` over the token
     duration, so every mode keeps C¹. Delay, a fixed-capacity sequence (four inline segments) and stagger
     (`index × token.staggerUs`). Time is microseconds from the host clock (`W3.6` predicted present time); tests inject
-    it through `DebugSetAnimationClockForTest` (`DxUi.h:6428`) natively and `AdvanceAnimation` embedded. Every value
+    it through `DebugSetAnimationClockForTest` (`include/DxUi/DxUi.h:6428`) natively and `AdvanceAnimation` embedded. Every value
     consults `MotionPolicy`. Tokens: a `motion` group in [tokens.json](../../DesignSystem/tokens.json) (`spring.micro`,
     `spring.control`, `spring.spatial`, `curve.page`, `curve.fade`, `curve.loop`, `curve.blink`, `stagger`) and a motion
     section in the [design-system guideline](../../DesignSystem/README.md). Coordinate with the explicit-state-machines
@@ -978,7 +979,7 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
     allocations (`W0.1`) over `FX11`.
   - **Needs**: `W0.1`, `W0.4`, `W3.1`, `W3.6`. **Size**: M.
 - [ ] **W5.2 Animated assignment.**
-  - **Why**: each control stores and advances its own transition state (`DxUi.h:2271-2310`, `2793-2850`, `5225-5253`);
+  - **Why**: each control stores and advances its own transition state (`include/DxUi/DxUi.h:2271-2310`, `2793-2850`, `5225-5253`);
     `BlendColor` lerps straight, gamma-encoded components including alpha
     ([DxUi.Theme.cpp](../../../src/Controls/DxUi.Theme.cpp) `:198-202`), and the strongly different checked-track pair
     (`DxUi.Theme.cpp:573`) does not animate at all.
@@ -1021,33 +1022,33 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
 
     | Control | State change | Today | Motion |
     | --- | --- | --- | --- |
-    | `Button` | hover, focus tint | animates: constant-rate linear 140 ms, velocity reverses on retarget (`:4397-4466`, `DxUi.h:2301`) | `spring.micro` |
-    | `Button` | press | snaps: `Button::Tick` advances only hover, focus and disclosure (`:4199-4212`) | `spring.micro` |
-    | `Button` | disclosure chevron | animates: 240 ms `PointToPoint`, accumulated time, 100 ms tick clamp (`:4468-4508`, `DxUi.h:2302`) | `spring.control` |
-    | `Toggle` | knob position | snaps: `checked ? right : left` (`:1274`) | `spring.control` (transform, `W5.3`) |
-    | `Toggle` | knob diameter rest/hover/press | snaps by state (`:4608`) | `spring.micro` |
+    | `Button` | hover, focus tint | animates: constant-rate linear 140 ms, velocity reverses on retarget (`DxUi.Controls.cpp:4397-4466`, `include/DxUi/DxUi.h:2301`) | `spring.micro` |
+    | `Button` | press | snaps: `Button::Tick` advances only hover, focus and disclosure (`DxUi.Controls.cpp:4199-4212`) | `spring.micro` |
+    | `Button` | disclosure chevron | animates: 240 ms `PointToPoint`, accumulated time, 100 ms tick clamp (`DxUi.Controls.cpp:4468-4508`, `include/DxUi/DxUi.h:2302`) | `spring.control` |
+    | `Toggle` | knob position | snaps: `checked ? right : left` (`DxUi.Controls.cpp:1274`) | `spring.control` (transform, `W5.3`) |
+    | `Toggle` | knob diameter rest/hover/press | snaps by state (`DxUi.Controls.cpp:4608`) | `spring.micro` |
     | `Toggle` | track fill and border | snaps (`DxUi.Theme.cpp:573`) | `spring.control`, perceptual color (`W5.2`) |
-    | `Toggle`, `Checkbox`, `RadioButton` | hover, focus tint | animates as `Button` (`:4595-4596`, `:4792-4793`, `:4896-4897`) | `spring.micro` |
-    | `Checkbox` | check mark | snaps: glyph drawn when checked (`:4821-4825`) | `spring.control` (clip reveal and scale, `W5.3`) |
+    | `Toggle`, `Checkbox`, `RadioButton` | hover, focus tint | animates as `Button` (`DxUi.Controls.cpp:4595-4596`, `:4792-4793`, `:4896-4897`) | `spring.micro` |
+    | `Checkbox` | check mark | snaps: glyph drawn when checked (`DxUi.Controls.cpp:4821-4825`) | `spring.control` (clip reveal and scale, `W5.3`) |
     | `Checkbox` | indicator fill | snaps (`DxUi.Theme.cpp:573`) | `spring.control`, perceptual color |
-    | `Checkbox` | indeterminate dash | snaps (`:4812-4820`) | `spring.control` |
-    | `RadioButton` | selected dot | snaps: drawn when checked (`:4920-4925`) | `spring.control` (dot diameter) |
-    | `Slider` | thumb hover, press, touch halo | animates: eased from snapshot, 100 ms, restarts on retarget (`:6605-6651`, `DxUi.h:2849`) | `spring.micro` |
-    | `Slider` | keyboard and pointer value | animates: 167 ms, restarts on retarget (`:6619-6641`, `DxUi.h:2850`) | `spring.control` |
+    | `Checkbox` | indeterminate dash | snaps (`DxUi.Controls.cpp:4812-4820`) | `spring.control` |
+    | `RadioButton` | selected dot | snaps: drawn when checked (`DxUi.Controls.cpp:4920-4925`) | `spring.control` (dot diameter) |
+    | `Slider` | thumb hover, press, touch halo | animates: eased from snapshot, 100 ms, restarts on retarget (`DxUi.Controls.cpp:6605-6651`, `include/DxUi/DxUi.h:2849`) | `spring.micro` |
+    | `Slider` | keyboard and pointer value | animates: 167 ms, restarts on retarget (`DxUi.Controls.cpp:6619-6641`, `include/DxUi/DxUi.h:2850`) | `spring.control` |
     | `Slider` | `SetValue` | snaps by contract ([controls guide](../../../docs/controls.md)) | unchanged |
     | Scrollbar (`Grid`, `Tree`) | track and thumb hot color | animates: constant-rate 140 ms (`DxUi.Scrollbar.cpp:14`, `:117-142`) | `spring.micro` |
     | `ScrollPanel`, `Grid`, `Tree` | scroll offset | snaps per wheel event (`DxUi.Grid.cpp:5891-5898`, `DxUi.Tree.cpp:2154-2173`) | `spring.spatial` (`W5.7`) |
-    | `ProgressBar` | determinate value | snaps: no transition state (`DxUi.h:2525-2536`) | `spring.control` |
-    | `ProgressBar` | indeterminate sweep | animates: phase loop (`:5418-5445`) | `curve.loop`; compositor in `W5.11` |
-    | `ThroughputGraph` | values | animates: inline cubic ease-out 160 ms (`:6349-6350`, `DxUi.h:2709`) | `spring.control` |
-    | `PageIndicator` | selected dot | snaps: painted from the selected index, no `Tick` (`:5564-5584`) | `spring.spatial` |
-    | `TabControl` | selected tab chrome | snaps: no `Tick`; painted from `_selectedIndex` (`:9773-9778`) | `spring.spatial` (indicator transform) |
+    | `ProgressBar` | determinate value | snaps: no transition state (`include/DxUi/DxUi.h:2525-2536`) | `spring.control` |
+    | `ProgressBar` | indeterminate sweep | animates: phase loop (`DxUi.Controls.cpp:5418-5445`) | `curve.loop`; compositor in `W5.11` |
+    | `ThroughputGraph` | values | animates: inline cubic ease-out 160 ms (`DxUi.Controls.cpp:6349-6350`, `include/DxUi/DxUi.h:2709`) | `spring.control` |
+    | `PageIndicator` | selected dot | snaps: painted from the selected index, no `Tick` (`DxUi.Controls.cpp:5564-5584`) | `spring.spatial` |
+    | `TabControl` | selected tab chrome | snaps: no `Tick`; painted from `_selectedIndex` (`DxUi.Controls.cpp:9773-9778`) | `spring.spatial` (indicator transform) |
     | `TabControl` | page change | not verified | `curve.page` cross-fade (`W5.6`) |
     | `TabControl` | tab reorder drag | not verified | `spring.spatial` glide (`W5.5`) |
-    | `PageHost` | page change | animates: 250 ms fade and 24 DIP slide, up to four layers per frame (`:1819-1843`, `:1803`, `:1936`, `DxUi.h:2040`) | `curve.page` (`W5.6`) |
-    | `PageHost` | connected element | placeholder accent rectangle (`:1968-1980`) | `spring.spatial` (`W5.6`) |
-    | `Tree` | expander chevron | animates: 240 ms, stamp-based reversal (`DxUi.Tree.cpp:3507-3571`, `DxUi.h:5223`) | `spring.control` |
-    | `Tree` | row slide on expand/collapse | animates: 320 ms before/after snapshots of every visible item (`DxUi.Tree.cpp:3608-3663`, `DxUi.h:5224`) | `spring.spatial` (`W5.5`) |
+    | `PageHost` | page change | animates: 250 ms fade and 24 DIP slide, up to four layers per frame (`DxUi.Controls.cpp:1819-1843`, `:1803`, `:1936`, `include/DxUi/DxUi.h:2040`) | `curve.page` (`W5.6`) |
+    | `PageHost` | connected element | placeholder accent rectangle (`DxUi.Controls.cpp:1968-1980`) | `spring.spatial` (`W5.6`) |
+    | `Tree` | expander chevron | animates: 240 ms, stamp-based reversal (`DxUi.Tree.cpp:3507-3571`, `include/DxUi/DxUi.h:5223`) | `spring.control` |
+    | `Tree` | row slide on expand/collapse | animates: 320 ms before/after snapshots of every visible item (`DxUi.Tree.cpp:3608-3663`, `include/DxUi/DxUi.h:5224`) | `spring.spatial` (`W5.5`) |
     | `Tree` | hover and selection highlight; reorder drop | not verified | `spring.micro`; drop glide `spring.spatial` |
     | `Grid` | hover and selection highlight | not verified | `spring.micro` |
     | `Grid` | sort glyph | animates: linear 140 ms (`DxUi.Grid.cpp:695`, `:4787-4802`) | `spring.micro` |
@@ -1058,10 +1059,10 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
     | `MenuPopup` | open/close | no open animation found (not exhaustively verified) | `spring.spatial` + `curve.fade`; compositor in `W5.11` |
     | `MenuPopup` | row highlight | not verified | `spring.micro` |
     | `MenuPopup` | slider item | animates: inline cubic 160 ms (`DxUi.Menu.cpp:80`, `:1645-1705`) | `spring.control` |
-    | `MenuBar` | item highlight | snaps: no `Tick` override (`DxUi.h:2875-2960`) | `spring.micro` |
-    | `TooltipLayer` | show/hide | snaps at the deadline (`:12152-12196`) | `curve.fade`; coordinate with the tooltip state machine |
+    | `MenuBar` | item highlight | snaps: no `Tick` override (`include/DxUi/DxUi.h:2875-2960`) | `spring.micro` |
+    | `TooltipLayer` | show/hide | snaps at the deadline (`DxUi.Controls.cpp:12152-12196`) | `curve.fade`; coordinate with the tooltip state machine |
     | `TextField` | focus border and ring | snaps: style resolved from `HasFocus()` (`DxUi.TextInput.cpp:1642`) | `spring.micro` |
-    | `TextField`, `ComboBox`, `RichTextEditor` | caret | on/off phase (`DxUi.TextInput.cpp:1804`, `DxUi.ComboBox.cpp:1901`, `tokens.json:815`) | `curve.blink`; clock owned by `W3.2` |
+    | `TextField`, `ComboBox`, `RichTextEditor` | caret | on/off phase (`DxUi.TextInput.cpp:1804`, `DxUi.ComboBox.cpp:1901`, `Specs/DesignSystem/tokens.json:815`) | `curve.blink`; clock owned by `W3.2` |
     | Focus ring (`PaintFocusRing`) | appear, disappear | animates in the `Button` family; snaps in `TextField` (`DxUi.TextInput.cpp:1642`); elsewhere not verified | `spring.micro` opacity |
     | Popups (`MenuPopup`, `ComboBox`) | elevation | not verified | cross-fade of two cached nine-slice shadows (`W4.4`) |
     | `Splitter`, `NumericStepper`, `ColorSwatch`, `TagPicker`, `ColorPicker` | hover, press, selection | not verified | `spring.micro` |
@@ -1073,7 +1074,7 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
   - **Needs**: `W5.1`, `W5.2`, `W5.3`. **Size**: L.
 - [ ] **W5.5 Layout transitions.**
   - **Why**: only `Tree` animates layout change, by copying every visible `TreeItemData` (four `std::wstring` each,
-    `DxUi.h:868-882`) twice per expand and sorting both (`DxUi.Tree.cpp:3578-3663`): O(n) allocation, not O(viewport).
+    `include/DxUi/DxUi.h:868-882`) twice per expand and sorting both (`DxUi.Tree.cpp:3578-3663`): O(n) allocation, not O(viewport).
     Panels, `TabControl` reorder and `Grid` rows jump.
   - **Change**: one private before/after recorder: at layout commit it keeps `{stable id, rect}` for visible items in a
     reused buffer; after layout it starts a `spring.spatial` `MotionValue` per moved item on `W5.3`'s transform
@@ -1198,8 +1199,8 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
     recapture of every affected tile.
   - **Needs**: `W5.3`. **Size**: M.
 - [ ] **W5.14 Reduced-motion policy.**
-  - **Why**: each control tests `theme.reducedMotion` (`DxUi.h:901`) itself, and `MotionPolicy` has no caller
-    (`FrameRuntime.cpp:152-159`); the only behaviour is "remove", so a page change loses its spatial cue entirely.
+  - **Why**: each control tests `theme.reducedMotion` (`include/DxUi/DxUi.h:901`) itself, and `MotionPolicy` has no caller
+    (`src/Foundation/FrameRuntime.cpp:152-159`); the only behaviour is "remove", so a page change loses its spatial cue entirely.
   - **Change**: `MotionPolicy` becomes the single policy object read by `MotionValue`, with modes `Full`, `Reduce`
     (spatial motion becomes a `curve.fade` cross-fade; loops rest) and `Remove` (instant). `ThemePalette::reducedMotion`
     maps to `Remove`, keeping today's semantics; an application selects `Reduce` explicitly. The policy, its tokens and
@@ -1210,7 +1211,7 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
   - **Needs**: `W5.1`, `W5.4`. **Size**: S.
 - [ ] **W5.15 `Expander` control.**
   - **Why**: the catalog has no collapsible section. An application builds one from a `Button` with the `Disclosure`
-    variant (`DxUi.h:241`, `SetDisclosureExpanded` `:2211-2214`), which animates only its chevron and exposes
+    variant (`include/DxUi/DxUi.h:241`, `SetDisclosureExpanded` `:2211-2214`), which animates only its chevron and exposes
     ExpandCollapse; "the application updates the state, content visibility and focus"
     ([controls guide](../../../docs/controls.md)). Every product therefore re-implements the header, the content toggle,
     the focus rule and the layout, and the content appears and disappears without motion.
@@ -1444,7 +1445,7 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
   - **Why**: `Decode` copies its encoded input into `owned` (`DxUi.RichImage.cpp:251-255`) although every WIC object is
     local and `CopyPixels` finishes before it returns (`:253-293`); `LoadFile` reads into its own buffer first
     (`:506-518`). With the 16 MiB encoded cap (`include/DxUi/RichImage.h:66`) the encoded peak is 32 MiB; a GIF canvas
-    (`:151`) or EXIF orientation (`:192`) adds a decoded-size buffer (up to 16 MiB). Failed sources are already not
+    (`DxUi.RichImage.cpp:151`) or EXIF orientation (`:192`) adds a decoded-size buffer (up to 16 MiB). Failed sources are already not
     retried while location and binding are unchanged (`DxUi.RichImageResources.h:250`, `:327`).
   - **Change**: initialize the `IWICStream` over the caller's span (`InitializeFromMemory`) instead of copying;
     `LoadFile` moves its buffer into the decode, keeping the `FileCalls` test seam and cancellation granularity.
@@ -1481,10 +1482,10 @@ the document at most once per lock. Exit: `G9` met; the `FX6` and `FX7` gates be
     flag, decide mutation-time builds and raising. Provider entry keeps a freshness-checked build (native
     `:1586-1587, 6378-6384`; added for embedded root queries), and without listeners `UpdateAccessibility` only records
     the revision ([contract](../../UI/UI_InputAndAccessibility.md) updated). The posted `AccessibilityFlush` stays: its
-    drain is the only place a `WindowHost` raises focus, property, structure, selection and text events (`:14786-14856`).
+    drain is the only place a `WindowHost` raises focus, property, structure, selection and text events (`DxUi.Accessibility.cpp:14786-14856`).
   - **Assumes**: item-specific — UI Automation reports every subscription, focus-changed included, via
     `AdviseEventAdded`, and query-only clients re-enter through `WM_GETOBJECT`; checked with Narrator and Inspect first.
-  - **Gate**: `FX6`, 100 mutations: `g_accessibilitySnapshotBuildCount` (`:1441`) +0 with no client, also after a
+  - **Gate**: `FX6`, 100 mutations: `g_accessibilitySnapshotBuildCount` (`DxUi.Accessibility.cpp:1441`) +0 with no client, also after a
     released probe and with `UpdateAccessibility` every frame (`G9`); with 1 client the event sequence equals today's.
   - **Needs**: `W1.3`. **Size**: M.
 

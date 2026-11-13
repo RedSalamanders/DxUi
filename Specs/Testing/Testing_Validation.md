@@ -682,6 +682,24 @@ itself can pass when run alone and fail under them, and a tooling test requires 
 enter a nested git checkout, a directory other than the scanned root that holds a `.git` file or directory (such as an
 agent's worktree under `.claude/worktrees`): another checkout's files are not this tree's, and a half-edited copy
 cannot fail it.
+Plan evidence anchors: `Tools/tests/Test-PlanAnchors.ps1` (rule in `Tools/tests/PlanAnchors.psm1`) resolves every source
+anchor in `Specs/Plans/WIP/*.md` against the checked-out tree and fails on any problem. An anchor is a backticked
+`path:12`, `path:12-30` or `path:12, 40-44`; a Markdown link to a file followed directly by a backticked `:12-30`; a
+backticked `:12-30` alone, which continues the nearest file named before it in the same list item or paragraph, or, in
+a table, the same row; or a bare backticked `40-44` chained by a comma (or ", and") after an anchor, which continues
+that anchor's file. A path with a `/` is relative to the repository root and a file name without one names a file
+under `src/Controls/`; any other file, `include/DxUi/DxUi.h` included, is written with its directory. Each anchor's
+file MUST exist and each line or range MUST lie within it (a reversed range or line 0 fails); a continuation with no
+earlier file is unresolved. A symbol is written with an anchor when its backticked span directly precedes the anchor
+group, separated only by whitespace or an opening parenthesis (`Name` (`file:12`), `Name` `:12`); it MUST occur, as a
+whole identifier and case-sensitively, in one file of that group, or the anchor is reported as drifted with file, line
+and symbol. A span is a symbol when it is an identifier, optionally `::`-qualified (its last component is searched)
+and optionally followed by `()`, that starts with an upper-case letter or an underscore or is qualified; names
+starting lower-case (prose words, Win32 parameter names), all-capital names (Win32 messages and constants, which name
+an event rather than the cited code), numbers, units, paths, expressions and plan ids such as `W2.1` or `FX5` are not.
+Anchors inside a ticked top-level item (`- [x]`, through its last indented line) describe code before that item
+landed and are skipped; fenced code is not read. Seeded fixtures prove failure for a missing file, an out-of-range
+line, a drifted symbol and an unresolved continuation, and test the symbol rule itself.
 Portable tooling fixtures MUST distinguish raw Windows project spelling from evaluated items on the current host:
 each native item identity and full path must resolve to the same existing owned file. Positive closure checks must
 complete before negative boundary checks, including mismatched identity/full-path pairs that each name an existing
