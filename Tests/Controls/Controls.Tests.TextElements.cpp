@@ -98,10 +98,33 @@ void TestReverseCjkTraversalAndContext()
                 "reverse boundary retains contextual Unicode behavior at every UTF-16 position");
     }
 }
+void TestWordSelectionClassesSupplementaryScalars()
+{
+    const auto select = [](std::wstring_view text, size_t hit)
+    {
+        size_t caret = 0u;
+        std::optional<size_t> anchor;
+        DxUi::SelectSingleLineWordAt(text, hit, caret, anchor);
+        return std::pair{anchor.value_or(caret), caret};
+    };
+    // U+20000 and U+20001 are CJK Extension B letters encoded as surrogate pairs.
+    const std::wstring_view bracketed = L"(\U00020000\U00020001)";
+    for (size_t hit = 1u; hit <= 4u; ++hit)
+        Require(select(bracketed, hit) == std::pair<size_t, size_t>{1u, 5u}, "double-click inside U+20000 U+20001 selects both letters and no punctuation");
+    const std::wstring_view joined = L"ab\U00020000\U00020001cd";
+    for (size_t hit = 0u; hit < joined.size(); ++hit)
+        Require(select(joined, hit) == std::pair<size_t, size_t>{0u, joined.size()}, "supplementary letters join adjacent ASCII letters in one word");
+    const std::wstring_view spaced = L"x \U00020000\U00020001 y";
+    Require(select(spaced, 3u) == std::pair<size_t, size_t>{2u, 6u}, "a trail-surrogate hit selects the complete supplementary word");
+    Require(select(spaced, 1u) == std::pair<size_t, size_t>{1u, 2u}, "whitespace selection stops before a supplementary letter");
+    const std::wstring_view emoji = L"a\U0001f600\U0001f600b";
+    Require(select(emoji, 2u) == std::pair<size_t, size_t>{1u, 5u}, "supplementary symbols remain one punctuation run without splitting a pair");
+}
 } // namespace
 
 void RunTextElementTests()
 {
+    DXUI_RUN_TEST(TestWordSelectionClassesSupplementaryScalars);
     DXUI_RUN_TEST(TestUnicode17DefaultGraphemeCorpus);
     DXUI_RUN_TEST(TestTextElementBoundsMalformedAndLongContext);
     DXUI_RUN_TEST(TestReverseCjkTraversalAndContext);

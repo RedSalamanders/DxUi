@@ -3852,11 +3852,47 @@ void TestCardPanelCornerRadiusChangeRepaintsTheCorner()
     Require(window.Host().DebugGetInvalidateCount() == invalidationsAfter, "setting the same corner radius again invalidates nothing");
 }
 
+void TestStatusStripLeadingElisionCutsAtGraphemeBoundaryWithOneLayout()
+{
+    using namespace DxUi;
+    ControlHost host;
+    Require(host.GetWriteFactory() != nullptr, "status strip elision fixture has a DirectWrite factory");
+    std::wstring combining, emoji;
+    for (unsigned repeat = 0u; repeat < 24u; ++repeat)
+    {
+        combining += L"e\u0301\u0323a\u0300";
+        emoji += L"\U0001f469\u200d\U0001f4bb\U0001f468\u200d\U0001f469\u200d\U0001f467";
+    }
+    combining += L" tail";
+    emoji += L" tail";
+    size_t elided = 0u;
+    for (const std::wstring& text : {combining, emoji})
+    {
+        std::vector<size_t> boundaries(1u, 0u);
+        while (boundaries.back() < text.size())
+            boundaries.push_back(FindNextTextElementBoundary(text, boundaries.back()));
+        for (float width = 24.0f; width <= 360.0f; width += 3.0f)
+        {
+            const auto layoutsBefore  = testSingleLineMeasureLayoutCreations;
+            const std::wstring result = StatusStrip::DebugElideLeadingForWidth(&host, text, FontRole::Small, width, 22.0f);
+            Require(testSingleLineMeasureLayoutCreations - layoutsBefore == 1u, "status strip leading elision creates exactly one layout");
+            if (result == text)
+                continue;
+            ++elided;
+            Require(result.starts_with(L"...") && text.ends_with(std::wstring_view(result).substr(3u)), "leading elision keeps an exact suffix after dots");
+            const size_t cut = text.size() - (result.size() - 3u);
+            Require(std::binary_search(boundaries.begin(), boundaries.end(), cut), "leading elision never starts inside a grapheme cluster");
+        }
+    }
+    Require(elided > 40u, "the elision sweep exercises clipped widths for both scripts");
+}
+
 } // namespace
 
 void RunControlTests()
 {
     DXUI_RUN_TEST(TestMenuPopupDiscoveryRejectsHiddenInitializationWindows);
+    DXUI_RUN_TEST(TestStatusStripLeadingElisionCutsAtGraphemeBoundaryWithOneLayout);
     DXUI_RUN_TEST(TestPhysicalCursorReadbackWaitIsBoundedAndExact);
     DXUI_RUN_TEST(TestExtractedRadioDoesNotUseItsFormerGroup);
     DXUI_RUN_TEST(TestCardPanelCornerRadiusChangeRepaintsTheCorner);

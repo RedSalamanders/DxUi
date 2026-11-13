@@ -657,6 +657,10 @@ std::size_t PreparedDocumentLayout::ChunkAt(std::size_t position) const
 }
 HRESULT PreparedDocumentLayout::TryCaret(std::size_t position, CaretGeometry& result) const
 {
+    return TryCaret(position, CaretAffinity::Downstream, result);
+}
+HRESULT PreparedDocumentLayout::TryCaret(std::size_t position, CaretAffinity affinity, CaretGeometry& result) const
+{
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
@@ -664,14 +668,23 @@ HRESULT PreparedDocumentLayout::TryCaret(std::size_t position, CaretGeometry& re
     if (position > state.projection.DisplayLength())
         return E_INVALIDARG;
     if (state.referenceForGeometry)
-        return state.reference->TryCaret(position, result);
+        return state.reference->TryCaret(position, affinity, result);
+    // Chunks end at physical source lines, so a chunk start is never a soft wrap
+    // and both affinities resolve inside the chunk that contains the position.
     const auto& chunk = state.chunks[ChunkAt(position)];
-    return chunk.geometry->layout.TryCaret(position - chunk.displayStart, result);
+    return chunk.geometry->layout.TryCaret(position - chunk.displayStart, affinity, result);
 }
 CaretGeometry PreparedDocumentLayout::Caret(std::size_t position) const
 {
     CaretGeometry result;
     if (const auto status = TryCaret(position, result); FAILED(status))
+        Failure::FailContract(status);
+    return result;
+}
+CaretGeometry PreparedDocumentLayout::Caret(std::size_t position, CaretAffinity affinity) const
+{
+    CaretGeometry result;
+    if (const auto status = TryCaret(position, affinity, result); FAILED(status))
         Failure::FailContract(status);
     return result;
 }

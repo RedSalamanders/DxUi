@@ -53,6 +53,11 @@ application's theme record or icon assets. Preserve the original notice for any 
 Prepare changed Unicode text/layout and glyph resources outside composition. Use real font metrics and clip to
 control bounds without cutting essential ink. DPI changes rebuild appropriate resources; position-only movement
 does not. Transparent-target antialiasing, alpha blending, mixed scripts and narrow bounds require visual tests.
+Text shortened to fit never cuts inside a grapheme cluster: a leading ellipsis (`StatusStrip` sections with
+`leadingEllipsis`) chooses its cut from one layout of the dots and the text and that layout's cluster metrics, at a
+cluster boundary that is also a Unicode default grapheme boundary. Wrapped text draws its glyphs, selection, caret and
+hit tests from layouts of one width, the unsnapped text-box width; pixel snapping may move the drawing origin but
+never the wrap width, so every part breaks lines identically at fractional scales.
 
 RichTextEditor may override inherited body/code family and size, font-relative
 line height and heading scale through its public appearance value. These values

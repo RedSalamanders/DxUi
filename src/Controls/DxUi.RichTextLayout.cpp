@@ -613,16 +613,29 @@ Hit PreparedLayout::HitTest(float x, float y) const
 }
 HRESULT PreparedLayout::TryCaret(std::size_t position, CaretGeometry& output) const
 {
-    if (! state_ || position > Content().text.size())
+    return TryCaret(position, CaretAffinity::Downstream, output);
+}
+HRESULT PreparedLayout::TryCaret(std::size_t position, CaretAffinity affinity, CaretGeometry& output) const
+{
+    if (! state_ || position > Content().text.size() || (affinity != CaretAffinity::Downstream && affinity != CaretAffinity::Upstream))
         return E_INVALIDARG;
+    // Upstream differs only at a soft wrap: an interior visual line start whose
+    // preceding unit is no hard break. It is drawn at the trailing edge of the
+    // cluster that ends the upper line.
+    const auto& text     = Content().text;
+    const auto hardBreak = [](wchar_t unit) noexcept
+    { return unit == L'\n' || unit == L'\r' || unit == L'\v' || unit == L'\f' || unit == L'\u0085' || unit == L'\u2028' || unit == L'\u2029'; };
+    const bool upstream = affinity == CaretAffinity::Upstream && position > 0u && position < text.size() && ! hardBreak(text[position - 1u]) &&
+                          std::binary_search(state_->lines.begin(), state_->lines.end(), position);
+    const auto anchor   = upstream ? position - 1u : position;
     float x = 0, y = 0;
     DWRITE_HIT_TEST_METRICS metrics{};
-    const auto hr = state_->layout->HitTestTextPosition(static_cast<UINT32>(position) + state_->textOffset, FALSE, &x, &y, &metrics);
+    const auto hr = state_->layout->HitTestTextPosition(static_cast<UINT32>(anchor) + state_->textOffset, upstream ? TRUE : FALSE, &x, &y, &metrics);
     if (FAILED(hr))
         return hr;
     if (! state_->scripts.uniformSourceLines.empty())
     {
-        const auto& line = Detail::UniformLineAt(state_->scripts.uniformSourceLines, position);
+        const auto& line = Detail::UniformLineAt(state_->scripts.uniformSourceLines, anchor);
         y                = line.documentBaseline - (line.localBaseline - y);
     }
     else
@@ -634,6 +647,14 @@ CaretGeometry PreparedLayout::Caret(std::size_t position) const
 {
     CaretGeometry output{};
     const auto hr = TryCaret(position, output);
+    if (FAILED(hr))
+        Failure::FailContract(hr);
+    return output;
+}
+CaretGeometry PreparedLayout::Caret(std::size_t position, CaretAffinity affinity) const
+{
+    CaretGeometry output{};
+    const auto hr = TryCaret(position, affinity, output);
     if (FAILED(hr))
         Failure::FailContract(hr);
     return output;

@@ -1742,6 +1742,22 @@ cell without virtual ACPs; raw imports retain exact source replacement. Syntheti
 composition transport and in-process UIA clients complement the separate physical
 IME/assistive-technology qualification gates.
 
+Soft-wrap caret affinity is visual state beside the source selection. At an offset that ends one visual line and
+starts the next without a hard break, `PreparedLayout`/`PreparedDocumentLayout::Caret(position)` and
+`CaretAffinity::Downstream` draw the caret at the next line's start; `CaretAffinity::Upstream` draws it at the
+preceding line's end. Everywhere else the affinities give identical geometry. In the editor's ordinary (non-semantic)
+layout, `End` and `Shift+End`, a pointer hit on a cluster's trailing edge and a vertical move landing on one choose
+`Upstream`; `Home`, Left/Right, word and document movement choose `Downstream`. `Home`, `End` and vertical movement start
+from the line the caret is drawn on. The choice holds only while the selection epoch, source revision and document binding
+it was made for are current, and it survives reflow and preparation; any other selection change (programmatic, text
+service, UI Automation, find), an edit, IME commit, undo/redo or rebinding returns to `Downstream`. Painting, caret
+reveal and the text-service caret bounds use it; source selection, TSF/UIA ACPs, ranges and undo records never contain
+it. Semantic Rich geometry keeps its own source-site affinity.
+
+Double-click word selection in TextField, editable ComboBox and RichTextEditor classes complete Unicode scalars: a
+supplementary-plane letter or digit (for example U+20000 U+20001) is one word character and a surrogate pair is never
+split or classed as punctuation.
+
 The control that called a native publish treats it as a reentrancy boundary too: before touching itself again or
 calling a pending delegate, it checks that its lifetime survived the publish. Tree and Grid selection helpers that
 allow their input callers to continue report whether the control survived both its delegate and accessibility

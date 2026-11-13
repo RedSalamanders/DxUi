@@ -24,6 +24,7 @@ struct CodeToken
 using CodeTokenizer                            = std::function<bool(std::wstring_view language, std::wstring_view text, std::vector<CodeToken>& tokens)>;
 inline constexpr std::size_t MaximumCodeTokens = 4096u;
 // Built-in JSON, C-like, PowerShell and diff tokenization. False leaves output
-// empty for an unknown language or an input exceeding the bounded run count.
+// empty for an unknown language. An input with more tokens than
+// MaximumCodeTokens returns its first MaximumCodeTokens tokens; the rest is plain.
 [[nodiscard]] bool TokenizeBuiltinCode(std::wstring_view language, std::wstring_view text, std::vector<CodeToken>& tokens);
 } // namespace DxUi::RichText

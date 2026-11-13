@@ -404,7 +404,9 @@ owns clipboard transport. All of these features still require the project's
 complete platform, allocation and performance qualification before plan closeout.
 The tokenizer runs for visible blocks plus one viewport of overscan, at most once
 per owner turn. Do not rely on callbacks for offscreen blocks or use them to
-perform document-wide side effects. A declined block or invalid returned token set keeps ordinary ink;
+perform document-wide side effects. `TokenizeBuiltinCode` returns at most
+`MaximumCodeTokens` (4,096) spans: a longer block keeps its first 4,096 spans
+coloured and the rest of its code in ordinary ink. A declined block or invalid returned token set keeps ordinary ink;
 an unexpected exception escaping the tokenizer takes the host fatal path.
 Content remains usable while later visual requests prepare other visible blocks.
 List marker ink uses the parser's exact source token range, so nested, ordered,
@@ -999,6 +1001,19 @@ usual preceding/following behavior; empty edges yield empty intervals. Invalid
 positions or retired layout are reported by `TryDeletionRange`. Rich keyboard deletion maps this interval
 back to source. Explicit noncollapsed source selections retain their exact
 scalar/CRLF meaning, and undo restores the original source and caret ACP.
+
+`Caret(position)` places a caret at a soft wrap at the start of the following
+visual line. `Caret(position, CaretAffinity::Upstream)` places it at the end of
+the preceding line instead; at every other position, including a hard line
+break and the text's end, both affinities return the same geometry. The editor
+keeps this visual choice beside its source selection: `End`, a click past a
+line's end and a vertical move that lands on a line's trailing edge choose
+`Upstream`, so `End` on a wrapped line shows the caret at that line's end, and
+`Home`, `End` and vertical movement continue from the line the caret is drawn
+on. Any other selection change, edit or document change returns to the default.
+The affinity changes only where the caret is drawn and the caret bounds the text
+service receives; it never changes the source model, the ACPs that text services
+and UI Automation see, or undo history.
 
 Bulk UIA character movement uses bounded forward traversal, with overflow-safe
 INT_MIN/INT_MAX handling and actual signed counts. It adds no C++ heap work or

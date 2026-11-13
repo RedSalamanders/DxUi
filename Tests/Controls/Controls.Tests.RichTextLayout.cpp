@@ -1637,6 +1637,40 @@ void TestRichTextLayoutTrailingEmptyLineBoundary()
     }
 }
 
+void TestRichTextLayoutCaretAffinityAtSoftWrap()
+{
+    const auto factory = CreateRichTextTestFactory();
+    Document document(L"alpha bravo charlie delta echo foxtrot golf hotel india juliet\nkilo lima");
+    PreparedLayout layout;
+    layout.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Source), 160.0f);
+    const auto& text = layout.Content().text;
+    const auto wrap  = layout.LineBoundary(0u, true);
+    Require(wrap > 0u && wrap < text.find(L'\n') && text[wrap - 1u] != L'\n', "the fixture's first visual line ends at a soft wrap");
+    const auto first = layout.Caret(0u), downstream = layout.Caret(wrap), upstream = layout.Caret(wrap, CaretAffinity::Upstream);
+    Require(downstream.y > first.y && downstream.x == layout.Caret(wrap, CaretAffinity::Downstream).x &&
+                downstream.y == layout.Caret(wrap, CaretAffinity::Downstream).y,
+            "Caret(position) is the Downstream affinity at the start of the next line");
+    Require(upstream.y == first.y && upstream.x > layout.Caret(wrap - 1u).x && upstream.height == first.height,
+            "Upstream places the soft-wrap caret at the end of the upper line");
+    CaretGeometry checked{};
+    Require(SUCCEEDED(layout.TryCaret(wrap, CaretAffinity::Upstream, checked)) && checked.x == upstream.x && checked.y == upstream.y,
+            "checked Upstream geometry matches the contract query");
+    const auto hard = text.find(L'\n') + 1u;
+    for (const size_t position : {size_t{0u}, size_t{3u}, wrap - 1u, wrap + 1u, hard, text.size()})
+    {
+        const auto down = layout.Caret(position), up = layout.Caret(position, CaretAffinity::Upstream);
+        Require(down.x == up.x && down.y == up.y && down.height == up.height, "away from a soft wrap, including a hard break, both affinities agree");
+    }
+    Require(FAILED(layout.TryCaret(text.size() + 1u, CaretAffinity::Upstream, checked)) && FAILED(layout.TryCaret(0u, static_cast<CaretAffinity>(7), checked)),
+            "invalid positions and affinities are checked refusals");
+    PreparedDocumentLayout retained;
+    retained.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, LayoutOptions{.widthDip = 160.0f});
+    const auto retainedWrap = retained.LineBoundary(0u, true);
+    Require(retainedWrap == wrap && retained.Caret(wrap, CaretAffinity::Upstream).y == retained.Caret(0u).y &&
+                retained.Caret(wrap).y == retained.Caret(wrap, CaretAffinity::Downstream).y && retained.Caret(wrap).y > retained.Caret(0u).y,
+            "document layouts carry the same affinity through their chunks");
+}
+
 void TestRichTextLayoutCopyMoveOwnership()
 {
     using namespace DxUi::RichText;
@@ -2352,6 +2386,7 @@ void RunRichTextLayoutTests()
     DXUI_RUN_TEST(TestPreparedFlowchartEdgeLabelsCannotBeObscured);
     DXUI_RUN_TEST(TestRichTextLayoutCopyMoveOwnership);
     DXUI_RUN_TEST(TestRichTextLayoutTrailingEmptyLineBoundary);
+    DXUI_RUN_TEST(TestRichTextLayoutCaretAffinityAtSoftWrap);
     DXUI_RUN_TEST(TestRichTextLayoutPrototypeContracts);
     DXUI_RUN_TEST(TestRichTextLayoutOptionsFailureAtomicityAndRetirement);
     DXUI_RUN_TEST(TestRichTextLayoutBorrowedWarpTargetsAndDeviceReplacement);

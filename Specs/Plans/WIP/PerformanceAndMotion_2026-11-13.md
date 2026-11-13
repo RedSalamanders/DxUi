@@ -472,7 +472,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
     notifies `{2, 4, 4}`; the attribute mapping turns a three-clause span set into three boundaries and one target
     range. One Japanese IME composition under `test.ps1 -Interactive`, with the developer's agreement, confirms it.
   - **Needs**: nothing. **Size**: M.
-- [ ] **W1.5 Text correctness.**
+- [x] **W1.5 Text correctness.**
   - **Why**: `PreparedLayout::TryCaret` always hit-tests with `isTrailingHit = FALSE` (`DxUi.RichTextLayout.cpp:620`) and
     `Caret(position)` has no affinity (`include/DxUi/RichTextLayout.h:259`), so a caret at a soft wrap cannot sit at the
     end of the upper line. Above `MaximumCodeTokens` = 4,096 (`include/DxUi/RichCodeTokenizer.h:25`) `TokenizeCode`
@@ -1727,6 +1727,9 @@ with an open row is not accepted for closeout until that row closes.
 | `W1.4` | The Japanese IME composition check and the `NativeTextInput` suite were not run: both take focus. The display-attribute path from the edit sink to the host is proved only through its pure mapping. | `test.ps1 -Interactive`, with the developer's agreement to the time |
 | `W1.4` | Three clauses publish four boundaries (the composition start, the two interior edges and the end), following the existing IMM convention; the gate text says three. | Recorded difference; nothing to run |
 | `W1.4` | Adds the public, additive `TextInputScope` with `TextField::SetInputScope` and `GetInputScope`, because no field could declare a numeric or URL scope before. | Recorded addition; nothing to run |
+| `W1.5` | The gallery captures of the `StatusStrip` and multiline `TextField` tiles at 100%, 125% and 150% were not produced: the gallery harness renders one scale. The published 100% sheets were not regenerated or compared. | A scale option on the gallery harness, then the captures and a comparison of the published sheets |
+| `W1.5` | Adds the public, additive `CaretAffinity` with `Caret` and `TryCaret` overloads; the affinity affects painting, caret reveal and the text-service caret rectangle only. The multiline text and its selection are now painted at the unsnapped width that the caret and hit-testing already used. | Recorded addition; nothing to run |
+| `W1.5` | Two other word classifiers still treat every surrogate pair as a word character: whole-word find in rich documents and undo word grouping. | Recorded limit, outside the item |
 | `W1.6` | No gallery capture was published: the gallery has no `Tree` tooltip tile and no existing tile changes. | Recorded difference; a tile with a synthetic hover would be a gallery addition |
 | `W1.6` | A `Tree` row tooltip now stays where the pointer entered the row. A tooltip that is already shown still follows the pointer and repaints on each move; the gate covers the hover delay only. | Recorded behaviour; the shown case is a developer decision if `FX14` should repaint nothing while shown |
 

@@ -706,6 +706,10 @@ struct TextFieldDebugMultilineState
     bool layoutDirty            = true;
     float cachedLayoutWidthDip  = 0.0f;
     float cachedLayoutHeightDip = 0.0f;
+    // Selection paint geometry: the width the painted text and selection wrap at,
+    // and the selection's hit-test rectangles in that layout's own coordinates.
+    float selectionLayoutWidthDip = 0.0f;
+    std::vector<D2D1_RECT_F> selectionRects;
 };
 
 struct TextFieldDebugSingleLinePaintState
@@ -3400,6 +3404,7 @@ struct RichTextEditorDebugState
     size_t preparedDecorationRectangles = 0;
     bool overlayGeometryPending         = false;
     bool codeInkPreparationPending = false, sourceGuidesPreparationPending = false;
+    size_t codeInkRangeCount             = 0u; // Published code-token ink ranges.
     RichTextPreparationStage activeStage = RichTextPreparationStage::Idle;
     size_t lastAdvanceUploadBytes        = 0u;
     // Image candidates actually visited in the last owner preparation turn (0..4).

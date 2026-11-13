@@ -10399,44 +10399,96 @@ std::wstring StatusStrip::ElideLeadingForWidth(const ControlHost* host, std::wst
         return L"...";
     }
 
-    if (MeasureSingleLineTextWidthDip(host, text, fontRole, heightDip) <= (widthDip + 0.5f))
+    // One layout of the dots followed by the text measures both; its cluster metrics price every cut. Without a
+    // layout each UTF-16 unit counts 7 DIP, the single-line measuring fallback.
+    constexpr std::wstring_view kEllipsis = L"...";
+    std::wstring measured(kEllipsis);
+    measured.append(text);
+    std::vector<DWRITE_CLUSTER_METRICS> clusters;
+    bool measuredByLayout = false;
+    if (host)
+    {
+        auto* factory = host->GetWriteFactory();
+        auto* format  = host->GetTextFormat(fontRole, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false);
+        if (factory && format)
+        {
+            constexpr float kMeasureWidthDip = 32768.0f;
+            wil::com_ptr<IDWriteTextLayout> layout;
+#if DXUI_ENABLE_DIAGNOSTICS
+            ++testSingleLineMeasureLayoutCreations; // The single-line measuring counter; W0.1 may fold it into its work counters.
+#endif
+            UINT32 count = 0u;
+            if (SUCCEEDED(factory->CreateTextLayout(
+                    measured.data(), static_cast<UINT32>(measured.size()), format, kMeasureWidthDip, heightDip, layout.addressof())) &&
+                layout && layout->GetClusterMetrics(nullptr, 0u, &count) == HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))
+            {
+                clusters.resize(count);
+                measuredByLayout = SUCCEEDED(layout->GetClusterMetrics(clusters.data(), count, &count)) && count <= clusters.size();
+                clusters.resize(measuredByLayout ? count : 0u);
+            }
+        }
+    }
+    if (! measuredByLayout)
+    {
+        DWRITE_CLUSTER_METRICS unit{};
+        unit.width  = 7.0f;
+        unit.length = 1u;
+        clusters.assign(measured.size(), unit);
+    }
+
+    float ellipsisWidth = 0.0f;
+    float textWidth     = 0.0f;
+    size_t position     = 0u;
+    for (const auto& cluster : clusters)
+    {
+        (position < kEllipsis.size() ? ellipsisWidth : textWidth) += cluster.width;
+        position += cluster.length;
+    }
+    if (textWidth <= (widthDip + 0.5f))
     {
         return std::wstring(text);
     }
-
-    constexpr std::wstring_view kEllipsis = L"...";
-    if (MeasureSingleLineTextWidthDip(host, kEllipsis, fontRole, heightDip) > widthDip)
+    if (ellipsisWidth > widthDip)
     {
         return std::wstring(kEllipsis);
     }
 
-    size_t low  = 0u;
-    size_t high = text.size();
-    while (low < high)
+    // Keep the longest tail that fits. A cut is admitted only where a layout cluster starts on a grapheme boundary,
+    // so the tail never begins inside a combining sequence, surrogate pair or emoji ZWJ sequence.
+    std::vector<size_t> boundaries(1u, 0u);
+    while (boundaries.back() < text.size())
     {
-        const size_t candidateSuffixLength = low + ((high - low + 1u) / 2u);
-        const size_t suffixStart           = text.size() - candidateSuffixLength;
-        std::wstring candidate(kEllipsis);
-        candidate.append(text.substr(suffixStart));
-
-        if (MeasureSingleLineTextWidthDip(host, candidate, fontRole, heightDip) <= (widthDip + 0.5f))
-        {
-            low = candidateSuffixLength;
-        }
-        else
-        {
-            high = candidateSuffixLength - 1u;
-        }
+        boundaries.push_back(FindNextTextElementBoundary(text, boundaries.back()));
     }
-
-    size_t suffixStart = text.size() - low;
-    while (suffixStart < text.size() && IsUtf16TrailSurrogate(text[suffixStart]))
+    size_t cut        = text.size();
+    float suffixWidth = 0.0f;
+    size_t end        = measured.size();
+    auto boundary     = boundaries.rbegin();
+    for (auto cluster = clusters.rbegin(); cluster != clusters.rend(); ++cluster)
     {
-        ++suffixStart;
+        if (cluster->length > end || end - cluster->length < kEllipsis.size())
+        {
+            break;
+        }
+        end -= cluster->length;
+        suffixWidth += cluster->width;
+        if (ellipsisWidth + suffixWidth > (widthDip + 0.5f))
+        {
+            break;
+        }
+        const size_t textStart = end - kEllipsis.size();
+        while (boundary != boundaries.rend() && *boundary > textStart)
+        {
+            ++boundary;
+        }
+        if (boundary != boundaries.rend() && *boundary == textStart)
+        {
+            cut = textStart;
+        }
     }
 
     std::wstring result(kEllipsis);
-    result.append(text.substr(suffixStart));
+    result.append(text.substr(cut));
     return result;
 }
 

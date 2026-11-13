@@ -817,6 +817,13 @@ struct MultilineViewportMetrics
     return rect;
 }
 
+// The width the painted multiline text and its selection wrap at: the text rectangle's own unsnapped width, which
+// the caret, hit-testing and line metrics use too. Snapping may move the drawing origin, never the wrap width.
+[[nodiscard]] float MultilinePaintLayoutWidthDip(const D2D1_RECT_F& rect) noexcept
+{
+    return std::max(1.0f, rect.right - rect.left);
+}
+
 void DrawMultilineSelection(ControlHost& host,
                             std::wstring_view text,
                             const D2D1_RECT_F& rect,
@@ -836,9 +843,9 @@ void DrawMultilineSelection(ControlHost& host,
         return;
     }
 
-    const D2D1_RECT_F snappedRect          = SnapRectToPixel(host, rect);
-    wil::com_ptr<IDWriteTextLayout> layout = CreateMultilineTextLayout(
-        &host, text, role, std::max(1.0f, snappedRect.right - snappedRect.left), std::max(1.0f, snappedRect.bottom - snappedRect.top));
+    const D2D1_RECT_F snappedRect = SnapRectToPixel(host, rect);
+    wil::com_ptr<IDWriteTextLayout> layout =
+        CreateMultilineTextLayout(&host, text, role, MultilinePaintLayoutWidthDip(rect), std::max(1.0f, snappedRect.bottom - snappedRect.top));
     if (! layout)
     {
         DrawCenteredText(host, text, snappedRect, role, textColor, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, true);
@@ -1563,14 +1570,33 @@ bool TextField::DebugGetMultilineState(const ControlHost& host, TextFieldDebugMu
     const MultilineViewportMetrics viewportMetrics     = BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
     const size_t clampedFirstVisibleLine               = ClampMultilineFirstVisibleLine(_multilineFirstVisibleLine, viewportMetrics);
 
-    out.firstVisibleLine      = clampedFirstVisibleLine;
-    out.visibleLineCount      = viewportMetrics.visibleLineCount;
-    out.totalLineCount        = viewportMetrics.totalLineCount;
-    out.canScrollVertically   = viewportMetrics.totalLineCount > viewportMetrics.visibleLineCount;
-    out.cachedLayoutPresent   = static_cast<bool>(_cachedMultilineLayout);
-    out.layoutDirty           = _multilineLayoutDirty;
-    out.cachedLayoutWidthDip  = _cachedLayoutSize.width;
-    out.cachedLayoutHeightDip = _cachedLayoutSize.height;
+    out.firstVisibleLine                                          = clampedFirstVisibleLine;
+    out.visibleLineCount                                          = viewportMetrics.visibleLineCount;
+    out.totalLineCount                                            = viewportMetrics.totalLineCount;
+    out.canScrollVertically                                       = viewportMetrics.totalLineCount > viewportMetrics.visibleLineCount;
+    out.cachedLayoutPresent                                       = static_cast<bool>(_cachedMultilineLayout);
+    out.layoutDirty                                               = _multilineLayoutDirty;
+    out.cachedLayoutWidthDip                                      = _cachedLayoutSize.width;
+    out.cachedLayoutHeightDip                                     = _cachedLayoutSize.height;
+    out.selectionLayoutWidthDip                                   = MultilinePaintLayoutWidthDip(textRect);
+    const std::optional<std::pair<size_t, size_t>> selectionRange = GetSelectionRange();
+    const std::optional<std::pair<size_t, size_t>> displayRange =
+        selectionRange.has_value() ? ControlTextRangeToDisplayTextRange(selectionRange->first, selectionRange->second) : std::nullopt;
+    if (displayRange && displayRange->first < displayRange->second)
+    {
+        const auto selectionLayout = CreateMultilineTextLayout(&host, displayText, _fontRole, out.selectionLayoutWidthDip, viewportHeightDip);
+        UINT32 count               = 0u;
+        const UINT32 first = static_cast<UINT32>(displayRange->first), length = static_cast<UINT32>(displayRange->second - displayRange->first);
+        if (selectionLayout &&
+            selectionLayout->HitTestTextRange(first, length, 0.0f, 0.0f, nullptr, 0u, &count) == HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))
+        {
+            std::vector<DWRITE_HIT_TEST_METRICS> metrics(count);
+            if (SUCCEEDED(selectionLayout->HitTestTextRange(first, length, 0.0f, 0.0f, metrics.data(), count, &count)))
+                for (UINT32 index = 0u; index < count; ++index)
+                    out.selectionRects.push_back(D2D1::RectF(
+                        metrics[index].left, metrics[index].top, metrics[index].left + metrics[index].width, metrics[index].top + metrics[index].height));
+        }
+    }
     return true;
 }
 

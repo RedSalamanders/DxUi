@@ -816,8 +816,11 @@ bool ShouldPromoteSingleLineClickToSelectAll(const ControlHost& host, const Sing
     return std::iswspace(static_cast<wint_t>(value)) != 0;
 }
 
-[[nodiscard]] int GetWordSelectionClass(wchar_t value) noexcept
+// Classes the complete scalar at a code-point start, so a surrogate pair is
+// one word character or one symbol, never two punctuation units.
+[[nodiscard]] int GetWordSelectionClass(std::wstring_view text, size_t index) noexcept
 {
+    const wchar_t value = text[index];
     if (IsSelectionWhitespace(value))
     {
         return 0;
@@ -826,7 +829,7 @@ bool ShouldPromoteSingleLineClickToSelectAll(const ControlHost& host, const Sing
     {
         return 1;
     }
-    if (IsWordCharacter(value))
+    if (IsWordCharacter(ReadCodePointAt(text, index).value))
     {
         return 2;
     }
@@ -842,18 +845,27 @@ void SelectSingleLineWordAt(std::wstring_view text, size_t hitIndex, size_t& car
         return;
     }
 
-    size_t index             = std::min(hitIndex, text.size() - 1u);
-    const int selectionClass = GetWordSelectionClass(text[index]);
-    size_t selectionStart    = index;
-    while (selectionStart > 0u && GetWordSelectionClass(text[selectionStart - 1u]) == selectionClass)
+    size_t index = std::min(hitIndex, text.size() - 1u);
+    if (index > 0u && IsUtf16TrailSurrogate(text[index]) && IsUtf16LeadSurrogate(text[index - 1u]))
     {
-        --selectionStart;
+        --index;
+    }
+    const int selectionClass = GetWordSelectionClass(text, index);
+    size_t selectionStart    = index;
+    while (selectionStart > 0u)
+    {
+        const size_t previous = StepToPreviousCodePoint(text, selectionStart);
+        if (GetWordSelectionClass(text, previous) != selectionClass)
+        {
+            break;
+        }
+        selectionStart = previous;
     }
 
-    size_t selectionEnd = index + 1u;
-    while (selectionEnd < text.size() && GetWordSelectionClass(text[selectionEnd]) == selectionClass)
+    size_t selectionEnd = StepToNextCodePoint(text, index);
+    while (selectionEnd < text.size() && GetWordSelectionClass(text, selectionEnd) == selectionClass)
     {
-        ++selectionEnd;
+        selectionEnd = StepToNextCodePoint(text, selectionEnd);
     }
 
     anchorIndex = selectionStart;

@@ -640,6 +640,32 @@ struct RichTextEditor::State
     // Native visual affinity only. Several padded cells share a real source ACP;
     // this identity never enters Document selection, TSF text or undo records.
     size_t sourceCaretSite = RichText::MarkdownNoNode;
+    // Soft-wrap visual affinity of the caret in the ordinary layout. Like
+    // sourceCaretSite it never enters Document selection, TSF text or undo
+    // records. A command or hit chooses it before changing the selection;
+    // SelectionChanged binds that choice to the new selection epoch, and it
+    // holds only while that epoch, the source revision and the binding are
+    // current, so any later selection change or edit returns to Downstream.
+    struct UpstreamCaret
+    {
+        uint64_t revision{}, selectionEpoch{}, binding{};
+        size_t caret{};
+        bool operator==(const UpstreamCaret&) const noexcept = default;
+    };
+    std::optional<UpstreamCaret> upstreamCaret, pendingUpstreamCaret;
+    RichText::CaretAffinity CaretAffinityAt(size_t source, uint64_t selectionEpoch) const noexcept
+    {
+        return upstreamCaret && *upstreamCaret == UpstreamCaret{document.Revision(), selectionEpoch, bindingRevision, source}
+                   ? RichText::CaretAffinity::Upstream
+                   : RichText::CaretAffinity::Downstream;
+    }
+    // Called with the selection epoch before the one selection change it is for.
+    void ChooseCaretAffinity(size_t source, RichText::CaretAffinity affinity, uint64_t selectionEpoch) noexcept
+    {
+        pendingUpstreamCaret.reset();
+        if (affinity == RichText::CaretAffinity::Upstream)
+            pendingUpstreamCaret = UpstreamCaret{document.Revision(), selectionEpoch + 1u, bindingRevision, source};
+    }
     std::shared_ptr<const RichText::MarkdownCommandPlan> taskPressPlan;
     D2D1_RECT_F taskPressRect{};
     std::shared_ptr<const RichText::SemanticDocument> codePressDocument;
@@ -1415,6 +1441,7 @@ RichText::SourceResult RichTextEditor::TrySetSelection(RichText::Selection selec
     if (result != RichText::SourceResult::Success)
         return result;
     _state->sourceCaretSite = RichText::MarkdownNoNode;
+    _state->pendingUpstreamCaret.reset(); // A programmatic caret is Downstream.
     SelectionChanged();
     return RichText::SourceResult::Success;
 }
@@ -3624,6 +3651,11 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 }
 void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePreferredCaretX, bool publishSelection, bool revealCaret)
 {
+    // Bind a caret affinity chosen for exactly this selection change; any other
+    // change leaves the bound affinity stale, which reads as Downstream.
+    if (const auto pending = std::exchange(_state->pendingUpstreamCaret, std::nullopt);
+        pending && *pending == State::UpstreamCaret{Revision(), _state->document.selectionEpoch_, _state->bindingRevision, GetSelection().caret})
+        _state->upstreamCaret = pending;
     _state->preparedCommand.reset();
     _state->keyboardNavigationDocument.reset();
     _state->keyboardNavigationElement = RichText::MarkdownNoNode;
@@ -4674,7 +4706,9 @@ HRESULT RichTextEditor::UpdateCaretScroll() const
     if (state.revealCaret)
     {
         RichText::CaretGeometry caret{};
-        RETURN_IF_FAILED(state.layout.TrySourceCaret(state.document.GetSelection().caret, state.sourceCaretSite, caret));
+        const auto caretSource = state.document.GetSelection().caret;
+        RETURN_IF_FAILED(
+            state.layout.TrySourceCaret(caretSource, state.sourceCaretSite, state.CaretAffinityAt(caretSource, state.document.selectionEpoch_), caret));
         if (caret.y < state.scrollDip)
             state.scrollDip = caret.y;
         if (caret.y + caret.height > state.scrollDip + height)
@@ -4734,6 +4768,7 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
                                    _state->decorationRectangles.size(),
                                    _state->overlaySelectionDirty || _state->overlayHighlightsDirty};
     value.codeInkPreparationPending      = _state->codeInkDocument && ! _state->codeInkComplete;
+    value.codeInkRangeCount              = _state->codeInk.size();
     value.sourceGuidesPreparationPending = _state->sourceGuides.Pending();
     value.activeStage                    = value.markdownPreparationPending         ? RichTextPreparationStage::Markdown
                                            : value.semanticPreparationPending       ? RichTextPreparationStage::Semantic
@@ -4869,7 +4904,10 @@ bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceS
         if (sourceStart != sourceEnd && rectangles.empty())
             return true;
         RichText::CaretGeometry caret{};
-        if (FAILED(_state->layout.TrySourceCaret(sourceStart, sourceStart == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode, caret)))
+        if (FAILED(_state->layout.TrySourceCaret(sourceStart,
+                                                 sourceStart == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode,
+                                                 _state->CaretAffinityAt(sourceStart, _state->document.selectionEpoch_),
+                                                 caret)))
             return false;
         float top    = caret.y;
         float bottom = caret.y + caret.height;
@@ -4989,7 +5027,10 @@ std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputCaretRect(const ControlHo
         if (! LayoutIsCurrent(host))
             return std::nullopt;
         RichText::CaretGeometry caret{};
-        if (FAILED(_state->layout.TrySourceCaret(sourceIndex, sourceIndex == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode, caret)))
+        if (FAILED(_state->layout.TrySourceCaret(sourceIndex,
+                                                 sourceIndex == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode,
+                                                 _state->CaretAffinityAt(sourceIndex, _state->document.selectionEpoch_),
+                                                 caret)))
             return std::nullopt;
         const auto viewport = TextViewport();
         // Keep the un-clipped caret for TSF's clipped flag; painting and native
@@ -5433,8 +5474,9 @@ void RichTextEditor::Paint(ControlHost& host) const
                 context->DrawRectangle(*bounds, host.GetSolidBrush(host.GetTheme().focusStroke), 1.0f);
         if (HasFocus() && IsEnabled() && state.caretVisible && state.keyboardNavigationElement == RichText::MarkdownNoNode)
         {
-            const auto caret = state.layout.SourceCaret(selection.caret, state.sourceCaretSite);
-            const float x    = std::clamp(origin.x + caret.x, viewport.left, std::max(viewport.left, viewport.right - 1.0f));
+            const auto caret =
+                state.layout.SourceCaret(selection.caret, state.sourceCaretSite, state.CaretAffinityAt(selection.caret, state.document.selectionEpoch_));
+            const float x = std::clamp(origin.x + caret.x, viewport.left, std::max(viewport.left, viewport.right - 1.0f));
             context->DrawLine(D2D1::Point2F(x, origin.y + caret.y), D2D1::Point2F(x, origin.y + caret.y + caret.height), caretBrush, 1.0f);
         }
     }
@@ -5513,9 +5555,13 @@ bool RichTextEditor::Tick(ControlHost& host, uint64_t nowTickMs)
 size_t RichTextEditor::HitSource(ControlHost& host, D2D1_POINT_2F point) const
 {
     RequireCurrentLayout(host);
-    const auto viewport     = TextViewport();
-    const auto hit          = _state->layout.HitTestSource(point.x - viewport.left - HorizontalTranslation(), point.y - viewport.top + _state->scrollDip);
+    const auto viewport = TextViewport();
+    RichText::CaretAffinity affinity{};
+    const auto hit = _state->layout.HitTestSource(point.x - viewport.left - HorizontalTranslation(), point.y - viewport.top + _state->scrollDip, affinity);
     _state->sourceCaretSite = hit.site;
+    // A hit past a wrapped line's end keeps the caret on that line if the
+    // pointer gesture places the caret there next.
+    _state->ChooseCaretAffinity(hit.position, affinity, _state->document.selectionEpoch_);
     return hit.position;
 }
 void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord)
@@ -5616,6 +5662,12 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
         SelectionChanged(true, true);
         return;
     }
+    // A caret drawn at the end of the upper line belongs to that line for
+    // Home, End and vertical movement; End and trailing-edge vertical hits
+    // keep it there, every other move uses the default Downstream side.
+    const auto affinity = state.CaretAffinityAt(selection.caret, state.document.selectionEpoch_);
+    const auto onLine   = affinity == RichText::CaretAffinity::Upstream && position > 0u ? state.layout.PreviousCluster(position) : position;
+    auto nextAffinity   = RichText::CaretAffinity::Downstream;
     switch (key)
     {
         case VK_LEFT: next = byWord ? FindPreviousWordBoundary(projection.DisplayText(), position) : state.layout.PreviousCluster(position); break;
@@ -5626,24 +5678,29 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
             // source anchor and leave Right stuck at the preceding paragraph.
             trailing = ! projection.Semantic();
             break;
-        case VK_HOME: next = byWord ? 0 : state.layout.LineBoundary(position, false); break;
+        case VK_HOME: next = byWord ? 0 : state.layout.LineBoundary(onLine, false); break;
         case VK_END:
-            next     = byWord ? projection.DisplayLength() : state.layout.LineBoundary(position, true);
+            next     = byWord ? projection.DisplayLength() : state.layout.LineBoundary(onLine, true);
             trailing = true;
+            if (! byWord)
+                nextAffinity = RichText::CaretAffinity::Upstream;
             break;
         default:
         {
-            const auto caret     = state.layout.Caret(position);
+            const auto caret     = state.layout.Caret(position, affinity);
             preferredX           = state.preferredCaretX.value_or(caret.x);
             const bool down      = key == VK_DOWN || key == VK_NEXT;
             const float distance = (key == VK_NEXT || key == VK_PRIOR) ? std::max(caret.height, TextViewport().bottom - TextViewport().top) : caret.height;
             const auto hit       = state.layout.HitTest(*preferredX, caret.y + caret.height * 0.5f + (down ? distance : -distance));
             next                 = hit.position;
             trailing             = hit.trailing;
+            if (hit.trailing)
+                nextAffinity = RichText::CaretAffinity::Upstream;
             break;
         }
     }
     const auto source = byWord && key == VK_HOME ? 0u : byWord && key == VK_END ? state.document.Length() : projection.ToSource(next, trailing);
+    state.ChooseCaretAffinity(source, nextAffinity, state.document.selectionEpoch_);
     state.document.SetSelection({extend ? selection.anchor : source, source});
     state.preferredCaretX = preferredX;
     SelectionChanged(true, true);

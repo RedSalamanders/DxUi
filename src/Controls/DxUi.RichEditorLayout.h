@@ -181,18 +181,42 @@ public:
     }
     [[nodiscard]] HRESULT TrySourceCaret(std::size_t source, std::size_t site, CaretGeometry& output) const
     {
+        return TrySourceCaret(source, site, CaretAffinity::Downstream, output);
+    }
+    // Soft-wrap affinity applies to the ordinary layout; semantic geometry keeps
+    // its own source-site affinity and ignores it.
+    CaretGeometry Caret(std::size_t display, CaretAffinity affinity) const
+    {
+        return activeSemantic_ ? semantic_.Caret(display) : v0_.Caret(display, affinity);
+    }
+    CaretGeometry SourceCaret(std::size_t source, std::size_t site, CaretAffinity affinity) const
+    {
+        return activeSemantic_ ? semantic_.SourceCaret(source, site) : v0_.Caret(v0_.ToDisplay(source), affinity);
+    }
+    [[nodiscard]] HRESULT TrySourceCaret(std::size_t source, std::size_t site, CaretAffinity affinity, CaretGeometry& output) const
+    {
         if (activeSemantic_)
             return semantic_.TrySourceCaret(source, site, output);
         std::size_t display{};
         if (const auto status = v0_.TryToDisplay(source, display); FAILED(status))
             return status;
-        return v0_.TryCaret(display, output);
+        return v0_.TryCaret(display, affinity, output);
     }
     SourceCaretHit HitTestSource(float x, float y) const
     {
+        CaretAffinity affinity{};
+        return HitTestSource(x, y, affinity);
+    }
+    // A hit on a cluster's trailing edge in the ordinary layout reports Upstream,
+    // so a click past a wrapped line's end keeps the caret on that line.
+    SourceCaretHit HitTestSource(float x, float y, CaretAffinity& affinity) const
+    {
+        affinity = CaretAffinity::Downstream;
         if (activeSemantic_)
             return semantic_.HitTestSource(x, y);
         const auto hit = v0_.HitTest(x, y);
+        if (hit.trailing)
+            affinity = CaretAffinity::Upstream;
         return {v0_.ToSource(hit.position, hit.trailing)};
     }
     [[nodiscard]] HRESULT TryHitTestSource(float x, float y, SourceCaretHit& output) const

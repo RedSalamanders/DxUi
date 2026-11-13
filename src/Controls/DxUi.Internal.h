@@ -870,7 +870,7 @@ void ArmSingleLineSelectionClickSequence(SingleLineSelectionClickSequence& seque
                                                            D2D1_POINT_2F pointDip) noexcept;
 
 [[nodiscard]] bool IsSelectionWhitespace(wchar_t value) noexcept;
-[[nodiscard]] int GetWordSelectionClass(wchar_t value) noexcept;
+[[nodiscard]] int GetWordSelectionClass(std::wstring_view text, size_t index) noexcept;
 void SelectSingleLineWordAt(std::wstring_view text, size_t hitIndex, size_t& caretIndex, std::optional<size_t>& anchorIndex) noexcept;
 
 [[nodiscard]] std::optional<D2D1_RECT_F> ComputeSingleLineSelectionPaintRect(

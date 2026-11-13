@@ -54,6 +54,16 @@ struct CaretGeometry
 {
     float x{}, y{}, height{};
 };
+// Visual side of a caret at a soft wrap, an offset that ends one visual line
+// and starts the next without a hard break. Downstream (Caret's default) draws
+// it at the next line's start, Upstream at the preceding line's end. At every
+// other offset both give the same geometry. Affinity is visual only; it is
+// never part of a source offset, selection or text-service position.
+enum class CaretAffinity : std::uint8_t
+{
+    Downstream,
+    Upstream,
+};
 // Synchronous owner-thread raster attributes. The layout retains no brush or
 // presentation policy after Draw. Source/geometry/navigation stay unchanged.
 enum class TextInkRole : uint8_t
@@ -133,6 +143,8 @@ public:
     // for text services; it is not silently snapped to a navigation stop.
     CaretGeometry Caret(std::size_t position) const;
     [[nodiscard]] HRESULT TryCaret(std::size_t position, CaretGeometry& output) const;
+    CaretGeometry Caret(std::size_t position, CaretAffinity affinity) const;
+    [[nodiscard]] HRESULT TryCaret(std::size_t position, CaretAffinity affinity, CaretGeometry& output) const;
     std::vector<D2D1_RECT_F> Range(std::size_t first, std::size_t last) const;
     [[nodiscard]] HRESULT TryRange(std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output) const;
     std::size_t PreviousCluster(std::size_t position) const;
@@ -258,6 +270,8 @@ public:
     [[nodiscard]] HRESULT TryHitTest(float x, float y, Hit& output) const;
     CaretGeometry Caret(std::size_t position) const;
     [[nodiscard]] HRESULT TryCaret(std::size_t position, CaretGeometry& result) const;
+    CaretGeometry Caret(std::size_t position, CaretAffinity affinity) const;
+    [[nodiscard]] HRESULT TryCaret(std::size_t position, CaretAffinity affinity, CaretGeometry& result) const;
     std::vector<D2D1_RECT_F> Range(std::size_t first, std::size_t last) const;
     [[nodiscard]] HRESULT TryRange(std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output) const;
     std::size_t PreviousCluster(std::size_t position) const;

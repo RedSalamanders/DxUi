@@ -3379,10 +3379,66 @@ void TestWrappedMultilineTextFieldMixedDialogFlowKeepsReturnEscapeAndTabRoutingC
     Require(host.GetFocusControl() == nextButton, "wrapped multiline mixed dialog-flow tab advances focus to the next dx control");
 }
 
+void TestWrappedMultilineTextFieldSelectionWrapsWithTextLayoutAtFractionalScale()
+{
+    using namespace DxUi;
+
+    const std::wstring text = L"alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo";
+    for (const UINT dpi : {120u, 144u})
+    {
+        WindowHost host;
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(nullptr, WM_DPICHANGED, MAKEWPARAM(dpi, dpi), 0, handled));
+        Require(host.GetDpi() == static_cast<float>(dpi), "fractional-scale multiline fixture applies its DPI");
+        auto* factory = host.GetWriteFactory();
+        auto* format  = host.GetTextFormat(FontRole::Body, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, true);
+        Require(factory && format, "fractional-scale multiline fixture has the text field's DirectWrite format");
+        size_t fractionalWidths = 0u;
+        for (unsigned step = 0u; step < 96u; ++step)
+        {
+            const float left  = 10.13f;
+            const float width = 96.0f + 0.1f * static_cast<float>(step);
+            TextField field(text);
+            field.SetMultiline(true);
+            field.SetHorizontalTextPadding(0.0f, 0.0f);
+            field.SetVerticalTextPadding(0.0f, 0.0f);
+            field.SetBounds(D2D1::RectF(left, 5.0f, left + width, 400.0f));
+            field.SetSelectionRange(0u, text.size());
+            TextFieldDebugMultilineState state;
+            Require(field.DebugGetMultilineState(host, state), "multiline selection paint state");
+            Require(std::abs(state.selectionLayoutWidthDip - width) < 0.001f, "selection paint wraps at the text layout's own unsnapped width");
+            const float snappedWidth = host.PixelsToDip(std::round(host.DipsToPixels(left + width))) - host.PixelsToDip(std::round(host.DipsToPixels(left)));
+            if (std::abs(snappedWidth - width) > 0.01f)
+                ++fractionalWidths;
+
+            wil::com_ptr<IDWriteTextLayout> layout;
+            Require(SUCCEEDED(factory->CreateTextLayout(text.c_str(), static_cast<UINT32>(text.size()), format, width, 10000.0f, layout.addressof())),
+                    "independent text layout at the field's width");
+            UINT32 count = 0u;
+            static_cast<void>(layout->HitTestTextRange(0u, static_cast<UINT32>(text.size()), 0.0f, 0.0f, nullptr, 0u, &count));
+            std::vector<DWRITE_HIT_TEST_METRICS> metrics(count);
+            Require(SUCCEEDED(layout->HitTestTextRange(0u, static_cast<UINT32>(text.size()), 0.0f, 0.0f, metrics.data(), count, &count)),
+                    "independent text layout hit-test ranges");
+            Require(state.selectionRects.size() == count, "selection rectangles cover exactly the text layout's wrapped lines");
+            for (UINT32 index = 0u; index < count && index < state.selectionRects.size(); ++index)
+            {
+                const auto& expected = metrics[index];
+                const auto& actual   = state.selectionRects[index];
+                Require(std::abs(actual.left - expected.left) < 0.001f && std::abs(actual.top - expected.top) < 0.001f &&
+                            std::abs(actual.right - (expected.left + expected.width)) < 0.001f &&
+                            std::abs(actual.bottom - (expected.top + expected.height)) < 0.001f,
+                        "each selection rectangle equals the text layout's hit-test range");
+            }
+        }
+        Require(fractionalWidths > 48u, "the sweep exercises widths whose pixel-snapped width differs");
+    }
+}
+
 } // namespace
 
 void RunMultilineTextTests()
 {
+    DXUI_RUN_TEST(TestWrappedMultilineTextFieldSelectionWrapsWithTextLayoutAtFractionalScale);
     DXUI_RUN_TEST(TestMultilineTextFieldCtrlASelectionReplacesAllText);
     DXUI_RUN_TEST(TestWrappedMultilineTextFieldCtrlASelectionReplacesAllText);
     DXUI_RUN_TEST(TestMultilineTextFieldSelectAllReplacesAllText);
