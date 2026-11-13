@@ -1932,6 +1932,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestFormClearPreparationRetirement(gpu);
     TestRichDocumentBindingPreparationRetirement(gpu);
     TestMultilineCaretViewport(gpu);
+    TestEmbeddedWheelReadsTheCurrentLinesPerNotch(gpu);
     TestEmbeddedTextInput(gpu);
     TestEmbeddedTabHeaderPreparationAvoidsPaintWork(gpu);
     TestEmbeddedInputCallbackAllocationBoundary(gpu);

@@ -8,5 +8,6 @@
   replace the setting through the new diagnostics hook `DebugSetWheelScrollLinesForTest`, never the user's setting.
   `Ctrl+Shift+click` (and Ctrl+Shift with a movement key) in an extended `Grid` now adds the visible anchor-to-row range,
   skipping collapsed groups, to the existing selection and keeps the anchor, as Windows lists do; UI Automation names
-  only the rows that joined. New tests in the Control, Grid, Tree and Accessibility suites cover each case. An embedded
-  host forwards no `WM_SETTINGCHANGE`, so embedded-only applications keep the setting read at first use.
+  only the rows that joined. An embedded host, which receives no `WM_SETTINGCHANGE`, reads the setting again before each
+  wheel event it dispatches, so its controls always use the current value, as `TextField` did before. New tests in the
+  Control, Grid, Tree, Accessibility and Embedded suites cover each case.

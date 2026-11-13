@@ -1042,7 +1042,10 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
                 });
                 return target->OnMouseUp(_host, point, false, event.modifiers);
             }
-            case PointerAction::Wheel: return target->OnMouseWheel(_host, point, event.wheelDelta, event.modifiers);
+            case PointerAction::Wheel:
+                // An embedded host receives no WM_SETTINGCHANGE: each wheel event reads the user's lines per notch again.
+                RefreshWheelScrollLines();
+                return target->OnMouseWheel(_host, point, event.wheelDelta, event.modifiers);
             case ::DxUi::PointerAction::Cancel:
             case ::DxUi::PointerAction::Leave:
             default: return false;

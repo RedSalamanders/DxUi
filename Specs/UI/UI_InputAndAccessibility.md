@@ -825,8 +825,8 @@ mnemonics and leaves one that names none to `DefWindowProc`, so Alt+Space opens 
 access keys, as over a Win32 edit control.
 
 Wheel scrolling honours the user's lines per notch, `WHEEL_PAGESCROLL` included, in Grid, Tree and a multiline
-TextField through one shared reading that a window host refreshes on `WM_SETTINGCHANGE` and leaves to the application's
-window procedure as well; Grid sums fractional precision-touchpad deltas without losing or rounding them up (see
+TextField through one shared reading. A window host refreshes it on `WM_SETTINGCHANGE`, which it leaves to the
+application's window procedure as well; an embedded host refreshes it before each wheel event it dispatches. Grid sums fractional precision-touchpad deltas without losing or rounding them up (see
 [controls and layout](UI_ControlsAndLayout.md)). Tests replace the setting through `DebugSetWheelScrollLinesForTest`,
 never by changing the user's setting.
 

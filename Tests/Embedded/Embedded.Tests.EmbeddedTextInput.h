@@ -533,6 +533,99 @@ static void TestMultilineCaretViewport(GraphicsFixture& gpu)
     Hr(gpu.Resize(480, 240), "restore shared graphics fixture size");
 }
 
+// An embedded host receives no WM_SETTINGCHANGE, so each wheel event it dispatches reads the user's lines per notch again:
+// with the setting changed between two wheel events and no window message at all, the second event scrolls a Grid and a
+// multiline TextField by the new count. The setting is replaced through the test seam, never the user's own.
+static void TestEmbeddedWheelReadsTheCurrentLinesPerNotch(GraphicsFixture& gpu)
+{
+    class Rows final : public DxUi::IGridModel
+    {
+    public:
+        [[nodiscard]] size_t GetRowCount() const noexcept override
+        {
+            return 80u;
+        }
+        [[nodiscard]] size_t GetColumnCount() const noexcept override
+        {
+            return 1u;
+        }
+        [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t /*columnIndex*/) const override
+        {
+            DxUi::GridColumnDesc column;
+            column.id       = L"name";
+            column.title    = L"Name";
+            column.widthDip = 200.0f;
+            return column;
+        }
+        void GetCellData(size_t rowIndex, size_t /*columnIndex*/, DxUi::GridCellData& cell) const override
+        {
+            cell.kind = DxUi::GridCellKind::Text;
+            cell.text = L"Row " + std::to_wstring(rowIndex);
+        }
+        [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+        {
+            return rowId < 80u ? std::optional<size_t>(static_cast<size_t>(rowId)) : std::nullopt;
+        }
+    };
+
+    DxUi::EmbeddedHost view;
+    std::shared_ptr<DxUi::GraphicsDevice> pool;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "wheel lines fixture pool");
+    Hr(view.Attach(pool), "wheel lines fixture attach");
+    Rows model;
+    std::wstring text;
+    for (int line = 0; line < 40; ++line)
+        text += L"line " + std::to_wstring(line) + L"\n";
+    auto root   = std::make_unique<DxUi::Panel>();
+    auto* grid  = root->AddChild<DxUi::Grid>();
+    auto* field = root->AddChild<DxUi::TextField>(text);
+    grid->SetBounds(D2D1::RectF(0, 0, 320, 272));
+    grid->SetRowHeightDip(24.0f);
+    grid->SetHeaderHeightDip(32.0f);
+    grid->SetModel(&model);
+    field->SetMultiline(true);
+    field->SetVerticalTextPadding(0, 0);
+    field->SetBounds(D2D1::RectF(340, 0, 460, 60));
+    view.Controls().SetRoot(std::move(root));
+    Hr(view.Prepare(480, 280, 96.0f), "prepare wheel lines fixture");
+
+    const auto topRow = [&] { return grid->FindRowAtPoint(DxUi::MakePointDip(20.0f, 32.0f + 12.0f)).value_or(std::numeric_limits<size_t>::max()); };
+    const auto notch  = [&](float x, float y)
+    {
+        DxUi::PointerEvent wheel{DxUi::PointerAction::Wheel, x, y};
+        wheel.wheelDelta = -static_cast<float>(WHEEL_DELTA);
+        return view.DispatchPointer(wheel);
+    };
+
+    DxUi::DebugSetWheelScrollLinesForTest(2u);
+    Check(notch(100.0f, 150.0f) && topRow() == 2u, "the first wheel event over the grid scrolls the 2 rows the setting names");
+    DxUi::DebugSetWheelScrollLinesForTest(5u);
+    Check(notch(100.0f, 150.0f) && topRow() == 7u, "with no window message, the next wheel event over the grid scrolls the new 5 rows");
+
+    view.Controls().SetFocusControl(field);
+    field->SetSelectionRange(0, 0);
+    Check(field->OnKeyDown(view.Controls(), VK_HOME, MK_CONTROL), "the field's caret and viewport return to its start");
+    const auto firstLine = [&]
+    {
+        Hr(view.Prepare(480, 280, 96.0f), "prepare the wheel lines fixture after the field scrolled");
+        DxUi::EmbeddedTextInputSnapshot snapshot;
+        Check(view.ReadTextInput(snapshot) == S_OK, "the focused field has a text input snapshot");
+        return snapshot.state.firstVisibleLine;
+    };
+    Check(firstLine() == 0u, "the field starts at its first line");
+    DxUi::DebugSetWheelScrollLinesForTest(2u);
+    static_cast<void>(notch(400.0f, 30.0f));
+    Check(firstLine() == 2u, "a wheel event over the field scrolls the 2 lines the setting names");
+    DxUi::DebugSetWheelScrollLinesForTest(4u);
+    static_cast<void>(notch(400.0f, 30.0f));
+    Check(firstLine() == 6u, "with no window message, the next wheel event over the field scrolls the new 4 lines");
+
+    DxUi::DebugSetWheelScrollLinesForTest(std::nullopt);
+    DxUi::RefreshWheelScrollLines();
+    view.Controls().SetRoot({});
+    view.Detach();
+}
+
 // Application-side composition transport; no HWND, TSF context or real IME is created by this fixture.
 [[noreturn]] __declspec(noinline) static void EmbeddedInputAllocationThrowOrigin()
 {

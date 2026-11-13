@@ -715,8 +715,9 @@ same value requests nothing). Pending content in an unrelated sibling does not r
 control's capture or preview.
 
 A wheel notch scrolls Grid, Tree and a multiline TextField by the lines the user chose in the mouse settings
-(`SPI_GETWHEELSCROLLLINES`, 3 when it cannot be read), read at first use and again whenever a window host receives
-`WM_SETTINGCHANGE`; an embedded host forwards no such message, so its controls keep the value read last. "One screen at
+(`SPI_GETWHEELSCROLLLINES`, 3 when it cannot be read). A window host reads it at first use and again whenever it
+receives `WM_SETTINGCHANGE`; an embedded host, which receives no window messages, reads it again before each wheel event
+it dispatches, so its controls always use the current setting and it still owns no timer, thread or window. "One screen at
 a time" (`WHEEL_PAGESCROLL`) scrolls one page: the rows (lines) the viewport shows, as Page Down moves. A setting of 0
 scrolls nothing and leaves the wheel unhandled. Grid accumulates partial deltas exactly: it keeps the unrounded offset
 the wheel's deltas lead to and draws the row boundary nearest to it, so four 30-unit precision-touchpad deltas scroll

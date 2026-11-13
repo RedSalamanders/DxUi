@@ -4959,8 +4959,8 @@ private:
 
 #if DXUI_ENABLE_DIAGNOSTICS
 // Replaces the user's lines-per-notch setting (SPI_GETWHEELSCROLLLINES) that Grid, Tree and TextField read, so a test
-// never changes the real setting. It takes effect when a window host next receives WM_SETTINGCHANGE, as a real change
-// does; nullopt reads the system setting again.
+// never changes the real setting. It takes effect when a window host next receives WM_SETTINGCHANGE or an embedded host
+// next dispatches a wheel event, as a real change does; nullopt reads the system setting again.
 void DebugSetWheelScrollLinesForTest(std::optional<UINT> lines) noexcept;
 #endif
 
