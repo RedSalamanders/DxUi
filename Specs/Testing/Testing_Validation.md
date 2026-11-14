@@ -1502,7 +1502,9 @@ memory fields (live tracked bytes from the scene build, retained-resource statis
 hardware, hidden residency). Warm-up phases settle process first-use state; they are recorded but not compared.
 
 The determinism gate runs every built fixture twice on each of its hosts at every WARP variant (the embedded host in
-the Embedded suite, the window host in the Rendering suite) and fails with the fixture, variant, host, phase, step and
+the Embedded suite, the window host in the Rendering suite) except a variant declared receipt-only: a full-size scene too
+heavy for the ordinary suites, which receipts and the timing harness run and whose consecutive receipt runs are compared
+when it is recorded. Every built fixture keeps at least its default variant in the gate and fails with the fixture, variant, host, phase, step and
 counter of the first difference. A nondeterministic counter is a defect of the fixture or of the library, never a
 reason to exclude the counter.
 

@@ -399,7 +399,7 @@ __declspec(noinline) inline void TestCatalogIsDeterministic(const wchar_t* artif
             continue;
         for (const Variant& variant : definition->variants)
         {
-            if (variant.hardwareOnly)
+            if (variant.hardwareOnly || variant.receiptOnly)
                 continue;
             const RunRecord first  = RunEmbedded(*definition, variant);
             const RunRecord second = RunEmbedded(*definition, variant);

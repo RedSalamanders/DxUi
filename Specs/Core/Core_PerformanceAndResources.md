@@ -257,6 +257,9 @@ snapshot, delta and receipt.
   its creator. `DrawText` lays out its whole string on every call, so each call counts one implicit text layout created
   and destroyed. GDI backdrop captures count `popups.backdropCaptures` and their pixels; each filter of an editable
   `ComboBox`'s popup items counts `popups.comboBoxPopupRebuilds`.
+- **Text.** `text.formatCacheTrims` counts each time `ControlHost::TrimCaches` clears the configured text-format cache
+  above its key bound at the start of a preparation or render; each such clear forces every visible control to
+  re-prepare in that pass.
 - **Rich documents.** `hoveredTitleCalls` counts each `RichTextEditor::HoveredTitle` resolution (the hover title under a
   point, asked for by the host's supplemental tooltip), and `hoverScanElements` each semantic element a pointer-hover
   lookup tests one by one. Hover lookups go through the prepared hover index, so the latter stays 0.

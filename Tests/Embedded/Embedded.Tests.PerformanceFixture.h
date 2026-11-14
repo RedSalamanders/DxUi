@@ -49,7 +49,9 @@ inline constexpr HostMask kBothHosts = kEmbedded | kWindow;
 }
 
 // One size of the scene: the device-pixel surface or client area and its DPI. variants[0] is the default. A hardware-only
-// variant is declared for hardware timing and receipts; WARP runs, the determinism gate among them, leave it out.
+// variant is declared for hardware timing and receipts; WARP runs, the determinism gate among them, leave it out. A
+// receipt-only variant is a full-size scene too heavy for the ordinary suites: receipts and hardware timing run it on any
+// adapter, and the suites' determinism gate leaves it out (its own runs are compared with performance-fixtures.ps1).
 struct Variant
 {
     std::string_view name; // stable lowercase id used on command lines and in receipt names: "default", "uhd-192dpi"
@@ -57,6 +59,7 @@ struct Variant
     UINT height       = 0u;
     float dpi         = 96.0f;
     bool hardwareOnly = false;
+    bool receiptOnly  = false;
 };
 
 // A warm-up phase settles first-use state (device resources, caches, process-wide DirectWrite state): its counters are

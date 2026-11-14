@@ -4990,6 +4990,7 @@ void ControlHost::TrimCaches() noexcept
     {
         _configuredTextFormats.clear();
         _forceAllVisualPreparation = true;
+        ++Detail::Work().text.formatCacheTrims;
     }
 }
 

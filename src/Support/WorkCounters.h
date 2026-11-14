@@ -37,6 +37,7 @@
 
 // Text and typography beyond the resource kinds below.
 #define DXUI_WORK_COUNTERS_TEXT(X)                                                                                                                             \
+    X(text, formatCacheTrims) /* ControlHost::TrimCaches clears of the text-format cache above its key bound; each forces full-tree visual re-preparation. */  \
     X(text, setTextRenderingParams) /* ID2D1RenderTarget::SetTextRenderingParams calls a host made to bind or clear rendering parameters. */
 
 // Popups and menus.

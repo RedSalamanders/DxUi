@@ -262,7 +262,7 @@ void TestPerformanceFixturesAreDeterministicOnWindowHost()
             continue;
         for (const Variant& variant : definition->variants)
         {
-            if (variant.hardwareOnly)
+            if (variant.hardwareOnly || variant.receiptOnly)
                 continue;
             RequireDeterministic(RunWindow(*definition, variant), RunWindow(*definition, variant));
             std::cerr << "    [FIXTURE] " << definition->id << '@' << variant.name << " (window, WARP): two runs record equal counters\n";
