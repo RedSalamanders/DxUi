@@ -1456,7 +1456,7 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
     place.
   - **Needs**: `W0.3`. **Size**: S.
 
-- [ ] **W7.9 Hover and hit index.**
+- [x] **W7.9 Hover and hit index.**
   - **Why**: `RichTextEditor::HoveredTitle` hit-tests and then scans every semantic element for the smallest titled
     span (`DxUi.RichTextEditor.cpp:7391-7401`). Tooltip revalidation runs it twice per animation tick while a target is
     live (`DxUi.WindowHost.cpp:5901-5902`, called from `:6006` and `src/Rendering/Embedded.cpp:431`), each time after a

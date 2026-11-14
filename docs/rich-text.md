@@ -211,6 +211,10 @@ Rich view. Editable editors require Ctrl; read-only editors do not. A nested
 image title takes precedence over its enclosing link title. When no authored
 title is eligible, the control's consumer-supplied tooltip remains available.
 Scrolling, source replacement, hiding and detachment retire the old title.
+Each prepared layout indexes its titled and underlined spans, so finding the
+title under the pointer is a binary search however long the document is, and the
+host does not look it up again while the pointer, modifiers and prepared view
+stay unchanged ([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W7.9/README.md)).
 
 Temporary link and source-ink decoration follows the shared
 [transient raster contract](../Specs/Core/Core_PerformanceAndResources.md#transient-raster-decoration).

@@ -4,6 +4,8 @@
 #include <DxUi/Configuration.h>
 #include <DxUi/RichSemanticDocument.h>
 #include <DxUi/RichTextLayout.h>
+#include <cstdint>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <vector>
@@ -49,6 +51,32 @@ extern thread_local std::size_t testRichPreparationFailureAttempts;
 struct SourceCaretHit
 {
     std::size_t position{}, site = MarkdownNoNode;
+};
+// Pointer-hover lookup by display offset, built at preparation with each geometry generation. The boundaries of the
+// indexed spans cut the display into segments, and each segment records the element a hover there resolves to, so a
+// lookup is one binary search over the boundaries and examines no element.
+enum class HoverSpanPick : std::uint8_t
+{
+    Smallest, // The shortest containing span; on equal length the later element.
+    First     // The containing span of the lowest element index.
+};
+struct HoverSpan
+{
+    std::size_t first{}, last{}, element{};
+};
+class HoverSpanIndex
+{
+public:
+    // Replaces the index. An empty span (first >= last) contains no offset and is ignored. Overlapping spans are allowed.
+    void Build(std::span<const HoverSpan> spans, HoverSpanPick pick);
+    [[nodiscard]] std::optional<std::size_t> At(std::size_t display) const noexcept;
+    [[nodiscard]] std::size_t SegmentCount() const noexcept
+    {
+        return starts_.size();
+    }
+
+private:
+    std::vector<std::size_t> starts_ = std::vector<std::size_t>(0u), elements_ = std::vector<std::size_t>(0u);
 };
 // Native geometry preparation on the ControlHost owner. This service owns only
 // prepared layouts and indexes; it creates no device/context/HWND/worker/timer.
@@ -116,6 +144,11 @@ public:
     [[nodiscard]] HRESULT TryRange(std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output) const;
     std::vector<D2D1_RECT_F> SourceRange(MarkdownRange source) const;
     [[nodiscard]] HRESULT TrySourceRange(MarkdownRange source, std::vector<D2D1_RECT_F>& output) const;
+    // The hover index of this generation: the titled link, image or abbreviation whose title a hover at a display offset
+    // shows (the smallest such span, the later element on equal length; an expanded source owner excluded), and the link,
+    // footnote reference or backlink it underlines (the first in element order).
+    std::optional<std::size_t> HoverTitleElement(std::size_t displayOffset) const;
+    std::optional<std::size_t> HoverLinkElement(std::size_t displayOffset) const;
     std::optional<D2D1_RECT_F> ElementBounds(std::size_t element) const;
     [[nodiscard]] HRESULT TryElementBounds(std::size_t element, std::optional<D2D1_RECT_F>& output) const;
     std::vector<std::size_t> VisibleCodeElements(float top, float bottom) const;

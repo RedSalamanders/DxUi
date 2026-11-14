@@ -254,6 +254,9 @@ snapshot, delta and receipt.
   its creator. `DrawText` lays out its whole string on every call, so each call counts one implicit text layout created
   and destroyed. GDI backdrop captures count `popups.backdropCaptures` and their pixels; each filter of an editable
   `ComboBox`'s popup items counts `popups.comboBoxPopupRebuilds`.
+- **Rich documents.** `hoveredTitleCalls` counts each `RichTextEditor::HoveredTitle` resolution (the hover title under a
+  point, asked for by the host's supplemental tooltip), and `hoverScanElements` each semantic element a pointer-hover
+  lookup tests one by one. Hover lookups go through the prepared hover index, so the latter stays 0.
 - **UI Automation.** Each whole-window snapshot build counts `snapshotBuilds`, its control records (`snapshotNodes`) and
   the bytes its per-control record arrays reserve (`snapshotBytes`, owned strings excluded). It counts the same builds as
   the diagnostic `DebugGetAccessibilitySnapshotBuildCountForTest`, which remains.

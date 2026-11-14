@@ -47,7 +47,9 @@
 #define DXUI_WORK_COUNTERS_LISTS(X)
 
 // Rich documents.
-#define DXUI_WORK_COUNTERS_RICH(X)
+#define DXUI_WORK_COUNTERS_RICH(X)                                                                                                                             \
+    X(rich, hoveredTitleCalls) /* RichTextEditor::HoveredTitle resolutions: the hover title under a point, for the host's tooltip. */                          \
+    X(rich, hoverScanElements) /* Semantic elements a pointer-hover lookup tested one by one; the prepared hover index adds none. */
 
 // UI Automation.
 #define DXUI_WORK_COUNTERS_ACCESSIBILITY(X)                                                                                                                    \

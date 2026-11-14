@@ -3840,6 +3840,16 @@ private:
     HRESULT PrepareCodeInk(const std::shared_ptr<const RichText::SemanticDocument>& document);
     [[nodiscard]] std::optional<RichText::MarkdownRange> HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const;
     [[nodiscard]] std::wstring_view HoveredTitle(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) const;
+    // Everything HoveredTitle reads besides the point and modifiers. A host that remembers a resolved title resolves
+    // again only when this key, the point or the modifiers change.
+    struct HoveredTitleKey
+    {
+        uint64_t geometryGeneration{};
+        float viewportLeft{}, viewportTop{}, viewportRight{}, viewportBottom{}, horizontalTranslation{}, scrollDip{};
+        bool geometryReady{}, layoutCurrent{}, enabled{}, visible{}, editable{};
+        bool operator==(const HoveredTitleKey&) const = default;
+    };
+    [[nodiscard]] HoveredTitleKey GetHoveredTitleKey(const ControlHost& host) const noexcept;
     [[nodiscard]] std::optional<RichText::MarkdownRange> ActiveParagraphDisplayRange() const;
     [[nodiscard]] bool Editable() const noexcept;
 };
@@ -6975,6 +6985,19 @@ private:
     D2D1_POINT_2F _supplementalTooltipPointDip = D2D1::Point2F();
     UINT _supplementalTooltipModifiers         = 0u;
     bool _supplementalTooltipIsRichTitle = false, _supplementalTooltipNeedsResolve = false;
+    // The last rich title SupplementalTooltipText resolved, with the editor, point, modifiers and the editor's hover key
+    // it was resolved for. An unmoved pointer reuses it until one of them changes.
+    struct RichTitleHover
+    {
+        const RichTextEditor* editor = nullptr;
+        std::weak_ptr<int> lifetime;
+        D2D1_POINT_2F pointDip = D2D1::Point2F();
+        UINT modifiers         = 0u;
+        RichTextEditor::HoveredTitleKey key{};
+        std::wstring title = std::wstring(0u, L' ');
+        bool valid         = false;
+    };
+    RichTitleHover _richTitleHoverCache;
     Button* _defaultButton = nullptr;
     Button* _cancelButton  = nullptr;
     PointerDoubleClickCandidate _pendingPointerDoubleClick;

@@ -3,6 +3,7 @@
 #include "Controls/DxUi.SemanticExtensions.h"
 #include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.PreparedFlowchart.h"
+#include "Support.Tests.RichHoverIndex.h"
 #include "Support.Tests.RichSemanticEditor.h"
 #include "Support.Tests.RichSemanticGeometry.h"
 #include "Support/Utilities.h"
@@ -167,7 +168,71 @@ void TestRichSemanticNativeTitleTooltips()
                                                       [&](bool down) { SendMessageW(window.Hwnd(), down ? WM_KEYDOWN : WM_KEYUP, VK_CONTROL, 0); });
     });
 }
+// W7.9: a pointer over a link resolves through the prepared hover index, an unmoved pointer reuses the host's remembered
+// title, and plain-text moves invalidate nothing.
+void TestRichHoverIndexNativeGate()
+{
+    AttachedHostWindow window;
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    auto& host = window.Host();
+    RichSemanticTests::Run([&]
+    {
+        RichHoverIndexTests::HoverGate(host,
+                                       "native",
+                                       [&] { Require(PrepareNativeContentForTests(host), "prepare the native hover scenario"); },
+                                       [&](D2D1_POINT_2F point, UINT modifiers)
+        {
+            const auto scale  = static_cast<float>(host.GetDpi()) / 96.f;
+            const auto before = host.DebugGetInvalidateCount();
+            SendMessageW(window.Hwnd(),
+                         WM_MOUSEMOVE,
+                         modifiers,
+                         MAKELPARAM(static_cast<int>(std::lround(point.x * scale)), static_cast<int>(std::lround(point.y * scale))));
+            return host.DebugGetInvalidateCount() != before;
+        },
+                                       [&]
+        {
+            static_cast<void>(host.DebugAnimationTickForTest(host.GetAnimationTickMs() + 1u));
+            return true;
+        });
+    });
+}
+// W7.9: a document edit, scroll, zoom, width, theme or re-preparation under an unmoved pointer never leaves the host's
+// remembered title stale.
+void TestRichHoverIndexNativeStaleness()
+{
+    AttachedHostWindow window;
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    auto& host = window.Host();
+    RichSemanticTests::Run([&]
+    {
+        RichHoverIndexTests::HoverStaleness(host,
+                                            [&] { Require(PrepareNativeContentForTests(host), "prepare the native staleness scenario"); },
+                                            [&](D2D1_POINT_2F point, UINT modifiers)
+        {
+            const auto scale = static_cast<float>(host.GetDpi()) / 96.f;
+            SendMessageW(window.Hwnd(),
+                         WM_MOUSEMOVE,
+                         modifiers,
+                         MAKELPARAM(static_cast<int>(std::lround(point.x * scale)), static_cast<int>(std::lround(point.y * scale))));
+            return true;
+        },
+                                            [&] { return host.DebugAnimationTickForTest(host.GetAnimationTickMs() + 1u); });
+    });
+}
 #endif
+// W7.9: the prepared hover index resolves every display offset exactly as the full element scans did, over seeded
+// documents, and the index alone matches a brute-force answer over random overlapping spans.
+void TestRichHoverIndexMatchesFullScan()
+{
+    RichSemanticTests::Run([]
+    {
+        RichHoverIndexTests::HoverSpanIndexMatchesBruteForce();
+        wil::com_ptr<IDWriteFactory> factory;
+        THROW_IF_FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(factory.put())));
+        RichHoverIndexTests::HoverIndexMatchesFullScan(factory.get());
+    });
+}
 void TestRichSemanticNativeMathCaretMetrics()
 {
     using namespace DxUi;
@@ -945,7 +1010,10 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticImagePlaceholderParagraphDirection);
 #if DXUI_ENABLE_DIAGNOSTICS
     DXUI_RUN_TEST(TestRichSemanticNativeTitleTooltips);
+    DXUI_RUN_TEST(TestRichHoverIndexNativeGate);
+    DXUI_RUN_TEST(TestRichHoverIndexNativeStaleness);
 #endif
+    DXUI_RUN_TEST(TestRichHoverIndexMatchesFullScan);
     DXUI_RUN_TEST(TestRichSemanticNativeObjectFailureContainment);
     DXUI_RUN_TEST(TestRichSemanticNativeFallbackSyntaxOwnership);
     DXUI_RUN_TEST(TestRichSemanticScriptColorTargetCapability);

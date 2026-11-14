@@ -326,8 +326,9 @@ zero. WARP numbers cannot stand in for native graphics hardware, physical input 
 Timing varies from run to run; work counts do not. The library counts, per thread and in every configuration, the work
 behind a frame: `Paint` executions, controls visited by paint, tick and hit-test walks, preparations, renders, presents
 and pixels repainted, wakes by source, every text layout, text format, geometry, brush, bitmap, effect, layer, command
-list, device context and D3D11 device it creates (and each implicit `DrawText` layout), GDI backdrop captures, and UI
-Automation snapshot builds with their records and bytes. The counters are private test instruments, not public API; the
+list, device context and D3D11 device it creates (and each implicit `DrawText` layout), GDI backdrop captures, UI
+Automation snapshot builds with their records and bytes, and rich-text hover title resolutions with any semantic elements
+a hover lookup scans. The counters are private test instruments, not public API; the
 [performance and resources contract](../Specs/Core/Core_PerformanceAndResources.md#work-counters) defines each one.
 
 A library test measures an action with `Detail::WorkCounterScope` and asserts exact counts, for example that a clean

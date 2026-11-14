@@ -7421,15 +7421,13 @@ std::optional<RichText::MarkdownRange> RichTextEditor::HoveredLinkDisplayRange(C
     if (! hit.inside)
         return std::nullopt;
     const auto display = hit.trailing && hit.position > 0u ? hit.position - 1u : hit.position;
-    for (const auto& element : geometry->Document().Elements())
-        if ((element.role == RichText::SemanticRole::Link || element.role == RichText::SemanticRole::FootnoteReference ||
-             element.role == RichText::SemanticRole::FootnoteBacklink) &&
-            element.display.first <= display && display < element.display.last)
-            return element.display;
-    return std::nullopt;
+    // The prepared hover index answers with a binary search; no element is scanned.
+    const auto element = geometry->HoverLinkElement(display);
+    return element ? std::optional(geometry->Document().Elements()[*element].display) : std::nullopt;
 }
 std::wstring_view RichTextEditor::HoveredTitle(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) const
 {
+    ++Detail::Work().rich.hoveredTitleCalls;
     if (! IsEnabled() || ! IsVisible() || (Editable() && ! ModifiersContainCtrl(modifiers)) || ! std::isfinite(point.x) || ! std::isfinite(point.y) ||
         ! LayoutIsCurrent(host))
         return {};
@@ -7444,19 +7442,27 @@ std::wstring_view RichTextEditor::HoveredTitle(ControlHost& host, D2D1_POINT_2F 
         return {};
     if (! hit.inside)
         return {};
-    const auto display  = hit.trailing && hit.position > 0u ? hit.position - 1u : hit.position;
-    const auto elements = geometry->Document().Elements();
-    const RichText::SemanticElement* best{};
-    for (std::size_t index = 0u; index < elements.size(); ++index)
-    {
-        const auto& element = elements[index];
-        if ((element.role == RichText::SemanticRole::Link || element.role == RichText::SemanticRole::Image ||
-             element.role == RichText::SemanticRole::Abbreviation) &&
-            ! element.title.empty() && ! geometry->Document().IsSourceEditingElement(index) && element.display.first <= display &&
-            display < element.display.last && (! best || element.display.last - element.display.first <= best->display.last - best->display.first))
-            best = &element;
-    }
-    return best ? std::wstring_view(best->title) : std::wstring_view{};
+    const auto display = hit.trailing && hit.position > 0u ? hit.position - 1u : hit.position;
+    // The smallest titled span containing the hit, resolved by the prepared hover index without scanning elements.
+    const auto element = geometry->HoverTitleElement(display);
+    return element ? std::wstring_view(geometry->Document().Elements()[*element].title) : std::wstring_view{};
+}
+RichTextEditor::HoveredTitleKey RichTextEditor::GetHoveredTitleKey(const ControlHost& host) const noexcept
+{
+    const auto* geometry = _state->layout.SemanticGeometry();
+    const auto viewport  = TextViewport();
+    return {geometry ? geometry->Generation() : 0u,
+            viewport.left,
+            viewport.top,
+            viewport.right,
+            viewport.bottom,
+            HorizontalTranslation(),
+            _state->scrollDip,
+            geometry != nullptr,
+            LayoutIsCurrent(host),
+            IsEnabled(),
+            IsVisible(),
+            Editable()};
 }
 bool RichTextEditor::CodeInkCoversViewport() const noexcept
 {

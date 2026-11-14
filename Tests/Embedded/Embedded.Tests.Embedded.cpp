@@ -89,6 +89,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.RichTextResources.h"
 #include "Embedded.Tests.TraceProvider.h"
 #include "Embedded.Tests.WorkCounters.h"
+#include "Support.Tests.RichHoverIndex.h"
 #include "Support.Tests.RichSemantic.h"
 #include "Support.Tests.RichSemanticEditor.h"
 #include "Support.Tests.RichSemanticGeometry.h"
@@ -99,6 +100,35 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.PreparedTreeAccessibilitySemantics.h"
 #include "Embedded.Tests.PreparedTreeEvents.h"
 #include "Embedded.Tests.PreparedTreeRootLifetime.h"
+
+// W7.9 on the embedded host: the hover scenario's pointer paths through DispatchPointer and its unchanged-pointer ticks
+// through AdvanceAnimation, the path that revalidates the supplemental tooltip.
+static void TestEmbeddedRichHoverIndex(GraphicsFixture& gpu)
+{
+    DxUi::EmbeddedHost view;
+    std::shared_ptr<DxUi::GraphicsDevice> graphics;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "hover index borrowed graphics");
+    Hr(view.Attach(graphics), "hover index embedded view");
+    uint64_t tick      = 1'000u;
+    const auto prepare = [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare the embedded hover scenario"); };
+    const auto move    = [&](D2D1_POINT_2F point, UINT modifiers)
+    {
+        const auto scale = static_cast<float>(view.Controls().GetDpi()) / 96.f;
+        static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Move, point.x * scale, point.y * scale, modifiers}));
+        if (! view.NeedsPreparation())
+            return false;
+        prepare();
+        return true;
+    };
+    const auto advance = [&]
+    {
+        const bool requested = view.NeedsAnimation();
+        static_cast<void>(view.AdvanceAnimation(++tick));
+        return requested;
+    };
+    RichSemanticTests::Run([&] { RichHoverIndexTests::HoverGate(view.Controls(), "embedded", prepare, move, advance); });
+    RichSemanticTests::Run([&] { RichHoverIndexTests::HoverStaleness(view.Controls(), prepare, move, advance); });
+}
 
 // Hidden and zero-extent views hold no surface; the next visible sized preparation reallocates exactly one and
 // reproduces the previous pixels. Device replacement while hidden keeps working without a surface.
@@ -1715,6 +1745,14 @@ __declspec(noinline) static int RunFunctionalTests()
         ImeCopies::Run(__wargv[2]);
         return 0;
     }
+    // The hover and hit index gate alone (W7.9); the Embedded suite also runs it.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-hover-index")
+    {
+        GraphicsFixture hoverGpu;
+        Hr(hoverGpu.Create(), "hover index WARP device");
+        TestEmbeddedRichHoverIndex(hoverGpu);
+        return 0;
+    }
     // Opt-in diagnostics stay outside the canonical benchmark dispatcher/closure.
     if (__argc == 5 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-profile")
     {
@@ -2221,6 +2259,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(false, false, false, false, true); });
     TestFootnoteBlockAllocationFailures();
     RichSemanticTests::Run([&] { TestRichSemanticEditorQueryFailureBudgets(gpu); });
+    TestEmbeddedRichHoverIndex(gpu);
     {
         DxUi::EmbeddedHost transactionView;
         std::shared_ptr<DxUi::GraphicsDevice> transactionGraphics;

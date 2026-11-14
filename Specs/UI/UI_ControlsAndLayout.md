@@ -1064,6 +1064,23 @@ text again before publication. This also applies when a generic consumer tooltip
 was visible: its invalidation callback may replace the candidate rich document.
 An expanded inline source owner's edit help is not an authored hover title.
 
+Hover lookup cost (performance and motion plan W7.9). Semantic geometry indexes
+its hover spans when a preparation publishes, with the geometry generation: the
+titled link, image and abbreviation spans (an expanded source owner excluded) and
+the link, footnote reference and backlink spans that hover underlining uses, by
+display range. Where titled spans nest or overlap, the hover title is the
+smallest span containing the hit and, on equal length, the later element; the
+underlined link is the first containing span in element order. A pointer lookup
+is one binary search and scans no semantic element, however many the document
+has. The host remembers the last resolved title with its editor, pointer point,
+modifiers and the editor's hover key (geometry generation, text viewport,
+horizontal translation, vertical scroll, whether the layout is current, enabled,
+visible and editable) and resolves again only when one of them changes, so an
+animation tick with an unchanged pointer resolves nothing. A document edit,
+scroll, zoom, width change, density change or re-preparation changes the key; a
+colour-only theme change leaves every input of the title unchanged. The
+remembered title is a registered retained cache.
+
 ## Retained RichTextEditor v0 preview (D2c)
 
 Diagnostic native math corpus cases observe recursive parser entry addresses on the actual thread stack and require 128 KiB remaining for the 64-level array, arrow, infix, general-fraction, unary-accent and math-style fixtures, including mixed nesting. The shared corpus also prepares 64-level arrays, fractions and structured binary expressions on the ordinary thread stack. This sampled entry-address guard is not a complete stack high-water measurement. Matrix and substack rows accept either the double-backslash or `\cr` separator. Double-backslash separators accept nonnegative row-spacing dimensions in pt (0–64), em or ex (0–4), using the mathematical absolute-unit scale for pt. Unsupported dimensions and dimensions after `\cr` retain complete formula source.

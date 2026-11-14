@@ -910,6 +910,26 @@ struct PreparedSemanticGeometry::State
     std::vector<std::size_t> nodeElements;
     std::vector<std::optional<D2D1_RECT_F>> bounds;
     std::vector<std::pair<std::size_t, std::size_t>> sourceLines;
+    // The hover index of this generation, built once when the state is published: titles (link, image and abbreviation
+    // titles, minus an expanded source owner) and hover-underlined links (links, footnote references and backlinks).
+    HoverSpanIndex hoverTitles, hoverLinks;
+    void BuildHoverIndex()
+    {
+        const auto elements = document->Elements();
+        std::vector<HoverSpan> titles(0u), links(0u);
+        for (std::size_t index = 0u; index < elements.size(); ++index)
+        {
+            const auto& element = elements[index];
+            const auto role     = element.role;
+            if ((role == SemanticRole::Link || role == SemanticRole::Image || role == SemanticRole::Abbreviation) && ! element.title.empty() &&
+                ! document->IsSourceEditingElement(index))
+                titles.push_back({element.display.first, element.display.last, index});
+            if (role == SemanticRole::Link || role == SemanticRole::FootnoteReference || role == SemanticRole::FootnoteBacklink)
+                links.push_back({element.display.first, element.display.last, index});
+        }
+        hoverTitles.Build(titles, HoverSpanPick::Smallest);
+        hoverLinks.Build(links, HoverSpanPick::First);
+    }
     float height{}, width{};
     std::size_t codeChipCount{};
     bool codeChipsAvailable = true;
@@ -3199,6 +3219,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     result.status = LayoutPreparationStatus::Idle;
                     return result;
                 }
+                work.state->BuildHoverIndex();
                 state_ = std::move(work.state);
                 next_.reset();
                 valid_ = true;
@@ -3294,6 +3315,74 @@ const PreparedSemanticGeometry::State& PreparedSemanticGeometry::Current() const
 const SemanticDocument& PreparedSemanticGeometry::Document() const
 {
     return *Current().document;
+}
+void HoverSpanIndex::Build(std::span<const HoverSpan> spans, HoverSpanPick pick)
+{
+    constexpr auto none = std::numeric_limits<std::size_t>::max();
+    std::vector<HoverSpan> sorted(0u);
+    std::vector<std::size_t> boundaries(0u);
+    sorted.reserve(spans.size());
+    boundaries.reserve(spans.size() * 2u);
+    for (const auto& span : spans)
+        if (span.first < span.last)
+        {
+            sorted.push_back(span);
+            boundaries.push_back(span.first);
+            boundaries.push_back(span.last);
+        }
+    std::ranges::sort(sorted, {}, &HoverSpan::first);
+    std::ranges::sort(boundaries);
+    boundaries.erase(std::unique(boundaries.begin(), boundaries.end()), boundaries.end());
+    // Heap order: the front is the span a hover resolves to among those that have started.
+    const auto worse = [pick](const HoverSpan& left, const HoverSpan& right) noexcept
+    {
+        if (pick == HoverSpanPick::First)
+            return left.element > right.element;
+        const auto leftLength = left.last - left.first, rightLength = right.last - right.first;
+        return leftLength != rightLength ? leftLength > rightLength : left.element < right.element;
+    };
+    std::vector<HoverSpan> active(0u);
+    std::vector<std::size_t> starts(0u), elements(0u);
+    active.reserve(sorted.size());
+    std::size_t next = 0u;
+    for (const auto boundary : boundaries)
+    {
+        while (next < sorted.size() && sorted[next].first <= boundary)
+        {
+            active.push_back(sorted[next++]);
+            std::ranges::push_heap(active, worse);
+        }
+        // Boundaries only increase, so a span that ended before this segment never contains a later one.
+        while (! active.empty() && active.front().last <= boundary)
+        {
+            std::ranges::pop_heap(active, worse);
+            active.pop_back();
+        }
+        const auto element = active.empty() ? none : active.front().element;
+        if (elements.empty() ? element != none : element != elements.back())
+        {
+            starts.push_back(boundary);
+            elements.push_back(element);
+        }
+    }
+    starts_.swap(starts);
+    elements_.swap(elements);
+}
+std::optional<std::size_t> HoverSpanIndex::At(std::size_t display) const noexcept
+{
+    const auto found = std::ranges::upper_bound(starts_, display);
+    if (found == starts_.begin())
+        return std::nullopt;
+    const auto element = elements_[static_cast<std::size_t>(found - starts_.begin()) - 1u];
+    return element == std::numeric_limits<std::size_t>::max() ? std::nullopt : std::optional<std::size_t>(element);
+}
+std::optional<std::size_t> PreparedSemanticGeometry::HoverTitleElement(std::size_t displayOffset) const
+{
+    return Current().hoverTitles.At(displayOffset);
+}
+std::optional<std::size_t> PreparedSemanticGeometry::HoverLinkElement(std::size_t displayOffset) const
+{
+    return Current().hoverLinks.At(displayOffset);
 }
 HRESULT PreparedSemanticGeometry::TryCaret(std::size_t offset, CaretGeometry& output) const
 {

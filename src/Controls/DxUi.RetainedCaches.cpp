@@ -35,7 +35,7 @@ template <typename Visit> void VisitTree(Control& control, const Visit& visit) n
 std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
 {
     {
-        static constexpr std::array<RetainedHostCacheRow, 4u> rows{{
+        static constexpr std::array<RetainedHostCacheRow, 5u> rows{{
             // ControlHost::_brushCache (and _brushFailureLogKeys, the warnings already written for it).
             {"ControlHost._brushCache",
              [](const ControlHost& host) noexcept { return host._brushCache.size(); },
@@ -57,6 +57,16 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
             {"TooltipLayer._layoutCache",
              [](const ControlHost& host) noexcept { return Present(host._tooltipLayer._layoutCache.valid || host._tooltipLayer._layoutCache.layout); },
              [](ControlHost& host) noexcept { host._tooltipLayer.InvalidateLayoutCache(); }},
+            // ControlHost::_richTitleHoverCache, the last rich hover title the supplemental tooltip resolved.
+            {"ControlHost._richTitleHoverCache",
+             [](const ControlHost& host) noexcept { return Present(host._richTitleHoverCache.valid); },
+             [](ControlHost& host) noexcept
+        {
+            host._richTitleHoverCache.valid  = false;
+            host._richTitleHoverCache.editor = nullptr;
+            host._richTitleHoverCache.lifetime.reset();
+            host._richTitleHoverCache.title = std::wstring(0u, L' ');
+        }},
             // The published UI Automation snapshot (WindowHostAccessibilityTarget::snapshot, native or embedded).
             {"Accessibility.snapshot",
              [](const ControlHost& host) noexcept { return CountRetainedAccessibilitySnapshotRecords(host); },
@@ -312,7 +322,7 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
                 field->_sharedLabelCache = {};
             }
         }},
-            // RichTextEditor::State::layout (prepared document layout and semantic geometry), its overlay geometry, inks,
+            // RichTextEditor::State::layout (prepared document layout and semantic geometry with its hover index), its overlay geometry, inks,
             // brushes and staged parser and builder work: everything RichTextEditor::RetireLayout(false) clears.
             {"RichTextEditor.layout",
              [](const Control& control) noexcept

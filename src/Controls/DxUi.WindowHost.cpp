@@ -5920,12 +5920,29 @@ std::wstring_view ControlHost::SupplementalTooltipText(Control* target, D2D1_POI
     {
         try
         {
-            const auto title = editor->HoveredTitle(*this, pointDip, _supplementalTooltipModifiers);
-            if (! title.empty())
+            // Hover revalidation asks for the same target twice per animation tick. Resolve the title again only when
+            // the editor, point, modifiers or anything else the title depends on (the editor's hover key: geometry
+            // generation, viewport, scroll, enabled, visible, editable) changed since the remembered resolution.
+            auto& remembered  = _richTitleHoverCache;
+            const auto key    = editor->GetHoveredTitleKey(*this);
+            const bool reused = remembered.valid && remembered.editor == editor && ! remembered.lifetime.expired() && remembered.pointDip.x == pointDip.x &&
+                                remembered.pointDip.y == pointDip.y && remembered.modifiers == _supplementalTooltipModifiers && remembered.key == key;
+            if (! reused)
+            {
+                remembered.valid = false;
+                remembered.title.assign(editor->HoveredTitle(*this, pointDip, _supplementalTooltipModifiers));
+                remembered.editor    = editor;
+                remembered.lifetime  = editor->GetLifetimeToken();
+                remembered.pointDip  = pointDip;
+                remembered.modifiers = _supplementalTooltipModifiers;
+                remembered.key       = key;
+                remembered.valid     = true;
+            }
+            if (! remembered.title.empty())
             {
                 if (richTitle)
                     *richTitle = true;
-                return title;
+                return remembered.title;
             }
         }
         catch (const std::bad_alloc&)
