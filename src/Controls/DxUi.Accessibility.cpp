@@ -59,11 +59,12 @@ struct EmbeddedAccessibilityAccess
     {
         return host._embeddedAccessibilityTarget;
     }
-    // Whether a snapshot built now shows the view as its last preparation did, at the size `placement` reports: what
-    // UpdateAccessibility requires, for a build it deferred to a query.
-    [[nodiscard]] static bool PublishableAt(EmbeddedHost& host, const EmbeddedAccessibilityPlacement& placement) noexcept
+    // Whether a snapshot built now has the geometry of the view's last preparation, at the size `placement` reports: a build
+    // an update deferred to a query. A paint-only change since is read as it is now, as Grid materialization reads it
+    // (Coherent). A pure check: unlike InputIsCoherent it never cancels a pointer gesture, which a query must not do.
+    [[nodiscard]] static bool GeometryIsPreparedAt(const EmbeddedHost& host, const EmbeddedAccessibilityPlacement& placement) noexcept
     {
-        return host.InputIsCoherent(false) && std::abs(placement.viewport.width - host._host._widthPx) <= 0.01 &&
+        return host.PreparedGeometryIsCurrent() && std::abs(placement.viewport.width - host._host._widthPx) <= 0.01 &&
                std::abs(placement.viewport.height - host._host._heightPx) <= 0.01;
     }
     [[nodiscard]] static bool Coherent(EmbeddedHost& host) noexcept
@@ -319,6 +320,8 @@ struct AccessibilityMutationInterestOverrideForTest
 thread_local AccessibilityMutationInterestOverrideForTest g_accessibilityMutationInterestOverride;
 // -1 asks UiaClientsAreListening; 0 or 1 stands for its answer in the client gate (AccessibilityClientsMayListen) only.
 std::atomic<int> g_accessibilitySystemListenersOverride{-1};
+// Publication requests queries on other threads sent to a window thread (RequestNativeAccessibilityPublication).
+std::atomic<uint64_t> g_accessibilityQueryPublicationRequests{0u};
 
 // The window whose GetFocus calls a test holds, and the events it uses. The window is stored last when arming and first
 // when clearing, so a call never meets events the test has not armed; the holders are the calls that met the gate.
@@ -1125,6 +1128,41 @@ struct RequestedGridRow
 
 void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE, void*, PTP_WORK) noexcept;
 
+// How many target snapshot mutexes the calling thread holds: a query that holds one never waits for the window thread.
+thread_local uint32_t g_heldAccessibilitySnapshotMutexes = 0u;
+
+// A target's recursive snapshot mutex that knows whether the calling thread holds it (BasicLockable, for std::scoped_lock).
+class AccessibilitySnapshotLock final
+{
+public:
+    AccessibilitySnapshotLock()                                            = default;
+    AccessibilitySnapshotLock(const AccessibilitySnapshotLock&)            = delete;
+    AccessibilitySnapshotLock& operator=(const AccessibilitySnapshotLock&) = delete;
+    AccessibilitySnapshotLock(AccessibilitySnapshotLock&&)                 = delete;
+    AccessibilitySnapshotLock& operator=(AccessibilitySnapshotLock&&)      = delete;
+    ~AccessibilitySnapshotLock()                                           = default;
+    void lock()
+    {
+        _mutex.lock();
+        ++g_heldAccessibilitySnapshotMutexes;
+    }
+    [[nodiscard]] bool try_lock()
+    {
+        if (! _mutex.try_lock())
+            return false;
+        ++g_heldAccessibilitySnapshotMutexes;
+        return true;
+    }
+    void unlock()
+    {
+        --g_heldAccessibilitySnapshotMutexes;
+        _mutex.unlock();
+    }
+
+private:
+    std::recursive_mutex _mutex;
+};
+
 struct WindowHostAccessibilityTarget final
 {
     // Retire application-owned snapshots before releasing the module pin.
@@ -1229,14 +1267,27 @@ struct WindowHostAccessibilityTarget final
     // UI Automation advises a window's root only of subscriptions scoped to that window or its elements, never of
     // focus-changed handlers or of subscriptions at the desktop, so this count alone cannot say that nobody listens.
     std::atomic<uint64_t> eventListeners{0u};
+    // A window host whose client object an MSAA client asked for (WM_GETOBJECT with OBJID_CLIENT): such a client listens
+    // through WinEvents, which neither an advise nor, as far as measured, UiaClientsAreListening reveals, so it counts as
+    // a listener for the attachment's lifetime, as any query did before the client gate.
+    std::atomic<bool> msaaClient{false};
     // A window host: a mutation no client could hear left the published snapshot behind the controls (set and cleared on
     // the owner thread). A query on another thread then asks the owner thread to publish before it reads.
     std::atomic<bool> unpublishedChanges{false};
+    // The dirty revision of the last such mutation (owner writes), and the last revision a query on another thread asked
+    // the owner to publish: one request per revision, whatever its outcome, so a busy window thread costs the queries of
+    // that revision one wait in all, not one wait each.
+    std::atomic<uint64_t> unpublishedRevision{0u};
+    std::atomic<uint64_t> requestedRevision{0u};
     // An embedded view: UpdateAccessibility recorded a preparation and placement without building, since no client could
-    // hear its events; the next owner-thread query or listening update builds. A query that came while the view was not
-    // coherent makes the next update build.
-    bool embeddedPublicationDeferred  = false;
-    bool embeddedQueriedWhileDeferred = false;
+    // hear its events; the next owner-thread query or listening update builds. deferredPlacement waits for that build, so
+    // `placement` always describes the published snapshot. A query that could not build makes the next update build, and
+    // a query that met a deferred update makes the next queryInterestUpdates updates build as they come, so a client that
+    // keeps querying reads, at worst, the previous frame, as before the client gate.
+    bool embeddedPublicationDeferred      = false;
+    bool embeddedQueriedWhileDeferred     = false;
+    uint32_t embeddedQueryInterestUpdates = 0u;
+    EmbeddedAccessibilityPlacement deferredPlacement{};
     std::shared_ptr<const AccessibilitySnapshot> eventBaseline;
     std::optional<EmbeddedAccessibilityAccess::FocusMoveReporter> pendingFocusReporter;
     struct PendingTextEvents
@@ -1272,7 +1323,7 @@ struct WindowHostAccessibilityTarget final
     size_t pendingSemanticStateCount{};
     uint64_t pendingSemanticStateSerial{};
     // Mutable text-range helpers may recurse on one target; immutable provider reads do not take this lock.
-    std::recursive_mutex snapshotMutex;
+    AccessibilitySnapshotLock snapshotMutex;
     std::mutex providerMutex;
     // UIA Grid.GetItem may request an offscreen row. Retain only a small recent set in published snapshots so a client
     // can query returned cells without copying the whole model or touching controls from its thread.
@@ -1332,10 +1383,10 @@ struct AccessibilitySnapshotBuild
 };
 #pragma warning(pop)
 
-[[nodiscard]] std::recursive_mutex& AccessibilitySnapshotMutex(WindowHostAccessibilityTarget* target) noexcept
+[[nodiscard]] AccessibilitySnapshotLock& AccessibilitySnapshotMutex(WindowHostAccessibilityTarget* target) noexcept
 {
     // Unattached diagnostic providers have no live target or mutable host state.
-    static std::recursive_mutex unattachedMutex;
+    static AccessibilitySnapshotLock unattachedMutex;
     return target ? target->snapshotMutex : unattachedMutex;
 }
 
@@ -1488,7 +1539,7 @@ struct WindowHostSnapshotChanges
 // whether any client of the desktop listens.
 [[nodiscard]] bool AccessibilityClientsMayListen(const WindowHostAccessibilityTarget& target) noexcept
 {
-    if (target.eventListeners.load(std::memory_order_seq_cst) != 0u)
+    if (target.eventListeners.load(std::memory_order_seq_cst) != 0u || target.msaaClient.load(std::memory_order_seq_cst))
         return true;
 #if DXUI_ENABLE_DIAGNOSTICS
     if (const int systemOverride = g_accessibilitySystemListenersOverride.load(std::memory_order_acquire); systemOverride >= 0)
@@ -1629,7 +1680,7 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     if (! previous || ! previous->alive)
         previous = std::move(target.diffBaseline); // A root swap's stand-in: compare with the tree before it.
     target.diffBaseline.reset();
-    if (target.embedded && previous && previous->alive && previous->hasRetainedRoot && InvokeNativeUia(UiaClientsAreListening))
+    if (target.embedded && previous && previous->alive && previous->hasRetainedRoot && AccessibilityClientsMayListen(target))
     {
         changes.focusMoved = ! SameFocusedElement(*previous, *snapshot);
         changes.selections = CollectSelectionChanges(*previous, *snapshot);
@@ -1640,6 +1691,20 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
         target.publishedRevision = revision;
         if (! target.eventBaseline)
             target.eventBaseline = target.snapshot.load(std::memory_order_acquire);
+    }
+    // No client could hear what this publication changed, so no event of it is owed: the event baseline moves with it, and
+    // a client that listens later hears later changes against what it could read now. Otherwise a value read by a query,
+    // then changed back after the client subscribed, would diff as unchanged and never be raised.
+    if (! AccessibilityClientsMayListen(target))
+    {
+        target.eventBaseline = target.snapshot.load(std::memory_order_acquire);
+        if (! target.embedded)
+        {
+            for (size_t index = 0u; index < target.pendingTextEventCount; ++index)
+                target.pendingTextEvents[index] = {};
+            target.pendingTextEventCount = 0u;
+            target.pendingFocusReporter.reset();
+        }
     }
     return changes;
 }
@@ -1652,12 +1717,24 @@ constexpr UINT kAccessibilityQueryPublicationTimeoutMs = 1000u;
 
 // A query on another thread found that no client could hear the window host's last mutations, so nothing will publish them:
 // the window thread publishes now, and the query reads what it published. A window thread that does not answer in time
-// (busy, or waiting on this very thread) leaves the query the last complete snapshot.
-void RequestNativeAccessibilityPublication(const WindowHostAccessibilityTarget& target) noexcept
+// (busy, or waiting on this very thread) leaves the query the last complete snapshot. One request per unpublished revision,
+// whether it succeeds, times out or is still waiting: other queries of that revision read the last complete snapshot at once.
+// A query that holds a snapshot mutex never waits, since the window thread may need that mutex to answer.
+void RequestNativeAccessibilityPublication(WindowHostAccessibilityTarget& target) noexcept
 {
     const auto message = WndMsg::AccessibilityFlush();
-    if (! message || ! target.hwnd)
+    if (! message || ! target.hwnd || g_heldAccessibilitySnapshotMutexes != 0u)
         return;
+    const uint64_t revision = target.unpublishedRevision.load(std::memory_order_seq_cst);
+    uint64_t requested      = target.requestedRevision.load(std::memory_order_seq_cst);
+    do
+    {
+        if (requested >= revision)
+            return;
+    } while (! target.requestedRevision.compare_exchange_weak(requested, revision, std::memory_order_seq_cst));
+#if DXUI_ENABLE_DIAGNOSTICS
+    g_accessibilityQueryPublicationRequests.fetch_add(1u, std::memory_order_relaxed);
+#endif
     DWORD_PTR ignored = 0u;
     static_cast<void>(SendMessageTimeoutW(target.hwnd,
                                           message.value,
@@ -1668,16 +1745,28 @@ void RequestNativeAccessibilityPublication(const WindowHostAccessibilityTarget& 
                                           &ignored));
 }
 
-// An owner-thread query of an embedded view whose last UpdateAccessibility deferred its build: build now when the view is
-// still as prepared, so the query reads the controls; a view changed since waits for its next update, which then builds.
+// How many updates an embedded query that met a deferred update keeps building as they come (see deferredPlacement).
+constexpr uint32_t kEmbeddedQueryInterestUpdates = 120u;
+
+// An owner-thread query of an embedded view whose last UpdateAccessibility deferred its build: build now when the view's
+// geometry is still the prepared one (a paint-only change since, such as an input handler's new value, is read as it is
+// now), so the query reads the controls; a view whose tree or bounds changed since keeps the last built snapshot, which
+// `placement` describes, and its next update builds.
 void RefreshDeferredEmbeddedAccessibility(WindowHostAccessibilityTarget& target) noexcept
 {
-    if (! target.embedded || ! target.embeddedPublicationDeferred || target.publishing || target.threadId != GetCurrentThreadId() || ! target.embeddedOwner)
+    if (! target.embedded || target.publishing || target.threadId != GetCurrentThreadId() || ! target.embeddedOwner)
         return;
-    ControlHost* const host = target.ResolveHost();
+    if (! target.embeddedPublicationDeferred)
+    {
+        if (target.embeddedQueryInterestUpdates != 0u)
+            target.embeddedQueryInterestUpdates = kEmbeddedQueryInterestUpdates;
+        return;
+    }
+    target.embeddedQueryInterestUpdates = kEmbeddedQueryInterestUpdates;
+    ControlHost* const host             = target.ResolveHost();
     if (! host)
         return;
-    if (! EmbeddedAccessibilityAccess::PublishableAt(*target.embeddedOwner, target.placement))
+    if (! EmbeddedAccessibilityAccess::GeometryIsPreparedAt(*target.embeddedOwner, target.deferredPlacement))
     {
         target.embeddedQueriedWhileDeferred = true;
         return;
@@ -1686,11 +1775,14 @@ void RefreshDeferredEmbeddedAccessibility(WindowHostAccessibilityTarget& target)
     const auto finish = wil::scope_exit([&] { target.publishing = false; });
     try
     {
-        const auto before  = target.snapshot.load(std::memory_order_acquire);
-        const auto changes = PublishWindowHostAccessibilitySnapshot(target, *host);
-        // The event baseline stays: the next update that builds raises what changed since the last one that did.
+        const auto before    = target.snapshot.load(std::memory_order_acquire);
+        const auto published = target.placement;
+        target.placement     = target.deferredPlacement;
+        const auto changes   = PublishWindowHostAccessibilitySnapshot(target, *host);
         if (SUCCEEDED(changes.result) && target.snapshot.load(std::memory_order_acquire) != before)
             target.embeddedPublicationDeferred = false;
+        else
+            target.placement = published; // Still the placement of the snapshot that stays published.
     }
     catch (const std::bad_alloc&)
     {
@@ -1701,7 +1793,6 @@ void RefreshDeferredEmbeddedAccessibility(WindowHostAccessibilityTarget& target)
         Failure::FailUnexpected();
     }
 }
-
 [[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> CaptureAccessibilitySnapshot(WindowHostAccessibilityTarget* target, HWND hwnd)
 {
     if (! target || (target->embedded && (! target->host.load(std::memory_order_acquire) || target->rootLifetime.expired())))
@@ -13352,13 +13443,13 @@ AccessibilityTextUnitSpan GetEnclosingAccessibilityTextUnitSpan(std::wstring_vie
 // retained target and pins no snapshot, so UIA's retention of event providers stays O(1) per event.
 [[nodiscard]] wil::com_ptr_nothrow<IRawElementProviderSimple> CreateWindowHostEventProvider(HWND hwnd, const Control* control) noexcept
 {
-    if (! hwnd || ! control || ! InvokeNativeUia(UiaClientsAreListening))
+    if (! hwnd || ! control)
         return {};
     // This internal intrusive target is not IUnknown (its Release result is nodiscard).
     // Give WIL an explicit close policy instead of imposing COM pointer semantics on it.
     constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
     wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> target(AcquireWindowHostAccessibilityTarget(hwnd));
-    if (! target)
+    if (! target || ! AccessibilityClientsMayListen(*target.get()))
         return {};
     ControlHost* const host = target.get()->ResolveHost();
     ControlPath path{};
@@ -13379,7 +13470,7 @@ namespace
 bool AnnounceWindowHostFocus(HWND hwnd) noexcept
 {
     const Failure::Scope failureScope;
-    if (! hwnd || IsNativeMenuPopupWindow(hwnd) || ! InvokeNativeUia(UiaClientsAreListening))
+    if (! hwnd || IsNativeMenuPopupWindow(hwnd))
         return false;
     GUITHREADINFO focus{};
     focus.cbSize = sizeof(focus);
@@ -13387,7 +13478,7 @@ bool AnnounceWindowHostFocus(HWND hwnd) noexcept
         return false;
     constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
     wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> target(AcquireWindowHostAccessibilityTarget(hwnd));
-    if (! target)
+    if (! target || ! AccessibilityClientsMayListen(*target.get()))
         return false;
     const auto snapshot = target.get()->snapshot.load(std::memory_order_acquire);
     if (! snapshot || ! snapshot->alive || ! snapshot->hasRetainedRoot)
@@ -13983,6 +14074,7 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, Access
 #endif
     if (! interested)
     {
+        target->unpublishedRevision.store(target->dirtyRevision, std::memory_order_seq_cst);
         target->unpublishedChanges.store(true, std::memory_order_seq_cst);
         return;
     }
@@ -14034,6 +14126,7 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, Access
         target->flushPosted = true;
     else
     {
+        target->unpublishedRevision.store(target->dirtyRevision, std::memory_order_seq_cst);
         target->unpublishedChanges.store(true, std::memory_order_seq_cst);
         OutputDebugStringW(L"DxUi: accessibility publication remains dirty after failed post.\n");
     }
@@ -14059,14 +14152,14 @@ void BeginWindowHostFocusGain(HWND hwnd, ControlHost* host) noexcept
 
 void EndWindowHostFocusGainTurn(HWND hwnd, ControlHost* host) noexcept
 {
-    if (! hwnd || ! host || ! EmbeddedAccessibilityAccess::FocusGainIsUnreported(*host) || ! InvokeNativeUia(UiaClientsAreListening))
+    if (! hwnd || ! host || ! EmbeddedAccessibilityAccess::FocusGainIsUnreported(*host))
         return;
 
     {
         constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
         wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> retained(AcquireWindowHostAccessibilityTarget(hwnd));
         auto* target = retained.get();
-        if (! target || target->ResolveHost() != host)
+        if (! target || target->ResolveHost() != host || ! AccessibilityClientsMayListen(*target))
             return;
         FlushNativeAccessibilitySnapshot(*target);
         const auto snapshot = target->snapshot.load(std::memory_order_seq_cst);
@@ -14187,6 +14280,18 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
     if (msg == WM_GETOBJECT)
     {
         // The object id is the low DWORD of lParam: on 64-bit Windows its sign extension depends on the sender.
+        if (static_cast<DWORD>(lp) == static_cast<DWORD>(OBJID_CLIENT))
+        {
+            // An MSAA or IAccessible2 client (a screen reader's legacy path) asks for the window's client object. It hears
+            // the host through WinEvents that UI Automation bridges from the host's events, which no UI Automation
+            // subscription announces, so the window keeps publishing for it from now on (msaaClient). The window still
+            // answers through DefWindowProc, as before.
+            constexpr auto releaseTarget = [](WindowHostAccessibilityTarget* value) noexcept { static_cast<void>(value->Release()); };
+            wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> target(AcquireWindowHostAccessibilityTarget(hwnd));
+            if (target)
+                target.get()->msaaClient.store(true, std::memory_order_seq_cst);
+            return false;
+        }
         if (static_cast<DWORD>(lp) != static_cast<DWORD>(UiaRootObjectId))
         {
             return false;
@@ -14321,7 +14426,7 @@ void CALLBACK DeliverAccessibilityNotifications(PTP_CALLBACK_INSTANCE instance, 
         // An embedded invalidation carries no historical property values. Its canonical root resolves the
         // current epoch on each provider call; a held client callback must not pin intermediate row graphs.
         if (invalidateStructure && root && (target->embedded || snapshot) && target->host.load(std::memory_order_acquire) && alive &&
-            InvokeNativeUia(UiaClientsAreListening))
+            AccessibilityClientsMayListen(*target))
             static_cast<void>(InvokeNativeUia(UiaRaiseStructureChangedEvent, root.get(), StructureChangeType_ChildrenInvalidated, nullptr, 0));
         for (const auto& property : properties)
         {
@@ -14634,7 +14739,7 @@ void FlushRichSemanticStateChanges(WindowHostAccessibilityTarget& target) noexce
         return;
     const auto snapshot      = target.snapshot.load(std::memory_order_acquire);
     ControlHost* const owner = target.host.load(std::memory_order_acquire);
-    if (! owner || ! snapshot || ! snapshot->alive || ! InvokeNativeUia(UiaClientsAreListening))
+    if (! owner || ! snapshot || ! snapshot->alive || ! AccessibilityClientsMayListen(target))
     {
         while (target.pendingSemanticStateCount)
             ErasePendingRichSemanticState(target, target.pendingSemanticStateCount - 1u);
@@ -14776,7 +14881,7 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                                        const WindowHostSnapshotChanges& changes) noexcept
 {
     const auto current = target.snapshot.load(std::memory_order_acquire);
-    if (! previous || ! current || ! InvokeNativeUia(UiaClientsAreListening))
+    if (! previous || ! current || ! AccessibilityClientsMayListen(target))
         return;
     // Keep target/provider alive through UIA callbacks; disconnect during a callback stops later notifications.
     static_cast<void>(target.AddRef());
@@ -15098,7 +15203,7 @@ void DrainNativeAccessibilityPublication(WindowHostAccessibilityTarget& target) 
         changes.current          = current;
         changes.focusMoved       = ! SameFocusedElement(*previous, *current);
         changes.structureChanged = ! SameSemanticControls(*previous, *current);
-        if (InvokeNativeUia(UiaClientsAreListening))
+        if (AccessibilityClientsMayListen(target))
             changes.selections = CollectSelectionChanges(*previous, *current);
         // Fresh owner queries do not consume the event baseline.
         target.eventBaseline               = current;
@@ -15208,17 +15313,22 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
     if (std::abs(box.width - _host._widthPx) > 0.01 || std::abs(box.height - _host._heightPx) > 0.01)
         return E_INVALIDARG;
     const auto preparation  = GetStatistics().preparations;
-    const auto& previousBox = target->placement.viewport;
+    const auto& latest      = target->embeddedPublicationDeferred ? target->deferredPlacement : target->placement;
+    const auto& previousBox = latest.viewport;
     if (target->snapshot.load(std::memory_order_acquire) && target->preparation == preparation && previousBox.left == box.left && previousBox.top == box.top &&
-        previousBox.width == box.width && previousBox.height == box.height && target->placement.hasKeyboardFocus == placement.hasKeyboardFocus)
+        previousBox.width == box.width && previousBox.height == box.height && latest.hasKeyboardFocus == placement.hasKeyboardFocus)
         return S_FALSE;
     try
     {
-        // No client can hear the events of this update: record it and build when a query or a listening update needs it.
-        // The first update (attachment) builds, so a query never meets an empty tree.
-        if (target->snapshot.load(std::memory_order_acquire) && ! target->embeddedQueriedWhileDeferred && ! AccessibilityClientsMayListen(*target))
+        // No client can hear the events of this update and none has queried lately: record it and build when a query or a
+        // listening update needs it. The first update (attachment) builds, so a query never meets an empty tree.
+        const bool queriedLately = target->embeddedQueryInterestUpdates != 0u;
+        if (queriedLately)
+            --target->embeddedQueryInterestUpdates;
+        if (target->snapshot.load(std::memory_order_acquire) && ! target->embeddedQueriedWhileDeferred && ! queriedLately &&
+            ! AccessibilityClientsMayListen(*target))
         {
-            target->placement                   = placement;
+            target->deferredPlacement           = placement;
             target->preparation                 = preparation;
             target->embeddedPublicationDeferred = true;
             return S_OK;
@@ -15228,13 +15338,17 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
         // The events raised here cover everything since the last update that built, including what a publication between
         // the two (an uncached GetItem row, a query of a deferred update) already showed: it diffs against the event
         // baseline, not the latest snapshot.
-        const auto previous = target->eventBaseline ? target->eventBaseline : target->snapshot.load(std::memory_order_acquire);
-        target->placement   = placement;
+        const auto previous           = target->eventBaseline ? target->eventBaseline : target->snapshot.load(std::memory_order_acquire);
+        const auto publishedPlacement = target->placement;
+        target->placement             = placement;
         // The publish diffs the selections against `previous` while clients listen.
         const WindowHostSnapshotChanges changes = PublishWindowHostAccessibilitySnapshot(*target, _host);
         if (FAILED(changes.result))
         {
-            target->embeddedPublicationDeferred = true; // A later query retries the build.
+            // A later query retries the build; `placement` stays that of the snapshot still published.
+            target->placement                   = publishedPlacement;
+            target->deferredPlacement           = placement;
+            target->embeddedPublicationDeferred = true;
             return changes.result;
         }
         target->preparation = preparation;
@@ -15478,6 +15592,17 @@ void DebugResetAccessibilityAdviseRecordsForTest() noexcept
 void DebugSetAccessibilitySystemListenersForTest(std::optional<bool> listening) noexcept
 {
     g_accessibilitySystemListenersOverride.store(listening ? (*listening ? 1 : 0) : -1, std::memory_order_release);
+}
+
+std::optional<bool> DebugGetAccessibilitySystemListenersForTest() noexcept
+{
+    const int value = g_accessibilitySystemListenersOverride.load(std::memory_order_acquire);
+    return value < 0 ? std::nullopt : std::optional<bool>(value != 0);
+}
+
+uint64_t DebugGetAccessibilityQueryPublicationRequestCountForTest() noexcept
+{
+    return g_accessibilityQueryPublicationRequests.load(std::memory_order_relaxed);
 }
 
 uint64_t DebugGetAccessibilityEventListenerCountForTest(HWND hwnd) noexcept

@@ -258,6 +258,8 @@ private:
     // preparation allocates exactly one replacement.
     void ReleaseSurface() noexcept;
     [[nodiscard]] bool InputIsCoherent(bool allowDirty) noexcept;
+    // InputIsCoherent(true) without its side effects: visible, coherent, and no interaction change since preparation.
+    [[nodiscard]] bool PreparedGeometryIsCurrent() const noexcept;
     [[nodiscard]] bool TextInputIsAvailable() noexcept;
     // Keys and characters reach the focused control, which PruneStaleInteractionState keeps current.
     // They hit-test nothing, so geometry the next preparation will move cannot make them stale: a hidden, suspended or

@@ -866,6 +866,10 @@ bool EmbeddedHost::InputIsCoherent(bool allowDirty) noexcept
     // allowDirty=false so they do not publish a stale surface.
     return allowDirty || ! _state->dirty;
 }
+bool EmbeddedHost::PreparedGeometryIsCurrent() const noexcept
+{
+    return _state && _state->visible && _state->coherent && _state->preparedInteractionRevision == _host._interactionRevision;
+}
 bool EmbeddedHost::PreviewFileDrop(D2D1_POINT_2F point) noexcept
 {
     const Failure::Scope failureScope;

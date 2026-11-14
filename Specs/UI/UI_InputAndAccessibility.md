@@ -706,13 +706,26 @@ as added minus removed calls) or, failing that, when `UiaClientsAreListening` re
 the desktop. The advise count cannot stand alone: UI Automation advises a window's root only of subscriptions scoped
 to that window or its elements, never of a focus-changed handler or of a subscription made at the desktop root, which
 is how a screen reader subscribes (measured with the in-process client on Windows 11 build 26300; the probe
-`TestAccessibilityClientGateAdviseReportsEverySubscription` guards it). A provider query is not interest: it never
+`TestAccessibilityClientGateAdviseCoversWindowScopedSubscriptions` guards it). A provider query is not interest: it never
 holds later mutations to a build. A native mutation the gate finds no client for only marks the snapshot dirty, and
 a later query publishes it: a query on the window's thread (including `WM_GETOBJECT` and root acquisition) publishes
 before it answers, and a query on another thread that finds the snapshot behind the controls sends the window a
 publication request and waits at most one second for it (it reads the last complete snapshot when the window thread
 does not answer in time). A client that attaches after unobserved mutations, or holds an element and only queries,
 therefore reads the current controls; a host with no client builds nothing however often it mutates.
+A publication made while the client gate finds no listener (a query's, or a native drain's) moves the event
+baseline with it and drops pending text events: nobody could hear what it changed, and a client that subscribes
+afterwards must hear later changes against what it could read then (a value read as "y" and changed back to "x"
+after the subscription is raised). A query on another thread asks the window thread to publish at most once per
+unpublished revision, whatever the outcome, and never while it holds a target's snapshot mutex, so a window thread
+that is busy for a while costs the queries of one revision one wait in all, and they read the last complete
+snapshot. An MSAA or IAccessible2 client, which asks for the window's client object (`WM_GETOBJECT` with
+`OBJID_CLIENT`) and listens through the WinEvents UI Automation bridges from the host's events, counts as a
+listener of that window for the attachment's lifetime: no advise and, on a desktop where another client already
+listens, no change of `UiaClientsAreListening` shows it (whether a WinEvent hook alone makes
+`UiaClientsAreListening` true could not be measured on the qualification desktop, where it was already true before
+any test client ran). Every decision about which events to compute and raise (embedded focus and selection, native
+selection, focus announcements, structure invalidation, rich semantic states) uses the same gate.
 Without a listening client, mutations remain dirty without loading a snapshot, resolving focus paths or posting a
 new flush. Existing queued publication is preserved; a later query resolves the latest revision.
 An internal diagnostics override is scoped to the owning thread, HWND and attachment cookie and changes only the
@@ -1279,11 +1292,17 @@ without allocation. While the client gate (see the native rules above) finds no 
 events, a changed update after the first only records its preparation and placement and returns `S_OK`: it builds
 nothing, however often the application calls it. UI Automation advises an embedded root of no subscription (the
 application's window element is the fragment root UI Automation sees), so for a view the gate is
-`UiaClientsAreListening`. A query, which reaches the providers on the application's STA, then builds the recorded
-update when the view is still as that preparation left it (`InputIsCoherent` without pending paint and the recorded
-size), so a client that attaches late or only queries reads the current controls; a query that finds the view
-changed since reads the last built snapshot and makes the next update build. The first update (attachment) always
-builds. An update that builds while a client listens raises everything that changed since the last update that built. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
+`UiaClientsAreListening`. The published snapshot and the placement its providers compare stay together until a
+build. A query, which reaches the providers on the application's STA, builds the recorded update when the view's
+geometry is still the prepared one, checked without side effects (a query never cancels a pointer gesture): a
+paint-only change since, such as a value an input handler set before the next Prepare, is read as it is now, as
+Grid row materialization already reads it. A query that finds the tree or bounds changed since reads the last built
+snapshot and makes the next update build; a query that met a deferred update also makes the next 120 changed updates
+build as they come, so a client that keeps querying reads at worst the previous frame, as before the gate. A
+publication no client could hear moves the event baseline with it. The first update (attachment) always builds. An
+update that builds while a client listens raises everything that changed since the event baseline. Residual: the
+first query after a quiet spell that arrives while the tree or bounds changed and before the next Prepare reads the
+last built snapshot, which can be older than the last update. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
 snapshot allocation or UIA wake-up cost. Prepared snapshots expose confirmed Toggle, RangeValue, text/value and
 focus state. Changed active snapshots raise applicable property, text, focus, structure and (for a Tree or a Grid)
 [selection](#selection-events) events only while UIA clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.

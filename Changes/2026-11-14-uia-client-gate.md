@@ -10,3 +10,9 @@
   the new FX6 client-gate cases of the Accessibility suite; the assumption that every subscription is advised was
   measured false and is guarded by a probe. Narrator and Inspect acceptance, and the remaining cost when another
   process on the desktop listens, remain open.
+  Review follow-up: a publication no client could hear (a query's) now moves the event baseline, so a client that
+  reads a state, subscribes and sees it changed back hears the change; a busy window thread costs the queries of one
+  unheard revision one bounded wait in all (never while a snapshot mutex is held); an embedded query reads a value an
+  input handler set before the next Prepare, keeps snapshot and placement consistent, never cancels a pointer gesture,
+  and keeps updates building for a client that keeps querying; one gate decides every event computation; a window an
+  MSAA client asked for its client object counts as a listener.

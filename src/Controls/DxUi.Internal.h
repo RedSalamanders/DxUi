@@ -696,6 +696,9 @@ void DebugResetAccessibilityAdviseRecordsForTest() noexcept;
 // Process-wide: what the client gate takes UiaClientsAreListening to answer (another process on a developer's desktop may
 // listen); nullopt asks it again. Advised subscriptions still count, and the events themselves are unchanged.
 void DebugSetAccessibilitySystemListenersForTest(std::optional<bool> listening) noexcept;
+[[nodiscard]] std::optional<bool> DebugGetAccessibilitySystemListenersForTest() noexcept;
+// How many publication requests queries on other threads have sent to a window host's thread, in this process.
+[[nodiscard]] uint64_t DebugGetAccessibilityQueryPublicationRequestCountForTest() noexcept;
 // Owner-thread-only deterministic failure at the rich snapshot font query.
 void DebugSetRichAccessibilityFontFailureForTest(HRESULT failure) noexcept;
 [[nodiscard]] size_t DebugGetRichAccessibilityFontFailureCountForTest() noexcept;

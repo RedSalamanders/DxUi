@@ -267,7 +267,8 @@ A query is not interest. While no client may hear the window's events (no subscr
 handlers, so the system-wide answer still counts), native mutations retain dirty state without walking focus paths or
 posting new publication work. The next query sees the latest state: one on the window thread publishes first, one on
 another thread asks the window thread to publish and waits up to a second. A flush already queued before interest
-ceased still includes later mutations. No additional application refresh call is required.
+ceased still includes later mutations. A window whose client object an MSAA client asked for (`WM_GETOBJECT` with
+`OBJID_CLIENT`) keeps publishing for it. No additional application refresh call is required.
 
 Rich-text `ScrollIntoView` also dirties the native publication. An owner-thread
 query of `GetVisibleRanges` then reads the scrolled source interval without an
@@ -381,7 +382,9 @@ AttachAccessibility takes a process-unique nonzero attachment ID and a physical-
 size matches Prepare's pixel size; GetAccessibilityProvider returns an owned COM reference. Publish changed
 preparation/placement/focus with UpdateAccessibility; unchanged updates allocate nothing. While no UIA client
 listens, a changed update only records the preparation and placement (calling it every frame costs no snapshot);
-the next query on the application's thread builds it while the view is still as prepared. Hide/detach/device loss
+the next query on the application's thread builds it while the view's geometry is still the prepared one (a value
+changed by an input handler before the next Prepare is read as it is), and a client that keeps querying keeps the
+following updates building. Hide/detach/device loss
 disconnect surviving providers. Keep provider code mapped while external COM references may survive.
 
 Tests/Embedded/Embedded.Tests.EmbeddedAccessibility.h is an executable example using only public control/hosting interfaces:

@@ -9,5 +9,12 @@ void TestAccessibilityClientGateFx6ReleasedProbeBuildsNothing();
 void TestAccessibilityClientGateHeldElementQueryReadsCurrentState();
 void TestAccessibilityClientGateResubscribedClientMissesNothing();
 void TestAccessibilityClientGateFx6EmbeddedEveryFrameBuildsNothing();
+void TestAccessibilityClientGateQueriedStateIsTheBaselineOfLaterEvents();
+void TestAccessibilityClientGateEmbeddedQueriedStateIsTheBaselineOfLaterEvents();
+void TestAccessibilityClientGateEmbeddedQueryBeforePrepareReadsCurrentValue();
+void TestAccessibilityClientGateEmbeddedQueryDoesNotCancelADrag();
+void TestAccessibilityClientGateBusyWindowThreadCostsOneWaitPerRevision();
+void TestAccessibilityClientGateAdvisedClientHearsSelectionEvents();
+void TestAccessibilityClientGateMsaaClientCountsAsListener();
 // The client process TestAccessibilityClientGateTerminatedClientSubscriptionEnds starts; -1 when the arguments are not its own.
 int RunAccessibilityClientGateSubscriberChild(int argc, wchar_t** argv) noexcept;
