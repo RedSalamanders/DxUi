@@ -329,6 +329,11 @@ time touch different files. In `Embedded.Tests.PerformanceFixtureFx<N>.h`:
    `Tests/native-test-files.json`. Reuse existing scene helpers (`Controls.Tests.AccessibilityFx6.h`, the tooltip hover-path
    helpers, `BuildCjkEmojiFieldText`) by moving them into such a header rather than copying them.
 
+A fixture that attaches UI Automation (`FX6`) sets `DebugSetAccessibilityNotificationDeliveryManualForTest` and completes
+the notification queue at a fixed point of each step (`DebugCompletePendingAccessibilityNotificationsForTest`): the
+thread-pool delivery would otherwise decide how much the owner allocates, and would raise events to whoever listens on
+the desktop.
+
 The fixture header compiles in both test executables: use only DxUi, the standard library and the model header, never
 `Check`, `Require`, `GraphicsFixture` or a test window. Nothing else changes: the determinism gate, receipts and
 `performance-timing.ps1 -Fixture FX<N>` find the fixture through the catalog.

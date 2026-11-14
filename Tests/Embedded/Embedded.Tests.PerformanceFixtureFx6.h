@@ -13,6 +13,14 @@
 // a real client's own subscription, are the W8.1 client-gate tests' subject. The word walk calls the text range provider
 // in-process, as UI Automation calls it for a client.
 //
+// Notification delivery is manual (DebugSetAccessibilityNotificationDeliveryManualForTest): the owner queues each property
+// change and structure invalidation exactly as it does for a real client, but no thread-pool work item delivers them;
+// each publication first completes the previous step's queue (DebugCompletePendingAccessibilityNotificationsForTest).
+// With the work item, whether a change coalesced with a still-queued one, and whether the queue had to grow, depended on
+// how far the work item had got: one step made 118 or 120 C++ allocations. Not exercised here: the delivery work item
+// (unmarshalling the senders, resolving values, UiaRaiseAutomationPropertyChangedEvent and the structure event), so
+// nothing reaches UI Automation from this fixture whoever listens on the desktop.
+//
 // The scene owns its EmbeddedHost to attach its accessibility and to publish each frame as an application does
 // (UpdateAccessibility after each prepared frame): every step first publishes the frame the previous step's change
 // prepared, then makes its own change. Embedded host only: a window host would take the real pointer capture for the
@@ -114,7 +122,9 @@ public:
         if (site_)
             site_->root = nullptr;
         provider_.reset();
+        DxUi::DebugCompletePendingAccessibilityNotificationsForTest(view_.Controls());
         view_.DisconnectAccessibility();
+        DxUi::DebugSetAccessibilityNotificationDeliveryManualForTest(false);
         DxUi::DebugSetAccessibilitySystemListenersForTest(outerListeners_);
     }
     DxUi::EmbeddedHost* AttachOwnEmbeddedHost(ID3D11Device* device, HRESULT& result) override
@@ -169,6 +179,7 @@ public:
                 if (step == 1u)
                 {
                     DxUi::DebugSetAccessibilitySystemListenersForTest(false);
+                    DxUi::DebugSetAccessibilityNotificationDeliveryManualForTest(true);
                     site_ = std::make_shared<Site>();
                     Succeed(view_.AttachAccessibility(site_, 0x4658360000000001ull, Placement()));
                     Succeed(view_.GetAccessibilityProvider(provider_.put()));
@@ -223,8 +234,12 @@ private:
     }
     void Publish()
     {
-        if (provider_)
-            Succeed(view_.UpdateAccessibility(Placement()));
+        if (! provider_)
+            return;
+        // The previous step's notifications are complete before this publication, as if their delivery always finished
+        // first; nothing reaches UI Automation, so counters do not depend on that work item or on the desktop's clients.
+        DxUi::DebugCompletePendingAccessibilityNotificationsForTest(view_.Controls());
+        Succeed(view_.UpdateAccessibility(Placement()));
     }
     void Mutate(size_t index) const
     {

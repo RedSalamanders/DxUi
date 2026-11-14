@@ -833,6 +833,13 @@ void DebugSetAccessibilityPeerCreationGateForTest(HWND hwnd, HANDLE enteredEvent
 // In that mode enteredEvent is reset on exit, so it proves the worker remains parked when the consumer checks it.
 void DebugSetAccessibilityPropertyDeliveryGateForTest(ControlHost* host, HANDLE enteredEvent, HANDLE releaseEvent, bool afterScope = false) noexcept;
 [[nodiscard]] size_t DebugCountPendingTreeItemPropertiesForTest(ControlHost& host, int property) noexcept;
+// Process-wide, set before attaching and cleared after completing: queued UI Automation notifications (property changes,
+// structure invalidations) are queued on the owner exactly as before but not handed to the thread-pool delivery work item,
+// so nothing is raised to UI Automation and the owner's queue state never depends on when that work item runs.
+void DebugSetAccessibilityNotificationDeliveryManualForTest(bool manual) noexcept;
+// Owner thread: empties an embedded view's queue as one delivery would (registrations released, capacity kept), without
+// raising anything. Called at a fixed point, it gives the owner the queue state of a delivery that always finished first.
+void DebugCompletePendingAccessibilityNotificationsForTest(ControlHost& host) noexcept;
 // One owner-thread callback after the selected value capture (1/2) or sender registration (3), before queue admission.
 // Simulates COM reentry; consumed before invocation so a nested publication cannot invoke it again.
 using AccessibilityPropertyRegistrationHookForTest = void (*)(void* context) noexcept;

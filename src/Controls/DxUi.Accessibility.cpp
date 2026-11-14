@@ -353,6 +353,14 @@ void NotifyAccessibilityPropertyRegistrationForTest(ControlHost* host, unsigned 
     }
 }
 
+// Test-only: while set, queued notifications are not handed to the thread-pool work item; the owner completes them with
+// DebugCompletePendingAccessibilityNotificationsForTest at a point of its choosing (see the declaration).
+std::atomic<bool> g_accessibilityNotificationDeliveryManualForTest{false};
+[[nodiscard]] bool SubmitsAccessibilityNotificationWork() noexcept
+{
+    return ! g_accessibilityNotificationDeliveryManualForTest.load(std::memory_order_acquire);
+}
+
 void HoldAccessibilityPropertyDeliveryForTest(ControlHost* host, bool afterScope = false) noexcept
 {
     if (! host || g_accessibilityPropertyDeliveryGateAfterScope.load(std::memory_order_acquire) != afterScope ||
@@ -525,6 +533,10 @@ constexpr void HoldAccessibilityPropertyDeliveryForTest(ControlHost*, bool = fal
 }
 constexpr void NotifyAccessibilityPropertyRegistrationForTest(ControlHost*, unsigned) noexcept
 {
+}
+constexpr bool SubmitsAccessibilityNotificationWork() noexcept
+{
+    return true;
 }
 #endif
 
@@ -14340,7 +14352,8 @@ void QueueStructureInvalidation(WindowHostAccessibilityTarget& target) noexcept
     {
         target.structureNotificationScheduled = true;
         static_cast<void>(target.AddRef());
-        SubmitThreadpoolWork(target.structureNotificationWork.get());
+        if (SubmitsAccessibilityNotificationWork())
+            SubmitThreadpoolWork(target.structureNotificationWork.get());
     }
 }
 void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
@@ -14471,7 +14484,8 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
                 {
                     target.structureNotificationScheduled = true;
                     static_cast<void>(target.AddRef());
-                    SubmitThreadpoolWork(target.structureNotificationWork.get());
+                    if (SubmitsAccessibilityNotificationWork())
+                        SubmitThreadpoolWork(target.structureNotificationWork.get());
                 }
             }
         }
@@ -15494,6 +15508,43 @@ void DebugSetAccessibilityPropertyRegistrationHookForTest(ControlHost* host,
                                                           void* context) noexcept
 {
     g_accessibilityPropertyRegistrationHook = {host, stage, hook, context};
+}
+
+void DebugSetAccessibilityNotificationDeliveryManualForTest(bool manual) noexcept
+{
+    g_accessibilityNotificationDeliveryManualForTest.store(manual, std::memory_order_release);
+}
+
+void DebugCompletePendingAccessibilityNotificationsForTest(ControlHost& host) noexcept
+{
+    auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(host));
+    if (! target)
+        return;
+    // What DeliverAccessibilityNotifications takes and gives back, without raising anything: the batch leaves the queue,
+    // its registrations and proxies are released, and its capacity returns to an empty queue.
+    wil::com_ptr_nothrow<IRawElementProviderSimple> root;
+    std::shared_ptr<const AccessibilitySnapshot> snapshot;
+    std::vector<AccessibilityPendingProperty> properties;
+    bool scheduled = false;
+    {
+        const std::scoped_lock lock(target->structureNotificationMutex);
+        target->structureNotificationPending = false;
+        root                                 = std::move(target->structureNotificationProvider);
+        snapshot                             = std::move(target->structureNotificationSnapshot);
+        properties                           = std::move(target->pendingProperties);
+        target->structureInvalidationPending = false;
+        scheduled                            = std::exchange(target->structureNotificationScheduled, false);
+    }
+    root.reset();
+    snapshot.reset();
+    properties.clear();
+    {
+        const std::scoped_lock lock(target->structureNotificationMutex);
+        if (target->pendingProperties.empty())
+            target->pendingProperties.swap(properties);
+    }
+    if (scheduled)
+        static_cast<void>(target->Release()); // The reference the unsubmitted work item would have released.
 }
 
 size_t DebugCountPendingTreeItemPropertiesForTest(ControlHost& host, int property) noexcept
