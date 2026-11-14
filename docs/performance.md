@@ -396,7 +396,9 @@ its [run sheet](../Measurements/PerformanceAndMotion_2026-11-13/FX4/README.md). 
 `FX6` (accessibility), `FX7` (IME) and `FX13` (whole application) run on the embedded host. `FX6` counts snapshot
 builds, records and bytes per mutation with no UI Automation client and with one, per `Slider` step and per pixel of a
 `Splitter` drag, and the units a word walk over a 64 Ki-unit document visits; its "client" is the client gate's test
-switch, so no count depends on when events arrive. `FX7` composes and commits ten syllables through the production text
+switch, so no count depends on when events arrive. It also counts copies of its document (`cppLargeAllocations`): since
+the text-provider change (`W8.4`) a word step copies none and the 64-step walk visits about 1,600 units, where every step
+used to rescan the document from its start (2.1 million units). `FX7` composes and commits ten syllables through the production text
 store in a 64 Ki-unit `TextField` and `RichTextEditor`, one TSF lock per step, and counts the copies of the document
 (`cppLargeAllocations`). `FX13` idles an application for 60 simulated seconds with nothing armed and with a focused
 caret, then hides it; its cold start to the first presented frame is a separate real-time receipt. See the

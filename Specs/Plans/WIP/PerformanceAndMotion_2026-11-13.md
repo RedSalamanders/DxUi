@@ -1516,7 +1516,7 @@ the document at most once per lock. Exit: `G9` met; the `FX6` and `FX7` gates be
     build (counted); `FX3` 100 wheel notches, 1 client: 0 structural builds, records touched ≤ scroll scopes.
   - **Needs**: `W8.2`, `W8.5`, `W9.1`. **Size**: L.
 
-- [ ] **W8.4 Text provider.**
+- [x] **W8.4 Text provider.**
   - **Why**: `AccessibilityTextRangeProvider::ResolveText` returns the text by value at 16 call sites
     (`DxUi.Accessibility.cpp:8332-8349`), 128 KiB per COM call at 64 Ki units. `GetEnclosingTextRangeWordSpan` steps from
     0 (`:4604-4630`): a word-by-word read is quadratic (≈ 3.3×10^8 unit visits for 10,000 words, inference).

@@ -1097,6 +1097,25 @@ class that keeps both state virtuals and returns true from the protected `KeepsD
 class is called through `ExportTextInputState` and `ImportTextInputState` on the TSF, IMM and embedded paths, at the cost
 of a copy per call.
 
+Text-range reads. A UI Automation text range reads its control's text in the published accessibility snapshot through a
+view, never a copy: each call holds the snapshot it resolved for as long as it reads, on whichever thread UI Automation
+calls it, so the owner thread may publish newer snapshots, and the window may detach, while a worker still reads the one it
+resolved. A line request dispatched to the window's thread carries that pinned snapshot in the request itself, which lives
+as long as the window's thread may run it, also after the waiting worker has timed out. A composition or conversion-target
+range (`GetActiveComposition`, `GetConversionTarget`) reads the text of the snapshot it was created from: it pins that
+snapshot for its own life instead of copying the document, and its clones share the pin. The rule is stated at
+`PinnedRangeText` in `DxUi.Accessibility.cpp` and proved under ASan by a range that reads after the owner published two
+newer snapshots (`Embedded.Tests.UiaTextProvider.h`). `ExpandToEnclosingUnit(Word)` finds the unit around the
+position locally: it walks back to the nearest unit start (offset 0, or a code point that is not whitespace and whose
+class, path separator, word character or other, differs from the code point before it, unless only whitespace precedes
+it) and takes one `FindNextWordBoundary` for its end. It returns the same span as the scan from offset 0 it replaced at
+every offset, and costs the unit and the whitespace before it, never the offset: the `FX6` word walk over 64 Ki units
+copies no document and visits at most twice the document's units. Character expansion walks forward once from the
+nearest established grapheme boundary instead of snapping, stepping back and stepping forward over the same units. A
+native caret event (`ActiveTextPositionChanged`) records the caret from the host's text-input cache alone, without
+copying the document; which events are queued and raised is unchanged. Window-thread line requests still compare the live
+control text, which they copy (performance plan `W8.3`).
+
 Native TSF activation stages its document, context and store before publishing the session. It revalidates the
 focused control and transition generation after each callback-capable TSF operation, including context push and
 focus association. Deactivation detaches the old session before calling TSF and cleans up only its own retained

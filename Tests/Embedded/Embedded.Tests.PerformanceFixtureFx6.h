@@ -319,5 +319,7 @@ inline constexpr Definition kDefinition{
     .timedPhase = "mutations-one-client",
     .sources    = kSources,
     .create     = []() -> std::unique_ptr<Scenario> { return std::make_unique<Scene>(); },
+    // Copies of the 64 Ki-unit document ("cppLargeAllocations"): the W8.4 gate asks for none in a word step.
+    .largeAllocationBytes = kDocumentUnits * sizeof(wchar_t),
 };
 } // namespace PerformanceFixtures::Fx6

@@ -4343,6 +4343,13 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu, u
         countAllocations              = false;
         const size_t observed         = allocations;
         Hr(result, "observe successful direct UIA range operation");
+        // CompareEndpoints and GetText read the snapshot's text through a pinned view (W8.4): they allocate nothing, so no
+        // allocation failure can reach them and they have no fault child.
+        if (operation == 0u || operation == 3u)
+        {
+            Check(observed == 0u, "direct UIA CompareEndpoints and GetText read the pinned snapshot text without allocating");
+            continue;
+        }
         Check(observed > 0u && observed < 256u, "direct UIA range command has a bounded observed allocation schedule");
         auto range = makeRange();
         if (fatalScenario != 0u)

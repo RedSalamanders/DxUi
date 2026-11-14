@@ -836,6 +836,13 @@ void DebugSetRichAccessibilityFontFailureForTest(HRESULT failure) noexcept;
 // still asks UiaClientsAreListening itself.
 void DebugSetAccessibilitySystemListenersForTest(std::optional<bool> listening) noexcept;
 [[nodiscard]] std::optional<bool> DebugGetAccessibilitySystemListenersForTest() noexcept;
+namespace Detail
+{
+// Called on the calling thread each time a text range resolves its text, with the owner that pins the characters and the
+// view the call is about to read (PinnedRangeText in DxUi.Accessibility.cpp). Lets a lifetime test replace and drop the
+// published snapshot after resolution and before the read. Null outside tests.
+inline thread_local constinit void (*textRangeResolvedObserver)(const std::shared_ptr<const void>& owner, std::wstring_view text) noexcept = nullptr;
+} // namespace Detail
 // Holds every call of `hwnd`'s fragment-root GetFocus before it counts itself or reads the snapshot, so a test decides
 // when the system's focus event is answered: each call sets `enteredEvent` on arrival and waits, for at most five seconds
 // and never indefinitely, for `releaseEvent`. Null events clear the gate and return once the calls it held have left it.

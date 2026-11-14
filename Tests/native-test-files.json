@@ -164,6 +164,7 @@
   "Tests/Embedded/Embedded.Tests.TooltipHoverPath.h",
   "Tests/Embedded/Embedded.Tests.TraceProvider.h",
   "Tests/Embedded/Embedded.Tests.TsfDoubles.h",
+  "Tests/Embedded/Embedded.Tests.UiaTextProvider.h",
   "Tests/Embedded/Embedded.Tests.WorkCounters.h",
   "Tests/Foundation/Foundation.Tests.ControlFactory.cpp",
   "Tests/Foundation/Foundation.Tests.Failure.cpp",
