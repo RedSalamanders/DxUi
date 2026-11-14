@@ -1,0 +1,8 @@
+#pragma once
+
+// Performance fixtures on the WindowHost (plan W0.4; Tests/README.md, "Performance fixtures"): the framework's own fixture,
+// the determinism gate for every catalog fixture whose hosts include the window host, and the window receipt command.
+void TestPerformanceFixtureFrameworkOnWindowHost();
+void TestPerformanceFixturesAreDeterministicOnWindowHost();
+// DxUi.ControlTests.exe --fixture-receipt <FX<N>[@variant]> <output.json>: a WARP receipt of one fixture on the window host.
+int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv);

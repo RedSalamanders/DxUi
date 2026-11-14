@@ -2,7 +2,7 @@
 // Fixture-agnostic frame timing method (Specs/Core/Core_PerformanceAndResources.md, "Frame timing method").
 // Test fixtures only: the D3D11 timestamp queries, the staging pixel and the thread pinning below never enter the
 // library's rendering paths. This header is not a paired-benchmark input: older baseline trees never compile it,
-// so it may use the current library freely. Requires GraphicsFixture, ComplexUiScene, Check and Hr from its includer.
+// so it may use the current library freely. Requires GraphicsFixture, Check and Hr from its includer.
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -34,7 +34,7 @@ enum class Phase
     Dirty
 };
 
-// One measured workload. W0.4 registers further fixtures (FX3 and later) in MakeFixture; the runner never changes.
+// One measured workload: a performance fixture of the catalog (MakeFixture); the runner never changes.
 class Fixture
 {
 public:
@@ -56,58 +56,9 @@ public:
     virtual HRESULT Composite(ID3D11DeviceContext* context, const D3D11_VIEWPORT& viewport) = 0;
 };
 
-// FX5: the existing 83-control ComplexUi scene, 1280x720 at 96 DPI, reduced motion.
-class ComplexUiFixture final : public Fixture
-{
-public:
-    std::string_view Name() const noexcept override
-    {
-        return "FX5";
-    }
-    std::string_view Description() const noexcept override
-    {
-        return "ComplexUi 83-control scene (Samples/ComplexUi/ComplexUiScene.h)";
-    }
-    UINT Width() const noexcept override
-    {
-        return 1280u;
-    }
-    UINT Height() const noexcept override
-    {
-        return 720u;
-    }
-    float Dpi() const noexcept override
-    {
-        return 96.0f;
-    }
-    HRESULT Initialize(ID3D11Device* device) override
-    {
-        return scene_.Initialize(device);
-    }
-    void Update(size_t frame, Phase phase) override
-    {
-        if (phase == Phase::Dirty)
-            scene_.Update(frame);
-    }
-    HRESULT Prepare() override
-    {
-        return scene_.view.Prepare(Width(), Height(), Dpi());
-    }
-    HRESULT Composite(ID3D11DeviceContext* context, const D3D11_VIEWPORT& viewport) override
-    {
-        return scene_.view.Composite(context, viewport);
-    }
-
-private:
-    ComplexUiScene scene_;
-};
-
-inline std::unique_ptr<Fixture> MakeFixture(std::wstring_view name)
-{
-    if (name == L"FX5")
-        return std::make_unique<ComplexUiFixture>();
-    return nullptr;
-}
+// Every built catalog fixture on the embedded host, by its id ("FX5") or id and variant ("FX5@uhd-192dpi"); nullptr for any
+// other name. Defined in Embedded.Tests.PerformanceFixtures.h, the fixture framework (plan W0.4).
+inline std::unique_ptr<Fixture> MakeFixture(std::wstring_view name);
 
 struct Options
 {
@@ -528,7 +479,8 @@ inline void SelfTest()
           "frame timing run needs both its minimum frames and its minimum duration");
     for (const auto phase : {Phase::Dirty, Phase::Clean})
     {
-        ComplexUiFixture fixture;
+        const auto fixture = MakeFixture(L"FX5");
+        Check(fixture != nullptr, "frame timing finds FX5 in the fixture catalog");
         Options options;
         options.phase          = phase;
         options.hardware       = false;
@@ -536,7 +488,7 @@ inline void SelfTest()
         options.warmupFrames   = 2u;
         options.minimumFrames  = 12u;
         options.minimumSeconds = 0.02;
-        const auto run         = Measure(fixture, options);
+        const auto run         = Measure(*fixture, options);
         const auto& s          = run.samples;
         Check(run.frames >= 12u && run.elapsedSeconds >= 0.02 && s.prepareCycles.size() == run.frames && s.gpuValid.size() == run.frames,
               "frame timing holds one sample per measured frame");

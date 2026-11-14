@@ -293,6 +293,79 @@ their stage and HRESULT. See the [ASan setup packet](../Measurements/TextInput/2
 for retained diagnostic failures and current validation limits. No setup failure or passing repeat closes a
 remaining qualification gate.
 
+## Performance fixtures
+
+Plan item W0.4 defines fixtures `FX1`-`FX14` once each; every consumer runs that one definition: the counter and memory
+receipt, the hardware timing harness, the determinism gate, the incremental-versus-fresh oracle and item gate tests.
+Contract: [performance fixtures](../Specs/Testing/Testing_Validation.md#performance-fixtures).
+
+| File | Role | Edited to add a fixture? |
+| --- | --- | --- |
+| `Tests/Embedded/Embedded.Tests.PerformanceFixture.h` | Host-neutral model: `Definition`, `Variant`, `Phase`, `Scenario`, `HostPort`, records, comparator, receipt JSON | No |
+| `Tests/Embedded/Embedded.Tests.PerformanceFixtureFx<N>.h` | One fixture: its `Definition` and `Scenario` | Yes: only this file |
+| `Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h` | `kCatalog`, one line per fixture, already listing FX1-FX14 | No |
+| `Tests/Embedded/Embedded.Tests.PerformanceFixtures.h` | Embedded runner (`RunEmbedded`, `EmbeddedInstance`), receipts, determinism gate, `FrameTiming::MakeFixture` | No |
+| `Tests/Controls/Controls.Tests.PerformanceFixtures.cpp` | Window runner (`RunWindow`), its determinism gate and receipt command | No |
+| `Tests/Embedded/Embedded.Tests.PerformanceFixtureSelfTest.h` | The framework's own fixture (not in the catalog) | No |
+
+**Building a declared fixture.** Every fixture already has its header and catalog line, so fixtures built at the same
+time touch different files. In `Embedded.Tests.PerformanceFixtureFx<N>.h`:
+
+1. Write a `Scenario`. `Build(Context&)` builds the tree on `context.controls` (the host is attached and themed: the dark
+   default palette with `reducedMotion` from the definition). `Step(Context&, phase, step)` applies one action: change
+   controls directly, or send input through `context.port` (`Pointer`, `Key`, `Character` in device pixels of
+   `context.variant`; `AdvanceTime` for the frozen fixture clock; `Resize`). Never read the real clock, sleep, render or
+   use randomness: the runner renders exactly one frame after every step, and two runs must record equal counters.
+   Accept every step index, also beyond the declared count (the timing harness plays the timed phase indefinitely).
+   The scenario may own models its controls borrow; the runner destroys the host first.
+2. Fill the `Definition`: `hosts` (`kEmbedded`, `kWindow` or `kBothHosts`), `variants` (`variants[0]` is the default;
+   mark hardware-only sizes such as 3840x2160 at 192 DPI `hardwareOnly`), `phases` (a first `PhaseKind::Warmup` phase
+   settles first-use state and gives hit testing a prepared layout; measured phases are compared by the determinism gate),
+   `timedPhase`, `sources` (repository paths of scene files, hashed into the receipt) and `create`.
+3. A scene helper too large for the fixture header goes in a new `Tests/Embedded/Embedded.Tests.<Name>.h`, added to
+   `Tests/native-test-files.json`. Reuse existing scene helpers (`Controls.Tests.AccessibilityFx6.h`, the tooltip hover-path
+   helpers, `BuildCjkEmojiFieldText`) by moving them into such a header rather than copying them.
+
+The fixture header compiles in both test executables: use only DxUi, the standard library and the model header, never
+`Check`, `Require`, `GraphicsFixture` or a test window. Nothing else changes: the determinism gate, receipts and
+`performance-timing.ps1 -Fixture FX<N>` find the fixture through the catalog.
+
+**Adding a step or a variant** to a built fixture: raise the phase's `steps` or add a `Phase` (its index is the `phase`
+argument of `Step`), or add a `Variant`. A change to the steps of a fixture with retained receipts changes their meaning:
+take new receipts with `-Replace` and say why in the change.
+
+**A gate assertion** for a plan item lives in that item's own test file and runs the definition:
+
+```cpp
+// Embedded suite (Check, Hr available): FX3 adds no layout per steady frame.
+const auto run = PerformanceFixtures::RunEmbedded(PerformanceFixtures::Fx3::kDefinition, PerformanceFixtures::Fx3::kVariants[0]);
+Check(PerformanceFixtures::Summarize(run.Phase("wheel"), "resources.textLayout.created").maximum == 0u, "FX3 wheel steps create no layout");
+```
+
+Counter names are `cppAllocations` (Embedded suite only), `created`, `churn` and each W0.1 counter as `<group>.<name>`
+(`frame.paintExecutions`, `resources.textLayout.created`). To measure an action of your own on the live scene, pass
+`RunOptions::afterPhases` (embedded) or drive an `EmbeddedInstance` yourself: `Instantiate`, `Create`, then `Step` and
+`Frame` around a `Detail::WorkCounterScope`. `RunOptions::countDrawCalls` installs the counting COM wrappers so
+that `frame.drawCalls` is counted (it is 0 otherwise). The oracle (`Support.Tests.IncrementalParity.h`) replays a fixture
+through `TotalSteps` and `StepAt`: its script's build function builds the scenario on the oracle scene's host and its step
+function applies `StepAt(definition, k - 1)` through a `HostPort` over that scene; no such adapter exists yet.
+
+**Running.**
+
+```powershell
+./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-performance-fixtures   # self-test, determinism gate, FX5 work-counter gate
+./test.ps1 -Suites Rendering -Tests TestPerformanceFixtureFrameworkOnWindowHost,TestPerformanceFixturesAreDeterministicOnWindowHost
+./performance-fixtures.ps1 -Fixture FX5                                 # receipt under Measurements/PerformanceAndMotion_2026-11-13/FX5
+./performance-fixtures.ps1 -Fixture FX5 -Variant uhd-192dpi -Adapter Hardware -SkipBuild
+./performance-fixtures.ps1 -Fixture FX5 -CountDrawCalls -SkipBuild             # also frame.drawCalls, under the counting COM wrappers
+./performance-timing.ps1 -Purpose Smoke -Fixture FX5 -Adapter Warp -Sessions 1   # the same definition, timed
+```
+
+The ordinary Embedded and Rendering suites run the self-tests and the determinism gate. The receipt script records
+provenance (source commit and dirty flag, build profile, compiler, OS build, adapter and driver or WARP version, display
+refresh rates, power plan and a host-idle observation), changes nothing on the machine, never overwrites a receipt
+without `-Replace`, and regenerates the fixture directory's README. Timing fields stay "not measured" unless
+`-TimingReceipt` names a hardware calibration or comparison from `performance-timing.ps1`.
 
 Generated output is retained per invocation under `.build/evidence/test-runs/<id>/payload`. Read the
 [retention contract](../Specs/Testing/Testing_RunEvidence.md) for failed/interrupted runs and verification.

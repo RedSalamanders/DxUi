@@ -292,8 +292,8 @@ Receipts record completed offscreen WARP FPS, p50/p95 total frame milliseconds, 
 times, C++ allocation counts with the gated dirty per-frame ceiling (`dirtyAllocationCeilingPerFrame`: 64 in
 Release, 320 in Debug where the debug STL allocates container proxies; clean rounds must allocate nothing), exact
 surface payload and replacement peak, process private bytes and working set
-with sampled peaks and private-byte growth. A separate FX5 memory receipt (written by every Embedded run to
-`.build/test-artifacts/complex-ui-memory.json`; `DxUi.EmbeddedTests.exe --memory-receipt <report.json>` or
+with sampled peaks and private-byte growth. A separate FX5 [performance fixture](#performance-fixtures) receipt (written by every Embedded run to
+`.build/test-artifacts/performance-fixtures/`; `DxUi.EmbeddedTests.exe --memory-receipt <report.json>` or
 `--memory-receipt-hardware <report.json>` on demand) records live tracked C++ bytes, the view's retained text layouts
 and bitmaps, the hidden residency delta, control object sizes and, on a hardware adapter, local and non-local video
 memory per phase; see [memory metrics](../Specs/Core/Core_PerformanceAndResources.md#memory-metrics). Source commit/content fingerprint, executable/fixture hashes, compiler,
@@ -359,6 +359,29 @@ installed. They pass every call through unchanged and change no pixel; they run 
 
 On that fixture the wrappers see exactly the helpers' creations on every frame, and a dirty frame makes 399 Direct2D draw
 calls, a clean frame none ([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W0.1/CountingWrappers/README.md)).
+
+## Performance fixtures
+
+The performance and motion plan measures fourteen fixtures, `FX1`-`FX14`: idle carets, a `ComboBox` popup, `Grid`
+scrolling, menus, the 83-control ComplexUi scene (`FX5`), accessibility, IME, rich typing, large lists, live resize,
+motion, dense screens, the whole application and a tooltip path. Each is defined once and every measurement runs that one
+definition: work counters and memory per step, timing on hardware, the incremental-versus-fresh pixel oracle and the gates
+of later items. Two runs of a fixture on WARP must record equal counters; the test suites check it.
+
+```powershell
+# Counts and memory of FX5 at 1280x720, 96 DPI, WARP, with provenance; written under Measurements/PerformanceAndMotion_2026-11-13/FX5.
+./performance-fixtures.ps1 -Fixture FX5
+# The 3840x2160, 192 DPI variant on the hardware adapter.
+./performance-fixtures.ps1 -Fixture FX5 -Variant uhd-192dpi -Adapter Hardware
+```
+
+A receipt records every counter per step and phase, the memory fields above, and the source commit, build, compiler, OS,
+adapter and driver, display refresh rate, power plan and how busy the machine was; it changes nothing on the machine.
+Timing stays "not measured" unless it comes from `performance-timing.ps1` on a hardware adapter. Only `FX5` is built today;
+the others are declared and are built by later work. See the
+[FX5 receipts](../Measurements/PerformanceAndMotion_2026-11-13/FX5/README.md), the
+[contract](../Specs/Testing/Testing_Validation.md#performance-fixtures) and the
+[fixture-author guide](../Tests/README.md#performance-fixtures).
 
 ## Frame timing on hardware
 

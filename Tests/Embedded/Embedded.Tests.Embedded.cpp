@@ -77,6 +77,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.InteractionLayout.h"
 #include "Embedded.Tests.LocalizedLayout.h"
 #include "Embedded.Tests.MemoryMetrics.h"
+#include "Embedded.Tests.PerformanceFixtures.h"
 #include "Embedded.Tests.RichDocumentStorageResources.h"
 #include "Embedded.Tests.RichGeometryResources.h"
 #include "Embedded.Tests.RichImageCapture.h"
@@ -1824,9 +1825,25 @@ __declspec(noinline) static int RunFunctionalTests()
         MemoryMetricsTests::TestComplexUiTeardownReturnsTrackedMemory();
         return 0;
     }
+    // The FX5 receipt of the performance fixture framework, which carries the W0.3 memory fields (WARP or hardware).
     if (__argc == 3 && (std::wstring_view(__wargv[1]) == L"--memory-receipt" || std::wstring_view(__wargv[1]) == L"--memory-receipt-hardware"))
     {
-        MemoryMetricsTests::WriteComplexUiMemoryReceipt(__wargv[2], std::wstring_view(__wargv[1]) == L"--memory-receipt-hardware");
+        PerformanceFixtures::WriteReceipt(PerformanceFixtures::Fx5::kDefinition,
+                                          PerformanceFixtures::Fx5::kVariants[0],
+                                          std::wstring_view(__wargv[1]) == L"--memory-receipt-hardware",
+                                          __wargv[2]);
+        return 0;
+    }
+    // Performance fixtures (Tests/README.md, "Performance fixtures"): a receipt, the catalog, and the framework's own tests.
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fixture-receipt")
+        return PerformanceFixtures::RunReceiptCommand(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fixture-catalog")
+        return PerformanceFixtures::RunCatalogCommand(__argc, __wargv);
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-performance-fixtures")
+    {
+        PerformanceFixtures::TestFrameworkSelfTest();
+        PerformanceFixtures::TestCatalogIsDeterministic(L".build/test-artifacts/performance-fixtures");
+        PerformanceFixtures::TestFx5MatchesWorkCounterReceipt();
         return 0;
     }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-closed-roots")
@@ -2033,8 +2050,10 @@ __declspec(noinline) static int RunFunctionalTests()
     TestSurfaceLifetime(gpu);
     MemoryMetricsTests::TestRetainedResourceStatistics();
     MemoryMetricsTests::TestComplexUiTeardownReturnsTrackedMemory();
-    MemoryMetricsTests::WriteComplexUiMemoryReceipt(L".build/test-artifacts/complex-ui-memory.json", false);
     EmbeddedParity::TestEmbeddedIncrementalParity(gpu);
+    PerformanceFixtures::TestFrameworkSelfTest();
+    PerformanceFixtures::TestCatalogIsDeterministic(L".build/test-artifacts/performance-fixtures");
+    PerformanceFixtures::TestFx5MatchesWorkCounterReceipt();
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();

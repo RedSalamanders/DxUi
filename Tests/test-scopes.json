@@ -525,6 +525,39 @@
       "reason": "embedded scenarios and benchmark"
     },
     {
+      "pattern": "Tests/Embedded/Embedded.Tests.PerformanceFixture*.h",
+      "scopes": [
+        "Embedded",
+        "Rendering"
+      ],
+      "reason": "performance fixtures run on the embedded host (Embedded) and the window host (Rendering)"
+    },
+    {
+      "pattern": "Tests/Controls/Controls.Tests.PerformanceFixtures.*",
+      "scopes": [
+        "Rendering"
+      ],
+      "reason": "window-host performance fixture runner in the Rendering suite"
+    },
+    {
+      "pattern": "performance-fixtures.ps1",
+      "scopes": [
+        "Tooling",
+        "Embedded",
+        "Rendering"
+      ],
+      "reason": "performance fixture receipt writer: its tooling test and the receipt commands of both runners"
+    },
+    {
+      "pattern": "Tools/PerformanceFixtures.psm1",
+      "scopes": [
+        "Tooling",
+        "Embedded",
+        "Rendering"
+      ],
+      "reason": "performance fixture receipt provenance and README generation"
+    },
+    {
       "pattern": "Tools/tests/**",
       "scopes": [
         "Tooling"

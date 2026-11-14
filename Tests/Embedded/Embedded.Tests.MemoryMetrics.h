@@ -225,10 +225,9 @@ __declspec(noinline) inline void TestRetainedResourceStatistics()
     std::cout << "Form retained: " << form.retainedTextLayouts << " text layouts of " << form.retainedTextLayoutUnits << " units\n";
     Check(form.retainedTextLayouts == 2u && form.retainedTextLayoutUnits == 10u, "a TextField and a styled Label each retain one layout of their text");
 }
-// The FX5 memory receipt (`--memory-receipt <report.json>`, or `--memory-receipt-hardware <report.json>` on the default
-// hardware adapter). It is written here, not by the timed benchmark, whose header a paired run compiles against older
-// libraries. A hardware adapter reports the process's local (dedicated) and non-local (shared) video memory; WARP
-// renders in system memory, which private bytes already count, so there video memory is not applicable.
+// Video memory for the memory fields of every performance fixture receipt (Embedded.Tests.PerformanceFixtures.h, which also
+// writes the FX5 memory receipt for --memory-receipt and --memory-receipt-hardware). A hardware adapter reports the process's local (dedicated) and non-local
+// (shared) video memory; WARP renders in system memory, which private bytes already count, so there video memory is not applicable.
 struct VideoMemory
 {
     bool applicable = false;
@@ -245,128 +244,5 @@ inline VideoMemory QueryVideoMemory(IDXGIAdapter3* adapter)
     Hr(adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &memory.local), "memory receipt local video memory");
     Hr(adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &memory.nonLocal), "memory receipt non-local video memory");
     return memory;
-}
-inline void WriteRetained(std::ostream& output, const DxUi::EmbeddedStatistics& stats)
-{
-    output << "{\"surfaceBytes\":" << stats.surfaceBytes << ",\"cachedBrushes\":" << stats.cachedBrushes << ",\"cachedTextFormats\":" << stats.cachedTextFormats
-           << ",\"retainedTextLayouts\":" << stats.retainedTextLayouts << ",\"retainedTextLayoutUnits\":" << stats.retainedTextLayoutUnits
-           << ",\"retainedBitmaps\":" << stats.retainedBitmaps << ",\"retainedBitmapBytes\":" << stats.retainedBitmapBytes << '}';
-}
-inline int64_t Delta(uint64_t after, uint64_t before) noexcept
-{
-    return static_cast<int64_t>(after) - static_cast<int64_t>(before);
-}
-__declspec(noinline) inline void WriteComplexUiMemoryReceipt(const wchar_t* outputPath, bool hardware)
-{
-    const auto entry = ComplexUiBenchmark::Memory();
-    GraphicsFixture gpu;
-    gpu.width  = 1280;
-    gpu.height = 720;
-    Hr(gpu.Create(! hardware), "memory receipt device");
-    wil::com_ptr_nothrow<IDXGIDevice> dxgi;
-    wil::com_ptr_nothrow<IDXGIAdapter> adapter;
-    wil::com_ptr_nothrow<IDXGIAdapter3> adapter3;
-    Hr(gpu.device->QueryInterface(IID_PPV_ARGS(dxgi.put())), "memory receipt DXGI device");
-    Hr(dxgi->GetAdapter(adapter.put()), "memory receipt adapter");
-    Hr(adapter->QueryInterface(IID_PPV_ARGS(adapter3.put())), "memory receipt adapter 3");
-    DXGI_ADAPTER_DESC1 desc{};
-    Hr(adapter3->GetDesc1(&desc), "memory receipt adapter description");
-    // Phases: device, scene, warm, scroll, shown, hidden.
-    constexpr std::array phaseNames{"device", "scene", "warm", "scroll", "shown", "hidden"};
-    std::array<VideoMemory, 6> video{};
-    std::array<PROCESS_MEMORY_COUNTERS_EX, 6> process{};
-    std::array<DxUi::EmbeddedStatistics, 6> stats{};
-    const auto sample = [&](size_t phase, const ComplexUiScene* scene)
-    {
-        // A released texture leaves video memory once the immediate context submits its destruction.
-        gpu.context->Flush();
-        video[phase]   = QueryVideoMemory(adapter3.get());
-        process[phase] = ComplexUiBenchmark::Memory();
-        if (scene)
-            stats[phase] = scene->view.GetStatistics();
-    };
-    sample(0u, nullptr);
-    ComplexUiScene scene;
-    // Live tracked C++ bytes (the counting operator new and the control heap) from the built model onwards.
-    liveBytes      = 0;
-    countLiveBytes = true;
-    Hr(scene.Initialize(gpu.device.get()), "memory receipt scene");
-    const ptrdiff_t trackedScene = liveBytes;
-    sample(1u, &scene);
-    const auto frames = [&](size_t first, size_t count)
-    {
-        for (size_t frame = first; frame < first + count; ++frame)
-        {
-            scene.Update(frame);
-            Hr(scene.view.Prepare(1280, 720), "memory receipt preparation");
-            gpu.Bind();
-            Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "memory receipt composition");
-        }
-    };
-    frames(0u, 20u);
-    const ptrdiff_t trackedWarm = liveBytes;
-    sample(2u, &scene);
-    frames(20u, 200u);
-    const ptrdiff_t trackedScroll = liveBytes;
-    countLiveBytes                = false;
-    sample(3u, &scene);
-    sample(4u, &scene);
-    scene.view.SetVisible(false);
-    sample(5u, &scene);
-
-    if (const std::filesystem::path parent = std::filesystem::path(outputPath).parent_path(); ! parent.empty())
-        std::filesystem::create_directories(parent);
-    std::ofstream output{std::filesystem::path(outputPath)};
-    Check(bool(output), "memory receipt output file");
-    output << "{\"compiler\":" << _MSC_FULL_VER << ",\"fixture\":\"dxui-complex-ui-memory-v1\",\"workloadOwner\":\"DxUi\",\"renderer\":\""
-           << (hardware ? "Hardware" : "WARP") << "\",\"width\":1280,\"height\":720,\"dpi\":96,\"controls\":83,\"modelRows\":1000,"
-           << "\"warmFrames\":20,\"scrollFrames\":200,\"memory\":{\"adapter\":{\"description\":\"";
-    for (const wchar_t* c = desc.Description; *c; ++c)
-        output << (*c >= 0x20 && *c < 0x7F && *c != L'"' && *c != L'\\' ? static_cast<char>(*c) : '?');
-    output << "\",\"software\":" << ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) ? "true" : "false")
-           << ",\"dedicatedVideoMemoryBytes\":" << desc.DedicatedVideoMemory << ",\"sharedSystemMemoryBytes\":" << desc.SharedSystemMemory
-           << "},\"videoMemory\":{\"applicable\":" << (video[0].applicable ? "true" : "false");
-    if (! video[0].applicable)
-        output << ",\"reason\":\"software adapter: rendering uses system memory, which privateBytes counts\"";
-    output << "},\"trackedLiveBytes\":{\"scene\":" << trackedScene << ",\"warm\":" << trackedWarm << ",\"scroll\":" << trackedScroll << "},\"phases\":[";
-    for (size_t phase = 0u; phase < phaseNames.size(); ++phase)
-    {
-        if (phase)
-            output << ',';
-        output << "{\"name\":\"" << phaseNames[phase] << "\",\"privateBytes\":" << process[phase].PrivateUsage
-               << ",\"workingSetBytes\":" << process[phase].WorkingSetSize;
-        if (video[phase].applicable)
-            output << ",\"localVideoUsageBytes\":" << video[phase].local.CurrentUsage << ",\"localVideoBudgetBytes\":" << video[phase].local.Budget
-                   << ",\"nonLocalVideoUsageBytes\":" << video[phase].nonLocal.CurrentUsage << ",\"nonLocalVideoBudgetBytes\":" << video[phase].nonLocal.Budget;
-        if (phase)
-        {
-            output << ",\"retained\":";
-            WriteRetained(output, stats[phase]);
-        }
-        output << '}';
-    }
-    const auto& shown  = stats[4];
-    const auto& hidden = stats[5];
-    output << "],\"hiddenResidencyDelta\":{\"surfaceBytes\":" << Delta(hidden.surfaceBytes, shown.surfaceBytes)
-           << ",\"retainedTextLayouts\":" << Delta(hidden.retainedTextLayouts, shown.retainedTextLayouts)
-           << ",\"retainedBitmapBytes\":" << Delta(hidden.retainedBitmapBytes, shown.retainedBitmapBytes)
-           << ",\"privateBytes\":" << Delta(process[5].PrivateUsage, process[4].PrivateUsage)
-           << ",\"workingSetBytes\":" << Delta(process[5].WorkingSetSize, process[4].WorkingSetSize);
-    if (video[4].applicable)
-        output << ",\"localVideoBytes\":" << Delta(video[5].local.CurrentUsage, video[4].local.CurrentUsage)
-               << ",\"nonLocalVideoBytes\":" << Delta(video[5].nonLocal.CurrentUsage, video[4].nonLocal.CurrentUsage);
-    // An embedded view is minimized by hiding it (SetVisible(false)), so its minimized residency is the hidden one.
-    output << "},\"minimizedResidency\":\"hidden\",\"entryPrivateBytes\":" << entry.PrivateUsage << ",\"controlBytes\":{\"Control\":" << sizeof(DxUi::Control)
-           << ",\"Label\":" << sizeof(DxUi::Label) << ",\"Button\":" << sizeof(DxUi::Button) << ",\"Toggle\":" << sizeof(DxUi::Toggle)
-           << ",\"Checkbox\":" << sizeof(DxUi::Checkbox) << ",\"RadioButton\":" << sizeof(DxUi::RadioButton) << "}}}\n";
-    output.close();
-    Check(bool(output), "memory receipt written");
-    // Sanity, not machine values: the fields are present and coherent.
-    Check(trackedScene > 0 && trackedWarm > 0 && stats[2].surfaceBytes == 1280ull * 720u * 4u && hidden.surfaceBytes == 0u,
-          "memory receipt tracks the scene and its surface");
-    Check(video[0].applicable == ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0u), "video memory is applicable exactly on a hardware adapter");
-    Check(! video[2].applicable || video[2].local.CurrentUsage > 0u, "a hardware adapter reports local video usage");
-    std::cout << "FX5 memory receipt (" << (hardware ? "hardware" : "WARP") << "): tracked " << trackedScene << '/' << trackedWarm << '/' << trackedScroll
-              << " bytes; written to " << std::filesystem::path(outputPath).string() << '\n';
 }
 } // namespace MemoryMetricsTests

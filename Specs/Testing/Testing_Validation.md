@@ -1483,6 +1483,36 @@ Embedded tests cover missing/dirty/stale geometry, 144-DPI DIP output and cancel
 capture. Native text tests cover insertion flags, capacity prediction, staged NOLAYOUT, prepared notification,
 and sink callbacks releasing the final caller reference. The initial optional sample capture is visually reviewed.
 
+## Performance fixtures
+
+Performance evidence for the [performance and motion plan](../Plans/WIP/PerformanceAndMotion_2026-11-13.md) runs on
+the fixtures `FX1`-`FX14`. Each fixture MUST be defined exactly once, in its own header
+`Tests/Embedded/Embedded.Tests.PerformanceFixtureFx<N>.h`, as a `Definition` (id, title, scenario, budgets it proves,
+hosts, size and DPI variants, named phases of steps, timed phase, scene sources) and a `Scenario` (build and step), and
+listed once in `Embedded.Tests.PerformanceFixtureCatalog.h`. A fixture declared by the plan but not yet built carries no
+create function: runners skip it and the receipt command refuses it, so the catalog never claims a fixture it cannot run.
+The counter and memory receipt, the hardware timing harness (`performance-timing.ps1 -Fixture FX<N>[@variant]`), the
+determinism gate, the incremental-versus-fresh oracle and item gate tests MUST run that definition rather than a
+parallel copy of the scene. A fixture header compiles in both test executables and depends only on DxUi and the model.
+
+A step is one action followed by exactly one frame. Steps MUST be deterministic: no real clock (time comes from the
+fixture clock, `HostPort::AdvanceTime`), no sleep, no randomness and no dependence on other processes. Every W0.1 work
+counter is recorded per step and summarized per phase; the embedded runner adds the C++ allocation sink and the W0.3
+memory fields (live tracked bytes from the scene build, retained-resource statistics, process memory, video memory on
+hardware, hidden residency). Warm-up phases settle process first-use state; they are recorded but not compared.
+
+The determinism gate runs every built fixture twice on each of its hosts at every WARP variant (the embedded host in
+the Embedded suite, the window host in the Rendering suite) and fails with the fixture, variant, host, phase, step and
+counter of the first difference. A nondeterministic counter is a defect of the fixture or of the library, never a
+reason to exclude the counter.
+
+`performance-fixtures.ps1` writes a fixture's receipt under `Measurements/PerformanceAndMotion_2026-11-13/<FX>/` with
+provenance (source commit and dirty flag, build profile, compiler, OS build, adapter and driver or WARP version, display
+refresh rates, power plan, host-idle observation, executable and input hashes) and regenerates that directory's README.
+It records machine state and never changes it, and it never replaces an existing receipt without `-Replace`. Timing
+fields MUST say "not measured" unless they come from a `performance-timing.ps1` calibration or comparison on a hardware
+adapter in a quiet window; WARP receipts are counts and memory only. The fixture-author guide is in
+[the test guide](../../Tests/README.md#performance-fixtures).
 ## Scoped iteration and PR coverage
 
 Active native test sources, helpers, fixtures and seams MUST use `<Component>.Tests.Something.h/.cpp`, with the actual component context (`Controls`, `Support`, `Embedded`, etc.). Literal `Scope` is a rejected placeholder. `Tests/native-test-files.json` owns active membership. Historical archived harnesses and sealed reproduction inputs keep their original identity; they do not define new source naming. Rename project entries, includes, current inventories and callers together. DxUi historical source/test origins retain their original identities and map to current paths separately.

@@ -2,6 +2,7 @@
 #include "Controls.Tests.GridMultilineFixtures.h"
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.IncrementalParity.h"
+#include "Controls.Tests.PerformanceFixtures.h"
 #include "Controls.Tests.TraceProvider.h"
 #include "Controls.Tests.WorkCounters.h"
 
@@ -3250,6 +3251,8 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestTraceProviderIsDormantUntilSomethingListens);
     DXUI_RUN_TEST(TestTraceProviderPairsEveryGridScrollInputWithItsPresent);
     DXUI_RUN_TEST(TestTraceProviderEventsReadBackThroughEtw);
+    DXUI_RUN_TEST(TestPerformanceFixtureFrameworkOnWindowHost);
+    DXUI_RUN_TEST(TestPerformanceFixturesAreDeterministicOnWindowHost);
     DXUI_RUN_TEST(TestEmbeddedGraphicsRetirementPreservesApplicationBindings);
     DXUI_RUN_TEST(TestGridMultilineClampPreservesCompleteModelText);
     DXUI_RUN_TEST(TestGridMultilineShortRowsPaintClippedFirstLine);

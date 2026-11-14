@@ -13,7 +13,7 @@ preflight from Tools/Watch-BenchmarkHost.ps1, which keeps observing until the se
 [CmdletBinding()]
 param(
     [ValidateSet('Calibration','Comparison','Smoke')][string] $Purpose = 'Calibration',
-    [ValidatePattern('^FX[0-9]+$')][string] $Fixture = 'FX5',
+    [ValidatePattern('^FX[0-9]+(@[a-z0-9-]+)?$')][string] $Fixture = 'FX5',
     [ValidateSet('Dirty','Clean')][string] $Phase = 'Dirty',
     [ValidateSet('Hardware','Warp')][string] $Adapter = 'Hardware',
     [ValidateRange(1,20)][int] $Sessions = 5,
@@ -78,6 +78,9 @@ $rawDirectory = Join-Path $PSScriptRoot ('.build/reports/frame-timing/raw/' + (S
 New-Item -ItemType Directory -Force -Path $rawDirectory | Out-Null
 $timingInputPaths = @('Tests/Embedded/Embedded.Tests.FrameTiming.h','Tests/Embedded/Embedded.Tests.Embedded.cpp','Samples/ComplexUi/ComplexUiScene.h',
     'Samples/EmbeddedControls/GraphicsFixture.h','performance-timing.ps1','Tools/FrameTiming.psm1')
+# Every performance fixture header (plan W0.4): the timed fixture is one of them, defined once for every consumer.
+$timingInputPaths += @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'Tests/Embedded') -Filter 'Embedded.Tests.PerformanceFixture*.h' -ErrorAction SilentlyContinue |
+    Sort-Object Name | ForEach-Object { 'Tests/Embedded/' + $_.Name })
 function Get-TimingInputs {
     $inputs = [ordered]@{}
     foreach ($path in $timingInputPaths) { $inputs[$path] = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $path) -Algorithm SHA256).Hash }
@@ -192,7 +195,7 @@ $receipt = [ordered]@{
     schema = 1; method = (Get-FrameTimingMethod); purpose = $Purpose; workloadOwner = 'DxUi'
     fixture = 'dxui-frame-timing-v1'; fixtureName = $Fixture
     benchmarkInputs = $timingInputs
-    benchmarkInputsScope = 'The frame timing harness, its dispatcher, the FX5 scene, the device fixture, the runner and the judge; build.benchmarkInputs is the canonical ComplexUi closure.'
+    benchmarkInputsScope = 'The frame timing harness, its dispatcher, the FX5 scene, the performance fixture framework and catalog, the device fixture, the runner and the judge; build.benchmarkInputs is the canonical ComplexUi closure.'
     rawDirectory = $rawDirectory
     classification = $(switch ($Purpose) { 'Calibration' { 'same-binary calibration' } 'Comparison' { 'interleaved A/B comparison' } default { 'smoke run: exercises the method only; no calibration, noise floor or verdict' } })
     phase = $Phase.ToLowerInvariant(); adapterMode = $Adapter

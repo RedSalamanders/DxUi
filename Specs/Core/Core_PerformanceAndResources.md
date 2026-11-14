@@ -301,8 +301,9 @@ the case outside test executables, the seam returns the system factory unchanged
   native host creates its shared factories through the same seam, but no test installs wrappers there yet: its shared
   resources outlive a single test, and the cross-check is established on the embedded fixture.
 
-Baseline on the ComplexUi fixture (83 controls, 1280×720, 96 DPI, WARP, reduced motion; `DxUi.EmbeddedTests.exe
---test-work-counters <receipt>`, also run by the Embedded suite): a dirty frame prepares and composites once, paints
+Baseline on the ComplexUi fixture (FX5 of the [performance fixtures](../Testing/Testing_Validation.md#performance-fixtures):
+83 controls, 1280×720, 96 DPI, WARP, reduced motion; `DxUi.EmbeddedTests.exe --test-work-counters <receipt>`, also run by
+the Embedded suite; the fixture framework's FX5 run must report the same counts): a dirty frame prepares and composites once, paints
 every visible control once (83 `Paint` executions and 83 paint visits), repaints 921,600 pixels and, in a Release build,
 makes 54 C++ allocations; a clean frame composites once and reports 0 allocations, 0 created resources, 0 churn and no
 paint. The receipt is retained under
@@ -1146,17 +1147,20 @@ records the implemented opt-in diagnostics and their unresolved conclusions.
 
 ### Memory metrics
 
-The FX5 memory receipt (`fixture` `dxui-complex-ui-memory-v1`) is what later memory budgets are judged with. It is
-written by the Embedded suite, not by the timed benchmark, whose inputs a paired run compiles against older libraries:
-every Embedded run writes the WARP receipt to `.build/test-artifacts/complex-ui-memory.json`, and
-`DxUi.EmbeddedTests.exe --memory-receipt <report.json>` or `--memory-receipt-hardware <report.json>` writes it on
-demand, the latter on the default hardware adapter. It builds the 83-control ComplexUi scene and samples six untimed
-phases: device, scene, 20 warm frames, 200 scrolling frames, shown and hidden, each after an immediate-context flush.
+Every [performance fixture](../Testing/Testing_Validation.md#performance-fixtures) receipt (`fixture`
+`dxui-performance-fixture-v1`) carries these memory fields under `memory`; the FX5 receipt is what later memory budgets
+are judged with. It is written by the fixture framework, not by the timed benchmark, whose inputs a paired run compiles
+against older libraries: every Embedded run writes the WARP receipt of each built fixture to
+`.build/test-artifacts/performance-fixtures/`, `performance-fixtures.ps1` writes retained receipts, and
+`DxUi.EmbeddedTests.exe --memory-receipt <report.json>` or `--memory-receipt-hardware <report.json>` writes the FX5 receipt
+on demand, the latter on the default hardware adapter. Samples are untimed, each after an immediate-context flush: device,
+built, after each phase (for FX5: 20 warm, 40 clean and 40 dirty frames) and hidden; the last phase sample is the shown
+state. (The first FX5 receipt, `dxui-complex-ui-memory-v1` under W0.3, sampled 200 scrolling frames instead.)
 Counted fields are exact and deterministic on one build; private bytes and working set remain advisory bands and never
 become pass/fail gates.
 
 - `trackedLiveBytes`: the bytes the counting `operator new` and the checked control heap hold, from the built model
-  to the end of scene creation, warm-up and scrolling. Aligned `operator new` forms are not tracked.
+  onwards, at each sample. Aligned `operator new` forms are not tracked.
 - `retained` per phase: the view's `EmbeddedStatistics` surface and cache fields, including the retained text layouts,
   the UTF-16 units they shape, and retained bitmaps with their pixel bytes. DirectWrite and Direct2D keep object
   storage privately, so per-layout, per-brush and per-format native bytes are not observable; the shaped units are

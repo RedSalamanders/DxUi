@@ -1,5 +1,6 @@
 #include "Controls.Tests.AccessibilityClientGate.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.PerformanceFixtures.h"
 #include "Controls/TextClipboard.h"
 #include "Support/AnimationDispatcher.h"
 
@@ -145,6 +146,10 @@ int wmain(int argc, wchar_t** argv)
         if (FAILED(result))
             DxUi::Failure::FailContract(result);
     });
+
+    // A performance fixture's WARP receipt on the window host (Tests/README.md, "Performance fixtures").
+    if (argc >= 2 && std::wstring_view(argv[1]) == L"--fixture-receipt")
+        return RunWindowFixtureReceiptCommand(argc, argv);
 
     class TestClipboard final : public DxUi::TextClipboard
     {
