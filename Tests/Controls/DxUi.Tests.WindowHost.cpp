@@ -2,6 +2,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.NativeDevicePolicy.h"
+#include "Controls.Tests.PresentedFrame.h"
 #include "Controls/DxUi.Typography.h"
 #include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.PerformanceCapture.h"
@@ -7805,6 +7806,8 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostWorksWithoutOptionalSdkDebugLayer);
     DXUI_RUN_TEST(TestWindowHostConfiguredTextFormatsAliasExactRoleDefaults);
     DXUI_RUN_TEST(TestWindowHostDeviceCreationPreservesHandledNativeExceptions);
+    DXUI_RUN_TEST(TestWindowHostPresentedFrameAfterPartialPresentsIsCurrentOnWarp);
+    DXUI_RUN_TEST(TestWindowHostPresentedFrameAfterPartialPresentsIsCurrentOnHardware);
     DXUI_RUN_TEST(TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLoss);
     DXUI_RUN_TEST(TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
     DXUI_RUN_TEST(TestWindowHostKeyboardInputMarksFocusVisible);

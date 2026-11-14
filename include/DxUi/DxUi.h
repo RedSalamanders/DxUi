@@ -6454,6 +6454,9 @@ public:
     }
     // Directly drives the native renderer with a partial invalidation for lifecycle regression tests.
     void DebugRenderDirtyRectForTest(const RECT& dirtyRectPx) noexcept;
+    // The same partial render, also reading the back buffer after drawing and before Present. Outside the dirty rectangle
+    // that buffer holds an older frame: only the presented image (Present1 with the rectangle) is current there.
+    [[nodiscard]] bool DebugRenderDirtyRectForTest(const RECT& dirtyRectPx, WindowHostBitmapCapture& prePresentBackBuffer) noexcept;
     [[nodiscard]] bool DebugHasActiveAnimationSubscription() const noexcept;
     [[nodiscard]] bool DebugAnimationTickForTest(uint64_t nowTickMs) noexcept;
     // Tests only. A native host's animation clock reads nowTickMs until reset with nullopt, while ticks still carry the time a

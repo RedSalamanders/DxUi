@@ -1,4 +1,12 @@
 {
   "version": 1,
-  "allowances": []
+  "allowances": [
+    {
+      "lane": "github-hosted-windows",
+      "profiles": ["x64|Debug", "x64|Release", "x64|ASan Debug", "ARM64|Debug", "ARM64|Release", "ARM64|ASan Debug"],
+      "suite": "WindowHost",
+      "test": "TestWindowHostPresentedFrameAfterPartialPresentsIsCurrentOnHardware",
+      "reason": "presented-frame hardware case needs a hardware Direct3D adapter"
+    }
+  ]
 }

@@ -299,7 +299,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
     difference; after the drop hook every registered cache reports 0 entries.
   - **Needs**: nothing (`W0.6` for native presented reads). **Size**: M.
 
-- [ ] **W0.6 Presented-frame truth test.**
+- [x] **W0.6 Presented-frame truth test.**
   - **Why**: the comment at [DxUi.WindowHost.cpp](../../../src/Controls/DxUi.WindowHost.cpp) `:5071-5073` in
     `ControlHost::Render` credits `FLIP_SEQUENTIAL` with preserving content; the actual mechanism is the runtime copy
     of the previous frame's updated areas at `Present1`
@@ -1720,6 +1720,8 @@ with an open row is not accepted for closeout until that row closes.
 | Item | Left open or different | Closes with |
 | --- | --- | --- |
 | `W0.1` | Landed and not ticked: the counter record, the counted creation helpers at every call site, the source matcher and the gate on the 83-control fixture. Not built: the counting COM wrappers in the test executables and the Direct2D draw-call count. The pacer wake counter arrives with `W3.6`. A dirty frame reports 54 allocations in Release, which the gate asserts, and 257 in Debug and ASan Debug, where debug iterators allocate. | A second `W0.1` commit with the wrappers and the draw-call count |
+| `W0.6` | Observed on WARP and on the NVIDIA RTX 5080, in both presentation modes: after two partial presents the presented image has 0 BGRA differences from a full render, and a back-buffer read before the present is stale outside the dirty rectangle. The integrated AMD adapter was not exercised: `ControlHost` has no adapter choice. | Recorded result; nothing to run |
+| `W0.6` | Whether the `PrintWindow` capture works on a hosted runner is not verified. If it does not, the WARP case reports a skip that is not on the allow list and the hosted native run fails. | The first hosted native run of this branch, before it merges |
 | `W1.1` | Embedded dispatch has no right-button action (`PointerAction` carries the primary and middle buttons only), so the embedded chord test holds capture across primary and middle; the native test uses Left and Right as the gate says. | A right button in embedded dispatch belongs to the API revision 6 pointer shape (`W5.8`) |
 | `W1.1` | Adds the public, additive virtual `Control::OnMouseMiddleUp` (default declines), because a middle release had no control-level hook. The retry's first step, "one frame", is declared as 16 ms. | Recorded addition; nothing to run |
 | `W1.1` | `ScrollPanel` now forwards the middle release to its child, and no longer holds a forwarded capture for a middle press its child handled without capturing. In the embedded chord primary down, middle down, primary up, middle up, the child receives the final middle release only when it happens over that child. | Recorded limit; closing it needs `ScrollPanel` to track the middle button inside its forwarded gesture |

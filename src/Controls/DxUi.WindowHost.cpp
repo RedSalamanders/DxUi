@@ -3060,6 +3060,15 @@ void ControlHost::DebugRenderDirtyRectForTest(const RECT& dirtyRectPx) noexcept
     }
 }
 
+bool ControlHost::DebugRenderDirtyRectForTest(const RECT& dirtyRectPx, WindowHostBitmapCapture& prePresentBackBuffer) noexcept
+{
+    prePresentBackBuffer = {};
+    if (! _hwnd)
+        return false;
+    Render(&dirtyRectPx, &prePresentBackBuffer);
+    return prePresentBackBuffer.widthPx > 0u && prePresentBackBuffer.heightPx > 0u && ! prePresentBackBuffer.bgraPixels.empty();
+}
+
 bool ControlHost::DebugHasActiveAnimationSubscription() const noexcept
 {
     return _animationSubscriptionId != 0u;

@@ -163,6 +163,19 @@ cache, and only a device change (`DiscardDeviceResources`, a shared-device gener
 A partial frame redraws only its dirty rectangle and presents it with `Present1`; the presented frame stays correct
 because the runtime copies the previous frame's updated areas into the buffer being presented, and only a reader of the
 back buffer before `Present` (a debug capture) can see older content outside the rectangle.
+This is observed, not assumed. `TestWindowHostPresentedFrameAfterPartialPresentsIsCurrentOnWarp` and
+`...OnHardware` (WindowHost suite) present a full frame, a partial frame over rectangle A and one over an overlapping
+rectangle B through `DebugRenderDirtyRectForTest`, and read the image the compositor shows with the non-activating
+presented-image capture (`Tests/Support/Support.Tests.PresentedWindowCapture.h`). In both presentation modes, on WARP
+and on the default hardware adapter, the presented image after B has 0 BGRA differences from a full render of the same
+state, outside B included, while the back buffer read before B's `Present`
+(`DebugRenderDirtyRectForTest(rect, capture)`) still holds frame 0's A-only pixels, two frames old. A negative control
+whose dirty rectangle misses a change shows exactly the missed pixels, so the capture reads presented content, not the
+model. A machine without a hardware adapter reports the hardware case as a capability skip. The capture is a test
+harness, not a library API: `DwmFlush`, then `PrintWindow(PW_CLIENTONLY | PW_RENDERFULLCONTENT)` of a per-monitor-aware
+window placed off-screen at the bottom of the z-order, answering PrintWindow's own `WM_PAINT` so the host neither renders
+nor presents during the read; the [receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W0.6/README.md) records the
+adapters, driver and captures.
 `AttachOptions::batchInitialRootChildren` is an opt-in native swap-chain rendering policy, defaulting to false. While
 the initial draw remains pending after swap-chain creation or resize, a full frame may flush after each visible
 direct child of a root `Panel`, with at most eight intermediate Flush boundaries in addition to the final EndDraw
