@@ -441,6 +441,13 @@
       "reason": "shared oracle scripts and comparison for both hosts"
     },
     {
+      "pattern": "Tests/Controls/DxUi.Tests.Gallery.cpp",
+      "scopes": [
+        "Rendering"
+      ],
+      "reason": "the gallery's scaled tile tests run in the Rendering suite; the Gallery fixture itself runs through gallery.ps1"
+    },
+    {
       "pattern": "Tests/Controls/DxUi.Tests.Animation.cpp",
       "scopes": [
         "Animation"

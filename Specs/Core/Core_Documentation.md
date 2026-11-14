@@ -1,7 +1,7 @@
 # Documentation and generated gallery
 
 Status: normative current contract
-Last reviewed: 2026-11-01
+Last reviewed: 2026-11-13
 
 `docs/README.md` is the user entrypoint and MUST be linked from the root README. Documentation covers prerequisites,
 exact-pin consumption, both hosting modes, ownership, input, layout/DPI, themes, recovery, every public control,
@@ -48,6 +48,20 @@ receipt in `docs/gallery`. The harness sizes its offscreen capture window from t
 a small display cannot crop it. CI's x64 Release job uploads the same output as `docs-gallery-x64-Release`.
 Native tests/baselines remain distinct; never rebaseline tests merely to match a changed
 documentation screenshot.
+
+Scaled gallery tiles are review evidence, not documentation. `gallery.ps1 -Scale <percent list>` (100 to 300 in steps of
+25), `-Tiles <control, caption or tile file name list>`, `-Theme <theme list>` and `-Warp` render the same sheets through the
+same harness capture, non-activating, after giving each host (menu popups included) the requested DPI through
+`WM_DPICHANGED`; without these options nothing changes, and a 100% tile is today's sheet cropped pixel for pixel. The tiles
+go to `.build/gallery/<Platform>/<Configuration>/tiles/<percent>/<theme>/<tile>.png` with `receipt.json` (source commit
+and dirt, build profile, adapter, scales, themes, filters, input hashes) and `tiles.tsv` (pixel size and SHA-256 of the
+decoded pixels per tile and scale). `gallery.ps1 -CompareBefore <capture or receipt> -CompareAfter <capture>` reports per
+tile and scale whether the pixels are identical, lists the differing tiles in `differences.txt` and exits 1 on any
+difference; the same `-Scale`, `-Theme` and `-Tiles` limit it to a subset, such as a new capture against a full receipt.
+`docs/gallery` stays at its single scale. A change whose gate names scaled captures retains its receipt and
+only the tiles the gate names under `Measurements/<plan>/<item>/` with a README; the first such receipt, of every tile at
+100, 125, 150 and 200%, is `Measurements/PerformanceAndMotion_2026-11-13/G1`. A frozen animation clock (motion progress
+0, 0.5 and 1) is a later option of the same capture.
 
 DxUi has no hosted publication workflow, for either SDK releases or the documentation gallery. Generate reviewed
 documentation locally with `gallery.ps1 -PublishDocs`, run the specification/gallery validators, and include changed
