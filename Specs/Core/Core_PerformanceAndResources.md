@@ -247,7 +247,9 @@ snapshot, delta and receipt.
 - **Wakes by source.** `animationTimer` (the animation dispatcher's `WM_TIMER`), `menuHoverTimer`, `paintMessage`
   (`WM_PAINT`) and `embeddedAdvance` (each `EmbeddedHost::AdvanceAnimation` the application made while animation was
   requested).
-- **Resources.** Library code creates text layouts and formats, geometries, stroke styles, brushes, gradient stop
+- **Text.** `setTextRenderingParams` counts each `SetTextRenderingParams` call a host makes to bind or clear rendering
+  parameters ([theme and typography](../UI/UI_ThemeAndTypography.md#text-antialiasing-and-rendering-parameters)).
+- **Resources.** Library code creates text layouts and formats, DirectWrite rendering parameters, geometries, stroke styles, brushes, gradient stop
   collections, bitmaps, effects, command lists, layers, Direct2D device contexts and D3D11 devices only through the
   counted helpers of `src/Support/CountedCreation.h` (available through `DxUi.Internal.h`), and draws `DrawText` only
   through `CountedDrawText`. Each helper forwards to the method unchanged and counts the object it returns; a refused

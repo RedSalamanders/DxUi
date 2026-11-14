@@ -3588,18 +3588,23 @@ try
             return 0;
         case WM_MOVE:
             NotifyTextInputLayoutChanged(_nativeTextInputControl);
+            NoteTextRenderingMonitorMayHaveChanged(false);
             handled = false;
             return 0;
         case WM_SETTINGCHANGE:
             // Lines per wheel notch (Grid, Tree, TextField) follow the user's setting; reading it is one system call.
             RefreshWheelScrollLines();
+            // So does the text antialias mode on an opaque target, and the monitor's rendering parameters.
+            RefreshTextRenderingSetting(wp);
             handled = false;
             return 0;
         case WM_DPICHANGED:
+            NoteTextRenderingMonitorMayHaveChanged(true);
             OnDpiChanged(hwnd, static_cast<UINT>(HIWORD(wp)), reinterpret_cast<const RECT*>(lp));
             handled = true;
             return 0;
         case WM_DPICHANGED_AFTERPARENT:
+            NoteTextRenderingMonitorMayHaveChanged(true);
             OnDpiChanged(hwnd, GetDpiForWindow(hwnd), nullptr);
             handled = true;
             return 0;
@@ -4425,6 +4430,181 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     return true;
 }
 
+namespace
+{
+// Not a FontSmoothing value: the setting has not been read yet.
+constexpr uint8_t kFontSmoothingUnread = 0xFFu;
+std::atomic<uint8_t> fontSmoothing{kFontSmoothingUnread};
+#if DXUI_ENABLE_DIAGNOSTICS
+std::atomic<bool> fontSmoothingOverridden{false};
+std::atomic<uint8_t> fontSmoothingOverride{static_cast<uint8_t>(FontSmoothing::ClearType)};
+#endif
+
+[[nodiscard]] FontSmoothing ReadFontSmoothingSetting() noexcept
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (fontSmoothingOverridden.load(std::memory_order_acquire))
+        return static_cast<FontSmoothing>(fontSmoothingOverride.load(std::memory_order_relaxed));
+#endif
+    BOOL enabled = TRUE;
+    if (SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0u, &enabled, 0u) != FALSE && enabled == FALSE)
+        return FontSmoothing::Off;
+    UINT type = FE_FONTSMOOTHINGCLEARTYPE;
+    if (SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0u, &type, 0u) != FALSE && type == FE_FONTSMOOTHINGSTANDARD)
+        return FontSmoothing::Standard;
+    return FontSmoothing::ClearType;
+}
+} // namespace
+
+FontSmoothing ResolveFontSmoothing() noexcept
+{
+    uint8_t value = fontSmoothing.load(std::memory_order_relaxed);
+    if (value == kFontSmoothingUnread)
+    {
+        value = static_cast<uint8_t>(ReadFontSmoothingSetting());
+        fontSmoothing.store(value, std::memory_order_relaxed);
+    }
+    return static_cast<FontSmoothing>(value);
+}
+
+bool RefreshFontSmoothing() noexcept
+{
+    const uint8_t value = static_cast<uint8_t>(ReadFontSmoothingSetting());
+    return fontSmoothing.exchange(value, std::memory_order_relaxed) != value;
+}
+
+#if DXUI_ENABLE_DIAGNOSTICS
+void DebugSetFontSmoothingForTest(std::optional<FontSmoothingForTest> smoothing) noexcept
+{
+    fontSmoothingOverride.store(static_cast<uint8_t>(smoothing.value_or(FontSmoothingForTest::ClearType)), std::memory_order_relaxed);
+    fontSmoothingOverridden.store(smoothing.has_value(), std::memory_order_release);
+    static_cast<void>(RefreshFontSmoothing());
+}
+#endif
+
+bool TextAntialiasModeAcceptsRenderingMode(D2D1_TEXT_ANTIALIAS_MODE antialias, DWRITE_RENDERING_MODE renderingMode) noexcept
+{
+    if (antialias == D2D1_TEXT_ANTIALIAS_MODE_DEFAULT)
+        return true;
+    if (renderingMode == DWRITE_RENDERING_MODE_ALIASED)
+        return antialias == D2D1_TEXT_ANTIALIAS_MODE_ALIASED;
+    if (renderingMode == DWRITE_RENDERING_MODE_OUTLINE)
+        return antialias != D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE;
+    if (antialias == D2D1_TEXT_ANTIALIAS_MODE_ALIASED)
+        return renderingMode == DWRITE_RENDERING_MODE_DEFAULT;
+    return true;
+}
+
+HRESULT MakeTextRenderingParamsFor(IDWriteFactory* factory,
+                                   IDWriteRenderingParams* source,
+                                   D2D1_TEXT_ANTIALIAS_MODE antialias,
+                                   IDWriteRenderingParams** result) noexcept
+{
+    if (! result)
+        return E_POINTER;
+    *result = nullptr;
+    if (! factory || ! source)
+        return E_INVALIDARG;
+    if (TextAntialiasModeAcceptsRenderingMode(antialias, source->GetRenderingMode()))
+    {
+        source->AddRef();
+        *result = source;
+        return S_OK;
+    }
+    return CountedCreateCustomRenderingParams(factory,
+                                              source->GetGamma(),
+                                              source->GetEnhancedContrast(),
+                                              source->GetClearTypeLevel(),
+                                              source->GetPixelGeometry(),
+                                              DWRITE_RENDERING_MODE_DEFAULT,
+                                              result);
+}
+
+void ControlHost::ResetTextRenderingBinding() noexcept
+{
+    // A new device context starts with the default antialias mode and no parameters.
+    _textRenderingParamsBound = nullptr;
+    _textAntialiasModeApplied = D2D1_TEXT_ANTIALIAS_MODE_DEFAULT;
+    _textRenderingApplied     = false;
+}
+
+bool ControlHost::ApplyTextRendering() noexcept
+{
+    if (! _d2dContext)
+        return false;
+    // An embedded surface is premultiplied and stays grayscale, so it does not read the setting.
+    const FontSmoothing smoothing = _embedded ? FontSmoothing::ClearType : ResolveFontSmoothing();
+    if (_textRenderingApplied && ! _textRenderingParamsStale && _textRenderingSmoothingApplied == static_cast<uint8_t>(smoothing))
+        return false;
+
+    // Direct2D's default already gives ClearType on the opaque (IGNORE) swap chain and grayscale on a premultiplied target;
+    // only an opaque target whose user turned ClearType off needs an explicit mode. Embedded keeps its explicit grayscale.
+    D2D1_TEXT_ANTIALIAS_MODE antialias = D2D1_TEXT_ANTIALIAS_MODE_DEFAULT;
+    if (_embedded)
+        antialias = D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE;
+    else if (_presentationMode == PresentationMode::HwndSwapChain && smoothing != FontSmoothing::ClearType)
+        antialias = D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE;
+
+    if (_textRenderingParamsStale || antialias != _textAntialiasModeApplied || ! _textRenderingApplied)
+    {
+        if (! _embedded)
+            _textRenderingMonitor = _hwnd ? MonitorFromWindow(_hwnd, MONITOR_DEFAULTTONEAREST) : nullptr;
+        wil::com_ptr<IDWriteRenderingParams> params;
+        if (_textRenderingMonitor && _dwriteFactory)
+        {
+            wil::com_ptr<IDWriteRenderingParams> monitorParams;
+            HRESULT hr = CountedCreateMonitorRenderingParams(_dwriteFactory, _textRenderingMonitor, monitorParams.put());
+            if (SUCCEEDED(hr))
+                hr = MakeTextRenderingParamsFor(_dwriteFactory.get(), monitorParams.get(), antialias, params.put());
+            if (FAILED(hr))
+            {
+                // Without parameters the context draws as it did before any were bound.
+                Debug::Warning(L"DxUi::ControlHost: monitor rendering parameters unavailable: 0x{:08X}", hr);
+                params.reset();
+            }
+        }
+        _textRenderingParams      = std::move(params);
+        _textRenderingParamsStale = false;
+    }
+
+    if (! _textRenderingApplied || antialias != _textAntialiasModeApplied)
+        _d2dContext->SetTextAntialiasMode(antialias);
+    if (_textRenderingParams.get() != _textRenderingParamsBound)
+    {
+        ++Detail::Work().text.setTextRenderingParams;
+        _d2dContext->SetTextRenderingParams(_textRenderingParams.get());
+        _textRenderingParamsBound = _textRenderingParams.get();
+    }
+    _textAntialiasModeApplied      = antialias;
+    _textRenderingSmoothingApplied = static_cast<uint8_t>(smoothing);
+    _textRenderingApplied          = true;
+    return true;
+}
+
+void ControlHost::RefreshTextRenderingSetting(WPARAM action) noexcept
+{
+    const bool changed = RefreshFontSmoothing();
+    // A font-smoothing change, including ClearType tuning (contrast, orientation), reads the monitor's parameters again.
+    const bool smoothingAction = action == SPI_SETFONTSMOOTHING || action == SPI_SETFONTSMOOTHINGTYPE || action == SPI_SETFONTSMOOTHINGCONTRAST ||
+                                 action == SPI_SETFONTSMOOTHINGORIENTATION;
+    if (changed || smoothingAction)
+        _textRenderingParamsStale = true;
+    if (_textRenderingApplied && (_textRenderingParamsStale || _textRenderingSmoothingApplied != static_cast<uint8_t>(ResolveFontSmoothing())))
+        Invalidate();
+}
+
+void ControlHost::NoteTextRenderingMonitorMayHaveChanged(bool dpiChanged) noexcept
+{
+    if (! _hwnd || _embedded)
+        return;
+    if (dpiChanged || MonitorFromWindow(_hwnd, MONITOR_DEFAULTTONEAREST) != _textRenderingMonitor)
+    {
+        _textRenderingParamsStale = true;
+        if (! dpiChanged && _textRenderingApplied)
+            Invalidate();
+    }
+}
+
 bool ControlHost::EnsureDeviceResources() noexcept
 {
     const Failure::Scope failureScope;
@@ -4496,6 +4676,7 @@ bool ControlHost::EnsureDeviceResources() noexcept
 
     _sharedGraphicsGeneration = shared.generation;
     ++_resourceGeneration;
+    ResetTextRenderingBinding();
     _d2dContext->SetUnitMode(D2D1_UNIT_MODE_DIPS);
     _d2dContext->SetDpi(static_cast<float>(_dpi), static_cast<float>(_dpi));
     RecreateBrushCache();
@@ -5038,6 +5219,10 @@ try
 #if DXUI_ENABLE_DIAGNOSTICS
     ++_debugRenderCount;
 #endif
+
+    // A changed text antialias mode or parameter set applies to the whole frame, never to a dirty rectangle alone.
+    if (ApplyTextRendering())
+        _forceFullPresentAfterBufferReset = true;
 
     // Determine whether rcPaint describes a partial dirty region.
     // A partial frame draws only the dirty rectangle into the back buffer. Present1 with that rectangle keeps the

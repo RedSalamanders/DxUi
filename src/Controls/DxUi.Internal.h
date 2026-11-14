@@ -869,6 +869,29 @@ void PaintScrollbar(ControlHost& host, const D2D1_RECT_F& trackRect, const D2D1_
 [[nodiscard]] size_t ResolveWheelScrollLineCount(size_t pageLineCount) noexcept;
 void RefreshWheelScrollLines() noexcept;
 
+// The user's font smoothing: SPI_GETFONTSMOOTHING off is Off, otherwise SPI_GETFONTSMOOTHINGTYPE selects Standard or
+// ClearType (ClearType when it cannot be read). Read at first use and again whenever a window host receives
+// WM_SETTINGCHANGE; RefreshFontSmoothing returns whether the value changed. Theme and typography contract, "Text
+// antialiasing and rendering parameters".
+enum class FontSmoothing : uint8_t
+{
+    Off,
+    Standard,
+    ClearType,
+};
+[[nodiscard]] FontSmoothing ResolveFontSmoothing() noexcept;
+bool RefreshFontSmoothing() noexcept;
+// Whether Direct2D draws text with these rendering parameters under this antialias mode. Measured on WARP: an ALIASED
+// rendering mode fails (E_INVALIDARG at EndDraw) under CLEARTYPE and GRAYSCALE, OUTLINE fails under CLEARTYPE, and the
+// ALIASED antialias mode accepts only DEFAULT, ALIASED and OUTLINE. DEFAULT accepts every rendering mode.
+[[nodiscard]] bool TextAntialiasModeAcceptsRenderingMode(D2D1_TEXT_ANTIALIAS_MODE antialias, DWRITE_RENDERING_MODE renderingMode) noexcept;
+// Parameters that keep the source's gamma, contrast, ClearType level and pixel geometry and that `antialias` accepts:
+// the source itself when it is accepted, otherwise a copy with DWRITE_RENDERING_MODE_DEFAULT.
+[[nodiscard]] HRESULT MakeTextRenderingParamsFor(IDWriteFactory* factory,
+                                                 IDWriteRenderingParams* source,
+                                                 D2D1_TEXT_ANTIALIAS_MODE antialias,
+                                                 IDWriteRenderingParams** result) noexcept;
+
 // Typeahead / case-insensitive search helpers (shared by Tree and ComboBox)
 constexpr uint64_t kTypeaheadResetMs = 1000u;
 

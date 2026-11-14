@@ -66,6 +66,8 @@
   "Tests/Controls/Controls.Tests.TextElements.cpp",
   "Tests/Controls/Controls.Tests.TextElements.h",
   "Tests/Controls/Controls.Tests.TextInputServices.h",
+  "Tests/Controls/Controls.Tests.TextRenderingParams.cpp",
+  "Tests/Controls/Controls.Tests.TextRenderingParams.h",
   "Tests/Controls/Controls.Tests.TextStoreComposition.h",
   "Tests/Controls/Controls.Tests.UnicodeGraphemeCorpus.h",
   "Tests/Controls/Controls.Tests.TraceProvider.cpp",

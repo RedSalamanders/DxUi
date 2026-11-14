@@ -1293,7 +1293,7 @@ measure runs once per key, and a layout pass visits only dirty subtrees and stop
     newly shown rows; `W0.5` oracle clean.
   - **Needs**: `W0.1`, `W0.5`, `W6.2`. **Size**: M.
 
-- [ ] **W6.4 Text rendering parameters.**
+- [x] **W6.4 Text rendering parameters.**
   - **Why**: the native host never calls `SetTextAntialiasMode`; the embedded host forces grayscale
     (`src/Rendering/Embedded.cpp:283`). Direct2D already gives ClearType on the `HwndSwapChain` (`DXGI_ALPHA_MODE_IGNORE`)
     and grayscale on the premultiplied composition chain (`DxUi.WindowHost.cpp:4448`, `:4541`)

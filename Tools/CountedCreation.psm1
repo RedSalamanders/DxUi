@@ -4,7 +4,7 @@ Finds native resource creation under src that bypasses the counted helpers of sr
 
 .DESCRIPTION
 The work counters (Specs/Core/Core_PerformanceAndResources.md, "Work counters") count each text layout, text format,
-geometry, brush, bitmap, effect, layer, command list, device context, D3D11 device, implicit DrawText layout and GDI
+rendering-parameter set, geometry, brush, bitmap, effect, layer, command list, device context, D3D11 device, implicit DrawText layout and GDI
 backdrop capture the library creates. They count only what goes through the helpers, so any other occurrence of a
 counted method name is a finding: a call through `->`, `.` or `::`, a call split across lines, a member-function
 pointer, or a function pointer such as `&::D3D11CreateDevice`. Comments, string literals and character literals are
@@ -15,8 +15,9 @@ Set-StrictMode -Version Latest
 # Every counted name. Keep this list equal to the helpers of src/Support/CountedCreation.h.
 $script:CountedNames = @(
     'BitBlt', 'CreateBitmap', 'CreateBitmapBrush', 'CreateBitmapFromDxgiSurface', 'CreateBitmapFromWicBitmap', 'CreateCommandList',
-    'CreateDeviceContext', 'CreateEffect', 'CreateEllipseGeometry', 'CreateGdiCompatibleTextLayout', 'CreateGeometryGroup',
-    'CreateGradientStopCollection', 'CreateImageBrush', 'CreateLayer', 'CreateLinearGradientBrush', 'CreatePathGeometry',
+    'CreateCustomRenderingParams', 'CreateDeviceContext', 'CreateEffect', 'CreateEllipseGeometry', 'CreateGdiCompatibleTextLayout',
+    'CreateGeometryGroup', 'CreateGradientStopCollection', 'CreateImageBrush', 'CreateLayer', 'CreateLinearGradientBrush',
+    'CreateMonitorRenderingParams', 'CreatePathGeometry',
     'CreateRadialGradientBrush', 'CreateRectangleGeometry', 'CreateRoundedRectangleGeometry', 'CreateSharedBitmap',
     'CreateSolidColorBrush', 'CreateStrokeStyle', 'CreateTextFormat', 'CreateTextLayout', 'CreateTransformedGeometry',
     'D3D11CreateDevice', 'DrawText', 'DrawTextW'

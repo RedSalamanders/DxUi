@@ -70,6 +70,31 @@ inline void ApplyWheelScrollLinesForTest(DxUi::WindowHost& host, std::optional<U
     Require(! handled, "a window host leaves WM_SETTINGCHANGE to the application's window procedure as well");
 }
 
+// Gives the process a font-smoothing setting through the test seam, never the real system setting, and delivers it as a
+// real change arrives: a window host receives WM_SETTINGCHANGE for SPI_SETFONTSMOOTHING. Nullopt returns to the user's.
+inline void ApplyFontSmoothingForTest(DxUi::WindowHost& host, std::optional<DxUi::FontSmoothingForTest> smoothing)
+{
+    DxUi::DebugSetFontSmoothingForTest(smoothing);
+    bool handled = true;
+    static_cast<void>(host.HandleMessage(host.GetHwnd(), WM_SETTINGCHANGE, SPI_SETFONTSMOOTHING, 0, handled));
+    Require(! handled, "a window host leaves WM_SETTINGCHANGE to the application's window procedure as well");
+}
+
+// Returns the process to the user's font-smoothing setting however the test leaves its scope. The seam is process state:
+// a failing Require ends the process, which never touched the system setting.
+struct ScopedFontSmoothingForTest final
+{
+    ScopedFontSmoothingForTest() noexcept                                    = default;
+    ScopedFontSmoothingForTest(const ScopedFontSmoothingForTest&)            = delete;
+    ScopedFontSmoothingForTest& operator=(const ScopedFontSmoothingForTest&) = delete;
+    ScopedFontSmoothingForTest(ScopedFontSmoothingForTest&&)                 = delete;
+    ScopedFontSmoothingForTest& operator=(ScopedFontSmoothingForTest&&)      = delete;
+    ~ScopedFontSmoothingForTest()
+    {
+        DxUi::DebugSetFontSmoothingForTest(std::nullopt);
+    }
+};
+
 inline std::atomic<bool>& DeferredDxUiTestFailure() noexcept
 {
     static std::atomic<bool> failed{false};

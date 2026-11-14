@@ -36,7 +36,8 @@
     X(wakes, paintMessage)    /* WindowHost WM_PAINT messages. */
 
 // Text and typography beyond the resource kinds below.
-#define DXUI_WORK_COUNTERS_TEXT(X)
+#define DXUI_WORK_COUNTERS_TEXT(X)                                                                                                                             \
+    X(text, setTextRenderingParams) /* ID2D1RenderTarget::SetTextRenderingParams calls a host made to bind or clear rendering parameters. */
 
 // Popups and menus.
 #define DXUI_WORK_COUNTERS_POPUPS(X)                                                                                                                           \
@@ -87,6 +88,7 @@
     X(gradientStops)                                                                                                                                           \
     X(implicitTextLayout)                                                                                                                                      \
     X(layer)                                                                                                                                                   \
+    X(renderingParams)                                                                                                                                         \
     X(strokeStyle)                                                                                                                                             \
     X(textFormat)                                                                                                                                              \
     X(textLayout)

@@ -161,6 +161,14 @@ loop's hot path; hiding a view returns a Grid's layouts and the surface. `DXUI_H
 headers that have these fields. Change layout in DIPs and pass the new physical extent/DPI to Prepare; do not rasterize at each
 intermediate animation scale. Theme and layout changes need refreshed docs/gallery when changing the library.
 
+Embedded text is drawn grayscale, since the view's surface is premultiplied. To draw it with the ClearType tuning (gamma,
+contrast, pixel geometry) of the monitor that shows the view, call `view.SetTextRenderingMonitor(MonitorFromWindow(hwnd,
+MONITOR_DEFAULTTONEAREST))` once, and again when the window moves to another monitor (`WM_DPICHANGED`, or a move that
+changes `MonitorFromWindow`) or receives a font-smoothing `WM_SETTINGCHANGE`; never per frame. The next `Prepare`
+repaints with those parameters. Without that call, or after `SetTextRenderingMonitor(nullptr)`, no parameters are bound.
+A native host does this itself: it follows the user's ClearType setting (grayscale when ClearType is off) and its
+window's monitor, refreshing on `WM_SETTINGCHANGE`, `WM_DPICHANGED` and `WM_MOVE` that you forward to `HandleMessage`.
+
 ## Native HWND host
 
 Use `ControlHost` (`WindowHost` is its compatibility alias) with a caller-owned HWND. After the HWND exists,

@@ -305,6 +305,7 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
         ControlModelQueryAccess::RequestIntrinsicLayoutOfTree(*_host._root);
     g.device->GetImmediateContext(_host._d3dContext.put());
     RETURN_IF_FAILED(CountedCreateDeviceContext(g.d2d, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _host._d2dContext.put()));
+    _host.ResetTextRenderingBinding();
     _host._d2dContext->SetUnitMode(D2D1_UNIT_MODE_DIPS);
     _host._d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
     if (! _host.EnsureDeviceIndependentResources())
@@ -336,6 +337,18 @@ void EmbeddedHost::MarkDirty() noexcept
     s.dirty = true;
     ++s.revision;
     RequestPreparation(static_cast<uint8_t>(Detail::Trace::FrameReason::Invalidate));
+}
+HRESULT EmbeddedHost::SetTextRenderingMonitor(HMONITOR monitor) noexcept
+{
+    if (_detaching || _replacingDevice)
+        return E_UNEXPECTED;
+    if (_state && _state->graphics && _state->graphics->_state->thread != GetCurrentThreadId())
+        return RPC_E_WRONG_THREAD;
+    // The parameters are read again at the next preparation, which repaints with them.
+    _host._textRenderingMonitor     = monitor;
+    _host._textRenderingParamsStale = true;
+    MarkDirty();
+    return S_OK;
 }
 void EmbeddedHost::RequestPreparation(uint8_t traceFrameReason) noexcept
 {
@@ -679,6 +692,8 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
             if (tracedPrepare) [[unlikely]]
                 Detail::Trace::PrepareEnd(_host._trace, tracedResult, SUCCEEDED(tracedResult) ? uint64_t(width) * height : 0u);
         });
+        // Grayscale always; the application's monitor parameters only when it supplied a monitor.
+        static_cast<void>(_host.ApplyTextRendering());
         dc->BeginDraw();
         auto finish = wil::scope_exit([&] { (void)Detail::EndDrawNative(dc); });
         dc->SetTransform(D2D1::Matrix3x2F::Identity());

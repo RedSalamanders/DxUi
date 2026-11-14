@@ -46,6 +46,8 @@ template <typename... Args> void NoteCreatedOutput(ResourceKind kind, const Args
 DXUI_DEFINE_COUNTED_CREATE(CreateTextFormat, textFormat)
 DXUI_DEFINE_COUNTED_CREATE(CreateTextLayout, textLayout)
 DXUI_DEFINE_COUNTED_CREATE(CreateGdiCompatibleTextLayout, textLayout)
+DXUI_DEFINE_COUNTED_CREATE(CreateMonitorRenderingParams, renderingParams)
+DXUI_DEFINE_COUNTED_CREATE(CreateCustomRenderingParams, renderingParams)
 // Direct2D device-independent resources.
 DXUI_DEFINE_COUNTED_CREATE(CreatePathGeometry, geometry)
 DXUI_DEFINE_COUNTED_CREATE(CreateRectangleGeometry, geometry)

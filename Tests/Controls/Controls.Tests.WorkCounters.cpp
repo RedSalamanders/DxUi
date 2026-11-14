@@ -168,6 +168,13 @@ void TestCountedCreationHelpersCountEveryResourceKind()
             "a refused creation returns its own failure");
     wil::com_ptr<IDWriteTextLayout> layout;
     RequireSucceeded(CountedCreateTextLayout(graphics.write, L"Counted", 7u, format.get(), 100.0f, 20.0f, layout.put()), "counted text layout");
+    wil::com_ptr<IDWriteRenderingParams> monitorParams;
+    RequireSucceeded(CountedCreateMonitorRenderingParams(graphics.write, MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY), monitorParams.put()),
+                     "counted monitor rendering parameters");
+    wil::com_ptr<IDWriteRenderingParams> customParams;
+    RequireSucceeded(
+        CountedCreateCustomRenderingParams(graphics.write, 1.8f, 0.5f, 1.0f, DWRITE_PIXEL_GEOMETRY_RGB, DWRITE_RENDERING_MODE_DEFAULT, customParams.put()),
+        "counted custom rendering parameters");
 
     dc->SetTarget(target.get());
     dc->BeginDraw();
@@ -190,9 +197,10 @@ void TestCountedCreationHelpersCountEveryResourceKind()
     Require(resources.geometry.created == 2u && resources.strokeStyle.created == 1u, "geometries and stroke styles are counted");
     Require(resources.textFormat.created == 2u, "both text formats are counted and the refused one is not");
     Require(resources.textLayout.created == 1u, "the text layout is counted");
+    Require(resources.renderingParams.created == 2u, "monitor and custom rendering parameters are counted");
     Require(resources.implicitTextLayout.created == 1u && resources.implicitTextLayout.destroyed == 1u,
             "a DrawText call counts one implicit layout created and released inside it");
-    Require(Detail::TotalCreated(delta) == 16u, "nothing else is counted as created");
+    Require(Detail::TotalCreated(delta) == 18u, "nothing else is counted as created");
     Require(resources.textLayout.destroyed == 0u && resources.brush.destroyed == 0u, "without a tracker no destruction of an object is observed");
     Require(delta.popups.backdropCaptures == 1u && delta.popups.backdropCapturePixels == 1u, "the GDI capture and its pixels are counted");
 }

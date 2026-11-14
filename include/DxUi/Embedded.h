@@ -172,6 +172,11 @@ public:
     // device replacement still require Prepare. S_FALSE means unchanged or unavailable; dispatch stays disabled
     // when unavailable. Does not publish accessibility/text geometry or change surface/preparation statistics.
     HRESULT PrepareInteraction(UINT widthPixels, UINT heightPixels, float dpi = 96.0f) noexcept;
+    // Optional: the monitor that shows this view. The next Prepare binds that monitor's DirectWrite rendering parameters
+    // (IDWriteFactory::CreateMonitorRenderingParams) and repaints; text stays grayscale. Each call reads the parameters
+    // again, so call it when the view moves to another monitor or the user's ClearType settings change, not per frame.
+    // nullptr (the default) binds no parameters, as before this input existed. Call on the view's owner thread.
+    HRESULT SetTextRenderingMonitor(HMONITOR monitor) noexcept;
     // Host binds its render target. This binds all other required pipeline state and issues one premultiplied-alpha draw.
     // Context must be the immediate context of the supplied device. No allocation, rasterization or readback occurs.
     HRESULT Composite(ID3D11DeviceContext* context, const D3D11_VIEWPORT& viewport) noexcept;

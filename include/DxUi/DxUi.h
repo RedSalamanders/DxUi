@@ -5032,6 +5032,19 @@ private:
 // never changes the real setting. It takes effect when a window host next receives WM_SETTINGCHANGE or an embedded host
 // next dispatches a wheel event, as a real change does; nullopt reads the system setting again.
 void DebugSetWheelScrollLinesForTest(std::optional<UINT> lines) noexcept;
+
+// The user's font-smoothing setting as a test replaces it (SPI_GETFONTSMOOTHING off, or on with SPI_GETFONTSMOOTHINGTYPE
+// Standard or ClearType), so a test never changes the real setting.
+enum class FontSmoothingForTest : uint8_t
+{
+    Off,
+    Standard,
+    ClearType,
+};
+// Replaces the font-smoothing setting the hosts read; nullopt reads the system setting again. The process value changes at
+// once and each host applies it to its next frame; a window host repaints when it next receives WM_SETTINGCHANGE, as on
+// a real change.
+void DebugSetFontSmoothingForTest(std::optional<FontSmoothingForTest> smoothing) noexcept;
 #endif
 
 struct TreeAppearance final
@@ -6735,6 +6748,14 @@ private:
     [[nodiscard]] bool CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcept;
 #endif
     void OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect) noexcept;
+    // Text antialiasing and rendering parameters (theme and typography contract): applied to the device context before a
+    // frame draws, only when the font-smoothing setting, the monitor or the context changed since the last application;
+    // returns whether it changed anything.
+    bool ApplyTextRendering() noexcept;
+    void ResetTextRenderingBinding() noexcept;
+    // Window host: WM_SETTINGCHANGE re-reads the setting; WM_MOVE and the DPI messages re-resolve the window's monitor.
+    void RefreshTextRenderingSetting(WPARAM action) noexcept;
+    void NoteTextRenderingMonitorMayHaveChanged(bool dpiChanged) noexcept;
     void OnSize(UINT widthPx, UINT heightPx) noexcept;
     void OnSetFocus() noexcept;
     void BeginFocusGainTurn() noexcept;
@@ -6871,6 +6892,15 @@ private:
     wil::com_ptr<ID2D1Factory1> _d2dFactory;
     wil::com_ptr<ID2D1Device> _d2dDevice;
     wil::com_ptr<ID2D1DeviceContext> _d2dContext;
+    // The rendering parameters for _textRenderingMonitor (window host: its window's monitor; embedded: the application's,
+    // or none), what is bound to _d2dContext, and the font smoothing and antialias mode last applied to it.
+    wil::com_ptr<IDWriteRenderingParams> _textRenderingParams;
+    IDWriteRenderingParams* _textRenderingParamsBound  = nullptr;
+    HMONITOR _textRenderingMonitor                     = nullptr;
+    D2D1_TEXT_ANTIALIAS_MODE _textAntialiasModeApplied = D2D1_TEXT_ANTIALIAS_MODE_DEFAULT;
+    uint8_t _textRenderingSmoothingApplied             = 0u;
+    bool _textRenderingApplied                         = false;
+    bool _textRenderingParamsStale                     = true;
     wil::com_ptr<IDXGISwapChain1> _swapChain;
     wil::com_ptr<IDCompositionDesktopDevice> _dcompDevice;
     wil::com_ptr<IDCompositionTarget> _dcompTarget;

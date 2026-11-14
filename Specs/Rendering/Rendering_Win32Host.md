@@ -46,6 +46,12 @@ reflect current control state on their first frame, including caption hover at s
 Changing non-text logical focus on a hidden or zero-size host never activates its HWND; visible, positively sized
 hosts retain the requested native-transfer policy. See the [input contract](../UI/UI_InputAndAccessibility.md).
 
+The window host chooses its text antialias mode from the user's font-smoothing setting and binds its monitor's DirectWrite
+rendering parameters. `WM_SETTINGCHANGE` re-reads the setting (one existing case also refreshes wheel lines) and repaints
+when the text state changed; `WM_DPICHANGED`, `WM_DPICHANGED_AFTERPARENT` and a `WM_MOVE` onto another monitor read the
+parameters again. A changed text state applies to a full frame. Rules and measurements are in
+[theme and typography](../UI/UI_ThemeAndTypography.md#text-antialiasing-and-rendering-parameters).
+
 A control Tick result requests continued scheduling, independently of pixel invalidation. The native animation
 dispatcher does not invalidate the window merely because a control needs another tick. Controls explicitly
 invalidate visual changes, including completion; focused editors repaint when the caret blink phase changes.

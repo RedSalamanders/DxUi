@@ -48,6 +48,10 @@ This follows the [device-context model](https://learn.microsoft.com/en-us/window
 and [DXGI interoperability](https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-and-direct3d-interoperation-overview).
 No CPU readback/upload round trip is permitted in production rendering. Test premultiplied alpha, target format,
 text antialiasing and D2D/D3D ordering. End preparation before composition and rebind the application's pipeline state.
+Embedded text is grayscale on the premultiplied surface whatever the font-smoothing setting. The view binds no DirectWrite
+rendering parameters unless the application supplies its monitor through `SetTextRenderingMonitor`; then the next
+preparation binds that monitor's parameters and repaints, and steady preparations bind nothing
+([theme and typography](../UI/UI_ThemeAndTypography.md#text-antialiasing-and-rendering-parameters)).
 Preparing a changed surface mutates the borrowed immediate context, including clearing PS shader-resource slot 0
 and output-merger render targets before D2D work. Preparation does not preserve application bindings; pipeline
 mutation is not limited to Composite. The application rebinds its state before its next draw.
