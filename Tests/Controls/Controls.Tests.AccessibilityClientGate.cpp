@@ -244,6 +244,7 @@ void TestAccessibilityClientGateAdviseCoversWindowScopedSubscriptions()
 namespace
 {
 constexpr std::wstring_view kSubscriberChildPrefix = L"--uia-subscriber-child=";
+constexpr std::wstring_view kQueryChildPrefix      = L"--uia-query-child=";
 
 [[nodiscard]] std::optional<uintptr_t> ParseDecimal(std::wstring_view digits) noexcept
 {
@@ -261,12 +262,17 @@ constexpr std::wstring_view kSubscriberChildPrefix = L"--uia-subscriber-child=";
 } // namespace
 
 // A UI Automation client in a process of its own: it subscribes to an event of the window it is given, signals the event it
-// inherited, and waits to be terminated without unsubscribing, as a client that crashes does.
+// inherited, and waits to be terminated without unsubscribing, as a client that crashes does. With the query prefix it only
+// reads the window's elements (no subscription), then signals and waits.
 int RunAccessibilityClientGateSubscriberChild(int argc, wchar_t** argv) noexcept
 {
-    if (argc != 2 || ! argv[1] || std::wstring_view(argv[1]).rfind(kSubscriberChildPrefix, 0) != 0)
+    if (argc != 2 || ! argv[1])
         return -1;
-    const std::wstring_view arguments = std::wstring_view(argv[1]).substr(kSubscriberChildPrefix.size());
+    const std::wstring_view argument = argv[1];
+    const bool queryOnly             = argument.rfind(kQueryChildPrefix, 0) == 0;
+    if (! queryOnly && argument.rfind(kSubscriberChildPrefix, 0) != 0)
+        return -1;
+    const std::wstring_view arguments = argument.substr(queryOnly ? kQueryChildPrefix.size() : kSubscriberChildPrefix.size());
     const size_t comma                = arguments.find(L',');
     const auto window                 = ParseDecimal(arguments.substr(0, comma));
     const auto ready                  = comma == std::wstring_view::npos ? std::nullopt : ParseDecimal(arguments.substr(comma + 1u));
@@ -280,7 +286,24 @@ int RunAccessibilityClientGateSubscriberChild(int argc, wchar_t** argv) noexcept
     HRESULT hr = recorder ? UiaTest::CreateAutomationClient(automation.put()) : E_OUTOFMEMORY;
     if (SUCCEEDED(hr))
         hr = automation->ElementFromHandle(reinterpret_cast<HWND>(*window), element.put());
-    if (SUCCEEDED(hr))
+    if (SUCCEEDED(hr) && queryOnly)
+    {
+        wil::com_ptr_nothrow<IUIAutomationCondition> all;
+        wil::com_ptr_nothrow<IUIAutomationElementArray> found;
+        hr = automation->CreateTrueCondition(all.put());
+        if (SUCCEEDED(hr))
+            hr = element->FindAll(TreeScope_Subtree, all.get(), found.put());
+        int length = 0;
+        if (SUCCEEDED(hr) && found && SUCCEEDED(found->get_Length(&length)))
+            for (int index = 0; index < length; ++index)
+            {
+                wil::com_ptr_nothrow<IUIAutomationElement> item;
+                wil::unique_bstr name;
+                if (SUCCEEDED(found->GetElement(index, item.put())) && item)
+                    static_cast<void>(item->get_CurrentName(name.put()));
+            }
+    }
+    else if (SUCCEEDED(hr))
         hr = automation->AddAutomationEventHandler(UIA_Invoke_InvokedEventId, element.get(), TreeScope_Subtree, nullptr, recorder.get());
     if (FAILED(hr))
         return 3;
@@ -1133,4 +1156,510 @@ void TestAccessibilityClientGateMsaaClientCountsAsListener()
     window.PumpMessages();
     std::cerr << "    [msaa] after an MSAA client object request, the mutation built " << (Builds() - before) << " snapshot(s)\n";
     Require(Builds() > before, "a window an MSAA client asked for its client object publishes its mutations for it");
+}
+
+namespace
+{
+[[nodiscard]] bool HeardFrom(UiaTest::Client& client, size_t mark, std::wstring_view name, UiaTest::EventKind kind, long id, std::wstring_view value = {})
+{
+    return client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                            [&]
+    {
+        for (const auto& event : client.DistinctSince(mark))
+            if (event.kind == kind && event.id == id && event.name == name && (value.empty() || event.value == value))
+                return true;
+        return false;
+    });
+}
+
+// Reads a provider's string value on a thread of its own while the window thread pumps, as a client in another process does.
+[[nodiscard]] std::wstring ReadOnAnotherThread(AttachedHostWindow& window, IRawElementProviderSimple& provider, PROPERTYID property)
+{
+    std::wstring value;
+    std::atomic<bool> done{false};
+    std::thread reader([&]() noexcept
+    {
+        VARIANT read{};
+        if (SUCCEEDED(provider.GetPropertyValue(property, &read)) && read.vt == VT_BSTR && read.bstrVal)
+            value.assign(read.bstrVal, SysStringLen(read.bstrVal));
+        VariantClear(&read);
+        done.store(true);
+    });
+    while (! done.load())
+    {
+        window.PumpMessages();
+        static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, 5u, QS_ALLINPUT, MWMO_INPUTAVAILABLE));
+    }
+    reader.join();
+    return value;
+}
+
+// A single-field window whose element stands for the field, published once by a window-thread query.
+struct SingleFieldWindow final
+{
+    SingleFieldWindow()
+    {
+        auto control = std::make_unique<DxUi::TextField>(L"before");
+        field        = control.get();
+        field->SetBounds(D2D1::RectF(0, 0, 240, 28));
+        window.Host().SetRoot(std::move(control));
+        root.attach(DxUi::CreateWindowHostAccessibilityProvider(window.Hwnd()));
+        Require(root && SUCCEEDED(root.query_to(simple.put())), "the single field's window element");
+        Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "initial value") == L"before", "the window publishes the field");
+        window.PumpMessages();
+    }
+    SingleFieldWindow(const SingleFieldWindow&)            = delete;
+    SingleFieldWindow& operator=(const SingleFieldWindow&) = delete;
+    SingleFieldWindow(SingleFieldWindow&&)                 = delete;
+    SingleFieldWindow& operator=(SingleFieldWindow&&)      = delete;
+    ~SingleFieldWindow()                                   = default;
+
+    AttachedHostWindow window;
+    DxUi::TextField* field = nullptr;
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+};
+} // namespace
+
+// A window host: nobody listens while the first field changes to "y" and the focus moves to the second; a client then
+// subscribes, and only then reads that; the user changes both back. The client hears the value, the text change and the
+// focus return: the publication its query made shows only unheard changes, so the event baseline caught up with it.
+void TestAccessibilityClientGateSubscribedThenQueriedStateIsTheBaselineOfLaterEvents()
+{
+    const SystemListeners nobody(false);
+    AttachedHostWindow window;
+    TwoFields fields;
+    fields.Build(window.Host());
+    window.PumpMessages();
+    UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
+    const UiaTest::ElementId root = client.Root();
+    fields.first->SetText(L"y");
+    window.Host().SetFocusControl(fields.second, false);
+    window.PumpMessages();
+    SubscribeToFieldChanges(client);
+    Require(client.WaitUntil(3000u, [&] { return DxUi::DebugGetAccessibilityEventListenerCountForTest(window.Hwnd()) != 0u; }), "the subscription is advised");
+    const UiaTest::ElementId first  = FindNamed(client, root, L"First");
+    const UiaTest::ElementId second = FindNamed(client, root, L"Second");
+    Require(first != 0u && second != 0u, "the subscribed client finds both fields");
+    Require(client.StringProperty(first, UIA_ValueValuePropertyId) == L"y", "the subscribed client reads the unheard value");
+    Require(client.Describe(second).hasKeyboardFocus, "the subscribed client reads the unheard focus move");
+    static_cast<void>(client.WaitOutTheStream());
+    const size_t mark = client.Mark();
+    fields.first->SetText(L"x");
+    window.Host().SetFocusControl(fields.first, false);
+    window.PumpMessages();
+    Require(HeardFromFirst(client, mark, UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"x"), "the client hears the value change back");
+    Require(HeardFromFirst(client, mark, UiaTest::EventKind::Automation, UIA_Text_TextChangedEventId), "the client hears the text change back");
+    Require(HeardFromFirst(client, mark, UiaTest::EventKind::Property, UIA_HasKeyboardFocusPropertyId, L"true"), "the client hears the focus return");
+}
+
+// A mixed batch: an unheard change, then a client subscribes, then a heard change, then a query, all before the drain. The
+// query's publication must not swallow the heard change: the drain raises it (the unheard one too), and later changes follow.
+void TestAccessibilityClientGateMixedBatchKeepsTheHeardChange()
+{
+    const SystemListeners nobody(false);
+    AttachedHostWindow window;
+    TwoFields fields;
+    fields.Build(window.Host());
+    window.PumpMessages();
+    UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
+    const UiaTest::ElementId root = client.Root();
+    fields.first->SetText(L"y"); // Unheard.
+    SubscribeToFieldChanges(client);
+    Require(client.WaitUntil(3000u, [&] { return DxUi::DebugGetAccessibilityEventListenerCountForTest(window.Hwnd()) != 0u; }), "the subscription is advised");
+    static_cast<void>(client.WaitOutTheStream());
+    const size_t mark = client.Mark();
+    fields.second->SetText(L"z"); // Heard: the drain is posted, not yet run.
+    const UiaTest::ElementId first = FindNamed(client, root, L"First");
+    Require(first != 0u && client.StringProperty(first, UIA_ValueValuePropertyId) == L"y", "the query reads the batch");
+    Require(HeardFrom(client, mark, L"Second", UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"z"), "the client hears the heard change of the batch");
+    const size_t later = client.Mark();
+    fields.first->SetText(L"x");
+    window.PumpMessages();
+    Require(HeardFromFirst(client, later, UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"x"), "and the change after it");
+}
+
+// An embedded view: an update deferred while nobody listened, then a client subscribes (a listener on the desktop) and
+// queries, which builds the deferred update and raises its delta; the change back is heard at the next update.
+void TestAccessibilityClientGateEmbeddedSubscribedThenQueriedStateIsTheBaselineOfLaterEvents()
+{
+    RunEmbeddedGateCase("run the embedded subscribe-then-query case",
+                        [](DxUi::EmbeddedHost& view)
+    {
+        const SystemListeners nobody(false);
+        TwoFields fields;
+        fields.Build(view.Controls());
+        constexpr UINT kWidth = 320u, kHeight = 200u;
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the embedded fields");
+        EmbeddedUiaTest::Bridge bridge(view, kWidth, kHeight);
+        RequireSucceeded(bridge.Attach(true, 0x46583605ull), "attach the embedded fields' accessibility");
+        fields.first->SetText(L"y");
+        view.Controls().SetFocusControl(fields.second, false);
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the unheard change");
+        Require(bridge.Update() == S_OK, "the unheard update is recorded");
+        UiaTest::Client client(bridge.Hwnd(), {}, [&bridge] { bridge.Pump(); });
+        SubscribeToFieldChanges(client);
+        const SystemListeners listening(true);
+        const UiaTest::ElementId root  = client.Root();
+        const UiaTest::ElementId first = FindNamed(client, root, L"First");
+        Require(first != 0u && client.StringProperty(first, UIA_ValueValuePropertyId) == L"y", "the subscribed client reads the unheard value");
+        static_cast<void>(client.WaitOutTheStream());
+        const size_t mark = client.Mark();
+        fields.first->SetText(L"x");
+        view.Controls().SetFocusControl(fields.first, false);
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the change back");
+        Require(bridge.Update() == S_OK, "the listening update publishes the change back");
+        Require(HeardFromFirst(client, mark, UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"x"), "the embedded client hears the value change back");
+        Require(HeardFromFirst(client, mark, UiaTest::EventKind::Automation, UIA_Text_TextChangedEventId), "the embedded client hears the text change back");
+        Require(HeardFromFirst(client, mark, UiaTest::EventKind::Focus, 0), "the embedded client hears the focus return");
+    });
+}
+
+// The embedded mixed batch: a deferred unheard change, then a listener, then a heard change before any update, then a query.
+void TestAccessibilityClientGateEmbeddedMixedBatchKeepsTheHeardChange()
+{
+    RunEmbeddedGateCase("run the embedded mixed-batch case",
+                        [](DxUi::EmbeddedHost& view)
+    {
+        const SystemListeners nobody(false);
+        TwoFields fields;
+        fields.Build(view.Controls());
+        constexpr UINT kWidth = 320u, kHeight = 200u;
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the embedded fields");
+        EmbeddedUiaTest::Bridge bridge(view, kWidth, kHeight);
+        RequireSucceeded(bridge.Attach(true, 0x46583606ull), "attach the embedded fields' accessibility");
+        fields.first->SetText(L"y");
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the unheard change");
+        Require(bridge.Update() == S_OK, "the unheard update is recorded");
+        UiaTest::Client client(bridge.Hwnd(), {}, [&bridge] { bridge.Pump(); });
+        SubscribeToFieldChanges(client);
+        const SystemListeners listening(true);
+        static_cast<void>(client.WaitOutTheStream());
+        const size_t mark = client.Mark();
+        fields.second->SetText(L"z"); // Heard, before any update.
+        const UiaTest::ElementId first = FindNamed(client, client.Root(), L"First");
+        Require(first != 0u && client.StringProperty(first, UIA_ValueValuePropertyId) == L"y", "the query reads the batch");
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the heard change");
+        static_cast<void>(bridge.Update());
+        Require(HeardFrom(client, mark, L"Second", UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"z"), "the embedded client hears the heard change");
+    });
+}
+
+// A publication request that fails (the window thread's flush cannot publish) is released: the next query asks again and
+// reads the current state, with no further mutation.
+void TestAccessibilityClientGateFailedPublicationRequestIsRetried()
+{
+    const SystemListeners nobody(false);
+    SingleFieldWindow single;
+    single.field->SetText(L"after");
+    DxUi::DebugFailNextAccessibilityPublicationsForTest(1u);
+    const uint64_t requests   = DxUi::DebugGetAccessibilityQueryPublicationRequestCountForTest();
+    const std::wstring first  = ReadOnAnotherThread(single.window, *single.simple.get(), UIA_ValueValuePropertyId);
+    const std::wstring second = ReadOnAnotherThread(single.window, *single.simple.get(), UIA_ValueValuePropertyId);
+    std::cerr << "    [failed request] first read '" << (first == L"after" ? "after" : "before") << "', second '" << (second == L"after" ? "after" : "before")
+              << "', requests " << (DxUi::DebugGetAccessibilityQueryPublicationRequestCountForTest() - requests) << '\n';
+    Require(DxUi::DebugGetAccessibilityQueryPublicationRequestCountForTest() >= requests + 2u, "the failed request is released and asked again");
+    Require(second == L"after", "a query after a failed publication reads the current state without another mutation");
+}
+
+// A window thread that stops turning long enough for the system to take the window for hung drops a sent request: it is
+// posted instead, and once the thread turns again a query reads the current state without another mutation.
+void TestAccessibilityClientGateRequestToAHungWindowIsPosted()
+{
+    const SystemListeners nobody(false);
+    SingleFieldWindow single;
+    single.field->SetText(L"after");
+    Sleep(5600u); // The window thread does not turn: past the system's five seconds, the window counts as hung.
+    std::wstring during;
+    ULONGLONG waited = 0u;
+    std::thread reader([&]() noexcept
+    {
+        const ULONGLONG started = GetTickCount64();
+        VARIANT read{};
+        if (SUCCEEDED(single.simple->GetPropertyValue(UIA_ValueValuePropertyId, &read)) && read.vt == VT_BSTR && read.bstrVal)
+            during.assign(read.bstrVal, SysStringLen(read.bstrVal));
+        VariantClear(&read);
+        waited = GetTickCount64() - started;
+    });
+    reader.join();
+    std::cerr << "    [hung window] the query waited " << waited << " ms (hung: " << (IsHungAppWindow(single.window.Hwnd()) != FALSE) << ")\n";
+    Require(during == L"before", "the query of a window that does not turn reads the last complete snapshot");
+    single.window.PumpMessages();
+    Require(ReadOnAnotherThread(single.window, *single.simple.get(), UIA_ValueValuePropertyId) == L"after",
+            "once the window thread turns, a query reads the current state without another mutation");
+}
+
+namespace
+{
+class ManyRowsGridModel final : public DxUi::IGridModel
+{
+public:
+    [[nodiscard]] size_t GetRowCount() const noexcept override
+    {
+        return 200u;
+    }
+    [[nodiscard]] size_t GetColumnCount() const noexcept override
+    {
+        return 1u;
+    }
+    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t) const override
+    {
+        DxUi::GridColumnDesc column;
+        column.id       = L"row";
+        column.title    = L"Row";
+        column.widthDip = 120.0f;
+        return column;
+    }
+    void GetCellData(size_t rowIndex, size_t, DxUi::GridCellData& outCell) const override
+    {
+        outCell.kind = DxUi::GridCellKind::Text;
+        outCell.text = L"Row " + std::to_wstring(rowIndex);
+    }
+    [[nodiscard]] uint64_t GetStableRowId(size_t rowIndex) const noexcept override
+    {
+        return rowIndex + 1u;
+    }
+    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+    {
+        return rowId >= 1u && rowId <= 200u ? std::optional<size_t>(rowId - 1u) : std::nullopt;
+    }
+};
+
+// A splitter drag during which a sibling's bounds change, before the next Prepare: what each embedded query path does then.
+template <typename Query> void RunDragDuringQuery(const char* what, Query query)
+{
+    RunEmbeddedGateCase(what,
+                        [&](DxUi::EmbeddedHost& view)
+    {
+        const SystemListeners nobody(false);
+        constexpr UINT kWidth = 480u, kHeight = 400u;
+        ManyRowsGridModel model;
+        auto root      = std::make_unique<DxUi::Panel>();
+        auto* splitter = root->AddChild<DxUi::Splitter>();
+        splitter->SetBounds(D2D1::RectF(0, 0, 480, 240));
+        splitter->SetMinimumFirstPane(80);
+        splitter->SetMinimumSecondPane(80);
+        splitter->SetPosition(200);
+        splitter->SetAccessibleName(L"Panes");
+        auto* sibling = root->AddChild<DxUi::Slider>();
+        sibling->SetBounds(D2D1::RectF(24, 160, 440, 208));
+        auto* grid = root->AddChild<DxUi::Grid>();
+        grid->SetBounds(D2D1::RectF(0, 248, 480, 400));
+        grid->SetModel(&model);
+        grid->SetAccessibleName(L"Rows");
+        view.Controls().SetRoot(std::move(root));
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the drag fixture");
+        EmbeddedUiaTest::Bridge bridge(view, kWidth, kHeight);
+        RequireSucceeded(bridge.Attach(false, 0x46583607ull), "attach the drag fixture's accessibility");
+        UiaTest::Client client(bridge.Hwnd(), {}, [&bridge] { bridge.Pump(); });
+        const UiaTest::ElementId rows = FindNamed(client, client.Root(), L"Rows");
+        Require(rows != 0u, "the client holds the grid's element");
+        Require(view.DispatchPointer({DxUi::PointerAction::Down, 203, 120}), "the splitter drag starts");
+        Require(view.DispatchPointer({DxUi::PointerAction::Move, 260, 120}), "the splitter drag previews");
+        const float firstPosition = splitter->GetPosition();
+        sibling->SetBounds(D2D1::RectF(24, 168, 440, 216)); // The interaction revision changes.
+        query(view, client, rows);
+        Require(view.Controls().GetCapturedControl() == splitter && splitter->IsDragging(), "the query left the splitter's capture");
+        RequireSucceeded(view.PrepareInteraction(kWidth, kHeight), "the sibling's bounds are acknowledged during the drag");
+        Require(view.DispatchPointer({DxUi::PointerAction::Move, 300, 120}), "the splitter drag continues");
+        Require(splitter->GetPosition() > firstPosition, "the continued drag advances the splitter");
+    });
+}
+} // namespace
+
+// EmbeddedHost::GetAccessibilityProvider during that drag does not cancel it.
+void TestAccessibilityClientGateEmbeddedProviderRequestDoesNotCancelADrag()
+{
+    RunDragDuringQuery("run the provider-request drag case",
+                       [](DxUi::EmbeddedHost& view, UiaTest::Client&, UiaTest::ElementId)
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
+        const HRESULT hr = view.GetAccessibilityProvider(root.put());
+        Require(hr == S_OK || hr == S_FALSE, "the provider request answers during the drag");
+    });
+}
+
+// A GridPattern.GetItem of an uncached row during that drag does not cancel it.
+void TestAccessibilityClientGateEmbeddedGetItemDoesNotCancelADrag()
+{
+    RunDragDuringQuery("run the GetItem drag case",
+                       [](DxUi::EmbeddedHost&, UiaTest::Client& client, UiaTest::ElementId rows)
+    {
+        const HRESULT hr = client.Perform("GetItem of an uncached row",
+                                          [rows](UiaTest::Session& session) -> HRESULT
+        {
+            IUIAutomationElement* const grid = session.Get(rows);
+            if (! grid)
+                return E_INVALIDARG;
+            wil::com_ptr_nothrow<IUIAutomationGridPattern> pattern;
+            RETURN_IF_FAILED(grid->GetCurrentPatternAs(UIA_GridPatternId, IID_PPV_ARGS(pattern.put())));
+            wil::com_ptr_nothrow<IUIAutomationElement> item;
+            static_cast<void>(pattern->GetItem(150, 0, item.put()));
+            return S_OK;
+        });
+        RequireSucceeded(hr, "the client asks for an uncached row during the drag");
+    });
+}
+
+// A UI Automation client in another process that only queries the window (no subscription) does not make it an MSAA client:
+// nothing keeps the window publishing for it.
+void TestAccessibilityClientGateOutOfProcessQueryOnlyClientIsNoMsaaClient()
+{
+    const SystemListeners nobody(false);
+    TwoFields fields;
+    AttachedHostWindow window;
+    fields.Build(window.Host());
+    window.PumpMessages();
+    const HWND hwnd = window.Hwnd();
+    SECURITY_ATTRIBUTES inheritable{sizeof(inheritable), nullptr, TRUE};
+    wil::unique_event_nothrow ready(CreateEventW(&inheritable, TRUE, FALSE, nullptr));
+    Require(static_cast<bool>(ready), "create the query client's ready event");
+    std::array<wchar_t, MAX_PATH> path{};
+    Require(GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size())) != 0u, "find the test executable");
+    std::wstring commandLine = L"\"" + std::wstring(path.data()) + L"\" " + std::wstring(kQueryChildPrefix) +
+                               std::to_wstring(reinterpret_cast<uintptr_t>(hwnd)) + L"," + std::to_wstring(reinterpret_cast<uintptr_t>(ready.get()));
+    SIZE_T attributeBytes    = 0u;
+    static_cast<void>(InitializeProcThreadAttributeList(nullptr, 1u, 0u, &attributeBytes));
+    std::vector<std::byte> attributeStorage(attributeBytes);
+    auto* attributes = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attributeStorage.data());
+    Require(InitializeProcThreadAttributeList(attributes, 1u, 0u, &attributeBytes) != FALSE, "initialize the query client's attributes");
+    const auto deleteAttributes = wil::scope_exit([&]() noexcept { DeleteProcThreadAttributeList(attributes); });
+    HANDLE inherited            = ready.get();
+    Require(UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &inherited, sizeof(inherited), nullptr, nullptr) != FALSE,
+            "pass only the ready event to the query client");
+    STARTUPINFOEXW startup{};
+    startup.StartupInfo.cb  = sizeof(startup);
+    startup.lpAttributeList = attributes;
+    wil::unique_process_information process;
+    Require(CreateProcessW(nullptr,
+                           commandLine.data(),
+                           nullptr,
+                           nullptr,
+                           TRUE,
+                           CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT,
+                           nullptr,
+                           nullptr,
+                           &startup.StartupInfo,
+                           &process) != FALSE,
+            "start the query client");
+    wil::unique_handle job(CreateJobObjectW(nullptr, nullptr));
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
+    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    Require(job && SetInformationJobObject(job.get(), JobObjectExtendedLimitInformation, &limits, sizeof(limits)) != FALSE &&
+                AssignProcessToJobObject(job.get(), process.hProcess) != FALSE,
+            "tie the query client to this process");
+    const ULONGLONG deadline = GetTickCount64() + 20000u;
+    while (WaitForSingleObject(ready.get(), 0u) != WAIT_OBJECT_0 && GetTickCount64() < deadline)
+    {
+        window.PumpMessages();
+        static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, 5u, QS_ALLINPUT, MWMO_INPUTAVAILABLE));
+    }
+    Require(WaitForSingleObject(ready.get(), 0u) == WAIT_OBJECT_0, "the query client read the window's elements");
+    Require(! DxUi::DebugGetAccessibilityMsaaClientForTest(hwnd), "a UI Automation client that only queries never asks for the MSAA client object");
+    const uint64_t before = Builds();
+    fields.first->SetText(L"after the query client");
+    window.PumpMessages();
+    Require(Builds() == before, "nothing keeps the window publishing for a client that only queried");
+    static_cast<void>(TerminateProcess(process.hProcess, 0u));
+}
+
+// Building when only paint is dirty: a query of a single-line field whose text an input handler changed before the next
+// Prepare reads the new text and text-range rectangles from the field's current layout, inside the field.
+void TestAccessibilityClientGateEmbeddedUnpreparedTextHasCurrentRangeBounds()
+{
+    RunEmbeddedGateCase("run the unprepared text-bounds case",
+                        [](DxUi::EmbeddedHost& view)
+    {
+        const SystemListeners nobody(false);
+        TwoFields fields;
+        fields.Build(view.Controls());
+        constexpr UINT kWidth = 320u, kHeight = 200u;
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the fields");
+        EmbeddedUiaTest::Bridge bridge(view, kWidth, kHeight);
+        RequireSucceeded(bridge.Attach(false, 0x46583608ull), "attach the fields' accessibility");
+        fields.second->SetText(L"other");
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare a deferred frame");
+        Require(bridge.Update() == S_OK, "the frame's update is deferred");
+        fields.first->SetText(L"a considerably longer value typed before the next Prepare");
+        Require(view.NeedsPreparation(), "the view waits for its next Prepare");
+        UiaTest::Client client(bridge.Hwnd(), {}, [&bridge] { bridge.Pump(); });
+        const UiaTest::ElementId first = FindNamed(client, client.Root(), L"First");
+        Require(first != 0u && client.DocumentText(first) == L"a considerably longer value typed before the next Prepare", "the query reads the new text");
+        const UiaTest::ElementInfo info = client.Describe(first);
+        size_t rectangles               = 0u;
+        bool inside                     = true;
+        RequireSucceeded(client.Perform("the document range's rectangles",
+                                        [&](UiaTest::Session& session) -> HRESULT
+        {
+            auto* element = session.Get(first);
+            if (! element)
+                return E_INVALIDARG;
+            wil::com_ptr_nothrow<IUIAutomationTextPattern> pattern;
+            RETURN_IF_FAILED(element->GetCurrentPatternAs(UIA_TextPatternId, IID_PPV_ARGS(pattern.put())));
+            wil::com_ptr_nothrow<IUIAutomationTextRange> range;
+            RETURN_IF_FAILED(pattern->get_DocumentRange(range.put()));
+            SAFEARRAY* raw = nullptr;
+            RETURN_IF_FAILED(range->GetBoundingRectangles(&raw));
+            const auto destroy = wil::scope_exit([&]() noexcept
+            {
+                if (raw)
+                    SafeArrayDestroy(raw);
+            });
+            LONG last          = -1;
+            if (raw)
+                RETURN_IF_FAILED(SafeArrayGetUBound(raw, 1u, &last));
+            rectangles = static_cast<size_t>(last + 1) / 4u;
+            for (LONG index = 0; index + 3 <= last; index += 4)
+            {
+                std::array<double, 4u> box{};
+                for (LONG part = 0; part < 4; ++part)
+                {
+                    LONG at = index + part;
+                    RETURN_IF_FAILED(SafeArrayGetElement(raw, &at, &box[static_cast<size_t>(part)]));
+                }
+                inside = inside && box[0] >= info.boundingRectangle.left - 1 && box[1] >= info.boundingRectangle.top - 1 &&
+                         box[0] + box[2] <= info.boundingRectangle.right + 1 && box[1] + box[3] <= info.boundingRectangle.bottom + 1;
+            }
+            return S_OK;
+        }),
+                         "read the document range's rectangles");
+        std::cerr << "    [unprepared text] " << rectangles << " rectangle(s), inside the field: " << inside << '\n';
+        Require(rectangles != 0u && inside, "the new text's rectangles come from the field's current layout, inside the field");
+    });
+}
+// The same with the query on the window thread (a provider request made there, as the conductor's scenario has it): the
+// window-thread publication of unheard changes made after the client subscribed is the baseline of the change back.
+void TestAccessibilityClientGateSubscribedThenOwnerQueriedStateIsTheBaselineOfLaterEvents()
+{
+    const SystemListeners nobody(false);
+    AttachedHostWindow window;
+    TwoFields fields;
+    fields.Build(window.Host());
+    window.PumpMessages();
+    UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
+    static_cast<void>(client.Root());
+    SubscribeToFieldChanges(client);
+    Require(client.WaitUntil(3000u, [&] { return DxUi::DebugGetAccessibilityEventListenerCountForTest(window.Hwnd()) != 0u; }), "the subscription is advised");
+    static_cast<void>(client.WaitOutTheStream());
+    // Unheard only for the window: take the client away from the gate for the mutation, as a client that subscribed
+    // a moment later would be. The advised count is what keeps the gate open, so the override alone cannot close it.
+    const uint64_t buildsBefore = Builds();
+    Require(DxUi::DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), false), "make the next mutations unheard");
+    fields.first->SetText(L"y");
+    window.Host().SetFocusControl(fields.second, false);
+    Require(DxUi::DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), std::nullopt), "restore the gate's own decision");
+    window.PumpMessages();
+    Require(Builds() == buildsBefore, "the unheard mutations published nothing");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    provider.attach(DxUi::CreateWindowHostAccessibilityProvider(window.Hwnd())); // The window-thread query: it publishes.
+    Require(provider != nullptr && Builds() > buildsBefore, "the window-thread query publishes the unheard changes");
+    window.PumpMessages();
+    static_cast<void>(client.WaitOutTheStream());
+    const size_t mark = client.Mark();
+    fields.first->SetText(L"x");
+    window.Host().SetFocusControl(fields.first, false);
+    window.PumpMessages();
+    Require(HeardFromFirst(client, mark, UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"x"), "the client hears the value change back");
+    Require(HeardFromFirst(client, mark, UiaTest::EventKind::Automation, UIA_Text_TextChangedEventId), "the client hears the text change back");
+    Require(HeardFromFirst(client, mark, UiaTest::EventKind::Property, UIA_HasKeyboardFocusPropertyId, L"true"), "the client hears the focus return");
 }

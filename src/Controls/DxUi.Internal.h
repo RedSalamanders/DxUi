@@ -754,6 +754,10 @@ struct AccessibilityAdviseRecordForTest
 void DebugResetAccessibilityAdviseRecordsForTest() noexcept;
 // The outstanding subscriptions UI Automation advised on `hwnd`'s root provider; the largest uint64_t without a host.
 [[nodiscard]] uint64_t DebugGetAccessibilityEventListenerCountForTest(HWND hwnd) noexcept;
+// Whether an MSAA client asked hwnd for its client object (WM_GETOBJECT with OBJID_CLIENT), which keeps it publishing.
+[[nodiscard]] bool DebugGetAccessibilityMsaaClientForTest(HWND hwnd) noexcept;
+// The calling (owner) thread's next count window-host publications fail with E_FAIL before they build.
+void DebugFailNextAccessibilityPublicationsForTest(uint32_t count) noexcept;
 // Process-wide: what the client gate takes UiaClientsAreListening to answer (another process on a developer's desktop may
 // listen); nullopt asks it again. Advised subscriptions still count, and the events themselves are unchanged.
 void DebugSetAccessibilitySystemListenersForTest(std::optional<bool> listening) noexcept;

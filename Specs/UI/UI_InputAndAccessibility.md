@@ -713,19 +713,26 @@ before it answers, and a query on another thread that finds the snapshot behind 
 publication request and waits at most one second for it (it reads the last complete snapshot when the window thread
 does not answer in time). A client that attaches after unobserved mutations, or holds an element and only queries,
 therefore reads the current controls; a host with no client builds nothing however often it mutates.
-A publication made while the client gate finds no listener (a query's, or a native drain's) moves the event
-baseline with it and drops pending text events: nobody could hear what it changed, and a client that subscribes
-afterwards must hear later changes against what it could read then (a value read as "y" and changed back to "x"
-after the subscription is raised). A query on another thread asks the window thread to publish at most once per
-unpublished revision, whatever the outcome, and never while it holds a target's snapshot mutex, so a window thread
-that is busy for a while costs the queries of one revision one wait in all, and they read the last complete
-snapshot. An MSAA or IAccessible2 client, which asks for the window's client object (`WM_GETOBJECT` with
-`OBJID_CLIENT`) and listens through the WinEvents UI Automation bridges from the host's events, counts as a
-listener of that window for the attachment's lifetime: no advise and, on a desktop where another client already
-listens, no change of `UiaClientsAreListening` shows it (whether a WinEvent hook alone makes
-`UiaClientsAreListening` true could not be measured on the qualification desktop, where it was already true before
-any test client ran). Every decision about which events to compute and raise (embedded focus and selection, native
-selection, focus announcements, structure invalidation, rich semantic states) uses the same gate.
+The event invariant: after every publication the event baseline has caught up with the published snapshot, or the
+posted drain that will make it catch up is queued. A mutation a client could hear marks a heard change pending and
+posts the drain, which raises the whole delta from the baseline (a change recorded while nobody listened is raised
+again with it, redundantly: a redundant event is acceptable, a missing one is not). A publication outside the drain
+(a query's, on the window thread or requested by another thread) with no heard change pending shows only changes made
+while no client could hear them, of which no event is owed, so the baseline catches up with it silently and drops
+pending text events: a client that subscribes before or after such a query hears a later change back. The gate is
+read once for each drain and each embedded update, and that one decision covers the focus, selection, property,
+structure and text events it raises. A query on another thread asks the window thread to publish at most once per
+unpublished revision and never while it holds a target's snapshot mutex; a request that times out, or that
+`SMTO_ABORTIFHUNG` drops for a window the system takes for hung, is posted instead and stays in flight, so the window
+publishes once its thread turns again and other queries of that revision read the last complete snapshot at once; a
+request whose publication fails, or that cannot be posted, is released, so the next query asks again. An MSAA or
+IAccessible2 client, which asks for the window's client object (`WM_GETOBJECT` with `OBJID_CLIENT`) and listens through
+WinEvents, counts as a listener of that window for the attachment's lifetime: no advise and, on a desktop where
+another client already listens, no change of `UiaClientsAreListening` reveals it, and whether a WinEvent hook alone
+makes `UiaClientsAreListening` true could not be measured on the qualification desktop, where it was already true
+before any test client ran. A UI Automation client, in this process or another, that only queries never sends that
+object id; on a desktop where other software requests a window's MSAA client object, the gate stays open for that
+window.
 Without a listening client, mutations remain dirty without loading a snapshot, resolving focus paths or posting a
 new flush. Existing queued publication is preserved; a later query resolves the latest revision.
 An internal diagnostics override is scoped to the owning thread, HWND and attachment cookie and changes only the
@@ -1307,12 +1314,18 @@ nothing, however often the application calls it. UI Automation advises an embedd
 application's window element is the fragment root UI Automation sees), so for a view the gate is
 `UiaClientsAreListening`. The published snapshot and the placement its providers compare stay together until a
 build. A query, which reaches the providers on the application's STA, builds the recorded update when the view's
-geometry is still the prepared one, checked without side effects (a query never cancels a pointer gesture): a
+geometry is still the prepared one, checked without side effects (no query path cancels a pointer gesture: the deferred
+build, GetItem materialization and `GetAccessibilityProvider` all use the side-effect-free check; only the application's
+own UpdateAccessibility, Prepare and input calls apply the cancelling one): a
 paint-only change since, such as a value an input handler set before the next Prepare, is read as it is now, as
-Grid row materialization already reads it. A query that finds the tree or bounds changed since reads the last built
+Grid row materialization already reads it. Text-range and row rectangles are not stored with the build: each query
+computes them on the owner thread from the controls' current layout, so such a build pairs no value with unprepared
+geometry (`TestAccessibilityClientGateEmbeddedUnpreparedTextHasCurrentRangeBounds`). A query that finds the tree or bounds changed since reads the last built
 snapshot and makes the next update build; a query that met a deferred update also makes the next 120 changed updates
 build as they come, so a client that keeps querying reads at worst the previous frame, as before the gate. A
-publication no client could hear moves the event baseline with it. The first update (attachment) always builds. An
+query's build of a deferred update keeps the event invariant: with no listener the baseline catches up silently, with
+one the delta from the baseline is raised at once. A GetItem materialization that finds an update still deferred builds
+it at that update's placement. The first update (attachment) always builds. An
 update that builds while a client listens raises everything that changed since the event baseline. Residual: the
 first query after a quiet spell that arrives while the tree or bounds changed and before the next Prepare reads the
 last built snapshot, which can be older than the last update. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no

@@ -12135,6 +12135,17 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityClientGateBusyWindowThreadCostsOneWaitPerRevision);
     DXUI_RUN_TEST(TestAccessibilityClientGateAdvisedClientHearsSelectionEvents);
     DXUI_RUN_TEST(TestAccessibilityClientGateMsaaClientCountsAsListener);
+    DXUI_RUN_TEST(TestAccessibilityClientGateSubscribedThenQueriedStateIsTheBaselineOfLaterEvents);
+    DXUI_RUN_TEST(TestAccessibilityClientGateMixedBatchKeepsTheHeardChange);
+    DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedSubscribedThenQueriedStateIsTheBaselineOfLaterEvents);
+    DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedMixedBatchKeepsTheHeardChange);
+    DXUI_RUN_TEST(TestAccessibilityClientGateFailedPublicationRequestIsRetried);
+    DXUI_RUN_TEST(TestAccessibilityClientGateRequestToAHungWindowIsPosted);
+    DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedProviderRequestDoesNotCancelADrag);
+    DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedGetItemDoesNotCancelADrag);
+    DXUI_RUN_TEST(TestAccessibilityClientGateOutOfProcessQueryOnlyClientIsNoMsaaClient);
+    DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedUnpreparedTextHasCurrentRangeBounds);
+    DXUI_RUN_TEST(TestAccessibilityClientGateSubscribedThenOwnerQueriedStateIsTheBaselineOfLaterEvents);
     DXUI_RUN_TEST(TestAccessibilityInterestedMutationsBoundFocusedPathResolution);
     DXUI_RUN_TEST(TestAccessibilityTextEventsUseIndexedOwnerValidation);
     DXUI_RUN_TEST(TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath);

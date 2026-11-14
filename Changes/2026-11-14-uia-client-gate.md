@@ -16,3 +16,8 @@
   input handler set before the next Prepare, keeps snapshot and placement consistent, never cancels a pointer gesture,
   and keeps updates building for a client that keeps querying; one gate decides every event computation; a window an
   MSAA client asked for its client object counts as a listener.
+  Second review: the event baseline now catches up with every publication outside the drain that shows only unheard
+  changes (a client that subscribes and then queries hears a later change back), otherwise the queued drain raises the
+  whole delta; a publication request that times out or is dropped for a hung window is posted, and one whose publication
+  fails is released and asked again; GetAccessibilityProvider and GetItem materialization no longer cancel a pointer
+  gesture; each drain and embedded update reads the gate once.
