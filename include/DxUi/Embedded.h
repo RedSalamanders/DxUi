@@ -261,6 +261,8 @@ private:
     [[nodiscard]] bool InputIsCoherent(bool allowDirty) noexcept;
     // InputIsCoherent(true) without its side effects: visible, coherent, and no interaction change since preparation.
     [[nodiscard]] bool PreparedGeometryIsCurrent() const noexcept;
+    // GetStatistics().preparations without its retained-resource walk of the tree, for per-frame internal callers.
+    [[nodiscard]] uint64_t PreparationCount() const noexcept;
     [[nodiscard]] bool TextInputIsAvailable() noexcept;
     // Keys and characters reach the focused control, which PruneStaleInteractionState keeps current.
     // They hit-test nothing, so geometry the next preparation will move cannot make them stale: a hidden, suspended or

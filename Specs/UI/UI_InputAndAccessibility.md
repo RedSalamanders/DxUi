@@ -720,8 +720,13 @@ which hangs below the application's window element, was advised of nothing):
 | Automation, property-changed, structure-changed, TextEdit, notification, active-text-position events and event-handler groups scoped to the window or one of its elements (element, children, descendants or subtree) | Yes, with the event id and property ids; removal advised too, also when the client process is terminated |
 | Any subscription scoped to the desktop root (how a screen reader subscribes), also for a window discovered later | No |
 | `AddFocusChangedEventHandler` | No |
-An internal diagnostics override is scoped to the owning thread, HWND and attachment cookie and changes only the
-mutation-interest decision, never provider-query freshness, other hosts or global listener state. These
+
+Two diagnostics overrides exist; `DXUI_ENABLE_DIAGNOSTICS` is set in every configuration, Release included, so both are
+compiled into shipping builds and reached only through the internal `Debug...ForTest` functions. The mutation-interest
+override is scoped to the owning thread, HWND and attachment cookie and changes only that host's mutation-interest decision,
+never provider-query freshness or other hosts. The system-listener override is process-wide: it stands for the answer of
+`UiaClientsAreListening` in the build gate of every host of the process (events are still raised on the system's own
+answer); nothing else sets it. These
 native scheduling rules do not change embedded hosting: the application still calls
 `UpdateAccessibility` after coherent preparation, placement or focus changes. A
 focus-changed callback that removes the control it was told about leaves no control focused. A control disabled, hidden
@@ -1308,9 +1313,17 @@ listening client, a changed update after the first (attaching) one only records 
 request, since an application's bridge does that at attachment; a call of one of its methods is. The first request builds
 the recorded update when the view's geometry is still that of its last preparation at the recorded size (a paint-only
 change since is read as it is now, as Grid row materialization reads it). That snapshot becomes the event baseline: with no
-listener silently, since nobody had asked or listened; with a listener the delta from the baseline is raised then (a
-change recorded unheard is raised too, redundantly). A first request that finds the tree or bounds changed since keeps the
-snapshot last built, and the next update builds. From the first request on, every changed update builds and raises exactly
+listener silently, since nobody had asked or listened. With a listener the request leaves the baseline in place and the next
+UpdateAccessibility, even an otherwise unchanged one, first raises once the delta from the baseline to the snapshot the
+request published (a change recorded unheard is raised too, redundantly), then, from that snapshot, its own changes, so a
+client that read a state and then sees it changed back hears both: an embedded view raises events only from UpdateAccessibility, never on the stack of a provider call. Elements
+the view creates for its own events while UpdateAccessibility raises them are not a request. A first request that finds the
+tree or bounds changed since, or the view resized and not yet updated, cannot build the recorded update, because there is no
+prepared geometry at the recorded placement: it serves the snapshot last built, which can be the one built at attachment and
+so much older than the previous frame that an update built before the gate, until the next accepted update builds the
+current tree and raises the delta. GetItem materialization refuses meanwhile. Detaching and attaching again starts
+unrequested; dropping the retained snapshot (memory pressure) does not reset the request, so a client that asked keeps the
+view building, and the next update builds a tree again. From the first request on, every changed update builds and raises exactly
 as before the gate. No query path cancels a pointer gesture: the first-request build, GetItem materialization (which
 refuses while an update is still recorded) and GetAccessibilityProvider use a check without side effects; only the
 application's own UpdateAccessibility, Prepare and input calls apply the cancelling one. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no

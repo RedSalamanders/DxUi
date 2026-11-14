@@ -1226,6 +1226,12 @@ struct WindowHostAccessibilityTarget final
     // RequestEmbeddedAccessibility.
     bool embeddedRequested           = false;
     bool embeddedPublicationDeferred = false;
+    // A first request built a recorded update while a client listened: the next UpdateAccessibility raises the delta from
+    // the event baseline, which the request left in place, even when that update is otherwise unchanged. Events are raised
+    // only from UpdateAccessibility, never on the stack of a provider call.
+    bool embeddedRaisePending = false;
+    // UpdateAccessibility is raising: the elements its events create are not a client's request.
+    bool embeddedRaising = false;
     EmbeddedAccessibilityPlacement deferredPlacement{};
     std::shared_ptr<const AccessibilitySnapshot> eventBaseline;
     std::optional<EmbeddedAccessibilityAccess::FocusMoveReporter> pendingFocusReporter;
@@ -1632,18 +1638,15 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     return InvokeNativeUia(UiaClientsAreListening) != FALSE;
 }
 
-void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
-                                       const std::shared_ptr<const AccessibilitySnapshot>& previous,
-                                       const WindowHostSnapshotChanges& changes) noexcept;
-
 // An embedded view's first provider call latches it as requested for the attachment, and builds the update its last changed
 // UpdateAccessibility only recorded, when the view's geometry is still prepared at that update's placement (a pure check: a
-// query never cancels a gesture). That snapshot becomes the event baseline silently: nobody had asked or listened, so no
-// event of it is owed (with a listener, the delta is raised then). A view whose geometry changed since keeps the last built snapshot, which `placement`
-// describes; the next update builds, since the view is now requested.
+// query never cancels a gesture). Without a listener that snapshot becomes the event baseline silently: nobody had asked or
+// listened, so no event of it is owed; with one the baseline stays and the next update raises the delta. A view whose
+// geometry changed since keeps the last built snapshot, which `placement` describes; the next update builds, since the view
+// is now requested. Element creation while UpdateAccessibility raises is not a request.
 void RequestEmbeddedAccessibility(WindowHostAccessibilityTarget& target) noexcept
 {
-    if (! target.embedded || target.threadId != GetCurrentThreadId() || ! target.embeddedOwner)
+    if (! target.embedded || target.threadId != GetCurrentThreadId() || ! target.embeddedOwner || target.embeddedRaising)
         return;
     target.embeddedRequested = true;
     if (! target.embeddedPublicationDeferred || target.publishing ||
@@ -1668,11 +1671,12 @@ void RequestEmbeddedAccessibility(WindowHostAccessibilityTarget& target) noexcep
         }
         target.embeddedPublicationDeferred = false;
         // The build reads the controls as they are now, which may include a change made after a client began to listen: with
-        // a listener, the delta from the baseline is raised now (what was recorded unheard is raised too, redundantly);
-        // without one, nothing is owed and the baseline moves silently.
-        auto previous = std::exchange(target.eventBaseline, current);
-        if (previous && SystemClientsAreListening())
-            RaiseAccessibilitySnapshotChanges(target, previous, changes);
+        // a listener, the baseline stays and the next UpdateAccessibility raises the delta (what was recorded unheard is raised
+        // too, redundantly), not this provider call; without one, nothing is owed and the baseline moves silently.
+        if (SystemClientsAreListening())
+            target.embeddedRaisePending = true;
+        else
+            target.eventBaseline = current;
     }
     catch (const std::bad_alloc&)
     {
@@ -15101,14 +15105,50 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
         return S_FALSE;
     if (std::abs(box.width - _host._widthPx) > 0.01 || std::abs(box.height - _host._heightPx) > 0.01)
         return E_INVALIDARG;
-    const auto preparation  = GetStatistics().preparations;
-    const auto& latest      = target->embeddedPublicationDeferred ? target->deferredPlacement : target->placement;
-    const auto& previousBox = latest.viewport;
-    if (target->snapshot.load(std::memory_order_acquire) && target->preparation == preparation && previousBox.left == box.left && previousBox.top == box.top &&
-        previousBox.width == box.width && previousBox.height == box.height && latest.hasKeyboardFocus == placement.hasKeyboardFocus)
-        return S_FALSE;
+    const auto preparation = PreparationCount(); // Not GetStatistics(): it walks the whole tree.
+    // Raises the events of target's snapshot against `previous` with the changes the publish computed. A client callback during
+    // the raise may disconnect the target: the reference kept here lets the caller read whether it is still this view's.
+    const auto raise = [this](WindowHostAccessibilityTarget& raised,
+                              const std::shared_ptr<const AccessibilitySnapshot>& previous,
+                              const WindowHostSnapshotChanges& changes) noexcept
+    {
+        static_cast<void>(raised.AddRef());
+        raised.embeddedRaising = true;
+        RaiseAccessibilitySnapshotChanges(raised, previous, changes);
+        raised.embeddedRaising = false;
+        const bool attached    = EmbeddedAccessibilityAccess::Target(_host) == &raised;
+        static_cast<void>(raised.Release());
+        return attached;
+    };
     try
     {
+        // A first request built a recorded update while a client listened and raised nothing on its provider call's stack:
+        // the events it owes, from the event baseline to the snapshot it published, are raised here, before anything else.
+        bool raisedOwed = false;
+        if (std::exchange(target->embeddedRaisePending, false))
+        {
+            const auto published = target->snapshot.load(std::memory_order_acquire);
+            const auto baseline  = target->eventBaseline;
+            if (published && published->alive && baseline && baseline->alive && published != baseline)
+            {
+                WindowHostSnapshotChanges owed{};
+                if (baseline->hasRetainedRoot && InvokeNativeUia(UiaClientsAreListening))
+                {
+                    owed.focusMoved = ! SameFocusedElement(*baseline, *published);
+                    owed.selections = CollectSelectionChanges(*baseline, *published);
+                }
+                target->eventBaseline = published;
+                raisedOwed            = true;
+                if (! raise(*target, baseline, owed))
+                    return S_OK;
+            }
+        }
+        const auto& latest      = target->embeddedPublicationDeferred ? target->deferredPlacement : target->placement;
+        const auto& previousBox = latest.viewport;
+        if (target->snapshot.load(std::memory_order_acquire) && target->preparation == preparation && previousBox.left == box.left &&
+            previousBox.top == box.top && previousBox.width == box.width && previousBox.height == box.height &&
+            latest.hasKeyboardFocus == placement.hasKeyboardFocus)
+            return raisedOwed ? S_OK : S_FALSE;
         // Until a client requests a provider of this view, and while no client of the desktop listens, a changed update only
         // records its preparation and placement: no snapshot is built. The first update (attachment) builds, and so does an
         // update after a dropped snapshot, so a query never meets an empty tree.
@@ -15131,7 +15171,7 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
         target->preparation = preparation;
         // Before raising: a client callback during the raise may disconnect and destroy the target.
         target->eventBaseline = target->snapshot.load(std::memory_order_acquire);
-        RaiseAccessibilitySnapshotChanges(*target, previous, changes);
+        static_cast<void>(raise(*target, previous, changes));
         return S_OK;
     }
     catch (const std::bad_alloc&)

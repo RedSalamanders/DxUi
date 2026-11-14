@@ -236,7 +236,8 @@ accessibility, and a reserved memory group. A new counter is one line in its gro
 snapshot, delta and receipt.
 
 - **Frame and walks.** `paintExecutions` counts each control whose `Paint` a host, `Panel` or `PageHost` dispatched;
-  `treeVisitsPaint`, `treeVisitsTick` and `treeVisitsHitTest` count each control such a walk examined, visible or not.
+  `treeVisitsPaint`, `treeVisitsTick`, `treeVisitsHitTest` and `treeVisitsStatistics` (the retained-resource walk of
+  `EmbeddedHost::GetStatistics`) count each control such a walk examined, visible or not.
   `preparations` and `composites` count embedded preparations that painted and compositions; `renders` and `presents`
   count native render passes and swap-chain presents; `pixelsPainted` adds the device pixels a preparation or render
   cleared and repainted (the dirty rectangle of a partial native frame). `drawCalls` counts Direct2D draw calls (every

@@ -1792,6 +1792,7 @@ struct RetainedResourceAccess final
     }
     static void Add(EmbeddedStatistics& stats, const Control& control) noexcept
     {
+        ++Detail::Work().frame.treeVisitsStatistics;
         if (const auto* label = dynamic_cast<const Label*>(&control))
             AddLayout(stats, label->_typographyLayout.get(), label->_text.size());
         else if (const auto* button = dynamic_cast<const Button*>(&control))
@@ -1823,6 +1824,10 @@ struct RetainedResourceAccess final
         AddLayout(stats, tooltip._layoutCache.layout.get(), tooltip._text.size());
     }
 };
+uint64_t EmbeddedHost::PreparationCount() const noexcept
+{
+    return _state ? _state->stats.preparations : 0u;
+}
 EmbeddedStatistics EmbeddedHost::GetStatistics() const noexcept
 {
     if (! _state)

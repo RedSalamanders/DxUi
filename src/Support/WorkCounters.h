@@ -16,16 +16,17 @@
 
 // Frames and hosts: what one preparation, render or composition did.
 #define DXUI_WORK_COUNTERS_FRAME(X)                                                                                                                            \
-    X(frame, composites)        /* EmbeddedHost::Composite calls that drew the prepared surface. */                                                            \
-    X(frame, drawCalls)         /* Direct2D draw calls seen by a test executable's counting wrappers; 0 wherever none is installed. */                         \
-    X(frame, paintExecutions)   /* Control::Paint calls dispatched by a host, Panel or PageHost: one per painted control. */                                   \
-    X(frame, pixelsPainted)     /* Device pixels inside the area a preparation or render cleared and repainted. */                                             \
-    X(frame, preparations)      /* EmbeddedHost::Prepare calls that painted the surface. */                                                                    \
-    X(frame, presents)          /* Native swap-chain Present or Present1 calls. */                                                                             \
-    X(frame, renders)           /* Native WindowHost render passes (BeginDraw to EndDraw). */                                                                  \
-    X(frame, treeVisitsHitTest) /* Controls a hit test examined: the root and each child a container offered to it. */                                         \
-    X(frame, treeVisitsPaint)   /* Controls a paint walk examined, visible or not. */                                                                          \
-    X(frame, treeVisitsTick)    /* Controls an animation tick walk examined, visible or not. */
+    X(frame, composites)           /* EmbeddedHost::Composite calls that drew the prepared surface. */                                                         \
+    X(frame, drawCalls)            /* Direct2D draw calls seen by a test executable's counting wrappers; 0 wherever none is installed. */                      \
+    X(frame, paintExecutions)      /* Control::Paint calls dispatched by a host, Panel or PageHost: one per painted control. */                                \
+    X(frame, pixelsPainted)        /* Device pixels inside the area a preparation or render cleared and repainted. */                                          \
+    X(frame, preparations)         /* EmbeddedHost::Prepare calls that painted the surface. */                                                                 \
+    X(frame, presents)             /* Native swap-chain Present or Present1 calls. */                                                                          \
+    X(frame, renders)              /* Native WindowHost render passes (BeginDraw to EndDraw). */                                                               \
+    X(frame, treeVisitsHitTest)    /* Controls a hit test examined: the root and each child a container offered to it. */                                      \
+    X(frame, treeVisitsPaint)      /* Controls a paint walk examined, visible or not. */                                                                       \
+    X(frame, treeVisitsStatistics) /* Controls an EmbeddedHost::GetStatistics retained-resource walk examined. */                                              \
+    X(frame, treeVisitsTick)       /* Controls an animation tick walk examined, visible or not. */
 
 // Wakes by source: each turn DxUi takes on the owner thread because something woke it.
 #define DXUI_WORK_COUNTERS_WAKES(X)                                                                                                                            \

@@ -12125,6 +12125,10 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityClientGateOutOfProcessQueryOnlyClientLatchesTheWindow);
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedUnpreparedTextHasCurrentRangeBounds);
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedFirstRequestBeforePrepareReadsTheLastBuild);
+    DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedFirstRequestRaisesAtTheNextUpdateOnce);
+    DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedListenerBeforeAnyRequestRaisesTheWholeDelta);
+    DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedReattachStartsUnrequested);
+    DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedResizedFirstRequestIsRepairedByTheNextUpdate);
     DXUI_RUN_TEST(TestAccessibilityInterestedMutationsBoundFocusedPathResolution);
     DXUI_RUN_TEST(TestAccessibilityTextEventsUseIndexedOwnerValidation);
     DXUI_RUN_TEST(TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath);

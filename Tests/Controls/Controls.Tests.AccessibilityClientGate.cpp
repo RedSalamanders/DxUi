@@ -429,6 +429,7 @@ void TestAccessibilityClientGateFx6EmbeddedEveryFrameBuildsNothing()
             std::cerr << "    [FX6] embedded, every frame, no client: builds +" << (Builds() - before) << '\n';
             Require(Builds() == before, "FX6 embedded with no client: UpdateAccessibility every frame builds no snapshot (G9)");
             Require(work.Delta().accessibility.snapshotBuilds == 0u, "FX6 embedded with no client: the work counters count no snapshot build");
+            Require(work.Delta().frame.treeVisitsStatistics == 0u, "a recorded update reads its preparation count without walking the tree");
             {
                 UiaTest::Client client(bridge.Hwnd(), {}, [&bridge] { bridge.Pump(); });
                 const UiaTest::ElementId root = client.Root();
@@ -1083,5 +1084,192 @@ void TestAccessibilityClientGateEmbeddedFirstRequestBeforePrepareReadsTheLastBui
         RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the next frame");
         Require(bridge.Update() == S_OK && Builds() == before + 1u, "the next update of the requested view builds");
         Require(client.StringProperty(first, UIA_ValueValuePropertyId) == L"y", "and the client reads the current tree");
+    });
+}
+
+namespace
+{
+[[nodiscard]] size_t PropertyEventsFrom(UiaTest::Client& client, size_t mark, std::wstring_view name, std::wstring_view value)
+{
+    size_t count      = 0u;
+    const auto events = client.Events();
+    for (size_t index = mark; index < events.size(); ++index)
+        if (events[index].kind == UiaTest::EventKind::Property && events[index].name == name && events[index].value == value)
+            ++count;
+    return count;
+}
+
+[[nodiscard]] HRESULT GetGridItem(UiaTest::Client& client, UiaTest::ElementId grid, int row)
+{
+    HRESULT itemResult = E_PENDING;
+    RequireSucceeded(client.Perform("GridPattern.GetItem",
+                                    [&](UiaTest::Session& session) -> HRESULT
+    {
+        IUIAutomationElement* const element = session.Get(grid);
+        if (! element)
+            return E_INVALIDARG;
+        wil::com_ptr_nothrow<IUIAutomationGridPattern> pattern;
+        RETURN_IF_FAILED(element->GetCurrentPatternAs(UIA_GridPatternId, IID_PPV_ARGS(pattern.put())));
+        wil::com_ptr_nothrow<IUIAutomationElement> item;
+        itemResult = pattern->GetItem(row, 0, item.put());
+        if (SUCCEEDED(itemResult) && ! item)
+            itemResult = E_FAIL;
+        return S_OK;
+    }),
+                     "ask the grid for an item");
+    return itemResult;
+}
+} // namespace
+
+// A first request that builds a recorded update while a client listens raises nothing on the stack of that provider call: the
+// next UpdateAccessibility raises the delta, even an otherwise unchanged one, and exactly once.
+void TestAccessibilityClientGateEmbeddedFirstRequestRaisesAtTheNextUpdateOnce()
+{
+    RunEmbeddedGateCase("run the embedded pending-raise case",
+                        [](DxUi::EmbeddedHost& view)
+    {
+        const SystemListeners nobody(false);
+        TwoFields fields;
+        fields.Build(view.Controls());
+        constexpr UINT kWidth = 320u, kHeight = 200u;
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the fields");
+        EmbeddedUiaTest::Bridge bridge(view, kWidth, kHeight);
+        RequireSucceeded(bridge.Attach(false, 0x4658360Aull), "attach the fields' accessibility");
+        fields.first->SetText(L"y");
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the recorded change");
+        Require(bridge.Update() == S_OK, "the change is recorded");
+        const SystemListeners listening(true);
+        UiaTest::Client client(bridge.Hwnd(), {}, [&bridge] { bridge.Pump(); });
+        SubscribeToFieldChanges(client);
+        static_cast<void>(client.WaitOutTheStream());
+        const size_t beforeQuery       = client.Mark();
+        const UiaTest::ElementId first = FindNamed(client, client.Root(), L"First");
+        Require(first != 0u && client.StringProperty(first, UIA_ValueValuePropertyId) == L"y", "the first request builds the recorded update");
+        client.Settle(500u);
+        Require(PropertyEventsFrom(client, beforeQuery, L"First", L"y") == 0u, "the first request raises nothing on the stack of the provider call");
+        Require(bridge.Update() == S_OK, "the next update, otherwise unchanged, raises the pending delta");
+        Require(HeardFromFirst(client, beforeQuery, UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"y"), "the client hears the change then");
+        static_cast<void>(client.WaitOutTheStream());
+        const size_t afterRaise = client.Mark();
+        Require(bridge.Update() == S_FALSE, "the update after it is unchanged again");
+        client.Settle(500u);
+        Require(PropertyEventsFrom(client, afterRaise, L"First", L"y") == 0u, "the pending delta is raised exactly once");
+    });
+}
+
+// A listener that appears before any provider call reaches the view makes the next changed update build and raise the whole
+// delta from the last built snapshot: the change recorded unheard and the new one.
+void TestAccessibilityClientGateEmbeddedListenerBeforeAnyRequestRaisesTheWholeDelta()
+{
+    RunEmbeddedGateCase("run the embedded listener-first case",
+                        [](DxUi::EmbeddedHost& view)
+    {
+        const SystemListeners nobody(false);
+        TwoFields fields;
+        fields.Build(view.Controls());
+        constexpr UINT kWidth = 320u, kHeight = 200u;
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the fields");
+        EmbeddedUiaTest::Bridge bridge(view, kWidth, kHeight);
+        RequireSucceeded(bridge.Attach(false, 0x4658360Bull), "attach the fields' accessibility");
+        fields.first->SetText(L"y");
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the recorded change");
+        Require(bridge.Update() == S_OK, "the change is recorded");
+        UiaTest::Client client(bridge.Hwnd(), {}, [&bridge] { bridge.Pump(); });
+        SubscribeToFieldChanges(client);
+        const SystemListeners listening(true);
+        static_cast<void>(client.WaitOutTheStream());
+        const size_t mark = client.Mark();
+        fields.second->SetText(L"z");
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the heard change");
+        const uint64_t before = Builds();
+        Require(bridge.Update() == S_OK && Builds() == before + 1u, "with a listener the next changed update builds");
+        Require(HeardFromFirst(client, mark, UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"y"), "it raises the change recorded unheard");
+        Require(HeardFrom(client, mark, L"Second", UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"z"), "and the new one");
+    });
+}
+
+// Detaching and attaching again starts unrequested; dropping the retained snapshot keeps the request, and the next update
+// builds a tree again.
+void TestAccessibilityClientGateEmbeddedReattachStartsUnrequested()
+{
+    RunEmbeddedGateCase("run the embedded reattach case",
+                        [](DxUi::EmbeddedHost& view)
+    {
+        const SystemListeners nobody(false);
+        TwoFields fields;
+        fields.Build(view.Controls());
+        constexpr UINT kWidth = 320u, kHeight = 200u;
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the fields");
+        {
+            EmbeddedUiaTest::Bridge bridge(view, kWidth, kHeight);
+            RequireSucceeded(bridge.Attach(false, 0x4658360Cull), "attach the fields' accessibility");
+            {
+                UiaTest::Client client(bridge.Hwnd(), {}, [&bridge] { bridge.Pump(); });
+                Require(FindNamed(client, client.Root(), L"First") != 0u, "a client requests the view");
+            }
+            fields.first->SetText(L"requested");
+            RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare a requested frame");
+            uint64_t before = Builds();
+            Require(bridge.Update() == S_OK && Builds() == before + 1u, "a requested view builds at each changed update");
+            view.DebugDropRetainedStateForTest();
+            fields.first->SetText(L"after the drop");
+            RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare after the drop");
+            before = Builds();
+            Require(bridge.Update() == S_OK && Builds() == before + 1u, "after a drop the next update builds a tree again");
+            fields.first->SetText(L"still requested");
+            RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare another frame");
+            before = Builds();
+            Require(bridge.Update() == S_OK && Builds() == before + 1u, "a drop keeps the request");
+        } // The bridge disconnects the view's accessibility.
+        EmbeddedUiaTest::Bridge again(view, kWidth, kHeight);
+        RequireSucceeded(again.Attach(false, 0x4658360Dull), "attach the view's accessibility again");
+        fields.first->SetText(L"unrequested");
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare a frame of the new attachment");
+        const uint64_t before = Builds();
+        Require(again.Update() == S_OK && Builds() == before, "a new attachment starts unrequested: the changed update builds nothing");
+    });
+}
+
+// A view resized and not yet updated: the first request cannot build the recorded update (no prepared geometry at its
+// placement) and serves the snapshot built at attachment; an uncached-row GetItem refuses; the next accepted update builds
+// the current tree, raises the delta, and GetItem then succeeds.
+void TestAccessibilityClientGateEmbeddedResizedFirstRequestIsRepairedByTheNextUpdate()
+{
+    RunEmbeddedGateCase("run the embedded resize case",
+                        [](DxUi::EmbeddedHost& view)
+    {
+        const SystemListeners nobody(false);
+        constexpr UINT kWidth = 480u, kHeight = 400u, kWiderWidth = 520u;
+        ManyRowsGridModel model;
+        TwoFields fields;
+        fields.Build(view.Controls());
+        auto* grid = static_cast<DxUi::Panel*>(view.Controls().GetRoot())->AddChild<DxUi::Grid>();
+        grid->SetBounds(D2D1::RectF(0, 248, 480, 400));
+        grid->SetModel(&model);
+        grid->SetAccessibleName(L"Rows");
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the view");
+        EmbeddedUiaTest::Bridge bridge(view, kWidth, kHeight);
+        RequireSucceeded(bridge.Attach(false, 0x4658360Eull), "attach the view's accessibility");
+        fields.first->SetText(L"y");
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the recorded change");
+        Require(bridge.Update() == S_OK, "the change is recorded");
+        RequireSucceeded(view.Prepare(kWiderWidth, kHeight, 96.0f), "resize the view without an update");
+        UiaTest::Client client(bridge.Hwnd(), {}, [&bridge] { bridge.Pump(); });
+        SubscribeToFieldChanges(client);
+        const UiaTest::ElementId root  = client.Root();
+        const UiaTest::ElementId first = FindNamed(client, root, L"First");
+        const UiaTest::ElementId rows  = FindNamed(client, root, L"Rows");
+        Require(first != 0u && rows != 0u, "the client finds the field and the grid");
+        Require(client.StringProperty(first, UIA_ValueValuePropertyId) == L"x", "a first request that cannot build serves the snapshot built at attachment");
+        Require(FAILED(GetGridItem(client, rows, 150)), "an uncached-row GetItem refuses while the update is recorded");
+        const SystemListeners listening(true);
+        static_cast<void>(client.WaitOutTheStream());
+        const size_t mark = client.Mark();
+        const DxUi::EmbeddedAccessibilityPlacement wider{{-32000.0, -32000.0, static_cast<double>(kWiderWidth), static_cast<double>(kHeight)}, false};
+        const uint64_t before = Builds();
+        Require(view.UpdateAccessibility(wider) == S_OK && Builds() == before + 1u, "the next accepted update builds the current tree");
+        Require(HeardFromFirst(client, mark, UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"y"), "and raises the delta since the snapshot served");
+        Require(client.StringProperty(first, UIA_ValueValuePropertyId) == L"y", "the client reads the current tree");
+        Require(SUCCEEDED(GetGridItem(client, rows, 150)), "and GetItem of the uncached row succeeds");
     });
 }
