@@ -233,6 +233,16 @@
           0,
           0
         ],
+        "resources.renderingParams.created": [
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0,
+          0
+        ],
         "resources.strokeStyle.created": [
           0,
           0,
@@ -268,6 +278,11 @@
           0,
           0
         ],
+        "text.setTextRenderingParams": [
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -279,6 +294,16 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.documentFlattens": [
           0,
           0,
           0
@@ -304,6 +329,11 @@
           0
         ],
         "accessibility.snapshotNodes": [
+          0,
+          0,
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
           0,
           0,
           0
@@ -500,6 +530,16 @@
           "max": 0,
           "total": 0
         },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "resources.strokeStyle.created": {
           "min": 0,
           "max": 0,
@@ -535,6 +575,11 @@
           "max": 0,
           "total": 0
         },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -546,6 +591,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -571,6 +626,11 @@
           "total": 0
         },
         "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -811,6 +871,18 @@
           0,
           0
         ],
+        "resources.renderingParams.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
         "resources.strokeStyle.created": [
           0,
           0,
@@ -853,6 +925,12 @@
           0,
           0
         ],
+        "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -866,6 +944,18 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentFlattens": [
           0,
           0,
           0,
@@ -896,6 +986,12 @@
           0
         ],
         "accessibility.snapshotNodes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
           0,
           0,
           0,
@@ -1093,6 +1189,16 @@
           "max": 0,
           "total": 0
         },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "resources.strokeStyle.created": {
           "min": 0,
           "max": 0,
@@ -1128,6 +1234,11 @@
           "max": 0,
           "total": 0
         },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -1139,6 +1250,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1164,6 +1285,11 @@
           "total": 0
         },
         "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1480,6 +1606,22 @@
           0,
           0
         ],
+        "resources.renderingParams.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "resources.strokeStyle.created": [
           0,
           0,
@@ -1536,6 +1678,14 @@
           0,
           0
         ],
+        "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -1553,6 +1703,22 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentFlattens": [
           0,
           0,
           0,
@@ -1593,6 +1759,14 @@
           0
         ],
         "accessibility.snapshotNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
           0,
           0,
           0,
@@ -1792,6 +1966,16 @@
           "max": 0,
           "total": 0
         },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "resources.strokeStyle.created": {
           "min": 0,
           "max": 0,
@@ -1827,6 +2011,11 @@
           "max": 0,
           "total": 0
         },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -1838,6 +2027,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1863,6 +2062,11 @@
           "total": 0
         },
         "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2103,6 +2307,18 @@
           0,
           0
         ],
+        "resources.renderingParams.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
         "resources.strokeStyle.created": [
           0,
           0,
@@ -2145,6 +2361,12 @@
           0,
           0
         ],
+        "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -2158,6 +2380,18 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentFlattens": [
           0,
           0,
           0,
@@ -2188,6 +2422,12 @@
           0
         ],
         "accessibility.snapshotNodes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
           0,
           0,
           0,
@@ -2385,6 +2625,16 @@
           "max": 0,
           "total": 0
         },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "resources.strokeStyle.created": {
           "min": 0,
           "max": 0,
@@ -2420,6 +2670,11 @@
           "max": 0,
           "total": 0
         },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -2431,6 +2686,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2456,6 +2721,11 @@
           "total": 0
         },
         "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2772,6 +3042,22 @@
           0,
           0
         ],
+        "resources.renderingParams.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "resources.strokeStyle.created": [
           0,
           0,
@@ -2828,6 +3114,14 @@
           0,
           0
         ],
+        "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -2845,6 +3139,22 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentFlattens": [
           0,
           0,
           0,
@@ -2885,6 +3195,14 @@
           0
         ],
         "accessibility.snapshotNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
           0,
           0,
           0,
@@ -3084,6 +3402,16 @@
           "max": 0,
           "total": 0
         },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "resources.strokeStyle.created": {
           "min": 0,
           "max": 0,
@@ -3119,6 +3447,11 @@
           "max": 0,
           "total": 0
         },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -3130,6 +3463,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3158,12 +3501,17 @@
           "min": 0,
           "max": 0,
           "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         }
       }
     }
   ],
   "memory": {
-    "entryPrivateBytes": 2609152,
+    "entryPrivateBytes": 2613248,
     "videoMemory": {
       "applicable": false,
       "reason": "software adapter: rendering uses system memory, which privateBytes counts"
@@ -3172,14 +3520,14 @@
     "samples": [
       {
         "at": "device",
-        "privateBytes": 36990976,
-        "workingSetBytes": 17727488
+        "privateBytes": 40976384,
+        "workingSetBytes": 21749760
       },
       {
         "at": "built",
-        "privateBytes": 40173568,
-        "workingSetBytes": 22769664,
-        "trackedLiveBytes": 1409694,
+        "privateBytes": 44253184,
+        "workingSetBytes": 26787840,
+        "trackedLiveBytes": 1409750,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 0,
@@ -3193,9 +3541,9 @@
       {
         "at": "phase",
         "phase": "warm",
-        "privateBytes": 91508736,
-        "workingSetBytes": 104632320,
-        "trackedLiveBytes": 1411230,
+        "privateBytes": 100237312,
+        "workingSetBytes": 111448064,
+        "trackedLiveBytes": 1411286,
         "retained": {
           "surfaceBytes": 33177600,
           "cachedBrushes": 17,
@@ -3209,9 +3557,9 @@
       {
         "at": "phase",
         "phase": "full",
-        "privateBytes": 93941760,
-        "workingSetBytes": 106934272,
-        "trackedLiveBytes": 1411230,
+        "privateBytes": 101486592,
+        "workingSetBytes": 113291264,
+        "trackedLiveBytes": 1411286,
         "retained": {
           "surfaceBytes": 33177600,
           "cachedBrushes": 17,
@@ -3225,9 +3573,9 @@
       {
         "at": "phase",
         "phase": "hover",
-        "privateBytes": 95576064,
-        "workingSetBytes": 108351488,
-        "trackedLiveBytes": 1411230,
+        "privateBytes": 101425152,
+        "workingSetBytes": 114229248,
+        "trackedLiveBytes": 1411286,
         "retained": {
           "surfaceBytes": 33177600,
           "cachedBrushes": 17,
@@ -3241,9 +3589,9 @@
       {
         "at": "phase",
         "phase": "value",
-        "privateBytes": 93773824,
-        "workingSetBytes": 107937792,
-        "trackedLiveBytes": 1411246,
+        "privateBytes": 102039552,
+        "workingSetBytes": 114012160,
+        "trackedLiveBytes": 1411302,
         "retained": {
           "surfaceBytes": 33177600,
           "cachedBrushes": 17,
@@ -3257,9 +3605,9 @@
       {
         "at": "phase",
         "phase": "scroll",
-        "privateBytes": 93790208,
-        "workingSetBytes": 107982848,
-        "trackedLiveBytes": 1411246,
+        "privateBytes": 102039552,
+        "workingSetBytes": 114069504,
+        "trackedLiveBytes": 1411302,
         "retained": {
           "surfaceBytes": 33177600,
           "cachedBrushes": 17,
@@ -3272,9 +3620,9 @@
       },
       {
         "at": "hidden",
-        "privateBytes": 93790208,
-        "workingSetBytes": 107991040,
-        "trackedLiveBytes": 1411246,
+        "privateBytes": 102039552,
+        "workingSetBytes": 114077696,
+        "trackedLiveBytes": 1411302,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 17,
@@ -3308,23 +3656,23 @@
     "reason": "timing comes only from performance-timing.ps1 on a hardware adapter in a quiet window (W0.2); counts and memory are recorded here"
   },
   "benchmarkInputs": {
-    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "4C3A13D7E72C7F4A4543BCFFEA9FE13A3E37E516954A94155533B9CFB8AC75CA",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "4C14398E31E337CA3D952D76E26372C6588CE6144821D93F648CDB5C95A27F5B",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h": "7C2FAFF45C77EFEB1B521D74379AEE3DD335B86CC339FD1C91C4BD216CC77AE0",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "1D752D7C4A8175B0311F3EB069A17EE621BBD2EBF29140E0AD2C4C4D7652B6A9",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "75EB4870FD81EBC5D6024566B0A3945EF3391DBA8BC82C2FFD12A22B069BE2F6",
     "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "00844224A58AC9CDD5B726A72BD598293BA5756E9535AC59E26134DD3D7A78DD",
-    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "DB25C9BE0500CC09C81E0355B9C0D3086D6483D970DB3E0140222EFCADA13C9E",
+    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "2D896E750A51C98FD64F17E0308D246C816FF0CA578826EA8ED3D297208D4FC8",
     "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
     "performance-fixtures.ps1": "2A0ED76BC6F59B8C7FB346ABC746B5A31C18FE3A2AC07069C6C8EF2E2FC78DA0",
     "Tools/PerformanceFixtures.psm1": "085B1FD8A3927072EF5C1B02C4115D6C42C18847185C7C8660E73B0776BA66AC",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx12.h": "E111B2E925B00F097F9A1C9E7F09485B3A02645667EC5ABDF92E30A069B963DB"
   },
   "provenance": {
-    "sourceCommit": "17b3f0995a52e2e44d5cfe9049729992d6cb1e23",
-    "sourceDirty": true,
+    "sourceCommit": "acac49bb3e969240d5830ab8f98bea38fab44b48",
+    "sourceDirty": false,
     "platform": "x64",
     "configuration": "Release",
     "command": "performance-fixtures.ps1 -Fixture FX12 -Variant uhd-192dpi -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64",
-    "executableSha256": "2217ABDDA0FFEF1B3298288A1A93AEF03B76314E1953133592A98F9E325F8B15",
+    "executableSha256": "38B217F6308A601FBB5B9BECCD9860284EF38EE60DC652AE07339EB871B9ABD9",
     "os": {
       "description": "Microsoft Windows 10.0.26300",
       "build": "26300",
@@ -3354,11 +3702,11 @@
     },
     "hostIdle": {
       "seconds": 3,
-      "busyPercent": 33.22963800904978,
+      "busyPercent": 68.66883116883116,
       "observer": "Tools/Watch-BenchmarkHost.ps1",
       "required": false
     },
     "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
-    "recordedUtc": "2026-11-14T16:34:34.1901680Z"
+    "recordedUtc": "2026-11-14T20:36:45.5917204Z"
   }
 }

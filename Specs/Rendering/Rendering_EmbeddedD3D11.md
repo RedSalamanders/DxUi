@@ -251,6 +251,10 @@ alpha triangle, sets the viewport and every other state it depends on (including
 and unused shader stages), then unbinds its SRV. It does not preserve the caller's pipeline state. Negative origins
 are allowed for page transitions; non-finite or invalid dimensions/depth ranges fail. It never allocates, shapes
 text, rerasterizes, reads back, presents or calls user diagnostics. Consumers bind their state before subsequent work.
+The application submits the immediate context at least once per frame it composites or prepares (its Present does,
+or `Flush` when it composes without presenting); the view never flushes the borrowed context. Until it is submitted, a
+driver keeps the queued work and resources the view released (a replaced surface, retired targets); a software adapter
+such as WARP keeps them in process memory, so a frame loop that never submits grows private bytes with every frame.
 
 ReplaceDevice cancels capture and drops old surface resources while preserving the logical tree/model; a successful
 prepare is required before interaction resumes. Recovery never reapplies application commands. EmbeddedTests checks an actual

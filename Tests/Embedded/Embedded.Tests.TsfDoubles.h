@@ -2,9 +2,8 @@
 // In-process stand-ins for what Text Services Framework gives a text store: an advise sink that grants each lock
 // synchronously, and a composition view with its range. With them a test drives the production store
 // (DxUi::CreateNativeTextInputTextStore) through the calls a text service makes, without a text service, a window or
-// focus. They are the doubles of the W8.5 IME copies scenario (Embedded.Tests.ImeCopies.h), in a header of their own so
-// that the FX7 performance fixture, which compiles in both test executables, can use them; that scenario keeps its own
-// copies until its follow-up adopts this header. Depends only on Windows and the standard library.
+// focus. The W8.5 IME copies scenario (Embedded.Tests.ImeCopies.h) and the FX7 performance fixture, which compiles in
+// both test executables, share this one definition. Depends only on Windows and the standard library.
 #include <msctf.h>
 #include <textstor.h>
 

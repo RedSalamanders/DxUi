@@ -225,6 +225,10 @@
           0,
           0
         ],
+        "text.formatCacheTrims": [
+          0,
+          0
+        ],
         "text.setTextRenderingParams": [
           0,
           0
@@ -238,6 +242,14 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0,
+          0
+        ],
+        "rich.documentFlattens": [
           0,
           0
         ],
@@ -497,6 +509,11 @@
           "max": 0,
           "total": 0
         },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.setTextRenderingParams": {
           "min": 0,
           "max": 0,
@@ -513,6 +530,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -693,6 +720,9 @@
         "resources.textLayout.destroyed": [
           9500
         ],
+        "text.formatCacheTrims": [
+          0
+        ],
         "text.setTextRenderingParams": [
           0
         ],
@@ -704,6 +734,12 @@
         ],
         "popups.comboBoxPopupRebuilds": [
           1
+        ],
+        "rich.documentBytesCopied": [
+          0
+        ],
+        "rich.documentFlattens": [
+          0
         ],
         "rich.hoveredTitleCalls": [
           0
@@ -955,6 +991,11 @@
           "max": 9500,
           "total": 9500
         },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.setTextRenderingParams": {
           "min": 0,
           "max": 0,
@@ -974,6 +1015,16 @@
           "min": 1,
           "max": 1,
           "total": 1
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "rich.hoveredTitleCalls": {
           "min": 0,
@@ -3865,6 +3916,68 @@
           11000,
           11000
         ],
+        "text.formatCacheTrims": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "text.setTextRenderingParams": [
           0,
           0,
@@ -4052,6 +4165,130 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentFlattens": [
           0,
           0,
           0,
@@ -4717,6 +4954,11 @@
           "max": 11000,
           "total": 660000
         },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.setTextRenderingParams": {
           "min": 0,
           "max": 0,
@@ -4733,6 +4975,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -4913,6 +5165,9 @@
         "resources.textLayout.destroyed": [
           0
         ],
+        "text.formatCacheTrims": [
+          0
+        ],
         "text.setTextRenderingParams": [
           0
         ],
@@ -4923,6 +5178,12 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0
+        ],
+        "rich.documentFlattens": [
           0
         ],
         "rich.hoveredTitleCalls": [
@@ -5175,6 +5436,11 @@
           "max": 0,
           "total": 0
         },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.setTextRenderingParams": {
           "min": 0,
           "max": 0,
@@ -5191,6 +5457,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -6245,6 +6521,28 @@
           3,
           3
         ],
+        "text.formatCacheTrims": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "text.setTextRenderingParams": [
           0,
           0,
@@ -6332,6 +6630,50 @@
           1,
           1,
           1
+        ],
+        "rich.documentBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentFlattens": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "rich.hoveredTitleCalls": [
           0,
@@ -6697,6 +7039,11 @@
           "max": 1001,
           "total": 5290
         },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.setTextRenderingParams": {
           "min": 0,
           "max": 0,
@@ -6716,6 +7063,16 @@
           "min": 1,
           "max": 1,
           "total": 20
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "rich.hoveredTitleCalls": {
           "min": 0,
@@ -6893,6 +7250,9 @@
         "resources.textLayout.destroyed": [
           20300
         ],
+        "text.formatCacheTrims": [
+          0
+        ],
         "text.setTextRenderingParams": [
           0
         ],
@@ -6904,6 +7264,12 @@
         ],
         "popups.comboBoxPopupRebuilds": [
           1
+        ],
+        "rich.documentBytesCopied": [
+          0
+        ],
+        "rich.documentFlattens": [
+          0
         ],
         "rich.hoveredTitleCalls": [
           0
@@ -7155,6 +7521,11 @@
           "max": 20300,
           "total": 20300
         },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.setTextRenderingParams": {
           "min": 0,
           "max": 0,
@@ -7174,6 +7545,16 @@
           "min": 1,
           "max": 1,
           "total": 1
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "rich.hoveredTitleCalls": {
           "min": 0,
@@ -8225,6 +8606,28 @@
           20600,
           20600
         ],
+        "text.formatCacheTrims": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "text.setTextRenderingParams": [
           0,
           0,
@@ -8292,6 +8695,50 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentFlattens": [
           0,
           0,
           0,
@@ -8677,6 +9124,11 @@
           "max": 20600,
           "total": 412000
         },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.setTextRenderingParams": {
           "min": 0,
           "max": 0,
@@ -8693,6 +9145,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -8873,6 +9335,9 @@
         "resources.textLayout.destroyed": [
           0
         ],
+        "text.formatCacheTrims": [
+          0
+        ],
         "text.setTextRenderingParams": [
           0
         ],
@@ -8883,6 +9348,12 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0
+        ],
+        "rich.documentFlattens": [
           0
         ],
         "rich.hoveredTitleCalls": [
@@ -9135,6 +9606,11 @@
           "max": 0,
           "total": 0
         },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.setTextRenderingParams": {
           "min": 0,
           "max": 0,
@@ -9151,6 +9627,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -9189,7 +9675,7 @@
     }
   ],
   "memory": {
-    "entryPrivateBytes": 2613248,
+    "entryPrivateBytes": 2600960,
     "videoMemory": {
       "applicable": false,
       "reason": "software adapter: rendering uses system memory, which privateBytes counts"
@@ -9198,14 +9684,14 @@
     "samples": [
       {
         "at": "device",
-        "privateBytes": 19312640,
-        "workingSetBytes": 21708800
+        "privateBytes": 19304448,
+        "workingSetBytes": 21741568
       },
       {
         "at": "built",
-        "privateBytes": 20828160,
-        "workingSetBytes": 25227264,
-        "trackedLiveBytes": 77379,
+        "privateBytes": 20795392,
+        "workingSetBytes": 25255936,
+        "trackedLiveBytes": 77403,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 0,
@@ -9219,9 +9705,9 @@
       {
         "at": "phase",
         "phase": "warm",
-        "privateBytes": 34832384,
-        "workingSetBytes": 29343744,
-        "trackedLiveBytes": 77571,
+        "privateBytes": 34656256,
+        "workingSetBytes": 29265920,
+        "trackedLiveBytes": 77595,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 4,
@@ -9235,9 +9721,9 @@
       {
         "at": "phase",
         "phase": "open",
-        "privateBytes": 49074176,
-        "workingSetBytes": 63381504,
-        "trackedLiveBytes": 78723,
+        "privateBytes": 50028544,
+        "workingSetBytes": 63782912,
+        "trackedLiveBytes": 78747,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 12,
@@ -9251,9 +9737,9 @@
       {
         "at": "phase",
         "phase": "hover",
-        "privateBytes": 277364736,
-        "workingSetBytes": 148127744,
-        "trackedLiveBytes": 78723,
+        "privateBytes": 272068608,
+        "workingSetBytes": 131121152,
+        "trackedLiveBytes": 78747,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 12,
@@ -9267,9 +9753,9 @@
       {
         "at": "phase",
         "phase": "close",
-        "privateBytes": 277364736,
-        "workingSetBytes": 148127744,
-        "trackedLiveBytes": 78723,
+        "privateBytes": 272068608,
+        "workingSetBytes": 131121152,
+        "trackedLiveBytes": 78747,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 12,
@@ -9283,9 +9769,9 @@
       {
         "at": "phase",
         "phase": "type",
-        "privateBytes": 276873216,
-        "workingSetBytes": 148881408,
-        "trackedLiveBytes": 82691,
+        "privateBytes": 64913408,
+        "workingSetBytes": 75329536,
+        "trackedLiveBytes": 82715,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 12,
@@ -9299,9 +9785,9 @@
       {
         "at": "phase",
         "phase": "fit-open",
-        "privateBytes": 307908608,
-        "workingSetBytes": 180252672,
-        "trackedLiveBytes": 82755,
+        "privateBytes": 311537664,
+        "workingSetBytes": 161046528,
+        "trackedLiveBytes": 82779,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 14,
@@ -9315,9 +9801,9 @@
       {
         "at": "phase",
         "phase": "fit-hover",
-        "privateBytes": 450203648,
-        "workingSetBytes": 237723648,
-        "trackedLiveBytes": 82755,
+        "privateBytes": 433811456,
+        "workingSetBytes": 278847488,
+        "trackedLiveBytes": 82779,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 14,
@@ -9331,9 +9817,9 @@
       {
         "at": "phase",
         "phase": "fit-close",
-        "privateBytes": 450203648,
-        "workingSetBytes": 237723648,
-        "trackedLiveBytes": 82755,
+        "privateBytes": 433811456,
+        "workingSetBytes": 278847488,
+        "trackedLiveBytes": 82779,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 14,
@@ -9346,9 +9832,9 @@
       },
       {
         "at": "hidden",
-        "privateBytes": 450203648,
-        "workingSetBytes": 237731840,
-        "trackedLiveBytes": 82755,
+        "privateBytes": 433811456,
+        "workingSetBytes": 278855680,
+        "trackedLiveBytes": 82779,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 14,
@@ -9382,9 +9868,9 @@
     "reason": "timing comes only from performance-timing.ps1 on a hardware adapter in a quiet window (W0.2); counts and memory are recorded here"
   },
   "benchmarkInputs": {
-    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "499121B329A2D50388E79BD779FEED3CD7BE08616A09CDF42AC24B602623ABF1",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "4C14398E31E337CA3D952D76E26372C6588CE6144821D93F648CDB5C95A27F5B",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h": "7C2FAFF45C77EFEB1B521D74379AEE3DD335B86CC339FD1C91C4BD216CC77AE0",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "45CEC9B1CD47544E8E3C47F7D8D60AD5272997BA930485C8F95176590A3F66A9",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "75EB4870FD81EBC5D6024566B0A3945EF3391DBA8BC82C2FFD12A22B069BE2F6",
     "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "00844224A58AC9CDD5B726A72BD598293BA5756E9535AC59E26134DD3D7A78DD",
     "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "2D896E750A51C98FD64F17E0308D246C816FF0CA578826EA8ED3D297208D4FC8",
     "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
@@ -9393,12 +9879,12 @@
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx2.h": "E0E2EC93A9AC081B5FFE62877866F234EA4A145B7F9AC1446949AF5CBD01BFAA"
   },
   "provenance": {
-    "sourceCommit": "a9967b05811b150462f2c87e744a0da8b946a1a7",
-    "sourceDirty": true,
+    "sourceCommit": "acac49bb3e969240d5830ab8f98bea38fab44b48",
+    "sourceDirty": false,
     "platform": "x64",
     "configuration": "Release",
     "command": "performance-fixtures.ps1 -Fixture FX2 -Variant default -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64",
-    "executableSha256": "B5A4A9542E7BC87B7A51D50A90F9754AEAA9F4F79C5CC6B53C4A5E11E96FF057",
+    "executableSha256": "38B217F6308A601FBB5B9BECCD9860284EF38EE60DC652AE07339EB871B9ABD9",
     "os": {
       "description": "Microsoft Windows 10.0.26300",
       "build": "26300",
@@ -9428,11 +9914,11 @@
     },
     "hostIdle": {
       "seconds": 3,
-      "busyPercent": 50.55803571428572,
+      "busyPercent": 56.539096916299556,
       "observer": "Tools/Watch-BenchmarkHost.ps1",
       "required": false
     },
     "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
-    "recordedUtc": "2026-11-14T18:11:42.2032028Z"
+    "recordedUtc": "2026-11-14T20:37:18.2679456Z"
   }
 }

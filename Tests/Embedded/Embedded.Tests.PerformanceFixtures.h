@@ -88,6 +88,10 @@ public:
         RETURN_IF_FAILED(prepared);
         gpu.Bind();
         RETURN_IF_FAILED(view_->Composite(gpu.context.get(), gpu.Viewport()));
+        // The frame ends as an application's does, which presents or flushes it: WARP keeps unflushed immediate-context
+        // work in process heap memory, so a frame loop that never flushes grows private bytes by the queued work of every
+        // frame (about 80-90 KB per composited frame at 640x480 and 1080p), which a hardware driver flushes on its own.
+        gpu.context->Flush();
         return prepared;
     }
 

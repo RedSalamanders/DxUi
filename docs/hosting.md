@@ -77,6 +77,9 @@ device; the application owns immediate-context scheduling and presentation.
 4. Bind the application's render target, then call `view.Composite(context, viewport)`. It binds its required
    pipeline state and draws the prepared texture. It changes D3D state: rebind your state for subsequent drawing.
 5. Present through the application. DxUi embedded mode owns no HWND, swap chain, timer, worker or presentation loop.
+   Submit the immediate context every frame (Present does it; call `Flush` when you compose offscreen without
+   presenting): DxUi never flushes your context, and an unsubmitted software (WARP) context keeps every frame's queued
+   work and released surfaces in process memory.
 
 Clean `Composite` does no allocation, layout, shaping or readback. DPI must be 48..768; the per-view surface limit
 is 64 MiB, and because a resize allocates the replacement before releasing the old surface the replacement peak is

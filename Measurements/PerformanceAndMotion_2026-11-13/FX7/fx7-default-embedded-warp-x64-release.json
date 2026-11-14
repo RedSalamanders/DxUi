@@ -91,6 +91,10 @@
           3,
           3
         ],
+        "frame.treeVisitsStatistics": [
+          0,
+          0
+        ],
         "frame.treeVisitsTick": [
           0,
           0
@@ -191,6 +195,14 @@
           0,
           0
         ],
+        "resources.renderingParams.created": [
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0
+        ],
         "resources.strokeStyle.created": [
           0,
           0
@@ -215,6 +227,14 @@
           0,
           0
         ],
+        "text.formatCacheTrims": [
+          0,
+          0
+        ],
+        "text.setTextRenderingParams": [
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0
@@ -225,6 +245,14 @@
         ],
         "popups.comboBoxPopupRebuilds": [
           0,
+          0
+        ],
+        "rich.documentBytesCopied": [
+          261888,
+          0
+        ],
+        "rich.documentFlattens": [
+          1,
           0
         ],
         "rich.hoveredTitleCalls": [
@@ -317,6 +345,11 @@
           "min": 3,
           "max": 3,
           "total": 6
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.treeVisitsTick": {
           "min": 0,
@@ -443,6 +476,16 @@
           "max": 0,
           "total": 0
         },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "resources.strokeStyle.created": {
           "min": 0,
           "max": 0,
@@ -473,6 +516,16 @@
           "max": 0,
           "total": 0
         },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -487,6 +540,16 @@
           "min": 0,
           "max": 0,
           "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 261888,
+          "total": 261888
+        },
+        "rich.documentFlattens": {
+          "min": 0,
+          "max": 1,
+          "total": 1
         },
         "rich.hoveredTitleCalls": {
           "min": 0,
@@ -825,6 +888,29 @@
           0,
           3
         ],
+        "frame.treeVisitsStatistics": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.treeVisitsTick": [
           0,
           0,
@@ -1400,6 +1486,52 @@
           0,
           0
         ],
+        "resources.renderingParams.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "resources.strokeStyle.created": [
           0,
           0,
@@ -1538,6 +1670,52 @@
           0,
           3
         ],
+        "text.formatCacheTrims": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -1585,6 +1763,52 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentFlattens": [
           0,
           0,
           0,
@@ -1812,6 +2036,11 @@
           "max": 3,
           "total": 33
         },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsTick": {
           "min": 0,
           "max": 0,
@@ -1937,6 +2166,16 @@
           "max": 0,
           "total": 0
         },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "resources.strokeStyle.created": {
           "min": 0,
           "max": 0,
@@ -1967,6 +2206,16 @@
           "max": 3,
           "total": 13
         },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -1978,6 +2227,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2021,10 +2280,10 @@
       "steps": 1,
       "series": {
         "cppAllocations": [
-          16
+          6
         ],
         "cppLargeAllocations": [
-          7
+          1
         ],
         "created": [
           1
@@ -2058,6 +2317,9 @@
         ],
         "frame.treeVisitsPaint": [
           3
+        ],
+        "frame.treeVisitsStatistics": [
+          0
         ],
         "frame.treeVisitsTick": [
           0
@@ -2134,6 +2396,12 @@
         "resources.layer.destroyed": [
           0
         ],
+        "resources.renderingParams.created": [
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0
+        ],
         "resources.strokeStyle.created": [
           0
         ],
@@ -2152,6 +2420,12 @@
         "resources.textLayout.destroyed": [
           0
         ],
+        "text.formatCacheTrims": [
+          0
+        ],
+        "text.setTextRenderingParams": [
+          0
+        ],
         "popups.backdropCapturePixels": [
           0
         ],
@@ -2160,6 +2434,12 @@
         ],
         "popups.comboBoxPopupRebuilds": [
           0
+        ],
+        "rich.documentBytesCopied": [
+          130944
+        ],
+        "rich.documentFlattens": [
+          1
         ],
         "rich.hoveredTitleCalls": [
           0
@@ -2182,14 +2462,14 @@
       },
       "summary": {
         "cppAllocations": {
-          "min": 16,
-          "max": 16,
-          "total": 16
+          "min": 6,
+          "max": 6,
+          "total": 6
         },
         "cppLargeAllocations": {
-          "min": 7,
-          "max": 7,
-          "total": 7
+          "min": 1,
+          "max": 1,
+          "total": 1
         },
         "created": {
           "min": 1,
@@ -2246,6 +2526,11 @@
           "max": 3,
           "total": 3
         },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsTick": {
           "min": 0,
           "max": 0,
@@ -2371,6 +2656,16 @@
           "max": 0,
           "total": 0
         },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "resources.strokeStyle.created": {
           "min": 0,
           "max": 0,
@@ -2401,6 +2696,16 @@
           "max": 0,
           "total": 0
         },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -2415,6 +2720,16 @@
           "min": 0,
           "max": 0,
           "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 130944,
+          "max": 130944,
+          "total": 130944
+        },
+        "rich.documentFlattens": {
+          "min": 1,
+          "max": 1,
+          "total": 1
         },
         "rich.hoveredTitleCalls": {
           "min": 0,
@@ -2455,50 +2770,50 @@
       "steps": 21,
       "series": {
         "cppAllocations": [
-          204,
+          192,
           4,
-          204,
+          192,
           4,
-          204,
+          192,
           4,
-          204,
+          192,
           4,
-          204,
+          192,
           4,
-          204,
+          192,
           4,
-          204,
+          192,
           4,
-          204,
+          192,
           4,
-          204,
+          192,
           4,
-          204,
+          192,
           4,
-          210
+          193
         ],
         "cppLargeAllocations": [
-          38,
+          30,
           0,
-          38,
+          30,
           0,
-          38,
+          30,
           0,
-          38,
+          30,
           0,
-          38,
+          30,
           0,
-          38,
+          30,
           0,
-          38,
+          30,
           0,
-          38,
+          30,
           0,
-          38,
+          30,
           0,
-          38,
+          30,
           0,
-          41
+          30
         ],
         "created": [
           2,
@@ -2752,6 +3067,29 @@
           3,
           0,
           3
+        ],
+        "frame.treeVisitsStatistics": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.treeVisitsTick": [
           0,
@@ -3328,6 +3666,52 @@
           0,
           0
         ],
+        "resources.renderingParams.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "resources.strokeStyle.created": [
           0,
           0,
@@ -3466,6 +3850,52 @@
           0,
           1
         ],
+        "text.formatCacheTrims": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -3534,6 +3964,52 @@
           0,
           0,
           0
+        ],
+        "rich.documentBytesCopied": [
+          261892,
+          0,
+          261896,
+          0,
+          261900,
+          0,
+          261904,
+          0,
+          261908,
+          0,
+          261912,
+          0,
+          261916,
+          0,
+          261920,
+          0,
+          261924,
+          0,
+          261928,
+          0,
+          261928
+        ],
+        "rich.documentFlattens": [
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          1
         ],
         "rich.hoveredTitleCalls": [
           0,
@@ -3677,13 +4153,13 @@
       "summary": {
         "cppAllocations": {
           "min": 4,
-          "max": 210,
-          "total": 2290
+          "max": 193,
+          "total": 2153
         },
         "cppLargeAllocations": {
           "min": 0,
-          "max": 41,
-          "total": 421
+          "max": 30,
+          "total": 330
         },
         "created": {
           "min": 0,
@@ -3739,6 +4215,11 @@
           "min": 0,
           "max": 3,
           "total": 33
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.treeVisitsTick": {
           "min": 0,
@@ -3865,6 +4346,16 @@
           "max": 0,
           "total": 0
         },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "resources.strokeStyle.created": {
           "min": 0,
           "max": 0,
@@ -3895,6 +4386,16 @@
           "max": 1,
           "total": 11
         },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -3909,6 +4410,16 @@
           "min": 0,
           "max": 0,
           "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 261928,
+          "total": 2881028
+        },
+        "rich.documentFlattens": {
+          "min": 0,
+          "max": 1,
+          "total": 11
         },
         "rich.hoveredTitleCalls": {
           "min": 0,
@@ -3944,7 +4455,7 @@
     }
   ],
   "memory": {
-    "entryPrivateBytes": 2600960,
+    "entryPrivateBytes": 2646016,
     "videoMemory": {
       "applicable": false,
       "reason": "software adapter: rendering uses system memory, which privateBytes counts"
@@ -3953,14 +4464,14 @@
     "samples": [
       {
         "at": "device",
-        "privateBytes": 5033984,
-        "workingSetBytes": 17760256
+        "privateBytes": 9023488,
+        "workingSetBytes": 21786624
       },
       {
         "at": "built",
-        "privateBytes": 6627328,
-        "workingSetBytes": 21491712,
-        "trackedLiveBytes": 271343,
+        "privateBytes": 10620928,
+        "workingSetBytes": 25509888,
+        "trackedLiveBytes": 271383,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 0,
@@ -3974,9 +4485,9 @@
       {
         "at": "phase",
         "phase": "warm",
-        "privateBytes": 25153536,
-        "workingSetBytes": 39194624,
-        "trackedLiveBytes": 5926921,
+        "privateBytes": 28934144,
+        "workingSetBytes": 43069440,
+        "trackedLiveBytes": 5927057,
         "retained": {
           "surfaceBytes": 1228800,
           "cachedBrushes": 16,
@@ -3990,9 +4501,9 @@
       {
         "at": "phase",
         "phase": "textfield",
-        "privateBytes": 27529216,
-        "workingSetBytes": 41308160,
-        "trackedLiveBytes": 6058048,
+        "privateBytes": 30953472,
+        "workingSetBytes": 45555712,
+        "trackedLiveBytes": 6058184,
         "retained": {
           "surfaceBytes": 1228800,
           "cachedBrushes": 16,
@@ -4006,9 +4517,9 @@
       {
         "at": "phase",
         "phase": "switch",
-        "privateBytes": 28012544,
-        "workingSetBytes": 41734144,
-        "trackedLiveBytes": 6320206,
+        "privateBytes": 31404032,
+        "workingSetBytes": 45719552,
+        "trackedLiveBytes": 6189279,
         "retained": {
           "surfaceBytes": 1228800,
           "cachedBrushes": 17,
@@ -4022,9 +4533,9 @@
       {
         "at": "phase",
         "phase": "richtext",
-        "privateBytes": 27406336,
-        "workingSetBytes": 42553344,
-        "trackedLiveBytes": 6327109,
+        "privateBytes": 32636928,
+        "workingSetBytes": 46669824,
+        "trackedLiveBytes": 6196166,
         "retained": {
           "surfaceBytes": 1228800,
           "cachedBrushes": 17,
@@ -4037,9 +4548,9 @@
       },
       {
         "at": "hidden",
-        "privateBytes": 20168704,
-        "workingSetBytes": 36098048,
-        "trackedLiveBytes": 681599,
+        "privateBytes": 25616384,
+        "workingSetBytes": 40701952,
+        "trackedLiveBytes": 681735,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 17,
@@ -4052,8 +4563,8 @@
       }
     ],
     "hiddenResidencyDelta": {
-      "privateBytes": -7237632,
-      "workingSetBytes": -6455296,
+      "privateBytes": -7020544,
+      "workingSetBytes": -5967872,
       "surfaceBytes": -1228800,
       "retainedTextLayouts": 0,
       "retainedBitmapBytes": 0
@@ -4073,24 +4584,24 @@
     "reason": "timing comes only from performance-timing.ps1 on a hardware adapter in a quiet window (W0.2); counts and memory are recorded here"
   },
   "benchmarkInputs": {
-    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "FA75D3266DAFA3C515919C451C204699569EB34CAC481B4A5AA73336AEAC93DD",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "4C14398E31E337CA3D952D76E26372C6588CE6144821D93F648CDB5C95A27F5B",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h": "7C2FAFF45C77EFEB1B521D74379AEE3DD335B86CC339FD1C91C4BD216CC77AE0",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "324766D3BAD1F3A12C64C8C19B529FD9AEC177C08D1BE11C89A3A230F550A7B9",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "75EB4870FD81EBC5D6024566B0A3945EF3391DBA8BC82C2FFD12A22B069BE2F6",
     "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "00844224A58AC9CDD5B726A72BD598293BA5756E9535AC59E26134DD3D7A78DD",
-    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "B3F6BA4C816F265991671F2ED271176445A87FF1089F5AC19AF6EA16A1300177",
+    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "2D896E750A51C98FD64F17E0308D246C816FF0CA578826EA8ED3D297208D4FC8",
     "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
     "performance-fixtures.ps1": "2A0ED76BC6F59B8C7FB346ABC746B5A31C18FE3A2AC07069C6C8EF2E2FC78DA0",
     "Tools/PerformanceFixtures.psm1": "085B1FD8A3927072EF5C1B02C4115D6C42C18847185C7C8660E73B0776BA66AC",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx7.h": "390585C1CA91523BF6D44E71D807B8BD1710CB0E2C79006A46C6D98E7C5A06BE",
-    "Tests/Embedded/Embedded.Tests.TsfDoubles.h": "00727FFF3C170C924D8B1F15478E443FC5C2991F016792FDE067D96E5395D2A7"
+    "Tests/Embedded/Embedded.Tests.TsfDoubles.h": "BAE7E08A5DA5B6FE509CE8A09D86236D212DF4D71199E817E3B261AF9EDC07EA"
   },
   "provenance": {
-    "sourceCommit": "b2f3a218c2498b6c83caf8b1c274f42ebda3137c",
+    "sourceCommit": "acac49bb3e969240d5830ab8f98bea38fab44b48",
     "sourceDirty": false,
     "platform": "x64",
     "configuration": "Release",
     "command": "performance-fixtures.ps1 -Fixture FX7 -Variant default -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64",
-    "executableSha256": "096E317E7A7898A2A8F0473E155CC24D79C1E8F38FC84E5A2A869E97EA0B8F06",
+    "executableSha256": "38B217F6308A601FBB5B9BECCD9860284EF38EE60DC652AE07339EB871B9ABD9",
     "os": {
       "description": "Microsoft Windows 10.0.26300",
       "build": "26300",
@@ -4120,11 +4631,11 @@
     },
     "hostIdle": {
       "seconds": 3,
-      "busyPercent": 31.25,
+      "busyPercent": 64.27604871447903,
       "observer": "Tools/Watch-BenchmarkHost.ps1",
       "required": false
     },
     "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
-    "recordedUtc": "2026-11-14T15:08:31.5296788Z"
+    "recordedUtc": "2026-11-14T20:37:52.7390267Z"
   }
 }
