@@ -6,6 +6,7 @@
 #include <DxUi/Failure.h>
 
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <exception>
 #include <new>
@@ -675,6 +676,26 @@ void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t
 // Window-host and embedded accessibility targets alive in this process.
 [[nodiscard]] size_t DebugGetLiveAccessibilityTargetCountForTest() noexcept;
 [[nodiscard]] uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept;
+// One IRawElementProviderAdviseEvents call UI Automation made on a root provider: the window (null for an embedded view),
+// whether it added or removed a subscription, the event and up to eight of its property ids.
+struct AccessibilityAdviseRecordForTest
+{
+    HWND hwnd              = nullptr;
+    bool embedded          = false;
+    bool added             = false;
+    int eventId            = 0;
+    uint32_t propertyCount = 0u;
+    std::array<int, 8u> properties{};
+};
+// Copies the recorded advise calls, oldest first, into `records` and returns how many were recorded since the last reset
+// (the ring keeps the latest 256).
+[[nodiscard]] size_t DebugCopyAccessibilityAdviseRecordsForTest(std::span<AccessibilityAdviseRecordForTest> records) noexcept;
+void DebugResetAccessibilityAdviseRecordsForTest() noexcept;
+// The outstanding subscriptions UI Automation advised on `hwnd`'s root provider; the largest uint64_t without a host.
+[[nodiscard]] uint64_t DebugGetAccessibilityEventListenerCountForTest(HWND hwnd) noexcept;
+// Process-wide: what the client gate takes UiaClientsAreListening to answer (another process on a developer's desktop may
+// listen); nullopt asks it again. Advised subscriptions still count, and the events themselves are unchanged.
+void DebugSetAccessibilitySystemListenersForTest(std::optional<bool> listening) noexcept;
 // Owner-thread-only deterministic failure at the rich snapshot font query.
 void DebugSetRichAccessibilityFontFailureForTest(HRESULT failure) noexcept;
 [[nodiscard]] size_t DebugGetRichAccessibilityFontFailureCountForTest() noexcept;

@@ -1,0 +1,13 @@
+#pragma once
+
+void TestAccessibilityClientGateAdviseCoversWindowScopedSubscriptions();
+void TestAccessibilityClientGateEmbeddedAdviseProbe();
+void TestAccessibilityClientGateTerminatedClientSubscriptionEnds();
+void TestAccessibilityClientGateFx6OneClientHearsTheReferenceEvents();
+void TestAccessibilityClientGateFx6NoClientBuildsNothing();
+void TestAccessibilityClientGateFx6ReleasedProbeBuildsNothing();
+void TestAccessibilityClientGateHeldElementQueryReadsCurrentState();
+void TestAccessibilityClientGateResubscribedClientMissesNothing();
+void TestAccessibilityClientGateFx6EmbeddedEveryFrameBuildsNothing();
+// The client process TestAccessibilityClientGateTerminatedClientSubscriptionEnds starts; -1 when the arguments are not its own.
+int RunAccessibilityClientGateSubscriberChild(int argc, wchar_t** argv) noexcept;

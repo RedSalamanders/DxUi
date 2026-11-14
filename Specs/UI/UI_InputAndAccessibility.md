@@ -559,7 +559,7 @@ cancel events. A later independent gesture returns to normal control dispatch.
 Every entry of a native menu is a UI Automation element, whether or not any entry has a description.
 Its concise `Name` is `accessibleName` or the decoded label; `secondaryText` is exposed as `HelpText`.
 Entries retain MenuItem roles, exact command invocation and acknowledged checked state. Menu
-accessibility records are prepared when a provider is requested or a client is listening. State and
+accessibility records are prepared when a provider is queried or a client may listen (the client gate below). State and
 bounds changes mark the popup dirty and coalesce into a posted publication; an owner-thread provider
 query first flushes that dirty snapshot. Worker-thread queries read the last complete immutable
 snapshot. A real focus transition is published synchronously on the owner thread so the first
@@ -694,16 +694,30 @@ first control; a UIA client's SetFocus first has UI Automation focus the hosting
 current focus the way a dialog's activation does, and the requested element is the last one reported. Native menu popups
 raise theirs once a keyboard transition completes, and embedded hosts raise theirs from the snapshot diff. A
 native HWND host coalesces ordinary dirty state into a posted snapshot publication. Owner-thread UIA
-queries flush dirty state before reading; worker-thread queries read the last complete immutable
-snapshot. The event-diff baseline advances separately when the queued publication drains, so an
+queries flush dirty state before reading; a worker-thread query reads the last complete immutable
+snapshot, after asking the owner thread to publish when no client gate left it dirty (below). The event-diff baseline advances separately when the queued publication drains, so an
 owner-thread query does not consume pending events. An interested host publishes an actual focus
 transition synchronously before returning, which keeps the first worker `GetFocus` answer current
 and captures focus-event attribution at that publication. Detaching retires the snapshot and
-attachment identity so an old queued flush cannot publish into a later host on the same HWND. Without
-a requested provider or UIA listener, mutations remain dirty without loading a snapshot, resolving focus paths
-or posting a new flush. Existing queued publication is preserved; a later owner query resolves the latest revision.
+attachment identity so an old queued flush cannot publish into a later host on the same HWND.
+Whether a host builds a snapshot before anyone asks for one is decided by the client gate: a client may hear its
+events when UI Automation advised its root provider of a subscription (`IRawElementProviderAdviseEvents`, counted
+as added minus removed calls) or, failing that, when `UiaClientsAreListening` reports a listening client anywhere on
+the desktop. The advise count cannot stand alone: UI Automation advises a window's root only of subscriptions scoped
+to that window or its elements, never of a focus-changed handler or of a subscription made at the desktop root, which
+is how a screen reader subscribes (measured with the in-process client on Windows 11 build 26300; the probe
+`TestAccessibilityClientGateAdviseReportsEverySubscription` guards it). A provider query is not interest: it never
+holds later mutations to a build. A native mutation the gate finds no client for only marks the snapshot dirty, and
+a later query publishes it: a query on the window's thread (including `WM_GETOBJECT` and root acquisition) publishes
+before it answers, and a query on another thread that finds the snapshot behind the controls sends the window a
+publication request and waits at most one second for it (it reads the last complete snapshot when the window thread
+does not answer in time). A client that attaches after unobserved mutations, or holds an element and only queries,
+therefore reads the current controls; a host with no client builds nothing however often it mutates.
+Without a listening client, mutations remain dirty without loading a snapshot, resolving focus paths or posting a
+new flush. Existing queued publication is preserved; a later query resolves the latest revision.
 An internal diagnostics override is scoped to the owning thread, HWND and attachment cookie and changes only the
-mutation-interest decision, never provider-query freshness, other hosts or global listener state. These
+mutation-interest decision, never provider-query freshness, other hosts or global listener state. A second,
+process-wide diagnostics override stands for the answer of `UiaClientsAreListening` in the client gate only. These
 native scheduling rules do not change embedded hosting: the application still calls
 `UpdateAccessibility` after coherent preparation, placement or focus changes. A
 focus-changed callback that removes the control it was told about leaves no control focused. A control disabled, hidden
@@ -1261,7 +1275,15 @@ proxies marshal actions to the owning STA. Raw foreign-thread actions fail inste
 Windows [provider threading contract](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcore/ne-uiautomationcore-provideroptions).
 
 Call UpdateAccessibility after changed preparation, placement or OS focus. Unchanged updates reuse the snapshot
-without allocation. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
+without allocation. While the client gate (see the native rules above) finds no client that could hear the view's
+events, a changed update after the first only records its preparation and placement and returns `S_OK`: it builds
+nothing, however often the application calls it. UI Automation advises an embedded root of no subscription (the
+application's window element is the fragment root UI Automation sees), so for a view the gate is
+`UiaClientsAreListening`. A query, which reaches the providers on the application's STA, then builds the recorded
+update when the view is still as that preparation left it (`InputIsCoherent` without pending paint and the recorded
+size), so a client that attaches late or only queries reads the current controls; a query that finds the view
+changed since reads the last built snapshot and makes the next update build. The first update (attachment) always
+builds. An update that builds while a client listens raises everything that changed since the last update that built. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
 snapshot allocation or UIA wake-up cost. Prepared snapshots expose confirmed Toggle, RangeValue, text/value and
 focus state. Changed active snapshots raise applicable property, text, focus, structure and (for a Tree or a Grid)
 [selection](#selection-events) events only while UIA clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.

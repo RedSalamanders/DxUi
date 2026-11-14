@@ -221,6 +221,8 @@ class Recorder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::Runti
                                                            IUIAutomationStructureChangedEventHandler,
                                                            IUIAutomationFocusChangedEventHandler,
                                                            IUIAutomationTextEditTextChangedEventHandler,
+                                                           IUIAutomationNotificationEventHandler,
+                                                           IUIAutomationActiveTextPositionChangedEventHandler,
                                                            Microsoft::WRL::FtmBase>
 {
 public:
@@ -266,6 +268,20 @@ public:
     HRESULT STDMETHODCALLTYPE HandleTextEditTextChangedEvent(IUIAutomationElement* sender, TextEditChangeType change, SAFEARRAY* strings) noexcept override
     {
         Add(EventKind::TextEdit, static_cast<long>(change), sender, nullptr, strings);
+        return S_OK;
+    }
+
+    // A notification, as an automation event with its EVENTID.
+    HRESULT STDMETHODCALLTYPE HandleNotificationEvent(IUIAutomationElement* sender, NotificationKind, NotificationProcessing, BSTR, BSTR) noexcept override
+    {
+        Add(EventKind::Automation, UIA_NotificationEventId, sender, nullptr);
+        return S_OK;
+    }
+
+    // An active text position change, as an automation event with its EVENTID.
+    HRESULT STDMETHODCALLTYPE HandleActiveTextPositionChangedEvent(IUIAutomationElement* sender, IUIAutomationTextRange*) noexcept override
+    {
+        Add(EventKind::Automation, UIA_ActiveTextPositionChangedEventId, sender, nullptr);
         return S_OK;
     }
 
@@ -469,6 +485,9 @@ struct Session
     wil::com_ptr_nothrow<IUIAutomationCondition> content; // Matches the elements of the content view.
     std::vector<wil::com_ptr_nothrow<IUIAutomationElement>> elements;
     HWND target = nullptr;
+    // The client's handler and its cache request (name, control type, automation id), for a request that subscribes.
+    Recorder* recorder = nullptr;
+    wil::com_ptr_nothrow<IUIAutomationCacheRequest> cache;
 
     [[nodiscard]] ElementId Remember(IUIAutomationElement* element)
     {
@@ -1216,6 +1235,14 @@ public:
         });
     }
 
+    // Runs `request` on the client thread with its session and returns what UI Automation answered, for a test that drives
+    // the client's own subscriptions (adding and removing handlers of other kinds or scopes than its Subscription).
+    [[nodiscard]] HRESULT Perform(const char* what, const std::function<HRESULT(Session&)>& request)
+    {
+        bool unused = false;
+        return TryAsk(what, unused, [&request](Session& session, bool&) { return request(session); });
+    }
+
     // The tree below `from` as the client walks it, a line per element, for a failure report.
     [[nodiscard]] std::wstring Dump(ElementId from, int maximumDepth = 3)
     {
@@ -1405,6 +1432,8 @@ private:
                     hr = automation3->AddTextEditTextChangedEventHandler(root.get(), TreeScope_Subtree, change, cache.get(), _recorder.get());
             }
         }
+        session.recorder = _recorder.get();
+        session.cache    = cache;
         _setup.store(hr);
         _ready.store(true);
         if (SUCCEEDED(hr))

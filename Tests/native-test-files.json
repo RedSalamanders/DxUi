@@ -1,6 +1,9 @@
 [
   "Tests/ConsumerModules/ConsumerModules.Tests.Driver.cpp",
   "Tests/ConsumerModules/ConsumerModules.Tests.NativeModule.cpp",
+  "Tests/Controls/Controls.Tests.AccessibilityClientGate.cpp",
+  "Tests/Controls/Controls.Tests.AccessibilityClientGate.h",
+  "Tests/Controls/Controls.Tests.AccessibilityFx6.h",
   "Tests/Controls/Controls.Tests.AnimationClock.cpp",
   "Tests/Controls/Controls.Tests.AnimationClock.h",
   "Tests/Controls/Controls.Tests.ClipboardTransport.h",

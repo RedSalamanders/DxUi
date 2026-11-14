@@ -438,6 +438,13 @@
       "reason": "active native and embedded form provider coverage"
     },
     {
+      "pattern": "Tests/Controls/Controls.Tests.Accessibility*",
+      "scopes": [
+        "Accessibility"
+      ],
+      "reason": "UI Automation client gate coverage in the Accessibility suite"
+    },
+    {
       "pattern": "Tests/Controls/Controls.Tests.GridUiaPattern.cpp",
       "scopes": [
         "Accessibility"

@@ -48,7 +48,7 @@ source; "not measured" means exactly that.
 | `G6` | Missed frames, 100,000-row `Grid` scrolled for 10 s at 120 Hz | not measured | **0** | Presented-frame trace on `FX9` (`W0.8`, `W4.9`, `W5`) |
 | `G7` | UI-thread frames during a page slide or fling in composition mode | every frame | **0** after the first | Counter on `FX11` (`W5.11`) |
 | `G8` | Input to present | not measured | within one refresh interval at 60–240 Hz | Trace provider (`W0.8`, `W3.7`) |
-| `G9` | UI Automation work with no client | embedded builds on every application call | **0** | Build counter on `FX6` (`W8.1`) |
+| `G9` | UI Automation work with no client | embedded builds on every application call | **0** when no UI Automation client listens anywhere on the desktop; unchanged while one does. Restated on 14 November 2026 under `A7`: `W8.1` measured that a provider is not told of a desktop-root or focus-changed subscription, so a per-window count alone would silence a screen reader | Build counter on `FX6` (`W8.1`) |
 | `G10` | Devices created per menu session, embedded-only application | 1 | **0** after the first | Counter on `FX4` (`W2.4`) |
 | `G11` | Text layouts created per steady repaint | one per `DrawCenteredText` call (61 call sites) | **0** | Counter on `FX5` (`W2.1`) |
 | `G12` | Per-keystroke work in a 64 Ki-unit rich document | every image re-uploaded (up to 64 MiB); whole-document semantic rebuild | **0** uploads; work proportional to the edited block | Counters on `FX8` (`W2.3`, `W7`) |
@@ -1474,7 +1474,7 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
 Purpose: UI Automation costs nothing without a client and work proportional to the change with one; IME input copies
 the document at most once per lock. Exit: `G9` met; the `FX6` and `FX7` gates below met with 0 and with 1 client.
 
-- [ ] **W8.1 Client gate.**
+- [x] **W8.1 Client gate.**
   - **Why**: native builds run on `providerRequested || UiaClientsAreListening()` (`DxUi.Accessibility.cpp:13785-13794`);
     one `WM_GETOBJECT` latches `providerRequested` for the window's lifetime (`:6377`) and the flag is system-wide, so
     a prober makes every mutation three tree walks plus an index. Embedded: no gate; each application
@@ -1735,6 +1735,8 @@ with an open row is not accepted for closeout until that row closes.
 | `W1.5` | Two other word classifiers still treat every surrogate pair as a word character: whole-word find in rich documents and undo word grouping. | Recorded limit, outside the item |
 | `W1.6` | No gallery capture was published: the gallery has no `Tree` tooltip tile and no existing tile changes. | Recorded difference; a tile with a synthetic hover would be a gallery addition |
 | `W1.6` | A `Tree` row tooltip now stays where the pointer entered the row. A tooltip that is already shown still follows the pointer and repaints on each move; the gate covers the hover delay only. | Recorded behaviour; the shown case is a developer decision if `FX14` should repaint nothing while shown |
+| `W8.1` | The item's assumption proved false. UI Automation advises a window's root provider only of subscriptions scoped to that window or its elements: it reports no focus-changed handler, no subscription made at the desktop root, which is how a screen reader subscribes, and nothing at all to an embedded root. The gate is therefore the advised count or, failing that, `UiaClientsAreListening`; the per-window latch is gone and `G9` is restated. While any process on the desktop listens, mutations and embedded updates build as before. | A developer decision if more is wanted: an embedded forwarding interface, or accepting the risk of silencing desktop-scope listeners |
+| `W8.1` | The Narrator and Inspect check was not run. A query on another thread now waits up to one second for the window thread to publish when unobserved mutations exist. An embedded view queried while it is not coherent reads its last built snapshot. | Narrator and Inspect on the developer's desktop |
 | `W8.6` | The UI Automation character expansion visits up to 63 of the gate's 64 code units, because it reads the same sequence three times. Runs of regional indicators, pictographs joined by ZWJ and Indic linker chains are still read back to their start, as the item says. | `W8.4` gives the expansion headroom; the unbounded runs are by design |
 
 ## Decisions carried into this plan

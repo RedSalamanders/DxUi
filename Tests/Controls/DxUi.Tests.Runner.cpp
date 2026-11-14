@@ -1,3 +1,4 @@
+#include "Controls.Tests.AccessibilityClientGate.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls/TextClipboard.h"
 #include "Support/AnimationDispatcher.h"
@@ -97,6 +98,8 @@ int wmain(int argc, wchar_t** argv)
     DxUiTestFailureReports::RouteAwayFromDialogs();
     if (const auto child = DxUiFailureTests::RunFailureChild(argc, argv); child >= 0)
         return child;
+    if (const int subscriber = RunAccessibilityClientGateSubscriberChild(argc, argv); subscriber >= 0)
+        return subscriber;
     if (argc == 2 && std::wstring_view(argv[1]) == L"--ci-assertion-probe")
     {
         try
