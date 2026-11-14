@@ -17,14 +17,9 @@ inline HRESULT Decode(IWICImagingFactory* factory, std::span<const BYTE> encoded
 {
     return RichImage::Decode(factory, std::as_bytes(encoded), output);
 }
-inline std::vector<BYTE> Encode(
-    IWICImagingFactory* factory, REFGUID container, std::span<BYTE> pixels, unsigned width, unsigned height, unsigned orientation = 1u)
+inline void EncodeFrame(
+    IWICImagingFactory* factory, IWICBitmapEncoder* encoder, REFGUID container, std::span<BYTE> pixels, unsigned width, unsigned height, unsigned orientation)
 {
-    wil::com_ptr<IStream> stream;
-    THROW_IF_FAILED(CreateStreamOnHGlobal(nullptr, TRUE, stream.put()));
-    wil::com_ptr<IWICBitmapEncoder> encoder;
-    THROW_IF_FAILED(factory->CreateEncoder(container, nullptr, encoder.put()));
-    THROW_IF_FAILED(encoder->Initialize(stream.get(), WICBitmapEncoderNoCache));
     wil::com_ptr<IWICBitmapFrameEncode> frame;
     wil::com_ptr<IPropertyBag2> options;
     THROW_IF_FAILED(encoder->CreateNewFrame(frame.put(), options.put()));
@@ -56,6 +51,18 @@ inline std::vector<BYTE> Encode(
     }
     THROW_IF_FAILED(frame->WriteSource(converter.get(), nullptr));
     THROW_IF_FAILED(frame->Commit());
+}
+// Encodes the same pixels into every frame; a GIF of more than one frame is an animated container.
+inline std::vector<BYTE> Encode(
+    IWICImagingFactory* factory, REFGUID container, std::span<BYTE> pixels, unsigned width, unsigned height, unsigned orientation = 1u, unsigned frames = 1u)
+{
+    wil::com_ptr<IStream> stream;
+    THROW_IF_FAILED(CreateStreamOnHGlobal(nullptr, TRUE, stream.put()));
+    wil::com_ptr<IWICBitmapEncoder> encoder;
+    THROW_IF_FAILED(factory->CreateEncoder(container, nullptr, encoder.put()));
+    THROW_IF_FAILED(encoder->Initialize(stream.get(), WICBitmapEncoderNoCache));
+    for (unsigned index = 0u; index < frames; ++index)
+        EncodeFrame(factory, encoder.get(), container, pixels, width, height, orientation);
     THROW_IF_FAILED(encoder->Commit());
     HGLOBAL memory{};
     THROW_IF_FAILED(GetHGlobalFromStream(stream.get(), &memory));
@@ -90,6 +97,171 @@ inline std::size_t GifDescriptor(std::span<const BYTE> bytes)
     if (at + 10u > bytes.size() || bytes[at] != 0x2cu)
         throw std::runtime_error("generated GIF image descriptor");
     return at;
+}
+// Image decode scenarios (performance and motion plan W7.8), shaped for reuse by the rich-typing fixture: each holds
+// encoded bytes and the exact premultiplied BGRA its decode must publish.
+struct DecodeScenario
+{
+    std::string name;
+    std::vector<BYTE> encoded;
+    unsigned width{}, height{};
+    std::vector<BYTE> expected;
+    // Size of the first frame as decoded, before GIF canvas placement or EXIF orientation.
+    std::size_t frameBytes{};
+    // The decode contract permits one additional decoded-size buffer only for a transposing EXIF orientation of a
+    // non-square image, which cannot be applied in place.
+    bool extraDecoded{};
+};
+// Opaque, at most 128 distinct colours, so GIF palettes reproduce it exactly.
+inline std::vector<BYTE> PatternPixels(unsigned width, unsigned height)
+{
+    std::vector<BYTE> pixels(static_cast<std::size_t>(width) * height * 4u);
+    for (unsigned y = 0u; y < height; ++y)
+        for (unsigned x = 0u; x < width; ++x)
+        {
+            auto* pixel = pixels.data() + (static_cast<std::size_t>(y) * width + x) * 4u;
+            pixel[0]    = static_cast<BYTE>((x % 8u) * 32u);
+            pixel[1]    = static_cast<BYTE>((y % 8u) * 32u);
+            pixel[2]    = static_cast<BYTE>(((x / 8u + y / 8u) % 2u) * 128u);
+            pixel[3]    = 255u;
+        }
+    return pixels;
+}
+// EXIF orientation as an independent oracle: transpose for 5-8, then mirror columns and/or rows.
+inline std::vector<BYTE> Oriented(std::span<const std::byte> pixels, unsigned width, unsigned height, unsigned orientation)
+{
+    const bool transpose    = orientation >= 5u;
+    const bool mirrorX      = orientation == 2u || orientation == 3u || orientation == 6u || orientation == 7u;
+    const bool mirrorY      = orientation == 3u || orientation == 4u || orientation == 7u || orientation == 8u;
+    const unsigned outWidth = transpose ? height : width, outHeight = transpose ? width : height;
+    std::vector<BYTE> output(pixels.size());
+    for (unsigned y = 0u; y < height; ++y)
+        for (unsigned x = 0u; x < width; ++x)
+        {
+            const unsigned tx = transpose ? y : x, ty = transpose ? x : y;
+            const unsigned dx = mirrorX ? outWidth - 1u - tx : tx, dy = mirrorY ? outHeight - 1u - ty : ty;
+            for (unsigned channel = 0u; channel < 4u; ++channel)
+                output[(static_cast<std::size_t>(dy) * outWidth + dx) * 4u + channel] =
+                    std::to_integer<BYTE>(pixels[(static_cast<std::size_t>(y) * width + x) * 4u + channel]);
+        }
+    return output;
+}
+inline void InsertExifOrientation(std::vector<BYTE>& jpeg, unsigned orientation)
+{
+    const std::array<BYTE, 36u> exif{0xffu,
+                                     0xe1u,
+                                     0u,
+                                     0x22u,
+                                     'E',
+                                     'x',
+                                     'i',
+                                     'f',
+                                     0u,
+                                     0u,
+                                     'I',
+                                     'I',
+                                     0x2au,
+                                     0u,
+                                     8u,
+                                     0u,
+                                     0u,
+                                     0u,
+                                     1u,
+                                     0u,
+                                     0x12u,
+                                     1u,
+                                     3u,
+                                     0u,
+                                     1u,
+                                     0u,
+                                     0u,
+                                     0u,
+                                     static_cast<BYTE>(orientation),
+                                     0u,
+                                     0u,
+                                     0u,
+                                     0u,
+                                     0u,
+                                     0u,
+                                     0u};
+    jpeg.insert(jpeg.begin() + 2, exif.begin(), exif.end());
+}
+// (a) a small PNG, (b) JPEGs with EXIF orientation, transposing and not, square and not, and (c) an animated
+// two-frame GIF whose first frame covers its canvas and one whose first frame is placed inside a larger canvas.
+inline std::vector<DecodeScenario> DecodeScenarios(IWICImagingFactory* factory)
+{
+    std::vector<DecodeScenario> scenarios;
+    auto png = PatternPixels(64u, 48u);
+    scenarios.push_back({"png-64x48", Encode(factory, GUID_ContainerFormatPng, png, 64u, 48u), 64u, 48u, png, png.size(), false});
+    for (const auto& [orientation, width, height] : {std::array{6u, 96u, 64u}, std::array{3u, 96u, 64u}, std::array{8u, 64u, 64u}})
+    {
+        auto pixels = PatternPixels(width, height);
+        auto jpeg   = Encode(factory, GUID_ContainerFormatJpeg, pixels, width, height);
+        // The oracle orients the decoder's own unoriented pixels of the same scan data.
+        std::shared_ptr<const RichImage> unoriented;
+        THROW_IF_FAILED(Decode(factory, jpeg, unoriented));
+        InsertExifOrientation(jpeg, orientation);
+        const bool transpose = orientation >= 5u;
+        scenarios.push_back({"jpeg-" + std::to_string(width) + "x" + std::to_string(height) + "-orientation-" + std::to_string(orientation),
+                             std::move(jpeg),
+                             transpose ? height : width,
+                             transpose ? width : height,
+                             Oriented(unoriented->Pixels(), width, height, orientation),
+                             pixels.size(),
+                             transpose && width != height});
+    }
+    auto frame = PatternPixels(64u, 48u);
+    auto gif   = Encode(factory, GUID_ContainerFormatGif, frame, 64u, 48u, 1u, 2u);
+    scenarios.push_back({"gif-64x48-two-frames", gif, 64u, 48u, frame, frame.size(), false});
+    // Place the first frame at (16, 12) of an 80x60 logical screen, touching its right and bottom edges; the second
+    // frame stays at the origin.
+    constexpr unsigned canvasWidth = 80u, canvasHeight = 60u, left = 16u, top = 12u;
+    const auto descriptor = GifDescriptor(gif);
+    gif[6]                = static_cast<BYTE>(canvasWidth);
+    gif[7]                = 0u;
+    gif[8]                = static_cast<BYTE>(canvasHeight);
+    gif[9]                = 0u;
+    gif[descriptor + 1u]  = static_cast<BYTE>(left);
+    gif[descriptor + 2u]  = 0u;
+    gif[descriptor + 3u]  = static_cast<BYTE>(top);
+    gif[descriptor + 4u]  = 0u;
+    std::array<BYTE, 4u> fill{};
+    if (gif[10] & 0x80u)
+    {
+        const auto palette = 13u + static_cast<std::size_t>(gif[11]) * 3u;
+        fill               = {gif[palette + 2u], gif[palette + 1u], gif[palette], 255u};
+    }
+    std::vector<BYTE> canvas(static_cast<std::size_t>(canvasWidth) * canvasHeight * 4u);
+    for (unsigned y = 0u; y < canvasHeight; ++y)
+        for (unsigned x = 0u; x < canvasWidth; ++x)
+        {
+            const bool inside = x >= left && x < left + 64u && y >= top && y < top + 48u;
+            const auto* pixel = inside ? frame.data() + (static_cast<std::size_t>(y - top) * 64u + (x - left)) * 4u : fill.data();
+            std::memcpy(canvas.data() + (static_cast<std::size_t>(y) * canvasWidth + x) * 4u, pixel, 4u);
+        }
+    scenarios.push_back({"gif-80x60-canvas-two-frames", std::move(gif), canvasWidth, canvasHeight, std::move(canvas), frame.size(), false});
+    return scenarios;
+}
+// (d) an image at the 16 MiB encoded cap: a PNG of opaque noise padded after IEND to exactly MaximumEncodedBytes.
+inline DecodeScenario EncodedCapScenario(IWICImagingFactory* factory)
+{
+    constexpr unsigned width = 2000u, height = 2000u;
+    std::vector<BYTE> pixels(static_cast<std::size_t>(width) * height * 4u);
+    std::uint32_t state = 0x2545f491u;
+    for (std::size_t at = 0u; at < pixels.size(); at += 4u)
+    {
+        state           = state * 1664525u + 1013904223u;
+        pixels[at]      = static_cast<BYTE>(state >> 24u);
+        pixels[at + 1u] = static_cast<BYTE>(state >> 16u);
+        pixels[at + 2u] = static_cast<BYTE>(state >> 8u);
+        pixels[at + 3u] = 255u;
+    }
+    auto encoded = Encode(factory, GUID_ContainerFormatPng, pixels, width, height);
+    if (encoded.size() > RichImage::MaximumEncodedBytes)
+        throw std::runtime_error("encoded-cap fixture exceeds the cap");
+    encoded.resize(RichImage::MaximumEncodedBytes, 0u);
+    const auto bytes = pixels.size();
+    return {"png-2000x2000-at-encoded-cap", std::move(encoded), width, height, std::move(pixels), bytes, false};
 }
 class FileReadFixture
 {

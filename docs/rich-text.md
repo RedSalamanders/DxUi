@@ -740,6 +740,10 @@ pixels, 32 unique sources, 128 native placements shared with diagrams and 64 MiB
 of unique retained CPU pixels. Shared images also share prepared GPU bitmaps.
 The sample's completion queue has its own 64-MiB bound. Decode/staging/driver
 overhead and transient old/new graphs are separate from those retained limits.
+`Decode` reads the caller's encoded bytes in place for the duration of the call
+and `LoadFile` decodes from its single read buffer; a GIF canvas and EXIF
+orientation are applied in place, except that a transposing orientation (5-8)
+of a non-square image uses one extra decoded-size buffer.
 Cancellation is checked between 64-KiB reads, decoder phases and pixel rows;
 an individual codec call is not preemptible. Painting uses fully materialized
 pixels and prepared bitmaps, preserving image aspect, source ACPs, selection

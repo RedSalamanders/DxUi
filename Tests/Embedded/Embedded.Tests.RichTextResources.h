@@ -1645,6 +1645,170 @@ static void TestRichImageDecoderAllocationFailures(unsigned fatalScenario = 0u)
               std::memcmp(image->Pixels().data(), opaque.data(), opaque.size()) == 0,
           "identity PNG preserves every opaque source pixel");
 }
+// Image decode memory (performance and motion plan W7.8). One decode per scenario under the counting operator new:
+// the peak of live tracked bytes, and the plain blocks of encoded size and of decoded size it requested.
+namespace RichImageDecodeMemory
+{
+struct Observation
+{
+    HRESULT result{};
+    ptrdiff_t peak{};
+    size_t calls{}, requested{}, encodedBuffers{}, decodedBuffers{}, otherBytes{};
+};
+static thread_local size_t encodedSize{}, decodedSize{}, frameSize{};
+static thread_local Observation* observing{};
+// The standard allocator requests a block of 4 KiB or more with alignment padding (under 64 bytes) beside the buffer.
+static bool Sized(size_t bytes, size_t buffer) noexcept
+{
+    return bytes >= buffer && bytes - buffer < 64u;
+}
+static void Observe(size_t bytes) noexcept
+{
+    if (Sized(bytes, encodedSize))
+        ++observing->encodedBuffers;
+    else if (Sized(bytes, decodedSize) || Sized(bytes, frameSize))
+        ++observing->decodedBuffers;
+    else
+        observing->otherBytes += bytes;
+}
+template <typename Operation> static Observation Measure(const RichImageTests::DecodeScenario& scenario, Operation&& operation)
+{
+    Observation observation;
+    const bool oldCounting = countAllocations, oldLive = countLiveBytes;
+    const auto oldCalls = allocations, oldBytes = allocationBytes;
+    const auto oldLiveBytes = liveBytes;
+    auto* const oldPeak     = liveBytesPeak;
+    auto* const oldObserver = liveBlockObserver;
+    const auto restore      = wil::scope_exit([=] noexcept
+    {
+        countAllocations  = oldCounting;
+        countLiveBytes    = oldLive;
+        allocations       = oldCalls;
+        allocationBytes   = oldBytes;
+        liveBytes         = oldLiveBytes;
+        liveBytesPeak     = oldPeak;
+        liveBlockObserver = oldObserver;
+        observing         = nullptr;
+    });
+    encodedSize             = scenario.encoded.size();
+    decodedSize             = scenario.expected.size();
+    frameSize               = scenario.frameBytes;
+    observing               = &observation;
+    allocations = allocationBytes = 0u;
+    liveBytes                     = 0;
+    liveBytesPeak                 = &observation.peak;
+    liveBlockObserver             = &Observe;
+    countAllocations = countLiveBytes = true;
+    observation.result                = operation();
+    countAllocations = countLiveBytes = false;
+    observation.calls                 = allocations;
+    observation.requested             = allocationBytes;
+    return observation;
+}
+inline uint64_t Fnv1a(std::span<const std::byte> bytes) noexcept
+{
+    uint64_t hash = 14695981039346656037ull;
+    for (const auto byte : bytes)
+        hash = (hash ^ std::to_integer<uint64_t>(byte)) * 1099511628211ull;
+    return hash;
+}
+} // namespace RichImageDecodeMemory
+static void TestRichImageDecodeMemory()
+{
+    using DxUi::RichText::RichImage;
+    using namespace RichImageDecodeMemory;
+    const auto initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    Check(SUCCEEDED(initialized) || initialized == RPC_E_CHANGED_MODE, "image decode memory fixture initializes or borrows COM");
+    const auto apartment = wil::scope_exit([&] noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    wil::com_ptr<IWICImagingFactory> factory;
+    Hr(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(factory.put())), "image decode memory factory");
+    auto scenarios = RichImageTests::DecodeScenarios(factory.get());
+    scenarios.push_back(RichImageTests::EncodedCapScenario(factory.get()));
+    // The encoded-cap image is also loaded from a file, whose read buffer is then the one encoded buffer.
+    std::array<wchar_t, MAX_PATH> temp{};
+    const auto count = GetTempPathW(static_cast<DWORD>(temp.size()), temp.data());
+    Check(count && count < temp.size(), "image decode memory has a bounded temporary directory");
+    GUID id{};
+    Hr(CoCreateGuid(&id), "image decode memory file identity");
+    std::array<wchar_t, 40u> guid{};
+    Check(StringFromGUID2(id, guid.data(), static_cast<int>(guid.size())) > 0, "image decode memory file name");
+    const std::wstring path = std::wstring(temp.data(), count).append(L"DxUi-decode-memory-").append(guid.data()).append(L".png");
+    bool created{};
+    const auto cleanup = wil::scope_exit([&] noexcept
+    {
+        if (created)
+            DeleteFileW(path.c_str());
+    });
+    {
+        const auto& cap = scenarios.back();
+        wil::unique_hfile file(CreateFileW(path.c_str(), GENERIC_WRITE, 0u, nullptr, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY, nullptr));
+        Check(static_cast<bool>(file), "image decode memory creates its own file");
+        created = true;
+        DWORD written{};
+        Check(WriteFile(file.get(), cap.encoded.data(), static_cast<DWORD>(cap.encoded.size()), &written, nullptr) && written == cap.encoded.size(),
+              "image decode memory writes the encoded-cap image");
+    }
+    // Process first-use state (codec registration, metadata handlers) is created before measuring.
+    for (const auto& scenario : scenarios)
+    {
+        std::shared_ptr<const RichImage> warm;
+        Hr(RichImage::Decode(factory.get(), std::as_bytes(std::span(scenario.encoded)), warm), "warm image decoder");
+    }
+    {
+        std::shared_ptr<const RichImage> warm;
+        Hr(RichImage::LoadFile(factory.get(), path, warm), "warm image file loading");
+    }
+    // At most this many tracked bytes beside the encoded and decoded buffers: the RichImage object, its shared
+    // control block and, for a file, the normalized and extended path strings.
+    constexpr size_t kBookkeepingBytes = 2048u;
+    struct Measured
+    {
+        const RichImageTests::DecodeScenario* scenario;
+        bool fromFile;
+        Observation observation;
+        std::shared_ptr<const RichImage> image;
+    };
+    std::vector<Measured> measured;
+    const auto measure = [&](const RichImageTests::DecodeScenario& scenario, bool fromFile)
+    {
+        std::shared_ptr<const RichImage> image;
+        const auto observation = Measure(scenario, [&] {
+            return fromFile ? RichImage::LoadFile(factory.get(), path, image)
+                            : RichImage::Decode(factory.get(), std::as_bytes(std::span(scenario.encoded)), image);
+        });
+        const auto pixels      = image ? image->Pixels() : std::span<const std::byte>{};
+        std::cout << "image decode memory " << scenario.name << (fromFile ? " (LoadFile)" : " (Decode)") << ": encoded " << scenario.encoded.size()
+                  << ", decoded " << scenario.expected.size() << ", peak tracked " << observation.peak << ", calls " << observation.calls << ", requested "
+                  << observation.requested << ", encoded-size buffers " << observation.encodedBuffers << ", decoded-size buffers " << observation.decodedBuffers
+                  << ", other bytes " << observation.otherBytes << ", pixels fnv1a " << std::hex << Fnv1a(pixels) << std::dec << '\n';
+        measured.push_back({&scenario, fromFile, observation, std::move(image)});
+    };
+    for (const auto& scenario : scenarios)
+        measure(scenario, false);
+    measure(scenarios.back(), true);
+    // Every scenario is reported before the first verdict.
+    for (const auto& [pointer, fromFile, observation, image] : measured)
+    {
+        const auto& scenario = *pointer;
+        const auto pixels    = image ? image->Pixels() : std::span<const std::byte>{};
+        Hr(observation.result, "measured image decode");
+        Check(image && image->Width() == scenario.width && image->Height() == scenario.height && pixels.size() == scenario.expected.size() &&
+                  std::equal(pixels.begin(), pixels.end(), scenario.expected.begin(), [](std::byte a, BYTE b) { return a == std::byte(b); }),
+              "decoded pixels equal the scenario oracle byte for byte");
+        const size_t extra = scenario.extraDecoded ? 1u : 0u;
+        Check(observation.encodedBuffers == (fromFile ? 1u : 0u), "a decode holds no duplicate encoded buffer");
+        Check(observation.decodedBuffers <= 1u + extra, "a decode allocates one decoded-size buffer, two only for an orientation it cannot apply in place");
+        Check(observation.otherBytes <= kBookkeepingBytes, "beside its pixel and encoded buffers a decode requests only bookkeeping");
+        // The caller's encoded span counts once: Decode borrows it, LoadFile owns it.
+        const auto held = fromFile ? 0u : scenario.encoded.size();
+        Check(held + static_cast<size_t>(observation.peak) <= scenario.encoded.size() + scenario.expected.size() * (1u + extra) + kBookkeepingBytes,
+              "peak tracked bytes per decode stay within encoded plus decoded size");
+    }
+}
 __declspec(noinline) static void RichImagePathFaultOrigin(unsigned scenario, std::span<const std::byte> bytes)
 {
     DxUi::TextClipboardContent content;

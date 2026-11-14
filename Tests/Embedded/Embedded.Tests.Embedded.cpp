@@ -1527,9 +1527,10 @@ __declspec(noinline) static int RunFunctionalTests()
         (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-image-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-image-decode-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-image-resource-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-file-reference-paste" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-image-decode-memory" || std::wstring_view(__wargv[1]) == L"--test-rich-image-resource-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-file-reference-paste" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" || std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-command-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-footnote-failures" ||
@@ -1607,6 +1608,8 @@ __declspec(noinline) static int RunFunctionalTests()
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-decode-failures")
             TestRichImageDecoderAllocationFailures();
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-decode-memory")
+            TestRichImageDecodeMemory();
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-resource-failures")
         {
             TestRichImageResourceAllocationFailures();
@@ -2055,6 +2058,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichFileDropTransportAllocationFailures();
     TestRichFileDropTransactionAllocationFailures(gpu);
     TestRichImageDecoderAllocationFailures();
+    TestRichImageDecodeMemory();
     TestRichEditorSteadyLinkHoverAllocatesNothing(gpu);
     TestRichImageResourceAllocationFailures();
     TestRichImageGeometryAllocationFailures();

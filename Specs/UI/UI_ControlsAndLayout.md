@@ -1223,6 +1223,19 @@ Shared immutable pixel objects MUST be counted/uploaded once. Other source/forma
 capacity contracts are unchanged; process/driver and transient staging overhead
 require separate measurement.
 
+`RichImage::Decode` MUST read the caller's encoded span in place, borrowed for
+the call only: no WIC object or lazy source may outlive the call, and every
+published pixel is copied out before it returns. `LoadFile` decodes from its own
+read buffer, so one decode holds at most one encoded-size buffer. A GIF first
+frame is copied into its logical canvas at its offset and composed in place, and
+EXIF orientation is applied in place for every square image and for the
+non-transposing orientations; only a transposing orientation of a non-square
+image may hold one additional decoded-size buffer. Peak tracked C++ storage per
+decode is therefore at most the encoded plus the decoded size, plus that one
+buffer, plus bookkeeping of at most 2 KiB (the image object and, for a file,
+its path strings). Cancellation points, size and dimension caps, results and
+decoded pixels are unchanged.
+
 Local destination resolution MUST use explicit document metadata, strict UTF-8
 URI decoding and bounded lexical Windows paths. Encoded separators/NUL, device
 names, ambiguous extended/trailing-component spellings and malformed/unrecognized URI

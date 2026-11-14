@@ -3,6 +3,7 @@
 #include "DxUi.RichImage.h"
 #include "DxUi.RichImagePaths.h"
 #include <DxUi/RichImage.h>
+#include <algorithm>
 #include <array>
 #include <cstring>
 #include <shlwapi.h>
@@ -109,13 +110,15 @@ HRESULT MetadataUnsigned(IWICMetadataQueryReader* reader, const wchar_t* path, u
         return WINCODEC_ERR_UNEXPECTEDMETADATATYPE;
     return S_OK;
 }
-HRESULT ComposeGifCanvas(IWICImagingFactory* factory,
-                         IWICBitmapDecoder* decoder,
-                         IWICBitmapFrameDecode* frame,
-                         std::vector<std::byte>& pixels,
-                         unsigned& width,
-                         unsigned& height,
-                         const std::atomic_bool* cancellation)
+// Where a GIF's first frame lies on its logical screen and what fills the rest.
+struct GifPlacement
+{
+    unsigned canvasWidth{}, canvasHeight{}, left{}, top{};
+    std::array<std::byte, 4u> fill{};
+    bool covers{true};
+};
+HRESULT PlaceGifFrame(
+    IWICImagingFactory* factory, IWICBitmapDecoder* decoder, IWICBitmapFrameDecode* frame, unsigned width, unsigned height, GifPlacement& placement)
 {
     wil::com_ptr_nothrow<IWICMetadataQueryReader> global, local;
     RETURN_IF_FAILED(decoder->GetMetadataQueryReader(global.put()));
@@ -148,26 +151,34 @@ HRESULT ComposeGifCanvas(IWICImagingFactory* factory,
         const auto color = colors[background];
         fill             = {{std::byte(color & 255u), std::byte((color >> 8u) & 255u), std::byte((color >> 16u) & 255u), std::byte(255u)}};
     }
-    std::vector<std::byte> canvas(static_cast<std::size_t>(canvasWidth) * canvasHeight * 4u);
-    for (std::size_t at = 0u; at < canvas.size(); at += 4u)
-        std::memcpy(canvas.data() + at, fill.data(), 4u);
-    for (unsigned y = 0u; y < height; ++y)
+    placement = {canvasWidth, canvasHeight, left, top, fill, false};
+    return S_OK;
+}
+// Composes in place: the frame's pixels already lie at their offset inside the canvas (CopyPixels with the canvas
+// stride), so each frame pixel is blended over the fill where it stands and every other pixel becomes the fill.
+HRESULT ComposeGifCanvas(std::span<std::byte> canvas, unsigned width, unsigned height, const GifPlacement& placement, const std::atomic_bool* cancellation)
+{
+    const auto& fill = placement.fill;
+    for (unsigned y = 0u; y < placement.canvasHeight; ++y)
     {
         if (Cancelled(cancellation))
             return HRESULT_FROM_WIN32(ERROR_CANCELLED);
-        for (unsigned x = 0u; x < width; ++x)
+        const bool frameRow = y >= placement.top && y - placement.top < height;
+        auto* row           = canvas.data() + static_cast<std::size_t>(y) * placement.canvasWidth * 4u;
+        for (unsigned x = 0u; x < placement.canvasWidth; ++x)
         {
-            const auto* source = pixels.data() + (static_cast<std::size_t>(y) * width + x) * 4u;
-            auto* destination  = canvas.data() + (static_cast<std::size_t>(top + y) * canvasWidth + left + x) * 4u;
-            const auto alpha   = std::to_integer<unsigned>(source[3]);
+            auto* pixel = row + static_cast<std::size_t>(x) * 4u;
+            if (! frameRow || x < placement.left || x - placement.left >= width)
+            {
+                std::memcpy(pixel, fill.data(), 4u);
+                continue;
+            }
+            const auto alpha = std::to_integer<unsigned>(pixel[3]);
             for (unsigned channel = 0u; channel < 4u; ++channel)
-                destination[channel] =
-                    std::byte(std::to_integer<unsigned>(source[channel]) + (std::to_integer<unsigned>(destination[channel]) * (255u - alpha) + 127u) / 255u);
+                pixel[channel] =
+                    std::byte(std::to_integer<unsigned>(pixel[channel]) + (std::to_integer<unsigned>(fill[channel]) * (255u - alpha) + 127u) / 255u);
         }
     }
-    pixels.swap(canvas);
-    width  = canvasWidth;
-    height = canvasHeight;
     return S_OK;
 }
 } // namespace
@@ -233,6 +244,46 @@ public:
         output = staged;
         return S_OK;
     }
+    // The same transforms applied inside the decoded pixels where the stride survives: every orientation of a square
+    // image and the non-transposing orientations 2-4. A transpose followed by mirroring the columns and/or rows equals
+    // the source-to-destination mapping of Orient. Returns S_FALSE, untouched, when it cannot apply in place.
+    static HRESULT OrientInPlace(std::span<std::byte> pixels, unsigned width, unsigned height, unsigned orientation, const std::atomic_bool* cancellation)
+    {
+        if (! DimensionsAllowed(width, height) || pixels.size() != static_cast<std::size_t>(width) * height * 4u || orientation < 1u || orientation > 8u)
+            return E_INVALIDARG;
+        const bool transpose = orientation >= 5u;
+        if (transpose && width != height)
+            return S_FALSE;
+        if (Cancelled(cancellation))
+            return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+        const auto swap = [&](std::size_t first, std::size_t second) noexcept
+        { std::swap_ranges(pixels.data() + first * 4u, pixels.data() + first * 4u + 4u, pixels.data() + second * 4u); };
+        if (transpose)
+            for (unsigned y = 0u; y < height; ++y)
+            {
+                if (Cancelled(cancellation))
+                    return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+                for (unsigned x = y + 1u; x < width; ++x)
+                    swap(static_cast<std::size_t>(y) * width + x, static_cast<std::size_t>(x) * width + y);
+            }
+        const bool mirrorX = orientation == 2u || orientation == 3u || orientation == 6u || orientation == 7u;
+        const bool mirrorY = orientation == 3u || orientation == 4u || orientation == 7u || orientation == 8u;
+        if (mirrorX || mirrorY)
+            for (unsigned y = 0u; y < height; ++y)
+            {
+                if (Cancelled(cancellation))
+                    return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+                const unsigned targetY = mirrorY ? height - 1u - y : y;
+                for (unsigned x = 0u; x < width; ++x)
+                {
+                    const std::size_t from = static_cast<std::size_t>(y) * width + x;
+                    const std::size_t to   = static_cast<std::size_t>(targetY) * width + (mirrorX ? width - 1u - x : x);
+                    if (from < to)
+                        swap(from, to);
+                }
+            }
+        return S_OK;
+    }
     static HRESULT Decode(IWICImagingFactory* factory,
                           std::span<const std::byte> encoded,
                           std::shared_ptr<const RichImage>& output,
@@ -247,12 +298,14 @@ public:
             return WINCODEC_ERR_COMPONENTNOTFOUND;
         if (Cancelled(cancellation))
             return HRESULT_FROM_WIN32(ERROR_CANCELLED);
-        // Retain the stream's backing memory until all lazy WIC sources retire.
-        std::vector<BYTE> owned(encoded.size());
-        std::memcpy(owned.data(), encoded.data(), encoded.size());
+        // The stream reads the caller's span in place, borrowed for this call only. Lifetime invariant: every WIC
+        // object (stream, decoder, frame, metadata readers, palette, format converter) is a local of this call and
+        // is handed to nothing that retains it; ComposeGifCanvas and the orientation transforms work on owned pixels
+        // only; and CopyPixels has materialized every published pixel before Decode returns, so no WIC object or lazy
+        // source outlives the span. The built-in decoders only read their stream, which makes the const_cast safe.
         wil::com_ptr_nothrow<IWICStream> stream;
         RETURN_IF_FAILED(factory->CreateStream(stream.put()));
-        RETURN_IF_FAILED(stream->InitializeFromMemory(owned.data(), static_cast<DWORD>(owned.size())));
+        RETURN_IF_FAILED(stream->InitializeFromMemory(const_cast<BYTE*>(reinterpret_cast<const BYTE*>(encoded.data())), static_cast<DWORD>(encoded.size())));
         wil::com_ptr_nothrow<IWICBitmapDecoder> decoder;
         RETURN_IF_FAILED(CoCreateInstance(*clsid, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(decoder.put())));
         RETURN_IF_FAILED(decoder->Initialize(stream.get(), WICDecodeMetadataCacheOnLoad));
@@ -285,18 +338,39 @@ public:
         }
         if (Cancelled(cancellation))
             return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+        // A GIF's first frame is copied straight into its canvas, at its offset, when the placement is known.
+        GifPlacement placement;
+        const HRESULT placed = *clsid == CLSID_WICGifDecoder ? PlaceGifFrame(factory, decoder.get(), frame.get(), width, height, placement) : S_OK;
+        const bool canvas    = SUCCEEDED(placed) && ! placement.covers;
         wil::com_ptr_nothrow<IWICFormatConverter> converter;
         RETURN_IF_FAILED(factory->CreateFormatConverter(converter.put()));
         RETURN_IF_FAILED(converter->Initialize(frame.get(), GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom));
-        auto staged = std::shared_ptr<RichImage>(new RichImage(width, height));
-        RETURN_IF_FAILED(
-            converter->CopyPixels(nullptr, width * 4u, static_cast<UINT>(staged->pixels_.size()), reinterpret_cast<BYTE*>(staged->pixels_.data())));
+        auto staged = std::shared_ptr<RichImage>(canvas ? new RichImage(placement.canvasWidth, placement.canvasHeight) : new RichImage(width, height));
+        const std::size_t offset = canvas ? (static_cast<std::size_t>(placement.top) * placement.canvasWidth + placement.left) * 4u : 0u;
+        RETURN_IF_FAILED(converter->CopyPixels(nullptr,
+                                               (canvas ? placement.canvasWidth : width) * 4u,
+                                               static_cast<UINT>(staged->pixels_.size() - offset),
+                                               reinterpret_cast<BYTE*>(staged->pixels_.data() + offset)));
         if (Cancelled(cancellation))
             return HRESULT_FROM_WIN32(ERROR_CANCELLED);
-        if (*clsid == CLSID_WICGifDecoder)
-            RETURN_IF_FAILED(ComposeGifCanvas(factory, decoder.get(), frame.get(), staged->pixels_, width, height, cancellation));
+        // A placement failure is reported where composition reported it before: after the frame's pixels decoded.
+        if (FAILED(placed))
+            return placed;
+        if (canvas)
+        {
+            RETURN_IF_FAILED(ComposeGifCanvas(staged->pixels_, width, height, placement, cancellation));
+            width  = placement.canvasWidth;
+            height = placement.canvasHeight;
+        }
         if (orientation != 1u)
-            return Orient(staged->pixels_, width, height, orientation, output, cancellation);
+        {
+            const HRESULT oriented = OrientInPlace(staged->pixels_, width, height, orientation, cancellation);
+            if (FAILED(oriented))
+                return oriented;
+            // A transposing orientation of a non-square image needs the one additional decoded-size buffer.
+            if (oriented == S_FALSE)
+                return Orient(staged->pixels_, width, height, orientation, output, cancellation);
+        }
         if (Cancelled(cancellation))
             return HRESULT_FROM_WIN32(ERROR_CANCELLED);
         staged->width_  = width;
@@ -517,6 +591,8 @@ try
         at += count;
     }
     file.reset();
+    // The read buffer is the decode's only encoded copy: Decode streams it in place and has released every WIC object
+    // before it returns, while bytes is still alive.
     return Decode(factory, bytes, output, cancellation);
 }
 catch (const std::bad_alloc&)

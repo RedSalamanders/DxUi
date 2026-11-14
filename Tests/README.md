@@ -250,8 +250,14 @@ Isolated failure children retain the same ordinary Embedded assertions:
 ./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-failures
 ./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-decode-failures
 ./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-resource-failures
+./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-decode-memory
 ./.build/x64/Debug/DxUi.EmbeddedTests.exe --capture-rich-images output.png Dark
 ```
+
+`--test-rich-image-decode-memory` runs `TestRichImageDecodeMemory` alone, so the decode memory gate can run in any
+configuration: one decode of each `RichImageTests::DecodeScenarios` image and of the 16 MiB encoded-cap PNG (also
+through `LoadFile`) under the counting allocator, reporting peak tracked bytes and encoded-size and decoded-size
+buffers, then checking exact pixels and the decode bound.
 
 The resource child sweeps observed allocation schedules for staging, dispatch,
 completion and loaded Unicode geometry, then checks actual upload coalescing,

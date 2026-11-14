@@ -1442,7 +1442,7 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
     `CreateDeviceContext` per preparation ≤ 1; harness gallery capture of dashed and 3 px flowchart edges.
   - **Needs**: `W0.1`, `W2.3`. **Size**: M.
 
-- [ ] **W7.8 Image decode.**
+- [x] **W7.8 Image decode.**
   - **Why**: `Decode` copies its encoded input into `owned` (`DxUi.RichImage.cpp:251-255`) although every WIC object is
     local and `CopyPixels` finishes before it returns (`:253-293`); `LoadFile` reads into its own buffer first
     (`:506-518`). With the 16 MiB encoded cap (`include/DxUi/RichImage.h:66`) the encoded peak is 32 MiB; a GIF canvas

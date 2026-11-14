@@ -1317,6 +1317,12 @@ The 1,024-line/512-edit source/history/geometry fixture is bounded by 8 MiB reta
 and 16 MiB replacement-peak C++ storage. Maximum-source geometry fixtures are
 bounded by 24 MiB and 128 layouts. All tracked deltas must release to zero; these
 limits exclude SDK-private heaps and do not establish whole-process acceptance.
+One raster image decode holds no duplicate encoded buffer and at most the encoded
+plus decoded size of tracked C++ storage, plus one decoded-size buffer only for a
+transposing orientation of a non-square image and at most 2 KiB of bookkeeping
+(the [rich image contract](../UI/UI_ControlsAndLayout.md); Embedded
+`TestRichImageDecodeMemory`, also `--test-rich-image-decode-memory`). WIC's own
+heaps are outside this bound.
 The [guarded geometry record](../../Measurements/RichText/README.md)
 retains all failure schedules, geometry/pixel oracles and original negative runs.
 The [positioned-line record](../../Measurements/RichText/README.md)

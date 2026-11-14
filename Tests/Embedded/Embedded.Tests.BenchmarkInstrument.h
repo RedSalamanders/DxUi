@@ -33,6 +33,9 @@ static thread_local ptrdiff_t* liveBytesPeak = nullptr;
 static thread_local size_t largeAllocationMinimumBytes = std::numeric_limits<size_t>::max();
 static thread_local size_t largeAllocations            = 0;
 static thread_local size_t largeAllocationBytes        = 0;
+// Opt-in size observation of plain operator new blocks while countLiveBytes is set: the image decode memory gate
+// classifies its encoded-size and decoded-size buffers. Dormant for canonical benchmarks.
+static thread_local void (*liveBlockObserver)(size_t bytes) = nullptr;
 #if defined(DXUI_HAS_CHECKED_CONTROL_ALLOCATION)
 #include "Support/Diagnostics.h"
 // API 5 puts control-object storage on a checked native heap. Include that same
@@ -98,6 +101,8 @@ void* operator new(size_t bytes)
             liveBytes += static_cast<ptrdiff_t>(_msize(p));
             if (liveBytesPeak)
                 *liveBytesPeak = std::max(*liveBytesPeak, liveBytes);
+            if (liveBlockObserver)
+                liveBlockObserver(bytes);
         }
         return p;
     }
