@@ -273,6 +273,14 @@ snapshot, delta and receipt.
 - **Text.** `text.formatCacheTrims` counts each time `ControlHost::TrimCaches` clears the configured text-format cache
   above its key bound at the start of a preparation or render; each such clear forces every visible control to
   re-prepare in that pass.
+- **Lists.** A `Tree` counts each model row it reads outside `Paint` (`treeItemReads`; `ITreeModel`'s default
+  `FindVisibleItemById` scan counts its reads too), each `FindVisibleItemById` it asks of its model (`treeModelLookups`),
+  each build of its [id index](../UI/UI_ControlsAndLayout.md#tree-item-lookup-and-model-notifications)
+  (`treeIdIndexBuilds`), and per expand or collapse animation the whole row records it keeps (`treeExpansionRecords`) and
+  those it copied (`treeExpansionRecordCopies`). On `FX9` each of the 24 navigation keys of its `tree-keys` phase reads one
+  row, the one that takes the focus, and builds no index (its model answers lookups itself); on `FX11` every expand keeps
+  no record and every collapse the six rows it removes, and none copies a record (`Embedded.Tests.TreeDataPaths.h`;
+  receipt `Measurements/PerformanceAndMotion_2026-11-13/W2.6`).
 - **Rich documents.** `hoveredTitleCalls` counts each `RichTextEditor::HoveredTitle` resolution (the hover title under a
   point, asked for by the host's supplemental tooltip), and `hoverScanElements` each semantic element a pointer-hover
   lookup tests one by one. Hover lookups go through the prepared hover index, so the latter stays 0.

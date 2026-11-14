@@ -596,6 +596,10 @@ template <typename Scene> void BuildControlsScene(Scene& scene)
     place(slots[kGrid] = gridControl, 310, 236, 640, 420);
     auto* treeControl = root->AddChild<DxUi::Tree>();
     treeControl->SetModel(tree.get());
+    // Two lookups: the first learns that the model keeps ITreeModel's default lookup, the second builds the Tree's id index
+    // (W2.6), so the drop and the oracle cover it.
+    treeControl->SetFocusedItemId(5u);
+    treeControl->SetFocusedItemId(5u);
     place(slots[kTree] = treeControl, 12, 346, 300, 470);
     auto* scroll = root->AddChild<DxUi::ScrollPanel>();
     for (int index = 0; index < 8; ++index)

@@ -61,11 +61,16 @@
 
 // Lists: Grid and Tree.
 #define DXUI_WORK_COUNTERS_LISTS(X)                                                                                                                            \
-    X(lists, gridCollectOrderedGroups) /* Grid collections of the model's groups (every GetGroup, sorted and sanitized). */                                    \
-    X(lists, gridColumnDescRebuilds)   /* Grid column-description cache fills: one GetColumn per column. */                                                    \
-    X(lists, gridGetColumnCalls)       /* IGridModel::GetColumn calls a Grid made, those of the cache fills included. */                                       \
-    X(lists, gridGroupLayoutRebuilds)  /* Grid group-layout cache fills: one collection and its collapsed-row prefix. */                                       \
-    X(lists, gridSelectionCopies)      /* Copies of a Grid's whole ordered selection (Ctrl+C, a Ctrl+Shift range, data-path verification). */
+    X(lists, gridCollectOrderedGroups)  /* Grid collections of the model's groups (every GetGroup, sorted and sanitized). */                                   \
+    X(lists, gridColumnDescRebuilds)    /* Grid column-description cache fills: one GetColumn per column. */                                                   \
+    X(lists, gridGetColumnCalls)        /* IGridModel::GetColumn calls a Grid made, those of the cache fills included. */                                      \
+    X(lists, gridGroupLayoutRebuilds)   /* Grid group-layout cache fills: one collection and its collapsed-row prefix. */                                      \
+    X(lists, gridSelectionCopies)       /* Copies of a Grid's whole ordered selection (Ctrl+C, a Ctrl+Shift range, data-path verification). */                 \
+    X(lists, treeExpansionRecordCopies) /* Tree row records copied to start an expand or collapse animation (copy, not the model's read). */                   \
+    X(lists, treeExpansionRecords)      /* Whole Tree row records an expand or collapse animation keeps to draw rows the model no longer has. */               \
+    X(lists, treeIdIndexBuilds)         /* Builds of a Tree's id-to-row index: one model read of every visible row. */                                         \
+    X(lists, treeItemReads)             /* ITreeModel::GetVisibleItem calls a Tree made outside Paint, ITreeModel's own FindVisibleItemById included. */       \
+    X(lists, treeModelLookups)          /* ITreeModel::FindVisibleItemById calls a Tree made. */
 
 // Rich documents.
 #define DXUI_WORK_COUNTERS_RICH(X)                                                                                                                             \

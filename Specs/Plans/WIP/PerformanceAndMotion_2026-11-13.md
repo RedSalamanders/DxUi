@@ -600,7 +600,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
     0 DxUi-owned allocations per arrow key and per click after the 200,000-row select-all; cell layouts held never
     exceed the cells the last paint drew; exact WARP parity.
   - **Needs**: `W0.1`, `W0.4`. **Size**: L.
-- [ ] **W2.6 `Tree` data paths.**
+- [x] **W2.6 `Tree` data paths.**
   - **Why**: the default `ITreeModel::FindVisibleItemById` is O(N) and copies four strings per item
     (`DxUi.Tree.cpp:279-295`); it runs on every key through `FindFocusedVisibleIndex` (`:3035`, `:2265`), on selection
     and toggle paths (`:1139`, `:2325`), and `SetFocusedItemId` looks up twice (`:892`, `:901`).

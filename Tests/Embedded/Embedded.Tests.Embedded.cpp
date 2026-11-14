@@ -91,6 +91,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.RichTextResources.h"
 #include "Embedded.Tests.SemanticProjection.h"
 #include "Embedded.Tests.TraceProvider.h"
+#include "Embedded.Tests.TreeDataPaths.h"
 #include "Embedded.Tests.UiaTextProvider.h"
 #include "Embedded.Tests.WorkCounters.h"
 #include "Support.Tests.RichHoverIndex.h"
@@ -1907,6 +1908,14 @@ __declspec(noinline) static int RunFunctionalTests()
         return GridDataPathTests::RunFrameHashCommand(__argc, __wargv);
     if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--test-grid-data-paths")
         return GridDataPathTests::RunGateCommand(__argc, __wargv);
+    // W2.6: the Tree data path gates alone, and the frame hashes its receipt compares before and after the change.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-tree-data-paths")
+    {
+        TreeDataPathTests::Run();
+        return 0;
+    }
+    if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--tree-motion-frames")
+        return TreeDataPathTests::WriteMotionFrames(__wargv[2]);
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-performance-fixtures")
     {
         PerformanceFixtures::TestFrameworkSelfTest();
@@ -2101,6 +2110,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestGridModelMutationDuringCellPaintAbortsPreparation(gpu);
     TestTreeDelegateMutationDuringItemPaintAbortsPreparation(gpu);
     TestTreeReorderWakeRetiresOwner(gpu);
+    TreeDataPathTests::Run();
     TestPointerDoesNotRetargetAfterHoverOrHitGeometryMutation(gpu);
     TestPageReplacementDuringPaintDefersBoundsUntilPreparation(gpu);
     TestLocalizedShortViewport(gpu,

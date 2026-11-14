@@ -114,7 +114,7 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
 std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noexcept
 {
     {
-        static constexpr std::array<RetainedControlCacheRow, 19u> rows{{
+        static constexpr std::array<RetainedControlCacheRow, 20u> rows{{
             // Label::_typographyLayout, the retained layout of a label with a mnemonic or a typography override.
             {"Label._typographyLayout",
              [](const Control& control) noexcept
@@ -335,6 +335,24 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
                 bytes += StringBytes(entry.text);
             const auto& overflow = tree->_tooltipOverflowCache;
             return bytes + StringBytes(overflow.text) + StringBytes(overflow.tooltipText) + StringBytes(overflow.resolvedTooltipText);
+        }},
+            // Tree::_visibleIdIndexCache, the id index of a model that keeps ITreeModel's default lookup: one entry per
+            // distinct visible id. Dropping it makes the next lookup read every row again.
+            {"Tree._visibleIdIndexCache",
+             [](const Control& control) noexcept
+        {
+            const auto* tree = dynamic_cast<const Tree*>(&control);
+            return tree ? tree->_visibleIdIndexCache.ids.size() : 0u;
+        },
+             [](Control& control) noexcept
+        {
+            if (auto* tree = dynamic_cast<Tree*>(&control))
+                tree->ReleaseVisibleIdIndex();
+        },
+             [](const Control& control) noexcept
+        {
+            const auto* tree = dynamic_cast<const Tree*>(&control);
+            return tree ? VectorBytes(tree->_visibleIdIndexCache.ids) + VectorBytes(tree->_visibleIdIndexCache.rows) : 0u;
         }},
             // Grid::_cellTextLayouts, _cellDisplayLayouts, _cellEllipsisFormat and _cellEllipsis.
             {"Grid._cellTextLayouts",

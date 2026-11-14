@@ -5202,6 +5202,26 @@ public:
     // chevron its item's state.
     [[nodiscard]] float DebugGetExpansionProgress(uint64_t nowTickMs) const noexcept;
     [[nodiscard]] float DebugGetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept;
+    // The whole row records the running expansion or collapse keeps (a collapse's removed rows); empty at rest.
+    [[nodiscard]] std::span<const TreeItemData> DebugGetExpansionRecords() const noexcept;
+    // How every tree on any thread resolves an item id for a model that keeps ITreeModel's default lookup
+    // (Specs/UI/UI_ControlsAndLayout.md, "Tree item lookup and model notifications"). Index (the default) answers from the
+    // tree's id index; Verified also asks the model, returns the model's answer and counts each difference; Model asks only
+    // the model, as before the index existed. A model that overrides FindVisibleItemById is always asked.
+    enum class DebugIdLookup : uint8_t
+    {
+        Index,
+        Verified,
+        Model,
+    };
+    static void DebugSetIdLookup(DebugIdLookup mode) noexcept;
+    [[nodiscard]] static DebugIdLookup DebugGetIdLookup() noexcept;
+    [[nodiscard]] static size_t DebugGetIdLookupMismatchCount() noexcept;
+    // Distinct ids the id index holds (0 when the model answers lookups itself or no index is built).
+    [[nodiscard]] size_t DebugGetIdIndexRowCount() const noexcept
+    {
+        return _visibleIdIndexCache.ids.size();
+    }
 #endif
 
     void Paint(ControlHost& host) const override;
@@ -5294,6 +5314,16 @@ private:
     void ClampScrollOffset() noexcept;
     void UpdateScrollbarHotState(const HitInfo& hit) noexcept;
     void SyncScrollbarAnimation(ControlHost& host) noexcept;
+    // The visible row of an item id: the tree's id index for a model that keeps ITreeModel's default lookup, else the model's
+    // own FindVisibleItemById (Specs/UI/UI_ControlsAndLayout.md, "Tree item lookup and model notifications").
+    [[nodiscard]] std::optional<size_t> LookupVisibleIndex(uint64_t itemId) const noexcept;
+    // Makes the id index answer for the model's current rows, reading every row when it does not; false when it cannot.
+    [[nodiscard]] bool EnsureVisibleIdIndex() const;
+    // Replaces the id index with the ids of the visible rows in order (no model read).
+    void BuildVisibleIdIndex(std::span<const uint64_t> orderedIds) const;
+    // Drops the id index if it was built for `revision`: an application callback may have changed rows without publishing.
+    void ForgetVisibleIdIndexBuiltAt(uint64_t revision) const noexcept;
+    void ReleaseVisibleIdIndex() const noexcept;
     [[nodiscard]] std::optional<size_t> FindFocusedVisibleIndex() const noexcept;
     void EnsureVisibleIndex(size_t visibleIndex) noexcept;
     [[nodiscard]] bool SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate);
@@ -5315,11 +5345,19 @@ private:
     void StartExpanderAnimation(uint64_t itemId, bool fromExpanded, bool toExpanded) noexcept;
     [[nodiscard]] std::optional<size_t> FindNextTypeaheadMatch(std::wstring_view prefix) const noexcept;
     [[nodiscard]] float GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept;
-    [[nodiscard]] bool CaptureVisibleItems(std::vector<TreeItemData>& items) const;
-    void BeginTreeExpansionAnimation(uint64_t itemId,
-                                     bool toExpanded,
-                                     std::vector<TreeItemData>&& beforeItems,
-                                     std::vector<TreeItemData>&& afterItems) noexcept;
+    // One side of an expansion or collapse: the ids of the visible rows in order, the first row of the toggled item and, for a
+    // collapse, the whole records of that item's descendants, each read from the model into its record.
+    struct ExpansionRows final
+    {
+        ExpansionRows() : ids(0u), descendants(0u)
+        {
+        }
+        std::vector<uint64_t> ids;
+        std::vector<TreeItemData> descendants;
+        std::optional<size_t> itemRow;
+    };
+    [[nodiscard]] bool CaptureExpansionRows(uint64_t itemId, bool keepDescendants, ExpansionRows& rows) const;
+    void BeginTreeExpansionAnimation(uint64_t itemId, bool toExpanded, ExpansionRows& before, const ExpansionRows& after) noexcept;
     void ClearTreeExpansionAnimation() noexcept;
     [[nodiscard]] bool HasActiveTreeExpansionAnimation() const noexcept;
     [[nodiscard]] float GetTreeExpansionProgress(uint64_t nowTickMs) const noexcept;
@@ -5370,28 +5408,51 @@ private:
         uint64_t startTickMs = 0u;
         bool active          = false;
     };
+    // Built in place (emplace, then swap of its record vector) and never copied or moved.
     struct TreeExpansionAnimationState final
     {
-        TreeExpansionAnimationState() : beforeItems(0u), afterItems(0u), beforeIndex(0u), afterIndex(0u)
+        TreeExpansionAnimationState() : removedItems(0u), beforeIndex(0u), afterIndex(0u)
         {
         }
-        TreeExpansionAnimationState(const TreeExpansionAnimationState&)            = default;
-        TreeExpansionAnimationState& operator=(const TreeExpansionAnimationState&) = default;
+        TreeExpansionAnimationState(const TreeExpansionAnimationState&)            = delete;
+        TreeExpansionAnimationState& operator=(const TreeExpansionAnimationState&) = delete;
         uint64_t itemId                                                            = 0u;
         bool toExpanded                                                            = false;
         bool active                                                                = false;
         uint64_t startTickMs                                                       = 0u;
-        std::vector<TreeItemData> beforeItems;
-        std::vector<TreeItemData> afterItems;
+        // A collapse's removed rows: the toggled item's descendants before it, whole records. Every other row is an id.
+        std::vector<TreeItemData> removedItems;
+        size_t afterCount = 0u;
         std::vector<std::pair<uint64_t, size_t>> beforeIndex, afterIndex;
         std::optional<size_t> beforeParent, afterParent;
-        size_t beforeDescendants{};
     };
     std::vector<ExpanderAnimationState> _expanderAnimations{};
     std::optional<TreeExpansionAnimationState> _treeExpansionAnimation;
     friend struct RetainedCacheAccess;
     mutable std::vector<TreeBadgeWidthCacheEntry> _badgeWidthCache;
     mutable TreeTooltipOverflowCache _tooltipOverflowCache;
+    // The id index for a model that keeps ITreeModel's default lookup: each distinct visible id, ascending, with the first
+    // row that carries it. Valid for one model revision and row count; 12 bytes per entry.
+    struct VisibleIdIndex final
+    {
+        VisibleIdIndex() : ids(0u), rows(0u)
+        {
+        }
+        std::vector<uint64_t> ids;
+        std::vector<uint32_t> rows;
+        uint64_t revision = 0u;
+        size_t rowCount   = 0u;
+        bool valid        = false;
+    };
+    mutable VisibleIdIndex _visibleIdIndexCache;
+    // Which lookup the model uses, learned on the first lookup after SetModel.
+    enum class ModelLookupKind : uint8_t
+    {
+        Unknown,
+        Default,
+        Own,
+    };
+    mutable ModelLookupKind _modelLookupKind = ModelLookupKind::Unknown;
 #if DXUI_ENABLE_DIAGNOSTICS
     size_t _debugTooltipGeometryCount{};
     mutable size_t _debugExpansionCaptureCount{};

@@ -6,6 +6,8 @@
 // work of every scroll step and the memory of each row count. It runs on the embedded host only: the window runner
 // presents every frame of its off-screen window (about 90 ms per frame on WARP in x64 Debug), so 2,440 frames twice
 // outlast the Rendering suite's 300 s test deadline; native presented-frame evidence for G6 comes from the W0.8 trace.
+// The last phase (W2.6) presses navigation keys on the focused Tree: its model overrides FindVisibleItemById, so the gate
+// is that each key reads the model's row for the focused item and no other.
 #include "Embedded.Tests.PerformanceFixture.h"
 
 #include <cmath>
@@ -35,11 +37,20 @@ inline constexpr size_t kHoverSteps = 20u;
 inline constexpr size_t kHoverPhase = 1u;
 inline constexpr size_t kGridPhase  = 2u;
 inline constexpr size_t kTreePhase  = 3u;
+// W2.6: keys on the focused Tree after the scroll phases. Step 0 focuses it and focuses its first visible row (a scripted
+// SetFocusedItemId, no key); every other step is one key press and release, in the order below.
+inline constexpr size_t kTreeKeysPhase = 4u;
+inline constexpr std::array<UINT, 24> kTreeKeys{VK_DOWN, VK_DOWN, VK_DOWN,  VK_DOWN, VK_DOWN, VK_DOWN, VK_DOWN, VK_DOWN, VK_UP, VK_UP,   VK_UP,   VK_UP,
+                                                VK_NEXT, VK_NEXT, VK_PRIOR, VK_DOWN, VK_DOWN, VK_UP,   VK_END,  VK_UP,   VK_UP, VK_HOME, VK_DOWN, VK_DOWN};
 inline constexpr std::array kPhases{
     Phase{"warm", kWarmSteps, PhaseKind::Warmup, "reveal the middle row of the Grid; one wheel notch on the Grid and one on the Tree; two unchanged frames"},
     Phase{"hover", kHoverSteps, PhaseKind::Measured, "the pointer moves between two Grid rows 40 DIP apart: one hover change per frame"},
     Phase{"grid", kScrollSteps, PhaseKind::Measured, "the clock advances 8 or 9 ms (120 Hz) and one wheel notch down scrolls the Grid"},
     Phase{"tree", kScrollSteps, PhaseKind::Measured, "the clock advances 8 or 9 ms (120 Hz) and one wheel notch down scrolls the Tree"},
+    Phase{"tree-keys",
+          1u + kTreeKeys.size(),
+          PhaseKind::Measured,
+          "the Tree takes focus on its first visible row, then one key per frame: Down, Up, Page Down, Page Up, End and Home (W2.6)"},
 };
 inline constexpr std::array kSources{std::string_view("Tests/Embedded/Embedded.Tests.PerformanceFixtureFx9.h")};
 
@@ -175,6 +186,19 @@ public:
             static_cast<void>(context.port.Pointer({DxUi::PointerAction::Move, (bounds.left + 120.0f) * scale, y * scale}));
             return;
         }
+        if (phase == kTreeKeysPhase)
+        {
+            if (step == 0u)
+            {
+                context.controls.SetFocusControl(treeControl_, false);
+                treeControl_->SetFocusedItemId(static_cast<uint64_t>(treeControl_->GetFirstVisibleItemIndex()));
+                return;
+            }
+            const UINT key = kTreeKeys[(step - 1u) % kTreeKeys.size()];
+            static_cast<void>(context.port.Key(key, true));
+            static_cast<void>(context.port.Key(key, false));
+            return;
+        }
         // 8, 8, 9 ms: three frames per 25 ms, so 1,200 steps are exactly 10 s of the fixture clock.
         context.port.AdvanceTime(step % 3u == 2u ? 9u : 8u);
         if (phase == kGridPhase)
@@ -207,7 +231,8 @@ inline constexpr Definition kDefinition{
                   "(variants default and rows-1m at 1280x720, fhd at 1920x1080, uhd-192dpi at 3840x2160 and 192 DPI), "
                   "beside a Tree over a synthetic, fully expanded 10,000-row model; absolute layout, reduced motion. A hover phase moves the pointer between two "
                   "Grid rows (20 frames); then each list is scrolled for 10 s of the "
-                  "frozen fixture clock at 120 Hz, one wheel notch down per frame (1,200 frames each). The models compute every row from its index and store "
+                  "frozen fixture clock at 120 Hz, one wheel notch down per frame (1,200 frames each); a last phase focuses the Tree and presses 24 "
+                  "navigation keys, one per frame. The models compute every row from its index and store "
                   "none. G6 (missed frames) is a hardware timing verdict: not measured here; the receipt records the work of every scroll step and memory "
                   "per row count.",
     .budgets    = kBudgets,

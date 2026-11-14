@@ -117,6 +117,19 @@ a model supplying prepared rows; use `NotifyDataChanged` when row semantics or t
 [Tree usage and lifetime contract](../Specs/DesignSystem/components/Tree/README.md#optional-prepared-accessibility-rows)
 and [library qualification](../Measurements/PreparedTreeAccessibility/2026-10-06/README.md).
 
+## Tree item lookup
+
+A Tree finds the row of an item id (the focused item on every key, the selected and focused items after
+`NotifyDataChanged`, the item it toggles) through `ITreeModel::FindVisibleItemById`. Override it when your model can
+answer without reading rows, as a model that computes rows from an index can: the Tree then uses your answer and keeps
+nothing per row. A model that keeps the default (which reads every row up to the match) is answered from the Tree's own
+id index, 12 bytes per visible row, built by reading every row once after each change of the visible rows. That index
+relies on the rule every Tree model already follows: publish each change of the visible rows with `NotifyDataChanged`
+before the Tree next receives input. Expansion and collapse the Tree requested through `OnTreeToggleExpanded`, and a
+drop reported through `OnTreeReorder`, are seen by the Tree itself. In tests, `Tree::DebugSetIdLookup(Tree::DebugIdLookup::Verified)`
+compares every index answer with your model's and counts differences (`Tree::DebugGetIdLookupMismatchCount`). See the
+[Tree contract](../Specs/UI/UI_ControlsAndLayout.md#tree-item-lookup-and-model-notifications).
+
 Use `SetAccessibleInvokeResult` for an accessible action that can fail, returning its HRESULT to UI Automation.
 The existing `SetAccessibleInvoke` wraps a successful void callback. Both setters replace the same retained
 callable, preserving mutable state and allowing the callback to replace or retire its owner safely.

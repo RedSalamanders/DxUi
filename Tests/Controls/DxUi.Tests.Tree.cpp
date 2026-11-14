@@ -1,5 +1,6 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Support.Tests.FatalChildren.h"
+#include "Support/WorkCounters.h"
 
 #include <atomic>
 #include <clocale>
@@ -7,7 +8,10 @@
 #include <fstream>
 #include <functional>
 #include <iterator>
+#include <span>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace
 {
@@ -3879,10 +3883,16 @@ void TestTreeInitialActionReportsSelection()
     Require(fixture.delegate.selectionChangedCount == 1u && fixture.delegate.lastSelectedItemId == 1u,
             "the initial selection is reported once before invocation");
 }
+
+#include "Controls.Tests.TreeLookup.h"
 } // namespace
 
 void RunTreeTests()
 {
+    // W2.6: every Tree test runs with the id index verified against the model's own lookup and leaves no difference.
+    const ScopedTreeIdLookup verified(DxUi::Tree::DebugIdLookup::Verified);
+    const size_t mismatchesBefore = DxUi::Tree::DebugGetIdLookupMismatchCount();
+    RunTreeLookupTests();
     DXUI_RUN_TEST(TestTreeGrowingViewportClampsScrollAndSelectionSettersInvalidate);
     DXUI_RUN_TEST(TestTreeGesturesContinueWhenACallbackChangesAnotherControl);
     DXUI_RUN_TEST(TestTreeClickSurvivesAFocusHandlerThatChangesAnotherControl);
@@ -3960,4 +3970,6 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeTypographyOverrideValidatesAtomically);
     DXUI_RUN_TEST(TestTreeFramelessOutlinePreservesModelAndKeyboardExpansion);
     DXUI_RUN_TEST(TestTreeInactiveSelectionUsesNormalTextAndLegibleChrome);
+    Require(DxUi::Tree::DebugGetIdLookupMismatchCount() == mismatchesBefore + g_deliberateTreeLookupMismatches,
+            "no Tree test met a model whose id index answered differently from its own lookup");
 }

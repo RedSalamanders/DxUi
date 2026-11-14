@@ -701,6 +701,16 @@ the inset, so an insertion line on the edge keeps its full 2 DIP.
 
 Tree expansion and collapse retain their model, selection, focus, delegate and accessibility semantics at any model size. Row and chevron transitions are optional: if either visible-row snapshot would exceed 4096 rows, or animation preparation cannot allocate, the accepted change appears immediately. Admitted transitions prepare stable-ID indexes once and reuse them during painting. Reduced-motion settings also apply the change immediately.
 
+An admitted transition reads every visible row once before the change and once after it. It keeps the ids of those rows
+(the sorted id-to-row indexes above) and whole row records only for the rows a collapse takes away: the collapsed item's
+descendants before the change, each read from the model directly into its record and never copied or moved. The
+collapse draws those rows from their records while they slide into their parent and fade, at whatever scroll offset or
+size the tree has during the transition, so all of them are kept, not only those in the viewport when it starts. An
+expansion keeps no row record; its new rows come from the model as it paints. The records hold no pointer or view into
+model storage and are released when the transition ends, is replaced by another toggle or the model changes. The rows
+read after the change also become the [id index](#tree-item-lookup-and-model-notifications) of a model that uses the
+default lookup, so the toggled item is found again without another read.
+
 ### TextField supplementary character input
 
 Character input buffers a UTF-16 lead surrogate privately until its matching trail arrives, then inserts and publishes the complete pair as one edit. An orphan trail is consumed without changing text. Caret or selection commands, pointer input, focus changes, text replacement, text-store imports and read-only transitions cancel a pending lead; no change callback or accessibility publication exposes it alone.
@@ -735,6 +745,45 @@ geometry and input use the replacement. Unexpected C++ allocation/callback failu
 ### Tree refresh and input routing
 
 A model refresh reconciles identities and clamps the scroll offset without moving the viewport to an unchanged focus. Typeahead cycles after the current row on a fresh one-character search and retains the current match as the prefix grows. A first keyboard action that selects the first row reports that selection; movement reports its final landing once. Ctrl and Shift row-selection gestures do not trigger single-click invocation. A wheel event directed outward at a scroll extent bubbles to an enclosing scroller, including partial detents.
+
+### Tree item lookup and model notifications
+
+A tree finds the visible row of an item id (the focused item on each key, the selected and focused items after a model
+refresh, a toggled item, the dragged row, a parent for Left) in one of two ways, and never both for one model:
+
+- **The model's own lookup.** A model that overrides `ITreeModel::FindVisibleItemById` is asked every time. Its answer is
+  authoritative and the tree keeps nothing per row, so the tree's memory stays independent of the row count.
+- **The tree's id index.** A model that keeps `ITreeModel`'s default lookup (a scan that reads each row up to the match) is
+  answered from an index the tree owns: every distinct visible id in ascending order with the first row that carries it,
+  12 bytes per distinct visible id (an 8-byte id, a 4-byte row) in two arrays of exactly that size. A duplicated id
+  therefore resolves to its first row, as the default scan does, and an id that is not a visible row to none. The index is
+  built by reading every visible row once, on the first lookup after a change, and lookups then read no row. It holds
+  no pointer or view into model storage. `SetModel` and the retained-cache drop release it; it is not built for more
+  than 2^32 - 1 rows, where the model's lookup is used.
+
+The tree tells the two apart on its first lookup after `SetModel`: a lookup that reaches the default implementation marks
+the model as using it, also when an override delegates to it for that id. The index is rebuilt on the next lookup after
+any of these:
+
+| Change of the visible rows | What the tree sees |
+| --- | --- |
+| `NotifyDataChanged`: new data, order, filter or sort, an expand or collapse the model or the application made, rows added or removed | the model revision moves |
+| `SetModel`, `SetDelegate` | the model revision moves; `SetModel` also forgets which lookup the model uses |
+| An expand or collapse the tree asked for (pointer, keys, double-click, UI Automation, `RequestExpandedState`) | when `OnTreeToggleExpanded` returns, the tree drops an index built before the callback, whether or not the delegate published the change; an animated toggle adopts the rows it read after the change as the new index |
+| A drop (`OnTreeReorder`) | when the callback returns, the tree drops an index built before it |
+| The model's visible row count differs from the index | the index is rebuilt |
+| `NotifyItemPresentationChanged` | nothing: by its contract ids, order and membership are unchanged |
+
+Every other change of the visible rows must be published with `NotifyDataChanged` before the tree next receives input
+or a request, which selection, focus, scroll and accessibility reconciliation already require. Between a silent change and
+its publication the index answers for the rows as they were, so a key may start from the row the focused item had. The
+diagnostic verified mode (`Tree::DebugSetIdLookup(Tree::DebugIdLookup::Verified)`) compares every index answer with the
+model's own default lookup, uses the model's answer and counts each difference (`Tree::DebugGetIdLookupMismatchCount`);
+the `Tree` suite runs in it and requires none. `Tree::DebugIdLookup::Model` restores the model-only lookup for comparisons.
+
+Up, Down, Home, End, Page Up and Page Down read from the model only the row that takes the focus; Left, Right, Enter and
+Space also read the focused row, and Right the row after it. None reads another row when the model answers lookups
+itself or the index is current. `SetFocusedItemId` looks its item up once.
 ### Tree row drag
 
 `Tree::SetReorderEnabled` arms a pointer drag on a row (not the expander or the scrollbar). After the pointer moves

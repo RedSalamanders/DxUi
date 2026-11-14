@@ -3,6 +3,7 @@
 #include "DxUi.Internal.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <iterator>
 #include <limits>
@@ -11,6 +12,7 @@
 #include <vector>
 
 #include "Support/Diagnostics.h"
+#include "Support/WorkCounters.h"
 
 namespace DxUi
 {
@@ -118,31 +120,66 @@ struct TreeResolvedRowVisuals final
     return result;
 }
 
+// One row read from the model for input, selection, lookup or expansion work. Paint reads its rows itself, uncounted.
+void ReadTreeItem(const ITreeModel& model, size_t visibleIndex, TreeItemData& item)
+{
+    ++Detail::Work().lists.treeItemReads;
+    model.GetVisibleItem(visibleIndex, item);
+}
+
+// Set while a tree asks a model it has not classified yet: ITreeModel's default lookup marks the probe reached.
+thread_local const ITreeModel* t_lookupProbe = nullptr;
+thread_local bool t_lookupProbeReached       = false;
+
+#if DXUI_ENABLE_DIAGNOSTICS
+std::atomic<uint8_t> g_debugIdLookup{static_cast<uint8_t>(Tree::DebugIdLookup::Index)};
+std::atomic<size_t> g_debugIdLookupMismatches{0u};
+#endif
+
+// Exchanges two records member by member: no copy, no move, no allocation. Keep in step with TreeItemData.
+void SwapTreeItems(TreeItemData& first, TreeItemData& second) noexcept
+{
+    std::swap(first.id, second.id);
+    first.parentId.swap(second.parentId);
+    first.text.swap(second.text);
+    first.iconText.swap(second.iconText);
+    first.badgeText.swap(second.badgeText);
+    first.tooltipText.swap(second.tooltipText);
+    std::swap(first.depth, second.depth);
+    std::swap(first.hasChildren, second.hasChildren);
+    std::swap(first.expanded, second.expanded);
+    std::swap(first.badgeTone, second.badgeTone);
+    std::swap(first.badgeIsDot, second.badgeIsDot);
+}
+
+// A new empty record at the end. Growth swaps the records already there into fresh ones, so none is copied or moved.
+TreeItemData& AppendTreeRecord(std::vector<TreeItemData>& records)
+{
+    if (records.size() == records.capacity())
+    {
+        std::vector<TreeItemData> grown(0u);
+        grown.reserve((std::max<size_t>)(8u, records.capacity() * 2u));
+        for (TreeItemData& record : records)
+            SwapTreeItems(grown.emplace_back(), record);
+        records.swap(grown);
+    }
+    return records.emplace_back();
+}
+
+// Sorted (id, row) pairs of rows in visible order; a repeated id keeps each of its rows, its first row first.
+void BuildIdRowPairs(std::span<const uint64_t> orderedIds, std::vector<std::pair<uint64_t, size_t>>& pairs)
+{
+    pairs.clear();
+    pairs.reserve(orderedIds.size());
+    for (size_t row = 0u; row < orderedIds.size(); ++row)
+        pairs.emplace_back(orderedIds[row], row);
+    std::ranges::sort(pairs);
+}
+
 [[nodiscard]] std::optional<size_t> FindIndexedItem(std::span<const std::pair<uint64_t, size_t>> index, uint64_t id) noexcept
 {
     const auto found = std::lower_bound(index.begin(), index.end(), id, [](const auto& entry, uint64_t value) { return entry.first < value; });
     return found != index.end() && found->first == id ? std::optional(found->second) : std::nullopt;
-}
-
-[[nodiscard]] size_t CountDescendants(const std::vector<TreeItemData>& items, size_t parentIndex) noexcept
-{
-    if (parentIndex >= items.size())
-    {
-        return 0u;
-    }
-
-    const uint32_t parentDepth = items[parentIndex].depth;
-    size_t count               = 0u;
-    for (size_t index = parentIndex + 1u; index < items.size(); ++index)
-    {
-        if (items[index].depth <= parentDepth)
-        {
-            break;
-        }
-        ++count;
-    }
-
-    return count;
 }
 
 // Whether two selections hold the same items, whatever their order: a model that only moved rows changes no selection.
@@ -284,10 +321,13 @@ void DrawTreeRow(ControlHost& host,
 
 std::optional<size_t> ITreeModel::FindVisibleItemById(uint64_t itemId) const noexcept
 {
+    // A tree classifying this model learns that it keeps the default lookup (Tree::LookupVisibleIndex).
+    if (t_lookupProbe == this)
+        t_lookupProbeReached = true;
     TreeItemData itemData;
     for (size_t visibleIndex = 0u; visibleIndex < GetVisibleItemCount(); ++visibleIndex)
     {
-        if (! TryControlCallback([&] { GetVisibleItem(visibleIndex, itemData); }))
+        if (! TryControlCallback([&] { ReadTreeItem(*this, visibleIndex, itemData); }))
         {
             return std::nullopt;
         }
@@ -364,7 +404,7 @@ bool Tree::ResolveReorderSource() noexcept
     const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model      = _model;
-    const std::optional<size_t> source = model ? model->FindVisibleItemById(_reorderSourceId) : std::nullopt;
+    const std::optional<size_t> source = model ? LookupVisibleIndex(_reorderSourceId) : std::nullopt;
     if (! guard.IsCurrent())
         return false;
     if (! source.has_value())
@@ -373,7 +413,7 @@ bool Tree::ResolveReorderSource() noexcept
     }
     // Visible rows are in pre-order, so the row's visible descendants are the run after it that is nested deeper.
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(source.value(), item); }))
+    if (! TryControlCallback([&] { ReadTreeItem(*model, source.value(), item); }))
         return false;
     if (! guard.IsCurrent())
         return false;
@@ -384,7 +424,7 @@ bool Tree::ResolveReorderSource() noexcept
     size_t end = source.value() + 1u;
     for (; end < count; ++end)
     {
-        if (! TryControlCallback([&] { model->GetVisibleItem(end, item); }))
+        if (! TryControlCallback([&] { ReadTreeItem(*model, end, item); }))
             return false;
         if (! guard.IsCurrent())
             return false;
@@ -417,7 +457,7 @@ std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point, size_t& ta
         return std::nullopt; // Into its own subtree: the row would become its own ancestor.
     }
     TreeItemData target;
-    if (! TryControlCallback([&] { model->GetVisibleItem(index.value(), target); }))
+    if (! TryControlCallback([&] { ReadTreeItem(*model, index.value(), target); }))
         return std::nullopt;
     if (! guard.IsCurrent())
         return std::nullopt;
@@ -438,7 +478,7 @@ std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point, size_t& ta
             {
                 return std::nullopt;
             }
-            const std::optional<size_t> ancestorIndex = model->FindVisibleItemById(*ancestor);
+            const std::optional<size_t> ancestorIndex = LookupVisibleIndex(*ancestor);
             if (! guard.IsCurrent())
                 return std::nullopt;
             if (! ancestorIndex || *ancestorIndex >= itemCount)
@@ -446,7 +486,7 @@ std::optional<TreeDrop> Tree::ResolveReorderDrop(D2D1_POINT_2F point, size_t& ta
                 break;
             }
             TreeItemData ancestorItem;
-            if (! TryControlCallback([&] { model->GetVisibleItem(*ancestorIndex, ancestorItem); }))
+            if (! TryControlCallback([&] { ReadTreeItem(*model, *ancestorIndex, ancestorItem); }))
                 return std::nullopt;
             if (! guard.IsCurrent())
                 return std::nullopt;
@@ -584,6 +624,9 @@ void Tree::SetModel(ITreeModel* model) noexcept
     _dragThumbOffsetDip       = 0.0f;
     InvalidateTreeTextMeasurementCaches();
     ClearTreeExpansionAnimation();
+    // Another model may answer lookups differently: the next lookup learns its kind again.
+    ReleaseVisibleIdIndex();
+    _modelLookupKind = ModelLookupKind::Unknown;
     static_cast<void>(TryControlCallback([&] { NotifyDataChanged(); }));
 }
 
@@ -687,7 +730,7 @@ void Tree::NotifyDataChanged()
             _selectedItemId                           = selection.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(selection.back());
         }
     }
-    if (_selectedItemId && (! model || ! model->FindVisibleItemById(_selectedItemId.value())))
+    if (_selectedItemId && (! model || ! LookupVisibleIndex(_selectedItemId.value())))
     {
         if (! modelGuard.IsCurrent())
         {
@@ -699,7 +742,7 @@ void Tree::NotifyDataChanged()
     {
         return;
     }
-    if (_focusedItemId && (! model || ! model->FindVisibleItemById(*_focusedItemId)))
+    if (_focusedItemId && (! model || ! LookupVisibleIndex(*_focusedItemId)))
     {
         if (! modelGuard.IsCurrent())
         {
@@ -725,7 +768,7 @@ void Tree::NotifyDataChanged()
 
     if (! modelGuard.IsCurrent())
         return;
-    if (_treeExpansionAnimation && (! model || _treeExpansionAnimation->afterItems.size() != model->GetVisibleItemCount()))
+    if (_treeExpansionAnimation && (! model || _treeExpansionAnimation->afterCount != model->GetVisibleItemCount()))
     {
         if (! modelGuard.IsCurrent())
             return;
@@ -783,14 +826,14 @@ bool Tree::NotifyItemPresentationChanged(uint64_t itemId) noexcept
     // replacement source without also changing that source's structural identity, so the caller must use NotifyDataChanged.
     if (model->CapturePreparedAccessibilityRows() || ! guard.IsCurrent())
         return false;
-    const std::optional<size_t> visibleIndex = model->FindVisibleItemById(itemId);
+    const std::optional<size_t> visibleIndex = LookupVisibleIndex(itemId);
     if (! visibleIndex || ! guard.IsCurrent())
         return false;
     const size_t visibleItemCount = model->GetVisibleItemCount();
     if (! guard.IsCurrent() || visibleIndex.value() >= visibleItemCount)
         return false;
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex.value(), item); }) || ! guard.IsCurrent() || item.id != itemId)
+    if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex.value(), item); }) || ! guard.IsCurrent() || item.id != itemId)
         return false;
 
     // Tree rows have fixed height; badge text changes only the retained row metrics and badge/tooltip text measurements.
@@ -856,7 +899,7 @@ void Tree::SetSelectedItemId(std::optional<uint64_t> itemId) noexcept
     std::optional<size_t> selectedIndex;
     if (_model && itemId)
     {
-        selectedIndex = _model->FindVisibleItemById(*itemId);
+        selectedIndex = LookupVisibleIndex(*itemId);
         if (! guard.IsCurrent())
             return;
     }
@@ -894,19 +937,14 @@ void Tree::SetFocusedItemId(std::optional<uint64_t> itemId) noexcept
     const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
+    // One lookup: an id that is not a visible row focuses nothing.
     std::optional<size_t> focusedIndex;
-    if (itemId && (! model || ! model->FindVisibleItemById(*itemId)))
-    {
-        if (! guard.IsCurrent())
-            return;
-        itemId.reset();
-    }
-    if (! guard.IsCurrent())
-        return;
     if (itemId && model)
-        focusedIndex = model->FindVisibleItemById(*itemId);
+        focusedIndex = LookupVisibleIndex(*itemId);
     if (! guard.IsCurrent())
         return;
+    if (! focusedIndex)
+        itemId.reset();
     const bool changed = _focusedItemId != itemId;
     _focusedItemId     = std::move(itemId);
     if (focusedIndex)
@@ -1046,7 +1084,7 @@ bool Tree::RequestFocusVisibleItem(size_t visibleIndex)
     if (! guard.IsCurrent() || visibleIndex >= count)
         return false;
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex, item); }) || ! guard.IsCurrent())
         return false;
     const std::optional<uint64_t> previousFocus = _focusedItemId;
     _focusedItemId                              = item.id;
@@ -1088,27 +1126,8 @@ try
     if (! guard.IsCurrent() || visibleIndex >= count)
         return false;
 
-    constexpr size_t maximumAnimatedRows = 4096u;
-    ControlHost* const animationHost     = GetHost();
-    bool animate                         = animationHost && ! animationHost->GetTheme().reducedMotion && count <= maximumAnimatedRows;
-    std::optional<std::vector<TreeItemData>> beforeItems;
-    if (animate)
-    {
-        try
-        {
-            beforeItems.emplace(0u);
-            animate = CaptureVisibleItems(beforeItems.value());
-        }
-        catch (const std::bad_alloc&)
-        {
-            Failure::FailAllocation();
-        }
-        if (! guard.IsCurrent())
-            return false;
-        animate = animate && beforeItems && beforeItems->size() == count;
-    }
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex, item); }) || ! guard.IsCurrent())
         return false;
     if (! item.hasChildren)
     {
@@ -1118,6 +1137,27 @@ try
     if (item.expanded == expanded)
     {
         return true;
+    }
+
+    // The rows before the change: their ids and, for a collapse, whole records of the rows it takes away (W2.6).
+    constexpr size_t maximumAnimatedRows = 4096u;
+    ControlHost* const animationHost     = GetHost();
+    bool animate                         = animationHost && ! animationHost->GetTheme().reducedMotion && count <= maximumAnimatedRows;
+    std::optional<ExpansionRows> before;
+    if (animate)
+    {
+        try
+        {
+            before.emplace();
+            animate = CaptureExpansionRows(item.id, ! expanded, before.value());
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
+        if (! guard.IsCurrent())
+            return false;
+        animate = animate && before && before->ids.size() == count;
     }
 
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
@@ -1132,36 +1172,28 @@ try
         return false;
     ITreeDelegate* const delegate       = _delegate;
     const uint64_t revisionBeforeToggle = _modelRevision;
-    if (! TryControlCallback([&] { delegate->OnTreeToggleExpanded(item.id, expanded); }) || selfLifetime.expired() || ! guard.ResumeAfterCallback())
+    const bool toggled                  = TryControlCallback([&] { delegate->OnTreeToggleExpanded(item.id, expanded); });
+    // The delegate may have changed the rows without publishing them: an id index built before it no longer answers.
+    if (! selfLifetime.expired() && guard.IsBindingCurrent())
+        ForgetVisibleIdIndexBuiltAt(revisionBeforeToggle);
+    if (! toggled || selfLifetime.expired() || ! guard.ResumeAfterCallback())
     {
         return false;
     }
-    // A delegate usually publishes its edit with NotifyDataChanged before it returns: the rows then slide from the order
-    // captured before the callback to the order after it. A delegate that applies the edit later animates nothing.
-    if (_modelRevision != revisionBeforeToggle)
-    {
-        // A published answer is the result: the request succeeded only when the item now has the requested state. A
-        // refused toggle leaves its chevron where the model put it.
-        const auto currentIndex = model->FindVisibleItemById(item.id);
-        TreeItemData current;
-        if (! guard.IsCurrent() || ! currentIndex || ! TryControlCallback([&] { model->GetVisibleItem(*currentIndex, current); }) || ! guard.IsCurrent())
-            return false;
-        if (current.id != item.id || ! current.hasChildren || current.expanded != expanded)
-        {
-            std::erase_if(_expanderAnimations, [&](const ExpanderAnimationState& animation) { return animation.itemId == item.id; });
-            return false;
-        }
-    }
+    // The rows after the change, ids only. They also answer lookups, the one below included, for a default-lookup model.
     const size_t afterCount = model->GetVisibleItemCount();
     if (! guard.IsCurrent())
         return false;
-    std::optional<std::vector<TreeItemData>> afterItems;
+    std::optional<ExpansionRows> after;
     if (animate && afterCount <= maximumAnimatedRows)
     {
         try
         {
-            afterItems.emplace(0u);
-            animate = CaptureVisibleItems(afterItems.value());
+            after.emplace();
+            animate = CaptureExpansionRows(item.id, false, after.value());
+            if (animate && guard.IsCurrent() && after->ids.size() == afterCount && _modelLookupKind == ModelLookupKind::Default &&
+                ! (_visibleIdIndexCache.valid && _visibleIdIndexCache.revision == _modelRevision && _visibleIdIndexCache.rowCount == afterCount))
+                BuildVisibleIdIndex(after->ids);
         }
         catch (const std::bad_alloc&)
         {
@@ -1169,12 +1201,28 @@ try
         }
         if (! guard.IsCurrent())
             return false;
-        animate = animate && afterItems && afterItems->size() == afterCount;
+        animate = animate && after && after->ids.size() == afterCount;
     }
     else
         animate = false;
+    // A delegate usually publishes its edit with NotifyDataChanged before it returns: the rows then slide from the order
+    // captured before the callback to the order after it. A delegate that applies the edit later animates nothing.
+    if (_modelRevision != revisionBeforeToggle)
+    {
+        // A published answer is the result: the request succeeded only when the item now has the requested state. A
+        // refused toggle leaves its chevron where the model put it.
+        const auto currentIndex = LookupVisibleIndex(item.id);
+        TreeItemData current;
+        if (! guard.IsCurrent() || ! currentIndex || ! TryControlCallback([&] { ReadTreeItem(*model, *currentIndex, current); }) || ! guard.IsCurrent())
+            return false;
+        if (current.id != item.id || ! current.hasChildren || current.expanded != expanded)
+        {
+            std::erase_if(_expanderAnimations, [&](const ExpanderAnimationState& animation) { return animation.itemId == item.id; });
+            return false;
+        }
+    }
     if (animate)
-        BeginTreeExpansionAnimation(item.id, expanded, std::move(beforeItems.value()), std::move(afterItems.value()));
+        BeginTreeExpansionAnimation(item.id, expanded, before.value(), after.value());
     else
     {
         ClearTreeExpansionAnimation();
@@ -1206,7 +1254,7 @@ TreeItemLayoutMetrics Tree::GetItemLayoutMetrics(const ControlHost& host, size_t
     }
 
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex, item); }) || ! guard.IsCurrent())
     {
         return metrics;
     }
@@ -1244,6 +1292,26 @@ float Tree::DebugGetExpanderProgress(uint64_t itemId, bool expanded, uint64_t no
     return GetExpanderProgress(itemId, expanded, nowTickMs);
 }
 
+std::span<const TreeItemData> Tree::DebugGetExpansionRecords() const noexcept
+{
+    return _treeExpansionAnimation ? std::span<const TreeItemData>(_treeExpansionAnimation->removedItems) : std::span<const TreeItemData>();
+}
+
+void Tree::DebugSetIdLookup(DebugIdLookup mode) noexcept
+{
+    g_debugIdLookup.store(static_cast<uint8_t>(mode), std::memory_order_relaxed);
+}
+
+Tree::DebugIdLookup Tree::DebugGetIdLookup() noexcept
+{
+    return static_cast<DebugIdLookup>(g_debugIdLookup.load(std::memory_order_relaxed));
+}
+
+size_t Tree::DebugGetIdLookupMismatchCount() noexcept
+{
+    return g_debugIdLookupMismatches.load(std::memory_order_relaxed);
+}
+
 bool Tree::DebugGetRowVisualState(const ThemePalette& theme, size_t visibleIndex, bool keyboardFocusVisible, TreeDebugRowVisualState& out) const noexcept
 {
     const Failure::Scope outerFailureScope;
@@ -1259,7 +1327,7 @@ bool Tree::DebugGetRowVisualState(const ThemePalette& theme, size_t visibleIndex
         return false;
 
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex, item); }) || ! guard.IsCurrent())
         return false;
     const bool selected                  = IsItemSelected(item.id);
     const bool current                   = _focusedItemId && _focusedItemId.value() == item.id;
@@ -1444,12 +1512,12 @@ void Tree::Paint(ControlHost& host) const
         if (beforeParentIndex.has_value() && afterParentIndex.has_value())
         {
             const float progress             = GetTreeExpansionProgress(nowTickMs);
-            const size_t descendantCount     = animation.beforeDescendants;
+            const size_t descendantCount     = animation.removedItems.size();
             const float collapseTargetTopDip = contentRect.top + (static_cast<float>(afterParentIndex.value() + 1u) * _rowHeightDip) - _verticalScrollDip;
             for (size_t offset = 0u; offset < descendantCount; ++offset)
             {
                 const size_t beforeIndex        = beforeParentIndex.value() + 1u + offset;
-                const TreeItemData& removedItem = animation.beforeItems[beforeIndex];
+                const TreeItemData& removedItem = animation.removedItems[offset];
                 if (FindIndexedItem(animation.afterIndex, removedItem.id).has_value())
                 {
                     continue;
@@ -1665,7 +1733,7 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         TreeItemData item;
         if (! model)
             return false;
-        if (! TryControlCallback([&] { model->GetVisibleItem(_hoveredVisibleIndex.value(), item); }) || ! guard.IsCurrent())
+        if (! TryControlCallback([&] { ReadTreeItem(*model, _hoveredVisibleIndex.value(), item); }) || ! guard.IsCurrent())
             return false;
         std::wstring tooltipText;
         if (! item.tooltipText.empty())
@@ -1752,7 +1820,7 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     }
     const bool aimedAtRow = aimed.zone == HitZone::Item || aimed.zone == HitZone::Expander;
     TreeItemData aimedItem;
-    if (aimedAtRow && (! model || ! TryControlCallback([&] { model->GetVisibleItem(aimed.visibleIndex, aimedItem); }) || ! guard.IsCurrent()))
+    if (aimedAtRow && (! model || ! TryControlCallback([&] { ReadTreeItem(*model, aimed.visibleIndex, aimedItem); }) || ! guard.IsCurrent()))
         return true;
 
     if (! FocusControlAndSurvive(host, *this))
@@ -1768,7 +1836,7 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
     if (! guard.IsCurrent() || ! IsSameHitTarget(aimed, hit))
         return true;
     TreeItemData hitItem;
-    if (aimedAtRow && (! TryControlCallback([&] { model->GetVisibleItem(hit.visibleIndex, hitItem); }) || ! guard.IsCurrent() || hitItem.id != aimedItem.id))
+    if (aimedAtRow && (! TryControlCallback([&] { ReadTreeItem(*model, hit.visibleIndex, hitItem); }) || ! guard.IsCurrent() || hitItem.id != aimedItem.id))
         return true;
     UpdateScrollbarHotState(hit);
     SyncScrollbarAnimation(host);
@@ -1877,7 +1945,7 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         return true;
     if (hit.zone == HitZone::Expander)
     {
-        const std::optional<size_t> currentIndex = model->FindVisibleItemById(hitItem.id);
+        const std::optional<size_t> currentIndex = LookupVisibleIndex(hitItem.id);
         if (! guard.IsCurrent())
             return true;
         if (! currentIndex.has_value() || ! ToggleExpanded(currentIndex.value()))
@@ -1949,7 +2017,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         return OnMouseDown(host, point, rightButton, modifiers);
     }
     TreeItemData aimedItem;
-    if (! model || ! TryControlCallback([&] { model->GetVisibleItem(aimed.visibleIndex, aimedItem); }) || ! guard.IsCurrent())
+    if (! model || ! TryControlCallback([&] { ReadTreeItem(*model, aimed.visibleIndex, aimedItem); }) || ! guard.IsCurrent())
         return true;
 
     if (! FocusControlAndSurvive(host, *this))
@@ -1963,7 +2031,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
     if (! guard.IsCurrent() || ! IsSameHitTarget(aimed, hit))
         return true;
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(hit.visibleIndex, item); }) || ! guard.IsCurrent() || item.id != aimedItem.id)
+    if (! TryControlCallback([&] { ReadTreeItem(*model, hit.visibleIndex, item); }) || ! guard.IsCurrent() || item.id != aimedItem.id)
         return true;
     // The first press of a double-click already made its selection gesture: with multi-select the second, with Ctrl or
     // Shift, only activates, so a Ctrl double-click cannot toggle the item off again.
@@ -1975,7 +2043,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
     if (! guard.ResumeAfterCallback())
         return true;
 
-    const std::optional<size_t> currentIndex = model->FindVisibleItemById(item.id);
+    const std::optional<size_t> currentIndex = LookupVisibleIndex(item.id);
     if (! guard.IsCurrent())
         return true;
     if (! currentIndex.has_value())
@@ -1984,7 +2052,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
     }
 
     TreeItemData currentItem;
-    if (! TryControlCallback([&] { model->GetVisibleItem(currentIndex.value(), currentItem); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { ReadTreeItem(*model, currentIndex.value(), currentItem); }) || ! guard.IsCurrent())
         return true;
     if (currentItem.hasChildren)
     {
@@ -2063,7 +2131,11 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
             return dragged; // Embedded scheduling may retire or rebind the owner.
         if (commit)
         {
+            const uint64_t revisionBeforeDrop = _modelRevision;
             _delegate->OnTreeReorder(drop);
+            // The delegate may have moved rows without publishing them: an id index built before the drop no longer answers.
+            if (guard.IsBindingCurrent())
+                ForgetVisibleIdIndexBuiltAt(revisionBeforeDrop);
         }
         if (invokeId.has_value() && ! guard.ResumeAfterCallback())
             return dragged;
@@ -2074,7 +2146,7 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
                 return false;
             TreeItemData releaseItem{};
             const ITreeModel* const model = _model;
-            if (releaseHit.zone == HitZone::Item && model && TryControlCallback([&] { model->GetVisibleItem(releaseHit.visibleIndex, releaseItem); }) &&
+            if (releaseHit.zone == HitZone::Item && model && TryControlCallback([&] { ReadTreeItem(*model, releaseHit.visibleIndex, releaseItem); }) &&
                 guard.IsCurrent() && releaseItem.id == invokeId.value())
             {
                 ITreeDelegate* const delegate = _delegate;
@@ -2115,7 +2187,7 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
             return wasDragging;
         TreeItemData releaseItem{};
         const ITreeModel* const model = _model;
-        if (releaseHit.zone == HitZone::Item && model && TryControlCallback([&] { model->GetVisibleItem(releaseHit.visibleIndex, releaseItem); }) &&
+        if (releaseHit.zone == HitZone::Item && model && TryControlCallback([&] { ReadTreeItem(*model, releaseHit.visibleIndex, releaseItem); }) &&
             guard.IsCurrent() && releaseItem.id == invokeId.value())
         {
             ITreeDelegate* const delegate = _delegate;
@@ -2311,8 +2383,10 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             return true;
     }
 
+    // Movement keys need only the focused row's index; the others act on its item, read once.
+    const bool actsOnItem = virtualKey == VK_LEFT || virtualKey == VK_RIGHT || virtualKey == VK_RETURN || virtualKey == VK_SPACE;
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(currentIndex.value(), item); }) || ! guard.IsCurrent())
+    if (actsOnItem && (! TryControlCallback([&] { ReadTreeItem(*model, currentIndex.value(), item); }) || ! guard.IsCurrent()))
         return true;
     const size_t itemCount = model->GetVisibleItemCount();
     if (! guard.IsCurrent())
@@ -2350,7 +2424,7 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             }
             if (item.parentId)
             {
-                if (const std::optional<size_t> parentIndex = model->FindVisibleItemById(item.parentId.value()))
+                if (const std::optional<size_t> parentIndex = LookupVisibleIndex(item.parentId.value()))
                 {
                     if (! guard.IsCurrent())
                         return true;
@@ -2381,7 +2455,7 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             if (item.hasChildren && item.expanded && currentIndex.value() + 1u < itemCount)
             {
                 TreeItemData nextItem;
-                if (! TryControlCallback([&] { model->GetVisibleItem(currentIndex.value() + 1u, nextItem); }) || ! guard.IsCurrent())
+                if (! TryControlCallback([&] { ReadTreeItem(*model, currentIndex.value() + 1u, nextItem); }) || ! guard.IsCurrent())
                     return true;
                 if (nextItem.parentId && nextItem.parentId.value() == item.id)
                 {
@@ -2515,7 +2589,7 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
     }
 
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex, item); }) || ! guard.IsCurrent())
         return true;
     const POINT screenPoint = ResolveContextMenuAnchor(host, false, anchorDip);
 
@@ -2540,7 +2614,7 @@ bool Tree::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
 
     if (! _delegate)
         return true;
-    const bool itemPresent = model->FindVisibleItemById(item.id).has_value();
+    const bool itemPresent = LookupVisibleIndex(item.id).has_value();
     if (! guard.IsCurrent() || ! itemPresent)
         return true;
 
@@ -2796,7 +2870,7 @@ Tree::HitInfo Tree::HitTestPoint(const ControlHost& /*host*/, PointDip pointDip)
     }
 
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex, item); }) || ! guard.IsCurrent())
         return {};
 
     const float rowTop = contentRect.top + (static_cast<float>(visibleIndex) * _rowHeightDip) - _verticalScrollDip;
@@ -3057,12 +3131,146 @@ void Tree::SyncScrollbarAnimation(ControlHost& host) noexcept
                              _dragVerticalThumb);
 }
 
+std::optional<size_t> Tree::LookupVisibleIndex(uint64_t itemId) const noexcept
+try
+{
+    const Failure::Scope outerFailureScope;
+    const ITreeModel* const model = _model;
+    if (! model)
+        return std::nullopt;
+#if DXUI_ENABLE_DIAGNOSTICS
+    const DebugIdLookup mode = DebugGetIdLookup();
+    const bool indexed       = _modelLookupKind == ModelLookupKind::Default && mode != DebugIdLookup::Model;
+#else
+    const bool indexed = _modelLookupKind == ModelLookupKind::Default;
+#endif
+    const uint64_t bindingRevision = _modelBindingRevision;
+    const bool ready               = indexed && EnsureVisibleIdIndex();
+    // A model read during the build may have replaced the model: the borrowed pointer is not asked again.
+    if (_model != model || _modelBindingRevision != bindingRevision)
+        return std::nullopt;
+    if (ready)
+    {
+        const VisibleIdIndex& index = _visibleIdIndexCache;
+        const auto found            = std::ranges::lower_bound(index.ids, itemId);
+        const std::optional<size_t> answer =
+            found != index.ids.end() && *found == itemId ? std::optional<size_t>(index.rows[static_cast<size_t>(found - index.ids.begin())]) : std::nullopt;
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (mode == DebugIdLookup::Verified)
+        {
+            ++Detail::Work().lists.treeModelLookups;
+            const std::optional<size_t> modelAnswer = model->FindVisibleItemById(itemId);
+            if (modelAnswer != answer)
+                g_debugIdLookupMismatches.fetch_add(1u, std::memory_order_relaxed);
+            return modelAnswer;
+        }
+#endif
+        return answer;
+    }
+    ++Detail::Work().lists.treeModelLookups;
+    if (_modelLookupKind != ModelLookupKind::Unknown)
+        return model->FindVisibleItemById(itemId);
+    // The first lookup after SetModel also learns whether the model keeps ITreeModel's default lookup.
+    const ITreeModel* const previousProbe = std::exchange(t_lookupProbe, model);
+    const bool previousReached            = std::exchange(t_lookupProbeReached, false);
+    const std::optional<size_t> answer    = model->FindVisibleItemById(itemId);
+    const bool reached                    = t_lookupProbeReached;
+    t_lookupProbe                         = previousProbe;
+    t_lookupProbeReached                  = previousReached;
+    if (_model == model && _modelBindingRevision == bindingRevision)
+        _modelLookupKind = reached ? ModelLookupKind::Default : ModelLookupKind::Own;
+    return answer;
+}
+catch (const std::bad_alloc&)
+{
+    Failure::FailAllocation();
+}
+catch (const std::exception&)
+{
+    Failure::FailUnexpected();
+}
+
+bool Tree::EnsureVisibleIdIndex() const
+{
+    const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
+    const ITreeModel* const model = _model;
+    if (! model)
+        return false;
+    const size_t count = model->GetVisibleItemCount();
+    if (! guard.IsCurrent())
+        return false;
+    VisibleIdIndex& index = _visibleIdIndexCache;
+    if (index.valid && index.revision == _modelRevision && index.rowCount == count)
+        return true;
+    index.valid = false;
+    if (count > (std::numeric_limits<uint32_t>::max)())
+        return false;
+    ++Detail::Work().lists.treeIdIndexBuilds;
+    std::vector<uint64_t> orderedIds(0u);
+    orderedIds.reserve(count);
+    TreeItemData item;
+    for (size_t row = 0u; row < count; ++row)
+    {
+        if (! TryControlCallback([&] { ReadTreeItem(*model, row, item); }) || ! guard.IsCurrent())
+            return false;
+        orderedIds.push_back(item.id);
+    }
+    BuildVisibleIdIndex(orderedIds);
+    return true;
+}
+
+void Tree::BuildVisibleIdIndex(std::span<const uint64_t> orderedIds) const
+{
+    // Sorted by id, then row, so the first entry of a repeated id carries its first row, as the default scan finds it.
+    std::vector<std::pair<uint64_t, uint32_t>> entries(0u);
+    entries.reserve(orderedIds.size());
+    for (size_t row = 0u; row < orderedIds.size(); ++row)
+        entries.emplace_back(orderedIds[row], static_cast<uint32_t>(row));
+    std::ranges::sort(entries);
+    size_t distinct = 0u;
+    for (size_t entry = 0u; entry < entries.size(); ++entry)
+        distinct += entry == 0u || entries[entry].first != entries[entry - 1u].first ? 1u : 0u;
+    VisibleIdIndex built;
+    built.ids.reserve(distinct);
+    built.rows.reserve(distinct);
+    for (const auto& [id, row] : entries)
+    {
+        if (built.ids.empty() || built.ids.back() != id)
+        {
+            built.ids.push_back(id);
+            built.rows.push_back(row);
+        }
+    }
+    VisibleIdIndex& index = _visibleIdIndexCache;
+    index.ids.swap(built.ids);
+    index.rows.swap(built.rows);
+    index.revision = _modelRevision;
+    index.rowCount = orderedIds.size();
+    index.valid    = true;
+}
+
+void Tree::ForgetVisibleIdIndexBuiltAt(uint64_t revision) const noexcept
+{
+    if (_visibleIdIndexCache.revision == revision)
+        _visibleIdIndexCache.valid = false;
+}
+
+void Tree::ReleaseVisibleIdIndex() const noexcept
+{
+    VisibleIdIndex& index = _visibleIdIndexCache;
+    index.valid           = false;
+    index.ids.clear();
+    index.ids.shrink_to_fit();
+    index.rows.clear();
+    index.rows.shrink_to_fit();
+}
+
 std::optional<size_t> Tree::FindFocusedVisibleIndex() const noexcept
 {
     const Failure::Scope outerFailureScope;
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model      = _model;
-    const std::optional<size_t> result = (model && _focusedItemId) ? model->FindVisibleItemById(_focusedItemId.value()) : std::nullopt;
+    const std::optional<size_t> result = (model && _focusedItemId) ? LookupVisibleIndex(_focusedItemId.value()) : std::nullopt;
     return guard.IsCurrent() ? result : std::nullopt;
 }
 
@@ -3106,7 +3314,7 @@ bool Tree::SelectVisibleIndex(size_t visibleIndex, SelectMode mode, bool notifyD
         return false;
 
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex, item); }) || ! guard.IsCurrent())
         return false;
 
     std::vector<uint64_t> visibleIds;
@@ -3234,7 +3442,7 @@ std::vector<uint64_t> Tree::CollectVisibleItemIds() const
     {
         // Preserve the distinction between a failed collection and an empty model. The operation boundary
         // catches a standard exception before it can apply this collection to selection state.
-        model->GetVisibleItem(visibleIndex, item);
+        ReadTreeItem(*model, visibleIndex, item);
         if (! guard.IsCurrent())
             return {};
         itemIds.push_back(item.id);
@@ -3317,7 +3525,7 @@ try
     if (! guard.IsCurrent() || visibleIndex >= count)
         return false;
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex, item); }) || ! guard.IsCurrent())
         return false;
     if (! _multiSelect)
     {
@@ -3393,7 +3601,7 @@ try
         return false;
 
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex, item); }) || ! guard.IsCurrent())
         return false;
     if (! IsItemSelected(item.id))
     {
@@ -3526,7 +3734,7 @@ bool Tree::ToggleExpanded(size_t visibleIndex)
         return true;
 
     TreeItemData item;
-    if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex, item); }) || ! guard.IsCurrent())
         return true;
     const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
     static_cast<void>(RequestExpandedState(visibleIndex, ! item.expanded));
@@ -3605,7 +3813,7 @@ float Tree::GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTick
     return ComputeExpanderProgress(itemId, expanded, nowTickMs);
 }
 
-bool Tree::CaptureVisibleItems(std::vector<TreeItemData>& items) const
+bool Tree::CaptureExpansionRows(uint64_t itemId, bool keepDescendants, ExpansionRows& rows) const
 {
     const Failure::Scope outerFailureScope;
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -3613,7 +3821,9 @@ bool Tree::CaptureVisibleItems(std::vector<TreeItemData>& items) const
 #endif
     const TreeModelQueryGuard guard(*this, GetLifetimeToken(), _model);
     const ITreeModel* const model = _model;
-    items.clear();
+    rows.ids.clear();
+    rows.descendants.clear();
+    rows.itemRow.reset();
     if (! model)
     {
         return true;
@@ -3622,72 +3832,70 @@ bool Tree::CaptureVisibleItems(std::vector<TreeItemData>& items) const
     const size_t itemCount = model->GetVisibleItemCount();
     if (! guard.IsCurrent())
         return false;
-    items.reserve(itemCount);
-    TreeItemData item;
+    rows.ids.reserve(itemCount);
+    // Each row is read once. A row that may be a descendant of the collapsing item is read straight into a new record,
+    // given back when it proves not to be one; any other row is read into `scratch` and only its id is kept.
+    TreeItemData scratch;
+    uint32_t itemDepth = 0u;
+    bool inDescendants = false;
     for (size_t visibleIndex = 0u; visibleIndex < itemCount; ++visibleIndex)
     {
-        item = {};
-        if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+        const bool record = keepDescendants && inDescendants;
+        TreeItemData& row = record ? AppendTreeRecord(rows.descendants) : scratch;
+        if (! record)
+            row = {};
+        if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex, row); }) || ! guard.IsCurrent())
             return false;
-        items.push_back(item);
+        const uint64_t id    = row.id;
+        const uint32_t depth = row.depth;
+        rows.ids.push_back(id);
+        // Visible rows are in preorder: the item's descendants are the run after its first row that is nested deeper.
+        if (inDescendants && depth <= itemDepth)
+        {
+            inDescendants = false;
+            if (record)
+                rows.descendants.pop_back();
+        }
+        if (! rows.itemRow && id == itemId)
+        {
+            rows.itemRow  = visibleIndex;
+            itemDepth     = depth;
+            inDescendants = true;
+        }
     }
 
     return true;
 }
 
-void Tree::BeginTreeExpansionAnimation(uint64_t itemId,
-                                       bool toExpanded,
-                                       std::vector<TreeItemData>&& beforeItems,
-                                       std::vector<TreeItemData>&& afterItems) noexcept
+void Tree::BeginTreeExpansionAnimation(uint64_t itemId, bool toExpanded, ExpansionRows& before, const ExpansionRows& after) noexcept
 try
 {
     ControlHost* const host = GetHost();
-    if (beforeItems.empty() || afterItems.empty() || ! host || host->GetTheme().reducedMotion)
+    if (before.ids.empty() || after.ids.empty() || ! host || host->GetTheme().reducedMotion)
+    {
+        ClearTreeExpansionAnimation();
+        return;
+    }
+    if (before.ids == after.ids)
     {
         ClearTreeExpansionAnimation();
         return;
     }
 
-    if (beforeItems.size() == afterItems.size())
-    {
-        bool changed = false;
-        for (size_t index = 0u; index < beforeItems.size(); ++index)
-        {
-            if (beforeItems[index].id != afterItems[index].id)
-            {
-                changed = true;
-                break;
-            }
-        }
-        if (! changed)
-        {
-            ClearTreeExpansionAnimation();
-            return;
-        }
-    }
-
-    TreeExpansionAnimationState animation{};
-    animation.itemId      = itemId;
-    animation.toExpanded  = toExpanded;
-    animation.active      = true;
-    animation.startTickMs = host->GetAnimationTickMs();
-    animation.beforeItems.swap(beforeItems);
-    animation.afterItems.swap(afterItems);
-    animation.beforeIndex.reserve(animation.beforeItems.size());
-    animation.afterIndex.reserve(animation.afterItems.size());
-    for (size_t index = 0u; index < animation.beforeItems.size(); ++index)
-        animation.beforeIndex.emplace_back(animation.beforeItems[index].id, index);
-    for (size_t index = 0u; index < animation.afterItems.size(); ++index)
-        animation.afterIndex.emplace_back(animation.afterItems[index].id, index);
-    std::ranges::sort(animation.beforeIndex);
-    std::ranges::sort(animation.afterIndex);
-    animation.beforeParent = FindIndexedItem(animation.beforeIndex, itemId);
-    animation.afterParent  = FindIndexedItem(animation.afterIndex, itemId);
-    if (animation.beforeParent)
-        animation.beforeDescendants = CountDescendants(animation.beforeItems, animation.beforeParent.value());
-    // Copy construction is fallible in MSVC Debug; its vector move/default
-    // constructors allocate iterator proxies inside noexcept functions.
-    _treeExpansionAnimation.emplace(animation);
+    // Built in place: the state is never copied or moved, and its records arrive by swapping the capture's vector.
+    _treeExpansionAnimation.emplace();
+    TreeExpansionAnimationState& animation = _treeExpansionAnimation.value();
+    animation.itemId                       = itemId;
+    animation.toExpanded                   = toExpanded;
+    animation.active                       = true;
+    animation.startTickMs                  = host->GetAnimationTickMs();
+    animation.afterCount                   = after.ids.size();
+    BuildIdRowPairs(before.ids, animation.beforeIndex);
+    BuildIdRowPairs(after.ids, animation.afterIndex);
+    animation.beforeParent = before.itemRow;
+    animation.afterParent  = after.itemRow;
+    animation.removedItems.swap(before.descendants);
+    Detail::Work().lists.treeExpansionRecords += animation.removedItems.size();
     // Every path that slides the rows asks for ticks, a UI Automation Expand included.
     host->RequestAnimation(*this);
 }
@@ -3744,7 +3952,7 @@ std::optional<size_t> Tree::FindNextTypeaheadMatch(std::wstring_view prefix) con
     for (size_t offset = 0u; offset < itemCount; ++offset)
     {
         const size_t visibleIndex = (startIndex + offset) % itemCount;
-        if (! TryControlCallback([&] { model->GetVisibleItem(visibleIndex, item); }) || ! guard.IsCurrent())
+        if (! TryControlCallback([&] { ReadTreeItem(*model, visibleIndex, item); }) || ! guard.IsCurrent())
             return std::nullopt;
         if (StartsWithInsensitive(item.text, prefix))
         {
