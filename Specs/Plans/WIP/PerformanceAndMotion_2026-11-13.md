@@ -1560,7 +1560,7 @@ Purpose: budgets that are measured and enforced, aimed at the largest lines firs
 (5–15 MB), accessibility snapshots (1–2 MB per 1,000 controls), control objects (≈ 21 KB in ComplexUi). Class sizes
 are hand counts until the `W9.1` probes exist. Exit: `G13` met.
 
-- [ ] **W9.1 Size probes and budgets.**
+- [x] **W9.1 Size probes and budgets.**
   - **Why**: no class size is recorded; hand counts: `Control` ≈ 296 B, `Label` ≈ 448 B, `Button` ≈ 816 B, `Toggle`
     ≈ 904 B, `Checkbox` ≈ 912 B, `RadioButton` ≈ 864 B, `ThroughputGraphSample` 408 B,
     `AccessibilityControlNavigationSnapshot` ≈ 936 B. ComplexUi records allocation counts but no live bytes, cache bytes

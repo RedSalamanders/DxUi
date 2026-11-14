@@ -7,8 +7,13 @@
 
 namespace MemoryMetricsTests
 {
-// Object sizes at 2026-11-13 (x64; ARM64 has the same layout). A probe fails when a control grows; lower it when one
-// shrinks. Debug STL containers carry a proxy pointer, so Debug and ASan Debug measure separately from Release.
+// Size probes (W0.3, extended by W9.1): object sizes measured on 2026-11-14 by compiling x64 and ARM64 Release, Debug and
+// ASan Debug, which agree per configuration. A probe is a ratchet, not a budget: it fails when a type grows; lower it when
+// one shrinks. Debug STL containers carry a proxy pointer, so Debug and ASan Debug measure separately from Release.
+// The controls serve the G13 line "<= 256 B per simple control all-in" (plan section 1), which today's sizes already
+// exceed: W9.6 lowers them. ThroughputGraphSample is the graph's per-sample record (180 per graph), held at its size by
+// the same line; no plan item lowers it yet. The accessibility snapshot record is probed beside its private definition
+// (src/Controls/DxUi.Accessibility.cpp) and W9.7 lowers it.
 #if _ITERATOR_DEBUG_LEVEL != 0
 inline constexpr size_t kControlBytes     = 336;
 inline constexpr size_t kLabelBytes       = 496;
@@ -24,7 +29,10 @@ inline constexpr size_t kToggleBytes      = 904;
 inline constexpr size_t kCheckboxBytes    = 912;
 inline constexpr size_t kRadioButtonBytes = 864;
 #endif
+inline constexpr size_t kThroughputGraphSampleBytes = 408; // no container: equal in every configuration
 static_assert(sizeof(void*) == 8, "the size probes are measured for 64-bit targets");
+static_assert(sizeof(DxUi::ThroughputGraphSample) <= kThroughputGraphSampleBytes,
+              "ThroughputGraphSample grew: lower memory first, or re-measure with the reason");
 static_assert(sizeof(DxUi::Control) <= kControlBytes,
               "Control grew: lower memory first, or re-measure with the reason (Specs/Core/Core_PerformanceAndResources.md)");
 static_assert(sizeof(DxUi::Label) <= kLabelBytes, "Label grew: lower memory first, or re-measure with the reason");
@@ -36,7 +44,8 @@ static_assert(sizeof(DxUi::RadioButton) <= kRadioButtonBytes, "RadioButton grew:
 inline void PrintControlSizes()
 {
     std::cout << "Control sizes: Control " << sizeof(DxUi::Control) << ", Label " << sizeof(DxUi::Label) << ", Button " << sizeof(DxUi::Button) << ", Toggle "
-              << sizeof(DxUi::Toggle) << ", Checkbox " << sizeof(DxUi::Checkbox) << ", RadioButton " << sizeof(DxUi::RadioButton) << " bytes\n";
+              << sizeof(DxUi::Toggle) << ", Checkbox " << sizeof(DxUi::Checkbox) << ", RadioButton " << sizeof(DxUi::RadioButton) << ", ThroughputGraphSample "
+              << sizeof(DxUi::ThroughputGraphSample) << " bytes\n";
 }
 
 // Live objects the D3D11 debug layer reports for a device, its own ID3D11Device record excluded. Objects that only
@@ -225,6 +234,78 @@ __declspec(noinline) inline void TestRetainedResourceStatistics()
     std::cout << "Form retained: " << form.retainedTextLayouts << " text layouts of " << form.retainedTextLayoutUnits << " units\n";
     Check(form.retainedTextLayouts == 2u && form.retainedTextLayoutUnits == 10u, "a TextField and a styled Label each retain one layout of their text");
 }
+// W9.1: largestTextHistoryBytes reports the undo history of the editor that holds the most, and the registry totals count
+// a TextField's retained layout; both on query only, without allocating.
+__declspec(noinline) inline void TestTextHistoryAndCacheStatistics()
+{
+    GraphicsFixture gpu;
+    gpu.width  = 320;
+    gpu.height = 120;
+    Hr(gpu.Create(), "text history statistics WARP device");
+    std::shared_ptr<DxUi::GraphicsDevice> graphics;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "text history graphics device");
+    DxUi::EmbeddedHost view;
+    Hr(view.Attach(std::move(graphics)), "text history view");
+    auto root        = std::make_unique<DxUi::Panel>();
+    auto* shortField = root->AddChild<DxUi::TextField>();
+    auto* longField  = root->AddChild<DxUi::TextField>();
+    shortField->SetBounds(D2D1::RectF(8, 8, 300, 40));
+    longField->SetBounds(D2D1::RectF(8, 48, 300, 80));
+    longField->SetText(std::wstring(4096u, L'x'));
+    view.Controls().SetRoot(std::move(root));
+    Hr(view.Prepare(320, 120), "text history preparation");
+    const auto before = view.GetStatistics();
+    Check(before.largestTextHistoryBytes == 0u, "an unedited field holds no history");
+    Check(before.retainedCacheEntries > 0u, "the registry totals count the fields' retained layouts");
+    const auto type = [&](DxUi::TextField* field, size_t characters)
+    {
+        view.Controls().SetFocusControl(field);
+        Hr(view.Prepare(320, 120), "text history focus preparation");
+        for (size_t index = 0u; index < characters; ++index)
+        {
+            Check(view.DispatchCharacter(index % 2u ? L' ' : L'a'), "type into the field");
+            Hr(view.Prepare(320, 120), "text history typing preparation");
+        }
+    };
+    type(shortField, 4u);
+    const auto smallEdited = view.GetStatistics().largestTextHistoryBytes;
+    type(longField, 4u);
+    countAllocations     = true;
+    const auto allocated = allocations;
+    const auto edited    = view.GetStatistics();
+    const auto queried   = allocations - allocated;
+    countAllocations     = false;
+    Check(queried == 0u, "a statistics query with text history allocates nothing");
+    Check(smallEdited > 0u, "typing records history");
+    // The 4,096-unit field keeps at least one earlier text that its current text does not share: 8 KiB.
+    Check(edited.largestTextHistoryBytes >= 4096u * sizeof(wchar_t) && edited.largestTextHistoryBytes > smallEdited,
+          "the largest history is the field that keeps the larger texts");
+    std::cout << "Text history: " << smallEdited << " bytes after 4 edits of a short field, " << edited.largestTextHistoryBytes
+              << " bytes after 4 edits of a 4,096-unit field; cache entries " << edited.retainedCacheEntries << ", resident bytes " << edited.retainedCacheBytes
+              << '\n';
+}
+
+// The busy bytes of every process heap: the sum Support.Tests.HeapDiagnostic.h reports per heap, which that header (an
+// input of the paired benchmark) does not total. One heap is locked at a time; nothing is allocated. W9.1 uses it for the
+// G13 Grid cell probe (Embedded.Tests.PerformanceFixtures.h).
+inline uint64_t LiveHeapBytes() noexcept
+{
+    std::array<HANDLE, 128> heaps{};
+    const DWORD count = GetProcessHeaps(static_cast<DWORD>(heaps.size()), heaps.data());
+    uint64_t busy     = 0u;
+    for (DWORD index = 0u; index < count && index < heaps.size(); ++index)
+    {
+        if (! HeapLock(heaps[index]))
+            continue;
+        PROCESS_HEAP_ENTRY entry{};
+        while (HeapWalk(heaps[index], &entry))
+            if ((entry.wFlags & PROCESS_HEAP_ENTRY_BUSY) != 0u)
+                busy += entry.cbData;
+        HeapUnlock(heaps[index]);
+    }
+    return busy;
+}
+
 // Video memory for the memory fields of every performance fixture receipt (Embedded.Tests.PerformanceFixtures.h, which also
 // writes the FX5 memory receipt for --memory-receipt and --memory-receipt-hardware). A hardware adapter reports the process's local (dedicated) and non-local
 // (shared) video memory; WARP renders in system memory, which private bytes already count, so there video memory is not applicable.

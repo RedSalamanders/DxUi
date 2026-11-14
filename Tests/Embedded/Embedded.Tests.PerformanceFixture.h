@@ -257,6 +257,28 @@ struct AdapterRecord
     uint64_t videoBytes = 0u;
 };
 
+// One registered retained cache after the last phase (W9.1): its registry name, live entries and resident bytes
+// (bytesCounted false: the registry row has no byte count).
+struct CacheRecord
+{
+    std::string name;
+    uint64_t entries  = 0u;
+    bool bytesCounted = false;
+    uint64_t bytes    = 0u;
+};
+
+// The Grid cell probe after the last phase (W9.1): every visible Grid is hidden, which releases its cell layouts, then
+// shown and rendered again, which rebuilds them. Recorded: the layouts released, the live heap bytes that fell on hiding
+// and those that rebuilding added. The rebuild is what the cells hold (DirectWrite's layout storage with DxUi's entries
+// and strings); hiding returns far less, because the released storage stays busy in the process heaps. Live heap bytes are
+// the busy blocks of every process heap: exact at the moment, but they include any concurrent allocation of another thread.
+struct GridCellRelease
+{
+    uint64_t layouts          = 0u;
+    int64_t releasedHeapBytes = 0;
+    int64_t rebuiltHeapBytes  = 0;
+};
+
 struct RunRecord
 {
     const Definition* definition = nullptr;
@@ -271,6 +293,13 @@ struct RunRecord
     uint64_t entryPrivateBytes = 0u;
     uint64_t trackedResources  = 0u;
     uint64_t trackerOverflow   = 0u;
+    // G13 inputs (W9.1), set by a runner that observes them: the controls and the editors (TextField, ComboBox) of the
+    // built tree, the registered caches after the last phase and the Grid cell release probe.
+    std::optional<uint64_t> controls;
+    std::optional<uint64_t> editors;
+    std::optional<uint64_t> richEditors; // RichTextEditor controls: their history is not in largestTextHistoryBytes
+    std::vector<CacheRecord> caches;
+    std::optional<GridCellRelease> gridCells;
 
     [[nodiscard]] const PhaseRecord& Phase(std::string_view name) const
     {
@@ -387,6 +416,171 @@ struct Difference
            std::to_string(difference.second) + " in the second";
 }
 
+// ---- G13 memory budget lines (W9.1) ------------------------------------------------------------------------------------
+// Every receipt reports each line of budget G13 (plan section 1) as a counter, compared with its budget. A line a fixture
+// cannot observe is "not measured" with the reason; the private-bytes line is advisory, a band compared between paired
+// runs (same-binary drift is about 0.3 MB), and never judged. A counted line over its budget must be a recorded exception
+// naming the item that closes it; when that item lands it deletes its row below, and the gate then enforces the budget.
+// A row whose line is within budget is stale and fails the gate too, so a fixed line cannot keep its exception.
+struct BudgetLine
+{
+    std::string_view id;
+    std::string_view statement; // the plan's words
+    std::string_view counter;   // what the receipt reports
+    uint64_t limit = 0u;        // bytes
+    bool advisory  = false;
+};
+inline constexpr std::array kG13Lines{
+    BudgetLine{"idle-private",
+               "idle native window <= 8 MB private above process entry at 1080p",
+               "private bytes after the last phase, shown, minus private bytes at process entry",
+               8'000'000u,
+               true},
+    BudgetLine{"minimized-video",
+               "<= 8 MiB video memory when minimized",
+               "local video memory usage of the process, hidden (a hidden embedded view is its minimized state)",
+               8u * 1024u * 1024u},
+    BudgetLine{"per-control",
+               "<= 256 B per simple control all-in",
+               "tracked live C++ bytes after the build divided by the controls of the built tree (host attachment included)",
+               256u},
+    BudgetLine{"per-grid-cell",
+               "<= 1 KB per visible single-line Grid cell",
+               "live heap bytes that rebuilding every Grid's cell layouts adds after hiding released them, per cell layout",
+               1'000u},
+    BudgetLine{"text-history",
+               "<= 4 MiB text history per editor",
+               "EmbeddedStatistics::largestTextHistoryBytes after the last phase (TextField and ComboBox; RichTextEditor history is not counted)",
+               4u * 1024u * 1024u},
+};
+
+struct BudgetException
+{
+    std::string_view fixture;
+    std::string_view line;
+    std::string_view closingItem;
+    std::string_view finding;
+};
+inline constexpr std::array kG13Exceptions{
+    BudgetException{"FX5", "per-control", "W9.6", "Label alone is 448 B in Release; FX5 holds about 640 tracked bytes per control"},
+    BudgetException{"FX5", "per-grid-cell", "W9.4", "a single-line cell keeps a whole DirectWrite layout between paints"},
+    BudgetException{"FX5", "minimized-video", "W9.2", "hiding releases the surface, yet the process's local video usage does not fall"},
+    BudgetException{"FX13", "per-control", "W9.6", "35 controls share the host attachment; the controls alone exceed 256 B each"},
+    BudgetException{"FX13", "minimized-video", "W9.2", "the hidden 1080p view keeps the process's local video usage"},
+};
+
+enum class BudgetVerdict : uint8_t
+{
+    Met,
+    Exceeded,
+    Advisory,
+    NotMeasured,
+};
+struct BudgetResult
+{
+    const BudgetLine* line = nullptr;
+    std::optional<uint64_t> value;
+    std::string_view reason; // why a line is not measured
+    BudgetVerdict verdict            = BudgetVerdict::NotMeasured;
+    const BudgetException* exception = nullptr;
+};
+
+[[nodiscard]] constexpr const BudgetException* FindBudgetException(std::string_view fixture, std::string_view line) noexcept
+{
+    for (const BudgetException& exception : kG13Exceptions)
+        if (exception.fixture == fixture && exception.line == line)
+            return &exception;
+    return nullptr;
+}
+
+[[nodiscard]] inline std::array<BudgetResult, kG13Lines.size()> EvaluateG13(const RunRecord& run)
+{
+    const MemorySample* built  = nullptr;
+    const MemorySample* shown  = nullptr; // after the last phase
+    const MemorySample* hidden = nullptr;
+    for (const MemorySample& sample : run.memory)
+    {
+        if (sample.at == "built")
+            built = &sample;
+        else if (sample.at == "phase")
+            shown = &sample;
+        else if (sample.at == "hidden")
+            hidden = &sample;
+    }
+    std::array<BudgetResult, kG13Lines.size()> results{};
+    for (size_t index = 0u; index < kG13Lines.size(); ++index)
+    {
+        BudgetResult& result      = results[index];
+        result.line               = &kG13Lines[index];
+        const std::string_view id = result.line->id;
+        if (id == "idle-private")
+        {
+            if (shown)
+                result.value = shown->privateBytes > run.entryPrivateBytes ? shown->privateBytes - run.entryPrivateBytes : 0u;
+            else
+                result.reason = "no sample after the last phase";
+        }
+        else if (id == "minimized-video")
+        {
+            if (hidden && hidden->video)
+                result.value = hidden->localVideoUsageBytes;
+            else
+                result.reason = "software adapter: rendering uses system memory, which private bytes count";
+        }
+        else if (id == "per-control")
+        {
+            if (built && built->trackedLiveBytes && run.controls && *run.controls)
+                result.value = static_cast<uint64_t>((std::max)(*built->trackedLiveBytes, int64_t{0})) / *run.controls;
+            else
+                result.reason = "this executable does not replace the allocation functions";
+        }
+        else if (id == "per-grid-cell")
+        {
+            if (run.gridCells && run.gridCells->layouts && run.adapter.software)
+                result.reason = "software adapter: WARP's rasterizer threads allocate in the same heaps while the cells are rebuilt (hardware receipts "
+                                "measure this line)";
+            else if (run.gridCells && run.gridCells->layouts && run.gridCells->rebuiltHeapBytes > 0)
+                result.value = static_cast<uint64_t>(run.gridCells->rebuiltHeapBytes) / run.gridCells->layouts;
+            else if (run.gridCells && run.gridCells->layouts)
+                result.reason = "the process heaps did not grow when the cells were rebuilt (AddressSanitizer allocates outside them)";
+            else
+                result.reason = run.gridCells ? "the fixture keeps no Grid cell layout" : "the run did not probe Grid cell release";
+        }
+        else if (id == "text-history")
+        {
+            if (run.editors && *run.editors && shown && shown->retained)
+                result.value = shown->retained->largestTextHistoryBytes;
+            else if (run.editors && ! *run.editors && run.richEditors.value_or(0u))
+                result.reason = "the fixture's editors are RichTextEditors, whose piece-shared history has no byte count yet (W9.3)";
+            else
+                result.reason = run.editors && ! *run.editors ? "the fixture has no TextField or ComboBox" : "this host does not report EmbeddedStatistics";
+        }
+        if (result.line->advisory && result.value)
+            result.verdict = BudgetVerdict::Advisory;
+        else if (result.value)
+            result.verdict = *result.value <= result.line->limit ? BudgetVerdict::Met : BudgetVerdict::Exceeded;
+        result.exception = FindBudgetException(run.definition->id, id);
+    }
+    return results;
+}
+
+// The gate on a run: a counted line over its budget without a recorded exception, or a recorded exception on a line
+// within its budget. Empty when the run passes.
+[[nodiscard]] inline std::vector<std::string> G13Failures(const RunRecord& run)
+{
+    std::vector<std::string> failures;
+    for (const BudgetResult& result : EvaluateG13(run))
+    {
+        const std::string line = std::string(run.definition->id) + " G13 " + std::string(result.line->id) + ": ";
+        if (result.verdict == BudgetVerdict::Exceeded && ! result.exception)
+            failures.push_back(line + std::to_string(*result.value) + " bytes exceed the budget of " + std::to_string(result.line->limit));
+        else if (result.verdict == BudgetVerdict::Met && result.exception)
+            failures.push_back(line + std::to_string(*result.value) + " bytes meet the budget: delete the recorded exception of " +
+                               std::string(result.exception->closingItem));
+    }
+    return failures;
+}
+
 // ---- Receipt JSON ----------------------------------------------------------------------------------------------------
 // The native part of a receipt; performance-fixtures.ps1 adds provenance, input hashes and the README.
 
@@ -409,7 +603,73 @@ inline void WriteRetainedJson(std::ostream& output, const DxUi::EmbeddedStatisti
 {
     output << "{\"surfaceBytes\":" << stats.surfaceBytes << ",\"cachedBrushes\":" << stats.cachedBrushes << ",\"cachedTextFormats\":" << stats.cachedTextFormats
            << ",\"retainedTextLayouts\":" << stats.retainedTextLayouts << ",\"retainedTextLayoutUnits\":" << stats.retainedTextLayoutUnits
-           << ",\"retainedBitmaps\":" << stats.retainedBitmaps << ",\"retainedBitmapBytes\":" << stats.retainedBitmapBytes << '}';
+           << ",\"retainedBitmaps\":" << stats.retainedBitmaps << ",\"retainedBitmapBytes\":" << stats.retainedBitmapBytes
+           << ",\"retainedCacheEntries\":" << stats.retainedCacheEntries << ",\"retainedCacheBytes\":" << stats.retainedCacheBytes
+           << ",\"largestTextHistoryBytes\":" << stats.largestTextHistoryBytes << '}';
+}
+
+// The G13 lines of a run and the registered caches behind retainedCacheEntries and retainedCacheBytes (W9.1).
+inline void WriteBudgetLinesJson(std::ostream& output, const RunRecord& run)
+{
+    output << "{\"G13\":[";
+    bool first = true;
+    for (const BudgetResult& result : EvaluateG13(run))
+    {
+        output << (first ? "" : ",") << "{\"line\":";
+        WriteJsonString(output, result.line->id);
+        output << ",\"budget\":";
+        WriteJsonString(output, result.line->statement);
+        output << ",\"counter\":";
+        WriteJsonString(output, result.line->counter);
+        output << ",\"limitBytes\":" << result.line->limit << ",\"measuredBytes\":";
+        if (result.value)
+            output << *result.value;
+        else
+            output << "null";
+        output << ",\"status\":\"";
+        switch (result.verdict)
+        {
+            case BudgetVerdict::Met: output << "met"; break;
+            case BudgetVerdict::Exceeded: output << (result.exception ? "recorded exception" : "exceeded"); break;
+            case BudgetVerdict::Advisory: output << "advisory"; break;
+            case BudgetVerdict::NotMeasured: output << "not measured"; break;
+        }
+        output << '"';
+        if (! result.reason.empty())
+        {
+            output << ",\"reason\":";
+            WriteJsonString(output, result.reason);
+        }
+        if (result.exception)
+        {
+            output << ",\"exception\":{\"closingItem\":";
+            WriteJsonString(output, result.exception->closingItem);
+            output << ",\"finding\":";
+            WriteJsonString(output, result.exception->finding);
+            output << '}';
+        }
+        output << '}';
+        first = false;
+    }
+    output << "]}";
+}
+
+inline void WriteCachesJson(std::ostream& output, const RunRecord& run)
+{
+    output << '[';
+    for (size_t index = 0u; index < run.caches.size(); ++index)
+    {
+        const CacheRecord& cache = run.caches[index];
+        output << (index ? "," : "") << "{\"name\":";
+        WriteJsonString(output, cache.name);
+        output << ",\"entries\":" << cache.entries << ",\"residentBytes\":";
+        if (cache.bytesCounted)
+            output << cache.bytes;
+        else
+            output << "null";
+        output << '}';
+    }
+    output << ']';
 }
 
 inline void WriteMemoryJson(std::ostream& output, const RunRecord& run)
@@ -465,7 +725,16 @@ inline void WriteMemoryJson(std::ostream& output, const RunRecord& run)
         output << "},\"minimizedResidency\":\"hidden\"";
     }
     output << ",\"controlBytes\":{\"Control\":" << sizeof(DxUi::Control) << ",\"Label\":" << sizeof(DxUi::Label) << ",\"Button\":" << sizeof(DxUi::Button)
-           << ",\"Toggle\":" << sizeof(DxUi::Toggle) << ",\"Checkbox\":" << sizeof(DxUi::Checkbox) << ",\"RadioButton\":" << sizeof(DxUi::RadioButton) << "}}";
+           << ",\"Toggle\":" << sizeof(DxUi::Toggle) << ",\"Checkbox\":" << sizeof(DxUi::Checkbox) << ",\"RadioButton\":" << sizeof(DxUi::RadioButton)
+           << ",\"ThroughputGraphSample\":" << sizeof(DxUi::ThroughputGraphSample) << '}';
+    if (run.controls)
+        output << ",\"controls\":" << *run.controls;
+    if (run.gridCells)
+        output << ",\"gridCellRelease\":{\"layouts\":" << run.gridCells->layouts << ",\"releasedHeapBytes\":" << run.gridCells->releasedHeapBytes
+               << ",\"rebuiltHeapBytes\":" << run.gridCells->rebuiltHeapBytes << '}';
+    output << ",\"retainedCaches\":";
+    WriteCachesJson(output, run);
+    output << '}';
 }
 
 // Per phase: every counter as one value per step ("series") and its minimum, maximum and total ("summary").
@@ -569,6 +838,8 @@ inline void WriteReceiptJson(std::ostream& output, const RunRecord& run)
     WritePhasesJson(output, run);
     output << ",\"memory\":";
     WriteMemoryJson(output, run);
+    output << ",\"budgetLines\":";
+    WriteBudgetLinesJson(output, run);
     output << ",\"timing\":{\"status\":\"not measured\",\"reason\":\"timing comes only from performance-timing.ps1 on a hardware adapter in a quiet "
               "window (W0.2); counts and memory are recorded here\"}}\n";
 }

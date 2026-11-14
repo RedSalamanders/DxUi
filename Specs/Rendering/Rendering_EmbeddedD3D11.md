@@ -232,7 +232,11 @@ nothing and never runs inside Composite, the text layouts the view's controls an
 (`retainedTextLayouts`, with the UTF-16 units they shape in `retainedTextLayoutUnits`) and their retained bitmaps and
 decoded images other than the surface (`retainedBitmaps`, `retainedBitmapBytes`). It covers Label, Button and its
 derived controls, TextField, ComboBox, Grid (an omitted tail shared by several cells counts once), RichTextEditor
-images and the tooltip; RichTextEditor text layouts are not yet counted. Solid brushes are bounded to 256 entries and configured text formats to 96
+images and the tooltip; RichTextEditor text layouts are not yet counted. In the same walk, which visits each control
+once, it sums every registered retained cache of the view, its controls and its tooltip (`retainedCacheEntries`, and
+`retainedCacheBytes`: the heap storage DxUi holds for them, never DirectWrite or Direct2D object storage and nothing for
+a RichTextEditor's prepared layout) and reports the undo and redo storage of the TextField or ComboBox that holds the
+most (`largestTextHistoryBytes`); `DXUI_HAS_RETAINED_CACHE_STATISTICS` marks headers with these fields. Solid brushes are bounded to 256 entries and configured text formats to 96
 (`ControlHost::kSolidBrushCacheLimit`, `kConfiguredTextFormatCacheLimit`); a cache beyond its bound is cleared at the
 start of the next preparation, never mid-paint. Consumers must additionally admit the combined cost of every
 simultaneous view.

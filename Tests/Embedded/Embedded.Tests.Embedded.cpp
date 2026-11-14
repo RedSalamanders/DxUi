@@ -1874,7 +1874,10 @@ __declspec(noinline) static int RunFunctionalTests()
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-memory-metrics")
     {
         MemoryMetricsTests::TestRetainedResourceStatistics();
+        MemoryMetricsTests::TestTextHistoryAndCacheStatistics();
         MemoryMetricsTests::TestComplexUiTeardownReturnsTrackedMemory();
+        PerformanceFixtures::TestFx5G13Budgets();
+        PerformanceFixtures::TestFx13G13Budgets();
         return 0;
     }
     // The FX5 receipt of the performance fixture framework, which carries the W0.3 memory fields (WARP or hardware).
@@ -2101,11 +2104,14 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRightToLeftTabTitleStartsAtTheRight(gpu);
     TestSurfaceLifetime(gpu);
     MemoryMetricsTests::TestRetainedResourceStatistics();
+    MemoryMetricsTests::TestTextHistoryAndCacheStatistics();
     MemoryMetricsTests::TestComplexUiTeardownReturnsTrackedMemory();
     EmbeddedParity::TestEmbeddedIncrementalParity(gpu);
     PerformanceFixtures::TestFrameworkSelfTest();
     PerformanceFixtures::TestCatalogIsDeterministic(L".build/test-artifacts/performance-fixtures");
     PerformanceFixtures::TestFx5MatchesWorkCounterReceipt();
+    PerformanceFixtures::TestFx5G13Budgets();
+    PerformanceFixtures::TestFx13G13Budgets();
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();

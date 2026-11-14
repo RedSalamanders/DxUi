@@ -10,7 +10,8 @@ inline constexpr size_t kWarmSteps  = 20u;
 inline constexpr size_t kCleanSteps = 40u;
 inline constexpr size_t kDirtySteps = 40u;
 
-inline constexpr std::array kBudgets{std::string_view("G2"), std::string_view("G3"), std::string_view("G4"), std::string_view("G11")};
+// G13 (W9.1): every memory line reported as a counter; lines over budget are recorded exceptions (kG13Exceptions).
+inline constexpr std::array kBudgets{std::string_view("G2"), std::string_view("G3"), std::string_view("G4"), std::string_view("G11"), std::string_view("G13")};
 inline constexpr std::array kVariants{
     Variant{"default", 1280u, 720u, 96.0f, false},
     // G4 is judged here, on a hardware adapter only.

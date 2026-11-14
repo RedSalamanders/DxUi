@@ -1199,10 +1199,46 @@ become pass/fail gates.
 - `hiddenResidencyDelta`: hidden minus shown surface bytes, retained layouts and bitmap bytes, private bytes, working set
   and, on hardware, local and non-local video memory. An embedded view is minimized by hiding it, so
   `minimizedResidency` is the hidden residency; native-window minimized residency belongs to the native fixtures.
-- `controlBytes`: `sizeof` of `Control`, `Label`, `Button`, `Toggle`, `Checkbox` and `RadioButton`. Compile-time
-  probes (`Tests/Embedded/Embedded.Tests.MemoryMetrics.h`) hold each at or below its measured size, separately for
-  Debug STL and Release layouts; a growth fails the build until memory is recovered or the probe is re-measured with
-  its reason.
+- `controlBytes`: `sizeof` of `Control`, `Label`, `Button`, `Toggle`, `Checkbox`, `RadioButton` and
+  `ThroughputGraphSample`. Compile-time probes hold each at or below its measured size, separately for Debug STL and
+  Release layouts (x64 and ARM64 measure the same): the public types in `Tests/Embedded/Embedded.Tests.MemoryMetrics.h`,
+  the UI Automation record `AccessibilityControlNavigationSnapshot` beside its private definition in
+  `src/Controls/DxUi.Accessibility.cpp`. A probe is a ratchet against growth, not a budget: a growth fails the build
+  until memory is recovered or the probe is re-measured with its reason; each names the `G13` line it serves and the
+  item that lowers it.
+- `retainedCaches`: every row of the retained-cache registry (`src/Controls/DxUi.RetainedCaches.cpp`) after the last
+  phase, with its live entries and resident bytes; `EmbeddedStatistics::retainedCacheEntries` and `retainedCacheBytes`
+  are their totals, the surface excluded. Resident bytes are the heap storage DxUi holds for a cache: container element
+  storage by capacity (an unordered map by the MSVC node layout), heap strings and bitmap pixels. A row without a byte
+  count (a `RichTextEditor`'s prepared layout) reports `null`; DirectWrite and Direct2D object storage is never included.
+  `largestTextHistoryBytes` is the undo and redo storage of the editor that holds the most, with the text buffers its
+  entries keep beyond the current text.
+
+#### G13 budget lines
+
+Every fixture receipt reports each line of the memory budget `G13` under `budgetLines.G13`: the counter, the measured
+bytes, the limit and a status of `met`, `recorded exception`, `advisory` or `not measured` with its reason. The lines
+and their counters:
+
+| Line | Budget | Counter |
+| --- | --- | --- |
+| `idle-private` | idle native window 8 MB private above process entry at 1080p | private bytes after the last phase minus at process entry; advisory |
+| `minimized-video` | 8 MiB video memory when minimized | the process's local video usage, hidden (hardware only) |
+| `per-control` | 256 B per simple control all-in | tracked live bytes after the build per control of the built tree |
+| `per-grid-cell` | 1 KB per visible single-line `Grid` cell | live heap bytes that rebuilding the cell layouts adds after hiding every `Grid` released them, per layout |
+| `text-history` | 4 MiB text history per editor | `largestTextHistoryBytes` after the last phase (TextField and ComboBox; a fixture whose only editors are RichTextEditors reports "not measured", their piece-shared history having no byte count yet) |
+
+The cell line is measured by the receipt's Grid cell probe: the busy blocks of every process heap before and after
+hiding each visible `Grid`, and again after showing and rendering it, which rebuilds the cell layouts. The rebuild is
+the counter, the one line that includes DirectWrite's own layout storage; hiding returns far less (both are recorded
+under `gridCellRelease`), because the released storage stays busy in the process heaps. The line is judged on hardware
+receipts only: on a software adapter (WARP) the rasterizer's threads allocate in the same heaps while the cells are
+rebuilt, so the line reports "not measured" there, as it does when the process heaps do not grow (AddressSanitizer). Private bytes and working set stay advisory, compared as paired bands (same-binary drift is about 0.3 MB),
+never judged. A counted line over its budget MUST be a recorded exception that names the item closing it
+(`kG13Exceptions` in `Tests/Embedded/Embedded.Tests.PerformanceFixture.h`); an exception on a line within budget fails as
+well, so the item that closes a line deletes its exception and the gate then enforces the budget. The FX5 receipt and the
+Embedded suite apply this gate; the current exceptions and measurements are in
+[the W9.1 receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W9.1/README.md).
 
 Teardown accounting: after one FX5 lifetime (scene build, 20 warm and 20 changing frames, hide, destruction) has
 created the process's first-use state, a second lifetime MUST return every tracked C++ byte (0 live tracked bytes) in

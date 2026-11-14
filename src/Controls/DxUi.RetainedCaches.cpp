@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
+#include <string>
 
 // The retained-cache registry: see DxUi.RetainedCaches.h. Rows name the member they cover so that
 // Tools/tests/Test-RetainedCacheRegistry.ps1 can match every cache-named member against a row or an exemption.
@@ -29,6 +31,32 @@ template <typename Visit> void VisitTree(Control& control, const Visit& visit) n
 {
     return present ? 1u : 0u;
 }
+
+// Resident bytes (RetainedCacheCount::residentBytes). The MSVC standard library keeps a string of up to 15 bytes of
+// characters inside the object; a longer one owns capacity() + 1 characters on the heap.
+template <typename Char> [[nodiscard]] uint64_t StringBytes(const std::basic_string<Char>& text) noexcept
+{
+    constexpr size_t inlineCapacity = (16u / sizeof(Char)) - 1u;
+    return text.capacity() > inlineCapacity ? uint64_t(text.capacity() + 1u) * sizeof(Char) : 0u;
+}
+template <typename T> [[nodiscard]] uint64_t VectorBytes(const std::vector<T>& values) noexcept
+{
+    return uint64_t(values.capacity()) * sizeof(T);
+}
+// An unordered map in the MSVC layout: one list node (two links and the value) per entry, the list's sentinel node and
+// two iterators per bucket.
+template <typename Map> [[nodiscard]] uint64_t UnorderedMapBytes(const Map& map) noexcept
+{
+    constexpr uint64_t node = (2u * sizeof(void*)) + sizeof(typename Map::value_type);
+    return (uint64_t(map.size()) + 1u) * node + uint64_t(map.bucket_count()) * 2u * sizeof(void*);
+}
+[[nodiscard]] uint64_t BitmapBytes(ID2D1Bitmap* bitmap) noexcept
+{
+    if (! bitmap)
+        return 0u;
+    const D2D1_SIZE_U size = bitmap->GetPixelSize();
+    return uint64_t(size.width) * size.height * 4u; // DxUi bitmaps are 32-bit BGRA.
+}
 } // namespace
 
 // Rows of per-host caches. Each names the member it covers in its comment.
@@ -43,7 +71,8 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
         {
             host._brushCache.clear();
             host._brushFailureLogKeys.clear();
-        }},
+        },
+             [](const ControlHost& host) noexcept { return UnorderedMapBytes(host._brushCache) + VectorBytes(host._brushFailureLogKeys); }},
             // ControlHost::_configuredTextFormats. Controls borrow raw format pointers from it (single-line, menu-bar and
             // tree badge caches); their rows drop those first and every control is prepared again, as TrimCaches does.
             {"ControlHost._configuredTextFormats",
@@ -52,11 +81,13 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
         {
             host._configuredTextFormats.clear();
             host._forceAllVisualPreparation = true;
-        }},
+        },
+             [](const ControlHost& host) noexcept { return UnorderedMapBytes(host._configuredTextFormats); }},
             // TooltipLayer::_layoutCache of the host's tooltip layer.
             {"TooltipLayer._layoutCache",
              [](const ControlHost& host) noexcept { return Present(host._tooltipLayer._layoutCache.valid || host._tooltipLayer._layoutCache.layout); },
-             [](ControlHost& host) noexcept { host._tooltipLayer.InvalidateLayoutCache(); }},
+             [](ControlHost& host) noexcept { host._tooltipLayer.InvalidateLayoutCache(); },
+             [](const ControlHost&) noexcept { return uint64_t{0u}; }}, // only the layout object, whose storage is DirectWrite's
             // ControlHost::_richTitleHoverCache, the last rich hover title the supplemental tooltip resolved.
             {"ControlHost._richTitleHoverCache",
              [](const ControlHost& host) noexcept { return Present(host._richTitleHoverCache.valid); },
@@ -66,11 +97,13 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
             host._richTitleHoverCache.editor = nullptr;
             host._richTitleHoverCache.lifetime.reset();
             host._richTitleHoverCache.title = std::wstring(0u, L' ');
-        }},
+        },
+             [](const ControlHost& host) noexcept { return StringBytes(host._richTitleHoverCache.title); }},
             // The published UI Automation snapshot (WindowHostAccessibilityTarget::snapshot, native or embedded).
             {"Accessibility.snapshot",
              [](const ControlHost& host) noexcept { return CountRetainedAccessibilitySnapshotRecords(host); },
-             [](ControlHost& host) noexcept { DropRetainedAccessibilitySnapshot(host); }},
+             [](ControlHost& host) noexcept { DropRetainedAccessibilitySnapshot(host); },
+             [](const ControlHost& host) noexcept { return RetainedAccessibilitySnapshotBytes(host); }},
         }};
         return rows;
     }
@@ -92,7 +125,8 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
         {
             if (auto* label = dynamic_cast<Label*>(&control))
                 label->Label::CancelVisualContentPreparation();
-        }},
+        },
+             [](const Control&) noexcept { return uint64_t{0u}; }}, // only the layout object
             // Button::_preparedIconTextLayout and its _preparedIconTextFormat.
             {"Button._preparedIconTextLayout",
              [](const Control& control) noexcept
@@ -104,7 +138,8 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
         {
             if (auto* button = dynamic_cast<Button*>(&control))
                 button->RetirePreparedIconTextLayout();
-        }},
+        },
+             [](const Control&) noexcept { return uint64_t{0u}; }}, // the layout and format objects only
             // Button::_preparedShortcutWidthDip, the measured shortcut text width.
             {"Button._preparedShortcutWidthDip",
              [](const Control& control) noexcept
@@ -119,7 +154,8 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
                 button->_preparedShortcutValid = false;
                 button->_preparedShortcutHost  = nullptr;
             }
-        }},
+        },
+             [](const Control&) noexcept { return uint64_t{0u}; }}, // a width inside the control
             // Button::_preparedHyperlinkWidthDip, the measured hyperlink text width.
             {"Button._preparedHyperlinkWidthDip",
              [](const Control& control) noexcept
@@ -134,7 +170,8 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
                 button->_preparedHyperlinkValid = false;
                 button->_preparedHyperlinkHost  = nullptr;
             }
-        }},
+        },
+             [](const Control&) noexcept { return uint64_t{0u}; }}, // a width inside the control
             // TextField::_singleLineLayoutCache and _maskedSourceTextElementBoundaries.
             {"TextField._singleLineLayoutCache",
              [](const Control& control) noexcept
@@ -146,6 +183,11 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
         {
             if (auto* field = dynamic_cast<TextField*>(&control))
                 field->InvalidateSingleLineLayoutCache();
+        },
+             [](const Control& control) noexcept
+        {
+            const auto* field = dynamic_cast<const TextField*>(&control);
+            return field ? StringBytes(field->_singleLineLayoutCache.text) + VectorBytes(field->_maskedSourceTextElementBoundaries) : 0u;
         }},
             // TextField::_cachedMultilineLayout with _cachedLayoutText, _cachedLayoutSize and _cachedLayoutRole.
             {"TextField._cachedMultilineLayout",
@@ -158,6 +200,11 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
         {
             if (auto* field = dynamic_cast<TextField*>(&control))
                 field->InvalidateMultilineLayoutCache();
+        },
+             [](const Control& control) noexcept
+        {
+            const auto* field = dynamic_cast<const TextField*>(&control);
+            return field ? StringBytes(field->_cachedLayoutText) : 0u;
         }},
             // ComboBox::_singleLineLayoutCache.
             {"ComboBox._singleLineLayoutCache",
@@ -170,6 +217,11 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
         {
             if (auto* combo = dynamic_cast<ComboBox*>(&control))
                 combo->InvalidateSingleLineLayoutCache();
+        },
+             [](const Control& control) noexcept
+        {
+            const auto* combo = dynamic_cast<const ComboBox*>(&control);
+            return combo ? StringBytes(combo->_singleLineLayoutCache.text) : 0u;
         }},
             // ComboBox::_popupBackdropBitmap and _popupBackdropDevice: the bitmap made from the captured backdrop. The
             // capture itself (_popupBackdropCapture) is the screen as it was at open and is kept (see the exemptions).
@@ -186,6 +238,11 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
                 combo->_popupBackdropBitmap.reset();
                 combo->_popupBackdropDevice.reset();
             }
+        },
+             [](const Control& control) noexcept
+        {
+            const auto* combo = dynamic_cast<const ComboBox*>(&control);
+            return combo ? BitmapBytes(combo->_popupBackdropBitmap.get()) : 0u;
         }},
             // MenuBar::_menuBarLayoutCache.
             {"MenuBar._menuBarLayoutCache",
@@ -201,6 +258,11 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
                 bar->InvalidateMenuBarLayoutCache();
                 bar->_menuBarLayoutCache.textFormat = nullptr;
             }
+        },
+             [](const Control& control) noexcept
+        {
+            const auto* bar = dynamic_cast<const MenuBar*>(&control);
+            return bar ? VectorBytes(bar->_menuBarLayoutCache.itemWidthsDip) + VectorBytes(bar->_menuBarLayoutCache.itemRects) : 0u;
         }},
             // TabControl::_tabHeaderLayoutCache.
             {"TabControl._tabHeaderLayoutCache",
@@ -213,6 +275,11 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
         {
             if (auto* tabs = dynamic_cast<TabControl*>(&control))
                 tabs->InvalidateTabHeaderLayoutCache();
+        },
+             [](const Control& control) noexcept
+        {
+            const auto* tabs = dynamic_cast<const TabControl*>(&control);
+            return tabs ? VectorBytes(tabs->_tabHeaderLayoutCache.tabWidthsDip) + VectorBytes(tabs->_tabHeaderLayoutCache.tabRects) : 0u;
         }},
             // TabControl::TabItem::measuredTitleWidthDip and measuredTitleTextFormat of every tab.
             {"TabControl.TabItem.measuredTitleWidthDip",
@@ -228,7 +295,8 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
         {
             if (auto* tabs = dynamic_cast<TabControl*>(&control))
                 tabs->InvalidateTabTitleMeasurements();
-        }},
+        },
+             [](const Control&) noexcept { return uint64_t{0u}; }}, // widths inside the tab records
             // TabControl::_selectedHeaderGeometry and _hoveredHeaderGeometry.
             {"TabControl._selectedHeaderGeometry",
              [](const Control& control) noexcept
@@ -242,7 +310,8 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
         {
             if (auto* tabs = dynamic_cast<TabControl*>(&control))
                 tabs->TabControl::CancelVisualContentPreparation();
-        }},
+        },
+             [](const Control&) noexcept { return uint64_t{0u}; }}, // geometry objects only
             // Tree::_badgeWidthCache and _tooltipOverflowCache.
             {"Tree._badgeWidthCache",
              [](const Control& control) noexcept
@@ -254,6 +323,17 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
         {
             if (auto* tree = dynamic_cast<Tree*>(&control))
                 tree->InvalidateTreeTextMeasurementCaches();
+        },
+             [](const Control& control) noexcept
+        {
+            const auto* tree = dynamic_cast<const Tree*>(&control);
+            if (! tree)
+                return uint64_t{0u};
+            uint64_t bytes = VectorBytes(tree->_badgeWidthCache);
+            for (const auto& entry : tree->_badgeWidthCache)
+                bytes += StringBytes(entry.text);
+            const auto& overflow = tree->_tooltipOverflowCache;
+            return bytes + StringBytes(overflow.text) + StringBytes(overflow.tooltipText) + StringBytes(overflow.resolvedTooltipText);
         }},
             // Grid::_cellTextLayouts, _cellDisplayLayouts, _cellEllipsisFormat and _cellEllipsis.
             {"Grid._cellTextLayouts",
@@ -270,6 +350,18 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
         {
             if (auto* grid = dynamic_cast<Grid*>(&control))
                 grid->ReleaseCellTextResources();
+        },
+             [](const Control& control) noexcept
+        {
+            const auto* grid = dynamic_cast<const Grid*>(&control);
+            if (! grid)
+                return uint64_t{0u};
+            uint64_t bytes = VectorBytes(grid->_cellTextLayouts) + VectorBytes(grid->_cellDisplayLayouts);
+            for (const auto& entry : grid->_cellTextLayouts)
+                bytes += StringBytes(entry.text);
+            for (const auto& entry : grid->_cellDisplayLayouts)
+                bytes += StringBytes(entry.text);
+            return bytes;
         }},
             // ColorPicker::_saturationBrush, _valueBrush, _hueBrush and their _brushDevice.
             {"ColorPicker._saturationBrush",
@@ -287,7 +379,8 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
                 picker->_hueBrush.reset();
                 picker->_brushDevice.reset();
             }
-        }},
+        },
+             [](const Control&) noexcept { return uint64_t{0u}; }}, // brush objects only
             // FlexPanel::_records (the measured part of each child record) and _lines.
             {"FlexPanel._records",
              [](const Control& control) noexcept
@@ -303,6 +396,12 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
                     record.measuredValid = false;
                 flex->_lines.clear();
             }
+        },
+             [](const Control& control) noexcept
+        {
+            // The child records exist for every child; only the line table is the cache's own storage.
+            const auto* flex = dynamic_cast<const FlexPanel*>(&control);
+            return flex ? VectorBytes(flex->_lines) : 0u;
         }},
             // FormField::_measureCache and _sharedLabelCache.
             {"FormField._measureCache",
@@ -321,7 +420,8 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
                 field->_measureCache.fill({});
                 field->_sharedLabelCache = {};
             }
-        }},
+        },
+             [](const Control&) noexcept { return uint64_t{0u}; }}, // fixed records inside the control
             // RichTextEditor::State::layout (prepared document layout and semantic geometry with its hover index), its overlay geometry, inks,
             // brushes and staged parser and builder work: everything RichTextEditor::RetireLayout(false) clears.
             {"RichTextEditor.layout",
@@ -337,7 +437,7 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
         {
             if (auto* editor = dynamic_cast<RichTextEditor*>(&control))
                 editor->RetireLayout(false);
-        }},
+        }}, // No byte count: the prepared document layout keeps no running total of its storage.
         }};
         return rows;
     }
@@ -379,13 +479,40 @@ void RetainedCacheAccess::Drop(ControlHost& host) noexcept
 void RetainedCacheAccess::Count(ControlHost& host, std::vector<RetainedCacheCount>& out)
 {
     for (const RetainedHostCacheRow& cache : HostRows())
-        out.push_back({cache.name, cache.entries(host)});
+        out.push_back({cache.name, cache.entries(host), cache.residentBytes != nullptr, cache.residentBytes ? cache.residentBytes(host) : 0u});
     for (const RetainedControlCacheRow& cache : ControlRows())
     {
         size_t entries = 0u;
+        uint64_t bytes = 0u;
         if (Control* const root = host._root.get())
-            VisitTree(*root, [&](Control& control) noexcept { entries += cache.entries(control); });
-        out.push_back({cache.name, entries});
+            VisitTree(*root,
+                      [&](Control& control) noexcept
+            {
+                entries += cache.entries(control);
+                if (cache.residentBytes)
+                    bytes += cache.residentBytes(control);
+            });
+        out.push_back({cache.name, entries, cache.residentBytes != nullptr, bytes});
+    }
+}
+
+void RetainedCacheAccess::AddHostTotals(const ControlHost& host, RetainedCacheTotals& totals) noexcept
+{
+    for (const RetainedHostCacheRow& cache : HostRows())
+    {
+        totals.entries += cache.entries(host);
+        if (cache.residentBytes)
+            totals.bytes += cache.residentBytes(host);
+    }
+}
+
+void RetainedCacheAccess::AddControlTotals(const Control& control, RetainedCacheTotals& totals) noexcept
+{
+    for (const RetainedControlCacheRow& cache : ControlRows())
+    {
+        totals.entries += cache.entries(control);
+        if (cache.residentBytes)
+            totals.bytes += cache.residentBytes(control);
     }
 }
 

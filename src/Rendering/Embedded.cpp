@@ -1806,9 +1806,39 @@ struct RetainedResourceAccess final
             if (entry.layout && ! (entry.truncated && sharedTail(entry.layout.get())))
                 AddLayout(stats, entry.layout.get(), entry.text.size());
     }
+    // An editor's undo and redo entries and the text buffers they keep beyond its current text. Consecutive entries that
+    // share a buffer count it once; a buffer shared by entries further apart counts again, so this can only overstate.
+    template <typename History> static uint64_t HistoryBytes(const History& undo, const History& redo, const std::wstring* current) noexcept
+    {
+        uint64_t bytes = uint64_t(undo.capacity() + redo.capacity()) * sizeof(typename History::value_type);
+        for (const History* entries : {&undo, &redo})
+        {
+            const std::wstring* previous = current;
+            for (const auto& entry : *entries)
+            {
+                const std::wstring* text = entry.text.get();
+                if (text && text != current && text != previous)
+                    bytes += uint64_t(text->capacity() + 1u) * sizeof(wchar_t);
+                previous = text;
+            }
+        }
+        return bytes;
+    }
+    static void AddHistory(EmbeddedStatistics& stats, uint64_t bytes) noexcept
+    {
+        stats.largestTextHistoryBytes = (std::max)(stats.largestTextHistoryBytes, bytes);
+    }
     static void Add(EmbeddedStatistics& stats, const Control& control) noexcept
     {
         ++Detail::Work().frame.treeVisitsStatistics;
+        RetainedCacheTotals caches{stats.retainedCacheEntries, stats.retainedCacheBytes};
+        RetainedCacheAccess::AddControlTotals(control, caches);
+        stats.retainedCacheEntries = caches.entries;
+        stats.retainedCacheBytes   = caches.bytes;
+        if (const auto* field = dynamic_cast<const TextField*>(&control))
+            AddHistory(stats, HistoryBytes(field->_undoHistory, field->_redoHistory, field->_text.get()));
+        else if (const auto* combo = dynamic_cast<const ComboBox*>(&control))
+            AddHistory(stats, HistoryBytes(combo->_undoHistory, combo->_redoHistory, combo->_text.get()));
         if (const auto* label = dynamic_cast<const Label*>(&control))
             AddLayout(stats, label->_typographyLayout.get(), label->_text.size());
         else if (const auto* button = dynamic_cast<const Button*>(&control))
@@ -1854,6 +1884,10 @@ EmbeddedStatistics EmbeddedHost::GetStatistics() const noexcept
     if (_host._root)
         RetainedResourceAccess::Add(stats, *_host._root);
     RetainedResourceAccess::AddTooltip(stats, _host._tooltipLayer);
+    RetainedCacheTotals hostCaches{stats.retainedCacheEntries, stats.retainedCacheBytes};
+    RetainedCacheAccess::AddHostTotals(_host, hostCaches);
+    stats.retainedCacheEntries = hostCaches.entries;
+    stats.retainedCacheBytes   = hostCaches.bytes;
     return stats;
 }
 void RetainedCacheAccess::Drop(EmbeddedHost& host) noexcept
@@ -1877,7 +1911,7 @@ void RetainedCacheAccess::Drop(EmbeddedHost& host) noexcept
 void RetainedCacheAccess::Count(EmbeddedHost& host, std::vector<RetainedCacheCount>& out)
 {
     Count(host._host, out);
-    out.push_back({"EmbeddedHost.State.texture", host._state && host._state->texture ? 1u : 0u});
+    out.push_back({"EmbeddedHost.State.texture", host._state && host._state->texture ? 1u : 0u, true, host._state ? host._state->stats.surfaceBytes : 0u});
 }
 #if DXUI_ENABLE_DIAGNOSTICS
 void EmbeddedHost::DebugDropRetainedStateForTest() noexcept

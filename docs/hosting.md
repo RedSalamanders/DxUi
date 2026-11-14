@@ -158,7 +158,10 @@ preparation start). `retainedTextLayouts` and `retainedTextLayoutUnits` report t
 frames and the UTF-16 units they shape; `retainedBitmaps` and `retainedBitmapBytes` report kept bitmaps and decoded
 images other than the surface. These are counted when you call `GetStatistics`, so query them outside your frame
 loop's hot path; hiding a view returns a Grid's layouts and the surface. `DXUI_HAS_RETAINED_RESOURCE_STATISTICS` marks
-headers that have these fields. Change layout in DIPs and pass the new physical extent/DPI to Prepare; do not rasterize at each
+headers that have these fields. `retainedCacheEntries` and `retainedCacheBytes` total every cache DxUi keeps for the
+view and its controls (bytes are the storage DxUi itself holds; DirectWrite and Direct2D objects are not included), and
+`largestTextHistoryBytes` reports the undo history of the editor that holds the most; `DXUI_HAS_RETAINED_CACHE_STATISTICS`
+marks headers that have them. Change layout in DIPs and pass the new physical extent/DPI to Prepare; do not rasterize at each
 intermediate animation scale. Theme and layout changes need refreshed docs/gallery when changing the library.
 
 Embedded text is drawn grayscale, since the view's surface is premultiplied. To draw it with the ClearType tuning (gamma,

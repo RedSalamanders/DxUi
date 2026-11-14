@@ -126,6 +126,19 @@ function New-PerformanceFixtureReadme {
         if ($tracked.Count) { $lines.Add("Tracked live C++ bytes: $($tracked -join '; ').") }
         $lines.Add("Video memory: $(if ($memory['videoMemory']['applicable']) { 'reported per sample' } else { $memory['videoMemory']['reason'] }). Every counter per step is in the receipt's ``series``.")
         $lines.Add('')
+        if ($receipt.Contains('budgetLines') -and $receipt['budgetLines'].Contains('G13')) {
+            # W9.1: each G13 line as its counter beside the budget; a line over budget names the item that closes it.
+            $lines.Add('| `G13` line | Budget | Measured bytes | Status |')
+            $lines.Add('| --- | --- | --- | --- |')
+            foreach ($line in @($receipt['budgetLines']['G13'])) {
+                $measured = if ($null -eq $line['measuredBytes']) { 'not measured' } else { Format-PerformanceFixtureNumber $line['measuredBytes'] }
+                $status = $line['status']
+                if ($line.Contains('exception')) { $status += " (closed by $($line['exception']['closingItem']))" }
+                if ($line.Contains('reason')) { $status += ": $($line['reason'])" }
+                $lines.Add("| ``$($line['line'])`` | $($line['budget']) | $measured | $status |")
+            }
+            $lines.Add('')
+        }
     }
     return ($lines -join "`n").TrimEnd() + "`n"
 }

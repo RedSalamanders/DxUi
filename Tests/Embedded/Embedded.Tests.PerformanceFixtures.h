@@ -153,7 +153,65 @@ struct RunOptions
     // Called after the last phase, before the view is hidden: a gate test inspects the live scene or measures its own
     // action here. It runs outside every counted step.
     std::function<void(EmbeddedInstance&, GraphicsFixture&)> afterPhases;
+    // The G13 Grid cell probe (W9.1), after afterPhases: hide every visible Grid, record the cell layouts released and the
+    // live heap bytes that fell, show them again, render one frame and record the live heap bytes the rebuild added. Receipts and the G13 gate run it; it is
+    // off by default so that other gates see the scene exactly as their phases left it.
+    bool probeGridCells = false;
 };
+
+// The controls of a tree, and those that keep a text history (TextField, ComboBox).
+inline void CountControls(const DxUi::Control* control, uint64_t& controls, uint64_t& editors, uint64_t& richEditors)
+{
+    if (! control)
+        return;
+    ++controls;
+    if (dynamic_cast<const DxUi::TextField*>(control) || dynamic_cast<const DxUi::ComboBox*>(control))
+        ++editors;
+    else if (dynamic_cast<const DxUi::RichTextEditor*>(control))
+        ++richEditors;
+    for (size_t index = 0u; index < control->GetLogicalChildCount(); ++index)
+        CountControls(control->GetLogicalChild(index), controls, editors, richEditors);
+}
+
+// The G13 Grid cell probe; see RunOptions::probeGridCells.
+inline GridCellRelease ProbeGridCellRelease(EmbeddedInstance& instance, GraphicsFixture& gpu, bool settlePreparation)
+{
+    std::array<DxUi::Grid*, 64> grids{};
+    size_t count      = 0u;
+    const auto gather = [&](const auto& self, DxUi::Control* control) -> void
+    {
+        if (! control || ! control->IsVisible())
+            return;
+        if (auto* grid = dynamic_cast<DxUi::Grid*>(control); grid && count < grids.size())
+            grids[count++] = grid;
+        for (size_t index = 0u; index < control->GetLogicalChildCount(); ++index)
+            self(self, control->GetLogicalChild(index));
+    };
+    gather(gather, instance.View().Controls().GetRoot());
+    if (count == 0u)
+        return {}; // nothing to probe: the scene is left exactly as its last phase left it
+    gpu.context->Flush();
+    const uint64_t layoutsBefore = instance.View().GetStatistics().retainedTextLayouts;
+    const uint64_t heapBefore    = MemoryMetricsTests::LiveHeapBytes();
+    for (size_t index = 0u; index < count; ++index)
+        grids[index]->SetVisible(false);
+    const uint64_t heapAfter    = MemoryMetricsTests::LiveHeapBytes();
+    const uint64_t layoutsAfter = instance.View().GetStatistics().retainedTextLayouts;
+    for (size_t index = 0u; index < count; ++index)
+        grids[index]->SetVisible(true);
+    HRESULT framed = instance.Frame(gpu);
+    for (size_t turn = 1u; settlePreparation && SUCCEEDED(framed) && instance.View().NeedsPreparation(); ++turn)
+    {
+        Check(turn < kMaximumSettleTurns, "the Grid cell probe's frame finishes its preparation");
+        framed = instance.Frame(gpu);
+    }
+    Hr(framed, "performance fixture frame after the Grid cell probe");
+    gpu.context->Flush();
+    const uint64_t heapRebuilt = MemoryMetricsTests::LiveHeapBytes();
+    return GridCellRelease{layoutsBefore - layoutsAfter,
+                           static_cast<int64_t>(heapBefore) - static_cast<int64_t>(heapAfter),
+                           static_cast<int64_t>(heapRebuilt) - static_cast<int64_t>(heapAfter)};
+}
 
 // One run of `definition` at `variant`: per step, the WorkCounterScope delta of the step and its frame (taken after a
 // ResourceLifetimeTracker sweep, so destructions and churn are measured) and the C++ allocations of the same interval;
@@ -226,6 +284,11 @@ inline RunRecord RunEmbedded(const Definition& definition, const Variant& varian
     countLiveBytes = true;
     Hr(instance.Create(gpu.device.get(), variant), "performance fixture build");
     sample("built", {}, true);
+    uint64_t controls = 0u, editors = 0u, richEditors = 0u;
+    CountControls(instance.View().Controls().GetRoot(), controls, editors, richEditors);
+    run.controls    = controls;
+    run.editors     = editors;
+    run.richEditors = richEditors;
     {
         DxUi::Detail::ResourceLifetimeTracker tracker(storage);
         for (size_t phase = 0u; phase < definition.phases.size(); ++phase)
@@ -257,8 +320,21 @@ inline RunRecord RunEmbedded(const Definition& definition, const Variant& varian
         }
         run.trackedResources = tracker.Held();
         run.trackerOverflow  = tracker.Overflow();
+        {
+            // The registry's per-cache breakdown, collected outside the tracked bytes: the records are the receipt's.
+            countLiveBytes = false;
+            std::vector<DxUi::RetainedCacheCount> counts;
+            DxUi::RetainedCacheAccess::Count(instance.View(), counts);
+            run.caches.reserve(counts.size());
+            for (const DxUi::RetainedCacheCount& count : counts)
+                run.caches.push_back(CacheRecord{std::string(count.name), count.entries, count.bytesCounted, count.residentBytes});
+            counts         = {};
+            countLiveBytes = true;
+        }
         if (options.afterPhases)
             options.afterPhases(instance, gpu);
+        if (options.probeGridCells)
+            run.gridCells = ProbeGridCellRelease(instance, gpu, definition.settlePreparation);
     }
     instance.View().SetVisible(false);
     sample("hidden", {}, true);
@@ -285,6 +361,7 @@ inline void WriteReceipt(const Definition& definition, const Variant& variant, b
     RunOptions options;
     options.hardware       = hardware;
     options.countDrawCalls = countDrawCalls;
+    options.probeGridCells = true;
     const RunRecord run    = RunEmbedded(definition, variant, options);
     Check(run.trackerOverflow == 0u, "the tracker observed every resource the fixture created");
     WriteReceiptFile(run, path);
@@ -489,6 +566,113 @@ __declspec(noinline) inline void TestFx5MatchesWorkCounterReceipt()
     std::cout << "FX5 on the fixture framework: dirty frame cppAllocations " << first.cppAllocations << ", paintExecutions " << first.work.frame.paintExecutions
               << ", created " << DxUi::Detail::TotalCreated(first.work) << ", churn " << DxUi::Detail::Churn(first.work) << "; clean frame cppAllocations "
               << clean.steps.front().cppAllocations << "; tracked live bytes built/warm " << *built.trackedLiveBytes << '/' << *warm.trackedLiveBytes << '\n';
+}
+
+// The W9.1 gate on FX5: every G13 line is reported as a counter on the fixture and compared with its budget; a line over
+// budget is a recorded exception naming its closing item; the registry's per-cache breakdown adds up to the statistics.
+__declspec(noinline) inline void TestFx5G13Budgets()
+{
+    RunOptions options;
+    options.probeGridCells = true;
+    DxUi::EmbeddedStatistics live{};
+    options.afterPhases    = [&](EmbeddedInstance& instance, GraphicsFixture&) { live = instance.View().GetStatistics(); };
+    const Variant& variant = Fx5::kVariants[0];
+    const RunRecord run    = RunEmbedded(Fx5::kDefinition, variant, options);
+    Check(std::ranges::find(Fx5::kBudgets, std::string_view("G13")) != Fx5::kBudgets.end(), "FX5 reports budget G13");
+    Check(run.controls.value_or(0u) >= 83u && run.editors == 0u, "FX5 counts its controls and has no editor");
+
+    // Per-cache entries and resident bytes come from the registry and add up to the statistics' totals.
+    uint64_t entries = 0u, bytes = 0u;
+    const CacheRecord* gridCache = nullptr;
+    for (const CacheRecord& cache : run.caches)
+    {
+        if (cache.name == "EmbeddedHost.State.texture")
+        {
+            Check(cache.entries == 1u && cache.bytes == uint64_t(variant.width) * variant.height * 4u, "the surface row reports the surface bytes");
+            continue;
+        }
+        entries += cache.entries;
+        bytes += cache.bytes;
+        if (cache.name == "Grid._cellTextLayouts")
+            gridCache = &cache;
+    }
+    Check(live.retainedCacheEntries == entries && live.retainedCacheBytes == bytes, "EmbeddedStatistics totals equal the registry's per-cache rows");
+    Check(gridCache && gridCache->entries > 0u && gridCache->bytesCounted && gridCache->bytes >= gridCache->entries * sizeof(void*),
+          "the Grid's cell table reports its entries and resident bytes");
+    Check(std::ranges::any_of(run.caches, [](const CacheRecord& cache) { return cache.name == "RichTextEditor.layout" && ! cache.bytesCounted; }),
+          "a row without a byte count is reported as such");
+
+    // The Grid cell probe released every retained cell layout (FX5's only retained layouts) and the heap bytes behind them.
+    Check(run.gridCells && run.gridCells->layouts == live.retainedTextLayouts && run.gridCells->layouts > 0u,
+          "the Grid cell probe releases every retained cell layout");
+    Check(run.memory.back().at == "hidden" && run.memory.back().retained->retainedTextLayouts == 0u, "the probe leaves the scene to hide as before");
+
+    const auto results = EvaluateG13(run);
+    const auto find    = [&](std::string_view id) -> const BudgetResult&
+    { return *std::ranges::find_if(results, [&](const BudgetResult& result) { return result.line->id == id; }); };
+    const BudgetResult& idle    = find("idle-private");
+    const BudgetResult& video   = find("minimized-video");
+    const BudgetResult& control = find("per-control");
+    const BudgetResult& cell    = find("per-grid-cell");
+    const BudgetResult& history = find("text-history");
+    std::cout << "FX5 G13: per control " << control.value.value_or(0u) << " B over " << *run.controls << " controls, per Grid cell " << cell.value.value_or(0u)
+              << " B (rebuilding adds " << run.gridCells->rebuiltHeapBytes << " heap bytes, hiding returns " << run.gridCells->releasedHeapBytes << ", over "
+              << run.gridCells->layouts << " cells), private above entry " << idle.value.value_or(0u) << " B (advisory), cache entries " << entries
+              << " / resident bytes " << bytes << '\n';
+    Check(idle.verdict == BudgetVerdict::Advisory && idle.value, "private bytes above entry are reported as advisory");
+    Check(video.verdict == BudgetVerdict::NotMeasured && ! video.reason.empty(), "WARP reports no video memory, with the reason");
+    Check(control.value == static_cast<uint64_t>(*run.memory[1].trackedLiveBytes) / *run.controls, "per-control bytes are the built tracked bytes per control");
+    Check(history.verdict == BudgetVerdict::NotMeasured && history.reason == "the fixture has no TextField or ComboBox", "FX5 has no text history to judge");
+    // Today's findings, each a recorded exception with the item that closes it (Measurements/.../W9.1/README.md).
+    Check(control.verdict == BudgetVerdict::Exceeded && control.exception && control.exception->closingItem == "W9.6", "FX5 per-control bytes: exception W9.6");
+    Check(cell.exception && cell.exception->closingItem == "W9.4", "FX5 per-cell bytes: exception W9.4");
+    Check(cell.verdict == BudgetVerdict::NotMeasured && cell.reason.starts_with("software adapter"), "WARP leaves the cell line to hardware receipts");
+    // The cell line as a hardware run evaluates it: today's 21 KB per cell is the recorded exception.
+    RunRecord onHardware                   = run;
+    onHardware.adapter.software            = false;
+    onHardware.gridCells->rebuiltHeapBytes = static_cast<int64_t>(onHardware.gridCells->layouts * 20'965u);
+    const auto hardwareCell                = EvaluateG13(onHardware)[3];
+    Check(hardwareCell.verdict == BudgetVerdict::Exceeded && hardwareCell.value == 20'965u && hardwareCell.exception,
+          "a hardware cell figure is judged against 1 KB");
+    const std::vector<std::string> failures = G13Failures(run);
+    for (const std::string& failure : failures)
+        std::cerr << failure << '\n';
+    Check(failures.empty(), "FX5 meets every G13 line or records the exception that closes it");
+
+    // The gate itself: an exceeded line without an exception fails, and so does an exception on a line within budget.
+    RunRecord unrecorded  = run;
+    unrecorded.definition = &SelfTest::kDefinition;
+    Check(std::ranges::any_of(G13Failures(unrecorded), [](const std::string& failure) { return failure.find("per-control") != std::string::npos; }),
+          "an exceeded line without a recorded exception fails the gate");
+    RunRecord fixed                   = onHardware;
+    fixed.gridCells->rebuiltHeapBytes = static_cast<int64_t>(fixed.gridCells->layouts * 100u);
+    Check(std::ranges::any_of(G13Failures(fixed),
+                              [](const std::string& failure) { return failure.find("delete the recorded exception of W9.4") != std::string::npos; }),
+          "a recorded exception on a line within budget fails the gate");
+
+    std::ostringstream receipt;
+    WriteReceiptJson(receipt, run);
+    const std::string text = receipt.str();
+    Check(text.find("\"budgetLines\":{\"G13\":[") != std::string::npos && text.find("\"status\":\"recorded exception\"") != std::string::npos &&
+              text.find("\"retainedCaches\":[") != std::string::npos && text.find("\"gridCellRelease\":") != std::string::npos,
+          "the receipt carries the G13 lines, the per-cache rows and the cell probe");
+}
+
+// The W9.1 gate on FX13, the whole application: its G13 lines are counted, and any over budget is a recorded exception.
+__declspec(noinline) inline void TestFx13G13Budgets()
+{
+    RunOptions options;
+    options.probeGridCells = true;
+    const RunRecord run    = RunEmbedded(Fx13::kDefinition, Fx13::kVariants[0], options);
+    const auto results     = EvaluateG13(run);
+    for (const BudgetResult& result : results)
+        std::cout << "FX13 G13 " << result.line->id << ": " << (result.value ? std::to_string(*result.value) : std::string("not measured")) << '\n';
+    Check(run.editors.value_or(0u) > 0u && results[4].verdict == BudgetVerdict::Met, "FX13's search field holds a text history within budget");
+    Check(results[2].value.has_value() && results[0].verdict == BudgetVerdict::Advisory, "FX13 counts bytes per control and reports private bytes as advisory");
+    const std::vector<std::string> failures = G13Failures(run);
+    for (const std::string& failure : failures)
+        std::cerr << failure << '\n';
+    Check(failures.empty(), "FX13 meets every G13 line or records the exception that closes it");
 }
 // The timing harness's view of a catalog fixture: performance-timing.ps1 -Phase Dirty plays the timed phase, one step per
 // frame; -Phase Clean renders unchanged frames. Phases before the timed phase are played (prepared, not composited) first.

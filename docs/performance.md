@@ -296,7 +296,9 @@ with sampled peaks and private-byte growth. A separate FX5 [performance fixture]
 `.build/test-artifacts/performance-fixtures/`; `DxUi.EmbeddedTests.exe --memory-receipt <report.json>` or
 `--memory-receipt-hardware <report.json>` on demand) records live tracked C++ bytes, the view's retained text layouts
 and bitmaps, the hidden residency delta, control object sizes and, on a hardware adapter, local and non-local video
-memory per phase; see [memory metrics](../Specs/Core/Core_PerformanceAndResources.md#memory-metrics). Source commit/content fingerprint, executable/fixture hashes, compiler,
+memory per phase; it also lists every retained cache with its entries and resident bytes and reports each line of the
+`G13` memory budget as a counter beside its limit, a line over budget naming the plan item that closes it; see
+[memory metrics](../Specs/Core/Core_PerformanceAndResources.md#memory-metrics). Source commit/content fingerprint, executable/fixture hashes, compiler,
 machine, CPU, OS, WARP binary version, active power policy, native architecture and configuration make the comparison
 auditable. The fixture fingerprint covers the minimal benchmark entry (`Embedded.Tests.BenchmarkMain.h`), benchmark, shared
 sample scene and graphics helper; receipts declare `workloadOwner: DxUi`. Functional tests run in a separate

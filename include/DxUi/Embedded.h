@@ -121,9 +121,20 @@ struct EmbeddedStatistics
     // Retained Direct2D bitmaps and decoded images, the cached surface excluded, and their pixel bytes.
     uint64_t retainedBitmaps     = 0;
     uint64_t retainedBitmapBytes = 0;
+    // Every registered retained cache of the view, its controls and its tooltip, summed, also counted by GetStatistics:
+    // live entries, and resident bytes, which are the heap storage DxUi holds for those caches (container storage by
+    // capacity, heap strings, bitmap pixels; never the private storage of DirectWrite and Direct2D objects, and nothing for
+    // a RichTextEditor's prepared layout, which keeps no byte total). The surface is reported by surfaceBytes alone.
+    uint64_t retainedCacheEntries = 0;
+    uint64_t retainedCacheBytes   = 0;
+    // Undo and redo history of the TextField or ComboBox that holds the most: entry storage by capacity plus the text
+    // buffers its entries keep that the control's current text does not share. 0 without an editor.
+    uint64_t largestTextHistoryBytes = 0;
 };
 // Header capability: EmbeddedStatistics reports retained text layouts and bitmaps.
 #define DXUI_HAS_RETAINED_RESOURCE_STATISTICS 1
+// Header capability: EmbeddedStatistics reports retained cache entries and bytes and the largest text history.
+#define DXUI_HAS_RETAINED_CACHE_STATISTICS 1
 
 // One retained view and cached surface. Applications with two density variants create two views with one shared pool
 // and bind both views to the same application model. No rendering HWND, swap chain, render worker, timer or device is created here.

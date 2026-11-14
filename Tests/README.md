@@ -379,7 +379,9 @@ Counter names are `cppAllocations` (Embedded suite only), `created`, `churn` and
 copies of its 64 Ki-unit document. To measure an action of your own on the live scene, pass
 `RunOptions::afterPhases` (embedded) or drive an `EmbeddedInstance` yourself: `Instantiate`, `Create`, then `Step` and
 `Frame` around a `Detail::WorkCounterScope`. `RunOptions::countDrawCalls` installs the counting COM wrappers so
-that `frame.drawCalls` is counted (it is 0 otherwise). The oracle (`Support.Tests.IncrementalParity.h`) replays a fixture
+that `frame.drawCalls` is counted (it is 0 otherwise). Every receipt reports the `G13` memory lines (`EvaluateG13`;
+`RunOptions::probeGridCells` adds the Grid cell probe, on for receipts); a fixture whose line is over budget adds a row
+to `kG13Exceptions` naming the item that closes it, and `G13Failures` is the gate. The oracle (`Support.Tests.IncrementalParity.h`) replays a fixture
 through `TotalSteps` and `StepAt`: its script's build function builds the scenario on the oracle scene's host and its step
 function applies `StepAt(definition, k - 1)` through a `HostPort` over that scene; no such adapter exists yet.
 

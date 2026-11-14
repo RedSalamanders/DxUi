@@ -818,6 +818,13 @@ struct AccessibilityControlNavigationSnapshot
     std::vector<AccessibilityTabItemSnapshotRecord> tabItems;
     uint64_t selectedTabId = 0u;
 };
+// Size probe (W9.1): the record measured on 2026-11-14, equal on x64 and ARM64; Debug STL containers add their proxies.
+// A ratchet against growth for the G13 memory budget (plan section 1): W9.7 splits it into a hot core and side tables.
+#if _ITERATOR_DEBUG_LEVEL != 0
+static_assert(sizeof(AccessibilityControlNavigationSnapshot) <= 1088u, "the UI Automation record grew: lower memory first, or re-measure with the reason");
+#else
+static_assert(sizeof(AccessibilityControlNavigationSnapshot) <= 936u, "the UI Automation record grew: lower memory first, or re-measure with the reason");
+#endif
 
 // The display position of a model column, and the model column at a display position (the identity without an order).
 [[nodiscard]] std::optional<size_t> GridDisplayIndexOfColumn(const AccessibilityControlNavigationSnapshot& record, size_t columnIndex) noexcept
@@ -14060,6 +14067,31 @@ size_t CountRetainedAccessibilitySnapshotRecords(const ControlHost& host) noexce
     else if (auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(const_cast<ControlHost&>(host))))
         snapshot = target->snapshot.load(std::memory_order_acquire);
     return snapshot ? snapshot->controlNavigationRecords.size() + snapshot->pointHitRecords.size() : 0u;
+}
+
+uint64_t RetainedAccessibilitySnapshotBytes(const ControlHost& host) noexcept
+{
+    std::shared_ptr<const AccessibilitySnapshot> snapshot;
+    if (HWND const hwnd = host.GetHwnd())
+    {
+        const std::scoped_lock lock(GetAccessibilityTargetMutex());
+        if (auto* const target = FindRegisteredAccessibilityTarget(hwnd); target && target->host.load(std::memory_order_acquire) == &host)
+            snapshot = target->snapshot.load(std::memory_order_acquire);
+    }
+    else if (auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(const_cast<ControlHost&>(host))))
+        snapshot = target->snapshot.load(std::memory_order_acquire);
+    if (! snapshot)
+        return 0u;
+    // MSVC keeps up to 7 UTF-16 units inside a std::wstring; a longer one owns capacity() + 1 units on the heap.
+    const auto text = [](const std::wstring& value) noexcept { return value.capacity() > 7u ? uint64_t(value.capacity() + 1u) * sizeof(wchar_t) : 0u; };
+    uint64_t bytes  = uint64_t(snapshot->controlNavigationRecords.capacity()) * sizeof(AccessibilityControlNavigationSnapshot) +
+                      uint64_t(snapshot->pointHitRecords.capacity()) * sizeof(AccessibilityPointHitSnapshot) +
+                      uint64_t(snapshot->semanticControlOrder.capacity()) * sizeof(ControlPath);
+    for (const AccessibilityControlNavigationSnapshot& record : snapshot->controlNavigationRecords)
+        bytes += text(record.controlAccessibleName) + text(record.controlAccessibleHelpText) + text(record.controlAccessibleItemStatus) +
+                 text(record.controlAutomationId) + text(record.controlAccessibleValue) + text(record.controlAccessibleText) +
+                 text(record.passwordRevealButtonAccessibleName);
+    return bytes;
 }
 
 LRESULT ReturnWindowHostAccessibilityProvider(HWND hwnd, WPARAM wp, LPARAM lp) noexcept

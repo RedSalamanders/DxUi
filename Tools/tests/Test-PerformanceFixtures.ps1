@@ -69,6 +69,22 @@ Invoke-TestCase 'the generated README names the scenario, every receipt and its 
         Assert-True ($text.Contains($expected)) "README contains: $expected"
     }
     Assert-True ($text.EndsWith("`n") -and -not $text.Contains("`r")) 'README uses LF and ends with a newline'
+    Assert-True (-not $text.Contains('`G13` line')) 'a receipt without budget lines has no G13 table'
+}
+
+Invoke-TestCase 'the generated README lists every G13 line with its status and closing item' {
+    $native = New-NativeReceipt
+    $native['budgetLines'] = [ordered]@{ G13 = @(
+            [ordered]@{ line = 'per-control'; budget = '<= 256 B per simple control all-in'; counter = 'c'; limitBytes = 256; measuredBytes = 640; status = 'recorded exception'
+                exception = [ordered]@{ closingItem = 'W9.6'; finding = 'f' } },
+            [ordered]@{ line = 'minimized-video'; budget = '<= 8 MiB video memory when minimized'; counter = 'c'; limitBytes = 8388608; measuredBytes = $null
+                status = 'not measured'; reason = 'software adapter' }) }
+    $receipt = Add-PerformanceFixtureProvenance -Receipt $native -Provenance (New-Provenance) -Inputs @{}
+    $text = New-PerformanceFixtureReadme -Receipts @($receipt) -FileNames @('fx5-default-embedded-warp-x64-release.json')
+    foreach ($expected in @('| `per-control` | <= 256 B per simple control all-in | 640 | recorded exception (closed by W9.6) |',
+            '| `minimized-video` | <= 8 MiB video memory when minimized | not measured | not measured: software adapter |')) {
+        Assert-True ($text.Contains($expected)) "README contains: $expected"
+    }
 }
 Invoke-TestCase 'an interactive-only fixture is skipped without -Interactive and runs alone with it' {
     $fx4 = [ordered]@{ id = 'FX4'; built = $true; interactiveOnly = $true }

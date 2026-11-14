@@ -1500,7 +1500,9 @@ embedded steps repeat the frame until the host needs no further cooperative prep
 fixture clock, `HostPort::AdvanceTime`), no sleep, no randomness and no dependence on other processes. Every W0.1 work
 counter is recorded per step and summarized per phase; the embedded runner adds the C++ allocation sink and the W0.3
 memory fields (live tracked bytes from the scene build, retained-resource statistics, process memory, video memory on
-hardware, hidden residency). Warm-up phases settle process first-use state; they are recorded but not compared.
+hardware, hidden residency), the retained-cache rows and every `G13` memory budget line (W9.1; see
+[memory metrics](../Core/Core_PerformanceAndResources.md#g13-budget-lines)). Warm-up phases settle process first-use
+state; they are recorded but not compared.
 
 The determinism gate runs every built fixture twice on each of its hosts at every WARP variant (the embedded host in
 the Embedded suite, the window host in the Rendering suite) except a variant declared receipt-only: a full-size scene too
