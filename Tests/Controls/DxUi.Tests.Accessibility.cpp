@@ -4549,9 +4549,6 @@ void TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh()
         Require(DebugGetAccessibilitySnapshotBuildCountForTest() == retainedMutationBuilds + 1u,
                 "a retained-provider owner query rebuilds exactly once for the uninterested dirty revision");
 
-        // A provider query is no longer interest (client gate, W8.1): take a desktop client to be listening, deterministically.
-        DebugSetAccessibilitySystemListenersForTest(true);
-        const auto clearSystemListeners = wil::scope_exit([]() noexcept { DebugSetAccessibilitySystemListenersForTest(std::nullopt); });
         Require(DebugSetAccessibilityMutationInterestForTest(mutationWindow.Hwnd(), std::nullopt),
                 "restore actual provider interest before queuing an ordinary mutation");
         const uint64_t queuedMutationBuilds = DebugGetAccessibilitySnapshotBuildCountForTest();
@@ -4629,10 +4626,7 @@ void TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh()
     Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "lazy first value") == L"before first query",
             "first provider access publishes the latest committed value");
     window.PumpMessages();
-    // A listening desktop client keeps publishing at the queued boundary; a held provider alone does not (below).
-    DebugSetAccessibilitySystemListenersForTest(true);
-    const auto clearSystemListeners = wil::scope_exit([]() noexcept { DebugSetAccessibilitySystemListenersForTest(std::nullopt); });
-    const uint64_t before           = DebugGetAccessibilitySnapshotBuildCountForTest();
+    const uint64_t before = DebugGetAccessibilitySnapshotBuildCountForTest();
     for (size_t index = 0; index < 128u; ++index)
         retainedField->SetText(std::to_wstring(index));
     Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before, "a mutation batch performs no synchronous tree rebuild");
@@ -4643,14 +4637,7 @@ void TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh()
     Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before + 1u, "queued event publication reuses the snapshot built for the query");
     retainedField->SetText(L"queued only");
     window.PumpMessages();
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before + 2u, "a listened host publishes once at the queued boundary");
-    DebugSetAccessibilitySystemListenersForTest(false);
-    retainedField->SetText(L"held but unheard");
-    window.PumpMessages();
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before + 2u, "a held provider no client listens to publishes nothing at a mutation");
-    Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "held unheard value") == L"held but unheard",
-            "the held provider's next query publishes the latest value");
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before + 3u, "that query builds once");
+    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before + 2u, "a held provider receives one publication at the queued boundary");
 }
 
 void TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath()
@@ -12119,12 +12106,9 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityGridCellFocusChoosesTheInspectedColumn);
     DXUI_RUN_TEST(TestAccessibilityPublicationMutationBatchRetainsFinalStateAndReportsCost);
     DXUI_RUN_TEST(TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh);
-    DXUI_RUN_TEST(TestAccessibilityClientGateAdviseCoversWindowScopedSubscriptions);
-    DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedAdviseProbe);
-    DXUI_RUN_TEST(TestAccessibilityClientGateTerminatedClientSubscriptionEnds);
     DXUI_RUN_TEST(TestAccessibilityClientGateFx6OneClientHearsTheReferenceEvents);
     DXUI_RUN_TEST(TestAccessibilityClientGateFx6NoClientBuildsNothing);
-    DXUI_RUN_TEST(TestAccessibilityClientGateFx6ReleasedProbeBuildsNothing);
+    DXUI_RUN_TEST(TestAccessibilityClientGateFx6RequestedWindowKeepsBuilding);
     DXUI_RUN_TEST(TestAccessibilityClientGateHeldElementQueryReadsCurrentState);
     DXUI_RUN_TEST(TestAccessibilityClientGateResubscribedClientMissesNothing);
     DXUI_RUN_TEST(TestAccessibilityClientGateFx6EmbeddedEveryFrameBuildsNothing);
@@ -12132,20 +12116,15 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedQueriedStateIsTheBaselineOfLaterEvents);
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedQueryBeforePrepareReadsCurrentValue);
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedQueryDoesNotCancelADrag);
-    DXUI_RUN_TEST(TestAccessibilityClientGateBusyWindowThreadCostsOneWaitPerRevision);
-    DXUI_RUN_TEST(TestAccessibilityClientGateAdvisedClientHearsSelectionEvents);
-    DXUI_RUN_TEST(TestAccessibilityClientGateMsaaClientCountsAsListener);
     DXUI_RUN_TEST(TestAccessibilityClientGateSubscribedThenQueriedStateIsTheBaselineOfLaterEvents);
     DXUI_RUN_TEST(TestAccessibilityClientGateMixedBatchKeepsTheHeardChange);
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedSubscribedThenQueriedStateIsTheBaselineOfLaterEvents);
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedMixedBatchKeepsTheHeardChange);
-    DXUI_RUN_TEST(TestAccessibilityClientGateFailedPublicationRequestIsRetried);
-    DXUI_RUN_TEST(TestAccessibilityClientGateRequestToAHungWindowIsPosted);
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedProviderRequestDoesNotCancelADrag);
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedGetItemDoesNotCancelADrag);
-    DXUI_RUN_TEST(TestAccessibilityClientGateOutOfProcessQueryOnlyClientIsNoMsaaClient);
+    DXUI_RUN_TEST(TestAccessibilityClientGateOutOfProcessQueryOnlyClientLatchesTheWindow);
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedUnpreparedTextHasCurrentRangeBounds);
-    DXUI_RUN_TEST(TestAccessibilityClientGateSubscribedThenOwnerQueriedStateIsTheBaselineOfLaterEvents);
+    DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedFirstRequestBeforePrepareReadsTheLastBuild);
     DXUI_RUN_TEST(TestAccessibilityInterestedMutationsBoundFocusedPathResolution);
     DXUI_RUN_TEST(TestAccessibilityTextEventsUseIndexedOwnerValidation);
     DXUI_RUN_TEST(TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath);

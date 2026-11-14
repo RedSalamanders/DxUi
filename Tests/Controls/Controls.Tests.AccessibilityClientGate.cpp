@@ -22,229 +22,7 @@
 
 namespace
 {
-using AdviseRecord = DxUi::AccessibilityAdviseRecordForTest;
-
-[[nodiscard]] std::vector<AdviseRecord> AdviseRecordsOf(HWND hwnd)
-{
-    std::array<AdviseRecord, 256u> records{};
-    const size_t total = DxUi::DebugCopyAccessibilityAdviseRecordsForTest(records);
-    std::vector<AdviseRecord> result;
-    for (size_t index = 0u; index < (std::min)(total, records.size()); ++index)
-        if (records[index].hwnd == hwnd)
-            result.push_back(records[index]);
-    return result;
-}
-
-[[nodiscard]] std::string DescribeAdvise(const std::vector<AdviseRecord>& records, bool added)
-{
-    std::string text;
-    for (const AdviseRecord& record : records)
-    {
-        if (record.added != added)
-            continue;
-        text += " " + std::to_string(record.eventId);
-        if (record.propertyCount != 0u)
-        {
-            text += "[";
-            for (uint32_t index = 0u; index < (std::min)(record.propertyCount, static_cast<uint32_t>(record.properties.size())); ++index)
-                text += (index ? "," : "") + std::to_string(record.properties[index]);
-            text += "]";
-        }
-    }
-    return text.empty() ? std::string(" none") : text;
-}
-
-[[nodiscard]] wil::com_ptr_nothrow<IUIAutomationElement> WindowElement(UiaTest::Session& session)
-{
-    wil::com_ptr_nothrow<IUIAutomationElement> element;
-    static_cast<void>(session.automation->ElementFromHandle(session.target, element.put()));
-    return element;
-}
-
-struct SubscriptionKind
-{
-    const char* name;
-    std::function<HRESULT(UiaTest::Session&)> add;
-};
-
-[[nodiscard]] std::vector<SubscriptionKind> SubscriptionKinds()
-{
-    const auto automationAt = [](TreeScope scope, bool cached)
-    {
-        return [scope, cached](UiaTest::Session& session) -> HRESULT
-        {
-            const auto window = WindowElement(session);
-            return session.automation->AddAutomationEventHandler(
-                UIA_Invoke_InvokedEventId, window.get(), scope, cached ? session.cache.get() : nullptr, session.recorder);
-        };
-    };
-    std::vector<SubscriptionKind> kinds;
-    kinds.push_back({"automation event, window, element scope", automationAt(TreeScope_Element, true)});
-    kinds.push_back({"automation event, window, children scope", automationAt(TreeScope_Children, true)});
-    kinds.push_back({"automation event, window, descendants scope", automationAt(TreeScope_Descendants, true)});
-    kinds.push_back({"automation event, window, subtree scope", automationAt(TreeScope_Subtree, true)});
-    kinds.push_back({"automation event, window, subtree scope, uncached", automationAt(TreeScope_Subtree, false)});
-    kinds.push_back({"automation event, desktop root, subtree scope",
-                     [](UiaTest::Session& session) -> HRESULT
-    {
-        wil::com_ptr_nothrow<IUIAutomationElement> desktop;
-        RETURN_IF_FAILED(session.automation->GetRootElement(desktop.put()));
-        return session.automation->AddAutomationEventHandler(
-            UIA_Invoke_InvokedEventId, desktop.get(), TreeScope_Subtree, session.cache.get(), session.recorder);
-    }});
-    kinds.push_back({"automation event, child element, element scope",
-                     [](UiaTest::Session& session) -> HRESULT
-    {
-        const auto window = WindowElement(session);
-        wil::com_ptr_nothrow<IUIAutomationElement> child;
-        RETURN_IF_FAILED(session.walker->GetFirstChildElement(window.get(), child.put()));
-        if (! child)
-            return E_FAIL;
-        return session.automation->AddAutomationEventHandler(UIA_Invoke_InvokedEventId, child.get(), TreeScope_Element, session.cache.get(), session.recorder);
-    }});
-    kinds.push_back({"property changed, window, subtree scope",
-                     [](UiaTest::Session& session) -> HRESULT
-    {
-        const auto window              = WindowElement(session);
-        std::array<PROPERTYID, 2u> ids = {{UIA_NamePropertyId, UIA_ValueValuePropertyId}};
-        return session.automation->AddPropertyChangedEventHandlerNativeArray(
-            window.get(), TreeScope_Subtree, session.cache.get(), session.recorder, ids.data(), static_cast<int>(ids.size()));
-    }});
-    kinds.push_back({"property changed, desktop root, subtree scope",
-                     [](UiaTest::Session& session) -> HRESULT
-    {
-        wil::com_ptr_nothrow<IUIAutomationElement> desktop;
-        RETURN_IF_FAILED(session.automation->GetRootElement(desktop.put()));
-        std::array<PROPERTYID, 1u> ids = {{UIA_NamePropertyId}};
-        return session.automation->AddPropertyChangedEventHandlerNativeArray(
-            desktop.get(), TreeScope_Subtree, session.cache.get(), session.recorder, ids.data(), static_cast<int>(ids.size()));
-    }});
-    kinds.push_back({"structure changed, window, subtree scope",
-                     [](UiaTest::Session& session) -> HRESULT
-    { return session.automation->AddStructureChangedEventHandler(WindowElement(session).get(), TreeScope_Subtree, session.cache.get(), session.recorder); }});
-    kinds.push_back({"focus changed, cached",
-                     [](UiaTest::Session& session) -> HRESULT
-    { return session.automation->AddFocusChangedEventHandler(session.cache.get(), session.recorder); }});
-
-    kinds.push_back({"text edit text changed, window, subtree scope",
-                     [](UiaTest::Session& session) -> HRESULT
-    {
-        wil::com_ptr_nothrow<IUIAutomation3> automation3;
-        RETURN_IF_FAILED(session.automation.query_to(automation3.put()));
-        return automation3->AddTextEditTextChangedEventHandler(
-            WindowElement(session).get(), TreeScope_Subtree, TextEditChangeType_AutoCorrect, session.cache.get(), session.recorder);
-    }});
-    kinds.push_back({"notification, window, subtree scope",
-                     [](UiaTest::Session& session) -> HRESULT
-    {
-        wil::com_ptr_nothrow<IUIAutomation5> automation5;
-        RETURN_IF_FAILED(session.automation.query_to(automation5.put()));
-        return automation5->AddNotificationEventHandler(WindowElement(session).get(), TreeScope_Subtree, session.cache.get(), session.recorder);
-    }});
-    kinds.push_back({"active text position changed, window, subtree scope",
-                     [](UiaTest::Session& session) -> HRESULT
-    {
-        wil::com_ptr_nothrow<IUIAutomation6> automation6;
-        RETURN_IF_FAILED(session.automation.query_to(automation6.put()));
-        return automation6->AddActiveTextPositionChangedEventHandler(WindowElement(session).get(), TreeScope_Subtree, session.cache.get(), session.recorder);
-    }});
-    kinds.push_back({"event handler group, window, subtree scope",
-                     [](UiaTest::Session& session) -> HRESULT
-    {
-        wil::com_ptr_nothrow<IUIAutomation6> automation6;
-        RETURN_IF_FAILED(session.automation.query_to(automation6.put()));
-        wil::com_ptr_nothrow<IUIAutomationEventHandlerGroup> group;
-        RETURN_IF_FAILED(automation6->CreateEventHandlerGroup(group.put()));
-        RETURN_IF_FAILED(group->AddAutomationEventHandler(UIA_Invoke_InvokedEventId, TreeScope_Subtree, session.cache.get(), session.recorder));
-        std::array<PROPERTYID, 1u> ids = {{UIA_NamePropertyId}};
-        RETURN_IF_FAILED(
-            group->AddPropertyChangedEventHandler(TreeScope_Subtree, session.cache.get(), session.recorder, ids.data(), static_cast<int>(ids.size())));
-        return automation6->AddEventHandlerGroup(WindowElement(session).get(), group.get());
-    }});
-    return kinds;
-}
-} // namespace
-
-// UI Automation advises a window's root provider of every subscription scoped to the window or its elements, and of its end;
-// it advises none of a subscription at the desktop root or of a focus-changed handler, also for a window it discovers after
-// them (printed: the reason the client gate keeps UiaClientsAreListening, see AccessibilityClientsMayListen).
-void TestAccessibilityClientGateAdviseCoversWindowScopedSubscriptions()
-{
-    using namespace DxUi;
-    AttachedHostWindow window;
-    auto root    = std::make_unique<Panel>();
-    auto* button = root->AddChild<Button>(L"Advise probe");
-    button->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 28.0f));
-    auto* field = root->AddChild<TextField>(L"probe text");
-    field->SetBounds(D2D1::RectF(0.0f, 36.0f, 240.0f, 64.0f));
-    window.Host().SetRoot(std::move(root));
-    window.PumpMessages();
-    UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
-    const HWND hwnd = window.Hwnd();
-    Require(DebugGetAccessibilityEventListenerCountForTest(hwnd) == 0u, "a query-only client is advised of no subscription");
-    bool windowScopedAdvised = true;
-    for (const SubscriptionKind& kind : SubscriptionKinds())
-    {
-        DebugResetAccessibilityAdviseRecordsForTest();
-        const HRESULT added = client.Perform(kind.name, kind.add);
-        static_cast<void>(client.WaitUntil(3000u, [&] { return DebugGetAccessibilityEventListenerCountForTest(hwnd) != 0u; }));
-        client.Settle(300u);
-        const auto afterAdd      = AdviseRecordsOf(hwnd);
-        const uint64_t listening = DebugGetAccessibilityEventListenerCountForTest(hwnd);
-        const HRESULT removed = client.Perform("remove every handler", [](UiaTest::Session& session) { return session.automation->RemoveAllEventHandlers(); });
-        static_cast<void>(client.WaitUntil(3000u, [&] { return DebugGetAccessibilityEventListenerCountForTest(hwnd) == 0u; }));
-        client.Settle(300u);
-        const auto afterRemove   = AdviseRecordsOf(hwnd);
-        const uint64_t remaining = DebugGetAccessibilityEventListenerCountForTest(hwnd);
-        std::cerr << "    [advise] " << kind.name << ": add hr=0x" << std::hex << static_cast<unsigned long>(added) << " remove hr=0x"
-                  << static_cast<unsigned long>(removed) << std::dec << " added:" << DescribeAdvise(afterAdd, true)
-                  << " | removed:" << DescribeAdvise(afterRemove, false) << " | listeners " << listening << " -> " << remaining << '\n';
-        const std::string_view name(kind.name);
-        if (name.find("desktop") == std::string_view::npos && name.find("focus") == std::string_view::npos)
-            windowScopedAdvised = windowScopedAdvised && SUCCEEDED(added) && listening != 0u && remaining == 0u;
-    }
-    std::cerr << "    [advise] UiaClientsAreListening=" << (UiaClientsAreListening() != FALSE) << '\n';
-    // A screen reader subscribes at the desktop before a window exists. Is a window it discovers later advised?
-    {
-        DebugResetAccessibilityAdviseRecordsForTest();
-        const HRESULT added = client.Perform("subscribe at the desktop and to focus",
-                                             [](UiaTest::Session& session) -> HRESULT
-        {
-            wil::com_ptr_nothrow<IUIAutomationElement> desktop;
-            RETURN_IF_FAILED(session.automation->GetRootElement(desktop.put()));
-            RETURN_IF_FAILED(session.automation->AddAutomationEventHandler(
-                UIA_Invoke_InvokedEventId, desktop.get(), TreeScope_Subtree, session.cache.get(), session.recorder));
-            std::array<PROPERTYID, 1u> ids = {{UIA_NamePropertyId}};
-            RETURN_IF_FAILED(session.automation->AddPropertyChangedEventHandlerNativeArray(
-                desktop.get(), TreeScope_Subtree, session.cache.get(), session.recorder, ids.data(), static_cast<int>(ids.size())));
-            RETURN_IF_FAILED(session.automation->AddStructureChangedEventHandler(desktop.get(), TreeScope_Subtree, session.cache.get(), session.recorder));
-            return session.automation->AddFocusChangedEventHandler(session.cache.get(), session.recorder);
-        });
-        AttachedHostWindow later;
-        auto laterRoot = std::make_unique<Panel>();
-        laterRoot->AddChild<Button>(L"Discovered later")->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 28.0f));
-        later.Host().SetRoot(std::move(laterRoot));
-        later.PumpMessages();
-        const HWND laterHwnd = later.Hwnd();
-        const auto pumpBoth  = [&] { later.PumpMessages(); };
-        UiaTest::Client discoverer(laterHwnd, {}, pumpBoth);
-        static_cast<void>(discoverer.Root());
-        discoverer.Settle(1000u);
-        client.Settle(300u);
-        const auto discovered = AdviseRecordsOf(laterHwnd);
-        std::cerr << "    [advise] desktop and focus subscription made before a window is discovered: add hr=0x" << std::hex
-                  << static_cast<unsigned long>(added) << std::dec << " advised to the discovered window:" << DescribeAdvise(discovered, true)
-                  << " | listeners " << DebugGetAccessibilityEventListenerCountForTest(laterHwnd) << '\n';
-        static_cast<void>(client.Perform("remove every handler", [](UiaTest::Session& session) { return session.automation->RemoveAllEventHandlers(); }));
-        client.Settle(300u);
-    }
-    Require(windowScopedAdvised, "UI Automation advises a window's root of each subscription scoped to it and of its removal");
-}
-
-namespace
-{
-constexpr std::wstring_view kSubscriberChildPrefix = L"--uia-subscriber-child=";
-constexpr std::wstring_view kQueryChildPrefix      = L"--uia-query-child=";
+constexpr std::wstring_view kQueryChildPrefix = L"--uia-query-child=";
 
 [[nodiscard]] std::optional<uintptr_t> ParseDecimal(std::wstring_view digits) noexcept
 {
@@ -261,18 +39,13 @@ constexpr std::wstring_view kQueryChildPrefix      = L"--uia-query-child=";
 }
 } // namespace
 
-// A UI Automation client in a process of its own: it subscribes to an event of the window it is given, signals the event it
-// inherited, and waits to be terminated without unsubscribing, as a client that crashes does. With the query prefix it only
-// reads the window's elements (no subscription), then signals and waits.
-int RunAccessibilityClientGateSubscriberChild(int argc, wchar_t** argv) noexcept
+// A UI Automation client in a process of its own that only queries: it reads the names of the elements of the window it is
+// given (no subscription), signals the event it inherited and waits to be terminated.
+int RunAccessibilityClientGateQueryChild(int argc, wchar_t** argv) noexcept
 {
-    if (argc != 2 || ! argv[1])
+    if (argc != 2 || ! argv[1] || std::wstring_view(argv[1]).rfind(kQueryChildPrefix, 0) != 0)
         return -1;
-    const std::wstring_view argument = argv[1];
-    const bool queryOnly             = argument.rfind(kQueryChildPrefix, 0) == 0;
-    if (! queryOnly && argument.rfind(kSubscriberChildPrefix, 0) != 0)
-        return -1;
-    const std::wstring_view arguments = argument.substr(queryOnly ? kQueryChildPrefix.size() : kSubscriberChildPrefix.size());
+    const std::wstring_view arguments = std::wstring_view(argv[1]).substr(kQueryChildPrefix.size());
     const size_t comma                = arguments.find(L',');
     const auto window                 = ParseDecimal(arguments.substr(0, comma));
     const auto ready                  = comma == std::wstring_view::npos ? std::nullopt : ParseDecimal(arguments.substr(comma + 1u));
@@ -281,147 +54,30 @@ int RunAccessibilityClientGateSubscriberChild(int argc, wchar_t** argv) noexcept
     const auto com = wil::CoInitializeEx_failfast(COINIT_MULTITHREADED);
     wil::com_ptr_nothrow<IUIAutomation> automation;
     wil::com_ptr_nothrow<IUIAutomationElement> element;
-    wil::com_ptr_nothrow<UiaTest::Recorder> recorder;
-    recorder.attach(Microsoft::WRL::Make<UiaTest::Recorder>().Detach());
-    HRESULT hr = recorder ? UiaTest::CreateAutomationClient(automation.put()) : E_OUTOFMEMORY;
+    wil::com_ptr_nothrow<IUIAutomationCondition> all;
+    wil::com_ptr_nothrow<IUIAutomationElementArray> found;
+    HRESULT hr = UiaTest::CreateAutomationClient(automation.put());
     if (SUCCEEDED(hr))
         hr = automation->ElementFromHandle(reinterpret_cast<HWND>(*window), element.put());
-    if (SUCCEEDED(hr) && queryOnly)
-    {
-        wil::com_ptr_nothrow<IUIAutomationCondition> all;
-        wil::com_ptr_nothrow<IUIAutomationElementArray> found;
+    if (SUCCEEDED(hr))
         hr = automation->CreateTrueCondition(all.put());
-        if (SUCCEEDED(hr))
-            hr = element->FindAll(TreeScope_Subtree, all.get(), found.put());
-        int length = 0;
-        if (SUCCEEDED(hr) && found && SUCCEEDED(found->get_Length(&length)))
-            for (int index = 0; index < length; ++index)
-            {
-                wil::com_ptr_nothrow<IUIAutomationElement> item;
-                wil::unique_bstr name;
-                if (SUCCEEDED(found->GetElement(index, item.put())) && item)
-                    static_cast<void>(item->get_CurrentName(name.put()));
-            }
-    }
-    else if (SUCCEEDED(hr))
-        hr = automation->AddAutomationEventHandler(UIA_Invoke_InvokedEventId, element.get(), TreeScope_Subtree, nullptr, recorder.get());
+    if (SUCCEEDED(hr))
+        hr = element->FindAll(TreeScope_Subtree, all.get(), found.put());
+    int length = 0;
+    if (SUCCEEDED(hr) && found && SUCCEEDED(found->get_Length(&length)))
+        for (int index = 0; index < length; ++index)
+        {
+            wil::com_ptr_nothrow<IUIAutomationElement> item;
+            wil::unique_bstr name;
+            if (SUCCEEDED(found->GetElement(index, item.put())) && item)
+                static_cast<void>(item->get_CurrentName(name.put()));
+        }
     if (FAILED(hr))
         return 3;
     static_cast<void>(SetEvent(reinterpret_cast<HANDLE>(*ready)));
     Sleep(INFINITE);
     return 0;
 }
-
-// A client process that ends without unsubscribing: UI Automation reports its subscription's end, so the advised count of a
-// client that crashed does not keep mutations building.
-void TestAccessibilityClientGateTerminatedClientSubscriptionEnds()
-{
-    using namespace DxUi;
-    AttachedHostWindow window;
-    auto root    = std::make_unique<Panel>();
-    auto* button = root->AddChild<Button>(L"Terminated client probe");
-    button->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 28.0f));
-    window.Host().SetRoot(std::move(root));
-    window.PumpMessages();
-    const HWND hwnd = window.Hwnd();
-    Require(DebugGetAccessibilityEventListenerCountForTest(hwnd) == 0u, "no subscription before the client process starts");
-    SECURITY_ATTRIBUTES inheritable{sizeof(inheritable), nullptr, TRUE};
-    wil::unique_event_nothrow ready(CreateEventW(&inheritable, TRUE, FALSE, nullptr));
-    Require(static_cast<bool>(ready), "create the client process's ready event");
-    std::array<wchar_t, MAX_PATH> path{};
-    Require(GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size())) != 0u, "find the test executable");
-    std::wstring commandLine = L"\"" + std::wstring(path.data()) + L"\" " + std::wstring(kSubscriberChildPrefix) +
-                               std::to_wstring(reinterpret_cast<uintptr_t>(hwnd)) + L"," + std::to_wstring(reinterpret_cast<uintptr_t>(ready.get()));
-    SIZE_T attributeBytes    = 0u;
-    static_cast<void>(InitializeProcThreadAttributeList(nullptr, 1u, 0u, &attributeBytes));
-    std::vector<std::byte> attributeStorage(attributeBytes);
-    auto* attributes = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attributeStorage.data());
-    Require(InitializeProcThreadAttributeList(attributes, 1u, 0u, &attributeBytes) != FALSE, "initialize the client process's attributes");
-    const auto deleteAttributes = wil::scope_exit([&]() noexcept { DeleteProcThreadAttributeList(attributes); });
-    HANDLE inherited            = ready.get();
-    Require(UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &inherited, sizeof(inherited), nullptr, nullptr) != FALSE,
-            "pass only the ready event to the client process");
-    STARTUPINFOEXW startup{};
-    startup.StartupInfo.cb  = sizeof(startup);
-    startup.lpAttributeList = attributes;
-    wil::unique_process_information process;
-    Require(CreateProcessW(nullptr,
-                           commandLine.data(),
-                           nullptr,
-                           nullptr,
-                           TRUE,
-                           CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT,
-                           nullptr,
-                           nullptr,
-                           &startup.StartupInfo,
-                           &process) != FALSE,
-            "start the client process");
-    const auto waitPumping = [&](ULONGLONG timeoutMs, const auto& predicate)
-    {
-        const ULONGLONG deadline = GetTickCount64() + timeoutMs;
-        while (! predicate() && GetTickCount64() < deadline)
-        {
-            window.PumpMessages();
-            static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, 5u, QS_ALLINPUT, MWMO_INPUTAVAILABLE));
-        }
-        return predicate();
-    };
-    const bool subscribed    = waitPumping(20000u, [&] { return WaitForSingleObject(ready.get(), 0u) == WAIT_OBJECT_0; }) &&
-                               waitPumping(5000u, [&] { return DebugGetAccessibilityEventListenerCountForTest(hwnd) != 0u; });
-    const uint64_t listening = DebugGetAccessibilityEventListenerCountForTest(hwnd);
-    Require(TerminateProcess(process.hProcess, 1u) != FALSE, "terminate the client process without unsubscribing");
-    Require(WaitForSingleObject(process.hProcess, 10000u) == WAIT_OBJECT_0, "the client process ends");
-    const ULONGLONG terminated = GetTickCount64();
-    const bool released        = waitPumping(60000u, [&] { return DebugGetAccessibilityEventListenerCountForTest(hwnd) == 0u; });
-    std::cerr << "    [advise] terminated client: subscribed=" << subscribed << " listeners=" << listening << " released=" << released << " after "
-              << (GetTickCount64() - terminated) << " ms\n";
-    Require(subscribed, "the client process's subscription is advised");
-    Require(released, "the end of a terminated client's subscription is advised");
-}
-
-// What UI Automation advises an embedded view's root, which hangs below the application's window element.
-void TestAccessibilityClientGateEmbeddedAdviseProbe()
-{
-    RequireSucceeded(DxUiFailureTests::RunRetainedAccessibilitySta(
-                         []()
-    {
-        DxUi::TestSupport::ScopedWindowActivationBlocker activation;
-        Require(activation.Start(), "embedded advise probe's application STA refuses activation");
-        GraphicsFixture graphics;
-        RequireSucceeded(graphics.Create(), "create WARP device for the embedded advise probe");
-        DxUi::EmbeddedHost view;
-        std::shared_ptr<DxUi::GraphicsDevice> pool;
-        RequireSucceeded(DxUi::GraphicsDevice::Create(graphics.device.get(), pool), "create the embedded advise probe's graphics pool");
-        RequireSucceeded(view.Attach(std::move(pool)), "attach the embedded advise probe to borrowed graphics");
-        auto root    = std::make_unique<DxUi::Panel>();
-        auto* button = root->AddChild<DxUi::Button>(L"Embedded advise probe");
-        button->SetBounds(D2D1::RectF(0.0f, 0.0f, 160.0f, 28.0f));
-        view.Controls().SetRoot(std::move(root));
-        RequireSucceeded(view.Prepare(320u, 200u, 96.0f), "prepare the embedded advise probe");
-        {
-            EmbeddedUiaTest::Bridge bridge(view, 320u, 200u);
-            RequireSucceeded(bridge.Attach(true, 0x41445631ull), "attach the embedded advise probe's bridge");
-            UiaTest::Client client(bridge.Hwnd(), {}, [&bridge] { bridge.Pump(); });
-            for (const SubscriptionKind& kind : SubscriptionKinds())
-            {
-                DxUi::DebugResetAccessibilityAdviseRecordsForTest();
-                const HRESULT added = client.Perform(kind.name, kind.add);
-                client.Settle(600u);
-                const auto afterAdd = AdviseRecordsOf(nullptr);
-                const HRESULT removed =
-                    client.Perform("remove every handler", [](UiaTest::Session& session) { return session.automation->RemoveAllEventHandlers(); });
-                client.Settle(600u);
-                const auto afterRemove = AdviseRecordsOf(nullptr);
-                std::cerr << "    [embedded advise] " << kind.name << ": add hr=0x" << std::hex << static_cast<unsigned long>(added) << " remove hr=0x"
-                          << static_cast<unsigned long>(removed) << std::dec << " added:" << DescribeAdvise(afterAdd, true)
-                          << " | removed:" << DescribeAdvise(afterRemove, false) << '\n';
-            }
-        }
-        view.Detach();
-    }),
-                     "run the embedded advise probe in a retained application STA");
-}
-
 namespace
 {
 // For a test of the client gate: what it takes UiaClientsAreListening to answer, which another process on the desktop
@@ -528,8 +184,6 @@ void TestAccessibilityClientGateFx6OneClientHearsTheReferenceEvents()
     window.PumpMessages();
     UiaTest::Client client(window.Hwnd(), Fx6Subscription(), [&window] { window.PumpMessages(); });
     static_cast<void>(client.Root());
-    Require(client.WaitUntil(3000u, [&] { return DxUi::DebugGetAccessibilityEventListenerCountForTest(window.Hwnd()) != 0u; }),
-            "the FX6 client's subscriptions are advised on the window's root");
     static_cast<void>(client.WaitOutTheStream());
     const size_t mark = client.Mark();
     for (size_t index = 0u; index < Fx6::kMutations; ++index)
@@ -644,7 +298,6 @@ void TestAccessibilityClientGateFx6NoClientBuildsNothing()
     Fx6::Controls controls;
     controls.Build(window.Host());
     window.PumpMessages();
-    Require(DxUi::DebugGetAccessibilityEventListenerCountForTest(window.Hwnd()) == 0u, "FX6 starts with no advised subscription");
     const uint64_t before = Builds();
     const DxUi::Detail::WorkCounterScope work;
     MutateFx6(controls, window);
@@ -659,8 +312,9 @@ void TestAccessibilityClientGateFx6NoClientBuildsNothing()
     Require(Builds() == before + 1u, "the late client's queries build one snapshot");
 }
 
-// FX6 after a probe that queried the window and let it go: 100 mutations build no snapshot.
-void TestAccessibilityClientGateFx6ReleasedProbeBuildsNothing()
+// FX6 after a probe that queried the window and let it go: the request latched the window for this attachment, so each of
+// the 100 mutations publishes (once per turn), as before the client gate.
+void TestAccessibilityClientGateFx6RequestedWindowKeepsBuilding()
 {
     const SystemListeners nobody(false);
     AttachedHostWindow window;
@@ -674,15 +328,12 @@ void TestAccessibilityClientGateFx6ReleasedProbeBuildsNothing()
     }
     window.PumpMessages();
     const uint64_t before = Builds();
-    const DxUi::Detail::WorkCounterScope work;
     MutateFx6(controls, window);
-    Require(work.Delta().accessibility.snapshotBuilds == 0u, "FX6 after a released probe: the work counters count no snapshot build");
-    std::cerr << "    [FX6] released probe: builds +" << (Builds() - before) << '\n';
-    Require(Builds() == before, "FX6 after a released probe: 100 mutations build no snapshot (G9)");
+    std::cerr << "    [FX6] after a released probe: builds +" << (Builds() - before) << '\n';
+    Require(Builds() >= before + Fx6::kMutations, "a window a client requested keeps building at each mutation for the attachment");
 }
 
-// A client that holds elements and only queries them, on its own thread, reads what the mutations left: the window
-// thread publishes for its first query.
+// A client that holds elements and only queries them, on its own thread, reads what the mutations left.
 void TestAccessibilityClientGateHeldElementQueryReadsCurrentState()
 {
     const SystemListeners nobody(false);
@@ -695,17 +346,12 @@ void TestAccessibilityClientGateHeldElementQueryReadsCurrentState()
     const UiaTest::ElementId field  = FindNamed(client, root, L"Entry");
     const UiaTest::ElementId slider = FindNamed(client, root, L"Level");
     Require(field != 0u && slider != 0u, "the client holds the field's and the slider's elements");
-    const uint64_t before = Builds();
     MutateFx6(controls, window);
-    Require(Builds() == before, "mutations under a query-only client build no snapshot");
     Require(client.StringProperty(field, UIA_ValueValuePropertyId) == Fx6::kFinalField, "a held element reads the field's current value");
     Require(RangeValue(client, slider) == Fx6::kFinalSlider, "a held element reads the slider's current value");
-    std::cerr << "    [FX6] held elements: builds +" << (Builds() - before) << '\n';
-    Require(Builds() == before + 1u, "the held elements' queries build one snapshot");
 }
 
-// A client that subscribes, hears, unsubscribes and subscribes again hears every mutation made while it listens; while it
-// does not, mutations build nothing.
+// A client that subscribes, hears, unsubscribes and subscribes again hears every mutation made while it listens.
 void TestAccessibilityClientGateResubscribedClientMissesNothing()
 {
     const SystemListeners nobody(false);
@@ -715,7 +361,6 @@ void TestAccessibilityClientGateResubscribedClientMissesNothing()
     window.PumpMessages();
     UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
     static_cast<void>(client.Root());
-    const HWND hwnd      = window.Hwnd();
     const auto subscribe = [&]
     {
         RequireSucceeded(client.Perform("subscribe to FX6's properties",
@@ -728,14 +373,12 @@ void TestAccessibilityClientGateResubscribedClientMissesNothing()
                 element.get(), TreeScope_Subtree, session.cache.get(), session.recorder, ids.data(), static_cast<int>(ids.size()));
         }),
                          "subscribe to FX6's properties");
-        Require(client.WaitUntil(3000u, [&] { return DxUi::DebugGetAccessibilityEventListenerCountForTest(hwnd) != 0u; }),
-                "the subscription is advised on the window's root");
+        client.Settle(300u);
     };
     const auto unsubscribe = [&]
     {
         RequireSucceeded(client.Perform("unsubscribe", [](UiaTest::Session& session) { return session.automation->RemoveAllEventHandlers(); }), "unsubscribe");
-        Require(client.WaitUntil(3000u, [&] { return DxUi::DebugGetAccessibilityEventListenerCountForTest(hwnd) == 0u; }),
-                "the subscription's end is advised on the window's root");
+        static_cast<void>(client.WaitOutTheStream());
     };
     const auto hears = [&](std::wstring value)
     { return client.WaitForEvent([&](const UiaTest::HeardEvent& event) { return event.kind == UiaTest::EventKind::Property && event.value == value; }); };
@@ -743,19 +386,12 @@ void TestAccessibilityClientGateResubscribedClientMissesNothing()
     MutateFx6(controls, window, 0u, 3u);
     Require(hears(L"Status 0") && hears(L"Value 1") && hears(std::to_wstring(2.0)), "the subscribed client hears each mutation");
     unsubscribe();
-    // Events already raised may still be delivered, and UI Automation reads their senders' cached properties then.
-    static_cast<void>(client.WaitOutTheStream());
-    const uint64_t unobserved = Builds();
     MutateFx6(controls, window, 3u, 3u);
-    client.Settle(300u);
-    std::cerr << "    [FX6] unsubscribed: builds +" << (Builds() - unobserved) << " for 3 mutations\n";
-    Require(Builds() == unobserved, "mutations made while nobody listens build nothing");
     subscribe();
     MutateFx6(controls, window, 6u, 3u);
     Require(hears(L"Status 6") && hears(L"Value 7") && hears(std::to_wstring(8.0)), "the resubscribed client hears each mutation made after it subscribed");
     unsubscribe();
 }
-
 // FX6 in an embedded view, no client: UpdateAccessibility on every frame of 100 mutations builds no snapshot; a client
 // then reads the current tree, and a listening update builds as before.
 void TestAccessibilityClientGateFx6EmbeddedEveryFrameBuildsNothing()
@@ -799,10 +435,18 @@ void TestAccessibilityClientGateFx6EmbeddedEveryFrameBuildsNothing()
                 RequireFinalFx6Tree(client, root, "a client of the embedded view reads the current tree after deferred updates");
             }
             std::cerr << "    [FX6] embedded late client: builds +" << (Builds() - before) << '\n';
-            Require(Builds() == before + 1u, "the embedded client's queries build one snapshot");
+            Require(Builds() == before + 1u, "the embedded client's first request builds the recorded update once");
+            const uint64_t requested = Builds();
+            for (size_t index = 0u; index < 3u; ++index)
+            {
+                controls.Mutate(index);
+                RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare a frame of the requested view");
+                Require(bridge.Update() == S_OK, "a requested view's frame publishes");
+            }
+            Require(Builds() == requested + 3u, "once requested, each changed frame builds, with no listener on the desktop");
             const SystemListeners listening(true);
             const uint64_t listened = Builds();
-            for (size_t index = 0u; index < 3u; ++index)
+            for (size_t index = 3u; index < 6u; ++index)
             {
                 controls.Mutate(index);
                 RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare a listened FX6 frame");
@@ -889,7 +533,7 @@ void TestAccessibilityClientGateQueriedStateIsTheBaselineOfLaterEvents()
     Require(client.StringProperty(first, UIA_ValueValuePropertyId) == L"y", "the client reads the unheard value");
     Require(client.Describe(second).hasKeyboardFocus, "the client reads the unheard focus move");
     SubscribeToFieldChanges(client);
-    Require(client.WaitUntil(3000u, [&] { return DxUi::DebugGetAccessibilityEventListenerCountForTest(window.Hwnd()) != 0u; }), "the subscription is advised");
+    client.Settle(300u);
     static_cast<void>(client.WaitOutTheStream());
     const size_t mark = client.Mark();
     fields.first->SetText(L"x");
@@ -1030,134 +674,6 @@ void TestAccessibilityClientGateEmbeddedQueryDoesNotCancelADrag()
     });
 }
 
-// Queries on another thread while the window thread does not answer (it is busy) ask it to publish once per unheard
-// revision: five queries wait one timeout in all, not one each, and read the last complete snapshot. A later revision asks
-// again, and a window thread that answers publishes it.
-void TestAccessibilityClientGateBusyWindowThreadCostsOneWaitPerRevision()
-{
-    using namespace DxUi;
-    const std::optional<bool> outerListeners = DebugGetAccessibilitySystemListenersForTest();
-    DebugSetAccessibilitySystemListenersForTest(false);
-    const auto restoreListeners = wil::scope_exit([&]() noexcept { DebugSetAccessibilitySystemListenersForTest(outerListeners); });
-    AttachedHostWindow window;
-    auto field  = std::make_unique<TextField>(L"before");
-    auto* typed = field.get();
-    field->SetBounds(D2D1::RectF(0, 0, 240, 28));
-    window.Host().SetRoot(std::move(field));
-    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
-    root.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
-    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
-    Require(root && SUCCEEDED(root.query_to(simple.put())), "the single field's window element");
-    Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "initial value") == L"before", "the window publishes the field");
-    window.PumpMessages();
-    typed->SetText(L"after"); // Nobody listens: the snapshot stays behind.
-    const uint64_t requests = DebugGetAccessibilityQueryPublicationRequestCountForTest();
-    std::array<std::wstring, 5u> values;
-    ULONGLONG elapsed = 0u;
-    std::thread worker([&]() noexcept
-    {
-        const ULONGLONG started = GetTickCount64();
-        for (auto& value : values)
-        {
-            VARIANT read{};
-            if (SUCCEEDED(simple->GetPropertyValue(UIA_ValueValuePropertyId, &read)) && read.vt == VT_BSTR && read.bstrVal)
-                value.assign(read.bstrVal, SysStringLen(read.bstrVal));
-            VariantClear(&read);
-        }
-        elapsed = GetTickCount64() - started;
-    });
-    worker.join(); // The window thread pumps nothing meanwhile: it is busy.
-    std::cerr << "    [busy window] 5 queries took " << elapsed << " ms with " << (DebugGetAccessibilityQueryPublicationRequestCountForTest() - requests)
-              << " publication request(s)\n";
-    Require(DebugGetAccessibilityQueryPublicationRequestCountForTest() == requests + 1u, "the queries of one unheard revision send one publication request");
-    Require(elapsed < 2500u, "five queries of a busy window wait one timeout in all");
-    Require(std::ranges::all_of(values, [](const std::wstring& value) { return value == L"before"; }),
-            "queries the busy window thread does not answer read the last complete snapshot");
-    window.PumpMessages();
-    typed->SetText(L"later");
-    std::wstring later;
-    std::atomic<bool> done{false};
-    std::thread answered([&]() noexcept
-    {
-        VARIANT read{};
-        if (SUCCEEDED(simple->GetPropertyValue(UIA_ValueValuePropertyId, &read)) && read.vt == VT_BSTR && read.bstrVal)
-            later.assign(read.bstrVal, SysStringLen(read.bstrVal));
-        VariantClear(&read);
-        done.store(true);
-    });
-    while (! done.load())
-    {
-        window.PumpMessages();
-        static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, 5u, QS_ALLINPUT, MWMO_INPUTAVAILABLE));
-    }
-    answered.join();
-    Require(later == L"later", "a later revision asks again, and a window thread that answers publishes it");
-    Require(DebugGetAccessibilityQueryPublicationRequestCountForTest() == requests + 2u, "one more request for the later revision");
-}
-
-// A client UI Automation advised on the window hears a tree's selection events with no other listener on the desktop: every
-// place that decides which events to compute uses the one client gate.
-void TestAccessibilityClientGateAdvisedClientHearsSelectionEvents()
-{
-    const SystemListeners onlyThisClient(false);
-    MutableTreeModel model;
-    model.SetVisibleItems({DxUi::TreeItemData{.id = 1u, .text = L"First"}, DxUi::TreeItemData{.id = 2u, .text = L"Second"}});
-    AttachedHostWindow window;
-    auto control     = std::make_unique<DxUi::Tree>();
-    DxUi::Tree* tree = control.get();
-    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 96.0f));
-    tree->SetModel(&model);
-    tree->SetAccessibleName(L"Items");
-    tree->SetSelectedItemId(2u);
-    window.Host().SetRoot(std::move(control));
-    window.PumpMessages();
-    UiaTest::Client client(window.Hwnd(), UiaTest::SelectionEventsSubscription(), [&window] { window.PumpMessages(); });
-    static_cast<void>(client.Root());
-    Require(client.WaitUntil(3000u, [&] { return DxUi::DebugGetAccessibilityEventListenerCountForTest(window.Hwnd()) != 0u; }),
-            "the selection subscription is advised on the window's root");
-    const auto heard    = UiaTest::HearSelectionEvents(client, 3u, [&] { tree->SetSelectedItemId(1u); });
-    const auto expected = UiaTest::SortedEvents({L"Selected TreeItem 'First'", L"IsSelected:true TreeItem 'First'", L"IsSelected:false TreeItem 'Second'"});
-    if (heard != expected)
-        std::cerr << "    [selection] heard" << UiaTest::DescribeEventList(heard) << " expected" << UiaTest::DescribeEventList(expected) << '\n';
-    Require(heard == expected, "an advised client alone hears the selection events of the application selecting an item");
-}
-// An MSAA or IAccessible2 client asks a window for its client object (WM_GETOBJECT with OBJID_CLIENT, what
-// AccessibleObjectFromWindow sends) and then listens through WinEvents, which no advise and, on a desktop where another
-// client already listens, no change of UiaClientsAreListening reveals. Such a window counts it as a listener: with nothing
-// else listening, a later mutation publishes as before the client gate. A UI Automation client alone never sends that id
-// (TestAccessibilityClientGateFx6ReleasedProbeBuildsNothing stays at 0).
-void TestAccessibilityClientGateMsaaClientCountsAsListener()
-{
-    const SystemListeners nobody(false);
-    AttachedHostWindow window;
-    auto root   = std::make_unique<DxUi::Panel>();
-    auto* field = root->AddChild<DxUi::TextField>(L"before");
-    field->SetBounds(D2D1::RectF(8.0f, 8.0f, 240.0f, 36.0f));
-    field->SetAccessibleName(L"Entry");
-    window.Host().SetRoot(std::move(root));
-    window.PumpMessages();
-    uint64_t before = Builds();
-    field->SetText(L"unheard");
-    window.PumpMessages();
-    Require(Builds() == before, "with no client a mutation builds nothing");
-    wil::unique_hmodule oleacc(LoadLibraryExW(L"oleacc.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32));
-    using AccessibleObjectFromWindowFunction = HRESULT(WINAPI*)(HWND, DWORD, REFIID, void**);
-    const auto accessibleObjectFromWindow =
-        oleacc ? reinterpret_cast<AccessibleObjectFromWindowFunction>(reinterpret_cast<void*>(GetProcAddress(oleacc.get(), "AccessibleObjectFromWindow")))
-               : nullptr;
-    Require(accessibleObjectFromWindow != nullptr, "find AccessibleObjectFromWindow");
-    {
-        wil::com_ptr_nothrow<IUnknown> client;
-        static_cast<void>(accessibleObjectFromWindow(window.Hwnd(), static_cast<DWORD>(OBJID_CLIENT), __uuidof(IUnknown), client.put_void()));
-    }
-    window.PumpMessages();
-    before = Builds();
-    field->SetText(L"heard by the MSAA client");
-    window.PumpMessages();
-    std::cerr << "    [msaa] after an MSAA client object request, the mutation built " << (Builds() - before) << " snapshot(s)\n";
-    Require(Builds() > before, "a window an MSAA client asked for its client object publishes its mutations for it");
-}
-
 namespace
 {
 [[nodiscard]] bool HeardFrom(UiaTest::Client& client, size_t mark, std::wstring_view name, UiaTest::EventKind kind, long id, std::wstring_view value = {})
@@ -1172,53 +688,6 @@ namespace
     });
 }
 
-// Reads a provider's string value on a thread of its own while the window thread pumps, as a client in another process does.
-[[nodiscard]] std::wstring ReadOnAnotherThread(AttachedHostWindow& window, IRawElementProviderSimple& provider, PROPERTYID property)
-{
-    std::wstring value;
-    std::atomic<bool> done{false};
-    std::thread reader([&]() noexcept
-    {
-        VARIANT read{};
-        if (SUCCEEDED(provider.GetPropertyValue(property, &read)) && read.vt == VT_BSTR && read.bstrVal)
-            value.assign(read.bstrVal, SysStringLen(read.bstrVal));
-        VariantClear(&read);
-        done.store(true);
-    });
-    while (! done.load())
-    {
-        window.PumpMessages();
-        static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, 5u, QS_ALLINPUT, MWMO_INPUTAVAILABLE));
-    }
-    reader.join();
-    return value;
-}
-
-// A single-field window whose element stands for the field, published once by a window-thread query.
-struct SingleFieldWindow final
-{
-    SingleFieldWindow()
-    {
-        auto control = std::make_unique<DxUi::TextField>(L"before");
-        field        = control.get();
-        field->SetBounds(D2D1::RectF(0, 0, 240, 28));
-        window.Host().SetRoot(std::move(control));
-        root.attach(DxUi::CreateWindowHostAccessibilityProvider(window.Hwnd()));
-        Require(root && SUCCEEDED(root.query_to(simple.put())), "the single field's window element");
-        Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "initial value") == L"before", "the window publishes the field");
-        window.PumpMessages();
-    }
-    SingleFieldWindow(const SingleFieldWindow&)            = delete;
-    SingleFieldWindow& operator=(const SingleFieldWindow&) = delete;
-    SingleFieldWindow(SingleFieldWindow&&)                 = delete;
-    SingleFieldWindow& operator=(SingleFieldWindow&&)      = delete;
-    ~SingleFieldWindow()                                   = default;
-
-    AttachedHostWindow window;
-    DxUi::TextField* field = nullptr;
-    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
-    wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
-};
 } // namespace
 
 // A window host: nobody listens while the first field changes to "y" and the focus moves to the second; a client then
@@ -1237,7 +706,7 @@ void TestAccessibilityClientGateSubscribedThenQueriedStateIsTheBaselineOfLaterEv
     window.Host().SetFocusControl(fields.second, false);
     window.PumpMessages();
     SubscribeToFieldChanges(client);
-    Require(client.WaitUntil(3000u, [&] { return DxUi::DebugGetAccessibilityEventListenerCountForTest(window.Hwnd()) != 0u; }), "the subscription is advised");
+    client.Settle(300u);
     const UiaTest::ElementId first  = FindNamed(client, root, L"First");
     const UiaTest::ElementId second = FindNamed(client, root, L"Second");
     Require(first != 0u && second != 0u, "the subscribed client finds both fields");
@@ -1266,7 +735,7 @@ void TestAccessibilityClientGateMixedBatchKeepsTheHeardChange()
     const UiaTest::ElementId root = client.Root();
     fields.first->SetText(L"y"); // Unheard.
     SubscribeToFieldChanges(client);
-    Require(client.WaitUntil(3000u, [&] { return DxUi::DebugGetAccessibilityEventListenerCountForTest(window.Hwnd()) != 0u; }), "the subscription is advised");
+    client.Settle(300u);
     static_cast<void>(client.WaitOutTheStream());
     const size_t mark = client.Mark();
     fields.second->SetText(L"z"); // Heard: the drain is posted, not yet run.
@@ -1343,50 +812,6 @@ void TestAccessibilityClientGateEmbeddedMixedBatchKeepsTheHeardChange()
         static_cast<void>(bridge.Update());
         Require(HeardFrom(client, mark, L"Second", UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"z"), "the embedded client hears the heard change");
     });
-}
-
-// A publication request that fails (the window thread's flush cannot publish) is released: the next query asks again and
-// reads the current state, with no further mutation.
-void TestAccessibilityClientGateFailedPublicationRequestIsRetried()
-{
-    const SystemListeners nobody(false);
-    SingleFieldWindow single;
-    single.field->SetText(L"after");
-    DxUi::DebugFailNextAccessibilityPublicationsForTest(1u);
-    const uint64_t requests   = DxUi::DebugGetAccessibilityQueryPublicationRequestCountForTest();
-    const std::wstring first  = ReadOnAnotherThread(single.window, *single.simple.get(), UIA_ValueValuePropertyId);
-    const std::wstring second = ReadOnAnotherThread(single.window, *single.simple.get(), UIA_ValueValuePropertyId);
-    std::cerr << "    [failed request] first read '" << (first == L"after" ? "after" : "before") << "', second '" << (second == L"after" ? "after" : "before")
-              << "', requests " << (DxUi::DebugGetAccessibilityQueryPublicationRequestCountForTest() - requests) << '\n';
-    Require(DxUi::DebugGetAccessibilityQueryPublicationRequestCountForTest() >= requests + 2u, "the failed request is released and asked again");
-    Require(second == L"after", "a query after a failed publication reads the current state without another mutation");
-}
-
-// A window thread that stops turning long enough for the system to take the window for hung drops a sent request: it is
-// posted instead, and once the thread turns again a query reads the current state without another mutation.
-void TestAccessibilityClientGateRequestToAHungWindowIsPosted()
-{
-    const SystemListeners nobody(false);
-    SingleFieldWindow single;
-    single.field->SetText(L"after");
-    Sleep(5600u); // The window thread does not turn: past the system's five seconds, the window counts as hung.
-    std::wstring during;
-    ULONGLONG waited = 0u;
-    std::thread reader([&]() noexcept
-    {
-        const ULONGLONG started = GetTickCount64();
-        VARIANT read{};
-        if (SUCCEEDED(single.simple->GetPropertyValue(UIA_ValueValuePropertyId, &read)) && read.vt == VT_BSTR && read.bstrVal)
-            during.assign(read.bstrVal, SysStringLen(read.bstrVal));
-        VariantClear(&read);
-        waited = GetTickCount64() - started;
-    });
-    reader.join();
-    std::cerr << "    [hung window] the query waited " << waited << " ms (hung: " << (IsHungAppWindow(single.window.Hwnd()) != FALSE) << ")\n";
-    Require(during == L"before", "the query of a window that does not turn reads the last complete snapshot");
-    single.window.PumpMessages();
-    Require(ReadOnAnotherThread(single.window, *single.simple.get(), UIA_ValueValuePropertyId) == L"after",
-            "once the window thread turns, a query reads the current state without another mutation");
 }
 
 namespace
@@ -1501,9 +926,9 @@ void TestAccessibilityClientGateEmbeddedGetItemDoesNotCancelADrag()
     });
 }
 
-// A UI Automation client in another process that only queries the window (no subscription) does not make it an MSAA client:
-// nothing keeps the window publishing for it.
-void TestAccessibilityClientGateOutOfProcessQueryOnlyClientIsNoMsaaClient()
+// A UI Automation client in another process that only queries the window (no subscription) requests its provider: the window
+// keeps building at each mutation for the rest of the attachment, before and after the client ends (the latch).
+void TestAccessibilityClientGateOutOfProcessQueryOnlyClientLatchesTheWindow()
 {
     const SystemListeners nobody(false);
     TwoFields fields;
@@ -1555,12 +980,16 @@ void TestAccessibilityClientGateOutOfProcessQueryOnlyClientIsNoMsaaClient()
         static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, 5u, QS_ALLINPUT, MWMO_INPUTAVAILABLE));
     }
     Require(WaitForSingleObject(ready.get(), 0u) == WAIT_OBJECT_0, "the query client read the window's elements");
-    Require(! DxUi::DebugGetAccessibilityMsaaClientForTest(hwnd), "a UI Automation client that only queries never asks for the MSAA client object");
     const uint64_t before = Builds();
     fields.first->SetText(L"after the query client");
     window.PumpMessages();
-    Require(Builds() == before, "nothing keeps the window publishing for a client that only queried");
+    Require(Builds() > before, "a window an out-of-process client requested keeps building at a mutation");
     static_cast<void>(TerminateProcess(process.hProcess, 0u));
+    static_cast<void>(WaitForSingleObject(process.hProcess, 10000u));
+    const uint64_t ended = Builds();
+    fields.first->SetText(L"after the query client ended");
+    window.PumpMessages();
+    Require(Builds() > ended, "and keeps building after that client ended, for the attachment");
 }
 
 // Building when only paint is dirty: a query of a single-line field whose text an input handler changed before the next
@@ -1627,39 +1056,32 @@ void TestAccessibilityClientGateEmbeddedUnpreparedTextHasCurrentRangeBounds()
         Require(rectangles != 0u && inside, "the new text's rectangles come from the field's current layout, inside the field");
     });
 }
-// The same with the query on the window thread (a provider request made there, as the conductor's scenario has it): the
-// window-thread publication of unheard changes made after the client subscribed is the baseline of the change back.
-void TestAccessibilityClientGateSubscribedThenOwnerQueriedStateIsTheBaselineOfLaterEvents()
+
+// An embedded view's first request that comes after its tree or bounds changed and before the next Prepare cannot build the
+// recorded update (its geometry is not the prepared one): it reads the snapshot attachment built, and the next update, now
+// that the view is requested, builds the current tree.
+void TestAccessibilityClientGateEmbeddedFirstRequestBeforePrepareReadsTheLastBuild()
 {
-    const SystemListeners nobody(false);
-    AttachedHostWindow window;
-    TwoFields fields;
-    fields.Build(window.Host());
-    window.PumpMessages();
-    UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
-    static_cast<void>(client.Root());
-    SubscribeToFieldChanges(client);
-    Require(client.WaitUntil(3000u, [&] { return DxUi::DebugGetAccessibilityEventListenerCountForTest(window.Hwnd()) != 0u; }), "the subscription is advised");
-    static_cast<void>(client.WaitOutTheStream());
-    // Unheard only for the window: take the client away from the gate for the mutation, as a client that subscribed
-    // a moment later would be. The advised count is what keeps the gate open, so the override alone cannot close it.
-    const uint64_t buildsBefore = Builds();
-    Require(DxUi::DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), false), "make the next mutations unheard");
-    fields.first->SetText(L"y");
-    window.Host().SetFocusControl(fields.second, false);
-    Require(DxUi::DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), std::nullopt), "restore the gate's own decision");
-    window.PumpMessages();
-    Require(Builds() == buildsBefore, "the unheard mutations published nothing");
-    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
-    provider.attach(DxUi::CreateWindowHostAccessibilityProvider(window.Hwnd())); // The window-thread query: it publishes.
-    Require(provider != nullptr && Builds() > buildsBefore, "the window-thread query publishes the unheard changes");
-    window.PumpMessages();
-    static_cast<void>(client.WaitOutTheStream());
-    const size_t mark = client.Mark();
-    fields.first->SetText(L"x");
-    window.Host().SetFocusControl(fields.first, false);
-    window.PumpMessages();
-    Require(HeardFromFirst(client, mark, UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"x"), "the client hears the value change back");
-    Require(HeardFromFirst(client, mark, UiaTest::EventKind::Automation, UIA_Text_TextChangedEventId), "the client hears the text change back");
-    Require(HeardFromFirst(client, mark, UiaTest::EventKind::Property, UIA_HasKeyboardFocusPropertyId, L"true"), "the client hears the focus return");
+    RunEmbeddedGateCase("run the embedded unprepared first-request case",
+                        [](DxUi::EmbeddedHost& view)
+    {
+        const SystemListeners nobody(false);
+        TwoFields fields;
+        fields.Build(view.Controls());
+        constexpr UINT kWidth = 320u, kHeight = 200u;
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the fields");
+        EmbeddedUiaTest::Bridge bridge(view, kWidth, kHeight);
+        RequireSucceeded(bridge.Attach(false, 0x46583609ull), "attach the fields' accessibility");
+        fields.first->SetText(L"y");
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare a recorded frame");
+        Require(bridge.Update() == S_OK, "the frame's update is recorded");
+        fields.second->SetBounds(D2D1::RectF(8.0f, 48.0f, 240.0f, 76.0f)); // The interaction revision changes; no Prepare yet.
+        UiaTest::Client client(bridge.Hwnd(), {}, [&bridge] { bridge.Pump(); });
+        const UiaTest::ElementId first = FindNamed(client, client.Root(), L"First");
+        Require(first != 0u && client.StringProperty(first, UIA_ValueValuePropertyId) == L"x", "the first request reads the snapshot attachment built");
+        const uint64_t before = Builds();
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the next frame");
+        Require(bridge.Update() == S_OK && Builds() == before + 1u, "the next update of the requested view builds");
+        Require(client.StringProperty(first, UIA_ValueValuePropertyId) == L"y", "and the client reads the current tree");
+    });
 }

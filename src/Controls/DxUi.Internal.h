@@ -6,7 +6,6 @@
 #include <DxUi/Failure.h>
 
 #include <algorithm>
-#include <array>
 #include <bit>
 #include <exception>
 #include <new>
@@ -759,39 +758,17 @@ void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t
 // Window-host and embedded accessibility targets alive in this process.
 [[nodiscard]] size_t DebugGetLiveAccessibilityTargetCountForTest() noexcept;
 [[nodiscard]] uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept;
-// One IRawElementProviderAdviseEvents call UI Automation made on a root provider: the window (null for an embedded view),
-// whether it added or removed a subscription, the event and up to eight of its property ids.
-struct AccessibilityAdviseRecordForTest
-{
-    HWND hwnd              = nullptr;
-    bool embedded          = false;
-    bool added             = false;
-    int eventId            = 0;
-    uint32_t propertyCount = 0u;
-    std::array<int, 8u> properties{};
-};
-// Copies the recorded advise calls, oldest first, into `records` and returns how many were recorded since the last reset
-// (the ring keeps the latest 256).
-[[nodiscard]] size_t DebugCopyAccessibilityAdviseRecordsForTest(std::span<AccessibilityAdviseRecordForTest> records) noexcept;
-void DebugResetAccessibilityAdviseRecordsForTest() noexcept;
-// The outstanding subscriptions UI Automation advised on `hwnd`'s root provider; the largest uint64_t without a host.
-[[nodiscard]] uint64_t DebugGetAccessibilityEventListenerCountForTest(HWND hwnd) noexcept;
-// Whether an MSAA client asked hwnd for its client object (WM_GETOBJECT with OBJID_CLIENT), which keeps it publishing.
-[[nodiscard]] bool DebugGetAccessibilityMsaaClientForTest(HWND hwnd) noexcept;
-// The calling (owner) thread's next count window-host publications fail with E_FAIL before they build.
-void DebugFailNextAccessibilityPublicationsForTest(uint32_t count) noexcept;
-// Process-wide: what the client gate takes UiaClientsAreListening to answer (another process on a developer's desktop may
-// listen); nullopt asks it again. Advised subscriptions still count, and the events themselves are unchanged.
-void DebugSetAccessibilitySystemListenersForTest(std::optional<bool> listening) noexcept;
-[[nodiscard]] std::optional<bool> DebugGetAccessibilitySystemListenersForTest() noexcept;
-// How many publication requests queries on other threads have sent to a window host's thread, in this process.
-[[nodiscard]] uint64_t DebugGetAccessibilityQueryPublicationRequestCountForTest() noexcept;
 // Owner-thread-only deterministic failure at the rich snapshot font query.
 void DebugSetRichAccessibilityFontFailureForTest(HRESULT failure) noexcept;
 [[nodiscard]] size_t DebugGetRichAccessibilityFontFailureCountForTest() noexcept;
 // Owner-thread-only mutation-interest override for this exact HWND attachment. Nullopt restores automatic interest;
 // null HWND with nullopt clears the calling thread's override. Other hosts, queries and UIA listeners are unchanged.
 [[nodiscard]] bool DebugSetAccessibilityMutationInterestForTest(HWND hwnd, std::optional<bool> interested) noexcept;
+// Process-wide: what the build gate (SystemClientsAreListening) takes UiaClientsAreListening to answer, since another process
+// on a developer's desktop may listen; nullopt asks it again. A provider request still latches a host, and raising events
+// still asks UiaClientsAreListening itself.
+void DebugSetAccessibilitySystemListenersForTest(std::optional<bool> listening) noexcept;
+[[nodiscard]] std::optional<bool> DebugGetAccessibilitySystemListenersForTest() noexcept;
 // Holds every call of `hwnd`'s fragment-root GetFocus before it counts itself or reads the snapshot, so a test decides
 // when the system's focus event is answered: each call sets `enteredEvent` on arrival and waits, for at most five seconds
 // and never indefinitely, for `releaseEvent`. Null events clear the gate and return once the calls it held have left it.

@@ -559,7 +559,7 @@ cancel events. A later independent gesture returns to normal control dispatch.
 Every entry of a native menu is a UI Automation element, whether or not any entry has a description.
 Its concise `Name` is `accessibleName` or the decoded label; `secondaryText` is exposed as `HelpText`.
 Entries retain MenuItem roles, exact command invocation and acknowledged checked state. Menu
-accessibility records are prepared when a provider is queried or a client may listen (the client gate below). State and
+accessibility records are prepared when a provider is requested or a client is listening. State and
 bounds changes mark the popup dirty and coalesce into a posted publication; an owner-thread provider
 query first flushes that dirty snapshot. Worker-thread queries read the last complete immutable
 snapshot. A real focus transition is published synchronously on the owner thread so the first
@@ -694,50 +694,34 @@ first control; a UIA client's SetFocus first has UI Automation focus the hosting
 current focus the way a dialog's activation does, and the requested element is the last one reported. Native menu popups
 raise theirs once a keyboard transition completes, and embedded hosts raise theirs from the snapshot diff. A
 native HWND host coalesces ordinary dirty state into a posted snapshot publication. Owner-thread UIA
-queries flush dirty state before reading; a worker-thread query reads the last complete immutable
-snapshot, after asking the owner thread to publish when no client gate left it dirty (below). The event-diff baseline advances separately when the queued publication drains, so an
+queries flush dirty state before reading; worker-thread queries read the last complete immutable
+snapshot. The event-diff baseline advances separately when the queued publication drains, so an
 owner-thread query does not consume pending events. An interested host publishes an actual focus
 transition synchronously before returning, which keeps the first worker `GetFocus` answer current
 and captures focus-event attribution at that publication. Detaching retires the snapshot and
-attachment identity so an old queued flush cannot publish into a later host on the same HWND.
-Whether a host builds a snapshot before anyone asks for one is decided by the client gate: a client may hear its
-events when UI Automation advised its root provider of a subscription (`IRawElementProviderAdviseEvents`, counted
-as added minus removed calls) or, failing that, when `UiaClientsAreListening` reports a listening client anywhere on
-the desktop. The advise count cannot stand alone: UI Automation advises a window's root only of subscriptions scoped
-to that window or its elements, never of a focus-changed handler or of a subscription made at the desktop root, which
-is how a screen reader subscribes (measured with the in-process client on Windows 11 build 26300; the probe
-`TestAccessibilityClientGateAdviseCoversWindowScopedSubscriptions` guards it). A provider query is not interest: it never
-holds later mutations to a build. A native mutation the gate finds no client for only marks the snapshot dirty, and
-a later query publishes it: a query on the window's thread (including `WM_GETOBJECT` and root acquisition) publishes
-before it answers, and a query on another thread that finds the snapshot behind the controls sends the window a
-publication request and waits at most one second for it (it reads the last complete snapshot when the window thread
-does not answer in time). A client that attaches after unobserved mutations, or holds an element and only queries,
-therefore reads the current controls; a host with no client builds nothing however often it mutates.
-The event invariant: after every publication the event baseline has caught up with the published snapshot, or the
-posted drain that will make it catch up is queued. A mutation a client could hear marks a heard change pending and
-posts the drain, which raises the whole delta from the baseline (a change recorded while nobody listened is raised
-again with it, redundantly: a redundant event is acceptable, a missing one is not). A publication outside the drain
-(a query's, on the window thread or requested by another thread) with no heard change pending shows only changes made
-while no client could hear them, of which no event is owed, so the baseline catches up with it silently and drops
-pending text events: a client that subscribes before or after such a query hears a later change back. The gate is
-read once for each drain and each embedded update, and that one decision covers the focus, selection, property,
-structure and text events it raises. A query on another thread asks the window thread to publish at most once per
-unpublished revision and never while it holds a target's snapshot mutex; a request that times out, or that
-`SMTO_ABORTIFHUNG` drops for a window the system takes for hung, is posted instead and stays in flight, so the window
-publishes once its thread turns again and other queries of that revision read the last complete snapshot at once; a
-request whose publication fails, or that cannot be posted, is released, so the next query asks again. An MSAA or
-IAccessible2 client, which asks for the window's client object (`WM_GETOBJECT` with `OBJID_CLIENT`) and listens through
-WinEvents, counts as a listener of that window for the attachment's lifetime: no advise and, on a desktop where
-another client already listens, no change of `UiaClientsAreListening` reveals it, and whether a WinEvent hook alone
-makes `UiaClientsAreListening` true could not be measured on the qualification desktop, where it was already true
-before any test client ran. A UI Automation client, in this process or another, that only queries never sends that
-object id; on a desktop where other software requests a window's MSAA client object, the gate stays open for that
-window.
-Without a listening client, mutations remain dirty without loading a snapshot, resolving focus paths or posting a
-new flush. Existing queued publication is preserved; a later query resolves the latest revision.
+attachment identity so an old queued flush cannot publish into a later host on the same HWND. Without
+a requested provider or UIA listener, mutations remain dirty without loading a snapshot, resolving focus paths
+or posting a new flush. Existing queued publication is preserved; a later owner query resolves the latest revision.
+The client gate, one rule for window hosts and embedded views: a host builds its accessibility snapshot on a mutation (or
+an embedded update) if and only if a client requested its provider during this attachment, or the system reports a
+listening client (`UiaClientsAreListening`). A window host is requested by any `WM_GETOBJECT` it answers or root acquisition;
+an embedded view by the first provider call that reaches it. Once requested, a host stays so for the attachment, whether
+that client still exists or not; a client that only queries, in this process or another, therefore keeps the host building
+from then on (`TestAccessibilityClientGateOutOfProcessQueryOnlyClientLatchesTheWindow`). The cost is stated plainly: a host
+any client has ever asked keeps building for that attachment, and on a desktop where some process listens every host
+builds at every mutation, as before the gate. The saving is for hosts nobody has asked while nobody listens: a window host
+then marks its state dirty, as described above, and an embedded view records its update (see Embedded accessibility).
+The gate does not count UI Automation's advise calls (`IRawElementProviderAdviseEvents`), because UI Automation does not
+advise every subscription. Measured with an in-process client on Windows 11 build 26300 (window host; an embedded root,
+which hangs below the application's window element, was advised of nothing):
+
+| Subscription | Advised to the window's root |
+|---|---|
+| Automation, property-changed, structure-changed, TextEdit, notification, active-text-position events and event-handler groups scoped to the window or one of its elements (element, children, descendants or subtree) | Yes, with the event id and property ids; removal advised too, also when the client process is terminated |
+| Any subscription scoped to the desktop root (how a screen reader subscribes), also for a window discovered later | No |
+| `AddFocusChangedEventHandler` | No |
 An internal diagnostics override is scoped to the owning thread, HWND and attachment cookie and changes only the
-mutation-interest decision, never provider-query freshness, other hosts or global listener state. A second,
-process-wide diagnostics override stands for the answer of `UiaClientsAreListening` in the client gate only. These
+mutation-interest decision, never provider-query freshness, other hosts or global listener state. These
 native scheduling rules do not change embedded hosting: the application still calls
 `UpdateAccessibility` after coherent preparation, placement or focus changes. A
 focus-changed callback that removes the control it was told about leaves no control focused. A control disabled, hidden
@@ -1318,27 +1302,18 @@ proxies marshal actions to the owning STA. Raw foreign-thread actions fail inste
 Windows [provider threading contract](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcore/ne-uiautomationcore-provideroptions).
 
 Call UpdateAccessibility after changed preparation, placement or OS focus. Unchanged updates reuse the snapshot
-without allocation. While the client gate (see the native rules above) finds no client that could hear the view's
-events, a changed update after the first only records its preparation and placement and returns `S_OK`: it builds
-nothing, however often the application calls it. UI Automation advises an embedded root of no subscription (the
-application's window element is the fragment root UI Automation sees), so for a view the gate is
-`UiaClientsAreListening`. The published snapshot and the placement its providers compare stay together until a
-build. A query, which reaches the providers on the application's STA, builds the recorded update when the view's
-geometry is still the prepared one, checked without side effects (no query path cancels a pointer gesture: the deferred
-build, GetItem materialization and `GetAccessibilityProvider` all use the side-effect-free check; only the application's
-own UpdateAccessibility, Prepare and input calls apply the cancelling one): a
-paint-only change since, such as a value an input handler set before the next Prepare, is read as it is now, as
-Grid row materialization already reads it. Text-range and row rectangles are not stored with the build: each query
-computes them on the owner thread from the controls' current layout, so such a build pairs no value with unprepared
-geometry (`TestAccessibilityClientGateEmbeddedUnpreparedTextHasCurrentRangeBounds`). A query that finds the tree or bounds changed since reads the last built
-snapshot and makes the next update build; a query that met a deferred update also makes the next 120 changed updates
-build as they come, so a client that keeps querying reads at worst the previous frame, as before the gate. A
-query's build of a deferred update keeps the event invariant: with no listener the baseline catches up silently, with
-one the delta from the baseline is raised at once. A GetItem materialization that finds an update still deferred builds
-it at that update's placement. The first update (attachment) always builds. An
-update that builds while a client listens raises everything that changed since the event baseline. Residual: the
-first query after a quiet spell that arrives while the tree or bounds changed and before the next Prepare reads the
-last built snapshot, which can be older than the last update. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
+without allocation. Until a provider call first reaches the view during this attachment, and while the system reports no
+listening client, a changed update after the first (attaching) one only records its preparation and placement and returns
+`S_OK`: it builds nothing, however often the application calls it. Handing out the root (GetAccessibilityProvider) is not a
+request, since an application's bridge does that at attachment; a call of one of its methods is. The first request builds
+the recorded update when the view's geometry is still that of its last preparation at the recorded size (a paint-only
+change since is read as it is now, as Grid row materialization reads it). That snapshot becomes the event baseline: with no
+listener silently, since nobody had asked or listened; with a listener the delta from the baseline is raised then (a
+change recorded unheard is raised too, redundantly). A first request that finds the tree or bounds changed since keeps the
+snapshot last built, and the next update builds. From the first request on, every changed update builds and raises exactly
+as before the gate. No query path cancels a pointer gesture: the first-request build, GetItem materialization (which
+refuses while an update is still recorded) and GetAccessibilityProvider use a check without side effects; only the
+application's own UpdateAccessibility, Prepare and input calls apply the cancelling one. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
 snapshot allocation or UIA wake-up cost. Prepared snapshots expose confirmed Toggle, RangeValue, text/value and
 focus state. Changed active snapshots raise applicable property, text, focus, structure and (for a Tree or a Grid)
 [selection](#selection-events) events only while UIA clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.

@@ -1,11 +1,8 @@
 #pragma once
 
-void TestAccessibilityClientGateAdviseCoversWindowScopedSubscriptions();
-void TestAccessibilityClientGateEmbeddedAdviseProbe();
-void TestAccessibilityClientGateTerminatedClientSubscriptionEnds();
 void TestAccessibilityClientGateFx6OneClientHearsTheReferenceEvents();
 void TestAccessibilityClientGateFx6NoClientBuildsNothing();
-void TestAccessibilityClientGateFx6ReleasedProbeBuildsNothing();
+void TestAccessibilityClientGateFx6RequestedWindowKeepsBuilding();
 void TestAccessibilityClientGateHeldElementQueryReadsCurrentState();
 void TestAccessibilityClientGateResubscribedClientMissesNothing();
 void TestAccessibilityClientGateFx6EmbeddedEveryFrameBuildsNothing();
@@ -13,19 +10,14 @@ void TestAccessibilityClientGateQueriedStateIsTheBaselineOfLaterEvents();
 void TestAccessibilityClientGateEmbeddedQueriedStateIsTheBaselineOfLaterEvents();
 void TestAccessibilityClientGateEmbeddedQueryBeforePrepareReadsCurrentValue();
 void TestAccessibilityClientGateEmbeddedQueryDoesNotCancelADrag();
-void TestAccessibilityClientGateBusyWindowThreadCostsOneWaitPerRevision();
-void TestAccessibilityClientGateAdvisedClientHearsSelectionEvents();
-void TestAccessibilityClientGateMsaaClientCountsAsListener();
 void TestAccessibilityClientGateSubscribedThenQueriedStateIsTheBaselineOfLaterEvents();
 void TestAccessibilityClientGateMixedBatchKeepsTheHeardChange();
 void TestAccessibilityClientGateEmbeddedSubscribedThenQueriedStateIsTheBaselineOfLaterEvents();
 void TestAccessibilityClientGateEmbeddedMixedBatchKeepsTheHeardChange();
-void TestAccessibilityClientGateFailedPublicationRequestIsRetried();
-void TestAccessibilityClientGateRequestToAHungWindowIsPosted();
 void TestAccessibilityClientGateEmbeddedProviderRequestDoesNotCancelADrag();
 void TestAccessibilityClientGateEmbeddedGetItemDoesNotCancelADrag();
-void TestAccessibilityClientGateOutOfProcessQueryOnlyClientIsNoMsaaClient();
+void TestAccessibilityClientGateOutOfProcessQueryOnlyClientLatchesTheWindow();
 void TestAccessibilityClientGateEmbeddedUnpreparedTextHasCurrentRangeBounds();
-void TestAccessibilityClientGateSubscribedThenOwnerQueriedStateIsTheBaselineOfLaterEvents();
-// The client process TestAccessibilityClientGateTerminatedClientSubscriptionEnds starts; -1 when the arguments are not its own.
-int RunAccessibilityClientGateSubscriberChild(int argc, wchar_t** argv) noexcept;
+void TestAccessibilityClientGateEmbeddedFirstRequestBeforePrepareReadsTheLastBuild();
+// The client process TestAccessibilityClientGateOutOfProcessQueryOnlyClientLatchesTheWindow starts; -1 when the arguments are not its own.
+int RunAccessibilityClientGateQueryChild(int argc, wchar_t** argv) noexcept;
