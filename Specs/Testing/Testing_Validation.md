@@ -86,7 +86,9 @@ retained cache, a partial frame or a skipped paint MUST pass the incremental-ver
 (`Tests/Support/Support.Tests.IncrementalParity.h`; native suite `Rendering`, `Controls.Tests.IncrementalParity.cpp`;
 embedded `Embedded.Tests.IncrementalParity.h`). Two identical scenes run one seeded mutation script. After every step
 the incremental scene draws with what it retained; the fresh scene first calls `DebugDropRetainedStateForTest()` (on
-`ControlHost` and `EmbeddedHost`), every registered cache MUST then report 0 entries, and it draws from scratch. The
+`ControlHost` and `EmbeddedHost`), every registered cache MUST then report 0 entries, and it draws from scratch. Its
+build, steps and captures also run with the private fresh-preparation seam (`SetFreshPreparationForTest`), under which
+preparation never reuses a previous publication's values (the semantic builder's unchanged blocks). The
 two frames MUST agree exactly in premultiplied BGRA on WARP, in the bounds, visibility, enabled, focus and hover state of
 every control, and in the UI Automation tree (control type, name, automation id, state, value, toggle, expand, selection,
 range value, help text and bounding rectangle per element). A failure names the script, seed, step, first differing

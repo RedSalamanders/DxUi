@@ -5,6 +5,7 @@
 #include "DxUi.MarkdownMetadata.h"
 #include "DxUi.MarkdownSourceCorrelation.h"
 #include "DxUi.TextElements.h"
+#include "Support/WorkCounters.h"
 #include <DxUi/Failure.h>
 #include <DxUi/MarkdownSyntax.h>
 #include <atomic>
@@ -415,6 +416,7 @@ struct MarkdownParser::Preparation
             const auto& block   = oldNode.block;
             const auto parent   = oldNode.parent == MarkdownNoNode ? 0u : previous->Nodes()[oldNode.parent].identity;
             oldNodes.emplace(NodeKey{parent, block.source.first, block.source.last, block.kind}, oldIndexCursor++);
+            ++::DxUi::Detail::Work().rich.identityMapNodes;
             return;
         }
         if (identityCursor == syntax->nodes_.size())

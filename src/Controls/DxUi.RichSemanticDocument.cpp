@@ -10,6 +10,11 @@
 #include <optional>
 #include <set>
 
+namespace DxUi
+{
+// DxUi.RetainedCaches.h: the incremental-versus-fresh oracle's fresh scene builds without reuse.
+[[nodiscard]] bool IsFreshPreparationForTest() noexcept;
+} // namespace DxUi
 namespace DxUi::RichText
 {
 namespace
@@ -499,7 +504,8 @@ struct SemanticBuilder::Preparation
                          std::size_t sourceBlock,
                          std::span<const Detail::NativeSourceFallback> sourceObjects,
                          std::span<const Detail::DisclosureOverride> disclosureStates,
-                         SoftBreakPolicy softBreakPolicyValue)
+                         SoftBreakPolicy softBreakPolicyValue,
+                         std::shared_ptr<const SemanticDocument> previousPublication)
         : document(new SemanticDocument(std::move(syntax))),
           output(document->runs_),
           visits(0u),
@@ -508,7 +514,9 @@ struct SemanticBuilder::Preparation
           footerByNode(0u),
           footerOrder(0u),
           abbreviations(0u),
-          softBreakPolicy(softBreakPolicyValue)
+          softBreakPolicy(softBreakPolicyValue),
+          projection(std::make_shared<Detail::SemanticProjectionIndex>()),
+          topNodes(0u)
     {
         document->sourceBlock_ = sourceBlock;
         if (! sourceObjects.empty())
@@ -532,6 +540,7 @@ struct SemanticBuilder::Preparation
         }
         abbreviationPending = HasMarkdownExtension(document->syntax_->Extensions(), MarkdownExtensions::Abbreviations);
         visits.push_back({});
+        PlanReuse(std::move(previousPublication));
     }
     bool NativeSourceFallback(MarkdownRange source) const noexcept
     {
@@ -574,6 +583,593 @@ struct SemanticBuilder::Preparation
     bool abbreviationPending{};
     SoftBreakPolicy softBreakPolicy;
     std::size_t nextFooter{};
+
+    // Block-incremental projection. See SemanticBlockCut for the invariants.
+    // A compatible previous publication lends its unchanged leading and
+    // trailing top-level blocks; only the blocks between them are built.
+    std::shared_ptr<Detail::SemanticProjectionIndex> projection;
+    std::vector<std::size_t> topNodes; // New top-level syntax nodes in sibling order (incremental builds only).
+    std::shared_ptr<const SemanticDocument> previous;
+    std::size_t reusePrefix{}, reuseSuffix{}, topCursor{}, callouts{};
+    bool incremental{}, admissionRefused{};
+    enum class FullBuild
+    {
+        NoPrevious,
+        Presentation,
+        Footnotes,
+        References,
+        FrontMatter,
+        Abbreviations,
+        Capacity,
+        Structure
+    };
+    static void CountFullBuild(FullBuild cause) noexcept
+    {
+        auto& rich = ::DxUi::Detail::Work().rich;
+        switch (cause)
+        {
+            case FullBuild::Presentation: ++rich.semanticFullBuildPresentation; break;
+            case FullBuild::Footnotes: ++rich.semanticFullBuildFootnotes; break;
+            case FullBuild::References: ++rich.semanticFullBuildReferences; break;
+            case FullBuild::FrontMatter: ++rich.semanticFullBuildFrontMatter; break;
+            case FullBuild::Abbreviations: ++rich.semanticFullBuildAbbreviations; break;
+            case FullBuild::Capacity: ++rich.semanticFullBuildCapacity; break;
+            case FullBuild::Structure: ++rich.semanticFullBuildStructure; break;
+            case FullBuild::NoPrevious:
+            default: ++rich.semanticFullBuildNoPrevious; break;
+        }
+    }
+    static MarkdownRange Shift(MarkdownRange range, std::size_t delta) noexcept
+    {
+        // Unsigned deltas wrap: adding (new - old) moves either direction.
+        return {range.first + delta, range.last + delta};
+    }
+    // Whether a syntax subtree contains a node of the given kind. Bounded by
+    // the subtree, which is only ever an edited block.
+    static bool SubtreeContains(const MarkdownSyntax& syntax, std::size_t root, MarkdownBlockKind kind)
+    {
+        const auto& nodes = syntax.Nodes();
+        if (nodes[root].block.kind == kind)
+            return true;
+        std::vector<std::size_t> pending(0u);
+        if (nodes[root].firstChild != MarkdownNoNode)
+            pending.push_back(nodes[root].firstChild);
+        while (! pending.empty())
+        {
+            const auto index = pending.back();
+            pending.pop_back();
+            if (nodes[index].block.kind == kind)
+                return true;
+            if (nodes[index].nextSibling != MarkdownNoNode)
+                pending.push_back(nodes[index].nextSibling);
+            if (nodes[index].firstChild != MarkdownNoNode)
+                pending.push_back(nodes[index].firstChild);
+        }
+        return false;
+    }
+    std::size_t Objects() const noexcept
+    {
+        const auto* extensions = document->extensions_.get();
+        return extensions ? extensions->images.size() + extensions->maths.size() + extensions->diagrams.size() : 0u;
+    }
+    void PlanReuse(std::shared_ptr<const SemanticDocument> candidate)
+    {
+        const auto& syntax = *document->syntax_;
+        if (! candidate || ! candidate->projection_ || candidate->projection_->blocks.empty() || candidate->syntax_->Profile() != syntax.Profile() ||
+            candidate->syntax_->Extensions() != syntax.Extensions())
+            return CountFullBuild(FullBuild::NoPrevious);
+        const auto& old       = *candidate;
+        const auto& oldSyntax = *old.syntax_;
+        if (old.sourceBlock_ != MarkdownNoNode || document->sourceBlock_ != MarkdownNoNode || oldSyntax.SourceRegion() || syntax.SourceRegion() ||
+            ! Detail::SemanticExtensionAccess::SourceObjects(old).empty() || ! Detail::SemanticExtensionAccess::SourceObjects(*document).empty() ||
+            ! std::ranges::equal(Detail::SemanticExtensionAccess::Disclosures(old), Detail::SemanticExtensionAccess::Disclosures(*document)))
+            return CountFullBuild(FullBuild::Presentation);
+        if (! syntax.Footnotes().empty() || ! syntax.FootnoteReferences().empty() || ! oldSyntax.Footnotes().empty() ||
+            ! oldSyntax.FootnoteReferences().empty())
+            return CountFullBuild(FullBuild::Footnotes);
+        if (! Detail::SemanticExtensionAccess::AbbreviationNodes(old).empty())
+            return CountFullBuild(FullBuild::Abbreviations);
+        const bool definitionLists = HasMarkdownExtension(syntax.Extensions(), MarkdownExtensions::DefinitionLists);
+        if (old.projection_->admissionRefused ||
+            (definitionLists && oldSyntax.Nodes().size() + old.paragraphs_.size() + DefinitionListMargin > SemanticDocument::MaximumParagraphs))
+            return CountFullBuild(FullBuild::Capacity);
+        // Edit envelope: the unchanged prefix and suffix of the two sources.
+        const auto a = oldSyntax.Source(), b = syntax.Source();
+        const auto limit  = std::min(a.size(), b.size());
+        const auto prefix = static_cast<std::size_t>(std::mismatch(a.begin(), a.begin() + static_cast<std::ptrdiff_t>(limit), b.begin()).first - a.begin());
+        const auto suffix =
+            static_cast<std::size_t>(std::mismatch(a.rbegin(), a.rbegin() + static_cast<std::ptrdiff_t>(limit - prefix), b.rbegin()).first - a.rbegin());
+        const auto& nodes = syntax.Nodes();
+        for (auto child = nodes[0u].firstChild; child != MarkdownNoNode; child = nodes[child].nextSibling)
+            topNodes.push_back(child);
+        // Pair blocks by range: identical leading blocks inside the prefix and
+        // trailing blocks inside the suffix, shifted by the length change.
+        const auto& cuts    = old.projection_->blocks;
+        const auto oldCount = cuts.size() - 1u;
+        const auto newCount = topNodes.size();
+        const auto delta    = b.size() - a.size();
+        std::size_t leading = 0u, trailing = 0u;
+        while (leading < oldCount && leading < newCount && cuts[leading].kind == nodes[topNodes[leading]].block.kind &&
+               cuts[leading].source == nodes[topNodes[leading]].block.source && cuts[leading].source.last <= prefix)
+            ++leading;
+        while (trailing < oldCount - leading && trailing < newCount - leading)
+        {
+            const auto& cut  = cuts[oldCount - 1u - trailing];
+            const auto& node = nodes[topNodes[newCount - 1u - trailing]];
+            if (cut.kind != node.block.kind || cut.source.first < a.size() - suffix || Shift(cut.source, delta) != node.block.source)
+                break;
+            ++trailing;
+        }
+        // Constructs with document-wide effect in an edited block rebuild everything.
+        for (auto index = leading; index < oldCount - trailing; ++index)
+        {
+            if (SubtreeContains(oldSyntax, cuts[index].node, MarkdownBlockKind::ReferenceDefinition))
+                return CountFullBuild(FullBuild::References);
+            if (SubtreeContains(oldSyntax, cuts[index].node, MarkdownBlockKind::FrontMatter))
+                return CountFullBuild(FullBuild::FrontMatter);
+        }
+        for (auto index = leading; index < newCount - trailing; ++index)
+        {
+            if (SubtreeContains(syntax, topNodes[index], MarkdownBlockKind::ReferenceDefinition))
+                return CountFullBuild(FullBuild::References);
+            if (SubtreeContains(syntax, topNodes[index], MarkdownBlockKind::FrontMatter))
+                return CountFullBuild(FullBuild::FrontMatter);
+        }
+        if (abbreviationPending)
+        {
+            for (auto index = leading; index < newCount - trailing && abbreviations.empty(); ++index)
+                PrepareAbbreviation(topNodes[index]);
+            if (! abbreviations.empty())
+            {
+                abbreviations.clear();
+                document->extensions_->abbreviationNodes.clear();
+                return CountFullBuild(FullBuild::Abbreviations);
+            }
+        }
+        abbreviationPending          = false;
+        previous                     = std::move(candidate);
+        reusePrefix                  = leading;
+        reuseSuffix                  = trailing;
+        incremental                  = true;
+        document->hasPropertiesBody_ = previous->hasPropertiesBody_;
+        projection->previousIdentity = previous->identity_;
+    }
+    // Abandon reuse and build from the beginning, counting why.
+    void RestartFull(FullBuild cause)
+    {
+        CountFullBuild(cause);
+        incremental = false;
+        previous.reset();
+        auto& value = *document;
+        value.elements_.clear();
+        value.paragraphs_.clear();
+        value.navigation_.clear();
+        value.headings_.clear();
+        value.runs_.clear();
+        value.sourceRuns_.clear();
+        value.hasCallouts_       = false;
+        value.hasPropertiesBody_ = false;
+        if (value.extensions_)
+        {
+            auto& extensions = *value.extensions_;
+            extensions.diagrams.clear();
+            extensions.maths.clear();
+            extensions.diagnostics.clear();
+            extensions.images.clear();
+            extensions.abbreviationNodes.clear();
+            extensions.candidates = extensions.records = 0u;
+        }
+        output.text.clear();
+        output.spans.clear();
+        visits.clear();
+        visits.push_back({});
+        tails.clear();
+        std::ranges::fill(ordinals, 0u);
+        headingCache.reset();
+        abbreviations.clear();
+        abbreviationWork.reset();
+        abbreviationCursor  = 1u;
+        abbreviationPending = HasMarkdownExtension(value.syntax_->Extensions(), MarkdownExtensions::Abbreviations);
+        diagram.reset();
+        html.Reset();
+        htmlDisplayFirst = 0u;
+        normalized.text.clear();
+        normalized.units.clear();
+        projection->blocks.clear();
+        projection->previousIdentity = 0u;
+        topNodes.clear();
+        reusePrefix = reuseSuffix = topCursor = callouts = 0u;
+        admissionRefused                                 = false;
+    }
+    void RecordCut(std::size_t node)
+    {
+        const auto& syntax = *document->syntax_;
+        auto& cut          = projection->blocks.emplace_back();
+        cut.node           = node;
+        if (node == MarkdownNoNode)
+            cut.source = {syntax.Source().size(), syntax.Source().size()};
+        else
+        {
+            cut.source = syntax.Nodes()[node].block.source;
+            cut.kind   = syntax.Nodes()[node].block.kind;
+        }
+        cut.display   = output.text.size();
+        cut.element   = document->elements_.size();
+        cut.paragraph = document->paragraphs_.size();
+        cut.heading   = document->headings_.size();
+        if (const auto* extensions = document->extensions_.get())
+        {
+            cut.maths       = extensions->maths.size();
+            cut.images      = extensions->images.size();
+            cut.diagrams    = extensions->diagrams.size();
+            cut.diagnostics = extensions->diagnostics.size();
+            cut.records     = extensions->records;
+            cut.candidates  = extensions->candidates;
+        }
+        cut.callouts    = callouts;
+        cut.lastTop     = tails.empty() ? MarkdownNoNode : tails[0u];
+        cut.htmlPending = html.valid && htmlDisplayFirst == output.text.size();
+    }
+    // A reused suffix continues exactly where the rebuilt blocks stop only if
+    // the boundary state it was built after is the same.
+    bool SameBoundary(const Detail::SemanticBlockCut& cut) const
+    {
+        const auto display = previous->Map().Display();
+        if (cut.htmlPending || (html.valid && htmlDisplayFirst == output.text.size()))
+            return false;
+        return output.text.empty() ? cut.display == 0u : cut.display != 0u && display[cut.display - 1u] == output.text.back();
+    }
+    // The syntax node a reused element or paragraph refers to, checked against
+    // the new syntax. MarkdownNoNode means the pairing failed.
+    std::size_t PairedNode(std::size_t oldNode, std::size_t nodeDelta, std::size_t sourceDelta) const noexcept
+    {
+        if (oldNode == MarkdownNoNode)
+            return MarkdownNoNode;
+        const auto& oldNodes = previous->syntax_->Nodes();
+        const auto& newNodes = document->syntax_->Nodes();
+        const auto paired    = oldNode + nodeDelta;
+        if (oldNode >= oldNodes.size() || paired >= newNodes.size() || oldNodes[oldNode].block.kind != newNodes[paired].block.kind ||
+            Shift(oldNodes[oldNode].block.source, sourceDelta) != newNodes[paired].block.source)
+            return MarkdownNoNode;
+        return paired;
+    }
+    static constexpr std::size_t DefinitionListMargin = 64u; // Reserve plus the 17-line maximum, with room.
+#ifdef _DEBUG
+    // Debug proof of the reuse invariant: the paired syntax subtrees are equal
+    // apart from the uniform source shift and node index offset.
+    void VerifyReusedSubtree(std::size_t oldRoot, std::size_t newRoot, std::size_t sourceDelta) const
+    {
+        const auto& oldSyntax = *previous->syntax_;
+        const auto& newSyntax = *document->syntax_;
+        std::vector<std::pair<std::size_t, std::size_t>> pending(1u, {oldRoot, newRoot});
+        while (! pending.empty())
+        {
+            const auto [left, right] = pending.back();
+            pending.pop_back();
+            const auto& a = oldSyntax.Nodes()[left];
+            const auto& b = newSyntax.Nodes()[right];
+            if (a.block.kind != b.block.kind || Shift(a.block.source, sourceDelta) != b.block.source ||
+                Shift(a.block.content, sourceDelta) != b.block.content || a.block.heading != b.block.heading || a.block.closed != b.block.closed ||
+                a.lines.size() != b.lines.size() || a.listStart != b.listStart || a.listMarker != b.listMarker || a.tight != b.tight || a.task != b.task ||
+                a.alignment != b.alignment || a.tableHeader != b.tableHeader || (a.firstChild == MarkdownNoNode) != (b.firstChild == MarkdownNoNode) ||
+                (left != oldRoot && (a.nextSibling == MarkdownNoNode) != (b.nextSibling == MarkdownNoNode)))
+                Failure::FailContract(E_UNEXPECTED);
+            for (auto x = a.firstInline, y = b.firstInline; x != MarkdownNoNode || y != MarkdownNoNode;)
+            {
+                if (x == MarkdownNoNode || y == MarkdownNoNode)
+                    Failure::FailContract(E_UNEXPECTED);
+                VerifyReusedInline(x, y, sourceDelta);
+                x = oldSyntax.Inlines()[x].nextSibling;
+                y = newSyntax.Inlines()[y].nextSibling;
+            }
+            if (left != oldRoot && a.nextSibling != MarkdownNoNode)
+                pending.push_back({a.nextSibling, b.nextSibling});
+            if (a.firstChild != MarkdownNoNode)
+                pending.push_back({a.firstChild, b.firstChild});
+        }
+    }
+    void VerifyReusedInline(std::size_t left, std::size_t right, std::size_t sourceDelta) const
+    {
+        const auto& a = previous->syntax_->Inlines()[left];
+        const auto& b = document->syntax_->Inlines()[right];
+        if (a.kind != b.kind || Shift(a.source, sourceDelta) != b.source || a.value != b.value || a.destination != b.destination || a.title != b.title ||
+            a.wiki != b.wiki || (a.firstChild == MarkdownNoNode) != (b.firstChild == MarkdownNoNode))
+            Failure::FailContract(E_UNEXPECTED);
+        for (auto x = a.firstChild, y = b.firstChild; x != MarkdownNoNode || y != MarkdownNoNode;)
+        {
+            if (x == MarkdownNoNode || y == MarkdownNoNode)
+                Failure::FailContract(E_UNEXPECTED);
+            VerifyReusedInline(x, y, sourceDelta);
+            x = previous->syntax_->Inlines()[x].nextSibling;
+            y = document->syntax_->Inlines()[y].nextSibling;
+        }
+    }
+#endif
+    // Copy old blocks [oldFirst, oldLast) as new top-level blocks starting at
+    // topNodes[newFirst]. One indivisible event. False when the build restarted
+    // or failed instead.
+    bool CopyBlocks(std::size_t oldFirst, std::size_t oldLast, std::size_t newFirst, bool trailing)
+    {
+        const auto& old           = *previous;
+        const auto& oldCuts       = old.projection_->blocks;
+        const auto& from          = oldCuts[oldFirst];
+        const auto& to            = oldCuts[oldLast];
+        const auto& newNodes      = document->syntax_->Nodes();
+        const auto sourceDelta    = newNodes[topNodes[newFirst]].block.source.first - from.source.first;
+        auto& elements            = document->elements_;
+        auto& paragraphs          = document->paragraphs_;
+        const auto oldElements    = old.Elements();
+        const auto oldParagraphs  = old.Paragraphs();
+        const auto* oldExtensions = old.extensions_.get();
+        // Admission: equal to what a fresh build would accept or refuse.
+        if (to.element - from.element > SemanticDocument::MaximumElements - elements.size() ||
+            to.paragraph - from.paragraph > SemanticDocument::MaximumParagraphs - paragraphs.size())
+        {
+            capacityExceeded = true;
+            return false;
+        }
+        if (trailing)
+        {
+            const auto* extensions     = document->extensions_.get();
+            const auto records         = (extensions ? extensions->records : 0u) + (to.records - from.records);
+            const auto candidates      = (extensions ? extensions->candidates : 0u) + (to.candidates - from.candidates);
+            const auto objects         = Objects() + (to.maths - from.maths) + (to.images - from.images) + (to.diagrams - from.diagrams);
+            const bool definitionLists = HasMarkdownExtension(document->syntax_->Extensions(), MarkdownExtensions::DefinitionLists);
+            if (admissionRefused || objects > Detail::SemanticExtensions::MaximumObjects || records > Detail::SemanticExtensions::MaximumRecords ||
+                candidates > Detail::SemanticExtensions::MaximumObjects ||
+                (definitionLists && newNodes.size() + paragraphs.size() + (oldCuts.back().paragraph - from.paragraph) + DefinitionListMargin >
+                                        SemanticDocument::MaximumParagraphs))
+            {
+                RestartFull(FullBuild::Capacity);
+                return false;
+            }
+        }
+        else if (HasMarkdownExtension(document->syntax_->Extensions(), MarkdownExtensions::DefinitionLists) &&
+                 newNodes.size() + to.paragraph + DefinitionListMargin > SemanticDocument::MaximumParagraphs)
+        {
+            RestartFull(FullBuild::Capacity);
+            return false;
+        }
+        const auto displayDelta   = output.text.size() - from.display;
+        const auto elementDelta   = elements.size() - from.element;
+        const auto paragraphDelta = paragraphs.size() - from.paragraph;
+        const auto headingDelta   = document->headings_.size() - from.heading;
+        const auto lastTop        = tails.empty() ? MarkdownNoNode : tails[0u];
+        // Display text, then spans and runs clipped to the copied range.
+        output.AppendText(old.Map().Display().substr(from.display, to.display - from.display));
+        if (output.capacityExceeded)
+            return false;
+        const auto spans = old.Map().Spans();
+        for (auto span = std::upper_bound(spans.begin(), spans.end(), from.display, [](auto value, const auto& item) { return value < item.display.last; });
+             span != spans.end() && span->display.first < to.display;
+             ++span)
+        {
+            DisplaySpan piece = *span;
+            piece.display     = {std::max(from.display, span->display.first), std::min(to.display, span->display.last)};
+            if (piece.kind == DisplaySpanKind::Source)
+                piece.source = {span->source.first + piece.display.first - span->display.first, span->source.first + piece.display.last - span->display.first};
+            piece.display = Shift(piece.display, displayDelta);
+            piece.source  = Shift(piece.source, sourceDelta);
+            output.AppendSpan(piece);
+        }
+        if (output.capacityExceeded)
+            return false;
+        const auto runs = old.Runs();
+        for (auto run = std::upper_bound(runs.begin(), runs.end(), from.display, [](auto value, const auto& item) { return value < item.start + item.length; });
+             run != runs.end() && run->start < to.display;
+             ++run)
+        {
+            const auto first = std::max(from.display, run->start), last = std::min(to.display, run->start + run->length);
+            output.AppendRun({first + displayDelta, last - first, run->flags, run->heading});
+        }
+        // Blocks: cuts, elements and paragraphs with their syntax pairing.
+        for (auto block = oldFirst; block < oldLast; ++block)
+        {
+            const auto& oldCut   = oldCuts[block];
+            const auto& nextCut  = oldCuts[block + 1u];
+            const auto newTop    = topNodes[newFirst + block - oldFirst];
+            const auto nodeDelta = newTop - oldCut.node;
+#ifdef _DEBUG
+            VerifyReusedSubtree(oldCut.node, newTop, sourceDelta);
+#endif
+            auto& cut              = projection->blocks.emplace_back(oldCut);
+            cut.node               = newTop;
+            cut.source             = Shift(oldCut.source, sourceDelta);
+            cut.display            = oldCut.display + displayDelta;
+            cut.element            = oldCut.element + elementDelta;
+            cut.paragraph          = oldCut.paragraph + paragraphDelta;
+            cut.heading            = oldCut.heading + headingDelta;
+            cut.callouts           = callouts + (oldCut.callouts - from.callouts);
+            cut.lastTop            = oldCut.lastTop != MarkdownNoNode && oldCut.lastTop >= from.element ? oldCut.lastTop + elementDelta : lastTop;
+            cut.reusedFrom         = block;
+            const auto* extensions = document->extensions_.get();
+            cut.maths              = (extensions ? extensions->maths.size() : 0u) + (oldCut.maths - from.maths);
+            cut.images             = (extensions ? extensions->images.size() : 0u) + (oldCut.images - from.images);
+            cut.diagrams           = (extensions ? extensions->diagrams.size() : 0u) + (oldCut.diagrams - from.diagrams);
+            cut.diagnostics        = (extensions ? extensions->diagnostics.size() : 0u) + (oldCut.diagnostics - from.diagnostics);
+            cut.records            = (extensions ? extensions->records : 0u) + (oldCut.records - from.records);
+            cut.candidates         = (extensions ? extensions->candidates : 0u) + (oldCut.candidates - from.candidates);
+            const auto link        = [&](std::size_t index) { return index == MarkdownNoNode || index >= to.element ? MarkdownNoNode : index + elementDelta; };
+            for (auto index = oldCut.element; index < nextCut.element; ++index)
+            {
+                auto element    = oldElements[index];
+                element.source  = Shift(element.source, sourceDelta);
+                element.display = Shift(element.display, displayDelta);
+                if (element.role == SemanticRole::Task)
+                    element.taskMarker = Shift(element.taskMarker, sourceDelta);
+                if (element.parent != 0u && element.parent != MarkdownNoNode)
+                    element.parent += elementDelta;
+                element.firstChild  = link(element.firstChild);
+                element.nextSibling = link(element.nextSibling);
+                if (element.syntaxNode != MarkdownNoNode)
+                {
+                    element.syntaxNode = PairedNode(element.syntaxNode, nodeDelta, sourceDelta);
+                    if (element.syntaxNode == MarkdownNoNode)
+                    {
+                        RestartFull(FullBuild::Structure);
+                        return false;
+                    }
+                }
+                if (element.blockIdentity && element.blockIdentity != ReusedIdentity(element))
+                {
+                    RestartFull(FullBuild::Structure);
+                    return false;
+                }
+                elements.push_back(std::move(element));
+                tails.push_back(MarkdownNoNode);
+            }
+            for (auto index = oldCut.paragraph; index < nextCut.paragraph; ++index)
+            {
+                auto paragraph    = oldParagraphs[index];
+                paragraph.display = Shift(paragraph.display, displayDelta);
+                paragraph.element += elementDelta;
+                paragraph.syntaxNode = PairedNode(paragraph.syntaxNode, nodeDelta, sourceDelta);
+                if (paragraph.table != MarkdownNoNode)
+                    paragraph.table += elementDelta;
+                if (paragraph.markerEnd)
+                    paragraph.markerEnd += displayDelta;
+                if (paragraph.emptyInsertion != MarkdownNoNode)
+                    paragraph.emptyInsertion += sourceDelta;
+                const auto owner      = paragraph.markerOwner;
+                paragraph.markerOwner = PairedNode(owner, nodeDelta, sourceDelta);
+                if (paragraph.syntaxNode == MarkdownNoNode || (owner != MarkdownNoNode && paragraph.markerOwner == MarkdownNoNode))
+                {
+                    RestartFull(FullBuild::Structure);
+                    return false;
+                }
+                paragraphs.push_back(paragraph);
+            }
+        }
+        // Root linkage: the first copied top-level element follows the last
+        // one already present, exactly as Element() links a new child.
+        for (auto index = from.element; index < to.element; ++index)
+            if (oldElements[index].parent == 0u)
+            {
+                if (lastTop == MarkdownNoNode)
+                    elements[0u].firstChild = index + elementDelta;
+                else
+                    elements[lastTop].nextSibling = index + elementDelta;
+                break;
+            }
+        if (to.lastTop != MarkdownNoNode && to.lastTop >= from.element)
+            tails[0u] = to.lastTop + elementDelta;
+        for (auto index = from.heading; index < to.heading; ++index)
+        {
+            auto heading = old.headings_[index];
+            heading.element += elementDelta;
+            heading.source = Shift(heading.source, sourceDelta);
+            heading.target = Shift(heading.target, sourceDelta);
+            document->headings_.push_back(std::move(heading));
+        }
+        if (oldExtensions && (to.maths != from.maths || to.images != from.images || to.diagrams != from.diagrams || to.diagnostics != from.diagnostics ||
+                              to.candidates != from.candidates))
+        {
+            auto& extensions = Extensions();
+            for (auto index = from.maths; index < to.maths; ++index)
+            {
+                auto formula = oldExtensions->maths[index];
+                formula.element += elementDelta;
+                extensions.maths.push_back(std::move(formula));
+            }
+            for (auto index = from.images; index < to.images; ++index)
+                extensions.images.push_back(oldExtensions->images[index] + elementDelta);
+            for (auto index = from.diagrams; index < to.diagrams; ++index)
+            {
+                auto graph = oldExtensions->diagrams[index];
+                graph.element += elementDelta;
+                graph.display = Shift(graph.display, displayDelta);
+                for (auto& unit : graph.bodyUnits)
+                    unit.source = Shift(unit.source, sourceDelta);
+                graph.sourceEnd += sourceDelta;
+                extensions.diagrams.push_back(std::move(graph));
+            }
+            for (auto index = from.diagnostics; index < to.diagnostics; ++index)
+            {
+                auto diagnostic = oldExtensions->diagnostics[index];
+                diagnostic.element += elementDelta;
+                diagnostic.source = Shift(diagnostic.source, sourceDelta);
+                extensions.diagnostics.push_back(diagnostic);
+            }
+            extensions.records += to.records - from.records;
+            extensions.candidates += to.candidates - from.candidates;
+        }
+        callouts += to.callouts - from.callouts;
+        document->hasCallouts_ = callouts != 0u;
+        auto& work             = ::DxUi::Detail::Work().rich;
+        work.semanticBlocksReused += oldLast - oldFirst;
+        work.semanticElementsReused += to.element - from.element;
+        return true;
+    }
+    // The block identity a copied element must still have: its own syntax
+    // node's, or for a task marker the owning list item's.
+    std::uint64_t ReusedIdentity(const SemanticElement& element) const noexcept
+    {
+        const auto& nodes = document->syntax_->Nodes();
+        if (element.role != SemanticRole::Task)
+            return element.syntaxNode < nodes.size() ? nodes[element.syntaxNode].identity : 0u;
+        if (element.parent >= document->elements_.size())
+            return 0u;
+        for (auto node = document->elements_[element.parent].syntaxNode; node < nodes.size(); node = nodes[node].parent)
+            if (nodes[node].block.kind == MarkdownBlockKind::ListItem)
+                return nodes[node].identity;
+        return 0u;
+    }
+    // Called for each top-level visit. False when the visit is consumed by a
+    // reused block range (or the build restarted).
+    bool TopLevel(Visit& visit)
+    {
+        if (incremental)
+        {
+            const auto oldCount = previous->projection_->blocks.size() - 1u;
+            if (topCursor == 0u && reusePrefix)
+            {
+                if (! CopyBlocks(0u, reusePrefix, 0u, false))
+                    return false;
+                topCursor = reusePrefix;
+                if (topCursor == topNodes.size())
+                    return false;
+                visit.node = topNodes[topCursor];
+            }
+            if (reuseSuffix && topCursor == topNodes.size() - reuseSuffix)
+            {
+                if (SameBoundary(previous->projection_->blocks[oldCount - reuseSuffix]))
+                {
+                    if (CopyBlocks(oldCount - reuseSuffix, oldCount, topCursor, true))
+                        topCursor = topNodes.size();
+                    return false;
+                }
+                --reuseSuffix;
+            }
+        }
+        RecordCut(visit.node);
+        ++topCursor;
+        return true;
+    }
+    // Incremental slugs: when the edited blocks hold the same heading bases as
+    // before, every slug is unchanged; otherwise replay them all in order.
+    void FinishHeadings()
+    {
+        if (! incremental)
+            return;
+        const auto& oldCuts = previous->projection_->blocks;
+        const auto& newCuts = projection->blocks;
+        const auto oldCount = oldCuts.size() - 1u, newCount = newCuts.size() - 1u;
+        const auto oldFirst = oldCuts[reusePrefix].heading, oldLast = oldCuts[oldCount - reuseSuffix].heading;
+        const auto newFirst = newCuts[reusePrefix].heading, newLast = newCuts[newCount - reuseSuffix].heading;
+        auto& headings = document->headings_;
+        bool same      = oldLast - oldFirst == newLast - newFirst;
+        for (std::size_t index = 0u; same && index < newLast - newFirst; ++index)
+            same = HeadingBase(previous->headings_[oldFirst + index].name) == HeadingBase(headings[newFirst + index].name);
+        if (same)
+        {
+            for (std::size_t index = 0u; index < newLast - newFirst; ++index)
+                headings[newFirst + index].slug = previous->headings_[oldFirst + index].slug;
+            return;
+        }
+        headingCache.reset();
+        for (auto& heading : headings)
+            heading.slug = HeadingSlug(HeadingBase(heading.name));
+    }
 
     static bool AbbreviationCharacter(wchar_t value) noexcept
     {
@@ -888,10 +1484,9 @@ struct SemanticBuilder::Preparation
             default: return false;
         }
     }
-    void RecordHeading(std::size_t index)
+    std::wstring HeadingBase(std::wstring_view name) const
     {
-        const auto& element = document->elements_[index];
-        const auto folded   = Detail::NormalizeMarkdownLabel(element.name, document->syntax_->Profile());
+        const auto folded = Detail::NormalizeMarkdownLabel(name, document->syntax_->Profile());
         std::wstring base(0u, L' ');
         for (const auto unit : folded)
         {
@@ -902,6 +1497,11 @@ struct SemanticBuilder::Preparation
         }
         if (base.empty())
             base = L"section";
+        return base;
+    }
+    // Slugs depend on every earlier heading, in document order.
+    std::wstring HeadingSlug(const std::wstring& base)
+    {
         if (! headingCache)
             headingCache = std::make_unique<HeadingCache>();
         auto [position, inserted] = headingCache->suffixes.try_emplace(base, 1u);
@@ -914,13 +1514,21 @@ struct SemanticBuilder::Preparation
             slug.append(Number(position->second++));
         }
         headingCache->used.insert(slug);
-        auto& heading   = document->headings_.emplace_back();
-        heading.element = index;
-        heading.level   = element.heading;
-        heading.source  = element.source;
+        return slug;
+    }
+    void RecordHeading(std::size_t index)
+    {
+        const auto& element = document->elements_[index];
+        auto& heading       = document->headings_.emplace_back();
+        heading.element     = index;
+        heading.level       = element.heading;
+        heading.source      = element.source;
         heading.target = element.syntaxNode < document->syntax_->Nodes().size() ? document->syntax_->Nodes()[element.syntaxNode].block.content : element.source;
         heading.name.assign(element.name);
-        heading.slug.assign(slug);
+        // An incremental build assigns slugs once the reused headings around
+        // the rebuilt ones are known (FinishHeadings).
+        if (! incremental)
+            heading.slug.assign(HeadingSlug(HeadingBase(heading.name)));
     }
     void CloseElement(std::size_t index)
     {
@@ -1019,7 +1627,10 @@ struct SemanticBuilder::Preparation
             ++extensions.records;
         }
         else
+        {
+            admissionRefused = true;
             extensions.diagnostics.push_back({SemanticDiagnosticKind::ImageCapacity, source, element});
+        }
     }
     void HtmlTag(const Detail::NativeHtmlTag& tag, std::size_t parent, unsigned flags, unsigned heading)
     {
@@ -1312,6 +1923,8 @@ struct SemanticBuilder::Preparation
             }
             else
             {
+                if (expression && *expression && (! extensions.CanAdmitRecords(records) || ! extensions.CanAdmitObject()))
+                    admissionRefused = true;
                 const bool capacity = NativeCapacityFallback(node.source) ||
                                       (expression && (expression->issue == MathIssue::Capacity ||
                                                       (*expression && (! extensions.CanAdmitRecords(records) || ! extensions.CanAdmitObject()))));
@@ -1746,7 +2359,10 @@ struct SemanticBuilder::Preparation
             return false;
         auto& extensions = Extensions();
         if (++extensions.candidates > Detail::SemanticExtensions::MaximumObjects)
+        {
+            admissionRefused = true;
             DiagramDiagnostic(visit, SemanticDiagnosticKind::DiagramCapacity, node.block.source, Label(AccessibilityTextId::TooManyDiagrams));
+        }
         else if (info.size() != 7u)
             DiagramDiagnostic(visit, SemanticDiagnosticKind::UnsupportedDiagram, node.block.info, Label(AccessibilityTextId::DiagramOptions));
         else if (! node.block.closed)
@@ -1855,6 +2471,7 @@ struct SemanticBuilder::Preparation
             }
             if (! Extensions().CanAdmitRecords(graph.nodes.size() + graph.edges.size() + graph.groups.size()))
             {
+                admissionRefused = true;
                 RejectDiagram(SemanticDiagnosticKind::DiagramCapacity, node.block.source, Label(AccessibilityTextId::NativeObjectCapacity));
                 return;
             }
@@ -2056,6 +2673,7 @@ struct SemanticBuilder::Preparation
         auto& extensions = Extensions();
         if (! extensions.CanAdmitObject())
         {
+            admissionRefused = true;
             RejectDiagram(SemanticDiagnosticKind::DiagramCapacity, node.block.source, Label(AccessibilityTextId::NativeObjectCapacity));
             return;
         }
@@ -2189,7 +2807,9 @@ struct SemanticBuilder::Preparation
                     result += self(self, child);
                 return result;
             };
-            const auto records  = expression ? count(count, expression->root) : 0u;
+            const auto records = expression ? count(count, expression->root) : 0u;
+            if (expression && *expression && (! extensions.CanAdmitRecords(records) || ! extensions.CanAdmitObject()))
+                admissionRefused = true;
             const bool capacity = NativeCapacityFallback(node.block.source) ||
                                   (expression && (expression->issue == MathIssue::Capacity ||
                                                   (*expression && (! extensions.CanAdmitRecords(records) || ! extensions.CanAdmitObject()))));
@@ -2470,7 +3090,8 @@ struct SemanticBuilder::Preparation
         if (callout)
         {
             document->hasCallouts_ = true;
-            const auto states      = Detail::SemanticExtensionAccess::Disclosures(*document);
+            ++callouts;
+            const auto states = Detail::SemanticExtensionAccess::Disclosures(*document);
             const auto found  = std::lower_bound(states.begin(), states.end(), node.identity, [](const auto& value, auto key) { return value.identity < key; });
             calloutExpanded   = ! callout->foldable || (found == states.end() || found->identity != node.identity ? callout->expanded : found->expanded);
             const auto role   = callout->foldable ? SemanticRole::Disclosure : SemanticRole::Paragraph;
@@ -2607,7 +3228,9 @@ struct SemanticBuilder::Preparation
                 return false;
             }
             CloseElement(0u);
-            const auto mapResult = SourceDisplayMap::TryBuild(document->syntax_->Source(), output.text, output.spans, document->map_);
+            // The map lends the immutable syntax source instead of copying it.
+            const auto mapResult = Detail::SourceDisplayMapAccess::TryBuildBorrowed(
+                document->syntax_, document->syntax_->Source(), std::move(output.text), std::move(output.spans), document->map_);
             if (mapResult == SourceResult::CapacityExceeded)
             {
                 capacityExceeded = true;
@@ -2615,8 +3238,11 @@ struct SemanticBuilder::Preparation
             }
             if (mapResult != SourceResult::Success)
                 Failure::FailContract(E_UNEXPECTED);
-            DxUi::Detail::Work().rich.displayUnitsWritten += output.text.size();
             PrepareSourceFormats();
+            projection->admissionRefused = admissionRefused;
+            document->projection_        = projection;
+            if (incremental)
+                ++::DxUi::Detail::Work().rich.semanticIncrementalBuilds;
             return true;
         }
         auto visit = visits.back();
@@ -2630,22 +3256,81 @@ struct SemanticBuilder::Preparation
         else if (visit.inlineNode)
             Inline(visit);
         else
+        {
+            if (! visit.footerRoot && ! visit.close && visit.parent == 0u && visit.node != 0u && ! TopLevel(visit))
+                return false;
+            if (visit.close && ! visit.footerRoot && visit.node == 0u)
+            {
+                RecordCut(MarkdownNoNode);
+                FinishHeadings();
+            }
             Block(visit);
+        }
         return false;
     }
     void PrepareSourceFormats()
+    {
+        const auto source = document->syntax_->Source();
+        if (! incremental)
+        {
+            SourceFormats(0u, document->Map().Display().size(), 0u, source.size());
+            return;
+        }
+        // Reused blocks keep their source formats (shifted). Blank trivia
+        // between top-level blocks belongs to no block, so the converted window
+        // runs from the end of the last leading block (inside the unchanged
+        // prefix) to the start of the first trailing block.
+        const auto& oldCuts = previous->projection_->blocks;
+        const auto& newCuts = projection->blocks;
+        const auto oldCount = oldCuts.size() - 1u, newCount = newCuts.size() - 1u;
+        const auto& first    = newCuts[reusePrefix];
+        const auto& last     = newCuts[newCount - reuseSuffix];
+        const auto& oldLast  = oldCuts[oldCount - reuseSuffix];
+        const auto prefixEnd = reusePrefix ? newCuts[reusePrefix - 1u].source.last : 0u;
+        CopySourceFormats(0u, prefixEnd, 0u);
+        SourceFormats(first.display, last.display, prefixEnd, last.source.first);
+        CopySourceFormats(oldLast.source.first, previous->syntax_->Source().size(), last.source.first - oldLast.source.first);
+    }
+    void AppendSourceFormat(std::size_t first, std::size_t last, unsigned flags, unsigned heading)
+    {
+        auto& result = document->sourceRuns_;
+        if (first == last)
+            return;
+        if (! result.empty() && result.back().start + result.back().length == first && result.back().flags == flags && result.back().heading == heading)
+            result.back().length += last - first;
+        else
+            result.push_back({first, last - first, flags, heading});
+    }
+    void CopySourceFormats(std::size_t first, std::size_t last, std::size_t sourceDelta)
+    {
+        const auto runs = previous->SourceRuns();
+        for (auto run = std::upper_bound(runs.begin(), runs.end(), first, [](auto value, const auto& item) { return value < item.start + item.length; });
+             run != runs.end() && run->start < last;
+             ++run)
+            AppendSourceFormat(std::max(first, run->start) + sourceDelta, std::min(last, run->start + run->length) + sourceDelta, run->flags, run->heading);
+    }
+    // Format units for source [sourceFirst, sourceLast) from the display window
+    // [displayFirst, displayLast) that projects exactly that source.
+    void SourceFormats(std::size_t displayFirst, std::size_t displayLast, std::size_t sourceFirst, std::size_t sourceLast)
     {
         // Runs are a sorted, complete display partition. Convert only primary
         // source owners, then fill hidden syntax with the unformatted style.
         // This happens once with map publication, never in UIA or composition.
         std::vector<StyleRun> mapped(0u);
-        const auto runs = document->Runs();
-        for (const auto& span : document->Map().Spans())
+        const auto runs  = document->Runs();
+        const auto spans = document->Map().Spans();
+        for (auto item = std::upper_bound(spans.begin(), spans.end(), displayFirst, [](auto value, const auto& span) { return value < span.display.last; });
+             item != spans.end() && item->display.first < displayLast;
+             ++item)
         {
-            if (! span.primary || span.source.first == span.source.last)
+            if (! item->primary || item->source.first == item->source.last)
                 continue;
-            auto run =
-                std::lower_bound(runs.begin(), runs.end(), span.display.first, [](const auto& item, auto first) { return item.start + item.length <= first; });
+            auto span    = *item;
+            span.display = {std::max(displayFirst, item->display.first), std::min(displayLast, item->display.last)};
+            if (span.kind == DisplaySpanKind::Source)
+                span.source = {item->source.first + span.display.first - item->display.first, item->source.first + span.display.last - item->display.first};
+            auto run = std::lower_bound(
+                runs.begin(), runs.end(), span.display.first, [](const auto& entry, auto first) { return entry.start + entry.length <= first; });
             for (; run != runs.end() && run->start < span.display.last; ++run)
             {
                 const bool exact = span.kind == DisplaySpanKind::Source;
@@ -2656,17 +3341,9 @@ struct SemanticBuilder::Preparation
             }
         }
         std::ranges::sort(mapped, {}, &StyleRun::start);
-        auto& result      = document->sourceRuns_;
-        const auto append = [&](std::size_t first, std::size_t last, unsigned flags, unsigned heading)
-        {
-            if (first == last)
-                return;
-            if (! result.empty() && result.back().start + result.back().length == first && result.back().flags == flags && result.back().heading == heading)
-                result.back().length += last - first;
-            else
-                result.push_back({first, last - first, flags, heading});
-        };
-        std::size_t cursor = 0u;
+        auto& result       = document->sourceRuns_;
+        const auto append  = [&](std::size_t first, std::size_t last, unsigned flags, unsigned heading) { AppendSourceFormat(first, last, flags, heading); };
+        std::size_t cursor = sourceFirst;
         for (const auto& run : mapped)
         {
             if (run.start < cursor)
@@ -2682,7 +3359,7 @@ struct SemanticBuilder::Preparation
             append(run.start, run.start + run.length, run.flags, run.heading);
             cursor = run.start + run.length;
         }
-        append(cursor, document->Map().Source().size(), Regular, 0u);
+        append(cursor, sourceLast, Regular, 0u);
     }
 };
 #pragma warning(pop)
@@ -2855,7 +3532,9 @@ SourceResult SemanticBuilder::TryBeginWithNativeFallbacks(std::shared_ptr<const 
         next_.reset();
         return SourceResult::Success;
     }
-    auto next               = std::make_unique<Preparation>(std::move(syntax), sourceBlock, sourceObjects, disclosures, softBreakPolicy_);
+    // The current publication, when compatible, lends its unchanged blocks.
+    auto next = std::make_unique<Preparation>(
+        std::move(syntax), sourceBlock, sourceObjects, disclosures, softBreakPolicy_, IsFreshPreparationForTest() ? nullptr : published_);
     next->document->labels_ = labels_;
     next_.swap(next);
     return SourceResult::Success;

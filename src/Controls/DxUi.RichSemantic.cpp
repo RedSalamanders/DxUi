@@ -1,3 +1,4 @@
+#include "DxUi.RichSemanticValues.h"
 #include <DxUi/Failure.h>
 #include <DxUi/RichSemantic.h>
 #ifndef NOMINMAX
@@ -66,7 +67,6 @@ SourceResult TryFindInSource(const SourceSnapshot& snapshot, std::wstring_view q
 }
 namespace
 {
-constexpr auto MissingAnchor = std::numeric_limits<std::size_t>::max();
 bool Atomic(DisplaySpanKind kind) noexcept
 {
     return kind == DisplaySpanKind::Transformed || kind == DisplaySpanKind::Object;
@@ -97,17 +97,17 @@ std::shared_ptr<const SourceDisplayMap> SourceDisplayMap::Build(std::wstring_vie
         Failure::FailContract(E_INVALIDARG);
     return result;
 }
-SourceResult SourceDisplayMap::TryBuild(std::wstring_view source,
-                                        std::wstring_view display,
-                                        std::span<const DisplaySpan> spans,
-                                        std::shared_ptr<const SourceDisplayMap>& output)
+namespace
 {
-    const Failure::Scope failureScope;
-    if (source.size() > Document::MaximumUnits || display.size() > MaximumDisplayUnits || spans.size() > MaximumSpans)
+// Admission checks shared by the public builder and the Debug validation of a
+// semantic publication. Malformed spans and partitions are rejected before any
+// map storage is allocated.
+SourceResult ValidateSourceDisplaySpans(std::wstring_view source, std::wstring_view display, std::span<const DisplaySpan> spans) noexcept
+{
+    if (source.size() > Document::MaximumUnits || display.size() > SourceDisplayMap::MaximumDisplayUnits || spans.size() > SourceDisplayMap::MaximumSpans)
         return SourceResult::CapacityExceeded;
     if (! IsValidSourceUtf16(source) || ! IsValidSourceUtf16(display))
         return SourceResult::InvalidSource;
-    // Reject malformed spans and display partitions before allocating the map.
     std::size_t displayEnd{};
     for (const auto& span : spans)
     {
@@ -136,6 +136,17 @@ SourceResult SourceDisplayMap::TryBuild(std::wstring_view source,
     }
     if (displayEnd != display.size())
         return SourceResult::InvalidRange;
+    return SourceResult::Success;
+}
+} // namespace
+SourceResult SourceDisplayMap::TryBuild(std::wstring_view source,
+                                        std::wstring_view display,
+                                        std::span<const DisplaySpan> spans,
+                                        std::shared_ptr<const SourceDisplayMap>& output)
+{
+    const Failure::Scope failureScope;
+    if (const auto admitted = ValidateSourceDisplaySpans(source, display, spans); admitted != SourceResult::Success)
+        return admitted;
     SourceResult result = SourceResult::Success;
     std::shared_ptr<const SourceDisplayMap> staged(new SourceDisplayMap(source, display, spans, result));
     if (result != SourceResult::Success)
@@ -144,71 +155,125 @@ SourceResult SourceDisplayMap::TryBuild(std::wstring_view source,
     return SourceResult::Success;
 }
 SourceDisplayMap::SourceDisplayMap(std::wstring_view source, std::wstring_view display, std::span<const DisplaySpan> spans, SourceResult& result)
-    : source_(source),
+    : ownedSource_(source),
       display_(display),
+      source_(ownedSource_),
       spans_(spans.begin(), spans.end()),
-      sourceLeading_(source.size() + 1u, MissingAnchor),
-      sourceTrailing_(source.size() + 1u, MissingAnchor)
+      primaryOrder_(0u)
 {
-    std::vector<std::size_t> primary(0u);
-    primary.reserve(spans.size());
+    IndexPrimary(result);
+}
+SourceDisplayMap::SourceDisplayMap(
+    std::shared_ptr<const void> sourceOwner, std::wstring_view source, std::wstring&& display, std::vector<DisplaySpan>&& spans, SourceResult& result) noexcept
+    : ownedSource_(),
+      display_(std::move(display)),
+      source_(source),
+      sourceOwner_(std::move(sourceOwner)),
+      spans_(std::move(spans)),
+      primaryOrder_()
+{
+    result = SourceResult::Success;
+}
+// Record whether the spans are already in source order. Only a reordered
+// projection (for example a footnote footer) pays for an explicit order of its
+// primary spans. Ambiguous primary ownership and unmatched repetitions fail.
+void SourceDisplayMap::IndexPrimary(SourceResult& result)
+{
+    bool monotonic        = true;
+    std::size_t primaries = 0u;
     for (std::size_t i = 0u; i < spans_.size(); ++i)
     {
-        const auto& span = spans_[i];
-        if (span.primary)
-            primary.push_back(i);
+        if (i && spans_[i].source.first < spans_[i - 1u].source.first)
+            monotonic = false;
+        if (spans_[i].primary)
+            ++primaries;
     }
-    std::sort(primary.begin(), primary.end(), [&](auto a, auto b) { return spans_[a].source.first < spans_[b].source.first; });
-    std::size_t sourceEnd = 0u;
-    for (const auto index : primary)
+    if (! monotonic)
     {
-        const auto& span = spans_[index];
+        primaryOrder_.reserve(primaries);
+        for (std::size_t i = 0u; i < spans_.size(); ++i)
+            if (spans_[i].primary)
+                primaryOrder_.push_back(static_cast<std::uint32_t>(i));
+        std::sort(primaryOrder_.begin(), primaryOrder_.end(), [&](auto a, auto b) { return spans_[a].source.first < spans_[b].source.first; });
+    }
+    std::size_t sourceEnd = 0u;
+    const auto ordered    = [&](auto&& visit)
+    {
+        if (monotonic)
+        {
+            for (const auto& span : spans_)
+                if (span.primary && ! visit(span))
+                    return;
+        }
+        else
+            for (const auto index : primaryOrder_)
+                if (! visit(spans_[index]))
+                    return;
+    };
+    ordered([&](const DisplaySpan& span)
+    {
         if (span.source.first < sourceEnd)
         {
             result = SourceResult::InvalidRange;
-            return;
+            return false;
         }
         sourceEnd = span.source.last;
-        for (auto position = span.source.first; position <= span.source.last; ++position)
-        {
-            const auto leading  = Atomic(span.kind) && position < span.source.last ? span.display.first : span.display.first + position - span.source.first;
-            const auto trailing = Atomic(span.kind) && position > span.source.first ? span.display.last : span.display.first;
-            // Source order gives the next primary ownership the leading side
-            // of a shared boundary, and the previous ownership its trailing side.
-            sourceLeading_[position] = Atomic(span.kind) && position == span.source.last ? span.display.last : leading;
-            if (position != span.source.first || sourceTrailing_[position] == MissingAnchor)
-                sourceTrailing_[position] = Atomic(span.kind) ? trailing : span.display.first + position - span.source.first;
-        }
-    }
+        return true;
+    });
+    if (result != SourceResult::Success)
+        return;
     for (const auto& span : spans_)
     {
         if (span.primary || span.kind == DisplaySpanKind::Generated)
             continue;
-        const auto match =
-            std::lower_bound(primary.begin(), primary.end(), span.source.first, [&](auto index, auto first) { return spans_[index].source.first < first; });
-        if (match == primary.end() || spans_[*match].source != span.source || spans_[*match].kind != span.kind)
+        const DisplaySpan *previous = nullptr, *current = nullptr, *next = nullptr;
+        FindPrimary(span.source.first, previous, current, next);
+        if (! current || current->source != span.source || current->kind != span.kind)
         {
             result = SourceResult::InvalidRange;
             return;
         }
     }
-    auto next = display.size();
-    for (auto position = source.size() + 1u; position > 0u;)
+}
+// current: the primary span with the greatest source start <= offset; previous:
+// the primary span before it in source order; next: the first primary span
+// starting after offset. Primary spans are disjoint, so these are unique.
+void SourceDisplayMap::FindPrimary(std::size_t offset, const DisplaySpan*& previous, const DisplaySpan*& current, const DisplaySpan*& next) const noexcept
+{
+    previous = current = next = nullptr;
+    if (primaryOrder_.empty())
     {
-        --position;
-        if (sourceLeading_[position] == MissingAnchor)
-            sourceLeading_[position] = next;
-        else
-            next = sourceLeading_[position];
+        const auto found = std::upper_bound(spans_.begin(), spans_.end(), offset, [](auto value, const auto& span) { return value < span.source.first; });
+        for (auto at = found; at != spans_.end(); ++at)
+            if (at->primary)
+            {
+                next = &*at;
+                break;
+            }
+        for (auto at = found; at != spans_.begin();)
+        {
+            --at;
+            if (! at->primary)
+                continue;
+            if (! current)
+                current = &*at;
+            else
+            {
+                previous = &*at;
+                break;
+            }
+        }
+        return;
     }
-    auto previous = std::size_t{0u};
-    for (auto& anchor : sourceTrailing_)
-    {
-        if (anchor == MissingAnchor)
-            anchor = previous;
-        else
-            previous = anchor;
-    }
+    const auto found =
+        std::upper_bound(primaryOrder_.begin(), primaryOrder_.end(), offset, [&](auto value, auto index) { return value < spans_[index].source.first; });
+    const auto position = static_cast<std::size_t>(found - primaryOrder_.begin());
+    if (position < primaryOrder_.size())
+        next = spans_.data() + primaryOrder_[position];
+    if (position >= 1u)
+        current = spans_.data() + primaryOrder_[position - 1u];
+    if (position >= 2u)
+        previous = spans_.data() + primaryOrder_[position - 2u];
 }
 std::wstring_view SourceDisplayMap::Source() const noexcept
 {
@@ -226,7 +291,26 @@ SourceResult SourceDisplayMap::TryToDisplay(std::size_t offset, MappingAffinity 
 {
     if (! ValidAffinity(affinity) || ! ValidRange(source_, {offset, offset}))
         return SourceResult::InvalidRange;
-    output = (affinity == MappingAffinity::Leading ? sourceLeading_ : sourceTrailing_)[offset];
+    // Source order gives the next primary ownership the leading side of a
+    // shared boundary and the previous ownership its trailing side. Hidden
+    // source takes the next primary start (Leading) or the previous primary end
+    // (Trailing), with display end/start at the outside edges.
+    const DisplaySpan *previous = nullptr, *current = nullptr, *next = nullptr;
+    FindPrimary(offset, previous, current, next);
+    const auto inside = [&](const DisplaySpan& span) noexcept
+    {
+        if (Atomic(span.kind))
+            return offset < span.source.last ? span.display.first : span.display.last;
+        return span.display.first + offset - span.source.first;
+    };
+    if (affinity == MappingAffinity::Leading)
+        output = current && offset <= current->source.last ? inside(*current) : next ? next->display.first : display_.size();
+    else if (current && current->source.first < offset && offset <= current->source.last)
+        output = Atomic(current->kind) ? current->display.last : current->display.first + offset - current->source.first;
+    else if (current && current->source.first == offset)
+        output = previous && previous->source.last == offset ? previous->display.last : current->display.first;
+    else
+        output = current ? current->display.last : 0u;
     return SourceResult::Success;
 }
 std::size_t SourceDisplayMap::ToDisplay(std::size_t offset, MappingAffinity affinity) const
@@ -347,6 +431,39 @@ std::size_t SourceDisplayMap::SnapDisplayBoundary(std::size_t offset, MappingAff
     if (TrySnapDisplayBoundary(offset, affinity, output) != SourceResult::Success)
         Failure::FailContract(E_INVALIDARG);
     return output;
+}
+SourceResult Detail::SourceDisplayMapAccess::TryBuildBorrowed(std::shared_ptr<const void> sourceOwner,
+                                                              std::wstring_view source,
+                                                              std::wstring&& display,
+                                                              std::vector<DisplaySpan>&& spans,
+                                                              std::shared_ptr<const SourceDisplayMap>& output)
+{
+    const Failure::Scope failureScope;
+    if (source.size() > Document::MaximumUnits || display.size() > SourceDisplayMap::MaximumDisplayUnits || spans.size() > SourceDisplayMap::MaximumSpans)
+        return SourceResult::CapacityExceeded;
+#ifdef _DEBUG
+    // The builder's own output is trusted in Release; Debug proves it against
+    // the public admission rules on every publication, incremental or not.
+    if (const auto admitted = ValidateSourceDisplaySpans(source, display, spans); admitted != SourceResult::Success)
+        return admitted;
+#endif
+    SourceResult result = SourceResult::Success;
+    std::shared_ptr<SourceDisplayMap> staged(new SourceDisplayMap(std::move(sourceOwner), source, std::move(display), std::move(spans), result));
+    staged->IndexPrimary(result);
+    if (result != SourceResult::Success)
+        return result;
+    output = std::move(staged);
+    return SourceResult::Success;
+}
+std::size_t Detail::SourceDisplayMapAccess::Bytes(const SourceDisplayMap& map) noexcept
+{
+    return map.ownedSource_.size() * sizeof(wchar_t) + map.display_.size() * sizeof(wchar_t) + map.spans_.size() * sizeof(DisplaySpan) +
+           map.primaryOrder_.size() * sizeof(std::uint32_t);
+}
+std::size_t Detail::SourceDisplayMapAccess::ReservedBytes(const SourceDisplayMap& map) noexcept
+{
+    return map.ownedSource_.capacity() * sizeof(wchar_t) + map.display_.capacity() * sizeof(wchar_t) + map.spans_.capacity() * sizeof(DisplaySpan) +
+           map.primaryOrder_.capacity() * sizeof(std::uint32_t);
 }
 
 SourceResult TryApplySourceEdits(

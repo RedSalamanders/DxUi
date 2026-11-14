@@ -1775,6 +1775,39 @@ breaks. Changing this policy retires the semantic publication without changing
 source or history. Generic source fragments
 do not by themselves implement grammar-aware line joining or empty-format cleanup.
 
+#### Block-incremental semantic projection
+
+A `SemanticBuilder` with a current publication prepares the next syntax from it. The two sources' common prefix and
+suffix form the edit envelope. Top-level blocks are paired by range: leading blocks with the same kind and source range
+inside the prefix, and trailing blocks with the same kind and range shifted by the length change inside the suffix.
+Paired blocks copy their elements, geometry paragraphs, display text, spans, runs, headings and native object records
+from the previous publication, shifted by the source and display deltas; only the blocks between them are built from
+syntax. Each copied element and paragraph is checked against the new syntax (kind, shifted range and block identity),
+and the trailing range is copied only when the state where it starts (last display unit, pending native HTML insertion)
+matches; otherwise that block is rebuilt and the next one is tried. Copied spans and runs are clipped at block edges and
+merged with the same rule as emitted ones. A reused-range copy is one indivisible event. Heading slugs are kept when
+the rebuilt blocks hold the same heading bases as before and are otherwise replayed in document order.
+
+The result must equal a fresh build of the same syntax: every element, paragraph, heading, navigation target,
+diagnostic, run, source format unit and native object record, and the map in both directions at every offset. Element
+indices, syntax node indices and block identities are those a fresh build assigns. Constructs with document-wide effect
+build the whole document and count the cause: footnotes or footnote references in either revision; a link reference
+definition, front matter or (with the extension) an abbreviation definition in an edited block; a refused object, record
+or diagram admission, or an admission or definition-list capacity margin a copy could change; a scoped source block,
+source region, native fallback or changed disclosure override; and a reused block whose syntax node or identity does not
+pair. A different profile, extension set, label set or soft-break policy has no compatible publication. Previous
+publications stay immutable: reused values are copies, never shared storage. The publication records one block cut per
+top-level block (where its output starts, and which old block it was copied from) as the old-to-new pairing later
+preparation stages follow instead of an identity map of all nodes.
+
+`SourceDisplayMap` stores no per-unit anchors. A semantic publication's map borrows the immutable syntax source, which
+it keeps alive, and owns its display text and spans; source-to-display lookups binary-search the primary spans, which
+are already in source order unless the projection reorders them (a footnote footer), in which case the map also keeps
+their source order. A map from the public `TryBuild` owns a copy of its source. Results equal the former dense anchors.
+Semantic geometry pairs previous boxes with new paragraphs by order within a bounded window, or through the block
+pairing when alignment is lost, and compares a candidate layout's input with the document's display text and runs in
+place before building any input copy.
+
 The role graph retains headings, quotes, lists/items, code, tables/rows/cells,
 links, images, task objects and rules. Cells retain header/alignment/row/column
 metadata. Source task markers and image alternatives are atomic source objects;

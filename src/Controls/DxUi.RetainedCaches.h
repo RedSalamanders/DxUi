@@ -97,4 +97,9 @@ void DropRetainedAccessibilitySnapshot(ControlHost& host) noexcept;
 // leaves its retained layout current, as a cache that forgets an invalidation would, so the oracle must see a
 // difference. Nothing outside the native test executables can set it: the setter is declared in no public header.
 [[nodiscard]] bool IsStaleLabelLayoutInjectedForTest() noexcept;
+
+// Test seam: true only while the oracle prepares its fresh scene (RetainedCaches.Tests.Hooks.h). Preparation that reuses
+// the previous publication of a model-derived value (the semantic builder's unchanged blocks) builds from scratch instead,
+// so the fresh frame never inherits incremental state that the drop cannot reach.
+[[nodiscard]] bool IsFreshPreparationForTest() noexcept;
 } // namespace DxUi

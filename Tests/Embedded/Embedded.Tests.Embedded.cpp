@@ -89,6 +89,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.RichSemanticResources.h"
 #include "Embedded.Tests.RichTextInputCopies.h"
 #include "Embedded.Tests.RichTextResources.h"
+#include "Embedded.Tests.SemanticProjection.h"
 #include "Embedded.Tests.TraceProvider.h"
 #include "Embedded.Tests.UiaTextProvider.h"
 #include "Embedded.Tests.WorkCounters.h"
@@ -1912,6 +1913,7 @@ __declspec(noinline) static int RunFunctionalTests()
         PerformanceFixtures::TestCatalogIsDeterministic(L".build/test-artifacts/performance-fixtures");
         PerformanceFixtures::TestFx5MatchesWorkCounterReceipt();
         PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
+        SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
         return 0;
     }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-closed-roots")
@@ -2127,6 +2129,7 @@ __declspec(noinline) static int RunFunctionalTests()
     PerformanceFixtures::TestFx13G13Budgets();
     PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
     GridDataPathTests::TestFx3GridDataPathGate(gpu);
+    SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();

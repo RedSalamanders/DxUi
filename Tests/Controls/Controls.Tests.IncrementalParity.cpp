@@ -158,6 +158,11 @@ void TestNativeIncrementalParityRich()
     RunParityScript(RichScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
 }
 
+void TestNativeIncrementalParityRichBlocks()
+{
+    RunParityScript(RichBlocksScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+}
+
 // The gate's negative control: a cache that forgets one invalidation must show as a difference, at that control.
 void TestNativeIncrementalParityDetectsAStaleCache()
 {
@@ -221,4 +226,5 @@ void RunIncrementalParityTests()
     DXUI_RUN_TEST(TestNativeIncrementalParityLayout);
     DXUI_RUN_TEST(TestNativeIncrementalParityInteraction);
     DXUI_RUN_TEST(TestNativeIncrementalParityRich);
+    DXUI_RUN_TEST(TestNativeIncrementalParityRichBlocks);
 }

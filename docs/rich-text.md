@@ -559,6 +559,15 @@ current. Cancel preserves that publication; Clear releases builder ownership.
 Held documents remain immutable. Queries and coalesced requests do not advance
 work or start a worker.
 
+Keep one builder per edited document: each `Begin` after an edit builds only the
+top-level blocks the edit touched and copies the unchanged blocks before and after
+them from the current publication, so a keystroke costs the edited block rather
+than the whole document. The result is the same document a fresh builder would
+produce. Footnotes, an edited link reference definition, front matter or
+abbreviation definition, a scoped source block and the other cases listed in the
+[contract](../Specs/UI/UI_ControlsAndLayout.md#block-incremental-semantic-projection)
+build the whole document. `Clear` (or a new builder) always starts from scratch.
+
 The document supplies a source/display map, style runs, semantic roles and ordered
 paragraph/table-cell metadata. Its source remains exact; code/escape/entity
 normalization has token-level edit affinities. Tables include padded cells;

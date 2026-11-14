@@ -1332,7 +1332,7 @@ Purpose: make the work for one keystroke in a 64 Ki-unit document proportional t
 copies, rebuilds, uploads or re-layout of what follows the edit. Exit: `G12` met on `FX8`; the rich-document bounds
 in [performance and resources](../../Core/Core_PerformanceAndResources.md) updated for the new reuse rules.
 
-- [ ] **W7.1 Block-incremental semantic projection.**
+- [x] **W7.1 Block-incremental semantic projection.**
   - **Why**: the semantic document and `SourceDisplayMap` are rebuilt from scratch per revision
     (`DxUi.RichSemanticDocument.cpp:2596-2617`, `DxUi.RichSemantic.cpp:146-212`): about 1.4–1.9 MiB written per keystroke
     at the cap. The map holds a duplicate `source_` (`include/DxUi/RichSemantic.h:68`, copied at

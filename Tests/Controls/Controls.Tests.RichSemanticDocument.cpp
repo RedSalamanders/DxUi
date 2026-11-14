@@ -8,6 +8,7 @@
 #include "Support.Tests.RichSemanticDocument.h"
 #include "Support.Tests.RichTextExport.h"
 #include "Support.Tests.SemanticDiagrams.h"
+#include "Support.Tests.SemanticProjection.h"
 #include "Support.Tests.SemanticSourceBlock.h"
 #include <DxUi/RichMath.h>
 #include <iterator>
@@ -1110,8 +1111,335 @@ void TestRichSemanticContainerPrefixOwnership()
 {
     RichSemanticTests::Run(RichSemanticDocumentTests::ContainerPrefixOwnership);
 }
+// W7.1: seeded edit fuzz, incremental publication equal to a fresh build after every edit. DXUI_SEMANTIC_FUZZ_EDITS and
+// DXUI_SEMANTIC_FUZZ_SEED (decimal or 0x hex) run a longer or single-seed replay.
+void TestSemanticProjectionEditFuzzEqualsFreshBuild()
+{
+    using namespace DxUi::RichText;
+    std::size_t edits = 160u;
+    std::vector<std::uint64_t> seeds{0x7E1A0001u, 0x7E1A0002u, 0x7E1A0003u, 0x7E1A0004u};
+    char* value   = nullptr;
+    size_t length = 0u;
+    if (_dupenv_s(&value, &length, "DXUI_SEMANTIC_FUZZ_EDITS") == 0 && value)
+    {
+        edits = static_cast<std::size_t>(std::strtoull(value, nullptr, 0));
+        std::free(value);
+    }
+    value = nullptr;
+    if (_dupenv_s(&value, &length, "DXUI_SEMANTIC_FUZZ_SEED") == 0 && value)
+    {
+        seeds = {std::strtoull(value, nullptr, 0)};
+        std::free(value);
+    }
+    struct Profile
+    {
+        const char* name;
+        MarkdownProfile profile;
+        std::optional<MarkdownExtensions> extensions;
+    };
+    const Profile profiles[] = {{"rich", MarkdownProfile::RichMarkdown, std::nullopt},
+                                {"rich+definitions+abbreviations", MarkdownProfile::RichMarkdown, MarkdownExtensions::RichOptionalMask},
+                                {"gfm", MarkdownProfile::Gfm029, std::nullopt}};
+    for (const auto seed : seeds)
+        for (const auto& profile : profiles)
+        {
+            const auto start  = std::chrono::steady_clock::now();
+            const auto result = SemanticProjectionTests::RunEditFuzz(seed, edits, profile.profile, profile.extensions);
+            const auto ms     = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
+            Require(result.edits == edits + 1u, "every fuzz edit publishes and is compared");
+            Require(result.incremental > 0u, "fuzz edits reuse blocks instead of rebuilding");
+            std::cout << std::format("  semantic fuzz seed 0x{:08X} {}: {} publications equal to fresh ({} incremental, {} full) in {} ms\n",
+                                     seed,
+                                     profile.name,
+                                     result.edits,
+                                     result.incremental,
+                                     result.full,
+                                     ms);
+        }
+}
+// W7.1 gate on a 64 Ki-unit document: per one-character insert, elements built and display units written are at most
+// those of the edited block, no identity map is built, and the map holds no more than its display text and spans.
+void TestSemanticProjectionPerInsertWorkAtCapacity()
+{
+    using namespace DxUi::RichText;
+    std::wstring text = L"# Capacity\n\nInline $a+b$ math and ![chart](chart.png) image.\n\n$$\nx^2\n$$\n\n```mermaid\nflowchart TD\nA-->B\n```\n\n"
+                        L"| A | B |\n| --- | --- |\n";
+    for (int row = 0; row < 40; ++row)
+        text += std::format(L"| r{} | v{} |\n", row, row);
+    text += L"\n";
+    std::size_t paragraphs = 0u;
+    for (; text.size() < 33000u; ++paragraphs)
+        text += std::format(L"Paragraph {} with *emphasis*, a [link](https://example.test/{}) and plain words to type into.\n\n", paragraphs, paragraphs);
+    const auto editAt = text.size() - 20u; // Inside "words to type into" of the last paragraph.
+    text += L"```text\n";
+    for (int line = 0; text.size() < 63000u; ++line)
+        text += std::format(L"line {}\n", line);
+    text += L"```\n";
+    Require(text.size() <= Document::MaximumUnits, "the fixture stays within the document capacity");
+    MarkdownParser parser;
+    SemanticBuilder builder, fresh;
+    std::uint64_t revision = 1u;
+    const auto parse       = [&]
+    {
+        parser.Begin(text, revision++, MarkdownProfile::RichMarkdown);
+        while (parser.HasPendingPreparation())
+            parser.Advance(1u << 20u);
+        return parser.Published();
+    };
+    auto document = SemanticProjectionTests::CompleteBuild(builder, parse(), 1u << 20u);
+    Require(document != nullptr, "the capacity document publishes");
+    std::uint64_t builtTotal = 0u, writtenTotal = 0u, freshBuilt = 0u, freshWritten = 0u, blockElements = 0u, blockUnits = 0u, mapNodes = 0u,
+                  parseMapNodes = 0u;
+    for (int insert = 0; insert < 100; ++insert)
+    {
+        text.insert(editAt + static_cast<std::size_t>(insert), 1u, L'q');
+        DxUi::Detail::WorkCounterScope parseScope;
+        const auto syntax = parse();
+        parseMapNodes += parseScope.Delta().rich.identityMapNodes; // The parser's map remains until incremental parse reuse (W7.2).
+        DxUi::Detail::WorkCounterScope scope;
+        document         = SemanticProjectionTests::CompleteBuild(builder, syntax, 1u << 20u);
+        const auto delta = scope.Delta().rich;
+        Require(document != nullptr && delta.semanticIncrementalBuilds == 1u, "every insert reuses the unchanged blocks");
+        // The edited block: the cut that contains the insert.
+        const auto* index = DxUi::RichText::Detail::SemanticExtensionAccess::ProjectionIndex(*document);
+        Require(index && index->blocks.size() >= 2u, "the publication records its block cuts");
+        std::size_t block = 0u;
+        while (block + 1u < index->blocks.size() && index->blocks[block + 1u].source.first <= editAt)
+            ++block;
+        const auto& cut  = index->blocks[block];
+        const auto& next = index->blocks[block + 1u];
+        Require(cut.reusedFrom == MarkdownNoNode, "the edited block is the one rebuilt");
+        if (delta.elementsBuilt > next.element - cut.element + 1u || delta.displayUnitsWritten > next.display - cut.display)
+            std::cout << std::format("  insert {}: built {} written {} reused blocks {} of {}; edited block {} [{}, {}) elements {} units {}\n",
+                                     insert,
+                                     delta.elementsBuilt,
+                                     delta.displayUnitsWritten,
+                                     delta.semanticBlocksReused,
+                                     index->blocks.size() - 1u,
+                                     block,
+                                     cut.source.first,
+                                     cut.source.last,
+                                     next.element - cut.element,
+                                     next.display - cut.display);
+        Require(delta.elementsBuilt <= next.element - cut.element + 1u, "elements built per insert are the edited block's plus the document root");
+        Require(delta.displayUnitsWritten <= next.display - cut.display, "display units written per insert are at most those of the edited block");
+        Require(delta.semanticBlocksReused + 1u == index->blocks.size() - 1u, "every other top-level block is reused");
+        Require(delta.identityMapNodes == 0u, "no identity map of old nodes is built");
+        builtTotal += delta.elementsBuilt;
+        writtenTotal += delta.displayUnitsWritten;
+        blockElements += next.element - cut.element;
+        blockUnits += next.display - cut.display;
+        mapNodes += delta.identityMapNodes;
+        if (insert % 25 == 0)
+        {
+            DxUi::Detail::WorkCounterScope freshScope;
+            const auto reference = SemanticProjectionTests::CompleteBuild(fresh, syntax, 1u << 20u);
+            fresh.Clear();
+            freshBuilt += freshScope.Delta().rich.elementsBuilt;
+            freshWritten += freshScope.Delta().rich.displayUnitsWritten;
+            SemanticProjectionTests::CompareDocuments(*document, *reference, std::format("capacity insert {}", insert));
+        }
+    }
+    const auto& map         = document->Map();
+    const auto bytes        = DxUi::RichText::Detail::SourceDisplayMapAccess::Bytes(map);
+    const auto reserved     = DxUi::RichText::Detail::SourceDisplayMapAccess::ReservedBytes(map);
+    const auto displaySpans = map.Display().size() * sizeof(wchar_t) + map.Spans().size() * sizeof(DisplaySpan);
+    const auto formerBytes  = displaySpans + map.Source().size() * sizeof(wchar_t) + 2u * (map.Source().size() + 1u) * sizeof(std::size_t);
+    Require(bytes <= displaySpans, "map bytes at the cap are at most its display text plus spans");
+    std::cout << std::format("  semantic capacity: source {} units, display {} units, {} spans, {} elements, {} top-level blocks\n",
+                             map.Source().size(),
+                             map.Display().size(),
+                             map.Spans().size(),
+                             document->Elements().size(),
+                             DxUi::RichText::Detail::SemanticExtensionAccess::ProjectionIndex(*document)->blocks.size() - 1u);
+    std::cout << std::format("  per insert (100): elements built {:.1f} (edited block {:.1f}; fresh build {:.1f}), display units written {:.1f} "
+                             "(edited block {:.1f}; fresh build {:.1f}), identity map nodes {} (parse: {:.1f})\n",
+                             static_cast<double>(builtTotal) / 100.0,
+                             static_cast<double>(blockElements) / 100.0,
+                             static_cast<double>(freshBuilt) / 4.0,
+                             static_cast<double>(writtenTotal) / 100.0,
+                             static_cast<double>(blockUnits) / 100.0,
+                             static_cast<double>(freshWritten) / 4.0,
+                             mapNodes,
+                             static_cast<double>(parseMapNodes) / 100.0);
+    std::cout << std::format("  map bytes {} (reserved {}), display text plus spans {}, former dense map {}\n", bytes, reserved, displaySpans, formerBytes);
+}
+// W7.1: each cause of a full rebuild is counted, and the rebuilt publication still equals a fresh build.
+void TestSemanticProjectionFullRebuildCauses()
+{
+    using namespace DxUi::RichText;
+    struct Case
+    {
+        const char* name;
+        std::wstring before, after;
+        std::uint64_t (*counter)(const DxUi::Detail::RichWork&);
+        std::optional<MarkdownExtensions> extensions;
+    };
+    const Case cases[] = {
+        {"footnotes",
+         L"Text[^a] here.\n\nMore.\n\n[^a]: Note.\n",
+         L"Text[^a] here.\n\nMoreX.\n\n[^a]: Note.\n",
+         [](const DxUi::Detail::RichWork& work) { return work.semanticFullBuildFootnotes; }},
+        {"references",
+         L"See [r].\n\nMore.\n\n[r]: https://a.test\n",
+         L"See [r].\n\nMore.\n\n[r]: https://b.test\n",
+         [](const DxUi::Detail::RichWork& work) { return work.semanticFullBuildReferences; }},
+        {"reference created",
+         L"See [r].\n\nMore.\n\nr\n",
+         L"See [r].\n\nMore.\n\n[r]: https://b.test\n",
+         [](const DxUi::Detail::RichWork& work) { return work.semanticFullBuildReferences; }},
+        {"front matter",
+         L"---\ntitle: a\n---\n\nBody.\n\nMore.\n",
+         L"---\ntitle: b\n---\n\nBody.\n\nMore.\n",
+         [](const DxUi::Detail::RichWork& work) { return work.semanticFullBuildFrontMatter; }},
+        {"abbreviations",
+         L"HTML here.\n\nMore.\n\n*[HTML]: Hyper Text\n",
+         L"HTML here.\n\nMoreX.\n\n*[HTML]: Hyper Text\n",
+         [](const DxUi::Detail::RichWork& work) { return work.semanticFullBuildAbbreviations; },
+         MarkdownExtensions::RichOptionalMask},
+        {"abbreviation created",
+         L"HTML here.\n\nMore.\n",
+         L"HTML here.\n\n*[HTML]: Hyper Text\n",
+         [](const DxUi::Detail::RichWork& work) { return work.semanticFullBuildAbbreviations; },
+         MarkdownExtensions::RichOptionalMask},
+    };
+    for (const auto& item : cases)
+    {
+        std::cout << "  cause case " << item.name << '\n' << std::flush;
+        MarkdownParser parser;
+        SemanticBuilder builder;
+        parser.Begin(item.before, 1u, MarkdownProfile::RichMarkdown, item.extensions);
+        while (parser.HasPendingPreparation())
+            parser.Advance(4096u);
+        DxUi::Detail::WorkCounterScope first;
+        Require(SemanticProjectionTests::CompleteBuild(builder, parser.Published(), 7u) != nullptr, "the first revision publishes");
+        Require(first.Delta().rich.semanticFullBuildNoPrevious == 1u, "a first build without a previous publication is counted");
+        parser.Begin(item.after, 2u, MarkdownProfile::RichMarkdown, item.extensions);
+        while (parser.HasPendingPreparation())
+            parser.Advance(4096u);
+        DxUi::Detail::WorkCounterScope scope;
+        const auto document = SemanticProjectionTests::CompleteBuild(builder, parser.Published(), 7u);
+        const auto delta    = scope.Delta().rich;
+        Require(document && item.counter(delta) == 1u && delta.semanticIncrementalBuilds == 0u && delta.semanticBlocksReused == 0u,
+                std::format("the {} edit rebuilds fully and counts its cause", item.name).c_str());
+        SemanticBuilder fresh;
+        SemanticProjectionTests::CompareDocuments(*document, *SemanticProjectionTests::CompleteBuild(fresh, parser.Published(), 4096u), item.name);
+    }
+    // Capacity: a refused object admission in the previous publication.
+    std::cout << "  cause case: Capacity: a refused obje\n" << std::flush;
+    {
+        std::wstring text;
+        for (int image = 0; image < 130; ++image)
+            text += std::format(L"![i{}](p{}.png)\n\n", image, image);
+        MarkdownParser parser;
+        SemanticBuilder builder;
+        parser.Begin(text, 1u, MarkdownProfile::RichMarkdown);
+        while (parser.HasPendingPreparation())
+            parser.Advance(4096u);
+        Require(SemanticProjectionTests::CompleteBuild(builder, parser.Published(), 4096u) != nullptr, "the over-admitted document publishes");
+        text.insert(0u, L"x");
+        parser.Begin(text, 2u, MarkdownProfile::RichMarkdown);
+        while (parser.HasPendingPreparation())
+            parser.Advance(4096u);
+        DxUi::Detail::WorkCounterScope scope;
+        const auto document = SemanticProjectionTests::CompleteBuild(builder, parser.Published(), 4096u);
+        Require(document && scope.Delta().rich.semanticFullBuildCapacity == 1u, "a refused admission rebuilds fully and counts capacity");
+        SemanticBuilder fresh;
+        SemanticProjectionTests::CompareDocuments(*document, *SemanticProjectionTests::CompleteBuild(fresh, parser.Published(), 4096u), "capacity");
+    }
+    // Capacity at the seam: the rebuilt blocks add the object that would refuse one in the reused suffix.
+    std::cout << "  cause case: Capacity at the seam: th\n" << std::flush;
+    {
+        std::wstring text = L"start\n\n";
+        for (int image = 0; image < 128; ++image)
+            text += std::format(L"![i{}](p{}.png)\n\n", image, image);
+        MarkdownParser parser;
+        SemanticBuilder builder;
+        parser.Begin(text, 1u, MarkdownProfile::RichMarkdown);
+        while (parser.HasPendingPreparation())
+            parser.Advance(4096u);
+        Require(SemanticProjectionTests::CompleteBuild(builder, parser.Published(), 4096u) != nullptr, "the admitted document publishes");
+        text.replace(0u, 5u, L"![new](n.png)");
+        parser.Begin(text, 2u, MarkdownProfile::RichMarkdown);
+        while (parser.HasPendingPreparation())
+            parser.Advance(4096u);
+        DxUi::Detail::WorkCounterScope scope;
+        const auto document = SemanticProjectionTests::CompleteBuild(builder, parser.Published(), 4096u);
+        Require(document && scope.Delta().rich.semanticFullBuildCapacity == 1u, "an edit that changes a later admission rebuilds fully");
+        SemanticBuilder fresh;
+        SemanticProjectionTests::CompareDocuments(*document, *SemanticProjectionTests::CompleteBuild(fresh, parser.Published(), 4096u), "seam capacity");
+    }
+    // Presentation: a scoped source block, and a changed disclosure override.
+    std::cout << "  cause case: Presentation: a scoped s\n" << std::flush;
+    {
+        const std::wstring text = L"Para.\n\n```cpp\nint a;\n```\n\nMore.\n";
+        MarkdownParser parser;
+        SemanticBuilder builder;
+        parser.Begin(text, 1u, MarkdownProfile::RichMarkdown);
+        while (parser.HasPendingPreparation())
+            parser.Advance(4096u);
+        const auto syntax = parser.Published();
+        Require(SemanticProjectionTests::CompleteBuild(builder, syntax, 4096u) != nullptr, "the first revision publishes");
+        std::size_t code = 0u;
+        while (syntax->Nodes()[code].block.kind != MarkdownBlockKind::FencedCode)
+            ++code;
+        DxUi::Detail::WorkCounterScope scope;
+        builder.Begin(syntax, code);
+        while (builder.HasPendingPreparation())
+            builder.Advance(4096u);
+        Require(builder.Published() && scope.Delta().rich.semanticFullBuildPresentation == 1u, "a scoped source block rebuilds fully");
+    }
+    // Structure: identities that do not pair (a different parser numbered the new revision).
+    std::cout << "  cause case: Structure: identities th\n" << std::flush;
+    {
+        MarkdownParser first, second;
+        SemanticBuilder builder;
+        first.Begin(L"warm up\n", 1u, MarkdownProfile::RichMarkdown);
+        while (first.HasPendingPreparation())
+            first.Advance(4096u);
+        first.Begin(L"# A\n\nB\n\nC\n", 2u, MarkdownProfile::RichMarkdown);
+        while (first.HasPendingPreparation())
+            first.Advance(4096u);
+        Require(SemanticProjectionTests::CompleteBuild(builder, first.Published(), 4096u) != nullptr, "the first revision publishes");
+        second.Begin(L"# A\n\nB\n\nCx\n", 1u, MarkdownProfile::RichMarkdown);
+        while (second.HasPendingPreparation())
+            second.Advance(4096u);
+        DxUi::Detail::WorkCounterScope scope;
+        const auto document = SemanticProjectionTests::CompleteBuild(builder, second.Published(), 4096u);
+        Require(document && scope.Delta().rich.semanticFullBuildStructure == 1u, "unpaired identities rebuild fully and count structure");
+        SemanticBuilder fresh;
+        SemanticProjectionTests::CompareDocuments(*document, *SemanticProjectionTests::CompleteBuild(fresh, second.Published(), 4096u), "structure");
+    }
+}
+// W7.1: the sparse map answers exactly as the former dense anchors, in source order and with reordered primary spans.
+void TestSemanticProjectionSparseMapMatchesDenseAnchors()
+{
+    using namespace DxUi::RichText;
+    for (const auto& source : {SemanticProjectionTests::RichBase(), std::wstring(L"Text[^a] and [^b].\n\n[^b]: B.\n[^a]: A *note*.\n")})
+    {
+        const auto document = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+        SemanticProjectionTests::CheckSparseMapAgainstDense(document->Map(), "semantic publication");
+    }
+    // Reordered primaries, repetitions, generated and atomic spans in a public map.
+    const std::wstring source  = L"ab\U0001F600cd&amp;ef";
+    const std::wstring display = L"efX&\U0001F600cdab";
+    const DisplaySpan spans[]  = {{{11u, 13u}, {0u, 2u}, DisplaySpanKind::Source},
+                                  {{6u, 6u}, {2u, 3u}, DisplaySpanKind::Generated, false},
+                                  {{6u, 11u}, {3u, 4u}, DisplaySpanKind::Transformed},
+                                  {{2u, 6u}, {4u, 8u}, DisplaySpanKind::Source},
+                                  {{0u, 2u}, {8u, 10u}, DisplaySpanKind::Source}};
+    const auto map             = SourceDisplayMap::Build(source, display, spans);
+    SemanticProjectionTests::CheckSparseMapAgainstDense(*map, "reordered public map");
+    Require(DxUi::RichText::Detail::SourceDisplayMapAccess::Bytes(*map) ==
+                (source.size() + display.size()) * sizeof(wchar_t) + std::size(spans) * sizeof(DisplaySpan) + 4u * sizeof(std::uint32_t),
+            "a public map owns its source copy, and only a reordered map adds the order of its primary spans");
+}
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestSemanticProjectionEditFuzzEqualsFreshBuild);
+    DXUI_RUN_TEST(TestSemanticProjectionPerInsertWorkAtCapacity);
+    DXUI_RUN_TEST(TestSemanticProjectionFullRebuildCauses);
+    DXUI_RUN_TEST(TestSemanticProjectionSparseMapMatchesDenseAnchors);
     DXUI_RUN_TEST(TestRichSemanticSupplementaryWordStarts);
     DXUI_RUN_TEST(TestRichSemanticSupplementaryWordNavigation);
     DXUI_RUN_TEST(TestRichSemanticContainerPrefixOwnership);

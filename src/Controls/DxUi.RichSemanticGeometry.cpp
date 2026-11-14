@@ -1075,7 +1075,7 @@ struct PreparedSemanticGeometry::Preparation
           raster(state->images || state->hasScripts || (state->native && state->native->targetBound) ? target : nullptr),
           previousState(previous),
           previousNativeState(previousNative),
-          reusable(std::less<std::uint64_t>{}),
+
           emptyLayouts(0u),
           markers(state->document->Paragraphs().size()),
           gutters(state->document->Syntax()->Nodes().size(), 0.0f),
@@ -1120,11 +1120,7 @@ struct PreparedSemanticGeometry::Preparation
     bool scriptColorTargetAvailable{};
     const State* previousState{};
     const State* previousNativeState{};
-    // MSVC's unordered hash-vector allocator constructor is noexcept even
-    // though Debug iterator-proxy construction allocates. The ordered index
-    // has fallible construction and bounded logarithmic per-item operations.
-    std::multimap<std::uint64_t, std::size_t> reusable;
-    std::size_t reuseIndex{};
+
     std::size_t paintGroup{}, paintCursor{}, paintCount{};
     unsigned paintPhase{};
     struct EmptyLayout
@@ -1424,19 +1420,103 @@ struct PreparedSemanticGeometry::Preparation
         SemanticDisplayInput(*state->document, content.display, projection);
         projection.padInlineCode =
             state->options.markdownPresentation == MarkdownPresentationStyle::Subtle && state->document->Elements()[content.element].role != SemanticRole::Code;
+        if (const auto strike = CompletedStrike(content))
+            for (auto& run : projection.runs)
+                run.flags |= strike;
+    }
+    unsigned CompletedStrike(const SemanticParagraph& content) const noexcept
+    {
         if (! state->options.strikeCompletedTasks)
-            return;
+            return 0u;
         const auto& nodes = state->document->Syntax()->Nodes();
         for (auto node = content.syntaxNode; node != MarkdownNoNode; node = nodes[node].parent)
             if (nodes[node].block.kind == MarkdownBlockKind::ListItem)
             {
                 // The nearest item owns completion. Nested unchecked/ordinary
                 // items never inherit a parent's checked presentation.
-                if (nodes[node].task == MarkdownTask::Checked)
-                    for (auto& run : projection.runs)
-                        run.flags |= Strike;
-                return;
+                return nodes[node].task == MarkdownTask::Checked ? Strike : 0u;
             }
+        return 0u;
+    }
+    // Whether a prepared layout's input equals this document's display text and
+    // runs over range, compared in place without building the input copy.
+    bool SameDisplayInput(MarkdownRange range, unsigned extraFlags, const Projection& prior) const noexcept
+    {
+        const auto& document = *state->document;
+        if (std::wstring_view(prior.text) != document.Map().Display().substr(range.first, range.last - range.first))
+            return false;
+        const auto runs  = document.Runs();
+        std::size_t used = 0u;
+        for (auto run =
+                 std::lower_bound(runs.begin(), runs.end(), range.first, [](const auto& item, auto offset) { return item.start + item.length <= offset; });
+             run != runs.end() && run->start < range.last;
+             ++run, ++used)
+        {
+            const auto begin = std::max(run->start, range.first), end = std::min(run->start + run->length, range.last);
+            if (used == prior.runs.size())
+                return false;
+            const auto& old = prior.runs[used];
+            if (old.start != begin - range.first || old.length != end - begin || old.flags != (run->flags | extraFlags) || old.heading != run->heading)
+                return false;
+        }
+        return used == prior.runs.size();
+    }
+    // Old-to-new box pairing without an identity map (W7.1). Unchanged
+    // paragraphs keep their order, so each pass walks the previous boxes with a
+    // cursor and looks a bounded window ahead; markers and bodies keep separate
+    // cursors. A block the semantic builder reused names its old paragraph, so
+    // a cursor that lost alignment after a large insertion or deletion jumps
+    // there. A candidate is reused only if accept() confirms every input.
+    static constexpr std::size_t ReuseWindow = 64u;
+    std::size_t markerReuseCursor{}, bodyReuseCursor{};
+    std::size_t PairedBoxCursor(std::size_t newParagraph) const noexcept
+    {
+        const auto* index    = SemanticExtensionAccess::ProjectionIndex(*state->document);
+        const auto* oldIndex = SemanticExtensionAccess::ProjectionIndex(*previousState->document);
+        if (! index || ! oldIndex || index->previousIdentity != previousState->document->Identity() || index->blocks.empty())
+            return MarkdownNoNode;
+        const auto block =
+            std::upper_bound(index->blocks.begin(), index->blocks.end(), newParagraph, [](auto value, const auto& cut) { return value < cut.paragraph; });
+        if (block == index->blocks.begin() || std::prev(block)->reusedFrom >= oldIndex->blocks.size())
+            return MarkdownNoNode;
+        const auto& cut          = *std::prev(block);
+        const auto oldParagraph  = newParagraph - cut.paragraph + oldIndex->blocks[cut.reusedFrom].paragraph;
+        const auto oldParagraphs = previousState->document->Paragraphs();
+        if (oldParagraph >= oldParagraphs.size())
+            return MarkdownNoNode;
+        const auto target = oldParagraphs[oldParagraph].display.first;
+        const auto& boxes = previousState->boxes;
+        return static_cast<std::size_t>(
+            std::partition_point(boxes.begin(), boxes.end(), [&](const auto& box) { return box->paragraph.display.first < target; }) - boxes.begin());
+    }
+    template <typename Accept> bool FindReusableBox(std::uint64_t identity, bool marker, std::size_t newParagraph, std::size_t& cursor, Accept&& accept)
+    {
+        if (! previousState || ! identity)
+            return false;
+        const auto& boxes = previousState->boxes;
+        const auto& nodes = previousState->document->Syntax()->Nodes();
+        const auto scan   = [&](std::size_t from)
+        {
+            std::size_t seen = 0u;
+            for (auto index = from; index < boxes.size() && seen < ReuseWindow; ++index)
+            {
+                const auto& box = *boxes[index];
+                if (box.caretOnly || (box.markerOnly && ! box.markerLayout) || box.markerLayout != marker || ! box.layout.Ready() ||
+                    box.paragraph.syntaxNode >= nodes.size())
+                    continue;
+                ++seen;
+                if (nodes[box.paragraph.syntaxNode].identity == identity && accept(box))
+                {
+                    cursor = index + 1u;
+                    return true;
+                }
+            }
+            return false;
+        };
+        if (scan(cursor))
+            return true;
+        const auto jump = PairedBoxCursor(newParagraph);
+        return jump != MarkdownNoNode && jump != cursor && scan(jump);
     }
     bool MeasureMarkerOne()
     {
@@ -1470,44 +1550,38 @@ struct PreparedSemanticGeometry::Preparation
         // cached metrics retain the natural advance even for an unusual font.
         options.widthDip      = std::max(options.widthDip, options.fontSizeDip * 32.0f);
         options.textAlignment = DWRITE_TEXT_ALIGNMENT_LEADING;
-        PreparedLayoutAccess::SemanticInput projection;
-        SemanticDisplayInput(*state->document, box->paragraph.display, projection);
+        const auto markerText =
+            state->document->Map().Display().substr(box->paragraph.display.first, box->paragraph.display.last - box->paragraph.display.first);
         // SemanticBuilder emits the owned checkbox followed by one generated
         // space, after any ordered-list number. Authored body glyphs never
         // enter this marker-only input.
-        box->taskMarker  = projection.text.size() >= 2u &&
-                           (projection.text[projection.text.size() - 2u] == L'\u2610' || projection.text[projection.text.size() - 2u] == L'\u2611');
-        bool reused      = false;
+        box->taskMarker  = markerText.size() >= 2u && (markerText[markerText.size() - 2u] == L'\u2610' || markerText[markerText.size() - 2u] == L'\u2611');
         const auto& node = state->document->Syntax()->Nodes()[content.syntaxNode];
-        if (previousState && node.identity != 0u)
+        // Reuse is decided against the document's own display and runs, before
+        // any input copy (W7.1).
+        const bool reused = FindReusableBox(node.identity,
+                                            true,
+                                            index,
+                                            markerReuseCursor,
+                                            [&](const SemanticBox& old)
         {
-            const auto range = reusable.equal_range(node.identity);
-            for (auto found = range.first; found != range.second; ++found)
-            {
-                const auto& old      = *previousState->boxes[found->second];
-                const auto& oldNodes = previousState->document->Syntax()->Nodes();
-                if (! old.markerLayout || old.paragraph.markerOwner == MarkdownNoNode || content.markerOwner == MarkdownNoNode ||
-                    old.paragraph.markerOwner >= oldNodes.size() || content.markerOwner >= state->document->Syntax()->Nodes().size() ||
-                    oldNodes[old.paragraph.markerOwner].identity != state->document->Syntax()->Nodes()[content.markerOwner].identity)
-                    continue;
-                const auto& prior   = old.layout.Content();
-                const bool sameRuns = prior.runs.size() == projection.runs.size() &&
-                                      std::equal(prior.runs.begin(), prior.runs.end(), projection.runs.begin(), [](const auto& left, const auto& right) {
-                    return left.start == right.start && left.length == right.length && left.flags == right.flags && left.heading == right.heading;
-                });
-                if (prior.text == projection.text && sameRuns &&
-                    previousState->document->Syntax()->Slice(oldNodes[old.paragraph.syntaxNode].block.source) ==
-                        state->document->Syntax()->Slice(node.block.source))
-                {
-                    box->layout = old.layout;
-                    ++state->reusedBoxes;
-                    reused = true;
-                    break;
-                }
-            }
-        }
+            const auto& oldNodes = previousState->document->Syntax()->Nodes();
+            if (old.paragraph.markerOwner == MarkdownNoNode || content.markerOwner == MarkdownNoNode || old.paragraph.markerOwner >= oldNodes.size() ||
+                content.markerOwner >= state->document->Syntax()->Nodes().size() ||
+                oldNodes[old.paragraph.markerOwner].identity != state->document->Syntax()->Nodes()[content.markerOwner].identity)
+                return false;
+            if (! SameDisplayInput(box->paragraph.display, 0u, old.layout.Content()) ||
+                previousState->document->Syntax()->Slice(oldNodes[old.paragraph.syntaxNode].block.source) !=
+                    state->document->Syntax()->Slice(node.block.source))
+                return false;
+            box->layout = old.layout;
+            ++state->reusedBoxes;
+            return true;
+        });
         if (! reused)
         {
+            PreparedLayoutAccess::SemanticInput projection;
+            SemanticDisplayInput(*state->document, box->paragraph.display, projection);
             nativeFailure = PreparedLayoutAccess::PrepareSemantic(box->layout, state->factory.get(), projection, options, true);
             if (FAILED(nativeFailure))
                 return false;
@@ -1937,8 +2011,6 @@ struct PreparedSemanticGeometry::Preparation
         }
         if (! box->layout.Ready())
         {
-            PreparedLayoutAccess::SemanticInput projection;
-            PrepareBodyInput(content, projection);
             wil::com_ptr<IDWriteInlineObject> placeholder;
             if (native)
             {
@@ -1991,12 +2063,16 @@ struct PreparedSemanticGeometry::Preparation
             }
             const auto imageRanges =
                 imageInlines ? std::span(imageInlines->ranges.data(), imageInlines->count) : std::span<PreparedLayoutAccess::InlineObject>{};
+            // Reuse is decided against the document's own display and runs,
+            // before any input copy, and paired without an identity map (W7.1).
             if (previousState && node.identity != 0u && ! caretOnly && ! marker)
             {
-                const auto range = reusable.equal_range(node.identity);
-                for (auto found = range.first; found != range.second; ++found)
+                static_cast<void>(FindReusableBox(node.identity,
+                                                  false,
+                                                  paragraph,
+                                                  bodyReuseCursor,
+                                                  [&](const SemanticBox& old)
                 {
-                    const auto& old       = *previousState->boxes[found->second];
                     const auto& priorNode = previousState->document->Syntax()->Nodes()[old.paragraph.syntaxNode];
                     const auto& prior     = old.layout.Content();
                     const auto& oldNodes  = previousState->document->Syntax()->Nodes();
@@ -2053,24 +2129,30 @@ struct PreparedSemanticGeometry::Preparation
                         }
                         sameImages = matched == imageRanges.size() && matched == priorCount;
                     }
-                    const bool sameRuns = prior.runs.size() == projection.runs.size() &&
-                                          std::equal(prior.runs.begin(), prior.runs.end(), projection.runs.begin(), [](const auto& left, const auto& right) {
-                        return left.start == right.start && left.length == right.length && left.flags == right.flags && left.heading == right.heading;
-                    });
                     if (! old.markerLayout && sameNative && sameImages && sameTable && sameOwner(old.paragraph.markerOwner, content.markerOwner) &&
                         old.paragraph.row == content.row && old.paragraph.column == content.column && old.paragraph.columns == content.columns &&
                         old.width == box->width && old.paragraph.indent == content.indent && old.paragraph.flags == content.flags &&
                         old.paragraph.heading == content.heading && old.paragraph.alignment == content.alignment &&
                         previousState->document->Syntax()->Slice(priorNode.block.source) == next.document->Syntax()->Slice(node.block.source) &&
-                        prior.text == projection.text && sameRuns)
+                        SameDisplayInput(content.display, CompletedStrike(content), prior))
                     {
                         box->layout = old.layout;
                         ++next.reusedBoxes;
-                        break;
+                        return true;
                     }
-                }
+                    return false;
+                }));
             }
-            const bool emptySite = caretOnly && ! table && ! native && imageRanges.empty() && projection.text.empty() && projection.runs.empty();
+            // An empty display range projects empty text, and no runs unless it
+            // lies strictly inside a run (SemanticDisplayInput then keeps that
+            // run with zero length); decided without building the input.
+            const bool emptySite = caretOnly && ! table && ! native && imageRanges.empty() && content.display.first == content.display.last && [&]
+            {
+                const auto runs = next.document->Runs();
+                const auto run  = std::lower_bound(
+                    runs.begin(), runs.end(), content.display.first, [](const auto& item, auto offset) { return item.start + item.length <= offset; });
+                return run == runs.end() || run->start >= content.display.first;
+            }();
             if (! box->layout.Ready() && emptySite)
             {
                 const auto found = std::ranges::find_if(
@@ -2082,6 +2164,8 @@ struct PreparedSemanticGeometry::Preparation
             }
             if (! box->layout.Ready())
             {
+                PreparedLayoutAccess::SemanticInput projection;
+                PrepareBodyInput(content, projection);
                 nativeFailure = PreparedLayoutAccess::PrepareSemantic(
                     box->layout, next.factory.get(), projection, options, false, placeholder.get(), objectOffset, imageRanges);
                 if (FAILED(nativeFailure))
@@ -2512,17 +2596,10 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
             }
             if (work.phase == Preparation::Phase::IndexReuse)
             {
-                if (! work.previousState || work.reuseIndex == work.previousState->boxes.size())
-                {
-                    work.phase = Preparation::Phase::IndexElements;
-                    continue;
-                }
-                const auto index  = work.reuseIndex++;
-                const auto& box   = *work.previousState->boxes[index];
-                const auto& nodes = work.previousState->document->Syntax()->Nodes();
-                if (! box.caretOnly && (! box.markerOnly || box.markerLayout) && box.paragraph.syntaxNode < nodes.size() &&
-                    nodes[box.paragraph.syntaxNode].identity != 0u && box.layout.Ready())
-                    work.reusable.emplace(nodes[box.paragraph.syntaxNode].identity, index);
+                // Previous boxes pair by order and block range (FindReusableBox);
+                // no identity map of the previous boxes is built (W7.1).
+                work.phase = Preparation::Phase::IndexElements;
+                continue;
             }
             else if (work.phase == Preparation::Phase::IndexElements)
             {

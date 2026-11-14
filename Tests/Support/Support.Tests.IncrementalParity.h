@@ -22,6 +22,7 @@
 //   void SetDpi(UINT dpi);                           void Advance(uint64_t milliseconds);   // the frozen clock
 //   ParityFrame Capture(bool fresh);
 #include "Controls/DxUi.RetainedCaches.h"
+#include "Support/RetainedCaches.Tests.Hooks.h"
 #include <DxUi/DxUi.h>
 
 #include <UIAutomation.h>
@@ -387,8 +388,16 @@ template <typename Scene, typename Make>
 {
     std::unique_ptr<Scene> incremental = make();
     std::unique_ptr<Scene> fresh       = make();
+    // The fresh scene also prepares without reusing a previous publication (W7.1: the semantic builder's unchanged
+    // blocks), which the cache drop alone cannot reach.
+    const auto freshly = [](auto&& operation)
+    {
+        DxUi::Detail::SetFreshPreparationForTest(true);
+        operation();
+        DxUi::Detail::SetFreshPreparationForTest(false);
+    };
     script.build(*incremental);
-    script.build(*fresh);
+    freshly([&] { script.build(*fresh); });
     Rng incrementalRng{seed};
     Rng freshRng{seed};
     for (size_t step = 0u; step <= script.steps; ++step)
@@ -397,10 +406,11 @@ template <typename Scene, typename Make>
         {
             g_lastStep = "unnamed";
             script.step(*incremental, incrementalRng, step);
-            script.step(*fresh, freshRng, step);
+            freshly([&] { script.step(*fresh, freshRng, step); });
         }
         const ParityFrame a = incremental->Capture(false);
-        const ParityFrame b = fresh->Capture(true);
+        ParityFrame b;
+        freshly([&] { b = fresh->Capture(true); });
         std::string exempted;
         if (std::string difference = FirstDifference(a, b, channelTolerance, Scene::kKnownDifferences, &exempted); ! difference.empty())
             return std::format("step {} ({}): {}", step, step == 0u ? std::string_view("initial frame") : g_lastStep, difference);
@@ -875,6 +885,19 @@ template <typename Scene> void StepRich(Scene& scene, Rng& rng, size_t /*step*/)
     }
 }
 
+// Script "richBlocks" (W7.1): the "rich" steps on a document with every block kind the semantic builder reuses (math,
+// a diagram, a callout, native HTML, nested lists, a table and fences), so typing and Enter edit one block while the
+// fresh scene rebuilds the whole semantic document and the incremental one reuses the rest.
+template <typename Scene> void BuildRichBlocksScene(Scene& scene)
+{
+    BuildRichScene(scene);
+    auto* editor = static_cast<DxUi::RichTextEditor*>(scene.slots[1]);
+    editor->SetText(L"# Blocks\r\n\r\nInline $a^2$ math and **bold** text.\r\n\r\n$$\r\nx + y\r\n$$\r\n\r\n"
+                    L"> [!note] Callout\r\n> body text\r\n\r\n- one\r\n  - nested\r\n- [ ] task\r\n\r\n"
+                    L"<p align=\"center\">html <b>bold</b></p>\r\n\r\n```mermaid\r\nflowchart TD\r\nA-->B\r\n```\r\n\r\n"
+                    L"| A | B |\r\n| --- | --- |\r\n| 1 | 2 |\r\n\r\n```cpp\r\nint value = 1;\r\n```\r\n\r\nLast paragraph.\r\n");
+}
+
 inline constexpr std::array<uint64_t, 3u> kLayoutSeeds{0x5EED00A1u, 0x5EED00A2u, 0x5EED00A3u};
 inline constexpr std::array<uint64_t, 3u> kInteractionSeeds{0x5EED00B1u, 0x5EED00B2u, 0x5EED00B3u};
 inline constexpr std::array<uint64_t, 2u> kRichSeeds{0x5EED00C1u, 0x5EED00C2u};
@@ -890,6 +913,11 @@ template <typename Scene> [[nodiscard]] ParityScript<Scene> InteractionScript() 
 template <typename Scene> [[nodiscard]] ParityScript<Scene> RichScript() noexcept
 {
     return {"rich", kRichSeeds, 16u, &BuildRichScene<Scene>, &StepRich<Scene>};
+}
+inline constexpr std::array<uint64_t, 2u> kRichBlocksSeeds{0x5EED00D1u, 0x5EED00D2u};
+template <typename Scene> [[nodiscard]] ParityScript<Scene> RichBlocksScript() noexcept
+{
+    return {"richBlocks", kRichBlocksSeeds, 24u, &BuildRichBlocksScene<Scene>, &StepRich<Scene>};
 }
 
 // The registry's rows read populated before the drop on the controls and rich scenes together, except those the scenes

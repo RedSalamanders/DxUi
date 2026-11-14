@@ -15,6 +15,7 @@ namespace DxUi
 namespace
 {
 thread_local bool g_staleLabelLayoutForTest = false;
+thread_local bool g_freshPreparationForTest = false;
 
 template <typename Visit> void VisitTree(Control& control, const Visit& visit) noexcept
 {
@@ -587,11 +588,20 @@ bool IsStaleLabelLayoutInjectedForTest() noexcept
     return g_staleLabelLayoutForTest;
 }
 
+bool IsFreshPreparationForTest() noexcept
+{
+    return g_freshPreparationForTest;
+}
+
 namespace Detail
 {
 void SetStaleLabelLayoutInjectionForTest(bool enabled) noexcept
 {
     g_staleLabelLayoutForTest = enabled;
+}
+void SetFreshPreparationForTest(bool enabled) noexcept
+{
+    g_freshPreparationForTest = enabled;
 }
 } // namespace Detail
 

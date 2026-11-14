@@ -289,13 +289,19 @@ snapshot, delta and receipt.
   arrow, Backspace, Ctrl+arrow, Ctrl+Backspace, Enter, double-click) flattens the document. The preparation after an edit
   in Markdown rendering still copies the source once for the Markdown parse (plan item `W7.2`)
   (`Embedded.Tests.RichTextInputCopies.h`; receipt `Measurements/PerformanceAndMotion_2026-11-13/W7.4`).
-  A semantic document build counts each element it creates (`elementsBuilt`) and adds the display
-  units of the source/display map it publishes (`displayUnitsWritten`). Semantic geometry counts each native diagram paint
+  A semantic build counts each element it creates (`elementsBuilt`) and each display unit it emits from syntax
+  (`displayUnitsWritten`); units copied from reused blocks are not written. Semantic geometry counts each native diagram paint
   object it begins rather than carries (`diagramPreparations`), each prepared formula (`mathPreparations`, beside the
   `testRichMathPreparations` seam), each rasterized SVG strip (`svgRasterizations`, beside `testRichSvgRasterizations`) and
   the pixel bytes it uploads into image bitmaps, at creation with pixels or by `CopyFromMemory` (`imageUploadBytes`).
   Document layout counts each text chunk it lays out rather than reuses (`chunksLaid`) and each whole-document layout it builds (`wholeLayoutsLaid`). Each owner turn of a
   `RichTextEditor`'s cooperative content preparation counts `preparationTurns`.
+  A semantic build also counts the top-level blocks, elements and display units it copies from the previous publication
+  (`semanticBlocksReused`, `semanticElementsReused`, `semanticDisplayUnitsReused`). A build that reused blocks counts
+  `semanticIncrementalBuilds`; every other build counts exactly one cause: `semanticFullBuildNoPrevious`, `Presentation`,
+  `Footnotes`, `References`, `FrontMatter`, `Abbreviations`, `Capacity` or `Structure`. `identityMapNodes` counts nodes or
+  boxes inserted into an identity map to pair one revision with the next: the parser's old-node map (until incremental
+  parse reuse replaces it); semantic projection and semantic geometry pair by block range and order and add none.
 - **UI Automation.** Each whole-window snapshot build counts `snapshotBuilds`, its control records (`snapshotNodes`) and
   the bytes its per-control record arrays reserve (`snapshotBytes`, owned strings excluded). It counts the same builds as
   the diagnostic `DebugGetAccessibilitySnapshotBuildCountForTest`, which remains. Text-range movement by word counts the
@@ -1443,8 +1449,11 @@ semantic events (default 4,096), SDK layout calls (4) and geometry metadata even
 (4,096). Its graph is bounded by 4,096 native layouts (markers, bodies, cells and caret boxes) and 32,768
 elements, plus the source/display/map bounds. One SDK layout, leaf tokenization
 or final map construction remains indivisible. It retains at most a published
-and staged native geometry graph; source edits currently rebuild semantic leaves
-rather than claiming v0 chunk reuse. Immutable CPU syntax/document ownership can
+and staged native geometry graph. A source edit builds only the top-level semantic
+blocks between the unchanged leading and trailing blocks, which it copies from the
+previous publication in one indivisible event each (block-incremental projection in
+[controls and layout](../UI/UI_ControlsAndLayout.md#block-incremental-semantic-projection));
+this is not v0 chunk reuse. Immutable CPU syntax/document ownership can
 outlive native geometry when clients hold it. Raster preparation may allocate;
 composition must not call the builder/layout backend or allocate.
 

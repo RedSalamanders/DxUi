@@ -80,8 +80,56 @@ struct SemanticExtensions
         return count <= MaximumRecords - records;
     }
 };
+// Block-incremental projection (Specs/UI/UI_ControlsAndLayout.md, "Block-incremental
+// semantic projection"). One cut per top-level syntax block, in sibling order,
+// plus a terminal cut: the builder's state where that block's output starts.
+//
+// Reuse invariants, checked by SemanticBuilder before it copies a block:
+// - A top-level block's output (elements, paragraphs, display text, spans, runs,
+//   headings and extension records) depends only on its own syntax subtree, on
+//   document-wide inputs and on the boundary state recorded here. Document-wide
+//   inputs (footnotes, link reference definitions, front matter, abbreviation
+//   definitions, admission bounds, presentation overrides) force a full build
+//   when they could change; that full build is counted by cause.
+// - Every source coordinate a block emits lies inside its own block range, so a
+//   reused block shifts uniformly by the edit's source delta; its display,
+//   element, paragraph and heading indices shift by the difference of the cuts.
+// - Element and paragraph syntax indices move by the difference of the paired
+//   top-level node indices; each is checked against the new syntax (kind, range
+//   and identity) while copying, and a mismatch rebuilds fully.
+// - Spans and runs merge across block edges exactly as SemanticOutput::Emit
+//   merges them, so clipped copies re-merged with that rule equal a fresh build.
+// Reused values are copies: a publication never shares mutable storage with
+// the previous one, which stays immutable and may be released independently.
+struct SemanticBlockCut
+{
+    std::size_t node = MarkdownNoNode; // Top-level syntax node; MarkdownNoNode for the terminal cut.
+    MarkdownRange source;
+    MarkdownBlockKind kind{};
+    std::size_t display{}, element{}, paragraph{}, heading{};
+    std::size_t maths{}, images{}, diagrams{}, diagnostics{}, records{}, candidates{}, callouts{};
+    std::size_t lastTop    = MarkdownNoNode; // Last top-level element before this cut.
+    std::size_t reusedFrom = MarkdownNoNode; // Block index in the previous publication, when copied from it.
+    bool htmlPending{};                      // A native HTML empty insertion still waits at this display offset.
+};
+struct SemanticProjectionIndex
+{
+    SemanticProjectionIndex() : blocks(0u)
+    {
+    }
+    std::vector<SemanticBlockCut> blocks;
+    // Identity of the publication this one copied blocks from (0 for a full
+    // build). With SemanticBlockCut::reusedFrom this is the old-to-new block
+    // pairing later preparation stages may follow instead of an identity map.
+    std::uint64_t previousIdentity{};
+    bool admissionRefused{}; // Some object, record or diagram admission was refused.
+};
 struct SemanticExtensionAccess
 {
+    static const SemanticProjectionIndex* ProjectionIndex(const SemanticDocument& document) noexcept
+    {
+        return document.projection_.get();
+    }
     static std::span<const NativeSourceFallback> SourceObjects(const SemanticDocument& document) noexcept
     {
         return document.extensions_ ? std::span<const NativeSourceFallback>(document.extensions_->sourceObjects) : std::span<const NativeSourceFallback>{};

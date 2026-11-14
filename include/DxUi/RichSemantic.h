@@ -4,6 +4,10 @@
 
 namespace DxUi::RichText
 {
+namespace Detail
+{
+struct SourceDisplayMapAccess;
+} // namespace Detail
 enum class MappingAffinity
 {
     Leading,
@@ -65,9 +69,24 @@ public:
 
 private:
     SourceDisplayMap(std::wstring_view source, std::wstring_view display, std::span<const DisplaySpan> spans, SourceResult& result);
-    std::wstring source_, display_;
+    SourceDisplayMap(std::shared_ptr<const void> sourceOwner,
+                     std::wstring_view source,
+                     std::wstring&& display,
+                     std::vector<DisplaySpan>&& spans,
+                     SourceResult& result) noexcept;
+    void IndexPrimary(SourceResult& result);
+    void FindPrimary(std::size_t sourceOffset, const DisplaySpan*& previous, const DisplaySpan*& current, const DisplaySpan*& next) const noexcept;
+    // Sparse representation: no per-unit anchors. Source is either an owned copy
+    // (public TryBuild) or a view borrowed from an immutable owner the map keeps
+    // alive (semantic publication). primaryOrder_ is empty while every span's
+    // source start is nondecreasing in display order; otherwise it lists the
+    // primary spans in source order.
+    std::wstring ownedSource_, display_;
+    std::wstring_view source_;
+    std::shared_ptr<const void> sourceOwner_;
     std::vector<DisplaySpan> spans_;
-    std::vector<std::size_t> sourceLeading_, sourceTrailing_;
+    std::vector<std::uint32_t> primaryOrder_;
+    friend struct Detail::SourceDisplayMapAccess;
 };
 
 struct SourceEdit

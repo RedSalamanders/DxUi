@@ -223,6 +223,7 @@ inline void TestEmbeddedIncrementalParityScripts(GraphicsFixture& gpu)
     RunParityScript(LayoutScript<EmbeddedParityScene>(), make, "embedded", kReplay);
     RunParityScript(InteractionScript<EmbeddedParityScene>(), make, "embedded", kReplay);
     RunParityScript(RichScript<EmbeddedParityScene>(), make, "embedded", kReplay);
+    RunParityScript(RichBlocksScript<EmbeddedParityScene>(), make, "embedded", kReplay);
 }
 
 inline void TestEmbeddedIncrementalParity(GraphicsFixture& gpu)

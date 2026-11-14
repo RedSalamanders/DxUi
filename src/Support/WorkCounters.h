@@ -69,21 +69,35 @@
 
 // Rich documents.
 #define DXUI_WORK_COUNTERS_RICH(X)                                                                                                                             \
-    X(rich, chunksLaid)               /* Rich text layout chunks laid out by a document-layout preparation (not reused). */                                    \
-    X(rich, diagramPreparations)      /* Native diagram paint objects begun by a semantic geometry preparation (not carried). */                               \
-    X(rich, displayUnitsWritten)      /* UTF-16 display units a semantic document build published in its source/display map. */                                \
-    X(rich, documentBytesCopied)      /* Bytes of a RichTextEditor's own source or display text copied into a string: slices, flattens, text-input copies. */  \
-    X(rich, documentFlattens)         /* Copies of an editor's whole non-empty source or display text (a subset of documentBytesCopied). */                    \
-    X(rich, elementsBuilt)            /* Semantic elements a semantic document build created. */                                                               \
-    X(rich, hoveredTitleCalls)        /* RichTextEditor::HoveredTitle resolutions: the hover title under a point, for the host's tooltip. */                   \
-    X(rich, hoverScanElements)        /* Semantic elements a pointer-hover lookup tested one by one; the prepared hover index adds none. */                    \
-    X(rich, imageUploadBytes)         /* Pixel bytes rich-image preparation uploaded into Direct2D bitmaps (creation with pixels or CopyFromMemory). */        \
-    X(rich, mathPreparations)         /* Prepared math formulas built (beside the testRichMathPreparations seam). */                                           \
-    X(rich, otherDocumentBytesCopied) /* Bytes copied out of any other RichText::Document (code-fence line numbers, labels, scratch documents). */             \
-    X(rich, otherDocumentFlattens)    /* Copies of such a whole non-empty other Document (a subset of otherDocumentBytesCopied). */                            \
-    X(rich, preparationTurns)         /* RichTextEditor::PrepareContent calls: owner turns of cooperative rich-content preparation. */                         \
-    X(rich, svgRasterizations)        /* SVG strips rasterized into image bitmaps (beside the testRichSvgRasterizations seam). */                              \
-    X(rich, wholeLayoutsLaid)         /* Whole-document text layouts a document-layout preparation built (not reused). */
+    X(rich, chunksLaid)          /* Rich text layout chunks laid out by a document-layout preparation (not reused). */                                         \
+    X(rich, diagramPreparations) /* Native diagram paint objects begun by a semantic geometry preparation (not carried). */                                    \
+    X(rich,                                                                                                                                                    \
+      displayUnitsWritten) /* Display UTF-16 units a semantic build emitted from syntax; units copied from reused blocks are semanticDisplayUnitsReused. */    \
+    X(rich, documentBytesCopied) /* Bytes of a RichTextEditor's own source or display text copied into a string: slices, flattens, text-input copies. */       \
+    X(rich, documentFlattens)    /* Copies of an editor's whole non-empty source or display text (a subset of documentBytesCopied). */                         \
+    X(rich, elementsBuilt)       /* Semantic elements a semantic document build created. */                                                                    \
+    X(rich, hoveredTitleCalls)   /* RichTextEditor::HoveredTitle resolutions: the hover title under a point, for the host's tooltip. */                        \
+    X(rich, hoverScanElements)   /* Semantic elements a pointer-hover lookup tested one by one; the prepared hover index adds none. */                         \
+    X(rich, identityMapNodes)    /* Nodes or boxes inserted into an identity map to pair an old revision with a new one; block-range pairing adds none. */     \
+    X(rich, imageUploadBytes)    /* Pixel bytes rich-image preparation uploaded into Direct2D bitmaps (creation with pixels or CopyFromMemory). */             \
+    X(rich, mathPreparations)    /* Prepared math formulas built (beside the testRichMathPreparations seam). */                                                \
+    X(rich, otherDocumentBytesCopied)       /* Bytes copied out of any other RichText::Document (code-fence line numbers, labels, scratch documents). */       \
+    X(rich, otherDocumentFlattens)          /* Copies of such a whole non-empty other Document (a subset of otherDocumentBytesCopied). */                      \
+    X(rich, preparationTurns)               /* RichTextEditor::PrepareContent calls: owner turns of cooperative rich-content preparation. */                   \
+    X(rich, semanticBlocksReused)           /* Top-level semantic blocks a SemanticBuilder copied from its previous publication instead of building. */        \
+    X(rich, semanticDisplayUnitsReused)     /* Display UTF-16 units copied, with their spans and runs, from reused semantic blocks. */                         \
+    X(rich, semanticElementsReused)         /* Semantic elements copied (shifted) from reused blocks. */                                                       \
+    X(rich, semanticFullBuildAbbreviations) /* Full semantic builds because abbreviation definitions exist or were edited. */                                  \
+    X(rich, semanticFullBuildCapacity)      /* Full semantic builds because an object, record or paragraph admission bound could change. */                    \
+    X(rich, semanticFullBuildFootnotes)     /* Full semantic builds because the document has footnotes (document-wide numbering and footer). */                \
+    X(rich, semanticFullBuildFrontMatter)   /* Full semantic builds because the edit touched front matter. */                                                  \
+    X(rich, semanticFullBuildNoPrevious)    /* Full semantic builds with no compatible previous publication (first build, other options or syntax). */         \
+    X(rich, semanticFullBuildPresentation)  /* Full semantic builds because a source block, source region or native fallback presentation is active. */        \
+    X(rich, semanticFullBuildReferences)    /* Full semantic builds because the edit touched a link reference definition. */                                   \
+    X(rich, semanticFullBuildStructure)     /* Full semantic builds because a reused block's syntax nodes or identities did not pair. */                       \
+    X(rich, semanticIncrementalBuilds)      /* Semantic builds that reused the previous publication's unchanged top-level blocks. */                           \
+    X(rich, svgRasterizations)              /* SVG strips rasterized into image bitmaps (beside the testRichSvgRasterizations seam). */                        \
+    X(rich, wholeLayoutsLaid)               /* Whole-document text layouts a document-layout preparation built (not reused). */
 
 // UI Automation.
 #define DXUI_WORK_COUNTERS_ACCESSIBILITY(X)                                                                                                                    \
