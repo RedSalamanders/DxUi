@@ -91,11 +91,11 @@ HRESULT GraphicsDevice::Create(ID3D11Device* device, std::shared_ptr<GraphicsDev
         auto& s  = *created->_state;
         s.device = device;
         D2D1_FACTORY_OPTIONS options{};
-        RETURN_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory1), &options, s.factory.put_void()));
+        RETURN_IF_FAILED(Detail::CreateHostD2DFactory(options, s.factory.put()));
         wil::com_ptr_nothrow<IDXGIDevice> dxgi;
         RETURN_IF_FAILED(device->QueryInterface(IID_PPV_ARGS(dxgi.put())));
         RETURN_IF_FAILED(s.factory->CreateDevice(dxgi.get(), s.d2d.put()));
-        RETURN_IF_FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), s.write.put_unknown()));
+        RETURN_IF_FAILED(Detail::CreateHostWriteFactory(s.write.put()));
         RETURN_IF_FAILED(device->CreateVertexShader(g_DxUiCompositeVS, sizeof(g_DxUiCompositeVS), nullptr, s.vs.put()));
         RETURN_IF_FAILED(device->CreatePixelShader(g_DxUiCompositePS, sizeof(g_DxUiCompositePS), nullptr, s.ps.put()));
         D3D11_BLEND_DESC blend{};

@@ -192,7 +192,7 @@ Purpose: make every later claim provable with deterministic counters, timing tha
 hardware, memory that is attributed, and two experiments that choose the architecture. Exit: a baseline receipt for
 `FX1`–`FX14`; the `W0.6` result recorded in the Win32 host contract; a `W0.7` receipt from a hardware adapter.
 
-- [ ] **W0.1 Work counters.**
+- [x] **W0.1 Work counters.**
   - **Why**: the only deterministic work measure is the C++ allocation sink of the ComplexUi benchmark
     ([Embedded.Tests.ComplexUiBenchmark.h](../../../Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h) `:157-197`);
     `Paint` executions, tree visits, wakes, layouts, formats and devices are not counted. A `->Create…(` source match
@@ -1719,7 +1719,7 @@ with an open row is not accepted for closeout until that row closes.
 
 | Item | Left open or different | Closes with |
 | --- | --- | --- |
-| `W0.1` | Landed and not ticked: the counter record, the counted creation helpers at every call site, the source matcher and the gate on the 83-control fixture. Not built: the counting COM wrappers in the test executables and the Direct2D draw-call count. The pacer wake counter arrives with `W3.6`. A dirty frame reports 54 allocations in Release, which the gate asserts, and 257 in Debug and ASan Debug, where debug iterators allocate. | A second `W0.1` commit with the wrappers and the draw-call count |
+| `W0.1` | Two commits: the counters, helpers and matcher, then the counting wrappers and the draw-call count. The wrappers cross-check creations on the embedded 83-control fixture only: no test installs them on the native `WindowHost` path, whose shared per-thread resources outlive one test. The pacer wake counter arrives with `W3.6`. A dirty frame reports 54 allocations in Release, which the gate asserts, and 257 in Debug and ASan Debug, where debug iterators allocate; it makes 399 Direct2D draw calls. | Recorded limit; a native cross-check needs a per-test native pool |
 | `W0.2` | Landed and not ticked: the timing method, its runner and its tests. Not done: the five-session calibration on the hardware adapter, for the 83-control fixture and for `FX3`. It needs a quiet machine and the High Performance power plan, and `FX3` needs `W0.4`. | A quiet measurement window, with the power plan set by the developer |
 | `W0.3` | The receipt contradicts one line of `G13`: `sizeof(Label)` is 448 B in Release and a built scene tracks about 640 B per control, against a target of 256 B or less per simple control. On the hardware adapter, hiding a view frees its 3.69 MB surface while local and non-local video memory do not fall, even after a flush. `RichTextEditor` text layouts are not counted in the retained statistics. | `W9.6` recovers the per-control line or the developer restates it under `A7`; `W9.2` for the video memory |
 | `W0.5` | Found in today's code, exempted by name and not fixed: in a native window `Control::SetBounds` does not refresh the UI Automation snapshot, so a client reads a moved or resized control's old bounding rectangle until something else republishes. | `W8.2` fixes it and removes the exemption |

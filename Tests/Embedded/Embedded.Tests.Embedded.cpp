@@ -1696,6 +1696,13 @@ __declspec(noinline) static int RunFunctionalTests()
         WorkCountersComplexUi::Run(__wargv[2]);
         return 0;
     }
+    // The same fixture under the counting COM wrappers: their receipt, then the pixel identity and cost comparison with and
+    // without them (Measurements/PerformanceAndMotion_2026-11-13/W0.1/CountingWrappers).
+    if (__argc == 4 && std::wstring_view(__wargv[1]) == L"--test-counting-wrappers")
+    {
+        WorkCountersComplexUi::RunWrapperComparison(__wargv[2], __wargv[3]);
+        return 0;
+    }
     // Opt-in diagnostics stay outside the canonical benchmark dispatcher/closure.
     if (__argc == 5 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-profile")
     {
@@ -2071,6 +2078,8 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichSnapshotSliceAllocationFailureAtomicity();
     ComplexUiBoundaries::TestDevicePolicies();
     WorkCountersComplexUi::Run(nullptr);
+    WorkCountersComplexUi::RunWrapperComparison(nullptr, nullptr);
+    WorkCountersComplexUi::TestCountingWrappersReportUncountedCreation();
     TestRichFlatProjectionFailureAtomicity();
     TestRichProjectionPreparationAllocationFailureAtomicity();
     TestRichProjectionRetainedStorageBudget();

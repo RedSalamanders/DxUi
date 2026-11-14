@@ -344,6 +344,22 @@ through the counted helpers (`CountedCreateTextLayout(factory, …)` instead of 
 Today a dirty ComplexUi frame paints all 83 controls and makes 54 C++ allocations in Release; a clean frame makes none
 and creates nothing ([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W0.1/README.md)).
 
+The source matcher proves only that DxUi's source names no raw creation call. Counting COM wrappers, which exist only in
+test executables, check what actually reaches Direct2D and DirectWrite: a test constructs
+`NativeWorkTests::CountingWrappers` (`Tests/Support/Support.Tests.CountingDirect2D.h`) before it creates its
+`GraphicsDevice`, and every Direct2D factory, device and device context and every DirectWrite factory the
+host then creates is a wrapper around the real object. The wrappers count each creation by kind, to compare with the
+helpers' counts (`CompareCreations`), and each Direct2D draw call in `frame.drawCalls`, which stays 0 wherever no wrapper is
+installed. They pass every call through unchanged and change no pixel; they run in dedicated tests, not whole suites.
+
+```powershell
+# The ComplexUi receipt under the counting wrappers, then pixel identity and cost with and without them.
+.\.build\x64\Release\DxUi.EmbeddedTests.exe --test-counting-wrappers .build\wrapped.json .build\wrapper-comparison.json
+```
+
+On that fixture the wrappers see exactly the helpers' creations on every frame, and a dirty frame makes 399 Direct2D draw
+calls, a clean frame none ([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W0.1/CountingWrappers/README.md)).
+
 ## Frame timing on hardware
 
 The five-round receipt above cannot confirm a small speed-up: a clean round lasts about 15 ms and every frame waits

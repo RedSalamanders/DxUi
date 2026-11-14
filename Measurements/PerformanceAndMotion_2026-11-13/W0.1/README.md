@@ -32,3 +32,6 @@ The Release dirty value matches the retained benchmark sink (2,160 allocations p
 `Measurements/EmbeddedInteractionLayout/Default-B1.json`). Debug and ASan Debug count one container proxy per standard
 container, as the benchmark's separate Debug ceiling records. Counts are identical in all three configurations except the
 allocation sink.
+
+The second part of W0.1, the counting COM wrappers and the Direct2D draw-call count on the same fixture, has its own
+[receipt](CountingWrappers/README.md).

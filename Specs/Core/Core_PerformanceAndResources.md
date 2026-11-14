@@ -223,7 +223,8 @@ targets are acceptance contracts, not claims of current support.
 
 ## Work counters
 
-Status: implemented (performance and motion plan item W0.1, 13 November 2026). Private; nothing here is public API.
+Status: implemented (performance and motion plan item W0.1: counters 13 November 2026, counting wrappers and draw calls
+14 November 2026). Private; nothing here is public API.
 
 Deterministic work is counted by `Detail::WorkCounters` (`src/Support/WorkCounters.h`): one thread-local record of
 plain `uint64_t` increments, present in every configuration, Release included. Counting is dormant until a test reads
@@ -238,7 +239,10 @@ snapshot, delta and receipt.
   `treeVisitsPaint`, `treeVisitsTick` and `treeVisitsHitTest` count each control such a walk examined, visible or not.
   `preparations` and `composites` count embedded preparations that painted and compositions; `renders` and `presents`
   count native render passes and swap-chain presents; `pixelsPainted` adds the device pixels a preparation or render
-  cleared and repainted (the dirty rectangle of a partial native frame).
+  cleared and repainted (the dirty rectangle of a partial native frame). `drawCalls` counts Direct2D draw calls (every
+  `Draw…`, `Fill…`, `Clear` and `BlendImage` call DxUi makes on a device context). Only the counting wrappers below
+  increment it, so it is populated only where a test executable installs them and is 0 everywhere else, shipping builds
+  included.
 - **Wakes by source.** `animationTimer` (the animation dispatcher's `WM_TIMER`), `menuHoverTimer`, `paintMessage`
   (`WM_PAINT`) and `embeddedAdvance` (each `EmbeddedHost::AdvanceAnimation` the application made while animation was
   requested).
@@ -262,9 +266,39 @@ kind, summed over kinds, and is meaningful only under a tracker.
 Enforcement: `Tools/tests/Test-CountedCreation.ps1` (run by the tooling tests) fails on any occurrence under `src` of a
 counted method name, whatever the receiver (`->`, `.`, `::`, a call split across lines, a member-function pointer or a
 function pointer such as `&::D3D11CreateDevice`), outside the helper header and the creator type in
-`src/Support/NativeRendering.h`. Comments and literals are ignored. Counting wrappers around the factory, device and
-device context in test executables, and a Direct2D draw-call count, are not implemented; the source matcher is today's
-enforcement.
+`src/Support/NativeRendering.h`. Comments and literals are ignored.
+
+The matcher sees only DxUi's source. Counting COM wrappers in test executables observe what actually reaches Direct2D and
+DirectWrite (`Tests/Support/Support.Tests.CountingDirect2D.h`, with `Support.Tests.CountingWriteFactory.h` for
+DirectWrite). The hosts create their Direct2D and DirectWrite factories through the private seam
+`Detail::CreateHostD2DFactory` and `Detail::CreateHostWriteFactory` (`src/Support/NativeRendering.h`); a test installs a
+`Detail::FactoryInterposer` on its thread to receive each new factory and return a wrapper. Without one, which is always
+the case outside test executables, the seam returns the system factory unchanged; nothing is added to `include/DxUi`.
+
+- **What is wrapped.** The factory as `ID2D1Factory1`, the device as `ID2D1Device`, each device context up to
+  `ID2D1DeviceContext7` and the DirectWrite factory as `IDWriteFactory`: the highest version DxUi requests of each.
+  Everything they create is the real object, so no wrapper is ever passed to Direct2D, DirectWrite, DirectComposition, an
+  effect, a command list, `IDWriteTextLayout::Draw` or a bitmap made from a DXGI surface. A context reports the wrapped
+  device and factory from `GetDevice` and `GetFactory`, and a device the wrapped factory, so resources DxUi creates
+  through them are seen too. DirectComposition receives the DXGI device, never the Direct2D device.
+- **Identity and lifetime.** `QueryInterface` answers a wrapped version with the wrapper itself, one COM identity, and
+  only when the real object implements that version. Any other interface is answered by the real object and counted as
+  escaped, since calls through it are no longer seen. Each wrapper holds one reference to its real object and releases
+  it when it is destroyed, so real lifetimes are unchanged; a test requires every wrapper released after its host is.
+- **What is counted.** Each successful creation by resource kind (the helpers' kinds; D3D11 devices are created outside
+  Direct2D and are not seen), each object of another kind (a mesh, an ink, a render target, which is returned unwrapped),
+  and each draw call in `frame.drawCalls`. A `DrawText` call is also one implicit text layout, as `CountedDrawText`
+  counts it.
+- **The cross-check.** On the ComplexUi fixture the wrappers see, frame by frame and kind by kind, exactly the creations
+  the helpers count on every dirty frame, and both see none on every clean frame; no frame creates another kind and no
+  interface escapes. A test-only control that creates a brush directly on the host's device context is reported as the
+  one mismatch (helpers 0, wrappers 1).
+  The comparison also holds over setup (attachment, first layout and the warm-up frames).
+- **Where they run.** Only in dedicated tests: the cross-check, the pixel-identity comparison and the seeded mismatch in
+  the Embedded suite, and the `--test-counting-wrappers` receipt. Ordinary suites test the shipping path with real
+  objects. Every composited pixel of all 80 measured ComplexUi frames is identical with and without the wrappers. The
+  native host creates its shared factories through the same seam, but no test installs wrappers there yet: its shared
+  resources outlive a single test, and the cross-check is established on the embedded fixture.
 
 Baseline on the ComplexUi fixture (83 controls, 1280×720, 96 DPI, WARP, reduced motion; `DxUi.EmbeddedTests.exe
 --test-work-counters <receipt>`, also run by the Embedded suite): a dirty frame prepares and composites once, paints
@@ -272,7 +306,10 @@ every visible control once (83 `Paint` executions and 83 paint visits), repaints
 makes 54 C++ allocations; a clean frame composites once and reports 0 allocations, 0 created resources, 0 churn and no
 paint. The receipt is retained under
 [Measurements/PerformanceAndMotion_2026-11-13/W0.1](../../Measurements/PerformanceAndMotion_2026-11-13/W0.1/README.md).
-These are counts, not timing; a change to them is a measured change with its own receipt, never a silent rebaseline.
+Under the counting wrappers (`--test-counting-wrappers <receipt> <comparison>`) a dirty frame makes 399 Direct2D draw
+calls and a clean frame 0, identically in consecutive runs; the wrappers' creations equal the helpers' (49 implicit
+`DrawText` layouts and 7 text layouts per dirty frame, nothing per clean frame) and no pixel changes
+([receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W0.1/CountingWrappers/README.md)). These are counts, not timing; a change to them is a measured change with its own receipt, never a silent rebaseline.
 
 ## Mandatory performance policy
 

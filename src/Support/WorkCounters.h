@@ -17,6 +17,7 @@
 // Frames and hosts: what one preparation, render or composition did.
 #define DXUI_WORK_COUNTERS_FRAME(X)                                                                                                                            \
     X(frame, composites)        /* EmbeddedHost::Composite calls that drew the prepared surface. */                                                            \
+    X(frame, drawCalls)         /* Direct2D draw calls seen by a test executable's counting wrappers; 0 wherever none is installed. */                         \
     X(frame, paintExecutions)   /* Control::Paint calls dispatched by a host, Panel or PageHost: one per painted control. */                                   \
     X(frame, pixelsPainted)     /* Device pixels inside the area a preparation or render cleared and repainted. */                                             \
     X(frame, preparations)      /* EmbeddedHost::Prepare calls that painted the surface. */                                                                    \

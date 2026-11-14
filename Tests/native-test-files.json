@@ -134,6 +134,7 @@
   "Tests/InteractiveLease/InteractiveLease.Tests.WarningBanner.h",
   "Tests/Support/Support.Tests.ChildCrashCapture.h",
   "Tests/Support/Support.Tests.ClipboardFixture.h",
+  "Tests/Support/Support.Tests.CountingDirect2D.h",
   "Tests/Support/Support.Tests.CountingWriteFactory.h",
   "Tests/Support/Support.Tests.DesktopLease.h",
   "Tests/Support/Support.Tests.DumpReader.h",

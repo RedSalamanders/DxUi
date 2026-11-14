@@ -785,8 +785,7 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
     // unload hangs. Keep D2D diagnostics opt-in; D3D debug remains enabled.
     options.debugLevel = D2D1_DEBUG_LEVEL_NONE;
 #endif
-    const HRESULT hrD2dFactory =
-        D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory1), &options, reinterpret_cast<void**>(resources.d2dFactory.addressof()));
+    const HRESULT hrD2dFactory = Detail::CreateHostD2DFactory(options, resources.d2dFactory.addressof());
     if (FAILED(hrD2dFactory) || ! resources.d2dFactory)
     {
         Debug::Error(L"DxUi::ControlHost: shared D2D1CreateFactory failed: 0x{:08X}", hrD2dFactory);
@@ -802,8 +801,7 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
         return false;
     }
 
-    const HRESULT hrWrite =
-        DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(resources.dwriteFactory.addressof()));
+    const HRESULT hrWrite = Detail::CreateHostWriteFactory(resources.dwriteFactory.addressof());
     if (FAILED(hrWrite) || ! resources.dwriteFactory)
     {
         Debug::Error(L"DxUi::ControlHost: shared DWriteCreateFactory failed: 0x{:08X}", hrWrite);
@@ -4220,7 +4218,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
             // holds, and creates no pool: only the last attachment's detach releases a pool,
             // so one created here would outlive this host and its default adapter policy
             // would refuse every later forced-WARP attachment on this thread.
-            const HRESULT hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(_dwriteFactory.put()));
+            const HRESULT hr = Detail::CreateHostWriteFactory(_dwriteFactory.put());
             if (FAILED(hr) || ! _dwriteFactory)
             {
                 Debug::Error(L"DxUi::ControlHost: unattached DWriteCreateFactory failed: 0x{:08X}", hr);
