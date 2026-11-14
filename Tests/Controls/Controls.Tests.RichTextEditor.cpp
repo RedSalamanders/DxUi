@@ -1087,11 +1087,21 @@ void TestRichTextEditorScrollAndHostClock()
     auto theme          = window.Host().GetTheme();
     theme.reducedMotion = false;
     window.Host().SetTheme(theme);
-    Require(raw->Tick(window.Host(), 0), "host epoch can begin at zero");
+    // W3.1: the caret sleeps between phase flips; each Tick asks for a deadline at the next flip instead of every frame.
+    // This test ticks the editor directly, outside a wake: drop the next-frame restart the focus change asked for, so the
+    // deadline each Tick asks for is what the schedule holds.
+    window.Host().CancelAnimation(*raw);
+    const auto sleepsUntil = [&](uint64_t flipTickMs)
+    {
+        const auto wake = window.Host().DebugGetFrameScheduleWakeForTest();
+        return wake.kind == 2u && wake.dueTickMs == flipTickMs;
+    };
+    Require(! raw->Tick(window.Host(), 0) && sleepsUntil(500u), "host epoch can begin at zero");
     const auto invalidations = window.Host().DebugGetInvalidateCount();
-    Require(raw->Tick(window.Host(), 100) && window.Host().DebugGetInvalidateCount() == invalidations, "same caret phase does not dirty pixels");
-    Require(raw->Tick(window.Host(), 500) && window.Host().DebugGetInvalidateCount() > invalidations, "phase flip invalidates");
-    Require(raw->Tick(window.Host(), 10), "backwards host timestamp resets epoch safely");
+    Require(! raw->Tick(window.Host(), 100) && sleepsUntil(500u) && window.Host().DebugGetInvalidateCount() == invalidations,
+            "same caret phase does not dirty pixels");
+    Require(! raw->Tick(window.Host(), 500) && sleepsUntil(1000u) && window.Host().DebugGetInvalidateCount() > invalidations, "phase flip invalidates");
+    Require(! raw->Tick(window.Host(), 10) && sleepsUntil(500u), "backwards host timestamp resets epoch safely");
     raw->SetReadOnly(true);
     Require(! raw->Tick(window.Host(), 1000), "read-only caret requests no periodic work");
 }

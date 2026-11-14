@@ -21,6 +21,15 @@ namespace DxUi
     return nowTickMs > startTickMs ? nowTickMs - startTickMs : 0u;
 }
 
+// The animation-clock time of a blinking caret's next phase flip after nowTickMs: phases are counted from the anchor, so
+// a late wake never shifts the ones after it. Saturates at the top of the clock.
+[[nodiscard]] constexpr uint64_t NextCaretBlinkFlipTickMs(uint64_t anchorTickMs, uint64_t nowTickMs, uint64_t periodMs) noexcept
+{
+    const uint64_t phases   = ElapsedTickMs(anchorTickMs, nowTickMs) / periodMs + 1u;
+    const uint64_t offsetMs = phases > UINT64_MAX / periodMs ? UINT64_MAX : phases * periodMs;
+    return offsetMs > UINT64_MAX - anchorTickMs ? UINT64_MAX : anchorTickMs + offsetMs;
+}
+
 inline constexpr float kToggleTrackWidthDip           = 34.0f;
 inline constexpr float kToggleTrackHeightDip          = 20.0f;
 inline constexpr float kToggleKnobDiameterDip         = 16.0f;
@@ -905,7 +914,8 @@ struct ScrollbarAnimationTargets
                                                                float trackHotStrength,
                                                                float thumbHotStrength) noexcept;
 [[nodiscard]] ScrollbarAnimationTargets ResolveScrollbarAnimationTargets(bool trackHovered, bool thumbHovered, bool thumbDragging) noexcept;
-void UpdateScrollbarAnimation(ControlHost& host, ScrollbarAnimationState& animation, bool trackHovered, bool thumbHovered, bool thumbDragging) noexcept;
+void UpdateScrollbarAnimation(
+    ControlHost& host, const Control& owner, ScrollbarAnimationState& animation, bool trackHovered, bool thumbHovered, bool thumbDragging) noexcept;
 [[nodiscard]] bool AdvanceScrollbarAnimation(const ControlHost& host, ScrollbarAnimationState& animation, uint64_t nowTickMs) noexcept;
 
 [[nodiscard]] float ComputeScrollbarPageStepDip(const D2D1_RECT_F& trackRect,

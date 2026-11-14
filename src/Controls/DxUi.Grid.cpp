@@ -4562,7 +4562,7 @@ void Grid::Paint(ControlHost& host) const
 
         if (needsAnimation)
         {
-            host.RequestAnimation();
+            host.RequestAnimation(*this);
         }
 
         const D2D1_RECT_F verticalScrollbar = GetVerticalScrollbarRect();
@@ -4881,11 +4881,13 @@ bool Grid::UpdateScrollbarHotState(const HitInfo& hit) noexcept
 void Grid::SyncScrollbarAnimation(ControlHost& host) noexcept
 {
     UpdateScrollbarAnimation(host,
+                             *this,
                              _verticalScrollbarAnimation,
                              _verticalScrollbarHotPart == ScrollbarHotPart::Track,
                              _verticalScrollbarHotPart == ScrollbarHotPart::Thumb,
                              _dragVerticalThumb);
     UpdateScrollbarAnimation(host,
+                             *this,
                              _horizontalScrollbarAnimation,
                              _horizontalScrollbarHotPart == ScrollbarHotPart::Track,
                              _horizontalScrollbarHotPart == ScrollbarHotPart::Thumb,

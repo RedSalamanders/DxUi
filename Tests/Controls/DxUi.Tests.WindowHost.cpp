@@ -7367,6 +7367,8 @@ void TestWindowHostContainsThrowingCallbacksOnNoexceptPaths()
     static_cast<void>(host.HandleMessage(nullptr, WM_CHAR, L'x', 0, handled));
     handled = false;
     static_cast<void>(host.HandleMessage(nullptr, WM_SYSCHAR, L'q', 0, handled));
+    // W3.1: a wake ticks only the controls that asked; the throwing control asks for its tick.
+    host.RequestAnimation(*keys);
     static_cast<void>(host.DebugAnimationTickForTest(1'000u));
 }
 

@@ -4,5 +4,6 @@
 // the determinism gate for every catalog fixture whose hosts include the window host, and the window receipt command.
 void TestPerformanceFixtureFrameworkOnWindowHost();
 void TestPerformanceFixturesAreDeterministicOnWindowHost();
+void TestFrameScheduleGatesOnWindowFixtures();
 // DxUi.ControlTests.exe --fixture-receipt <FX<N>[@variant]> <output.json>: a WARP receipt of one fixture on the window host.
 int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv);

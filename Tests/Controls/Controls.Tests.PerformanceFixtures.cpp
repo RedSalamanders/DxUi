@@ -288,6 +288,38 @@ void TestPerformanceFixturesAreDeterministicOnWindowHost()
     }
 }
 
+// W3.1's frame-schedule gate on the window host: every window fixture ticks only due requesters and never takes the legacy
+// whole-tree path; FX1 editable (G1) ticks its caret at most 20 times in 10 s of the fixture clock. Real dispatcher wakes are
+// counted by TestFrameScheduleNativeFx1CaretWakesInRealTime, since this runner never dispatches a timer.
+void TestFrameScheduleGatesOnWindowFixtures()
+{
+    for (const Definition* definition : kCatalog)
+    {
+        // An interactive-only fixture takes the foreground: its own gate runs in the interactive Menu suite.
+        if (definition->interactiveOnly || ! definition->Built() || ! Supports(definition->hosts, Host::Window))
+            continue;
+        const Variant& variant = definition->variants.front();
+        if (variant.hardwareOnly || variant.receiptOnly)
+            continue;
+        const RunRecord run    = RunWindow(*definition, variant);
+        uint64_t editableTicks = 0u;
+        for (size_t phase = 0u; phase < run.phases.size(); ++phase)
+            for (const StepRecord& step : run.phases[phase].steps)
+            {
+                Require(step.work.frame.tickCalls <= step.work.frame.tickRequesters && step.work.frame.tickLegacyTreeWalks == 0u &&
+                            step.work.frame.treeVisitsTick == 0u,
+                        "a window fixture step ticks only due requesters and never walks the tree");
+                if (definition == &Fx1::kDefinition && phase == Fx1::kEditable)
+                    editableTicks += step.work.frame.tickCalls;
+            }
+        if (definition == &Fx1::kDefinition)
+        {
+            std::cerr << "    [FIXTURE] FX1 editable (window, fixture clock): " << editableTicks << " caret ticks in 10 s\n";
+            Require(editableTicks <= 20u && editableTicks >= 15u, "G1: FX1 editable ticks its caret at most 20 times in 10 s on the window host");
+        }
+    }
+}
+
 int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv)
 {
     const bool interactive = argc == 5 && std::wstring_view(argv[4]) == L"--interactive";

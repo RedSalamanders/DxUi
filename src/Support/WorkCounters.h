@@ -27,6 +27,11 @@
     X(frame, renders)              /* Native WindowHost render passes (BeginDraw to EndDraw). */                                                               \
     X(frame, shadowPasses)         /* Shadow effect passes drawn (DrawShadowEffectPass): popups, cards and other elevated surfaces. */                         \
     X(frame, swapChains)           /* Swap chains native hosts created, for composition or for a window. */                                                    \
+    X(frame, tickCalls)            /* Control::Tick calls the frame schedule made for due requests (whole-tree walks excluded). */                             \
+    X(frame, tickDiscoveryWalks)   /* Whole-tree ticks an embedded root installation asked for, so controls can claim ticks. */                                \
+    X(frame, tickHeldWhileHidden)  /* Requests that came due while their native host was hidden and waited for its show. */                                    \
+    X(frame, tickLegacyTreeWalks)  /* Whole-tree ticks an anonymous RequestAnimation() asked for; the library's own controls never do. */                      \
+    X(frame, tickRequesters)       /* Due requests the frame schedule found at its wakes, one per requesting control. */                                       \
     X(frame, treeVisitsHitTest)    /* Controls a hit test examined: the root and each child a container offered to it. */                                      \
     X(frame, treeVisitsPaint)      /* Controls a paint walk examined, visible or not. */                                                                       \
     X(frame, treeVisitsStatistics) /* Controls an EmbeddedHost::GetStatistics retained-resource walk examined. */                                              \
@@ -34,7 +39,8 @@
 
 // Wakes by source: each turn DxUi takes on the owner thread because something woke it.
 #define DXUI_WORK_COUNTERS_WAKES(X)                                                                                                                            \
-    X(wakes, animationTimer)  /* AnimationDispatcher WM_TIMER ticks. */                                                                                        \
+    X(wakes, animationTimer)  /* AnimationDispatcher periodic (every-frame) WM_TIMER ticks. */                                                                 \
+    X(wakes, deadlineTimer)   /* AnimationDispatcher one-shot WM_TIMER wakes for the earliest scheduled deadline. */                                           \
     X(wakes, embeddedAdvance) /* EmbeddedHost::AdvanceAnimation calls the application made while animation was requested. */                                   \
     X(wakes, menuHoverTimer)  /* Menu submenu-hover WM_TIMER messages. */                                                                                      \
     X(wakes, paintMessage)    /* WindowHost WM_PAINT messages. */

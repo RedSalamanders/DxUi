@@ -247,7 +247,14 @@ snapshot, delta and receipt.
   shared native device stack counts `d2dDevices` and `compositionDevices` it creates, and native hosts count the
   `swapChains` they create; with `resources.d3d11Device` and `resources.deviceContext` these give the device creations of
   one menu session (`FX4`, `G10`).
-- **Wakes by source.** `animationTimer` (the animation dispatcher's `WM_TIMER`), `menuHoverTimer`, `paintMessage`
+- **Frame schedule** ([window hosting](../Rendering/Rendering_Win32Host.md#frame-schedule)). `tickRequesters` counts the
+  due requests a host found at its wakes and `tickCalls` the `Tick` calls it made for them (they differ only by requests
+  dropped for a destroyed, departed or hidden control); `tickLegacyTreeWalks` counts whole-tree ticks an anonymous
+  `RequestAnimation()` asked for, which the library's own controls never make, and `tickDiscoveryWalks` those an embedded
+  root installation asked for; `tickHeldWhileHidden` counts requests that came due while their native host was hidden
+  and fired once on its show.
+- **Wakes by source.** `animationTimer` (the animation dispatcher's periodic `WM_TIMER`), `deadlineTimer` (its one-shot
+  wake for the earliest deadline), `menuHoverTimer`, `paintMessage`
   (`WM_PAINT`) and `embeddedAdvance` (each `EmbeddedHost::AdvanceAnimation` the application made while animation was
   requested).
 - **Text.** `setTextRenderingParams` counts each `SetTextRenderingParams` call a host makes to bind or clear rendering

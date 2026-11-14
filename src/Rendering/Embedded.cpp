@@ -167,7 +167,6 @@ struct EmbeddedHost::State
     bool visible = true, dirty = true, coherent = false;
     bool interactionLayoutAvailable      = false;
     bool zeroSized                       = false;
-    bool animationSuspended              = false;
     bool preparationRequested            = true; // Initial dirty state already requires the caller's first Prepare.
     bool inputWakePending                = false;
     bool recoveryWakePending             = false;
@@ -426,15 +425,13 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
         // Nothing paints while the view is hidden, so its controls return what painting rebuilds (a Grid's text layouts).
         if (_host._root)
             _host._root->OnHidden();
-        if (! operationIsCurrent())
-            return;
-        _state->animationSuspended        = _host._embeddedAnimationRequested;
-        _host._embeddedAnimationRequested = false;
+        // The schedule is held while hidden: NeedsAnimation answers false, and nothing is ticked.
     }
     else
     {
-        _host._embeddedAnimationRequested = _host._embeddedAnimationRequested || _state->animationSuspended;
-        _state->animationSuspended        = false;
+        // The timeline does not count the hidden time: the next tick sets its baseline, so held deadlines keep their
+        // place on it and fire when it reaches them.
+        _host._embeddedAnimationRequested = _host.HasScheduledTicks();
         _host._animationTimelineRebase    = true;
         _state->dirty                     = true;
         if (_state->prepareCallActive)
@@ -449,7 +446,9 @@ bool EmbeddedHost::NeedsPreparation() const noexcept
 }
 bool EmbeddedHost::NeedsAnimation() const noexcept
 {
-    return _state && _state->visible && ! _state->zeroSized && _host._embeddedAnimationRequested;
+    // True while anything is scheduled, a pending deadline included: an application that polls this every frame keeps
+    // advancing, and AdvanceAnimation ticks only the requests that are due.
+    return _state && _state->visible && ! _state->zeroSized && _host.HasScheduledTicks();
 }
 bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
 {
@@ -470,21 +469,12 @@ bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
     ++Detail::Work().wakes.embeddedAdvance;
     if (Detail::Trace::Listening()) [[unlikely]]
         Detail::Trace::Wake(Detail::Trace::WakeSource::EmbeddedAdvance, Detail::Trace::HostIdOf(_host._trace));
-    try
-    {
-        _host.ValidateSupplementalTooltipTarget();
-        // Ticks dirty the view only through control invalidation; an idle tick leaves a clean surface clean.
-        if (_host._root)
-            ++Detail::Work().frame.treeVisitsTick;
-        const bool rootTicking            = _host._root && _host._root->Tick(_host, nowTickMs);
-        const bool tooltipTicking         = _host._tooltipLayer.Tick(_host, nowTickMs);
-        _host._embeddedAnimationRequested = rootTicking || tooltipTicking;
-        return _host._embeddedAnimationRequested;
-    }
-    catch (const std::exception&)
-    {
-        Failure::FailUnexpected();
-    }
+    // Ticks dirty the view only through control invalidation; an idle tick leaves a clean surface clean. Only the due
+    // requests are ticked; a pending deadline keeps NeedsAnimation true without a Tick.
+    if (! _host.RunScheduledTicks(nowTickMs))
+        return false;
+    _host._embeddedAnimationRequested = _host.HasScheduledTicks();
+    return _host._embeddedAnimationRequested;
 }
 HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
 {
@@ -1179,7 +1169,7 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
     {
         _host._supplementalTooltipModifiers    = down ? modifiers | MK_CONTROL : modifiers & ~MK_CONTROL;
         _host._supplementalTooltipNeedsResolve = true;
-        _host.RequestAnimation();
+        _host.RequestTooltipTick();
     }
     if (! KeyboardInputIsAvailable())
         return false;

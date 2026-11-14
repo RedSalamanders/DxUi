@@ -713,7 +713,10 @@ void ComboBox::SetText(std::wstring text)
     _redoHistory.clear();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     _caretBlinkAnchorTickMs.reset();
-    _caretVisible                = true;
+    _caretVisible = true;
+    // A focused editable box restarts its blink now, with the caret shown, and sleeps until the first flip.
+    if (ControlHost* const caretHost = GetHost(); caretHost && _editable && HasFocus())
+        ResetEditableCaretBlink(*caretHost);
     _editableHorizontalScrollDip = 0.0f;
     _dragSelecting               = false;
     InvalidateSingleLineLayoutCache();
@@ -1948,7 +1951,9 @@ bool ComboBox::Tick(ControlHost& host, uint64_t nowTickMs)
         Invalidate(host);
     }
 
-    return true;
+    // Sleep until the next phase flip: one deadline per flip, nothing in between.
+    host.RequestAnimationAt(*this, NextCaretBlinkFlipTickMs(*_caretBlinkAnchorTickMs, nowTickMs, kCaretBlinkPeriodMs));
+    return false;
 }
 
 bool ComboBox::OnSelectAll(ControlHost& host)
@@ -2468,7 +2473,7 @@ void ComboBox::ResetEditableCaretBlink(ControlHost& host) noexcept
 {
     _caretBlinkAnchorTickMs = host.GetAnimationTickMs();
     _caretVisible           = true;
-    host.RequestAnimation();
+    host.RequestAnimationAt(*this, NextCaretBlinkFlipTickMs(*_caretBlinkAnchorTickMs, *_caretBlinkAnchorTickMs, kCaretBlinkPeriodMs));
 }
 
 void ComboBox::OnFocusChanged(ControlHost& host, bool focused)
@@ -2483,6 +2488,8 @@ void ComboBox::OnFocusChanged(ControlHost& host, bool focused)
     else if (! focused)
     {
         _caretBlinkAnchorTickMs.reset();
+        // The caret is the box's only tick: an unfocused box waits for nothing.
+        host.CancelAnimation(*this);
         _caretVisible  = true;
         _dragSelecting = false;
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);

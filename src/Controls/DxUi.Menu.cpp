@@ -1680,9 +1680,10 @@ void SetSliderAnimationTarget(MenuPopup& popup, float targetPosition) noexcept
     {
         popup.sliderAnimatedPosition = clampedTarget;
     }
-    else
+    else if (Control* const content = popup.host.GetRoot())
     {
-        popup.host.RequestAnimation();
+        // The popup's content control ticks the slider.
+        popup.host.RequestAnimation(*content);
     }
     InvalidatePopup(popup);
 }

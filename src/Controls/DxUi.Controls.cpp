@@ -1574,6 +1574,9 @@ void Panel::PaintOverlay(ControlHost& host) const
 
 bool Panel::Tick(ControlHost& host, uint64_t nowTickMs)
 {
+    // The host's frame schedule ticks each requesting child itself; only a direct call walks the children.
+    if (host._tickWakeFrame)
+        return false;
     bool keepTicking         = false;
     const auto ownerLifetime = GetLifetimeToken();
     ForEachPanelChildCallback(*this,
@@ -1779,7 +1782,7 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
         }
     }
 
-    host->RequestAnimation();
+    host->RequestAnimation(*this);
     if (! ownerLifetime.expired() && GetHost() == host)
         RequestInvalidate();
 }
@@ -1881,7 +1884,7 @@ void PageHost::Paint(ControlHost& host) const
     if (! _transition.debugFrozen)
 #endif
     {
-        host.RequestAnimation();
+        host.RequestAnimation(*this);
     }
 
     Debug::Perf::Scope transitionPaintPerf(L"dxui.animation.page_transition.paint");
@@ -2002,7 +2005,9 @@ bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
     const std::weak_ptr<int> currentLifetime  = current ? GetControlLifetimeToken(*current) : std::weak_ptr<int>{};
     const std::weak_ptr<int> outgoingLifetime = outgoing ? GetControlLifetimeToken(*outgoing) : std::weak_ptr<int>{};
     bool keepTicking                          = false;
-    if (current && ! currentLifetime.expired() && current->IsVisible())
+    // The host's frame schedule ticks each requesting page control itself; only a direct call walks the pages.
+    const bool walkPages = host._tickWakeFrame == nullptr;
+    if (walkPages && current && ! currentLifetime.expired() && current->IsVisible())
     {
         ++Detail::Work().frame.treeVisitsTick;
         keepTicking = current->Tick(host, nowTickMs) || keepTicking;
@@ -2011,7 +2016,7 @@ bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
             return false;
         }
     }
-    if (outgoing && outgoing != current && ! outgoingLifetime.expired() && (_currentPage.get() == outgoing || _outgoingPage.get() == outgoing) &&
+    if (walkPages && outgoing && outgoing != current && ! outgoingLifetime.expired() && (_currentPage.get() == outgoing || _outgoingPage.get() == outgoing) &&
         outgoing->IsVisible())
     {
         ++Detail::Work().frame.treeVisitsTick;
@@ -3694,7 +3699,7 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
     _disclosureTransition.active        = host && ! host->GetTheme().reducedMotion;
     if (_disclosureTransition.active)
     {
-        host->RequestAnimation();
+        host->RequestAnimation(*this);
         if (lifetime.expired() || GetHost() != host)
             return;
     }
@@ -3789,7 +3794,7 @@ void Button::Paint(ControlHost& host) const
     // A disclosure rotation left pending while the button was hidden resumes ticking when it paints again.
     if (_disclosureTransition.active)
     {
-        host.RequestAnimation();
+        host.RequestAnimation(*this);
     }
     const FlowDirection flowDirection = GetFlowDirection();
     const bool caption                = _appearance == ButtonAppearance::Caption || _appearance == ButtonAppearance::CaptionClose;
@@ -4441,7 +4446,7 @@ void Button::UpdateInteractionTransition(ControlHost& host, InteractionTransitio
     transition.active               = true;
     const auto lifetime             = GetLifetimeToken();
     ControlHost* const originalHost = GetHost();
-    host.RequestAnimation();
+    host.RequestAnimation(*this);
     if (! lifetime.expired() && GetHost() == originalHost)
         Invalidate(host);
 }
@@ -5278,7 +5283,7 @@ void ProgressBar::SetIndeterminate(bool indeterminate) noexcept
     {
         if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
         {
-            host->RequestAnimation();
+            host->RequestAnimation(*this);
         }
     }
     if (! lifetime.expired())
@@ -5300,7 +5305,7 @@ void ProgressBar::SetAnimationPaused(bool paused) noexcept
     if (! paused && _indeterminate && IsEnabled() && IsVisible())
     {
         if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
-            host->RequestAnimation();
+            host->RequestAnimation(*this);
     }
     if (! lifetime.expired())
         RequestInvalidate();
@@ -5369,7 +5374,7 @@ void ProgressBar::Paint(ControlHost& host) const
     // Reduced motion paints a resting segment and requests no ticks.
     if (_indeterminate && ! _animationPaused && IsEnabled() && IsVisible() && ! theme.reducedMotion && bounds.right > bounds.left && bounds.bottom > bounds.top)
     {
-        host.RequestAnimation();
+        host.RequestAnimation(*this);
     }
 
     const ProgressTrack progressTrack = ComputeProgressTrack(bounds, _indeterminate, _trackHeightDip);
@@ -6053,7 +6058,7 @@ void ThroughputGraph::SetSamples(std::span<const ThroughputGraphSample> samples)
         _transitionStartValue  = _displayedLatestValue;
         _transitionStartTickMs = 0u;
         _transitionActive      = true;
-        host->RequestAnimation();
+        host->RequestAnimation(*this);
     }
     else if (! _transitionActive || ! host || host->GetTheme().reducedMotion || _samples.empty())
     {
@@ -6100,7 +6105,7 @@ void ThroughputGraph::SetCurrentValueMarker(double value, std::wstring label, st
         _currentValueTransitionStart       = _displayedCurrentValue;
         _currentValueTransitionStartTickMs = 0u;
         _currentValueTransitionActive      = true;
-        host->RequestAnimation();
+        host->RequestAnimation(*this);
     }
     else if (! _currentValueTransitionActive || ! host || host->GetTheme().reducedMotion)
     {
@@ -6595,7 +6600,7 @@ void Slider::BeginValueAnimation(ControlHost& host, double fromValue, double toV
     _valueAnimationActive           = true;
     const auto lifetime             = GetLifetimeToken();
     ControlHost* const originalHost = GetHost();
-    host.RequestAnimation();
+    host.RequestAnimation(*this);
     if (! lifetime.expired() && GetHost() == originalHost)
         Invalidate(host);
 }
@@ -6650,7 +6655,7 @@ void Slider::BeginVisualTransition(ControlHost& host, VisualTransitionState& tra
     transition.active               = true;
     const auto lifetime             = GetLifetimeToken();
     ControlHost* const originalHost = GetHost();
-    host.RequestAnimation();
+    host.RequestAnimation(*this);
     if (! lifetime.expired() && GetHost() == originalHost)
         Invalidate(host);
 }

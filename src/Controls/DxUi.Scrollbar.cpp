@@ -59,7 +59,8 @@ constexpr uint64_t kScrollbarInteractionAnimationDurationMs = 140u;
     return targets;
 }
 
-void UpdateScrollbarAnimation(ControlHost& host, ScrollbarAnimationState& animation, bool trackHovered, bool thumbHovered, bool thumbDragging) noexcept
+void UpdateScrollbarAnimation(
+    ControlHost& host, const Control& owner, ScrollbarAnimationState& animation, bool trackHovered, bool thumbHovered, bool thumbDragging) noexcept
 {
     constexpr float epsilon                 = 0.0001f;
     const ScrollbarAnimationTargets targets = ResolveScrollbarAnimationTargets(trackHovered, thumbHovered, thumbDragging);
@@ -88,7 +89,7 @@ void UpdateScrollbarAnimation(ControlHost& host, ScrollbarAnimationState& animat
     animation.lastTickMs = 0u;
     animation.anchored   = false;
     animation.active     = true;
-    host.RequestAnimation();
+    host.RequestAnimation(owner);
 }
 
 [[nodiscard]] bool AdvanceScrollbarAnimation(const ControlHost& host, ScrollbarAnimationState& animation, uint64_t nowTickMs) noexcept

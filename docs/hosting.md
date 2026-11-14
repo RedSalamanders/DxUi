@@ -49,6 +49,15 @@ attachment, only sets the baseline. Every control stamps its transitions with th
 application epoch, zero or near the top of the range, changes what a transition shows. Natively the clock is the UI
 thread's animation dispatcher timeline. A custom control stamps its own transitions with `host.GetAnimationTickMs()`;
 input timing such as double clicks uses real time, never this clock.
+
+A control asks for its own ticks, and the host ticks only the controls that asked: call `host.RequestAnimation(*this)`
+to be ticked on the next frame and on every frame while `Tick` returns true, or `host.RequestAnimationAt(*this, dueTickMs)`
+to be ticked once when the animation clock reaches `dueTickMs` (a caret blink, a delay) with nothing woken before, and
+`host.CancelAnimation(*this)` when nothing is pending any more. `RequestAnimation()` without a control still works: it
+ticks the whole visible tree once, and each control whose `Tick` returns true keeps ticking on its own, but it costs a
+walk of the tree, so name the control instead. A native host whose window is hidden or minimized, or whose presentation
+the application hid, holds its requests and is not woken; a deadline that passed meanwhile fires once when it is shown.
+See [window hosting](../Specs/Rendering/Rendering_Win32Host.md#frame-schedule).
 Device replacement and detach release owned graphics without clearing or flushing the application's immediate
 context; composition retains its documented pipeline-binding behavior.
 
@@ -148,7 +157,9 @@ association when the outer call completes, so neither call can authorize a delay
 The embedded API is not a complete IME, text-store or UI Automation bridge: the consumer must supply the integrations
 described in [input and accessibility](../Specs/UI/UI_InputAndAccessibility.md). Native ControlHost has separate HWND services.
 
-Call `AdvanceAnimation(nowTickMs)` only while `NeedsAnimation()` requests host ticks. A tick marks the view dirty
+Call `AdvanceAnimation(nowTickMs)` only while `NeedsAnimation()` requests host ticks. `NeedsAnimation()` stays true
+while any control waits for a deadline (a focused caret between blinks), and an advance before the deadline ticks
+nothing, so polling every frame keeps working. A tick marks the view dirty
 only when a control changes visual state (an indeterminate progress bar on every tick, a caret only when its blink
 phase flips), so check `NeedsPreparation()` after ticking instead of preparing unconditionally; a clean `Prepare`
 returns `S_FALSE`. The `requestPreparation` callback also fires when animation first becomes requested, so a host

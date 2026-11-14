@@ -6403,6 +6403,18 @@ public:
     [[nodiscard]] bool IsNativePresentationVisible() const noexcept;
     [[nodiscard]] bool PrimeForShow() noexcept;
     [[nodiscard]] bool RenderInitialFrameForShow() noexcept;
+    // Frame schedule. A control asks for its own ticks: the host ticks only the controls holding a due request, never
+    // the tree. RequestAnimation(control) ticks it on the next frame and on every frame while its Tick returns true;
+    // RequestAnimationAt(control, dueTickMs) ticks it once when the animation clock reaches dueTickMs (a caret blink, a
+    // delay), and nothing wakes before; CancelAnimation(control) withdraws its request. One request per control: every
+    // frame wins over a deadline, and a new deadline replaces the previous one. Whatever a scheduled Tick returns, true asks for the next frame. Requests of a
+    // control that leaves the host, is destroyed or is hidden are dropped; requests of a hidden or minimized host wait for its show.
+    void RequestAnimation(const Control& control) noexcept;
+    void RequestAnimationAt(const Control& control, uint64_t dueTickMs) noexcept;
+    void CancelAnimation(const Control& control) noexcept;
+    // Compatibility: a request that names no control ticks the whole visible tree once on the next frame, and every
+    // control whose Tick returns true then keeps a request of its own. A derived control should call
+    // RequestAnimation(*this) instead; the library's own controls never use this form.
     void RequestAnimation() noexcept;
     // The animation clock, in milliseconds: a transition stamps its start with it and Tick receives it. Natively it is
     // the UI thread's dispatcher timeline. Embedded, it is a timeline that the application's AdvanceAnimation ticks
@@ -6557,7 +6569,19 @@ public:
     // full preparation, so the next frame is drawn as a freshly built host would draw it (incremental-versus-fresh oracle).
     void DebugDropRetainedStateForTest() noexcept;
     [[nodiscard]] bool DebugHasActiveAnimationSubscription() const noexcept;
+    // Tests only. Runs one frame-schedule wake at nowTickMs as the dispatcher would; true while the schedule still waits
+    // for something (and the host is not hidden).
     [[nodiscard]] bool DebugAnimationTickForTest(uint64_t nowTickMs) noexcept;
+    // Tests only. The host's next wake as its schedule computes it (kind 0 none, 1 every frame, 2 deadline), the number
+    // of requests it holds, and whether any request or wake snapshot still names an address.
+    struct DebugFrameScheduleWake final
+    {
+        uint8_t kind       = 0u;
+        uint64_t dueTickMs = 0u;
+    };
+    [[nodiscard]] DebugFrameScheduleWake DebugGetFrameScheduleWakeForTest() const noexcept;
+    [[nodiscard]] size_t DebugGetTickRequestCountForTest() const noexcept;
+    [[nodiscard]] bool DebugScheduleHoldsControlForTest(const void* controlAddress) const noexcept;
     // Tests only. A native host's animation clock reads nowTickMs until reset with nullopt, while ticks still carry the time a
     // test passes; an embedded host's clock jumps to nowTickMs and its next ticks continue from there.
     void DebugSetAnimationClockForTest(std::optional<uint64_t> nowTickMs) noexcept;
@@ -6858,8 +6882,69 @@ private:
     void SetPointerDevice(PointerDevice device) noexcept;
     [[nodiscard]] D2D1_POINT_2F PointFromLParam(LPARAM lp) const noexcept;
     [[nodiscard]] UINT GetModifierState() const noexcept;
-    static bool AnimationTickThunk(void* context, uint64_t nowTickMs) noexcept;
-    bool OnAnimationTick(uint64_t nowTickMs) noexcept;
+    // Frame schedule (W3.1; Specs/Rendering/Rendering_Win32Host.md, "Frame schedule").
+    //
+    // Ownership rule: the schedule owns no control and never dereferences an address it holds unless the control's own
+    // lifetime token is alive and the control still names this host. Each request keeps the control's address, compared
+    // only, beside that token. ForgetControl removes a control's request when it leaves this host (detach, move, root
+    // replacement), is hidden or loses its tooltip role, and blanks it in the snapshot of a wake in progress; Detach drops
+    // the whole schedule. A wake works on a snapshot of the due requests and rechecks token and host before every Tick, so
+    // a Tick that removes itself, a sibling or the root, re-arms, hides the host or destroys it is safe; a host destroyed
+    // or detached during a wake is detected through the wake's stack frame and is not touched again.
+    enum class TickRequestKind : uint8_t
+    {
+        Continuous, // every frame while Tick returns true
+        Once,       // the next frame
+        Deadline,   // when the clock reaches dueTickMs
+    };
+    struct TickRequest final
+    {
+        Control* control = nullptr;
+        std::weak_ptr<int> lifetime;
+        uint64_t dueTickMs   = 0u;
+        TickRequestKind kind = TickRequestKind::Deadline;
+    };
+    struct TickWakeFrame final
+    {
+        TickWakeFrame* previous = nullptr;
+        bool abandoned          = false;
+    };
+    // The next wake the schedule needs, as the dispatcher and W3.5's embedded request see it.
+    struct FrameScheduleWake final
+    {
+        enum class Kind : uint8_t
+        {
+            None,
+            Continuous,
+            Deadline,
+        };
+        Kind kind          = Kind::None;
+        uint64_t dueTickMs = 0u;
+    };
+    void AddTickRequest(const Control& control, TickRequestKind kind, uint64_t dueTickMs) noexcept;
+    // One tick on the next frame (the rich editor restarting its caret blink).
+    void RequestAnimationOnce(const Control& control) noexcept;
+    void ForgetControl(const Control& control) noexcept;
+    void RequestTooltipTick() noexcept;
+    [[nodiscard]] FrameScheduleWake GetFrameScheduleWake() const noexcept;
+    [[nodiscard]] bool HasScheduledTicks() const noexcept;
+    [[nodiscard]] bool IsScheduleSuspended() const noexcept;
+    // Runs the due requests; false when the host was destroyed or detached during the wake.
+    [[nodiscard]] bool RunScheduledTicks(uint64_t nowTickMs) noexcept;
+    [[nodiscard]] bool TickTreeForSchedule(Control& control, uint64_t nowTickMs, const TickWakeFrame& frame, uint64_t presentationRevision) noexcept;
+    [[nodiscard]] bool IsControlTickable(const Control& control) const noexcept;
+    void OnFrameScheduleChanged() noexcept;
+    void SyncDispatcherSubscription(FrameScheduleWake wake) noexcept;
+    void ResumeScheduleAfterShow() noexcept;
+    friend struct FrameScheduleAccess;
+    [[nodiscard]] FrameScheduleWake OnScheduledWake(uint64_t nowTickMs, bool* hostGone = nullptr) noexcept;
+    std::vector<TickRequest> _tickRequests;
+    std::vector<TickRequest> _tickDue; // the snapshot one wake runs; reused, never resized during a wake
+    TickWakeFrame* _tickWakeFrame               = nullptr;
+    bool _tickTreeRequested                     = false;
+    bool _tickTreeDiscovery                     = false;
+    bool _tooltipTickRequested                  = false;
+    FrameScheduleWake::Kind _dispatcherWakeKind = FrameScheduleWake::Kind::None;
 
     struct NativeSystemCaret final
     {
@@ -7098,7 +7183,7 @@ private:
     bool _animationTimelineRebase         = true;
     std::optional<uint64_t> _animationClockForTest;
     bool _animationSuspendedWhileHidden = false;
-    bool _nativePresentationVisible = true, _nativePresentationResumeAnimation = false;
+    bool _nativePresentationVisible     = true;
     uint64_t _nativePresentationRevision{};
     // Logical input ownership, unlike a focus-request revision, survives idempotent focus refreshes.
     uint64_t _keyboardOwnerEpoch                = 0u;

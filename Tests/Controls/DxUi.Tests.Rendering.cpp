@@ -3254,6 +3254,7 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestTraceProviderEventsReadBackThroughEtw);
     DXUI_RUN_TEST(TestPerformanceFixtureFrameworkOnWindowHost);
     DXUI_RUN_TEST(TestPerformanceFixturesAreDeterministicOnWindowHost);
+    DXUI_RUN_TEST(TestFrameScheduleGatesOnWindowFixtures);
     DXUI_RUN_TEST(TestTextAntialiasDefaultsFollowTheTargetAlphaMode);
     DXUI_RUN_TEST(TestTextRenderingParamsCompatibilityWithAntialiasModes);
     DXUI_RUN_TEST(TestTextRenderingComplexUiCapturesForEachHost);

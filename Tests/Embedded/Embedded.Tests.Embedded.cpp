@@ -1899,6 +1899,7 @@ __declspec(noinline) static int RunFunctionalTests()
         PerformanceFixtures::TestFrameworkSelfTest();
         PerformanceFixtures::TestCatalogIsDeterministic(L".build/test-artifacts/performance-fixtures");
         PerformanceFixtures::TestFx5MatchesWorkCounterReceipt();
+        PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
         return 0;
     }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-closed-roots")
@@ -2112,6 +2113,7 @@ __declspec(noinline) static int RunFunctionalTests()
     PerformanceFixtures::TestFx5MatchesWorkCounterReceipt();
     PerformanceFixtures::TestFx5G13Budgets();
     PerformanceFixtures::TestFx13G13Budgets();
+    PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();

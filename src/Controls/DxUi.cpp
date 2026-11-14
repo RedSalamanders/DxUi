@@ -460,6 +460,9 @@ void Control::SetVisible(bool visible) noexcept
             }
             if (ControlHost* const host = GetHost())
             {
+                // A hidden control is not ticked; its request goes (painting again asks anew), its descendants' requests
+                // are dropped when they come due.
+                host->ForgetControl(*this);
                 host->CancelPreparedVisualContent(this);
                 if (lifetime.expired())
                     return;
@@ -1254,6 +1257,8 @@ void Control::PropagateHost(ControlHost* host) noexcept
     }
     if (previousHost)
     {
+        // The departing host forgets this control's frame-schedule request before anything can call back.
+        previousHost->ForgetControl(*this);
         previousHost->InvalidateRichTitleTooltip(this);
         if (lifetime.expired() || _host != previousHost)
             return;

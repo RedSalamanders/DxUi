@@ -1634,14 +1634,24 @@ void ControlHost::Detach(bool processExit) noexcept
     _attachmentOwnerThreadId  = 0u;
     _hwnd                     = nullptr;
 
+    // The one place a host leaves the dispatcher. A wake in progress learns through its stack frame that this host is
+    // gone and does not touch it again; the schedule is dropped with the tree.
+    for (TickWakeFrame* frame = _tickWakeFrame; frame; frame = frame->previous)
+        frame->abandoned = true;
+    _tickWakeFrame = nullptr;
     if (_animationSubscriptionId != 0u)
     {
         Ui::AnimationDispatcher::GetInstance().Unsubscribe(_animationSubscriptionId);
         _animationSubscriptionId = 0u;
     }
-    _animationSuspendedWhileHidden     = false;
-    _nativePresentationVisible         = true;
-    _nativePresentationResumeAnimation = false;
+    _dispatcherWakeKind = FrameScheduleWake::Kind::None;
+    _tickRequests.clear();
+    _tickDue.clear();
+    _tickTreeRequested             = false;
+    _tickTreeDiscovery             = false;
+    _tooltipTickRequested          = false;
+    _animationSuspendedWhileHidden = false;
+    _nativePresentationVisible     = true;
 #if DXUI_ENABLE_DIAGNOSTICS
     _debugTextStoreLayoutObserver.reset();
 #endif
@@ -1745,8 +1755,14 @@ void ControlHost::SetRoot(std::unique_ptr<Control> root)
         previousRoot->PropagateHost(nullptr);
     }
     RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
-    if (_embedded && _root)
-        RequestAnimation();
+    // An embedded root gets one discovery tick: the whole tree is ticked once so a control that animates from the start
+    // (a derived control that only returns true from Tick) is found. The library's own controls request for themselves.
+    if (_embedded && _root && ! _detachInProgress.load(std::memory_order_acquire))
+    {
+        _tickTreeRequested = true;
+        _tickTreeDiscovery = true;
+        OnFrameScheduleChanged();
+    }
     Invalidate();
 }
 
@@ -1826,7 +1842,7 @@ bool ControlHost::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& orig
     const bool changed       = _tooltipLayer.SetTooltipDelayed(std::wstring(text), originDip, nowTickMs, ResolveTooltipShowDelayMs());
     if (changed)
     {
-        RequestAnimation();
+        RequestTooltipTick();
         Invalidate();
     }
     return changed;
@@ -1840,7 +1856,7 @@ bool ControlHost::BeginTooltipHideDelay(uint64_t delayMs) noexcept
     const bool changed       = _tooltipLayer.BeginHideDelay(nowTickMs, delayMs);
     if (changed)
     {
-        RequestAnimation();
+        RequestTooltipTick();
     }
     return changed;
 }
@@ -1977,19 +1993,13 @@ HRESULT ControlHost::SetNativePresentationVisible(bool visible) noexcept
     ++_nativePresentationRevision;
     if (! visible)
     {
-        _nativePresentationResumeAnimation = _animationSubscriptionId != 0u;
-        if (_animationSubscriptionId != 0u)
-        {
-            Ui::AnimationDispatcher::GetInstance().Unsubscribe(_animationSubscriptionId);
-            _animationSubscriptionId = 0u;
-        }
+        // The schedule is held, not dropped: the host stops waking until it is shown.
+        OnFrameScheduleChanged();
     }
     else
     {
-        const bool resumeAnimation        = std::exchange(_nativePresentationResumeAnimation, false);
         _forceFullPresentAfterBufferReset = true;
-        if (resumeAnimation)
-            RequestAnimation();
+        ResumeScheduleAfterShow();
         Invalidate();
     }
     return S_OK;
@@ -2022,30 +2032,217 @@ bool ControlHost::RenderInitialFrameForShow() noexcept
 
 void ControlHost::RequestAnimation() noexcept
 {
+    if (_detachInProgress.load(std::memory_order_acquire))
+        return;
+    _tickTreeRequested = true;
+    OnFrameScheduleChanged();
+}
+
+void ControlHost::RequestAnimation(const Control& control) noexcept
+{
+    AddTickRequest(control, TickRequestKind::Continuous, 0u);
+}
+
+void ControlHost::RequestAnimationAt(const Control& control, uint64_t dueTickMs) noexcept
+{
+    // A deadline already passed is due at the next wake.
+    AddTickRequest(control, TickRequestKind::Deadline, dueTickMs);
+}
+
+void ControlHost::RequestAnimationOnce(const Control& control) noexcept
+{
+    AddTickRequest(control, TickRequestKind::Once, 0u);
+}
+
+void ControlHost::CancelAnimation(const Control& control) noexcept
+{
+    const size_t before = _tickRequests.size();
+    std::erase_if(_tickRequests, [&control](const TickRequest& request) noexcept { return request.control == &control; });
+    if (_tickRequests.size() != before)
+        OnFrameScheduleChanged();
+}
+
+void ControlHost::AddTickRequest(const Control& control, TickRequestKind kind, uint64_t dueTickMs) noexcept
+{
+    // A detaching host and a control of another host take no requests: the schedule names only this host's controls.
+    if (_detachInProgress.load(std::memory_order_acquire) || control.GetHost() != this)
+        return;
+    const Failure::Scope failureScope;
+    for (TickRequest& request : _tickRequests)
+    {
+        if (request.control != &control)
+            continue;
+        // One request per control. Every frame wins over the next frame, which wins over a deadline; a new deadline
+        // replaces the control's previous one, since the control knows when it next needs to be ticked.
+        const auto rank = [](TickRequestKind value) noexcept { return value == TickRequestKind::Continuous ? 2 : value == TickRequestKind::Once ? 1 : 0; };
+        if (request.lifetime.expired())
+        {
+            // A destroyed control's request at a reused address: it belongs to the new control now, as a fresh request.
+            request.lifetime  = control.GetLifetimeToken();
+            request.kind      = TickRequestKind::Deadline;
+            request.dueTickMs = UINT64_MAX;
+        }
+        if (rank(kind) >= rank(request.kind))
+        {
+            request.kind      = kind;
+            request.dueTickMs = kind == TickRequestKind::Deadline ? dueTickMs : 0u;
+        }
+        OnFrameScheduleChanged();
+        return;
+    }
+    // The vector keeps its capacity: requests reuse it, bounded by the controls that animate at once.
+    _tickRequests.push_back(TickRequest{const_cast<Control*>(&control), control.GetLifetimeToken(), kind == TickRequestKind::Deadline ? dueTickMs : 0u, kind});
+    OnFrameScheduleChanged();
+}
+
+void ControlHost::ForgetControl(const Control& control) noexcept
+{
+    const size_t before = _tickRequests.size();
+    std::erase_if(_tickRequests, [&control](const TickRequest& request) noexcept { return request.control == &control; });
+    // A wake in progress holds a snapshot: blank the control there too, so the wake never reaches it.
+    for (TickRequest& due : _tickDue)
+    {
+        if (due.control == &control)
+        {
+            due.control = nullptr;
+            due.lifetime.reset();
+        }
+    }
+    if (_tickRequests.size() != before)
+        OnFrameScheduleChanged();
+}
+
+void ControlHost::RequestTooltipTick() noexcept
+{
+    if (_detachInProgress.load(std::memory_order_acquire))
+        return;
+    _tooltipTickRequested = true;
+    OnFrameScheduleChanged();
+}
+
+ControlHost::FrameScheduleWake ControlHost::GetFrameScheduleWake() const noexcept
+{
+    using Kind = FrameScheduleWake::Kind;
+    if (_tickTreeRequested || _tooltipTickRequested)
+        return {Kind::Continuous, 0u};
+    bool hasDeadline     = false;
+    uint64_t earliestDue = 0u;
+    for (const TickRequest& request : _tickRequests)
+    {
+        if (request.lifetime.expired())
+            continue;
+        if (request.kind == TickRequestKind::Continuous)
+            return {Kind::Continuous, 0u};
+        const uint64_t due = request.kind == TickRequestKind::Once ? 0u : request.dueTickMs;
+        if (! hasDeadline || due < earliestDue)
+        {
+            hasDeadline = true;
+            earliestDue = due;
+        }
+    }
+    return hasDeadline ? FrameScheduleWake{Kind::Deadline, earliestDue} : FrameScheduleWake{};
+}
+
+bool ControlHost::HasScheduledTicks() const noexcept
+{
+    return GetFrameScheduleWake().kind != FrameScheduleWake::Kind::None;
+}
+
+bool ControlHost::IsScheduleSuspended() const noexcept
+{
+    return ! _embedded && (! _nativePresentationVisible || _animationSuspendedWhileHidden);
+}
+
+bool ControlHost::IsControlTickable(const Control& control) const noexcept
+{
+    // A hidden control or a control below a hidden one is not ticked; the root is ticked whatever its own visibility.
+    for (const Control* node = &control; node && node->_parent; node = node->_parent)
+    {
+        if (! node->_visible)
+            return false;
+    }
+    return true;
+}
+
+// The dispatcher's view of a native host's schedule.
+struct FrameScheduleAccess final
+{
+    [[nodiscard]] static Ui::AnimationDispatcher::Wake ToDispatcher(ControlHost::FrameScheduleWake wake) noexcept
+    {
+        using DispatcherKind = Ui::AnimationDispatcher::WakeKind;
+        switch (wake.kind)
+        {
+            case ControlHost::FrameScheduleWake::Kind::None: return {};
+            case ControlHost::FrameScheduleWake::Kind::Continuous: return {DispatcherKind::Continuous, 0u};
+            case ControlHost::FrameScheduleWake::Kind::Deadline: return {DispatcherKind::Deadline, wake.dueTickMs};
+        }
+        return {};
+    }
+
+    static Ui::AnimationDispatcher::Wake Wake(void* context, uint64_t nowTickMs) noexcept
+    {
+        auto* const self = static_cast<ControlHost*>(context);
+        return (self && IsAttachedWindowHostRegistered(self)) ? ToDispatcher(self->OnScheduledWake(nowTickMs)) : Ui::AnimationDispatcher::Wake{};
+    }
+};
+
+void ControlHost::OnFrameScheduleChanged() noexcept
+{
     if (_embedded)
     {
-        // Wake the application only when animation becomes requested, so a control that requests it while
-        // painting (an indeterminate progress bar, a busy grid) does not re-dirty the view inside every preparation.
-        if (! _embeddedAnimationRequested)
+        // Wake the application only when animation becomes requested, so a control that requests it while painting (an
+        // indeterminate progress bar, a busy grid) does not re-dirty the view inside every preparation.
+        const bool scheduled = HasScheduledTicks();
+        if (scheduled && ! _embeddedAnimationRequested && ! _tickWakeFrame)
         {
             _embeddedAnimationRequested = true;
             // Nothing ticked the view while it was idle, so the next tick starts the clock again rather than counting the gap.
             _animationTimelineRebase = true;
             Invalidate();
         }
+        else if (scheduled && _tickWakeFrame)
+            _embeddedAnimationRequested = true;
         return;
     }
-    if (_detachInProgress.load(std::memory_order_acquire))
+    // A wake in progress reports its outcome to the dispatcher when it ends.
+    if (_tickWakeFrame || ! _hwnd || _detachInProgress.load(std::memory_order_acquire))
         return;
-    if (! _nativePresentationVisible)
+    SyncDispatcherSubscription(IsScheduleSuspended() ? FrameScheduleWake{} : GetFrameScheduleWake());
+}
+
+void ControlHost::SyncDispatcherSubscription(FrameScheduleWake wake) noexcept
+{
+    // The one place a host joins, reschedules or leaves the dispatcher (Detach also leaves it): subscribed exactly while
+    // its schedule waits for something. Safe during the dispatcher's own wake, which defers adds and removals.
+    auto& dispatcher = Ui::AnimationDispatcher::GetInstance();
+    if (_animationSubscriptionId != 0u && ! dispatcher.IsSubscribed(_animationSubscriptionId))
+        _animationSubscriptionId = 0u;
+    if (wake.kind == FrameScheduleWake::Kind::None)
     {
-        _nativePresentationResumeAnimation = true;
+        dispatcher.Unsubscribe(std::exchange(_animationSubscriptionId, 0u));
+        _dispatcherWakeKind = wake.kind;
         return;
     }
     if (_animationSubscriptionId == 0u)
+        _animationSubscriptionId = dispatcher.SubscribeSchedule(&FrameScheduleAccess::Wake, this, FrameScheduleAccess::ToDispatcher(wake));
+    else
+        dispatcher.Reschedule(_animationSubscriptionId, FrameScheduleAccess::ToDispatcher(wake));
+    _dispatcherWakeKind = _animationSubscriptionId != 0u ? wake.kind : FrameScheduleWake::Kind::None;
+}
+
+void ControlHost::ResumeScheduleAfterShow() noexcept
+{
+    // Requests that came due while the host was hidden fire once now, at the first wake after the show.
+    if (! IsScheduleSuspended())
     {
-        _animationSubscriptionId = Ui::AnimationDispatcher::GetInstance().Subscribe(&ControlHost::AnimationTickThunk, this);
+        const uint64_t nowTickMs = GetAnimationTickMs();
+        for (const TickRequest& request : _tickRequests)
+        {
+            if (request.kind == TickRequestKind::Deadline && request.dueTickMs <= nowTickMs && ! request.lifetime.expired())
+                ++Detail::Work().frame.tickHeldWhileHidden;
+        }
     }
+    OnFrameScheduleChanged();
 }
 
 uint64_t ControlHost::GetAnimationTickMs() const noexcept
@@ -3113,18 +3310,54 @@ bool ControlHost::DebugRenderDirtyRectForTest(const RECT& dirtyRectPx, WindowHos
 
 bool ControlHost::DebugHasActiveAnimationSubscription() const noexcept
 {
-    return _animationSubscriptionId != 0u;
+    // Whether the dispatcher will wake this host: it holds a subscription that waits for something. A host without a
+    // window has no dispatcher: whether its schedule waits for something.
+    if (! _hwnd)
+        return ! _embedded && ! IsScheduleSuspended() && HasScheduledTicks();
+    return _animationSubscriptionId != 0u && _dispatcherWakeKind != FrameScheduleWake::Kind::None;
 }
 
 bool ControlHost::DebugAnimationTickForTest(uint64_t nowTickMs) noexcept
 {
-    // As the dispatcher does with a callback that returns false, a tick that ends the ticking ends the subscription it
-    // stood for; OnAnimationTick has already cleared the host's id.
-    const uint64_t subscription = _animationSubscriptionId;
-    const bool keepTicking      = OnAnimationTick(nowTickMs);
-    if (! keepTicking && subscription != 0u)
-        Ui::AnimationDispatcher::GetInstance().Unsubscribe(subscription);
-    return keepTicking;
+    // The dispatcher's wake, driven by a test clock. It never touches the subscription: OnFrameScheduleChanged tells the
+    // dispatcher what the schedule needs afterwards, so the host and the dispatcher cannot disagree.
+    if (_embedded)
+    {
+        if (! RunScheduledTicks(nowTickMs))
+            return false;
+        _embeddedAnimationRequested = HasScheduledTicks();
+        return _embeddedAnimationRequested;
+    }
+    bool hostGone                   = false;
+    const auto presentationRevision = _nativePresentationRevision;
+    static_cast<void>(OnScheduledWake(nowTickMs, &hostGone));
+    if (hostGone)
+        return false;
+    OnFrameScheduleChanged();
+    // A wake that a presentation change interrupted reports false; what it had not done waits in the schedule.
+    return _nativePresentationRevision == presentationRevision && ! IsScheduleSuspended() && HasScheduledTicks();
+}
+
+ControlHost::DebugFrameScheduleWake ControlHost::DebugGetFrameScheduleWakeForTest() const noexcept
+{
+    const FrameScheduleWake wake = IsScheduleSuspended() ? FrameScheduleWake{} : GetFrameScheduleWake();
+    return {static_cast<uint8_t>(wake.kind), wake.dueTickMs};
+}
+
+size_t ControlHost::DebugGetTickRequestCountForTest() const noexcept
+{
+    return _tickRequests.size() + (_tickTreeRequested ? 1u : 0u) + (_tooltipTickRequested ? 1u : 0u);
+}
+
+bool ControlHost::DebugScheduleHoldsControlForTest(const void* controlAddress) const noexcept
+{
+    for (const TickRequest& request : _tickRequests)
+        if (request.control == controlAddress)
+            return true;
+    for (const TickRequest& due : _tickDue)
+        if (due.control == controlAddress)
+            return true;
+    return false;
 }
 
 void ControlHost::DebugSetAnimationClockForTest(std::optional<uint64_t> nowTickMs) noexcept
@@ -3553,10 +3786,16 @@ try
         case WM_SIZE:
             handled = true;
             OnSize(static_cast<UINT>(LOWORD(lp)), static_cast<UINT>(HIWORD(lp)));
-            if ((wp == SIZE_RESTORED || wp == SIZE_MAXIMIZED) && _hwnd && IsHostWindowEffectivelyVisible(_hwnd) && _animationSuspendedWhileHidden)
+            if (wp == SIZE_MINIMIZED && ! _animationSuspendedWhileHidden)
+            {
+                // A minimized host holds its schedule and does not wake until it is restored.
+                _animationSuspendedWhileHidden = true;
+                OnFrameScheduleChanged();
+            }
+            else if ((wp == SIZE_RESTORED || wp == SIZE_MAXIMIZED) && _hwnd && IsHostWindowEffectivelyVisible(_hwnd) && _animationSuspendedWhileHidden)
             {
                 _animationSuspendedWhileHidden = false;
-                RequestAnimation();
+                ResumeScheduleAfterShow();
             }
             return 0;
         case WM_SHOWWINDOW:
@@ -3574,10 +3813,10 @@ try
                 {
                     ActivateNativeTextInputSession(_focusedControl);
                 }
-                if (_animationSuspendedWhileHidden)
+                if (_animationSuspendedWhileHidden && ! IsIconic(_hwnd))
                 {
                     _animationSuspendedWhileHidden = false;
-                    RequestAnimation();
+                    ResumeScheduleAfterShow();
                 }
                 InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Visibility));
             }
@@ -6298,7 +6537,7 @@ void ControlHost::UpdateModifierStateForKey(UINT virtualKey, bool keyDown, bool 
     {
         _supplementalTooltipModifiers    = (_supplementalTooltipModifiers & ~MK_CONTROL) | (_modifierState & MK_CONTROL);
         _supplementalTooltipNeedsResolve = true;
-        RequestAnimation();
+        RequestTooltipTick();
     }
 }
 
@@ -6312,65 +6551,164 @@ UINT ControlHost::GetModifierState() const noexcept
     return _modifierState;
 }
 
-bool ControlHost::AnimationTickThunk(void* context, uint64_t nowTickMs) noexcept
+ControlHost::FrameScheduleWake ControlHost::OnScheduledWake(uint64_t nowTickMs, bool* hostGone) noexcept
 {
-    auto* self = static_cast<ControlHost*>(context);
-    return (self && IsAttachedWindowHostRegistered(self)) ? self->OnAnimationTick(nowTickMs) : false;
-}
-
-bool ControlHost::OnAnimationTick(uint64_t nowTickMs) noexcept
-{
+    // Held, not run: a hidden host keeps its requests and does not wake until it is shown (ResumeScheduleAfterShow).
     if (! _nativePresentationVisible)
     {
-        _nativePresentationResumeAnimation = true;
-        _animationSubscriptionId           = 0u;
-        return false;
+        SyncDispatcherSubscription({});
+        return {};
     }
     if (_hwnd && ! IsHostWindowEffectivelyVisible(_hwnd))
     {
         _animationSuspendedWhileHidden = true;
-        _animationSubscriptionId       = 0u;
+        SyncDispatcherSubscription({});
+        return {};
+    }
+    if (! RunScheduledTicks(nowTickMs))
+    {
+        if (hostGone)
+            *hostGone = true;
+        return {};
+    }
+    const FrameScheduleWake next = IsScheduleSuspended() ? FrameScheduleWake{} : GetFrameScheduleWake();
+    if (_hwnd)
+        SyncDispatcherSubscription(next);
+    return next;
+}
+
+bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
+{
+    // One wake at a time: a wake started from inside a Tick (a test seam, a nested message loop) runs nothing.
+    if (_tickWakeFrame)
+        return true;
+    const Failure::Scope failureScope;
+    TickWakeFrame frame;
+    _tickWakeFrame = &frame;
+    // A host destroyed or detached during the wake abandons the frame and must not be touched again.
+    const auto endWake                  = wil::scope_exit([this, &frame]() noexcept
+    {
+        if (! frame.abandoned)
+            _tickWakeFrame = nullptr;
+    });
+    const uint64_t presentationRevision = _nativePresentationRevision;
+    const auto interrupted              = [&]() noexcept { return frame.abandoned || _nativePresentationRevision != presentationRevision; };
+
+    ValidateSupplementalTooltipTarget();
+    if (frame.abandoned)
         return false;
+
+    // Snapshot the due requests; a request made from now on (a Tick re-arming) lands in the schedule for a later wake.
+    _tickDue.clear();
+    std::erase_if(_tickRequests,
+                  [this, nowTickMs](const TickRequest& request) noexcept
+    {
+        // The token is checked before the address is used: a destroyed control is dropped unread.
+        if (request.lifetime.expired() || request.control->GetHost() != this)
+            return true;
+        if (request.kind == TickRequestKind::Deadline && request.dueTickMs > nowTickMs)
+            return false;
+        _tickDue.push_back(request);
+        return true;
+    });
+    Detail::Work().frame.tickRequesters += _tickDue.size();
+    const bool tree     = std::exchange(_tickTreeRequested, false);
+    const bool discover = std::exchange(_tickTreeDiscovery, false);
+    const bool tooltip  = std::exchange(_tooltipTickRequested, false);
+
+    // Whatever this wake has not done when the host is hidden mid-wake waits, with the rest of the schedule, for its show.
+    const auto holdRemaining = [&](size_t firstDue, bool treePending, bool tooltipPending) noexcept
+    {
+        for (size_t index = firstDue; index < _tickDue.size(); ++index)
+        {
+            const TickRequest& held = _tickDue[index];
+            if (held.control && ! held.lifetime.expired() && held.control->GetHost() == this)
+                AddTickRequest(*held.control, held.kind, held.dueTickMs);
+        }
+        _tickTreeRequested    = _tickTreeRequested || treePending;
+        _tickTreeDiscovery    = _tickTreeDiscovery || (treePending && discover);
+        _tooltipTickRequested = _tooltipTickRequested || tooltipPending;
+        _tickDue.clear();
+    };
+
+    if (tree && _root)
+    {
+        ++(discover ? Detail::Work().frame.tickDiscoveryWalks : Detail::Work().frame.tickLegacyTreeWalks);
+        ++Detail::Work().frame.treeVisitsTick;
+        if (! TickTreeForSchedule(*_root, nowTickMs, frame, presentationRevision))
+        {
+            if (frame.abandoned)
+                return false;
+            holdRemaining(0u, true, tooltip);
+            return true;
+        }
     }
 
-    const auto presentationRevision = _nativePresentationRevision;
-    const auto subscription         = _animationSubscriptionId;
-    const auto tickCurrent          = [&]() noexcept
-    { return _nativePresentationVisible && _nativePresentationRevision == presentationRevision && _animationSubscriptionId == subscription; };
-    ValidateSupplementalTooltipTarget();
-    if (! tickCurrent())
-        return false;
-    if (! _root)
+    for (size_t index = 0u; index < _tickDue.size(); ++index)
+    {
+        // Copy what the Tick needs: ForgetControl may blank this entry while the Tick runs.
+        Control* const control            = _tickDue[index].control;
+        const std::weak_ptr<int> lifetime = _tickDue[index].lifetime;
+        if (! control || lifetime.expired() || control->GetHost() != this || ! IsControlTickable(*control))
+            continue;
+        ++Detail::Work().frame.tickCalls;
+        bool again = false;
+        static_cast<void>(TryControlCallback([&] { again = control->Tick(*this, nowTickMs); }));
+        if (frame.abandoned)
+            return false;
+        // Whatever the request was, true asks for the next frame.
+        if (again && ! lifetime.expired() && control->GetHost() == this)
+            AddTickRequest(*control, TickRequestKind::Continuous, 0u);
+        if (interrupted())
+        {
+            holdRemaining(index + 1u, false, tooltip);
+            return true;
+        }
+    }
+    _tickDue.clear();
+
+    if (tooltip)
     {
         const bool tooltipTicking = _tooltipLayer.Tick(*this, nowTickMs);
-        if (! tickCurrent())
+        if (frame.abandoned)
             return false;
-        if (! tooltipTicking)
+        if (tooltipTicking)
         {
-            _animationSubscriptionId = 0u;
-            return false;
+            _tooltipTickRequested = true;
+            // A host without a root has nothing else that repaints the tooltip's frames.
+            if (! _root)
+                Invalidate();
         }
-        Invalidate();
-        return true;
     }
+    // Tick's return value requests future ticks, not a repaint. Controls invalidate only when pixels change, including
+    // their settling tick, just as they do in embedded hosting.
+    return true;
+}
 
-    // A tree whose Tick throws stops ticking until a control asks for animation again, rather than failing every frame.
-    bool rootTicking = false;
-    ++Detail::Work().frame.treeVisitsTick;
-    static_cast<void>(TryControlCallback([&] { rootTicking = _root->Tick(*this, nowTickMs); }));
-    if (! tickCurrent())
+bool ControlHost::TickTreeForSchedule(Control& control, uint64_t nowTickMs, const TickWakeFrame& frame, uint64_t presentationRevision) noexcept
+{
+    // The compatibility walk: every visible control once, each whose Tick returns true keeping a request of its own.
+    // Panel and PageHost see the wake frame and leave their children to this walk.
+    const std::weak_ptr<int> lifetime = control.GetLifetimeToken();
+    bool again                        = false;
+    static_cast<void>(TryControlCallback([&] { again = control.Tick(*this, nowTickMs); }));
+    if (frame.abandoned || _nativePresentationRevision != presentationRevision)
         return false;
-    const bool tooltipTicking = _tooltipLayer.Tick(*this, nowTickMs);
-    if (! tickCurrent())
-        return false;
-    const bool keepTicking = rootTicking || tooltipTicking;
-    if (! keepTicking)
+    if (lifetime.expired() || control.GetHost() != this)
+        return true;
+    if (again)
+        AddTickRequest(control, TickRequestKind::Continuous, 0u);
+    for (size_t childIndex = 0u; childIndex < control.GetLogicalChildCount(); ++childIndex)
     {
-        _animationSubscriptionId = 0u;
-        return false;
+        Control* const child = const_cast<Control*>(static_cast<const Control&>(control).GetLogicalChild(childIndex));
+        ++Detail::Work().frame.treeVisitsTick;
+        if (! child || ! child->IsVisible())
+            continue;
+        if (! TickTreeForSchedule(*child, nowTickMs, frame, presentationRevision))
+            return false;
+        if (lifetime.expired() || control.GetHost() != this)
+            return true;
     }
-    // Tick's return value requests future ticks, not a repaint. Controls invalidate only when pixels change,
-    // including their settling tick, just as they do in embedded hosting.
     return true;
 }
 } // namespace DxUi

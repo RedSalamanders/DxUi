@@ -678,6 +678,51 @@ __declspec(noinline) inline void TestFx13G13Budgets()
         std::cerr << failure << '\n';
     Check(failures.empty(), "FX13 meets every G13 line or records the exception that closes it");
 }
+// W3.1's frame-schedule gate on the fixtures (Specs/Rendering/Rendering_Win32Host.md, "Frame schedule"). Every catalog
+// fixture: each step ticks exactly the due requesters, and the library's own controls never take the legacy whole-tree path.
+// FX1 editable (G1): the caret is ticked at most 20 times in 10 s, one deadline per blink, with no tree walk. The fixture's
+// application still polls NeedsAnimation every step (it stays true while a deadline is pending), so wakes.embeddedAdvance is
+// the polling application's, not the schedule's; the schedule's wakes are the steps whose advance ticked a due request.
+__declspec(noinline) inline void TestFrameScheduleGatesOnFixtures()
+{
+    for (const Definition* definition : kCatalog)
+    {
+        // An interactive-only fixture takes the foreground: its own gate runs in the interactive Menu suite.
+        if (definition->interactiveOnly || ! definition->Built() || ! Supports(definition->hosts, Host::Embedded))
+            continue;
+        const Variant& variant = definition->variants.front();
+        if (variant.hardwareOnly)
+            continue;
+        const RunRecord run = RunEmbedded(*definition, variant);
+        for (const PhaseRecord& phase : run.phases)
+            for (const StepRecord& step : phase.steps)
+            {
+                Check(step.work.frame.tickCalls <= step.work.frame.tickRequesters, "a wake ticks no control without a due request");
+                Check(step.work.frame.tickLegacyTreeWalks == 0u, "the library's own controls never take the legacy whole-tree tick");
+                Check(step.work.frame.treeVisitsTick == 0u || step.work.frame.tickDiscoveryWalks != 0u,
+                      "no step walks the tree to tick, except the discovery tick of a newly installed root");
+            }
+        std::cout << "Frame schedule on " << definition->id << " (embedded): ticks only due requesters, no legacy walk\n";
+    }
+    const RunRecord fx1     = RunEmbedded(Fx1::kDefinition, Fx1::kVariants[0]);
+    uint64_t tickCalls      = 0u;
+    uint64_t wakesWithTicks = 0u;
+    for (const StepRecord& step : fx1.Phase("editable").steps)
+    {
+        Check(step.work.frame.tickCalls == step.work.frame.tickRequesters, "FX1: Tick calls per wake equal the requesting controls");
+        tickCalls += step.work.frame.tickCalls;
+        wakesWithTicks += step.work.frame.tickCalls != 0u ? 1u : 0u;
+    }
+    std::cout << "FX1 editable (embedded, fixture clock): " << tickCalls << " caret ticks at " << wakesWithTicks << " wakes in 10 s\n";
+    Check(wakesWithTicks <= 20u && tickCalls <= 20u && tickCalls >= 15u, "G1: FX1 editable needs at most 20 wakes in 10 s, one per caret blink");
+    const RunRecord fx5 = RunEmbedded(Fx5::kDefinition, Fx5::kVariants[0]);
+    for (const PhaseRecord& phase : fx5.phases)
+        for (const StepRecord& step : phase.steps)
+            Check(step.work.frame.tickCalls == step.work.frame.tickRequesters && step.work.frame.treeVisitsTick == 0u &&
+                      step.work.frame.tickLegacyTreeWalks == 0u,
+                  "FX5: Tick calls per wake equal the requesting controls, with no tree walk");
+}
+
 // The timing harness's view of a catalog fixture: performance-timing.ps1 -Phase Dirty plays the timed phase, one step per
 // frame; -Phase Clean renders unchanged frames. Phases before the timed phase are played (prepared, not composited) first.
 class CatalogTimingFixture final : public FrameTiming::Fixture

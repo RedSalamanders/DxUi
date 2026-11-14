@@ -273,9 +273,15 @@ void TestWorkCountersCountNativeFramesWalksAndWakes()
     Require(delta.frame.paintExecutions == 4u, "the root and its three visible children paint; the hidden child does not");
     Require(delta.frame.treeVisitsPaint == 5u, "the paint walk examines the root and all four children");
 
-    const Detail::WorkCounterScope tick;
+    // W3.1: a wake with nothing requested ticks nothing; the compatibility walk of an anonymous request still examines the
+    // root and every child, visible or not.
+    const Detail::WorkCounterScope idleTick;
     static_cast<void>(host.DebugAnimationTickForTest(1'000u));
-    Require(tick.Delta().frame.treeVisitsTick == 5u, "the tick walk examines the root and all four children");
+    Require(idleTick.Delta().frame.treeVisitsTick == 0u, "a wake with nothing requested walks nothing");
+    const Detail::WorkCounterScope tick;
+    host.RequestAnimation();
+    static_cast<void>(host.DebugAnimationTickForTest(1'000u));
+    Require(tick.Delta().frame.treeVisitsTick == 5u && tick.Delta().frame.tickLegacyTreeWalks == 1u, "the tick walk examines the root and all four children");
 
     const Detail::WorkCounterScope hit;
     Require(host.DebugHitTestControl(D2D1::Point2F(20.0f, 14.0f)) != nullptr, "the first label is hit");

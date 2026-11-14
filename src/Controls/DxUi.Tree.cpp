@@ -1888,7 +1888,7 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             return true;
         if (! host.GetTheme().reducedMotion)
         {
-            host.RequestAnimation();
+            host.RequestAnimation(*this);
             if (! guard.IsCurrent())
                 return true;
         }
@@ -1996,7 +1996,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
             return true;
         if (! host.GetTheme().reducedMotion)
         {
-            host.RequestAnimation();
+            host.RequestAnimation(*this);
             if (! guard.IsCurrent())
                 return true;
         }
@@ -2341,7 +2341,7 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                     return true;
                 if (! host.GetTheme().reducedMotion)
                 {
-                    host.RequestAnimation();
+                    host.RequestAnimation(*this);
                     if (! guard.IsCurrent())
                         return true;
                 }
@@ -2371,7 +2371,7 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                     return true;
                 if (! host.GetTheme().reducedMotion)
                 {
-                    host.RequestAnimation();
+                    host.RequestAnimation(*this);
                     if (! guard.IsCurrent())
                         return true;
                 }
@@ -3050,6 +3050,7 @@ void Tree::UpdateScrollbarHotState(const HitInfo& hit) noexcept
 void Tree::SyncScrollbarAnimation(ControlHost& host) noexcept
 {
     UpdateScrollbarAnimation(host,
+                             *this,
                              _verticalScrollbarAnimation,
                              _verticalScrollbarHotPart == ScrollbarHotPart::Track,
                              _verticalScrollbarHotPart == ScrollbarHotPart::Thumb,
@@ -3596,7 +3597,7 @@ void Tree::StartExpanderAnimation(uint64_t itemId, bool fromExpanded, bool toExp
         Failure::FailAllocation();
     }
     // Every path that turns a chevron asks for ticks, a UI Automation Expand included.
-    host->RequestAnimation();
+    host->RequestAnimation(*this);
 }
 
 float Tree::GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept
@@ -3688,7 +3689,7 @@ try
     // constructors allocate iterator proxies inside noexcept functions.
     _treeExpansionAnimation.emplace(animation);
     // Every path that slides the rows asks for ticks, a UI Automation Expand included.
-    host->RequestAnimation();
+    host->RequestAnimation(*this);
 }
 catch (const std::bad_alloc&)
 {

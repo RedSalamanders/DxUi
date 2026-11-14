@@ -219,6 +219,11 @@ idle tick therefore leaves a clean prepared view clean and causes no raster work
 ticking; an unconditional Prepare of a clean view still returns S_FALSE. `RequestAnimation` wakes the application
 through the preparation callback only when animation becomes requested; a request raised while painting (an
 indeterminate progress bar, a busy grid) does not re-dirty the view inside the preparation that painted it.
+AdvanceAnimation ticks only the controls holding a due request of the host's frame schedule
+([window hosting](Rendering_Win32Host.md#frame-schedule)); `NeedsAnimation` stays true while any request is held, a
+pending deadline included, so a caller that advances every frame while it is true still sees a caret blink, and an
+advance before the deadline ticks nothing. A new root gets one discovery tick of the whole visible tree. A hidden view
+holds its requests; its timeline does not count the hidden time.
 
 Prepare receives width/height in pixels and DPI (48..768), checks D3D dimension limits and a 64 MiB surface ceiling,
 then performs changed layout/raster work. A resize allocates the replacement surface before releasing the previous

@@ -1,5 +1,6 @@
 #include "Controls.Tests.AccessibilityClientGate.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.FrameSchedule.h"
 #include "Controls.Tests.PerformanceFixtureColdStart.h"
 #include "Controls.Tests.PerformanceFixtures.h"
 #include "Controls/TextClipboard.h"
@@ -109,6 +110,9 @@ int wmain(int argc, wchar_t** argv)
         return child;
     if (const int subscriber = RunAccessibilityClientGateQueryChild(argc, argv); subscriber >= 0)
         return subscriber;
+    // Installs and removes its own failure host: the worker thread it watches ends after the host is gone.
+    if (const int threadExit = RunFrameScheduleThreadExitChild(argc, argv); threadExit >= 0)
+        return threadExit;
     if (argc == 2 && std::wstring_view(argv[1]) == L"--ci-assertion-probe")
     {
         try

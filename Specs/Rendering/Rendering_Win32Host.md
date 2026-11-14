@@ -9,10 +9,10 @@ API 5 implements that protocol. Source-specific qualification is recorded with t
 
 The application may report known occlusion through
 `ControlHost::SetNativePresentationVisible(false)` on the attachment owner thread.
-The signal defaults to true for each attachment. False immediately releases the
-animation subscription, coalesces later animation requests and suppresses native
+The signal defaults to true for each attachment. False immediately stops the host's
+animation wakes, holds its frame schedule (later requests join it) and suppresses native
 invalidation, preparation and rendering, including explicit initial frames.
-Restoring true requests a full frame and resumes deferred animation without
+Restoring true requests a full frame and resumes the held schedule without
 activating the window. It changes presentation only, preserving the logical tree,
 input, source and accessibility state. The method returns S_FALSE for an unchanged
 signal, E_UNEXPECTED for an unattached or embedded host and RPC_E_WRONG_THREAD for
@@ -55,6 +55,52 @@ parameters again. A changed text state applies to a full frame. Rules and measur
 A control Tick result requests continued scheduling, independently of pixel invalidation. The native animation
 dispatcher does not invalidate the window merely because a control needs another tick. Controls explicitly
 invalidate visual changes, including completion; focused editors repaint when the caret blink phase changes.
+
+### Frame schedule
+
+Status: implemented (performance and motion plan item W3.1, 14 November 2026) for both hosts.
+
+Each `ControlHost` keeps one schedule of per-control requests and ticks only the controls holding a due request; no
+wake walks the tree. A request is `Continuous` (`RequestAnimation(control)`: the next frame, and every frame while the
+control's `Tick` returns true), `Deadline` (`RequestAnimationAt(control, dueTickMs)`: one `Tick` when the animation clock
+reaches the time, nothing before) or `Once` (one tick on the next frame; the rich editor restarts its caret blink with it; a deadline already passed is due at the next wake). A control holds at most one
+request: every frame wins over the next frame, which wins over a deadline, and a new deadline replaces the previous one; `CancelAnimation(control)` withdraws it. Whatever a scheduled `Tick` returns, true asks
+for the next frame. The tooltip layer holds its own request. Every library control asks for its own ticks:
+transitions, phase loops and scrolling (`Button`, `ProgressBar`, `ThroughputGraph`, `Slider`, `PageHost`, `Tree`,
+`Grid`, scrollbars, the menu popup's slider, the rich editor's middle-button scrolling) request `Continuous`; the carets
+of `TextField`, editable `ComboBox` (530 ms) and `RichTextEditor` (500 ms) request one `Deadline` per phase flip,
+counted from the blink anchor, and cancel it on blur.
+
+Compatibility: `RequestAnimation()` without a control, and an embedded root installation (one discovery tick), tick
+every visible control once (`Panel` and `PageHost` leave their children to that walk while the host dispatches); each
+control whose `Tick` returns true then holds a `Continuous` request of its own. A derived control should call
+`RequestAnimation(*this)` or `RequestAnimationAt(*this, due)` instead. `Panel::Tick` and `PageHost::Tick` called directly
+still walk their children. Work counters separate the two walks (`tickLegacyTreeWalks`, `tickDiscoveryWalks`); the
+library's own controls never cause a legacy walk.
+
+Native wakes: one dispatcher per UI thread runs one periodic timer at the existing cadence only while some host of the
+thread holds a `Continuous` request (pacing to the display is a separate item), otherwise one `SetCoalescableTimer`
+one-shot for the earliest deadline across the thread's hosts, armed one system tick late so its wake sees the deadline
+due, and nothing when nothing waits. A deadline wake ticks the due controls and renders only if one invalidated. The
+first periodic tick after idle starts the timeline at the real time it runs; no phantom frame is added. A hidden,
+minimized or `SetNativePresentationVisible(false)` host holds its schedule, `Continuous` requests included, and
+receives no wakes; a minimized host stops at once, a host hidden otherwise after at most one wake that observes it.
+On show, deadlines that came due meanwhile fire once at the first wake. Requests of a hidden control or of a control
+below a hidden one are dropped; painting again asks anew. A host hidden by one of its own `Tick`s holds what that wake
+had not yet done.
+
+Lifetime: a request keeps the control's address beside its lifetime token and is used only while the token is alive
+and the control still names the host. `ForgetControl` removes a control's request when it leaves the host (removal,
+move to another host, root replacement) or is hidden, including from the snapshot of a wake in progress; detaching or
+closing a host (a popup) drops its schedule. A wake works on a snapshot, so a `Tick` may re-arm, remove itself, a
+sibling or the root, hide or destroy its host; a host destroyed or detached during its wake is not touched again.
+Hover, capture and double-click observers remain pruned by the existing interaction-state validation before dispatch,
+which addresses them only by comparison and lifetime token.
+
+Embedded hosting owns no timer: `AdvanceAnimation` ticks only the due requests, and `NeedsAnimation` stays true while
+any request, a pending deadline included, is held, so an application that polls it every frame keeps the caret
+blinking. The clock rules of the [embedded contract](Rendering_EmbeddedD3D11.md) are unchanged; a hidden view holds
+its requests on a timeline that does not count the hidden time.
 
 Hit queries revalidate root lifetime and current ownership before dispatch. Root replacement or retirement during
 painting aborts that frame before capture or presentation; the next update applies the current root's bounds before
@@ -144,6 +190,12 @@ releases that cache after retiring its controls and subscriptions, while the pro
 are still available. If final detachment occurs inside a timer callback, window destruction waits until that
 callback and pending subscription bookkeeping finish. An idle dispatcher must not retain a window until TLS
 destruction after host uninstallation. Embedded hosting does not acquire this native timer or window.
+A native host is subscribed to the dispatcher exactly while its schedule waits for something, through one function that
+joins, reschedules and leaves, and `Detach` leaves unconditionally, so no subscription outlives its host or its need. If a window nevertheless survives until thread-local destruction (an application that
+leaves a host attached when its thread ends), the dispatcher drops its subscribers without calling them and stops its
+timers first; its window procedure handles its own teardown messages, and any timer message that arrives without an
+active failure registration, by allocation-free, callback-free cleanup without entering DxUi work, so an ordinary
+thread or process exit never reports a missing failure host.
 An animation request from a native detachment callback is ignored; focus/capture retirement cannot create
 a replacement subscription after that host has relinquished its original subscription.
 

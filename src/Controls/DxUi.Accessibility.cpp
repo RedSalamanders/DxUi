@@ -12971,9 +12971,10 @@ HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded)
             }
         }
     }
-    if (stateChanged && ! host->GetTheme().reducedMotion)
+    // The expansion animates in the Tree that changed: it asks for its own ticks.
+    if (stateChanged && ! host->GetTheme().reducedMotion && ! lifetime.expired())
     {
-        host->RequestAnimation();
+        host->RequestAnimation(*tree);
     }
     if (lifetime.expired())
         return UIA_E_ELEMENTNOTAVAILABLE;

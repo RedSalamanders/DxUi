@@ -679,7 +679,7 @@ Purpose: replace the fixed 8 ms dispatcher timer with event-driven scheduling, s
 something is due, and pace native animation frames to the display. Exit: `G1` met on `FX1`; API revision 6 landed with
 `W3.5` (`A8`); the `W3.6` no-deadlock gate passes.
 
-- [ ] **W3.1 One frame scheduler per host.**
+- [x] **W3.1 One frame scheduler per host.**
   - **Why**: native ticks come from `SetTimer(8 ms)` (`src/Support/AnimationDispatcher.h:182, 348`), which Windows
     raises to the 10 ms `USER_TIMER_MINIMUM`; it runs while any `Tick` returns `true` (`:331-391`), so a focused caret
     keeps it running (about 640 wakes in 10 s, inferred). Each tick walks the whole tree (`Panel::Tick`,

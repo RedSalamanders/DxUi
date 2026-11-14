@@ -1,5 +1,6 @@
 #include "Controls.Tests.AnimationClock.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.FrameSchedule.h"
 #include "Controls.Tests.HostControlRegressions.h"
 #include "DxUi/FrameRuntime.h"
 #include "Support.Tests.PerformanceCapture.h"
@@ -762,9 +763,10 @@ void TestTextFieldTickTracksFocusedCaretAnimation()
     host.SetRoot(std::move(root));
     host.SetFocusControl(field);
 
-    Require(field->Tick(host, 0u), "focused text field requests caret animation ticks");
+    // The caret sleeps between phase flips: its Tick asks for a deadline at the next flip instead of every frame.
+    Require(! field->Tick(host, 0u) && host.DebugGetFrameScheduleWakeForTest().kind == 2u, "focused text field requests its next caret blink deadline");
     host.SetFocusControl(nullptr);
-    Require(! field->Tick(host, 1200u), "unfocused text field stops requesting caret animation ticks");
+    Require(! field->Tick(host, 1200u) && host.DebugGetFrameScheduleWakeForTest().kind == 0u, "unfocused text field stops requesting caret animation ticks");
 }
 
 void TestEditableComboBoxTickTracksFocusedCaretAnimation()
@@ -784,9 +786,11 @@ void TestEditableComboBoxTickTracksFocusedCaretAnimation()
     combo->SetText(L"alpha");
     host.SetFocusControl(combo);
 
-    Require(combo->Tick(host, 0u), "focused editable combo requests caret animation ticks");
+    // The caret sleeps between phase flips: its Tick asks for a deadline at the next flip instead of every frame.
+    Require(! combo->Tick(host, 0u) && host.DebugGetFrameScheduleWakeForTest().kind == 2u, "focused editable combo requests its next caret blink deadline");
     host.SetFocusControl(nullptr);
-    Require(! combo->Tick(host, 1200u), "unfocused editable combo stops requesting caret animation ticks");
+    Require(! combo->Tick(host, 1200u) && host.DebugGetFrameScheduleWakeForTest().kind == 0u,
+            "unfocused editable combo stops requesting caret animation ticks");
 }
 
 void TestPanelOverlayPaintsComboPopupAfterLaterSiblingContent()
@@ -1330,10 +1334,12 @@ void TestTextFieldCaretTickIgnoresReducedMotion()
     theme.reducedMotion = true;
     host.SetTheme(theme);
 
-    TextField field(L"alpha");
+    auto owned  = std::make_unique<TextField>(L"alpha");
+    auto& field = *owned;
+    host.SetRoot(std::move(owned));
     host.SetFocusControl(&field);
 
-    Require(field.Tick(host, 0u), "reduced motion does not suppress native text caret animation ticks");
+    Require(! field.Tick(host, 0u) && host.DebugGetFrameScheduleWakeForTest().kind == 2u, "reduced motion does not suppress native text caret blink deadlines");
 }
 
 void TestEditableComboBoxCaretTickIgnoresReducedMotion()
@@ -1347,12 +1353,15 @@ void TestEditableComboBoxCaretTickIgnoresReducedMotion()
     theme.reducedMotion = true;
     host.SetTheme(theme);
 
-    ComboBox combo;
+    auto owned  = std::make_unique<ComboBox>();
+    auto& combo = *owned;
+    host.SetRoot(std::move(owned));
     combo.SetEditable(true);
     combo.SetText(L"alpha");
     host.SetFocusControl(&combo);
 
-    Require(combo.Tick(host, 0u), "reduced motion does not suppress editable combo caret animation ticks");
+    Require(! combo.Tick(host, 0u) && host.DebugGetFrameScheduleWakeForTest().kind == 2u,
+            "reduced motion does not suppress editable combo caret blink deadlines");
 }
 
 std::unique_ptr<DxUi::Panel> MakeAnimatedPage(std::wstring title, const D2D1_RECT_F& heroBounds, std::wstring_view heroKey)
@@ -1659,6 +1668,14 @@ void RunAnimationTests()
     DXUI_RUN_TEST(TestAnimationDispatcherActiveSubscribersReceiveMonotonicHighResolutionTicks);
     DXUI_RUN_TEST(TestAnimationDispatcherInactiveSubscriberStopsContinuousTicks);
     DXUI_RUN_TEST(TestAnimationDispatcherRetirementDuringTickDefersWindowDestruction);
+    DXUI_RUN_TEST(TestFrameScheduleTicksOnlyDueRequesters);
+    DXUI_RUN_TEST(TestFrameScheduleLegacyRequestStillAnimatesDerivedControl);
+    DXUI_RUN_TEST(TestFrameScheduleHiddenHostHoldsItsSchedule);
+    DXUI_RUN_TEST(TestFrameScheduleDispatcherArmsOneTimerForTheEarliestDeadline);
+    DXUI_RUN_TEST(TestFrameScheduleFirstTickAfterIdleAddsNoPhantomFrame);
+    DXUI_RUN_TEST(TestFrameScheduleLifetimeFuzz);
+    DXUI_RUN_TEST(TestFrameScheduleNativeFx1CaretWakesInRealTime);
+    DXUI_RUN_TEST(TestFrameScheduleDispatcherThreadExitWithoutFailureHost);
     DXUI_RUN_TEST(TestFrameRuntimeElapsedUsHandlesLargeQpcDelta);
     DXUI_RUN_TEST(TestFrameRuntimeElapsedUsHandlesWideCrossSignDelta);
     DXUI_RUN_TEST(TestFrameRuntimeReducedMotionPolicy);

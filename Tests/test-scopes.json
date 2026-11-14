@@ -469,6 +469,13 @@
       "reason": "native and embedded animation clock coverage in the Animation suite"
     },
     {
+      "pattern": "Tests/Controls/Controls.Tests.FrameSchedule.*",
+      "scopes": [
+        "Animation"
+      ],
+      "reason": "native and embedded frame schedule coverage in the Animation suite"
+    },
+    {
       "pattern": "Tests/Controls/Controls.Tests.FormAccessibility.cpp",
       "scopes": [
         "Accessibility"

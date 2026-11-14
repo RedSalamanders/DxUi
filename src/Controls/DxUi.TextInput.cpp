@@ -1279,7 +1279,10 @@ void TextField::SetText(std::wstring text)
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     _preferredMultilineXOffsetDip.reset();
     _caretBlinkAnchorTickMs.reset();
-    _caretVisible                 = true;
+    _caretVisible = true;
+    // A focused field restarts its blink now, with the caret shown, and sleeps until the first flip.
+    if (ControlHost* const caretHost = GetHost(); caretHost && HasFocus())
+        ResetCaretBlink(*caretHost);
     _horizontalScrollDip          = 0.0f;
     _multilineFirstVisibleLine    = 0u;
     _multilineWheelDeltaRemainder = 0.0f;
@@ -1375,6 +1378,9 @@ void TextField::SetSelectionRange(const size_t selectionStart, const size_t sele
     }
     _caretBlinkAnchorTickMs.reset();
     _caretVisible = true;
+    // A focused field restarts its blink now, with the caret shown, and sleeps until the first flip.
+    if (ControlHost* const caretHost = GetHost(); caretHost && HasFocus())
+        ResetCaretBlink(*caretHost);
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
     {
         host->SyncTextInput(this);
@@ -1408,6 +1414,9 @@ void TextField::ReplaceSelectionAndNotify(std::wstring_view replacement)
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     _caretBlinkAnchorTickMs.reset();
     _caretVisible = true;
+    // A focused field restarts its blink now, with the caret shown, and sleeps until the first flip.
+    if (ControlHost* const caretHost = GetHost(); caretHost && HasFocus())
+        ResetCaretBlink(*caretHost);
     InvalidateSingleLineLayoutCache();
     InvalidateMultilineLayoutCache();
     if (auto* host = GetHost(); host && host->GetFocusControl() == this)
@@ -2145,7 +2154,9 @@ bool TextField::Tick(ControlHost& host, uint64_t nowTickMs)
         Invalidate(host);
     }
 
-    return true;
+    // Sleep until the next phase flip: one deadline per flip, nothing in between.
+    host.RequestAnimationAt(*this, NextCaretBlinkFlipTickMs(*_caretBlinkAnchorTickMs, nowTickMs, kCaretBlinkPeriodMs));
+    return false;
 }
 
 void TextField::OnFocusChanged(ControlHost& host, bool focused)
@@ -2170,6 +2181,8 @@ void TextField::OnFocusChanged(ControlHost& host, bool focused)
         RemaskPasswordReveal();
         BreakDirectEditMerge();
         _caretBlinkAnchorTickMs.reset();
+        // The caret is the field's only tick: an unfocused field waits for nothing.
+        host.CancelAnimation(*this);
         _caretVisible  = true;
         _dragSelecting = false;
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);
@@ -4092,7 +4105,7 @@ void TextField::ResetCaretBlink(ControlHost& host) noexcept
 {
     _caretBlinkAnchorTickMs = host.GetAnimationTickMs();
     _caretVisible           = true;
-    host.RequestAnimation();
+    host.RequestAnimationAt(*this, NextCaretBlinkFlipTickMs(*_caretBlinkAnchorTickMs, *_caretBlinkAnchorTickMs, kCaretBlinkPeriodMs));
 }
 
 bool TextField::NotifyChanged()
