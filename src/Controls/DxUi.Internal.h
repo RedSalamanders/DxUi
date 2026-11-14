@@ -437,6 +437,67 @@ void RaiseWindowHostDisclosureChanged(HWND hwnd, const Control* control, bool ex
 // A native menu popup's row focus, raised once its keyboard transition completes (ordinary window hosts announce
 // focus from their snapshot changes instead).
 void RaiseWindowHostFocusChanged(HWND hwnd, const Control* control) noexcept;
+// Immutable shared document text of text input (Specs/UI/UI_InputAndAccessibility.md, "Shared input text"). One buffer is
+// held at once by a TextField or editable ComboBox, its undo history, the host's native text-input cache and the TSF store:
+// reading, staging, comparing and bounds checks share it, and only an edit makes a new buffer. Invariants relied on wherever
+// a buffer is read or written:
+// - Every buffer is created by MakeSharedText as a non-const std::wstring. Pointers to const keep sharers from writing;
+//   MutableSharedText writes in place only through a buffer MakeSharedText made (std::get_deleter proves it) whose only owner
+//   is the caller's pointer, so no other holder can observe the write.
+// - A std::wstring_view or raw pointer into a buffer is valid only while a SharedText pinning that buffer is alive. Code that
+//   can re-enter a user callback, TSF or SetText while it reads keeps its own SharedText copy for as long as it reads; it never
+//   reads through a member that the re-entered code may replace.
+// - No weak_ptr to a buffer is ever made, and other threads (UI Automation workers) only receive SharedText copies made on the
+//   owner thread. use_count() == 1 therefore means no other thread holds or can gain a reference.
+// - The last owner's release securely wipes the buffer, so password text leaves no copy in freed memory.
+using SharedText = std::shared_ptr<const std::wstring>;
+// May throw std::bad_alloc, like the std::wstring it replaces; callers keep their existing allocation-failure handling.
+[[nodiscard]] SharedText MakeSharedText(std::wstring text);
+// Writable access to `text` for one edit: the buffer itself when `text` is its only owner, else a copy (with room to grow)
+// that `text` then owns alone. The reference is valid until `text` is next reassigned or shared.
+[[nodiscard]] std::wstring& MutableSharedText(SharedText& text);
+[[nodiscard]] inline std::wstring_view SharedTextView(const SharedText& text) noexcept
+{
+    return text ? std::wstring_view(*text) : std::wstring_view();
+}
+// Equal content; the same buffer compares without reading it.
+[[nodiscard]] inline bool SharedTextEquals(const SharedText& text, std::wstring_view other) noexcept
+{
+    const std::wstring_view view = SharedTextView(text);
+    return (view.data() == other.data() && view.size() == other.size()) || view == other;
+}
+[[nodiscard]] inline bool SharedTextEquals(const SharedText& left, const SharedText& right) noexcept
+{
+    return left == right || SharedTextEquals(left, SharedTextView(right));
+}
+
+// TextInputState with its document as shared text: what the native host cache and the TSF store pass between them.
+struct SharedTextInputState
+{
+    SharedText text;
+    std::optional<size_t> selectionAnchorIndex;
+    size_t caretIndex       = 0u;
+    size_t firstVisibleLine = 0u;
+    bool readOnly           = false;
+    bool masked             = false;
+    bool multiline          = false;
+
+    [[nodiscard]] std::wstring_view View() const noexcept
+    {
+        return SharedTextView(text);
+    }
+};
+
+// Moves a control's text-input state in and out without copying the document where the control keeps shared text
+// (TextField, ComboBox); other controls go through ExportTextInputState/ImportTextInputState with one copy.
+struct SharedTextInputAccess
+{
+    // May throw std::bad_alloc.
+    [[nodiscard]] static bool Export(const Control& control, SharedTextInputState& state);
+    // May throw what the control's import and its notifications throw.
+    [[nodiscard]] static bool Import(Control& control, ControlHost& host, const SharedTextInputState& state, bool notifyChange);
+};
+
 [[nodiscard]] ITextStoreACP* CreateNativeTextInputTextStore(ControlHost& host, Control& control, bool hostDeferredWorkEligible = false) noexcept;
 void DetachNativeTextInputTextStore(IUnknown* store) noexcept;
 void DisconnectNativeTextInputTextStore(IUnknown* textStore) noexcept;

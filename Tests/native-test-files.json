@@ -103,6 +103,7 @@
   "Tests/Embedded/Embedded.Tests.FormLayoutBenchmark.h",
   "Tests/Embedded/Embedded.Tests.FrameTiming.h",
   "Tests/Embedded/Embedded.Tests.GridSelectionBenchmark.h",
+  "Tests/Embedded/Embedded.Tests.ImeCopies.h",
   "Tests/Embedded/Embedded.Tests.IncrementalParity.h",
   "Tests/Embedded/Embedded.Tests.InteractionLayout.h",
   "Tests/Embedded/Embedded.Tests.LocalizedLayout.h",

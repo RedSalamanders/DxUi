@@ -318,6 +318,9 @@ invalid values leave the setting unchanged. `GetMinimumPopupItemHeight` returns 
 effective theme height. The field bounds are independent and should also meet the consumer's touch minimum.
 The popup shows fewer complete rows when space is limited and can open above the field; it does not shrink rows.
 Hosts must provide space on at least one side for a full row and the popup padding, or open the selector in a larger view.
+An editable ComboBox filters its popup and matches its selection against committed text: while an IME composition
+previews, the open popup keeps the items of the text before the composition, and the commit filters by the result.
+`GetText` reports the preview; the selected index and popup change only at the commit.
 
 In high contrast, primary Buttons use the exact opaque selection color pair for idle, hover, pressed and focused
 states. Disabled Buttons retain a border with the disabled text color; focus is visible for pointer and keyboard.

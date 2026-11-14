@@ -252,7 +252,8 @@ snapshot, delta and receipt.
   through `CountedDrawText`. Each helper forwards to the method unchanged and counts the object it returns; a refused
   creation is not counted. D3D11 devices are counted where `Detail::CreateD3D11DeviceWithWarpFallback` receives one from
   its creator. `DrawText` lays out its whole string on every call, so each call counts one implicit text layout created
-  and destroyed. GDI backdrop captures count `popups.backdropCaptures` and their pixels.
+  and destroyed. GDI backdrop captures count `popups.backdropCaptures` and their pixels; each filter of an editable
+  `ComboBox`'s popup items counts `popups.comboBoxPopupRebuilds`.
 - **UI Automation.** Each whole-window snapshot build counts `snapshotBuilds`, its control records (`snapshotNodes`) and
   the bytes its per-control record arrays reserve (`snapshotBytes`, owned strings excluded). It counts the same builds as
   the diagnostic `DebugGetAccessibilitySnapshotBuildCountForTest`, which remains.
@@ -310,6 +311,12 @@ Under the counting wrappers (`--test-counting-wrappers <receipt> <comparison>`) 
 calls and a clean frame 0, identically in consecutive runs; the wrappers' creations equal the helpers' (49 implicit
 `DrawText` layouts and 7 text layouts per dirty frame, nothing per clean frame) and no pixel changes
 ([receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W0.1/CountingWrappers/README.md)). These are counts, not timing; a change to them is a measured change with its own receipt, never a silent rebaseline.
+
+IME copy gate (`DxUi.EmbeddedTests.exe --test-ime-copies <receipt>`, also run by the Embedded suite): a composition of
+ten syllables and its commit, driven through the production TSF store on a headless native host at about 64 Ki units,
+makes at most one document-sized C++ allocation (at least one document's bytes, counted by the test allocator) in any lock
+of a `TextField`, and an editable `ComboBox` counts no popup rebuild before the commit. The receipts are retained under
+[Measurements/PerformanceAndMotion_2026-11-13/W8.5](../../Measurements/PerformanceAndMotion_2026-11-13/W8.5/README.md).
 
 ## Trace provider
 

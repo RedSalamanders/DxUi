@@ -1768,6 +1768,7 @@ protected:
     friend class NativeTextStoreTarget;
     friend class EmbeddedHost;
     friend struct RetainedCacheAccess;
+    friend struct SharedTextInputAccess;
     friend std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept;
 
     [[nodiscard]] virtual Control* HitTest(D2D1_POINT_2F point);
@@ -3938,7 +3939,8 @@ protected:
 private:
     struct EditHistoryState
     {
-        std::wstring text;
+        // Shared with the field's text when it was captured; an edit never writes to a shared buffer.
+        std::shared_ptr<const std::wstring> text;
         size_t caretIndex = 0u;
         std::optional<size_t> selectionAnchorIndex;
         size_t firstVisibleLine = 0u;
@@ -3952,7 +3954,13 @@ private:
         DeleteRun,
     };
 
-    [[nodiscard]] std::wstring GetDisplayText() const;
+    // The field's own buffer unless masked; the caller's pointer keeps the text valid while it lays out or measures it.
+    [[nodiscard]] std::shared_ptr<const std::wstring> GetDisplayText() const;
+    [[nodiscard]] const std::wstring& Text() const noexcept;
+    // Writable text for one edit (see MutableSharedText); valid until the field's text is next replaced or shared.
+    [[nodiscard]] std::wstring& MutableText();
+    // Imports `state` with `text` as the document, adopting the buffer; state.text is not read.
+    [[nodiscard]] bool ImportTextInputText(ControlHost& host, std::shared_ptr<const std::wstring> text, const TextInputState& state, bool notifyChange);
     [[nodiscard]] bool UsesMaskedDisplayText() const noexcept;
     [[nodiscard]] const std::vector<size_t>& GetMaskedSourceTextElementBoundaries() const noexcept;
     [[nodiscard]] size_t ControlTextIndexToDisplayTextIndex(size_t controlTextIndex) const noexcept;
@@ -3996,8 +4004,12 @@ private:
     void SelectWordAt(size_t hitIndex) noexcept;
     [[nodiscard]] bool NotifyChanged();
 
+    friend struct SharedTextInputAccess;
+
     wchar_t _pendingLeadSurrogate = 0;
-    std::wstring _text;
+    // Never null. Shared with the host's text-input cache, the TSF store and undo history; replaced, never written, while
+    // shared.
+    std::shared_ptr<const std::wstring> _text;
     std::wstring _placeholder;
     FontRole _fontRole = FontRole::Body;
     std::shared_ptr<const std::function<void(std::wstring_view)>> _onTextChanged;
@@ -4155,12 +4167,20 @@ protected:
 private:
     struct EditHistoryState
     {
-        std::wstring text;
+        // Shared with the editable text when it was captured; an edit never writes to a shared buffer.
+        std::shared_ptr<const std::wstring> text;
         size_t caretIndex = 0u;
         std::optional<size_t> selectionAnchorIndex;
         float horizontalScrollDip = 0.0f;
     };
 
+    [[nodiscard]] const std::wstring& Text() const noexcept;
+    // Writable text for one edit (see MutableSharedText); valid until the text is next replaced or shared.
+    [[nodiscard]] std::wstring& MutableText();
+    // Imports `state` with `text` as the document, adopting the buffer; state.text is not read.
+    [[nodiscard]] bool ImportTextInputText(ControlHost& host, std::shared_ptr<const std::wstring> text, const TextInputState& state, bool notifyChange);
+    // The text the popup filters by and the selection matches: the committed text while a composition preview shows.
+    [[nodiscard]] const std::wstring& FilterText() const noexcept;
     [[nodiscard]] std::optional<size_t> GetHighlightedPopupIndex() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetEditableTextRect() const noexcept;
     [[nodiscard]] wil::com_ptr<IDWriteTextLayout> GetOrCreateSingleLineLayout(
@@ -4213,8 +4233,14 @@ private:
     void DragPopupScrollbarThumb(D2D1_POINT_2F point) noexcept;
 
     std::vector<Item> _items;
+    friend struct SharedTextInputAccess;
+
     std::vector<size_t> _popupItemIndices;
-    std::wstring _text;
+    // Never null. Shared with the host's text-input cache, the TSF store and undo history; replaced, never written, while
+    // shared.
+    std::shared_ptr<const std::wstring> _text;
+    // The committed text while a non-notifying (composition preview) import shows other text; null otherwise.
+    std::shared_ptr<const std::wstring> _committedText;
     std::wstring _placeholder;
     std::wstring _noMatchesText;
     std::shared_ptr<const std::function<void(std::wstring_view)>> _onTextChanged;
@@ -6718,7 +6744,10 @@ private:
                                                                const std::vector<size_t>& clauseBoundaries) noexcept;
     void DestroyNativeTextInputCaret() noexcept;
     void RaiseNativeTextInputAccessibilityEvent(TextInputAutomationEventKind kind) noexcept;
-    void RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState) noexcept;
+    // previousText is the cache text that previousState went with (the cache keeps its text in _nativeTextInputCacheText).
+    void RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState, const std::shared_ptr<const std::wstring>& previousText) noexcept;
+    // The cached document, shared with the session control; empty without a valid cache.
+    [[nodiscard]] std::wstring_view GetNativeTextInputCacheText() const noexcept;
     [[nodiscard]] bool TryGetNativeTextInputCaretRects(D2D1_RECT_F& outRectDip, RECT& outClientRectPx, RECT& outScreenRectPx) const noexcept;
     // Drops interaction state on controls that left the tree or became inert; a dropped focus is published.
     void PruneStaleInteractionState(MessagePrunePass* pass = nullptr) noexcept;
@@ -6849,7 +6878,10 @@ private:
     uint64_t _nativeTextInputFocusId         = 0;
     uint64_t _nativeTextInputSessionRevision = 0u;
     std::weak_ptr<int> _nativeTextInputControlLifetime;
+    // The cache keeps its document in _nativeTextInputCacheText, shared with the control and the TSF store; its own text
+    // member stays empty. Readers that hand the state out copy the shared text into it.
     NativeTextInputState _nativeTextInputStateCache;
+    std::shared_ptr<const std::wstring> _nativeTextInputCacheText;
     bool _nativeTextInputStateCacheValid = false;
     NativeTextInputEventCounters _nativeTextInputEventCounters;
     wil::com_ptr_nothrow<IUnknown> _nativeTextInputTsfThreadMgr;

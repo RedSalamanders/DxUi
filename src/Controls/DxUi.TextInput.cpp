@@ -928,7 +928,7 @@ bool ControlHost::TryReadTextInputState(const Control* control, TextInputState& 
         return false;
     }
 
-    outState.text                 = _nativeTextInputStateCache.text;
+    outState.text.assign(GetNativeTextInputCacheText());
     outState.selectionAnchorIndex = _nativeTextInputStateCache.selectionAnchorIndex;
     outState.caretIndex           = _nativeTextInputStateCache.caretIndex;
     outState.firstVisibleLine     = _nativeTextInputStateCache.firstVisibleLine;
@@ -945,7 +945,7 @@ void ControlHost::SyncTextInput(Control* control) noexcept
     if (_embedded && _nativeTextInputImeComposing && control == _nativeTextInputControl)
     {
         TextInputState actual;
-        if (control && control->ExportTextInputState(actual) && actual.text != _nativeTextInputStateCache.text)
+        if (control && control->ExportTextInputState(actual) && actual.text != GetNativeTextInputCacheText())
             ClearNativeTextInputCompositionState();
     }
     SyncNativeTextInputSession(control);
@@ -961,10 +961,103 @@ HWND ControlHost::GetTextInputHwnd() const noexcept
     return HasActiveNativeTextInputSession() ? _hwnd : nullptr;
 }
 
-TextField::TextField(std::wstring text) : _text(std::move(text))
+namespace
 {
-    _caretIndex = _text.size();
+// Securely wipes a shared text buffer when its last owner releases it. Its presence on a buffer (std::get_deleter) also
+// proves MakeSharedText created the buffer as a non-const std::wstring.
+struct SharedTextDeleter final
+{
+    void operator()(const std::wstring* text) const noexcept
+    {
+        auto* const owned = const_cast<std::wstring*>(text);
+        SecureWipe::SecureClear(*owned);
+        delete owned;
+    }
+};
+} // namespace
+
+SharedText MakeSharedText(std::wstring text)
+{
+    // If the control block cannot be allocated, shared_ptr runs the deleter on the new string before rethrowing.
+    return SharedText(new std::wstring(std::move(text)), SharedTextDeleter{});
+}
+
+std::wstring& MutableSharedText(SharedText& text)
+{
+    if (text && text.use_count() == 1 && std::get_deleter<SharedTextDeleter>(text))
+    {
+        // Sole owner of a buffer made non-const by MakeSharedText: no other holder can observe this write. The fence pairs
+        // with the release of the last other owner, whose reads therefore happen before the write.
+        std::atomic_thread_fence(std::memory_order_acquire);
+        return const_cast<std::wstring&>(*text);
+    }
+    const std::wstring_view current = SharedTextView(text);
+    std::wstring copy;
+    // Room for the edit that follows, so it does not reallocate the copy.
+    copy.reserve(current.size() + current.size() / 16u + 16u);
+    copy.assign(current);
+    text = MakeSharedText(std::move(copy));
+    return const_cast<std::wstring&>(*text);
+}
+
+bool SharedTextInputAccess::Export(const Control& control, SharedTextInputState& state)
+{
+    if (const auto* field = dynamic_cast<const TextField*>(&control))
+    {
+        state = {field->_text,
+                 field->_selectionAnchorIndex,
+                 field->_caretIndex,
+                 field->_multilineFirstVisibleLine,
+                 field->_readOnly,
+                 field->_masked,
+                 field->_multiline};
+        return true;
+    }
+    if (const auto* comboBox = dynamic_cast<const ComboBox*>(&control))
+    {
+        if (! comboBox->SupportsTextInput())
+            return false;
+        state = {comboBox->_text, comboBox->_selectionAnchorIndex, comboBox->_caretIndex, 0u, false, false, false};
+        return true;
+    }
+    TextInputState copy;
+    if (! control.ExportTextInputState(copy))
+        return false;
+    state = {
+        MakeSharedText(std::move(copy.text)), copy.selectionAnchorIndex, copy.caretIndex, copy.firstVisibleLine, copy.readOnly, copy.masked, copy.multiline};
+    return true;
+}
+
+bool SharedTextInputAccess::Import(Control& control, ControlHost& host, const SharedTextInputState& state, bool notifyChange)
+{
+    // The non-text fields travel in a TextInputState whose text stays empty; the document is the shared buffer.
+    const TextInputState fields{
+        std::wstring(), state.selectionAnchorIndex, state.caretIndex, state.firstVisibleLine, state.readOnly, state.masked, state.multiline};
+    if (! state.text)
+        return false;
+    if (auto* field = dynamic_cast<TextField*>(&control))
+        return field->ImportTextInputText(host, state.text, fields, notifyChange);
+    if (auto* comboBox = dynamic_cast<ComboBox*>(&control))
+        return comboBox->ImportTextInputText(host, state.text, fields, notifyChange);
+    TextInputState copy = fields;
+    copy.text.assign(state.View());
+    return control.ImportTextInputState(host, copy, notifyChange);
+}
+
+TextField::TextField(std::wstring text) : _text(MakeSharedText(std::move(text)))
+{
+    _caretIndex = _text->size();
     SetFocusable(true);
+}
+
+const std::wstring& TextField::Text() const noexcept
+{
+    return *_text;
+}
+
+std::wstring& TextField::MutableText()
+{
+    return MutableSharedText(_text);
 }
 
 TextField::~TextField() noexcept
@@ -974,14 +1067,16 @@ TextField::~TextField() noexcept
 
 void TextField::SecureClearStorage() noexcept
 {
-    SecureWipe::SecureClear(_text);
+    // Only the destructor clears storage. Each shared buffer is wiped when its last owner (this field, its history, the host
+    // cache or a TSF store) releases it.
+    _text.reset();
     for (EditHistoryState& state : _undoHistory)
     {
-        SecureWipe::SecureClear(state.text);
+        state.text.reset();
     }
     for (EditHistoryState& state : _redoHistory)
     {
-        SecureWipe::SecureClear(state.text);
+        state.text.reset();
     }
     SecureWipe::SecureClear(_cachedLayoutText);
     ClearSingleLineTextLayoutCache(_singleLineLayoutCache, true);
@@ -1002,12 +1097,12 @@ void TextField::SetText(std::wstring text)
 {
     const auto lifetime   = GetLifetimeToken();
     _pendingLeadSurrogate = 0;
-    _text                 = std::move(text);
+    _text                 = MakeSharedText(std::move(text));
     if (_multiline)
         InvalidateMeasure();
     if (lifetime.expired())
         return;
-    _caretIndex = std::min(_caretIndex, _text.size());
+    _caretIndex = std::min(_caretIndex, _text->size());
     _selectionAnchorIndex.reset();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     _preferredMultilineXOffsetDip.reset();
@@ -1039,7 +1134,7 @@ void TextField::SetText(std::wstring text)
 
 std::wstring_view TextField::GetText() const noexcept
 {
-    return _text;
+    return *_text;
 }
 
 void TextField::SetFontRole(const FontRole fontRole) noexcept
@@ -1091,8 +1186,8 @@ void TextField::SetSelectionRange(const size_t selectionStart, const size_t sele
     const auto lifetime   = GetLifetimeToken();
     _pendingLeadSurrogate = 0;
     BreakDirectEditMerge();
-    const size_t clampedStart = std::min(selectionStart, _text.size());
-    const size_t clampedEnd   = std::min(selectionEnd, _text.size());
+    const size_t clampedStart = std::min(selectionStart, _text->size());
+    const size_t clampedEnd   = std::min(selectionEnd, _text->size());
     _preferredMultilineXOffsetDip.reset();
     _dragSelecting = false;
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
@@ -1135,7 +1230,7 @@ void TextField::ReplaceSelectionAndNotify(std::wstring_view replacement)
     RecordUndoStateForDirectEdit();
     _preferredMultilineXOffsetDip.reset();
     static_cast<void>(DeleteSelection());
-    _text.insert(_caretIndex, replacement.data(), replacement.size());
+    MutableText().insert(_caretIndex, replacement.data(), replacement.size());
     _caretIndex += replacement.size();
     _selectionAnchorIndex.reset();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
@@ -1317,7 +1412,7 @@ size_t TextField::GetSecretVisibleDotCount() const noexcept
     const auto startedAt = std::chrono::steady_clock::now();
     size_t result        = 0u;
     size_t exactCount    = 0u;
-    if (! _masked || _text.empty() || _passwordRevealMode == PasswordRevealMode::Visible || _passwordRevealState == PasswordRevealState::Visible)
+    if (! _masked || _text->empty() || _passwordRevealMode == PasswordRevealMode::Visible || _passwordRevealState == PasswordRevealState::Visible)
     {
         return result;
     }
@@ -1329,14 +1424,14 @@ size_t TextField::GetSecretVisibleDotCount() const noexcept
     }
     else
     {
-        exactCount = _text.size();
+        exactCount = _text->size();
         result     = GetConcealedMaskVisibleDotCount(exactCount);
     }
 
     if (Debug::Perf::IsCaptureEnabled())
     {
         const std::wstring_view policyDetail = _maskLengthPolicy == PasswordMaskLengthPolicy::Exact ? L"exact" : L"concealed";
-        Debug::Perf::Emit(L"dxui.textinput.secret_render_us", policyDetail, Debug::Perf::ElapsedUs(startedAt), _text.size(), result, S_OK);
+        Debug::Perf::Emit(L"dxui.textinput.secret_render_us", policyDetail, Debug::Perf::ElapsedUs(startedAt), _text->size(), result, S_OK);
         Debug::Perf::Emit(L"dxui.textinput.secret_display_dot_count", policyDetail, 0u, result, exactCount, S_OK);
     }
     return result;
@@ -1562,9 +1657,10 @@ bool TextField::DebugGetMultilineState(const ControlHost& host, TextFieldDebugMu
         return false;
     }
 
-    const D2D1_RECT_F textRect     = GetTextRect();
-    const float viewportHeightDip  = std::max(1.0f, textRect.bottom - textRect.top);
-    const std::wstring displayText = GetDisplayText();
+    const D2D1_RECT_F textRect         = GetTextRect();
+    const float viewportHeightDip      = std::max(1.0f, textRect.bottom - textRect.top);
+    const SharedText displayTextBuffer = GetDisplayText();
+    const std::wstring& displayText    = *displayTextBuffer;
     const auto multilineLayout = CreateMultilineTextLayout(&host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
     const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
     const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(&host, _fontRole);
@@ -1629,7 +1725,7 @@ bool TextField::DebugGetSingleLinePaintState(const ControlHost& host, TextFieldD
     const std::optional<std::pair<size_t, size_t>> displaySelectionRange =
         selectionRange.has_value() ? ControlTextRangeToDisplayTextRange(selectionRange.value().first, selectionRange.value().second) : std::nullopt;
     if (const std::optional<D2D1_RECT_F> selectionPaintRect =
-            ComputeSingleLineSelectionPaintRect(host, GetDisplayText(), textRect, _fontRole, _horizontalScrollDip, displaySelectionRange, readingDirection);
+            ComputeSingleLineSelectionPaintRect(host, *GetDisplayText(), textRect, _fontRole, _horizontalScrollDip, displaySelectionRange, readingDirection);
         selectionPaintRect.has_value())
     {
         out.selectionPaintRect    = selectionPaintRect.value();
@@ -1680,8 +1776,9 @@ void TextField::OnBoundsChanged() noexcept
         return;
     }
 
-    const D2D1_RECT_F textRect     = GetTextRect();
-    const std::wstring displayText = GetDisplayText();
+    const D2D1_RECT_F textRect         = GetTextRect();
+    const SharedText displayTextBuffer = GetDisplayText();
+    const std::wstring& displayText    = *displayTextBuffer;
     if (displayText.empty())
     {
         _multilineFirstVisibleLine    = 0u;
@@ -1723,8 +1820,9 @@ void TextField::Paint(ControlHost& host) const
     }
 
     const D2D1_RECT_F textRect                                    = GetTextRect();
-    const std::wstring displayText                                = GetDisplayText();
-    const bool usePlaceholder                                     = _text.empty() && ! _placeholder.empty();
+    const SharedText displayTextBuffer                            = GetDisplayText();
+    const std::wstring& displayText                               = *displayTextBuffer;
+    const bool usePlaceholder                                     = _text->empty() && ! _placeholder.empty();
     const DWRITE_READING_DIRECTION readingDirection               = ResolveReadingDirection(GetFlowDirection());
     const std::optional<std::pair<size_t, size_t>> selectionRange = GetSelectionRange();
     const std::optional<std::pair<size_t, size_t>> displaySelectionRange =
@@ -1993,7 +2091,7 @@ bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
     if (_masked && _maskLengthPolicy == PasswordMaskLengthPolicy::Concealed && _passwordRevealState != PasswordRevealState::Visible && ! _multiline)
     {
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);
-        SetCaretIndex(_text.size(), false);
+        SetCaretIndex(_text->size(), false);
         _dragSelecting             = false;
         const D2D1_RECT_F textRect = GetTextRect();
         EnsureCaretVisible(&host, std::max(1.0f, textRect.right - textRect.left));
@@ -2019,9 +2117,10 @@ bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     if (_multiline)
     {
-        const D2D1_RECT_F textRect     = GetTextRect();
-        const std::wstring displayText = GetDisplayText();
-        const auto multilineLayout     = CreateMultilineTextLayout(
+        const D2D1_RECT_F textRect         = GetTextRect();
+        const SharedText displayTextBuffer = GetDisplayText();
+        const std::wstring& displayText    = *displayTextBuffer;
+        const auto multilineLayout         = CreateMultilineTextLayout(
             &host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
         const size_t displayHitIndex =
             HitTestMultilineCaretIndexDip(&host,
@@ -2047,8 +2146,9 @@ bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
     }
     else
     {
-        const D2D1_RECT_F textRect     = GetTextRect();
-        const std::wstring displayText = GetDisplayText();
+        const D2D1_RECT_F textRect         = GetTextRect();
+        const SharedText displayTextBuffer = GetDisplayText();
+        const std::wstring& displayText    = *displayTextBuffer;
         const size_t displayHitIndex =
             HitTestCaretIndexDip(&host, displayText, _fontRole, textRect, _horizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
         const size_t hitIndex = DisplayTextIndexToControlTextIndex(displayHitIndex);
@@ -2085,9 +2185,10 @@ bool TextField::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool 
     {
         return true;
     }
-    const D2D1_RECT_F textRect     = GetTextRect();
-    const std::wstring displayText = GetDisplayText();
-    size_t hitIndex                = 0u;
+    const D2D1_RECT_F textRect         = GetTextRect();
+    const SharedText displayTextBuffer = GetDisplayText();
+    const std::wstring& displayText    = *displayTextBuffer;
+    size_t hitIndex                    = 0u;
     if (_multiline)
     {
         const auto multilineLayout = CreateMultilineTextLayout(
@@ -2146,9 +2247,10 @@ bool TextField::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modif
         return _clearButtonHovered || _passwordRevealButtonHovered || _passwordRevealButtonPressed;
     }
 
-    const D2D1_RECT_F textRect     = GetTextRect();
-    const std::wstring displayText = GetDisplayText();
-    size_t hitIndex                = 0u;
+    const D2D1_RECT_F textRect         = GetTextRect();
+    const SharedText displayTextBuffer = GetDisplayText();
+    const std::wstring& displayText    = *displayTextBuffer;
+    size_t hitIndex                    = 0u;
     if (_multiline)
     {
         const auto multilineLayout = CreateMultilineTextLayout(
@@ -2240,9 +2342,10 @@ bool TextField::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float w
         return false;
     }
 
-    const D2D1_RECT_F textRect     = GetTextRect();
-    const float viewportHeightDip  = std::max(1.0f, textRect.bottom - textRect.top);
-    const std::wstring displayText = GetDisplayText();
+    const D2D1_RECT_F textRect         = GetTextRect();
+    const float viewportHeightDip      = std::max(1.0f, textRect.bottom - textRect.top);
+    const SharedText displayTextBuffer = GetDisplayText();
+    const std::wstring& displayText    = *displayTextBuffer;
     const auto multilineLayout = CreateMultilineTextLayout(&host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
     const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
     const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(&host, _fontRole);
@@ -2473,7 +2576,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     RecordUndoStateForDirectEdit();
                     static_cast<void>(DeleteSelection());
-                    _text.insert(_caretIndex, normalizedClipboardText);
+                    MutableText().insert(_caretIndex, normalizedClipboardText);
                     _caretIndex += normalizedClipboardText.size();
                     _selectionAnchorIndex.reset();
                     if (! NotifyChanged())
@@ -2488,7 +2591,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
         if (virtualKey == VK_BACK && ! _readOnly)
         {
-            const size_t eraseFrom = FindPreviousWordBoundary(_text, _caretIndex);
+            const size_t eraseFrom = FindPreviousWordBoundary(Text(), _caretIndex);
             if (HasSelection() || eraseFrom < _caretIndex)
             {
                 RecordUndoStateForDirectEdit();
@@ -2506,7 +2609,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             }
             if (eraseFrom < _caretIndex)
             {
-                _text.erase(eraseFrom, _caretIndex - eraseFrom);
+                MutableText().erase(eraseFrom, _caretIndex - eraseFrom);
                 _caretIndex = eraseFrom;
                 _selectionAnchorIndex.reset();
                 if (! NotifyChanged())
@@ -2521,7 +2624,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
         if (virtualKey == VK_DELETE && ! _readOnly)
         {
-            const size_t eraseTo = FindNextWordBoundary(_text, _caretIndex);
+            const size_t eraseTo = FindNextWordBoundary(Text(), _caretIndex);
             if (HasSelection() || eraseTo > _caretIndex)
             {
                 RecordUndoStateForDirectEdit();
@@ -2539,7 +2642,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             }
             if (eraseTo > _caretIndex)
             {
-                _text.erase(_caretIndex, eraseTo - _caretIndex);
+                MutableText().erase(_caretIndex, eraseTo - _caretIndex);
                 _selectionAnchorIndex.reset();
                 if (! NotifyChanged())
                 {
@@ -2564,7 +2667,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             {
                 RecordUndoStateForDirectEdit();
                 static_cast<void>(DeleteSelection());
-                _text.insert(_caretIndex, normalizedClipboardText);
+                MutableText().insert(_caretIndex, normalizedClipboardText);
                 _caretIndex += normalizedClipboardText.size();
                 _selectionAnchorIndex.reset();
                 if (! NotifyChanged())
@@ -2603,7 +2706,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         const bool extendSelection = ModifiersContainShift(modifiers);
         if (ModifiersContainCtrl(modifiers))
         {
-            SetCaretIndex(FindPreviousWordBoundary(_text, _caretIndex), extendSelection);
+            SetCaretIndex(FindPreviousWordBoundary(Text(), _caretIndex), extendSelection);
             if (! refreshCaret())
                 return true;
             return true;
@@ -2619,7 +2722,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
         if (_caretIndex > 0u)
         {
-            SetCaretIndex(StepToPreviousTextElement(_text, _caretIndex), extendSelection);
+            SetCaretIndex(StepToPreviousTextElement(Text(), _caretIndex), extendSelection);
             if (! refreshCaret())
                 return true;
         }
@@ -2631,7 +2734,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         const bool extendSelection = ModifiersContainShift(modifiers);
         if (ModifiersContainCtrl(modifiers))
         {
-            SetCaretIndex(FindNextWordBoundary(_text, _caretIndex), extendSelection);
+            SetCaretIndex(FindNextWordBoundary(Text(), _caretIndex), extendSelection);
             if (! refreshCaret())
                 return true;
             return true;
@@ -2645,7 +2748,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 return true;
             return true;
         }
-        SetCaretIndex(StepToNextTextElement(_text, _caretIndex), extendSelection);
+        SetCaretIndex(StepToNextTextElement(Text(), _caretIndex), extendSelection);
         if (! refreshCaret())
             return true;
         return true;
@@ -2661,7 +2764,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     if (! _multiline && virtualKey == VK_DOWN && ! ModifiersContainCtrl(modifiers) && ! ModifiersContainAlt(modifiers))
     {
         _preferredMultilineXOffsetDip.reset();
-        SetCaretIndex(_text.size(), ModifiersContainShift(modifiers));
+        SetCaretIndex(_text->size(), ModifiersContainShift(modifiers));
         if (! refreshCaret())
             return true;
         return true;
@@ -2669,7 +2772,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     if (_multiline && virtualKey == VK_UP)
     {
         const bool extendSelection  = ModifiersContainShift(modifiers);
-        const size_t nextCaretIndex = MoveMultilineCaretVertically(&host, _text, _fontRole, GetTextRect(), _caretIndex, false, _preferredMultilineXOffsetDip);
+        const size_t nextCaretIndex = MoveMultilineCaretVertically(&host, Text(), _fontRole, GetTextRect(), _caretIndex, false, _preferredMultilineXOffsetDip);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
         if (! refreshCaret())
@@ -2679,7 +2782,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     if (_multiline && virtualKey == VK_DOWN)
     {
         const bool extendSelection  = ModifiersContainShift(modifiers);
-        const size_t nextCaretIndex = MoveMultilineCaretVertically(&host, _text, _fontRole, GetTextRect(), _caretIndex, true, _preferredMultilineXOffsetDip);
+        const size_t nextCaretIndex = MoveMultilineCaretVertically(&host, Text(), _fontRole, GetTextRect(), _caretIndex, true, _preferredMultilineXOffsetDip);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
         if (! refreshCaret())
@@ -2690,9 +2793,9 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     {
         const bool extendSelection                     = ModifiersContainShift(modifiers);
         const D2D1_RECT_F pageTextRect                 = GetTextRect();
-        const MultilineViewportMetrics viewportMetrics = ComputeMultilineViewportMetrics(&host, _text, _fontRole, pageTextRect);
+        const MultilineViewportMetrics viewportMetrics = ComputeMultilineViewportMetrics(&host, Text(), _fontRole, pageTextRect);
         const size_t nextCaretIndex                    = MoveMultilineCaretByPage(
-            &host, _text, _fontRole, pageTextRect, _caretIndex, false, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
+            &host, Text(), _fontRole, pageTextRect, _caretIndex, false, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
         if (! refreshCaret())
@@ -2703,9 +2806,9 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     {
         const bool extendSelection                     = ModifiersContainShift(modifiers);
         const D2D1_RECT_F pageTextRect                 = GetTextRect();
-        const MultilineViewportMetrics viewportMetrics = ComputeMultilineViewportMetrics(&host, _text, _fontRole, pageTextRect);
-        const size_t nextCaretIndex =
-            MoveMultilineCaretByPage(&host, _text, _fontRole, pageTextRect, _caretIndex, true, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
+        const MultilineViewportMetrics viewportMetrics = ComputeMultilineViewportMetrics(&host, Text(), _fontRole, pageTextRect);
+        const size_t nextCaretIndex                    = MoveMultilineCaretByPage(
+            &host, Text(), _fontRole, pageTextRect, _caretIndex, true, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
         if (! refreshCaret())
@@ -2718,7 +2821,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (_multiline && ! ModifiersContainCtrl(modifiers))
         {
             const size_t nextCaretIndex =
-                TryMoveCaretToWrappedLineBoundary(&host, _text, _fontRole, GetTextRect(), _caretIndex, false).value_or(FindLineStart(_text, _caretIndex));
+                TryMoveCaretToWrappedLineBoundary(&host, Text(), _fontRole, GetTextRect(), _caretIndex, false).value_or(FindLineStart(Text(), _caretIndex));
             SetCaretIndex(nextCaretIndex, ModifiersContainShift(modifiers));
         }
         else
@@ -2735,12 +2838,12 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (_multiline && ! ModifiersContainCtrl(modifiers))
         {
             const size_t nextCaretIndex =
-                TryMoveCaretToWrappedLineBoundary(&host, _text, _fontRole, GetTextRect(), _caretIndex, true).value_or(FindLineEnd(_text, _caretIndex));
+                TryMoveCaretToWrappedLineBoundary(&host, Text(), _fontRole, GetTextRect(), _caretIndex, true).value_or(FindLineEnd(Text(), _caretIndex));
             SetCaretIndex(nextCaretIndex, ModifiersContainShift(modifiers));
         }
         else
         {
-            SetCaretIndex(_text.size(), ModifiersContainShift(modifiers));
+            SetCaretIndex(_text->size(), ModifiersContainShift(modifiers));
         }
         if (! refreshCaret())
             return true;
@@ -2763,7 +2866,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
     if (virtualKey == VK_BACK && ! _readOnly)
     {
-        if (HasSelection() || (_caretIndex > 0 && ! _text.empty()))
+        if (HasSelection() || (_caretIndex > 0 && ! _text->empty()))
         {
             RecordUndoStateForDirectEdit(HasSelection() ? DirectEditMergeKind::None : DirectEditMergeKind::BackspaceRun);
             _preferredMultilineXOffsetDip.reset();
@@ -2778,10 +2881,10 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 return true;
             return true;
         }
-        if (_caretIndex > 0 && ! _text.empty())
+        if (_caretIndex > 0 && ! _text->empty())
         {
-            const auto range = GetTextElementDeletionRange(_text, _caretIndex, true);
-            _text.erase(range.first, range.last - range.first);
+            const auto range = GetTextElementDeletionRange(Text(), _caretIndex, true);
+            MutableText().erase(range.first, range.last - range.first);
             _caretIndex = range.first;
             _selectionAnchorIndex.reset();
             if (! NotifyChanged())
@@ -2795,7 +2898,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
     if (virtualKey == VK_DELETE && ! _readOnly)
     {
-        if (HasSelection() || _caretIndex < _text.size())
+        if (HasSelection() || _caretIndex < _text->size())
         {
             RecordUndoStateForDirectEdit(HasSelection() ? DirectEditMergeKind::None : DirectEditMergeKind::DeleteRun);
             _preferredMultilineXOffsetDip.reset();
@@ -2810,10 +2913,10 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 return true;
             return true;
         }
-        if (_caretIndex < _text.size())
+        if (_caretIndex < _text->size())
         {
-            const auto range = GetTextElementDeletionRange(_text, _caretIndex, false);
-            _text.erase(range.first, range.last - range.first);
+            const auto range = GetTextElementDeletionRange(Text(), _caretIndex, false);
+            MutableText().erase(range.first, range.last - range.first);
             _caretIndex = range.first;
             _selectionAnchorIndex.reset();
             if (! NotifyChanged())
@@ -2888,7 +2991,7 @@ bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
         RecordUndoStateForDirectEdit(DirectEditMergeKind::InsertRun);
         _preferredMultilineXOffsetDip.reset();
         static_cast<void>(DeleteSelection());
-        _text.insert(_caretIndex, 1u, L'\n');
+        MutableText().insert(_caretIndex, 1u, L'\n');
         _caretIndex += 1u;
         _selectionAnchorIndex.reset();
     }
@@ -2900,12 +3003,12 @@ bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
         if (IsUtf16TrailSurrogate(ch))
         {
             const wchar_t pair[] = {lead, ch};
-            _text.insert(_caretIndex, pair, 2u);
+            MutableText().insert(_caretIndex, pair, 2u);
             _caretIndex += 2u;
         }
         else
         {
-            _text.insert(_caretIndex, 1u, ch);
+            MutableText().insert(_caretIndex, 1u, ch);
             ++_caretIndex;
         }
         _selectionAnchorIndex.reset();
@@ -2959,7 +3062,7 @@ bool TextField::OnCopy(ControlHost& host)
     if (const std::optional<std::pair<size_t, size_t>> selectionRange = GetSelectionRange())
     {
         const auto [selectionStart, selectionEnd] = selectionRange.value();
-        return host.CopyTextToClipboard(_text.substr(selectionStart, selectionEnd - selectionStart));
+        return host.CopyTextToClipboard(_text->substr(selectionStart, selectionEnd - selectionStart));
     }
 
     return false;
@@ -3007,9 +3110,10 @@ std::optional<D2D1_RECT_F> TextField::GetTextInputViewportRect() const noexcept
 
 std::optional<D2D1_RECT_F> TextField::GetTextInputCaretRect(const ControlHost& host, size_t controlTextIndex) const noexcept
 {
-    const D2D1_RECT_F textRect     = GetTextRect();
-    const std::wstring displayText = GetDisplayText();
-    const size_t displayCaretIndex = ControlTextIndexToDisplayTextIndex(controlTextIndex);
+    const D2D1_RECT_F textRect         = GetTextRect();
+    const SharedText displayTextBuffer = GetDisplayText();
+    const std::wstring& displayText    = *displayTextBuffer;
+    const size_t displayCaretIndex     = ControlTextIndexToDisplayTextIndex(controlTextIndex);
     if (textRect.right <= textRect.left || textRect.bottom <= textRect.top)
     {
         return std::nullopt;
@@ -3048,7 +3152,8 @@ std::optional<std::vector<D2D1_RECT_F>> TextField::GetTextInputRangeRects(const 
                                                                           size_t controlTextStartIndex,
                                                                           size_t controlTextEndIndex) const
 {
-    const std::wstring displayText                              = GetDisplayText();
+    const SharedText displayTextBuffer                          = GetDisplayText();
+    const std::wstring& displayText                             = *displayTextBuffer;
     const std::optional<std::pair<size_t, size_t>> displayRange = ControlTextRangeToDisplayTextRange(controlTextStartIndex, controlTextEndIndex);
     if (! displayRange.has_value())
     {
@@ -3187,7 +3292,8 @@ std::optional<size_t> TextField::HitTestTextInputPoint(const ControlHost& host, 
         return std::nullopt;
     }
 
-    const std::wstring displayText = GetDisplayText();
+    const SharedText displayTextBuffer = GetDisplayText();
+    const std::wstring& displayText    = *displayTextBuffer;
     if (_multiline)
     {
         const auto multilineLayout =
@@ -3209,7 +3315,7 @@ std::optional<size_t> TextField::HitTestTextInputPoint(const ControlHost& host, 
 
 bool TextField::ExportTextInputState(TextInputState& outState) const
 {
-    outState.text                 = _text;
+    outState.text.assign(Text());
     outState.selectionAnchorIndex = _selectionAnchorIndex;
     outState.caretIndex           = _caretIndex;
     outState.firstVisibleLine     = _multilineFirstVisibleLine;
@@ -3221,11 +3327,18 @@ bool TextField::ExportTextInputState(TextInputState& outState) const
 
 bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange)
 {
+    // Unchanged text keeps the field's buffer; changed text is the one copy of this import.
+    return ImportTextInputText(host, SharedTextEquals(_text, state.text) ? _text : MakeSharedText(state.text), state, notifyChange);
+}
+
+bool TextField::ImportTextInputText(ControlHost& host, std::shared_ptr<const std::wstring> text, const TextInputState& state, bool notifyChange)
+{
     const Failure::Scope failureScope;
-    const auto lifetime                   = GetLifetimeToken();
-    _pendingLeadSurrogate                 = 0;
-    const std::wstring previousText       = _text;
-    const bool changed                    = previousText != state.text;
+    const auto lifetime   = GetLifetimeToken();
+    _pendingLeadSurrogate = 0;
+    // Pinned for the comparisons below: the notification re-entry can replace _text.
+    const SharedText previousText         = _text;
+    const bool changed                    = ! SharedTextEquals(previousText, text);
     const size_t previousFirstVisibleLine = _multilineFirstVisibleLine;
     // Imported previews, cancellation and selection changes preserve existing history on every host.
     // A changed notifying import is one committed edit, regardless of how many previews preceded it.
@@ -3233,17 +3346,18 @@ bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& st
         RecordUndoStateForDirectEdit();
     BreakDirectEditMerge();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
-    _text = state.text;
+    // Adopts the buffer: the store, the host cache and this field now share it, and none of them writes to it.
+    _text = std::move(text);
     if (_multiline && changed)
         InvalidateMeasure();
     if (lifetime.expired())
         return false;
-    _caretIndex = std::min(state.caretIndex, _text.size());
+    _caretIndex = std::min(state.caretIndex, _text->size());
     InvalidateSingleLineLayoutCache();
     InvalidateMultilineLayoutCache();
     if (state.selectionAnchorIndex)
     {
-        _selectionAnchorIndex = std::min(state.selectionAnchorIndex.value(), _text.size());
+        _selectionAnchorIndex = std::min(state.selectionAnchorIndex.value(), _text->size());
         if (_selectionAnchorIndex.value() == _caretIndex)
         {
             _selectionAnchorIndex.reset();
@@ -3266,10 +3380,11 @@ bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& st
     {
         if (preserveReadOnlyMultilineViewport)
         {
-            if (previousText != _text)
+            if (! SharedTextEquals(previousText, _text))
             {
-                const D2D1_RECT_F textRect     = GetTextRect();
-                const std::wstring displayText = GetDisplayText();
+                const D2D1_RECT_F textRect         = GetTextRect();
+                const SharedText displayTextBuffer = GetDisplayText();
+                const std::wstring& displayText    = *displayTextBuffer;
                 if (displayText.empty())
                 {
                     _multilineFirstVisibleLine = 0u;
@@ -3308,18 +3423,19 @@ bool TextField::ImportTextInputState(ControlHost& host, const TextInputState& st
 
 TextField::EditHistoryState TextField::CaptureEditHistoryState() const
 {
+    // Shares the current buffer: history costs no copy, and a later edit makes its own buffer.
     return EditHistoryState{
         .text = _text, .caretIndex = _caretIndex, .selectionAnchorIndex = _selectionAnchorIndex, .firstVisibleLine = _multilineFirstVisibleLine};
 }
 
 void TextField::RestoreEditHistoryState(const EditHistoryState& state) noexcept
 {
-    const bool remeasure = _multiline && _text != state.text;
+    const bool remeasure = _multiline && ! SharedTextEquals(_text, state.text);
     _text                = state.text;
-    _caretIndex          = std::min(state.caretIndex, _text.size());
+    _caretIndex          = std::min(state.caretIndex, _text->size());
     if (state.selectionAnchorIndex)
     {
-        _selectionAnchorIndex = std::min(state.selectionAnchorIndex.value(), _text.size());
+        _selectionAnchorIndex = std::min(state.selectionAnchorIndex.value(), _text->size());
         if (_selectionAnchorIndex.value() == _caretIndex)
         {
             _selectionAnchorIndex.reset();
@@ -3366,7 +3482,7 @@ void TextField::FinishEditTransactionMetric() noexcept
     Debug::Perf::Emit(L"dxui.textinput.edit_transaction_us",
                       detail,
                       Debug::Perf::ElapsedUs(startedAt),
-                      static_cast<uint64_t>(_text.size()),
+                      static_cast<uint64_t>(_text->size()),
                       static_cast<uint64_t>(_caretIndex),
                       S_OK);
     Debug::Perf::Emit(L"dxui.textinput.undo_depth", detail, 0u, static_cast<uint64_t>(_undoHistory.size()), static_cast<uint64_t>(_redoHistory.size()), S_OK);
@@ -3489,7 +3605,7 @@ void TextField::SetCaretIndex(size_t caretIndex, bool extendSelection) noexcept
 {
     _preferredMultilineXOffsetDip.reset();
     BreakDirectEditMerge();
-    SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, std::min(caretIndex, _text.size()), extendSelection);
+    SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, std::min(caretIndex, _text->size()), extendSelection);
 }
 
 bool TextField::HasSelection() const noexcept
@@ -3504,19 +3620,28 @@ std::optional<std::pair<size_t, size_t>> TextField::GetSelectionRange() const no
 
 bool TextField::DeleteSelection() noexcept
 {
-    return DeleteSingleLineSelection(_text, _caretIndex, _selectionAnchorIndex);
+    if (! GetSingleLineSelectionRange(_selectionAnchorIndex, _caretIndex))
+        return false;
+    try
+    {
+        return DeleteSingleLineSelection(MutableText(), _caretIndex, _selectionAnchorIndex);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
 }
 
 void TextField::SelectAllText() noexcept
 {
     BreakDirectEditMerge();
-    SelectAllSingleLineText(_text.size(), _caretIndex, _selectionAnchorIndex);
+    SelectAllSingleLineText(_text->size(), _caretIndex, _selectionAnchorIndex);
 }
 
 void TextField::SelectWordAt(size_t hitIndex) noexcept
 {
     BreakDirectEditMerge();
-    SelectSingleLineWordAt(_text, hitIndex, _caretIndex, _selectionAnchorIndex);
+    SelectSingleLineWordAt(Text(), hitIndex, _caretIndex, _selectionAnchorIndex);
 }
 
 D2D1_RECT_F TextField::GetTextRect() const noexcept
@@ -3531,7 +3656,7 @@ D2D1_RECT_F TextField::GetTextRect() const noexcept
 
 bool TextField::IsClearButtonVisible() const noexcept
 {
-    return _clearButtonEnabled && ! _masked && ! _readOnly && ! _multiline && ! _text.empty() && HasFocus();
+    return _clearButtonEnabled && ! _masked && ! _readOnly && ! _multiline && ! _text->empty() && HasFocus();
 }
 
 D2D1_RECT_F TextField::GetClearButtonRect() const noexcept
@@ -3542,7 +3667,7 @@ D2D1_RECT_F TextField::GetClearButtonRect() const noexcept
 
 bool TextField::IsPasswordRevealButtonVisible() const noexcept
 {
-    return _passwordRevealMode == PasswordRevealMode::Peek && _masked && IsEnabled() && ! _readOnly && ! _multiline && ! _text.empty() && HasFocus();
+    return _passwordRevealMode == PasswordRevealMode::Peek && _masked && IsEnabled() && ! _readOnly && ! _multiline && ! _text->empty() && HasFocus();
 }
 
 D2D1_RECT_F TextField::GetPasswordRevealButtonRect() const noexcept
@@ -3551,20 +3676,20 @@ D2D1_RECT_F TextField::GetPasswordRevealButtonRect() const noexcept
     return D2D1::RectF(GetBounds().right - kRevealButtonWidthDip, GetBounds().top, GetBounds().right, GetBounds().bottom);
 }
 
-std::wstring TextField::GetDisplayText() const
+std::shared_ptr<const std::wstring> TextField::GetDisplayText() const
 {
-    if (! _masked || _text.empty() || _passwordRevealMode == PasswordRevealMode::Visible || _passwordRevealState == PasswordRevealState::Visible)
+    if (! _masked || _text->empty() || _passwordRevealMode == PasswordRevealMode::Visible || _passwordRevealState == PasswordRevealState::Visible)
     {
         return _text;
     }
 
     const size_t dotCount = GetSecretVisibleDotCount();
-    return std::wstring(dotCount, L'\u2022');
+    return MakeSharedText(std::wstring(dotCount, L'\u2022'));
 }
 
 bool TextField::UsesMaskedDisplayText() const noexcept
 {
-    return _masked && ! _text.empty() && _passwordRevealMode != PasswordRevealMode::Visible && _passwordRevealState != PasswordRevealState::Visible;
+    return _masked && ! _text->empty() && _passwordRevealMode != PasswordRevealMode::Visible && _passwordRevealState != PasswordRevealState::Visible;
 }
 
 const std::vector<size_t>& TextField::GetMaskedSourceTextElementBoundaries() const noexcept
@@ -3578,12 +3703,12 @@ const std::vector<size_t>& TextField::GetMaskedSourceTextElementBoundaries() con
     const auto startedAt   = perfEnabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
     _maskedSourceTextElementBoundaries.push_back(0u);
     size_t sourceIndex = 0u;
-    while (sourceIndex < _text.size())
+    while (sourceIndex < _text->size())
     {
-        const size_t nextIndex = FindNextTextElementBoundary(_text, sourceIndex);
+        const size_t nextIndex = FindNextTextElementBoundary(Text(), sourceIndex);
         if (nextIndex <= sourceIndex)
         {
-            _maskedSourceTextElementBoundaries.push_back(_text.size());
+            _maskedSourceTextElementBoundaries.push_back(_text->size());
             break;
         }
         _maskedSourceTextElementBoundaries.push_back(nextIndex);
@@ -3594,7 +3719,7 @@ const std::vector<size_t>& TextField::GetMaskedSourceTextElementBoundaries() con
         Debug::Perf::Emit(L"dxui.textinput.masked_index_map_rebuild_us",
                           _maskLengthPolicy == PasswordMaskLengthPolicy::Exact ? L"exact" : L"concealed",
                           Debug::Perf::ElapsedUs(startedAt),
-                          _text.size(),
+                          _text->size(),
                           _maskedSourceTextElementBoundaries.size() - 1u,
                           S_OK);
     }
@@ -3603,7 +3728,7 @@ const std::vector<size_t>& TextField::GetMaskedSourceTextElementBoundaries() con
 
 size_t TextField::ControlTextIndexToDisplayTextIndex(size_t controlTextIndex) const noexcept
 {
-    const size_t clampedControlIndex = (std::min)(controlTextIndex, _text.size());
+    const size_t clampedControlIndex = (std::min)(controlTextIndex, _text->size());
     if (! UsesMaskedDisplayText())
     {
         return clampedControlIndex;
@@ -3611,7 +3736,7 @@ size_t TextField::ControlTextIndexToDisplayTextIndex(size_t controlTextIndex) co
 
     const std::vector<size_t>& boundaries = GetMaskedSourceTextElementBoundaries();
     const size_t sourceElementCount       = boundaries.size() - 1u;
-    const size_t snappedControlIndex      = SnapCaretIndexToTextElementBoundary(_text, clampedControlIndex);
+    const size_t snappedControlIndex      = SnapCaretIndexToTextElementBoundary(Text(), clampedControlIndex);
     const auto boundary                   = std::lower_bound(boundaries.begin(), boundaries.end(), snappedControlIndex);
     const size_t sourceElementIndex       = boundary == boundaries.end() ? sourceElementCount : static_cast<size_t>(boundary - boundaries.begin());
     const size_t displayLength            = _maskLengthPolicy == PasswordMaskLengthPolicy::Exact ? sourceElementCount : GetSecretVisibleDotCount();
@@ -3622,7 +3747,7 @@ size_t TextField::DisplayTextIndexToControlTextIndex(size_t displayTextIndex) co
 {
     if (! UsesMaskedDisplayText())
     {
-        return (std::min)(displayTextIndex, _text.size());
+        return (std::min)(displayTextIndex, _text->size());
     }
 
     const std::vector<size_t>& boundaries = GetMaskedSourceTextElementBoundaries();
@@ -3666,10 +3791,10 @@ wil::com_ptr<IDWriteTextLayout> TextField::GetOrCreateMultilineLayout(const Cont
     if (_multilineLayoutDirty || sizeChanged || textChanged || roleChanged || ! _cachedMultilineLayout)
     {
         _cachedMultilineLayout = CreateMultilineTextLayout(host, text, _fontRole, widthDip, heightDip);
-        _cachedLayoutText      = std::wstring(text);
-        _cachedLayoutSize      = desiredSize;
-        _cachedLayoutRole      = _fontRole;
-        _multilineLayoutDirty  = false;
+        _cachedLayoutText.assign(text);
+        _cachedLayoutSize     = desiredSize;
+        _cachedLayoutRole     = _fontRole;
+        _multilineLayoutDirty = false;
     }
 
     return _cachedMultilineLayout;
@@ -3701,13 +3826,14 @@ void TextField::InvalidateMultilineLayoutCache() const noexcept
 
 void TextField::EnsureCaretVisible(const ControlHost* host, float availableWidthDip) const noexcept
 {
-    if (_multiline || _text.empty())
+    if (_multiline || _text->empty())
     {
         _horizontalScrollDip = 0.0f;
         return;
     }
 
-    const std::wstring displayText               = GetDisplayText();
+    const SharedText displayTextBuffer           = GetDisplayText();
+    const std::wstring& displayText              = *displayTextBuffer;
     const wil::com_ptr<IDWriteTextLayout> layout = GetOrCreateSingleLineLayout(host,
                                                                                displayText,
                                                                                std::max(1.0f, availableWidthDip + _horizontalScrollDip),
@@ -3733,8 +3859,9 @@ void TextField::EnsureMultilineCaretVisible(const ControlHost* host) noexcept
         return;
     }
 
-    const D2D1_RECT_F textRect     = GetTextRect();
-    const std::wstring displayText = GetDisplayText();
+    const D2D1_RECT_F textRect         = GetTextRect();
+    const SharedText displayTextBuffer = GetDisplayText();
+    const std::wstring& displayText    = *displayTextBuffer;
     if (displayText.empty())
     {
         _multilineFirstVisibleLine = 0u;
@@ -3817,15 +3944,12 @@ bool TextField::NotifyChanged()
         return ! selfLifetime.expired();
     }
 
-    std::wstring textSnapshot = _text;
-    const bool secureSnapshot = _masked;
-    (*onTextChanged)(textSnapshot);
+    // The callback reads a pinned buffer, valid however it edits or retires this field; the buffer is wiped once its last
+    // owner releases it.
+    const SharedText textSnapshot = _text;
+    (*onTextChanged)(std::wstring_view(*textSnapshot));
     // Releasing the last callback capture can itself retire this control.
     onTextChanged.reset();
-    if (secureSnapshot)
-    {
-        SecureWipe::SecureClear(textSnapshot);
-    }
     const bool alive = ! selfLifetime.expired();
     if (alive)
     {

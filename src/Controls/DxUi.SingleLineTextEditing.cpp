@@ -535,15 +535,15 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
         cache->layout = layout;
         if (secureCacheText)
         {
+            // Wiped first, then overwritten in place: the cache keeps its capacity, so a relayout copies the text without
+            // allocating, and no stale secret survives beyond the new text.
             SecureWipe::SecureClear(cache->text);
-            std::wstring exactText(text.size(), L'\0');
-            std::copy(text.begin(), text.end(), exactText.begin());
-            cache->text.swap(exactText);
         }
-        else
-        {
-            cache->text = std::wstring(text);
-        }
+        // Room for typing: a text that grows a few units at a time (an IME composition) keeps relaying out without
+        // reallocating the copy.
+        if (cache->text.capacity() < text.size())
+            cache->text.reserve(text.size() + text.size() / 16u + 16u);
+        cache->text.assign(text);
         cache->textFormat           = format;
         cache->role                 = role;
         cache->readingDirection     = readingDirection;

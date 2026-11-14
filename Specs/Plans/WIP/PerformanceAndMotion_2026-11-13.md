@@ -1529,7 +1529,7 @@ the document at most once per lock. Exit: `G9` met; the `FX6` and `FX7` gates be
     `FX7` with 0 clients: 0 document copies from automation events.
   - **Needs**: `W8.1`. **Size**: M.
 
-- [ ] **W8.5 IME copies.**
+- [x] **W8.5 IME copies.**
   - **Why**: one TSF lock in a native `TextField` copies the whole document 21 times (2+2+2+2+3+1+1+1+2+2+1+2; through
     `DxUi.TextStoreACP.cpp:256-274, 457, 572, 655-707, 751, 1289, 1486, 1557, 1894`, `DxUi.NativeTextInput.cpp:1063,
     1077, 1306-1310, 2094`, `DxUi.TextInput.cpp:3161, 3170`), plus 1 per caret move and 3–5 deferred: about 2.4 MiB per
@@ -1747,6 +1747,8 @@ with an open row is not accepted for closeout until that row closes.
 | `W8.1` | A second independent review found the baseline fix incomplete: a client that subscribes and then queries can still miss a change back to an earlier state, because the baseline moves only when nobody listens at the moment of publication. It also found that a publication request that fails is never retried, and that two older embedded query paths can still cancel a pointer gesture. | A second follow-up `W8.1` commit and a third review; the item is not accepted before them. If the fix does not stay simple, native hosts return to the per-window latch and only the embedded saving is kept |
 | `W8.1` | Whether `UiaClientsAreListening` covers a client that relies only on WinEvent hooks could not be measured: on this desktop it was already true before any test ran. As a precaution, a window that receives the MSAA object request counts as having a listener for the rest of its attachment. | A measurement with NVDA or JAWS on a desktop where no client listens, which decides whether the precaution stays |
 | `W8.1` | The Narrator and Inspect check was not run. A query on another thread now waits up to one second for the window thread to publish when unobserved mutations exist. An embedded view queried while it is not coherent reads its last built snapshot. | Narrator and Inspect on the developer's desktop |
+| `W8.5` | `TextField` meets the gate: at most 1 document-sized allocation per lock, from up to 33, and an editable `ComboBox` rebuilds its popup 0 times before the commit. `RichTextEditor` is measured and not gated: 9 per lock at the commit, from 32, because its remaining copies come from flattening the document for text-input sync. The real IME check and the `NativeTextInput` suite were not run. | `W7.4` closes the `RichTextEditor` part; `test.ps1 -Interactive` with the developer's agreement |
+| `W8.5` | Behaviour changed on purpose: while a composition is previewed, an editable `ComboBox` keeps its popup filter and selected index and applies them at the commit. Secure clearing now happens when the last holder of the shared text buffer releases it, where it used to wipe in place. | An independent review of the buffer's lifetime and of the clearing rule; the item is not accepted before it |
 | `W8.6` | The UI Automation character expansion visits up to 63 of the gate's 64 code units, because it reads the same sequence three times. Runs of regional indicators, pictographs joined by ZWJ and Indic linker chains are still read back to their start, as the item says. | `W8.4` gives the expansion headroom; the unbounded runs are by design |
 
 ## Decisions carried into this plan

@@ -40,7 +40,8 @@
 // Popups and menus.
 #define DXUI_WORK_COUNTERS_POPUPS(X)                                                                                                                           \
     X(popups, backdropCapturePixels) /* Screen pixels copied by GDI backdrop captures. */                                                                      \
-    X(popups, backdropCaptures)      /* Synchronous GDI BitBlt captures of the screen behind a popup. */
+    X(popups, backdropCaptures)      /* Synchronous GDI BitBlt captures of the screen behind a popup. */                                                       \
+    X(popups, comboBoxPopupRebuilds) /* ComboBox::RebuildPopupItems calls: one filter of the items by the editable text. */
 
 // Lists: Grid and Tree.
 #define DXUI_WORK_COUNTERS_LISTS(X)

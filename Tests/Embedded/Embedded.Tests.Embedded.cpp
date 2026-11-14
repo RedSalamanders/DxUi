@@ -72,6 +72,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.EmbeddedUia.h"
 #include "Embedded.Tests.FrameTiming.h"
 #include "Embedded.Tests.GridSelectionBenchmark.h"
+#include "Embedded.Tests.ImeCopies.h"
 #include "Embedded.Tests.IncrementalParity.h"
 #include "Embedded.Tests.InteractionLayout.h"
 #include "Embedded.Tests.LocalizedLayout.h"
@@ -1704,6 +1705,12 @@ __declspec(noinline) static int RunFunctionalTests()
         WorkCountersComplexUi::RunWrapperComparison(__wargv[2], __wargv[3]);
         return 0;
     }
+    // The IME copy gate, alone, writing its receipt (Measurements/PerformanceAndMotion_2026-11-13/W8.5).
+    if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--test-ime-copies")
+    {
+        ImeCopies::Run(__wargv[2]);
+        return 0;
+    }
     // Opt-in diagnostics stay outside the canonical benchmark dispatcher/closure.
     if (__argc == 5 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-profile")
     {
@@ -2082,6 +2089,7 @@ __declspec(noinline) static int RunFunctionalTests()
     WorkCountersComplexUi::RunWrapperComparison(nullptr, nullptr);
     WorkCountersComplexUi::TestCountingWrappersReportUncountedCreation();
     TraceProviderComplexUi::Run();
+    ImeCopies::Run(nullptr);
     TestRichFlatProjectionFailureAtomicity();
     TestRichProjectionPreparationAllocationFailureAtomicity();
     TestRichProjectionRetainedStorageBudget();

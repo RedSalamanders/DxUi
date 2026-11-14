@@ -406,14 +406,14 @@ HRESULT TextField::MeasureOverride(const MeasureContext& context, const LayoutCo
     // Reserve the potential trailing action even while it is hidden, so editing/focus cannot resize the field.
     const bool action = ! _multiline && (_clearButtonEnabled || (_masked && _passwordRevealMode == PasswordRevealMode::Peek));
     const float right = action ? (std::max)(38.0f, _textPaddingRightDip) : _textPaddingRightDip;
-    std::wstring display;
+    std::shared_ptr<const std::wstring> display;
     if (_multiline && UsesMaskedDisplayText())
     {
-        if (_text.size() > kMaxIntrinsicTextUnits)
+        if (_text->size() > kMaxIntrinsicTextUnits)
             return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
         display = GetDisplayText();
     }
-    const std::wstring_view text = _multiline ? (UsesMaskedDisplayText() ? std::wstring_view(display) : GetText()) : std::wstring_view{};
+    const std::wstring_view text = _multiline ? (display ? std::wstring_view(*display) : GetText()) : std::wstring_view{};
     return MeasureText(context,
                        constraints,
                        text,

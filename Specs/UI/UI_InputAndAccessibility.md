@@ -1054,6 +1054,19 @@ and its accessible name/value/text never contains the password. Host `WM_GETTEXT
 `WM_SETTEXT` remain window-caption messages while an editor has focus; editor state is exposed by the supported
 control and UI Automation APIs.
 
+Shared input text. A `TextField` and an editable `ComboBox` keep their document in one immutable shared buffer, which the
+native host's text-input cache, the TSF store (its lock-entry base, staged edit, composition base, expected preview and
+observed state) and the control's undo history hold without copying. A TSF read, selection change, extent or end query,
+bounds check, synchronization and caret move share it; only an edit makes a new buffer, built once at its final size and
+adopted by the control on import. One TSF lock in a `TextField` therefore makes at most one document-sized allocation
+(the counted gate of `Embedded.Tests.ImeCopies.h`, a ten-syllable composition at about 64 Ki units). A buffer is never
+written while another holder shares it; a view into it stays valid only while a holder pins it, so code that can
+re-enter user callbacks, TSF or `SetText` keeps its own reference while it reads; and the last holder's release securely
+wipes it. An editable `ComboBox` filters and selects its popup items by its committed text: a composition preview (a
+non-notifying import that changes the text) neither rebuilds the open popup's items nor changes the selection, and the
+commit filters by the result. `RichTextEditor` still flattens its document for each TSF import and export; that copy
+belongs to its snapshot export (performance plan `W7.4`).
+
 Native TSF activation stages its document, context and store before publishing the session. It revalidates the
 focused control and transition generation after each callback-capable TSF operation, including context push and
 focus association. Deactivation detaches the old session before calling TSF and cleans up only its own retained

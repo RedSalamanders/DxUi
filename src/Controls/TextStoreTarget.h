@@ -1,6 +1,8 @@
 #pragma once
 
+#include "DxUi.Internal.h"
 #include <DxUi/DxUi.h>
+#include <DxUi/Failure.h>
 #include <DxUi/TextInputServices.h>
 #include <cstdint>
 #include <inputscope.h>
@@ -78,7 +80,51 @@ public:
         policy = {state.readOnly, state.masked, state.multiline};
         return true;
     }
-    [[nodiscard]] virtual bool ApplyState(const TextInputState& state, bool notifyChange) noexcept     = 0;
+    [[nodiscard]] virtual bool ApplyState(const TextInputState& state, bool notifyChange) noexcept = 0;
+    // The store reads and stages through these. A target that keeps shared text overrides them so a read shares the
+    // document and only an edit allocates; the defaults adapt ReadState/ApplyState with one copy each.
+    [[nodiscard]] virtual bool ReadSharedState(SharedTextInputState& state) const noexcept
+    {
+        try
+        {
+            TextInputState copy;
+            if (! ReadState(copy))
+            {
+                state = {};
+                return false;
+            }
+            state = {MakeSharedText(std::move(copy.text)),
+                     copy.selectionAnchorIndex,
+                     copy.caretIndex,
+                     copy.firstVisibleLine,
+                     copy.readOnly,
+                     copy.masked,
+                     copy.multiline};
+            return true;
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
+    }
+    [[nodiscard]] virtual bool ApplySharedState(const SharedTextInputState& state, bool notifyChange) noexcept
+    {
+        try
+        {
+            TextInputState copy{std::wstring(state.View()),
+                                state.selectionAnchorIndex,
+                                state.caretIndex,
+                                state.firstVisibleLine,
+                                state.readOnly,
+                                state.masked,
+                                state.multiline};
+            return ApplyState(copy, notifyChange);
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
+    }
     [[nodiscard]] virtual D2D1_RECT_F ResolveTextViewportBounds() const noexcept                       = 0;
     [[nodiscard]] virtual HWND GetHwnd() const noexcept                                                = 0;
     virtual HRESULT GetAcpFromScreenPoint(const POINT* point, LONG* acp) const noexcept                = 0;

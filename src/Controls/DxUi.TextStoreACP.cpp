@@ -113,23 +113,24 @@ struct AcpRange
     return IS_DEFAULT;
 }
 
-[[nodiscard]] bool HasSelection(const TextInputState& state) noexcept
+[[nodiscard]] bool HasSelection(const SharedTextInputState& state) noexcept
 {
     return state.selectionAnchorIndex.has_value() && state.selectionAnchorIndex.value() != state.caretIndex;
 }
 
-[[nodiscard]] AcpRange GetSelectionRange(const TextInputState& state) noexcept
+[[nodiscard]] AcpRange GetSelectionRange(const SharedTextInputState& state) noexcept
 {
+    const size_t length = state.View().size();
     if (! HasSelection(state))
     {
-        const size_t caretIndex = (std::min)(state.caretIndex, state.text.size());
+        const size_t caretIndex = (std::min)(state.caretIndex, length);
         return AcpRange{caretIndex, caretIndex};
     }
 
-    return ClampAcpRange(ToAcp(state.selectionAnchorIndex.value()), ToAcp(state.caretIndex), state.text.size(), false);
+    return ClampAcpRange(ToAcp(state.selectionAnchorIndex.value()), ToAcp(state.caretIndex), length, false);
 }
 
-[[nodiscard]] bool IsSameSelection(const TextInputState& left, const TextInputState& right) noexcept
+[[nodiscard]] bool IsSameSelection(const SharedTextInputState& left, const SharedTextInputState& right) noexcept
 {
     return left.caretIndex == right.caretIndex && left.selectionAnchorIndex == right.selectionAnchorIndex;
 }
@@ -255,6 +256,9 @@ struct AcpRange
 
 } // namespace
 
+// Reads and staging share the document with the host's native cache and the control (SharedText); only an edit allocates.
+// Lifetime: every state below holds its own SharedText, so its text stays valid across the re-entrant imports, notifications,
+// SetText calls and synchronizations that each method may trigger, whatever the control or cache then holds.
 class NativeTextStoreTarget final : public TextStoreTarget
 {
 public:
@@ -281,7 +285,9 @@ public:
             // roll back its own still-visible preview only when no replacement TSF session won reentry.
             if (CanRestoreOwnedComposition(control) && IsCompositionTextCurrent())
             {
-                static_cast<void>(RestoreCompositionBase(_compositionBase.value()));
+                // Pin the base: the restore re-enters the control and may reach Abandon through it.
+                const SharedTextInputState base = _compositionBase.value();
+                static_cast<void>(RestoreCompositionBase(base));
                 if (! lifetime.expired() && CanRestoreOwnedComposition(control))
                     static_cast<void>(host->SetNativeTextInputCompositionRange(control, {}, {}, {}));
             }
@@ -307,7 +313,7 @@ public:
         _editActive = false;
         _editBase.reset();
         _stagedState.reset();
-        TextInputState state{};
+        SharedTextInputState state{};
         if (! IsCurrentTextServiceTarget() || ! ReadBackingState(state))
         {
             return TS_E_INVALIDPOS;
@@ -334,7 +340,7 @@ public:
         _editActive = false;
         if (_compositionBase && ! IsCurrentTextServiceTarget())
         {
-            TextInputState base = std::move(_compositionBase.value());
+            SharedTextInputState base = std::move(_compositionBase.value());
             _compositionBase.reset();
             _compositionEndPending = false;
             _stagedState.reset();
@@ -357,7 +363,7 @@ public:
             _stagedState.reset();
             if (_compositionEndPending && _compositionBase)
             {
-                TextInputState base = std::move(_compositionBase.value());
+                SharedTextInputState base = std::move(_compositionBase.value());
                 _compositionBase.reset();
                 _compositionEndPending = false;
                 const bool restored    = RestoreCompositionBase(base);
@@ -374,14 +380,15 @@ public:
             bool applied = true;
             if (_compositionEndPending && _compositionBase)
             {
-                TextInputState current{};
+                SharedTextInputState current{};
                 applied = ReadBackingState(current) && FinishComposition(current);
             }
             _editBase.reset();
             return applied ? S_OK : E_FAIL;
         }
 
-        TextInputState staged = std::move(_stagedState.value());
+        // The staged state owns its text; the imports below cannot release it while it is applied.
+        SharedTextInputState staged = std::move(_stagedState.value());
         _stagedState.reset();
         bool applied = false;
         if (_compositionBase && ! IsCompositionTextCurrent())
@@ -402,7 +409,7 @@ public:
         {
             applied = ApplyControlState(staged, ! _compositionBase.has_value());
             if (applied && _compositionBase)
-                applied = RememberCompositionText(staged.text);
+                RememberCompositionText(staged.text);
         }
         _editBase.reset();
         return applied ? S_OK : E_FAIL;
@@ -421,8 +428,8 @@ public:
         {
             // EndComposition can be followed by another start inside the same TSF lock.
             // Commit the completed composition now so the next one gets its own undo base.
-            TextInputState completedState{};
-            if (! ReadState(completedState) || ! FinishComposition(completedState) || ! IsCurrentTextServiceTarget())
+            SharedTextInputState completedState{};
+            if (! ReadSharedState(completedState) || ! FinishComposition(completedState) || ! IsCurrentTextServiceTarget())
                 return E_FAIL;
             sequentialComposition = true;
         }
@@ -433,41 +440,30 @@ public:
             return S_OK;
         }
 
-        try
+        SharedTextInputState base{};
+        if (sequentialComposition)
         {
-            TextInputState base{};
-            if (sequentialComposition)
-            {
-                if (! ReadBackingState(base))
-                    return TS_E_INVALIDPOS;
-            }
-            else if (_editBase)
-            {
-                base = _editBase.value();
-            }
-            else if (! ReadBackingState(base))
-            {
+            if (! ReadBackingState(base))
                 return TS_E_INVALIDPOS;
-            }
-            if (base.masked || base.readOnly)
-                return E_ACCESSDENIED;
-            _compositionBase = std::move(base);
-            if (! RememberCompositionText(_compositionBase->text))
-            {
-                _compositionBase.reset();
-                return E_OUTOFMEMORY;
-            }
         }
-        catch (const std::bad_alloc&)
+        else if (_editBase)
         {
-            Failure::FailAllocation();
+            base = _editBase.value();
         }
+        else if (! ReadBackingState(base))
+        {
+            return TS_E_INVALIDPOS;
+        }
+        if (base.masked || base.readOnly)
+            return E_ACCESSDENIED;
+        _compositionBase = std::move(base);
+        RememberCompositionText(_compositionBase->text);
 
         // TSF can insert into the staged document and then start its composition
         // in the same lock. The undo base is the lock-entry prestate above; range
         // validation must use the current staged document instead.
-        TextInputState current{};
-        if (! ReadState(current))
+        SharedTextInputState current{};
+        if (! ReadSharedState(current))
         {
             _compositionBase.reset();
             _compositionExpectedText.reset();
@@ -484,7 +480,7 @@ public:
         size_t end                       = 0u;
         std::optional<size_t> startValue = 0u;
         std::optional<size_t> endValue   = 0u;
-        if (TryGetCompositionAcpRange(composition, nullptr, start, end) && end <= current.text.size())
+        if (TryGetCompositionAcpRange(composition, nullptr, start, end) && end <= current.View().size())
         {
             startValue = start;
             endValue   = end;
@@ -508,8 +504,8 @@ public:
         {
             return TS_E_INVALIDPOS;
         }
-        TextInputState state{};
-        if (! ReadState(state))
+        SharedTextInputState state{};
+        if (! ReadSharedState(state))
         {
             return TS_E_INVALIDPOS;
         }
@@ -521,7 +517,7 @@ public:
         {
             return S_OK;
         }
-        if (end > state.text.size())
+        if (end > state.View().size())
         {
             return E_INVALIDARG;
         }
@@ -548,7 +544,7 @@ public:
 
         if (! IsCurrentTextServiceTarget())
         {
-            TextInputState base = std::move(_compositionBase.value());
+            SharedTextInputState base = std::move(_compositionBase.value());
             _compositionBase.reset();
             _compositionEndPending = false;
             const bool restored    = RestoreCompositionBase(base);
@@ -556,7 +552,7 @@ public:
             return restored ? S_OK : E_FAIL;
         }
 
-        TextInputState finalState{};
+        SharedTextInputState finalState{};
         if (! ReadBackingState(finalState))
         {
             _compositionBase.reset();
@@ -566,7 +562,7 @@ public:
         }
         if (finalState.masked || finalState.readOnly)
         {
-            TextInputState base = std::move(_compositionBase.value());
+            SharedTextInputState base = std::move(_compositionBase.value());
             _compositionBase.reset();
             _compositionEndPending = false;
             const bool restored    = RestoreCompositionBase(base);
@@ -585,9 +581,9 @@ public:
     }
     HRESULT GetAcpFromScreenPoint(const POINT* ptScreen, LONG* pacp) const noexcept override
     {
-        TextInputState state{};
+        SharedTextInputState state{};
         Control* const control = GetLiveControl();
-        if (! ReadState(state) || ! control)
+        if (! ReadSharedState(state) || ! control)
         {
             return TS_E_INVALIDPOS;
         }
@@ -609,20 +605,20 @@ public:
         const D2D1_POINT_2F queryPoint = D2D1::Point2F(pointDip->x, pointDip->y);
         if (const std::optional<size_t> hitIndex = control->TryHitTestTextInputPoint(*_host, queryPoint); hitIndex.has_value())
         {
-            *pacp = ToAcp((std::min)(hitIndex.value(), state.text.size()));
+            *pacp = ToAcp((std::min)(hitIndex.value(), state.View().size()));
             return S_OK;
         }
 
         const DWRITE_READING_DIRECTION readingDirection = ResolveReadingDirection(control->GetFlowDirection());
-        *pacp = ToAcp(HitTestCaretIndexDip(_host, state.text, FontRole::Body, bounds, 0.0f, queryPoint, readingDirection));
+        *pacp = ToAcp(HitTestCaretIndexDip(_host, state.View(), FontRole::Body, bounds, 0.0f, queryPoint, readingDirection));
         return S_OK;
     }
     HRESULT GetRangeScreenRect(LONG acpStart, LONG acpEnd, RECT* prc, BOOL* pfClipped) const noexcept override
     try
     {
-        TextInputState state{};
+        SharedTextInputState state{};
         Control* const control = GetLiveControl();
-        if (! ReadState(state) || ! control)
+        if (! ReadSharedState(state) || ! control)
         {
             return TS_E_INVALIDPOS;
         }
@@ -634,7 +630,7 @@ public:
             *pfClipped = TRUE;
             return TS_E_NOLAYOUT;
         }
-        const AcpRange range                     = ClampAcpRange(acpStart, acpEnd, state.text.size(), false);
+        const AcpRange range                     = ClampAcpRange(acpStart, acpEnd, state.View().size(), false);
         bool clipped                             = false;
         const std::optional<D2D1_RECT_F> rectDip = TryResolveTextStoreRangeRect(*_host, *control, range, bounds, clipped);
         if (! rectDip.has_value())
@@ -699,10 +695,59 @@ public:
             policy = {field->IsReadOnly(), field->IsMasked(), field->IsMultiline(), ToTsfInputScope(field->GetInputScope())};
             return true;
         }
-        return TextStoreTarget::ReadPolicy(policy);
+        SharedTextInputState state{};
+        if (! ReadSharedState(state))
+            return false;
+        policy = {state.readOnly, state.masked, state.multiline};
+        return true;
     }
 
+    // The copying interface stays for completeness; the store itself reads and stages shared text.
     [[nodiscard]] bool ReadState(TextInputState& outState) const noexcept override
+    {
+        try
+        {
+            SharedTextInputState state{};
+            if (! ReadSharedState(state))
+            {
+                outState = {};
+                return false;
+            }
+            outState = {std::wstring(state.View()),
+                        state.selectionAnchorIndex,
+                        state.caretIndex,
+                        state.firstVisibleLine,
+                        state.readOnly,
+                        state.masked,
+                        state.multiline};
+            return true;
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
+    }
+
+    [[nodiscard]] bool ApplyState(const TextInputState& state, bool notifyChange) noexcept override
+    {
+        try
+        {
+            const SharedTextInputState shared{MakeSharedText(state.text),
+                                              state.selectionAnchorIndex,
+                                              state.caretIndex,
+                                              state.firstVisibleLine,
+                                              state.readOnly,
+                                              state.masked,
+                                              state.multiline};
+            return ApplySharedState(shared, notifyChange);
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
+    }
+
+    [[nodiscard]] bool ReadSharedState(SharedTextInputState& outState) const noexcept override
     {
         Control* const control = GetLiveControl();
         if (! control || ! IsCurrentTextServiceTarget() || (dynamic_cast<const TextField*>(control) && static_cast<const TextField*>(control)->IsMasked()))
@@ -712,22 +757,15 @@ public:
         }
         if (_stagedState)
         {
-            try
-            {
-                outState = _stagedState.value();
-                return ! outState.masked;
-            }
-            catch (const std::bad_alloc&)
-            {
-                Failure::FailAllocation();
-            }
+            outState = _stagedState.value();
+            return ! outState.masked;
         }
         return ReadBackingState(outState) && ! outState.masked;
     }
 
-    [[nodiscard]] bool ApplyState(const TextInputState& state, bool notifyChange) noexcept override
+    [[nodiscard]] bool ApplySharedState(const SharedTextInputState& state, bool notifyChange) noexcept override
     {
-        if (state.masked || state.readOnly || ! IsCurrentTextServiceTarget())
+        if (state.masked || state.readOnly || ! state.text || ! IsCurrentTextServiceTarget())
         {
             return false;
         }
@@ -745,30 +783,20 @@ public:
         {
             const bool applied = ApplyControlState(state, notifyChange);
             if (applied && _compositionBase)
-                return RememberCompositionText(state.text);
+                RememberCompositionText(state.text);
             return applied;
         }
-        try
+        SharedTextInputState current{};
+        if (! ReadBackingState(current) || current.masked || current.readOnly)
+            return false;
+        if (! _editBase)
         {
-            TextInputState current{};
-            if (! ReadBackingState(current) || current.masked || current.readOnly)
-                return false;
-            if (! _editBase)
-            {
-                TextInputState base{};
-                if (! ReadBackingState(base) || base.masked || base.readOnly)
-                {
-                    return false;
-                }
-                _editBase = std::move(base);
-            }
-            _stagedState = state;
-            return true;
+            // The backing state just read is the lock-entry state: nothing has been applied in this lock yet.
+            _editBase = std::move(current);
         }
-        catch (const std::bad_alloc&)
-        {
-            Failure::FailAllocation();
-        }
+        // Staging shares the caller's buffer: the store's edit made it, and nothing writes to a shared buffer.
+        _stagedState = state;
+        return true;
     }
 
 private:
@@ -802,25 +830,19 @@ private:
         return GetClientRect(hwnd, &client) != FALSE && client.right > client.left && client.bottom > client.top;
     }
 
-    [[nodiscard]] bool RememberCompositionText(std::wstring_view text) noexcept
+    // The document the composition's preview left in the control. Holding the buffer keeps the content comparable even after
+    // the control moves on to another buffer; a different buffer with equal content still compares equal.
+    void RememberCompositionText(SharedText text) noexcept
     {
-        try
-        {
-            _compositionExpectedText = std::wstring(text);
-            return true;
-        }
-        catch (const std::bad_alloc&)
-        {
-            Failure::FailAllocation();
-        }
+        _compositionExpectedText = std::move(text);
     }
 
     [[nodiscard]] bool IsCompositionTextCurrent() const noexcept
     {
         if (! _compositionBase || ! _compositionExpectedText)
             return false;
-        TextInputState current{};
-        return ReadBackingState(current) && current.text == _compositionExpectedText.value();
+        SharedTextInputState current{};
+        return ReadBackingState(current) && SharedTextEquals(current.text, _compositionExpectedText);
     }
 
     void ClearCompositionRange() noexcept
@@ -830,7 +852,9 @@ private:
             static_cast<void>(_host->SetNativeTextInputCompositionRange(control, {}, {}, {}));
     }
 
-    [[nodiscard]] bool ReadBackingState(TextInputState& outState) const noexcept
+    // The control's state with its document shared: from the host's native cache when this control owns the session, else
+    // from the control itself. On success the text is never null.
+    [[nodiscard]] bool ReadBackingState(SharedTextInputState& outState) const noexcept
     {
         try
         {
@@ -840,16 +864,16 @@ private:
                 return false;
             }
 
-            NativeTextInputState nativeState{};
-            if (_host->TryReadNativeTextInputState(control, nativeState))
+            if (control == _host->_nativeTextInputControl && _host->_nativeTextInputStateCacheValid && _host->_nativeTextInputCacheText)
             {
-                outState.text                 = nativeState.text;
-                outState.selectionAnchorIndex = nativeState.selectionAnchorIndex;
-                outState.caretIndex           = nativeState.caretIndex;
-                outState.firstVisibleLine     = nativeState.firstVisibleLine;
-                outState.readOnly             = nativeState.readOnly;
-                outState.masked               = nativeState.masked;
-                outState.multiline            = nativeState.multiline;
+                const NativeTextInputState& cache = _host->_nativeTextInputStateCache;
+                outState.text                     = _host->_nativeTextInputCacheText;
+                outState.selectionAnchorIndex     = cache.selectionAnchorIndex;
+                outState.caretIndex               = cache.caretIndex;
+                outState.firstVisibleLine         = cache.firstVisibleLine;
+                outState.readOnly                 = cache.readOnly;
+                outState.masked                   = cache.masked;
+                outState.multiline                = cache.multiline;
                 if (const auto* textField = dynamic_cast<const TextField*>(control))
                 {
                     outState.readOnly = textField->IsReadOnly();
@@ -858,36 +882,34 @@ private:
                 return true;
             }
 
+            // Without the session cache, read the control directly: its document shared, its selection as the public
+            // selection range reports it.
+            std::optional<std::pair<size_t, size_t>> selection;
             if (const auto* textField = dynamic_cast<const TextField*>(control))
-            {
-                outState.text       = textField->GetText();
-                outState.readOnly   = textField->IsReadOnly();
-                outState.masked     = textField->IsMasked();
-                outState.caretIndex = outState.text.size();
-                if (const std::optional<std::pair<size_t, size_t>> selection = textField->GetSelectionRange())
-                {
-                    outState.selectionAnchorIndex = selection->first;
-                    outState.caretIndex           = selection->second;
-                }
-                return true;
-            }
-
-            if (const auto* comboBox = dynamic_cast<const ComboBox*>(control); comboBox && comboBox->IsEditable())
-            {
-                outState.text       = comboBox->GetText();
-                outState.caretIndex = outState.text.size();
-                if (const std::optional<std::pair<size_t, size_t>> selection = comboBox->GetEditableSelectionRange())
-                {
-                    outState.selectionAnchorIndex = selection->first;
-                    outState.caretIndex           = selection->second;
-                }
-                return true;
-            }
-
+                selection = textField->GetSelectionRange();
+            else if (const auto* comboBox = dynamic_cast<const ComboBox*>(control); comboBox && comboBox->IsEditable())
+                selection = comboBox->GetEditableSelectionRange();
+            else if (! dynamic_cast<const RichTextEditor*>(control))
+                return false;
+            SharedTextInputState exported{};
+            if (! SharedTextInputAccess::Export(*control, exported) || ! exported.text)
+                return false;
             if (dynamic_cast<const RichTextEditor*>(control))
-                return control->ExportTextInputState(outState);
-
-            return false;
+            {
+                outState = std::move(exported);
+                return true;
+            }
+            outState            = {};
+            outState.text       = std::move(exported.text);
+            outState.readOnly   = exported.readOnly;
+            outState.masked     = exported.masked;
+            outState.caretIndex = outState.text->size();
+            if (selection)
+            {
+                outState.selectionAnchorIndex = selection->first;
+                outState.caretIndex           = selection->second;
+            }
+            return true;
         }
         catch (const std::bad_alloc&)
         {
@@ -895,14 +917,16 @@ private:
         }
     }
 
-    [[nodiscard]] bool ApplyControlState(const TextInputState& state, bool notifyChange) noexcept
+    [[nodiscard]] bool ApplyControlState(const SharedTextInputState& state, bool notifyChange) noexcept
     {
         Control* const control            = GetLiveControl();
         const auto* eligibilityTextField  = dynamic_cast<const TextField*>(control);
         const auto* eligibilityRichEditor = dynamic_cast<const RichTextEditor*>(control);
+        const auto* eligibilityComboBox   = dynamic_cast<const ComboBox*>(control);
         if (! control || ! IsCurrentTextServiceTarget() || state.readOnly || state.masked ||
             (eligibilityTextField && (eligibilityTextField->IsMasked() || eligibilityTextField->IsReadOnly())) ||
-            (eligibilityRichEditor && eligibilityRichEditor->IsReadOnly()))
+            (eligibilityRichEditor && eligibilityRichEditor->IsReadOnly()) ||
+            (! eligibilityTextField && ! eligibilityRichEditor && ! (eligibilityComboBox && eligibilityComboBox->IsEditable())))
         {
             return false;
         }
@@ -910,60 +934,38 @@ private:
         Control* const previousFocus = _host->GetFocusControl();
         try
         {
-            if (auto* editor = dynamic_cast<RichTextEditor*>(control))
-            {
-                if (! control->ImportTextInputState(*_host, state, notifyChange))
-                    return false;
-                // Import can synchronously retire/rebind the owner. Match the
-                // same source and focus before synchronizing the shared cache.
-                if (GetLiveControl() != control || ! IsCurrentTextServiceTarget() || _host->GetFocusControl() != previousFocus ||
-                    editor->GetText() != state.text)
-                    return false;
-                _host->SyncTextInput(control);
-                if (GetLiveControl() != control || ! IsCurrentTextServiceTarget())
-                    return false;
-                _host->Invalidate();
-                return true;
-            }
-            if (auto* textField = dynamic_cast<TextField*>(control))
-            {
-                if (! control->ImportTextInputState(*_host, state, notifyChange))
-                    return false;
-
-                // Notifying user code may replace the tree, focus or text. Never apply stale selection afterward.
-                if (GetLiveControl() != control || ! IsCurrentTextServiceTarget() || _host->GetFocusControl() != previousFocus ||
-                    textField->GetText() != state.text)
-                    return false;
-                _host->SyncTextInput(control);
-                if (GetLiveControl() != control || ! IsCurrentTextServiceTarget())
-                    return false;
-                _host->Invalidate();
-                return true;
-            }
-
-            if (auto* comboBox = dynamic_cast<ComboBox*>(control); comboBox && comboBox->IsEditable())
-            {
-                if (! control->ImportTextInputState(*_host, state, notifyChange))
-                    return false;
-
-                if (GetLiveControl() != control || ! IsCurrentTextServiceTarget() || _host->GetFocusControl() != previousFocus ||
-                    comboBox->GetText() != state.text)
-                    return false;
-                _host->SyncTextInput(control);
-                if (GetLiveControl() != control || ! IsCurrentTextServiceTarget())
-                    return false;
-                _host->Invalidate();
-                return true;
-            }
+            if (! SharedTextInputAccess::Import(*control, *_host, state, notifyChange))
+                return false;
+            // Import can synchronously notify user code, retire/rebind the owner or replace the tree, focus or text. Match the
+            // same source and focus before synchronizing the shared cache; never apply stale selection afterward.
+            if (GetLiveControl() != control || ! IsCurrentTextServiceTarget() || _host->GetFocusControl() != previousFocus ||
+                ! IsControlTextCurrent(*control, state.text))
+                return false;
+            _host->SyncTextInput(control);
+            if (GetLiveControl() != control || ! IsCurrentTextServiceTarget())
+                return false;
+            _host->Invalidate();
+            return true;
         }
         catch (const std::exception&)
         {
             Failure::FailUnexpected();
         }
+    }
+
+    // Whether the live control still shows `text`; a control that adopted the buffer compares without reading it.
+    [[nodiscard]] static bool IsControlTextCurrent(const Control& control, const SharedText& text)
+    {
+        if (const auto* textField = dynamic_cast<const TextField*>(&control))
+            return SharedTextEquals(text, textField->GetText());
+        if (const auto* comboBox = dynamic_cast<const ComboBox*>(&control))
+            return SharedTextEquals(text, comboBox->GetText());
+        if (const auto* editor = dynamic_cast<const RichTextEditor*>(&control))
+            return SharedTextEquals(text, editor->GetText());
         return false;
     }
 
-    [[nodiscard]] bool FinishComposition(const TextInputState& finalState) noexcept
+    [[nodiscard]] bool FinishComposition(const SharedTextInputState& finalState) noexcept
     {
         if (! _compositionBase)
         {
@@ -984,67 +986,55 @@ private:
             return true;
         }
 
-        TextInputState base = std::move(_compositionBase.value());
+        // Commit keeps its double import: restore the lock-entry base without notifying, then import the final text as one
+        // notifying edit, so undo removes the whole composition in one step.
+        SharedTextInputState base = std::move(_compositionBase.value());
         _compositionBase.reset();
         _compositionEndPending = false;
         const bool restored    = RestoreCompositionBase(base);
         _compositionExpectedText.reset();
         if (! restored)
             return false;
-        if (base.text == finalState.text)
+        if (SharedTextEquals(base.text, finalState.text))
         {
             return ApplyControlState(finalState, false);
         }
         return ApplyControlState(finalState, true);
     }
 
-    [[nodiscard]] bool RestoreCompositionBase(const TextInputState& base) noexcept
+    [[nodiscard]] bool RestoreCompositionBase(const SharedTextInputState& base) noexcept
     {
         Control* const control = GetLiveControl();
         if (! control)
             return false;
         try
         {
-            TextInputState current{};
+            SharedTextInputState current{};
             if (! ReadBackingState(current))
                 return false;
-            if (! _compositionExpectedText || current.text != _compositionExpectedText.value())
+            if (! _compositionExpectedText || ! SharedTextEquals(current.text, _compositionExpectedText))
                 return true;
             if (! CanRestoreOwnedComposition(control))
                 return false;
 
-            TextInputState restore = base;
+            SharedTextInputState restore = base;
             // Cancellation rolls back preview content and selection while preserving
             // policy changes made by the application during composition.
             restore.readOnly = current.readOnly;
             restore.masked   = current.masked;
-            if (dynamic_cast<RichTextEditor*>(control))
-            {
-                if (! control->ImportTextInputState(*_host, restore, false))
-                    return false;
-            }
-            else if (auto* textField = dynamic_cast<TextField*>(control))
-            {
-                if (! control->ImportTextInputState(*_host, restore, false))
-                    return false;
-            }
-            else if (auto* comboBox = dynamic_cast<ComboBox*>(control); comboBox && comboBox->IsEditable())
-            {
-                if (! control->ImportTextInputState(*_host, restore, false))
-                    return false;
-            }
-            else
-            {
+            if (! dynamic_cast<RichTextEditor*>(control) && ! dynamic_cast<TextField*>(control) &&
+                ! (dynamic_cast<ComboBox*>(control) && static_cast<ComboBox*>(control)->IsEditable()))
                 return false;
-            }
+            if (! SharedTextInputAccess::Import(*control, *_host, restore, false))
+                return false;
 
             if (GetLiveControl() != control || ! CanRestoreOwnedComposition(control))
                 return false;
             _host->SyncTextInput(control);
             if (GetLiveControl() != control || ! CanRestoreOwnedComposition(control))
                 return false;
-            TextInputState afterSync{};
-            if (! ReadBackingState(afterSync) || afterSync.text != restore.text)
+            SharedTextInputState afterSync{};
+            if (! ReadBackingState(afterSync) || ! SharedTextEquals(afterSync.text, restore.text))
                 return false;
             _host->Invalidate();
             return true;
@@ -1078,10 +1068,10 @@ private:
     std::weak_ptr<int> _controlLifetime;
     UINT_PTR _hostDeferredWorkCookie = 0u;
     bool _hostDeferredWorkEligible   = false;
-    std::optional<TextInputState> _editBase;
-    std::optional<TextInputState> _stagedState;
-    std::optional<TextInputState> _compositionBase;
-    std::optional<std::wstring> _compositionExpectedText;
+    std::optional<SharedTextInputState> _editBase;
+    std::optional<SharedTextInputState> _stagedState;
+    std::optional<SharedTextInputState> _compositionBase;
+    SharedText _compositionExpectedText;
     bool _editActive            = false;
     bool _compositionEndPending = false;
 };
@@ -1181,8 +1171,8 @@ public:
         _pendingExternalNotification = false;
         _pendingLayoutNotification   = false;
         _target->Disconnect();
-        SecureWipe::SecureClear(_observedState.text);
-        _observedState    = TextInputState{};
+        // Dropping the observed buffer wipes it once its last owner releases it.
+        _observedState    = SharedTextInputState{};
         _observedViewport = D2D1::RectF();
         _hasObservedState = false;
     }
@@ -1441,8 +1431,8 @@ public:
             if (! target || _target != target || ! sink || _sink.get() != sink.get() || _sinkMask != sinkMask ||
                 _sinkConnectionRevision != sinkConnectionRevision || _lockFlags != 0u || ! _hasObservedState)
                 return false;
-            TextInputState currentState{};
-            return target->ReadState(currentState) && ! currentState.masked && currentState.text == _observedState.text &&
+            SharedTextInputState currentState{};
+            return target->ReadSharedState(currentState) && ! currentState.masked && SharedTextEquals(currentState.text, _observedState.text) &&
                    IsSameSelection(currentState, _observedState) && currentState.firstVisibleLine == _observedState.firstVisibleLine &&
                    currentState.masked == _observedState.masked && currentState.multiline == _observedState.multiline &&
                    IsSameRect(target->ResolveTextViewportBounds(), _observedViewport);
@@ -1545,16 +1535,16 @@ public:
             return E_POINTER;
         }
 
-        TextInputState state{};
+        SharedTextInputState state{};
         if (! ReadState(state))
         {
             return TS_E_INVALIDPOS;
         }
 
-        const AcpRange range = ClampAcpRange(acpTestStart, acpTestEnd, state.text.size());
+        const AcpRange range = ClampAcpRange(acpTestStart, acpTestEnd, state.View().size());
         if (state.readOnly)
             return TS_E_READONLY;
-        if (! ReplacementFitsCapacity(state.text.size(), range, cch))
+        if (! ReplacementFitsCapacity(state.View().size(), range, cch))
             return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
         *pacpResultStart = ToAcp(range.start);
         *pacpResultEnd   = ToAcp(range.start + cch);
@@ -1579,7 +1569,7 @@ public:
             return S_OK;
         }
 
-        TextInputState state{};
+        SharedTextInputState state{};
         if (! ReadState(state))
         {
             return TS_E_INVALIDPOS;
@@ -1610,13 +1600,13 @@ public:
             return E_POINTER;
         }
 
-        TextInputState state{};
+        SharedTextInputState state{};
         if (! ReadState(state))
         {
             return TS_E_INVALIDPOS;
         }
 
-        const AcpRange range                       = ClampAcpRange(pSelection[0].acpStart, pSelection[0].acpEnd, state.text.size(), false);
+        const AcpRange range                       = ClampAcpRange(pSelection[0].acpStart, pSelection[0].acpEnd, state.View().size(), false);
         const size_t previousCaret                 = state.caretIndex;
         const std::optional<size_t> previousAnchor = state.selectionAnchorIndex;
         const bool startIsActive                   = pSelection[0].style.ase == TS_AE_START;
@@ -1650,15 +1640,15 @@ public:
             return E_POINTER;
         }
 
-        TextInputState state{};
+        SharedTextInputState state{};
         if (! ReadState(state))
         {
             return TS_E_INVALIDPOS;
         }
 
-        const AcpRange range = ClampAcpRange(acpStart, acpEnd, state.text.size());
-        const std::wstring_view value(state.text.data() + range.start, range.end - range.start);
-        const size_t copied = (std::min)(value.size(), static_cast<size_t>(cchPlainReq));
+        const AcpRange range          = ClampAcpRange(acpStart, acpEnd, state.View().size());
+        const std::wstring_view value = state.View().substr(range.start, range.end - range.start);
+        const size_t copied           = (std::min)(value.size(), static_cast<size_t>(cchPlainReq));
         if (pchPlain && copied > 0u)
         {
             std::copy_n(value.data(), copied, pchPlain);
@@ -1824,13 +1814,13 @@ public:
             return E_POINTER;
         }
 
-        TextInputState state{};
+        SharedTextInputState state{};
         if (! ReadState(state))
         {
             return TS_E_INVALIDPOS;
         }
 
-        *pacp = ToAcp(state.text.size());
+        *pacp = ToAcp(state.View().size());
         return S_OK;
     }
 
@@ -1869,11 +1859,11 @@ public:
         const HRESULT hr = _target->GetAcpFromScreenPoint(ptScreen, &nearestAcp);
         if (FAILED(hr))
             return hr;
-        TextInputState state{};
+        SharedTextInputState state{};
         if (! ReadState(state))
             return TS_E_INVALIDPOS;
-        const std::wstring_view text(state.text);
-        size_t nearest = nearestAcp < 0 ? 0u : (std::min)(static_cast<size_t>(nearestAcp), text.size());
+        const std::wstring_view text = state.View();
+        size_t nearest               = nearestAcp < 0 ? 0u : (std::min)(static_cast<size_t>(nearestAcp), text.size());
         if (! IsTextStoreCut(text, nearest))
             --nearest;
 
@@ -1979,7 +1969,7 @@ public:
             return E_POINTER;
         if (cch && ! pchText)
             return E_INVALIDARG;
-        TextInputState state;
+        SharedTextInputState state{};
         if (! ReadState(state))
             return TS_E_INVALIDPOS;
         if (state.readOnly)
@@ -1987,7 +1977,7 @@ public:
         const AcpRange range = GetSelectionRange(state);
         // One edit inserts at most 65,536 UTF-16 units. The document is as long as its field allows: a long multiline
         // field takes IME, emoji and dictation edits like a short one.
-        if (! ReplacementFitsCapacity(state.text.size(), range, cch))
+        if (! ReplacementFitsCapacity(state.View().size(), range, cch))
             return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
         if (! queryOnly)
         {
@@ -2029,18 +2019,19 @@ private:
         return (_lockFlags & TS_LF_READWRITE) == TS_LF_READWRITE;
     }
 
-    [[nodiscard]] bool ReadState(TextInputState& state) const noexcept
+    // Reads share the target's document; a successful read always carries text.
+    [[nodiscard]] bool ReadState(SharedTextInputState& state) const noexcept
     {
-        if (! _target->ReadState(state) || state.masked)
+        if (! _target->ReadSharedState(state) || state.masked || ! state.text)
         {
             state = {};
             return false;
         }
         return true;
     }
-    [[nodiscard]] bool ApplyState(const TextInputState& state, bool notifyChange) noexcept
+    [[nodiscard]] bool ApplyState(const SharedTextInputState& state, bool notifyChange) noexcept
     {
-        return _target->ApplyState(state, notifyChange);
+        return _target->ApplySharedState(state, notifyChange);
     }
 
     [[nodiscard]] bool ReplacementFitsCapacity(size_t textLength, const AcpRange& range, size_t insertedUnits) const noexcept
@@ -2056,7 +2047,7 @@ private:
     {
         if (pChange)
             *pChange = {};
-        TextInputState state{};
+        SharedTextInputState state{};
         if (! ReadState(state))
         {
             return TS_E_INVALIDPOS;
@@ -2070,8 +2061,8 @@ private:
             return E_POINTER;
         }
 
-        const AcpRange range = ClampAcpRange(acpStart, acpEnd, state.text.size());
-        if (! ReplacementFitsCapacity(state.text.size(), range, cch))
+        const AcpRange range = ClampAcpRange(acpStart, acpEnd, state.View().size());
+        if (! ReplacementFitsCapacity(state.View().size(), range, cch))
             return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
         if ((dwFlags & TS_IAS_QUERYONLY) != 0u)
         {
@@ -2085,12 +2076,19 @@ private:
         }
 
         const std::wstring_view replacement(pchText ? pchText : L"", static_cast<size_t>(cch));
-        const size_t newCaret      = range.start + replacement.size();
-        const bool selfEditChanged = state.text.compare(range.start, range.end - range.start, replacement) != 0 || state.caretIndex != newCaret ||
-                                     state.selectionAnchorIndex.has_value();
+        const size_t newCaret           = range.start + replacement.size();
+        const std::wstring_view current = state.View();
+        const bool selfEditChanged =
+            current.substr(range.start, range.end - range.start) != replacement || state.caretIndex != newCaret || state.selectionAnchorIndex.has_value();
         try
         {
-            state.text.replace(range.start, range.end - range.start, replacement);
+            // The edit is the one document-sized allocation of the lock: the new text is built once, at its final size, and
+            // every later read, stage and import in the lock shares it. `current` stays valid: `state` pins its buffer
+            // until the assignment below, after which it is no longer read.
+            std::wstring next;
+            next.reserve(current.size() - (range.end - range.start) + replacement.size());
+            next.append(current.substr(0u, range.start)).append(replacement).append(current.substr(range.end));
+            state.text = MakeSharedText(std::move(next));
         }
         catch (const std::bad_alloc&)
         {
@@ -2118,7 +2116,7 @@ private:
 
     void CaptureObservedState() noexcept
     {
-        TextInputState state{};
+        SharedTextInputState state{};
         if (! ReadState(state))
         {
             _hasObservedState = false;
@@ -2149,8 +2147,8 @@ public:
         if (! sink || ! target)
             return false;
 
-        TextInputState currentState{};
-        if (! target->ReadState(currentState) || currentState.masked)
+        SharedTextInputState currentState{};
+        if (! target->ReadSharedState(currentState) || currentState.masked || ! currentState.text)
         {
             _hasObservedState = false;
             return false;
@@ -2167,7 +2165,7 @@ public:
             return false;
         }
 
-        const bool textChanged      = currentState.text != _observedState.text;
+        const bool textChanged      = ! SharedTextEquals(currentState.text, _observedState.text);
         const bool selectionChanged = ! IsSameSelection(currentState, _observedState);
         const bool readOnlyChanged  = currentState.readOnly != _observedState.readOnly;
         const bool layoutChanged    = textChanged || selectionChanged || currentState.firstVisibleLine != _observedState.firstVisibleLine ||
@@ -2175,32 +2173,26 @@ public:
                                       ! IsSameRect(currentViewport, _observedViewport);
 
         // Only the changed middle re-anchors TIP ranges; the common prefix and suffix keep theirs.
-        const TS_TEXTCHANGE textChange = textChanged ? ComputeTextStoreTextChange(_observedState.text, currentState.text) : TS_TEXTCHANGE{};
+        const TS_TEXTCHANGE textChange = textChanged ? ComputeTextStoreTextChange(_observedState.View(), currentState.View()) : TS_TEXTCHANGE{};
 
-        TextInputState notificationState{};
-        try
-        {
-            notificationState = currentState;
-        }
-        catch (const std::bad_alloc&)
-        {
-            Failure::FailAllocation();
-        }
-        _observedState               = std::move(currentState);
-        _observedViewport            = currentViewport;
-        _pendingExternalNotification = false;
+        // Shares the document: the notification state pins the buffer it compares against for the whole sequence, even
+        // when a sink callback re-enters and replaces the control text or the observed state.
+        const SharedTextInputState notificationState = currentState;
+        _observedState                               = std::move(currentState);
+        _observedViewport                            = currentViewport;
+        _pendingExternalNotification                 = false;
 
         const auto continuationIsCurrent = [this, sink, sinkMask, sinkConnectionRevision, target, &notificationState, currentViewport]() noexcept
         {
             if (_target != target || _sink.get() != sink.get() || _sinkMask != sinkMask || _sinkConnectionRevision != sinkConnectionRevision ||
-                _lockFlags != 0u || ! _hasObservedState || _observedState.text != notificationState.text ||
+                _lockFlags != 0u || ! _hasObservedState || ! SharedTextEquals(_observedState.text, notificationState.text) ||
                 ! IsSameSelection(_observedState, notificationState) || _observedState.firstVisibleLine != notificationState.firstVisibleLine ||
                 _observedState.masked != notificationState.masked || _observedState.multiline != notificationState.multiline ||
                 _observedState.readOnly != notificationState.readOnly || ! IsSameRect(_observedViewport, currentViewport))
                 return false;
 
-            TextInputState latestState{};
-            return target->ReadState(latestState) && ! latestState.masked && latestState.text == notificationState.text &&
+            SharedTextInputState latestState{};
+            return target->ReadSharedState(latestState) && ! latestState.masked && SharedTextEquals(latestState.text, notificationState.text) &&
                    IsSameSelection(latestState, notificationState) && latestState.firstVisibleLine == notificationState.firstVisibleLine &&
                    latestState.masked == notificationState.masked && latestState.multiline == notificationState.multiline &&
                    latestState.readOnly == notificationState.readOnly && IsSameRect(target->ResolveTextViewportBounds(), currentViewport);
@@ -2358,7 +2350,7 @@ private:
     DWORD _sinkMask         = 0u;
     wil::com_ptr_nothrow<ITextStoreACPSink> _sink;
     uint64_t _sinkConnectionRevision = 0u;
-    TextInputState _observedState;
+    SharedTextInputState _observedState;
     D2D1_RECT_F _observedViewport     = D2D1::RectF();
     bool _hasObservedState            = false;
     bool _pendingExternalNotification = false;
