@@ -1,0 +1,237 @@
+<#
+.SYNOPSIS Frame timing method: interleaved A/B/B/A sessions of per-frame UI-thread cycles and GPU timestamps on one fixture.
+.DESCRIPTION Specs/Core/Core_PerformanceAndResources.md, "Frame timing method". Each run is a fresh
+DxUi.EmbeddedTests.exe --timing-method process holding at least 1,000 frames and 2 s. Calibration measures this tree's
+attested executable in all four slots of every session and records each judged metric's same-binary noise floor;
+Comparison measures -BaselineExecutable (A) against this tree's executable (B). Smoke runs the same path with relaxed
+admission and is labelled as such: it never calibrates or judges.
+The High Performance scheme is activated only when it exists, without elevation, and the original scheme is restored
+however the study ends. Only the measuring UI thread of each child is pinned. Every session starts with an idle
+preflight from Tools/Watch-BenchmarkHost.ps1, which keeps observing until the session ends.
+.EXAMPLE ./performance-timing.ps1 -Purpose Calibration -Fixture FX5 -Phase Dirty -OutputDirectory Measurements/PerformanceAndMotion_2026-11-13/W0.2/calibration-FX5-dirty
+#>
+[CmdletBinding()]
+param(
+    [ValidateSet('Calibration','Comparison','Smoke')][string] $Purpose = 'Calibration',
+    [ValidatePattern('^FX[0-9]+$')][string] $Fixture = 'FX5',
+    [ValidateSet('Dirty','Clean')][string] $Phase = 'Dirty',
+    [ValidateSet('Hardware','Warp')][string] $Adapter = 'Hardware',
+    [ValidateRange(1,20)][int] $Sessions = 5,
+    [string] $BaselineExecutable = '',
+    [string] $CalibrationPath = '',
+    [string] $OutputDirectory = '',
+    [ValidateSet('HighPerformance','Keep')][string] $PowerPlan = 'HighPerformance',
+    [ValidateSet('Require','Record')][string] $IdlePreflight = 'Require',
+    [ValidateRange(0.5,100)][double] $IdleThresholdPercent = 10,
+    [ValidateRange(1,60)][int] $PreflightSeconds = 5,
+    [ValidatePattern('^(auto|none|[0-9]{1,2})$')][string] $PinCore = 'auto',
+    [ValidateRange(1,200000)][int] $MinimumFrames = 1000,
+    [ValidateRange(0,600000)][int] $MinimumMilliseconds = 2000,
+    [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Release',
+    [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
+    [switch] $SkipBuild
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'Tools/FrameTiming.psm1') -Force
+
+$native = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+if (($Platform -eq 'ARM64' -and $native -ne 'Arm64') -or ($Platform -eq 'x64' -and $native -ne 'X64')) {
+    throw 'Frame timing requires native execution matching the requested architecture.'
+}
+# Calibration and comparison admit only the declared method; anything weaker is a smoke run and says so.
+if ($Purpose -ne 'Smoke') {
+    $refusals = @()
+    if ($Adapter -ne 'Hardware') { $refusals += 'a hardware adapter (WARP is for counters and pixels only)' }
+    if ($Configuration -ne 'Release') { $refusals += 'the Release configuration' }
+    if ($Sessions -lt 5) { $refusals += 'at least five sessions (fewer can never establish equivalence)' }
+    if ($Purpose -eq 'Comparison' -and $Sessions -lt 6) { $refusals += 'at least six sessions for a comparison (five cannot reach two-sided p < 0.05)' }
+    if ($MinimumFrames -lt 1000 -or $MinimumMilliseconds -lt 2000) { $refusals += 'runs of at least 1,000 frames and 2 s' }
+    if ($IdlePreflight -ne 'Require') { $refusals += 'a required idle preflight' }
+    if ($PowerPlan -ne 'HighPerformance') { $refusals += 'the High Performance power scheme' }
+    if ($refusals.Count) { throw "$Purpose requires $($refusals -join ', '). Use -Purpose Smoke to exercise the method without a verdict." }
+}
+if ($Purpose -eq 'Comparison') {
+    if (-not $BaselineExecutable) { throw 'Comparison requires -BaselineExecutable (A); B is this tree''s attested executable.' }
+    $BaselineExecutable = [IO.Path]::GetFullPath($BaselineExecutable)
+    if (-not (Test-Path -LiteralPath $BaselineExecutable -PathType Leaf)) { throw "Missing baseline executable: $BaselineExecutable" }
+} elseif ($BaselineExecutable) { throw '-BaselineExecutable applies to -Purpose Comparison only.' }
+$calibration = $null
+if ($CalibrationPath) {
+    $calibrationReceipt = Get-Content -Raw -LiteralPath $CalibrationPath | ConvertFrom-Json -AsHashtable -Depth 30
+    if ($calibrationReceipt['purpose'] -cne 'Calibration' -or $calibrationReceipt['fixtureName'] -cne $Fixture -or $calibrationReceipt['phase'] -cne $Phase.ToLowerInvariant()) {
+        throw 'The calibration receipt is not a calibration of this fixture and phase.'
+    }
+    $calibration = $calibrationReceipt['calibration']
+}
+if (-not $OutputDirectory) {
+    $OutputDirectory = Join-Path $PSScriptRoot (".build/reports/frame-timing/$Purpose-$Fixture-$Phase-" + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ', [Globalization.CultureInfo]::InvariantCulture))
+}
+$OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
+$receiptPath = Join-Path $OutputDirectory 'receipt.json'
+if (Test-Path -LiteralPath $receiptPath) { throw "Preserve the existing frame timing receipt: $receiptPath" }
+New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
+# Raw native reports and host logs stay in the build tree; the receipt embeds every parsed report with its SHA-256,
+# so a receipt under Measurements is self-contained and holds the only JSON file there.
+$rawDirectory = Join-Path $PSScriptRoot ('.build/reports/frame-timing/raw/' + (Split-Path -Leaf $OutputDirectory) + '-' +
+    [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ', [Globalization.CultureInfo]::InvariantCulture))
+New-Item -ItemType Directory -Force -Path $rawDirectory | Out-Null
+$timingInputPaths = @('Tests/Embedded/Embedded.Tests.FrameTiming.h','Tests/Embedded/Embedded.Tests.Embedded.cpp','Samples/ComplexUi/ComplexUiScene.h',
+    'Samples/EmbeddedControls/GraphicsFixture.h','performance-timing.ps1','Tools/FrameTiming.psm1')
+function Get-TimingInputs {
+    $inputs = [ordered]@{}
+    foreach ($path in $timingInputPaths) { $inputs[$path] = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $path) -Algorithm SHA256).Hash }
+    return $inputs
+}
+$timingInputs = Get-TimingInputs
+
+Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
+if (-not $SkipBuild) {
+    $global:LASTEXITCODE = 0
+    & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform
+    if ($LASTEXITCODE -ne 0) { throw "Frame timing build failed with exit code $LASTEXITCODE." }
+}
+$candidate = Join-Path $PSScriptRoot ".build/$Platform/$Configuration/DxUi.EmbeddedTests.exe"
+if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { throw "The frame timing executable is missing: $candidate" }
+$roles = @{ A = $(if ($Purpose -eq 'Comparison') { $BaselineExecutable } else { $candidate }); B = $candidate }
+$hashes = @{ A = (Get-FileHash -LiteralPath $roles.A -Algorithm SHA256).Hash; B = (Get-FileHash -LiteralPath $roles.B -Algorithm SHA256).Hash }
+if ($Purpose -eq 'Comparison' -and $hashes.A -ceq $hashes.B) { throw 'A comparison needs two different executables; use -Purpose Calibration for a same-binary study.' }
+
+function Start-HostObserver([string] $Path) {
+    $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    foreach ($argument in @('-NoProfile','-NonInteractive','-File',(Join-Path $PSScriptRoot 'Tools/Watch-BenchmarkHost.ps1'),'-OutputPath',$Path,'-IntervalMilliseconds','500')) {
+        $start.ArgumentList.Add($argument)
+    }
+    $process = [Diagnostics.Process]::Start($start)
+    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+    while (-not (Test-Path -LiteralPath ($Path + '.ready'))) {
+        if ($process.HasExited -or [DateTime]::UtcNow -gt $deadline) { Stop-HostObserver $process $Path; throw "The host observer did not start: $Path" }
+        Start-Sleep -Milliseconds 100
+    }
+    return $process
+}
+function Stop-HostObserver([Diagnostics.Process] $Process, [string] $Path) {
+    if ($null -eq $Process) { return }
+    try {
+        if (-not $Process.HasExited) {
+            [IO.File]::WriteAllText($Path + '.stop', [DateTime]::UtcNow.ToString('o'))
+            # The observer is this runner's own child; only it is ever stopped forcibly.
+            if (-not $Process.WaitForExit(30000)) { $Process.Kill() ; $Process.WaitForExit() }
+        }
+    } finally { $Process.Dispose() }
+}
+function Read-HostObservations([string] $Path) {
+    return @(Get-Content -LiteralPath $Path | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json -AsHashtable -Depth 6 })
+}
+function Invoke-TimingRun([string] $Executable, [string] $Output) {
+    $global:LASTEXITCODE = 0
+    & $Executable '--timing-method' $Output $Fixture $Phase $Adapter $PinCore $MinimumFrames $MinimumMilliseconds | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw "Frame timing run failed with exit code $LASTEXITCODE. Executable: $Executable" }
+    if (-not (Test-Path -LiteralPath $Output -PathType Leaf)) { throw "The frame timing run wrote no report: $Output" }
+    $bytes = [IO.File]::ReadAllBytes($Output)
+    $run = [Text.UTF8Encoding]::new($false, $true).GetString($bytes) | ConvertFrom-Json -AsHashtable -Depth 10
+    try { Assert-FrameTimingRun -Run $run -Judged:($Purpose -ne 'Smoke') }
+    catch { Move-Item -LiteralPath $Output -Destination ($Output + '.invalid.json'); throw }
+    return [ordered]@{ run = $run; sha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)) }
+}
+
+$powerRecord = $null
+$observer = $null
+$sessionRecords = [Collections.Generic.List[object]]::new()
+$schedule = @(Get-FrameTimingSchedule -Sessions $Sessions)
+$startedUtc = [DateTime]::UtcNow.ToString('o')
+Push-Location $PSScriptRoot
+try {
+    $powerRecord = Enter-FrameTimingPowerPlan -Mode $PowerPlan
+    # Captured under the measured power scheme, so the before/after identity check spans the whole study.
+    $before = Get-PerformanceMeasurementState -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+    Assert-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -State $before
+    for ($session = 0; $session -lt $Sessions; $session++) {
+        $observerPath = Join-Path $rawDirectory ("session-{0}-host.jsonl" -f ($session + 1))
+        $observer = Start-HostObserver $observerPath
+        Start-Sleep -Seconds $PreflightSeconds
+        $busy = Get-FrameTimingHostBusyPercent -Samples (Read-HostObservations $observerPath)
+        $idle = [ordered]@{ mode = $IdlePreflight; seconds = $PreflightSeconds; busyPercent = $busy; thresholdPercent = $IdleThresholdPercent; quiet = [bool]($busy -le $IdleThresholdPercent) }
+        if ($IdlePreflight -eq 'Require' -and -not $idle.quiet) {
+            throw ("Idle preflight refused session {0}: the host was {1:0.0}% busy (threshold {2}%). Never stop other people's work to make it quiet; rerun later." -f ($session + 1), $busy, $IdleThresholdPercent)
+        }
+        $runs = [Collections.Generic.List[object]]::new()
+        for ($slot = 0; $slot -lt 4; $slot++) {
+            $role = [string]$schedule[$session][$slot]
+            $output = Join-Path $rawDirectory ("session-{0}-slot-{1}-{2}.json" -f ($session + 1), $slot, $role)
+            $measured = Invoke-TimingRun $roles[$role] $output
+            $runs.Add([ordered]@{ role = $role; slot = $slot; report = $output; reportSha256 = $measured.sha256; raw = $measured.run
+                executableSha256 = $hashes[$role]; summary = (Get-FrameTimingRunSummary -Run $measured.run)
+                adapter = $measured.run['adapter']; pinning = $measured.run['pinning']; disjointFrames = $measured.run['disjointFrames']
+                timestampFrequency = $measured.run['timestampFrequency'] })
+        }
+        Stop-HostObserver $observer $observerPath
+        $observer = $null
+        $sessionRecords.Add([ordered]@{ session = $session + 1; order = $schedule[$session]; idlePreflight = $idle
+            hostObservations = $observerPath
+            hostObservationCompletion = (Get-Content -Raw -LiteralPath ($observerPath + '.completion.json') | ConvertFrom-Json -AsHashtable)
+            runs = $runs.ToArray() })
+    }
+    $after = Get-PerformanceMeasurementState -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+    Assert-PerformanceMeasurementState -Before $before -After $after
+    Assert-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -State $after
+    if ((ConvertTo-Json -Compress -InputObject (Get-TimingInputs)) -cne (ConvertTo-Json -Compress -InputObject $timingInputs)) {
+        throw 'The frame timing inputs changed during the study; the receipt cannot be published.'
+    }
+} finally {
+    try { if ($observer) { Stop-HostObserver $observer $observerPath } }
+    finally {
+        if ($powerRecord) { Exit-FrameTimingPowerPlan -Record $powerRecord }
+        Pop-Location
+    }
+}
+
+$receipt = [ordered]@{
+    schema = 1; method = (Get-FrameTimingMethod); purpose = $Purpose; workloadOwner = 'DxUi'
+    fixture = 'dxui-frame-timing-v1'; fixtureName = $Fixture
+    benchmarkInputs = $timingInputs
+    benchmarkInputsScope = 'The frame timing harness, its dispatcher, the FX5 scene, the device fixture, the runner and the judge; build.benchmarkInputs is the canonical ComplexUi closure.'
+    rawDirectory = $rawDirectory
+    classification = $(switch ($Purpose) { 'Calibration' { 'same-binary calibration' } 'Comparison' { 'interleaved A/B comparison' } default { 'smoke run: exercises the method only; no calibration, noise floor or verdict' } })
+    phase = $Phase.ToLowerInvariant(); adapterMode = $Adapter
+    startedUtc = $startedUtc; completedUtc = [DateTime]::UtcNow.ToString('o')
+    runLength = [ordered]@{ minimumFrames = $MinimumFrames; minimumMilliseconds = $MinimumMilliseconds }
+    pinCore = $PinCore; powerPlan = $powerRecord; schedule = $schedule
+    executables = [ordered]@{ A = [ordered]@{ path = $roles.A; sha256 = $hashes.A }; B = [ordered]@{ path = $roles.B; sha256 = $hashes.B } }
+    metrics = (Get-FrameTimingMetrics)
+    sessions = $sessionRecords.ToArray()
+    # Identity of this tree's build (B, and A in calibration and smoke runs), checked before and after the study.
+    build = $before
+}
+if ($Purpose -eq 'Calibration') { $receipt['calibration'] = Get-FrameTimingCalibration -Sessions $sessionRecords.ToArray() }
+elseif ($Purpose -eq 'Comparison') { $receipt['comparison'] = Compare-FrameTimingSessions -Sessions $sessionRecords.ToArray() -Calibration $calibration }
+else { $receipt['sameBinaryObservation'] = (Get-FrameTimingCalibration -Sessions $sessionRecords.ToArray())['metrics'] }
+# Compact: the receipt embeds every per-frame sample.
+[IO.File]::WriteAllText($receiptPath, (ConvertTo-Json -InputObject $receipt -Depth 30 -Compress) + "`n", [Text.UTF8Encoding]::new($false))
+$readmePath = Join-Path $OutputDirectory 'README.md'
+if (-not (Test-Path -LiteralPath $readmePath)) {
+    $adapterRun = $sessionRecords[0]['runs'][0]
+    $busyText = @($sessionRecords | ForEach-Object { [string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0:0.0}%', $_['idlePreflight']['busyPercent']) }) -join ', '
+    $lines = @(
+        "# Frame timing $Purpose`: $Fixture $($Phase.ToLowerInvariant())", '',
+        "Generated by ``performance-timing.ps1``; method: Frame timing method in ``Specs/Core/Core_PerformanceAndResources.md``.", '',
+        "- Classification: $($receipt.classification)",
+        "- Source commit: $($before['sourceCommit']) (uncommitted changes: $($before['sourceDirty'])); build: $Platform $Configuration",
+        "- Adapter: $($adapterRun['adapter']['description']), driver $($adapterRun['adapter']['driverVersion']); requested $Adapter",
+        "- Sessions: $Sessions of A/B/B/A, each run at least $MinimumFrames frames and $MinimumMilliseconds ms; pinning: $PinCore",
+        "- Power scheme: $($powerRecord.mode), original $($powerRecord.original.text), restored: $($powerRecord.restored)",
+        "- Idle preflight: $IdlePreflight, threshold $IdleThresholdPercent%; busy $busyText",
+        '- `receipt.json` embeds every raw run report with its SHA-256; host observation logs stayed in the build tree.')
+    [IO.File]::WriteAllText($readmePath, ($lines -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
+}
+
+$table = if ($Purpose -eq 'Comparison') { $receipt['comparison']['metrics'] } elseif ($Purpose -eq 'Calibration') { $receipt['calibration']['metrics'] } else { $receipt['sameBinaryObservation'] }
+foreach ($row in $table) {
+    $state = if ($row.Contains('verdict')) { $row['verdict'] } elseif ($Purpose -eq 'Smoke') { 'smoke' } else { $row['status'] }
+    $floor = if ($row.Contains('noiseFloorPercent') -and $null -ne $row['noiseFloorPercent']) { '{0:0.00}%' -f $row['noiseFloorPercent'] } else { '-' }
+    $mde = if ($row.Contains('minimumDetectableEffectPercent') -and $null -ne $row['minimumDetectableEffectPercent']) { '{0:0.00}%' -f $row['minimumDetectableEffectPercent'] } else { '-' }
+    Write-Host ("{0,-22} margin {1}%  noise floor {2,-8} MDE {3,-8} {4}" -f $row['metric'], $row['marginPercent'], $floor, $mde, $state)
+}
+Write-Host "Frame timing receipt ($Purpose): $receiptPath"

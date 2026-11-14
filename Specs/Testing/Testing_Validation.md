@@ -421,6 +421,17 @@ allowed affinity do not establish actual processor placement, context-switch del
 failed tracing preflights; unavailable kernel tracing is not evidence of a quiet machine. These diagnostics change
 neither the canonical 20-frame warm-up nor the judges, thresholds, exact budgets or required-CI qualification hold.
 
+`performance-timing.ps1` runs the frame timing method of the performance contract. `Tools/tests/Test-FrameTiming.ps1`
+covers its statistics (run validation, the six metrics, A/B/B/A session effects, equivalence, the minimum detectable
+effect, the noise-floor classification and comparison verdicts) and runs the public runner in isolated children with
+a shimmed executable, `powercfg`, build, identity helpers and host observer. Those cases check that weaker
+calibration or comparison admissions are refused before any machine change, that the High Performance scheme is
+never created or activated through elevation, and that the original scheme is restored and the observer stopped
+after success, a failed run and a refused idle preflight. The ordinary `Embedded` suite and its isolated
+`--test-frame-timing` entry check the native mechanics on WARP: one sample per frame, separate preparation and
+composition cycles, every GPU result read after the next frame was submitted, and the frames-and-duration stopping
+rule. None of these supplies a timing value or a calibration.
+
 Offline UIA investigation replay MUST check the declared process/test inventory, complete child failure and
 truncation flags, exact log bindings, quiet intervals and matching callback/provider snapshot cutoffs. Callback
 entry order may differ from completion order; late or in-flight callbacks MUST remain explicit observations.

@@ -115,6 +115,11 @@ perturb execution, and omitting a command changes the workload; CPU call interva
 are not GPU duration or scheduler delay. Heap and MultilineGrid options cannot be
 combined with this diagnostic. Exact source/build/raw-byte and child-timeout guards
 still apply; no trace permission or non-regression acceptance is implied.
+`performance-timing.ps1` runs the hardware frame timing method (A/B/B/A sessions of at least 1,000 frames and 2 s,
+UI-thread cycles and late-read GPU timestamps, equivalence against 3%/5% margins); see [performance](../docs/performance.md#frame-timing-on-hardware).
+`DxUi.EmbeddedTests.exe --test-frame-timing` checks its native mechanics on WARP and runs in the ordinary `Embedded`
+suite; `Tools/tests/Test-FrameTiming.ps1` checks its statistics and machine-state restoration with fakes. Neither
+supplies a timing value or a calibration.
 UIA client regressions fail a quiet-wait timeout and retain client/provider timelines for the unchanged Grid selection
 case. A quiet interval and a passing repeat do not establish the cause of a previously delayed event.
 The shared UIA client's owner waits wake for incoming COM messages with a bounded message wait. Sender caching and

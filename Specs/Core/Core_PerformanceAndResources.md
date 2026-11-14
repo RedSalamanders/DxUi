@@ -529,6 +529,50 @@ separate required checks for this rendering change.
   block schedule, seed, receipt identities, the legacy and migrated decisions, the correction family and every metric.
   Historic Mann-Whitney summaries stay readable, but the migrated gate treats them as read-only and never as qualified passes.
 
+### Frame timing method
+
+Timing budgets and architecture decisions that need a measured speed-up use the frame timing method
+(`performance-timing.ps1`, `Tools/FrameTiming.psm1`, native `DxUi.EmbeddedTests.exe --timing-method`). It is an input
+to the timing policy owned by D-P1 in the remaining-work plan. It changes neither the canonical five-round receipt, the
+paired sets above, their judges, bands and exact budgets, nor the ComplexUi benchmark inputs copied onto baseline trees.
+
+- **Fixture.** A run measures one registered fixture (`FrameTiming::MakeFixture`) in one phase: clean (no
+  application change) or dirty (the fixture's per-frame update). The method is fixture-agnostic; `FX5` is the ComplexUi
+  scene. Each run is a fresh process with 60 warm-up frames.
+- **Run length.** A judged run holds at least 1,000 measured frames and lasts at least 2 s, ending when both hold.
+- **CPU.** `QueryThreadCycleTime` of the measuring UI thread is taken around `Prepare` and around target binding plus
+  `Composite`, separately, every frame. Submission wall time (update, preparation and composition) is recorded too.
+- **GPU.** In test fixtures only, each frame is bracketed by a D3D11 disjoint query holding three timestamps (begin,
+  after preparation, after composition). A frame's results are read one frame late, after the next frame has been
+  submitted; the blocking wait maps that frame's own one-pixel staging copy, never the frame just submitted. A disjoint
+  frame is excluded and counted; a judged run needs at least 95% valid frames. The library's shipping paths issue no
+  timestamp query, staging copy or pinning.
+- **Judged metrics and margins.** Six: median preparation cycles, median composition cycles, p95 UI-thread cycles
+  (preparation plus composition), median submission time, all with a 3% margin; median and p95 GPU frame time
+  (preparation plus composition timestamps), with a 5% margin. Percentiles are nearest-rank.
+- **Schedule.** A session runs A, B, B, A as four processes; a session's effect per metric is the mean log of its B runs
+  minus the mean log of its A runs, which cancels drift linear in log time.
+- **Equivalence.** Two one-sided exact sign-flip tests over the session effects against the declared margin, at
+  alpha 0.05; five sessions are the minimum that can establish equivalence (2^-5 < 0.05). A difference is the paired
+  judge's two-sided exact sign-flip test, which needs at least six sessions. Every result reports the minimum
+  detectable effect, (t(0.975, n-1) + t(0.80, n-1)) x sd / sqrt(n) of the session effects, as a percentage.
+- **Noise floor.** A calibration measures one attested executable in all four slots of every session. A metric's noise
+  floor is its largest same-binary pair deviation |B/A - 1| over the sessions. A metric whose noise floor stays below
+  its margin is judged; otherwise it is advisory, recorded with its noise floor, and a comparison reports it without a
+  verdict. With a calibration, a faster or slower verdict must also exceed the metric's noise floor.
+- **Admission.** Calibration and comparison require a hardware adapter, the Release configuration, judged run length,
+  five sessions (six for a comparison), a required idle preflight and the High Performance power scheme; WARP stays for
+  counters and pixels. Anything weaker is a smoke run, labelled as such, with no calibration, noise floor or verdict.
+- **Machine state.** The runner activates the existing High Performance scheme with `powercfg` and restores the
+  original scheme however the study ends, verifying the restoration. It never creates a scheme and never elevates; an
+  absent or refused scheme stops the study. Only the measuring UI thread of each child is pinned, to a logical processor
+  of the highest efficiency class (`auto`), so driver threads are not constrained. Each session starts
+  `Tools/Watch-BenchmarkHost.ps1`, refuses the session when the host was busier than the threshold (10% by default)
+  over the preflight window, and keeps observing until the session ends. Other people's processes are never stopped.
+- **Receipt.** Every raw run report, its SHA-256, the host observations, the power scheme record, the pinning, adapter
+  identity and driver version, the executables' hashes and this tree's v2 build identity (checked before and after the
+  study under the measured power scheme) are retained beside the receipt.
+
 ### Native accessibility scheduling and synchronization
 
 Native attachments start without a full tree snapshot. Mutations mark a revision dirty and post at most one private,

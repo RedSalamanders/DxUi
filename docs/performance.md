@@ -340,6 +340,34 @@ through the counted helpers (`CountedCreateTextLayout(factory, …)` instead of 
 Today a dirty ComplexUi frame paints all 83 controls and makes 54 C++ allocations in Release; a clean frame makes none
 and creates nothing ([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W0.1/README.md)).
 
+## Frame timing on hardware
+
+The five-round receipt above cannot confirm a small speed-up: a clean round lasts about 15 ms and every frame waits
+for its own readback. `performance-timing.ps1` is the method for timing budgets and design decisions
+([contract](../Specs/Core/Core_PerformanceAndResources.md#frame-timing-method)). Each run is a fresh process of at least
+1,000 frames and 2 s that records, per frame, the UI thread's preparation and composition cycles separately and the
+GPU time from D3D11 timestamps read one frame late. Runs are interleaved A/B/B/A in sessions, six metrics are judged
+against a 3% (CPU) or 5% (GPU) equivalence margin, and every result states its minimum detectable effect.
+
+A calibration measures one executable in every slot and records each metric's same-binary noise floor; a metric whose
+floor is not below its margin becomes advisory. It needs a quiet machine with a hardware GPU and takes about three
+minutes for five sessions of FX5 dirty frames, plus the build:
+
+```powershell
+./performance-timing.ps1 -Purpose Calibration -Fixture FX5 -Phase Dirty -OutputDirectory Measurements/PerformanceAndMotion_2026-11-13/W0.2/calibration-FX5-dirty
+# Compare a baseline executable (A) with this tree (B); six sessions are the minimum for a difference:
+./performance-timing.ps1 -Purpose Comparison -Sessions 6 -BaselineExecutable <baseline>/DxUi.EmbeddedTests.exe -CalibrationPath <calibration>/receipt.json
+# Exercise the method without a verdict, for example under load, on WARP or without changing the power scheme:
+./performance-timing.ps1 -Purpose Smoke -Sessions 1 -PowerPlan Keep -IdlePreflight Record
+```
+
+The study switches to the existing High Performance power scheme and restores the original however it ends; it
+never creates a scheme or asks for elevation, so use `-PowerPlan Keep` (smoke only) where the scheme is absent. Only
+the measuring UI thread is pinned. Each session first observes the host for five seconds with
+`Tools/Watch-BenchmarkHost.ps1` and refuses to start when the host is more than 10% busy; wait for a quiet window
+rather than stopping other work. A calibration or comparison refuses WARP, Debug, short runs and fewer sessions.
+New fixtures plug in through `FrameTiming::MakeFixture` in `Tests/Embedded/Embedded.Tests.FrameTiming.h`.
+
 ## Dedicated library evidence
 
 The [no-capture menu scaling record](../Measurements/MenuDescriptions/2026-09-21/scaling-v1/README.md)

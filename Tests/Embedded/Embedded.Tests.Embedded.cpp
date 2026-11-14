@@ -70,6 +70,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.EmbeddedAccessibility.h"
 #include "Embedded.Tests.EmbeddedTextInput.h"
 #include "Embedded.Tests.EmbeddedUia.h"
+#include "Embedded.Tests.FrameTiming.h"
 #include "Embedded.Tests.GridSelectionBenchmark.h"
 #include "Embedded.Tests.InteractionLayout.h"
 #include "Embedded.Tests.LocalizedLayout.h"
@@ -1757,6 +1758,15 @@ __declspec(noinline) static int RunFunctionalTests()
         GridSelectionBenchmark::Run(__wargv[2], __argc == 4 ? std::wstring_view(__wargv[3]) : std::wstring_view());
         return 0;
     }
+    // The fixture-agnostic frame timing method (performance-timing.ps1); also outside the fingerprinted benchmark entry.
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--timing-method")
+        return FrameTiming::RunCommand(__argc, __wargv);
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-frame-timing")
+    {
+        FrameTiming::SelfTest();
+        std::cout << "PASS frame timing method mechanics\n";
+        return 0;
+    }
 #if DXUI_ENABLE_DIAGNOSTICS
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-property-registration-retirement")
     {
@@ -1798,6 +1808,7 @@ __declspec(noinline) static int RunFunctionalTests()
     DxUi::Diagnostics::sink = nullptr;
     Check(! DxUi::IsContextMenuDiagnosticsEnabled(), "clearing sink disables native diagnostics");
     CleanPrepareTimerDiagnostic::RunOracle();
+    FrameTiming::SelfTest();
     GraphicsFixture gpu;
     Hr(gpu.Create(), "supplied WARP device");
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")

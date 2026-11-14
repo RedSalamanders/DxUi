@@ -16,6 +16,7 @@
 /performance-paired.ps1    @eric-jesover
 /performance-forms.ps1     @eric-jesover
 /performance-profile.ps1   @eric-jesover
+/performance-timing.ps1    @eric-jesover
 
 # Agent instructions.
 /.agents/                  @eric-jesover
