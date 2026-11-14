@@ -178,9 +178,11 @@ foreach ($entry in $selected) {
     if (Test-Path -LiteralPath $directory) {
         $files = @(Get-ChildItem -LiteralPath $directory -Filter '*.json' | Sort-Object Name)
         $receipts = @($files | ForEach-Object { Read-Json $_.FullName })
+        # The README links from its own directory, however deep -OutputRoot puts it.
+        $rootPath = [IO.Path]::GetRelativePath([IO.Path]::GetFullPath($directory), $PSScriptRoot).Replace('\', '/')
         $readme = Join-Path $directory 'README.md'
         $existing = if (Test-Path -LiteralPath $readme -PathType Leaf) { [IO.File]::ReadAllText($readme) } else { '' }
-        $generated = New-PerformanceFixtureReadme -Receipts $receipts -FileNames @($files | ForEach-Object Name)
+        $generated = New-PerformanceFixtureReadme -Receipts $receipts -FileNames @($files | ForEach-Object Name) -RootPath $rootPath
         [IO.File]::WriteAllText($readme, (Merge-PerformanceFixtureRunSheet -Generated $generated -Existing $existing), [Text.UTF8Encoding]::new($false))
     }
 }

@@ -579,7 +579,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
     embedded-only menu sessions after the first (`G10`); exact WARP parity for every material including `Solid` at 100%,
     150% and 200%, harness gallery captures of the `ComboBox` and `Menu` tiles unchanged.
   - **Needs**: `W0.1`, `W0.4`. **Size**: L.
-- [ ] **W2.5 `Grid` data paths.**
+- [x] **W2.5 `Grid` data paths.**
   - **Why**: `CollectOrderedGroups` (`DxUi.Grid.cpp:497-574`) runs about ten times per frame (`:4091`, `:7187`, `:7453`,
     `:7492`, `:7598`, `:7612`, `:7717`, `:7728`, `:7753`, `:7764`) and once per cell in right-to-left layout
     (`:7866-7868`); `GetRowTopDip` is O(G) (`:7077-7114`) and runs twice per group (`:7393`, `:7424`): O(G²) per frame.

@@ -69,6 +69,7 @@ Invoke-TestCase 'the generated README names the scenario, every receipt and its 
         Assert-True ($text.Contains($expected)) "README contains: $expected"
     }
     Assert-True ($text.EndsWith("`n") -and -not $text.Contains("`r")) 'README uses LF and ends with a newline'
+    Assert-True ($text.Contains('](../../../Specs/Testing/Testing_Validation.md#performance-fixtures)')) 'the default directory links three levels up'
     Assert-True (-not $text.Contains('`G13` line')) 'a receipt without budget lines has no G13 table'
 }
 
@@ -118,5 +119,18 @@ Invoke-TestCase 'a regenerated README keeps the interactive run sheet' {
     $merged = Merge-PerformanceFixtureRunSheet -Generated "# FX4: Menus`n`n## Receipts`n" -Existing $existing
     Assert-Equal "# FX4: Menus`n`n## Receipts`n`n## Interactive run sheet`n`n1. Agree to the time.`n" $merged 'the run sheet follows the generated receipts'
     Assert-Equal "# FX5`n" (Merge-PerformanceFixtureRunSheet -Generated "# FX5`n" -Existing "# FX5`nold`n") 'without a run sheet the README is the generated one'
+}
+
+
+Invoke-TestCase 'a README under a nested -OutputRoot links to the repository from its own depth' {
+    $receipt = Add-PerformanceFixtureProvenance -Receipt (New-NativeReceipt) -Provenance (New-Provenance) -Inputs @{}
+    $text    = New-PerformanceFixtureReadme -Receipts @($receipt) -FileNames @('fx5-default-embedded-warp-x64-release.json') -RootPath '../../../..'
+    Assert-True ($text.Contains('[performance fixtures](../../../../Specs/Testing/Testing_Validation.md#performance-fixtures)')) 'the framework link climbs four levels'
+    Assert-True ($text.Contains('[performance and motion plan](../../../../Specs/Plans/WIP/PerformanceAndMotion_2026-11-13.md)')) 'the plan link climbs four levels'
+    Assert-True (-not $text.Contains('](../../../Specs/')) 'no link keeps the default depth'
+    # performance-fixtures.ps1 derives the root from the directory it writes, so Measurements/<plan>/<item>/<FX> gets four levels.
+    $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+    $nested     = Join-Path $repository 'Measurements/PerformanceAndMotion_2026-11-13/W2.5/FX3'
+    Assert-Equal '../../../..' ([IO.Path]::GetRelativePath($nested, $repository).Replace('\', '/')) 'a nested receipt directory is four levels below the root'
 }
 Complete-TestRun 'Performance fixture receipts'

@@ -60,7 +60,12 @@
     X(popups, menuRowsPainted)       /* Menu rows those paints drew (each paint draws every row it finds visible). */
 
 // Lists: Grid and Tree.
-#define DXUI_WORK_COUNTERS_LISTS(X)
+#define DXUI_WORK_COUNTERS_LISTS(X)                                                                                                                            \
+    X(lists, gridCollectOrderedGroups) /* Grid collections of the model's groups (every GetGroup, sorted and sanitized). */                                    \
+    X(lists, gridColumnDescRebuilds)   /* Grid column-description cache fills: one GetColumn per column. */                                                    \
+    X(lists, gridGetColumnCalls)       /* IGridModel::GetColumn calls a Grid made, those of the cache fills included. */                                       \
+    X(lists, gridGroupLayoutRebuilds)  /* Grid group-layout cache fills: one collection and its collapsed-row prefix. */                                       \
+    X(lists, gridSelectionCopies)      /* Copies of a Grid's whole ordered selection (Ctrl+C, a Ctrl+Shift range, data-path verification). */
 
 // Rich documents.
 #define DXUI_WORK_COUNTERS_RICH(X)                                                                                                                             \

@@ -113,7 +113,7 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
 std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noexcept
 {
     {
-        static constexpr std::array<RetainedControlCacheRow, 18u> rows{{
+        static constexpr std::array<RetainedControlCacheRow, 19u> rows{{
             // Label::_typographyLayout, the retained layout of a label with a mnemonic or a typography override.
             {"Label._typographyLayout",
              [](const Control& control) noexcept
@@ -363,6 +363,22 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
                 bytes += StringBytes(entry.text);
             return bytes;
         }},
+            // Grid::_groupLayoutCache (the model's groups and their collapsed-row prefix) and _columnDescCache (its column
+            // descriptions), filled once per data revision; a fresh frame reads the model again.
+            {"Grid._groupLayoutCache",
+             [](const Control& control) noexcept
+        {
+            const auto* grid = dynamic_cast<const Grid*>(&control);
+            if (! grid)
+                return size_t{0u};
+            return (grid->_groupLayoutCache.valid ? 1u + grid->_groupLayoutCache.groups.size() : 0u) +
+                   (grid->_columnDescCache.valid ? grid->_columnDescCache.columns.size() : 0u);
+        },
+             [](Control& control) noexcept
+        {
+            if (auto* grid = dynamic_cast<Grid*>(&control))
+                grid->ReleaseDataCaches();
+        }},
             // ColorPicker::_saturationBrush, _valueBrush, _hueBrush and their _brushDevice.
             {"ColorPicker._saturationBrush",
              [](const Control& control) noexcept
@@ -533,7 +549,7 @@ std::span<const std::string_view> RetainedCacheAccess::Names() noexcept
 
 std::span<const RetainedCacheExemption> RetainedCacheAccess::Exemptions() noexcept
 {
-    static constexpr std::array<RetainedCacheExemption, 15u> exemptions{{
+    static constexpr std::array<RetainedCacheExemption, 14u> exemptions{{
         {"ControlHost._bodyTextFormat",
          "The fourteen role formats (_bodyTextFormat .. _monoTextFormat) are built once per DirectWrite factory from fixed role specs; "
          "no theme, DPI or model input keys them, and an embedded Prepare has no path that would rebuild them."},
@@ -550,7 +566,6 @@ std::span<const RetainedCacheExemption> RetainedCacheAccess::Exemptions() noexce
         {"ComboBox._popupBackdropCapture",
          "The screen pixels captured when the popup opened: an input from outside DxUi that a fresh frame could not rebuild. "
          "Oracle scenes pin OverlayMaterial::Solid, which captures nothing."},
-        {"Grid._cachedGroups", "Recomputed at the start of every paint; it outlives no frame."},
         {"Grid._cellVisibleText", "Scratch string reused within one paint; ReleaseCellTextResources frees it."},
         {"Accessibility.eventBaseline",
          "eventBaseline and diffBaseline decide which UI Automation events a publication raises, not what the snapshot holds; "

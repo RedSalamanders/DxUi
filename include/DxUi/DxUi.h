@@ -1523,6 +1523,14 @@ struct GridSelectionBufferDebugState
 class GridSelectionModel final
 {
 public:
+    GridSelectionModel()                                     = default;
+    GridSelectionModel(const GridSelectionModel&)            = default;
+    GridSelectionModel& operator=(const GridSelectionModel&) = default;
+    // A moved-from model is empty and has no anchor; its epoch reads 0.
+    GridSelectionModel(GridSelectionModel&& other) noexcept;
+    GridSelectionModel& operator=(GridSelectionModel&& other) noexcept;
+    ~GridSelectionModel() = default;
+
     void Clear() noexcept;
     void SetSingle(uint64_t rowId) noexcept;
     void Toggle(uint64_t rowId) noexcept;
@@ -1537,15 +1545,22 @@ public:
     void SetAnchor(std::optional<uint64_t> rowId) noexcept;
     [[nodiscard]] size_t GetCount() const noexcept;
     [[nodiscard]] std::span<const uint64_t> GetOrderedSelection() const noexcept;
+    // Moves whenever the ids GetOrderedSelection returns change (members or their order), never when a mutator leaves them as
+    // they were, and reads 0 while the selection is empty; SetAnchor leaves it. Each change takes a value no model of the process
+    // took before, so equal epochs mean equal selections, including across copies. A Grid compares epochs instead of copying the
+    // selection to learn whether a gesture changed it.
+    [[nodiscard]] uint64_t GetEpoch() const noexcept;
 
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] GridSelectionBufferDebugState DebugGetBuffers() const noexcept;
 #endif
 
 private:
+    friend class Grid;
     std::vector<uint64_t> _selectedRowIds;
     std::vector<uint64_t> _sortedRowIds;
     std::optional<uint64_t> _anchorRowId;
+    uint64_t _epoch = 0u;
 };
 
 class ControlHost;
@@ -5564,6 +5579,21 @@ public:
     // cells reach it; 0 restores the default. Tables already larger than the new ceiling keep their size until they halve.
     void DebugSetTextLayoutEntryLimit(size_t maxEntries) noexcept;
     [[nodiscard]] size_t DebugGetTextLayoutEntryLimit() const noexcept;
+    // Data-path verification for this thread's grids (plan W2.5; Specs/UI/UI_ControlsAndLayout.md, "Grid data caches"). Off by
+    // default. Otherwise every cached group layout and column description a grid reads, and every row position, keyboard target,
+    // Shift range, membership answer and selection change it derives from them, is computed again the uncached way and compared:
+    // a model that changed its groups or columns without NotifyDataChanged is caught here instead of painting stale rows. A
+    // mismatch is counted and logged; Fatal also ends the process through the failure policy. The Grid suite runs Fatal.
+    enum class DataPathVerification : uint8_t
+    {
+        Off,
+        Count,
+        Fatal,
+    };
+    static void DebugSetDataPathVerification(DataPathVerification mode) noexcept;
+    [[nodiscard]] static DataPathVerification DebugGetDataPathVerification() noexcept;
+    // Mismatches this thread's grids found since the thread started.
+    [[nodiscard]] static uint64_t DebugGetDataPathMismatches() noexcept;
 #endif
     bool RequestSelectRow(size_t rowIndex, UINT modifiers);
     bool RequestAddRowSelection(size_t rowIndex);
@@ -5651,12 +5681,22 @@ private:
     [[nodiscard]] bool SelectRow(size_t rowIndex, UINT modifiers);
     // The delegate's menu for the row at the anchor (control DIPs). False without a delegate.
     bool OpenRowContextMenu(ControlHost& host, size_t rowIndex, D2D1_POINT_2F anchorDip);
-    // Reports a committed change: the selection delegate when membership differs from `previousSelection`, then the focus
-    // delegate when the focused row differs from `previousFocus`. False when a callback threw, or retired this grid or
-    // replaced its model or delegate; the caller then stops. Otherwise its own guard resumes after the callbacks.
-    [[nodiscard]] bool NotifySelectionAndFocusChanges(std::span<const uint64_t> previousSelection, std::optional<uint64_t> previousFocus);
-    // The row the keys start from: the focused row while it is visible, else the last selected row while it is visible.
-    [[nodiscard]] std::optional<size_t> FindKeyboardStartRow(std::span<const size_t> visibleRows) const;
+    // The selection before a gesture: its epoch, and under data-path verification a copy of its ids to check the epoch against.
+    struct SelectionSnapshot
+    {
+        uint64_t epoch = 0u;
+        bool copied    = false;
+        std::vector<uint64_t> ids;
+    };
+    [[nodiscard]] SelectionSnapshot CaptureSelection() const;
+    // Reports a committed change: the selection delegate when the ordered selection differs from `previousSelection` (its
+    // epoch moved), then the focus delegate when the focused row differs from `previousFocus`. False when a callback threw, or
+    // retired this grid or replaced its model or delegate; the caller then stops. Otherwise its own guard resumes after the
+    // callbacks.
+    [[nodiscard]] bool NotifySelectionAndFocusChanges(const SelectionSnapshot& previousSelection, std::optional<uint64_t> previousFocus);
+    // The row the keys start from: the focused row while it is visible, else the last selected row while it is visible. `groups`
+    // is the group layout ResolveOrderedGroups returned.
+    [[nodiscard]] std::optional<size_t> FindKeyboardStartRow(std::span<const GridGroupDesc> groups) const;
     // The focused cell (row, column) while its row is visible; the column is the current one or the first displayed.
     [[nodiscard]] std::optional<std::pair<size_t, size_t>> FindFocusedCell() const;
     // Scrolls the column horizontally into view; false when a callback retired the grid or its model.
@@ -5780,7 +5820,43 @@ private:
     mutable std::vector<float> _columnWidths;
     mutable std::vector<size_t> _columnDisplayOrder;
     mutable std::vector<size_t> _columnDisplayIndexByModel;
-    mutable std::vector<GridGroupDesc> _cachedGroups;
+    // The model's data as the grid reads it (plan W2.5; Specs/UI/UI_ControlsAndLayout.md, "Grid data caches"). The groups,
+    // sorted and sanitized, with the rows of collapsed groups before each (rows have one height, so a row's top is a binary
+    // search), and the column descriptions by model index. Each is filled once per data revision: SetModel, SetDelegate and
+    // NotifyDataChanged move it, a group toggle refills the groups (a delegate need not publish it), ApplyColumnLayout refills the
+    // columns, and a changed row, group or column count refills them too. O(groups) and O(columns), never O(rows).
+    struct GroupLayoutCache
+    {
+        std::vector<GridGroupDesc> groups;
+        std::vector<size_t> collapsedRowsBefore; // [g]: rows of the collapsed groups before group g; [groups.size()]: all of them.
+        size_t rowCount        = 0u;
+        size_t modelGroupCount = 0u;
+        uint64_t revision      = 0u;
+        bool valid             = false;
+    };
+    struct ColumnDescCache
+    {
+        std::vector<GridColumnDesc> columns;
+        uint64_t revision = 0u;
+        bool valid        = false;
+    };
+    // The model's groups from the cache, refilled first when stale; empty without a model or when a model getter retired the
+    // query (the caller's guard then reads stale). The span stays valid until the data revision moves or a toggle refills it.
+    [[nodiscard]] std::span<const GridGroupDesc> ResolveOrderedGroups() const;
+    // The model's description of a column from the cache, refilled first when stale; nullptr for a column the model does not
+    // have or when a model getter retired the query.
+    [[nodiscard]] const GridColumnDesc* ResolveColumnDesc(size_t columnIndex) const;
+    // Whether `groups` is the cached group layout (so its collapsed-row prefix applies).
+    [[nodiscard]] bool IsCachedGroupLayout(std::span<const GridGroupDesc> groups) const noexcept;
+    void InvalidateGroupLayout() noexcept;
+    // Returns both caches' storage, for a new model and the retained-cache drop.
+    void ReleaseDataCaches() noexcept;
+    // Calls visit(const VisibleBodyItem&) for the group headers and rows the body rectangle shows, in order, until it returns
+    // false; BuildVisibleBodyItems collects them, hit testing stops at the first under the point and allocates nothing.
+    template <typename Visit>
+    void VisitVisibleBodyItems(std::span<const GridGroupDesc> groups, const D2D1_RECT_F& bodyRect, size_t rowCount, Visit&& visit) const;
+    mutable GroupLayoutCache _groupLayoutCache;
+    mutable ColumnDescCache _columnDescCache;
     GridSelectionModel _selectionModel;
     // The last selected row in visible/model order is not necessarily the row a Shift range reached.
     std::optional<uint64_t> _currentRowId;

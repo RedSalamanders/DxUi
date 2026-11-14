@@ -1,0 +1,7 @@
+#pragma once
+
+void TestGridDataPathsEqualTheUncachedImplementationForSeededModels();
+void TestGridDataCachesFillOncePerNotification();
+void TestGridDataPathVerificationCatchesAModelThatDoesNotNotify();
+void TestSelectionModelEpochMovesExactlyWhenTheOrderedSelectionChanges();
+void TestSelectionModelAssignInOrderMatchesTheHashSetMembership();

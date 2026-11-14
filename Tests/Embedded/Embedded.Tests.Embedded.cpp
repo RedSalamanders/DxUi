@@ -78,6 +78,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.LocalizedLayout.h"
 #include "Embedded.Tests.MemoryMetrics.h"
 #include "Embedded.Tests.PerformanceFixtures.h"
+#include "Embedded.Tests.PerformanceGridDataPaths.h"
 #include "Embedded.Tests.RichDocumentStorageResources.h"
 #include "Embedded.Tests.RichGeometryResources.h"
 #include "Embedded.Tests.RichImageCapture.h"
@@ -1894,6 +1895,10 @@ __declspec(noinline) static int RunFunctionalTests()
         return PerformanceFixtures::RunReceiptCommand(__argc, __wargv);
     if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fixture-catalog")
         return PerformanceFixtures::RunCatalogCommand(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fx3-frame-hashes")
+        return GridDataPathTests::RunFrameHashCommand(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--test-grid-data-paths")
+        return GridDataPathTests::RunGateCommand(__argc, __wargv);
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-performance-fixtures")
     {
         PerformanceFixtures::TestFrameworkSelfTest();
@@ -2114,6 +2119,7 @@ __declspec(noinline) static int RunFunctionalTests()
     PerformanceFixtures::TestFx5G13Budgets();
     PerformanceFixtures::TestFx13G13Budgets();
     PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
+    GridDataPathTests::TestFx3GridDataPathGate(gpu);
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();

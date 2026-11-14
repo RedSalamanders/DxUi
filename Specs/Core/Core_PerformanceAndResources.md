@@ -65,10 +65,11 @@ that need neither relationship slots nor compact fan routing avoid that allocati
 sizing remain bounded by existing node/edge/extent limits. Clean/hidden
 frames, warm drawing and code-chrome foreground selection add no workers, timers, allocation or measurement.
 
-Bulk Grid and Tree selection builds a staged visible-order list with hash membership and a fixed-width radix-sorted
-membership copy. Its expected work is linear in visible and requested IDs, including reverse-ordered IDs; allocation
-failure preserves the previously published selection. Repeated IDs occur only once in first-visible order; the final
-requested visible ID remains focus and anchor. Hash membership is expected linear, not an adversarial worst-case bound.
+Bulk Grid and Tree selection builds a staged visible-order list with membership in an ascending copy of the requested
+IDs behind a table of bits (`SelectedIdFilter`, one load rules out most visible IDs) and a fixed-width radix-sorted
+membership copy. Its work is linear in visible IDs plus a sort of the requested IDs, including reverse-ordered IDs;
+allocation failure preserves the previously published selection. Repeated IDs occur only once in first-visible order;
+the final requested visible ID remains focus and anchor. No heap node is allocated per ID.
 Tree pointer hit testing computes the expander lane without shaping badge text or changing the badge measurement cache;
 paint and input share the same lane geometry, including reserved-space and right-to-left layouts.
 Repeated hover on the same unchanged Tree row reuses its tooltip geometry; explicit tooltip text bypasses badge and
@@ -1349,7 +1350,8 @@ one it cannot, from 1,500 to 1,000,000 ids, where the scan cost up to 94 us). Th
 branches cannot be predicted, as the ids of the rows on screen cannot be against a selection of hashed ids, costs what a
 scan costs at about 500 to 650 ids: below the limit the search can lose to the scan (4.5 times at 32 ids), above it never
 does, so the model is never slower than that scan at any size in either order. The ascending copy is the budget: 8 bytes per
-selected row beyond the ordered ids' 8 (the model itself grows from 40 to 64 bytes), and never a heap node per row. Both
+selected row beyond the ordered ids' 8 (the model itself grows from 40 to 64 bytes, and to 72 with the epoch that moves
+whenever its ordered ids change, which a Grid compares instead of copying the selection), and never a heap node per row. Both
 copies give their room back when a selection that needed room for more than 4,096 ids (32 KiB) is replaced by one that needs
 half of it or less (`Clear`, `SetSingle`, `SetRange` and a `PreserveOrdered` that drops ids; `Toggle` leaves its room):
 after Ctrl+A over 200,000 ids a model holds 0 bytes after `Clear` and 16 after a click, not 3.2 MB, for 0.1 to 0.2 ms to

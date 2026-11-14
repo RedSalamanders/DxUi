@@ -6,6 +6,30 @@
 #include <optional>
 #include <string>
 
+// The allocations these models make themselves (formatting their text), counted only while a test sets the probe to read its
+// allocation counter: a gate subtracts them to keep what DxUi allocates (Embedded.Tests.PerformanceGridDataPaths.h). Dormant
+// otherwise, so receipts and every other count are unchanged.
+inline thread_local size_t (*g_gridModelAllocationProbe)() noexcept = nullptr;
+inline thread_local size_t g_gridModelAllocations                   = 0u;
+
+class GridModelAllocationScope final
+{
+public:
+    GridModelAllocationScope() noexcept : _start(g_gridModelAllocationProbe ? g_gridModelAllocationProbe() : 0u)
+    {
+    }
+    ~GridModelAllocationScope()
+    {
+        if (g_gridModelAllocationProbe)
+            g_gridModelAllocations += g_gridModelAllocationProbe() - _start;
+    }
+    GridModelAllocationScope(const GridModelAllocationScope&)            = delete;
+    GridModelAllocationScope& operator=(const GridModelAllocationScope&) = delete;
+
+private:
+    size_t _start = 0u;
+};
+
 // Models are owned in place and never copied. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
 #pragma warning(disable : 4625 4626 5026 5027)
@@ -29,6 +53,7 @@ public:
 
     [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t columnIndex) const override
     {
+        const GridModelAllocationScope counted;
         DxUi::GridColumnDesc column;
         column.id       = std::format(L"col-{}", columnIndex);
         column.title    = std::format(L"Column {}", columnIndex);
@@ -38,6 +63,7 @@ public:
 
     void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& outCell) const override
     {
+        const GridModelAllocationScope counted;
         outCell.kind = DxUi::GridCellKind::Text;
         outCell.text = std::format(L"R{}C{}", rowIndex, columnIndex);
     }
@@ -95,6 +121,7 @@ public:
     }
     [[nodiscard]] DxUi::GridGroupDesc GetGroup(size_t groupIndex) const override
     {
+        const GridModelAllocationScope counted;
         const size_t rowsPerGroup = _rows.GetRowCount() / _groupCount;
         const size_t start        = groupIndex * rowsPerGroup;
         const size_t count        = groupIndex + 1u == _groupCount ? _rows.GetRowCount() - start : rowsPerGroup;

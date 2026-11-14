@@ -897,6 +897,43 @@ any replacement focus through the focused-row callback and stops when that callb
 RTL mirrors column geometry, adornments, keyboard left/right behavior and horizontal
 scrollbar direction; offscreen cell focus reveals the cell using the same logical scroll offset.
 
+### Grid data caches
+
+A Grid reads its model's groups and column descriptions once per data revision and answers painting, geometry, hit
+testing and keyboard navigation from those copies. The model rule is the one the Grid has always stated: the application
+calls `NotifyDataChanged` after it changes the model. Which notification makes the Grid read what again:
+
+| Change | Notification | Read again |
+| --- | --- | --- |
+| Rows (count, order, stable ids), groups (count, ranges, order, titles, collapsed state), column descriptions (ids, titles, widths, kinds, alignment), a sort or a filter the application applied | `NotifyDataChanged` | groups and columns, at their next use |
+| Another model, or the same one again | `SetModel` (the old model's copies are released at once) | groups and columns |
+| Another delegate | `SetDelegate` | groups and columns |
+| A group toggle the Grid asked for: a header click, the collapse or expand key, `ApplyGroupLayout` | none: after each `OnGridGroupToggled` the Grid reads the groups again, whether or not the delegate published the toggle | groups |
+| A column layout | `ApplyColumnLayout` | columns |
+| A row, group or column count that differs from the copy | none: a safety net, not a substitute for the notification | the copy of that count's data |
+| Cell values and row styles | none: never copied, every paint asks the model | nothing |
+| DPI, typography, density, flow direction, bounds, scroll, sort glyph (`SetSortSpec`) | none: the copies hold model data and integer offsets; geometry is computed from them at use | nothing |
+
+A change to groups or columns that is not published shows the previous ones until the next notification. Diagnostics
+builds verify the rule: under `Grid::DebugSetDataPathVerification` every cached group layout and column description,
+and every row top, hit row, keyboard target, Shift range, membership answer and selection report derived from them, is
+computed again the uncached way and compared; a mismatch is counted and logged, and `Fatal` ends the process through the
+[failure policy](../Core/Core_FailureHandling.md). The Grid suite runs `Fatal`, so a model or a cache that breaks the rule
+fails a test instead of painting stale rows.
+
+Rows have one height, so a row's top is its index less the rows of collapsed groups before it, times the row height,
+plus the group headers above it: the copy keeps the collapsed rows before each group, and a top, a visible ordinal and
+the row at an ordinal are binary searches over the groups. Arrow keys, Home, End, Page Up and Page Down, the nearest
+visible row after a collapse and hit testing list no rows and allocate nothing; a Shift range lists only the rows it
+selects, Ctrl+Shift the rows it adds. Stable ids name one row each: a range ends at the model's row for the anchor's id.
+The copies are O(groups) and O(columns), never O(rows). `GridSelectionModel::GetEpoch` moves exactly when the ordered
+selection changes, so a gesture reports a selection change by comparing epochs instead of copying the selection;
+`AssignInOrder` and `SetSelectedRowIds` answer membership through an ascending copy behind a table of bits, as a hash set
+did (repeated ids once, ids no visible row has never). A steady frame collects no groups and asks the model for no column
+description; after a select-all a Down key or a click allocates nothing, except the two one-id buffers the selection's
+give-back rule ([performance and resources](../Core/Core_PerformanceAndResources.md)) takes for the gesture that
+replaces it. The retained-cache registry drops both copies, so the incremental-versus-fresh oracle covers them.
+
 ### Localized built-in text
 
 Consumers supply owned per-instance strings through `ComboBox::SetNoMatchesText`,

@@ -1,4 +1,5 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.GridDataPaths.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
 #include "Support.Tests.FatalChildren.h"
 
@@ -3255,10 +3256,13 @@ void TestGroupedGridCopySkipsRowsHiddenByCollapsedGroups()
     });
 
     grid.SetModel(&model);
+
+    // The model publishes its collapse (the grid reads groups as of its last notification), then a selection that still names
+    // a row of the collapsed group is set directly, without a refresh that would drop it.
+    Require(model.SetGroupCollapsed(10u, true), "grouped grid copy test collapses the selected group externally");
+    grid.NotifyDataChanged();
     grid.GetSelectionModel().SetSingle(model.GetStableRowId(0u));
     grid.GetSelectionModel().Toggle(model.GetStableRowId(2u));
-
-    Require(model.SetGroupCollapsed(10u, true), "grouped grid copy test collapses the selected group externally");
     Require(SetClipboardUnicodeTextForTest(window.Hwnd(), L"sentinel"), "clipboard initialized before grouped grid copy");
     Require(grid.OnCopy(window.Host()), "grouped grid copy handles visible selected rows after collapse");
 
@@ -5560,6 +5564,12 @@ void TestGridSetModelReleasesThePreviousBorrowedModelOnReturn()
 
 void RunGridTests()
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+    // Every Grid test reads its grids' cached group layouts, column descriptions and selection epochs against the uncached
+    // computations they replace (plan W2.5): a cache or a model that breaks its notification rule ends the run.
+    DxUi::Grid::DebugSetDataPathVerification(DxUi::Grid::DataPathVerification::Fatal);
+    const auto stopVerifying = wil::scope_exit([] { DxUi::Grid::DebugSetDataPathVerification(DxUi::Grid::DataPathVerification::Off); });
+#endif
     DXUI_RUN_TEST(TestGridGesturesContinueWhenACallbackChangesAnotherControl);
     DXUI_RUN_TEST(TestGridClickSurvivesAFocusHandlerThatChangesAnotherControl);
     DXUI_RUN_TEST(TestGridRightClickMenuFollowsThePressedRow);
@@ -5683,4 +5693,9 @@ void RunGridTests()
     DXUI_RUN_TEST(TestGridCompactDensityShrinksHeaderAndRowMetrics);
     DXUI_RUN_TEST(TestGridEffectiveRowHeightBypassesDensityScaling);
     DXUI_RUN_TEST(TestGridRowMetricsClampToSegoeVariableBodyLineHeight);
+    DXUI_RUN_TEST(TestGridDataPathsEqualTheUncachedImplementationForSeededModels);
+    DXUI_RUN_TEST(TestGridDataCachesFillOncePerNotification);
+    DXUI_RUN_TEST(TestGridDataPathVerificationCatchesAModelThatDoesNotNotify);
+    DXUI_RUN_TEST(TestSelectionModelEpochMovesExactlyWhenTheOrderedSelectionChanges);
+    DXUI_RUN_TEST(TestSelectionModelAssignInOrderMatchesTheHashSetMembership);
 }
