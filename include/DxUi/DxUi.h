@@ -3945,6 +3945,10 @@ protected:
     [[nodiscard]] std::optional<size_t> HitTestTextInputPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept override;
     bool ExportTextInputState(TextInputState& outState) const override;
     bool ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange) override;
+    // True when this class does not override ExportTextInputState or ImportTextInputState, so text input may share the
+    // document with it instead of copying it through those virtuals (Shared input text). The default is true only for the
+    // exact class; a derived class that keeps both virtuals may override it to return true and keep sharing.
+    [[nodiscard]] virtual bool KeepsDefaultTextInputState() const noexcept;
 
 private:
     struct EditHistoryState
@@ -3967,8 +3971,9 @@ private:
     // The field's own buffer unless masked; the caller's pointer keeps the text valid while it lays out or measures it.
     [[nodiscard]] std::shared_ptr<const std::wstring> GetDisplayText() const;
     [[nodiscard]] const std::wstring& Text() const noexcept;
-    // Writable text for one edit (see MutableSharedText); valid until the field's text is next replaced or shared.
-    [[nodiscard]] std::wstring& MutableText();
+    // Writable text for one edit that leaves it at most requiredUnits long (see MutableSharedText); valid until the field's text is next
+    // replaced or shared.
+    [[nodiscard]] std::wstring& MutableText(size_t requiredUnits);
     // Imports `state` with `text` as the document, adopting the buffer; state.text is not read.
     [[nodiscard]] bool ImportTextInputText(ControlHost& host, std::shared_ptr<const std::wstring> text, const TextInputState& state, bool notifyChange);
     [[nodiscard]] bool UsesMaskedDisplayText() const noexcept;
@@ -4173,6 +4178,10 @@ protected:
     [[nodiscard]] std::optional<size_t> HitTestTextInputPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept override;
     bool ExportTextInputState(TextInputState& outState) const override;
     bool ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange) override;
+    // True when this class does not override ExportTextInputState or ImportTextInputState, so text input may share the
+    // document with it instead of copying it through those virtuals (Shared input text). The default is true only for the
+    // exact class; a derived class that keeps both virtuals may override it to return true and keep sharing.
+    [[nodiscard]] virtual bool KeepsDefaultTextInputState() const noexcept;
 
 private:
     struct EditHistoryState
@@ -4185,12 +4194,15 @@ private:
     };
 
     [[nodiscard]] const std::wstring& Text() const noexcept;
-    // Writable text for one edit (see MutableSharedText); valid until the text is next replaced or shared.
-    [[nodiscard]] std::wstring& MutableText();
+    // Writable text for one edit that leaves it at most requiredUnits long (see MutableSharedText); valid until the text is next
+    // replaced or shared.
+    [[nodiscard]] std::wstring& MutableText(size_t requiredUnits);
     // Imports `state` with `text` as the document, adopting the buffer; state.text is not read.
     [[nodiscard]] bool ImportTextInputText(ControlHost& host, std::shared_ptr<const std::wstring> text, const TextInputState& state, bool notifyChange);
     // The text the popup filters by and the selection matches: the committed text while a composition preview shows.
     [[nodiscard]] const std::wstring& FilterText() const noexcept;
+    // Takes the shown text as committed when a composition ended without restoring its preview.
+    void SettlePreview(const ControlHost* host) noexcept;
     [[nodiscard]] std::optional<size_t> GetHighlightedPopupIndex() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetEditableTextRect() const noexcept;
     [[nodiscard]] wil::com_ptr<IDWriteTextLayout> GetOrCreateSingleLineLayout(

@@ -2418,6 +2418,9 @@ void TestTextFieldBuffersSurrogatesBeforePublishing()
     }
 }
 
+using TextStoreConformanceTests::TestSharedTextHoldersKeepTheirTextAcrossDirectEdits;
+using TextStoreConformanceTests::TestSharedTextReleaseWipesTheWholeAllocation;
+using TextStoreConformanceTests::TestTextControlsReadEmptyTextWhileDestroyed;
 using TextStoreConformanceTests::TestTextStoreDisplayAttributesResolveClausesAndTarget;
 using TextStoreConformanceTests::TestTextStoreExternalChangeExcludesCommonPrefixAndSuffix;
 using TextStoreConformanceTests::TestTextStorePointQueriesHonorDocumentedFlags;
@@ -2432,6 +2435,9 @@ void RunTextFieldTests()
     DXUI_RUN_TEST(TestTextStoreReportsFieldInputScopes);
     DXUI_RUN_TEST(TestTextStoreExternalChangeExcludesCommonPrefixAndSuffix);
     DXUI_RUN_TEST(TestTextStoreDisplayAttributesResolveClausesAndTarget);
+    DXUI_RUN_TEST(TestSharedTextReleaseWipesTheWholeAllocation);
+    DXUI_RUN_TEST(TestSharedTextHoldersKeepTheirTextAcrossDirectEdits);
+    DXUI_RUN_TEST(TestTextControlsReadEmptyTextWhileDestroyed);
     DXUI_RUN_TEST(TestMaskedNativeWindowPreservesBorrowedImeContexts);
     DXUI_RUN_TEST(TestTextFieldDirectCallbackFailure);
     DXUI_RUN_TEST(TestTextFieldBlurCallbackKeepsItsCaptureWhenItDestroysTheField);

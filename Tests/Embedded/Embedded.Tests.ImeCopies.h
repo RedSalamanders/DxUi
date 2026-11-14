@@ -544,10 +544,10 @@ struct HeadlessHost final
     HeadlessHost& operator=(HeadlessHost&&)      = delete;
 };
 
-inline ScenarioResult RunTextField(const std::wstring& document)
+template <typename Field = DxUi::TextField> inline ScenarioResult RunTextField(const std::wstring& document)
 {
     HeadlessHost fixture;
-    auto* const field = fixture.root->AddChild<DxUi::TextField>(document);
+    auto* const field = fixture.root->AddChild<Field>(document);
     Check(field != nullptr, "IME copies: the TextField fixture is created");
     field->SetBounds(D2D1::RectF(0.0f, 0.0f, 640.0f, 32.0f));
     field->SetSelectionRange(kCaretUnits, kCaretUnits);
@@ -615,6 +615,174 @@ inline ScenarioResult RunComboBox()
     return result;
 }
 
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+// A derived field that keeps both state virtuals and opts in to sharing: it keeps the copy gate.
+struct SharingField final : DxUi::TextField
+{
+    using TextField::TextField;
+    [[nodiscard]] bool KeepsDefaultTextInputState() const noexcept override
+    {
+        return true;
+    }
+};
+
+// A derived field that filters what text input imports: it drops every 'x'. Its override must run on every input path.
+struct FilteringField final : DxUi::TextField
+{
+    using TextField::TextField;
+    size_t imports = 0u;
+
+protected:
+    bool ImportTextInputState(DxUi::ControlHost& host, const DxUi::TextInputState& state, bool notifyChange) override
+    {
+        ++imports;
+        DxUi::TextInputState filtered   = state;
+        const size_t removedBeforeCaret = static_cast<size_t>(
+            std::count(filtered.text.begin(), filtered.text.begin() + static_cast<std::ptrdiff_t>((std::min)(state.caretIndex, state.text.size())), L'x'));
+        std::erase(filtered.text, L'x');
+        filtered.caretIndex = state.caretIndex - removedBeforeCaret;
+        filtered.selectionAnchorIndex.reset();
+        return TextField::ImportTextInputState(host, filtered, notifyChange);
+    }
+};
+#pragma warning(pop)
+
+// The filtering override runs under the TSF store as it does under the embedded text service: the same input gives the
+// same text on both paths.
+inline void TestImportOverrideRunsOnEveryInputPath(GraphicsFixture& gpu)
+{
+    {
+        HeadlessHost fixture;
+        auto* const field = fixture.root->AddChild<FilteringField>(L"ab");
+        field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 32.0f));
+        field->SetSelectionRange(2u, 2u);
+        fixture.host.SetFocusControl(field, false);
+        wil::com_ptr_nothrow<ITextStoreACP> store;
+        store.attach(DxUi::CreateNativeTextInputTextStore(fixture.host, *field, false));
+        Check(store != nullptr, "override fixture: the TSF store is created");
+        Sink sink;
+        Hr(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_ALL_SINKS), "override fixture: the sink is advised");
+        sink.onLock = [&]() noexcept
+        {
+            LONG first = 0, last = 0;
+            TS_TEXTCHANGE change{};
+            return store->InsertTextAtSelection(0u, L"xyx", 3u, &first, &last, &change);
+        };
+        HRESULT session = E_FAIL;
+        Hr(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "override fixture: the TSF lock is requested");
+        sink.onLock = nullptr;
+        // The store reports the filtered result as a failed write (the field no longer shows what was staged), as it did
+        // before shared text; what matters is that the override decided the text.
+        Check(field->imports >= 1u && field->GetText() == L"aby", "a TextField import override filters text typed through TSF");
+        Hr(store->UnadviseSink(&sink), "override fixture: the sink is unadvised");
+    }
+    {
+        DxUi::EmbeddedHost view;
+        std::shared_ptr<DxUi::GraphicsDevice> pool;
+        Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "override fixture: graphics");
+        Hr(view.Attach(pool), "override fixture: attach");
+        auto panel        = std::make_unique<DxUi::Panel>();
+        auto* const field = panel->AddChild<FilteringField>(L"ab");
+        field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 32.0f));
+        view.Controls().SetRoot(std::move(panel));
+        Hr(view.Prepare(320, 80), "override fixture: prepare");
+        view.Controls().SetFocusControl(field);
+        DxUi::EmbeddedTextInputSnapshot snapshot;
+        Check(view.ReadTextInput(snapshot) == S_OK, "override fixture: the embedded text service reads the field");
+        DxUi::NativeTextInputState edit = snapshot.state;
+        edit.text                       = L"abxyx";
+        edit.caretIndex                 = 5u;
+        Hr(view.ApplyTextInput(snapshot.revision, edit, DxUi::EmbeddedTextInputAction::Commit), "override fixture: the embedded commit applies");
+        Check(field->imports >= 1u && field->GetText() == L"aby", "a TextField import override filters text committed through the embedded service");
+    }
+}
+
+// An editable ComboBox whose composition ends without its preview being restored (focus loss) takes the shown text as
+// committed: its selection and popup follow that text. A store teardown restores the preview and leaves both consistent.
+inline void TestComboBoxSettlesAPreviewLeftByTeardown()
+{
+    const std::wstring_view first = kSyllables.substr(0u, 1u);
+    const auto makeCombo          = [&](HeadlessHost& fixture)
+    {
+        auto* const combo = fixture.root->AddChild<DxUi::ComboBox>();
+        combo->SetEditable(true);
+        std::vector<DxUi::ComboBox::Item> items;
+        items.push_back({L"apple", L"apple"});
+        items.push_back({std::wstring(first), std::wstring(first)});
+        items.push_back({std::wstring(kSyllables), std::wstring(kSyllables)});
+        items.push_back({L"banana", L"banana"});
+        combo->SetItems(std::move(items));
+        combo->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 32.0f));
+        fixture.host.SetFocusControl(combo, false);
+        return combo;
+    };
+    const auto popupHeight = [](DxUi::ComboBox& combo)
+    {
+        const D2D1_RECT_F bounds = combo.DebugGetPopupBounds();
+        return bounds.bottom - bounds.top;
+    };
+    const auto preview = [&](ITextStoreACP& store, Sink& sink, Composition& composition, ITfContextOwnerCompositionSink& owner)
+    {
+        static_cast<void>(CountLock(store,
+                                    sink,
+                                    TS_LF_READWRITE,
+                                    [&]() noexcept -> HRESULT
+        {
+            LONG start = 0, end = 0;
+            TS_TEXTCHANGE change{};
+            HRESULT hr               = store.InsertTextAtSelection(0u, first.data(), 1u, &start, &end, &change);
+            composition.range.start  = 0;
+            composition.range.length = 1;
+            BOOL accepted            = FALSE;
+            if (SUCCEEDED(hr))
+                hr = owner.OnStartComposition(&composition, &accepted);
+            return SUCCEEDED(hr) && ! accepted ? E_FAIL : hr;
+        }));
+    };
+
+    float allItemsHeight = 0.0f;
+    {
+        HeadlessHost fixture;
+        auto* const combo = makeCombo(fixture);
+        Check(combo->OnKeyDown(fixture.host, VK_F4, 0u), "settle fixture: F4 opens the popup");
+        allItemsHeight = popupHeight(*combo);
+        wil::com_ptr_nothrow<ITextStoreACP> store;
+        store.attach(DxUi::CreateNativeTextInputTextStore(fixture.host, *combo, false));
+        wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> owner;
+        Hr(store.query_to(owner.put()), "settle fixture: owner sink");
+        Sink sink;
+        Hr(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_ALL_SINKS), "settle fixture: sink");
+        Composition composition;
+        preview(*store, sink, composition, *owner);
+        Check(combo->GetText() == first && ! combo->GetSelectedIndex(), "settle fixture: the preview shows without selecting its item");
+        // Focus leaves mid-composition; nothing restores the preview.
+        auto* const other = fixture.root->AddChild<DxUi::TextField>(L"other");
+        fixture.host.SetFocusControl(other, false);
+        Check(combo->GetText() == first && combo->GetSelectedIndex() == std::optional<size_t>(1u),
+              "focus loss mid-composition makes the shown preview the ComboBox's committed text");
+        fixture.host.SetFocusControl(combo, false);
+        Check(combo->OnKeyDown(fixture.host, VK_F4, 0u) && combo->DebugIsPopupOpen() && popupHeight(*combo) < allItemsHeight,
+              "the reopened popup filters by the text the ComboBox shows");
+        Hr(store->UnadviseSink(&sink), "settle fixture: unadvise");
+    }
+    {
+        HeadlessHost fixture;
+        auto* const combo = makeCombo(fixture);
+        wil::com_ptr_nothrow<ITextStoreACP> store;
+        store.attach(DxUi::CreateNativeTextInputTextStore(fixture.host, *combo, false));
+        wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> owner;
+        Hr(store.query_to(owner.put()), "teardown fixture: owner sink");
+        Sink sink;
+        Hr(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_ALL_SINKS), "teardown fixture: sink");
+        Composition composition;
+        preview(*store, sink, composition, *owner);
+        DxUi::DisconnectNativeTextInputTextStore(store.get());
+        Check(combo->GetText().empty() && ! combo->GetSelectedIndex(), "a store teardown mid-composition restores the committed text");
+        Check(combo->OnKeyDown(fixture.host, VK_F4, 0u) && popupHeight(*combo) == allItemsHeight, "after the teardown the popup filters by the shown text");
+    }
+}
 // Runs every scenario. With a receipt path, the receipt is written before the gate is checked, so a failing run still leaves
 // its counts for comparison.
 inline void Run(const wchar_t* receiptPath)
@@ -623,6 +791,7 @@ inline void Run(const wchar_t* receiptPath)
     const ScenarioResult textField  = RunTextField(document);
     const ScenarioResult richEditor = RunRichTextEditor(document);
     const ScenarioResult comboBox   = RunComboBox();
+    const ScenarioResult sharing    = RunTextField<SharingField>(document);
     std::cout << "IME copies: TextField " << textField.MaximumDocumentAllocationsPerLock() << " document allocations per lock at most, "
               << textField.DocumentAllocationsPerSyllable() << " per syllable; RichTextEditor " << richEditor.MaximumDocumentAllocationsPerLock() << ", "
               << richEditor.DocumentAllocationsPerSyllable() << "; ComboBox popup rebuilds before commit " << comboBox.popupRebuildsBeforeCommit
@@ -645,6 +814,8 @@ inline void Run(const wchar_t* receiptPath)
     }
     Check(textField.MaximumDocumentAllocationsPerLock() <= kMaximumDocumentAllocationsPerLock,
           "IME copies: no TSF lock in a TextField makes more than one document-sized allocation");
+    Check(sharing.MaximumDocumentAllocationsPerLock() <= kMaximumDocumentAllocationsPerLock,
+          "IME copies: a derived TextField that opts in to sharing keeps the one-allocation lock");
     Check(comboBox.popupRebuildsBeforeCommit == 0u, "IME copies: an editable ComboBox rebuilds no popup items before the composition commits");
     Check(comboBox.popupRebuildsAtCommit >= 1u, "IME copies: the commit filters the popup by the committed text");
 }

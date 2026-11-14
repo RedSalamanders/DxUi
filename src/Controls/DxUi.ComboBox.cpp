@@ -10,6 +10,7 @@
 #include <cwctype>
 #include <d2d1effects.h>
 #include <limits>
+#include <typeinfo>
 
 #include "Support/Diagnostics.h"
 
@@ -449,9 +450,26 @@ void PaintComboBoxPopupMaterialSurface(ControlHost& host,
 }
 } // namespace
 
-ComboBox::ComboBox() : _text(MakeSharedText(std::wstring()))
+ComboBox::ComboBox() : _text(EmptySharedText())
 {
     SetFocusable(true);
+}
+
+bool ComboBox::KeepsDefaultTextInputState() const noexcept
+{
+    return typeid(*this) == typeid(ComboBox);
+}
+
+void ComboBox::SettlePreview(const ControlHost* host) noexcept
+{
+    if (! _committedText)
+        return;
+    // The preview the composition left is now the text: filter and select by it.
+    _committedText.reset();
+    SyncEditableSelectionFromText();
+    RebuildPopupItems(host);
+    EnsurePopupSelectionVisible(host);
+    RequestInvalidate();
 }
 
 const std::wstring& ComboBox::Text() const noexcept
@@ -459,11 +477,11 @@ const std::wstring& ComboBox::Text() const noexcept
     return *_text;
 }
 
-std::wstring& ComboBox::MutableText()
+std::wstring& ComboBox::MutableText(size_t requiredUnits)
 {
     // An edit commits its text: the popup filters by it again.
     _committedText.reset();
-    return MutableSharedText(_text);
+    return MutableSharedText(_text, requiredUnits);
 }
 
 const std::wstring& ComboBox::FilterText() const noexcept
@@ -1363,7 +1381,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                     {
                         RecordUndoStateForEditableEdit();
                         static_cast<void>(DeleteEditableSelection());
-                        MutableText().insert(_caretIndex, normalizedClipboardText);
+                        MutableText(_text->size() + normalizedClipboardText.size()).insert(_caretIndex, normalizedClipboardText);
                         _caretIndex += normalizedClipboardText.size();
                         _selectionAnchorIndex.reset();
                         RefreshEditableTextAfterMutation(host);
@@ -1384,7 +1402,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 if (eraseFrom < _caretIndex)
                 {
                     RecordUndoStateForEditableEdit();
-                    MutableText().erase(eraseFrom, _caretIndex - eraseFrom);
+                    MutableText(_text->size()).erase(eraseFrom, _caretIndex - eraseFrom);
                     _caretIndex = eraseFrom;
                     _selectionAnchorIndex.reset();
                     RefreshEditableTextAfterMutation(host);
@@ -1405,7 +1423,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 if (eraseTo > _caretIndex)
                 {
                     RecordUndoStateForEditableEdit();
-                    MutableText().erase(_caretIndex, eraseTo - _caretIndex);
+                    MutableText(_text->size()).erase(_caretIndex, eraseTo - _caretIndex);
                     _selectionAnchorIndex.reset();
                     RefreshEditableTextAfterMutation(host);
                     return true;
@@ -1425,7 +1443,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     RecordUndoStateForEditableEdit();
                     static_cast<void>(DeleteEditableSelection());
-                    MutableText().insert(_caretIndex, normalizedClipboardText);
+                    MutableText(_text->size() + normalizedClipboardText.size()).insert(_caretIndex, normalizedClipboardText);
                     _caretIndex += normalizedClipboardText.size();
                     _selectionAnchorIndex.reset();
                     RefreshEditableTextAfterMutation(host);
@@ -1513,7 +1531,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             {
                 const auto range = GetTextElementDeletionRange(Text(), _caretIndex, true);
                 RecordUndoStateForEditableEdit();
-                MutableText().erase(range.first, range.last - range.first);
+                MutableText(_text->size()).erase(range.first, range.last - range.first);
                 _caretIndex = range.first;
                 _selectionAnchorIndex.reset();
                 RefreshEditableTextAfterMutation(host);
@@ -1533,7 +1551,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             {
                 const auto range = GetTextElementDeletionRange(Text(), _caretIndex, false);
                 RecordUndoStateForEditableEdit();
-                MutableText().erase(range.first, range.last - range.first);
+                MutableText(_text->size()).erase(range.first, range.last - range.first);
                 _caretIndex = range.first;
                 _selectionAnchorIndex.reset();
                 RefreshEditableTextAfterMutation(host);
@@ -1854,12 +1872,12 @@ bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
     if (IsUtf16TrailSurrogate(ch))
     {
         const wchar_t pair[] = {lead, ch};
-        MutableText().insert(_caretIndex, pair, 2u);
+        MutableText(_text->size() + 2u).insert(_caretIndex, pair, 2u);
         _caretIndex += 2u;
     }
     else
     {
-        MutableText().insert(_caretIndex, 1u, ch);
+        MutableText(_text->size() + 1u).insert(_caretIndex, 1u, ch);
         ++_caretIndex;
     }
     _selectionAnchorIndex.reset();
@@ -2320,7 +2338,7 @@ bool ComboBox::DeleteEditableSelection() noexcept
         return false;
     try
     {
-        return DeleteSingleLineSelection(MutableText(), _caretIndex, _selectionAnchorIndex);
+        return DeleteSingleLineSelection(MutableText(_text->size()), _caretIndex, _selectionAnchorIndex);
     }
     catch (const std::bad_alloc&)
     {
@@ -2467,6 +2485,8 @@ void ComboBox::OnFocusChanged(ControlHost& host, bool focused)
         _caretVisible  = true;
         _dragSelecting = false;
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);
+        // Focus left mid-composition: the preview it shows is the text now.
+        SettlePreview(&host);
     }
     if (! focused && _open)
     {

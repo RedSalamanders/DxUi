@@ -320,7 +320,12 @@ The popup shows fewer complete rows when space is limited and can open above the
 Hosts must provide space on at least one side for a full row and the popup padding, or open the selector in a larger view.
 An editable ComboBox filters its popup and matches its selection against committed text: while an IME composition
 previews, the open popup keeps the items of the text before the composition, and the commit filters by the result.
-`GetText` reports the preview; the selected index and popup change only at the commit.
+`GetText` reports the preview; the selected index and popup change only at the commit, or when focus leaves mid-composition.
+
+Text input shares a `TextField`'s or `ComboBox`'s document instead of copying it only while the control keeps the default
+`ExportTextInputState` and `ImportTextInputState`. A derived class that overrides either one (to filter or cap input, say)
+is called through it on every input path, IME included; a derived class that overrides neither can override
+`KeepsDefaultTextInputState` to return `true` and keep the shared, copy-free path.
 
 In high contrast, primary Buttons use the exact opaque selection color pair for idle, hover, pressed and focused
 states. Disabled Buttons retain a border with the disabled text color; focus is visible for pointer and keyboard.

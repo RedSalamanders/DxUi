@@ -449,13 +449,31 @@ void RaiseWindowHostFocusChanged(HWND hwnd, const Control* control) noexcept;
 //   reads through a member that the re-entered code may replace.
 // - No weak_ptr to a buffer is ever made, and other threads (UI Automation workers) only receive SharedText copies made on the
 //   owner thread. use_count() == 1 therefore means no other thread holds or can gain a reference.
-// - The last owner's release securely wipes the buffer, so password text leaves no copy in freed memory.
+// - Release wipes: when the last owner releases a buffer MakeSharedText made, its deleter zeroes the whole allocation
+//   (every unit up to capacity(), not only the current size) before freeing it. An edit never lets std::wstring reallocate a
+//   shared buffer in place: MutableSharedText is told the edit's final size and copies to a large enough buffer first, so the
+//   old block also leaves through the deleter. Text that shrinks in place keeps stale units beyond its size only until the
+//   buffer's release. What is not covered: copies callers make into their own std::wstring (TextInputState, the layout
+//   caches, the public snapshots) follow their existing wiping rules.
+// - TextField and ComboBox hold a buffer at all times, the shared empty one (EmptySharedText) when they have no text.
+// - The shared path (SharedTextInputAccess) reaches a control's text directly only when the control keeps the default
+//   ExportTextInputState/ImportTextInputState (KeepsDefaultTextInputState); any override is always called.
 using SharedText = std::shared_ptr<const std::wstring>;
 // May throw std::bad_alloc, like the std::wstring it replaces; callers keep their existing allocation-failure handling.
 [[nodiscard]] SharedText MakeSharedText(std::wstring text);
-// Writable access to `text` for one edit: the buffer itself when `text` is its only owner, else a copy (with room to grow)
-// that `text` then owns alone. The reference is valid until `text` is next reassigned or shared.
-[[nodiscard]] std::wstring& MutableSharedText(SharedText& text);
+// One process-wide empty buffer, made on first use. It always has another owner, so MutableSharedText never writes to it.
+[[nodiscard]] const SharedText& EmptySharedText() noexcept;
+// Writable access to `text` for one edit after which the text is at most `requiredUnits` long: the buffer itself when `text`
+// is its only owner and its capacity already holds requiredUnits, else a copy with room to grow that `text` then owns alone
+// (the old buffer is released through its deleter). The reference is valid until `text` is next reassigned or shared, and an
+// edit through it must not grow the text beyond requiredUnits.
+[[nodiscard]] std::wstring& MutableSharedText(SharedText& text, size_t requiredUnits);
+namespace Detail
+{
+// Test-only observation of the release wipe: called with the zeroed storage, its capacity in units and the size the text had
+// when released, before the storage is freed. Null outside tests.
+inline thread_local constinit void (*sharedTextReleaseObserver)(const wchar_t* storage, size_t capacityUnits, size_t sizeUnits) noexcept = nullptr;
+} // namespace Detail
 [[nodiscard]] inline std::wstring_view SharedTextView(const SharedText& text) noexcept
 {
     return text ? std::wstring_view(*text) : std::wstring_view();
@@ -488,14 +506,18 @@ struct SharedTextInputState
     }
 };
 
-// Moves a control's text-input state in and out without copying the document where the control keeps shared text
-// (TextField, ComboBox); other controls go through ExportTextInputState/ImportTextInputState with one copy.
+// Moves a control's text-input state in and out without copying the document where the control keeps shared text and its
+// default ExportTextInputState/ImportTextInputState (TextField, ComboBox: KeepsDefaultTextInputState). Every other control,
+// including a derived class that overrides either virtual, goes through the virtuals with one copy, as every host path does.
 struct SharedTextInputAccess
 {
     // May throw std::bad_alloc.
     [[nodiscard]] static bool Export(const Control& control, SharedTextInputState& state);
     // May throw what the control's import and its notifications throw.
     [[nodiscard]] static bool Import(Control& control, ControlHost& host, const SharedTextInputState& state, bool notifyChange);
+    // A composition ended without restoring its preview (teardown, focus loss): an editable ComboBox takes the text it shows
+    // as committed again, re-filtering its popup and selection. No other control keeps preview state; no callbacks run.
+    static void SettlePreview(Control& control, ControlHost& host) noexcept;
 };
 
 [[nodiscard]] ITextStoreACP* CreateNativeTextInputTextStore(ControlHost& host, Control& control, bool hostDeferredWorkEligible = false) noexcept;

@@ -1743,6 +1743,10 @@ __declspec(noinline) static int RunFunctionalTests()
     if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--test-ime-copies")
     {
         ImeCopies::Run(__wargv[2]);
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "IME copies WARP device");
+        ImeCopies::TestImportOverrideRunsOnEveryInputPath(gpu);
+        ImeCopies::TestComboBoxSettlesAPreviewLeftByTeardown();
         return 0;
     }
     // The hover and hit index gate alone (W7.9); the Embedded suite also runs it.
@@ -2151,6 +2155,8 @@ __declspec(noinline) static int RunFunctionalTests()
     WorkCountersComplexUi::TestCountingWrappersReportUncountedCreation();
     TraceProviderComplexUi::Run();
     ImeCopies::Run(nullptr);
+    ImeCopies::TestImportOverrideRunsOnEveryInputPath(gpu);
+    ImeCopies::TestComboBoxSettlesAPreviewLeftByTeardown();
     TestRichFlatProjectionFailureAtomicity();
     TestRichProjectionPreparationAllocationFailureAtomicity();
     TestRichProjectionRetainedStorageBudget();

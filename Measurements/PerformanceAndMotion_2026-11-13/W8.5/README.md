@@ -19,7 +19,7 @@ in [input and accessibility](../../../Specs/UI/UI_InputAndAccessibility.md) ("Sh
   the work counter `popups.comboBoxPopupRebuilds`. No timing is recorded.
 - **Command**: `DxUi.EmbeddedTests.exe --test-ime-copies <receipt>` (also run, without a receipt, by the Embedded suite).
 - **Source**: "before" is base `c128bdb1` plus the measuring test and the rebuild counter only; "after" is the W8.5 change
-  on `9df9b1b3` (uncommitted at capture; the commit carrying these files is the source). Each receipt records its
+  with its review fixes on `299f8ed2` (uncommitted at capture; the commit carrying these files is the source). Each receipt records its
   `baseCommit` and the SHA-256 of its fixture inputs. **Build**: x64, MSVC
   19.52.37025. **Adapter**: none (no rendering). **OS**: Windows 11 build 26300.
 - **Files**: [before, Release](ime-copies-before-release.json); after: [Release](ime-copies-after-release.json),

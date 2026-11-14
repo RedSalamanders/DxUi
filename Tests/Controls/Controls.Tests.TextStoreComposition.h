@@ -545,4 +545,175 @@ inline void TestTextStoreDisplayAttributesResolveClausesAndTarget()
     Require(result.clauseBoundaries.size() == kMaximumTextStoreClauseBoundaries && result.clauseBoundaries.back() == 400u,
             "clause boundaries are bounded and always end at the composition end");
 }
+
+// What the shared-text release hook saw: every released buffer, whether its whole allocation was zero, and whether one of
+// them held stale units beyond its end (text that shrank in place).
+struct SharedTextReleaseRecord
+{
+    size_t releases        = 0u;
+    size_t nonZeroReleases = 0u;
+    size_t shrunkReleases  = 0u;
+};
+inline SharedTextReleaseRecord g_sharedTextReleases;
+
+inline void ObserveSharedTextRelease(const wchar_t* storage, size_t capacityUnits, size_t sizeUnits) noexcept
+{
+    ++g_sharedTextReleases.releases;
+    if (capacityUnits > sizeUnits)
+        ++g_sharedTextReleases.shrunkReleases;
+    for (size_t index = 0u; index < capacityUnits; ++index)
+    {
+        if (storage[index] != L'\0')
+        {
+            ++g_sharedTextReleases.nonZeroReleases;
+            return;
+        }
+    }
+}
+
+// A masked field's password leaves no unit behind in any released buffer: Ctrl+A then Delete shrinks a copy in place,
+// Backspace and Ctrl+Backspace shrink the sole buffer, and typing past the capacity grows it.
+inline void TestSharedTextReleaseWipesTheWholeAllocation()
+{
+    using namespace DxUi;
+    g_sharedTextReleases              = {};
+    Detail::sharedTextReleaseObserver = ObserveSharedTextRelease;
+    const auto restoreObserver        = wil::scope_exit([]() noexcept { Detail::sharedTextReleaseObserver = nullptr; });
+    {
+        ControlHost host;
+        host.SetTextInputBackend(TextInputBackend::Native);
+        auto root         = std::make_unique<Panel>();
+        auto* const field = root->AddChild<TextField>();
+        field->SetMasked(true);
+        field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 32.0f));
+        host.SetRoot(std::move(root));
+        host.SetFocusControl(field, false);
+        for (const wchar_t ch : std::wstring_view(L"hunter2"))
+            Require(field->OnChar(host, ch, 0u), "the masked field takes typed password text");
+        Require(field->OnSelectAll(host) && field->OnKeyDown(host, VK_DELETE, 0u) && field->GetText().empty(), "Ctrl+A then Delete clears it");
+        for (const wchar_t ch : std::wstring_view(L"secret password"))
+            Require(field->OnChar(host, ch, 0u), "the masked field takes more typed text");
+        Require(field->OnKeyDown(host, VK_BACK, 0u) && field->OnKeyDown(host, VK_BACK, MK_CONTROL), "Backspace and Ctrl+Backspace edit it");
+        // Grow well past the buffer's capacity one character at a time.
+        for (size_t index = 0u; index < 300u; ++index)
+            Require(field->OnChar(host, static_cast<wchar_t>(L'a' + (index % 26u)), 0u), "typing grows the password");
+        host.SetRoot(nullptr);
+    }
+    Require(g_sharedTextReleases.releases > 0u && g_sharedTextReleases.shrunkReleases > 0u,
+            "released password buffers include ones that shrank in place and kept stale units beyond their end");
+    Require(g_sharedTextReleases.nonZeroReleases == 0u, "every released password buffer is zero through its whole allocation");
+}
+
+// Each holder of a shared buffer keeps reading its own text while the field edits directly (typing, Backspace, a paste-like
+// replacement, some of them in place): undo history, the TSF store's observed state and a staged TSF state inside a lock.
+inline void TestSharedTextHoldersKeepTheirTextAcrossDirectEdits()
+{
+    using namespace DxUi;
+    ControlHost host;
+    host.SetTextInputBackend(TextInputBackend::Native);
+    auto root         = std::make_unique<Panel>();
+    auto* const field = root->AddChild<TextField>(L"abc");
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 32.0f));
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(field, false);
+    field->SetSelectionRange(3u, 3u);
+    Sink sink;
+    wil::com_ptr_nothrow<ITextStoreACP> store;
+    store.attach(CreateNativeTextInputTextStore(host, *field, false));
+    Require(store != nullptr, "the holder fixture creates a store");
+    // Advising captures the observed state: the store now holds the "abc" buffer.
+    RequireSucceeded(store->AdviseSink(__uuidof(ITextStoreACPSink), &sink, TS_AS_TEXT_CHANGE), "the holder fixture advises a sink");
+
+    // The host synchronizes its text-input cache after each input it dispatches; a direct call does it here.
+    Require(field->OnChar(host, L'd', 0u) && field->GetText() == L"abcd", "typing edits the field");
+    host.SyncTextInput(field);
+    NotifyTextStoreChanged(store.get());
+    Require(sink.textChangeCount == 1u && IsChange(sink.lastTextChange, 3, 3, 4), "the observed buffer still reads abc after typing");
+    Require(field->OnChar(host, L'e', 0u), "typing edits the field again");
+    host.SyncTextInput(field);
+    Require(field->OnKeyDown(host, VK_BACK, 0u) && field->GetText() == L"abcd", "Backspace edits the field");
+    host.SyncTextInput(field);
+    NotifyTextStoreChanged(store.get());
+    Require(sink.textChangeCount == 1u, "the observed buffer reads abcd, as the field shows, after the typing and Backspace");
+
+    std::array<WCHAR, 16u> read{};
+    ULONG copied       = 0u;
+    bool stagedKept    = false;
+    sink.onLockGranted = [&](DWORD) noexcept
+    {
+        // Staging a selection shares the field's buffer; a direct replacement then edits the field (a copy, then in place).
+        const TS_SELECTION_ACP start{0, 0, {TS_AE_END, FALSE}};
+        HRESULT hr = store->SetSelection(1u, &start);
+        if (FAILED(hr))
+            return hr;
+        field->SetSelectionRange(0u, 1u);
+        field->ReplaceSelectionAndNotify(L"XY");
+        ULONG runs = 0u;
+        LONG next  = 0;
+        hr         = store->GetText(0, -1, read.data(), static_cast<ULONG>(read.size()), &copied, nullptr, 0u, &runs, &next);
+        stagedKept = SUCCEEDED(hr) && std::wstring_view(read.data(), copied) == L"abcd";
+        return hr;
+    };
+    HRESULT session = E_FAIL;
+    RequireSucceeded(store->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &session), "the holder fixture obtains a lock");
+    sink.onLockGranted = nullptr;
+    Require(stagedKept, "the staged state reads abcd while the field replaces part of its text in the same lock");
+    RequireSucceeded(store->UnadviseSink(&sink), "the holder fixture unadvises its sink");
+
+    // Undo walks back through the shared history entries, each with the text it captured.
+    field->SetText(L"abc");
+    field->SetSelectionRange(3u, 3u);
+    Require(field->OnChar(host, L'd', 0u) && field->OnChar(host, L'e', 0u), "typing after SetText edits the field");
+    field->SetSelectionRange(0u, 1u);
+    field->ReplaceSelectionAndNotify(L"XY");
+    Require(field->GetText() == L"XYbcde", "the replacement edits the field");
+    Require(field->OnKeyDown(host, 'Z', MK_CONTROL) && field->GetText() == L"abcde", "the history entry before the replacement still reads abcde");
+    Require(field->OnKeyDown(host, 'Z', MK_CONTROL) && field->GetText() == L"abc", "the history entry before the typing still reads abc");
+}
+
+// A control's text stays readable, as empty text, while its members are destroyed: a callback capture's destructor may read
+// it.
+inline void TestTextControlsReadEmptyTextWhileDestroyed()
+{
+    using namespace DxUi;
+    struct Probe final
+    {
+        std::function<std::wstring_view()> read;
+        std::wstring* seen = nullptr;
+        bool* ran          = nullptr;
+        ~Probe()
+        {
+            *seen = std::wstring(read());
+            *ran  = true;
+        }
+    };
+    std::wstring seen = L"unset";
+    bool ran          = false;
+    {
+        auto field  = std::make_unique<TextField>(L"secret");
+        auto probe  = std::make_shared<Probe>();
+        probe->read = [raw = field.get()]() { return raw->GetText(); };
+        probe->seen = &seen;
+        probe->ran  = &ran;
+        field->SetOnTextChanged([probe](std::wstring_view) {});
+        probe.reset();
+        field.reset();
+    }
+    Require(ran && seen.empty(), "a TextField reads empty text from a capture destroyed with it");
+    seen = L"unset";
+    ran  = false;
+    {
+        auto combo = std::make_unique<ComboBox>();
+        combo->SetEditable(true);
+        combo->SetText(L"value");
+        auto probe  = std::make_shared<Probe>();
+        probe->read = [raw = combo.get()]() { return raw->GetText(); };
+        probe->seen = &seen;
+        probe->ran  = &ran;
+        combo->SetOnTextChanged([probe](std::wstring_view) {});
+        probe.reset();
+        combo.reset();
+    }
+    Require(ran, "a ComboBox capture destroyed with it can read its text");
+}
 } // namespace TextStoreConformanceTests

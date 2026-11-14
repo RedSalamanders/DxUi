@@ -1068,10 +1068,20 @@ bounds check, synchronization and caret move share it; only an edit makes a new 
 adopted by the control on import. One TSF lock in a `TextField` therefore makes at most one document-sized allocation
 (the counted gate of `Embedded.Tests.ImeCopies.h`, a ten-syllable composition at about 64 Ki units). A buffer is never
 written while another holder shares it; a view into it stays valid only while a holder pins it, so code that can
-re-enter user callbacks, TSF or `SetText` keeps its own reference while it reads; and the last holder's release securely
-wipes it. An editable `ComboBox` filters and selects its popup items by its committed text: a composition preview (a
-non-notifying import that changes the text) neither rebuilds the open popup's items nor changes the selection, and the
-commit filters by the result. `RichTextEditor` still flattens its document for each TSF import and export; that copy
+re-enter user callbacks, TSF or `SetText` keeps its own reference while it reads. The last holder's release zeroes the
+buffer's whole allocation, up to its capacity, before freeing it, and an edit never lets a shared-text buffer reallocate
+in place: a growing edit copies to a large enough buffer first and the old one is released the same way. Text that
+shrinks in place keeps stale units beyond its end only until that release. This covers the shared buffers only; copies a
+caller takes into its own string (the public `TextInputState` and snapshots, layout caches) keep their own wiping rules.
+A control without text holds a shared empty buffer, so it reads empty text even while it is being destroyed. The
+shared path applies only to a control that keeps the default `ExportTextInputState` and `ImportTextInputState`
+(`KeepsDefaultTextInputState`, a protected virtual that is true for exactly `TextField` and `ComboBox`): a derived class
+that overrides either virtual is always called through it, under TSF as under IMM and the embedded path, at the cost of a
+copy per call; a derived class that keeps both may return true to share. The library derives no class from either. An
+editable `ComboBox` filters and selects its popup items by its committed text: a composition preview (a non-notifying
+import that changes the text) neither rebuilds the open popup's items nor changes the selection, and the commit filters by
+the result. When a composition ends without its preview being restored or committed (focus loss, store teardown, a
+refused restore), the shown text becomes the committed text and the popup and selection follow it. `RichTextEditor` still flattens its document for each TSF import and export; that copy
 belongs to its snapshot export (performance plan `W7.4`).
 
 Native TSF activation stages its document, context and store before publishing the session. It revalidates the

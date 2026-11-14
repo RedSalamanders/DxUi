@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cwctype>
 #include <limits>
+#include <typeinfo>
 
 #include "Support/Diagnostics.h"
 
@@ -963,14 +964,21 @@ HWND ControlHost::GetTextInputHwnd() const noexcept
 
 namespace
 {
-// Securely wipes a shared text buffer when its last owner releases it. Its presence on a buffer (std::get_deleter) also
-// proves MakeSharedText created the buffer as a non-const std::wstring.
+// Securely wipes a shared text buffer when its last owner releases it: every unit up to capacity(), so text that shrank in
+// place leaves nothing behind either. Its presence on a buffer (std::get_deleter) also proves MakeSharedText created the
+// buffer as a non-const std::wstring.
 struct SharedTextDeleter final
 {
     void operator()(const std::wstring* text) const noexcept
     {
-        auto* const owned = const_cast<std::wstring*>(text);
-        SecureWipe::SecureClear(*owned);
+        auto* const owned     = const_cast<std::wstring*>(text);
+        const size_t sizeUnit = owned->size();
+        // Growing to the capacity never reallocates; it makes every unit of the allocation part of the string, so the wipe
+        // below writes only within it.
+        owned->resize(owned->capacity());
+        SecureZeroMemory(owned->data(), owned->size() * sizeof(wchar_t));
+        if (const auto observer = Detail::sharedTextReleaseObserver)
+            observer(owned->data(), owned->size(), sizeUnit);
         delete owned;
     }
 };
@@ -982,27 +990,49 @@ SharedText MakeSharedText(std::wstring text)
     return SharedText(new std::wstring(std::move(text)), SharedTextDeleter{});
 }
 
-std::wstring& MutableSharedText(SharedText& text)
+const SharedText& EmptySharedText() noexcept
 {
-    if (text && text.use_count() == 1 && std::get_deleter<SharedTextDeleter>(text))
+    // Made once on first use (before any control can need it: a control's constructor asks for it) and never released before
+    // process exit, so it always has an owner besides any control holding it.
+    static const SharedText empty = []() noexcept
+    {
+        try
+        {
+            return MakeSharedText(std::wstring());
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
+    }();
+    return empty;
+}
+
+std::wstring& MutableSharedText(SharedText& text, size_t requiredUnits)
+{
+    if (text && text.use_count() == 1 && std::get_deleter<SharedTextDeleter>(text) && text->capacity() >= requiredUnits)
     {
         // Sole owner of a buffer made non-const by MakeSharedText: no other holder can observe this write. The fence pairs
-        // with the release of the last other owner, whose reads therefore happen before the write.
+        // with the release of the last other owner, whose reads therefore happen before the write. The capacity check keeps
+        // std::wstring from reallocating and freeing the old block without the wipe.
         std::atomic_thread_fence(std::memory_order_acquire);
         return const_cast<std::wstring&>(*text);
     }
     const std::wstring_view current = SharedTextView(text);
+    const size_t target             = (std::max)(current.size(), requiredUnits);
     std::wstring copy;
-    // Room for the edit that follows, so it does not reallocate the copy.
-    copy.reserve(current.size() + current.size() / 16u + 16u);
+    // Room for the edit that follows and a little typing after it, so neither reallocates the copy.
+    copy.reserve(target + target / 16u + 16u);
     copy.assign(current);
+    // The old buffer leaves through its deleter once its last owner releases it.
     text = MakeSharedText(std::move(copy));
     return const_cast<std::wstring&>(*text);
 }
 
 bool SharedTextInputAccess::Export(const Control& control, SharedTextInputState& state)
 {
-    if (const auto* field = dynamic_cast<const TextField*>(&control))
+    // The fields are read directly only for a control that keeps the default ExportTextInputState; an override is called.
+    if (const auto* field = dynamic_cast<const TextField*>(&control); field && field->KeepsDefaultTextInputState())
     {
         state = {field->_text,
                  field->_selectionAnchorIndex,
@@ -1013,7 +1043,7 @@ bool SharedTextInputAccess::Export(const Control& control, SharedTextInputState&
                  field->_multiline};
         return true;
     }
-    if (const auto* comboBox = dynamic_cast<const ComboBox*>(&control))
+    if (const auto* comboBox = dynamic_cast<const ComboBox*>(&control); comboBox && comboBox->KeepsDefaultTextInputState())
     {
         if (! comboBox->SupportsTextInput())
             return false;
@@ -1035,16 +1065,27 @@ bool SharedTextInputAccess::Import(Control& control, ControlHost& host, const Sh
         std::wstring(), state.selectionAnchorIndex, state.caretIndex, state.firstVisibleLine, state.readOnly, state.masked, state.multiline};
     if (! state.text)
         return false;
-    if (auto* field = dynamic_cast<TextField*>(&control))
+    // The buffer is adopted only by a control that keeps the default ImportTextInputState; an override is called.
+    if (auto* field = dynamic_cast<TextField*>(&control); field && field->KeepsDefaultTextInputState())
         return field->ImportTextInputText(host, state.text, fields, notifyChange);
-    if (auto* comboBox = dynamic_cast<ComboBox*>(&control))
+    if (auto* comboBox = dynamic_cast<ComboBox*>(&control); comboBox && comboBox->KeepsDefaultTextInputState())
         return comboBox->ImportTextInputText(host, state.text, fields, notifyChange);
     TextInputState copy = fields;
     copy.text.assign(state.View());
     return control.ImportTextInputState(host, copy, notifyChange);
 }
 
-TextField::TextField(std::wstring text) : _text(MakeSharedText(std::move(text)))
+void SharedTextInputAccess::SettlePreview(Control& control, ControlHost& host) noexcept
+{
+    if (auto* comboBox = dynamic_cast<ComboBox*>(&control))
+        comboBox->SettlePreview(&host);
+}
+
+bool TextField::KeepsDefaultTextInputState() const noexcept
+{
+    return typeid(*this) == typeid(TextField);
+}
+TextField::TextField(std::wstring text) : _text(text.empty() ? EmptySharedText() : MakeSharedText(std::move(text)))
 {
     _caretIndex = _text->size();
     SetFocusable(true);
@@ -1055,9 +1096,9 @@ const std::wstring& TextField::Text() const noexcept
     return *_text;
 }
 
-std::wstring& TextField::MutableText()
+std::wstring& TextField::MutableText(size_t requiredUnits)
 {
-    return MutableSharedText(_text);
+    return MutableSharedText(_text, requiredUnits);
 }
 
 TextField::~TextField() noexcept
@@ -1068,8 +1109,9 @@ TextField::~TextField() noexcept
 void TextField::SecureClearStorage() noexcept
 {
     // Only the destructor clears storage. Each shared buffer is wiped when its last owner (this field, its history, the host
-    // cache or a TSF store) releases it.
-    _text.reset();
+    // cache or a TSF store) releases it. The field keeps the shared empty buffer, so code that still reads it while members are
+    // destroyed (a callback capture's destructor) reads empty text.
+    _text = EmptySharedText();
     for (EditHistoryState& state : _undoHistory)
     {
         state.text.reset();
@@ -1230,7 +1272,7 @@ void TextField::ReplaceSelectionAndNotify(std::wstring_view replacement)
     RecordUndoStateForDirectEdit();
     _preferredMultilineXOffsetDip.reset();
     static_cast<void>(DeleteSelection());
-    MutableText().insert(_caretIndex, replacement.data(), replacement.size());
+    MutableText(_text->size() + replacement.size()).insert(_caretIndex, replacement.data(), replacement.size());
     _caretIndex += replacement.size();
     _selectionAnchorIndex.reset();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
@@ -2576,7 +2618,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     RecordUndoStateForDirectEdit();
                     static_cast<void>(DeleteSelection());
-                    MutableText().insert(_caretIndex, normalizedClipboardText);
+                    MutableText(_text->size() + normalizedClipboardText.size()).insert(_caretIndex, normalizedClipboardText);
                     _caretIndex += normalizedClipboardText.size();
                     _selectionAnchorIndex.reset();
                     if (! NotifyChanged())
@@ -2609,7 +2651,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             }
             if (eraseFrom < _caretIndex)
             {
-                MutableText().erase(eraseFrom, _caretIndex - eraseFrom);
+                MutableText(_text->size()).erase(eraseFrom, _caretIndex - eraseFrom);
                 _caretIndex = eraseFrom;
                 _selectionAnchorIndex.reset();
                 if (! NotifyChanged())
@@ -2642,7 +2684,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             }
             if (eraseTo > _caretIndex)
             {
-                MutableText().erase(_caretIndex, eraseTo - _caretIndex);
+                MutableText(_text->size()).erase(_caretIndex, eraseTo - _caretIndex);
                 _selectionAnchorIndex.reset();
                 if (! NotifyChanged())
                 {
@@ -2667,7 +2709,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             {
                 RecordUndoStateForDirectEdit();
                 static_cast<void>(DeleteSelection());
-                MutableText().insert(_caretIndex, normalizedClipboardText);
+                MutableText(_text->size() + normalizedClipboardText.size()).insert(_caretIndex, normalizedClipboardText);
                 _caretIndex += normalizedClipboardText.size();
                 _selectionAnchorIndex.reset();
                 if (! NotifyChanged())
@@ -2884,7 +2926,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (_caretIndex > 0 && ! _text->empty())
         {
             const auto range = GetTextElementDeletionRange(Text(), _caretIndex, true);
-            MutableText().erase(range.first, range.last - range.first);
+            MutableText(_text->size()).erase(range.first, range.last - range.first);
             _caretIndex = range.first;
             _selectionAnchorIndex.reset();
             if (! NotifyChanged())
@@ -2916,7 +2958,7 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (_caretIndex < _text->size())
         {
             const auto range = GetTextElementDeletionRange(Text(), _caretIndex, false);
-            MutableText().erase(range.first, range.last - range.first);
+            MutableText(_text->size()).erase(range.first, range.last - range.first);
             _caretIndex = range.first;
             _selectionAnchorIndex.reset();
             if (! NotifyChanged())
@@ -2991,7 +3033,7 @@ bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
         RecordUndoStateForDirectEdit(DirectEditMergeKind::InsertRun);
         _preferredMultilineXOffsetDip.reset();
         static_cast<void>(DeleteSelection());
-        MutableText().insert(_caretIndex, 1u, L'\n');
+        MutableText(_text->size() + 1u).insert(_caretIndex, 1u, L'\n');
         _caretIndex += 1u;
         _selectionAnchorIndex.reset();
     }
@@ -3003,12 +3045,12 @@ bool TextField::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
         if (IsUtf16TrailSurrogate(ch))
         {
             const wchar_t pair[] = {lead, ch};
-            MutableText().insert(_caretIndex, pair, 2u);
+            MutableText(_text->size() + 2u).insert(_caretIndex, pair, 2u);
             _caretIndex += 2u;
         }
         else
         {
-            MutableText().insert(_caretIndex, 1u, ch);
+            MutableText(_text->size() + 1u).insert(_caretIndex, 1u, ch);
             ++_caretIndex;
         }
         _selectionAnchorIndex.reset();
@@ -3624,7 +3666,7 @@ bool TextField::DeleteSelection() noexcept
         return false;
     try
     {
-        return DeleteSingleLineSelection(MutableText(), _caretIndex, _selectionAnchorIndex);
+        return DeleteSingleLineSelection(MutableText(_text->size()), _caretIndex, _selectionAnchorIndex);
     }
     catch (const std::bad_alloc&)
     {

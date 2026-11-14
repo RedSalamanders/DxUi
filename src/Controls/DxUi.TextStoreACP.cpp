@@ -291,6 +291,9 @@ public:
                 if (! lifetime.expired() && CanRestoreOwnedComposition(control))
                     static_cast<void>(host->SetNativeTextInputCompositionRange(control, {}, {}, {}));
             }
+            // A preview left in place (restore refused or not attempted) is the text now.
+            if (! lifetime.expired() && IsControlInTree(host->GetRoot(), control))
+                SharedTextInputAccess::SettlePreview(*control, *host);
         }
         Abandon();
     }
@@ -1002,7 +1005,22 @@ private:
         return ApplyControlState(finalState, true);
     }
 
+    // Every path that ends a composition by restoring (or failing to restore) its base comes through here. Whatever the
+    // outcome, a control that kept preview state (an editable ComboBox) then takes the text it shows as committed.
     [[nodiscard]] bool RestoreCompositionBase(const SharedTextInputState& base) noexcept
+    {
+        const bool restored = RestoreCompositionBaseText(base);
+        SettleLeftoverPreview();
+        return restored;
+    }
+
+    void SettleLeftoverPreview() noexcept
+    {
+        if (Control* const control = GetLiveControl(); control && _host)
+            SharedTextInputAccess::SettlePreview(*control, *_host);
+    }
+
+    [[nodiscard]] bool RestoreCompositionBaseText(const SharedTextInputState& base) noexcept
     {
         Control* const control = GetLiveControl();
         if (! control)
