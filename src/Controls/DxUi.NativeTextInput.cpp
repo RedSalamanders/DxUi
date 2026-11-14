@@ -143,6 +143,64 @@ void KeepCachedTextOfSameRevision(SharedTextInputState& state,
     return state;
 }
 
+// Whether two cache entries hold the same values in every field except `text`, which a cache entry never uses (the document
+// is compared by identity beside it). The structured bindings name every member of NativeTextInputState: a member added to
+// the struct stops this from compiling until it is compared here too, so the post-dispatch skip can never ignore one.
+// Fields and why each is compared:
+// - selectionAnchorIndex, caretIndex, firstVisibleLine, readOnly, masked, multiline: exported by the control.
+// - flowDirection, readingDirection, passwordRevealMode, passwordRevealState, maskLengthPolicy, secretVisibleDotCount: read
+//   from the control by ToNativeTextInputState; a control may change them without synchronizing (SetPasswordRevealState).
+// - The composition range, conversion target, cursor and clause boundaries: owned by the host, empty in both when no
+//   composition is active (the skip's precondition); compared so a stale one is never kept.
+[[nodiscard]] bool SameCachedNativeTextInputFields(const NativeTextInputState& left, const NativeTextInputState& right) noexcept
+{
+    const auto& [leftText,
+                 leftAnchor,
+                 leftCaret,
+                 leftFirstLine,
+                 leftReadOnly,
+                 leftMasked,
+                 leftMultiline,
+                 leftCompositionStart,
+                 leftCompositionEnd,
+                 leftTargetStart,
+                 leftTargetEnd,
+                 leftCursor,
+                 leftClauses,
+                 leftFlow,
+                 leftReading,
+                 leftRevealMode,
+                 leftRevealState,
+                 leftMaskPolicy,
+                 leftDots]  = left;
+    const auto& [rightText,
+                 rightAnchor,
+                 rightCaret,
+                 rightFirstLine,
+                 rightReadOnly,
+                 rightMasked,
+                 rightMultiline,
+                 rightCompositionStart,
+                 rightCompositionEnd,
+                 rightTargetStart,
+                 rightTargetEnd,
+                 rightCursor,
+                 rightClauses,
+                 rightFlow,
+                 rightReading,
+                 rightRevealMode,
+                 rightRevealState,
+                 rightMaskPolicy,
+                 rightDots] = right;
+    static_cast<void>(leftText);
+    static_cast<void>(rightText);
+    return leftAnchor == rightAnchor && leftCaret == rightCaret && leftFirstLine == rightFirstLine && leftReadOnly == rightReadOnly &&
+           leftMasked == rightMasked && leftMultiline == rightMultiline && leftCompositionStart == rightCompositionStart &&
+           leftCompositionEnd == rightCompositionEnd && leftTargetStart == rightTargetStart && leftTargetEnd == rightTargetEnd && leftCursor == rightCursor &&
+           leftClauses == rightClauses && leftFlow == rightFlow && leftReading == rightReading && leftRevealMode == rightRevealMode &&
+           leftRevealState == rightRevealState && leftMaskPolicy == rightMaskPolicy && leftDots == rightDots;
+}
+
 [[nodiscard]] RECT NormalizeCaretRectPx(const RECT& rect) noexcept
 {
     RECT normalized = rect;
@@ -1290,16 +1348,36 @@ bool ControlHost::NativeTextInputSyncedUnchanged(Control* control, uint64_t sync
         if (! SharedTextInputAccess::Export(*control, exported))
             return false;
         // Identity only: the same buffer or the same revision. Equal content in a different buffer still synchronizes.
-        const bool sameDocument           = exported.source ? (_nativeTextInputCacheSource && _nativeTextInputCacheSource->IsSameRevision(*exported.source))
-                                                            : (exported.text && exported.text == _nativeTextInputCacheText && ! _nativeTextInputCacheSource);
-        const NativeTextInputState& cache = _nativeTextInputStateCache;
-        return sameDocument && exported.selectionAnchorIndex == cache.selectionAnchorIndex && exported.caretIndex == cache.caretIndex &&
-               exported.firstVisibleLine == cache.firstVisibleLine && exported.readOnly == cache.readOnly && exported.masked == cache.masked &&
-               exported.multiline == cache.multiline;
+        const bool sameDocument = exported.source ? (_nativeTextInputCacheSource && _nativeTextInputCacheSource->IsSameRevision(*exported.source))
+                                                  : (exported.text && exported.text == _nativeTextInputCacheText && ! _nativeTextInputCacheSource);
+        // Every other cached field is re-derived exactly as a synchronization would store it (ToNativeTextInputState, which
+        // also reads what a control changes without synchronizing: flow direction and the password reveal state, mode, mask
+        // policy and dot count) and compared field by field, so a skipped synchronization could not have changed the cache.
+        return sameDocument && SameCachedNativeTextInputFields(ToNativeTextInputState(*control, exported), _nativeTextInputStateCache);
     }
     catch (const std::bad_alloc&)
     {
         Failure::FailAllocation();
+    }
+}
+
+void ControlHost::SyncNativeTextInputAfterDispatch(Control* control, uint64_t synchronizationsBefore) noexcept
+{
+    if (! NativeTextInputSyncedUnchanged(control, synchronizationsBefore))
+    {
+        SyncNativeTextInputSession(control);
+        return;
+    }
+    // The cache already holds exactly this state, so a synchronization would change nothing it stores. What depends on more
+    // than the cached state is still refreshed, as a synchronization would: the caret geometry (it follows scrolling, which
+    // the cache does not hold; this also places the system caret) and the text store's own comparison (its viewport). Both
+    // copy nothing.
+    UpdateNativeTextInputCaret();
+    if (control == _nativeTextInputControl && _nativeTextInputTsfTextStore)
+    {
+        wil::com_ptr_nothrow<ITextStoreACP> textStore;
+        if (SUCCEEDED(_nativeTextInputTsfTextStore.query_to(textStore.put())) && textStore)
+            NotifyTextStoreChanged(textStore.get());
     }
 }
 
@@ -1924,10 +2002,19 @@ bool ControlHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp
         {
             _nativeTextInputImeBaseState   = baseState;
             _nativeTextInputImePreviewText = baseState.text;
+            // The IMM path keeps its base and preview as strings: for a rich editor, two more whole-document copies beyond
+            // the export's own flatten (which the document counts).
+            if (_nativeTextInputCacheSource)
+            {
+                NoteRichDocumentCopy(baseState.text.size());
+                NoteRichDocumentCopy(baseState.text.size());
+            }
         }
         else
         {
             _nativeTextInputImeBaseState.reset();
+            if (_nativeTextInputCacheSource)
+                NoteRichDocumentCopy(GetNativeTextInputCacheText().size()); // The range state below copies the cached document.
         }
 
         const TextInputState& rangeState                        = _nativeTextInputImeBaseState.has_value()
@@ -2367,6 +2454,8 @@ bool ControlHost::DebugGetNativeTextInputState(NativeTextInputState& outState) c
 
     outState = _nativeTextInputStateCache;
     outState.text.assign(GetNativeTextInputCacheText());
+    if (_nativeTextInputCacheSource)
+        NoteRichDocumentCopy(outState.text.size());
     return true;
 }
 

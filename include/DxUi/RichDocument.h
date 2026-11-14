@@ -121,6 +121,8 @@ private:
     }
     wchar_t CharacterAt(std::size_t offset) const noexcept;
     const PieceTreeNode* RootNode() const noexcept;
+    // Work counters: attributes a copy to the editor's own document or to any other Document.
+    void NoteSliceCopy(std::size_t units, bool whole) const noexcept;
     friend class Document;
     // Marker admission compares existing delimiters without allocating.
     friend SourceResult TryToggleMarker(Document&, std::wstring_view, bool&);
@@ -199,6 +201,9 @@ private:
     Selection selection_{};
     std::uint64_t revision_{};
     std::uint64_t selectionEpoch_{}; // Detect selection moves even when a later move returns to the same ACP.
+    // Work counters only: a RichTextEditor marks its own document so copies of it count apart from other Documents'.
+    bool editorSource_{};
+    void CountAsEditorSource() noexcept;
     friend class ::DxUi::RichTextEditor;
     [[nodiscard]] bool AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selection selection) noexcept;
     struct HistoryRing

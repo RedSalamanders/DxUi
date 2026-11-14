@@ -268,11 +268,18 @@ snapshot, delta and receipt.
 - **Rich documents.** `hoveredTitleCalls` counts each `RichTextEditor::HoveredTitle` resolution (the hover title under a
   point, asked for by the host's supplemental tooltip), and `hoverScanElements` each semantic element a pointer-hover
   lookup tests one by one. Hover lookups go through the prepared hover index, so the latter stays 0.
-  `documentBytesCopied` counts the bytes of a rich document's source or display text copied into a string (source slices
-  and flattens, a flattened prepared display, a word window, a public text-input copy), and `documentFlattens` each copy
-  of a whole non-empty source or display. Per input event in a 64 Ki-unit `RichTextEditor`, both text-input
-  synchronizations included, a one-character insert and an arrow key copy at most 1 KiB and no gated event (insert,
-  arrow, Backspace, Ctrl+arrow, Ctrl+Backspace, Enter, double-click) flattens the document
+  `documentBytesCopied` counts the bytes of a `RichTextEditor`'s own document copied into a string (source slices and
+  flattens, a flattened prepared display, a word window, a public text-input copy), and `documentFlattens` each copy of
+  its whole non-empty source or display. The editor marks its `Document` (and every lineage that document later takes,
+  through a reset, an adopted snapshot or an exchanged document), so copies out of any other `RichText::Document` count
+  apart, as `otherDocumentBytesCopied` and `otherDocumentFlattens`: the small documents preparation builds for labels,
+  such as each line number of a numbered code fence in the Subtle presentation (one whole-document copy of a few units per
+  numbered line, per preparation of that fence; plan item `W7.6`). With no UI Automation client listening (with one, the
+  accessibility event and snapshot still copy the document; see "Rich text-input snapshots" in the input contract), per
+  input event in a 64 Ki-unit `RichTextEditor` (the event itself and both text-input synchronizations, not the
+  preparation that follows), a one-character insert and an arrow key copy at most 1 KiB and no gated event (insert,
+  arrow, Backspace, Ctrl+arrow, Ctrl+Backspace, Enter, double-click) flattens the document. The preparation after an edit
+  in Markdown rendering still copies the source once for the Markdown parse (plan item `W7.2`)
   (`Embedded.Tests.RichTextInputCopies.h`; receipt `Measurements/PerformanceAndMotion_2026-11-13/W7.4`).
   A semantic document build counts each element it creates (`elementsBuilt`) and adds the display
   units of the source/display map it publishes (`displayUnitsWritten`). Semantic geometry counts each native diagram paint

@@ -694,6 +694,7 @@ struct RichTextEditor::State
 
 RichTextEditor::RichTextEditor(std::wstring text) : _state(std::make_unique<State>(std::move(text)))
 {
+    _state->document.CountAsEditorSource(); // Work counters: copies of this document are the editor's own (rich.documentFlattens).
     SetFocusable(true);
     EnableContentPreparation();
     EnableVisualContentPreparation();
@@ -727,6 +728,7 @@ bool RichTextEditor::ExchangeDocumentState(RichText::Document& document)
     swap(current.selection_, document.selection_);
     swap(current.revision_, document.revision_);
     swap(current.selectionEpoch_, document.selectionEpoch_);
+    current.CountAsEditorSource();
     const auto history = [&](auto& left, auto& right)
     {
         left.entries.swap(right.entries);
@@ -5163,8 +5165,10 @@ SharedText RichTextEditor::TextInputText(const RichText::SourceSnapshot& source)
     auto& state = *_state;
     if (state.textInputSource && state.textInputText && state.textInputSource->IsSameRevision(source))
         return state.textInputText;
-    // Only the current revision is kept; an older one (a reader still holding it) gets its own copy.
-    if (! source.IsSameRevision(Snapshot()))
+    // Only the current revision is kept, and only while the editor has focus (text input reads only the focused control; a
+    // store restoring a composition after focus left reads an unfocused one): an older revision or an unfocused editor gets
+    // a one-off copy that the editor does not keep.
+    if (! source.IsSameRevision(Snapshot()) || ! HasFocus())
         return MaterializeSharedText(source);
     if (state.textInputSource && state.textInputText && state.textInputText.use_count() == 1)
     {
@@ -5187,6 +5191,13 @@ SharedText RichTextEditor::TextInputText(const RichText::SourceSnapshot& source)
     state.textInputText   = text;
     state.textInputSource = source;
     return text;
+}
+SharedText SharedTextInputAccess::RetainedRichTextInputCopy(const Control& control, std::optional<RichText::SourceSnapshot>* source) noexcept
+{
+    const auto* editor = dynamic_cast<const RichTextEditor*>(&control);
+    if (source)
+        *source = editor ? editor->_state->textInputSource : std::nullopt;
+    return editor ? editor->_state->textInputText : SharedText();
 }
 bool RichTextEditor::ShowsTextInputText(const SharedText& text) const noexcept
 {
@@ -5222,12 +5233,13 @@ bool RichTextEditor::ImportTextInputView(ControlHost& host, std::wstring_view te
         notifyChange ? _state->document.TryReplaceWholeText(text, selection, changed) : _state->document.TryReplaceTransient(text, selection, changed);
     if (result != RichText::SourceResult::Success)
         return false;
-    if (buffer && *buffer)
+    if (buffer && *buffer && HasFocus())
     {
         // The document now shows exactly the buffer's text (the transaction validated and applied it whole). Keep the buffer
         // as the text-input copy of this revision before any notification runs, so the synchronization and reads that
         // follow share it instead of copying. A later edit (a callback's included) moves to a new revision and leaves this
-        // copy stale, never wrong: it is keyed by revision identity.
+        // copy stale, never wrong: it is keyed by revision identity. An unfocused editor (a restore after focus left) keeps
+        // no copy, so it holds none after its focus loss.
         _state->textInputText   = *buffer;
         _state->textInputSource = Snapshot();
     }

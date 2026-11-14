@@ -891,14 +891,17 @@ private:
                 (_host->_nativeTextInputCacheText || _host->_nativeTextInputCacheSource))
             {
                 const NativeTextInputState& cache = _host->_nativeTextInputStateCache;
-                outState.text                     = materialize ? _host->MaterializeNativeTextInputCacheText() : _host->_nativeTextInputCacheText;
-                outState.source                   = _host->_nativeTextInputCacheSource;
-                outState.selectionAnchorIndex     = cache.selectionAnchorIndex;
-                outState.caretIndex               = cache.caretIndex;
-                outState.firstVisibleLine         = cache.firstVisibleLine;
-                outState.readOnly                 = cache.readOnly;
-                outState.masked                   = cache.masked;
-                outState.multiline                = cache.multiline;
+                // A notification read of a rich editor's revision carries the revision alone: holding the materialized
+                // copy as well (the observed state keeps what it reads) would keep the editor from updating that copy in
+                // place after the next keystroke.
+                outState.source = _host->_nativeTextInputCacheSource;
+                outState.text = materialize ? _host->MaterializeNativeTextInputCacheText() : outState.source ? SharedText() : _host->_nativeTextInputCacheText;
+                outState.selectionAnchorIndex = cache.selectionAnchorIndex;
+                outState.caretIndex           = cache.caretIndex;
+                outState.firstVisibleLine     = cache.firstVisibleLine;
+                outState.readOnly             = cache.readOnly;
+                outState.masked               = cache.masked;
+                outState.multiline            = cache.multiline;
                 if (const auto* textField = dynamic_cast<const TextField*>(control))
                 {
                     outState.readOnly = textField->IsReadOnly();
@@ -923,6 +926,8 @@ private:
             {
                 if (materialize)
                     SharedTextInputAccess::Materialize(control, exported);
+                else if (exported.source)
+                    exported.text.reset(); // As above: a notification read keeps the revision, not the editor's copy.
                 outState = std::move(exported);
                 return true;
             }

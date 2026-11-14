@@ -3,6 +3,7 @@
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.NativeDevicePolicy.h"
 #include "Controls.Tests.PresentedFrame.h"
+#include "Controls.Tests.TextInputSyncOnce.h"
 #include "Controls/DxUi.Typography.h"
 #include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.PerformanceCapture.h"
@@ -7959,4 +7960,8 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostApplicationVisibilitySuspendsNativePresentation);
     DXUI_RUN_TEST(TestWindowHostVisibilityChangedDuringPaintRequiresFreshFrame);
     DXUI_RUN_TEST(TestNoninteractiveWindowActivationBlockerRejectsFocusStealing);
+    DXUI_RUN_TEST(TestTextInputSyncOnceRefreshesTheCaretAfterAFormatterScrolls);
+    DXUI_RUN_TEST(TestTextInputSyncOnceRefreshesTheCaretAfterARichCallbackScrolls);
+    DXUI_RUN_TEST(TestTextInputSyncOnceSynchronizesAPasswordRevealChangeMadeAfterTheControlsSync);
+    DXUI_RUN_TEST(TestTextInputSyncOnceSkipsWhenTheControlAlreadySynchronizedTheSameState);
 }

@@ -2380,8 +2380,7 @@ bool ControlHost::RouteFocusedCharInput(wchar_t ch, UINT modifiers, const wchar_
     if (controlHandled && liveCharTarget && liveCharTarget == _focusedControl && liveCharTarget->SupportsTextInput())
     {
         // Once per input event: a control that already synchronized the state it now shows is not synchronized again.
-        if (! NativeTextInputSyncedUnchanged(liveCharTarget, synchronizationsBefore))
-            SyncNativeTextInputSession(liveCharTarget);
+        SyncNativeTextInputAfterDispatch(liveCharTarget, synchronizationsBefore);
         RecordNativeTextInputKeyToStateMetric(inputStartedAt, perfDetail, static_cast<uint64_t>(ch), modifiers);
     }
     return controlHandled;
@@ -4021,8 +4020,7 @@ try
                     if (_textInputBackend == TextInputBackend::Native && liveKeyTarget && liveKeyTarget == _focusedControl &&
                         liveKeyTarget->SupportsTextInput())
                     {
-                        if (! NativeTextInputSyncedUnchanged(liveKeyTarget, synchronizationsBefore))
-                            SyncNativeTextInputSession(liveKeyTarget);
+                        SyncNativeTextInputAfterDispatch(liveKeyTarget, synchronizationsBefore);
                         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-keydown", static_cast<uint64_t>(wp), modifiers);
                     }
                     if (liveKeyTarget)
@@ -4073,8 +4071,7 @@ try
                         liveKeyTarget->SupportsTextInput())
                     {
                         // Once per input event: a control that already synchronized the state it now shows is not synchronized again.
-                        if (! NativeTextInputSyncedUnchanged(liveKeyTarget, synchronizationsBefore))
-                            SyncNativeTextInputSession(liveKeyTarget);
+                        SyncNativeTextInputAfterDispatch(liveKeyTarget, synchronizationsBefore);
                         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-keydown", static_cast<uint64_t>(wp), modifiers);
                     }
                     // As after a handled pointer release: a key the control handled may have changed what it exposes to
@@ -4154,8 +4151,7 @@ try
                     if (_textInputBackend == TextInputBackend::Native && liveKeyTarget && liveKeyTarget == _focusedControl &&
                         liveKeyTarget->SupportsTextInput())
                     {
-                        if (! NativeTextInputSyncedUnchanged(liveKeyTarget, synchronizationsBefore))
-                            SyncNativeTextInputSession(liveKeyTarget);
+                        SyncNativeTextInputAfterDispatch(liveKeyTarget, synchronizationsBefore);
                         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-keyup", static_cast<uint64_t>(wp), modifiers);
                     }
                     return 0;

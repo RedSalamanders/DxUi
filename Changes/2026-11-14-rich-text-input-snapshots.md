@@ -8,7 +8,11 @@
   and a double-click flatten nothing (word boundaries read a window around the caret; the first line ending comes from
   the line summaries). A TSF lock in a `RichTextEditor` went from up to 9 document-sized allocations to at most one, and a
   composition commit stays one undo step. A native host no longer synchronizes text input a second time after a key or
-  character when the control already synchronized the state it shows. New additive APIs: `SourceSnapshot::UnitAt` and
+  character when the control already synchronized the state it shows and the cache already holds every field it would
+  store (password reveal state included); it still refreshes the caret, so a field that scrolls after synchronizing
+  keeps its system caret in place. An unfocused editor keeps no text-input copy. The private copy counters attribute
+  copies to the editor's own document (`rich.documentFlattens`) apart from other documents such as code-fence line
+  numbers (`rich.otherDocumentFlattens`). New additive APIs: `SourceSnapshot::UnitAt` and
   `SourceSnapshot::LineStart`, and the protected virtual `RichTextEditor::KeepsDefaultTextInputState`: a derived editor
   that overrides `ExportTextInputState` or `ImportTextInputState` is always called through them; one that keeps both can
   opt in to the snapshot path.

@@ -55,6 +55,13 @@ row), and in the preparation that follows (not gated):
 | semantic | Enter | 516,112 / 2 | **0 / 0** | 516,112 / 2 | 258,056 / 1 |
 | semantic | double-click | 641,826 / 3 | **0 / 0** | 258,056 / 1 | 0 / 0 |
 
+The review follow-up made the counters count the editor's own document only (other `RichText::Document`s count as
+`rich.otherDocumentBytesCopied`/`otherDocumentFlattens`); the receipts above contain no other documents, so their numbers
+are unchanged. In the follow-up's `numbered-fence` scenario (semantic, Subtle, prose and a numbered 2,000-line code
+fence, as FX8's rendered variant), every gated input event copies 0 bytes and flattens nothing; the preparation after an
+edit makes 1 editor flatten (the Markdown parse, about 215 KiB counted) and 2,001 other-document flattens of 27,584 bytes
+in all (2,000 fence line numbers and the fence's language label, each a small `Document`; plan item `W7.6`).
+
 The flatten left in a semantic preparation after an edit is the Markdown parse's own source copy
 (`MarkdownParser::TryBeginSource`, `DxUi.MarkdownSyntax.cpp`), which plan item W7.2 owns; it is not text input.
 

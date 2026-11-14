@@ -1076,18 +1076,23 @@ Rich text-input snapshots. A `RichTextEditor` exports its document to text input
 piece-tree `SourceSnapshot`), not as a flattened string. The native host's cache keeps that revision as its previous
 state; synchronization, the UI Automation text-changed check and the TSF store's change notification compare two
 revisions by identity, or only across their tracked changed range, and the store computes the `TS_TEXTCHANGE` common
-prefix and suffix in place, with the same result as on the whole texts. A one-character insert, an arrow key, Backspace,
-Ctrl+arrow, Ctrl+Backspace, Enter and a double-click copy no whole document and at most 1 KiB of it (word boundaries read
+prefix and suffix in place, with the same result as on the whole texts. With no UI Automation client listening, the input event itself (its handler and both synchronizations, not the preparation that follows) for a one-character insert, an arrow key, Backspace,
+Ctrl+arrow, Ctrl+Backspace, Enter and a double-click copies no whole document and at most 1 KiB of it (word boundaries read
 a window around the caret that grows only when a word reaches its edge; the first line ending comes from the line
-summaries). Contiguous text is materialized only for a reader that needs it (a TSF lock, IMM, a public
+summaries). With a client listening, the text-input automation event and the window's accessibility snapshot still copy the whole document per change or caret move; removing those copies belongs to the accessibility text provider (performance plan `W8.3`, `W8.4`). Contiguous text is materialized only for a reader that needs it (a TSF lock, IMM, a public
 `TextInputState`/`NativeTextInputState`) and at most once per revision: the host cache and the editor keep that copy,
 keyed by the revision's identity, and the editor updates it in place by the changed range while nothing else holds it. A
 TSF import reads the store's buffer in place, applies only its changed range and keeps the buffer as the copy of the
 revision it produced, so a TSF lock in a `RichTextEditor` makes at most one document-sized allocation, as in a
-`TextField`; a commit stays one undo step. The editor releases its copy on focus loss. A native host synchronizes once per
-input event: after a key or character, the host skips its own synchronization when the control already synchronized
-during dispatch and still exports exactly the cached state (same buffer or revision, selection and flags), outside any
-composition. Overrides follow the shared-text rule: the snapshot path applies to exactly `RichTextEditor`, or to a derived
+`TextField`; a commit stays one undo step. The editor keeps its copy only while it has focus: it releases it on focus
+loss, and a read or import while it is unfocused (a store restoring a composition after focus left) gets a one-off copy
+that the editor does not keep. The copy is wiped when released, like the shared buffers; the rich document's own storage
+(its piece-tree buffers) and the bounded slices read out of it are not. A native host synchronizes once per input event:
+after a key or character, the host skips its own synchronization when the control already synchronized during dispatch
+and the cache already holds exactly what a synchronization would store (the same buffer or revision, and every other
+cached field re-derived from the control and compared, password reveal state included), outside any composition. The
+skip still refreshes what depends on more than the cache: the caret geometry and system caret (which follow scrolling)
+and the text store's change comparison. Overrides follow the shared-text rule: the snapshot path applies to exactly `RichTextEditor`, or to a derived
 class that keeps both state virtuals and returns true from the protected `KeepsDefaultTextInputState`; any other derived
 class is called through `ExportTextInputState` and `ImportTextInputState` on the TSF, IMM and embedded paths, at the cost
 of a copy per call.

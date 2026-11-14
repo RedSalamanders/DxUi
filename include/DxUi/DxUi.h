@@ -6819,6 +6819,10 @@ private:
     // past synchronizationsBefore) and still exports exactly the cached state, so the host's own synchronization would
     // change nothing. Only for a control whose state is shared; any doubt answers false.
     [[nodiscard]] bool NativeTextInputSyncedUnchanged(Control* control, uint64_t synchronizationsBefore) const noexcept;
+    // The host's synchronization after an input event's dispatch: a full synchronization, or, when
+    // NativeTextInputSyncedUnchanged holds, only the refreshes that depend on more than the cached state (caret geometry,
+    // the text store's comparison).
+    void SyncNativeTextInputAfterDispatch(Control* control, uint64_t synchronizationsBefore) noexcept;
     [[nodiscard]] bool TryGetNativeTextInputCaretRects(D2D1_RECT_F& outRectDip, RECT& outClientRectPx, RECT& outScreenRectPx) const noexcept;
     // Drops interaction state on controls that left the tree or became inert; a dropped focus is published.
     void PruneStaleInteractionState(MessagePrunePass* pass = nullptr) noexcept;

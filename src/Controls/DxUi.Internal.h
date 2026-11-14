@@ -458,8 +458,11 @@ void RaiseWindowHostFocusChanged(HWND hwnd, const Control* control) noexcept;
 // - The shared path (SharedTextInputAccess) reaches a control's text directly only when the control keeps the default
 //   ExportTextInputState/ImportTextInputState (KeepsDefaultTextInputState); any override is always called.
 // - A RichTextEditor keeps its document in its piece tree, not in a buffer. It holds at most one buffer, a contiguous copy of
-//   one source revision for text input (made on demand, or adopted from a TSF import), which it releases on focus loss and
-//   destruction; the copy is keyed by that revision's identity, so a stale copy is never mistaken for the current text.
+//   one source revision for text input (made on demand, or adopted from a TSF import), and only while it has focus: it
+//   releases the copy on focus loss and destruction, and a read or import while unfocused (a store restoring a composition
+//   after focus left) gets a one-off copy that the editor does not keep. The copy is keyed by that revision's identity, so a
+//   stale copy is never mistaken for the current text. Like the shared buffers, the copy is wiped when released; rich-document
+//   storage itself (piece-tree buffers) and transient slices read out of it are not.
 using SharedText = std::shared_ptr<const std::wstring>;
 // May throw std::bad_alloc, like the std::wstring it replaces; callers keep their existing allocation-failure handling.
 [[nodiscard]] SharedText MakeSharedText(std::wstring text);
@@ -565,6 +568,8 @@ struct SharedTextInputAccess
     static void Materialize(const Control* control, SharedTextInputState& state);
     // Whether the live control shows exactly `text`. Compares in place; a control holding that buffer answers without reading.
     [[nodiscard]] static bool ShowsText(const Control& control, const SharedText& text) noexcept;
+    // Test observation: the RichTextEditor's retained text-input copy (null when it holds none) and the revision it copies.
+    [[nodiscard]] static SharedText RetainedRichTextInputCopy(const Control& control, std::optional<RichText::SourceSnapshot>* source = nullptr) noexcept;
     // May throw what the control's import and its notifications throw.
     [[nodiscard]] static bool Import(Control& control, ControlHost& host, const SharedTextInputState& state, bool notifyChange);
     // A composition ended without restoring its preview (teardown, focus loss): an editable ComboBox takes the text it shows
