@@ -307,6 +307,27 @@ Contract: [performance fixtures](../Specs/Testing/Testing_Validation.md#performa
 | `Tests/Embedded/Embedded.Tests.PerformanceFixtures.h` | Embedded runner (`RunEmbedded`, `EmbeddedInstance`), receipts, determinism gate, `FrameTiming::MakeFixture` | No |
 | `Tests/Controls/Controls.Tests.PerformanceFixtures.cpp` | Window runner (`RunWindow`), its determinism gate and receipt command | No |
 | `Tests/Embedded/Embedded.Tests.PerformanceFixtureSelfTest.h` | The framework's own fixture (not in the catalog) | No |
+| `Tests/Controls/Controls.Tests.PerformanceFixtureFx4.cpp` | `FX4`'s own interactive runner, its determinism gate (Menu suite) and receipt | Only for `FX4` |
+
+**Interactive-only fixtures.** `Definition::interactiveOnly` means the fixture takes the foreground, so only the
+interactive run executes it. `FX4` (menus) is the one such fixture: a `MenuPopup` session activates and focuses its popup,
+takes mouse capture, is clamped onto a visible monitor and blurs real screen pixels, and no non-activating seam exists
+(the developer's decision of 14 November 2026). Such a fixture has no `Scenario` (`create` stays `nullptr`); its own runner
+in `DxUi.ControlTests.exe` runs it. Every ordinary path skips it, prints `FX4: interactive, not run` and never fails on it
+or opens a popup: both determinism gates, both executables' `--fixture-receipt`, `performance-fixtures.ps1` without
+`-Interactive`, `FrameTiming::MakeFixture` and `performance-timing.ps1`. The catalog JSON exposes `interactiveOnly`. Its two
+interactive entry points, both under the desktop lease and only after the person at the desktop agrees to the time:
+
+```powershell
+./test.ps1 -Configuration Release -Interactive -Suites Menu -Tests TestPerformanceFixtureFx4IsDeterministic   # two runs, equal counters
+./performance-fixtures.ps1 -Fixture FX4 -Interactive                                                          # the receipt, one lease child
+```
+
+The runner fails, and writes no receipt, when the activation was blocked (the application window cannot take the
+foreground; a popup that is 1 by 1 pixels, differs from its layout rectangle, or is not the foreground window with focus
+and capture) or when the person's input reached the menu (a hovered row, an unexpected keyboard row, a dismissed menu).
+It never moves the pointer. The run sheet is
+[`Measurements/PerformanceAndMotion_2026-11-13/FX4/README.md`](../Measurements/PerformanceAndMotion_2026-11-13/FX4/README.md).
 
 **Building a declared fixture.** Every fixture already has its header and catalog line, so fixtures built at the same
 time touch different files. In `Embedded.Tests.PerformanceFixtureFx<N>.h`:

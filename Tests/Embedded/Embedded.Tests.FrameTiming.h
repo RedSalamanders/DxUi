@@ -59,6 +59,9 @@ public:
 // Every built catalog fixture on the embedded host, by its id ("FX5") or id and variant ("FX5@uhd-192dpi"); nullptr for any
 // other name. Defined in Embedded.Tests.PerformanceFixtures.h, the fixture framework (plan W0.4).
 inline std::unique_ptr<Fixture> MakeFixture(std::wstring_view name);
+// True for a catalog fixture that only the interactive run executes (Definition::interactiveOnly), after printing
+// "<id>: interactive, not run": the timing harness skips it and succeeds. Defined beside MakeFixture.
+inline bool SkipsFixture(std::wstring_view name);
 
 struct Options
 {
@@ -449,6 +452,8 @@ inline int RunCommand(int argc, wchar_t** argv)
                    stderr);
         return 2;
     }
+    if (SkipsFixture(argv[3]))
+        return 0;
     auto fixture = MakeFixture(argv[3]);
     if (! fixture)
     {

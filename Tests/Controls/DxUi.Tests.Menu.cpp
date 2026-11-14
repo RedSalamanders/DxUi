@@ -1,6 +1,7 @@
 #include "Controls.Tests.DxUiFocusEventClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.MenuPopupReadiness.h"
+#include "Controls.Tests.PerformanceFixtureFx4.h"
 #include "Controls/DxUi.Internal.h"
 #include "Controls/DxUi.PointerInput.h"
 #include "Controls/DxUiNativeMenuInterop.h"
@@ -12777,6 +12778,9 @@ void RunMenuTests()
     runTest("TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss", TestSplitButtonContextMenuSentMouseMessagesHoverAndOutsideDismiss);
     runTest("TestContextMenuPopupRelayoutsOnDpiChanged", TestContextMenuPopupRelayoutsOnDpiChanged);
     runTest("TestContextMenuDpiRelayoutConstrainsOversizedContentToWorkArea", TestContextMenuDpiRelayoutConstrainsOversizedContentToWorkArea);
+    // Performance fixture FX4 (plan W0.4): interactive only, so its determinism gate lives in this suite.
+    if (DXUI_RUN_TEST(TestPerformanceFixtureFx4IsDeterministic))
+        DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
 }
 
 // Separate process suite: std::exit deliberately keeps stack-owned windows alive

@@ -540,6 +540,13 @@
       "reason": "window-host performance fixture runner in the Rendering suite"
     },
     {
+      "pattern": "Tests/Controls/Controls.Tests.PerformanceFixtureFx4.*",
+      "scopes": [
+        "Rendering"
+      ],
+      "reason": "FX4's interactive runner is reached from the window receipt command, whose Rendering suite proves it skips FX4; its gate runs in the interactive Menu suite"
+    },
+    {
       "pattern": "Tests/Embedded/Embedded.Tests.TooltipHoverPath.h",
       "scopes": [
         "Tooltip",
@@ -671,6 +678,20 @@
         "Menu"
       ],
       "reason": "menu pointer, activation and capture scenarios require the person's interactive desktop"
+    },
+    {
+      "pattern": "Tests/Controls/Controls.Tests.PerformanceFixtureFx4.*",
+      "suites": [
+        "Menu"
+      ],
+      "reason": "the FX4 menu fixture takes the foreground; its determinism gate runs only in the interactive Menu suite"
+    },
+    {
+      "pattern": "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx4.h",
+      "suites": [
+        "Menu"
+      ],
+      "reason": "the FX4 menu fixture takes the foreground; its determinism gate runs only in the interactive Menu suite"
     },
     {
       "pattern": "Tests/Controls/DxUi.Tests.NewControls.cpp",

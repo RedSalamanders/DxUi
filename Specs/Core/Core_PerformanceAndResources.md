@@ -243,7 +243,10 @@ snapshot, delta and receipt.
   cleared and repainted (the dirty rectangle of a partial native frame). `drawCalls` counts Direct2D draw calls (every
   `Draw…`, `Fill…`, `Clear` and `BlendImage` call DxUi makes on a device context). Only the counting wrappers below
   increment it, so it is populated only where a test executable installs them and is 0 everywhere else, shipping builds
-  included.
+  included. `shadowPasses` counts shadow effect passes drawn for elevated surfaces (popups, cards, dialogs). A thread's
+  shared native device stack counts `d2dDevices` and `compositionDevices` it creates, and native hosts count the
+  `swapChains` they create; with `resources.d3d11Device` and `resources.deviceContext` these give the device creations of
+  one menu session (`FX4`, `G10`).
 - **Wakes by source.** `animationTimer` (the animation dispatcher's `WM_TIMER`), `menuHoverTimer`, `paintMessage`
   (`WM_PAINT`) and `embeddedAdvance` (each `EmbeddedHost::AdvanceAnimation` the application made while animation was
   requested).
@@ -255,8 +258,10 @@ snapshot, delta and receipt.
   through `CountedDrawText`. Each helper forwards to the method unchanged and counts the object it returns; a refused
   creation is not counted. D3D11 devices are counted where `Detail::CreateD3D11DeviceWithWarpFallback` receives one from
   its creator. `DrawText` lays out its whole string on every call, so each call counts one implicit text layout created
-  and destroyed. GDI backdrop captures count `popups.backdropCaptures` and their pixels; each filter of an editable
-  `ComboBox`'s popup items counts `popups.comboBoxPopupRebuilds`.
+  and destroyed. GDI backdrop captures count `popups.backdropCaptures` and their pixels, and each blur drawn over such a
+  capture counts `popups.backdropBlurPasses`; each filter of an editable `ComboBox`'s popup items counts
+  `popups.comboBoxPopupRebuilds`. Each `MenuPopup` content paint counts `popups.menuPopupPaints` and adds the rows it drew
+  to `popups.menuRowsPainted`.
 - **Text.** `text.formatCacheTrims` counts each time `ControlHost::TrimCaches` clears the configured text-format cache
   above its key bound at the start of a preparation or render; each such clear forces every visible control to
   re-prepare in that pass.

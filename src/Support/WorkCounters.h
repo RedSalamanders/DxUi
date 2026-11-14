@@ -17,12 +17,16 @@
 // Frames and hosts: what one preparation, render or composition did.
 #define DXUI_WORK_COUNTERS_FRAME(X)                                                                                                                            \
     X(frame, composites)           /* EmbeddedHost::Composite calls that drew the prepared surface. */                                                         \
+    X(frame, compositionDevices)   /* DirectComposition devices a thread's shared native device stack created (DCompositionCreateDevice2). */                  \
+    X(frame, d2dDevices)           /* Direct2D devices a thread's shared native device stack created (ID2D1Factory1::CreateDevice). */                         \
     X(frame, drawCalls)            /* Direct2D draw calls seen by a test executable's counting wrappers; 0 wherever none is installed. */                      \
     X(frame, paintExecutions)      /* Control::Paint calls dispatched by a host, Panel or PageHost: one per painted control. */                                \
     X(frame, pixelsPainted)        /* Device pixels inside the area a preparation or render cleared and repainted. */                                          \
     X(frame, preparations)         /* EmbeddedHost::Prepare calls that painted the surface. */                                                                 \
     X(frame, presents)             /* Native swap-chain Present or Present1 calls. */                                                                          \
     X(frame, renders)              /* Native WindowHost render passes (BeginDraw to EndDraw). */                                                               \
+    X(frame, shadowPasses)         /* Shadow effect passes drawn (DrawShadowEffectPass): popups, cards and other elevated surfaces. */                         \
+    X(frame, swapChains)           /* Swap chains native hosts created, for composition or for a window. */                                                    \
     X(frame, treeVisitsHitTest)    /* Controls a hit test examined: the root and each child a container offered to it. */                                      \
     X(frame, treeVisitsPaint)      /* Controls a paint walk examined, visible or not. */                                                                       \
     X(frame, treeVisitsStatistics) /* Controls an EmbeddedHost::GetStatistics retained-resource walk examined. */                                              \
@@ -42,9 +46,12 @@
 
 // Popups and menus.
 #define DXUI_WORK_COUNTERS_POPUPS(X)                                                                                                                           \
+    X(popups, backdropBlurPasses)    /* Gaussian blur passes drawn over a popup's captured backdrop (Menu, ComboBox, transient surfaces). */                   \
     X(popups, backdropCapturePixels) /* Screen pixels copied by GDI backdrop captures. */                                                                      \
     X(popups, backdropCaptures)      /* Synchronous GDI BitBlt captures of the screen behind a popup. */                                                       \
-    X(popups, comboBoxPopupRebuilds) /* ComboBox::RebuildPopupItems calls: one filter of the items by the editable text. */
+    X(popups, comboBoxPopupRebuilds) /* ComboBox::RebuildPopupItems calls: one filter of the items by the editable text. */                                    \
+    X(popups, menuPopupPaints)       /* MenuPopup content paints: one per render pass of a menu popup window. */                                               \
+    X(popups, menuRowsPainted)       /* Menu rows those paints drew (each paint draws every row it finds visible). */
 
 // Lists: Grid and Tree.
 #define DXUI_WORK_COUNTERS_LISTS(X)

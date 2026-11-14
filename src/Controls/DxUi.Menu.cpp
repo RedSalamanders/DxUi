@@ -751,6 +751,7 @@ void PaintMenuBackdropSurface(
     const D2D1_POINT_2F targetOffset             = D2D1::Point2F(menuRect.left, menuRect.top);
     dc->PushLayer(layerParameters, layer.get());
     dc->DrawImage(blurEffect.get(), &targetOffset, &sourceRect, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+    ++Detail::Work().popups.backdropBlurPasses;
     if (material.backdropDetailOpacity > 0.0f)
     {
         dc->DrawBitmap(bitmap, menuRect, (std::clamp)(material.backdropDetailOpacity, 0.0f, 1.0f), D2D1_INTERPOLATION_MODE_LINEAR);
@@ -3179,6 +3180,7 @@ public:
         auto* dc = host.GetDeviceContext();
         if (! dc)
             return;
+        ++Detail::Work().popups.menuPopupPaints;
 
         const auto& style             = popup->controller->style;
         const auto& theme             = popup->controller->theme;
@@ -3512,6 +3514,7 @@ public:
         }
 
         popup->lastPaintedItemCount = paintedItemCount;
+        Detail::Work().popups.menuRowsPainted += paintedItemCount;
         if (Debug::Perf::IsCaptureEnabled())
         {
             const Failure::Scope outerFailureScope;

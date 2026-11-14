@@ -96,6 +96,21 @@ if (-not $SkipBuild) {
 }
 $candidate = Join-Path $PSScriptRoot ".build/$Platform/$Configuration/DxUi.EmbeddedTests.exe"
 if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { throw "The frame timing executable is missing: $candidate" }
+# An interactive-only fixture (Definition::interactiveOnly) takes the foreground: the timing harness never runs it, says so
+# and succeeds, leaving no receipt and removing the empty directories this run made.
+$catalogPath = [IO.Path]::GetFullPath((Join-Path $rawDirectory 'catalog.json'))
+$global:LASTEXITCODE = 0
+& $candidate '--fixture-catalog' $catalogPath | Out-Host
+if ($LASTEXITCODE -ne 0) { throw "The fixture catalog could not be read (exit code $LASTEXITCODE)." }
+$fixtureId = $Fixture.Split('@')[0]
+$catalogEntry = @((Get-Content -Raw -LiteralPath $catalogPath | ConvertFrom-Json -AsHashtable -Depth 40)['fixtures'] | Where-Object { $_['id'] -ceq $fixtureId })
+if ($catalogEntry.Count -and $catalogEntry[0].Contains('interactiveOnly') -and $catalogEntry[0]['interactiveOnly']) {
+    Write-Host "${fixtureId}: interactive, not run"
+    foreach ($directory in @($OutputDirectory, $rawDirectory)) {
+        if (@(Get-ChildItem -LiteralPath $directory -Recurse -File | Where-Object { $_.FullName -ne $catalogPath }).Count -eq 0) { Remove-Item -LiteralPath $directory -Recurse }
+    }
+    return
+}
 $roles = @{ A = $(if ($Purpose -eq 'Comparison') { $BaselineExecutable } else { $candidate }); B = $candidate }
 $hashes = @{ A = (Get-FileHash -LiteralPath $roles.A -Algorithm SHA256).Hash; B = (Get-FileHash -LiteralPath $roles.B -Algorithm SHA256).Hash }
 if ($Purpose -eq 'Comparison' -and $hashes.A -ceq $hashes.B) { throw 'A comparison needs two different executables; use -Purpose Calibration for a same-binary study.' }

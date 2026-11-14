@@ -378,6 +378,7 @@ void PaintComboBoxBackdropSurface(ControlHost& host,
     const D2D1_POINT_2F targetOffset             = D2D1::Point2F(popupRect.left, popupRect.top);
     dc->PushLayer(layerParameters, layer.get());
     dc->DrawImage(blurEffect.get(), &targetOffset, &sourceRect, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+    ++Detail::Work().popups.backdropBlurPasses;
     if (material.backdropDetailOpacity > 0.0f)
     {
         dc->DrawBitmap(bitmap, popupRect, (std::clamp)(material.backdropDetailOpacity, 0.0f, 1.0f), D2D1_INTERPOLATION_MODE_LINEAR);

@@ -198,6 +198,7 @@ void PaintTransientSurfaceBackdrop(ControlHost& host, const D2D1_RECT_F& surface
     const D2D1_POINT_2F targetOffset             = D2D1::Point2F(surfaceRect.left, surfaceRect.top);
     dc->PushLayer(layerParameters, nullptr);
     dc->DrawImage(blurEffect.get(), &targetOffset, &sourceRect, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+    ++Detail::Work().popups.backdropBlurPasses;
     dc->PopLayer();
 }
 } // namespace

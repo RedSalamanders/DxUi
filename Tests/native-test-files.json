@@ -33,6 +33,8 @@
   "Tests/Controls/Controls.Tests.NativeDevicePolicy.h",
   "Tests/Controls/Controls.Tests.PerformanceFixtureColdStart.cpp",
   "Tests/Controls/Controls.Tests.PerformanceFixtureColdStart.h",
+  "Tests/Controls/Controls.Tests.PerformanceFixtureFx4.cpp",
+  "Tests/Controls/Controls.Tests.PerformanceFixtureFx4.h",
   "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp",
   "Tests/Controls/Controls.Tests.PerformanceFixtures.h",
   "Tests/Controls/Controls.Tests.PreparedTreeAccessibilityEvents.h",

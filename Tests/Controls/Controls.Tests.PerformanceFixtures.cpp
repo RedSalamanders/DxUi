@@ -8,6 +8,7 @@
 #include "Controls.Tests.PerformanceFixtures.h"
 
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.PerformanceFixtureFx4.h"
 #include "Embedded.Tests.PerformanceFixtureCatalog.h"
 #pragma warning(push)
 #pragma warning(disable : 4625 4626 5026 5027) // scenarios are never copied
@@ -267,6 +268,12 @@ void TestPerformanceFixturesAreDeterministicOnWindowHost()
 {
     for (const Definition* definition : kCatalog)
     {
+        if (definition->interactiveOnly)
+        {
+            // Its own gate is in the Menu suite and runs only under test.ps1 -Interactive.
+            std::cerr << "    [FIXTURE] " << InteractiveNotRun(*definition) << '\n';
+            continue;
+        }
         if (! definition->Built() || ! Supports(definition->hosts, Host::Window))
             continue;
         for (const Variant& variant : definition->variants)
@@ -283,14 +290,35 @@ void TestPerformanceFixturesAreDeterministicOnWindowHost()
 
 int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv)
 {
-    if (argc != 4)
+    const bool interactive = argc == 5 && std::wstring_view(argv[4]) == L"--interactive";
+    if (argc != 4 && ! interactive)
     {
-        std::fputs("--fixture-receipt requires FX<N>[@variant] and an output path.\n", stderr);
+        std::fputs("--fixture-receipt requires FX<N>[@variant] and an output path, and --interactive for an interactive-only fixture.\n", stderr);
         return 2;
     }
     const FixtureSelection selection = ParseSelection(argv[2]);
     const Definition* definition     = FindFixture(selection.id);
     const Variant* variant           = definition ? FindVariant(*definition, selection.variant) : nullptr;
+    if (definition && definition->interactiveOnly)
+    {
+        // Only performance-fixtures.ps1 -Interactive passes --interactive, from a child of the desktop lease.
+        if (! interactive)
+        {
+            std::cout << InteractiveNotRun(*definition) << '\n';
+            return 0;
+        }
+        if (! variant)
+        {
+            std::fputs("--fixture-receipt names no variant of that fixture.\n", stderr);
+            return 2;
+        }
+        return RunInteractiveFixtureReceipt(*definition, *variant, std::filesystem::path(argv[3]));
+    }
+    if (interactive)
+    {
+        std::fputs("--interactive applies only to an interactive-only fixture.\n", stderr);
+        return 2;
+    }
     if (! definition || ! definition->Built() || ! Supports(definition->hosts, Host::Window) || ! variant || variant->hardwareOnly)
     {
         std::fputs("--fixture-receipt names no WARP variant of a fixture built for the window host.\n", stderr);

@@ -293,6 +293,7 @@ bool DrawShadowEffectPass(ControlHost& host, const D2D1_RECT_F& targetRect, floa
 
     const D2D1_POINT_2F shadowOffset = D2D1::Point2F(0.0f, yOffsetDip);
     dc->DrawImage(shadowEffect.get(), &shadowOffset, nullptr, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+    ++Detail::Work().frame.shadowPasses;
     return true;
 }
 

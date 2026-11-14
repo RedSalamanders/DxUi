@@ -2,6 +2,8 @@
 # that the native receipt cannot see, and the generated README of a fixture's receipt directory. Read-only with respect to
 # the machine: the power plan, refresh rate and host load are recorded, never changed.
 Set-StrictMode -Version Latest
+# The interactive desktop lease's refusals, reused for an interactive-only fixture's receipt (performance-fixtures.ps1 -Interactive).
+Import-Module (Join-Path $PSScriptRoot 'InteractiveRun.psm1')
 
 $script:FrameworkInputs = @(
     'Tests/Embedded/Embedded.Tests.PerformanceFixture.h',
@@ -128,5 +130,50 @@ function New-PerformanceFixtureReadme {
     return ($lines -join "`n").TrimEnd() + "`n"
 }
 
+function Get-PerformanceFixtureRunSelection {
+    <# Which of the selected catalog entries a run executes. An interactive-only fixture (Definition::interactiveOnly, the
+       catalog's "interactiveOnly") takes the foreground: without -Interactive it is skipped with "<id>: interactive, not run"
+       and never fails the run; with -Interactive only interactive-only fixtures run (under the desktop lease), and any other
+       is refused by name so the lease holds only what needs the desktop. #>
+    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]] $Selected, [switch] $Interactive)
+    $run = [Collections.Generic.List[object]]::new()
+    $skipped = [Collections.Generic.List[string]]::new()
+    $refused = [Collections.Generic.List[string]]::new()
+    foreach ($entry in $Selected) {
+        $interactiveOnly = $entry.Contains('interactiveOnly') -and [bool]$entry['interactiveOnly']
+        if ($Interactive -and -not $interactiveOnly) { $refused.Add([string]$entry['id']) }
+        elseif (-not $Interactive -and $interactiveOnly) { $skipped.Add("$($entry['id']): interactive, not run") }
+        else { $run.Add($entry) }
+    }
+    if ($refused.Count) { throw "-Interactive runs only interactive-only fixtures; not interactive: $($refused -join ', '). Run those without -Interactive." }
+    if ($Interactive -and -not $run.Count) { throw '-Interactive was given no interactive-only fixture.' }
+    return [pscustomobject]@{ Run = @($run); Skipped = @($skipped) }
+}
+
+function Get-PerformanceFixtureInteractiveRefusal {
+    <# Why an interactive-only fixture's receipt cannot run here, or $null: the desktop lease (DxUi.InteractiveLease.exe) is
+       missing, or the environment refuses exactly as test.ps1 -Interactive does (Get-DxUiInteractiveRefusal: a CI job, no
+       interactive window station). Every input can be given, so the tooling test needs no desktop. #>
+    param([Parameter(Mandatory)][string] $LeaseExecutable, [hashtable] $Environment = $null, [Nullable[bool]] $UserInteractive = $null)
+    $refusal = Get-DxUiInteractiveRefusal -Environment $Environment -UserInteractive $UserInteractive
+    if ($refusal) { return $refusal }
+    if (-not (Test-Path -LiteralPath $LeaseExecutable -PathType Leaf)) {
+        return "the interactive desktop lease is missing: $LeaseExecutable (build DxUi.InteractiveLease with build.ps1); an interactive-only fixture never runs without it"
+    }
+    return $null
+}
+
+function Merge-PerformanceFixtureRunSheet {
+    <# A regenerated README keeps the hand-written "## Interactive run sheet" section of the one it replaces (that heading to
+       the end of the file), so an interactive fixture's first receipt does not erase how to take the next. LF line endings. #>
+    param([Parameter(Mandatory)][string] $Generated, [AllowEmptyString()][string] $Existing = '')
+    $existingText = $Existing.Replace("`r`n", "`n")
+    $marker = "`n## Interactive run sheet"
+    $at = $existingText.IndexOf($marker, [StringComparison]::Ordinal)
+    if ($at -lt 0) { return $Generated }
+    return $Generated.Replace("`r`n", "`n").TrimEnd() + "`n" + $existingText.Substring($at).TrimEnd() + "`n"
+}
+
 Export-ModuleMember -Function Get-PerformanceFixtureFrameworkInputs, Get-PerformanceFixtureInputHashes, Get-PerformanceFixtureReceiptName,
-    Get-PerformanceFixtureOsRecord, Get-PerformanceFixtureDisplayRecord, Add-PerformanceFixtureProvenance, New-PerformanceFixtureReadme
+    Get-PerformanceFixtureOsRecord, Get-PerformanceFixtureDisplayRecord, Add-PerformanceFixtureProvenance, New-PerformanceFixtureReadme,
+    Get-PerformanceFixtureRunSelection, Get-PerformanceFixtureInteractiveRefusal, Merge-PerformanceFixtureRunSheet

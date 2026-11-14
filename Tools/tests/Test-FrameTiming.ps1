@@ -259,6 +259,13 @@ Set-Item -Path 'Function:global:powercfg.exe' -Value {
 $native = {
     param($Flag, $Output, $Fixture, $Phase, $Adapter, $Pin, $Frames, $Milliseconds)
     $root = $global:TimingFixtureRoot
+    if ($Flag -eq '--fixture-catalog') {
+        # The catalog the runner reads to skip an interactive-only fixture: FX4 is one, FX5 is not.
+        [IO.File]::AppendAllText((Join-Path $root 'calls.txt'), "catalog`n")
+        [IO.File]::WriteAllText($Output, '{"schema":1,"fixtures":[{"id":"FX4","built":true,"interactiveOnly":true},{"id":"FX5","built":true,"interactiveOnly":false}]}')
+        $global:LASTEXITCODE = 0
+        return
+    }
     [IO.File]::AppendAllText((Join-Path $root 'calls.txt'), "native:${Flag}:${Fixture}:${Phase}:${Adapter}:${Pin}:${Frames}:${Milliseconds}`n")
     $count = @([IO.File]::ReadAllLines((Join-Path $root 'calls.txt')) | Where-Object { $_.StartsWith('native:') }).Count
     $global:LASTEXITCODE = 0
@@ -315,6 +322,17 @@ Invoke-FixtureCase 'runner: a smoke session keeps the power scheme, records the 
     Assert-True (-not $receipt.Contains('calibration') -and -not $receipt.Contains('comparison')) 'a smoke run has no calibration or verdict'
     Assert-Equal 'ABBA' $receipt.sessions[0].order 'interleaved order'
     Assert-True ([Math]::Abs([double]$receipt.sessions[0].idlePreflight.busyPercent - 2.0) -lt 1e-6) 'preflight busy share recorded'
+}
+
+Invoke-FixtureCase 'runner: an interactive-only fixture is never timed, says so and succeeds' {
+    param($root)
+    New-TimingRunnerFixture $root
+    $run = Invoke-TimingRunner $root @{ Purpose = 'Smoke'; Fixture = 'FX4'; Adapter = 'Warp'; Sessions = 1; PowerPlan = 'Keep'; IdlePreflight = 'Record'; SkipBuild = $true }
+    Assert-Equal 0 $run.Exit "FX4 smoke run failed: $($run.Text)"
+    Assert-True ($run.Text.Contains('FX4: interactive, not run')) 'the runner says FX4 is not run'
+    $calls = Get-Calls $root
+    Assert-Equal 0 @($calls | Where-Object { $_.StartsWith('native:') -or $_ -like 'powercfg:/setactive*' }).Count 'no timing run and no power scheme change'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $root 'out'))) 'no receipt directory is left'
 }
 
 Invoke-FixtureCase 'runner: calibration activates High Performance, measures it and restores the original scheme' {

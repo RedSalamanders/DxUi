@@ -833,6 +833,7 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
         ResetSharedWindowHostGraphicsResourcesLocked(resources);
         return false;
     }
+    ++Detail::Work().frame.d2dDevices;
 
     const HRESULT hrWrite = Detail::CreateHostWriteFactory(resources.dwriteFactory.addressof());
     if (FAILED(hrWrite) || ! resources.dwriteFactory)
@@ -874,6 +875,7 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
         resources.dcompDevice.reset();
         return false;
     }
+    ++Detail::Work().frame.compositionDevices;
 
     return true;
 }
@@ -4825,6 +4827,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
             recoverDeviceLoss(hrSwapChain);
             return false;
         }
+        ++Detail::Work().frame.swapChains;
 
         _swapChainWidthPx  = desc.Width;
         _swapChainHeightPx = desc.Height;

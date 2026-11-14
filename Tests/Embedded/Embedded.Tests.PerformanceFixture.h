@@ -159,10 +159,15 @@ struct Definition
     // action with every owner turn of cooperative preparation it causes (FX8's rich document). Honored by the embedded
     // runner; a fixture that sets it runs on the embedded host only.
     bool settlePreparation = false;
+    // Takes the foreground: only the interactive run executes it (Tests/README.md, "Performance fixtures"). Its own runner in
+    // DxUi.ControlTests.exe runs it, under test.ps1 -Interactive or performance-fixtures.ps1 -Interactive, never through a
+    // Scenario, so `create` stays nullptr. Every other runner, gate, receipt command and the timing harness skips it, says
+    // "<id>: interactive, not run" and never fails on it.
+    bool interactiveOnly = false;
 
     [[nodiscard]] constexpr bool Built() const noexcept
     {
-        return create != nullptr && ! phases.empty() && ! variants.empty() && hosts != 0u;
+        return (create != nullptr || interactiveOnly) && ! phases.empty() && ! variants.empty() && hosts != 0u;
     }
     [[nodiscard]] constexpr const Variant* FindVariant(std::string_view name) const noexcept
     {
@@ -581,7 +586,8 @@ template <size_t Count> void WriteCatalogJson(std::ostream& output, const std::a
         WriteJsonString(output, definition.title);
         output << ",\"scenario\":";
         WriteJsonString(output, definition.scenario);
-        output << ",\"built\":" << (definition.Built() ? "true" : "false") << ",\"hosts\":[";
+        output << ",\"built\":" << (definition.Built() ? "true" : "false") << ",\"interactiveOnly\":" << (definition.interactiveOnly ? "true" : "false")
+               << ",\"hosts\":[";
         bool first = true;
         for (const Host host : {Host::Embedded, Host::Window})
             if (Supports(definition.hosts, host))
@@ -625,6 +631,12 @@ template <size_t Count> void WriteCatalogJson(std::ostream& output, const std::a
         output << "]}";
     }
     output << "]}\n";
+}
+
+// What every ordinary runner, gate, receipt command and the timing harness says of an interactive-only fixture it skips.
+[[nodiscard]] inline std::string InteractiveNotRun(const Definition& definition)
+{
+    return std::string(definition.id) + ": interactive, not run";
 }
 
 // Parses "FX5" or "FX5@uhd-192dpi" into the fixture id and variant name (empty: the default variant).

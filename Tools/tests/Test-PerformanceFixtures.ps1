@@ -70,4 +70,37 @@ Invoke-TestCase 'the generated README names the scenario, every receipt and its 
     }
     Assert-True ($text.EndsWith("`n") -and -not $text.Contains("`r")) 'README uses LF and ends with a newline'
 }
+Invoke-TestCase 'an interactive-only fixture is skipped without -Interactive and runs alone with it' {
+    $fx4 = [ordered]@{ id = 'FX4'; built = $true; interactiveOnly = $true }
+    $fx5 = [ordered]@{ id = 'FX5'; built = $true; interactiveOnly = $false }
+    $older = [ordered]@{ id = 'FX1'; built = $true } # a catalog written before the flag existed
+    $ordinary = Get-PerformanceFixtureRunSelection -Selected @($fx4, $fx5, $older)
+    Assert-Equal 'FX5,FX1' ((@($ordinary.Run) | ForEach-Object { $_['id'] }) -join ',') 'the ordinary run keeps every other fixture'
+    Assert-Equal 'FX4: interactive, not run' (@($ordinary.Skipped) -join '|') 'the ordinary run says it skipped FX4 and does not fail'
+    $interactive = Get-PerformanceFixtureRunSelection -Selected @($fx4) -Interactive
+    Assert-Equal 'FX4' ((@($interactive.Run) | ForEach-Object { $_['id'] }) -join ',') 'the interactive run runs FX4'
+    Assert-Throws { Get-PerformanceFixtureRunSelection -Selected @($fx4, $fx5) -Interactive } 'the lease never holds a fixture that does not need the desktop'
+    Assert-Throws { Get-PerformanceFixtureRunSelection -Selected @() -Interactive } 'an interactive run without an interactive fixture'
+}
+
+Invoke-TestCase 'an interactive receipt refuses without the desktop lease and wherever test.ps1 -Interactive refuses' {
+    $missing = Join-Path $root '.build/absent-for-test/DxUi.InteractiveLease.exe'
+    $refusal = Get-PerformanceFixtureInteractiveRefusal -LeaseExecutable $missing -Environment @{} -UserInteractive $true
+    Assert-True ($null -ne $refusal -and $refusal.Contains('lease is missing')) 'no lease executable, no interactive fixture'
+    $present = Join-Path $PSScriptRoot 'Test-PerformanceFixtures.ps1' # any existing file stands in for the lease
+    Assert-True ($null -eq (Get-PerformanceFixtureInteractiveRefusal -LeaseExecutable $present -Environment @{} -UserInteractive $true)) 'a lease and a desktop: no refusal'
+    Assert-True ([string](Get-PerformanceFixtureInteractiveRefusal -LeaseExecutable $present -Environment @{ CI = 'true' } -UserInteractive $true)).Contains('CI job') 'a CI job refuses'
+    Assert-True ([string](Get-PerformanceFixtureInteractiveRefusal -LeaseExecutable $present -Environment @{} -UserInteractive $false)).Contains('window station') 'no window station refuses'
+    $script = [IO.File]::ReadAllText((Join-Path $root 'performance-fixtures.ps1'))
+    foreach ($expected in @('[switch] $Interactive', 'Get-PerformanceFixtureInteractiveRefusal -LeaseExecutable', 'Invoke-DxUiInteractiveLease', "'--interactive'", 'Get-PerformanceFixtureRunSelection')) {
+        Assert-True ($script.Contains($expected)) "performance-fixtures.ps1 uses $expected"
+    }
+}
+
+Invoke-TestCase 'a regenerated README keeps the interactive run sheet' {
+    $existing = "# FX4: Menus`r`n`r`nNot run yet.`r`n`r`n## Interactive run sheet`r`n`r`n1. Agree to the time.`r`n"
+    $merged = Merge-PerformanceFixtureRunSheet -Generated "# FX4: Menus`n`n## Receipts`n" -Existing $existing
+    Assert-Equal "# FX4: Menus`n`n## Receipts`n`n## Interactive run sheet`n`n1. Agree to the time.`n" $merged 'the run sheet follows the generated receipts'
+    Assert-Equal "# FX5`n" (Merge-PerformanceFixtureRunSheet -Generated "# FX5`n" -Existing "# FX5`nold`n") 'without a run sheet the README is the generated one'
+}
 Complete-TestRun 'Performance fixture receipts'

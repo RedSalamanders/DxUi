@@ -1518,6 +1518,19 @@ adapter in a quiet window; WARP receipts are counts and memory only. A plan meas
 as `FX13`'s cold start to the first presented frame, is a receipt-only command beside the definition: it reuses the
 fixture's scene, stays outside the determinism gate, and its receipt states that it is not a verdict. The fixture-author guide is in
 [the test guide](../../Tests/README.md#performance-fixtures).
+
+A fixture whose scene takes the foreground is declared `Definition::interactiveOnly`: only the interactive run executes
+it. `FX4` (menus) is one, by the developer's decision of 14 November 2026, because a menu session activates and focuses
+its popup, takes capture and blurs real screen pixels, and menu measurement needs real foreground interaction (see
+[interactive tests](#interactive-tests)). Such a fixture has no `Scenario`; its own runner in `DxUi.ControlTests.exe`
+records the same per-step counters and receipt. Both determinism gates, both executables' ordinary receipt commands,
+`performance-fixtures.ps1` without `-Interactive` and the timing harness MUST skip it with `<id>: interactive, not run`,
+never fail on it and never open its windows. Its determinism gate is a test of the `Menu` suite, so it runs only under
+`test.ps1 -Interactive`; its receipt is `performance-fixtures.ps1 -Fixture FX4 -Interactive`, one child of the interactive
+desktop lease with the lease's refusals (a CI job, no interactive window station, no lease executable, no desktop). The
+runner MUST fail without a receipt when activation was blocked (the application window does not take the foreground, or a
+popup is 1 by 1 pixels, differs from its layout rectangle or lacks the foreground, focus or capture) or when the person's
+input reached the menu, and it never moves the pointer.
 ## Scoped iteration and PR coverage
 
 Active native test sources, helpers, fixtures and seams MUST use `<Component>.Tests.Something.h/.cpp`, with the actual component context (`Controls`, `Support`, `Embedded`, etc.). Literal `Scope` is a rejected placeholder. `Tests/native-test-files.json` owns active membership. Historical archived harnesses and sealed reproduction inputs keep their original identity; they do not define new source naming. Rename project entries, includes, current inventories and callers together. DxUi historical source/test origins retain their original identities and map to current paths separately.

@@ -303,6 +303,12 @@ inline int RunReceiptCommand(int argc, wchar_t** argv)
     }
     const FixtureSelection selection = ParseSelection(argv[2]);
     const Definition* definition     = FindFixture(selection.id);
+    if (definition && definition->interactiveOnly)
+    {
+        // Only performance-fixtures.ps1 -Interactive runs it, on DxUi.ControlTests.exe under the desktop lease; no receipt here.
+        std::cout << InteractiveNotRun(*definition) << '\n';
+        return 0;
+    }
     if (! definition || ! definition->Built() || ! Supports(definition->hosts, Host::Embedded))
     {
         std::fputs("--fixture-receipt names no fixture built for the embedded host.\n", stderr);
@@ -402,6 +408,11 @@ __declspec(noinline) inline void TestCatalogIsDeterministic(const wchar_t* artif
         if (! definition->Built())
         {
             std::cout << "Performance fixture " << definition->id << ": declared, not built\n";
+            continue;
+        }
+        if (definition->interactiveOnly)
+        {
+            std::cout << "Performance fixture " << InteractiveNotRun(*definition) << '\n';
             continue;
         }
         if (! Supports(definition->hosts, Host::Embedded))
@@ -552,11 +563,23 @@ inline std::unique_ptr<FrameTiming::Fixture> FrameTiming::MakeFixture(std::wstri
     using namespace PerformanceFixtures;
     const FixtureSelection selection = ParseSelection(name);
     const Definition* definition     = FindFixture(selection.id);
-    if (! definition || ! definition->Built() || ! Supports(definition->hosts, Host::Embedded) || ! definition->FindPhase(definition->timedPhase))
+    if (! definition || definition->interactiveOnly || ! definition->Built() || ! Supports(definition->hosts, Host::Embedded) ||
+        ! definition->FindPhase(definition->timedPhase))
         return nullptr;
     const Variant* variant = FindVariant(*definition, selection.variant);
     if (! variant)
         return nullptr;
     return std::make_unique<CatalogTimingFixture>(*definition, *variant);
+}
+
+// Declared in Embedded.Tests.FrameTiming.h: an interactive-only catalog fixture is never timed; says so and returns true.
+inline bool FrameTiming::SkipsFixture(std::wstring_view name)
+{
+    using namespace PerformanceFixtures;
+    const Definition* definition = FindFixture(ParseSelection(name).id);
+    if (! definition || ! definition->interactiveOnly)
+        return false;
+    std::cout << InteractiveNotRun(*definition) << '\n';
+    return true;
 }
 #pragma warning(pop)
