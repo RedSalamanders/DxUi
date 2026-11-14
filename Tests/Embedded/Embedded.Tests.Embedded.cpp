@@ -79,6 +79,8 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.MemoryMetrics.h"
 #include "Embedded.Tests.PerformanceFixtures.h"
 #include "Embedded.Tests.PerformanceGridDataPaths.h"
+// After the performance fixtures: the W2.2 gate drives FX2.
+#include "Embedded.Tests.ComboBoxPopupLayout.h"
 #include "Embedded.Tests.RichDocumentStorageResources.h"
 #include "Embedded.Tests.RichGeometryResources.h"
 #include "Embedded.Tests.RichImageCapture.h"
@@ -1946,6 +1948,11 @@ __declspec(noinline) static int RunFunctionalTests()
     FrameTiming::SelfTest();
     GraphicsFixture gpu;
     Hr(gpu.Create(), "supplied WARP device");
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-combobox-popup-layout")
+    {
+        ComboBoxPopupLayoutTests::Run(gpu);
+        return 0;
+    }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")
     {
         MarkdownSourceCorrelationTests::LexicalEdits(Check);
@@ -2140,6 +2147,7 @@ __declspec(noinline) static int RunFunctionalTests()
     PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
     GridDataPathTests::TestFx3GridDataPathGate(gpu);
     SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
+    ComboBoxPopupLayoutTests::Run(gpu);
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();

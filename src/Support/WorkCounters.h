@@ -52,12 +52,14 @@
 
 // Popups and menus.
 #define DXUI_WORK_COUNTERS_POPUPS(X)                                                                                                                           \
-    X(popups, backdropBlurPasses)    /* Gaussian blur passes drawn over a popup's captured backdrop (Menu, ComboBox, transient surfaces). */                   \
-    X(popups, backdropCapturePixels) /* Screen pixels copied by GDI backdrop captures. */                                                                      \
-    X(popups, backdropCaptures)      /* Synchronous GDI BitBlt captures of the screen behind a popup. */                                                       \
-    X(popups, comboBoxPopupRebuilds) /* ComboBox::RebuildPopupItems calls: one filter of the items by the editable text. */                                    \
-    X(popups, menuPopupPaints)       /* MenuPopup content paints: one per render pass of a menu popup window. */                                               \
-    X(popups, menuRowsPainted)       /* Menu rows those paints drew (each paint draws every row it finds visible). */
+    X(popups, backdropBlurPasses)            /* Gaussian blur passes drawn over a popup's captured backdrop (Menu, ComboBox, transient surfaces). */           \
+    X(popups, backdropCapturePixels)         /* Screen pixels copied by GDI backdrop captures. */                                                              \
+    X(popups, backdropCaptures)              /* Synchronous GDI BitBlt captures of the screen behind a popup. */                                               \
+    X(popups, comboBoxItemWidthMeasurements) /* ComboBox popup text widths measured: one per item when its widths are stale, the no-matches text once. */      \
+    X(popups, comboBoxPopupLayouts)          /* ComboBox popup placements computed: UpdatePopupLayout calls whose inputs changed since the last placement. */  \
+    X(popups, comboBoxPopupRebuilds)         /* ComboBox::RebuildPopupItems calls: one filter of the items by the editable text. */                            \
+    X(popups, menuPopupPaints)               /* MenuPopup content paints: one per render pass of a menu popup window. */                                       \
+    X(popups, menuRowsPainted)               /* Menu rows those paints drew (each paint draws every row it finds visible). */
 
 // Lists: Grid and Tree.
 #define DXUI_WORK_COUNTERS_LISTS(X)                                                                                                                            \

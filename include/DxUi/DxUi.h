@@ -4266,8 +4266,14 @@ private:
     void EnsurePopupSelectionVisible(const ControlHost* host = nullptr) noexcept;
     void ScrollPopupBy(int deltaItems, const ControlHost* host = nullptr) noexcept;
     void ResetPopupLayout() noexcept;
+    // Places the popup (_popupBounds, _popupVisibleItemCount) from its inputs; an unchanged set of inputs keeps the last
+    // placement. Paint, hit testing and input handlers call it once; the row getters below only read its result.
     void UpdatePopupLayout(const ControlHost* host = nullptr) const noexcept;
-    [[nodiscard]] float ComputePopupWidthDip(const ControlHost* host = nullptr) const noexcept;
+    // The popup width before a scrollbar is added: the field width, each filtered item's measured width with its padding
+    // and insets, or the no-matches text. Reads the retained widths; measures only when they are stale.
+    [[nodiscard]] float ComputePopupContentWidthDip(const ControlHost* host) const noexcept;
+    // Drops the retained item widths and the popup placement (the retained-cache registry's ComboBox rows).
+    void InvalidatePopupLayoutCaches() const noexcept;
     [[nodiscard]] bool HasPopupScrollbar() const noexcept;
     [[nodiscard]] size_t GetPopupItemCount() const noexcept;
     [[nodiscard]] size_t GetPopupVisibleItemCount() const noexcept;
@@ -4318,6 +4324,34 @@ private:
     mutable SingleLineTextLayoutCache _singleLineLayoutCache;
     mutable D2D1_RECT_F _popupBounds      = D2D1::RectF();
     mutable size_t _popupVisibleItemCount = 0u;
+    // The width of every item's display text (Body role, the single-line measure), measured once per items change and
+    // per host typography revision; the maximum over the filtered items once per filter; the no-matches text once.
+    struct PopupItemWidthCache
+    {
+        bool valid                  = false;
+        const ControlHost* host     = nullptr;
+        uint64_t typographyRevision = 0u;
+        std::vector<float> itemWidthsDip;
+        bool filteredValid = false;
+        std::optional<float> filteredMaximum; // empty when no item passes the filter
+        bool noMatchesValid     = false;
+        float noMatchesWidthDip = 0.0f;
+    };
+    mutable PopupItemWidthCache _popupItemWidthCache;
+    // Every input of the last placement UpdatePopupLayout computed; an equal set leaves the placement as it is.
+    struct PopupLayoutCache
+    {
+        bool valid              = false;
+        const ControlHost* host = nullptr;
+        bool open               = false;
+        size_t renderRowCount   = 0u;
+        size_t popupItemCount   = 0u;
+        size_t maximumRows      = 0u;
+        // Field bounds, client bounds (scroll-adjusted), gap, row height and content width.
+        std::array<float, 11u> geometry{};
+        [[nodiscard]] bool operator==(const PopupLayoutCache&) const noexcept = default;
+    };
+    mutable PopupLayoutCache _popupLayoutCache;
     mutable WindowHostBitmapCapture _popupBackdropCapture{};
     mutable wil::com_ptr<ID2D1Bitmap1> _popupBackdropBitmap;
     mutable wil::com_ptr<ID2D1Device> _popupBackdropDevice;

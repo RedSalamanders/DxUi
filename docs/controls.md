@@ -334,6 +334,9 @@ Hosts must provide space on at least one side for a full row and the popup paddi
 An editable ComboBox filters its popup and matches its selection against committed text: while an IME composition
 previews, the open popup keeps the items of the text before the composition, and the commit filters by the result.
 `GetText` reports the preview; the selected index and popup change only at the commit, or when focus leaves mid-composition.
+The popup measures each item's text once, when it first opens after `SetItems`, so a long list costs one text layout per
+item at that open and none while the pointer hovers, the list scrolls or the user types. Replace the items with `SetItems`
+only when they change: each call measures the whole list again at the next open.
 
 Text input shares a `TextField`'s or `ComboBox`'s document instead of copying it only while the control keeps the default
 `ExportTextInputState` and `ImportTextInputState`. A derived class that overrides either one (to filter or cap input, say)

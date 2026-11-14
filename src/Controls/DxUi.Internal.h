@@ -998,6 +998,9 @@ constexpr uint64_t kTypeaheadResetMs = 1000u;
 void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secureText = false) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
 extern thread_local uint64_t testSingleLineMeasureLayoutCreations;
+// Test seam (W2.2): true makes every ComboBox popup placement measure each filtered item again and never reuse the last
+// placement, as before the retained widths, so a test can compare both. Thread-local; a test restores false.
+extern thread_local bool testComboBoxMeasurePopupItemsEveryLayout;
 #endif
 
 [[nodiscard]] float MeasureSingleLineTextWidthDip(const ControlHost* host,

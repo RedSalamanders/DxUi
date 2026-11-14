@@ -114,7 +114,7 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
 std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noexcept
 {
     {
-        static constexpr std::array<RetainedControlCacheRow, 20u> rows{{
+        static constexpr std::array<RetainedControlCacheRow, 22u> rows{{
             // Label::_typographyLayout, the retained layout of a label with a mnemonic or a typography override.
             {"Label._typographyLayout",
              [](const Control& control) noexcept
@@ -224,6 +224,36 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
             const auto* combo = dynamic_cast<const ComboBox*>(&control);
             return combo ? StringBytes(combo->_singleLineLayoutCache.text) : 0u;
         }},
+            // ComboBox::_popupItemWidthCache: the measured width of every item, the filtered maximum and the no-matches width.
+            {"ComboBox._popupItemWidthCache",
+             [](const Control& control) noexcept
+        {
+            const auto* combo = dynamic_cast<const ComboBox*>(&control);
+            return combo && combo->_popupItemWidthCache.valid ? combo->_popupItemWidthCache.itemWidthsDip.size() + 1u : 0u;
+        },
+             [](Control& control) noexcept
+        {
+            if (auto* combo = dynamic_cast<ComboBox*>(&control))
+                combo->InvalidatePopupLayoutCaches();
+        },
+             [](const Control& control) noexcept
+        {
+            const auto* combo = dynamic_cast<const ComboBox*>(&control);
+            return combo ? VectorBytes(combo->_popupItemWidthCache.itemWidthsDip) : 0u;
+        }},
+            // ComboBox::_popupLayoutCache: the inputs of the last popup placement (_popupBounds, _popupVisibleItemCount).
+            {"ComboBox._popupLayoutCache",
+             [](const Control& control) noexcept
+        {
+            const auto* combo = dynamic_cast<const ComboBox*>(&control);
+            return combo ? Present(combo->_popupLayoutCache.valid) : 0u;
+        },
+             [](Control& control) noexcept
+        {
+            if (auto* combo = dynamic_cast<ComboBox*>(&control))
+                combo->InvalidatePopupLayoutCaches();
+        },
+             [](const Control&) noexcept { return uint64_t{0u}; }}, // fixed fields inside the control
             // ComboBox::_popupBackdropBitmap and _popupBackdropDevice: the bitmap made from the captured backdrop. The
             // capture itself (_popupBackdropCapture) is the screen as it was at open and is kept (see the exemptions).
             {"ComboBox._popupBackdropBitmap",

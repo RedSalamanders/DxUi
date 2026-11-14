@@ -3,6 +3,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.DxUiTestMovedControls.h"
 #include "Controls/DxUi.RetainedCaches.h"
+#include "Support.Tests.ComboBoxPopupLayout.h"
 #include "Support.Tests.IncrementalParity.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 
@@ -163,6 +164,13 @@ void TestNativeIncrementalParityRichBlocks()
     RunParityScript(RichBlocksScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
 }
 
+// W2.2: the ComboBox popup's retained widths and placement against a fresh measurement, on the window host (where the
+// popup is painted into the host window as an overlay).
+void TestNativeIncrementalParityComboPopup()
+{
+    RunParityScript(ComboBoxPopupLayoutTests::ComboPopupScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+}
+
 // The gate's negative control: a cache that forgets one invalidation must show as a difference, at that control.
 void TestNativeIncrementalParityDetectsAStaleCache()
 {
@@ -227,4 +235,5 @@ void RunIncrementalParityTests()
     DXUI_RUN_TEST(TestNativeIncrementalParityInteraction);
     DXUI_RUN_TEST(TestNativeIncrementalParityRich);
     DXUI_RUN_TEST(TestNativeIncrementalParityRichBlocks);
+    DXUI_RUN_TEST(TestNativeIncrementalParityComboPopup);
 }

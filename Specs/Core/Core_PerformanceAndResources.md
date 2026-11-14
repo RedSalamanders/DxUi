@@ -268,7 +268,9 @@ snapshot, delta and receipt.
   its creator. `DrawText` lays out its whole string on every call, so each call counts one implicit text layout created
   and destroyed. GDI backdrop captures count `popups.backdropCaptures` and their pixels, and each blur drawn over such a
   capture counts `popups.backdropBlurPasses`; each filter of an editable `ComboBox`'s popup items counts
-  `popups.comboBoxPopupRebuilds`. Each `MenuPopup` content paint counts `popups.menuPopupPaints` and adds the rows it drew
+  `popups.comboBoxPopupRebuilds`, each popup text width a `ComboBox` measures counts `popups.comboBoxItemWidthMeasurements`
+  (one per item when its retained widths are stale, the no-matches text once) and each popup placement it computes because
+  an input changed counts `popups.comboBoxPopupLayouts`. Each `MenuPopup` content paint counts `popups.menuPopupPaints` and adds the rows it drew
   to `popups.menuRowsPainted`.
 - **Text.** `text.formatCacheTrims` counts each time `ControlHost::TrimCaches` clears the configured text-format cache
   above its key bound at the start of a preparation or render; each such clear forces every visible control to
@@ -376,6 +378,13 @@ ten syllables and its commit, driven through the production TSF store on a headl
 makes at most one document-sized C++ allocation (at least one document's bytes, counted by the test allocator) in any lock
 of a `TextField`, and an editable `ComboBox` counts no popup rebuild before the commit. The receipts are retained under
 [Measurements/PerformanceAndMotion_2026-11-13/W8.5](../../Measurements/PerformanceAndMotion_2026-11-13/W8.5/README.md).
+
+ComboBox popup gate (`FX2`, `DxUi.EmbeddedTests.exe --test-combobox-popup-layout`, also run by the Embedded suite): a
+first open measures each item once (one single-line measuring layout per item), and every open hover frame, every
+character typed with the popup open or closed, every repaint of the 100-row popup and a second open of unchanged items
+create no measuring layout ([controls and layout](../UI/UI_ControlsAndLayout.md#combobox-popup-layout)). The receipt is
+retained under
+[Measurements/PerformanceAndMotion_2026-11-13/W2.2](../../Measurements/PerformanceAndMotion_2026-11-13/W2.2/README.md).
 
 ## Trace provider
 

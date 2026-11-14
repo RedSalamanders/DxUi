@@ -16,6 +16,10 @@
 
 namespace DxUi
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+thread_local bool testComboBoxMeasurePopupItemsEveryLayout{};
+#endif
+
 namespace
 {
 constexpr float kComboBoxPopupPaddingDip      = 4.0f;
@@ -551,7 +555,8 @@ void ComboBox::SetNoMatchesText(std::wstring text)
 {
     if (_noMatchesText == text)
         return;
-    _noMatchesText = std::move(text);
+    _noMatchesText                      = std::move(text);
+    _popupItemWidthCache.noMatchesValid = false;
     ResetPopupLayout();
     RequestInvalidate();
 }
@@ -622,6 +627,8 @@ void ComboBox::SetItems(std::vector<Item> items)
     _typeaheadBuffer.clear();
     _items            = std::move(items);
     _popupScrollIndex = 0u;
+    // New items: their widths are measured again at the next placement of the open popup.
+    _popupItemWidthCache.valid = false;
     RebuildPopupItems();
     if (_editable)
     {
@@ -1192,11 +1199,20 @@ D2D1_RECT_F ComboBox::DebugGetPopupBounds() const noexcept
 
 D2D1_RECT_F ComboBox::DebugGetPopupItemRect(size_t popupListIndex, const ControlHost* host) const noexcept
 {
+    // A test may ask between events: place the popup for `host` first, as paint does.
+    if (_open)
+    {
+        UpdatePopupLayout(host);
+    }
     return GetPopupItemRect(popupListIndex, host);
 }
 
 D2D1_RECT_F ComboBox::DebugGetPopupItemTextRect(size_t popupListIndex, const ControlHost* host) const noexcept
 {
+    if (_open)
+    {
+        UpdatePopupLayout(host);
+    }
     return GetPopupItemTextRect(popupListIndex, host);
 }
 
@@ -2554,6 +2570,7 @@ void ComboBox::ResetPopupLayout() noexcept
 {
     _popupBounds                 = D2D1::RectF();
     _popupVisibleItemCount       = 0u;
+    _popupLayoutCache.valid      = false; // the placement above is gone: the next UpdatePopupLayout computes it
     _dragPopupScrollbar          = false;
     _popupScrollbarDragOffsetDip = 0.0f;
     _popupUsesBackdropBlur       = false;
@@ -2658,34 +2675,70 @@ void ComboBox::CapturePopupBackdrop(ControlHost& host) noexcept
 
 void ComboBox::UpdatePopupLayout(const ControlHost* host) const noexcept
 {
-    size_t desiredVisibleRows = std::min(GetPopupRenderRowCount(), _maxVisibleItemsOverride > 0u ? _maxVisibleItemsOverride : kComboBoxMaxVisibleItems);
-    _popupVisibleItemCount    = desiredVisibleRows;
+    const size_t renderRowCount = GetPopupRenderRowCount();
+    const size_t maximumRows    = _maxVisibleItemsOverride > 0u ? _maxVisibleItemsOverride : kComboBoxMaxVisibleItems;
+    size_t desiredVisibleRows   = std::min(renderRowCount, maximumRows);
 
     const D2D1_RECT_F bounds        = GetBounds();
     const ControlHost* resolvedHost = host ? host : GetHost();
-    const ThemePalette popupTheme   = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
-    const float gapDip              = popupTheme.density == Density::Compact ? 3.0f : 4.0f;
-    const float itemHeightDip       = std::max(_minimumPopupItemHeightDip, ResolveComboBoxItemHeightDip(popupTheme));
-    const float defaultHeightDip    = ComputeComboPopupHeightDip(desiredVisibleRows, itemHeightDip);
-    _popupBounds                    = D2D1::RectF(bounds.left, bounds.bottom + gapDip, bounds.right, bounds.bottom + gapDip + defaultHeightDip);
+    std::optional<ThemePalette> defaultTheme;
+    const ThemePalette& popupTheme = resolvedHost ? resolvedHost->GetTheme() : defaultTheme.emplace(MakeDefaultThemePalette(false));
+    const float gapDip             = popupTheme.density == Density::Compact ? 3.0f : 4.0f;
+    const float itemHeightDip      = std::max(_minimumPopupItemHeightDip, ResolveComboBoxItemHeightDip(popupTheme));
 
-    if (! host || desiredVisibleRows == 0u)
+    // A closed popup is not placed: nothing reads its placement until it opens, and the open path places it again. Placing
+    // it measures the items, which typing into a closed field must not do.
+    const bool placed        = host && _open && desiredVisibleRows > 0u;
+    D2D1_RECT_F clientBounds = D2D1::RectF();
+    if (placed)
+    {
+        clientBounds = host->GetClientBoundsDip();
+        if (const auto* scrollParent = FindContainingScrollPanel(host, *this))
+        {
+            const D2D1_RECT_F scrollBounds  = scrollParent->GetBounds();
+            const D2D1_RECT_F visibleBounds = D2D1::RectF((std::max)(clientBounds.left, scrollBounds.left),
+                                                          (std::max)(clientBounds.top, scrollBounds.top),
+                                                          (std::min)(clientBounds.right, scrollBounds.right),
+                                                          (std::min)(clientBounds.bottom, scrollBounds.bottom));
+            const float scrollOffset        = scrollParent->GetScrollOffset();
+            clientBounds = D2D1::RectF(visibleBounds.left, visibleBounds.top + scrollOffset, visibleBounds.right, visibleBounds.bottom + scrollOffset);
+        }
+    }
+    const bool clientUsable     = clientBounds.right > clientBounds.left && clientBounds.bottom > clientBounds.top;
+    const float contentWidthDip = placed && clientUsable ? ComputePopupContentWidthDip(host) : 0.0f;
+    const PopupLayoutCache inputs{true,
+                                  host,
+                                  _open,
+                                  renderRowCount,
+                                  GetPopupItemCount(),
+                                  maximumRows,
+                                  {bounds.left,
+                                   bounds.top,
+                                   bounds.right,
+                                   bounds.bottom,
+                                   clientBounds.left,
+                                   clientBounds.top,
+                                   clientBounds.right,
+                                   clientBounds.bottom,
+                                   gapDip,
+                                   itemHeightDip,
+                                   contentWidthDip}};
+#if DXUI_ENABLE_DIAGNOSTICS
+    const bool reuse = ! testComboBoxMeasurePopupItemsEveryLayout && _popupLayoutCache == inputs;
+#else
+    const bool reuse = _popupLayoutCache == inputs;
+#endif
+    if (reuse)
     {
         return;
     }
+    _popupLayoutCache = inputs;
+    ++Detail::Work().popups.comboBoxPopupLayouts;
 
-    D2D1_RECT_F clientBounds = host->GetClientBoundsDip();
-    if (const auto* scrollParent = FindContainingScrollPanel(host, *this))
-    {
-        const D2D1_RECT_F scrollBounds  = scrollParent->GetBounds();
-        const D2D1_RECT_F visibleBounds = D2D1::RectF((std::max)(clientBounds.left, scrollBounds.left),
-                                                      (std::max)(clientBounds.top, scrollBounds.top),
-                                                      (std::min)(clientBounds.right, scrollBounds.right),
-                                                      (std::min)(clientBounds.bottom, scrollBounds.bottom));
-        const float scrollOffset        = scrollParent->GetScrollOffset();
-        clientBounds = D2D1::RectF(visibleBounds.left, visibleBounds.top + scrollOffset, visibleBounds.right, visibleBounds.bottom + scrollOffset);
-    }
-    if (clientBounds.right <= clientBounds.left || clientBounds.bottom <= clientBounds.top)
+    _popupVisibleItemCount       = desiredVisibleRows;
+    const float defaultHeightDip = ComputeComboPopupHeightDip(desiredVisibleRows, itemHeightDip);
+    _popupBounds                 = D2D1::RectF(bounds.left, bounds.bottom + gapDip, bounds.right, bounds.bottom + gapDip + defaultHeightDip);
+    if (! placed || ! clientUsable)
     {
         return;
     }
@@ -2694,7 +2747,6 @@ void ComboBox::UpdatePopupLayout(const ControlHost* host) const noexcept
     const float availableAboveDip = std::max(0.0f, (bounds.top - gapDip) - clientBounds.top);
     const size_t fitBelow         = ComputeComboPopupRowsThatFit(availableBelowDip, itemHeightDip);
     const size_t fitAbove         = ComputeComboPopupRowsThatFit(availableAboveDip, itemHeightDip);
-    const size_t renderRowCount   = GetPopupRenderRowCount();
     if (renderRowCount > desiredVisibleRows)
     {
         if (renderRowCount <= fitBelow || renderRowCount <= fitAbove)
@@ -2726,7 +2778,7 @@ void ComboBox::UpdatePopupLayout(const ControlHost* host) const noexcept
 
     _popupVisibleItemCount     = chosenRows;
     const float popupHeightDip = ComputeComboPopupHeightDip(chosenRows, itemHeightDip);
-    const float popupWidthDip  = ComputePopupWidthDip(host);
+    const float popupWidthDip  = HasPopupScrollbar() ? contentWidthDip + kScrollbarThicknessDip : contentWidthDip;
     float popupLeft            = bounds.left;
     float popupRight           = popupLeft + popupWidthDip;
     const float clientWidthDip = clientBounds.right - clientBounds.left;
@@ -2762,37 +2814,94 @@ void ComboBox::UpdatePopupLayout(const ControlHost* host) const noexcept
     _popupBounds         = D2D1::RectF(popupLeft, popupTop, popupRight, popupTop + popupHeightDip);
 }
 
-float ComboBox::ComputePopupWidthDip(const ControlHost* host) const noexcept
+float ComboBox::ComputePopupContentWidthDip(const ControlHost* host) const noexcept
 {
+    // Width-table allocation failure remains fatal by repository policy; noexcept is intentional at this UI boundary.
     const ControlHost* resolvedHost = host ? host : GetHost();
-    const ThemePalette theme        = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
-    const float itemTextInsetsDip   = ResolveComboBoxPopupItemLeftInsetDip(theme) + ResolveComboBoxPopupItemRightInsetDip(theme);
-    float popupWidthDip             = std::max(0.0f, GetBounds().right - GetBounds().left);
-    for (size_t popupListIndex = 0u; popupListIndex < GetPopupItemCount(); ++popupListIndex)
+    std::optional<ThemePalette> defaultTheme;
+    const ThemePalette& theme     = resolvedHost ? resolvedHost->GetTheme() : defaultTheme.emplace(MakeDefaultThemePalette(false));
+    const float itemTextInsetsDip = ResolveComboBoxPopupItemLeftInsetDip(theme) + ResolveComboBoxPopupItemRightInsetDip(theme);
+    float popupWidthDip           = std::max(0.0f, GetBounds().right - GetBounds().left);
+    const bool noMatches          = _editable && GetPopupItemCount() == 0u && ! _items.empty();
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (testComboBoxMeasurePopupItemsEveryLayout)
     {
-        const std::optional<size_t> itemIndex = GetPopupItemIndexAt(popupListIndex);
-        if (! itemIndex)
+        // The measurement before retained widths (W2.2), kept for the test that compares both.
+        for (size_t popupListIndex = 0u; popupListIndex < GetPopupItemCount(); ++popupListIndex)
         {
-            continue;
+            const std::optional<size_t> itemIndex = GetPopupItemIndexAt(popupListIndex);
+            if (! itemIndex)
+            {
+                continue;
+            }
+
+            popupWidthDip = std::max(popupWidthDip,
+                                     MeasureSingleLineTextWidthDip(host, _items[itemIndex.value()].display, FontRole::Body) +
+                                         (kComboBoxPopupPaddingDip * 2.0f) + itemTextInsetsDip);
         }
-
-        popupWidthDip = std::max(popupWidthDip,
-                                 MeasureSingleLineTextWidthDip(host, _items[itemIndex.value()].display, FontRole::Body) + (kComboBoxPopupPaddingDip * 2.0f) +
-                                     itemTextInsetsDip);
+        if (noMatches)
+        {
+            popupWidthDip =
+                std::max(popupWidthDip, MeasureSingleLineTextWidthDip(host, GetNoMatchesText(), FontRole::Small) + (kComboBoxPopupPaddingDip * 2.0f) + 12.0f);
+        }
+        return popupWidthDip;
     }
+#endif
 
-    if (_editable && GetPopupItemCount() == 0u && ! _items.empty())
+    // An item's width depends on its display text and on the host's Body text format, which is built from a fixed role
+    // spec by the host's DirectWrite factory: a new factory moves the typography revision. Widths are in DIPs, measured
+    // left to right in a single line, so DPI, density, flow direction and the filter do not change them.
+    PopupItemWidthCache& cache = _popupItemWidthCache;
+    if (! cache.valid || cache.host != host || cache.typographyRevision != (host ? host->GetTypographyRevision() : 0u))
     {
-        popupWidthDip =
-            std::max(popupWidthDip, MeasureSingleLineTextWidthDip(host, GetNoMatchesText(), FontRole::Small) + (kComboBoxPopupPaddingDip * 2.0f) + 12.0f);
+        cache.itemWidthsDip.resize(_items.size());
+        for (size_t itemIndex = 0u; itemIndex < _items.size(); ++itemIndex)
+        {
+            cache.itemWidthsDip[itemIndex] = MeasureSingleLineTextWidthDip(host, _items[itemIndex].display, FontRole::Body);
+            ++Detail::Work().popups.comboBoxItemWidthMeasurements;
+        }
+        cache.valid = true;
+        cache.host  = host;
+        // Read after measuring: the first measurement may create the host's DirectWrite factory, which moves the revision.
+        cache.typographyRevision = host ? host->GetTypographyRevision() : 0u;
+        cache.filteredValid      = false;
+        cache.noMatchesValid     = false;
     }
-
-    if (HasPopupScrollbar())
+    if (! cache.filteredValid)
     {
-        popupWidthDip += kScrollbarThicknessDip;
+        cache.filteredMaximum.reset();
+        for (const size_t itemIndex : _popupItemIndices)
+        {
+            if (itemIndex < cache.itemWidthsDip.size())
+            {
+                cache.filteredMaximum =
+                    cache.filteredMaximum ? std::max(*cache.filteredMaximum, cache.itemWidthsDip[itemIndex]) : cache.itemWidthsDip[itemIndex];
+            }
+        }
+        cache.filteredValid = true;
     }
-
+    // Adding the padding and insets keeps the order of widths, so applying it to the maximum gives the maximum of the sums.
+    if (cache.filteredMaximum)
+    {
+        popupWidthDip = std::max(popupWidthDip, *cache.filteredMaximum + (kComboBoxPopupPaddingDip * 2.0f) + itemTextInsetsDip);
+    }
+    if (noMatches)
+    {
+        if (! cache.noMatchesValid)
+        {
+            cache.noMatchesWidthDip = MeasureSingleLineTextWidthDip(host, GetNoMatchesText(), FontRole::Small);
+            cache.noMatchesValid    = true;
+            ++Detail::Work().popups.comboBoxItemWidthMeasurements;
+        }
+        popupWidthDip = std::max(popupWidthDip, cache.noMatchesWidthDip + (kComboBoxPopupPaddingDip * 2.0f) + 12.0f);
+    }
     return popupWidthDip;
+}
+
+void ComboBox::InvalidatePopupLayoutCaches() const noexcept
+{
+    _popupItemWidthCache = {};
+    _popupLayoutCache    = {};
 }
 
 bool ComboBox::HasPopupScrollbar() const noexcept
@@ -2803,6 +2912,7 @@ bool ComboBox::HasPopupScrollbar() const noexcept
 void ComboBox::RebuildPopupItems(const ControlHost* host) noexcept
 {
     ++Detail::Work().popups.comboBoxPopupRebuilds;
+    _popupItemWidthCache.filteredValid = false; // the maximum over the filtered items follows the new filter
     _popupItemIndices.clear();
     _popupItemIndices.reserve(_items.size());
 
@@ -3171,12 +3281,12 @@ D2D1_RECT_F ComboBox::GetPopupScrollbarThumbHitRect() const noexcept
 
 D2D1_RECT_F ComboBox::GetPopupItemRect(size_t popupListIndex, const ControlHost* host) const noexcept
 {
+    // Arithmetic over the placement the last UpdatePopupLayout computed (paint, hit testing and input place it first).
     if (! _open)
     {
         return D2D1::RectF();
     }
 
-    UpdatePopupLayout(host);
     const size_t visibleCount = GetPopupVisibleItemCount();
     const size_t visibleEnd   = std::min(GetPopupItemCount(), _popupScrollIndex + visibleCount);
     if (popupListIndex < _popupScrollIndex || popupListIndex >= visibleEnd)
@@ -3201,9 +3311,10 @@ D2D1_RECT_F ComboBox::GetPopupItemTextRect(size_t popupListIndex, const ControlH
 {
     const D2D1_RECT_F itemRect      = GetPopupItemRect(popupListIndex, host);
     const ControlHost* resolvedHost = host ? host : GetHost();
-    const ThemePalette theme        = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
-    const float leftInsetDip        = ResolveComboBoxPopupItemLeftInsetDip(theme);
-    const float rightInsetDip       = ResolveComboBoxPopupItemRightInsetDip(theme);
+    std::optional<ThemePalette> defaultTheme;
+    const ThemePalette& theme = resolvedHost ? resolvedHost->GetTheme() : defaultTheme.emplace(MakeDefaultThemePalette(false));
+    const float leftInsetDip  = ResolveComboBoxPopupItemLeftInsetDip(theme);
+    const float rightInsetDip = ResolveComboBoxPopupItemRightInsetDip(theme);
     return D2D1::RectF(itemRect.left + leftInsetDip, itemRect.top, itemRect.right - rightInsetDip, itemRect.bottom);
 }
 

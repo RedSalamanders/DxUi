@@ -529,7 +529,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
     measure; exact WARP BGRA parity with today on `FX5` and every harness gallery tile at 100%, 150% and 200%; resident
     entries never exceed the strings drawn by the last two paints.
   - **Needs**: `W0.4`, `W2.9`. **Size**: M.
-- [ ] **W2.2 `ComboBox` popup layout.**
+- [x] **W2.2 `ComboBox` popup layout.**
   - **Why**: each `UpdatePopupLayout` measures every filtered item with a fresh DirectWrite layout
     (`DxUi.ComboBox.cpp:2577-2681`, `:2689-2700`; `DxUi.SingleLineTextEditing.cpp:374-381`), and paint calls it
     `1 + 2V` times (`DxUi.ComboBox.cpp:857`, `:3095`, `:3118`): 8,500 layouts per paint at 500 items. When every row fits, `V = M`
