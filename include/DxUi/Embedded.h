@@ -249,7 +249,8 @@ private:
     uint64_t _keyDispatchSequence = 0u;
     static void InvalidateThunk(void* context) noexcept;
     bool DispatchKeyImpl(UINT virtualKey, bool down, UINT modifiers, EmbeddedKeyDispatchReceipt* receipt) noexcept;
-    void RequestPreparation() noexcept;
+    // traceFrameReason names why, for the trace provider (src/Support/Trace.h, FrameReason).
+    void RequestPreparation(uint8_t traceFrameReason) noexcept;
     void CancelPointer(bool clearPendingDoubleClick = true) noexcept;
     // A drag may continue across a bounds revision while its control is still in the tree and it and every ancestor
     // are enabled and visible. Hiding or disabling it or an ancestor, removing it, or resizing the view still cancels.

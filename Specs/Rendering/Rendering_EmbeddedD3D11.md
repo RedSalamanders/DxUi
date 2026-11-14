@@ -86,6 +86,12 @@ and return their native HRESULT through the checked preparation result.
    the next `Prepare`; `DebugReadSurfaceForTest` copies the surface's premultiplied BGRA pixels through a staging texture for
    the incremental-versus-fresh oracle ([validation](../Testing/Testing_Validation.md#incremental-versus-fresh-oracle)).
    Neither is used by preparation or composition.
+6. The [trace provider](../Core/Core_PerformanceAndResources.md#trace-provider) writes its events on the calling
+   thread inside these calls and adds no thread, timer, window or callback: one input-received event per
+   `DispatchPointer`, `DispatchKey` or `DispatchCharacter` call, a frame-requested event (invalidate, visibility,
+   recovery, continuation or input wake) before the first `requestPreparation` call after each preparation begins,
+   prepare begin and end around a painting `Prepare`, one composite event per drawing `Composite`, and a wake per
+   `AdvanceAnimation` the view asked for. Composite's event is a fixed record with no heap work.
 
 Different simultaneous layouts use independent views with a shared pool. Presentation transforms do not require
 rerasterizing unchanged content. Consumers map input to the displayed view and account for every raster extent.

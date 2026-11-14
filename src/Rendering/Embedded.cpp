@@ -4,6 +4,7 @@
 #include "Controls/DxUi.RetainedCaches.h"
 #include "Support/Diagnostics.h"
 #include "Support/NativeRendering.h"
+#include "Support/Trace.h"
 #include <DxUi/Embedded.h>
 #include <DxUi/FrameRuntime.h>
 #include <DxUi/TextInputServices.h>
@@ -135,6 +136,24 @@ namespace
 {
 constexpr uint8_t kCapturePrimaryButton = 1u;
 constexpr uint8_t kCaptureMiddleButton  = 2u;
+
+// The trace provider's input kind of one dispatched pointer action.
+[[nodiscard]] Detail::Trace::InputKind TracePointerInputKind(PointerAction action) noexcept
+{
+    using Detail::Trace::InputKind;
+    switch (action)
+    {
+        case PointerAction::Down:
+        case PointerAction::MiddleDown: return InputKind::PointerDown;
+        case PointerAction::Up:
+        case PointerAction::MiddleUp: return InputKind::PointerUp;
+        case PointerAction::Wheel: return InputKind::Wheel;
+        case PointerAction::Leave: return InputKind::PointerLeave;
+        case PointerAction::Cancel: return InputKind::PointerCancel;
+        case PointerAction::Move:
+        default: return InputKind::PointerMove;
+    }
+}
 } // namespace
 struct EmbeddedHost::State
 {
@@ -175,7 +194,7 @@ public:
     {
         _current = _previous;
         if (! Active(_owner) && _owner._state && std::exchange(_owner._state->inputWakePending, false))
-            _owner.RequestPreparation();
+            _owner.RequestPreparation(static_cast<uint8_t>(Detail::Trace::FrameReason::InputWake));
     }
     InputScope(const InputScope&)            = delete;
     InputScope& operator=(const InputScope&) = delete;
@@ -316,9 +335,9 @@ void EmbeddedHost::MarkDirty() noexcept
     auto& s = *_state;
     s.dirty = true;
     ++s.revision;
-    RequestPreparation();
+    RequestPreparation(static_cast<uint8_t>(Detail::Trace::FrameReason::Invalidate));
 }
-void EmbeddedHost::RequestPreparation() noexcept
+void EmbeddedHost::RequestPreparation(uint8_t traceFrameReason) noexcept
 {
     if (! _state || _detaching || ! _state->visible || _state->zeroSized || _state->preparing || _state->preparationRequested ||
         ! _state->callbacks.requestPreparation)
@@ -331,6 +350,8 @@ void EmbeddedHost::RequestPreparation() noexcept
     // Dirty pixels and an outstanding notification are different states. A
     // cooperative turn can consume a wakeup while the surface remains dirty.
     _state->preparationRequested = true;
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::FrameRequested(_host._trace, static_cast<Detail::Trace::FrameReason>(traceFrameReason));
     _state->callbacks.requestPreparation(_state->callbacks.context);
 }
 void EmbeddedHost::ReleaseSurface() noexcept
@@ -406,7 +427,7 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
         if (_state->prepareCallActive)
             _state->recoveryWakePending = true;
         else
-            RequestPreparation();
+            RequestPreparation(static_cast<uint8_t>(Detail::Trace::FrameReason::Visibility));
     }
 }
 bool EmbeddedHost::NeedsPreparation() const noexcept
@@ -434,6 +455,8 @@ bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
     _host._animationTimelineRebase     = false;
     const uint64_t nowTickMs           = _host._animationTimelineMs;
     ++Detail::Work().wakes.embeddedAdvance;
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::Wake(Detail::Trace::WakeSource::EmbeddedAdvance, Detail::Trace::HostIdOf(_host._trace));
     try
     {
         _host.ValidateSupplementalTooltipTarget();
@@ -496,7 +519,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         const bool request =
             currentVisibleOperation && (recoveryWake || (preparationIsCurrent() && (requestAfterPreparation || s.revision != observedRevision)));
         if (request)
-            RequestPreparation();
+            RequestPreparation(static_cast<uint8_t>(recoveryWake ? Detail::Trace::FrameReason::Recovery : Detail::Trace::FrameReason::Continuation));
     });
     s.preparationRequested       = false;
     s.contentPending             = false;
@@ -646,6 +669,16 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         if (! dc)
             return E_UNEXPECTED;
         FrameStageScope renderStage(preparationStage, FrameStage::Render);
+        // Every return from here on writes the matching prepare-end event, even if a session starts or stops in between.
+        const bool tracedPrepare = Detail::Trace::Listening();
+        HRESULT tracedResult     = E_ABORT;
+        if (tracedPrepare) [[unlikely]]
+            Detail::Trace::PrepareBegin(_host._trace);
+        const auto tracePrepareEnd = wil::scope_exit([&]() noexcept
+        {
+            if (tracedPrepare) [[unlikely]]
+                Detail::Trace::PrepareEnd(_host._trace, tracedResult, SUCCEEDED(tracedResult) ? uint64_t(width) * height : 0u);
+        });
         dc->BeginDraw();
         auto finish = wil::scope_exit([&] { (void)Detail::EndDrawNative(dc); });
         dc->SetTransform(D2D1::Matrix3x2F::Identity());
@@ -674,7 +707,8 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
                 return E_ABORT;
         }
         finish.release();
-        RETURN_IF_FAILED(Detail::EndDrawNative(dc));
+        tracedResult = Detail::EndDrawNative(dc);
+        RETURN_IF_FAILED(tracedResult);
         if (! preparationIsCurrent())
             return E_ABORT;
         s.preparedInteractionRevision = interactionRevision;
@@ -806,6 +840,8 @@ HRESULT EmbeddedHost::Composite(ID3D11DeviceContext* context, const D3D11_VIEWPO
     context->PSSetShaderResources(0, 1, &view);
     ++s.stats.composites;
     ++Detail::Work().frame.composites;
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::Presented(_host._trace, Detail::Trace::Event::Composite, false, S_OK);
     return S_OK;
 }
 bool EmbeddedHost::CapturedDragContinues() const noexcept
@@ -922,6 +958,8 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
 {
     const Failure::Scope failureScope;
     const InputScope input(*this);
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::InputReceived(_host._trace, TracePointerInputKind(event.action));
     // Pointer hit-testing is valid on a paint-dirty view. Requiring a clean surface
     // here dropped the Down that followed a hover/focus Invalidate, so a touch looked
     // like "first contact focuses, second contact activates."
@@ -1083,6 +1121,8 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
 {
     const Failure::Scope failureScope;
     const InputScope input(*this);
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::InputReceived(_host._trace, down ? Detail::Trace::InputKind::KeyDown : Detail::Trace::InputKind::KeyUp);
     uint64_t issuedReceiptSequence = 0u;
     // Overlapping use of the same out-object cannot identify which caller's raw key should translate.
     // Invalidate it on every outer exit, including a callback failure; independent receipts stay valid.
@@ -1189,6 +1229,8 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
 {
     const Failure::Scope failureScope;
     const InputScope input(*this);
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::InputReceived(_host._trace, Detail::Trace::InputKind::Character);
     if (! KeyboardInputIsAvailable())
         return false;
     bool enteredControlCallback = false;
@@ -1233,6 +1275,8 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers, Embedded
 {
     const Failure::Scope failureScope;
     const InputScope input(*this);
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::InputReceived(_host._trace, Detail::Trace::InputKind::Character);
     if (! receipt._valid)
         return false;
 

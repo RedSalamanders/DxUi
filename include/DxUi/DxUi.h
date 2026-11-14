@@ -6664,6 +6664,18 @@ private:
     void RecreateBrushCache() const;
     void TrimCaches() noexcept;
     void Render(const RECT* dirtyRectPx = nullptr, bool allowHidden = false) noexcept;
+    // Invalidate, naming why the frame is requested for the trace provider (src/Support/Trace.h, FrameReason).
+    void InvalidateFor(uint8_t traceFrameReason) const noexcept;
+    // Trace provider correlation (src/Support/Trace.h): read and written only while a trace session or test sink listens.
+    struct TraceCorrelation final
+    {
+        uint32_t hostId             = 0u;
+        bool frameRequested         = false;
+        uint64_t inputSequence      = 0u;
+        uint64_t frameSequence      = 0u;
+        uint64_t frameInputSequence = 0u;
+    };
+    mutable TraceCorrelation _trace{};
     // A failed recreation or a device loss arms one retry on this host's window, backing off on repeated failure;
     // a successful Present resets the backoff and disarms it (Win32 host contract).
     void ScheduleRecoveryRetry() noexcept;

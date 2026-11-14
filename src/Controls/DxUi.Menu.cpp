@@ -21,6 +21,7 @@
 
 #include "Support/Diagnostics.h"
 #include "Support/LiveResourceCount.h"
+#include "Support/Trace.h"
 #include "Support/Utilities.h"
 #include "Support/WindowMessages.h"
 
@@ -5910,6 +5911,8 @@ void TraceMenuKeyboardRoute(const MenuController& controller,
     if (msg == WM_TIMER && wp == kSubmenuHoverTimerId)
     {
         ++Detail::Work().wakes.menuHoverTimer;
+        if (Detail::Trace::Listening()) [[unlikely]]
+            Detail::Trace::Wake(Detail::Trace::WakeSource::MenuHoverTimer);
         if (MenuPopup* popup = controller.FindPopupForHwnd(hwnd))
         {
             HandleSubmenuHoverTimer(controller, *popup);

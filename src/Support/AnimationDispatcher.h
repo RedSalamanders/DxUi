@@ -18,6 +18,7 @@
 #pragma warning(pop)
 
 #include "Diagnostics.h"
+#include "Trace.h"
 #include "WorkCounters.h"
 #include <DxUi/Failure.h>
 #include <DxUi/FrameRuntime.h>
@@ -420,6 +421,8 @@ private:
     {
         const Failure::Scope failureScope;
         ++::DxUi::Detail::Work().wakes.animationTimer;
+        if (::DxUi::Detail::Trace::Listening()) [[unlikely]]
+            ::DxUi::Detail::Trace::Wake(::DxUi::Detail::Trace::WakeSource::AnimationTimer);
         if (_subscriptions.empty())
         {
             GarbageCollect();

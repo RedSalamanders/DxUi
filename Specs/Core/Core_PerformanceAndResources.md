@@ -311,6 +311,44 @@ calls and a clean frame 0, identically in consecutive runs; the wrappers' creati
 `DrawText` layouts and 7 text layouts per dirty frame, nothing per clean frame) and no pixel changes
 ([receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W0.1/CountingWrappers/README.md)). These are counts, not timing; a change to them is a measured change with its own receipt, never a silent rebaseline.
 
+## Trace provider
+
+Status: implemented (performance and motion plan item W0.8, 14 November 2026). The provider name, GUID, keywords, events
+and fields are a consumer-facing diagnostic interface, documented in [performance](../../docs/performance.md#trace-provider);
+a change to them is a documented change. The C++ code behind it (`src/Support/Trace.h`, `src/Foundation/Trace.cpp`) is
+private.
+
+- **One provider.** DxUi registers one TraceLogging provider, `DxUi` `{89b12dac-c17b-5934-baa0-35b9f94990e6}` (the
+  EventSource name hash), once for the life of the process. Registration starts no thread, timer or window; ETW's enable
+  callback only updates the listener flag.
+- **Dormant.** While no session has the provider enabled and no test sink is installed, every event site costs one
+  relaxed load and one predictable branch, with no allocation, formatting, lock or I/O; per-host correlation numbers do not
+  advance. With a listener, an event is a fixed record written on the thread doing the work, still without heap work, so
+  composition keeps its contract and clean or hidden frames add nothing but the events of work they already do. All event
+  writes go through one internal function, which writes the TraceLogging event while a session listens and hands the
+  same record to the test sink while one is installed.
+- **Events.** Input received (a `WindowHost` mouse, wheel, key or character message; an `EmbeddedHost` pointer, key or
+  character dispatch), frame requested with its reason (the first request after each preparation begins), prepare begin
+  and end (a native render pass; an embedded preparation that paints), present (a native swap-chain present) or composite
+  (an embedded composition), and wake by source. Each event site sits beside the work counter of the same moment where one
+  exists: renders and preparations, presents, composites and every wake source.
+- **Correlation and clock.** Every event carries a process-unique host number and a `QueryPerformanceCounter` timestamp.
+  Each host numbers its inputs and its preparations; a preparation records the newest input received before it began, and
+  its end, present or composite carry that number, so input-to-present for input *N* is the first present (composite) on
+  the same host whose input number is at least *N*.
+- **Content.** Events carry identifiers, counts, sizes, reasons, results and times only, never text, control names, paths
+  or document content.
+
+Gate (WARP): with nothing listening, a dirty ComplexUi frame makes exactly the allocations of the work-counter baseline
+(54 in Release), and with a test sink listening it makes the same number while writing one prepare begin, prepare end and
+composite per frame (`TraceProviderComplexUi`, Embedded suite). On a 2,048-row `Grid` scrolled in a `WindowHost` by 100
+wheel notches with pointer moves and keys between them, every input yields exactly one input-received event, every
+present exactly one present event (equal to the present counter), and each notch's input-to-present is computed from its
+frame request and present (`TestTraceProviderPairsEveryGridScrollInputWithItsPresent`, Rendering suite). Where the desktop
+session may start a real-time ETW session, the same scenario's events read back through ETW equal the sink's records
+field for field (`TestTraceProviderEventsReadBackThroughEtw`); where it may not, that test records a capability skip.
+Input-to-present timing on hardware against `G8` is a separate, hardware-gated measurement.
+
 ## Mandatory performance policy
 
 Paired setup MUST share the benchmark project and its effective compiler options,

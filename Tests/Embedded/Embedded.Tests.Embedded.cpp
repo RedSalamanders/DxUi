@@ -85,6 +85,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.RichSemanticGeometryResources.h"
 #include "Embedded.Tests.RichSemanticResources.h"
 #include "Embedded.Tests.RichTextResources.h"
+#include "Embedded.Tests.TraceProvider.h"
 #include "Embedded.Tests.WorkCounters.h"
 #include "Support.Tests.RichSemantic.h"
 #include "Support.Tests.RichSemanticEditor.h"
@@ -2080,6 +2081,7 @@ __declspec(noinline) static int RunFunctionalTests()
     WorkCountersComplexUi::Run(nullptr);
     WorkCountersComplexUi::RunWrapperComparison(nullptr, nullptr);
     WorkCountersComplexUi::TestCountingWrappersReportUncountedCreation();
+    TraceProviderComplexUi::Run();
     TestRichFlatProjectionFailureAtomicity();
     TestRichProjectionPreparationAllocationFailureAtomicity();
     TestRichProjectionRetainedStorageBudget();

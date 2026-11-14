@@ -37,6 +37,7 @@
 #include "Support/AnimationDispatcher.h"
 #include "Support/Diagnostics.h"
 #include "Support/NativeRendering.h"
+#include "Support/Trace.h"
 #include "Support/WindowMessages.h"
 
 #pragma comment(lib, "d2d1.lib")
@@ -221,6 +222,38 @@ void EmitWindowHostFrameMetrics(
     EmitFrameMetric(L"dxui.frame.present_us", presentUs);
     Debug::Perf::EmitValue(L"dxui.frame.dirty_rect_count", dirtyMetrics.count);
     Debug::Perf::EmitValue(L"dxui.frame.dirty_rect_area_px", dirtyMetrics.areaPx);
+}
+
+// The trace provider's input-received event for one native input message; any other message writes nothing.
+template <typename Correlation> void TraceWindowHostInput(Correlation& correlation, UINT msg) noexcept
+{
+    using Detail::Trace::InputKind;
+    InputKind kind{};
+    switch (msg)
+    {
+        case WM_MOUSEMOVE: kind = InputKind::PointerMove; break;
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONDBLCLK:
+        case WM_RBUTTONDOWN:
+        case WM_RBUTTONDBLCLK:
+        case WM_MBUTTONDOWN:
+        case WM_MBUTTONDBLCLK:
+        case WM_XBUTTONDOWN:
+        case WM_XBUTTONDBLCLK: kind = InputKind::PointerDown; break;
+        case WM_LBUTTONUP:
+        case WM_RBUTTONUP:
+        case WM_MBUTTONUP:
+        case WM_XBUTTONUP: kind = InputKind::PointerUp; break;
+        case WM_MOUSEWHEEL:
+        case WM_MOUSEHWHEEL: kind = InputKind::Wheel; break;
+        case WM_KEYDOWN:
+        case WM_SYSKEYDOWN: kind = InputKind::KeyDown; break;
+        case WM_KEYUP:
+        case WM_SYSKEYUP: kind = InputKind::KeyUp; break;
+        case WM_CHAR: kind = InputKind::Character; break;
+        default: return;
+    }
+    Detail::Trace::InputReceived(correlation, kind);
 }
 
 [[nodiscard]] wchar_t NormalizeMnemonicChar(wchar_t ch) noexcept
@@ -1902,6 +1935,11 @@ bool ControlHost::DebugIsTooltipInspectionAtEnd() const noexcept
 
 void ControlHost::Invalidate() const noexcept
 {
+    InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Invalidate));
+}
+
+void ControlHost::InvalidateFor(uint8_t traceFrameReason) const noexcept
+{
     if (_embedded)
     {
         if (_embeddedInvalidate)
@@ -1914,6 +1952,8 @@ void ControlHost::Invalidate() const noexcept
     if (_hwnd && _nativePresentationVisible && IsHostWindowEffectivelyVisible(_hwnd))
     {
         InvalidateRect(_hwnd, nullptr, FALSE);
+        if (Detail::Trace::Listening()) [[unlikely]]
+            Detail::Trace::FrameRequested(_trace, static_cast<Detail::Trace::FrameReason>(traceFrameReason));
     }
 }
 
@@ -3331,6 +3371,8 @@ try
     {
         return 0;
     }
+    if (Detail::Trace::Listening()) [[unlikely]]
+        TraceWindowHostInput(_trace, msg);
 
     if (WndMsg::WindowHostProcessExitDetach().Matches(msg))
     {
@@ -3486,6 +3528,8 @@ try
         case WM_PAINT:
             handled = true;
             ++Detail::Work().wakes.paintMessage;
+            if (Detail::Trace::Listening()) [[unlikely]]
+                Detail::Trace::Wake(Detail::Trace::WakeSource::PaintMessage, Detail::Trace::HostIdOf(_trace));
             {
                 PAINTSTRUCT paint{};
                 wil::unique_hdc_paint paintHdc = wil::BeginPaint(hwnd, &paint);
@@ -3525,7 +3569,7 @@ try
                     _animationSuspendedWhileHidden = false;
                     RequestAnimation();
                 }
-                Invalidate();
+                InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Visibility));
             }
             else
             {
@@ -4785,16 +4829,21 @@ void ControlHost::RecreateBrushCache() const
 static_assert(DXUI_ENABLE_DIAGNOSTICS, "WindowHost renders through its capturing overload.");
 namespace
 {
+// The device pixels one native render pass clears and repaints: the dirty rectangle of a partial frame, else the window.
+[[nodiscard]] uint64_t WindowHostRenderPixels(const RECT* dirtyRectPx, UINT widthPx, UINT heightPx) noexcept
+{
+    if (dirtyRectPx)
+        return static_cast<uint64_t>((std::max)(dirtyRectPx->right - dirtyRectPx->left, 0L)) *
+               static_cast<uint64_t>((std::max)(dirtyRectPx->bottom - dirtyRectPx->top, 0L));
+    return static_cast<uint64_t>(widthPx) * heightPx;
+}
+
 // Work counters for one native render pass: the area it clears and repaints (the dirty rectangle of a partial frame).
 void CountWindowHostRender(const RECT* dirtyRectPx, UINT widthPx, UINT heightPx) noexcept
 {
     auto& frame = Detail::Work().frame;
     ++frame.renders;
-    if (dirtyRectPx)
-        frame.pixelsPainted += static_cast<uint64_t>((std::max)(dirtyRectPx->right - dirtyRectPx->left, 0L)) *
-                               static_cast<uint64_t>((std::max)(dirtyRectPx->bottom - dirtyRectPx->top, 0L));
-    else
-        frame.pixelsPainted += static_cast<uint64_t>(widthPx) * heightPx;
+    frame.pixelsPainted += WindowHostRenderPixels(dirtyRectPx, widthPx, heightPx);
 }
 } // namespace
 
@@ -4831,7 +4880,7 @@ void ControlHost::ScheduleRecoveryRetry() noexcept
     {
         // Without the timer the window would stay blank until something else repaints it: retry on the next paint instead.
         Debug::Error(L"DxUi::ControlHost: SetTimer for the recovery retry failed: {}", GetLastError());
-        Invalidate();
+        InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Recovery));
         return;
     }
     _recoveryRetryArmedDelayMs = delayMs;
@@ -4854,7 +4903,7 @@ void ControlHost::OnRecoveryRetryDue() noexcept
 {
     _recoveryRetryArmedDelayMs = 0u;
     // The retry is an ordinary paint: a hidden window waits for its show, which paints anyway.
-    Invalidate();
+    InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Recovery));
 }
 
 void CALLBACK ControlHost::RecoveryRetryTimerProc(HWND hwnd, UINT, UINT_PTR timerId, DWORD) noexcept
@@ -4979,7 +5028,7 @@ try
         if (! PreparePendingPageLayout() || ! _nativePresentationVisible || _nativePresentationRevision != presentationRevision)
         {
             if (_contentPreparationContinues)
-                Invalidate();
+                InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Continuation));
             paintPerf.SetHr(E_ABORT);
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
@@ -5015,6 +5064,10 @@ try
         const auto renderStartedAt = frameClock.Now();
         bool clipPushed            = false;
         CountWindowHostRender(isPartialDirty ? dirtyRectPx : nullptr, _widthPx, _heightPx);
+        // The prepare-end event pairs with this begin even if a session starts or stops in between.
+        const bool tracedPrepare = Detail::Trace::Listening();
+        if (tracedPrepare) [[unlikely]]
+            Detail::Trace::PrepareBegin(_trace);
         _d2dContext->BeginDraw();
         auto endDrawGuard = wil::scope_exit([&]
         {
@@ -5068,6 +5121,8 @@ try
         }
         if (! treeStillCurrent())
         {
+            if (tracedPrepare) [[unlikely]]
+                Detail::Trace::PrepareEnd(_trace, E_ABORT, 0u);
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
         }
@@ -5084,6 +5139,8 @@ try
         }
         if (! treeStillCurrent())
         {
+            if (tracedPrepare) [[unlikely]]
+                Detail::Trace::PrepareEnd(_trace, E_ABORT, 0u);
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
         }
@@ -5106,6 +5163,8 @@ try
             SUCCEEDED(actualEndDrawResult) && FAILED(injectedEndDrawResult))
             hrDraw = injectedEndDrawResult;
 #endif
+        if (tracedPrepare) [[unlikely]]
+            Detail::Trace::PrepareEnd(_trace, hrDraw, WindowHostRenderPixels(isPartialDirty ? dirtyRectPx : nullptr, _widthPx, _heightPx));
 
         if (capture && FAILED(hrBatchFlush))
         {
@@ -5154,6 +5213,8 @@ try
                 ++Detail::Work().frame.presents;
                 hrPresent = _swapChain->Present(1u, 0u);
             }
+            if (Detail::Trace::Listening()) [[unlikely]]
+                Detail::Trace::Presented(_trace, Detail::Trace::Event::Present, isPartialDirty, hrPresent);
         }
 #if DXUI_ENABLE_DIAGNOSTICS
         if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))

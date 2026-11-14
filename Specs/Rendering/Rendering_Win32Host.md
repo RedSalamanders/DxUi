@@ -183,6 +183,11 @@ adapters, driver and captures.
 The incremental-versus-fresh oracle therefore reads only full native frames (`DebugCaptureBitmap`) until the
 presented-frame truth test supplies a presented-image reader; `DebugDropRetainedStateForTest` drops every registered
 retained cache of the host and its controls and invalidates the window ([validation](../Testing/Testing_Validation.md#incremental-versus-fresh-oracle)).
+The [trace provider](../Core/Core_PerformanceAndResources.md#trace-provider) observes a `WindowHost` on its own thread:
+each mouse, wheel, key and character message the window procedure receives writes one input-received event, the first
+invalidation after each render pass one frame-requested event with its reason (invalidate, visibility, recovery or
+continuation), each render pass prepare begin and end events, each `Present` or `Present1` one present event, and each
+`WM_PAINT` a wake. Nothing is written, and no host state changes, while no session or test sink listens.
 `AttachOptions::batchInitialRootChildren` is an opt-in native swap-chain rendering policy, defaulting to false. While
 the initial draw remains pending after swap-chain creation or resize, a full frame may flush after each visible
 direct child of a root `Panel`, with at most eight intermediate Flush boundaries in addition to the final EndDraw

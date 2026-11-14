@@ -388,6 +388,77 @@ the measuring UI thread is pinned. Each session first observes the host for five
 rather than stopping other work. A calibration or comparison refuses WARP, Debug, short runs and fewer sessions.
 New fixtures plug in through `FrameTiming::MakeFixture` in `Tests/Embedded/Embedded.Tests.FrameTiming.h`.
 
+## Trace provider
+
+DxUi writes a [TraceLogging](https://learn.microsoft.com/en-us/windows/win32/tracelogging/trace-logging-about) provider
+that shows, on your own machine and without a debugger, when input arrived, when a frame was requested and why, how long
+preparation took and when the frame was presented. It is the way to measure input-to-present latency and to diagnose a
+stall in the field.
+
+| | |
+| --- | --- |
+| Provider name | `DxUi` |
+| Provider GUID | `{89b12dac-c17b-5934-baa0-35b9f94990e6}` (the EventSource name hash of `DxUi`, so tools that accept `*DxUi` find it) |
+| Level | 4 (information), every event |
+| Keywords | `0x1` input, `0x2` frame, `0x4` wake |
+
+The provider is registered for the life of the process and is dormant until a session enables it. While no session
+listens, each event site is one branch: nothing is allocated, formatted or locked, and the ComplexUi dirty frame still
+makes exactly its 54 Release allocations. With a session listening, events are written on the thread doing the work and
+still allocate nothing ([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W0.8/README.md)). An `EmbeddedHost`
+gains no thread, timer or window. Events carry identifiers, counts, sizes,
+reasons, results and times only: never text, control names, file paths or document content.
+
+### Capture a trace
+
+From an elevated prompt (or as a member of Performance Log Users, the right ETW sessions need):
+
+```powershell
+.\Tools\Capture-DxUiTrace.ps1 -Start     # file-backed session; .build\traces\DxUiTrace.etl unless -OutputPath says otherwise
+# ... run the application and reproduce the stall ...
+.\Tools\Capture-DxUiTrace.ps1 -Stop      # stops the session and decodes the events to DxUiTrace.xml beside the .etl
+```
+
+The tool uses only the inbox `logman` and `tracerpt`; the `.etl` also opens in Windows Performance Analyzer. Without the
+tool: `logman start DxUiTrace -ets -p {89b12dac-c17b-5934-baa0-35b9f94990e6} 0x7 0x4 -o dxui.etl -ct perf`, then
+`logman stop DxUiTrace -ets`.
+
+### Event schema
+
+Every event has `HostId` (UInt32: a process-unique host number, 1-based, assigned on a host's first traced event; 0 for a
+wake that belongs to no single host) and `Qpc` (UInt64: `QueryPerformanceCounter` ticks, the one clock of every event).
+The ETW header adds the process, thread and session time. Fields are written in the order listed.
+
+| Event | Keyword | Fields after `HostId` | Written when |
+| --- | --- | --- | --- |
+| `InputReceived` | input | `Input` (UInt64), `Kind` (UInt8), `Qpc` | A `WindowHost` receives a mouse move, button down or up, wheel, key down or up, or character message; an `EmbeddedHost` receives a `DispatchPointer`, `DispatchKey` or `DispatchCharacter` call. |
+| `FrameRequested` | frame | `Frame` (UInt64), `Input` (UInt64), `Reason` (UInt8), `Qpc` | A `WindowHost` invalidates its window, or an `EmbeddedHost` calls the application's `requestPreparation`; only the first request for each frame. |
+| `PrepareBegin` | frame | `Frame`, `Input`, `Qpc` | A `WindowHost` render pass or an `EmbeddedHost::Prepare` begins painting. |
+| `PrepareEnd` | frame | `Frame`, `Input`, `Result` (HRESULT), `Pixels` (UInt64), `Qpc` | That painting ends; `Pixels` are the device pixels cleared and repainted. |
+| `Present` | frame | `Frame`, `Input`, `Partial` (Boolean), `Result` (HRESULT), `Qpc` | A `WindowHost` `Present` or `Present1` call returns. |
+| `Composite` | frame | `Frame`, `Input`, `Qpc` | An `EmbeddedHost::Composite` draws the prepared surface. |
+| `Wake` | wake | `Source` (UInt8), `Qpc` | DxUi takes a turn on the owner thread because something woke it. |
+
+`Kind`: 1 pointer move, 2 pointer down (any button, double clicks included), 3 pointer up, 4 wheel, 5 key down, 6 key up,
+7 character, 8 pointer leave and 9 pointer cancel (embedded dispatch only). `Reason`: 1 invalidate (a control or the host
+changed what the view shows), 2 visibility (shown again), 3 recovery (a device or resource retry), 4 continuation
+(content preparation continues, or the view changed during its own preparation), 5 input wake (embedded: the request an
+input dispatch deferred until it returned). `Source`: 1 animation timer, 2 `EmbeddedHost::AdvanceAnimation`, 3 menu
+submenu-hover timer, 4 `WM_PAINT`.
+
+### Input to present
+
+Numbers are per host. `Input` on `InputReceived` counts that host's inputs; `Frame` counts its preparations. A
+preparation records the newest input the host had received when it began, and its `PrepareEnd`, `Present` and
+`Composite` carry that number. So the present that first shows input *N* is the first `Present` (or `Composite`) on the
+same host whose `Input` is at least *N*, and input-to-present is the difference of their `Qpc` values divided by the
+`QueryPerformanceFrequency`. `FrameRequested.Frame` names the frame that will satisfy the request.
+
+Numbers advance only while something listens, so a second session in the same process continues where the first one
+stopped; compare numbers within one host and one session. An embedded
+application presents on its own schedule: `Composite` is when DxUi drew into the application's target, and the
+application's own present follows it.
+
 ## Dedicated library evidence
 
 The [no-capture menu scaling record](../Measurements/MenuDescriptions/2026-09-21/scaling-v1/README.md)
