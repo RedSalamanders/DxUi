@@ -321,7 +321,8 @@ time touch different files. In `Embedded.Tests.PerformanceFixtureFx<N>.h`:
 2. Fill the `Definition`: `hosts` (`kEmbedded`, `kWindow` or `kBothHosts`), `variants` (`variants[0]` is the default;
    mark hardware-only sizes such as 3840x2160 at 192 DPI `hardwareOnly`, and full-size WARP scenes too heavy to run twice
    in every suite, such as a million-row list or a 4K sweep, `receiptOnly`: receipts and timing run them, the suites'
-   determinism gate does not, so keep `variants[0]` small), `phases` (a first `PhaseKind::Warmup` phase
+   determinism gate does not, so keep `variants[0]` small; a scenario may read `context.variant.name` to size its
+   scene), `phases` (a first `PhaseKind::Warmup` phase
    settles first-use state and gives hit testing a prepared layout; measured phases are compared by the determinism gate),
    `timedPhase`, `sources` (repository paths of scene files, hashed into the receipt) and `create`.
 3. A scene helper too large for the fixture header goes in a new `Tests/Embedded/Embedded.Tests.<Name>.h`, added to

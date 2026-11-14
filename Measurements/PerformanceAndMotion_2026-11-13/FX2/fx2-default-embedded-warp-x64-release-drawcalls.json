@@ -1,0 +1,9438 @@
+{
+  "schema": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-performance-fixture-v1",
+  "fixtureId": "FX2",
+  "title": "ComboBox popup and typing",
+  "scenario": "A ComboBox with 500 items, open with 60 hover moves and closed with 20 typed characters; plus a 100-item popup in which every row fits. Embedded host (popup drawn into the view). Proves G3, G11.",
+  "budgets": [
+    "G3",
+    "G11"
+  ],
+  "host": "embedded",
+  "variant": {
+    "name": "default",
+    "width": 800,
+    "height": 3600,
+    "dpi": 96,
+    "hardwareOnly": false
+  },
+  "reducedMotion": true,
+  "renderer": "WARP",
+  "configuration": "Release",
+  "iteratorDebugLevel": 0,
+  "compiler": 195237025,
+  "adapter": {
+    "description": "Microsoft Basic Render Driver",
+    "vendorId": 5140,
+    "deviceId": 140,
+    "software": true,
+    "driverVersion": "10.0.26100.9711",
+    "dedicatedVideoBytes": 0
+  },
+  "cppAllocations": "counted per step",
+  "drawCalls": "counted per step by the counting COM wrappers",
+  "trackedResources": 20,
+  "trackerOverflow": 0,
+  "phases": [
+    {
+      "name": "warm",
+      "kind": "warmup",
+      "description": "nothing changes: the first frames lay out both ComboBoxes",
+      "steps": 2,
+      "series": {
+        "cppAllocations": [
+          8,
+          0
+        ],
+        "created": [
+          11,
+          0
+        ],
+        "churn": [
+          2,
+          0
+        ],
+        "frame.composites": [
+          1,
+          1
+        ],
+        "frame.drawCalls": [
+          15,
+          0
+        ],
+        "frame.paintExecutions": [
+          3,
+          0
+        ],
+        "frame.pixelsPainted": [
+          2880000,
+          0
+        ],
+        "frame.preparations": [
+          1,
+          0
+        ],
+        "frame.presents": [
+          0,
+          0
+        ],
+        "frame.renders": [
+          0,
+          0
+        ],
+        "frame.treeVisitsHitTest": [
+          0,
+          0
+        ],
+        "frame.treeVisitsPaint": [
+          3,
+          0
+        ],
+        "frame.treeVisitsStatistics": [
+          0,
+          0
+        ],
+        "frame.treeVisitsTick": [
+          0,
+          0
+        ],
+        "wakes.animationTimer": [
+          0,
+          0
+        ],
+        "wakes.embeddedAdvance": [
+          0,
+          0
+        ],
+        "wakes.menuHoverTimer": [
+          0,
+          0
+        ],
+        "wakes.paintMessage": [
+          0,
+          0
+        ],
+        "resources.bitmap.created": [
+          1,
+          0
+        ],
+        "resources.bitmap.destroyed": [
+          0,
+          0
+        ],
+        "resources.brush.created": [
+          4,
+          0
+        ],
+        "resources.brush.destroyed": [
+          0,
+          0
+        ],
+        "resources.commandList.created": [
+          0,
+          0
+        ],
+        "resources.commandList.destroyed": [
+          0,
+          0
+        ],
+        "resources.d3d11Device.created": [
+          0,
+          0
+        ],
+        "resources.d3d11Device.destroyed": [
+          0,
+          0
+        ],
+        "resources.deviceContext.created": [
+          0,
+          0
+        ],
+        "resources.deviceContext.destroyed": [
+          0,
+          0
+        ],
+        "resources.effect.created": [
+          0,
+          0
+        ],
+        "resources.effect.destroyed": [
+          0,
+          0
+        ],
+        "resources.geometry.created": [
+          0,
+          0
+        ],
+        "resources.geometry.destroyed": [
+          0,
+          0
+        ],
+        "resources.gradientStops.created": [
+          0,
+          0
+        ],
+        "resources.gradientStops.destroyed": [
+          0,
+          0
+        ],
+        "resources.implicitTextLayout.created": [
+          2,
+          0
+        ],
+        "resources.implicitTextLayout.destroyed": [
+          2,
+          0
+        ],
+        "resources.layer.created": [
+          0,
+          0
+        ],
+        "resources.layer.destroyed": [
+          0,
+          0
+        ],
+        "resources.renderingParams.created": [
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0
+        ],
+        "resources.strokeStyle.created": [
+          0,
+          0
+        ],
+        "resources.strokeStyle.destroyed": [
+          0,
+          0
+        ],
+        "resources.textFormat.created": [
+          2,
+          0
+        ],
+        "resources.textFormat.destroyed": [
+          0,
+          0
+        ],
+        "resources.textLayout.created": [
+          2,
+          0
+        ],
+        "resources.textLayout.destroyed": [
+          0,
+          0
+        ],
+        "text.setTextRenderingParams": [
+          0,
+          0
+        ],
+        "popups.backdropCapturePixels": [
+          0,
+          0
+        ],
+        "popups.backdropCaptures": [
+          0,
+          0
+        ],
+        "popups.comboBoxPopupRebuilds": [
+          0,
+          0
+        ],
+        "rich.hoveredTitleCalls": [
+          0,
+          0
+        ],
+        "rich.hoverScanElements": [
+          0,
+          0
+        ],
+        "accessibility.snapshotBuilds": [
+          0,
+          0
+        ],
+        "accessibility.snapshotBytes": [
+          0,
+          0
+        ],
+        "accessibility.snapshotNodes": [
+          0,
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
+          0,
+          0
+        ]
+      },
+      "summary": {
+        "cppAllocations": {
+          "min": 0,
+          "max": 8,
+          "total": 8
+        },
+        "created": {
+          "min": 0,
+          "max": 11,
+          "total": 11
+        },
+        "churn": {
+          "min": 0,
+          "max": 2,
+          "total": 2
+        },
+        "frame.composites": {
+          "min": 1,
+          "max": 1,
+          "total": 2
+        },
+        "frame.drawCalls": {
+          "min": 0,
+          "max": 15,
+          "total": 15
+        },
+        "frame.paintExecutions": {
+          "min": 0,
+          "max": 3,
+          "total": 3
+        },
+        "frame.pixelsPainted": {
+          "min": 0,
+          "max": 2880000,
+          "total": 2880000
+        },
+        "frame.preparations": {
+          "min": 0,
+          "max": 1,
+          "total": 1
+        },
+        "frame.presents": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsHitTest": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsPaint": {
+          "min": 0,
+          "max": 3,
+          "total": 3
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsTick": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.embeddedAdvance": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.menuHoverTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.paintMessage": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.created": {
+          "min": 0,
+          "max": 1,
+          "total": 1
+        },
+        "resources.bitmap.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.created": {
+          "min": 0,
+          "max": 4,
+          "total": 4
+        },
+        "resources.brush.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.implicitTextLayout.created": {
+          "min": 0,
+          "max": 2,
+          "total": 2
+        },
+        "resources.implicitTextLayout.destroyed": {
+          "min": 0,
+          "max": 2,
+          "total": 2
+        },
+        "resources.layer.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.created": {
+          "min": 0,
+          "max": 2,
+          "total": 2
+        },
+        "resources.textFormat.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.created": {
+          "min": 0,
+          "max": 2,
+          "total": 2
+        },
+        "resources.textLayout.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCapturePixels": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoveredTitleCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "open",
+      "kind": "measured",
+      "description": "focus the 500-item ComboBox and press F4: its popup opens",
+      "steps": 1,
+      "series": {
+        "cppAllocations": [
+          9
+        ],
+        "created": [
+          9526
+        ],
+        "churn": [
+          9514
+        ],
+        "frame.composites": [
+          1
+        ],
+        "frame.drawCalls": [
+          39
+        ],
+        "frame.paintExecutions": [
+          3
+        ],
+        "frame.pixelsPainted": [
+          2880000
+        ],
+        "frame.preparations": [
+          1
+        ],
+        "frame.presents": [
+          0
+        ],
+        "frame.renders": [
+          0
+        ],
+        "frame.treeVisitsHitTest": [
+          0
+        ],
+        "frame.treeVisitsPaint": [
+          3
+        ],
+        "frame.treeVisitsStatistics": [
+          0
+        ],
+        "frame.treeVisitsTick": [
+          0
+        ],
+        "wakes.animationTimer": [
+          0
+        ],
+        "wakes.embeddedAdvance": [
+          0
+        ],
+        "wakes.menuHoverTimer": [
+          0
+        ],
+        "wakes.paintMessage": [
+          0
+        ],
+        "resources.bitmap.created": [
+          0
+        ],
+        "resources.bitmap.destroyed": [
+          0
+        ],
+        "resources.brush.created": [
+          10
+        ],
+        "resources.brush.destroyed": [
+          2
+        ],
+        "resources.commandList.created": [
+          2
+        ],
+        "resources.commandList.destroyed": [
+          0
+        ],
+        "resources.d3d11Device.created": [
+          0
+        ],
+        "resources.d3d11Device.destroyed": [
+          0
+        ],
+        "resources.deviceContext.created": [
+          0
+        ],
+        "resources.deviceContext.destroyed": [
+          0
+        ],
+        "resources.effect.created": [
+          2
+        ],
+        "resources.effect.destroyed": [
+          2
+        ],
+        "resources.geometry.created": [
+          0
+        ],
+        "resources.geometry.destroyed": [
+          0
+        ],
+        "resources.gradientStops.created": [
+          2
+        ],
+        "resources.gradientStops.destroyed": [
+          0
+        ],
+        "resources.implicitTextLayout.created": [
+          10
+        ],
+        "resources.implicitTextLayout.destroyed": [
+          10
+        ],
+        "resources.layer.created": [
+          0
+        ],
+        "resources.layer.destroyed": [
+          0
+        ],
+        "resources.renderingParams.created": [
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0
+        ],
+        "resources.strokeStyle.created": [
+          0
+        ],
+        "resources.strokeStyle.destroyed": [
+          0
+        ],
+        "resources.textFormat.created": [
+          0
+        ],
+        "resources.textFormat.destroyed": [
+          0
+        ],
+        "resources.textLayout.created": [
+          9500
+        ],
+        "resources.textLayout.destroyed": [
+          9500
+        ],
+        "text.setTextRenderingParams": [
+          0
+        ],
+        "popups.backdropCapturePixels": [
+          0
+        ],
+        "popups.backdropCaptures": [
+          0
+        ],
+        "popups.comboBoxPopupRebuilds": [
+          1
+        ],
+        "rich.hoveredTitleCalls": [
+          0
+        ],
+        "rich.hoverScanElements": [
+          0
+        ],
+        "accessibility.snapshotBuilds": [
+          0
+        ],
+        "accessibility.snapshotBytes": [
+          0
+        ],
+        "accessibility.snapshotNodes": [
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
+          0
+        ]
+      },
+      "summary": {
+        "cppAllocations": {
+          "min": 9,
+          "max": 9,
+          "total": 9
+        },
+        "created": {
+          "min": 9526,
+          "max": 9526,
+          "total": 9526
+        },
+        "churn": {
+          "min": 9514,
+          "max": 9514,
+          "total": 9514
+        },
+        "frame.composites": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.drawCalls": {
+          "min": 39,
+          "max": 39,
+          "total": 39
+        },
+        "frame.paintExecutions": {
+          "min": 3,
+          "max": 3,
+          "total": 3
+        },
+        "frame.pixelsPainted": {
+          "min": 2880000,
+          "max": 2880000,
+          "total": 2880000
+        },
+        "frame.preparations": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.presents": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsHitTest": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsPaint": {
+          "min": 3,
+          "max": 3,
+          "total": 3
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsTick": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.embeddedAdvance": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.menuHoverTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.paintMessage": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.created": {
+          "min": 10,
+          "max": 10,
+          "total": 10
+        },
+        "resources.brush.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.commandList.created": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.commandList.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.created": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.effect.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.geometry.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.created": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.gradientStops.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.implicitTextLayout.created": {
+          "min": 10,
+          "max": 10,
+          "total": 10
+        },
+        "resources.implicitTextLayout.destroyed": {
+          "min": 10,
+          "max": 10,
+          "total": 10
+        },
+        "resources.layer.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.created": {
+          "min": 9500,
+          "max": 9500,
+          "total": 9500
+        },
+        "resources.textLayout.destroyed": {
+          "min": 9500,
+          "max": 9500,
+          "total": 9500
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCapturePixels": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupRebuilds": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "rich.hoveredTitleCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "hover",
+      "kind": "measured",
+      "description": "the pointer moves to the centre of popup row (step mod 8)",
+      "steps": 60,
+      "series": {
+        "cppAllocations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "created": [
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018
+        ],
+        "churn": [
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018,
+          11018
+        ],
+        "frame.composites": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "frame.drawCalls": [
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39,
+          39
+        ],
+        "frame.paintExecutions": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "frame.pixelsPainted": [
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000
+        ],
+        "frame.preparations": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "frame.presents": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.renders": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsHitTest": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsPaint": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "frame.treeVisitsStatistics": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsTick": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.animationTimer": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.embeddedAdvance": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.menuHoverTimer": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.paintMessage": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.bitmap.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.bitmap.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.brush.created": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.brush.destroyed": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.commandList.created": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.commandList.destroyed": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.d3d11Device.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.d3d11Device.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.deviceContext.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.deviceContext.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.effect.created": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.effect.destroyed": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.geometry.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.geometry.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.gradientStops.created": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.gradientStops.destroyed": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.implicitTextLayout.created": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10
+        ],
+        "resources.implicitTextLayout.destroyed": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10
+        ],
+        "resources.layer.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.layer.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.strokeStyle.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.strokeStyle.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textFormat.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textFormat.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textLayout.created": [
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000
+        ],
+        "resources.textLayout.destroyed": [
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000,
+          11000
+        ],
+        "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.backdropCapturePixels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.backdropCaptures": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.hoveredTitleCalls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.hoverScanElements": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotBuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotBytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "summary": {
+        "cppAllocations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "created": {
+          "min": 11018,
+          "max": 11018,
+          "total": 661080
+        },
+        "churn": {
+          "min": 11018,
+          "max": 11018,
+          "total": 661080
+        },
+        "frame.composites": {
+          "min": 1,
+          "max": 1,
+          "total": 60
+        },
+        "frame.drawCalls": {
+          "min": 39,
+          "max": 39,
+          "total": 2340
+        },
+        "frame.paintExecutions": {
+          "min": 3,
+          "max": 3,
+          "total": 180
+        },
+        "frame.pixelsPainted": {
+          "min": 2880000,
+          "max": 2880000,
+          "total": 172800000
+        },
+        "frame.preparations": {
+          "min": 1,
+          "max": 1,
+          "total": 60
+        },
+        "frame.presents": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsHitTest": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsPaint": {
+          "min": 3,
+          "max": 3,
+          "total": 180
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsTick": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.embeddedAdvance": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.menuHoverTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.paintMessage": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.created": {
+          "min": 2,
+          "max": 2,
+          "total": 120
+        },
+        "resources.brush.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 120
+        },
+        "resources.commandList.created": {
+          "min": 2,
+          "max": 2,
+          "total": 120
+        },
+        "resources.commandList.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 120
+        },
+        "resources.d3d11Device.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.created": {
+          "min": 2,
+          "max": 2,
+          "total": 120
+        },
+        "resources.effect.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 120
+        },
+        "resources.geometry.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.created": {
+          "min": 2,
+          "max": 2,
+          "total": 120
+        },
+        "resources.gradientStops.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 120
+        },
+        "resources.implicitTextLayout.created": {
+          "min": 10,
+          "max": 10,
+          "total": 600
+        },
+        "resources.implicitTextLayout.destroyed": {
+          "min": 10,
+          "max": 10,
+          "total": 600
+        },
+        "resources.layer.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.created": {
+          "min": 11000,
+          "max": 11000,
+          "total": 660000
+        },
+        "resources.textLayout.destroyed": {
+          "min": 11000,
+          "max": 11000,
+          "total": 660000
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCapturePixels": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoveredTitleCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "close",
+      "kind": "measured",
+      "description": "Escape closes the popup",
+      "steps": 1,
+      "series": {
+        "cppAllocations": [
+          0
+        ],
+        "created": [
+          2
+        ],
+        "churn": [
+          2
+        ],
+        "frame.composites": [
+          1
+        ],
+        "frame.drawCalls": [
+          16
+        ],
+        "frame.paintExecutions": [
+          3
+        ],
+        "frame.pixelsPainted": [
+          2880000
+        ],
+        "frame.preparations": [
+          1
+        ],
+        "frame.presents": [
+          0
+        ],
+        "frame.renders": [
+          0
+        ],
+        "frame.treeVisitsHitTest": [
+          0
+        ],
+        "frame.treeVisitsPaint": [
+          3
+        ],
+        "frame.treeVisitsStatistics": [
+          0
+        ],
+        "frame.treeVisitsTick": [
+          0
+        ],
+        "wakes.animationTimer": [
+          0
+        ],
+        "wakes.embeddedAdvance": [
+          0
+        ],
+        "wakes.menuHoverTimer": [
+          0
+        ],
+        "wakes.paintMessage": [
+          0
+        ],
+        "resources.bitmap.created": [
+          0
+        ],
+        "resources.bitmap.destroyed": [
+          0
+        ],
+        "resources.brush.created": [
+          0
+        ],
+        "resources.brush.destroyed": [
+          0
+        ],
+        "resources.commandList.created": [
+          0
+        ],
+        "resources.commandList.destroyed": [
+          2
+        ],
+        "resources.d3d11Device.created": [
+          0
+        ],
+        "resources.d3d11Device.destroyed": [
+          0
+        ],
+        "resources.deviceContext.created": [
+          0
+        ],
+        "resources.deviceContext.destroyed": [
+          0
+        ],
+        "resources.effect.created": [
+          0
+        ],
+        "resources.effect.destroyed": [
+          0
+        ],
+        "resources.geometry.created": [
+          0
+        ],
+        "resources.geometry.destroyed": [
+          0
+        ],
+        "resources.gradientStops.created": [
+          0
+        ],
+        "resources.gradientStops.destroyed": [
+          2
+        ],
+        "resources.implicitTextLayout.created": [
+          2
+        ],
+        "resources.implicitTextLayout.destroyed": [
+          2
+        ],
+        "resources.layer.created": [
+          0
+        ],
+        "resources.layer.destroyed": [
+          0
+        ],
+        "resources.renderingParams.created": [
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0
+        ],
+        "resources.strokeStyle.created": [
+          0
+        ],
+        "resources.strokeStyle.destroyed": [
+          0
+        ],
+        "resources.textFormat.created": [
+          0
+        ],
+        "resources.textFormat.destroyed": [
+          0
+        ],
+        "resources.textLayout.created": [
+          0
+        ],
+        "resources.textLayout.destroyed": [
+          0
+        ],
+        "text.setTextRenderingParams": [
+          0
+        ],
+        "popups.backdropCapturePixels": [
+          0
+        ],
+        "popups.backdropCaptures": [
+          0
+        ],
+        "popups.comboBoxPopupRebuilds": [
+          0
+        ],
+        "rich.hoveredTitleCalls": [
+          0
+        ],
+        "rich.hoverScanElements": [
+          0
+        ],
+        "accessibility.snapshotBuilds": [
+          0
+        ],
+        "accessibility.snapshotBytes": [
+          0
+        ],
+        "accessibility.snapshotNodes": [
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
+          0
+        ]
+      },
+      "summary": {
+        "cppAllocations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "created": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "churn": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "frame.composites": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.drawCalls": {
+          "min": 16,
+          "max": 16,
+          "total": 16
+        },
+        "frame.paintExecutions": {
+          "min": 3,
+          "max": 3,
+          "total": 3
+        },
+        "frame.pixelsPainted": {
+          "min": 2880000,
+          "max": 2880000,
+          "total": 2880000
+        },
+        "frame.preparations": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.presents": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsHitTest": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsPaint": {
+          "min": 3,
+          "max": 3,
+          "total": 3
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsTick": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.embeddedAdvance": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.menuHoverTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.paintMessage": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.d3d11Device.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.implicitTextLayout.created": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.implicitTextLayout.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.layer.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCapturePixels": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoveredTitleCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "type",
+      "kind": "measured",
+      "description": "one character typed into the closed editable ComboBox (popup does not auto-open)",
+      "steps": 20,
+      "series": {
+        "cppAllocations": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          3,
+          4,
+          6,
+          3,
+          4,
+          3,
+          3,
+          3,
+          4,
+          3,
+          3,
+          3,
+          3,
+          3,
+          4
+        ],
+        "created": [
+          1003,
+          1003,
+          1003,
+          1003,
+          1003,
+          225,
+          25,
+          6,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "churn": [
+          1003,
+          1003,
+          1003,
+          1003,
+          1003,
+          225,
+          25,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "frame.composites": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "frame.drawCalls": [
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16,
+          16
+        ],
+        "frame.paintExecutions": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "frame.pixelsPainted": [
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000
+        ],
+        "frame.preparations": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "frame.presents": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.renders": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsHitTest": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsPaint": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "frame.treeVisitsStatistics": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsTick": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.animationTimer": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.embeddedAdvance": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.menuHoverTimer": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.paintMessage": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.bitmap.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.bitmap.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.brush.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.brush.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.commandList.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.commandList.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.d3d11Device.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.d3d11Device.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.deviceContext.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.deviceContext.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.effect.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.effect.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.geometry.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.geometry.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.gradientStops.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.gradientStops.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.implicitTextLayout.created": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.implicitTextLayout.destroyed": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.layer.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.layer.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.strokeStyle.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.strokeStyle.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textFormat.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textFormat.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textLayout.created": [
+          1001,
+          1001,
+          1001,
+          1001,
+          1001,
+          223,
+          23,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "resources.textLayout.destroyed": [
+          1001,
+          1001,
+          1001,
+          1001,
+          1001,
+          223,
+          23,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.backdropCapturePixels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.backdropCaptures": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupRebuilds": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "rich.hoveredTitleCalls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.hoverScanElements": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotBuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotBytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "summary": {
+        "cppAllocations": {
+          "min": 3,
+          "max": 6,
+          "total": 72
+        },
+        "created": {
+          "min": 5,
+          "max": 1003,
+          "total": 5331
+        },
+        "churn": {
+          "min": 5,
+          "max": 1003,
+          "total": 5330
+        },
+        "frame.composites": {
+          "min": 1,
+          "max": 1,
+          "total": 20
+        },
+        "frame.drawCalls": {
+          "min": 16,
+          "max": 16,
+          "total": 320
+        },
+        "frame.paintExecutions": {
+          "min": 3,
+          "max": 3,
+          "total": 60
+        },
+        "frame.pixelsPainted": {
+          "min": 2880000,
+          "max": 2880000,
+          "total": 57600000
+        },
+        "frame.preparations": {
+          "min": 1,
+          "max": 1,
+          "total": 20
+        },
+        "frame.presents": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsHitTest": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsPaint": {
+          "min": 3,
+          "max": 3,
+          "total": 60
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsTick": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.embeddedAdvance": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.menuHoverTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.paintMessage": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.implicitTextLayout.created": {
+          "min": 2,
+          "max": 2,
+          "total": 40
+        },
+        "resources.implicitTextLayout.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 40
+        },
+        "resources.layer.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.created": {
+          "min": 0,
+          "max": 1,
+          "total": 1
+        },
+        "resources.textFormat.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.created": {
+          "min": 3,
+          "max": 1001,
+          "total": 5290
+        },
+        "resources.textLayout.destroyed": {
+          "min": 3,
+          "max": 1001,
+          "total": 5290
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCapturePixels": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupRebuilds": {
+          "min": 1,
+          "max": 1,
+          "total": 20
+        },
+        "rich.hoveredTitleCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "fit-open",
+      "kind": "measured",
+      "description": "focus the 100-item ComboBox and press F4: its popup opens with every row visible",
+      "steps": 1,
+      "series": {
+        "cppAllocations": [
+          2
+        ],
+        "created": [
+          20412
+        ],
+        "churn": [
+          20406
+        ],
+        "frame.composites": [
+          1
+        ],
+        "frame.drawCalls": [
+          129
+        ],
+        "frame.paintExecutions": [
+          3
+        ],
+        "frame.pixelsPainted": [
+          2880000
+        ],
+        "frame.preparations": [
+          1
+        ],
+        "frame.presents": [
+          0
+        ],
+        "frame.renders": [
+          0
+        ],
+        "frame.treeVisitsHitTest": [
+          0
+        ],
+        "frame.treeVisitsPaint": [
+          3
+        ],
+        "frame.treeVisitsStatistics": [
+          0
+        ],
+        "frame.treeVisitsTick": [
+          0
+        ],
+        "wakes.animationTimer": [
+          0
+        ],
+        "wakes.embeddedAdvance": [
+          0
+        ],
+        "wakes.menuHoverTimer": [
+          0
+        ],
+        "wakes.paintMessage": [
+          0
+        ],
+        "resources.bitmap.created": [
+          0
+        ],
+        "resources.bitmap.destroyed": [
+          0
+        ],
+        "resources.brush.created": [
+          4
+        ],
+        "resources.brush.destroyed": [
+          2
+        ],
+        "resources.commandList.created": [
+          2
+        ],
+        "resources.commandList.destroyed": [
+          0
+        ],
+        "resources.d3d11Device.created": [
+          0
+        ],
+        "resources.d3d11Device.destroyed": [
+          0
+        ],
+        "resources.deviceContext.created": [
+          0
+        ],
+        "resources.deviceContext.destroyed": [
+          0
+        ],
+        "resources.effect.created": [
+          2
+        ],
+        "resources.effect.destroyed": [
+          2
+        ],
+        "resources.geometry.created": [
+          0
+        ],
+        "resources.geometry.destroyed": [
+          0
+        ],
+        "resources.gradientStops.created": [
+          2
+        ],
+        "resources.gradientStops.destroyed": [
+          0
+        ],
+        "resources.implicitTextLayout.created": [
+          102
+        ],
+        "resources.implicitTextLayout.destroyed": [
+          102
+        ],
+        "resources.layer.created": [
+          0
+        ],
+        "resources.layer.destroyed": [
+          0
+        ],
+        "resources.renderingParams.created": [
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0
+        ],
+        "resources.strokeStyle.created": [
+          0
+        ],
+        "resources.strokeStyle.destroyed": [
+          0
+        ],
+        "resources.textFormat.created": [
+          0
+        ],
+        "resources.textFormat.destroyed": [
+          0
+        ],
+        "resources.textLayout.created": [
+          20300
+        ],
+        "resources.textLayout.destroyed": [
+          20300
+        ],
+        "text.setTextRenderingParams": [
+          0
+        ],
+        "popups.backdropCapturePixels": [
+          0
+        ],
+        "popups.backdropCaptures": [
+          0
+        ],
+        "popups.comboBoxPopupRebuilds": [
+          1
+        ],
+        "rich.hoveredTitleCalls": [
+          0
+        ],
+        "rich.hoverScanElements": [
+          0
+        ],
+        "accessibility.snapshotBuilds": [
+          0
+        ],
+        "accessibility.snapshotBytes": [
+          0
+        ],
+        "accessibility.snapshotNodes": [
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
+          0
+        ]
+      },
+      "summary": {
+        "cppAllocations": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "created": {
+          "min": 20412,
+          "max": 20412,
+          "total": 20412
+        },
+        "churn": {
+          "min": 20406,
+          "max": 20406,
+          "total": 20406
+        },
+        "frame.composites": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.drawCalls": {
+          "min": 129,
+          "max": 129,
+          "total": 129
+        },
+        "frame.paintExecutions": {
+          "min": 3,
+          "max": 3,
+          "total": 3
+        },
+        "frame.pixelsPainted": {
+          "min": 2880000,
+          "max": 2880000,
+          "total": 2880000
+        },
+        "frame.preparations": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.presents": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsHitTest": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsPaint": {
+          "min": 3,
+          "max": 3,
+          "total": 3
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsTick": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.embeddedAdvance": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.menuHoverTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.paintMessage": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.created": {
+          "min": 4,
+          "max": 4,
+          "total": 4
+        },
+        "resources.brush.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.commandList.created": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.commandList.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.created": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.effect.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.geometry.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.created": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.gradientStops.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.implicitTextLayout.created": {
+          "min": 102,
+          "max": 102,
+          "total": 102
+        },
+        "resources.implicitTextLayout.destroyed": {
+          "min": 102,
+          "max": 102,
+          "total": 102
+        },
+        "resources.layer.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.created": {
+          "min": 20300,
+          "max": 20300,
+          "total": 20300
+        },
+        "resources.textLayout.destroyed": {
+          "min": 20300,
+          "max": 20300,
+          "total": 20300
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCapturePixels": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupRebuilds": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "rich.hoveredTitleCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "fit-hover",
+      "kind": "measured",
+      "description": "the pointer moves to the centre of popup row 5 x step",
+      "steps": 20,
+      "series": {
+        "cppAllocations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "created": [
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710
+        ],
+        "churn": [
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710,
+          20710
+        ],
+        "frame.composites": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "frame.drawCalls": [
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129,
+          129
+        ],
+        "frame.paintExecutions": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "frame.pixelsPainted": [
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000,
+          2880000
+        ],
+        "frame.preparations": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "frame.presents": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.renders": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsHitTest": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsPaint": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "frame.treeVisitsStatistics": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsTick": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.animationTimer": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.embeddedAdvance": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.menuHoverTimer": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.paintMessage": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.bitmap.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.bitmap.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.brush.created": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.brush.destroyed": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.commandList.created": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.commandList.destroyed": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.d3d11Device.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.d3d11Device.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.deviceContext.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.deviceContext.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.effect.created": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.effect.destroyed": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.geometry.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.geometry.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.gradientStops.created": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.gradientStops.destroyed": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
+        "resources.implicitTextLayout.created": [
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102
+        ],
+        "resources.implicitTextLayout.destroyed": [
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102,
+          102
+        ],
+        "resources.layer.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.layer.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.strokeStyle.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.strokeStyle.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textFormat.created": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textFormat.destroyed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textLayout.created": [
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600
+        ],
+        "resources.textLayout.destroyed": [
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600,
+          20600
+        ],
+        "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.backdropCapturePixels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.backdropCaptures": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.hoveredTitleCalls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.hoverScanElements": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotBuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotBytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "summary": {
+        "cppAllocations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "created": {
+          "min": 20710,
+          "max": 20710,
+          "total": 414200
+        },
+        "churn": {
+          "min": 20710,
+          "max": 20710,
+          "total": 414200
+        },
+        "frame.composites": {
+          "min": 1,
+          "max": 1,
+          "total": 20
+        },
+        "frame.drawCalls": {
+          "min": 129,
+          "max": 129,
+          "total": 2580
+        },
+        "frame.paintExecutions": {
+          "min": 3,
+          "max": 3,
+          "total": 60
+        },
+        "frame.pixelsPainted": {
+          "min": 2880000,
+          "max": 2880000,
+          "total": 57600000
+        },
+        "frame.preparations": {
+          "min": 1,
+          "max": 1,
+          "total": 20
+        },
+        "frame.presents": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsHitTest": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsPaint": {
+          "min": 3,
+          "max": 3,
+          "total": 60
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsTick": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.embeddedAdvance": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.menuHoverTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.paintMessage": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.created": {
+          "min": 2,
+          "max": 2,
+          "total": 40
+        },
+        "resources.brush.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 40
+        },
+        "resources.commandList.created": {
+          "min": 2,
+          "max": 2,
+          "total": 40
+        },
+        "resources.commandList.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 40
+        },
+        "resources.d3d11Device.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.created": {
+          "min": 2,
+          "max": 2,
+          "total": 40
+        },
+        "resources.effect.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 40
+        },
+        "resources.geometry.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.created": {
+          "min": 2,
+          "max": 2,
+          "total": 40
+        },
+        "resources.gradientStops.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 40
+        },
+        "resources.implicitTextLayout.created": {
+          "min": 102,
+          "max": 102,
+          "total": 2040
+        },
+        "resources.implicitTextLayout.destroyed": {
+          "min": 102,
+          "max": 102,
+          "total": 2040
+        },
+        "resources.layer.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.created": {
+          "min": 20600,
+          "max": 20600,
+          "total": 412000
+        },
+        "resources.textLayout.destroyed": {
+          "min": 20600,
+          "max": 20600,
+          "total": 412000
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCapturePixels": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoveredTitleCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "fit-close",
+      "kind": "measured",
+      "description": "Escape closes the popup",
+      "steps": 1,
+      "series": {
+        "cppAllocations": [
+          0
+        ],
+        "created": [
+          2
+        ],
+        "churn": [
+          2
+        ],
+        "frame.composites": [
+          1
+        ],
+        "frame.drawCalls": [
+          16
+        ],
+        "frame.paintExecutions": [
+          3
+        ],
+        "frame.pixelsPainted": [
+          2880000
+        ],
+        "frame.preparations": [
+          1
+        ],
+        "frame.presents": [
+          0
+        ],
+        "frame.renders": [
+          0
+        ],
+        "frame.treeVisitsHitTest": [
+          0
+        ],
+        "frame.treeVisitsPaint": [
+          3
+        ],
+        "frame.treeVisitsStatistics": [
+          0
+        ],
+        "frame.treeVisitsTick": [
+          0
+        ],
+        "wakes.animationTimer": [
+          0
+        ],
+        "wakes.embeddedAdvance": [
+          0
+        ],
+        "wakes.menuHoverTimer": [
+          0
+        ],
+        "wakes.paintMessage": [
+          0
+        ],
+        "resources.bitmap.created": [
+          0
+        ],
+        "resources.bitmap.destroyed": [
+          0
+        ],
+        "resources.brush.created": [
+          0
+        ],
+        "resources.brush.destroyed": [
+          0
+        ],
+        "resources.commandList.created": [
+          0
+        ],
+        "resources.commandList.destroyed": [
+          2
+        ],
+        "resources.d3d11Device.created": [
+          0
+        ],
+        "resources.d3d11Device.destroyed": [
+          0
+        ],
+        "resources.deviceContext.created": [
+          0
+        ],
+        "resources.deviceContext.destroyed": [
+          0
+        ],
+        "resources.effect.created": [
+          0
+        ],
+        "resources.effect.destroyed": [
+          0
+        ],
+        "resources.geometry.created": [
+          0
+        ],
+        "resources.geometry.destroyed": [
+          0
+        ],
+        "resources.gradientStops.created": [
+          0
+        ],
+        "resources.gradientStops.destroyed": [
+          2
+        ],
+        "resources.implicitTextLayout.created": [
+          2
+        ],
+        "resources.implicitTextLayout.destroyed": [
+          2
+        ],
+        "resources.layer.created": [
+          0
+        ],
+        "resources.layer.destroyed": [
+          0
+        ],
+        "resources.renderingParams.created": [
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0
+        ],
+        "resources.strokeStyle.created": [
+          0
+        ],
+        "resources.strokeStyle.destroyed": [
+          0
+        ],
+        "resources.textFormat.created": [
+          0
+        ],
+        "resources.textFormat.destroyed": [
+          0
+        ],
+        "resources.textLayout.created": [
+          0
+        ],
+        "resources.textLayout.destroyed": [
+          0
+        ],
+        "text.setTextRenderingParams": [
+          0
+        ],
+        "popups.backdropCapturePixels": [
+          0
+        ],
+        "popups.backdropCaptures": [
+          0
+        ],
+        "popups.comboBoxPopupRebuilds": [
+          0
+        ],
+        "rich.hoveredTitleCalls": [
+          0
+        ],
+        "rich.hoverScanElements": [
+          0
+        ],
+        "accessibility.snapshotBuilds": [
+          0
+        ],
+        "accessibility.snapshotBytes": [
+          0
+        ],
+        "accessibility.snapshotNodes": [
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
+          0
+        ]
+      },
+      "summary": {
+        "cppAllocations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "created": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "churn": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "frame.composites": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.drawCalls": {
+          "min": 16,
+          "max": 16,
+          "total": 16
+        },
+        "frame.paintExecutions": {
+          "min": 3,
+          "max": 3,
+          "total": 3
+        },
+        "frame.pixelsPainted": {
+          "min": 2880000,
+          "max": 2880000,
+          "total": 2880000
+        },
+        "frame.preparations": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.presents": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsHitTest": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsPaint": {
+          "min": 3,
+          "max": 3,
+          "total": 3
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsTick": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.embeddedAdvance": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.menuHoverTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.paintMessage": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.d3d11Device.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.implicitTextLayout.created": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.implicitTextLayout.destroyed": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "resources.layer.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCapturePixels": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoveredTitleCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        }
+      }
+    }
+  ],
+  "memory": {
+    "entryPrivateBytes": 2613248,
+    "videoMemory": {
+      "applicable": false,
+      "reason": "software adapter: rendering uses system memory, which privateBytes counts"
+    },
+    "trackedLiveBytes": "measured from the scene build onwards",
+    "samples": [
+      {
+        "at": "device",
+        "privateBytes": 19312640,
+        "workingSetBytes": 21708800
+      },
+      {
+        "at": "built",
+        "privateBytes": 20828160,
+        "workingSetBytes": 25227264,
+        "trackedLiveBytes": 77379,
+        "retained": {
+          "surfaceBytes": 0,
+          "cachedBrushes": 0,
+          "cachedTextFormats": 0,
+          "retainedTextLayouts": 0,
+          "retainedTextLayoutUnits": 0,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "at": "phase",
+        "phase": "warm",
+        "privateBytes": 34832384,
+        "workingSetBytes": 29343744,
+        "trackedLiveBytes": 77571,
+        "retained": {
+          "surfaceBytes": 11520000,
+          "cachedBrushes": 4,
+          "cachedTextFormats": 2,
+          "retainedTextLayouts": 2,
+          "retainedTextLayoutUnits": 0,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "at": "phase",
+        "phase": "open",
+        "privateBytes": 49074176,
+        "workingSetBytes": 63381504,
+        "trackedLiveBytes": 78723,
+        "retained": {
+          "surfaceBytes": 11520000,
+          "cachedBrushes": 12,
+          "cachedTextFormats": 2,
+          "retainedTextLayouts": 2,
+          "retainedTextLayoutUnits": 0,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "at": "phase",
+        "phase": "hover",
+        "privateBytes": 277364736,
+        "workingSetBytes": 148127744,
+        "trackedLiveBytes": 78723,
+        "retained": {
+          "surfaceBytes": 11520000,
+          "cachedBrushes": 12,
+          "cachedTextFormats": 2,
+          "retainedTextLayouts": 2,
+          "retainedTextLayoutUnits": 0,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "at": "phase",
+        "phase": "close",
+        "privateBytes": 277364736,
+        "workingSetBytes": 148127744,
+        "trackedLiveBytes": 78723,
+        "retained": {
+          "surfaceBytes": 11520000,
+          "cachedBrushes": 12,
+          "cachedTextFormats": 2,
+          "retainedTextLayouts": 2,
+          "retainedTextLayoutUnits": 0,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "at": "phase",
+        "phase": "type",
+        "privateBytes": 276873216,
+        "workingSetBytes": 148881408,
+        "trackedLiveBytes": 82691,
+        "retained": {
+          "surfaceBytes": 11520000,
+          "cachedBrushes": 12,
+          "cachedTextFormats": 3,
+          "retainedTextLayouts": 2,
+          "retainedTextLayoutUnits": 20,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "at": "phase",
+        "phase": "fit-open",
+        "privateBytes": 307908608,
+        "workingSetBytes": 180252672,
+        "trackedLiveBytes": 82755,
+        "retained": {
+          "surfaceBytes": 11520000,
+          "cachedBrushes": 14,
+          "cachedTextFormats": 3,
+          "retainedTextLayouts": 2,
+          "retainedTextLayoutUnits": 20,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "at": "phase",
+        "phase": "fit-hover",
+        "privateBytes": 450203648,
+        "workingSetBytes": 237723648,
+        "trackedLiveBytes": 82755,
+        "retained": {
+          "surfaceBytes": 11520000,
+          "cachedBrushes": 14,
+          "cachedTextFormats": 3,
+          "retainedTextLayouts": 2,
+          "retainedTextLayoutUnits": 20,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "at": "phase",
+        "phase": "fit-close",
+        "privateBytes": 450203648,
+        "workingSetBytes": 237723648,
+        "trackedLiveBytes": 82755,
+        "retained": {
+          "surfaceBytes": 11520000,
+          "cachedBrushes": 14,
+          "cachedTextFormats": 3,
+          "retainedTextLayouts": 2,
+          "retainedTextLayoutUnits": 20,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "at": "hidden",
+        "privateBytes": 450203648,
+        "workingSetBytes": 237731840,
+        "trackedLiveBytes": 82755,
+        "retained": {
+          "surfaceBytes": 0,
+          "cachedBrushes": 14,
+          "cachedTextFormats": 3,
+          "retainedTextLayouts": 2,
+          "retainedTextLayoutUnits": 20,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      }
+    ],
+    "hiddenResidencyDelta": {
+      "privateBytes": 0,
+      "workingSetBytes": 8192,
+      "surfaceBytes": -11520000,
+      "retainedTextLayouts": 0,
+      "retainedBitmapBytes": 0
+    },
+    "minimizedResidency": "hidden",
+    "controlBytes": {
+      "Control": 296,
+      "Label": 448,
+      "Button": 816,
+      "Toggle": 904,
+      "Checkbox": 912,
+      "RadioButton": 864
+    }
+  },
+  "timing": {
+    "status": "not measured",
+    "reason": "timing comes only from performance-timing.ps1 on a hardware adapter in a quiet window (W0.2); counts and memory are recorded here"
+  },
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "499121B329A2D50388E79BD779FEED3CD7BE08616A09CDF42AC24B602623ABF1",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h": "7C2FAFF45C77EFEB1B521D74379AEE3DD335B86CC339FD1C91C4BD216CC77AE0",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "45CEC9B1CD47544E8E3C47F7D8D60AD5272997BA930485C8F95176590A3F66A9",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "00844224A58AC9CDD5B726A72BD598293BA5756E9535AC59E26134DD3D7A78DD",
+    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "2D896E750A51C98FD64F17E0308D246C816FF0CA578826EA8ED3D297208D4FC8",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
+    "performance-fixtures.ps1": "2A0ED76BC6F59B8C7FB346ABC746B5A31C18FE3A2AC07069C6C8EF2E2FC78DA0",
+    "Tools/PerformanceFixtures.psm1": "085B1FD8A3927072EF5C1B02C4115D6C42C18847185C7C8660E73B0776BA66AC",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx2.h": "E0E2EC93A9AC081B5FFE62877866F234EA4A145B7F9AC1446949AF5CBD01BFAA"
+  },
+  "provenance": {
+    "sourceCommit": "a9967b05811b150462f2c87e744a0da8b946a1a7",
+    "sourceDirty": true,
+    "platform": "x64",
+    "configuration": "Release",
+    "command": "performance-fixtures.ps1 -Fixture FX2 -Variant default -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64",
+    "executableSha256": "B5A4A9542E7BC87B7A51D50A90F9754AEAA9F4F79C5CC6B53C4A5E11E96FF057",
+    "os": {
+      "description": "Microsoft Windows 10.0.26300",
+      "build": "26300",
+      "ubr": 9711,
+      "displayVersion": "26H2"
+    },
+    "warpVersion": "10.0.26100.9711 (WinBuild.160101.0800)",
+    "displays": [
+      {
+        "name": "AMD Radeon(TM) Graphics",
+        "refreshRateHz": 60,
+        "driverVersion": "32.0.21036.18",
+        "horizontalResolution": 2560,
+        "verticalResolution": 720
+      },
+      {
+        "name": "NVIDIA GeForce RTX 5080",
+        "refreshRateHz": 120,
+        "driverVersion": "32.0.16.1714",
+        "horizontalResolution": 3840,
+        "verticalResolution": 2160
+      }
+    ],
+    "powerPlan": {
+      "guid": "381b4222-f694-41f0-9685-ff5bb260df2e",
+      "text": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)"
+    },
+    "hostIdle": {
+      "seconds": 3,
+      "busyPercent": 50.55803571428572,
+      "observer": "Tools/Watch-BenchmarkHost.ps1",
+      "required": false
+    },
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "recordedUtc": "2026-11-14T18:11:42.2032028Z"
+  }
+}

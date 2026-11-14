@@ -18,6 +18,7 @@
 #include "Embedded.Tests.PerformanceFixtureSelfTest.h"
 #pragma warning(pop)
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -145,7 +146,7 @@ struct RunOptions
     // Installs the counting COM wrappers (Support.Tests.CountingDirect2D.h) before the host's graphics device exists, so
     // frame.drawCalls counts every Direct2D draw call; without them that counter stays 0.
     bool countDrawCalls            = false;
-    size_t trackedResourceCapacity = 16384u;
+    size_t trackedResourceCapacity = 262144u; // FX2 creates over 16,384 tracked text layouts in one step
     // Called after the last phase, before the view is hidden: a gate test inspects the live scene or measures its own
     // action here. It runs outside every counted step.
     std::function<void(EmbeddedInstance&, GraphicsFixture&)> afterPhases;
@@ -401,6 +402,7 @@ __declspec(noinline) inline void TestCatalogIsDeterministic(const wchar_t* artif
         {
             if (variant.hardwareOnly || variant.receiptOnly)
                 continue;
+            const auto started     = std::chrono::steady_clock::now();
             const RunRecord first  = RunEmbedded(*definition, variant);
             const RunRecord second = RunEmbedded(*definition, variant);
             Check(first.trackerOverflow == 0u && second.trackerOverflow == 0u, "the tracker observed every resource the fixture created");
@@ -409,7 +411,8 @@ __declspec(noinline) inline void TestCatalogIsDeterministic(const wchar_t* artif
             if (artifactDirectory)
                 WriteReceiptFile(
                     first, std::filesystem::path(artifactDirectory) / (std::string(definition->id) + '@' + std::string(variant.name) + "-embedded-warp.json"));
-            std::cout << "Performance fixture " << definition->id << '@' << variant.name << " (embedded, WARP): two runs record equal counters\n";
+            std::cout << "Performance fixture " << definition->id << '@' << variant.name << " (embedded, WARP): two runs record equal counters ("
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count() << " ms)\n";
         }
     }
     Check(compared > 0u, "the determinism gate compared at least one fixture");

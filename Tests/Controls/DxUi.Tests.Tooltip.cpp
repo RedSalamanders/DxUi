@@ -1,4 +1,5 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Embedded.Tests.TooltipHoverPath.h"
 #include "GraphicsFixture.h"
 #include "Support/AnimationDispatcher.h"
 
@@ -670,24 +671,8 @@ void TestPassiveSupplementalTooltipUsesHostHitTestingDelayLifetimeAndClickThroug
     Require(! window.Host().HasTooltip(), "host mouse-leave clears passive tooltip state");
 }
 
-// The tooltip hover path: the pointer enters one tooltip-bearing control and then makes 50 further moves inside it, all
-// within the hover delay. Points are view pixels; the path stays inside a control placed at (8, 8)-(200, 100) DIPs at any
-// DPI from 96 to 192.
-constexpr size_t kTooltipHoverPathMoves = 50u;
-
-[[nodiscard]] POINT TooltipHoverPathPixel(size_t move) noexcept
-{
-    return POINT{static_cast<LONG>(20u + 2u * move), static_cast<LONG>(20u + move)};
-}
-
-[[nodiscard]] std::unique_ptr<DxUi::Panel> MakeTooltipHoverPathRoot(std::wstring_view tooltipText)
-{
-    auto root  = std::make_unique<DxUi::Panel>();
-    auto* help = root->AddChild<DxUi::Label>(L"Help");
-    help->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 100.0f));
-    help->SetTooltipText(std::wstring(tooltipText));
-    return root;
-}
+// The tooltip hover path (kTooltipHoverPathMoves, TooltipHoverPathPixel, MakeTooltipHoverPathRoot) is shared with the
+// FX14 performance fixture: Embedded.Tests.TooltipHoverPath.h.
 
 // W1.6: while a tooltip waits for its show delay, a pointer moving inside the same control only moves the pending origin.
 // That changes no pixels, so it must not invalidate the window; the tooltip still appears at the last pointer origin.

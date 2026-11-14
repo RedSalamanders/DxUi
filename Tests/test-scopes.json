@@ -540,6 +540,25 @@
       "reason": "window-host performance fixture runner in the Rendering suite"
     },
     {
+      "pattern": "Tests/Embedded/Embedded.Tests.TooltipHoverPath.h",
+      "scopes": [
+        "Tooltip",
+        "Embedded",
+        "Rendering"
+      ],
+      "reason": "tooltip hover path shared by the Tooltip suite and the FX14 fixture"
+    },
+    {
+      "pattern": "Tests/Embedded/Embedded.Tests.PerformanceGridModels.h",
+      "scopes": [
+        "Grid",
+        "Animation",
+        "Rendering",
+        "Embedded"
+      ],
+      "reason": "LargeGridModel shared by the Grid, Animation and Rendering suites and the FX3 fixture"
+    },
+    {
       "pattern": "performance-fixtures.ps1",
       "scopes": [
         "Tooling",

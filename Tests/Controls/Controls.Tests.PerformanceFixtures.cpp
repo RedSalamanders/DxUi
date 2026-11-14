@@ -9,6 +9,7 @@
 
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Embedded.Tests.PerformanceFixtureCatalog.h"
+#include "Support/AnimationDispatcher.h"
 #pragma warning(push)
 #pragma warning(disable : 4625 4626 5026 5027) // scenarios are never copied
 #include "Embedded.Tests.PerformanceFixtureSelfTest.h"
@@ -38,6 +39,9 @@ public:
     void Create(const Variant& variant)
     {
         window_.emplace(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
+        // The host's animation clock is the fixture clock from the start: a delay scheduled before the first tick (a tooltip's
+        // show delay) is measured on it, never on GetTickCount64.
+        window_->Host().DebugSetAnimationClockForTest(now_);
         auto theme          = DxUi::MakeDefaultThemePalette(true);
         theme.reducedMotion = definition_->reducedMotion;
         window_->Host().SetTheme(theme);
@@ -68,6 +72,10 @@ public:
         {
             if (! PeekMessageW(&message, nullptr, 0u, WM_TIMER - 1u, PM_REMOVE) && ! PeekMessageW(&message, nullptr, kSystemTimer + 1u, 0xFFFFu, PM_REMOVE))
                 break;
+            // The test window sits off every monitor, so the system posts WM_MOUSELEAVE as soon as the host's TrackMouseEvent asks for
+            // it; dispatching it would turn every pointer move into a leave and a re-entry. Only a step's own Leave reaches the host.
+            if (message.message == WM_MOUSELEAVE && message.hwnd == Hwnd())
+                continue;
             static_cast<void>(DispatchQueuedMessageForTest(message));
         }
         static_cast<void>(UpdateWindow(window_->Hwnd()));
@@ -86,7 +94,7 @@ public:
             case DxUi::PointerAction::Up: SendMessageW(Hwnd(), WM_LBUTTONUP, keys, position); break;
             case DxUi::PointerAction::MiddleDown: SendMessageW(Hwnd(), WM_MBUTTONDOWN, keys | MK_MBUTTON, position); break;
             case DxUi::PointerAction::MiddleUp: SendMessageW(Hwnd(), WM_MBUTTONUP, keys, position); break;
-            case DxUi::PointerAction::Leave: SendMessageW(Hwnd(), WM_MOUSELEAVE, 0u, 0); break;
+            case DxUi::PointerAction::Leave: SendMessageW(Hwnd(), WM_MOUSELEAVE, 0u, 0); break; // sent, so Frame never drops it
             case DxUi::PointerAction::Cancel: SendMessageW(Hwnd(), WM_CANCELMODE, 0u, 0); break;
             case DxUi::PointerAction::Wheel:
             {
@@ -115,6 +123,7 @@ public:
     void AdvanceTime(uint64_t milliseconds) override
     {
         now_ += milliseconds;
+        window_->Host().DebugSetAnimationClockForTest(now_);
         static_cast<void>(window_->Host().DebugAnimationTickForTest(now_));
     }
     // The client area becomes `width` x `height` device pixels at `dpi`, the DPI delivered as Windows would deliver it.
@@ -195,7 +204,7 @@ RunRecord RunWindow(const Definition& definition, const Variant& variant)
         value.workingSetBytes = process.WorkingSetSize;
         run.memory.push_back(value);
     };
-    std::vector<DxUi::Detail::TrackedResource> storage(16384u);
+    std::vector<DxUi::Detail::TrackedResource> storage(262144u);
     sample("device", {});
     WindowInstance instance;
     instance.Instantiate(definition);
@@ -264,8 +273,10 @@ void TestPerformanceFixturesAreDeterministicOnWindowHost()
         {
             if (variant.hardwareOnly || variant.receiptOnly)
                 continue;
+            const auto started = std::chrono::steady_clock::now();
             RequireDeterministic(RunWindow(*definition, variant), RunWindow(*definition, variant));
-            std::cerr << "    [FIXTURE] " << definition->id << '@' << variant.name << " (window, WARP): two runs record equal counters\n";
+            std::cerr << "    [FIXTURE] " << definition->id << '@' << variant.name << " (window, WARP): two runs record equal counters ("
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count() << " ms)\n";
         }
     }
 }
@@ -286,6 +297,8 @@ int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv)
         return 2;
     }
     const RunRecord run = RunWindow(*definition, *variant);
+    // As the suite runner does after every suite: a fixture that armed animation leaves the dispatcher running otherwise.
+    DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
     const std::filesystem::path path(argv[3]);
     if (path.has_parent_path())
         std::filesystem::create_directories(path.parent_path());

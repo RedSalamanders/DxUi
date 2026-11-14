@@ -3,6 +3,7 @@
 
 #include "Controls/DxUi.Internal.h"
 #include "Controls/DxUi.h"
+#include "Embedded.Tests.PerformanceGridModels.h"
 #include "Support.Tests.DesktopLease.h"
 #include "Support.Tests.TestWatchdog.h"
 #include "Support.Tests.TestWindowActivationGuard.h"
@@ -1762,53 +1763,7 @@ private:
     std::vector<Group> _groups;
 };
 
-class LargeGridModel final : public DxUi::IGridModel
-{
-public:
-    LargeGridModel(size_t rowCount, size_t columnCount, float columnWidthDip) : _rowCount(rowCount), _columnCount(columnCount), _columnWidthDip(columnWidthDip)
-    {
-    }
-
-    [[nodiscard]] size_t GetRowCount() const noexcept override
-    {
-        return _rowCount;
-    }
-
-    [[nodiscard]] size_t GetColumnCount() const noexcept override
-    {
-        return _columnCount;
-    }
-
-    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t columnIndex) const override
-    {
-        DxUi::GridColumnDesc column;
-        column.id       = std::format(L"col-{}", columnIndex);
-        column.title    = std::format(L"Column {}", columnIndex);
-        column.widthDip = _columnWidthDip;
-        return column;
-    }
-
-    void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& outCell) const override
-    {
-        outCell.kind = DxUi::GridCellKind::Text;
-        outCell.text = std::format(L"R{}C{}", rowIndex, columnIndex);
-    }
-
-    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
-    {
-        if (rowId >= _rowCount)
-        {
-            return std::nullopt;
-        }
-
-        return static_cast<size_t>(rowId);
-    }
-
-private:
-    size_t _rowCount      = 0u;
-    size_t _columnCount   = 0u;
-    float _columnWidthDip = 120.0f;
-};
+// LargeGridModel is shared with the FX3 performance fixture: Embedded.Tests.PerformanceGridModels.h.
 
 class MutableRowGridModel final : public DxUi::IGridModel
 {

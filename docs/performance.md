@@ -378,9 +378,12 @@ of later items. Two runs of a fixture on WARP must record equal counters; the te
 
 A receipt records every counter per step and phase, the memory fields above, and the source commit, build, compiler, OS,
 adapter and driver, display refresh rate, power plan and how busy the machine was; it changes nothing on the machine.
-Timing stays "not measured" unless it comes from `performance-timing.ps1` on a hardware adapter. Only `FX5` is built today;
-the others are declared and are built by later work. See the
-[FX5 receipts](../Measurements/PerformanceAndMotion_2026-11-13/FX5/README.md), the
+Timing stays "not measured" unless it comes from `performance-timing.ps1` on a hardware adapter. Built today: `FX1` (idle carets),
+`FX2` (`ComboBox`), `FX3` (`Grid`), `FX5` and `FX14` (tooltip path); `FX4` (menus) needs the interactive
+desktop and is declared only, as are the fixtures later work builds. See the receipts of
+[FX1](../Measurements/PerformanceAndMotion_2026-11-13/FX1/README.md), [FX2](../Measurements/PerformanceAndMotion_2026-11-13/FX2/README.md),
+[FX3](../Measurements/PerformanceAndMotion_2026-11-13/FX3/README.md), [FX5](../Measurements/PerformanceAndMotion_2026-11-13/FX5/README.md) and
+[FX14](../Measurements/PerformanceAndMotion_2026-11-13/FX14/README.md), the
 [contract](../Specs/Testing/Testing_Validation.md#performance-fixtures) and the
 [fixture-author guide](../Tests/README.md#performance-fixtures).
 
