@@ -1756,6 +1756,7 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
         return;
     }
 
+    InvalidateHitTest(); // a PageHost in transition hits nothing
     _outgoingPage                     = std::move(_currentPage);
     _currentPage                      = std::move(page);
     _transition.active                = true;
@@ -2402,6 +2403,8 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     _pendingIntrinsicLayout    = false;
     _pendingContentPreparation = false;
     _pendingVisualPreparation  = false;
+    ++g_hostPreparationDepth;
+    const auto endPreparationDepth = wil::scope_exit([]() noexcept { --g_hostPreparationDepth; });
     if (prepareAllVisual)
         _forceAllVisualPreparation = false;
     bool contentPending     = false;
@@ -2737,6 +2740,8 @@ void ControlHost::PublishPreparedContent() noexcept
 
 bool PageHost::FinishTransition() noexcept
 {
+    if (_transition.active)
+        InvalidateHitTest(); // the current page is hit again
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     _transition.active                     = false;
     _transition.hasConnectedAnimation      = false;
@@ -2832,9 +2837,10 @@ const Control* Separator::HitTest(D2D1_POINT_2F /*point*/) const
     return nullptr;
 }
 
+// A plain label (no typography override, no mnemonic) paints with DrawCenteredText and has nothing to prepare, so it is
+// not prepared: SetTypographyOverride and a mnemonic (Control::SetMnemonic) enable preparation when they make it non-plain.
 Label::Label(std::wstring text) : _text(std::move(text))
 {
-    EnableVisualContentPreparation();
 }
 void Label::InvalidateTypographyPreparation() noexcept
 {
@@ -2996,10 +3002,13 @@ void Label::PrepareVisualContent(ControlHost& host) noexcept
     {
         return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root && host.GetInteractionRevision() == interaction;
     };
-    if (! root || ! current() || ! IsControlInTree(root, this) || ! current())
+    // The host's preparation pass reached this label from its root; GetHost() == &host (in current()) refuses a label
+    // that is not attached to this host. The depth-first membership walk this used to run cost O(tree) per label.
+    if (! root || ! current())
         return;
     if (! _typographyOverride && ! GetMnemonic())
     {
+        ++Detail::Work().frame.plainLabelPreparations;
         CancelVisualContentPreparation();
         return;
     }
@@ -3218,7 +3227,8 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
         return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root &&
                host.GetInteractionRevision() == interactionRevision;
     };
-    if (! root || rootLifetime.expired() || GetHost() != &host || ! IsControlInTree(root, this))
+    // Reached from the host's root by its preparation pass; GetHost() != &host refuses a button attached elsewhere or nowhere.
+    if (! root || rootLifetime.expired() || GetHost() != &host)
         return;
     if (_variant == ButtonVariant::Hyperlink && ! dynamic_cast<const Toggle*>(this) && ! dynamic_cast<const RadioButton*>(this))
     {
@@ -5503,6 +5513,7 @@ void PageIndicator::SetPageCount(uint32_t count) noexcept
         return;
     }
     _pageCount = next;
+    InvalidateHitTest(); // fewer than two pages leave no hit bounds (GetHitBounds)
     if (_pageCount == 0)
     {
         _selectedIndex = 0;
@@ -6400,6 +6411,7 @@ void Slider::SetOrientation(SliderOrientation orientation) noexcept
     }
 
     _orientation = orientation;
+    InvalidateHitTest(); // the hit band follows the orientation (GetHitBounds)
     RequestInvalidate();
 }
 
@@ -11298,6 +11310,9 @@ void ScrollPanel::ClampScrollOffset() noexcept
 
 bool ScrollPanel::NotifyScrollChanged(float previousOffsetDip) noexcept
 {
+    // Every offset change comes here: content moved under a still pointer (an open popup of a scrolled child included).
+    if (_scrollOffsetDip != previousOffsetDip)
+        InvalidateHitTest();
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (_scrollOffsetDip != previousOffsetDip && _onScrollChanged)
     {

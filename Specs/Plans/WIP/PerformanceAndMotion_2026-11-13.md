@@ -643,7 +643,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
   - **Gate**: on a 120-key typography variant of `FX12`, 0 forced full re-preparations per frame; on `FX11` color
     transitions, 0 brushes created per frame after the first; exact WARP parity.
   - **Needs**: `W0.1`, `W0.4`. **Size**: M.
-- [ ] **W2.9 Pointer-move cost.**
+- [x] **W2.9 Pointer-move cost.**
   - **Why**: one `WM_MOUSEMOVE` hit-tests three times: cursor, hover and target (`DxUi.WindowHost.cpp:3581`, `:5833`,
     `:5868`); in an open `ComboBox` each repeats the popup layout (`W2.2`). `Label` and `Button` preparation run the
     `IsControlInTree` depth-first walk (`DxUi.WindowHost.cpp:1225-1243`) before their cheap guards

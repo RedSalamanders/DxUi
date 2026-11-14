@@ -3,10 +3,12 @@
 #include "DxUi.Internal.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cwctype>
 #include <exception>
 #include <limits>
+#include <typeinfo>
 #include <utility>
 
 #include <UIAutomation.h>
@@ -722,6 +724,9 @@ void Control::SetMnemonic(wchar_t mnemonic) noexcept
     if (_mnemonic == normalized)
         return;
     _mnemonic = normalized;
+    // A plain Label is not prepared; its first mnemonic makes it one that is (Label::Label).
+    if (normalized != L'\0' && ! _visualPreparationEnabled && dynamic_cast<const Label*>(this))
+        EnableVisualContentPreparation();
     RequestVisualContentPreparation(false);
     RequestInvalidate(); // Scheduling may synchronously retire this control.
 }
@@ -1044,6 +1049,56 @@ void Control::SetOnContextMenu(std::function<void(POINT screenPoint, bool keyboa
     ReplaceControlCallback(_onContextMenu, std::move(onContextMenu));
 }
 
+void Control::InvalidateHitTest() noexcept
+{
+    if (_host)
+        _host->AdvanceHitRevision();
+}
+
+void Control::DeclareHitTestReported() noexcept
+{
+    _hitTestReporting = static_cast<uint8_t>(_hitTestReporting | kHitTestDeclared);
+    // Declared while attached (not from a constructor): the host stops counting it from now on.
+    if (_host && (_hitTestReporting & kHitTestCounted) != 0u)
+    {
+        --_host->_unreportedHitControls;
+        _hitTestReporting = static_cast<uint8_t>(_hitTestReporting & ~kHitTestCounted);
+    }
+}
+
+// The library's own control classes report every change their hit testing reads: bounds, visibility, enabled state and
+// tree membership move the interaction revision, anything else calls InvalidateHitTest (UI_InputAndAccessibility.md,
+// "Pointer hit result"). Only the exact class counts: a subclass defined elsewhere may override hit testing with state the
+// host cannot see, so it is reported only when it declares so. A new library control class is added here.
+bool Control::IsHitTestReported() const noexcept
+{
+    if ((_hitTestReporting & kHitTestDeclared) != 0u)
+        return true;
+    static const std::array<const std::type_info*, 35u> kLibraryTypes{
+        &typeid(Panel),       &typeid(PageHost),      &typeid(CardPanel),       &typeid(Label),          &typeid(Separator),
+        &typeid(Button),      &typeid(Toggle),        &typeid(Checkbox),        &typeid(RadioButton),    &typeid(RadioButtons),
+        &typeid(ProgressBar), &typeid(PageIndicator), &typeid(ThroughputGraph), &typeid(Slider),         &typeid(Toolbar),
+        &typeid(MenuBar),     &typeid(TabControl),    &typeid(ColorSwatch),     &typeid(RichTextEditor), &typeid(TextField),
+        &typeid(ComboBox),    &typeid(TagPicker),     &typeid(StatusStrip),     &typeid(PopupLayer),     &typeid(StackPanel),
+        &typeid(FormField),   &typeid(FormPanel),     &typeid(FlexPanel),       &typeid(ScrollPanel),    &typeid(TooltipLayer),
+        &typeid(Tree),        &typeid(Grid),          &typeid(Splitter),        &typeid(NumericStepper), &typeid(ColorPicker),
+    };
+    const std::type_info& type = typeid(*this);
+    return std::ranges::any_of(kLibraryTypes, [&type](const std::type_info* library) noexcept { return *library == type; });
+}
+
+#if DXUI_ENABLE_DIAGNOSTICS
+bool Control::DebugIsHitTestReported() const noexcept
+{
+    return IsHitTestReported();
+}
+
+bool Control::DebugVisualPreparationEnabled() const noexcept
+{
+    return _visualPreparationEnabled;
+}
+#endif
+
 Control* Control::HitTest(D2D1_POINT_2F point)
 {
     return (_visible && _enabled && PointInRect(GetHitBounds(), point)) ? this : nullptr;
@@ -1286,9 +1341,20 @@ void Control::PropagateHost(ControlHost* host) noexcept
         if (lifetime.expired() || _host != previousHost)
             return;
     }
+    // A host reuses no hit result while it holds a control whose hit testing it cannot see.
+    if (previousHost && (_hitTestReporting & kHitTestCounted) != 0u)
+    {
+        --previousHost->_unreportedHitControls;
+        _hitTestReporting = static_cast<uint8_t>(_hitTestReporting & ~kHitTestCounted);
+    }
     _host = host;
     if (host && std::exchange(_tickRequestPending, false))
         host->RequestAnimationOnce(*this);
+    if (host && ! IsHitTestReported())
+    {
+        ++host->_unreportedHitControls;
+        _hitTestReporting = static_cast<uint8_t>(_hitTestReporting | kHitTestCounted);
+    }
     RequestContentPreparation(false);
     RequestVisualContentPreparation(false);
     InvalidateMeasure();

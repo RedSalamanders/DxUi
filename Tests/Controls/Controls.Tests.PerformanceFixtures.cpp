@@ -320,6 +320,11 @@ void TestFrameScheduleGatesOnWindowFixtures()
     }
 }
 
+PerformanceFixtures::RunRecord RunWindowFixture(const PerformanceFixtures::Definition& definition, const PerformanceFixtures::Variant& variant)
+{
+    return RunWindow(definition, variant);
+}
+
 int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv)
 {
     const bool interactive = argc == 5 && std::wstring_view(argv[4]) == L"--interactive";

@@ -9,7 +9,8 @@
 //
 // On a WindowHost the test window sits off every monitor, so the system would post WM_MOUSELEAVE right after each move; the
 // window runner drops it (only the leave step's own WM_MOUSELEAVE reaches the host), so pending moves measure what a cursor
-// resting over the Label costs.
+// resting over the Label costs. Each window move is preceded by the cursor query Windows' WM_SETCURSOR makes at the same
+// point (W2.9), so a window step counts what a real cursor move costs: one hit test, reused by the move.
 #include "Embedded.Tests.PerformanceFixture.h"
 #include "Embedded.Tests.TooltipHoverPath.h"
 
@@ -47,7 +48,14 @@ public:
     void Step(Context& context, size_t phase, size_t step) override
     {
         const auto move = [&](POINT pixel)
-        { static_cast<void>(context.port.Pointer({DxUi::PointerAction::Move, static_cast<float>(pixel.x), static_cast<float>(pixel.y)})); };
+        {
+            // Windows sends WM_SETCURSOR before each mouse move, at the same point; the window runner sends only the move, so
+            // the step makes the cursor query that message runs (W2.9). An embedded host has no cursor query.
+            if (context.host == Host::Window)
+                static_cast<void>(context.controls.DebugResolveCursorKindForPoint(
+                    D2D1::Point2F(context.controls.PixelsToDip(static_cast<float>(pixel.x)), context.controls.PixelsToDip(static_cast<float>(pixel.y)))));
+            static_cast<void>(context.port.Pointer({DxUi::PointerAction::Move, static_cast<float>(pixel.x), static_cast<float>(pixel.y)}));
+        };
         switch (phase)
         {
             case kEnter: move(TooltipHoverPathPixel(0u)); break;

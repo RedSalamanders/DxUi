@@ -598,7 +598,10 @@ std::span<const std::string_view> RetainedCacheAccess::Names() noexcept
 
 std::span<const RetainedCacheExemption> RetainedCacheAccess::Exemptions() noexcept
 {
-    static constexpr std::array<RetainedCacheExemption, 14u> exemptions{{
+    static constexpr std::array<RetainedCacheExemption, 15u> exemptions{{
+        {"ControlHost._pointerHitCache",
+         "The hit result of one pointer event (W2.9): kept from a cursor query to the mouse message it announces, or within one "
+         "embedded DispatchPointer, and dropped when that event ends; no frame reads it and none outlives the event."},
         {"ControlHost._bodyTextFormat",
          "The fourteen role formats (_bodyTextFormat .. _monoTextFormat) are built once per DirectWrite factory from fixed role specs; "
          "no theme, DPI or model input keys them, and an embedded Prepare has no path that would rebuild them."},

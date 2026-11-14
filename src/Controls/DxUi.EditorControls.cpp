@@ -322,6 +322,7 @@ void Splitter::SetOrientation(SplitterOrientation orientation) noexcept
     }
     _orientation = orientation;
     _positionDip = ClampPosition(_positionDip);
+    InvalidateHitTest(); // the separator's hit band moves (GetHitBounds)
     RequestInvalidate();
 }
 
@@ -338,6 +339,7 @@ void Splitter::SetThickness(float thicknessDip) noexcept
     }
     _thicknessDip = thicknessDip;
     _positionDip  = ClampPosition(_positionDip);
+    InvalidateHitTest();
     RequestInvalidate();
 }
 
@@ -354,6 +356,7 @@ void Splitter::SetMinimumFirstPane(float minimumDip) noexcept
     }
     _minimumFirstDip = minimumDip;
     _positionDip     = ClampPosition(_positionDip);
+    InvalidateHitTest();
     RequestInvalidate();
 }
 
@@ -370,6 +373,7 @@ void Splitter::SetMinimumSecondPane(float minimumDip) noexcept
     }
     _minimumSecondDip = minimumDip;
     _positionDip      = ClampPosition(_positionDip);
+    InvalidateHitTest();
     RequestInvalidate();
 }
 
@@ -410,7 +414,8 @@ void Splitter::SetPosition(float positionDip) noexcept
     {
         return;
     }
-    _positionDip        = clamped;
+    _positionDip = clamped;
+    InvalidateHitTest();
     const auto lifetime = GetLifetimeToken();
     RequestInvalidate();
     if (lifetime.expired())
@@ -436,6 +441,7 @@ bool Splitter::RequestPosition(ControlHost& host, float positionDip) noexcept
         return true;
     }
     _positionDip = clamped;
+    InvalidateHitTest();
     Invalidate(host);
     NotifyChange(SplitterChangePhase::Commit);
     return true;
@@ -730,6 +736,8 @@ WindowHostCursorKind Splitter::ResolveCursorKind(ControlHost& /*host*/, D2D1_POI
 void Splitter::NotifyChange(SplitterChangePhase phase) noexcept
 {
     const Failure::Scope outerFailureScope;
+    // Every drag, key and cancel that moved the separator announces it here: its hit band moved with it.
+    InvalidateHitTest();
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     try
     {

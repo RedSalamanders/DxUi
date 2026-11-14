@@ -322,6 +322,23 @@ When overriding `OnFocusChanged` in a derived control, call the base implementat
 handling application-specific detail. It acknowledges `HasFocus`, which drives visible focus and
 UIA keyboard-focus properties. Test both the provider state and the painted focus outline.
 
+A host hit-tests each pointer event once and reuses that result for the cursor, hover and the event's dispatch
+([pointer hit result](../Specs/UI/UI_InputAndAccessibility.md#pointer-hit-result)). A derived control, including a
+subclass of a library control, turns that reuse off while it is attached unless its constructor calls
+`DeclareHitTestReported()`. Declare it when your `HitTest`, `HitTestOverlay` and `GetHitBounds` depend only on bounds,
+visibility, enabled state and children, or when you call `InvalidateHitTest()` whenever any other state they read
+changes (a hidden hit region, an expanded part):
+
+```cpp
+class Gauge final : public DxUi::Control
+{
+public:
+    Gauge() { DeclareHitTestReported(); }
+    void SetHandleVisible(bool visible) noexcept { _handle = visible; InvalidateHitTest(); RequestInvalidate(); }
+    // HitTest reads _handle ...
+};
+```
+
 Use keyboard/focus, cancellation, disabled and hidden states alongside pointer input. Verify high contrast,
 Unicode, DPI and minimum layout bounds. Consult [hosting](hosting.md) for the embedded text/UIA limitations.
 

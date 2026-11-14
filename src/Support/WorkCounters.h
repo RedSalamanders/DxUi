@@ -16,26 +16,30 @@
 
 // Frames and hosts: what one preparation, render or composition did.
 #define DXUI_WORK_COUNTERS_FRAME(X)                                                                                                                            \
-    X(frame, composites)           /* EmbeddedHost::Composite calls that drew the prepared surface. */                                                         \
-    X(frame, compositionDevices)   /* DirectComposition devices a thread's shared native device stack created (DCompositionCreateDevice2). */                  \
-    X(frame, d2dDevices)           /* Direct2D devices a thread's shared native device stack created (ID2D1Factory1::CreateDevice). */                         \
-    X(frame, drawCalls)            /* Direct2D draw calls seen by a test executable's counting wrappers; 0 wherever none is installed. */                      \
-    X(frame, paintExecutions)      /* Control::Paint calls dispatched by a host, Panel or PageHost: one per painted control. */                                \
-    X(frame, pixelsPainted)        /* Device pixels inside the area a preparation or render cleared and repainted. */                                          \
-    X(frame, preparations)         /* EmbeddedHost::Prepare calls that painted the surface. */                                                                 \
-    X(frame, presents)             /* Native swap-chain Present or Present1 calls. */                                                                          \
-    X(frame, renders)              /* Native WindowHost render passes (BeginDraw to EndDraw). */                                                               \
-    X(frame, shadowPasses)         /* Shadow effect passes drawn (DrawShadowEffectPass): popups, cards and other elevated surfaces. */                         \
-    X(frame, swapChains)           /* Swap chains native hosts created, for composition or for a window. */                                                    \
-    X(frame, tickCalls)            /* Control::Tick calls the frame schedule made for due requests (whole-tree walks excluded). */                             \
-    X(frame, tickDiscoveryWalks)   /* Whole-tree ticks an embedded root installation asked for, so controls can claim ticks. */                                \
-    X(frame, tickHeldWhileHidden)  /* Requests that came due while their native host was hidden and waited for its show. */                                    \
-    X(frame, tickLegacyTreeWalks)  /* Whole-tree ticks an anonymous RequestAnimation() asked for; the library's own controls never do. */                      \
-    X(frame, tickRequesters)       /* Due requests the frame schedule found at its wakes, one per requesting control. */                                       \
-    X(frame, treeVisitsHitTest)    /* Controls a hit test examined: the root and each child a container offered to it. */                                      \
-    X(frame, treeVisitsPaint)      /* Controls a paint walk examined, visible or not. */                                                                       \
-    X(frame, treeVisitsStatistics) /* Controls an EmbeddedHost::GetStatistics retained-resource walk examined. */                                              \
-    X(frame, treeVisitsTick)       /* Controls an animation tick walk examined, visible or not. */
+    X(frame, composites)             /* EmbeddedHost::Composite calls that drew the prepared surface. */                                                       \
+    X(frame, compositionDevices)     /* DirectComposition devices a thread's shared native device stack created (DCompositionCreateDevice2). */                \
+    X(frame, d2dDevices)             /* Direct2D devices a thread's shared native device stack created (ID2D1Factory1::CreateDevice). */                       \
+    X(frame, drawCalls)              /* Direct2D draw calls seen by a test executable's counting wrappers; 0 wherever none is installed. */                    \
+    X(frame, hitTestReuses)          /* Pointer hit tests a host answered from the hit result of the same pointer event, client point and hit revision. */     \
+    X(frame, hitTests)               /* Host hit tests that walked the control tree (overlays, then children) to find the control under a point. */            \
+    X(frame, paintExecutions)        /* Control::Paint calls dispatched by a host, Panel or PageHost: one per painted control. */                              \
+    X(frame, pixelsPainted)          /* Device pixels inside the area a preparation or render cleared and repainted. */                                        \
+    X(frame, plainLabelPreparations) /* Label::PrepareVisualContent calls on a Label with neither a typography override nor a mnemonic. */                     \
+    X(frame, preparationMembershipSearches) /* IsControlInTree searches started while a host preparation pass (PreparePendingPageLayout) runs. */              \
+    X(frame, preparations)                  /* EmbeddedHost::Prepare calls that painted the surface. */                                                        \
+    X(frame, presents)                      /* Native swap-chain Present or Present1 calls. */                                                                 \
+    X(frame, renders)                       /* Native WindowHost render passes (BeginDraw to EndDraw). */                                                      \
+    X(frame, shadowPasses)                  /* Shadow effect passes drawn (DrawShadowEffectPass): popups, cards and other elevated surfaces. */                \
+    X(frame, swapChains)                    /* Swap chains native hosts created, for composition or for a window. */                                           \
+    X(frame, tickCalls)                     /* Control::Tick calls the frame schedule made for due requests (whole-tree walks excluded). */                    \
+    X(frame, tickDiscoveryWalks)            /* Whole-tree ticks an embedded root installation asked for, so controls can claim ticks. */                       \
+    X(frame, tickHeldWhileHidden)           /* Requests that came due while their native host was hidden and waited for its show. */                           \
+    X(frame, tickLegacyTreeWalks)           /* Whole-tree ticks an anonymous RequestAnimation() asked for; the library's own controls never do. */             \
+    X(frame, tickRequesters)                /* Due requests the frame schedule found at its wakes, one per requesting control. */                              \
+    X(frame, treeVisitsHitTest)             /* Controls a hit test examined: the root and each child a container offered to it. */                             \
+    X(frame, treeVisitsPaint)               /* Controls a paint walk examined, visible or not. */                                                              \
+    X(frame, treeVisitsStatistics)          /* Controls an EmbeddedHost::GetStatistics retained-resource walk examined. */                                     \
+    X(frame, treeVisitsTick)                /* Controls an animation tick walk examined, visible or not. */
 
 // Wakes by source: each turn DxUi takes on the owner thread because something woke it.
 #define DXUI_WORK_COUNTERS_WAKES(X)                                                                                                                            \

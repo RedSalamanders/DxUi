@@ -764,6 +764,9 @@ void DrawTextWithMnemonic(ControlHost& host,
 // so a removed (possibly destroyed) control is a safe argument. Interactive also requires every ancestor to be
 // visible and enabled.
 [[nodiscard]] bool IsControlInTree(const Control* root, const Control* target) noexcept;
+// Nesting depth of ControlHost::PreparePendingPageLayout on this thread: the work counter preparationMembershipSearches
+// counts the IsControlInTree searches that start while it is nonzero.
+inline thread_local constinit uint32_t g_hostPreparationDepth = 0u;
 // Item icon text (Grid cells, Tree rows): private-use glyphs need the icon font; letters, digits and symbols keep the
 // small UI font, which the icon font would draw as missing-glyph boxes.
 [[nodiscard]] bool IconTextUsesIconFont(std::wstring_view iconText) noexcept;

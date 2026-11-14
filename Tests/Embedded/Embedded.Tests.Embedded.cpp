@@ -81,6 +81,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.PerformanceGridDataPaths.h"
 // After the performance fixtures: the W2.2 gate drives FX2.
 #include "Embedded.Tests.ComboBoxPopupLayout.h"
+#include "Embedded.Tests.PointerHit.h"
 #include "Embedded.Tests.RichDocumentStorageResources.h"
 #include "Embedded.Tests.RichGeometryResources.h"
 #include "Embedded.Tests.RichImageCapture.h"
@@ -1927,6 +1928,17 @@ __declspec(noinline) static int RunFunctionalTests()
         SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
         return 0;
     }
+    // Plan W2.9 alone: the pointer hit result gates, differential and lifetime on WARP.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-pointer-hit")
+    {
+        GraphicsFixture gpu;
+        Hr(gpu.Create(true), "pointer-hit WARP device");
+        EmbeddedPointerHit::TestPointerHitFx14AndFx2HitTestOncePerMove();
+        EmbeddedPointerHit::TestPointerHitFx10PreparesNoPlainLabelAndSearchesNoTree();
+        EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);
+        EmbeddedPointerHit::TestPointerHitEmbeddedResultNeverOutlivesItsControl(gpu);
+        return 0;
+    }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-closed-roots")
     {
         MarkdownSourceCorrelationTests::ClosedRootDifferential(Check);
@@ -2148,6 +2160,10 @@ __declspec(noinline) static int RunFunctionalTests()
     GridDataPathTests::TestFx3GridDataPathGate(gpu);
     SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
     ComboBoxPopupLayoutTests::Run(gpu);
+    EmbeddedPointerHit::TestPointerHitFx14AndFx2HitTestOncePerMove();
+    EmbeddedPointerHit::TestPointerHitFx10PreparesNoPlainLabelAndSearchesNoTree();
+    EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);
+    EmbeddedPointerHit::TestPointerHitEmbeddedResultNeverOutlivesItsControl(gpu);
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();

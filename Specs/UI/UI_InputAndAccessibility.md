@@ -955,6 +955,46 @@ animation when the acknowledged value equals its accepted target. Existing
 SetOnValueChanged remains the legacy live-value observer; AV uses SetOnChange and calls the OS setter only on Commit.
 Callback-driven root replacement is supported and covered by a regression test.
 
+### Pointer hit result
+
+A host finds the control under a pointer once per pointer event and answers the event's cursor query, hover and dispatch
+from that one hit result (plan item W2.9). The result is the control the host hit test returns (an overlay, else the
+deepest interactive control); a control's own sub-hit (a `Grid` column edge, a `ComboBox` popup row, a `ScrollPanel`
+child) stays inside that control and is not cached.
+
+- **One event.** A window host opens the event at `WM_SETCURSOR`, which Windows sends at the point of the mouse message it
+  is about to deliver, and ends it when the next message it handles returns: the client mouse message (move, left, right
+  and middle press and release, double-click) reuses the cursor query's result; any other message drops it. A mouse
+  message without a cursor query before it (a captured pointer, a synthesized move) is an event of its own. `WM_MOUSEWHEEL`
+  and the file-drop and diagnostic hit tests always walk the tree. An `EmbeddedHost::DispatchPointer` call is one event:
+  the hover update and the dispatch share its result. No result survives its event.
+- **One key.** The result is reused only for the same client point (in DIPs, exactly), the same root, the same interaction
+  revision and the same hit revision, and only while its control is alive and attached to the host. The interaction
+  revision moves on bounds, visibility, enabled state, attach and detach (adding, removing and re-parenting a control,
+  page and root replacement), model geometry and density. The hit revision moves on everything else a library hit test
+  reads: a `ComboBox` popup opening, closing or refiltering its rows; a `ScrollPanel` offset change; a `PageHost`
+  transition starting or ending; `PageIndicator` page count; `Slider` orientation; `Splitter` orientation, thickness,
+  minimum panes and position (setters, drag, keys and cancel); an overlay dismissed by a press; a native size or DPI
+  change; device loss, detach, root replacement and an embedded view hidden or its surface lost. Theme colors, hover,
+  focus, capture and tooltips do not change which control a point hits, and capture bypasses the hit test.
+- **Controls outside the library.** A control class the library defines reports every change its hit testing reads. A
+  class defined elsewhere (a subclass of a library control included) may override `HitTest`, `HitTestOverlay` or
+  `GetHitBounds` with state the host cannot see, so while such a control is attached the host reuses no hit result:
+  every hit test walks the tree as before. A class opts in by calling `Control::DeclareHitTestReported()` from its
+  constructor, which promises that its answers depend only on its bounds, visibility, enabled state, children and state
+  whose every change it reports with `Control::InvalidateHitTest()`. `InvalidateHitTest` is the one way to move the hit
+  revision; library setters that change hit-testing state call it, and it reaches the one internal entry,
+  `ControlHost::AdvanceHitRevision`.
+- **Unchanged semantics.** Hover enter and leave order, capture, cursor shape, tooltip targeting (the supplemental tooltip
+  walk is separate and unchanged), wheel, click, middle-button and recovery targets are what a fresh hit test gives. A
+  seeded differential replays pointer scripts (moves, clicks, middle presses, wheel, tree edits, popups, scrolls, page
+  switches, hides, edits between a cursor query and its move and edits from inside hover callbacks) on a host that reuses
+  results and one that walks for every hit test (`ControlHost::DebugSetPointerHitResultEnabled(false)`), on both hosts,
+  and requires equal callbacks and state.
+
+`frame.hitTests` counts host hit tests that walked the tree and `frame.hitTestReuses` the ones answered from the event's
+result. On `FX14` (both hosts) and `FX2` each pointer move walks the tree once.
+
 ### Embedded text-state transport
 
 `ReadTextInput` returns an owned snapshot of the available focused control, a view revision and caret/viewport

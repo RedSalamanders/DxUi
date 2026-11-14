@@ -3,6 +3,7 @@
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.IncrementalParity.h"
 #include "Controls.Tests.PerformanceFixtures.h"
+#include "Controls.Tests.PointerHit.h"
 #include "Controls.Tests.TextRenderingParams.h"
 #include "Controls.Tests.TraceProvider.h"
 #include "Controls.Tests.WorkCounters.h"
@@ -3255,6 +3256,12 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestPerformanceFixtureFrameworkOnWindowHost);
     DXUI_RUN_TEST(TestPerformanceFixturesAreDeterministicOnWindowHost);
     DXUI_RUN_TEST(TestFrameScheduleGatesOnWindowFixtures);
+    DXUI_RUN_TEST(TestPointerHitFx14WindowHitTestsOncePerMove);
+    DXUI_RUN_TEST(TestPointerHitFx10WindowPreparesNoPlainLabelAndSearchesNoTree);
+    DXUI_RUN_TEST(TestPointerHitWindowDifferentialMatchesTheUncachedHitTest);
+    DXUI_RUN_TEST(TestPointerHitWindowResultNeverOutlivesItsControl);
+    DXUI_RUN_TEST(TestPointerHitWindowUnreportedControlIsNeverReused);
+    DXUI_RUN_TEST(TestPointerHitPlainLabelsAreNotPrepared);
     DXUI_RUN_TEST(TestTextAntialiasDefaultsFollowTheTargetAlphaMode);
     DXUI_RUN_TEST(TestTextRenderingParamsCompatibilityWithAntialiasModes);
     DXUI_RUN_TEST(TestTextRenderingComplexUiCapturesForEachHost);

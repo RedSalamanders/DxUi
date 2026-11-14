@@ -375,6 +375,9 @@ void EmbeddedHost::ReleaseSurface() noexcept
     const uint64_t operationRevision  = _operationRevision;
     const auto operationIsCurrent     = [&]() noexcept
     { return _state.get() == attachedState && _attachmentRevision == attachmentRevision && _operationRevision == operationRevision && ! _detaching; };
+    // Hiding and surface loss end any pointer event: no hit result outlives the surface it was found on.
+    _host.EndPointerHitEvent();
+    _host.AdvanceHitRevision();
     DisconnectAccessibility();
     if (! operationIsCurrent())
         return;
@@ -970,6 +973,10 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
     // like "first contact focuses, second contact activates."
     if (! InputIsCoherent(true))
         return false;
+    // One pointer event: hover and dispatch share one hit result (UI_InputAndAccessibility.md, "Pointer hit result"); none
+    // survives the event.
+    _host.BeginPointerHitEvent(true);
+    const auto endPointerHitEvent = wil::scope_exit([this]() noexcept { _host.EndPointerHitEvent(); });
     try
     {
         _host.PruneStaleInteractionState();

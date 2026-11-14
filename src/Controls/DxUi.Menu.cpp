@@ -3157,6 +3157,11 @@ struct MenuDescriptionPreparation
 class MenuContentControl final : public Panel
 {
 public:
+    // A library control outside the public header: it overrides no hit testing (rows are its own sub-hit).
+    MenuContentControl() noexcept
+    {
+        DeclareHitTestReported();
+    }
     MenuPopup* popup = nullptr;
 
     bool Tick(ControlHost& host, uint64_t nowTickMs) override

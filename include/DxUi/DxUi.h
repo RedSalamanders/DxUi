@@ -1692,6 +1692,16 @@ public:
     void SetBounds(const D2D1_RECT_F& bounds) noexcept;
     [[nodiscard]] D2D1_RECT_F GetBounds() const noexcept;
     [[nodiscard]] virtual D2D1_RECT_F GetHitBounds() const noexcept;
+    // A host answers the cursor query, hover and dispatch of one pointer event from one hit result while its hit revision
+    // holds (UI_InputAndAccessibility.md, "Pointer hit result"). Bounds, visibility, enabled state and tree membership move
+    // that revision by themselves. A control whose HitTest, HitTestOverlay or GetHitBounds answer changes for any other
+    // reason calls InvalidateHitTest when it changes; a control outside the library must also declare its hit test
+    // reported (DeclareHitTestReported) before a host reuses results while it is attached.
+    void InvalidateHitTest() noexcept;
+#if DXUI_ENABLE_DIAGNOSTICS
+    [[nodiscard]] bool DebugIsHitTestReported() const noexcept;
+    [[nodiscard]] bool DebugVisualPreparationEnabled() const noexcept;
+#endif
     [[nodiscard]] std::optional<D2D1_RECT_F> TryGetTextInputViewportRect() const noexcept;
     [[nodiscard]] std::optional<D2D1_RECT_F> TryGetTextInputCaretRect(const ControlHost& host, size_t controlTextIndex) const noexcept;
     [[nodiscard]] std::optional<std::vector<D2D1_RECT_F>> TryGetTextInputRangeRects(const ControlHost& host,
@@ -1793,6 +1803,11 @@ protected:
     virtual bool DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F point);
     [[nodiscard]] virtual POINT ResolveContextMenuAnchor(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip) const noexcept;
     [[nodiscard]] virtual WindowHostCursorKind ResolveCursorKind(ControlHost& host, D2D1_POINT_2F pointDip) const noexcept;
+    // Declares, from the constructor of a control class outside the library, that its HitTest, HitTestOverlay and
+    // GetHitBounds answers depend only on its bounds, visibility, enabled state, children and state whose every change
+    // it reports with InvalidateHitTest. Subclasses inherit the declaration. A host never reuses a hit result while an
+    // undeclared control outside the library (a subclass of a library control included) is attached.
+    void DeclareHitTestReported() noexcept;
 
     [[nodiscard]] ControlHost* GetHost() const noexcept;
     void Invalidate(ControlHost& host) const;
@@ -1900,6 +1915,10 @@ private:
     mutable ContentPreparationState _contentPreparationState = ContentPreparationState::Ready;
     bool _visualPreparationEnabled                           = false;
     mutable bool _visualPreparationPending                   = false;
+    // kHitTestDeclared: DeclareHitTestReported ran. kHitTestCounted: _host counts this control as unreported.
+    static constexpr uint8_t kHitTestDeclared = 1u, kHitTestCounted = 2u;
+    uint8_t _hitTestReporting = 0u;
+    [[nodiscard]] bool IsHitTestReported() const noexcept;
 };
 #pragma warning(pop)
 
@@ -6784,8 +6803,15 @@ public:
     void DebugSetNativeTextInputImePayloadForTest(NativeTextInputImePayload payload);
     void DebugDetachForProcessExit() noexcept;
     void DebugSetForceNullSolidBrushes(bool force) noexcept;
+    // The uncached hit test: a tree walk that neither reads nor fills the pointer event's hit result.
     [[nodiscard]] const Control* DebugHitTestControl(D2D1_POINT_2F pointDip) noexcept;
+    // What WM_SETCURSOR runs: opens a pointer event and answers the cursor query; the next mouse message reuses its hit result.
     [[nodiscard]] WindowHostCursorKind DebugResolveCursorKindForPoint(D2D1_POINT_2F pointDip) noexcept;
+    // Off: every hit test walks the tree (the W2.9 differential's uncached baseline).
+    void DebugSetPointerHitResultEnabled(bool enabled) noexcept;
+    [[nodiscard]] bool DebugHasPointerHitResult() const noexcept;
+    [[nodiscard]] Control* DebugGetHoveredControl() const noexcept;
+    [[nodiscard]] uint64_t DebugGetHitRevision() const noexcept;
     [[nodiscard]] UINT DebugGetWidthPx() const noexcept
     {
         return _widthPx;
@@ -7041,7 +7067,16 @@ private:
     void EmitPendingNativeTextInputPaintMetric(HRESULT hr) noexcept;
     [[nodiscard]] bool HandleNativeTextInputEditMessage(UINT msg, WPARAM wp, LPARAM lp, LRESULT& outResult) noexcept;
     [[nodiscard]] bool HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp) noexcept;
+    // The control under a point for a pointer event: the event's hit result when it is current, else a tree walk
+    // (HitTestControlUncached) whose result the open event keeps. Callers that must see the tree as it is now (file drop
+    // revalidation, diagnostics) call HitTestControlUncached.
     [[nodiscard]] Control* HitTestControl(D2D1_POINT_2F pointDip) noexcept;
+    [[nodiscard]] Control* HitTestControlUncached(D2D1_POINT_2F pointDip) noexcept;
+    // The one internal entry that moves the hit revision (Control::InvalidateHitTest calls it; W2.10's Affects::Hit routes here).
+    void AdvanceHitRevision() noexcept;
+    // Opens a pointer event: `fresh` first drops any result an earlier event left. EndPointerHitEvent drops the result.
+    void BeginPointerHitEvent(bool fresh) noexcept;
+    void EndPointerHitEvent() noexcept;
     [[nodiscard]] WindowHostCursorKind ResolveCursorKindForPoint(D2D1_POINT_2F pointDip) noexcept;
     [[nodiscard]] HCURSOR ResolveCursorHandle(WindowHostCursorKind cursorKind) const noexcept;
     void UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept;
@@ -7317,6 +7352,25 @@ private:
         bool doubleClick = false;
     };
 
+    // The hit result of the current pointer event (UI_InputAndAccessibility.md, "Pointer hit result"): the control a hit
+    // test found at one client point, kept for the cursor query, hover and dispatch of that event while the root, the
+    // interaction revision and the hit revision hold. A native WM_SETCURSOR opens the event and the mouse message it
+    // announces ends it; an embedded DispatchPointer is one event. Never kept while an unreported control is attached.
+    struct PointerHitCache
+    {
+        Control* root   = nullptr;
+        Control* target = nullptr;
+        std::weak_ptr<int> targetLifetime;
+        D2D1_POINT_2F pointDip       = D2D1::Point2F();
+        uint64_t interactionRevision = 0u;
+        uint64_t hitRevision         = 0u;
+        bool valid                   = false;
+    };
+    PointerHitCache _pointerHitCache;
+    uint64_t _hitRevision                = 0u; // moves on hit-relevant changes the interaction revision does not cover
+    uint32_t _unreportedHitControls      = 0u; // attached controls whose hit testing the host cannot see
+    bool _pointerHitEventOpen            = false;
+    bool _pointerHitResultEnabled        = true; // false only in tests: the uncached hit test for the differential
     Control* _hoveredControl             = nullptr;
     Control* _capturedControl            = nullptr;
     uint64_t _captureRequestRevision     = 0u;

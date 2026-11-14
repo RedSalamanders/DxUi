@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-gallery-tiles",
+  "command": "gallery.ps1 -Configuration 'Release' -Platform x64 -Scale 100,150,200 -Tiles 'Label' -Warp",
+  "sourceCommit": "c51f35df01cff21831d01140533e3274d679577a",
+  "sourceDirty": true,
+  "configuration": "Release",
+  "platform": "x64",
+  "nativeArchitecture": "X64",
+  "benchmarkInputs": {
+    "gallery.ps1": "3e159f7d6abf6fd18bd548b8a0f4f10b881bb2aa3ed4782a1f4cec5197bd8fa8",
+    "Tools/GalleryCapture.psm1": "15f150485530506fb7ad044e5e5254956be5718ada29e19c81a20a0527cd254b",
+    "Tests/Controls/DxUi.Tests.Gallery.cpp": "86c3d16106c28ae633496d3845e52fd868ec6a63e4a2e2530b42100e6082f7c5",
+    "Tests/Controls/DxUi.Tests.Runner.cpp": "f33e231374f88bc739de61f27c83632a718c8d53a6ea201edbe79c1b6a80511a"
+  },
+  "adapter": "WARP (forced)",
+  "forceWarp": true,
+  "scales": [
+    {
+      "percent": 100,
+      "dpi": 96
+    },
+    {
+      "percent": 150,
+      "dpi": 144
+    },
+    {
+      "percent": 200,
+      "dpi": 192
+    }
+  ],
+  "themes": [
+    "light",
+    "dark",
+    "rainbow-light",
+    "rainbow-dark",
+    "high-contrast"
+  ],
+  "tileFilters": [
+    "Label"
+  ],
+  "tileCount": 30,
+  "tilesFile": "tiles.tsv",
+  "pixelDigest": "SHA-256 of the PNG decoded to 32-bit BGRA rows, top to bottom (Tools/GalleryCapture.psm1, Get-GalleryPixelDigest)"
+}

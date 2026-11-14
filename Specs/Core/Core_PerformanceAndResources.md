@@ -74,7 +74,8 @@ Tree pointer hit testing computes the expander lane without shaping badge text o
 paint and input share the same lane geometry, including reserved-space and right-to-left layouts.
 Repeated hover on the same unchanged Tree row reuses its tooltip geometry; explicit tooltip text bypasses badge and
 overflow measurement. Model presentation, host, typography, resource or interaction changes invalidate that reuse.
-Icon-only button preparation validates tree membership at entry. Later reentrant boundaries check the owner and root
+Icon-only button preparation is reached only from the host's preparation pass and checks at entry that it is attached
+to that host (no tree-membership search). Later reentrant boundaries check the owner and root
 lifetimes, host, root identity and interaction revision before accessing or publishing control state.
 Button shortcut width is prepared and cached by host, typography, resources and reading direction; painting uses the
 prepared scalar and performs no shortcut measurement. A text change invalidates it, and detachment retires its host key.
@@ -238,7 +239,11 @@ snapshot, delta and receipt.
 
 - **Frame and walks.** `paintExecutions` counts each control whose `Paint` a host, `Panel` or `PageHost` dispatched;
   `treeVisitsPaint`, `treeVisitsTick`, `treeVisitsHitTest` and `treeVisitsStatistics` (the retained-resource walk of
-  `EmbeddedHost::GetStatistics`) count each control such a walk examined, visible or not.
+  `EmbeddedHost::GetStatistics`) count each control such a walk examined, visible or not. `hitTests` counts host hit
+  tests that walked the tree and `hitTestReuses` those answered from the pointer event's hit result
+  ([pointer hit result](../UI/UI_InputAndAccessibility.md#pointer-hit-result)). `preparationMembershipSearches` counts
+  `IsControlInTree` searches started during a host preparation pass and `plainLabelPreparations` the visual preparations
+  of a `Label` with neither a mnemonic nor a typography override; both are 0 since W2.9.
   `preparations` and `composites` count embedded preparations that painted and compositions; `renders` and `presents`
   count native render passes and swap-chain presents; `pixelsPainted` adds the device pixels a preparation or render
   cleared and repainted (the dirty rectangle of a partial native frame). `drawCalls` counts Direct2D draw calls (every

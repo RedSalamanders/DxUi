@@ -2587,7 +2587,8 @@ void ComboBox::OpenPopup(ControlHost& host) noexcept
     }
 
     RebuildPopupItems(&host);
-    _open             = true;
+    _open = true;
+    InvalidateHitTest(); // the open popup covers what lies below it
     _activePopupIndex = (_selectedIndex && FindPopupListIndexForItem(_selectedIndex.value())) ? _selectedIndex : GetPopupItemIndexAt(0u);
     _hoveredPopupIndex.reset();
     EnsurePopupSelectionVisible(&host);
@@ -2617,6 +2618,8 @@ bool ComboBox::RequestPopup(ControlHost& host)
 
 void ComboBox::ClosePopup() noexcept
 {
+    if (_open)
+        InvalidateHitTest(); // what the popup covered is hit again
     _open = false;
     _activePopupIndex.reset();
     _hoveredPopupIndex.reset();
@@ -2913,6 +2916,7 @@ void ComboBox::RebuildPopupItems(const ControlHost* host) noexcept
 {
     ++Detail::Work().popups.comboBoxPopupRebuilds;
     _popupItemWidthCache.filteredValid = false; // the maximum over the filtered items follows the new filter
+    InvalidateHitTest(); // the filtered rows size the popup, which GetHitBounds and HitTestOverlay read
     _popupItemIndices.clear();
     _popupItemIndices.reserve(_items.size());
 

@@ -101,7 +101,11 @@ Label mnemonic changes invalidate the owner only when the normalized mnemonic
 changes. Labels with a mnemonic or typography override prepare their DirectWrite
 layout before paint, keyed by text, mnemonic, typography, flow, bounds and host
 resource/typography identity. Repeated paints reuse that layout; labels with no
-mnemonic and no typography override retain their ordinary text draw path.
+mnemonic and no typography override retain their ordinary text draw path and are not prepared at all: a plain label
+never enters visual preparation, however often its bounds change (multiline, alignment, font role and text color keep it
+plain). Its first mnemonic (`SetMnemonic`) or typography override enables preparation. Visual preparation is reached
+only through the host's preparation pass from its root, so `Label` and `Button` preparation run no tree-membership
+search; a control asked to prepare for a host it is not attached to is refused by its host check.
 
 `TreeAppearance` may suppress background/border or decorative expanders and may reserve the expander lane on
 leaf rows. Hit testing follows the visible lane; keyboard expansion, hierarchy, selection and UI Automation retain
