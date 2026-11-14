@@ -2785,6 +2785,7 @@ public:
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichMathPreparations;
 #endif
+        ++DxUi::Detail::Work().rich.mathPreparations;
         const auto count = CountAndValidate(expression->root, displayStyle);
         if (! count)
             Failure::FailContract(E_INVALIDARG);

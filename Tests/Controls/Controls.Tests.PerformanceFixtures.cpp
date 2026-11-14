@@ -9,7 +9,6 @@
 
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Embedded.Tests.PerformanceFixtureCatalog.h"
-#include "Support/AnimationDispatcher.h"
 #pragma warning(push)
 #pragma warning(disable : 4625 4626 5026 5027) // scenarios are never copied
 #include "Embedded.Tests.PerformanceFixtureSelfTest.h"
@@ -180,6 +179,7 @@ RunRecord RunWindow(const Definition& definition, const Variant& variant)
 {
     Require(definition.Built() && Supports(definition.hosts, Host::Window), "the fixture is built for the window host");
     Require(! variant.hardwareOnly, "the window runner renders on WARP only");
+    Require(! definition.settlePreparation, "a fixture that settles preparation within a step runs on the embedded host only");
     RunRecord run;
     run.definition            = &definition;
     run.variant               = &variant;
@@ -297,8 +297,6 @@ int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv)
         return 2;
     }
     const RunRecord run = RunWindow(*definition, *variant);
-    // As the suite runner does after every suite: a fixture that armed animation leaves the dispatcher running otherwise.
-    DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
     const std::filesystem::path path(argv[3]);
     if (path.has_parent_path())
         std::filesystem::create_directories(path.parent_path());

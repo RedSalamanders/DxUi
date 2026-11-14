@@ -3117,7 +3117,13 @@ bool ControlHost::DebugHasActiveAnimationSubscription() const noexcept
 
 bool ControlHost::DebugAnimationTickForTest(uint64_t nowTickMs) noexcept
 {
-    return OnAnimationTick(nowTickMs);
+    // As the dispatcher does with a callback that returns false, a tick that ends the ticking ends the subscription it
+    // stood for; OnAnimationTick has already cleared the host's id.
+    const uint64_t subscription = _animationSubscriptionId;
+    const bool keepTicking      = OnAnimationTick(nowTickMs);
+    if (! keepTicking && subscription != 0u)
+        Ui::AnimationDispatcher::GetInstance().Unsubscribe(subscription);
+    return keepTicking;
 }
 
 void ControlHost::DebugSetAnimationClockForTest(std::optional<uint64_t> nowTickMs) noexcept

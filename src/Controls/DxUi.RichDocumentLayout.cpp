@@ -1,4 +1,5 @@
 #include "DxUi.RichLayoutOptions.h"
+#include "Support/WorkCounters.h"
 #include <DxUi/Failure.h>
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
@@ -484,6 +485,7 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                     return fail(E_BOUNDS);
                 next.last.preparedSourceUnits += request.units;
                 ++next.last.preparedChunks;
+                ++DxUi::Detail::Work().rich.chunksLaid;
                 request.first = request.end;
                 request.units = 0u;
                 continue;
@@ -531,6 +533,7 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                         next.reference = std::move(reference);
                         ++result.layoutsPrepared;
                         ++next.last.wholeLayoutsPrepared;
+                        ++DxUi::Detail::Work().rich.wholeLayoutsLaid;
                         next.last.wholeLayoutSourceUnits = next.source.Length();
                     }
                 }

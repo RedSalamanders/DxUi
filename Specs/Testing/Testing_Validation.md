@@ -1495,7 +1495,8 @@ The counter and memory receipt, the hardware timing harness (`performance-timing
 determinism gate, the incremental-versus-fresh oracle and item gate tests MUST run that definition rather than a
 parallel copy of the scene. A fixture header compiles in both test executables and depends only on DxUi and the model.
 
-A step is one action followed by exactly one frame. Steps MUST be deterministic: no real clock (time comes from the
+A step is one action followed by exactly one frame, except in a fixture that declares `settlePreparation`, whose
+embedded steps repeat the frame until the host needs no further cooperative preparation. Steps MUST be deterministic: no real clock (time comes from the
 fixture clock, `HostPort::AdvanceTime`), no sleep, no randomness and no dependence on other processes. Every W0.1 work
 counter is recorded per step and summarized per phase; the embedded runner adds the C++ allocation sink and the W0.3
 memory fields (live tracked bytes from the scene build, retained-resource statistics, process memory, video memory on

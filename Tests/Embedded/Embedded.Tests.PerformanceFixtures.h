@@ -140,6 +140,9 @@ inline AdapterRecord DescribeAdapter(ID3D11Device* device)
     return AdapterRecord{identity.description, identity.vendorId, identity.deviceId, identity.software, identity.driver, identity.videoBytes};
 }
 
+// Owner turns one settling step may take (Definition::settlePreparation) before the run fails.
+inline constexpr size_t kMaximumSettleTurns = 1u << 20u;
+
 struct RunOptions
 {
     bool hardware = false;
@@ -236,7 +239,12 @@ inline RunRecord RunEmbedded(const Definition& definition, const Variant& varian
                 largeAllocationMinimumBytes = definition.largeAllocationBytes != 0u ? definition.largeAllocationBytes : std::numeric_limits<size_t>::max();
                 countAllocations            = true;
                 instance.Step(phase, step);
-                const HRESULT framed        = instance.Frame(gpu);
+                HRESULT framed = instance.Frame(gpu);
+                for (size_t turn = 1u; definition.settlePreparation && SUCCEEDED(framed) && instance.View().NeedsPreparation(); ++turn)
+                {
+                    Check(turn < kMaximumSettleTurns, "a settling performance fixture step finishes its preparation");
+                    framed = instance.Frame(gpu);
+                }
                 countAllocations            = false;
                 largeAllocationMinimumBytes = std::numeric_limits<size_t>::max();
                 const size_t counted        = allocations;

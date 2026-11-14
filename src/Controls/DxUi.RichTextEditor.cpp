@@ -4075,6 +4075,7 @@ void RichTextEditor::PrepareVisualContent(ControlHost& host) noexcept
 HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
 {
     const Failure::Scope failureScope;
+    ++DxUi::Detail::Work().rich.preparationTurns;
     auto& state = *_state;
     if (state.codeCallbackActive)
         return LayoutIsCurrent(host) ? S_OK : S_FALSE;

@@ -155,6 +155,10 @@ struct Definition
     // Nonzero: the embedded runner also counts, per step, the C++ allocations of at least this many bytes
     // ("cppLargeAllocations"), such as copies of a document of that size; 0 leaves that counter out of the receipt.
     size_t largeAllocationBytes = 0u;
+    // Each step's frame repeats, within the same step, until the host needs no further preparation: one step is then one
+    // action with every owner turn of cooperative preparation it causes (FX8's rich document). Honored by the embedded
+    // runner; a fixture that sets it runs on the embedded host only.
+    bool settlePreparation = false;
 
     [[nodiscard]] constexpr bool Built() const noexcept
     {

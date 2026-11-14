@@ -51,10 +51,19 @@
 
 // Rich documents.
 #define DXUI_WORK_COUNTERS_RICH(X)                                                                                                                             \
+    X(rich, chunksLaid)          /* Rich text layout chunks laid out by a document-layout preparation (not reused). */                                         \
+    X(rich, diagramPreparations) /* Native diagram paint objects begun by a semantic geometry preparation (not carried). */                                    \
+    X(rich, displayUnitsWritten) /* UTF-16 display units a semantic document build published in its source/display map. */                                     \
     X(rich, documentBytesCopied) /* Bytes of a rich document's source or display text copied into a string: slices, flattens, text-input copies. */            \
     X(rich, documentFlattens)    /* Copies of a whole non-empty rich document's source or display text (a subset of documentBytesCopied). */                   \
+    X(rich, elementsBuilt)       /* Semantic elements a semantic document build created. */                                                                    \
     X(rich, hoveredTitleCalls)   /* RichTextEditor::HoveredTitle resolutions: the hover title under a point, for the host's tooltip. */                        \
-    X(rich, hoverScanElements)   /* Semantic elements a pointer-hover lookup tested one by one; the prepared hover index adds none. */
+    X(rich, hoverScanElements)   /* Semantic elements a pointer-hover lookup tested one by one; the prepared hover index adds none. */                         \
+    X(rich, imageUploadBytes)    /* Pixel bytes rich-image preparation uploaded into Direct2D bitmaps (creation with pixels or CopyFromMemory). */             \
+    X(rich, mathPreparations)    /* Prepared math formulas built (beside the testRichMathPreparations seam). */                                                \
+    X(rich, preparationTurns)    /* RichTextEditor::PrepareContent calls: owner turns of cooperative rich-content preparation. */                              \
+    X(rich, svgRasterizations)   /* SVG strips rasterized into image bitmaps (beside the testRichSvgRasterizations seam). */                                   \
+    X(rich, wholeLayoutsLaid)    /* Whole-document text layouts a document-layout preparation built (not reused). */
 
 // UI Automation.
 #define DXUI_WORK_COUNTERS_ACCESSIBILITY(X)                                                                                                                    \

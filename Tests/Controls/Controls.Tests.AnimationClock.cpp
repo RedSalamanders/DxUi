@@ -649,3 +649,36 @@ void TestNativeTransitionStartsOnTheDispatcherTimelineAfterAStall()
     Require(ticks.WaitForTick(), "the dispatcher ticks once more");
     Require(slider->DebugGetDisplayedValue() > beforeValue, "the next tick moves the thumb: the start and the ticks share one clock");
 }
+
+// The test tick ends a settled host's dispatcher subscription exactly as a dispatcher tick does: a dispatcher callback that
+// returns false is removed, so DebugAnimationTickForTest must remove it too. It used to clear only the host's id, leaving an
+// entry its destructor could no longer remove (a dangling callback the process then failed on at exit).
+void TestNativeTestTickSettlesWithoutLeavingADispatcherEntry()
+{
+    using namespace DxUi;
+    auto& dispatcher    = Ui::AnimationDispatcher::GetInstance();
+    const size_t before = dispatcher.DebugGetActiveSubscriptionCountForTest();
+    {
+        AttachedHostWindow window;
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        EnableMotionForTest(window.Host());
+        window.Host().DebugSetAnimationClockForTest(1'000u);
+        auto root    = std::make_unique<Panel>();
+        auto* slider = root->AddChild<Slider>();
+        slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 48.0f));
+        slider->SetValue(20.0);
+        window.Host().SetRoot(std::move(root));
+        Require(slider->RequestValue(window.Host(), 80.0) && window.Host().DebugHasActiveAnimationSubscription() &&
+                    dispatcher.DebugGetActiveSubscriptionCountForTest() == before + 1u,
+                "a value animation subscribes the host to the dispatcher once");
+        bool ticking = true;
+        for (uint64_t frame = 1u; ticking && frame <= 100u; ++frame)
+        {
+            window.Host().DebugSetAnimationClockForTest(1'000u + 16u * frame);
+            ticking = window.Host().DebugAnimationTickForTest(1'000u + 16u * frame);
+        }
+        Require(! ticking && ! window.Host().DebugHasActiveAnimationSubscription(), "the animation settles through the test tick");
+        Require(dispatcher.DebugGetActiveSubscriptionCountForTest() == before, "settling removes the host's dispatcher entry");
+    }
+    Require(dispatcher.DebugGetActiveSubscriptionCountForTest() == before, "a destroyed host leaves no dispatcher entry");
+}

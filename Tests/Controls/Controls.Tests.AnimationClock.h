@@ -10,3 +10,4 @@ void TestEmbeddedAnimationClockSkipsPausesInTicking();
 void TestEmbeddedAnimationClockContinuesAcrossAttachments();
 void TestNativeAnimationClockIsTheDispatcherTimeline();
 void TestNativeTransitionStartsOnTheDispatcherTimelineAfterAStall();
+void TestNativeTestTickSettlesWithoutLeavingADispatcherEntry();

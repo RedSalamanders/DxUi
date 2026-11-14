@@ -1652,6 +1652,7 @@ void RunAnimationTests()
     DXUI_RUN_TEST(TestEmbeddedAnimationClockContinuesAcrossAttachments);
     DXUI_RUN_TEST(TestNativeAnimationClockIsTheDispatcherTimeline);
     DXUI_RUN_TEST(TestNativeTransitionStartsOnTheDispatcherTimelineAfterAStall);
+    DXUI_RUN_TEST(TestNativeTestTickSettlesWithoutLeavingADispatcherEntry);
     DXUI_RUN_TEST(TestFrameRuntimeClockIsMonotonic);
     DXUI_RUN_TEST(TestFrameRuntimeClampsLargeDelta);
     DXUI_RUN_TEST(TestAnimationDispatcherSchedulerPolicyUses120HzTargetAndClampsHitches);

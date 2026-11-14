@@ -73,6 +73,8 @@ DWRITE_READING_DIRECTION ParagraphDirection(const SemanticDocument& document, co
 HRESULT UploadImageBitmap(
     ID2D1RenderTarget* target, D2D1_SIZE_U size, const void* pixels, UINT32 stride, const D2D1_BITMAP_PROPERTIES& properties, ID2D1Bitmap** bitmap) noexcept
 {
+    if (pixels)
+        DxUi::Detail::Work().rich.imageUploadBytes += static_cast<std::uint64_t>(stride) * size.height;
 #if DXUI_ENABLE_DIAGNOSTICS
     if (testRichImageRasterCalls && testRichImageRasterCalls->createBitmap)
         return testRichImageRasterCalls->createBitmap(target, size, pixels, stride, properties, bitmap);
@@ -81,6 +83,7 @@ HRESULT UploadImageBitmap(
 }
 HRESULT CopyImageBitmap(ID2D1Bitmap* bitmap, const D2D1_RECT_U& rectangle, const void* pixels, UINT32 stride) noexcept
 {
+    DxUi::Detail::Work().rich.imageUploadBytes += static_cast<std::uint64_t>(stride) * (rectangle.bottom - rectangle.top);
 #if DXUI_ENABLE_DIAGNOSTICS
     if (testRichImageRasterCalls && testRichImageRasterCalls->copyBitmap)
         return testRichImageRasterCalls->copyBitmap(bitmap, rectangle, pixels, stride);
@@ -530,6 +533,7 @@ struct NativeImageGeometry
 #if DXUI_ENABLE_DIAGNOSTICS
             ++testRichSvgRasterizations;
 #endif
+            ++DxUi::Detail::Work().rich.svgRasterizations;
             placement.uploadedX += columns;
             if (placement.uploadedX == placement.svgWidth)
             {
@@ -2699,7 +2703,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 }
                 if (! placement.paint)
                 {
-                    placement.paint      = std::make_shared<PreparedFlowchart>();
+                    placement.paint = std::make_shared<PreparedFlowchart>();
+                    ++DxUi::Detail::Work().rich.diagramPreparations;
                     const auto admission = placement.paint->Begin(
                         state.factory.get(), state.native->drawing.get(), diagrams[work.nativeIndex].graph, state.options, state.native->epochs);
                     if (admission == LayoutPreparationStatus::Failed)

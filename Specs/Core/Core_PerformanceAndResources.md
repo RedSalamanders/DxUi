@@ -269,6 +269,13 @@ snapshot, delta and receipt.
   synchronizations included, a one-character insert and an arrow key copy at most 1 KiB and no gated event (insert,
   arrow, Backspace, Ctrl+arrow, Ctrl+Backspace, Enter, double-click) flattens the document
   (`Embedded.Tests.RichTextInputCopies.h`; receipt `Measurements/PerformanceAndMotion_2026-11-13/W7.4`).
+  A semantic document build counts each element it creates (`elementsBuilt`) and adds the display
+  units of the source/display map it publishes (`displayUnitsWritten`). Semantic geometry counts each native diagram paint
+  object it begins rather than carries (`diagramPreparations`), each prepared formula (`mathPreparations`, beside the
+  `testRichMathPreparations` seam), each rasterized SVG strip (`svgRasterizations`, beside `testRichSvgRasterizations`) and
+  the pixel bytes it uploads into image bitmaps, at creation with pixels or by `CopyFromMemory` (`imageUploadBytes`).
+  Document layout counts each text chunk it lays out rather than reuses (`chunksLaid`) and each whole-document layout it builds (`wholeLayoutsLaid`). Each owner turn of a
+  `RichTextEditor`'s cooperative content preparation counts `preparationTurns`.
 - **UI Automation.** Each whole-window snapshot build counts `snapshotBuilds`, its control records (`snapshotNodes`) and
   the bytes its per-control record arrays reserve (`snapshotBytes`, owned strings excluded). It counts the same builds as
   the diagnostic `DebugGetAccessibilitySnapshotBuildCountForTest`, which remains. Text-range movement by word counts the

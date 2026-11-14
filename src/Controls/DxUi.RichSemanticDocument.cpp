@@ -2,6 +2,7 @@
 #include "DxUi.RichSemanticHtml.h"
 #include "DxUi.RichSourceWindow.h"
 #include "DxUi.SemanticExtensions.h"
+#include "Support/WorkCounters.h"
 #include <DxUi/Failure.h>
 #include <algorithm>
 #include <atomic>
@@ -817,6 +818,7 @@ struct SemanticBuilder::Preparation
         }
         const auto index = elements.size();
         elements.emplace_back();
+        ++DxUi::Detail::Work().rich.elementsBuilt;
         tails.push_back(MarkdownNoNode);
         auto& element         = elements.back();
         element.role          = role;
@@ -2613,6 +2615,7 @@ struct SemanticBuilder::Preparation
             }
             if (mapResult != SourceResult::Success)
                 Failure::FailContract(E_UNEXPECTED);
+            DxUi::Detail::Work().rich.displayUnitsWritten += output.text.size();
             PrepareSourceFormats();
             return true;
         }

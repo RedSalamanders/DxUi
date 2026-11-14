@@ -324,7 +324,9 @@ time touch different files. In `Embedded.Tests.PerformanceFixtureFx<N>.h`:
    determinism gate does not, so keep `variants[0]` small; a scenario may read `context.variant.name` to size its
    scene), `phases` (a first `PhaseKind::Warmup` phase
    settles first-use state and gives hit testing a prepared layout; measured phases are compared by the determinism gate),
-   `timedPhase`, `sources` (repository paths of scene files, hashed into the receipt) and `create`.
+   `timedPhase`, `sources` (repository paths of scene files, hashed into the receipt) and `create`. A scene whose controls prepare cooperatively over several
+   owner turns sets `settlePreparation`: the embedded runner then repeats a step's frame until the host needs no further
+   preparation, so one step is one action with all its turns (FX8; embedded host only).
 3. A scene helper too large for the fixture header goes in a new `Tests/Embedded/Embedded.Tests.<Name>.h`, added to
    `Tests/native-test-files.json`. Reuse existing scene helpers (`Controls.Tests.AccessibilityFx6.h`, the tooltip hover-path
    helpers, `BuildCjkEmojiFieldText`) by moving them into such a header rather than copying them.
@@ -372,8 +374,9 @@ function applies `StepAt(definition, k - 1)` through a `HostPort` over that scen
 ./.build/x64/Release/DxUi.ControlTests.exe --fx13-cold-start Measurements/PerformanceAndMotion_2026-11-13/FX13/cold-start/cold-start-x64-release.json 5
 ```
 
-`FX13`'s cold start to the first presented frame is wall-clock time of fresh processes, so it is a receipt-only command
-outside the definition and the determinism gate (`Controls.Tests.PerformanceFixtureColdStart.cpp`): each child builds the
+`FX13`'s cold start to the first presented frame is wall-clock time of fresh processes, so it is receipt-only in the
+sense of a `receiptOnly` variant (its receipt command runs it, the determinism gate never does; its JSON says
+`"receiptOnly":true`), and it lives outside the definition (`Controls.Tests.PerformanceFixtureColdStart.cpp`): each child builds the
 `FX13` application on a WARP `WindowHost` shown without activation off every monitor, and stamps its entry and its first
 present from the trace provider's test sink; the presented image must show a drawn frame. Its numbers are never a verdict.
 
