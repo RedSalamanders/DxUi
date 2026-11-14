@@ -1511,7 +1511,9 @@ provenance (source commit and dirty flag, build profile, compiler, OS build, ada
 refresh rates, power plan, host-idle observation, executable and input hashes) and regenerates that directory's README.
 It records machine state and never changes it, and it never replaces an existing receipt without `-Replace`. Timing
 fields MUST say "not measured" unless they come from a `performance-timing.ps1` calibration or comparison on a hardware
-adapter in a quiet window; WARP receipts are counts and memory only. The fixture-author guide is in
+adapter in a quiet window; WARP receipts are counts and memory only. A plan measurement that is real time by nature, such
+as `FX13`'s cold start to the first presented frame, is a receipt-only command beside the definition: it reuses the
+fixture's scene, stays outside the determinism gate, and its receipt states that it is not a verdict. The fixture-author guide is in
 [the test guide](../../Tests/README.md#performance-fixtures).
 ## Scoped iteration and PR coverage
 

@@ -260,7 +260,8 @@ snapshot, delta and receipt.
   lookup tests one by one. Hover lookups go through the prepared hover index, so the latter stays 0.
 - **UI Automation.** Each whole-window snapshot build counts `snapshotBuilds`, its control records (`snapshotNodes`) and
   the bytes its per-control record arrays reserve (`snapshotBytes`, owned strings excluded). It counts the same builds as
-  the diagnostic `DebugGetAccessibilitySnapshotBuildCountForTest`, which remains.
+  the diagnostic `DebugGetAccessibilitySnapshotBuildCountForTest`, which remains. Text-range movement by word counts the
+  UTF-16 units it steps over (`wordUnitsVisited`), the enclosing-word search's walk from offset 0 included.
 
 Destruction is observed only by a test-owned `ResourceLifetimeTracker`, in storage the test supplies: while installed on
 a thread it holds one extra reference to each resource the helpers create there, and `Sweep` counts and releases those

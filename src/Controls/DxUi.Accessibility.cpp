@@ -4625,6 +4625,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
         }
     }
 
+    Detail::Work().accessibility.wordUnitsVisited += cursor > clampedPosition ? cursor - clampedPosition : clampedPosition - cursor;
     return TextRangeUnitMoveResult{cursor, moved};
 }
 

@@ -54,9 +54,10 @@
 
 // UI Automation.
 #define DXUI_WORK_COUNTERS_ACCESSIBILITY(X)                                                                                                                    \
-    X(accessibility, snapshotBuilds) /* Whole-window UI Automation snapshot builds that reached the tree walk. */                                              \
-    X(accessibility, snapshotBytes)  /* Bytes reserved by those snapshots' per-control record arrays (excluding owned strings). */                             \
-    X(accessibility, snapshotNodes)  /* Control records those snapshots hold. */
+    X(accessibility, snapshotBuilds)   /* Whole-window UI Automation snapshot builds that reached the tree walk. */                                            \
+    X(accessibility, snapshotBytes)    /* Bytes reserved by those snapshots' per-control record arrays (excluding owned strings). */                           \
+    X(accessibility, snapshotNodes)    /* Control records those snapshots hold. */                                                                             \
+    X(accessibility, wordUnitsVisited) /* UTF-16 units text-range word movement stepped over, the enclosing-word scan from offset 0 included. */
 
 // Memory. Reserved for counted memory work; byte metrics live in receipts, not here.
 #define DXUI_WORK_COUNTERS_MEMORY(X)

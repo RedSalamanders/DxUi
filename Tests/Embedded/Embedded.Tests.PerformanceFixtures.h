@@ -230,15 +230,19 @@ inline RunRecord RunEmbedded(const Definition& definition, const Variant& varian
             for (size_t step = 0u; step < definition.phases[phase].steps; ++step)
             {
                 const DxUi::Detail::WorkCounterScope scope;
-                allocations      = 0u;
-                countAllocations = true;
+                allocations                 = 0u;
+                largeAllocations            = 0u;
+                largeAllocationMinimumBytes = definition.largeAllocationBytes != 0u ? definition.largeAllocationBytes : std::numeric_limits<size_t>::max();
+                countAllocations            = true;
                 instance.Step(phase, step);
-                const HRESULT framed = instance.Frame(gpu);
-                countAllocations     = false;
-                const size_t counted = allocations;
+                const HRESULT framed        = instance.Frame(gpu);
+                countAllocations            = false;
+                largeAllocationMinimumBytes = std::numeric_limits<size_t>::max();
+                const size_t counted        = allocations;
+                const size_t large          = largeAllocations;
                 Hr(framed, "performance fixture frame");
                 static_cast<void>(tracker.Sweep());
-                steps.push_back(StepRecord{scope.Delta(), counted});
+                steps.push_back(StepRecord{scope.Delta(), counted, large});
             }
             sample("phase", definition.phases[phase].name, true);
         }

@@ -343,7 +343,9 @@ Check(PerformanceFixtures::Summarize(run.Phase("wheel"), "resources.textLayout.c
 ```
 
 Counter names are `cppAllocations` (Embedded suite only), `created`, `churn` and each W0.1 counter as `<group>.<name>`
-(`frame.paintExecutions`, `resources.textLayout.created`). To measure an action of your own on the live scene, pass
+(`frame.paintExecutions`, `resources.textLayout.created`). A definition that sets `largeAllocationBytes` also gets
+`cppLargeAllocations` (Embedded suite only): the step's C++ allocations of at least that many bytes, such as `FX7`'s
+copies of its 64 Ki-unit document. To measure an action of your own on the live scene, pass
 `RunOptions::afterPhases` (embedded) or drive an `EmbeddedInstance` yourself: `Instantiate`, `Create`, then `Step` and
 `Frame` around a `Detail::WorkCounterScope`. `RunOptions::countDrawCalls` installs the counting COM wrappers so
 that `frame.drawCalls` is counted (it is 0 otherwise). The oracle (`Support.Tests.IncrementalParity.h`) replays a fixture
@@ -359,7 +361,13 @@ function applies `StepAt(definition, k - 1)` through a `HostPort` over that scen
 ./performance-fixtures.ps1 -Fixture FX5 -Variant uhd-192dpi -Adapter Hardware -SkipBuild
 ./performance-fixtures.ps1 -Fixture FX5 -CountDrawCalls -SkipBuild             # also frame.drawCalls, under the counting COM wrappers
 ./performance-timing.ps1 -Purpose Smoke -Fixture FX5 -Adapter Warp -Sessions 1   # the same definition, timed
+./.build/x64/Release/DxUi.ControlTests.exe --fx13-cold-start Measurements/PerformanceAndMotion_2026-11-13/FX13/cold-start/cold-start-x64-release.json 5
 ```
+
+`FX13`'s cold start to the first presented frame is wall-clock time of fresh processes, so it is a receipt-only command
+outside the definition and the determinism gate (`Controls.Tests.PerformanceFixtureColdStart.cpp`): each child builds the
+`FX13` application on a WARP `WindowHost` shown without activation off every monitor, and stamps its entry and its first
+present from the trace provider's test sink; the presented image must show a drawn frame. Its numbers are never a verdict.
 
 The ordinary Embedded and Rendering suites run the self-tests and the determinism gate. The receipt script records
 provenance (source commit and dirty flag, build profile, compiler, OS build, adapter and driver or WARP version, display

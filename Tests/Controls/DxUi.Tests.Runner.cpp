@@ -1,5 +1,6 @@
 #include "Controls.Tests.AccessibilityClientGate.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.PerformanceFixtureColdStart.h"
 #include "Controls.Tests.PerformanceFixtures.h"
 #include "Controls/TextClipboard.h"
 #include "Support/AnimationDispatcher.h"
@@ -150,6 +151,11 @@ int wmain(int argc, wchar_t** argv)
     // A performance fixture's WARP receipt on the window host (Tests/README.md, "Performance fixtures").
     if (argc >= 2 && std::wstring_view(argv[1]) == L"--fixture-receipt")
         return RunWindowFixtureReceiptCommand(argc, argv);
+    // FX13's receipt-only cold start: fresh child processes timed to their first presented frame.
+    if (const int coldStart = RunFx13ColdStartChild(argc, argv); coldStart >= 0)
+        return coldStart;
+    if (argc >= 2 && std::wstring_view(argv[1]) == L"--fx13-cold-start")
+        return RunFx13ColdStartCommand(argc, argv);
 
     class TestClipboard final : public DxUi::TextClipboard
     {

@@ -149,6 +149,9 @@ struct Definition
     std::span<const std::string_view> sources; // repository paths of the scene; the receipt hashes them with the framework's own
     bool reducedMotion                    = true;
     std::unique_ptr<Scenario> (*create)() = nullptr; // nullptr: declared by the plan, not built yet
+    // Nonzero: the embedded runner also counts, per step, the C++ allocations of at least this many bytes
+    // ("cppLargeAllocations"), such as copies of a document of that size; 0 leaves that counter out of the receipt.
+    size_t largeAllocationBytes = 0u;
 
     [[nodiscard]] constexpr bool Built() const noexcept
     {
@@ -206,7 +209,8 @@ struct PhaseStep
 struct StepRecord
 {
     DxUi::Detail::WorkCounters work{};
-    uint64_t cppAllocations = 0u;
+    uint64_t cppAllocations      = 0u;
+    uint64_t cppLargeAllocations = 0u; // of at least Definition::largeAllocationBytes; 0 where not counted
 };
 
 // Process and host memory at one point of a run (the W0.3 fields). Absent parts are not measurable on that host or adapter.
@@ -268,6 +272,7 @@ struct RunRecord
 template <typename Visitor> void ForEachCounter(const StepRecord& step, Visitor&& visit)
 {
     visit(std::string_view("cppAllocations"), step.cppAllocations);
+    visit(std::string_view("cppLargeAllocations"), step.cppLargeAllocations);
     visit(std::string_view("created"), DxUi::Detail::TotalCreated(step.work));
     visit(std::string_view("churn"), DxUi::Detail::Churn(step.work));
     DxUi::Detail::ForEachWorkCounter(step.work,
@@ -466,12 +471,18 @@ inline void WritePhasesJson(std::ostream& output, const RunRecord& run)
         output << ",\"steps\":" << steps.size() << ",\"series\":{";
         std::vector<std::string> names;
         if (! steps.empty())
-            ForEachCounter(steps.front(), [&](std::string_view name, uint64_t) { names.emplace_back(name); });
+            ForEachCounter(steps.front(),
+                           [&](std::string_view name, uint64_t)
+            {
+                const bool counted = name == "cppAllocations"        ? run.cppAllocationsCounted
+                                     : name == "cppLargeAllocations" ? run.cppAllocationsCounted && run.definition->largeAllocationBytes != 0u
+                                                                     : true;
+                if (counted)
+                    names.emplace_back(name);
+            });
         bool first = true;
         for (const std::string& name : names)
         {
-            if (name == "cppAllocations" && ! run.cppAllocationsCounted)
-                continue;
             output << (first ? "" : ",") << '"' << name << "\":[";
             for (size_t step = 0u; step < steps.size(); ++step)
                 output << (step ? "," : "") << CounterValue(steps[step], name).value();
@@ -482,8 +493,6 @@ inline void WritePhasesJson(std::ostream& output, const RunRecord& run)
         first = true;
         for (const std::string& name : names)
         {
-            if (name == "cppAllocations" && ! run.cppAllocationsCounted)
-                continue;
             const CounterSummary summary = Summarize(run.phases[phase], name);
             output << (first ? "" : ",") << '"' << name << "\":{\"min\":" << summary.minimum << ",\"max\":" << summary.maximum << ",\"total\":" << summary.total
                    << '}';
@@ -538,8 +547,10 @@ inline void WriteReceiptJson(std::ostream& output, const RunRecord& run)
            << ",\"software\":" << (run.adapter.software ? "true" : "false") << ",\"driverVersion\":";
     WriteDriverVersion(output, run.adapter.driver);
     output << ",\"dedicatedVideoBytes\":" << run.adapter.videoBytes << "},\"cppAllocations\":"
-           << (run.cppAllocationsCounted ? "\"counted per step\"" : "\"not counted: this executable does not replace the allocation functions\"")
-           << ",\"drawCalls\":"
+           << (run.cppAllocationsCounted ? "\"counted per step\"" : "\"not counted: this executable does not replace the allocation functions\"");
+    if (run.cppAllocationsCounted && definition.largeAllocationBytes != 0u)
+        output << ",\"cppLargeAllocationMinimumBytes\":" << definition.largeAllocationBytes;
+    output << ",\"drawCalls\":"
            << (run.drawCallsCounted ? "\"counted per step by the counting COM wrappers\""
                                     : "\"not counted: frame.drawCalls is 0 without the counting wrappers\"")
            << ",\"trackedResources\":" << run.trackedResources << ",\"trackerOverflow\":" << run.trackerOverflow << ",\"phases\":";

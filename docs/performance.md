@@ -384,6 +384,17 @@ the others are declared and are built by later work. See the
 [contract](../Specs/Testing/Testing_Validation.md#performance-fixtures) and the
 [fixture-author guide](../Tests/README.md#performance-fixtures).
 
+`FX6` (accessibility), `FX7` (IME) and `FX13` (whole application) run on the embedded host. `FX6` counts snapshot
+builds, records and bytes per mutation with no UI Automation client and with one, per `Slider` step and per pixel of a
+`Splitter` drag, and the units a word walk over a 64 Ki-unit document visits; its "client" is the client gate's test
+switch, so no count depends on when events arrive. `FX7` composes and commits ten syllables through the production text
+store in a 64 Ki-unit `TextField` and `RichTextEditor`, one TSF lock per step, and counts the copies of the document
+(`cppLargeAllocations`). `FX13` idles an application for 60 simulated seconds with nothing armed and with a focused
+caret, then hides it; its cold start to the first presented frame is a separate real-time receipt. See the
+[FX6](../Measurements/PerformanceAndMotion_2026-11-13/FX6/README.md),
+[FX7](../Measurements/PerformanceAndMotion_2026-11-13/FX7/README.md) and
+[FX13](../Measurements/PerformanceAndMotion_2026-11-13/FX13/README.md) receipts.
+
 ## Frame timing on hardware
 
 The five-round receipt above cannot confirm a small speed-up: a clean round lasts about 15 ms and every frame waits
