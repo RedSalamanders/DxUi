@@ -939,7 +939,11 @@ allocating the UTF-16 result. Exact three-byte BMP and supplementary-scalar
 capacity limits remain accepted. Accepted BOM and mixed line endings round-trip unchanged.
 
 `SourceSnapshot::IsBoundary` and `Slice(first,last)` inspect shared pieces without
-flattening a revision. Slices and edits preserve scalar and CRLF boundaries,
+flattening a revision; `UnitAt(offset)` reads one unit by tree lookup and `LineStart(line)` finds a
+logical line's start (CRLF is one break) from the immutable line summaries, neither scanning nor
+copying source. Text input reads the editor's revision the same way: a keystroke, an arrow key or a
+word movement copies no whole document, and a TSF lock materializes at most one contiguous copy
+(see `KeepsDefaultTextInputState` in [controls](controls.md)). Slices and edits preserve scalar and CRLF boundaries,
 including CR/LF split across two pieces. A persistent B+ tree stores cumulative
 piece/subtree ends, with 16..32 entries in each non-root node. Reads descend by
 binary search and slices visit only intersecting entries. Edits copy boundary

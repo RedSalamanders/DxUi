@@ -1,5 +1,8 @@
 #pragma once
 #include "DxUi.RichSemanticGeometry.h"
+#include "Support/WorkCounters.h"
+#include <optional>
+#include <string_view>
 
 namespace DxUi::RichText::Detail
 {
@@ -139,7 +142,20 @@ public:
     }
     std::wstring DisplayText() const
     {
-        return activeSemantic_ ? std::wstring(semantic_.Document().Map().Display()) : v0_.DisplayText();
+        if (! activeSemantic_)
+            return v0_.DisplayText();
+        const auto display = semantic_.Document().Map().Display();
+        auto& work         = ::DxUi::Detail::Work().rich;
+        work.documentBytesCopied += display.size() * sizeof(wchar_t);
+        if (! display.empty())
+            ++work.documentFlattens;
+        return std::wstring(display);
+    }
+    // The prepared display text without a copy when the semantic map holds it contiguously (valid while this layout is
+    // unchanged); empty for the block-based v0 projection, which callers read through DisplayUnit.
+    std::optional<std::wstring_view> ContiguousDisplayText() const
+    {
+        return activeSemantic_ ? std::optional<std::wstring_view>(semantic_.Document().Map().Display()) : std::nullopt;
     }
     std::size_t ChunkCount() const noexcept
     {

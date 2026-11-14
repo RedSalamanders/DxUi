@@ -260,6 +260,12 @@ snapshot, delta and receipt.
 - **Rich documents.** `hoveredTitleCalls` counts each `RichTextEditor::HoveredTitle` resolution (the hover title under a
   point, asked for by the host's supplemental tooltip), and `hoverScanElements` each semantic element a pointer-hover
   lookup tests one by one. Hover lookups go through the prepared hover index, so the latter stays 0.
+  `documentBytesCopied` counts the bytes of a rich document's source or display text copied into a string (source slices
+  and flattens, a flattened prepared display, a word window, a public text-input copy), and `documentFlattens` each copy
+  of a whole non-empty source or display. Per input event in a 64 Ki-unit `RichTextEditor`, both text-input
+  synchronizations included, a one-character insert and an arrow key copy at most 1 KiB and no gated event (insert,
+  arrow, Backspace, Ctrl+arrow, Ctrl+Backspace, Enter, double-click) flattens the document
+  (`Embedded.Tests.RichTextInputCopies.h`; receipt `Measurements/PerformanceAndMotion_2026-11-13/W7.4`).
 - **UI Automation.** Each whole-window snapshot build counts `snapshotBuilds`, its control records (`snapshotNodes`) and
   the bytes its per-control record arrays reserve (`snapshotBytes`, owned strings excluded). It counts the same builds as
   the diagnostic `DebugGetAccessibilitySnapshotBuildCountForTest`, which remains. Text-range movement by word counts the

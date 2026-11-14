@@ -1592,8 +1592,9 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
             return E_ACCESSDENIED;
         if (_host._nativeTextInputImeComposing && actual.text != _host.GetNativeTextInputCacheText())
             _host.ClearNativeTextInputCompositionState();
-        const auto previous     = _host._nativeTextInputStateCache;
-        const auto previousText = _host._nativeTextInputCacheText;
+        const auto previous       = _host._nativeTextInputStateCache;
+        const auto previousText   = _host._nativeTextInputCacheText;
+        const auto previousSource = _host._nativeTextInputCacheSource;
         if (action == EmbeddedTextInputAction::Cancel)
         {
             if (! _host._nativeTextInputImeComposing)
@@ -1648,7 +1649,7 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
         if (stillLive())
         {
             _host.SyncNativeTextInputSession(control);
-            _host.RaiseNativeTextInputAccessibilityEvents(previous, previousText);
+            _host.RaiseNativeTextInputAccessibilityEvents(previous, previousText, previousSource);
         }
         return S_OK;
     }

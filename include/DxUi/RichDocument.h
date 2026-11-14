@@ -98,6 +98,13 @@ public:
     // Uses immutable line summaries and buffer indexes without allocating,
     // flattening, or scanning all preceding source units.
     std::optional<SourceLocation> LocationAt(std::size_t offset) const noexcept;
+    // One UTF-16 unit by tree lookup (logarithmic), U+0000 past the end. Reads
+    // nothing else and allocates nothing.
+    wchar_t UnitAt(std::size_t offset) const noexcept;
+    // The offset where zero-based logical line `line` starts (CRLF is one
+    // break), from the immutable line summaries without scanning or copying
+    // source; none past the last line or for an invalid revision.
+    std::optional<std::size_t> LineStart(std::size_t line) const noexcept;
     std::wstring Slice(std::size_t first, std::size_t last) const;
     [[nodiscard]] SourceResult TrySlice(std::size_t first, std::size_t last, std::wstring& result) const;
     // A conservative replacement interval, safe for Slice in both snapshots.

@@ -929,7 +929,10 @@ bool ControlHost::TryReadTextInputState(const Control* control, TextInputState& 
         return false;
     }
 
+    // The public state carries its own copy of the document; a rich editor's revision is materialized once for it.
     outState.text.assign(GetNativeTextInputCacheText());
+    if (_nativeTextInputCacheSource)
+        NoteRichDocumentCopy(outState.text.size());
     outState.selectionAnchorIndex = _nativeTextInputStateCache.selectionAnchorIndex;
     outState.caretIndex           = _nativeTextInputStateCache.caretIndex;
     outState.firstVisibleLine     = _nativeTextInputStateCache.firstVisibleLine;
@@ -943,11 +946,23 @@ void ControlHost::SyncTextInput(Control* control) noexcept
 {
     // Embedded composition imports synchronize privately. A public control edit is newer application/input
     // state and must not be undone by cancellation of the previous OS-service preview.
-    if (_embedded && _nativeTextInputImeComposing && control == _nativeTextInputControl)
+    if (_embedded && _nativeTextInputImeComposing && control && control == _nativeTextInputControl)
     {
-        TextInputState actual;
-        if (control && control->ExportTextInputState(actual) && actual.text != GetNativeTextInputCacheText())
-            ClearNativeTextInputCompositionState();
+        try
+        {
+            // Shares the document where the control allows it; the comparison reads in place.
+            SharedTextInputState actual;
+            if (SharedTextInputAccess::Export(*control, actual) &&
+                ! SameTextInputContent(actual.text,
+                                       actual.source,
+                                       _nativeTextInputStateCacheValid ? _nativeTextInputCacheText : SharedText(),
+                                       _nativeTextInputStateCacheValid ? _nativeTextInputCacheSource : std::nullopt))
+                ClearNativeTextInputCompositionState();
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
     }
     SyncNativeTextInputSession(control);
 }
@@ -1029,6 +1044,99 @@ std::wstring& MutableSharedText(SharedText& text, size_t requiredUnits)
     return const_cast<std::wstring&>(*text);
 }
 
+namespace
+{
+// Two revisions with equal lengths: equal outside their tracked changed range by construction, so only that range is read.
+[[nodiscard]] bool SourcesHaveSameText(const RichText::SourceSnapshot& left, const RichText::SourceSnapshot& right) noexcept
+{
+    if (left.IsSameRevision(right))
+        return true;
+    if (left.Length() != right.Length())
+        return false;
+    const auto range = right.ChangedRangeFrom(left);
+    if (range.kind == RichText::SourceChangeKind::Unchanged)
+        return true;
+    if (range.previousEnd - range.begin != range.currentEnd - range.begin)
+        return false;
+    for (size_t offset = range.begin; offset < range.previousEnd; ++offset)
+        if (left.UnitAt(offset) != right.UnitAt(offset))
+            return false;
+    return true;
+}
+} // namespace
+
+bool SameTextInputContent(const SharedText& leftText,
+                          const std::optional<RichText::SourceSnapshot>& leftSource,
+                          const SharedText& rightText,
+                          const std::optional<RichText::SourceSnapshot>& rightSource) noexcept
+{
+    if (leftText && leftText == rightText)
+        return true;
+    if (leftSource && rightSource)
+        return SourcesHaveSameText(*leftSource, *rightSource);
+    if (leftText && rightText)
+        return SharedTextEquals(leftText, rightText);
+    if (leftSource && rightText)
+        return leftSource->MatchesText(*rightText);
+    if (rightSource && leftText)
+        return rightSource->MatchesText(*leftText);
+    // A side without any document reads as empty text, as SharedTextView does.
+    const size_t leftLength  = leftText ? leftText->size() : leftSource ? leftSource->Length() : 0u;
+    const size_t rightLength = rightText ? rightText->size() : rightSource ? rightSource->Length() : 0u;
+    return leftLength == 0u && rightLength == 0u;
+}
+
+bool TextInputContentEquals(const SharedTextInputState& state, std::wstring_view text) noexcept
+{
+    if (state.text)
+        return SharedTextEquals(state.text, text);
+    if (state.source)
+        return state.source->MatchesText(text);
+    return text.empty();
+}
+
+SharedText MaterializeSharedText(const RichText::SourceSnapshot& source)
+{
+    std::wstring text(0u, L'\0');
+    if (source.TrySlice(0u, source.Length(), text) != RichText::SourceResult::Success)
+        Failure::FailContract(E_UNEXPECTED); // A revision's own extent is always a valid slice.
+    return MakeSharedText(std::move(text));
+}
+
+bool SharedTextInputAccess::Shares(const Control& control) noexcept
+{
+    if (const auto* field = dynamic_cast<const TextField*>(&control))
+        return field->KeepsDefaultTextInputState();
+    if (const auto* comboBox = dynamic_cast<const ComboBox*>(&control))
+        return comboBox->KeepsDefaultTextInputState();
+    if (const auto* editor = dynamic_cast<const RichTextEditor*>(&control))
+        return editor->KeepsDefaultTextInputState();
+    return false;
+}
+
+void SharedTextInputAccess::Materialize(const Control* control, SharedTextInputState& state)
+{
+    if (state.text || ! state.source)
+        return;
+    if (const auto* editor = dynamic_cast<const RichTextEditor*>(control); editor && editor->KeepsDefaultTextInputState())
+    {
+        state.text = editor->TextInputText(*state.source);
+        return;
+    }
+    state.text = MaterializeSharedText(*state.source);
+}
+
+bool SharedTextInputAccess::ShowsText(const Control& control, const SharedText& text) noexcept
+{
+    if (const auto* textField = dynamic_cast<const TextField*>(&control))
+        return SharedTextEquals(text, textField->GetText());
+    if (const auto* comboBox = dynamic_cast<const ComboBox*>(&control))
+        return SharedTextEquals(text, comboBox->GetText());
+    if (const auto* editor = dynamic_cast<const RichTextEditor*>(&control))
+        return editor->ShowsTextInputText(text);
+    return false;
+}
+
 bool SharedTextInputAccess::Export(const Control& control, SharedTextInputState& state)
 {
     // The fields are read directly only for a control that keeps the default ExportTextInputState; an override is called.
@@ -1050,6 +1158,11 @@ bool SharedTextInputAccess::Export(const Control& control, SharedTextInputState&
         state = {comboBox->_text, comboBox->_selectionAnchorIndex, comboBox->_caretIndex, 0u, false, false, false};
         return true;
     }
+    if (const auto* editor = dynamic_cast<const RichTextEditor*>(&control); editor && editor->KeepsDefaultTextInputState())
+    {
+        editor->ExportTextInputSource(state);
+        return true;
+    }
     TextInputState copy;
     if (! control.ExportTextInputState(copy))
         return false;
@@ -1063,6 +1176,23 @@ bool SharedTextInputAccess::Import(Control& control, ControlHost& host, const Sh
     // The non-text fields travel in a TextInputState whose text stays empty; the document is the shared buffer.
     const TextInputState fields{
         std::wstring(), state.selectionAnchorIndex, state.caretIndex, state.firstVisibleLine, state.readOnly, state.masked, state.multiline};
+    if (auto* editor = dynamic_cast<RichTextEditor*>(&control); editor && editor->KeepsDefaultTextInputState())
+    {
+        // Imports read the document in place: the editor applies only its changed range and keeps the buffer as its copy.
+        if (state.text)
+            return editor->ImportTextInputText(host, state.text, fields, notifyChange);
+        if (! state.source)
+            return false;
+        SharedTextInputState materialized = state;
+        Materialize(&control, materialized);
+        return editor->ImportTextInputText(host, materialized.text, fields, notifyChange);
+    }
+    if (! state.text && state.source)
+    {
+        SharedTextInputState materialized = state;
+        Materialize(nullptr, materialized);
+        return Import(control, host, materialized, notifyChange);
+    }
     if (! state.text)
         return false;
     // The buffer is adopted only by a control that keeps the default ImportTextInputState; an override is called.

@@ -149,6 +149,7 @@
   "Tests/Embedded/Embedded.Tests.RichSemanticDocumentResources.h",
   "Tests/Embedded/Embedded.Tests.RichSemanticGeometryResources.h",
   "Tests/Embedded/Embedded.Tests.RichSemanticResources.h",
+  "Tests/Embedded/Embedded.Tests.RichTextInputCopies.h",
   "Tests/Embedded/Embedded.Tests.RichTextResources.h",
   "Tests/Embedded/Embedded.Tests.TraceProvider.h",
   "Tests/Embedded/Embedded.Tests.TsfDoubles.h",

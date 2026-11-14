@@ -1,4 +1,5 @@
 #include "DxUi.TextElements.h"
+#include "Support/WorkCounters.h"
 #include <DxUi/Failure.h>
 #include <DxUi/RichDocument.h>
 #include <algorithm>
@@ -623,6 +624,10 @@ SourceResult SourceSnapshot::TrySlice(std::size_t first, std::size_t last, std::
     // the default constructor allocates that proxy inside a noexcept path.
     std::wstring result(0u, L'\0');
     result.reserve(last - first);
+    auto& work = ::DxUi::Detail::Work().rich;
+    work.documentBytesCopied += (last - first) * sizeof(wchar_t);
+    if (first == 0u && last == Length() && last != 0u)
+        ++work.documentFlattens;
     PieceTreeNode::VisitRange(RootNode(),
                               first,
                               last,
@@ -639,7 +644,36 @@ std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
     Failure::Scope failureScope;
     std::wstring output(0u, L'\0');
     RequireSuccess(TrySlice(first, last, output));
+    ::DxUi::Detail::Work().rich.documentBytesCopied += output.size() * sizeof(wchar_t);
     return std::wstring(output);
+}
+wchar_t SourceSnapshot::UnitAt(std::size_t offset) const noexcept
+{
+    return CharacterAt(offset);
+}
+std::optional<std::size_t> SourceSnapshot::LineStart(std::size_t line) const noexcept
+{
+    const auto* root = RootNode();
+    if (! state_)
+        return std::nullopt;
+    if (! line)
+        return 0u;
+    if (! root || root->lines.breaks < line)
+        return std::nullopt;
+    // Prefix break counts only grow with the offset. The smallest offset whose prefix holds `line` breaks ends with the
+    // line's break unit, or with the CR of a CRLF pair, whose LF then also belongs to the break.
+    std::size_t low = 1u, high = root->length;
+    while (low < high)
+    {
+        const auto middle = low + (high - low) / 2u;
+        if (PieceTreeNode::PrefixLines(root, middle).breaks >= line)
+            high = middle;
+        else
+            low = middle + 1u;
+    }
+    if (low < root->length && CharacterAt(low - 1u) == L'\r' && CharacterAt(low) == L'\n')
+        ++low;
+    return low;
 }
 SourceChangeRange SourceSnapshot::ChangedRangeFrom(const SourceSnapshot& previous) const noexcept
 {

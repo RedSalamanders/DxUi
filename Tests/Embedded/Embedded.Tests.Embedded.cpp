@@ -86,6 +86,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.RichSemanticDocumentResources.h"
 #include "Embedded.Tests.RichSemanticGeometryResources.h"
 #include "Embedded.Tests.RichSemanticResources.h"
+#include "Embedded.Tests.RichTextInputCopies.h"
 #include "Embedded.Tests.RichTextResources.h"
 #include "Embedded.Tests.TraceProvider.h"
 #include "Embedded.Tests.WorkCounters.h"
@@ -1749,6 +1750,15 @@ __declspec(noinline) static int RunFunctionalTests()
         ImeCopies::TestComboBoxSettlesAPreviewLeftByTeardown();
         return 0;
     }
+    // The rich text-input copy gate, alone, writing its receipt (Measurements/PerformanceAndMotion_2026-11-13/W7.4).
+    if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--test-rich-text-input-copies")
+    {
+        GraphicsFixture copiesGpu;
+        Hr(copiesGpu.Create(), "rich text-input copies WARP device");
+        RichTextInputCopies::Run(copiesGpu, __wargv[2]);
+        RichTextInputCopies::RunBehaviour(copiesGpu);
+        return 0;
+    }
     // The hover and hit index gate alone (W7.9); the Embedded suite also runs it.
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-hover-index")
     {
@@ -2157,6 +2167,8 @@ __declspec(noinline) static int RunFunctionalTests()
     ImeCopies::Run(nullptr);
     ImeCopies::TestImportOverrideRunsOnEveryInputPath(gpu);
     ImeCopies::TestComboBoxSettlesAPreviewLeftByTeardown();
+    RichTextInputCopies::Run(gpu, nullptr);
+    RichTextInputCopies::RunBehaviour(gpu);
     TestRichFlatProjectionFailureAtomicity();
     TestRichProjectionPreparationAllocationFailureAtomicity();
     TestRichProjectionRetainedStorageBudget();

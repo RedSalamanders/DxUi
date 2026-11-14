@@ -572,6 +572,7 @@ inline ScenarioResult RunRichTextEditor(const std::wstring& document)
     editor->SetSelection(DxUi::RichText::Selection{kCaretUnits, kCaretUnits});
     const ScenarioResult result = ComposeTenSyllables(fixture.host, *editor, kCaretUnits);
     Check(editor->GetText() == ExpectedText(document, kCaretUnits), "IME copies: the RichTextEditor commits the composed syllables at the caret");
+    Check(editor->OnKeyDown(fixture.host, 'Z', MK_CONTROL) && editor->GetText() == document, "IME copies: one Undo removes the whole rich composition");
     return result;
 }
 
@@ -816,6 +817,9 @@ inline void Run(const wchar_t* receiptPath)
           "IME copies: no TSF lock in a TextField makes more than one document-sized allocation");
     Check(sharing.MaximumDocumentAllocationsPerLock() <= kMaximumDocumentAllocationsPerLock,
           "IME copies: a derived TextField that opts in to sharing keeps the one-allocation lock");
+    // W7.4 closes the RichTextEditor part: its text input reads source revisions instead of flattening them.
+    Check(richEditor.MaximumDocumentAllocationsPerLock() <= kMaximumDocumentAllocationsPerLock,
+          "IME copies: no TSF lock in a RichTextEditor makes more than one document-sized allocation");
     Check(comboBox.popupRebuildsBeforeCommit == 0u, "IME copies: an editable ComboBox rebuilds no popup items before the composition commits");
     Check(comboBox.popupRebuildsAtCommit >= 1u, "IME copies: the commit filters the popup by the committed text");
 }

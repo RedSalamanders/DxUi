@@ -698,8 +698,9 @@ public:
             policy = {field->IsReadOnly(), field->IsMasked(), field->IsMultiline(), ToTsfInputScope(field->GetInputScope())};
             return true;
         }
+        // Flags only: a rich editor's revision is not materialized for them.
         SharedTextInputState state{};
-        if (! ReadSharedState(state))
+        if (! ReadSharedStateForNotification(state))
             return false;
         policy = {state.readOnly, state.masked, state.multiline};
         return true;
@@ -764,6 +765,22 @@ public:
             return ! outState.masked;
         }
         return ReadBackingState(outState) && ! outState.masked;
+    }
+
+    [[nodiscard]] bool ReadSharedStateForNotification(SharedTextInputState& outState) const noexcept override
+    {
+        Control* const control = GetLiveControl();
+        if (! control || ! IsCurrentTextServiceTarget() || (dynamic_cast<const TextField*>(control) && static_cast<const TextField*>(control)->IsMasked()))
+        {
+            outState = {};
+            return false;
+        }
+        if (_stagedState)
+        {
+            outState = _stagedState.value();
+            return ! outState.masked;
+        }
+        return ReadBackingState(outState, false) && ! outState.masked;
     }
 
     [[nodiscard]] bool ApplySharedState(const SharedTextInputState& state, bool notifyChange) noexcept override
@@ -857,7 +874,10 @@ private:
 
     // The control's state with its document shared: from the host's native cache when this control owns the session, else
     // from the control itself. On success the text is never null.
-    [[nodiscard]] bool ReadBackingState(SharedTextInputState& outState) const noexcept
+    // A rich editor's document travels as its immutable revision. Every read for a lock materializes it (at most once per
+    // revision: the host cache and the editor keep the copy); only the change notification, which compares and finds the
+    // changed range in place, reads without materializing.
+    [[nodiscard]] bool ReadBackingState(SharedTextInputState& outState, bool materialize = true) const noexcept
     {
         try
         {
@@ -867,10 +887,12 @@ private:
                 return false;
             }
 
-            if (control == _host->_nativeTextInputControl && _host->_nativeTextInputStateCacheValid && _host->_nativeTextInputCacheText)
+            if (control == _host->_nativeTextInputControl && _host->_nativeTextInputStateCacheValid &&
+                (_host->_nativeTextInputCacheText || _host->_nativeTextInputCacheSource))
             {
                 const NativeTextInputState& cache = _host->_nativeTextInputStateCache;
-                outState.text                     = _host->_nativeTextInputCacheText;
+                outState.text                     = materialize ? _host->MaterializeNativeTextInputCacheText() : _host->_nativeTextInputCacheText;
+                outState.source                   = _host->_nativeTextInputCacheSource;
                 outState.selectionAnchorIndex     = cache.selectionAnchorIndex;
                 outState.caretIndex               = cache.caretIndex;
                 outState.firstVisibleLine         = cache.firstVisibleLine;
@@ -895,13 +917,16 @@ private:
             else if (! dynamic_cast<const RichTextEditor*>(control))
                 return false;
             SharedTextInputState exported{};
-            if (! SharedTextInputAccess::Export(*control, exported) || ! exported.text)
+            if (! SharedTextInputAccess::Export(*control, exported) || ! exported.HasDocument())
                 return false;
             if (dynamic_cast<const RichTextEditor*>(control))
             {
+                if (materialize)
+                    SharedTextInputAccess::Materialize(control, exported);
                 outState = std::move(exported);
                 return true;
             }
+            SharedTextInputAccess::Materialize(control, exported);
             outState            = {};
             outState.text       = std::move(exported.text);
             outState.readOnly   = exported.readOnly;
@@ -957,15 +982,10 @@ private:
     }
 
     // Whether the live control still shows `text`; a control that adopted the buffer compares without reading it.
+    // A rich editor compares its source in place (or by the buffer it adopted), never through a flattened copy.
     [[nodiscard]] static bool IsControlTextCurrent(const Control& control, const SharedText& text)
     {
-        if (const auto* textField = dynamic_cast<const TextField*>(&control))
-            return SharedTextEquals(text, textField->GetText());
-        if (const auto* comboBox = dynamic_cast<const ComboBox*>(&control))
-            return SharedTextEquals(text, comboBox->GetText());
-        if (const auto* editor = dynamic_cast<const RichTextEditor*>(&control))
-            return SharedTextEquals(text, editor->GetText());
-        return false;
+        return SharedTextInputAccess::ShowsText(control, text);
     }
 
     [[nodiscard]] bool FinishComposition(const SharedTextInputState& finalState) noexcept
@@ -1450,7 +1470,7 @@ public:
                 _sinkConnectionRevision != sinkConnectionRevision || _lockFlags != 0u || ! _hasObservedState)
                 return false;
             SharedTextInputState currentState{};
-            return target->ReadSharedState(currentState) && ! currentState.masked && SharedTextEquals(currentState.text, _observedState.text) &&
+            return target->ReadSharedStateForNotification(currentState) && ! currentState.masked && SameTextInputContent(currentState, _observedState) &&
                    IsSameSelection(currentState, _observedState) && currentState.firstVisibleLine == _observedState.firstVisibleLine &&
                    currentState.masked == _observedState.masked && currentState.multiline == _observedState.multiline &&
                    IsSameRect(target->ResolveTextViewportBounds(), _observedViewport);
@@ -2107,6 +2127,8 @@ private:
             next.reserve(current.size() - (range.end - range.start) + replacement.size());
             next.append(current.substr(0u, range.start)).append(replacement).append(current.substr(range.end));
             state.text = MakeSharedText(std::move(next));
+            // The new text is no longer the revision the read carried (SharedTextInputState invariant).
+            state.source.reset();
         }
         catch (const std::bad_alloc&)
         {
@@ -2134,8 +2156,9 @@ private:
 
     void CaptureObservedState() noexcept
     {
+        // The observed state serves only change notifications, so a rich editor's revision is kept without materializing it.
         SharedTextInputState state{};
-        if (! ReadState(state))
+        if (! _target->ReadSharedStateForNotification(state) || state.masked || ! state.HasDocument())
         {
             _hasObservedState = false;
             return;
@@ -2165,8 +2188,9 @@ public:
         if (! sink || ! target)
             return false;
 
+        // A rich editor's revision is compared and its changed range found in place: a notification never materializes it.
         SharedTextInputState currentState{};
-        if (! target->ReadSharedState(currentState) || currentState.masked || ! currentState.text)
+        if (! target->ReadSharedStateForNotification(currentState) || currentState.masked || ! currentState.HasDocument())
         {
             _hasObservedState = false;
             return false;
@@ -2183,7 +2207,7 @@ public:
             return false;
         }
 
-        const bool textChanged      = ! SharedTextEquals(currentState.text, _observedState.text);
+        const bool textChanged      = ! SameTextInputContent(currentState, _observedState);
         const bool selectionChanged = ! IsSameSelection(currentState, _observedState);
         const bool readOnlyChanged  = currentState.readOnly != _observedState.readOnly;
         const bool layoutChanged    = textChanged || selectionChanged || currentState.firstVisibleLine != _observedState.firstVisibleLine ||
@@ -2191,7 +2215,7 @@ public:
                                       ! IsSameRect(currentViewport, _observedViewport);
 
         // Only the changed middle re-anchors TIP ranges; the common prefix and suffix keep theirs.
-        const TS_TEXTCHANGE textChange = textChanged ? ComputeTextStoreTextChange(_observedState.View(), currentState.View()) : TS_TEXTCHANGE{};
+        const TS_TEXTCHANGE textChange = textChanged ? ComputeTextStoreTextChange(_observedState, currentState) : TS_TEXTCHANGE{};
 
         // Shares the document: the notification state pins the buffer it compares against for the whole sequence, even
         // when a sink callback re-enters and replaces the control text or the observed state.
@@ -2203,14 +2227,14 @@ public:
         const auto continuationIsCurrent = [this, sink, sinkMask, sinkConnectionRevision, target, &notificationState, currentViewport]() noexcept
         {
             if (_target != target || _sink.get() != sink.get() || _sinkMask != sinkMask || _sinkConnectionRevision != sinkConnectionRevision ||
-                _lockFlags != 0u || ! _hasObservedState || ! SharedTextEquals(_observedState.text, notificationState.text) ||
+                _lockFlags != 0u || ! _hasObservedState || ! SameTextInputContent(_observedState, notificationState) ||
                 ! IsSameSelection(_observedState, notificationState) || _observedState.firstVisibleLine != notificationState.firstVisibleLine ||
                 _observedState.masked != notificationState.masked || _observedState.multiline != notificationState.multiline ||
                 _observedState.readOnly != notificationState.readOnly || ! IsSameRect(_observedViewport, currentViewport))
                 return false;
 
             SharedTextInputState latestState{};
-            return target->ReadSharedState(latestState) && ! latestState.masked && SharedTextEquals(latestState.text, notificationState.text) &&
+            return target->ReadSharedStateForNotification(latestState) && ! latestState.masked && SameTextInputContent(latestState, notificationState) &&
                    IsSameSelection(latestState, notificationState) && latestState.firstVisibleLine == notificationState.firstVisibleLine &&
                    latestState.masked == notificationState.masked && latestState.multiline == notificationState.multiline &&
                    latestState.readOnly == notificationState.readOnly && IsSameRect(target->ResolveTextViewportBounds(), currentViewport);
@@ -2391,20 +2415,70 @@ private:
 };
 } // namespace
 
+namespace
+{
+// The common prefix and suffix rule over two texts read one unit at a time. equalPrefix and equalSuffix are lengths already
+// known to be equal in both (0 when unknown); the scan starts past them, so the result is the whole-text rule's.
+template <typename BeforeAt, typename AfterAt>
+[[nodiscard]] TS_TEXTCHANGE ComputeTextChangeByUnits(
+    size_t beforeSize, size_t afterSize, const BeforeAt& before, const AfterAt& after, size_t equalPrefix, size_t equalSuffix) noexcept
+{
+    const auto isCut = [](const auto& unitAt, size_t size, size_t position) noexcept
+    {
+        if (position == 0u || position >= size)
+            return true;
+        const wchar_t previous = unitAt(position - 1u);
+        const wchar_t next     = unitAt(position);
+        if (IsUtf16LeadSurrogate(previous) && IsUtf16TrailSurrogate(next))
+            return false;
+        return ! (previous == L'\r' && next == L'\n');
+    };
+    const size_t limit = (std::min)(beforeSize, afterSize);
+    size_t prefix      = (std::min)(equalPrefix, limit);
+    while (prefix < limit && before(prefix) == after(prefix))
+        ++prefix;
+    while (prefix > 0u && (! isCut(before, beforeSize, prefix) || ! isCut(after, afterSize, prefix)))
+        --prefix;
+    size_t suffix = (std::min)(equalSuffix, limit - prefix);
+    while (suffix < limit - prefix && before(beforeSize - 1u - suffix) == after(afterSize - 1u - suffix))
+        ++suffix;
+    while (suffix > 0u && (! isCut(before, beforeSize, beforeSize - suffix) || ! isCut(after, afterSize, afterSize - suffix)))
+        --suffix;
+    return TS_TEXTCHANGE{ToAcp(prefix), ToAcp(beforeSize - suffix), ToAcp(afterSize - suffix)};
+}
+} // namespace
+
 TS_TEXTCHANGE ComputeTextStoreTextChange(std::wstring_view before, std::wstring_view after) noexcept
 {
-    const size_t limit = (std::min)(before.size(), after.size());
-    size_t prefix      = 0u;
-    while (prefix < limit && before[prefix] == after[prefix])
-        ++prefix;
-    while (prefix > 0u && (! IsTextStoreCut(before, prefix) || ! IsTextStoreCut(after, prefix)))
-        --prefix;
-    size_t suffix = 0u;
-    while (suffix < limit - prefix && before[before.size() - 1u - suffix] == after[after.size() - 1u - suffix])
-        ++suffix;
-    while (suffix > 0u && (! IsTextStoreCut(before, before.size() - suffix) || ! IsTextStoreCut(after, after.size() - suffix)))
-        --suffix;
-    return TS_TEXTCHANGE{ToAcp(prefix), ToAcp(before.size() - suffix), ToAcp(after.size() - suffix)};
+    return ComputeTextChangeByUnits(
+        before.size(), after.size(), [before](size_t at) noexcept { return before[at]; }, [after](size_t at) noexcept { return after[at]; }, 0u, 0u);
+}
+
+TS_TEXTCHANGE ComputeTextStoreTextChange(const SharedTextInputState& before, const SharedTextInputState& after) noexcept
+{
+    if (before.text && after.text)
+        return ComputeTextStoreTextChange(before.View(), after.View());
+    // At least one side is an unmaterialized rich editor revision: read units in place. Two revisions of one document are
+    // equal outside their tracked changed range, so the scans start at that range.
+    size_t equalPrefix = 0u;
+    size_t equalSuffix = 0u;
+    if (before.source && after.source)
+    {
+        const auto range = after.source->ChangedRangeFrom(*before.source);
+        if (range.kind == RichText::SourceChangeKind::Unchanged)
+        {
+            equalPrefix = before.source->Length();
+            equalSuffix = before.source->Length();
+        }
+        else if (range.kind == RichText::SourceChangeKind::TrackedEdits)
+        {
+            equalPrefix = range.begin;
+            equalSuffix = before.source->Length() - range.previousEnd;
+        }
+    }
+    const auto unitReader = [](const SharedTextInputState& state)
+    { return [&state](size_t at) noexcept { return state.text ? (*state.text)[at] : state.source->UnitAt(at); }; };
+    return ComputeTextChangeByUnits(before.Length(), after.Length(), unitReader(before), unitReader(after), equalPrefix, equalSuffix);
 }
 
 void ResolveTextStoreCompositionAttributes(size_t compositionStart,

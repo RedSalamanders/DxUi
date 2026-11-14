@@ -325,7 +325,9 @@ previews, the open popup keeps the items of the text before the composition, and
 Text input shares a `TextField`'s or `ComboBox`'s document instead of copying it only while the control keeps the default
 `ExportTextInputState` and `ImportTextInputState`. A derived class that overrides either one (to filter or cap input, say)
 is called through it on every input path, IME included; a derived class that overrides neither can override
-`KeepsDefaultTextInputState` to return `true` and keep the shared, copy-free path.
+`KeepsDefaultTextInputState` to return `true` and keep the shared, copy-free path. `RichTextEditor` follows the same rule:
+with its default state virtuals, text input reads the document's immutable source revision instead of a flattened copy,
+and a derived editor that overrides either virtual is called through it on the TSF, IMM and embedded paths.
 
 In high contrast, primary Buttons use the exact opaque selection color pair for idle, hover, pressed and focused
 states. Disabled Buttons retain a border with the disabled text color; focus is visible for pointer and keyboard.

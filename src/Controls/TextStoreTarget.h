@@ -39,6 +39,9 @@ inline constexpr size_t kMaximumTextStoreClauseBoundaries = 256u;
 // The TS_TEXTCHANGE for replacing `before` with `after`: the common prefix and suffix are excluded, and neither cut
 // splits a surrogate pair or a CRLF pair in either text.
 [[nodiscard]] TS_TEXTCHANGE ComputeTextStoreTextChange(std::wstring_view before, std::wstring_view after) noexcept;
+// The same change between two text-input states, equal to the function above on their texts. Two revisions of a rich
+// editor's document are compared only from their tracked changed range outward, in place; nothing is copied.
+[[nodiscard]] TS_TEXTCHANGE ComputeTextStoreTextChange(const SharedTextInputState& before, const SharedTextInputState& after) noexcept;
 // Pure mapping from display-attribute spans to the conversion target (the first contiguous run of target spans) and
 // clause boundaries. Spans are clipped to the composition; empty, reversed or out-of-order spans are ignored. `result`
 // keeps its capacity so a composition reuses it; growth beyond that capacity may throw std::bad_alloc.
@@ -106,6 +109,12 @@ public:
         {
             Failure::FailAllocation();
         }
+    }
+    // The read behind a change notification: a target may leave a rich editor's revision unmaterialized (text null, source
+    // set), because the notification compares and finds the changed range in place. Lock reads use ReadSharedState.
+    [[nodiscard]] virtual bool ReadSharedStateForNotification(SharedTextInputState& state) const noexcept
+    {
+        return ReadSharedState(state);
     }
     [[nodiscard]] virtual bool ApplySharedState(const SharedTextInputState& state, bool notifyChange) noexcept
     {

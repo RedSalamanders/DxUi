@@ -457,6 +457,9 @@ void RaiseWindowHostFocusChanged(HWND hwnd, const Control* control) noexcept;
 // - TextField and ComboBox hold a buffer at all times, the shared empty one (EmptySharedText) when they have no text.
 // - The shared path (SharedTextInputAccess) reaches a control's text directly only when the control keeps the default
 //   ExportTextInputState/ImportTextInputState (KeepsDefaultTextInputState); any override is always called.
+// - A RichTextEditor keeps its document in its piece tree, not in a buffer. It holds at most one buffer, a contiguous copy of
+//   one source revision for text input (made on demand, or adopted from a TSF import), which it releases on focus loss and
+//   destruction; the copy is keyed by that revision's identity, so a stale copy is never mistaken for the current text.
 using SharedText = std::shared_ptr<const std::wstring>;
 // May throw std::bad_alloc, like the std::wstring it replaces; callers keep their existing allocation-failure handling.
 [[nodiscard]] SharedText MakeSharedText(std::wstring text);
@@ -489,6 +492,17 @@ inline thread_local constinit void (*sharedTextReleaseObserver)(const wchar_t* s
 }
 
 // TextInputState with its document as shared text: what the native host cache and the TSF store pass between them.
+//
+// A RichTextEditor's state may instead carry its document as `source`, the immutable source revision it shows (W7.4,
+// "Rich text-input snapshots" in Specs/UI/UI_InputAndAccessibility.md). Invariants relied on wherever such a state is read:
+// - `source`, when set, is authoritative; `text`, when also set, has exactly its content. Code that makes new text for a
+//   state (a TSF edit) resets `source` in the same step, so a stale revision never travels with newer text.
+// - `text` may be null while `source` is set (not yet materialized). View() is then empty, so code that reads the document
+//   contiguously materializes first (SharedTextInputAccess::Materialize, the store's ReadBackingState); comparisons and
+//   lengths use SameTextInputContent, TextInputContentEquals and Length, which never copy.
+// - A SourceSnapshot is immutable and pins its own piece tree, so a state, the host cache, undo history and the store's
+//   observed state each keep their revision readable for as long as they hold it, across re-entrant callbacks, SetText,
+//   mode switches, document reset and history expiry. Nothing ever writes to a revision.
 struct SharedTextInputState
 {
     SharedText text;
@@ -498,20 +512,59 @@ struct SharedTextInputState
     bool readOnly           = false;
     bool masked             = false;
     bool multiline          = false;
+    std::optional<RichText::SourceSnapshot> source;
 
     [[nodiscard]] std::wstring_view View() const noexcept
     {
         return SharedTextView(text);
     }
+    [[nodiscard]] size_t Length() const noexcept
+    {
+        return text ? text->size() : source ? source->Length() : 0u;
+    }
+    [[nodiscard]] bool HasDocument() const noexcept
+    {
+        return text || source;
+    }
 };
+// Equal documents. The same buffer or the same revision compares without reading; otherwise the text is compared in place
+// (two revisions of one document only across their changed range). Never copies.
+[[nodiscard]] bool SameTextInputContent(const SharedText& leftText,
+                                        const std::optional<RichText::SourceSnapshot>& leftSource,
+                                        const SharedText& rightText,
+                                        const std::optional<RichText::SourceSnapshot>& rightSource) noexcept;
+[[nodiscard]] inline bool SameTextInputContent(const SharedTextInputState& left, const SharedTextInputState& right) noexcept
+{
+    return SameTextInputContent(left.text, left.source, right.text, right.source);
+}
+[[nodiscard]] bool TextInputContentEquals(const SharedTextInputState& state, std::wstring_view text) noexcept;
+// One contiguous copy of a revision, in one allocation at its exact size. May throw std::bad_alloc.
+[[nodiscard]] SharedText MaterializeSharedText(const RichText::SourceSnapshot& source);
+// Counts a whole-document copy of a rich editor's text made outside the document itself (a public text-input state).
+inline void NoteRichDocumentCopy(size_t units) noexcept
+{
+    auto& work = Detail::Work().rich;
+    work.documentBytesCopied += units * sizeof(wchar_t);
+    if (units)
+        ++work.documentFlattens;
+}
 
 // Moves a control's text-input state in and out without copying the document where the control keeps shared text and its
-// default ExportTextInputState/ImportTextInputState (TextField, ComboBox: KeepsDefaultTextInputState). Every other control,
-// including a derived class that overrides either virtual, goes through the virtuals with one copy, as every host path does.
+// default ExportTextInputState/ImportTextInputState (TextField, ComboBox, RichTextEditor: KeepsDefaultTextInputState).
+// Every other control, including a derived class that overrides either virtual, goes through the virtuals with one copy, as
+// every host path does.
 struct SharedTextInputAccess
 {
-    // May throw std::bad_alloc.
+    // Whether Export and Import reach this control's document directly (no virtual call, no copy).
+    [[nodiscard]] static bool Shares(const Control& control) noexcept;
+    // May throw std::bad_alloc. A RichTextEditor exports its source revision and, when it already holds a contiguous copy of
+    // that revision, the copy; otherwise `text` stays null until a reader materializes it.
     [[nodiscard]] static bool Export(const Control& control, SharedTextInputState& state);
+    // Fills a null `text` from `source`: through the RichTextEditor's retained copy when `control` is one that still shows that
+    // revision (an edit's changed range only, when nothing else holds the copy), else as one new copy. May throw std::bad_alloc.
+    static void Materialize(const Control* control, SharedTextInputState& state);
+    // Whether the live control shows exactly `text`. Compares in place; a control holding that buffer answers without reading.
+    [[nodiscard]] static bool ShowsText(const Control& control, const SharedText& text) noexcept;
     // May throw what the control's import and its notifications throw.
     [[nodiscard]] static bool Import(Control& control, ControlHost& host, const SharedTextInputState& state, bool notifyChange);
     // A composition ended without restoring its preview (teardown, focus loss): an editable ComboBox takes the text it shows

@@ -25,6 +25,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <typeinfo>
 #include <wil/result.h>
 
 namespace DxUi
@@ -46,6 +47,16 @@ std::atomic<unsigned> diagnosticOriginMarker{};
     throw error;
 }
 #endif
+// Word movement and deletion over the prepared display without flattening it (W7.4): the semantic map's contiguous display
+// is read in place, the block-based v0 display through a window around the position. Results equal the whole-text rules.
+size_t DisplayWordBoundary(const RichText::Detail::RichEditorLayout& layout, size_t position, bool previous)
+{
+    if (const auto display = layout.ContiguousDisplayText())
+        return previous ? FindPreviousWordBoundary(*display, position) : FindNextWordBoundary(*display, position);
+    const auto unitAt = [&layout](size_t index) { return layout.DisplayUnit(index); };
+    return previous ? RichText::Detail::WindowedPreviousWordBoundary(layout.DisplayLength(), position, unitAt)
+                    : RichText::Detail::WindowedNextWordBoundary(layout.DisplayLength(), position, unitAt);
+}
 bool MarkdownCommandInputBlocked(const ControlHost* host, const Control* control) noexcept
 {
     if (! host || host->GetFocusControl() != control)
@@ -635,6 +646,12 @@ struct RichTextEditor::State
     float scrollbarDragY = 0.0f, scrollbarDragOffset = 0.0f;
     bool caretVisible            = true;
     wchar_t pendingLeadSurrogate = 0;
+    // Text-input copy (W7.4): at most one contiguous copy of one source revision, for text-input readers that need
+    // contiguous text (a TSF lock, IMM, a public snapshot). It is keyed by textInputSource's identity, so a copy of an older
+    // revision is never read as the current text; it is updated by the changed range only while nothing else holds it
+    // (MutableSharedText's sole-owner rule), and released on focus loss and destruction.
+    std::optional<RichText::SourceSnapshot> textInputSource;
+    SharedText textInputText;
     std::optional<uint64_t> blinkEpoch;
     std::optional<float> preferredCaretX;
     // Native visual affinity only. Several padded cells share a real source ACP;
@@ -3836,7 +3853,15 @@ HRESULT RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
         }
         std::vector<D2D1_RECT_F> composition(0u), conversion(0u);
         NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
-        if (host.TryReadNativeTextInputState(this, input) && layout.SourceMatches(input.text) && input.compositionStartIndex && input.compositionEndIndex)
+        // The composition belongs to the cached document; draw it only over a layout of that same text. A layout of the
+        // current revision is compared by revision identity, never by copying the cached document.
+        const auto cacheMatchesLayout = [&]
+        {
+            if (layout.Revision() == Revision())
+                return host.NativeTextInputCacheShowsSource(Snapshot());
+            return layout.SourceMatches(host.GetNativeTextInputCacheText());
+        };
+        if (host.TryReadNativeTextInputStateWithoutText(this, input) && input.compositionStartIndex && input.compositionEndIndex && cacheMatchesLayout())
         {
             RETURN_IF_FAILED(layout.TrySourceRange(*input.compositionStartIndex, *input.compositionEndIndex, composition));
             if (input.conversionTargetStartIndex && input.conversionTargetEndIndex)
@@ -5112,7 +5137,78 @@ bool RichTextEditor::ExportTextInputState(TextInputState& state) const
     state.multiline = true;
     return true;
 }
+bool RichTextEditor::KeepsDefaultTextInputState() const noexcept
+{
+    return typeid(*this) == typeid(RichTextEditor);
+}
+void RichTextEditor::ExportTextInputSource(SharedTextInputState& state) const
+{
+    // The same fields as ExportTextInputState, with the document as its immutable revision: no flatten and no copy. The
+    // retained contiguous copy rides along only when it is of exactly this revision.
+    const auto source    = Snapshot();
+    const auto selection = GetSelection();
+    state                = {};
+    state.caretIndex     = selection.caret;
+    if (selection.anchor != selection.caret)
+        state.selectionAnchorIndex = selection.anchor;
+    state.readOnly  = ! Editable();
+    state.multiline = true;
+    if (_state->textInputSource && _state->textInputText && _state->textInputSource->IsSameRevision(source))
+        state.text = _state->textInputText;
+    state.source = source;
+}
+SharedText RichTextEditor::TextInputText(const RichText::SourceSnapshot& source) const
+{
+    auto& state = *_state;
+    if (state.textInputSource && state.textInputText && state.textInputSource->IsSameRevision(source))
+        return state.textInputText;
+    // Only the current revision is kept; an older one (a reader still holding it) gets its own copy.
+    if (! source.IsSameRevision(Snapshot()))
+        return MaterializeSharedText(source);
+    if (state.textInputSource && state.textInputText && state.textInputText.use_count() == 1)
+    {
+        const auto range = source.ChangedRangeFrom(*state.textInputSource);
+        if (range.kind == RichText::SourceChangeKind::TrackedEdits)
+        {
+            // Nothing else holds the copy (use_count is 1 and no weak reference exists), so MutableSharedText writes it in
+            // place when its capacity suffices: only the changed range is read out of the tree. Otherwise it copies first.
+            std::wstring replacement(0u, L'\0');
+            if (source.TrySlice(range.begin, range.currentEnd, replacement) == RichText::SourceResult::Success)
+            {
+                auto& text = MutableSharedText(state.textInputText, source.Length());
+                text.replace(range.begin, range.previousEnd - range.begin, replacement);
+                state.textInputSource = source;
+                return state.textInputText;
+            }
+        }
+    }
+    auto text             = MaterializeSharedText(source);
+    state.textInputText   = text;
+    state.textInputSource = source;
+    return text;
+}
+bool RichTextEditor::ShowsTextInputText(const SharedText& text) const noexcept
+{
+    if (! text)
+        return false;
+    const auto source = Snapshot();
+    if (_state->textInputText == text && _state->textInputSource && _state->textInputSource->IsSameRevision(source))
+        return true;
+    return source.MatchesText(*text);
+}
+bool RichTextEditor::ImportTextInputText(ControlHost& host, SharedText text, const TextInputState& fields, bool notifyChange)
+{
+    if (! text)
+        return false;
+    // `text` (a parameter, so a reference of its own) pins the buffer while the import reads it in place, across the
+    // notifications the import may re-enter, whatever the store, the host cache or this editor then hold.
+    return ImportTextInputView(host, *text, fields, notifyChange, &text);
+}
 bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange)
+{
+    return ImportTextInputView(host, state.text, state, notifyChange, nullptr);
+}
+bool RichTextEditor::ImportTextInputView(ControlHost& host, std::wstring_view text, const TextInputState& state, bool notifyChange, const SharedText* buffer)
 {
     if (GetHost() != &host || state.masked || ! state.multiline || (notifyChange && ! Editable()))
         return false;
@@ -5121,10 +5217,19 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
     // cancellation and selection-only imports preserve both undo and redo.
     const auto previousSelection = GetSelection();
     bool changed{};
-    const auto result = notifyChange ? _state->document.TryReplaceWholeText(state.text, selection, changed)
-                                     : _state->document.TryReplaceTransient(state.text, selection, changed);
+    const auto result =
+        notifyChange ? _state->document.TryReplaceWholeText(text, selection, changed) : _state->document.TryReplaceTransient(text, selection, changed);
     if (result != RichText::SourceResult::Success)
         return false;
+    if (buffer && *buffer)
+    {
+        // The document now shows exactly the buffer's text (the transaction validated and applied it whole). Keep the buffer
+        // as the text-input copy of this revision before any notification runs, so the synchronization and reads that
+        // follow share it instead of copying. A later edit (a callback's included) moves to a new revision and leaves this
+        // copy stale, never wrong: it is keyed by revision identity.
+        _state->textInputText   = *buffer;
+        _state->textInputSource = Snapshot();
+    }
     // A silent, exact no-op import must not discard prepared command state. The
     // document transaction above has already validated and normalized the source
     // and selection. An active gesture still needs its normal cancellation path.
@@ -5651,8 +5756,7 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
         }
         else
         {
-            const auto display = byWord && key == VK_LEFT ? FindPreviousWordBoundary(projection.DisplayText(), position)
-                                                          : FindNextWordBoundary(projection.DisplayText(), position);
+            const auto display = DisplayWordBoundary(projection, position, byWord && key == VK_LEFT);
             const auto raw     = projection.ToSource(display);
             target             = {key == VK_LEFT ? std::min(raw, selection.caret) : std::max(raw, selection.caret)};
         }
@@ -5670,9 +5774,9 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
     auto nextAffinity   = RichText::CaretAffinity::Downstream;
     switch (key)
     {
-        case VK_LEFT: next = byWord ? FindPreviousWordBoundary(projection.DisplayText(), position) : state.layout.PreviousCluster(position); break;
+        case VK_LEFT: next = byWord ? DisplayWordBoundary(projection, position, true) : state.layout.PreviousCluster(position); break;
         case VK_RIGHT:
-            next = byWord ? FindNextWordBoundary(projection.DisplayText(), position) : state.layout.NextCluster(position);
+            next = byWord ? DisplayWordBoundary(projection, position, false) : state.layout.NextCluster(position);
             // At a semantic boundary, leading affinity belongs to the next
             // content span. Trailing would select a generated separator's old
             // source anchor and leave Right stuck at the preceding paragraph.
@@ -5719,21 +5823,15 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
         auto first = selection.Start(), last = selection.End();
         if (first == last)
         {
-            const auto text = source.Text();
-            if (byWord)
-            {
-                first = backwards ? FindPreviousWordBoundary(text, selection.caret) : selection.caret;
-                last  = backwards ? selection.caret : FindNextWordBoundary(text, selection.caret);
-                // The source interval is presentation ownership, not an edit
-                // cage. Word deletion crosses it just like grapheme deletion;
-                // change tracking then retires/reconciles the former scope.
-            }
-            else
-            {
-                const auto range = GetTextElementDeletionRange(text, selection.caret, backwards);
-                first            = range.first;
-                last             = range.last;
-            }
+            // A window around the caret gives the whole-text word and grapheme answers without flattening (W7.4). The
+            // source interval is presentation ownership, not an edit cage. Word deletion crosses it just like grapheme
+            // deletion; change tracking then retires/reconciles the former scope.
+            using Operation = RichText::Detail::SourceWindowOperation;
+            const auto operation =
+                byWord ? (backwards ? Operation::PreviousWord : Operation::NextWord) : (backwards ? Operation::DeleteBackward : Operation::DeleteForward);
+            const auto range = RichText::Detail::SourceWindowRange(source, selection.caret, operation);
+            first            = range.first;
+            last             = range.last;
         }
         bool changed{};
         if (_state->document.TryReplaceImpl(first, last, {}, {first, first}, true, coalesceHistory, changed) != RichText::SourceResult::Success)
@@ -5786,12 +5884,11 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             // instead use exact raw graphemes, including indivisible CRLF.
             if (geometry->IsCellSourceSite(selection.caret, _state->sourceCaretSite))
                 return false;
-            const auto source = Snapshot();
-            const auto text   = source.Text();
-            const auto first =
-                backwards ? (byWord ? FindPreviousWordBoundary(text, selection.caret) : StepToPreviousTextElement(text, selection.caret)) : selection.caret;
-            const auto last =
-                backwards ? selection.caret : (byWord ? FindNextWordBoundary(text, selection.caret) : StepToNextTextElement(text, selection.caret));
+            using Operation      = RichText::Detail::SourceWindowOperation;
+            const auto operation = byWord ? (backwards ? Operation::PreviousWord : Operation::NextWord) : (backwards ? Operation::Previous : Operation::Next);
+            const auto range     = RichText::Detail::SourceWindowRange(Snapshot(), selection.caret, operation);
+            const auto first     = range.first;
+            const auto last      = range.last;
             bool changed{};
             if (_state->document.TryReplace(first, last, L"", {first, first}, changed) != RichText::SourceResult::Success)
                 return false;
@@ -5905,8 +6002,8 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
     auto& state              = *_state;
     const auto& projection   = state.layout;
     const auto position      = projection.ToDisplay(selection.caret);
-    const auto [first, last] = byWord ? (backwards ? std::pair{FindPreviousWordBoundary(projection.DisplayText(), position), position}
-                                                   : std::pair{position, FindNextWordBoundary(projection.DisplayText(), position)})
+    const auto [first, last] = byWord ? (backwards ? std::pair{DisplayWordBoundary(projection, position, true), position}
+                                                   : std::pair{position, DisplayWordBoundary(projection, position, false)})
                                       : state.layout.DeletionRange(position, backwards);
     if (first == last)
         return false;
@@ -5973,11 +6070,8 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                     if (ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable)
                         return true;
                 }
-                const auto source = _state->document.Snapshot();
-                const auto view   = source.Text();
-                const auto ending = view.find_first_of(L"\r\n");
-                text = ending == view.npos ? L"\r\n"
-                                           : view.substr(ending, view[ending] == L'\r' && ending + 1u < view.size() && view[ending + 1u] == L'\n' ? 2u : 1u);
+                // The document's first line ending, from the line summaries (W7.4): no flatten.
+                text = RichText::Detail::FirstLineEnding(_state->document.Snapshot());
             }
             else if (character >= L' ' && character != L'\x7f')
                 text.assign(1, character);
@@ -6071,13 +6165,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 auto caret = selection.caret + insertion.size();
                 if (match == AutoFormatMatch::Fence)
                 {
-                    const auto all              = source.Text();
-                    const auto newline          = all.find_first_of(L"\r\n");
-                    const std::wstring_view eol = newline == all.npos ? std::wstring_view(L"\r\n")
-                                                  : all[newline] == L'\r' && newline + 1u < all.size() && all[newline + 1u] == L'\n'
-                                                      ? std::wstring_view(L"\r\n")
-                                                  : all[newline] == L'\r' ? std::wstring_view(L"\r")
-                                                                          : std::wstring_view(L"\n");
+                    const std::wstring_view eol = RichText::Detail::FirstLineEnding(source);
                     insertion += eol;
                     caret += eol.size();
                     if (continuationPrefix)
@@ -6949,7 +7037,10 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                         range                = {projected.first, projected.second};
                     }
                     else
-                        range = GetTextElementDeletionRange(source.Text(), selection.caret, backwards);
+                        range = RichText::Detail::SourceWindowRange(source,
+                                                                    selection.caret,
+                                                                    backwards ? RichText::Detail::SourceWindowOperation::DeleteBackward
+                                                                              : RichText::Detail::SourceWindowOperation::DeleteForward);
                     const auto units = range.last - range.first;
                     const bool word  = units <= 64u && IsHistoryWordElement(source.Slice(range.first, range.last));
                     if (word)
@@ -7390,7 +7481,12 @@ bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, 
         }
         size_t caret = projection.ToDisplay(source);
         std::optional<size_t> anchor;
-        SelectSingleLineWordAt(projection.DisplayText(), caret, caret, anchor);
+        // The word under the hit, read in place (semantic) or through a window around it (v0); never a flattened display.
+        if (const auto display = projection.ContiguousDisplayText())
+            SelectSingleLineWordAt(*display, caret, caret, anchor);
+        else
+            RichText::Detail::WindowedSelectWordAt(
+                projection.DisplayLength(), caret, caret, anchor, [&projection](size_t index) { return projection.DisplayUnit(index); });
         _state->dragging = false;
         SetSelection({projection.ToSource(anchor.value_or(caret)), projection.ToSource(caret, true)});
         return true;
@@ -8060,6 +8156,12 @@ void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
     _state->taskPressPlan.reset();
     _state->codePressDocument.reset();
     _state->codePressGesture = false;
+    if (! focused)
+    {
+        // Text input reads only the focused control; the copy is rebuilt on demand if focus returns.
+        _state->textInputText.reset();
+        _state->textInputSource.reset();
+    }
     SelectionChanged();
 }
 void RichTextEditor::OnCaptureLost(ControlHost&)

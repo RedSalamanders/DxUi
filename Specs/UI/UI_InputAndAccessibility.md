@@ -1070,8 +1070,27 @@ copy per call; a derived class that keeps both may return true to share. The lib
 editable `ComboBox` filters and selects its popup items by its committed text: a composition preview (a non-notifying
 import that changes the text) neither rebuilds the open popup's items nor changes the selection, and the commit filters by
 the result. When a composition ends without its preview being restored or committed (focus loss, store teardown, a
-refused restore), the shown text becomes the committed text and the popup and selection follow it. `RichTextEditor` still flattens its document for each TSF import and export; that copy
-belongs to its snapshot export (performance plan `W7.4`).
+refused restore), the shown text becomes the committed text and the popup and selection follow it.
+
+Rich text-input snapshots. A `RichTextEditor` exports its document to text input as its immutable source revision (the
+piece-tree `SourceSnapshot`), not as a flattened string. The native host's cache keeps that revision as its previous
+state; synchronization, the UI Automation text-changed check and the TSF store's change notification compare two
+revisions by identity, or only across their tracked changed range, and the store computes the `TS_TEXTCHANGE` common
+prefix and suffix in place, with the same result as on the whole texts. A one-character insert, an arrow key, Backspace,
+Ctrl+arrow, Ctrl+Backspace, Enter and a double-click copy no whole document and at most 1 KiB of it (word boundaries read
+a window around the caret that grows only when a word reaches its edge; the first line ending comes from the line
+summaries). Contiguous text is materialized only for a reader that needs it (a TSF lock, IMM, a public
+`TextInputState`/`NativeTextInputState`) and at most once per revision: the host cache and the editor keep that copy,
+keyed by the revision's identity, and the editor updates it in place by the changed range while nothing else holds it. A
+TSF import reads the store's buffer in place, applies only its changed range and keeps the buffer as the copy of the
+revision it produced, so a TSF lock in a `RichTextEditor` makes at most one document-sized allocation, as in a
+`TextField`; a commit stays one undo step. The editor releases its copy on focus loss. A native host synchronizes once per
+input event: after a key or character, the host skips its own synchronization when the control already synchronized
+during dispatch and still exports exactly the cached state (same buffer or revision, selection and flags), outside any
+composition. Overrides follow the shared-text rule: the snapshot path applies to exactly `RichTextEditor`, or to a derived
+class that keeps both state virtuals and returns true from the protected `KeepsDefaultTextInputState`; any other derived
+class is called through `ExportTextInputState` and `ImportTextInputState` on the TSF, IMM and embedded paths, at the cost
+of a copy per call.
 
 Native TSF activation stages its document, context and store before publishing the session. It revalidates the
 focused control and transition generation after each callback-capable TSF operation, including context push and

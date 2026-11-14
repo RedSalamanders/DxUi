@@ -1,4 +1,5 @@
 #include "DxUi.RichProjectionWindow.h"
+#include "Support/WorkCounters.h"
 #include <DxUi/Failure.h>
 #include <DxUi/RichMarkdown.h>
 #include <stdexcept>
@@ -448,6 +449,10 @@ std::wstring PreparedProjection::DisplayText() const
     result.reserve(DisplayLength());
     for (const auto& block : blocks)
         result += block.content->text;
+    auto& work = ::DxUi::Detail::Work().rich;
+    work.documentBytesCopied += result.size() * sizeof(wchar_t);
+    if (! result.empty())
+        ++work.documentFlattens;
     return result;
 }
 

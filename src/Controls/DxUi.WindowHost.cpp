@@ -2367,7 +2367,8 @@ bool ControlHost::RouteFocusedCharInput(wchar_t ch, UINT modifiers, const wchar_
     const std::weak_ptr<int> charTargetLifetime = charTarget->GetLifetimeToken();
     const auto inputStartedAt                   = std::chrono::steady_clock::now();
     // A character whose handler throws is taken, as a failed message is: it does not reach DefWindowProc.
-    bool controlHandled = true;
+    bool controlHandled                   = true;
+    const uint64_t synchronizationsBefore = _nativeTextInputEventCounters.synchronizationCount;
     static_cast<void>(TryControlCallback([&] { controlHandled = charTarget->OnChar(*this, ch, modifiers); }));
     Control* const liveCharTarget = RevalidateInteractiveDispatchedControl(charTargetLifetime, _root.get(), charTarget);
     if (! liveCharTarget && charTarget == _focusedControl)
@@ -2376,7 +2377,9 @@ bool ControlHost::RouteFocusedCharInput(wchar_t ch, UINT modifiers, const wchar_
     }
     if (controlHandled && liveCharTarget && liveCharTarget == _focusedControl && liveCharTarget->SupportsTextInput())
     {
-        SyncNativeTextInputSession(liveCharTarget);
+        // Once per input event: a control that already synchronized the state it now shows is not synchronized again.
+        if (! NativeTextInputSyncedUnchanged(liveCharTarget, synchronizationsBefore))
+            SyncNativeTextInputSession(liveCharTarget);
         RecordNativeTextInputKeyToStateMetric(inputStartedAt, perfDetail, static_cast<uint64_t>(ch), modifiers);
     }
     return controlHandled;
@@ -3998,6 +4001,7 @@ try
                 const std::weak_ptr<int> keyTargetLifetime = keyTarget ? keyTarget->GetLifetimeToken() : std::weak_ptr<int>{};
                 const auto inputStartedAt                  = std::chrono::steady_clock::now();
                 const UINT modifiers                       = GetModifierState();
+                const uint64_t synchronizationsBefore      = _nativeTextInputEventCounters.synchronizationCount;
                 const bool controlHandled                  = keyTarget && keyTarget->OnKeyDown(*this, static_cast<UINT>(wp), modifiers);
                 Control* const liveKeyTarget               = RevalidateInteractiveDispatchedControl(keyTargetLifetime, _root.get(), keyTarget);
                 if (! liveKeyTarget && keyTarget == _focusedControl)
@@ -4009,7 +4013,8 @@ try
                     if (_textInputBackend == TextInputBackend::Native && liveKeyTarget && liveKeyTarget == _focusedControl &&
                         liveKeyTarget->SupportsTextInput())
                     {
-                        SyncNativeTextInputSession(liveKeyTarget);
+                        if (! NativeTextInputSyncedUnchanged(liveKeyTarget, synchronizationsBefore))
+                            SyncNativeTextInputSession(liveKeyTarget);
                         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-keydown", static_cast<uint64_t>(wp), modifiers);
                     }
                     if (liveKeyTarget)
@@ -4047,6 +4052,7 @@ try
                 Control* const keyTarget                   = _focusedControl;
                 const std::weak_ptr<int> keyTargetLifetime = keyTarget ? keyTarget->GetLifetimeToken() : std::weak_ptr<int>{};
                 const auto inputStartedAt                  = std::chrono::steady_clock::now();
+                const uint64_t synchronizationsBefore      = _nativeTextInputEventCounters.synchronizationCount;
                 const bool controlHandled                  = keyTarget && keyTarget->OnKeyDown(*this, static_cast<UINT>(wp), modifiers);
                 Control* const liveKeyTarget               = RevalidateInteractiveDispatchedControl(keyTargetLifetime, _root.get(), keyTarget);
                 if (! liveKeyTarget && keyTarget == _focusedControl)
@@ -4058,7 +4064,9 @@ try
                     if (_textInputBackend == TextInputBackend::Native && liveKeyTarget && liveKeyTarget == _focusedControl &&
                         liveKeyTarget->SupportsTextInput())
                     {
-                        SyncNativeTextInputSession(liveKeyTarget);
+                        // Once per input event: a control that already synchronized the state it now shows is not synchronized again.
+                        if (! NativeTextInputSyncedUnchanged(liveKeyTarget, synchronizationsBefore))
+                            SyncNativeTextInputSession(liveKeyTarget);
                         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-keydown", static_cast<uint64_t>(wp), modifiers);
                     }
                     // As after a handled pointer release: a key the control handled may have changed what it exposes to
@@ -4125,6 +4133,7 @@ try
                 Control* const keyTarget                   = _focusedControl;
                 const std::weak_ptr<int> keyTargetLifetime = keyTarget ? keyTarget->GetLifetimeToken() : std::weak_ptr<int>{};
                 const auto inputStartedAt                  = std::chrono::steady_clock::now();
+                const uint64_t synchronizationsBefore      = _nativeTextInputEventCounters.synchronizationCount;
                 const bool controlHandled                  = keyTarget && keyTarget->OnKeyUp(*this, static_cast<UINT>(wp), modifiers);
                 Control* const liveKeyTarget               = RevalidateInteractiveDispatchedControl(keyTargetLifetime, _root.get(), keyTarget);
                 if (! liveKeyTarget && keyTarget == _focusedControl)
@@ -4137,7 +4146,8 @@ try
                     if (_textInputBackend == TextInputBackend::Native && liveKeyTarget && liveKeyTarget == _focusedControl &&
                         liveKeyTarget->SupportsTextInput())
                     {
-                        SyncNativeTextInputSession(liveKeyTarget);
+                        if (! NativeTextInputSyncedUnchanged(liveKeyTarget, synchronizationsBefore))
+                            SyncNativeTextInputSession(liveKeyTarget);
                         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-keyup", static_cast<uint64_t>(wp), modifiers);
                     }
                     return 0;

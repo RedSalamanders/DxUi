@@ -1380,7 +1380,7 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
     off-screen chunk; the oracle passes for fractional fonts, RTL, transformed drawing and large origins.
   - **Needs**: `W0.5`. **Size**: L.
 
-- [ ] **W7.4 Text-input sync and flatten sites.**
+- [x] **W7.4 Text-input sync and flatten sites.**
   - **Why**: text-input sync runs twice per character and per arrow key (`DxUi.WindowHost.cpp:2335`, `:3908`;
     `DxUi.RichTextEditor.cpp:3657` → `DxUi.TextInput.cpp:914`); each pass flattens the document and copies
     `previousState` (`DxUi.NativeTextInput.cpp:1063`, `:1076-1077`), and the overlay rebuild copies the cache again

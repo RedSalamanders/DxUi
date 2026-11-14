@@ -406,7 +406,7 @@ std::span<const std::string_view> RetainedCacheAccess::Names() noexcept
 
 std::span<const RetainedCacheExemption> RetainedCacheAccess::Exemptions() noexcept
 {
-    static constexpr std::array<RetainedCacheExemption, 14u> exemptions{{
+    static constexpr std::array<RetainedCacheExemption, 15u> exemptions{{
         {"ControlHost._bodyTextFormat",
          "The fourteen role formats (_bodyTextFormat .. _monoTextFormat) are built once per DirectWrite factory from fixed role specs; "
          "no theme, DPI or model input keys them, and an embedded Prepare has no path that would rebuild them."},
@@ -416,6 +416,9 @@ std::span<const RetainedCacheExemption> RetainedCacheAccess::Exemptions() noexce
          "The native text session's copy of the text service state (with _nativeTextInputStateCacheValid); session state, not paint state."},
         {"ControlHost._nativeTextInputCacheText",
          "The document of _nativeTextInputStateCache, shared with the session control (Shared input text); session state, not paint state."},
+        {"ControlHost._nativeTextInputCacheSource",
+         "A rich editor's document of _nativeTextInputStateCache as its immutable source revision (Rich text-input snapshots); session "
+         "state, not paint state."},
         {"ControlHost._dwriteFactory", "The borrowed shared DirectWrite factory; device replacement owns it."},
         {"ComboBox._popupBackdropCapture",
          "The screen pixels captured when the popup opened: an input from outside DxUi that a fresh frame could not rebuild. "

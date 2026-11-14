@@ -4,6 +4,10 @@
 #include "DxUi.TextElements.h"
 #include <DxUi/AccessibilityTextUnits.h>
 #include <DxUi/RichDocument.h>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <type_traits>
 
 // A proven ASCII-to-ASCII break is independent of any preceding Unicode 17
 // RI, Indic, prepend or emoji state. Long runs with no such break are expanded
@@ -190,6 +194,125 @@ inline size_t SourceLineEnd(const SourceSnapshot& source, size_t position)
         first = last;
     }
     return length;
+}
+// The document's first line ending ("\r\n" when it has none), from the line summaries: no scan and no copy.
+inline std::wstring_view FirstLineEnding(const SourceSnapshot& source) noexcept
+{
+    const auto next = source.LineStart(1u);
+    if (! next || ! *next)
+        return L"\r\n";
+    const auto at = *next;
+    if (at >= 2u && source.UnitAt(at - 2u) == L'\r' && source.UnitAt(at - 1u) == L'\n')
+        return L"\r\n";
+    return source.UnitAt(at - 1u) == L'\r' ? std::wstring_view(L"\r") : std::wstring_view(L"\n");
+}
+// Word movement, word deletion and word selection over a long text read one unit at a time (a prepared display), with
+// results equal to the whole-text FindPreviousWordBoundary, FindNextWordBoundary and SelectSingleLineWordAt. Each copies a
+// window around the position whose edges never split a surrogate pair, and doubles the window whenever the answer reaches
+// an edge that is not the text's own edge (or depends on the absolute position 2 of the root-drive rule), so no rule ever
+// mistakes a window edge for the text's edge.
+template <typename UnitAt> class UnitWindow
+{
+public:
+    UnitWindow(size_t length, UnitAt& unitAt) noexcept : _length(length), _unitAt(unitAt)
+    {
+    }
+    UnitWindow(const UnitWindow&)            = delete;
+    UnitWindow& operator=(const UnitWindow&) = delete;
+    UnitWindow(UnitWindow&&)                 = delete;
+    UnitWindow& operator=(UnitWindow&&)      = delete;
+    void Load(size_t first, size_t last)
+    {
+        last  = (std::min)(last, _length);
+        first = (std::min)(first, last);
+        while (first && first < _length && IsUtf16TrailSurrogate(_unitAt(first)) && IsUtf16LeadSurrogate(_unitAt(first - 1u)))
+            --first;
+        while (last && last < _length && IsUtf16TrailSurrogate(_unitAt(last)) && IsUtf16LeadSurrogate(_unitAt(last - 1u)))
+            ++last;
+        _first = first;
+        _last  = last;
+        _text.assign(last - first, L'\0');
+        for (size_t index = first; index < last; ++index)
+            _text[index - first] = _unitAt(index);
+        ::DxUi::Detail::Work().rich.documentBytesCopied += _text.size() * sizeof(wchar_t);
+    }
+    [[nodiscard]] size_t First() const noexcept
+    {
+        return _first;
+    }
+    [[nodiscard]] size_t Last() const noexcept
+    {
+        return _last;
+    }
+    [[nodiscard]] size_t Length() const noexcept
+    {
+        return _length;
+    }
+    [[nodiscard]] std::wstring_view Text() const noexcept
+    {
+        return _text;
+    }
+
+private:
+    size_t _length{};
+    UnitAt& _unitAt;
+    size_t _first{}, _last{};
+    std::wstring _text = std::wstring(0u, L'\0');
+};
+inline constexpr size_t kWordWindowUnits = 128u;
+template <typename UnitAt> size_t WindowedPreviousWordBoundary(size_t length, size_t caret, UnitAt&& unitAt)
+{
+    caret = (std::min)(caret, length);
+    UnitWindow<std::remove_reference_t<UnitAt>> window(length, unitAt);
+    for (size_t span = kWordWindowUnits;; span *= 2u)
+    {
+        window.Load(caret > span ? caret - span : 0u, caret + 2u);
+        const auto text   = window.Text();
+        const auto result = window.First() + FindPreviousWordBoundary(text, caret - window.First());
+        const auto local  = result - window.First();
+        if (! window.First() || (local != 0u && ! (local == 2u && text.size() >= 2u && text[1u] == L':')))
+            return result;
+    }
+}
+template <typename UnitAt> size_t WindowedNextWordBoundary(size_t length, size_t caret, UnitAt&& unitAt)
+{
+    caret = (std::min)(caret, length);
+    UnitWindow<std::remove_reference_t<UnitAt>> window(length, unitAt);
+    for (size_t span = kWordWindowUnits;; span *= 2u)
+    {
+        window.Load(caret ? caret - 1u : 0u, caret + span);
+        const auto result = window.First() + FindNextWordBoundary(window.Text(), caret - window.First());
+        if (result != window.Last() || window.Last() == length)
+            return result;
+    }
+}
+template <typename UnitAt> void WindowedSelectWordAt(size_t length, size_t hit, size_t& caret, std::optional<size_t>& anchor, UnitAt&& unitAt)
+{
+    if (! length)
+    {
+        caret = 0u;
+        anchor.reset();
+        return;
+    }
+    hit = (std::min)(hit, length - 1u);
+    UnitWindow<std::remove_reference_t<UnitAt>> window(length, unitAt);
+    for (size_t span = kWordWindowUnits;; span *= 2u)
+    {
+        window.Load(hit > span ? hit - span : 0u, hit + span);
+        size_t localCaret{};
+        std::optional<size_t> localAnchor;
+        SelectSingleLineWordAt(window.Text(), hit - window.First(), localCaret, localAnchor);
+        const bool openLeft  = window.First() && localAnchor.value_or(localCaret) == 0u;
+        const bool openRight = window.Last() < length && localCaret == window.Text().size();
+        if (! openLeft && ! openRight)
+        {
+            caret = window.First() + localCaret;
+            anchor.reset();
+            if (localAnchor)
+                anchor = window.First() + *localAnchor;
+            return;
+        }
+    }
 }
 inline TextElementRange RichSourceWindowRange(const SourceSnapshot& source, size_t caret, SourceWindowOperation operation, bool forDeletion = false)
 {

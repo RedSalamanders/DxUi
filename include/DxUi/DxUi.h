@@ -3424,6 +3424,7 @@ struct RichTextEditorDebugState
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
 #pragma warning(disable : 4625 4626)
+struct SharedTextInputState;
 class RichTextEditor : public Control
 {
 public:
@@ -3769,6 +3770,10 @@ protected:
     [[nodiscard]] std::optional<size_t> HitTestTextInputPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept override;
     bool ExportTextInputState(TextInputState& state) const override;
     bool ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange) override;
+    // True when this class does not override ExportTextInputState or ImportTextInputState, so text input may read the
+    // document's immutable source revision instead of a flattened copy through those virtuals (Rich text-input snapshots).
+    // The default is true only for the exact class; a derived class that keeps both virtuals may override it to return true.
+    [[nodiscard]] virtual bool KeepsDefaultTextInputState() const noexcept;
     void PropagateHost(ControlHost* host) noexcept override;
     void OnBoundsChanged() noexcept override;
     void OnHostDpiChanged(ControlHost& host) noexcept override;
@@ -3781,6 +3786,15 @@ protected:
 
 private:
     friend struct EmbeddedAccessibilityAccess;
+    friend struct SharedTextInputAccess;
+    // Text-input snapshots (W7.4): the export of the source revision, the contiguous copy of a revision kept for text input,
+    // and an import that reads a shared buffer in place and keeps it as that copy.
+    void ExportTextInputSource(SharedTextInputState& state) const;
+    [[nodiscard]] std::shared_ptr<const std::wstring> TextInputText(const RichText::SourceSnapshot& source) const;
+    [[nodiscard]] bool ShowsTextInputText(const std::shared_ptr<const std::wstring>& text) const noexcept;
+    [[nodiscard]] bool ImportTextInputText(ControlHost& host, std::shared_ptr<const std::wstring> text, const TextInputState& fields, bool notifyChange);
+    [[nodiscard]] bool ImportTextInputView(
+        ControlHost& host, std::wstring_view text, const TextInputState& fields, bool notifyChange, const std::shared_ptr<const std::wstring>* buffer);
     [[nodiscard]] HRESULT DrawPreparedPageResult(ControlHost& host, D2D1_RECT_F destination, float sourceTopDip, const RichText::ExportDrawing& drawing) const;
     [[nodiscard]] std::optional<std::vector<std::pair<size_t, size_t>>> SourceVisualLineRangesFallible(const ControlHost& host) const;
     friend class ControlHost;
@@ -6787,10 +6801,24 @@ private:
                                                                const std::vector<size_t>& clauseBoundaries) noexcept;
     void DestroyNativeTextInputCaret() noexcept;
     void RaiseNativeTextInputAccessibilityEvent(TextInputAutomationEventKind kind) noexcept;
-    // previousText is the cache text that previousState went with (the cache keeps its text in _nativeTextInputCacheText).
-    void RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState, const std::shared_ptr<const std::wstring>& previousText) noexcept;
-    // The cached document, shared with the session control; empty without a valid cache.
+    // previousText and previousSource are the cache document that previousState went with (the cache keeps it in
+    // _nativeTextInputCacheText and _nativeTextInputCacheSource).
+    void RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState,
+                                                 const std::shared_ptr<const std::wstring>& previousText,
+                                                 const std::optional<RichText::SourceSnapshot>& previousSource) noexcept;
+    // The cached document, shared with the session control; empty without a valid cache. A rich editor's revision is
+    // materialized on first use and kept with the cache.
     [[nodiscard]] std::wstring_view GetNativeTextInputCacheText() const noexcept;
+    // The cached document as shared text, materialized as GetNativeTextInputCacheText does; null without a valid cache.
+    [[nodiscard]] const std::shared_ptr<const std::wstring>& MaterializeNativeTextInputCacheText() const noexcept;
+    // The cached state without its document (outState.text stays empty), for readers of selection and composition only.
+    [[nodiscard]] bool TryReadNativeTextInputStateWithoutText(const Control* control, NativeTextInputState& outState) const noexcept;
+    // Whether the cached document is exactly `source`'s text; compares in place, the same revision without reading.
+    [[nodiscard]] bool NativeTextInputCacheShowsSource(const RichText::SourceSnapshot& source) const noexcept;
+    // After an input event's dispatch: whether the control synchronized itself during it (the synchronization count moved
+    // past synchronizationsBefore) and still exports exactly the cached state, so the host's own synchronization would
+    // change nothing. Only for a control whose state is shared; any doubt answers false.
+    [[nodiscard]] bool NativeTextInputSyncedUnchanged(Control* control, uint64_t synchronizationsBefore) const noexcept;
     [[nodiscard]] bool TryGetNativeTextInputCaretRects(D2D1_RECT_F& outRectDip, RECT& outClientRectPx, RECT& outScreenRectPx) const noexcept;
     // Drops interaction state on controls that left the tree or became inert; a dropped focus is published.
     void PruneStaleInteractionState(MessagePrunePass* pass = nullptr) noexcept;
@@ -6933,7 +6961,11 @@ private:
     // The cache keeps its document in _nativeTextInputCacheText, shared with the control and the TSF store; its own text
     // member stays empty. Readers that hand the state out copy the shared text into it.
     NativeTextInputState _nativeTextInputStateCache;
-    std::shared_ptr<const std::wstring> _nativeTextInputCacheText;
+    // Filled lazily for a rich editor's revision (MaterializeNativeTextInputCacheText), hence mutable.
+    mutable std::shared_ptr<const std::wstring> _nativeTextInputCacheText;
+    // A rich editor's cached document as its immutable source revision (W7.4); _nativeTextInputCacheText, when set, has
+    // exactly its content. Empty for every other control.
+    std::optional<RichText::SourceSnapshot> _nativeTextInputCacheSource;
     bool _nativeTextInputStateCacheValid = false;
     NativeTextInputEventCounters _nativeTextInputEventCounters;
     wil::com_ptr_nothrow<IUnknown> _nativeTextInputTsfThreadMgr;

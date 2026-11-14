@@ -50,8 +50,10 @@
 
 // Rich documents.
 #define DXUI_WORK_COUNTERS_RICH(X)                                                                                                                             \
-    X(rich, hoveredTitleCalls) /* RichTextEditor::HoveredTitle resolutions: the hover title under a point, for the host's tooltip. */                          \
-    X(rich, hoverScanElements) /* Semantic elements a pointer-hover lookup tested one by one; the prepared hover index adds none. */
+    X(rich, documentBytesCopied) /* Bytes of a rich document's source or display text copied into a string: slices, flattens, text-input copies. */            \
+    X(rich, documentFlattens)    /* Copies of a whole non-empty rich document's source or display text (a subset of documentBytesCopied). */                   \
+    X(rich, hoveredTitleCalls)   /* RichTextEditor::HoveredTitle resolutions: the hover title under a point, for the host's tooltip. */                        \
+    X(rich, hoverScanElements)   /* Semantic elements a pointer-hover lookup tested one by one; the prepared hover index adds none. */
 
 // UI Automation.
 #define DXUI_WORK_COUNTERS_ACCESSIBILITY(X)                                                                                                                    \
