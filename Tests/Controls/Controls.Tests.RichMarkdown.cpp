@@ -2156,15 +2156,101 @@ void TestMarkdownParseReuseInlineReferences()
             Require(work.markdownInlineLeavesCopied >= 4u && work.markdownInlineLeavesParsed <= 2u, "unchanged leaves copy their inline forest");
     }
 }
+// W7.2 review F1: a top-level block whose first line did not begin with nothing open (a paragraph left over after
+// reference-definition extraction, a table whose header was a paragraph's last line) is never imported after the edit.
+// Each case is one edit from a fresh parse, on the tracked and on the string path, against a full parse.
+void TestMarkdownParseReuseDirectedCases()
+{
+    struct Case
+    {
+        std::wstring_view previous;
+        std::size_t first, last;
+        std::wstring_view insert;
+        MarkdownProfile profile;
+    };
+    const Case cases[] = {
+        {L"[a]: /u\n-\n", 0u, 7u, L"", MarkdownProfile::CommonMark0312},
+        {L"[SS]: /shadow\n-", 0u, 13u, L"", MarkdownProfile::RichMarkdown},
+        {L"[o]:-->\n-", 0u, 0u, L"<!--", MarkdownProfile::RichMarkdown},
+        {L"[a]: /u\n-\n\nnext\n", 0u, 7u, L"", MarkdownProfile::RichMarkdown},
+        {L"]\n[r]:n\n-|", 1u, 1u, L"\n", MarkdownProfile::Gfm029},
+        {L"[x]:&\n-", 5u, 5u, L"\n", MarkdownProfile::Gfm029},
+        {L"[r]:\"\n-", 5u, 5u, L"\n", MarkdownProfile::RichMarkdown},
+        {L"[\u1E9E]:p\r-", 5u, 5u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"[^x]: n\n-", 1u, 7u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"a\nb|c\n-|-\n", 0u, 2u, L"", MarkdownProfile::Gfm029},
+        {L"a\n[r]: /u\n-|-\n", 0u, 2u, L"", MarkdownProfile::Gfm029},
+        {L"[a]: /u\n2. x\n", 7u, 7u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"Text\n\n[a]: /u\n---\n\nAfter\n", 4u, 4u, L"!", MarkdownProfile::CommonMark0312},
+        {L"Text\n[a]: /u\n---\n\nAfter\n", 4u, 4u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"Intro\n[r]: /u\n-|-\n\nAfter\n", 5u, 5u, L"\n", MarkdownProfile::Gfm029},
+        {L"[a]: /u\n<span>\n", 7u, 7u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\n    code\n", 7u, 7u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\n-\n", 7u, 7u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"Intro\n[a]: /u\n-|-\n\nnext\n", 5u, 5u, L"\n", MarkdownProfile::Gfm029},
+        {L"[a]: /u\nPara\n===\n\nnext\n", 0u, 0u, L"x", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\ntext\n\nnext [a]\n", 0u, 7u, L"[a]: /v", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\n- x\n", 0u, 7u, L"", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\n2. x\n", 0u, 7u, L"", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\n    code\n", 0u, 7u, L"", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\nb\n", 0u, 1u, L"", MarkdownProfile::CommonMark0312},
+        {L"x\n\n[a]: /u\n===\n", 0u, 1u, L"y", MarkdownProfile::CommonMark0312},
+        {L"intro\nhead | er\n--- | ---\ncell\n\nafter\n", 0u, 6u, L"", MarkdownProfile::Gfm029},
+        // A block that began fresh but was still open at the next line (its last line became a table header).
+        {L"```\n```\n\n\np\n    d\n-|", 8u, 8u, L"|", MarkdownProfile::RichMarkdown},
+        {L"x\n\np\nhead\n-|\n", 0u, 1u, L"y", MarkdownProfile::Gfm029},
+    };
+    for (const auto& item : cases)
+        for (const bool strings : {false, true})
+        {
+            Document document(item.previous);
+            MarkdownParser parser;
+            if (strings)
+                parser.Begin(document.Text(), document.Revision(), item.profile);
+            else
+                parser.Begin(document.Snapshot(), document.Revision(), item.profile);
+            static_cast<void>(MarkdownParseReuseTests::Complete(parser, Require));
+            bool changed{};
+            Require(document.TryReplace(item.first, item.last, item.insert, {item.first, item.first}, changed) == SourceResult::Success && changed,
+                    "a directed reuse case applies its edit");
+            if (strings)
+                parser.Begin(document.Text(), document.Revision(), item.profile);
+            else
+                parser.Begin(document.Snapshot(), document.Revision(), item.profile);
+            const auto changedSyntax = MarkdownParseReuseTests::Complete(parser, Require);
+            MarkdownParser fresh;
+            fresh.Begin(document.Text(), document.Revision(), item.profile);
+            const auto expected   = MarkdownParseReuseTests::Complete(fresh, Require);
+            const auto difference = MarkdownParseReuseTests::FirstDifference(*changedSyntax, *expected);
+            if (! difference.empty())
+                std::cout << std::format("  directed reuse case \"{}\" [{}, {}) \"{}\" ({}): {}\n",
+                                         MarkdownParseReuseTests::Escape(item.previous),
+                                         item.first,
+                                         item.last,
+                                         MarkdownParseReuseTests::Escape(item.insert),
+                                         strings ? "strings" : "tracked",
+                                         difference);
+            Require(difference.empty(), "a block not begun with nothing open is parsed again, never imported");
+        }
+}
 // W7.2 oracle: seeded edits (inserts, deletions, multi-line pastes, front matter pasted and broken, edits at document start
 // and end) against a fresh full parse after every edit. At least 20,000 compared edits in Release.
 void TestMarkdownParseReuseOracleFuzz()
 {
 #ifdef _DEBUG
-    constexpr std::size_t scale = 1u;
+    std::size_t scale = 1u;
 #else
-    constexpr std::size_t scale = 10u;
+    std::size_t scale = 10u;
 #endif
+    // A one-off long run multiplies the suite's bounded count (DXUI_MARKDOWN_REUSE_FUZZ_SCALE=N); the suite never sets it.
+    char multiplier[16]{};
+    std::size_t multiplierLength{};
+    if (getenv_s(&multiplierLength, multiplier, "DXUI_MARKDOWN_REUSE_FUZZ_SCALE") == 0 && multiplierLength > 1u)
+        scale *= (std::max)(std::size_t{1u}, static_cast<std::size_t>(std::strtoull(multiplier, nullptr, 10)));
+    // ... and DXUI_MARKDOWN_REUSE_FUZZ_SEED=<hex> offsets every seed, for a run on fresh documents.
+    std::uint64_t seedOffset = 0u;
+    if (getenv_s(&multiplierLength, multiplier, "DXUI_MARKDOWN_REUSE_FUZZ_SEED") == 0 && multiplierLength > 1u)
+        seedOffset = std::strtoull(multiplier, nullptr, 16);
     struct Run
     {
         MarkdownProfile profile;
@@ -2187,7 +2273,7 @@ void TestMarkdownParseReuseOracleFuzz()
     MarkdownParseReuseTests::FuzzResult total;
     for (const auto& run : runs)
     {
-        const auto result = MarkdownParseReuseTests::RunEditFuzz(run.seed, run.edits, run.profile, Require);
+        const auto result = MarkdownParseReuseTests::RunEditFuzz(run.seed + seedOffset, run.edits, run.profile, Require);
         std::cout << std::format("  parse reuse fuzz seed 0x{:X} profile {}: {} edits compared ({} deletions, {} pastes, {} at start, {} at end); "
                                  "leaves copied {}, parsed {}; full inline reparses {}; front matter validated {}, reused {}\n",
                                  run.seed,
@@ -2228,7 +2314,23 @@ void TestMarkdownParseReuseOracleFuzz()
                              total.referenceChanges,
                              total.lazyDocuments,
                              total.setextChanges);
+    // The review's generator, a second and independent source of documents and edits (three profiles in turn).
+    std::size_t reviewCompared = 0u, reviewUndo = 0u, reviewOld = 0u;
+    const MarkdownProfile reviewProfiles[] = {MarkdownProfile::RichMarkdown, MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312};
+    for (std::uint64_t seed = 0u; seed < 12u; ++seed)
+    {
+        const auto result = MarkdownParseReuseTests::RunReviewFuzz(0x7202'A000u + seedOffset + seed, 100u * scale, reviewProfiles[seed % 3u], Require);
+        reviewCompared += result.compared;
+        reviewUndo += result.undoRedo;
+        reviewOld += result.mixedOld;
+    }
+    std::cout << std::format("  parse reuse review-generator fuzz: {} edits equal to a full parse (tracked, strings and mixed parsers; {} undo or redo, "
+                             "{} old-snapshot parses)\n",
+                             reviewCompared,
+                             reviewUndo,
+                             reviewOld);
     Require(total.compared >= 2000u * scale, "the oracle compares at least 2,000 edits (20,000 in Release)");
+    Require(reviewCompared >= 1000u * scale, "the review generator compares at least 1,000 edits (10,000 in Release)");
     Require(total.frontMatterCreated > 0u && total.frontMatterRemoved > 0u && total.fencesOpened > 0u && total.fencesClosed > 0u &&
                 total.referenceChanges > 0u && total.lazyDocuments > 0u && total.setextChanges > 0u && total.atStart > 0u && total.atEnd > 0u &&
                 total.deletions > 0u && total.pastes > 0u,
@@ -2242,6 +2344,7 @@ void RunRichMarkdownTests()
     DXUI_RUN_TEST(TestLosslessMarkdownCorrelationSnapshotIdentity);
     DXUI_RUN_TEST(TestMarkdownParseReuseFrontMatterValidation);
     DXUI_RUN_TEST(TestMarkdownParseReuseInlineReferences);
+    DXUI_RUN_TEST(TestMarkdownParseReuseDirectedCases);
     DXUI_RUN_TEST(TestMarkdownParseReuseOracleFuzz);
     DXUI_RUN_TEST(TestRichMarkdownPrototypeContracts);
     DXUI_RUN_TEST(TestRichMarkdownSnapshotAndValidationContracts);

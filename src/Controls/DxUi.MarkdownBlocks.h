@@ -2,6 +2,7 @@
 #include "DxUi.MarkdownLabels.h"
 #include "DxUi.MarkdownTableCells.h"
 #include "DxUi.MarkdownWork.h"
+#include "Support/WorkCounters.h"
 #include <DxUi/Failure.h>
 #include <DxUi/MarkdownSyntax.h>
 #include <cwctype>
@@ -867,6 +868,7 @@ class MarkdownBlocks
         for (const auto& line : original.lines)
         {
             AccountMarkdownWork(&MarkdownWorkCounts::referenceFlattenUnits, line.source.last - line.source.first);
+            ::DxUi::Detail::Work().rich.markdownReferenceUnitsRead += line.source.last - line.source.first;
             for (auto i = line.source.first; i < line.source.last; ++i)
             {
                 offsets.push_back(i);
@@ -1030,6 +1032,13 @@ public:
     void ReserveEmptyLines(std::size_t physicalLines)
     {
         emptyLines_.reserve(physicalLines);
+    }
+    // W7.2: a line starting here starts a top-level block exactly as it would with nothing open. Open containers do not
+    // matter: a line that starts a top-level block matched none of them and closed them first. A document-level leaf or
+    // table row does: the line could continue it, underline it or become its table header.
+    bool StartsFresh() const noexcept
+    {
+        return ! sourceRegion_ && (open_.size() > 1u || (leaf_ == MarkdownNoNode && ! tableRow_));
     }
     bool CanImportClosedRoot() const noexcept
     {

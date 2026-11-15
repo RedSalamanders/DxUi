@@ -4,15 +4,16 @@
   inline reuse case 'definition destroyed': leaves parsed 11, copied 0, full reparses 1
   inline reuse case 'a later duplicate label changes no resolution': leaves parsed 2, copied 8, full reparses 0
   inline reuse case 'edit in a leaf with a footnote reference': leaves parsed 1, copied 9, full reparses 0
-  parse reuse fuzz seed 0x72020001 profile 2: 2439 edits compared (1052 deletions, 238 pastes, 253 at start, 200 at end); leaves copied 16064, parsed 12846; full inline reparses 26; front matter validated 51, reused 352
-  parse reuse fuzz seed 0x72020002 profile 2: 2438 edits compared (1065 deletions, 258 pastes, 242 at start, 196 at end); leaves copied 35510, parsed 22585; full inline reparses 19; front matter validated 33, reused 308
-  parse reuse fuzz seed 0x72020003 profile 2: 2441 edits compared (1054 deletions, 240 pastes, 262 at start, 177 at end); leaves copied 17591, parsed 11011; full inline reparses 34; front matter validated 62, reused 249
-  parse reuse fuzz seed 0x72020004 profile 2: 2435 edits compared (1037 deletions, 226 pastes, 233 at start, 203 at end); leaves copied 32395, parsed 22795; full inline reparses 10; front matter validated 38, reused 271
-  parse reuse fuzz seed 0x72020005 profile 2: 2435 edits compared (1068 deletions, 242 pastes, 270 at start, 228 at end); leaves copied 16418, parsed 10533; full inline reparses 19; front matter validated 69, reused 197
-  parse reuse fuzz seed 0x72020006 profile 2: 2449 edits compared (1076 deletions, 245 pastes, 232 at start, 199 at end); leaves copied 37044, parsed 27599; full inline reparses 23; front matter validated 31, reused 272
-  parse reuse fuzz seed 0x72020007 profile 2: 2444 edits compared (1037 deletions, 252 pastes, 271 at start, 211 at end); leaves copied 41687, parsed 31651; full inline reparses 30; front matter validated 98, reused 263
-  parse reuse fuzz seed 0x72020008 profile 2: 2446 edits compared (1065 deletions, 246 pastes, 286 at start, 187 at end); leaves copied 21149, parsed 15385; full inline reparses 23; front matter validated 34, reused 187
-  parse reuse fuzz seed 0x72020101 profile 1: 972 edits compared (383 deletions, 112 pastes, 94 at start, 79 at end); leaves copied 11030, parsed 6382; full inline reparses 14; front matter validated 0, reused 0
-  parse reuse fuzz seed 0x72020102 profile 1: 980 edits compared (428 deletions, 99 pastes, 100 at start, 72 at end); leaves copied 7791, parsed 5197; full inline reparses 11; front matter validated 0, reused 0
-  parse reuse fuzz seed 0x72020201 profile 0: 973 edits compared (394 deletions, 120 pastes, 96 at start, 92 at end); leaves copied 15048, parsed 7138; full inline reparses 17; front matter validated 0, reused 0
-  parse reuse fuzz total: 22452 edits equal to a full parse; front matter created 208, removed 210; fences opened 187, closed 57; reference resolution changes 294; edits on documents with lazy lines 14422; setext changes 2176
+  parse reuse fuzz seed 0x72020001 profile 2: 2441 edits compared (1052 deletions, 238 pastes, 255 at start, 220 at end); leaves copied 19037, parsed 18043; full inline reparses 69; front matter validated 59, reused 335
+  parse reuse fuzz seed 0x72020002 profile 2: 2439 edits compared (1065 deletions, 258 pastes, 242 at start, 198 at end); leaves copied 38756, parsed 43521; full inline reparses 54; front matter validated 34, reused 327
+  parse reuse fuzz seed 0x72020003 profile 2: 2438 edits compared (1054 deletions, 240 pastes, 269 at start, 218 at end); leaves copied 18178, parsed 18102; full inline reparses 73; front matter validated 82, reused 221
+  parse reuse fuzz seed 0x72020004 profile 2: 2435 edits compared (1037 deletions, 226 pastes, 233 at start, 204 at end); leaves copied 21970, parsed 23245; full inline reparses 28; front matter validated 37, reused 291
+  parse reuse fuzz seed 0x72020005 profile 2: 2433 edits compared (1068 deletions, 242 pastes, 276 at start, 249 at end); leaves copied 13324, parsed 15463; full inline reparses 63; front matter validated 74, reused 227
+  parse reuse fuzz seed 0x72020006 profile 2: 2448 edits compared (1076 deletions, 245 pastes, 232 at start, 203 at end); leaves copied 25467, parsed 22949; full inline reparses 44; front matter validated 29, reused 265
+  parse reuse fuzz seed 0x72020007 profile 2: 2443 edits compared (1037 deletions, 252 pastes, 272 at start, 232 at end); leaves copied 18546, parsed 25772; full inline reparses 35; front matter validated 107, reused 255
+  parse reuse fuzz seed 0x72020008 profile 2: 2446 edits compared (1065 deletions, 246 pastes, 287 at start, 203 at end); leaves copied 13376, parsed 18347; full inline reparses 42; front matter validated 36, reused 213
+  parse reuse fuzz seed 0x72020101 profile 1: 972 edits compared (383 deletions, 112 pastes, 96 at start, 80 at end); leaves copied 6117, parsed 6495; full inline reparses 28; front matter validated 0, reused 0
+  parse reuse fuzz seed 0x72020102 profile 1: 981 edits compared (428 deletions, 99 pastes, 100 at start, 78 at end); leaves copied 5283, parsed 7392; full inline reparses 24; front matter validated 0, reused 0
+  parse reuse fuzz seed 0x72020201 profile 0: 973 edits compared (394 deletions, 120 pastes, 96 at start, 92 at end); leaves copied 10548, parsed 8288; full inline reparses 26; front matter validated 0, reused 0
+  parse reuse fuzz total: 22449 edits equal to a full parse; front matter created 215, removed 217; fences opened 170, closed 34; reference resolution changes 632; edits on documents with lazy lines 11923; setext changes 2947
+  parse reuse review-generator fuzz: 11482 edits equal to a full parse (tracked, strings and mixed parsers; 295 undo or redo, 1460 old-snapshot parses)

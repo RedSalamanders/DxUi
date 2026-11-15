@@ -112,14 +112,16 @@
     X(rich, markdownBlockUnitsScanned) /* Source units the Markdown block scanner stepped over; closed roots imported from the previous parse add none. */     \
     X(rich, markdownFrontMatterValidations)       /* YAML or TOML front-matter validations a Markdown parse ran. */                                            \
     X(rich, markdownFrontMatterValidationsReused) /* Front-matter results a Markdown parse carried from its previous parse (unchanged envelope). */            \
-    X(rich, markdownInlineFullReparses)  /* Markdown parses with a previous parse that rebuilt every leaf's inlines (reference definitions changed). */        \
-    X(rich, markdownInlineLeavesCopied)  /* Leaves and opaque HTML blocks whose inline forest a Markdown parse copied, shifted, from its previous parse. */    \
-    X(rich, markdownInlineLeavesParsed)  /* Leaves and opaque HTML blocks whose inlines a Markdown parse built from source. */                                 \
-    X(rich, markdownInlineUnitsScanned)  /* Source units inline parsing read to build parsed leaves and opaque HTML blocks; copied leaves add none. */         \
-    X(rich, markdownLexicalUnitsScanned) /* Source units the Markdown lexical scanner stepped over; prefix and suffix tokens copied add none. */               \
-    X(rich, markdownNodesCopied)         /* Block and inline nodes a Markdown parse copied, shifted, from its previous parse. */                               \
-    X(rich, markdownParses)              /* Markdown parse preparations staged (MarkdownParser::Begin and its variants that did not coalesce). */              \
-    X(rich, markdownSourceUnitsCopied)   /* UTF-16 units written into a Markdown parse's owned source copy. */                                                 \
+    X(rich, markdownInlineFullReparses)     /* Markdown parses with a previous parse that rebuilt every leaf's inlines (reference definitions changed). */     \
+    X(rich, markdownInlineLeavesCopied)     /* Leaves and opaque HTML blocks whose inline forest a Markdown parse copied, shifted, from its previous parse. */ \
+    X(rich, markdownInlineLeavesParsed)     /* Leaves and opaque HTML blocks whose inlines a Markdown parse built from source. */                              \
+    X(rich, markdownInlineUnitsScanned)     /* Source units inline parsing read to build parsed leaves and opaque HTML blocks; copied leaves add none. */      \
+    X(rich, markdownLexicalUnitsScanned)    /* Source units the Markdown lexical scanner stepped over; prefix and suffix tokens copied add none. */            \
+    X(rich, markdownNodesCopied)            /* Block and inline nodes a Markdown parse copied, shifted, from its previous parse. */                            \
+    X(rich, markdownParses)                 /* Markdown parse preparations staged (MarkdownParser::Begin and its variants that did not coalesce). */           \
+    X(rich, markdownReferenceUnitsRead)     /* Source units link reference definition extraction (blocks) and collection (inlines) read. */                    \
+    X(rich, markdownRootTriviaUnitsScanned) /* Source units of trivia lines between top-level blocks the root partition scanned; copied lines add none. */     \
+    X(rich, markdownSourceUnitsCopied)      /* UTF-16 units written into a Markdown parse's owned source copy. */                                              \
     X(rich, markdownSourceUnitsMaterialized) /* Of those, units read out of the document's piece tree rather than the previous parse's source. */              \
     X(rich, mathPreparations)                /* Prepared math formulas built (beside the testRichMathPreparations seam). */                                    \
     X(rich, otherDocumentBytesCopied)        /* Bytes copied out of any other RichText::Document (code-fence line numbers, labels, scratch documents). */      \

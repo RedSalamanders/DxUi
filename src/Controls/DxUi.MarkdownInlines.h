@@ -254,6 +254,9 @@ class MarkdownInlines
     void CollectReference()
     {
         const auto& block = blocks_[referenceCursor_++];
+        if (block.block.kind == MarkdownBlockKind::ReferenceDefinition || block.block.kind == MarkdownBlockKind::FootnoteDefinition)
+            ::DxUi::Detail::Work().rich.markdownReferenceUnitsRead +=
+                (block.label.last - block.label.first) + (block.destination.last - block.destination.first) + (block.title.last - block.title.first);
         if (block.block.kind == MarkdownBlockKind::FootnoteDefinition)
         {
             footnotes_.emplace_back();

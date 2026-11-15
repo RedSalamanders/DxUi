@@ -50,7 +50,7 @@ struct InsertKind
     std::size_t inserts{}, boundMinimum = static_cast<std::size_t>(-1), boundMaximum{}, overBound{};
     std::uint64_t blockMaximum{}, lexicalMaximum{}, inlineMaximum{}, blockTotal{}, lexicalTotal{}, inlineTotal{};
     std::uint64_t leavesParsed{}, leavesCopied{}, nodesCopied{}, identityMapNodes{}, frontMatterValidations{}, sourceCopied{}, sourceMaterialized{};
-    std::uint64_t allocations{}, allocationBytes{}, fullInlineReparses{};
+    std::uint64_t allocations{}, allocationBytes{}, fullInlineReparses{}, triviaMaximum{}, referenceMaximum{};
 };
 
 inline std::shared_ptr<const MarkdownSyntax> Parse(MarkdownParser& parser, const Document& document)
@@ -83,10 +83,13 @@ inline InsertKind MeasureInserts(std::string name, const std::wstring& text, std
         const auto bound  = EnclosingAndNext(*syntax, at);
         kind.boundMinimum = (std::min)(kind.boundMinimum, bound);
         kind.boundMaximum = (std::max)(kind.boundMaximum, bound);
-        kind.overBound += work.markdownBlockUnitsScanned > bound || work.markdownLexicalUnitsScanned > bound || work.markdownInlineUnitsScanned > bound;
-        kind.blockMaximum   = (std::max)(kind.blockMaximum, work.markdownBlockUnitsScanned);
-        kind.lexicalMaximum = (std::max)(kind.lexicalMaximum, work.markdownLexicalUnitsScanned);
-        kind.inlineMaximum  = (std::max)(kind.inlineMaximum, work.markdownInlineUnitsScanned);
+        kind.overBound += work.markdownBlockUnitsScanned > bound || work.markdownLexicalUnitsScanned > bound || work.markdownInlineUnitsScanned > bound ||
+                          work.markdownRootTriviaUnitsScanned > bound || work.markdownReferenceUnitsRead > bound;
+        kind.triviaMaximum    = (std::max)(kind.triviaMaximum, work.markdownRootTriviaUnitsScanned);
+        kind.referenceMaximum = (std::max)(kind.referenceMaximum, work.markdownReferenceUnitsRead);
+        kind.blockMaximum     = (std::max)(kind.blockMaximum, work.markdownBlockUnitsScanned);
+        kind.lexicalMaximum   = (std::max)(kind.lexicalMaximum, work.markdownLexicalUnitsScanned);
+        kind.inlineMaximum    = (std::max)(kind.inlineMaximum, work.markdownInlineUnitsScanned);
         kind.blockTotal += work.markdownBlockUnitsScanned;
         kind.lexicalTotal += work.markdownLexicalUnitsScanned;
         kind.inlineTotal += work.markdownInlineUnitsScanned;
@@ -107,33 +110,36 @@ inline InsertKind MeasureInserts(std::string name, const std::wstring& text, std
 inline void Print(std::string_view shape, std::size_t units, const InsertKind& kind)
 {
     const auto n = static_cast<double>(kind.inserts);
-    std::cout << std::format("  W7.2 parse {} ({} units) {}: {} inserts; bound (enclosing + next block) {}..{} units; scanned per insert max/avg: "
-                             "block {}/{:.0f}, lexical {}/{:.0f}, inline {}/{:.0f}; over bound {}; per insert avg: leaves parsed {:.1f}, copied {:.1f}; "
-                             "nodes copied {:.0f}; identity map nodes {:.0f}; front-matter validations {:.2f}; source units copied {:.0f}, from the "
-                             "piece tree {:.0f}; full inline reparses {}; allocations {:.0f} ({:.0f} bytes)\n",
-                             shape,
-                             units,
-                             kind.name,
-                             kind.inserts,
-                             kind.boundMinimum,
-                             kind.boundMaximum,
-                             kind.blockMaximum,
-                             static_cast<double>(kind.blockTotal) / n,
-                             kind.lexicalMaximum,
-                             static_cast<double>(kind.lexicalTotal) / n,
-                             kind.inlineMaximum,
-                             static_cast<double>(kind.inlineTotal) / n,
-                             kind.overBound,
-                             static_cast<double>(kind.leavesParsed) / n,
-                             static_cast<double>(kind.leavesCopied) / n,
-                             static_cast<double>(kind.nodesCopied) / n,
-                             static_cast<double>(kind.identityMapNodes) / n,
-                             static_cast<double>(kind.frontMatterValidations) / n,
-                             static_cast<double>(kind.sourceCopied) / n,
-                             static_cast<double>(kind.sourceMaterialized) / n,
-                             kind.fullInlineReparses,
-                             static_cast<double>(kind.allocations) / n,
-                             static_cast<double>(kind.allocationBytes) / n);
+    std::cout << std::format(
+        "  W7.2 parse {} ({} units) {}: {} inserts; bound (enclosing + next block) {}..{} units; scanned per insert max/avg: "
+        "block {}/{:.0f}, lexical {}/{:.0f}, inline {}/{:.0f}; over bound {}; per insert avg: leaves parsed {:.1f}, copied {:.1f}; "
+        "nodes copied {:.0f}; identity map nodes {:.0f}; front-matter validations {:.2f}; source units copied {:.0f}, from the "
+        "piece tree {:.0f}; full inline reparses {}; allocations {:.0f} ({:.0f} bytes); root trivia scanned max {}, reference units read max {}\n",
+        shape,
+        units,
+        kind.name,
+        kind.inserts,
+        kind.boundMinimum,
+        kind.boundMaximum,
+        kind.blockMaximum,
+        static_cast<double>(kind.blockTotal) / n,
+        kind.lexicalMaximum,
+        static_cast<double>(kind.lexicalTotal) / n,
+        kind.inlineMaximum,
+        static_cast<double>(kind.inlineTotal) / n,
+        kind.overBound,
+        static_cast<double>(kind.leavesParsed) / n,
+        static_cast<double>(kind.leavesCopied) / n,
+        static_cast<double>(kind.nodesCopied) / n,
+        static_cast<double>(kind.identityMapNodes) / n,
+        static_cast<double>(kind.frontMatterValidations) / n,
+        static_cast<double>(kind.sourceCopied) / n,
+        static_cast<double>(kind.sourceMaterialized) / n,
+        kind.fullInlineReparses,
+        static_cast<double>(kind.allocations) / n,
+        static_cast<double>(kind.allocationBytes) / n,
+        kind.triviaMaximum,
+        kind.referenceMaximum);
 }
 
 // The fixture's text with a YAML front matter in front and a list (with a lazy continuation line) before the first math
@@ -216,7 +222,8 @@ inline void TestFx8ParseWorkPerInsert()
                 block            = (std::max)(block, work.markdownBlockUnitsScanned);
                 lexical          = (std::max)(lexical, work.markdownLexicalUnitsScanned);
                 inlineUnits      = (std::max)(inlineUnits, work.markdownInlineUnitsScanned);
-                overBound += work.markdownBlockUnitsScanned > bound || work.markdownLexicalUnitsScanned > bound || work.markdownInlineUnitsScanned > bound;
+                overBound += work.markdownBlockUnitsScanned > bound || work.markdownLexicalUnitsScanned > bound || work.markdownInlineUnitsScanned > bound ||
+                             work.markdownRootTriviaUnitsScanned > bound || work.markdownReferenceUnitsRead > bound;
                 unparsed += work.markdownParses == 0u;
                 frontMatter += work.markdownFrontMatterValidations;
             }

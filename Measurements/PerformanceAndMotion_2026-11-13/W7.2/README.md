@@ -57,3 +57,20 @@ previous publication); C++ allocations 13,651 → 8,515, requested bytes 6.67 MB
 What remains O(document) per edit: every imported node, inline and lexeme is copied with its absolute range shifted, and
 the root, compaction and identity passes visit every record once. The public `Nodes()`, `Inlines()`, `Lexemes()` and a
 contiguous `Source()` require it; removing it is a public-type change (API revision 6, W7.1 part 2).
+
+## Review follow-up (F1, F2)
+
+- **F1**: a top-level block is imported only if its first line began fresh in the previous parse (no document-level
+  leaf or table row open; recorded per publication) and, after the edit, only if the line after it also began fresh
+  (a document blank line follows it, or only such lines precede a next block that began fresh, or it reaches the end).
+  Directed cases `TestMarkdownParseReuseDirectedCases` (the review's reproductions and two found by the long run below).
+- **Long oracle runs** (`DXUI_MARKDOWN_REUSE_FUZZ_SCALE=7`, Release, once each, [file](after-oracle-long-x64-release.txt)):
+  seeds as in the suite: 156,836 + 80,199 = 237,035 compared edits; seeds offset by `0x51000`: 156,948 + 80,601 =
+  237,549. All equal to a full parse (the review-generator count is steps, each compared on the tracked, string and
+  mixed parsers). The first long run before the end condition found one wrong tree (a paragraph whose last line had
+  become a table header was imported, then the line after it parsed with nothing open); it is a directed case now.
+- **F2**: every source read of the parser is counted. At 65,280 units per one-character insert (every kind above):
+  root-partition trivia units scanned 0 (unchanged trivia lines are copied), reference units read 0 (FX8 has no link
+  reference definitions). Generated table cells read no source (the cells come from the row split of a scanned line).
+  The remaining whole-document read is link reference definitions: a top-level block holding one is never imported,
+  so it is scanned, and every definition is collected, on every edit (`rich.markdownReferenceUnitsRead`).

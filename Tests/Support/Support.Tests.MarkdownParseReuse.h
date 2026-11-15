@@ -149,7 +149,7 @@ inline std::string IdentityDifference(const MarkdownSyntax& old, const MarkdownS
 // ---- Seeded edit fuzz -------------------------------------------------------------------------------------------------
 
 // Block pieces a fuzz document is assembled from; each also serves as a multi-line paste.
-inline constexpr std::array<std::wstring_view, 22> kPieces{
+inline constexpr std::array<std::wstring_view, 31> kPieces{
     L"# Heading *one* with [ref]\n\n",
     L"Paragraph with [ref], [text][ref2], *em*, **strong**, `code`, <span>raw</span>, https://example.com/x and [[Wiki|label]].\n"
     L"Lazy second line with $x^2$ math and a note[^n1].\n\n",
@@ -173,6 +173,16 @@ inline constexpr std::array<std::wstring_view, 22> kPieces{
     L"<!-- comment\nspanning -->\nafter comment\n\n",
     L"A line\n    not code (lazy)\n> quote\ncontinued lazily\n\n",
     L"[ref]: /redefined\n\n",
+    // Review F1: blocks born from a paragraph's tail or from definition extraction, which a fresh start parses differently.
+    L"[a]: /u\n-\n\n",
+    L"[a]: /u\n=\n\n",
+    L"[a]: /u\n- - -\n\n",
+    L"[a]: /u\n* * *\n\n",
+    L"Para\n-\n\nPara\n- - -\n\nPara\n* * *\n\n",
+    L"intro\nhead | er\n--- | ---\ncell | x\n\n",
+    L"[r]: /u\n-|-\nrow\n\n",
+    L"[a]: /u\nTitle\n===\n\n[b]: /v\nSub\n---\n\n",
+    L"[o]:-->\n-\n",
 };
 inline constexpr std::array<std::wstring_view, 3> kFrontMatter{
     L"---\ntitle: Fuzz\ntags: [a, b]\n---\n",
@@ -362,6 +372,354 @@ template <typename Check> inline FuzzResult RunEditFuzz(std::uint64_t seed, std:
         result.setextChanges += CountKind(*previous, MarkdownBlockKind::SetextHeading) != CountKind(*incremental, MarkdownBlockKind::SetextHeading);
         result.lazyDocuments += HasLazyLine(*incremental);
         previous = incremental;
+    }
+    return result;
+}
+
+// ---- Second, independent document source: the W7.2 review's generator --------------------------------------------------
+// Ported from the independent review's differential fuzz: container, setext, table, HTML-type, reference-folding and
+// footnote pieces; LF, CRLF, CR or mixed line endings; edits biased to line starts (and one unit either side), long
+// deletions to the next line start, undo and redo; tracked, string and mixed parsers (the mixed one is started on old
+// snapshots, advanced partly, cancelled or given an adopted parse before each comparison).
+inline const std::array<std::wstring_view, 59> kReviewPieces{
+    L"- a\n\t- b\n  \t- c\n    d\n",
+    L"1) x\n   - y\n\n     z\n",
+    L"* a\n\n\n  b\n",
+    L"- a\n\n- b\n",
+    L"-\n  foo\n",
+    L"> ```\n> code\n> ```\n> - i\n>   cont\n",
+    L"> - item\nlazy\n",
+    L"> quote\n>\n> > nested\nlazy\n",
+    L"Para\n---\n",
+    L"Para\n- - -\n",
+    L"Para\n* * *\n",
+    L"Para\n===\n",
+    L"Para\n- x\n",
+    L"Para\n2. x\n",
+    L"a | b\n--- | ---\nc | d\n",
+    L"| x |\n|---|\n|y|\n",
+    L"a | b\n",
+    L"--- | ---\n",
+    L"<script>\nx\n\ny\n</script>\n",
+    L"<pre>\n\n</pre>\n",
+    L"<style>a</style>\n",
+    L"<!-- c\n\n-->\n",
+    L"<?php\n\n?>\n",
+    L"<!DOCTYPE html>\n",
+    L"<![CDATA[\nx\n\n]]>\n",
+    L"<div>\nx\n\ny\n",
+    L"<custom-tag>\nx\n\n",
+    L"<a href=\"x\">\n*b*\n",
+    L"p\n    code\n",
+    L"    code\n\n\n    more\n",
+    L"\tcode tab\n",
+    L"[Foo Bar]:\n  /url\n  'title'\n",
+    L"[foo bar]: /other\n",
+    L"[FOO\tbar]: /x \"t\"\n",
+    L"[\u1E9E]: /sharp\n",
+    L"[ss]: /ss\n",
+    L"[a]: <b c>\n",
+    L"[foo bar] [Foo  Bar] [ss] [SS] [\u1E9E] [a][] ![a] [x][a]\n",
+    L"[^x]: note\n",
+    L"see[^x] and [^y] and [^z]\n",
+    L"[^y]:\n    indented\n\n    more\n",
+    L"\U0001F600 *x\U0001F600* _\U0001F600_\n",
+    L"$$\nx\n$$\n",
+    L"**a*b***c _a_b_ __x__y\n",
+    L"a  \nb\\\nc\n",
+    L"&amp; &#x1F600; &nbsp &copy;\n",
+    L"# H *x* #\n",
+    L"   # h\n",
+    L"~~~ info\n~~~~\n",
+    L"````\n```\n````\n",
+    L"https://a.b/c www.x.y foo@bar.com <http://u>\n",
+    L"[[Wiki|label]] [[x]]\n",
+    L"`a\nb`\n",
+    L"\n",
+    L"\n\n",
+    L"  \n",
+    L"\t\n",
+    L"text\n",
+    L"text",
+};
+inline const std::array<std::wstring_view, 8> kReviewFrontMatter{
+    L"---\na: 1\n---\n",
+    L"---  \na: 1\n---\n",
+    L"\uFEFF---\na: 1\n---\n",
+    L"+++\na = 1\n+++\n",
+    L"---\na: 1\nb: [\n---\n",
+    L"\n---\na: 1\n---\n",
+    L"---\na: 1\n...\n",
+    L"---\na: 1\na: 2\n---\n",
+};
+inline const std::array<std::wstring_view, 61> kReviewTokens{
+    L"\n",
+    L"\r",
+    L"\r\n",
+    L"\t",
+    L" ",
+    L">",
+    L"-",
+    L"*",
+    L"_",
+    L"=",
+    L"#",
+    L"`",
+    L"~",
+    L"|",
+    L"[",
+    L"]",
+    L":",
+    L"^",
+    L"!",
+    L"<",
+    L"&",
+    L"\\",
+    L"$",
+    L"+",
+    L".",
+    L"1",
+    L"a",
+    L"---",
+    L"- ",
+    L"1. ",
+    L"2) ",
+    L"    ",
+    L"```",
+    L"~~~",
+    L"<div>",
+    L"</div>",
+    L"-->",
+    L"]]>",
+    L"?>",
+    L"</script>",
+    L"[foo bar]: /n\n",
+    L"[^x]: n\n",
+    L"[^y]",
+    L"| - |",
+    L"\n\n",
+    L"\U0001F600",
+    L"> ",
+    L"* * *",
+    L"- - -",
+    L"===",
+    L"+++",
+    L"[ss]: /new\n",
+    L"[SS]: /shadow\n",
+    L"\n---\n",
+    L"<!--",
+    L"<?",
+    L"<![CDATA[",
+    L"<pre>",
+    L"\uFEFF",
+    L"\r\r",
+    L"\n\r",
+};
+
+struct ReviewFuzzResult
+{
+    std::size_t compared{}, undoRedo{}, mixedOld{}, adoptions{};
+};
+
+template <typename Check> inline ReviewFuzzResult RunReviewFuzz(std::uint64_t seed, std::size_t edits, MarkdownProfile profile, Check&& check)
+{
+    std::mt19937_64 random(seed);
+    const auto pick    = [&](std::size_t count) { return static_cast<std::size_t>(random() % count); };
+    const auto endings = [&](std::wstring_view text, std::size_t mode)
+    {
+        std::wstring out;
+        for (const auto c : text)
+        {
+            if (c != L'\n')
+            {
+                out += c;
+                continue;
+            }
+            const auto m = mode == 3u ? pick(3u) : mode;
+            out += m == 0u ? L"\n" : m == 1u ? L"\r\n" : L"\r";
+        }
+        return out;
+    };
+    const auto ending = pick(5u) % 4u;
+    std::wstring text;
+    if (profile == MarkdownProfile::RichMarkdown && pick(2u) == 0u)
+        text += kReviewFrontMatter[pick(kReviewFrontMatter.size())];
+    for (std::size_t piece = 0u, count = 6u + pick(14u); piece < count; ++piece)
+    {
+        text += kReviewPieces[pick(kReviewPieces.size())];
+        if (pick(2u))
+            text += L"\n";
+    }
+    text = endings(text, ending);
+    std::vector<std::wstring> pieces;
+    for (const auto piece : kReviewPieces)
+        pieces.push_back(endings(piece, ending));
+    const auto fresh = [&](std::wstring_view source, std::uint64_t revision)
+    {
+        MarkdownParser parser;
+        parser.Begin(source, revision, profile);
+        return Complete(parser, check);
+    };
+    const auto run = [&](MarkdownParser& parser, std::size_t budget)
+    {
+        while (parser.HasPendingPreparation())
+            check(parser.Advance(budget).status != MarkdownPreparationStatus::Failed, "a review-fuzz parse completes within the node capacity");
+        return parser.Published();
+    };
+    const auto compare = [&](const MarkdownSyntax& actual, const MarkdownSyntax& expected, const char* path, std::size_t step)
+    {
+        const auto difference = FirstDifference(actual, expected);
+        if (! difference.empty())
+            std::cout << std::format("  review fuzz seed 0x{:X} step {} ({}): {}\n  source: {}\n", seed, step, path, difference, Escape(expected.Source()));
+        check(difference.empty(), "an incremental parse (review generator) publishes the tree a full parse publishes");
+    };
+    Document document(text);
+    MarkdownParser tracked, strings, mixed;
+    tracked.Begin(document.Snapshot(), document.Revision(), profile);
+    strings.Begin(document.Text(), document.Revision(), profile);
+    mixed.Begin(document.Snapshot(), document.Revision(), profile);
+    static_cast<void>(run(tracked, 1u << 16u));
+    static_cast<void>(run(strings, 1u << 16u));
+    static_cast<void>(run(mixed, 1u << 16u));
+    std::vector<std::pair<SourceSnapshot, std::uint64_t>> history;
+    ReviewFuzzResult result;
+    for (std::size_t step = 0u; step < edits; ++step)
+    {
+        const auto current = document.Text();
+        const auto length  = current.size();
+        bool changed{};
+        const auto operation = pick(40u);
+        if (operation == 0u && document.CanUndo())
+        {
+            changed = document.Undo();
+            result.undoRedo += changed;
+        }
+        else if (operation == 1u && document.CanRedo())
+        {
+            changed = document.Redo();
+            result.undoRedo += changed;
+        }
+        else
+        {
+            std::vector<std::size_t> starts{0u};
+            for (std::size_t at = 0u; at < length; ++at)
+                if (current[at] == L'\n' || (current[at] == L'\r' && (at + 1u == length || current[at + 1u] != L'\n')))
+                    starts.push_back(at + 1u);
+            std::size_t first{}, last{};
+            std::wstring insert;
+            const auto where = pick(10u);
+            if (where == 1u)
+                first = length;
+            else if (where >= 2u && where < 6u)
+            {
+                first            = starts[pick(starts.size())];
+                const auto nudge = pick(5u);
+                if (nudge == 1u && first > 0u)
+                    --first;
+                else if (nudge == 2u && first < length)
+                    ++first;
+            }
+            else if (where >= 6u)
+                first = pick(length + 1u);
+            const auto kind = pick(20u);
+            if (kind < 11u)
+            {
+                insert = kReviewTokens[pick(kReviewTokens.size())];
+                if (pick(4u) == 0u)
+                    insert += kReviewTokens[pick(kReviewTokens.size())];
+            }
+            else if (kind < 14u)
+            {
+                insert = pieces[pick(pieces.size())];
+                if (pick(3u) == 0u)
+                    insert += pieces[pick(pieces.size())];
+                if (pick(3u) == 0u && insert.size() > 1u)
+                    insert = insert.substr(pick(insert.size()));
+            }
+            else if (kind == 14u)
+                insert = kReviewFrontMatter[pick(kReviewFrontMatter.size())];
+            last = first;
+            if (kind >= 15u || pick(5u) == 0u)
+            {
+                const auto mode = pick(4u);
+                if (mode == 0u)
+                    last = first + 1u;
+                else if (mode == 1u)
+                    last = first + 1u + pick(8u);
+                else if (mode == 2u)
+                    last = first + 1u + pick(200u);
+                else
+                {
+                    const auto next  = std::upper_bound(starts.begin(), starts.end(), first);
+                    last             = next == starts.end() ? length : *next;
+                    const auto nudge = pick(3u);
+                    if (nudge == 1u && last > first)
+                        --last;
+                    else if (nudge == 2u)
+                        ++last;
+                }
+            }
+            last = (std::min)(last, length);
+            if (last < first)
+                last = first;
+            while (first > 0u && ! IsEditBoundary(current, first))
+                --first;
+            while (last < length && ! IsEditBoundary(current, last))
+                ++last;
+            if (length - (last - first) + insert.size() > 6000u)
+            {
+                first = 0u;
+                last  = length / 2u;
+                while (last < length && ! IsEditBoundary(current, last))
+                    ++last;
+                insert.clear();
+            }
+            if (document.TryReplace(first, last, insert, {first + insert.size(), first + insert.size()}, changed) != SourceResult::Success)
+                continue;
+        }
+        if (! changed)
+            continue;
+        const auto now = document.Text();
+        history.push_back({document.Snapshot(), document.Revision()});
+        if (history.size() > 64u)
+            history.erase(history.begin());
+        const auto expected = fresh(now, document.Revision());
+        tracked.Begin(document.Snapshot(), document.Revision(), profile);
+        compare(*run(tracked, 1u + pick(1u << 12u)), *expected, "tracked", step);
+        strings.Begin(now, document.Revision(), profile);
+        compare(*run(strings, 1u << 16u), *expected, "strings", step);
+        const auto how = pick(8u);
+        if (how == 0u && history.size() > 2u)
+        {
+            const auto& old = history[pick(history.size())];
+            mixed.Begin(old.first, old.second, profile);
+            static_cast<void>(mixed.Advance(1u + pick(200u)));
+        }
+        else if (how == 1u && history.size() > 2u)
+        {
+            const auto& old = history[pick(history.size())];
+            mixed.Begin(old.first, old.second, profile);
+            compare(*run(mixed, 1u << 16u), *fresh(old.first.Text(), old.second), "mixed-old", step);
+            ++result.mixedOld;
+        }
+        else if (how == 2u)
+        {
+            check(mixed.TryAdoptParsedSnapshot(document.Snapshot(), document.Revision(), expected, profile), "the mixed parser adopts an exact parse");
+            ++result.adoptions;
+        }
+        else if (how == 3u)
+        {
+            mixed.Begin(now, document.Revision(), profile);
+            static_cast<void>(mixed.Advance(1u + pick(50u)));
+        }
+        else if (how == 4u)
+            mixed.Cancel();
+        if (how != 2u)
+        {
+            mixed.Begin(document.Snapshot(), document.Revision(), profile);
+            compare(*run(mixed, 1u + pick(1u << 10u)), *expected, "mixed", step);
+        }
+        ++result.compared;
     }
     return result;
 }

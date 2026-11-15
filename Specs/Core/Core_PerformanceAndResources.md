@@ -120,8 +120,11 @@ only when its envelope may have changed. Imports are copies with shifted absolut
 root and identity passes still visit every published record once per revision, and the owned source is one complete
 copy (prefix and suffix from the previous publication, the edit window from the piece tree). Work counters
 `rich.markdownBlockUnitsScanned`, `rich.markdownLexicalUnitsScanned`, `rich.markdownInlineUnitsScanned`,
-`rich.markdownFrontMatterValidations` and their copy counterparts record it; on `FX8` each scan of a one-character
-insert stays within the enclosing block plus the next. Lexical reference recognition examines at most
+`rich.markdownFrontMatterValidations`, `rich.markdownRootTriviaUnitsScanned` (trivia lines of the root partition;
+unchanged ones are copied), `rich.markdownReferenceUnitsRead` and their copy counterparts record it; on `FX8` each of
+these source reads of a one-character insert stays within the enclosing block plus the next. Link reference
+definitions are the remaining whole-document source read: a top-level block holding one is scanned, and every
+definition is collected, on every edit. Lexical reference recognition examines at most
 33 source units per candidate and uses a fixed sorted standard-data table.
 Native tests bound scanner/root/index/reconciliation steps by
 16 * (current source units + previous source units) + 32. M3 adds global-reference,

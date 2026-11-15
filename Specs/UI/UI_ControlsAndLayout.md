@@ -1645,7 +1645,21 @@ A stable cut is the start of a top-level block where, in the new parse, only the
 document is open (no open container, leaf or table row), the position lies wholly
 before the edit with an unchanged document-owned blank line after the old block,
 or wholly after it at the shifted start of an old closed non-empty top-level
-block, and the document-start context is unchanged. That block's whole subtree is
+block, and the document-start context is unchanged. The old block must also have
+begun fresh: the recognizer records, per publication, the top-level starts whose
+first line it processed with no document-level leaf or table row open (containers
+that line closed do not matter: a line that starts a top-level block matched none
+of them), and only those are imported. A block born from the tail of a paragraph (a table whose header was
+the paragraph's last line), from reference-definition extraction (the leftover of
+a definition followed by a lone `-`) or from a container's leftover depended on
+what was open before it and is parsed again, whatever its kind. A block that began
+with nothing open parses identically from that state, which is the state the new
+parse has at its shifted start. After an imported block the new parse continues
+with nothing open, so a block after the edit is imported only if the previous
+parse also began the line after it fresh: an unchanged document-owned blank line
+follows it, or only document-owned blank lines separate it from a next block that
+began fresh, or it reaches the end (a paragraph whose last line became a table
+header was still open at that line). That block's whole subtree is
 then imported: its nodes, lines and owned empty lines are copied with their
 source ranges shifted by the edit delta; a document-level blank line at such a
 position is copied the same way. A line before the edit counts as unchanged only
@@ -1671,8 +1685,14 @@ and is not validated again; creating, editing, unclosing or destroying the
 envelope validates it. Node-capacity admission counts a copied leaf's previous
 staging, so the incremental and fresh parses refuse the same documents. The owned
 source copy takes the unchanged prefix and suffix from the previous publication
-and reads only the edit window from the snapshot's piece tree. Reused nodes are
-copied, not shared: each publication still holds dense absolute-range vectors.
+and reads only the edit window from the snapshot's piece tree. Unchanged trivia
+lines between top-level blocks keep their previous root-partition entries,
+shifted. A top-level block holding a link reference definition is never imported,
+so it is scanned on every edit, and definition collection reads every definition's
+label, destination and title on every edit: a document's definitions are a
+whole-document cost per edit, counted (`rich.markdownReferenceUnitsRead`). Reused
+nodes are copied, not shared: each publication still holds dense absolute-range
+vectors.
 
 Prefer Begin(SourceSnapshot, ...):
 tracked source ancestry distinguishes equal paragraphs and pending sibling edits.

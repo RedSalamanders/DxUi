@@ -19,3 +19,14 @@
   `rich.markdownInlineFullReparses`, `rich.markdownInlineLeavesCopied`, `rich.markdownInlineLeavesParsed`,
   `rich.markdownInlineUnitsScanned`, `rich.markdownLexicalUnitsScanned`, `rich.markdownNodesCopied`,
   `rich.markdownParses`, `rich.markdownSourceUnitsCopied`, `rich.markdownSourceUnitsMaterialized`.
+  Review follow-up: a top-level block is imported only if, in the previous parse, its first line began fresh (no
+  document-level leaf or table row open; recorded per publication); a table whose header was a paragraph's last line, or a paragraph
+  left over after reference-definition extraction (a definition followed by a lone `-`), was imported after an edit
+  that made it start fresh and gave a different tree, on the tracked and the string path. A block after the edit is also
+  imported only if the previous parse had nothing open after it (a following document blank line, or only such lines
+  before a next block that began fresh, or the end): a paragraph whose last line later became a table header was
+  imported and the line after it parsed with nothing open. Unchanged trivia lines of
+  the root partition are copied instead of scanned, and reference extraction and collection reads are counted
+  (`rich.markdownRootTriviaUnitsScanned`, `rich.markdownReferenceUnitsRead`): link reference definitions remain a
+  whole-document read per edit. The oracle adds directed cases and the independent review's generator as a second
+  source of documents.

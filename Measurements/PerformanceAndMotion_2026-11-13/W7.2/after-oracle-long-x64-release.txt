@@ -1,0 +1,4 @@
+  parse reuse fuzz total: 156836 edits equal to a full parse; front matter created 1424, removed 1425; fences opened 831, closed 259; reference resolution changes 3402; edits on documents with lazy lines 111692; setext changes 14976
+  parse reuse review-generator fuzz: 80199 edits equal to a full parse (tracked, strings and mixed parsers; 2185 undo or redo, 10003 old-snapshot parses)
+  parse reuse fuzz total: 156948 edits equal to a full parse; front matter created 1430, removed 1433; fences opened 834, closed 289; reference resolution changes 3381; edits on documents with lazy lines 111638; setext changes 14715
+  parse reuse review-generator fuzz: 80601 edits equal to a full parse (tracked, strings and mixed parsers; 2147 undo or redo, 10175 old-snapshot parses)

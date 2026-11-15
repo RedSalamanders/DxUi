@@ -126,15 +126,19 @@ bool CharacterReference(std::wstring_view source, std::size_t first, MarkdownLex
 
 // Incremental parse reuse (plan item W7.2). What a publication carries for its parser's next parse travels in the
 // deleter of the publication's own shared_ptr control block, so the public type keeps its layout: the effective link
-// reference definitions, the inline staging of each leaf and the physical line count. A publication without it (an
-// adopted parse) is never a reuse source.
+// reference definitions, the inline staging of each leaf, the physical line count and the fresh top-level starts. A
+// publication without it (an adopted parse) is never a reuse source.
 struct ReuseState
 {
-    ReuseState() : references(0u), leafStaging(0u)
+    ReuseState() : references(0u), leafStaging(0u), freshRoots(0u)
     {
     }
     std::vector<Detail::MarkdownReferenceValue> references;
     std::vector<std::uint32_t> leafStaging;
+    // Sorted source starts of the top-level blocks whose first line the block recognizer began with no document-level
+    // leaf or table row open (containers that line closed do not matter). Only these can be imported: a block born from a paragraph's tail (a table header, the
+    // leftover of reference-definition extraction) or from a container's leftover depended on what was open before it.
+    std::vector<std::size_t> freshRoots;
     std::size_t physicalLines{};
 };
 struct SyntaxDeleter
@@ -499,6 +503,34 @@ struct MarkdownParser::Preparation
     std::size_t reuseFirst{}, reuseOldEnd{}, reuseNewEnd{}, sourceLines{};
     std::vector<Detail::MarkdownImportedSubtree> importedSubtrees = std::vector<Detail::MarkdownImportedSubtree>(0u);
     std::size_t importedRootCursor{}, identitySubtree{}, oldSkip{};
+    // Line starts this parse reached with no document-level leaf or table row open, then the top-level starts among them (W7.2).
+    std::vector<std::size_t> freshLines = std::vector<std::size_t>(0u);
+    std::vector<std::size_t> freshRoots = std::vector<std::size_t>(0u);
+    std::size_t freshCursor{};
+    bool FreshInPrevious(std::size_t start) const noexcept
+    {
+        return std::binary_search(previousState->freshRoots.begin(), previousState->freshRoots.end(), start);
+    }
+    // After an imported block the new parse continues with nothing open. That matches the previous parse only if it too
+    // had nothing open at the next top-level block: separated by document-level blank lines alone, the next block began
+    // fresh, or the block reached the end. A paragraph whose last line became a table header, for example, was still
+    // open at the next line.
+    bool EndsAtFreshStart(std::size_t start) const noexcept
+    {
+        const auto& roots = previous->Blocks();
+        const auto blanks = previous->EmptyLines();
+        auto at           = std::lower_bound(roots.begin(), roots.end(), start, [](const auto& block, auto position) { return block.source.first < position; });
+        if (at == roots.end() || at->source.first != start)
+            return false;
+        for (++at; at != roots.end() && at->kind == MarkdownBlockKind::BlankLine; ++at)
+        {
+            const auto blank =
+                std::lower_bound(blanks.begin(), blanks.end(), at->source.first, [](const auto& line, auto position) { return line.source.first < position; });
+            if (blank == blanks.end() || blank->source.first != at->source.first || blank->owner != 0u)
+                return false;
+        }
+        return at == roots.end() || FreshInPrevious(at->source.first);
+    }
     void SetPrevious(std::shared_ptr<const MarkdownSyntax> old, std::uint64_t document, std::uint64_t next)
     {
         syntax->documentIdentity_ = document;
@@ -933,6 +965,8 @@ struct MarkdownParser::Preparation
         }
         if (blocks.AdvanceTableCell())
             return;
+        if (cursor == lineFirst && blocks.StartsFresh() && (freshLines.empty() || freshLines.back() != cursor))
+            freshLines.push_back(cursor);
         const auto& source = blockSource;
         if (reuse && cursor == lineFirst && blocks.CanImportClosedRoot())
         {
@@ -970,8 +1004,11 @@ struct MarkdownParser::Preparation
                         const bool sameStartContext = (cursor == 0u) == (oldPosition == 0u);
                         // Other suffix closure remains valid through EOF; prefix
                         // roots require an unchanged document-owned separator.
+                        // The old block must also have begun with nothing open: then it parses the same from this
+                        // state, which is the state the new parse has here (nothing open but the document).
                         if (sameStartContext && (followingBlank || suffix || closedEnvelope) && old.block.closed &&
-                            old.block.source.last > old.block.source.first)
+                            old.block.source.last > old.block.source.first && FreshInPrevious(old.block.source.first) &&
+                            (! suffix || followingBlank || EndsAtFreshStart(old.block.source.first)))
                         {
                             closedRoot.emplace();
                             closedRoot->root = closedRoot->scan = reusableRootIndex - 1u;
@@ -1036,6 +1073,10 @@ struct MarkdownParser::Preparation
                 previous->Nodes()[importedSubtrees[importedRootCursor].oldFirst].block.kind == root.block.kind &&
                 rootNode + importedSubtrees[importedRootCursor].count <= syntax->nodes_.size())
                 importedSubtrees[importedRootCursor++].first = rootNode;
+            while (freshCursor < freshLines.size() && freshLines[freshCursor] < root.block.source.first)
+                ++freshCursor;
+            if (freshCursor < freshLines.size() && freshLines[freshCursor] == root.block.source.first)
+                freshRoots.push_back(root.block.source.first);
             roots.push_back(syntax->nodes_[rootNode].block);
             rootCursor = roots.back().source.last;
             rootNode   = syntax->nodes_[rootNode].nextSibling;
@@ -1043,6 +1084,22 @@ struct MarkdownParser::Preparation
         else if (rootCursor < syntax->source_.size())
         {
             const auto first = rootCursor;
+            // An unchanged trivia line keeps its previous partition entry, shifted (W7.2): no unit of it is read.
+            if (reuse && (first < reuseFirst || first >= reuseNewEnd))
+            {
+                const auto oldFirst  = first < reuseFirst ? first : reuseOldEnd + (first - reuseNewEnd);
+                const auto& oldRoots = previous->Blocks();
+                const auto old       = std::lower_bound(
+                    oldRoots.begin(), oldRoots.end(), oldFirst, [](const auto& block, auto position) { return block.source.first < position; });
+                if (old != oldRoots.end() && old->kind == MarkdownBlockKind::BlankLine && old->source.first == oldFirst && old->source.last > oldFirst &&
+                    (first >= reuseNewEnd || LineEndsBefore(old->source.last)) &&
+                    (rootNode == MarkdownNoNode || first + (old->source.last - oldFirst) <= syntax->nodes_[rootNode].block.source.first))
+                {
+                    rootCursor = first + (old->source.last - oldFirst);
+                    roots.push_back({MarkdownBlockKind::BlankLine, {first, rootCursor}, {first, first + (old->content.last - oldFirst)}});
+                    return;
+                }
+            }
             do
             {
                 ++rootCursor;
@@ -1052,6 +1109,7 @@ struct MarkdownParser::Preparation
             auto bodyEnd = rootCursor;
             while (bodyEnd > first && (syntax->source_[bodyEnd - 1u] == L'\r' || syntax->source_[bodyEnd - 1u] == L'\n'))
                 --bodyEnd;
+            ::DxUi::Detail::Work().rich.markdownRootTriviaUnitsScanned += rootCursor - first;
             roots.push_back({MarkdownBlockKind::BlankLine, {first, rootCursor}, {first, bodyEnd}});
         }
         else
@@ -1350,6 +1408,7 @@ MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
             {
                 pending.inlines.TakeReuseState(deleter->state->references, deleter->state->leafStaging);
                 deleter->state->physicalLines = pending.sourceLines;
+                deleter->state->freshRoots.swap(pending.freshRoots);
             }
             nextNodeIdentity_ = pending.nextIdentity;
             publishedSource_  = std::move(pending.snapshot);
