@@ -1859,7 +1859,9 @@ private:
     bool _focusable     = false;
     bool _hasFocus      = false;
     bool _hovered       = false;
-    wchar_t _mnemonic   = L'\0';
+    // Left a host while it held a frame-schedule request: the host it joins next ticks it once, so it lands or resumes.
+    bool _tickRequestPending = false;
+    wchar_t _mnemonic        = L'\0';
     std::optional<FlowDirection> _explicitFlowDirection;
     std::optional<Density> _explicitDensity;
     std::optional<FlowDirection> _detachedFlowDirection;
@@ -6963,8 +6965,9 @@ private:
     // Ownership rule: the schedule owns no control and never dereferences an address it holds unless the control's own
     // lifetime token is alive and the control still names this host. Each request keeps the control's address, compared
     // only, beside that token. ForgetControl removes a control's request when it leaves this host (detach, move, root
-    // replacement), is hidden or loses its tooltip role, and blanks it in the snapshot of a wake in progress; Detach drops
-    // the whole schedule. A wake works on a snapshot of the due requests and rechecks token and host before every Tick, so
+    // replacement) and blanks it in the snapshot of a wake in progress (CancelAnimation blanks it too); the control then
+    // asks the host it joins for one tick. A hidden control keeps its request, which neither wakes nor ticks until the
+    // control is shown. Detach drops the whole schedule. A wake works on a snapshot of the due requests and rechecks token and host before every Tick, so
     // a Tick that removes itself, a sibling or the root, re-arms, hides the host or destroys it is safe; a host destroyed
     // or detached during a wake is detected through the wake's stack frame and is not touched again.
     enum class TickRequestKind : uint8_t
@@ -7000,7 +7003,14 @@ private:
     void AddTickRequest(const Control& control, TickRequestKind kind, uint64_t dueTickMs) noexcept;
     // One tick on the next frame (the rich editor restarting its caret blink).
     void RequestAnimationOnce(const Control& control) noexcept;
-    void ForgetControl(const Control& control) noexcept;
+    // Removes the control's request; true when it held one (a request or an entry of the wake in progress).
+    bool ForgetControl(const Control& control) noexcept;
+    void BlankDueControl(const Control& control) noexcept;
+    [[nodiscard]] bool IsScheduleCallerOnOwnerThread() const noexcept;
+    void ReleaseHiddenLatch() noexcept;
+    void CountHeldDeadlines() noexcept;
+    // How often a host hidden only through an ancestor looks whether it is visible again while it holds requests.
+    static constexpr uint64_t kHiddenAncestorProbeMs = 1'000u;
     void RequestTooltipTick() noexcept;
     [[nodiscard]] FrameScheduleWake GetFrameScheduleWake() const noexcept;
     [[nodiscard]] bool HasScheduledTicks() const noexcept;

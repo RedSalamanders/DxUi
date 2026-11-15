@@ -82,17 +82,32 @@ Native wakes: one dispatcher per UI thread runs one periodic timer at the existi
 thread holds a `Continuous` request (pacing to the display is a separate item), otherwise one `SetCoalescableTimer`
 one-shot for the earliest deadline across the thread's hosts, armed one system tick late so its wake sees the deadline
 due, and nothing when nothing waits. A deadline wake ticks the due controls and renders only if one invalidated. The
-first periodic tick after idle starts the timeline at the real time it runs; no phantom frame is added. A hidden,
-minimized or `SetNativePresentationVisible(false)` host holds its schedule, `Continuous` requests included, and
-receives no wakes; a minimized host stops at once, a host hidden otherwise after at most one wake that observes it.
-On show, deadlines that came due meanwhile fire once at the first wake. Requests of a hidden control or of a control
-below a hidden one are dropped; painting again asks anew. A host hidden by one of its own `Tick`s holds what that wake
-had not yet done.
+first periodic tick after idle starts the timeline at the real time it runs; no phantom frame is added. Every wake and
+every deadline uses one monotonic clock (`GetAnimationTickMs`): the periodic timeline while the periodic timer runs,
+otherwise uptime less what the timeline lost to its hitch clamp, so starting or stopping the periodic timer never moves
+the clock and a caret keeps its phase. A minimized or `SetNativePresentationVisible(false)` host holds its schedule,
+`Continuous` requests included, and receives no wakes; a host whose own window is hidden (or in a `WM_SETREDRAW` FALSE
+block) stops after at most one wake that observes it. Any sign that it is visible again resumes it: `WM_SHOWWINDOW`,
+`WM_SIZE` restored, `WM_WINDOWPOSCHANGED` with `SWP_SHOWWINDOW`, `WM_SETREDRAW` TRUE, a `WM_PAINT`, or any change to its
+schedule made while it is visible. A host hidden only through an ancestor (a minimized top-level, a hidden parent, a
+parent's redraw block) receives none of these, so while it holds requests it looks once a second whether it is visible
+again, ticking nothing meanwhile. On show, deadlines that came due meanwhile fire once at the first wake. A host hidden
+by one of its own `Tick`s holds what that wake had not yet done.
+
+A hidden control, or a control below a hidden one, keeps its request: it is neither ticked nor counted in the next wake
+(it costs no wake) until it is shown, and from its show it is ticked again, so a transition left part-way lands or
+resumes with no further input. A control that leaves a host while holding a request is ticked once by the host it joins.
+One wake ticks a control at most once (a control the compatibility walk ticked is not ticked again for its request); a
+control cancelled, forgotten or moved earlier in the same wake is not ticked, and a control cancelled or moved during
+its own `Tick` does not re-arm by returning true. A `Tick` that runs a modal loop gets the dispatcher's nested wakes
+refused (about one per periodic interval) until it returns. `Tick` called on a control that is in no host, or in another
+host, requests nothing. Schedule calls (`RequestAnimation`, `RequestAnimationAt`, `CancelAnimation`) belong to the
+attachment's owner thread: from another thread they change nothing and set `ERROR_INVALID_THREAD_ID`.
 
 Lifetime: a request keeps the control's address beside its lifetime token and is used only while the token is alive
 and the control still names the host. `ForgetControl` removes a control's request when it leaves the host (removal,
-move to another host, root replacement) or is hidden, including from the snapshot of a wake in progress; detaching or
-closing a host (a popup) drops its schedule. A wake works on a snapshot, so a `Tick` may re-arm, remove itself, a
+move to another host, root replacement), including from the snapshot of a wake in progress; detaching or closing a host
+(a popup) drops its schedule. A wake works on a snapshot, so a `Tick` may re-arm, remove itself, a
 sibling or the root, hide or destroy its host; a host destroyed or detached during its wake is not touched again.
 Hover, capture and double-click observers remain pruned by the existing interaction-state validation before dispatch,
 which addresses them only by comparison and lifetime token.
@@ -100,7 +115,9 @@ which addresses them only by comparison and lifetime token.
 Embedded hosting owns no timer: `AdvanceAnimation` ticks only the due requests, and `NeedsAnimation` stays true while
 any request, a pending deadline included, is held, so an application that polls it every frame keeps the caret
 blinking. The clock rules of the [embedded contract](Rendering_EmbeddedD3D11.md) are unchanged; a hidden view holds
-its requests on a timeline that does not count the hidden time.
+its requests on a timeline that does not count the hidden time. When the schedule empties outside a wake (a blurred
+caret, a cancelled or forgotten request), the next request is a new start: it wakes the application and the next
+advance sets the timeline's baseline instead of counting the idle time.
 
 Hit queries revalidate root lifetime and current ownership before dispatch. Root replacement or retirement during
 painting aborts that frame before capture or presentation; the next update applies the current root's bounds before
@@ -191,11 +208,15 @@ are still available. If final detachment occurs inside a timer callback, window 
 callback and pending subscription bookkeeping finish. An idle dispatcher must not retain a window until TLS
 destruction after host uninstallation. Embedded hosting does not acquire this native timer or window.
 A native host is subscribed to the dispatcher exactly while its schedule waits for something, through one function that
-joins, reschedules and leaves, and `Detach` leaves unconditionally, so no subscription outlives its host or its need. If a window nevertheless survives until thread-local destruction (an application that
+joins, reschedules and leaves, and `Detach` leaves unconditionally, so no subscription outlives its host or its need.
+Requests made before `Attach` reach the dispatcher when it succeeds. A host detached after its thread's dispatcher was
+destroyed (a static host destroyed after the thread's thread-local objects at process exit) finds no dispatcher and has
+nothing to leave; it never touches the destroyed one. If a window nevertheless survives until thread-local destruction (an application that
 leaves a host attached when its thread ends), the dispatcher drops its subscribers without calling them and stops its
 timers first; its window procedure handles its own teardown messages, and any timer message that arrives without an
-active failure registration, by allocation-free, callback-free cleanup without entering DxUi work, so an ordinary
-thread or process exit never reports a missing failure host.
+active failure registration, by allocation-free, callback-free cleanup without entering DxUi work (a timer it stops
+that way is recorded as stopped, so a later subscriber arms it again), so an ordinary thread or process exit never
+reports a missing failure host.
 An animation request from a native detachment callback is ignored; focus/capture retirement cannot create
 a replacement subscription after that host has relinquished its original subscription.
 

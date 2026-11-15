@@ -57,6 +57,8 @@ to be ticked once when the animation clock reaches `dueTickMs` (a caret blink, a
 ticks the whole visible tree once, and each control whose `Tick` returns true keeps ticking on its own, but it costs a
 walk of the tree, so name the control instead. A native host whose window is hidden or minimized, or whose presentation
 the application hid, holds its requests and is not woken; a deadline that passed meanwhile fires once when it is shown.
+A hidden control keeps its request without being ticked and is ticked again when shown, so a transition finishes. Call
+these methods on the host's owner thread: from another thread they do nothing and set `ERROR_INVALID_THREAD_ID`.
 See [window hosting](../Specs/Rendering/Rendering_Win32Host.md#frame-schedule).
 Device replacement and detach release owned graphics without clearing or flushing the application's immediate
 context; composition retains its documented pipeline-binding behavior.

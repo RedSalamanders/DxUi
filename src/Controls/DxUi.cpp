@@ -460,9 +460,11 @@ void Control::SetVisible(bool visible) noexcept
             }
             if (ControlHost* const host = GetHost())
             {
-                // A hidden control is not ticked; its request goes (painting again asks anew), its descendants' requests
-                // are dropped when they come due.
-                host->ForgetControl(*this);
+                // A hidden control (and everything below it) keeps its frame-schedule request without being ticked or
+                // waking anything; the request leaves the wake computation here.
+                host->OnFrameScheduleChanged();
+                if (lifetime.expired())
+                    return;
                 host->CancelPreparedVisualContent(this);
                 if (lifetime.expired())
                     return;
@@ -475,6 +477,14 @@ void Control::SetVisible(bool visible) noexcept
         }
         if (ControlHost* const host = GetHost())
         {
+            // Shown: the requests this control and its descendants held while hidden are ticked again from the next wake,
+            // so a transition left part-way lands or resumes with no further input.
+            if (visible)
+            {
+                host->OnFrameScheduleChanged();
+                if (lifetime.expired() || GetHost() != host)
+                    return;
+            }
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
     }
@@ -1257,8 +1267,10 @@ void Control::PropagateHost(ControlHost* host) noexcept
     }
     if (previousHost)
     {
-        // The departing host forgets this control's frame-schedule request before anything can call back.
-        previousHost->ForgetControl(*this);
+        // The departing host forgets this control's frame-schedule request before anything can call back; the host it
+        // joins next ticks it once instead, so a transition in flight lands or resumes there.
+        if (previousHost->ForgetControl(*this))
+            _tickRequestPending = true;
         previousHost->InvalidateRichTitleTooltip(this);
         if (lifetime.expired() || _host != previousHost)
             return;
@@ -1275,6 +1287,8 @@ void Control::PropagateHost(ControlHost* host) noexcept
             return;
     }
     _host = host;
+    if (host && std::exchange(_tickRequestPending, false))
+        host->RequestAnimationOnce(*this);
     RequestContentPreparation(false);
     RequestVisualContentPreparation(false);
     InvalidateMeasure();

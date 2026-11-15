@@ -596,11 +596,535 @@ void TestFrameScheduleNativeFx1CaretWakesInRealTime()
 
 namespace
 {
+// A top-level window with no host of its own, off every monitor and never activated: the parent of a child host.
+[[nodiscard]] wil::unique_hwnd MakeQuietTopLevel()
+{
+    wil::unique_hwnd parent(CreateWindowExW(
+        WS_EX_NOACTIVATE, L"STATIC", L"frame-schedule parent", WS_OVERLAPPED, -32000, -32000, 360, 240, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
+    Require(parent != nullptr, "the parent window is created");
+    return parent;
+}
+
+// Turns the attached test window into a visible child of `parent`.
+void MakeChildOf(AttachedHostWindow& window, HWND parent)
+{
+    SetWindowLongPtrW(window.Hwnd(), GWL_STYLE, WS_CHILD | WS_VISIBLE);
+    Require(SetParent(window.Hwnd(), parent) != nullptr || GetLastError() == ERROR_SUCCESS, "the host window becomes a child");
+    SetWindowPos(window.Hwnd(), nullptr, 0, 0, 320, 200, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+}
+
+// A focused caret on `window`, ticking through the real dispatcher (no test clock).
+DxUi::TextField* FocusCaret(AttachedHostWindow& window)
+{
+    auto root   = std::make_unique<DxUi::Panel>();
+    auto* field = root->AddChild<DxUi::TextField>(L"caret");
+    field->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    window.Host().SetRoot(std::move(root));
+    window.Host().SetFocusControl(field, false);
+    return field;
+}
+} // namespace
+
+// F1: a host whose window was seen hidden at a wake resumes, without input, when it is visible again, whatever message
+// (or none) it received: its own redraw block, a minimized-then-restored top-level, a parent hidden and shown.
+void TestFrameScheduleHiddenHostResumesWhenVisibleAgain()
+{
+    {
+        AttachedHostWindow window(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        static_cast<void>(FocusCaret(window));
+        PumpFor(100u);
+        // WM_SETREDRAW FALSE clears WS_VISIBLE; TRUE restores it without WM_SHOWWINDOW.
+        SendMessageW(window.Hwnd(), WM_SETREDRAW, FALSE, 0);
+        PumpFor(1'200u); // a caret deadline comes due during the block: the wake sees the window hidden
+        Require(! window.Host().DebugHasActiveAnimationSubscription(), "a host hidden by its own redraw block stops waking");
+        SendMessageW(window.Hwnd(), WM_SETREDRAW, TRUE, 0);
+        Require(window.Host().DebugHasActiveAnimationSubscription(), "the end of the redraw block resumes the held schedule");
+        const WorkCounterScope resumed;
+        Require(PumpUntil(2'000u, [&resumed] { return resumed.Delta().frame.tickCalls > 0u; }), "the caret blinks again after the redraw block");
+    }
+    {
+        wil::unique_hwnd parent = MakeQuietTopLevel();
+        AttachedHostWindow window(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
+        MakeChildOf(window, parent.get());
+        ShowWindow(parent.get(), SW_SHOWNOACTIVATE);
+        static_cast<void>(FocusCaret(window));
+        PumpFor(100u);
+        ShowWindow(parent.get(), SW_SHOWMINNOACTIVE);
+        {
+            const WorkCounterScope minimized;
+            PumpFor(1'500u);
+            Require(minimized.Delta().frame.tickCalls == 0u && TimerWakes(minimized.Delta()) <= 2u,
+                    "a child host under a minimized top-level ticks nothing and looks at most once a second");
+        }
+        ShowWindow(parent.get(), SW_SHOWNOACTIVATE);
+        Require(window.Host().DebugHasActiveAnimationSubscription(), "the child host still waits to see its top-level restored");
+        const WorkCounterScope restored;
+        Require(PumpUntil(2'500u, [&restored] { return restored.Delta().frame.tickCalls > 0u; }), "the child's caret blinks again with no input");
+        window.Host().SetFocusControl(nullptr, false);
+        SetParent(window.Hwnd(), nullptr);
+    }
+    {
+        wil::unique_hwnd parent = MakeQuietTopLevel();
+        AttachedHostWindow window(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
+        MakeChildOf(window, parent.get());
+        ShowWindow(parent.get(), SW_SHOWNOACTIVATE);
+        static_cast<void>(FocusCaret(window));
+        PumpFor(100u);
+        ShowWindow(parent.get(), SW_HIDE);
+        PumpFor(1'200u);
+        ShowWindow(parent.get(), SW_SHOWNOACTIVATE);
+        Require(window.Host().DebugHasActiveAnimationSubscription(), "a child host under a hidden parent keeps waiting for it");
+        const WorkCounterScope shown;
+        Require(PumpUntil(2'500u, [&shown] { return shown.Delta().frame.tickCalls > 0u; }), "the caret blinks again after the parent is shown");
+        window.Host().SetFocusControl(nullptr, false);
+        SetParent(window.Hwnd(), nullptr);
+    }
+}
+
+// F2: a control hidden mid-transition keeps its request without ticking or waking, and lands when shown again; a
+// control moved to another host mid-transition lands there.
+void TestFrameScheduleHiddenControlLandsWhenShown()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+    auto& host   = window.Host();
+    auto root    = std::make_unique<Panel>();
+    auto* page   = root->AddChild<Panel>();
+    auto* button = page->AddChild<Button>(std::wstring(L"Go"));
+    auto* slider = page->AddChild<Slider>();
+    auto* graph  = page->AddChild<ThroughputGraph>();
+    auto* probe  = page->AddChild<ScheduleProbe>();
+    page->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
+    button->SetBounds(D2D1::RectF(0.0f, 0.0f, 120.0f, 32.0f));
+    slider->SetBounds(D2D1::RectF(0.0f, 40.0f, 220.0f, 80.0f));
+    graph->SetBounds(D2D1::RectF(0.0f, 90.0f, 220.0f, 180.0f));
+    host.SetRoot(std::move(root));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    uint64_t clock = 50'000u;
+    host.DebugSetAnimationClockForTest(clock);
+    const auto tickAt = [&](uint64_t at)
+    {
+        clock = at;
+        host.DebugSetAnimationClockForTest(clock);
+        static_cast<void>(host.DebugAnimationTickForTest(clock));
+    };
+
+    slider->SetValue(20.0);
+    const std::array<ThroughputGraphSample, 2u> first{ThroughputGraphSample{.value = 1.0}, ThroughputGraphSample{.value = 2.0}};
+    const std::array<ThroughputGraphSample, 2u> second{ThroughputGraphSample{.value = 1.0}, ThroughputGraphSample{.value = 9.0}};
+    graph->SetSamples(first);
+    tickAt(clock + 1'000u);
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(window.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(20, 12), handled));
+    Require(slider->RequestValue(host, 80.0), "a value animation starts");
+    graph->SetSamples(second);
+    probe->onTick = [](ControlHost&, uint64_t) { return true; };
+    host.RequestAnimation(*probe);
+    tickAt(clock + 16u);
+    Require(slider->DebugGetDisplayedValue() > 20.0 && slider->DebugGetDisplayedValue() < 80.0, "the thumb is in flight");
+    const float hoverInFlight = button->DebugGetHoverAnimationProgress();
+    Require(hoverInFlight > 0.0f && hoverInFlight < 1.0f && graph->GetDebugState().transitionActive, "the hover and the graph are in flight");
+
+    page->SetVisible(false);
+    Require(host.DebugGetFrameScheduleWakeForTest().kind == 0u && ! host.DebugHasActiveAnimationSubscription(),
+            "hidden controls hold their requests without waking the host");
+    const size_t probeTicks = probe->ticks;
+    tickAt(clock + 50u);
+    Require(probe->ticks == probeTicks && button->DebugGetHoverAnimationProgress() == hoverInFlight, "a hidden control is not ticked");
+
+    page->SetVisible(true);
+    Require(host.DebugGetFrameScheduleWakeForTest().kind != 0u && host.DebugHasActiveAnimationSubscription(), "showing them resumes their requests");
+    tickAt(clock + 1'000u);
+    tickAt(clock + 16u);
+    Require(probe->ticks > probeTicks, "the shown probe ticks again with no further request");
+    Require(slider->DebugGetDisplayedValue() == slider->GetValue(), "the thumb lands on its value");
+    Require(button->DebugGetHoverAnimationProgress() == 1.0f, "the hover transition completes");
+    Require(! graph->GetDebugState().transitionActive, "the graph's transition completes");
+
+    // Moved to another host while animating: the host it joins ticks it, and the transition lands there.
+    AttachedHostWindow other(WindowHost::PresentationMode::HwndSwapChain, true);
+    ShowWindow(other.Hwnd(), SW_SHOWNOACTIVATE);
+    other.Host().DebugSetAnimationClockForTest(clock);
+    Require(slider->RequestValue(host, 20.0), "another value animation starts");
+    tickAt(clock + 16u);
+    Require(slider->DebugGetDisplayedValue() < 80.0 && slider->DebugGetDisplayedValue() > 20.0, "the thumb is in flight again");
+    std::unique_ptr<Control> moved;
+    for (size_t index = 0u; index < page->GetChildren().size(); ++index)
+        if (page->GetChildren()[index].get() == slider)
+            moved = page->TakeChild(index);
+    Require(moved != nullptr, "the slider leaves its page");
+    other.Host().SetRoot(std::move(moved));
+    Require(other.Host().DebugGetFrameScheduleWakeForTest().kind != 0u, "the host the slider joins ticks it");
+    other.Host().DebugSetAnimationClockForTest(clock + 1'000u);
+    static_cast<void>(other.Host().DebugAnimationTickForTest(clock + 1'000u));
+    Require(slider->DebugGetDisplayedValue() == slider->GetValue(), "the moved thumb lands on its value");
+    host.DebugSetAnimationClockForTest(std::nullopt);
+}
+
+// F3: an embedded view whose schedule empties outside a wake (a caret blurred) starts its next animation afresh: the
+// application is woken and the first advance does not count the idle gap.
+void TestFrameScheduleEmbeddedEmptiedScheduleRebases()
+{
+    struct Wakes
+    {
+        size_t count = 0u;
+    };
+    const auto run = [](bool withCaretFirst, uint64_t gapMs, double& sampled, size_t& wakesOnRequest)
+    {
+        GraphicsFixture gpu;
+        const auto pool = MakeSchedulePool(gpu);
+        Wakes wakes;
+        DxUi::EmbeddedCallbacks callbacks{};
+        callbacks.context            = &wakes;
+        callbacks.requestPreparation = [](void* context) noexcept { ++static_cast<Wakes*>(context)->count; };
+        DxUi::EmbeddedHost view;
+        RequireSucceeded(view.Attach(pool, callbacks), "attach the rebase view");
+        view.Controls().SetTheme(MakeAnimatedTestThemePalette(false));
+        auto root    = std::make_unique<DxUi::Panel>();
+        auto* field  = root->AddChild<DxUi::TextField>(L"caret");
+        auto* slider = root->AddChild<DxUi::Slider>();
+        auto* probe  = root->AddChild<ScheduleProbe>();
+        field->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 32.0f));
+        slider->SetBounds(D2D1::RectF(0.0f, 40.0f, 220.0f, 80.0f));
+        slider->SetValue(20.0);
+        view.Controls().SetRoot(std::move(root));
+        RequireSucceeded(view.Prepare(320u, 120u), "prepare the rebase view");
+        uint64_t appClock = 1'000u;
+        static_cast<void>(view.AdvanceAnimation(appClock)); // discovery
+        if (withCaretFirst)
+        {
+            view.Controls().SetFocusControl(field, false);
+            static_cast<void>(view.AdvanceAnimation(appClock += 16u));
+            view.Controls().SetFocusControl(nullptr, false);
+            Require(! view.NeedsAnimation(), "the blurred caret leaves nothing scheduled");
+        }
+        RequireSucceeded(view.Prepare(320u, 120u), "prepare after the blur");
+        appClock += gapMs;
+        const size_t before = wakes.count;
+        view.Controls().RequestAnimation(*probe); // a request that invalidates nothing itself
+        wakesOnRequest = wakes.count - before;
+        Require(slider->RequestValue(view.Controls(), 80.0), "a value animation starts");
+        static_cast<void>(view.AdvanceAnimation(appClock));
+        static_cast<void>(view.AdvanceAnimation(appClock + 50u));
+        sampled = slider->DebugGetDisplayedValue();
+    };
+    double withoutGap = 0.0, afterIdle = 0.0;
+    size_t wakesFresh = 0u, wakesAfterBlur = 0u;
+    run(false, 0u, withoutGap, wakesFresh);
+    run(true, 5'000u, afterIdle, wakesAfterBlur);
+    Require(wakesAfterBlur == 1u, "after the blur, a request that invalidates nothing still wakes the application");
+    Require(afterIdle == withoutGap && afterIdle > 20.0 && afterIdle < 80.0, "the first advance after the idle gap does not count the gap");
+}
+
+// F4: requests made before Attach reach the dispatcher once the host has a window.
+void TestFrameScheduleRequestsBeforeAttachArmTheDispatcher()
+{
+    wil::unique_hwnd hwnd(CreateWindowExW(
+        WS_EX_NOACTIVATE, L"STATIC", L"frame-schedule attach", WS_POPUP, -32000, -32000, 200, 120, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
+    Require(hwnd != nullptr, "the window is created");
+    ShowWindow(hwnd.get(), SW_SHOWNOACTIVATE);
+    DxUi::WindowHost host;
+    auto root     = std::make_unique<DxUi::Panel>();
+    auto* probe   = root->AddChild<ScheduleProbe>();
+    probe->onTick = [](DxUi::ControlHost&, uint64_t) { return true; };
+    host.SetRoot(std::move(root));
+    host.RequestAnimation(*probe);
+    Require(host.Attach(hwnd.get()), "the host attaches");
+    Require(host.DebugHasActiveAnimationSubscription(), "the request made before Attach arms the dispatcher");
+    Require(PumpUntil(1'000u, [probe] { return probe->ticks > 0u; }), "and the probe is ticked");
+    host.Detach();
+}
+
+// F5 and F6: within one wake, a control cancelled by an earlier Tick is not ticked, a control that cancels itself does not
+// re-arm, and a control ticked by the compatibility walk is not ticked again for its own request.
+void TestFrameScheduleWakeHonoursCancelsAndTicksOnce()
+{
+    AttachedHostWindow window(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
+    auto& host   = window.Host();
+    auto root    = std::make_unique<DxUi::Panel>();
+    auto* first  = root->AddChild<ScheduleProbe>();
+    auto* second = root->AddChild<ScheduleProbe>();
+    host.SetRoot(std::move(root));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    host.DebugSetAnimationClockForTest(1'000u);
+    first->onTick = [second, first](DxUi::ControlHost& owner, uint64_t)
+    {
+        owner.CancelAnimation(*second);
+        owner.CancelAnimation(*first);
+        return true;
+    };
+    second->onTick = [](DxUi::ControlHost&, uint64_t) { return true; };
+    host.RequestAnimation(*first);
+    host.RequestAnimation(*second);
+    static_cast<void>(host.DebugAnimationTickForTest(1'016u));
+    Require(first->ticks == 1u && second->ticks == 0u, "a sibling cancelled earlier in the wake is not ticked");
+    Require(! host.DebugScheduleHoldsControlForTest(first) && ! host.DebugScheduleHoldsControlForTest(second),
+            "a control that cancels itself during its Tick does not re-arm");
+
+    first->onTick = [](DxUi::ControlHost&, uint64_t) { return false; };
+    first->ticks  = 0u;
+    host.RequestAnimation(*first);
+    host.RequestAnimation(); // the compatibility walk in the same wake
+    static_cast<void>(host.DebugAnimationTickForTest(1'032u));
+    Require(first->ticks == 1u, "one wake ticks a control at most once");
+    host.DebugSetAnimationClockForTest(std::nullopt);
+}
+
+// F7: schedule calls from another thread are refused and leave every subscription as it was.
+void TestFrameScheduleRefusesForeignThreadRequests()
+{
+    AttachedHostWindow window(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
+    auto& host  = window.Host();
+    auto root   = std::make_unique<DxUi::Panel>();
+    auto* probe = root->AddChild<ScheduleProbe>();
+    auto* other = root->AddChild<ScheduleProbe>();
+    host.SetRoot(std::move(root));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    host.RequestAnimationAt(*probe, host.GetAnimationTickMs() + 60'000u);
+    auto& dispatcher           = AnimationDispatcher::GetInstance();
+    const size_t subscriptions = dispatcher.DebugGetActiveSubscriptionCountForTest();
+    const auto wake            = host.DebugGetFrameScheduleWakeForTest();
+    DWORD refusal              = 0u;
+    std::thread foreign([&]
+    {
+        host.CancelAnimation(*probe);
+        host.RequestAnimation(*other);
+        host.RequestAnimationAt(*other, 0u);
+        host.RequestAnimation();
+        refusal = GetLastError();
+    });
+    foreign.join();
+    Require(refusal == ERROR_INVALID_THREAD_ID, "a foreign-thread schedule call is refused");
+    Require(host.DebugScheduleHoldsControlForTest(probe) && ! host.DebugScheduleHoldsControlForTest(other) && host.DebugGetTickRequestCountForTest() == 1u,
+            "the refused calls change no request");
+    Require(dispatcher.DebugGetActiveSubscriptionCountForTest() == subscriptions && host.DebugGetFrameScheduleWakeForTest().kind == wake.kind &&
+                host.DebugGetFrameScheduleWakeForTest().dueTickMs == wake.dueTickMs && host.DebugHasActiveAnimationSubscription(),
+            "and every subscription stays intact");
+    host.CancelAnimation(*probe);
+}
+
+// F8: one clock for every wake. After a hitch the periodic timeline lags uptime; when the periodic timer stops, the clock
+// continues from where the timeline was, so a caret deadline computed on it keeps its phase instead of coming due at once.
+void TestFrameScheduleClockContinuesWhenThePeriodicTimerStops()
+{
+    auto& dispatcher = AnimationDispatcher::GetInstance();
+    AttachedHostWindow window(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    static_cast<void>(FocusCaret(window));
+    struct Hitch
+    {
+        size_t ticks        = 0u;
+        uint64_t lastTickMs = 0u;
+    } hitch;
+    const uint64_t subscription = dispatcher.Subscribe(
+        [](void* context, uint64_t nowTickMs) noexcept
+    {
+        auto& state = *static_cast<Hitch*>(context);
+        if (++state.ticks == 2u)
+            Sleep(1'000u); // a one-second hitch: the timeline adds only the clamp
+        state.lastTickMs = nowTickMs;
+        return state.ticks < 5u;
+    },
+        &hitch);
+    Require(subscription != 0u, "a tick subscriber runs the periodic timer");
+    Require(PumpUntil(5'000u, [&hitch] { return hitch.ticks >= 5u; }), "the periodic timer ticks past the hitch");
+    PumpFor(30u);
+    Require(! dispatcher.DebugIsPeriodicTimerRunningForTest(), "the periodic timer stops");
+    const uint64_t afterStop = dispatcher.GetCurrentTickMs();
+    Require(afterStop >= hitch.lastTickMs && afterStop - hitch.lastTickMs < 200u, "the clock continues from the last periodic tick");
+    const auto wake = window.Host().DebugGetFrameScheduleWakeForTest();
+    Require(wake.kind == 2u && wake.dueTickMs > afterStop, "the caret's next flip is still ahead: its phase is kept");
+    window.Host().SetFocusControl(nullptr, false);
+}
+
+// The lifetime fuzz through the real dispatcher: pumped messages, hosts destroyed and recreated, roots replaced, windows
+// and presentation hidden and shown and a modal loop, all from inside Tick. No live host's schedule names a destroyed
+// control; under ASan any stale dereference fails the run.
+void TestFrameScheduleLifetimeFuzzThroughDispatcher()
+{
+    struct Record
+    {
+        const void* address = nullptr;
+        bool destroyed      = false;
+    };
+    std::vector<std::unique_ptr<Record>> records;
+    std::mt19937 random(0xD15Bu);
+    const auto chance = [&random](uint32_t percent) { return std::uniform_int_distribution<uint32_t>(0u, 99u)(random) < percent; };
+    std::array<std::optional<AttachedHostWindow>, 2u> hosts;
+    std::function<void(size_t)> act;
+    bool inModal         = false;
+    const auto makeProbe = [&](DxUi::Panel& parent) -> ScheduleProbe*
+    {
+        auto* probe = parent.AddChild<ScheduleProbe>();
+        if (! probe)
+            return nullptr;
+        for (auto& record : records)
+            if (record->destroyed && record->address == probe)
+                record->address = nullptr;
+        records.push_back(std::make_unique<Record>(Record{probe, false}));
+        probe->destroyed = &records.back()->destroyed;
+        probe->onTick    = [&act, &chance, &random](DxUi::ControlHost&, uint64_t)
+        {
+            const bool again = chance(50u);
+            if (chance(25u))
+                act(std::uniform_int_distribution<size_t>(0u, 1u)(random));
+            return again;
+        };
+        return probe;
+    };
+    const auto build = [&](size_t which)
+    {
+        hosts[which].emplace(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
+        ShowWindow(hosts[which]->Hwnd(), SW_SHOWNOACTIVATE);
+        auto root = std::make_unique<DxUi::Panel>();
+        for (int index = 0; index < 4; ++index)
+            if (auto* probe = makeProbe(*root))
+                hosts[which]->Host().RequestAnimation(*probe);
+        hosts[which]->Host().SetRoot(std::move(root));
+    };
+    act = [&](size_t which)
+    {
+        if (! hosts[which])
+            return;
+        auto& host      = hosts[which]->Host();
+        auto* rootPanel = dynamic_cast<DxUi::Panel*>(host.GetRoot());
+        switch (std::uniform_int_distribution<int>(0, 9)(random))
+        {
+            case 0: hosts[which].reset(); break; // destroy the host, possibly during its own wake
+            case 1:
+            {
+                auto replacement = std::make_unique<DxUi::Panel>();
+                if (auto* probe = makeProbe(*replacement))
+                    host.RequestAnimation(*probe);
+                host.SetRoot(std::move(replacement)); // a new root during a wake
+                break;
+            }
+            case 2: ShowWindow(hosts[which]->Hwnd(), chance(50u) ? SW_HIDE : SW_SHOWNOACTIVATE); break;
+            case 3: static_cast<void>(host.SetNativePresentationVisible(chance(50u))); break;
+            case 4:
+                if (! inModal)
+                {
+                    inModal = true;
+                    PumpFor(30u); // a modal loop inside Tick: nested wakes are refused
+                    inModal = false;
+                }
+                break;
+            case 5:
+                if (rootPanel && ! rootPanel->GetChildren().empty())
+                {
+                    const size_t index = std::uniform_int_distribution<size_t>(0u, rootPanel->GetChildren().size() - 1u)(random);
+                    if (rootPanel->GetChildren()[index])
+                        rootPanel->GetChildren()[index]->SetVisible(! rootPanel->GetChildren()[index]->IsVisible());
+                }
+                break;
+            case 6:
+                if (rootPanel && ! rootPanel->GetChildren().empty())
+                    static_cast<void>(rootPanel->TakeChild(std::uniform_int_distribution<size_t>(0u, rootPanel->GetChildren().size() - 1u)(random)));
+                break;
+            case 7:
+                if (rootPanel)
+                    if (auto* probe = makeProbe(*rootPanel))
+                        host.RequestAnimationAt(*probe, host.GetAnimationTickMs() + std::uniform_int_distribution<uint64_t>(0u, 40u)(random));
+                break;
+            case 8:
+                if (rootPanel && hosts[1u - which] && ! rootPanel->GetChildren().empty() && rootPanel->GetChildren().front())
+                {
+                    auto taken = rootPanel->TakeChild(0u);
+                    if (taken && hosts[1u - which])
+                        hosts[1u - which]->Host().SetRoot(std::move(taken)); // move to the other host mid-request
+                }
+                break;
+            default:
+                if (rootPanel)
+                    host.RequestAnimation();
+                break;
+        }
+    };
+    const auto verify = [&]
+    {
+        for (const auto& record : records)
+            if (record->destroyed && record->address)
+                for (auto& host : hosts)
+                    Require(! host || ! host->Host().DebugScheduleHoldsControlForTest(record->address), "no live schedule names a destroyed control");
+    };
+    build(0u);
+    build(1u);
+    for (int round = 0; round < 400; ++round)
+    {
+        for (size_t which = 0u; which < hosts.size(); ++which)
+            if (! hosts[which])
+                build(which);
+        if (chance(60u))
+            act(std::uniform_int_distribution<size_t>(0u, 1u)(random));
+        PumpFor(15u);
+        verify();
+    }
+    hosts[0].reset();
+    hosts[1].reset();
+    verify();
+    std::cout << "    frame-schedule dispatcher fuzz: " << records.size() << " probes\n";
+}
+
+namespace
+{
 constexpr wchar_t kThreadExitChildArgument[] = L"--frame-schedule-thread-exit-child";
 }
 
 // A dispatcher that a host armed and an orphan subscription kept alive, on a worker thread that ends after the process
 // failure host is uninstalled: thread-local destruction of the dispatcher must not report a missing host. Runs in a child process.
+namespace
+{
+constexpr wchar_t kTimerReinstallChildArgument[] = L"--frame-schedule-timer-reinstall-child";
+constexpr wchar_t kLateHostChildArgument[]       = L"--frame-schedule-late-host-child";
+
+// Runs this executable with rgument and returns its exit code.
+[[nodiscard]] DWORD RunScheduleChild(const wchar_t* argument)
+{
+    std::array<wchar_t, 32768> executable{};
+    const DWORD length = GetModuleFileNameW(nullptr, executable.data(), static_cast<DWORD>(executable.size()));
+    Require(length > 0u && length < executable.size(), "the test executable path");
+    std::wstring command = L"\"" + std::wstring(executable.data(), length) + L"\" " + argument;
+    STARTUPINFOW startup{};
+    startup.cb = sizeof(startup);
+    PROCESS_INFORMATION info{};
+    Require(CreateProcessW(executable.data(), command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup, &info) != FALSE,
+            "start the frame-schedule child");
+    wil::unique_handle process(info.hProcess), thread(info.hThread);
+    Require(WaitForSingleObject(process.get(), 60'000u) == WAIT_OBJECT_0, "the frame-schedule child ends");
+    DWORD exitCode = 0u;
+    Require(GetExitCodeProcess(process.get(), &exitCode) != FALSE, "the frame-schedule child's exit code");
+    return exitCode;
+}
+
+[[nodiscard]] HWND FindThreadDispatcherWindow() noexcept
+{
+    for (HWND window = FindWindowExW(HWND_MESSAGE, nullptr, L"DxUi.AnimationDispatcher", nullptr); window;
+         window      = FindWindowExW(HWND_MESSAGE, window, L"DxUi.AnimationDispatcher", nullptr))
+        if (GetWindowThreadProcessId(window, nullptr) == GetCurrentThreadId())
+            return window;
+    return nullptr;
+}
+} // namespace
+
+// F10: a timer message that arrives while no failure host is installed stops that timer and records it as stopped, so a
+// later subscriber arms it again. Runs in a child process.
+void TestFrameScheduleTimerRearmsAfterTheFailureHostReturns()
+{
+    const DWORD exitCode = RunScheduleChild(kTimerReinstallChildArgument);
+    std::cout << "    timer-reinstall child exit code 0x" << std::hex << exitCode << std::dec << '\n';
+    Require(exitCode == 0u, "the dispatcher records the timer it stopped without a failure host");
+}
+
+// F9: a host destroyed after its thread's dispatcher (thread-local destruction order) detaches without touching the
+// destroyed dispatcher. Runs in a child process.
+void TestFrameScheduleHostOutlivingItsThreadDispatcherDetachesSafely()
+{
+    const DWORD exitCode = RunScheduleChild(kLateHostChildArgument);
+    std::cout << "    late-host child exit code 0x" << std::hex << exitCode << std::dec << '\n';
+    Require(exitCode == 0u, "a host destroyed after its thread's dispatcher detaches safely");
+}
+
 void TestFrameScheduleDispatcherThreadExitWithoutFailureHost()
 {
     std::array<wchar_t, 32768> executable{};
@@ -620,8 +1144,90 @@ void TestFrameScheduleDispatcherThreadExitWithoutFailureHost()
     Require(exitCode == 0u, "a worker thread ending with an armed dispatcher and no failure host exits normally");
 }
 
+namespace
+{
+int RunTimerReinstallChild()
+{
+    if (FAILED(DxUiFailureTests::ConfigureFailureEvidence()) || FAILED(DxUiFailureTests::InstallFailureHost()))
+        return 10;
+    auto& dispatcher  = AnimationDispatcher::GetInstance();
+    size_t firstTicks = 0u;
+    uint64_t first    = 0u;
+    {
+        const DxUi::Failure::Scope setup;
+        first = dispatcher.Subscribe([](void* context, uint64_t) noexcept { return ++*static_cast<size_t*>(context), true; }, &firstTicks);
+    }
+    if (first == 0u || ! PumpUntil(2'000u, [&firstTicks] { return firstTicks > 0u; }))
+        return 11;
+    const HWND window = FindThreadDispatcherWindow();
+    if (! window || FAILED(DxUiFailureTests::UninstallFailureHost()))
+        return 12;
+    // A timer message with no failure host: the window procedure stops the timer without entering DxUi work, and records
+    // that it is stopped, so the next subscriber (once a failure host is installed again) arms it again.
+    SendMessageW(window, WM_TIMER, 1u, 0);
+    const bool stopped = ! dispatcher.DebugIsPeriodicTimerRunningForTest();
+    std::cout << "DXUI_FRAME_SCHEDULE_TIMER_REINSTALL_CHILD stopped=" << stopped << '\n';
+    return stopped ? 0 : 14;
+}
+
+// A host whose holder is a thread-local object constructed before the thread's dispatcher: thread-local destruction runs
+// the dispatcher's destructor first, then the holder's, which detaches the host with a request still held.
+struct LateHost final
+{
+    LateHost()
+    {
+        hwnd.reset(CreateWindowExW(WS_EX_NOACTIVATE, L"STATIC", L"late host", WS_POPUP, -32000, -32000, 64, 64, nullptr, nullptr, nullptr, nullptr));
+    }
+    LateHost(const LateHost&)            = delete;
+    LateHost& operator=(const LateHost&) = delete;
+    LateHost(LateHost&&)                 = delete;
+    LateHost& operator=(LateHost&&)      = delete;
+    ~LateHost()
+    {
+        const DxUi::Failure::Scope teardown;
+        host.reset();
+        hwnd.reset();
+    }
+    wil::unique_hwnd hwnd;
+    std::unique_ptr<DxUi::WindowHost> host;
+};
+
+int RunLateHostChild()
+{
+    if (FAILED(DxUiFailureTests::ConfigureFailureEvidence()) || FAILED(DxUiFailureTests::InstallFailureHost()))
+        return 10;
+    int workerResult = 0;
+    std::thread worker([&]
+    {
+        static thread_local std::optional<LateHost> holder; // constructed (empty) before the dispatcher, destroyed after it
+        holder.emplace();
+        const DxUi::Failure::Scope setup;
+        holder->host = std::make_unique<DxUi::WindowHost>();
+        if (! holder->hwnd || ! holder->host->Attach(holder->hwnd.get()))
+        {
+            workerResult = 11;
+            return;
+        }
+        ShowWindow(holder->hwnd.get(), SW_SHOWNOACTIVATE);
+        auto root   = std::make_unique<DxUi::Panel>();
+        auto* probe = root->AddChild<DxUi::ProgressBar>();
+        holder->host->SetRoot(std::move(root));
+        holder->host->RequestAnimation(*probe);
+        if (! holder->host->DebugHasActiveAnimationSubscription())
+            workerResult = 12;
+    });
+    worker.join();
+    std::cout << "DXUI_FRAME_SCHEDULE_LATE_HOST_CHILD worker=" << workerResult << '\n';
+    return workerResult;
+}
+} // namespace
+
 int RunFrameScheduleThreadExitChild(int argc, wchar_t** argv)
 {
+    if (argc == 2 && std::wstring_view(argv[1]) == kTimerReinstallChildArgument)
+        return RunTimerReinstallChild();
+    if (argc == 2 && std::wstring_view(argv[1]) == kLateHostChildArgument)
+        return RunLateHostChild();
     if (argc != 2 || std::wstring_view(argv[1]) != kThreadExitChildArgument)
         return -1;
     if (FAILED(DxUiFailureTests::ConfigureFailureEvidence()) || FAILED(DxUiFailureTests::InstallFailureHost()))

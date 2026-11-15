@@ -73,6 +73,9 @@ public:
     // without calling it and stop the timers first, so the window's teardown messages run no DxUi work (WndProcThunk).
     ~AnimationDispatcher()
     {
+        // From here on the thread has no dispatcher: a host detached later on this thread (a static host destroyed after
+        // the thread's thread-local objects) finds none through TryGetInstance and has nothing to leave.
+        t_destroyed = true;
         _subscriptions.clear();
         _pendingAdds.clear();
         if (_hwnd)
@@ -95,9 +98,21 @@ public:
         return instance;
     }
 
+    // The thread's dispatcher, or null once thread-local destruction has destroyed it (never constructs one again).
+    [[nodiscard]] static AnimationDispatcher* TryGetInstance() noexcept
+    {
+        return t_destroyed ? nullptr : &GetInstance();
+    }
+
+    // One monotonic clock for every wake: the periodic timeline while the periodic timer runs, else uptime less the time
+    // the timeline lost to hitch clamping, so the clock never jumps when the periodic timer stops or starts and deadlines
+    // computed on either side keep their place.
     [[nodiscard]] uint64_t GetCurrentTickMs() const noexcept
     {
-        return _hasTickTimestamp ? _lastTickMs : GetTickCount64();
+        if (_hasTickTimestamp)
+            return _lastTickMs;
+        const uint64_t uptime = GetTickCount64();
+        return uptime > _lagMs ? uptime - _lagMs : 0u;
     }
 
     void RetainIdleWindow() noexcept
@@ -388,6 +403,9 @@ private:
         if (! self || ! failureScope.IsActive())
         {
             KillTimer(hwnd, static_cast<UINT_PTR>(wp));
+            // The timer is gone: say so, so a later subscriber (a failure host installed again) arms it again.
+            if (self)
+                self->OnTimerKilledWithoutHost(static_cast<UINT_PTR>(wp));
             return 0;
         }
         const auto timerId = static_cast<UINT_PTR>(wp);
@@ -397,6 +415,20 @@ private:
             return 0;
         }
         return DefWindowProcW(hwnd, msg, wp, lp);
+    }
+
+    void OnTimerKilledWithoutHost(UINT_PTR timerId) noexcept
+    {
+        if (timerId == kTimerId)
+        {
+            _timerRunning = false;
+            ResetClock();
+        }
+        else if (timerId == kDeadlineTimerId)
+        {
+            _deadlineArmed       = false;
+            _armedDeadlineTickMs = 0u;
+        }
     }
 
     void OnWindowDestroyed() noexcept
@@ -441,6 +473,9 @@ private:
 
     void ResetClock() noexcept
     {
+        // Keep what the timeline lost to hitch clamping, so the idle clock continues from the last periodic tick.
+        if (_hasTickTimestamp && _lastTickRealMs > _lastTickMs)
+            _lagMs = _lastTickRealMs - _lastTickMs;
         _lastTickMs        = 0u;
         _tickEpochMs       = 0u;
         _elapsedTickUs     = 0u;
@@ -581,11 +616,13 @@ private:
         if (! _hasTickTimestamp)
         {
             // The first tick after idle starts the timeline at the real time it runs: no frame is assumed to have passed.
-            _tickEpochMs       = GetTickCount64();
-            _lastTickTimestamp = timestamp;
-            _hasTickTimestamp  = true;
-            _elapsedTickUs     = 0u;
-            _lastTickMs        = _tickEpochMs;
+            // On the idle clock's base, so starting the periodic timer never moves the clock either.
+            const uint64_t uptime = GetTickCount64();
+            _tickEpochMs          = uptime > _lagMs ? uptime - _lagMs : 0u;
+            _lastTickTimestamp    = timestamp;
+            _hasTickTimestamp     = true;
+            _elapsedTickUs        = 0u;
+            _lastTickMs           = _tickEpochMs;
         }
 
         const uint64_t rawDeltaUs = hadPreviousTick ? _clock.ElapsedUs(_lastTickTimestamp, timestamp) : 0u;
@@ -602,6 +639,7 @@ private:
             }
         }
         _lastTickMs        = now;
+        _lastTickRealMs    = GetTickCount64();
         _lastTickTimestamp = timestamp;
         return now;
     }
@@ -609,6 +647,18 @@ private:
     void OnTimerTick(bool deadlineTimer) noexcept
     {
         const Failure::Scope failureScope;
+        // A callback running a modal loop dispatches the next timer messages: those wakes are refused (about one per
+        // periodic interval) until the callback returns, and the wake in progress arranges the timers when it ends.
+        if (_inTick)
+        {
+            if (deadlineTimer && _hwnd)
+            {
+                KillTimer(_hwnd.get(), kDeadlineTimerId);
+                _deadlineArmed       = false;
+                _armedDeadlineTickMs = 0u;
+            }
+            return;
+        }
         if (deadlineTimer)
         {
             // One-shot: the arrangement after this wake arms the next deadline, if any.
@@ -689,7 +739,10 @@ private:
     DxUi::FrameClock _clock;
     DxUi::FrameBudget _frameBudget{kTargetFrameUs, kHitchClampUs};
     DxUi::FrameTimestamp _lastTickTimestamp{};
-    bool _hasTickTimestamp = false;
+    bool _hasTickTimestamp                      = false;
+    uint64_t _lagMs                             = 0u; // uptime minus the timeline, kept across idle periods
+    uint64_t _lastTickRealMs                    = 0u;
+    static inline thread_local bool t_destroyed = false;
     std::vector<Subscription> _subscriptions;
     std::vector<Subscription> _pendingAdds;
 };

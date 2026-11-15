@@ -1676,6 +1676,16 @@ void RunAnimationTests()
     DXUI_RUN_TEST(TestFrameScheduleLifetimeFuzz);
     DXUI_RUN_TEST(TestFrameScheduleNativeFx1CaretWakesInRealTime);
     DXUI_RUN_TEST(TestFrameScheduleDispatcherThreadExitWithoutFailureHost);
+    DXUI_RUN_TEST(TestFrameScheduleHiddenHostResumesWhenVisibleAgain);
+    DXUI_RUN_TEST(TestFrameScheduleHiddenControlLandsWhenShown);
+    DXUI_RUN_TEST(TestFrameScheduleEmbeddedEmptiedScheduleRebases);
+    DXUI_RUN_TEST(TestFrameScheduleRequestsBeforeAttachArmTheDispatcher);
+    DXUI_RUN_TEST(TestFrameScheduleWakeHonoursCancelsAndTicksOnce);
+    DXUI_RUN_TEST(TestFrameScheduleRefusesForeignThreadRequests);
+    DXUI_RUN_TEST(TestFrameScheduleClockContinuesWhenThePeriodicTimerStops);
+    DXUI_RUN_TEST(TestFrameScheduleLifetimeFuzzThroughDispatcher);
+    DXUI_RUN_TEST(TestFrameScheduleTimerRearmsAfterTheFailureHostReturns);
+    DXUI_RUN_TEST(TestFrameScheduleHostOutlivingItsThreadDispatcherDetachesSafely);
     DXUI_RUN_TEST(TestFrameRuntimeElapsedUsHandlesLargeQpcDelta);
     DXUI_RUN_TEST(TestFrameRuntimeElapsedUsHandlesWideCrossSignDelta);
     DXUI_RUN_TEST(TestFrameRuntimeReducedMotionPolicy);
