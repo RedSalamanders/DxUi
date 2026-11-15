@@ -2238,7 +2238,7 @@ void ControlHost::ReleaseHiddenLatch() noexcept
 std::optional<uint64_t> ControlHost::GetTooltipWakeDueTickMs() const noexcept
 {
     // A Ctrl change over a rich title resolves the supplemental tooltip at the next wake.
-    if (_supplementalTooltipNeedsResolve)
+    if (_supplementalTooltipNeedsResolve || _tooltipTargetStale)
         return 0u;
     if (const auto deadline = _tooltipLayer.GetPendingDeadline())
         return deadline->dueTickMs;
@@ -2250,6 +2250,15 @@ void ControlHost::OnTooltipScheduleChanged() noexcept
     if (_detachInProgress.load(std::memory_order_acquire) || ! IsScheduleCallerOnOwnerThread())
         return;
     OnFrameScheduleChanged();
+}
+
+bool ControlHost::MarkTooltipTargetStale() noexcept
+{
+    if ((! _supplementalTooltipControl && ! _hoveredControl) || (! _tooltipLayer.GetPendingDeadline() && ! _tooltipLayer.HasTooltip()))
+        return false;
+    ++Detail::Work().frame.tooltipTargetMarks;
+    _tooltipTargetStale = true;
+    return true;
 }
 
 void ControlHost::DropPendingTooltipShowWhileHidden() noexcept
@@ -4481,6 +4490,7 @@ try
             _supplementalTooltipText.clear();
             _supplementalTooltipIsRichTitle  = false;
             _supplementalTooltipNeedsResolve = false;
+            _tooltipTargetStale              = false;
             ClearTooltip();
             Invalidate();
             return 0;
@@ -6754,6 +6764,7 @@ void ControlHost::ResetRootInteractionState() noexcept
     _supplementalTooltipText.clear();
     _supplementalTooltipIsRichTitle  = false;
     _supplementalTooltipNeedsResolve = false;
+    _tooltipTargetStale              = false;
     ClearTooltip();
     ReleaseMouseCapture();
     if (_nativeTextInputSessionRevision == sessionRevision)
@@ -6895,7 +6906,9 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
 {
     _supplementalTooltipModifiers    = modifiers;
     _supplementalTooltipNeedsResolve = false;
-    const auto interactionRevision   = _interactionRevision;
+    // A pointer move resolves the hover itself.
+    _tooltipTargetStale            = false;
+    const auto interactionRevision = _interactionRevision;
     PruneStaleInteractionState();
     if (_interactionRevision != interactionRevision)
         return;
@@ -7218,9 +7231,29 @@ bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
     const uint64_t presentationRevision = _nativePresentationRevision;
     const auto interrupted              = [&]() noexcept { return frame.abandoned || _nativePresentationRevision != presentationRevision; };
 
-    ValidateSupplementalTooltipTarget();
-    if (frame.abandoned)
-        return false;
+    // A tooltip's target is resolved again only when a change marked it (MarkTooltipTargetStale), a Ctrl change asked for
+    // the supplemental one, or the supplemental tooltip's own deadline is due: a wake for anything else, or an embedded
+    // advance while the tooltip only waits, walks nothing for it. A marked target is resolved as a pointer move at the
+    // resting point would resolve it (hover pruning, the hovered control's OnMouseMove, the supplemental target), so a
+    // control that sets its own tooltip (Grid, Tree, TabControl) recomputes it too; under capture only the supplemental
+    // target is resolved, so nothing is sent to the captured control.
+    const bool tooltipTargetStale = std::exchange(_tooltipTargetStale, false);
+    if (tooltipTargetStale && ! _capturedControl)
+    {
+        ++Detail::Work().frame.tooltipTargetValidations;
+        UpdateHover(_supplementalTooltipPointDip, _supplementalTooltipModifiers);
+        if (frame.abandoned)
+            return false;
+    }
+    else if (const auto tooltipDeadline = _tooltipLayer.GetPendingDeadline();
+             tooltipTargetStale || _supplementalTooltipNeedsResolve ||
+             (_supplementalTooltipControl && tooltipDeadline && tooltipDeadline->dueTickMs <= nowTickMs))
+    {
+        ++Detail::Work().frame.tooltipTargetValidations;
+        ValidateSupplementalTooltipTarget();
+        if (frame.abandoned)
+            return false;
+    }
 
     // Snapshot the due requests; a request made from now on (a Tick re-arming) lands in the schedule for a later wake.
     _tickDue.clear();

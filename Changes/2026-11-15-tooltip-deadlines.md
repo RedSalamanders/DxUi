@@ -8,3 +8,8 @@
   user's mouse hover time, clamped to 100-2,500 ms) is read once per host and again on `RefreshTooltipHoverTime()`,
   which a window host calls on `WM_SETTINGCHANGE` and an embedded host's application calls when its window receives one.
   New work counters `tooltipDeadlineTicks` and `tooltipShowsDropped`; `FX14` gains a `hide` phase.
+  While a tooltip is pending or shown, hiding, disabling, removing or retitling its target (or hiding an ancestor), and a
+  `Grid` or `Tree` data change or a removed tab under the resting pointer, make one wake follow at once that resolves the
+  hover again, so a tooltip no longer outlives its target or row for up to 5 s (or, for `Grid` and `Tree`, until the
+  pointer moved); with no tooltip these changes cost nothing, and a wake or embedded advance resolves the target only
+  when marked or at the tooltip's own deadline. New work counters `tooltipTargetMarks` and `tooltipTargetValidations`.

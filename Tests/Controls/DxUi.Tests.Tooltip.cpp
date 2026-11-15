@@ -4,6 +4,7 @@
 #include "Support/AnimationDispatcher.h"
 #include "Support/WorkCounters.h"
 
+#include <array>
 #include <functional>
 #include <iostream>
 #include <utility>
@@ -875,6 +876,9 @@ void TestTooltipDeadlinesWakeOnlyAtShowAndHideInRealTime()
     Require(waiting.wakes.animationTimer == 0u && shown.wakes.animationTimer == 0u, "no periodic wake while waiting or while shown");
     Require(waiting.frame.tooltipDeadlineTicks == 1u && shown.frame.tooltipDeadlineTicks == 1u, "the tooltip is ticked once at each deadline");
     Require(waiting.frame.tickCalls == 0u && shown.frame.tickCalls == 0u, "no control is ticked between the deadlines");
+    for (const WorkCounters* delta : {&waiting, &shown})
+        Require(delta->frame.treeVisitsTick == 0u && delta->frame.tickDiscoveryWalks == 0u && delta->frame.tickLegacyTreeWalks == 0u,
+                "no wake walks the tree to tick");
     Require(TooltipTimerWakes(waiting) + TooltipTimerWakes(shown) <= 2u, "G1: at most 2 wakes per tooltip shown, one show and one hide");
     {
         const WorkCounterScope after;
@@ -1170,6 +1174,390 @@ void TestTooltipHoverTimeIsReadOnceAndRefreshedOnSettingChange()
     view.Controls().DebugSetTooltipHoverTimeForTest(std::nullopt);
 }
 
+// ---- W3.3 review fix F1: a supplemental tooltip never outlives its target between its deadlines ------------------------
+
+// What happens to the hovered tooltip target while the pointer rests on it.
+enum class TooltipTargetChange : uint8_t
+{
+    Hide,
+    HideAncestor,
+    Remove,
+    Disable,
+    TooltipText,
+};
+constexpr std::array kTooltipTargetChanges{
+    TooltipTargetChange::Hide, TooltipTargetChange::HideAncestor, TooltipTargetChange::Remove, TooltipTargetChange::Disable, TooltipTargetChange::TooltipText};
+constexpr std::wstring_view kTargetTooltipText  = L"Target help";
+constexpr std::wstring_view kChangedTooltipText = L"Changed target help";
+
+[[nodiscard]] const char* TooltipTargetChangeName(TooltipTargetChange change) noexcept
+{
+    switch (change)
+    {
+        case TooltipTargetChange::Hide: return "hidden";
+        case TooltipTargetChange::HideAncestor: return "hidden through an ancestor";
+        case TooltipTargetChange::Remove: return "removed";
+        case TooltipTargetChange::Disable: return "disabled";
+        case TooltipTargetChange::TooltipText: return "tooltip text changed";
+    }
+    return "?";
+}
+
+// The hover path's Label below an intermediate Panel, so the target can also be hidden through an ancestor.
+struct TooltipTargetScene
+{
+    TooltipTargetScene()                                     = default;
+    TooltipTargetScene(const TooltipTargetScene&)            = delete;
+    TooltipTargetScene& operator=(const TooltipTargetScene&) = delete;
+    TooltipTargetScene(TooltipTargetScene&&)                 = delete;
+    TooltipTargetScene& operator=(TooltipTargetScene&&)      = delete;
+    ~TooltipTargetScene()                                    = default;
+
+    DxUi::Panel* ancestor = nullptr;
+    DxUi::Label* target   = nullptr;
+    std::unique_ptr<DxUi::Control> taken;
+};
+
+[[nodiscard]] std::unique_ptr<DxUi::Panel> MakeTooltipTargetRoot(TooltipTargetScene& scene)
+{
+    auto root      = std::make_unique<DxUi::Panel>();
+    scene.ancestor = root->AddChild<DxUi::Panel>();
+    scene.ancestor->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 200.0f));
+    scene.target = scene.ancestor->AddChild<DxUi::Label>(L"Help");
+    scene.target->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 100.0f));
+    scene.target->SetTooltipText(std::wstring(kTargetTooltipText));
+    return root;
+}
+
+void ApplyTooltipTargetChange(TooltipTargetScene& scene, TooltipTargetChange change)
+{
+    switch (change)
+    {
+        case TooltipTargetChange::Hide: scene.target->SetVisible(false); break;
+        case TooltipTargetChange::HideAncestor: scene.ancestor->SetVisible(false); break;
+        case TooltipTargetChange::Remove: scene.taken = scene.ancestor->TakeChild(0u); break;
+        case TooltipTargetChange::Disable: scene.target->SetEnabled(false); break;
+        case TooltipTargetChange::TooltipText: scene.target->SetTooltipText(std::wstring(kChangedTooltipText)); break;
+    }
+}
+
+// After the change: no tooltip is shown, and only a changed text is pending again (from now, with the full delay).
+[[nodiscard]] bool TooltipFollowsTargetChange(const DxUi::ControlHost& host, TooltipTargetChange change)
+{
+    const std::wstring_view expectedPending = change == TooltipTargetChange::TooltipText ? kChangedTooltipText : std::wstring_view{};
+    return ! host.HasTooltip() && host.DebugGetPendingTooltipText() == expectedPending;
+}
+
+// Native, real time: hidden, hidden through an ancestor, removed, disabled or retitled while the pointer rests, the target's
+// tooltip, pending or shown, follows at the next wake (one timer wake), not at its next deadline up to 5 s later.
+void TestTooltipFollowsItsTargetBetweenDeadlinesInRealTime()
+{
+    using namespace DxUi;
+    for (const bool shown : {false, true})
+        for (const TooltipTargetChange change : kTooltipTargetChanges)
+        {
+            AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+            auto& host = window.Host();
+            // Shown: the shortest delay shows it quickly. Pending: the longest keeps the show deadline far away.
+            host.DebugSetTooltipHoverTimeForTest(shown ? 100u : 2'500u);
+            TooltipTargetScene scene;
+            host.SetRoot(MakeTooltipTargetRoot(scene));
+            ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+            static_cast<void>(PumpWithoutLeaveUntil(window.Hwnd(), 200u, [] { return false; })); // first frames
+            SendHoverPathMove(window.Hwnd(), 0u);
+            Require(host.DebugGetPendingTooltipText() == kTargetTooltipText, "the pointer resting on the target schedules its tooltip");
+            if (shown)
+            {
+                Require(PumpWithoutLeaveUntil(window.Hwnd(), 3'000u, [&host] { return host.HasTooltip(); }), "the tooltip shows");
+                Require(host.DebugGetFrameScheduleWakeForTest().kind == 2u, "the shown tooltip waits for its hide deadline");
+                // A retitled target schedules its new text with the longest delay, so it stays pending while this test looks.
+                host.DebugSetTooltipHoverTimeForTest(2'500u);
+                host.RefreshTooltipHoverTime();
+            }
+            const WorkCounterScope scope;
+            ApplyTooltipTargetChange(scene, change);
+            const bool followed = PumpWithoutLeaveUntil(window.Hwnd(), 1'000u, [&host, change] { return TooltipFollowsTargetChange(host, change); });
+            // Some changes also end the hover synchronously (hiding an ancestor); the marked re-resolution still runs once.
+            static_cast<void>(PumpWithoutLeaveUntil(window.Hwnd(), 300u, [] { return false; }));
+            const WorkCounters delta = scope.Delta();
+            Require(TooltipFollowsTargetChange(host, change), "the tooltip stays as the change left it");
+            Require(change == TooltipTargetChange::TooltipText || host.DebugGetFrameScheduleWakeForTest().kind == 0u,
+                    "nothing stays armed for a retired target");
+            std::cout << "    [W3.3 F1] native, " << (shown ? "shown" : "pending") << ", target " << TooltipTargetChangeName(change) << ": "
+                      << TooltipTimerWakes(delta) << " timer wakes, " << delta.frame.tooltipTargetValidations << " target validations\n";
+            Require(followed, "the tooltip follows a change of its target at the next wake, not at its next deadline");
+            Require(TooltipTimerWakes(delta) == 1u && delta.wakes.animationTimer == 0u && delta.frame.tooltipTargetValidations == 1u &&
+                        delta.frame.tooltipDeadlineTicks == 0u,
+                    "one deadline wake, due at once, resolves the target again");
+            host.DebugSetTooltipHoverTimeForTest(std::nullopt);
+        }
+}
+
+// Embedded: the same changes turn the view's schedule due at once (NeedsAnimation stays true, the earliest deadline is now),
+// and one advance resolves the target; a waiting advance with nothing marked walks nothing for the tooltip.
+void TestTooltipFollowsItsTargetBetweenDeadlinesEmbedded()
+{
+    using namespace DxUi;
+    GraphicsFixture gpu;
+    RequireSucceeded(gpu.Create(), "create the tooltip-target WARP device");
+    std::shared_ptr<GraphicsDevice> pool;
+    RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), pool), "share the tooltip-target graphics");
+    for (const bool shown : {false, true})
+        for (const TooltipTargetChange change : kTooltipTargetChanges)
+        {
+            EmbeddedHost view;
+            RequireSucceeded(view.Attach(pool), "attach the tooltip-target view");
+            auto& host = view.Controls();
+            host.DebugSetTooltipHoverTimeForTest(400u);
+            TooltipTargetScene scene;
+            host.SetRoot(MakeTooltipTargetRoot(scene));
+            RequireSucceeded(view.Prepare(320u, 180u), "prepare the tooltip-target view");
+            uint64_t clock = 10'000u;
+            static_cast<void>(view.AdvanceAnimation(clock)); // discovery
+            const POINT pixel = TooltipHoverPathPixel(0u);
+            static_cast<void>(view.DispatchPointer(
+                PointerEvent{.action = PointerAction::Move, .xPixels = static_cast<float>(pixel.x), .yPixels = static_cast<float>(pixel.y)}));
+            Require(host.DebugGetPendingTooltipText() == kTargetTooltipText, "the embedded pointer schedules the target's tooltip");
+            static_cast<void>(view.AdvanceAnimation(clock += 16u)); // the first advance after the request sets the baseline
+            {
+                const WorkCounterScope waiting;
+                static_cast<void>(view.AdvanceAnimation(clock += 100u));
+                Require(waiting.Delta().frame.tooltipTargetValidations == 0u && waiting.Delta().frame.treeVisitsHitTest == 0u,
+                        "an advance while the tooltip only waits resolves nothing and walks nothing");
+            }
+            if (shown)
+            {
+                static_cast<void>(view.AdvanceAnimation(clock += 400u));
+                Require(host.HasTooltip(), "the embedded tooltip shows");
+            }
+            ApplyTooltipTargetChange(scene, change);
+            const auto due = host.DebugGetFrameScheduleWakeForTest();
+            Require(view.NeedsAnimation() && due.kind == 2u && due.dueTickMs <= host.GetAnimationTickMs(),
+                    "after the change the view's schedule is due at once: NeedsAnimation is true and the earliest deadline is now");
+            const WorkCounterScope resolve;
+            static_cast<void>(view.AdvanceAnimation(clock += 16u));
+            std::cout << "    [W3.3 F1] embedded, " << (shown ? "shown" : "pending") << ", target " << TooltipTargetChangeName(change) << ": "
+                      << resolve.Delta().frame.tooltipTargetValidations << " target validations at one advance\n";
+            Require(resolve.Delta().frame.tooltipTargetValidations == 1u && TooltipFollowsTargetChange(host, change),
+                    "one advance resolves the target and the tooltip follows the change");
+            host.DebugSetTooltipHoverTimeForTest(std::nullopt);
+        }
+}
+
+// ---- Tooltips that controls set themselves (Grid, Tree, TabControl) follow their owner between deadlines too -----------
+
+// One text column; each row has its own tooltip text.
+class TooltipRowsGridModel final : public DxUi::IGridModel
+{
+public:
+    void SetRows(std::vector<std::wstring> tooltips)
+    {
+        _tooltips = std::move(tooltips);
+    }
+    [[nodiscard]] size_t GetRowCount() const noexcept override
+    {
+        return _tooltips.size();
+    }
+    [[nodiscard]] size_t GetColumnCount() const noexcept override
+    {
+        return 1u;
+    }
+    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t /*columnIndex*/) const override
+    {
+        DxUi::GridColumnDesc column;
+        column.id       = L"name";
+        column.title    = L"Name";
+        column.widthDip = 240.0f;
+        return column;
+    }
+    void GetCellData(size_t rowIndex, size_t /*columnIndex*/, DxUi::GridCellData& outCell) const override
+    {
+        outCell.kind        = DxUi::GridCellKind::Text;
+        outCell.text        = L"Row";
+        outCell.tooltipText = _tooltips.at(rowIndex);
+    }
+    [[nodiscard]] uint64_t GetStableRowId(size_t rowIndex) const noexcept override
+    {
+        return std::hash<std::wstring>{}(_tooltips.at(rowIndex));
+    }
+    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+    {
+        for (size_t row = 0u; row < _tooltips.size(); ++row)
+            if (GetStableRowId(row) == rowId)
+                return row;
+        return std::nullopt;
+    }
+
+private:
+    std::vector<std::wstring> _tooltips;
+};
+
+// A window host on a test clock: moves the pointer to a DIP point, and runs one wake when the schedule says it is due.
+class OwnerTooltipWindow final
+{
+public:
+    OwnerTooltipWindow() : _window(DxUi::WindowHost::PresentationMode::HwndSwapChain, true)
+    {
+        ShowWindow(_window.Hwnd(), SW_SHOWNOACTIVATE);
+        _window.Host().DebugSetTooltipHoverTimeForTest(400u);
+        _window.Host().DebugSetAnimationClockForTest(_now);
+    }
+    OwnerTooltipWindow(const OwnerTooltipWindow&)            = delete;
+    OwnerTooltipWindow& operator=(const OwnerTooltipWindow&) = delete;
+    OwnerTooltipWindow(OwnerTooltipWindow&&)                 = delete;
+    OwnerTooltipWindow& operator=(OwnerTooltipWindow&&)      = delete;
+    ~OwnerTooltipWindow()
+    {
+        _window.Host().DebugSetAnimationClockForTest(std::nullopt);
+        _window.Host().DebugSetTooltipHoverTimeForTest(std::nullopt);
+    }
+    [[nodiscard]] DxUi::WindowHost& Host() noexcept
+    {
+        return _window.Host();
+    }
+    void MoveTo(D2D1_POINT_2F pointDip)
+    {
+        const int dpi = static_cast<int>(GetDpiForWindow(_window.Hwnd()));
+        const LONG x  = MulDiv(static_cast<int>(pointDip.x), dpi, USER_DEFAULT_SCREEN_DPI);
+        const LONG y  = MulDiv(static_cast<int>(pointDip.y), dpi, USER_DEFAULT_SCREEN_DPI);
+        SendMessageW(_window.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(x, y));
+    }
+    void TickAt(uint64_t at)
+    {
+        _now = at;
+        _window.Host().DebugSetAnimationClockForTest(_now);
+        static_cast<void>(_window.Host().DebugAnimationTickForTest(_now));
+    }
+    // The change made the schedule due at once; one wake then resolves the hover again. Returns that wake's validations.
+    [[nodiscard]] uint64_t ResolveDueChange()
+    {
+        const auto wake = _window.Host().DebugGetFrameScheduleWakeForTest();
+        Require(wake.kind == 2u && wake.dueTickMs <= _now, "the change makes the schedule due at once");
+        const WorkCounterScope scope;
+        TickAt(_now + 16u);
+        const auto after = _window.Host().DebugGetFrameScheduleWakeForTest();
+        Require(after.kind != 2u || after.dueTickMs > _now, "the re-resolution leaves nothing due at once: no wake loop");
+        return scope.Delta().frame.tooltipTargetValidations;
+    }
+    [[nodiscard]] uint64_t Now() const noexcept
+    {
+        return _now;
+    }
+
+private:
+    AttachedHostWindow _window;
+    uint64_t _now = 700'000u;
+};
+
+// Grid sets its cell tooltip itself (SetTooltip, no hide deadline): a row removed under the resting pointer shows the
+// tooltip of the row now there; the Grid hidden clears it.
+void TestGridTooltipFollowsRowsAndVisibilityBetweenDeadlines()
+{
+    using namespace DxUi;
+    OwnerTooltipWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* grid = root->AddChild<Grid>();
+    grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 280.0f, 140.0f));
+    window.Host().SetRoot(std::move(root));
+    TooltipRowsGridModel model;
+    model.SetRows({L"First row help", L"Second row help"});
+    grid->SetModel(&model);
+    const GridCellLayoutMetrics metrics = grid->GetCellLayoutMetrics(window.Host(), 0u, 0u);
+    window.MoveTo(D2D1::Point2F((metrics.cellRect.left + metrics.cellRect.right) * 0.5f, (metrics.cellRect.top + metrics.cellRect.bottom) * 0.5f));
+    Require(window.Host().HasTooltip() && window.Host().GetTooltipText() == L"First row help", "the hovered Grid cell shows its tooltip");
+
+    model.SetRows({L"Second row help"});
+    grid->NotifyDataChanged();
+    Require(window.ResolveDueChange() == 1u && window.Host().GetTooltipText() == L"Second row help",
+            "a row removed under the resting pointer: the next wake shows the tooltip of the row now there");
+    grid->SetVisible(false);
+    static_cast<void>(window.ResolveDueChange());
+    Require(! window.Host().HasTooltip() && window.Host().DebugGetPendingTooltipText().empty(), "the Grid hidden: the next wake clears its tooltip");
+    grid->SetModel(nullptr);
+}
+
+// Tree sets its row tooltip itself (SetTooltip): a row removed under the resting pointer shows the next row's tooltip; the
+// Tree disabled clears it.
+void TestTreeTooltipFollowsRowsAndEnabledStateBetweenDeadlines()
+{
+    using namespace DxUi;
+    OwnerTooltipWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 420.0f, 140.0f));
+    window.Host().SetRoot(std::move(root));
+    MutableTreeModel model;
+    model.SetVisibleItems({TreeItemData{.id = 1u, .text = L"Plugins", .tooltipText = L"First row help"},
+                           TreeItemData{.id = 2u, .text = L"Viewers", .tooltipText = L"Second row help"}});
+    tree->SetModel(&model);
+    const TreeItemLayoutMetrics metrics = tree->GetItemLayoutMetrics(window.Host(), 0u);
+    window.MoveTo(D2D1::Point2F(metrics.textRect.left + 12.0f, (metrics.rowRect.top + metrics.rowRect.bottom) * 0.5f));
+    Require(window.Host().HasTooltip() && window.Host().GetTooltipText() == L"First row help", "the hovered Tree row shows its tooltip");
+
+    model.SetVisibleItems({TreeItemData{.id = 2u, .text = L"Viewers", .tooltipText = L"Second row help"}});
+    tree->NotifyDataChanged();
+    Require(window.ResolveDueChange() == 1u && window.Host().GetTooltipText() == L"Second row help",
+            "a row removed under the resting pointer: the next wake shows the tooltip of the row now there");
+    tree->SetEnabled(false);
+    static_cast<void>(window.ResolveDueChange());
+    Require(! window.Host().HasTooltip() && window.Host().DebugGetPendingTooltipText().empty(), "the Tree disabled: the next wake clears its tooltip");
+    tree->SetModel(nullptr);
+}
+
+// TabControl sets its tab tooltip itself (SetTooltipDelayed): the hovered tab removed while its tooltip is shown schedules
+// the tooltip of the tab now there; the TabControl hidden while that one waits drops it.
+void TestTabControlTooltipFollowsTabsAndVisibilityBetweenDeadlines()
+{
+    using namespace DxUi;
+    OwnerTooltipWindow window;
+    auto root  = std::make_unique<Panel>();
+    auto* tabs = root->AddChild<TabControl>();
+    tabs->SetBounds(D2D1::RectF(0.0f, 0.0f, 420.0f, 200.0f));
+    static_cast<void>(tabs->AddTab<Panel>(L"First"));
+    static_cast<void>(tabs->AddTab<Panel>(L"Second"));
+    tabs->SetTabTooltip(0u, L"First tab help");
+    tabs->SetTabTooltip(1u, L"Second tab help");
+    window.Host().SetRoot(std::move(root));
+    const D2D1_RECT_F tab = tabs->DebugGetTabRect(0u);
+    window.MoveTo(D2D1::Point2F((tab.left + tab.right) * 0.5f, (tab.top + tab.bottom) * 0.5f));
+    Require(window.Host().DebugGetPendingTooltipText() == L"First tab help", "the hovered tab schedules its tooltip");
+    window.TickAt(window.Now() + 1'000u);
+    Require(window.Host().HasTooltip() && window.Host().GetTooltipText() == L"First tab help", "the tab tooltip shows");
+
+    tabs->RemoveTab(0u);
+    Require(window.ResolveDueChange() == 1u && ! window.Host().HasTooltip() && window.Host().DebugGetPendingTooltipText() == L"Second tab help",
+            "the hovered tab removed: the next wake schedules the tooltip of the tab now there");
+    tabs->SetVisible(false);
+    static_cast<void>(window.ResolveDueChange());
+    Require(! window.Host().HasTooltip() && window.Host().DebugGetPendingTooltipText().empty(), "the TabControl hidden: the next wake drops its tooltip");
+}
+
+// With no tooltip pending or shown the same setters mark nothing, arm nothing and wake nothing.
+void TestTooltipTargetSettersCostNothingWithoutTooltip()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+    auto& host = window.Host();
+    TooltipTargetScene scene;
+    host.SetRoot(MakeTooltipTargetRoot(scene));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    static_cast<void>(PumpWithoutLeaveUntil(window.Hwnd(), 200u, [] { return false; }));
+    const WorkCounterScope scope;
+    scene.target->SetTooltipText(std::wstring(kChangedTooltipText));
+    scene.target->SetEnabled(false);
+    scene.target->SetEnabled(true);
+    scene.target->SetVisible(false);
+    scene.target->SetVisible(true);
+    scene.ancestor->SetVisible(false);
+    scene.ancestor->SetVisible(true);
+    scene.taken = scene.ancestor->TakeChild(0u);
+    Require(host.DebugGetFrameScheduleWakeForTest().kind == 0u && ! host.DebugHasActiveAnimationSubscription(), "nothing is armed");
+    static_cast<void>(PumpWithoutLeaveUntil(window.Hwnd(), 300u, [] { return false; }));
+    const WorkCounters delta = scope.Delta();
+    Require(delta.frame.tooltipTargetMarks == 0u && delta.frame.tooltipTargetValidations == 0u && TooltipTimerWakes(delta) == 0u,
+            "with no tooltip the setters mark nothing, validate nothing and wake nothing");
+}
+
 } // namespace
 
 void RunTooltipTests()
@@ -1199,4 +1587,10 @@ void RunTooltipTests()
     DXUI_RUN_TEST(TestTooltipDeadlinesOnHiddenHosts);
     DXUI_RUN_TEST(TestTooltipHoverTimeIsReadOnceAndRefreshedOnSettingChange);
     DXUI_RUN_TEST(TestTooltipDeadlinesWakeOnlyAtShowAndHideInRealTime);
+    DXUI_RUN_TEST(TestTooltipFollowsItsTargetBetweenDeadlinesEmbedded);
+    DXUI_RUN_TEST(TestTooltipTargetSettersCostNothingWithoutTooltip);
+    DXUI_RUN_TEST(TestGridTooltipFollowsRowsAndVisibilityBetweenDeadlines);
+    DXUI_RUN_TEST(TestTreeTooltipFollowsRowsAndEnabledStateBetweenDeadlines);
+    DXUI_RUN_TEST(TestTabControlTooltipFollowsTabsAndVisibilityBetweenDeadlines);
+    DXUI_RUN_TEST(TestTooltipFollowsItsTargetBetweenDeadlinesInRealTime);
 }

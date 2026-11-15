@@ -528,7 +528,7 @@ void TestTooltipDeadlineGatesOnWindowFx14()
         Require(controls == 0u, "FX14: no Tick call between the deadlines");
         tooltipTicks += ticks;
     }
-    Require(tooltipTicks == 2u, "G1: FX14 wakes from the tooltip <= 2 per show on the window host, one show and one hide");
+    Require(tooltipTicks == 2u, "G1: FX14 ticks the tooltip twice per show on the window host (fixture clock), at its show and its hide deadline");
 }
 
 int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv)

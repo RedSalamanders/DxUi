@@ -7232,6 +7232,12 @@ private:
     [[nodiscard]] std::optional<uint64_t> GetTooltipWakeDueTickMs() const noexcept;
     // Tells the dispatcher the tooltip's deadline changed; a request from another thread or a detaching host changes nothing.
     void OnTooltipScheduleChanged() noexcept;
+    // A change that can retire or alter the tooltip's target (a control's visibility, enabled state, host or parent, tooltip
+    // text, or a model owner's data and geometry: a Grid's or Tree's rows) while a tooltip is pending or shown under a
+    // hovered control or a supplemental target marks it stale: the next wake, due at once, resolves the hover again at the
+    // resting pointer as a pointer move there would. Returns whether it marked, so the caller calls OnTooltipScheduleChanged
+    // once it may run callbacks. Constant time; with no tooltip pending or shown it does nothing.
+    [[nodiscard]] bool MarkTooltipTargetStale() noexcept;
     // A host that is hidden (presentation, window, minimized or an embedded view) drops a tooltip still waiting to show: the
     // pointer that asked for it is no longer known when the host returns. A shown tooltip's hide stays held and fires on show.
     void DropPendingTooltipShowWhileHidden() noexcept;
@@ -7542,6 +7548,8 @@ private:
     D2D1_POINT_2F _supplementalTooltipPointDip = D2D1::Point2F();
     UINT _supplementalTooltipModifiers         = 0u;
     bool _supplementalTooltipIsRichTitle = false, _supplementalTooltipNeedsResolve = false;
+    // Set by MarkTooltipTargetStale: the next wake resolves the hover again at the resting pointer.
+    bool _tooltipTargetStale = false;
     // The last rich title SupplementalTooltipText resolved, with the editor, point, modifiers and the editor's hover key
     // it was resolved for. An unmoved pointer reuses it until one of them changes.
     struct RichTitleHover

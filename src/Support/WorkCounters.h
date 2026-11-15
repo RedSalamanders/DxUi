@@ -41,6 +41,8 @@
     X(frame, tickRequesters)                /* Due requests the frame schedule found at its wakes, one per requesting control. */                              \
     X(frame, tooltipDeadlineTicks)          /* Host tooltip-layer Ticks at a reached show or hide deadline; never between deadlines. */                        \
     X(frame, tooltipShowsDropped)           /* Pending tooltip shows a host dropped because it was hidden before they came due. */                             \
+    X(frame, tooltipTargetMarks)            /* Changes that marked a pending or shown supplemental tooltip's target for re-resolution at the next wake. */     \
+    X(frame, tooltipTargetValidations)      /* Wakes that resolved the supplemental tooltip's target again: marked, or at the tooltip's own deadline. */       \
     X(frame, treeVisitsHitTest)             /* Controls a hit test examined: the root and each child a container offered to it. */                             \
     X(frame, treeVisitsPaint)               /* Controls a paint walk examined, visible or not. */                                                              \
     X(frame, treeVisitsStatistics)          /* Controls an EmbeddedHost::GetStatistics retained-resource walk examined. */                                     \

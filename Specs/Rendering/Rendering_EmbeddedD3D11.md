@@ -232,7 +232,7 @@ window receives one, as it calls `SetTheme` for reduced motion and `SetTextRende
 never polls the settings.
 
 The tooltip shows and hides at two [deadlines](Rendering_Win32Host.md#tooltip-deadlines) and is ticked at nothing
-else; `SetVisible(false)` drops a tooltip still waiting to show. Its show delay is the user's mouse hover time, read
+else; `SetVisible(false)` drops a tooltip still waiting to show, and a change to its target makes the schedule due at once. Its show delay is the user's mouse hover time, read
 once: the view receives no `WM_SETTINGCHANGE`, so the application calls `Controls().RefreshTooltipHoverTime()` when its
 own window receives one. DxUi never polls the setting.
 

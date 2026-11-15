@@ -168,12 +168,13 @@ The host's tooltip layer waits for at most one deadline: the show of a pending t
 show delay) or the hide of a shown one (5,000 ms after it shows, or the delay a pointer leave passes to
 `BeginTooltipHideDelay`). The deadline is read from the layer whenever the schedule is computed, so it is armed by
 entering a waiting mode and gone with leaving it: a pointer leave during the delay, a replacement by another control's
-tooltip, a tracking `SetTooltip`, `ClearTooltip` (a click, the host's mouse leave, a removed or re-resolved supplemental
-target), a capture change, an inspection, detach. Every such change tells the dispatcher, so no stale wake remains; a
+tooltip, a tracking `SetTooltip`, `ClearTooltip` (a click, the host's mouse leave, a re-resolved supplemental target),
+a capture change, an inspection, detach. Every such change tells the dispatcher, so no stale wake remains; a
 wake reaching a time the layer no longer waits for does nothing. The layer's `Tick` returns false: nothing about a
 tooltip moves between its deadlines, and the layer is never ticked between them. A native host therefore wakes once to
 show a tooltip and once to hide it, and runs no periodic timer for it; an embedded host's `NeedsAnimation` stays true
-while a deadline is pending, as for any deadline, and `AdvanceAnimation` before it ticks nothing. A tooltip has no fade
+while a deadline is pending, as for any deadline, and `AdvanceAnimation` before it ticks nothing and walks nothing for
+the tooltip. A tooltip has no fade
 or motion of its own, so it never requests every frame. A Ctrl change over a rich title resolves the supplemental
 tooltip at the next wake. The layer is host-owned, not a request of the control schedule: within a wake its deadline is
 read after every control's `Tick`, so a `Tick` that dismisses, replaces or re-arms the tooltip is honoured in the same
@@ -185,6 +186,23 @@ embedded view's `SetVisible(false)`) drops a tooltip still waiting to show, sinc
 longer known when the host returns; a shown tooltip's hide is held like any deadline and hides it at the first wake after
 the show (an embedded view's timeline does not count the hidden time).
 
+A tooltip never outlives its target. While one is pending or shown under a hovered control or a supplemental target
+(a control's `SetTooltipText`, or a rich title, found by the host's hit test), every change that can retire or alter
+the target marks it stale and tells the dispatcher: `SetVisible` and `SetEnabled` on any control (the target or an
+ancestor), a control leaving or joining the host (removal, re-parenting, root replacement, a removed tab page),
+`SetTooltipText`, and a model owner's data or geometry change (`Grid` and `Tree` `SetModel`, `NotifyDataChanged`, row
+height and bounds). The mark is due at once, so one wake follows and resolves the hover again at the resting pointer,
+as a pointer move there would: hover pruning drops a hovered control that is gone, hidden or disabled (clearing its
+tooltip), the hovered control's `OnMouseMove` lets a control that sets its own tooltip (`Grid`, `Tree`, `TabControl`)
+recompute it for the row or tab now under the pointer, and the supplemental target is resolved again (a changed text
+clears the tooltip and schedules the new one with the full show delay; an unchanged target keeps it as it is). Under
+mouse capture only the supplemental target is resolved, so nothing is sent to the captured control. On an embedded host
+the change makes the schedule's earliest deadline due now (`NeedsAnimation` true) and the next `AdvanceAnimation`
+resolves it. The mark is a flag beside the layer's one deadline, not a second deadline; with no tooltip pending or shown
+these setters mark nothing and cause no wake. The target is otherwise resolved again only at the supplemental tooltip's
+own deadlines, so a target moved without a data or geometry change of its owner (a plain `SetBounds`, a scroll offset)
+is noticed at the next deadline or pointer move. Work counters record the marks (`tooltipTargetMarks`) and the wakes
+that resolved the target (`tooltipTargetValidations`).
 The show delay is the user's mouse hover time (`SPI_GETMOUSEHOVERTIME`, read and never changed) clamped to 100-2,500 ms,
 500 ms when the system reports none. Each host reads it once, when it first schedules a tooltip, and again on
 `RefreshTooltipHoverTime()`: a window host calls it on `WM_SETTINGCHANGE`; an embedded host has no window, so its

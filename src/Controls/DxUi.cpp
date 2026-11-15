@@ -446,7 +446,12 @@ void Control::SetVisible(bool visible) noexcept
     if (_visible != visible)
     {
         if (_host)
+        {
             ++_host->_interactionRevision;
+            // A pending or shown supplemental tooltip re-resolves its target at the next wake (this one, or an ancestor of it,
+            // may be it); the OnFrameScheduleChanged calls below tell the dispatcher.
+            static_cast<void>(_host->MarkTooltipTargetStale());
+        }
         _visible = visible;
         if (_host)
         {
@@ -511,8 +516,13 @@ void Control::SetEnabled(bool enabled) noexcept
     const Failure::Scope outerFailureScope;
     if (_enabled != enabled)
     {
+        bool tooltipTargetStale = false;
         if (_host)
+        {
             ++_host->_interactionRevision;
+            // A disabled control (or one below it) is no supplemental-tooltip target.
+            tooltipTargetStale = _host->MarkTooltipTargetStale();
+        }
         _enabled                          = enabled;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         OnEnabledChanged(enabled);
@@ -527,6 +537,12 @@ void Control::SetEnabled(bool enabled) noexcept
         }
         if (ControlHost* const host = GetHost())
         {
+            if (tooltipTargetStale)
+            {
+                host->OnTooltipScheduleChanged();
+                if (lifetime.expired() || GetHost() != host)
+                    return;
+            }
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
     }
@@ -567,7 +583,12 @@ bool Control::IsHovered() const noexcept
 
 void Control::SetTooltipText(std::wstring tooltipText)
 {
+    if (_tooltipText == tooltipText)
+        return;
     _tooltipText = std::move(tooltipText);
+    // A pending or shown supplemental tooltip shows the new text, or none, from the next wake.
+    if (_host && _host->MarkTooltipTargetStale())
+        _host->OnTooltipScheduleChanged();
 }
 
 std::wstring_view Control::GetTooltipText() const noexcept
@@ -1395,6 +1416,13 @@ void Control::PropagateHost(ControlHost* host) noexcept
         if (lifetime.expired() || _host != previousHost)
             return;
         ++previousHost->_interactionRevision;
+        // A control leaving the host may be (or contain) the supplemental tooltip's target.
+        if (previousHost->MarkTooltipTargetStale())
+        {
+            previousHost->OnTooltipScheduleChanged();
+            if (lifetime.expired() || _host != previousHost)
+                return;
+        }
         previousHost->Invalidate();
         if (lifetime.expired() || _host != previousHost)
             return;
@@ -1402,6 +1430,13 @@ void Control::PropagateHost(ControlHost* host) noexcept
     if (host)
     {
         ++host->_interactionRevision;
+        // A control joining the host may cover the supplemental tooltip's target.
+        if (host->MarkTooltipTargetStale())
+        {
+            host->OnTooltipScheduleChanged();
+            if (lifetime.expired() || _host != previousHost)
+                return;
+        }
         host->Invalidate();
         if (lifetime.expired() || _host != previousHost)
             return;

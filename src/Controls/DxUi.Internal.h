@@ -126,9 +126,14 @@ struct ControlModelQueryAccess
     }
     template <typename Owner> [[nodiscard]] static auto InvalidateGeometry(Owner& owner) noexcept
     {
-        if (auto* const host = owner.GetHost())
+        // A model owner's rows or geometry changing under a pending or shown tooltip (a Grid cell's or Tree row's) mark it for
+        // re-resolution at the resting pointer; the dispatcher learns it when the change is complete.
+        bool tooltipTargetStale = false;
+        auto* const host        = owner.GetHost();
+        if (host)
         {
             ++host->_interactionRevision;
+            tooltipTargetStale = host->MarkTooltipTargetStale();
             // During an intrinsic arrangement, geometry the arranged branch changes about itself (a Grid clamping its scroll
             // to the bounds it was just given) is accepted like the branch's own bounds; anything outside it is foreign. Without
             // this an owner aborted after such a child and left every later sibling unarranged until an unrelated change.
@@ -145,10 +150,13 @@ struct ControlModelQueryAccess
         }
         const auto lifetime = owner.GetLifetimeToken();
         // Every exit, including a failed getter, leaves a surviving model owner scheduled for fresh preparation.
-        return wil::scope_exit([&owner, lifetime]() noexcept
+        return wil::scope_exit([&owner, lifetime, host, tooltipTargetStale]() noexcept
         {
-            if (! lifetime.expired())
-                owner.RequestInvalidate();
+            if (lifetime.expired())
+                return;
+            owner.RequestInvalidate();
+            if (tooltipTargetStale && ! lifetime.expired() && owner.GetHost() == host)
+                host->OnTooltipScheduleChanged();
         });
     }
     // Control::Measure for a container that counts its children's actual measurements: `executed` reports whether
