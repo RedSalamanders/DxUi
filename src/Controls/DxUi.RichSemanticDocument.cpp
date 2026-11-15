@@ -2908,8 +2908,14 @@ struct SemanticBuilder::Preparation
         if (html.present && ! html.valid)
         {
             Detail::SemanticValue literal;
+            // A callout's own paragraph has already projected its header line
+            // (marker and label); the literal body starts after it, exactly
+            // where the inline visits of a valid body would (skipUntil).
             if (node.block.kind != MarkdownBlockKind::HtmlBlock && node.firstInline != MarkdownNoNode)
-                Detail::SliceSemanticValue(normalized, {syntax.Inlines()[node.firstInline].source.first, node.block.source.last}, literal);
+                Detail::SliceSemanticValue(
+                    normalized, {std::max(syntax.Inlines()[node.firstInline].source.first, visit.skipUntil), node.block.source.last}, literal);
+            else if (visit.skipUntil > node.block.source.first)
+                Detail::SliceSemanticValue(normalized, {visit.skipUntil, node.block.source.last}, literal);
             else
                 literal = normalized;
             output.Value(literal, visit.flags | Code, visit.heading);

@@ -974,6 +974,39 @@ void TestRichSemanticNativeHangingMarkersLinksAndHtml()
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native hanging markers and HTML"); });
     });
 }
+// The callout whose body is unsupported inline HTML (W7.1 fuzz finding) renders in both presentations and both profiles
+// that parse it: native preparation settles, publishes the same semantic display a fresh build gives, and places a caret
+// in the literal body.
+void TestRichSemanticCalloutLiteralHtmlRenders()
+{
+    using namespace DxUi::RichText;
+    AttachedHostWindow window;
+    RichSemanticTests::Run([&]
+    {
+        for (const std::wstring_view source : {L">[!tip]\n<s>", L"> [!note] Title\n> <s>\n", L">[!tip]-\n<s>", L">[!tip]\r\n<b>\r\n"})
+            for (const auto profile : {MarkdownProfile::RichMarkdown, MarkdownProfile::Gfm029})
+                for (const auto presentation : {MarkdownPresentationStyle::Default, MarkdownPresentationStyle::Subtle})
+                {
+                    auto root    = std::make_unique<RichSemanticEditorTests::DirectPrepareRichTextEditor>(std::wstring(source));
+                    auto* editor = root.get();
+                    editor->SetBounds(D2D1::RectF(0.f, 0.f, 420.f, 200.f));
+                    editor->SetMarkdownAnalysisProfile(profile);
+                    editor->SetMarkdownRenderingEnabled(true);
+                    auto appearance                 = editor->GetAppearance();
+                    appearance.markdownPresentation = presentation;
+                    editor->SetAppearance(appearance);
+                    window.Host().SetRoot(std::move(root));
+                    Require(RichSemanticEditorTests::PrepareUntilSettled(*editor, window.Host()) == S_OK, "the callout literal body prepares natively");
+                    const auto document = editor->GetAcknowledgedSemanticDocument(window.Host());
+                    Require(document && editor->DebugGetState().layoutReady, "the callout literal body publishes semantic geometry");
+                    Require(document->Map().Display() == RichSemanticDocumentTests::Build(source, profile)->Map().Display(),
+                            "the rendered semantic display equals a fresh build");
+                    const auto body = source.find(L'<');
+                    Require(editor->TryGetTextInputCaretRect(window.Host(), body).has_value(), "the literal body has caret geometry");
+                    Require(PrepareNativeContentForTests(window.Host()), "the callout literal body paints");
+                }
+    });
+}
 void TestRichSemanticNativeRetainedRendering()
 {
     AttachedHostWindow window;
@@ -1039,6 +1072,7 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticNativeTaskCheckboxAlignment);
     DXUI_RUN_TEST(TestRichSemanticNativeSourceCaretSites);
     DXUI_RUN_TEST(TestRichSemanticNativeHangingMarkersLinksAndHtml);
+    DXUI_RUN_TEST(TestRichSemanticCalloutLiteralHtmlRenders);
     DXUI_RUN_TEST(TestRichSemanticNativeRetainedRendering);
     DXUI_RUN_TEST(TestRichSemanticNativeRenderingAdmissionFallback);
 }

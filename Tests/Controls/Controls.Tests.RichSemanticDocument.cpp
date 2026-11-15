@@ -1434,8 +1434,80 @@ void TestSemanticProjectionSparseMapMatchesDenseAnchors()
                 (source.size() + display.size()) * sizeof(wchar_t) + std::size(spans) * sizeof(DisplaySpan) + 4u * sizeof(std::uint32_t),
             "a public map owns its source copy, and only a reordered map adds the order of its primary spans");
 }
+// A callout whose header line is followed by inline HTML that fails native validation: the literal fallback of the body
+// starts after the header the callout already projected (found by the W7.1 edit fuzz; it used to emit the header's
+// source twice and fail map construction). Relatives that already worked are checked beside it, in every profile.
+void TestRichSemanticCalloutBodyLiteralHtml()
+{
+    using namespace DxUi::RichText;
+    const auto display = [](std::wstring_view source, MarkdownProfile profile)
+    {
+        const auto document = RichSemanticDocumentTests::Build(source, profile);
+        RichSemanticDocumentTests::CheckGraph(*document);
+        SemanticProjectionTests::CheckSparseMapAgainstDense(document->Map(), "callout literal");
+        static_cast<void>(CountWords(*document));
+        return document;
+    };
+    struct Pair
+    {
+        std::wstring_view literal, reference; // Same structure; the reference body is ordinary text "QQQ".
+    };
+    const Pair pairs[] = {{L">[!tip]\n<s>", L">[!tip]\nQQQ"},
+                          {L">[!tip]\n<s>\n", L">[!tip]\nQQQ\n"},
+                          {L">[!tip]\r\n<s>\r\n", L">[!tip]\r\nQQQ\r\n"},
+                          {L"> [!note] Title\n> <s>\n", L"> [!note] Title\n> QQQ\n"},
+                          {L">[!tip]+\n<s>", L">[!tip]+\nQQQ"},
+                          {L">[!tip]-\n<s>", L">[!tip]-\nQQQ"},
+                          {L">[!tip]\n<b>", L">[!tip]\nQQQ"},
+                          {L"- >[!tip]\n  <s>", L"- >[!tip]\n  QQQ"}};
+    for (const auto profile : {MarkdownProfile::RichMarkdown, MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312})
+        for (const auto& pair : pairs)
+        {
+            const auto literal   = display(pair.literal, profile);
+            const auto reference = display(pair.reference, profile);
+            std::wstring expected(reference->Map().Display());
+            const auto at = expected.find(L"QQQ");
+            if (at == std::wstring::npos)
+            {
+                // A collapsed callout shows neither body.
+                Require(literal->Map().Display() == expected, "a collapsed callout hides a literal HTML body as it hides text");
+                continue;
+            }
+            const auto body = pair.literal.substr(pair.reference.find(L"QQQ"), 3u);
+            expected.replace(at, 3u, body);
+            // Without callouts (GFM, CommonMark) the whole paragraph is one unsupported HTML leaf, shown literally as before.
+            Require(profile != MarkdownProfile::RichMarkdown || literal->Map().Display() == expected,
+                    "a literal HTML callout body displays after the header exactly where ordinary text does");
+            // The header is projected once: its label owns one display occurrence in both documents.
+            const auto count = [](const SemanticDocument& document, SemanticRole role)
+            { return std::ranges::count(document.Elements(), role, &SemanticElement::role); };
+            Require(count(*literal, SemanticRole::Callout) == count(*reference, SemanticRole::Callout) &&
+                        count(*literal, SemanticRole::Disclosure) == count(*reference, SemanticRole::Disclosure),
+                    "the literal body keeps the callout structure");
+            for (std::size_t index = 0u; index < literal->Elements().size(); ++index)
+                if (literal->Elements()[index].role == SemanticRole::Callout || literal->Elements()[index].role == SemanticRole::Disclosure)
+                    Require(literal->Elements()[index].name == reference->Elements()[index].name, "callout accessible names are unchanged");
+            // The literal body is styled as code, like any unsupported inline HTML leaf.
+            const auto offset = literal->Map().Display().find(body);
+            const auto runs   = literal->Runs();
+            const auto run    = std::ranges::find_if(runs, [&](const auto& item) { return item.start <= offset && offset < item.start + item.length; });
+            Require(run != runs.end() && (run->flags & Code) != 0u, "the literal HTML body keeps its code style");
+            // Both map directions resolve the body to its own source.
+            const auto source = pair.literal.find(body);
+            Require(literal->Map().ToDisplay(source) == offset && literal->Map().ToSource(offset) == source &&
+                        literal->Map().ToSource(offset + body.size(), MappingAffinity::Trailing) == source + body.size(),
+                    "the literal body maps to its own source in both directions");
+        }
+    // Valid native HTML in a callout body, and HTML in the header, keep their existing projections.
+    Require(display(L">[!tip]\n<s>x</s>", MarkdownProfile::RichMarkdown)->Map().Display() ==
+                std::wstring(display(L">[!tip]\nx", MarkdownProfile::RichMarkdown)->Map().Display()),
+            "valid native HTML in a callout body projects its text");
+    static_cast<void>(display(L"> <s>", MarkdownProfile::RichMarkdown));
+    static_cast<void>(display(L">[!tip] <s>\n<s>", MarkdownProfile::RichMarkdown));
+}
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestRichSemanticCalloutBodyLiteralHtml);
     DXUI_RUN_TEST(TestSemanticProjectionEditFuzzEqualsFreshBuild);
     DXUI_RUN_TEST(TestSemanticProjectionPerInsertWorkAtCapacity);
     DXUI_RUN_TEST(TestSemanticProjectionFullRebuildCauses);

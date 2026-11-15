@@ -1979,7 +1979,9 @@ view shows an icon, bold title and theme-accent bar, using text ink in high
 contrast. Foldable titles use the same mouse, keyboard and UIA disclosure action
 and bounded per-view state as HTML details. The original marker, quote prefixes,
 body, selection and history remain authoritative. CommonMark/GFM profiles do not
-apply this extension.
+apply this extension. The header line is projected once, as the title: when the
+rest of the first paragraph is shown as a literal leaf (unsupported inline HTML),
+that literal starts after the header line, exactly where its ordinary text would.
 
 One leaf permits at most 4,096 tags and 32 simultaneous opening tags. Unknown
 tags, declarations, attributes (including class/style/events), malformed,
