@@ -614,7 +614,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
     per expand or collapse at most the viewport's rows; collapse frames sampled with a frozen clock are WARP-identical
     to today.
   - **Needs**: `W0.4`. **Size**: M.
-- [ ] **W2.7 Text field paint.**
+- [x] **W2.7 Text field paint.**
   - **Why**: multiline `TextField` has 15 uncached full-text layout sites (`DxUi.TextInput.cpp:353`, `:483`, `:585`,
     `:713`, `:729`, `:766`, `:811`, `:1521`, `:1627`, `:1958`, `:2027`, `:2088`, `:2180`, `:3215`, `:3679`): every focused paint
     builds two (`:766`, `:811`), `PageDown` five, a sub-notch wheel two before the zero-step check (`:2180-2203`). A

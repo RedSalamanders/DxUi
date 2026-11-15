@@ -118,6 +118,9 @@ struct ConcealedMaskBucket final
 
 [[nodiscard]] std::vector<D2D1_RECT_F> BuildNativeCompositionUnderlineRects(const ControlHost& host, const Control& control, const bool conversionTarget)
 {
+    // Composition and conversion-target ranges exist only while a composition is active: without one nothing is read.
+    if (host.GetNativeTextCompositionActive(&control) != std::optional<bool>(true))
+        return {};
     NativeTextInputState state{};
     if (! host.TryReadNativeTextInputState(&control, state))
     {
@@ -134,6 +137,23 @@ struct ConcealedMaskBucket final
 
     return BuildTextInputUnderlineRects(host, control, range.value(), conversionTarget ? 1.0f : 2.0f, conversionTarget ? 2.0f : 1.0f);
 }
+
+namespace
+{
+// Both underlines of BuildNativeCompositionUnderlineRects from one read of the text-input state, made only while composing.
+void DrawNativeCompositionUnderlines(ControlHost& host, const Control& control, const D2D1_COLOR_F& compositionColor, const D2D1_COLOR_F& targetColor)
+{
+    if (host.GetNativeTextCompositionActive(&control) != std::optional<bool>(true))
+        return;
+    NativeTextInputState state{};
+    if (! host.TryReadNativeTextInputState(&control, state))
+        return;
+    if (const auto range = ResolveNativeTextInputOptionalRange(state, state.compositionStartIndex, state.compositionEndIndex))
+        DrawTextInputUnderlineRects(host, BuildTextInputUnderlineRects(host, control, range.value(), 2.0f, 1.0f), compositionColor);
+    if (const auto range = ResolveNativeTextInputOptionalRange(state, state.conversionTargetStartIndex, state.conversionTargetEndIndex))
+        DrawTextInputUnderlineRects(host, BuildTextInputUnderlineRects(host, control, range.value(), 1.0f, 2.0f), targetColor);
+}
+} // namespace
 
 void DrawTextInputUnderlineRects(ControlHost& host, const std::vector<D2D1_RECT_F>& underlineRects, const D2D1_COLOR_F& color) noexcept
 {
@@ -291,9 +311,6 @@ struct WrappedLineTextRange
     size_t start = 0u;
     size_t end   = 0u;
 };
-[[nodiscard]] std::vector<WrappedLineTextRange> BuildWrappedLineTextRanges(const std::vector<DWRITE_LINE_METRICS>& metrics, size_t textLength) noexcept;
-[[nodiscard]] std::optional<size_t> TryMoveCaretToWrappedLineBoundary(
-    const ControlHost* host, std::wstring_view text, FontRole role, const D2D1_RECT_F& textRect, size_t caretIndex, bool moveToLineEnd) noexcept;
 
 [[nodiscard]] size_t MoveCaretVerticallyByLogicalLine(std::wstring_view text,
                                                       size_t caretIndex,
@@ -365,27 +382,20 @@ struct MultilineViewportMetrics
     return nextCaretIndex;
 }
 
-[[nodiscard]] std::optional<size_t> TryMoveCaretVerticallyByWrappedLines(const ControlHost* host,
+// `layout` and `metrics` are the multiline layout of `text` at the width of `textRect` and its line metrics.
+[[nodiscard]] std::optional<size_t> TryMoveCaretVerticallyByWrappedLines(IDWriteTextLayout* layout,
+                                                                         const std::vector<DWRITE_LINE_METRICS>& metrics,
                                                                          std::wstring_view text,
-                                                                         FontRole role,
                                                                          const D2D1_RECT_F& textRect,
                                                                          size_t caretIndex,
                                                                          int visualLineDelta,
                                                                          std::optional<float>& preferredXOffsetDip) noexcept
 {
-    if (! host || text.empty() || visualLineDelta == 0 || (textRect.right - textRect.left) <= 1.0f || (textRect.bottom - textRect.top) <= 1.0f)
+    if (! layout || text.empty() || visualLineDelta == 0 || (textRect.right - textRect.left) <= 1.0f || (textRect.bottom - textRect.top) <= 1.0f)
     {
         return std::nullopt;
     }
 
-    wil::com_ptr<IDWriteTextLayout> layout =
-        CreateMultilineTextLayout(host, text, role, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
-    if (! layout)
-    {
-        return std::nullopt;
-    }
-
-    const std::vector<DWRITE_LINE_METRICS> metrics = GetMultilineLineMetrics(layout.get());
     if (metrics.empty())
     {
         return std::nullopt;
@@ -399,7 +409,7 @@ struct MultilineViewportMetrics
         return std::nullopt;
     }
 
-    const std::optional<size_t> currentLineIndex = TryGetMultilineCaretLineIndex(layout.get(), metrics, caretIndex, text.size());
+    const std::optional<size_t> currentLineIndex = TryGetMultilineCaretLineIndex(layout, metrics, caretIndex, text.size());
     if (! currentLineIndex)
     {
         return std::nullopt;
@@ -437,16 +447,16 @@ struct MultilineViewportMetrics
     return std::min(text.size(), textPosition + trailingAdvance);
 }
 
-[[nodiscard]] size_t MoveMultilineCaretVertically(const ControlHost* host,
+[[nodiscard]] size_t MoveMultilineCaretVertically(IDWriteTextLayout* layout,
+                                                  const std::vector<DWRITE_LINE_METRICS>& metrics,
                                                   std::wstring_view text,
-                                                  FontRole role,
                                                   const D2D1_RECT_F& textRect,
                                                   size_t caretIndex,
                                                   bool moveDown,
                                                   std::optional<float>& preferredXOffsetDip) noexcept
 {
     if (const std::optional<size_t> wrappedCaretIndex =
-            TryMoveCaretVerticallyByWrappedLines(host, text, role, textRect, caretIndex, moveDown ? 1 : -1, preferredXOffsetDip))
+            TryMoveCaretVerticallyByWrappedLines(layout, metrics, text, textRect, caretIndex, moveDown ? 1 : -1, preferredXOffsetDip))
     {
         return wrappedCaretIndex.value();
     }
@@ -454,9 +464,9 @@ struct MultilineViewportMetrics
     return MoveCaretVerticallyByLogicalLine(text, caretIndex, moveDown, preferredXOffsetDip);
 }
 
-[[nodiscard]] size_t MoveMultilineCaretByPage(const ControlHost* host,
+[[nodiscard]] size_t MoveMultilineCaretByPage(IDWriteTextLayout* layout,
+                                              const std::vector<DWRITE_LINE_METRICS>& metrics,
                                               std::wstring_view text,
-                                              FontRole role,
                                               const D2D1_RECT_F& textRect,
                                               size_t caretIndex,
                                               bool moveDown,
@@ -469,7 +479,7 @@ struct MultilineViewportMetrics
     }
 
     if (const std::optional<size_t> wrappedCaretIndex = TryMoveCaretVerticallyByWrappedLines(
-            host, text, role, textRect, caretIndex, moveDown ? static_cast<int>(lineCount) : -static_cast<int>(lineCount), preferredXOffsetDip))
+            layout, metrics, text, textRect, caretIndex, moveDown ? static_cast<int>(lineCount) : -static_cast<int>(lineCount), preferredXOffsetDip))
     {
         return wrappedCaretIndex.value();
     }
@@ -477,64 +487,61 @@ struct MultilineViewportMetrics
     return MoveCaretByPage(text, caretIndex, moveDown, preferredXOffsetDip, lineCount);
 }
 
-[[nodiscard]] std::vector<WrappedLineTextRange> BuildWrappedLineTextRanges(const std::vector<DWRITE_LINE_METRICS>& metrics, size_t textLength) noexcept
+// The text range of wrapped line `lineIndex` (without its line break), walking the metrics up to it; nullopt past the last.
+[[nodiscard]] std::optional<WrappedLineTextRange> WrappedLineTextRangeAt(const std::vector<DWRITE_LINE_METRICS>& metrics,
+                                                                         size_t textLength,
+                                                                         size_t lineIndex) noexcept
 {
-    std::vector<WrappedLineTextRange> ranges;
-    ranges.reserve(metrics.size());
-
     size_t lineStart = 0u;
-    for (const DWRITE_LINE_METRICS& metric : metrics)
+    for (size_t index = 0u; index < metrics.size(); ++index)
     {
-        const size_t rawLineEnd = std::min(textLength, lineStart + static_cast<size_t>(metric.length));
-        size_t visibleLineEnd   = rawLineEnd;
-        if (metric.newlineLength > 0u)
+        const DWRITE_LINE_METRICS& metric = metrics[index];
+        const size_t rawLineEnd           = std::min(textLength, lineStart + static_cast<size_t>(metric.length));
+        if (index == lineIndex)
         {
-            const size_t newlineLength = static_cast<size_t>(metric.newlineLength);
-            visibleLineEnd             = (visibleLineEnd >= newlineLength) ? visibleLineEnd - newlineLength : lineStart;
+            size_t visibleLineEnd = rawLineEnd;
+            if (metric.newlineLength > 0u)
+            {
+                const size_t newlineLength = static_cast<size_t>(metric.newlineLength);
+                visibleLineEnd             = (visibleLineEnd >= newlineLength) ? visibleLineEnd - newlineLength : lineStart;
+            }
+            return WrappedLineTextRange{lineStart, std::max(lineStart, visibleLineEnd)};
         }
-
-        ranges.push_back({lineStart, std::max(lineStart, visibleLineEnd)});
         lineStart = rawLineEnd;
     }
-
-    return ranges;
+    return std::nullopt;
 }
 
-[[nodiscard]] std::optional<size_t> TryMoveCaretToWrappedLineBoundary(
-    const ControlHost* host, std::wstring_view text, FontRole role, const D2D1_RECT_F& textRect, size_t caretIndex, bool moveToLineEnd) noexcept
+[[nodiscard]] std::optional<size_t> TryMoveCaretToWrappedLineBoundary(IDWriteTextLayout* layout,
+                                                                      const std::vector<DWRITE_LINE_METRICS>& metrics,
+                                                                      std::wstring_view text,
+                                                                      const D2D1_RECT_F& textRect,
+                                                                      size_t caretIndex,
+                                                                      bool moveToLineEnd) noexcept
 {
-    if (! host || text.empty() || (textRect.right - textRect.left) <= 1.0f || (textRect.bottom - textRect.top) <= 1.0f)
+    if (! layout || text.empty() || (textRect.right - textRect.left) <= 1.0f || (textRect.bottom - textRect.top) <= 1.0f)
     {
         return std::nullopt;
     }
 
-    const wil::com_ptr<IDWriteTextLayout> layout =
-        CreateMultilineTextLayout(host, text, role, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
-    if (! layout)
-    {
-        return std::nullopt;
-    }
-
-    const std::vector<DWRITE_LINE_METRICS> metrics = GetMultilineLineMetrics(layout.get());
     if (metrics.empty() || metrics.size() <= CountLogicalTextLines(text))
     {
         return std::nullopt;
     }
 
-    const std::optional<size_t> currentLineIndex = TryGetMultilineCaretLineIndex(layout.get(), metrics, caretIndex, text.size());
+    const std::optional<size_t> currentLineIndex = TryGetMultilineCaretLineIndex(layout, metrics, caretIndex, text.size());
     if (! currentLineIndex)
     {
         return std::nullopt;
     }
 
-    const std::vector<WrappedLineTextRange> ranges = BuildWrappedLineTextRanges(metrics, text.size());
-    if (currentLineIndex.value() >= ranges.size())
+    const std::optional<WrappedLineTextRange> range = WrappedLineTextRangeAt(metrics, text.size(), currentLineIndex.value());
+    if (! range)
     {
         return std::nullopt;
     }
 
-    const WrappedLineTextRange& range = ranges[currentLineIndex.value()];
-    return moveToLineEnd ? range.end : range.start;
+    return moveToLineEnd ? range->end : range->start;
 }
 
 [[nodiscard]] wil::com_ptr<IDWriteTextLayout> CreateMultilineTextLayout(
@@ -594,6 +601,32 @@ struct MultilineViewportMetrics
 
     metrics.resize(actualLineCount);
     return metrics;
+}
+
+// GetMultilineLineMetrics into retained storage: a relayout of text with no more lines than before allocates nothing.
+void FillMultilineLineMetrics(IDWriteTextLayout* layout, std::vector<DWRITE_LINE_METRICS>& metrics) noexcept
+{
+    metrics.clear();
+    if (! layout)
+        return;
+    UINT32 actualLineCount = 0u;
+    const HRESULT hr       = layout->GetLineMetrics(nullptr, 0u, &actualLineCount);
+    if ((FAILED(hr) && actualLineCount == 0u) || actualLineCount == 0u)
+        return;
+    try
+    {
+        metrics.resize(actualLineCount);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    if (FAILED(layout->GetLineMetrics(metrics.data(), actualLineCount, &actualLineCount)))
+    {
+        metrics.clear();
+        return;
+    }
+    metrics.resize(actualLineCount);
 }
 
 [[nodiscard]] float EstimateMultilineFallbackLineHeightDip(const ControlHost* host, FontRole role) noexcept
@@ -734,19 +767,9 @@ struct MultilineViewportMetrics
     return std::nullopt;
 }
 
-[[nodiscard]] MultilineViewportMetrics ComputeMultilineViewportMetrics(const ControlHost* host,
-                                                                       std::wstring_view text,
-                                                                       FontRole role,
-                                                                       const D2D1_RECT_F& textRect) noexcept
-{
-    const float viewportHeightDip     = std::max(1.0f, textRect.bottom - textRect.top);
-    const auto multilineLayout        = CreateMultilineTextLayout(host, text, role, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
-    const float fallbackLineHeightDip = EstimateMultilineFallbackLineHeightDip(host, role);
-    return BuildMultilineViewportMetrics(text, viewportHeightDip, GetMultilineLineMetrics(multilineLayout.get()), fallbackLineHeightDip);
-}
-
+// `layout` is the multiline layout of `text` at the width of `textRect`, or null (an estimate from the text alone).
 [[nodiscard]] size_t HitTestMultilineCaretIndexDip(
-    const ControlHost* host, std::wstring_view text, FontRole role, const D2D1_RECT_F& textRect, float scrollDip, D2D1_POINT_2F point) noexcept
+    IDWriteTextLayout* layout, std::wstring_view text, const D2D1_RECT_F& textRect, float scrollDip, D2D1_POINT_2F point) noexcept
 {
     if (text.empty())
     {
@@ -755,8 +778,7 @@ struct MultilineViewportMetrics
 
     const float localX = std::max(0.0f, point.x - textRect.left);
     const float localY = std::max(0.0f, point.y - textRect.top + scrollDip);
-    if (wil::com_ptr<IDWriteTextLayout> layout =
-            CreateMultilineTextLayout(host, text, role, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top)))
+    if (layout)
     {
         BOOL isTrailingHit = FALSE;
         BOOL isInside      = FALSE;
@@ -789,11 +811,10 @@ struct MultilineViewportMetrics
 }
 
 [[nodiscard]] D2D1_RECT_F MeasureMultilineCaretRectDip(
-    const ControlHost* host, std::wstring_view text, FontRole role, const D2D1_RECT_F& textRect, float scrollDip, size_t caretIndex) noexcept
+    IDWriteTextLayout* layout, std::wstring_view text, const D2D1_RECT_F& textRect, float scrollDip, size_t caretIndex) noexcept
 {
     const D2D1_RECT_F fallbackRect = D2D1::RectF(textRect.left, textRect.top + 2.0f, textRect.left + 1.0f, textRect.top + 18.0f);
-    if (wil::com_ptr<IDWriteTextLayout> layout =
-            CreateMultilineTextLayout(host, text, role, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top)))
+    if (layout)
     {
         float x = 0.0f;
         float y = 0.0f;
@@ -825,7 +846,9 @@ struct MultilineViewportMetrics
     return std::max(1.0f, rect.right - rect.left);
 }
 
+// `layout` is the field's retained multiline layout of `text`, made at MultilinePaintLayoutWidthDip(rect), or null.
 void DrawMultilineSelection(ControlHost& host,
+                            IDWriteTextLayout* layout,
                             std::wstring_view text,
                             const D2D1_RECT_F& rect,
                             FontRole role,
@@ -845,8 +868,6 @@ void DrawMultilineSelection(ControlHost& host,
     }
 
     const D2D1_RECT_F snappedRect = SnapRectToPixel(host, rect);
-    wil::com_ptr<IDWriteTextLayout> layout =
-        CreateMultilineTextLayout(&host, text, role, MultilinePaintLayoutWidthDip(rect), std::max(1.0f, snappedRect.bottom - snappedRect.top));
     if (! layout)
     {
         DrawCenteredText(host, text, snappedRect, role, textColor, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, true);
@@ -854,7 +875,7 @@ void DrawMultilineSelection(ControlHost& host,
     }
 
     dc->PushAxisAlignedClip(snappedRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-    dc->DrawTextLayout(D2D1::Point2F(snappedRect.left, snappedRect.top - scrollDip), layout.get(), textBrush, kTextDrawOptions);
+    dc->DrawTextLayout(D2D1::Point2F(snappedRect.left, snappedRect.top - scrollDip), layout, textBrush, kTextDrawOptions);
 
     if (selectionRange && fillBrush && selectedTextBrush)
     {
@@ -904,7 +925,7 @@ void DrawMultilineSelection(ControlHost& host,
                     }
 
                     dc->PushAxisAlignedClip(hitRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-                    dc->DrawTextLayout(D2D1::Point2F(snappedRect.left, snappedRect.top - scrollDip), layout.get(), selectedTextBrush, kTextDrawOptions);
+                    dc->DrawTextLayout(D2D1::Point2F(snappedRect.left, snappedRect.top - scrollDip), layout, selectedTextBrush, kTextDrawOptions);
                     dc->PopAxisAlignedClip();
                 }
             }
@@ -1249,7 +1270,7 @@ void TextField::SecureClearStorage() noexcept
     {
         state.text.reset();
     }
-    SecureWipe::SecureClear(_cachedLayoutText);
+    // The multiline layout cache keeps no copy of the text; the single-line one is wiped on destruction whatever the mask.
     ClearSingleLineTextLayoutCache(_singleLineLayoutCache, true);
     _maskedSourceTextElementBoundaries.clear();
     _undoHistory.clear();
@@ -1974,11 +1995,11 @@ void TextField::OnBoundsChanged() noexcept
     }
 
     const float viewportHeightDip = std::max(1.0f, textRect.bottom - textRect.top);
-    const auto multilineLayout    = CreateMultilineTextLayout(host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
-    const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(host, _fontRole);
-    const MultilineViewportMetrics viewportMetrics     = BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
-    _multilineFirstVisibleLine                         = ClampMultilineFirstVisibleLine(_multilineFirstVisibleLine, viewportMetrics);
+    static_cast<void>(GetOrCreateMultilineLayout(host, displayTextBuffer, textRect));
+    const std::vector<DWRITE_LINE_METRICS>& lineMetrics = _cachedMultilineLineMetrics;
+    const float fallbackLineHeightDip                   = lineMetrics.empty() ? GetMultilineFallbackLineHeightDip(host) : 0.0f;
+    const MultilineViewportMetrics viewportMetrics      = BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
+    _multilineFirstVisibleLine                          = ClampMultilineFirstVisibleLine(_multilineFirstVisibleLine, viewportMetrics);
     if (HasFocus() && ! _readOnly)
     {
         EnsureMultilineCaretVisible(host);
@@ -2017,12 +2038,18 @@ void TextField::Paint(ControlHost& host) const
     wil::com_ptr<IDWriteTextLayout> paintSingleLineLayout;
     if (_multiline)
     {
-        const auto multilineLayout =
-            GetOrCreateMultilineLayout(&host, displayText, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
-        const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-        const float multilineScrollDip                     = MeasureWrappedLineOffsetDip(lineMetrics, _multilineFirstVisibleLine);
-        DrawMultilineSelection(
-            host, displayText, textRect, _fontRole, style.text, style.selectionFill, style.selectionText, multilineScrollDip, displaySelectionRange);
+        const auto multilineLayout     = GetOrCreateMultilineLayout(&host, displayTextBuffer, textRect);
+        const float multilineScrollDip = MeasureWrappedLineOffsetDip(_cachedMultilineLineMetrics, _multilineFirstVisibleLine);
+        DrawMultilineSelection(host,
+                               multilineLayout.get(),
+                               displayText,
+                               textRect,
+                               _fontRole,
+                               style.text,
+                               style.selectionFill,
+                               style.selectionText,
+                               multilineScrollDip,
+                               displaySelectionRange);
     }
     else if (usePlaceholder)
     {
@@ -2051,8 +2078,7 @@ void TextField::Paint(ControlHost& host) const
 
     if (! usePlaceholder)
     {
-        DrawTextInputUnderlineRects(host, BuildNativeCompositionUnderlineRects(host, *this, false), style.text);
-        DrawTextInputUnderlineRects(host, BuildNativeCompositionUnderlineRects(host, *this, true), host.GetTheme().accent);
+        DrawNativeCompositionUnderlines(host, *this, style.text, host.GetTheme().accent);
     }
 
     if (HasFocus() && CaretClockAccess::Shown(host, *this))
@@ -2060,12 +2086,10 @@ void TextField::Paint(ControlHost& host) const
         D2D1_RECT_F caretRect = D2D1::RectF();
         if (_multiline)
         {
-            const auto multilineLayout =
-                GetOrCreateMultilineLayout(&host, displayText, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
-            const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-            const float multilineScrollDip                     = MeasureWrappedLineOffsetDip(lineMetrics, _multilineFirstVisibleLine);
+            const auto multilineLayout     = GetOrCreateMultilineLayout(&host, displayTextBuffer, textRect);
+            const float multilineScrollDip = MeasureWrappedLineOffsetDip(_cachedMultilineLineMetrics, _multilineFirstVisibleLine);
             caretRect =
-                MeasureMultilineCaretRectDip(&host, displayText, _fontRole, textRect, multilineScrollDip, ControlTextIndexToDisplayTextIndex(_caretIndex));
+                MeasureMultilineCaretRectDip(multilineLayout.get(), displayText, textRect, multilineScrollDip, ControlTextIndexToDisplayTextIndex(_caretIndex));
         }
         else
         {
@@ -2298,15 +2322,9 @@ bool TextField::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBu
         const D2D1_RECT_F textRect         = GetTextRect();
         const SharedText displayTextBuffer = GetDisplayText();
         const std::wstring& displayText    = *displayTextBuffer;
-        const auto multilineLayout         = CreateMultilineTextLayout(
-            &host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
-        const size_t displayHitIndex =
-            HitTestMultilineCaretIndexDip(&host,
-                                          displayText,
-                                          _fontRole,
-                                          textRect,
-                                          MeasureWrappedLineOffsetDip(GetMultilineLineMetrics(multilineLayout.get()), _multilineFirstVisibleLine),
-                                          point);
+        const auto multilineLayout         = GetOrCreateMultilineLayout(&host, displayTextBuffer, textRect);
+        const size_t displayHitIndex       = HitTestMultilineCaretIndexDip(
+            multilineLayout.get(), displayText, textRect, MeasureWrappedLineOffsetDip(_cachedMultilineLineMetrics, _multilineFirstVisibleLine), point);
         const size_t hitIndex = DisplayTextIndexToControlTextIndex(displayHitIndex);
         _preferredMultilineXOffsetDip.reset();
         if (ModifiersContainShift(modifiers))
@@ -2369,15 +2387,9 @@ bool TextField::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool 
     size_t hitIndex                    = 0u;
     if (_multiline)
     {
-        const auto multilineLayout = CreateMultilineTextLayout(
-            &host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
-        const size_t displayHitIndex =
-            HitTestMultilineCaretIndexDip(&host,
-                                          displayText,
-                                          _fontRole,
-                                          textRect,
-                                          MeasureWrappedLineOffsetDip(GetMultilineLineMetrics(multilineLayout.get()), _multilineFirstVisibleLine),
-                                          point);
+        const auto multilineLayout   = GetOrCreateMultilineLayout(&host, displayTextBuffer, textRect);
+        const size_t displayHitIndex = HitTestMultilineCaretIndexDip(
+            multilineLayout.get(), displayText, textRect, MeasureWrappedLineOffsetDip(_cachedMultilineLineMetrics, _multilineFirstVisibleLine), point);
         hitIndex = DisplayTextIndexToControlTextIndex(displayHitIndex);
     }
     else
@@ -2431,15 +2443,9 @@ bool TextField::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modif
     size_t hitIndex                    = 0u;
     if (_multiline)
     {
-        const auto multilineLayout = CreateMultilineTextLayout(
-            &host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
-        const size_t displayHitIndex =
-            HitTestMultilineCaretIndexDip(&host,
-                                          displayText,
-                                          _fontRole,
-                                          textRect,
-                                          MeasureWrappedLineOffsetDip(GetMultilineLineMetrics(multilineLayout.get()), _multilineFirstVisibleLine),
-                                          point);
+        const auto multilineLayout   = GetOrCreateMultilineLayout(&host, displayTextBuffer, textRect);
+        const size_t displayHitIndex = HitTestMultilineCaretIndexDip(
+            multilineLayout.get(), displayText, textRect, MeasureWrappedLineOffsetDip(_cachedMultilineLineMetrics, _multilineFirstVisibleLine), point);
         hitIndex = DisplayTextIndexToControlTextIndex(displayHitIndex);
     }
     else
@@ -2524,11 +2530,12 @@ bool TextField::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float w
     const float viewportHeightDip      = std::max(1.0f, textRect.bottom - textRect.top);
     const SharedText displayTextBuffer = GetDisplayText();
     const std::wstring& displayText    = *displayTextBuffer;
-    const auto multilineLayout = CreateMultilineTextLayout(&host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
-    const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(&host, _fontRole);
-    const MultilineViewportMetrics viewportMetrics     = BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
-    const size_t wheelLineCount                        = ResolveWheelScrollLineCount(viewportMetrics.visibleLineCount);
+    // The retained layout and metrics: a wheel step on unchanged text and width, a partial notch included, lays out nothing.
+    static_cast<void>(GetOrCreateMultilineLayout(&host, displayTextBuffer, textRect));
+    const std::vector<DWRITE_LINE_METRICS>& lineMetrics = _cachedMultilineLineMetrics;
+    const float fallbackLineHeightDip                   = lineMetrics.empty() ? GetMultilineFallbackLineHeightDip(&host) : 0.0f;
+    const MultilineViewportMetrics viewportMetrics      = BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
+    const size_t wheelLineCount                         = ResolveWheelScrollLineCount(viewportMetrics.visibleLineCount);
     if (wheelLineCount == 0u)
     {
         return true;
@@ -2947,10 +2954,28 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             return true;
         return true;
     }
+    // The navigation keys move through the layout of the field's own text: the retained one, which shows that text, unless
+    // the field shows a mask; then its text is laid out for the key alone, as always, and not kept.
+    std::vector<DWRITE_LINE_METRICS> maskedNavigationMetrics;
+    const auto navigationLayout = [&]() -> std::pair<wil::com_ptr<IDWriteTextLayout>, const std::vector<DWRITE_LINE_METRICS>*>
+    {
+        const D2D1_RECT_F navigationRect = GetTextRect();
+        if (! UsesMaskedDisplayText())
+        {
+            auto layout = GetOrCreateMultilineLayout(&host, _text, navigationRect);
+            return {std::move(layout), &_cachedMultilineLineMetrics};
+        }
+        auto layout = CreateMultilineTextLayout(
+            &host, Text(), _fontRole, std::max(1.0f, navigationRect.right - navigationRect.left), std::max(1.0f, navigationRect.bottom - navigationRect.top));
+        maskedNavigationMetrics = GetMultilineLineMetrics(layout.get());
+        return {std::move(layout), &maskedNavigationMetrics};
+    };
     if (_multiline && virtualKey == VK_UP)
     {
-        const bool extendSelection  = ModifiersContainShift(modifiers);
-        const size_t nextCaretIndex = MoveMultilineCaretVertically(&host, Text(), _fontRole, GetTextRect(), _caretIndex, false, _preferredMultilineXOffsetDip);
+        const bool extendSelection   = ModifiersContainShift(modifiers);
+        const auto [layout, metrics] = navigationLayout();
+        const size_t nextCaretIndex =
+            MoveMultilineCaretVertically(layout.get(), *metrics, Text(), GetTextRect(), _caretIndex, false, _preferredMultilineXOffsetDip);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
         if (! refreshCaret())
@@ -2959,8 +2984,10 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
     if (_multiline && virtualKey == VK_DOWN)
     {
-        const bool extendSelection  = ModifiersContainShift(modifiers);
-        const size_t nextCaretIndex = MoveMultilineCaretVertically(&host, Text(), _fontRole, GetTextRect(), _caretIndex, true, _preferredMultilineXOffsetDip);
+        const bool extendSelection   = ModifiersContainShift(modifiers);
+        const auto [layout, metrics] = navigationLayout();
+        const size_t nextCaretIndex =
+            MoveMultilineCaretVertically(layout.get(), *metrics, Text(), GetTextRect(), _caretIndex, true, _preferredMultilineXOffsetDip);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
         if (! refreshCaret())
@@ -2969,11 +2996,14 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
     if (_multiline && virtualKey == VK_PRIOR)
     {
-        const bool extendSelection                     = ModifiersContainShift(modifiers);
-        const D2D1_RECT_F pageTextRect                 = GetTextRect();
-        const MultilineViewportMetrics viewportMetrics = ComputeMultilineViewportMetrics(&host, Text(), _fontRole, pageTextRect);
-        const size_t nextCaretIndex                    = MoveMultilineCaretByPage(
-            &host, Text(), _fontRole, pageTextRect, _caretIndex, false, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
+        const bool extendSelection     = ModifiersContainShift(modifiers);
+        const D2D1_RECT_F pageTextRect = GetTextRect();
+        const auto [layout, metrics]   = navigationLayout();
+        const float pageHeightDip      = std::max(1.0f, pageTextRect.bottom - pageTextRect.top);
+        const MultilineViewportMetrics viewportMetrics =
+            BuildMultilineViewportMetrics(Text(), pageHeightDip, *metrics, metrics->empty() ? GetMultilineFallbackLineHeightDip(&host) : 0.0f);
+        const size_t nextCaretIndex = MoveMultilineCaretByPage(
+            layout.get(), *metrics, Text(), pageTextRect, _caretIndex, false, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
         if (! refreshCaret())
@@ -2982,11 +3012,14 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
     if (_multiline && virtualKey == VK_NEXT)
     {
-        const bool extendSelection                     = ModifiersContainShift(modifiers);
-        const D2D1_RECT_F pageTextRect                 = GetTextRect();
-        const MultilineViewportMetrics viewportMetrics = ComputeMultilineViewportMetrics(&host, Text(), _fontRole, pageTextRect);
-        const size_t nextCaretIndex                    = MoveMultilineCaretByPage(
-            &host, Text(), _fontRole, pageTextRect, _caretIndex, true, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
+        const bool extendSelection     = ModifiersContainShift(modifiers);
+        const D2D1_RECT_F pageTextRect = GetTextRect();
+        const auto [layout, metrics]   = navigationLayout();
+        const float pageHeightDip      = std::max(1.0f, pageTextRect.bottom - pageTextRect.top);
+        const MultilineViewportMetrics viewportMetrics =
+            BuildMultilineViewportMetrics(Text(), pageHeightDip, *metrics, metrics->empty() ? GetMultilineFallbackLineHeightDip(&host) : 0.0f);
+        const size_t nextCaretIndex = MoveMultilineCaretByPage(
+            layout.get(), *metrics, Text(), pageTextRect, _caretIndex, true, _preferredMultilineXOffsetDip, viewportMetrics.visibleLineCount);
         BreakDirectEditMerge();
         SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, nextCaretIndex, extendSelection);
         if (! refreshCaret())
@@ -2998,8 +3031,9 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         _preferredMultilineXOffsetDip.reset();
         if (_multiline && ! ModifiersContainCtrl(modifiers))
         {
-            const size_t nextCaretIndex =
-                TryMoveCaretToWrappedLineBoundary(&host, Text(), _fontRole, GetTextRect(), _caretIndex, false).value_or(FindLineStart(Text(), _caretIndex));
+            const auto [layout, metrics] = navigationLayout();
+            const size_t nextCaretIndex  = TryMoveCaretToWrappedLineBoundary(layout.get(), *metrics, Text(), GetTextRect(), _caretIndex, false)
+                                               .value_or(FindLineStart(Text(), _caretIndex));
             SetCaretIndex(nextCaretIndex, ModifiersContainShift(modifiers));
         }
         else
@@ -3015,8 +3049,9 @@ bool TextField::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         _preferredMultilineXOffsetDip.reset();
         if (_multiline && ! ModifiersContainCtrl(modifiers))
         {
+            const auto [layout, metrics] = navigationLayout();
             const size_t nextCaretIndex =
-                TryMoveCaretToWrappedLineBoundary(&host, Text(), _fontRole, GetTextRect(), _caretIndex, true).value_or(FindLineEnd(Text(), _caretIndex));
+                TryMoveCaretToWrappedLineBoundary(layout.get(), *metrics, Text(), GetTextRect(), _caretIndex, true).value_or(FindLineEnd(Text(), _caretIndex));
             SetCaretIndex(nextCaretIndex, ModifiersContainShift(modifiers));
         }
         else
@@ -3299,11 +3334,9 @@ std::optional<D2D1_RECT_F> TextField::GetTextInputCaretRect(const ControlHost& h
 
     if (_multiline)
     {
-        const auto multilineLayout =
-            GetOrCreateMultilineLayout(&host, displayText, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
-        const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-        const float multilineScrollDip                     = MeasureWrappedLineOffsetDip(lineMetrics, _multilineFirstVisibleLine);
-        return MeasureMultilineCaretRectDip(&host, displayText, _fontRole, textRect, multilineScrollDip, displayCaretIndex);
+        const auto multilineLayout     = GetOrCreateMultilineLayout(&host, displayTextBuffer, textRect);
+        const float multilineScrollDip = MeasureWrappedLineOffsetDip(_cachedMultilineLineMetrics, _multilineFirstVisibleLine);
+        return MeasureMultilineCaretRectDip(multilineLayout.get(), displayText, textRect, multilineScrollDip, displayCaretIndex);
     }
 
     const bool perfEnabled                          = Debug::Perf::IsCaptureEnabled();
@@ -3407,15 +3440,13 @@ std::optional<std::vector<D2D1_RECT_F>> TextField::GetTextInputRangeRects(const 
         return rects;
     }
 
-    const auto multilineLayout =
-        GetOrCreateMultilineLayout(&host, displayText, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
+    const auto multilineLayout = GetOrCreateMultilineLayout(&host, displayTextBuffer, textRect);
     if (! multilineLayout)
     {
         return std::nullopt;
     }
 
-    const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-    const float multilineScrollDip                     = MeasureWrappedLineOffsetDip(lineMetrics, _multilineFirstVisibleLine);
+    const float multilineScrollDip = MeasureWrappedLineOffsetDip(_cachedMultilineLineMetrics, _multilineFirstVisibleLine);
 
     UINT32 actualCount = 0u;
     std::vector<DWRITE_HIT_TEST_METRICS> metrics(64u);
@@ -3474,15 +3505,9 @@ std::optional<size_t> TextField::HitTestTextInputPoint(const ControlHost& host, 
     const std::wstring& displayText    = *displayTextBuffer;
     if (_multiline)
     {
-        const auto multilineLayout =
-            GetOrCreateMultilineLayout(&host, displayText, std::max(1.0f, textRect.right - textRect.left), std::max(1.0f, textRect.bottom - textRect.top));
-        const size_t displayHitIndex =
-            HitTestMultilineCaretIndexDip(&host,
-                                          displayText,
-                                          _fontRole,
-                                          textRect,
-                                          MeasureWrappedLineOffsetDip(GetMultilineLineMetrics(multilineLayout.get()), _multilineFirstVisibleLine),
-                                          point);
+        const auto multilineLayout   = GetOrCreateMultilineLayout(&host, displayTextBuffer, textRect);
+        const size_t displayHitIndex = HitTestMultilineCaretIndexDip(
+            multilineLayout.get(), displayText, textRect, MeasureWrappedLineOffsetDip(_cachedMultilineLineMetrics, _multilineFirstVisibleLine), point);
         return DisplayTextIndexToControlTextIndex(displayHitIndex);
     }
 
@@ -3570,10 +3595,9 @@ bool TextField::ImportTextInputText(ControlHost& host, std::shared_ptr<const std
                 else
                 {
                     const float viewportHeightDip = std::max(1.0f, textRect.bottom - textRect.top);
-                    const auto multilineLayout =
-                        CreateMultilineTextLayout(&host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
-                    const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-                    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(&host, _fontRole);
+                    static_cast<void>(GetOrCreateMultilineLayout(&host, displayTextBuffer, textRect));
+                    const std::vector<DWRITE_LINE_METRICS>& lineMetrics = _cachedMultilineLineMetrics;
+                    const float fallbackLineHeightDip                   = lineMetrics.empty() ? GetMultilineFallbackLineHeightDip(&host) : 0.0f;
                     const MultilineViewportMetrics viewportMetrics =
                         BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
                     _multilineFirstVisibleLine = ClampMultilineFirstVisibleLine(_multilineFirstVisibleLine, viewportMetrics);
@@ -3861,8 +3885,11 @@ std::shared_ptr<const std::wstring> TextField::GetDisplayText() const
         return _text;
     }
 
+    // The mask is a pure function of its length: one buffer per dot count is kept and shared, never written.
     const size_t dotCount = GetSecretVisibleDotCount();
-    return MakeSharedText(std::wstring(dotCount, L'\u2022'));
+    if (! _maskedDisplayText || _maskedDisplayText->size() != dotCount)
+        _maskedDisplayText = MakeSharedText(std::wstring(dotCount, L'\u2022'));
+    return _maskedDisplayText;
 }
 
 bool TextField::UsesMaskedDisplayText() const noexcept
@@ -3952,30 +3979,44 @@ std::optional<std::pair<size_t, size_t>> TextField::ControlTextRangeToDisplayTex
 }
 
 wil::com_ptr<IDWriteTextLayout> TextField::GetOrCreateMultilineLayout(const ControlHost* host,
-                                                                      std::wstring_view text,
-                                                                      float widthDip,
-                                                                      float heightDip) const noexcept
+                                                                      const std::shared_ptr<const std::wstring>& displayText,
+                                                                      const D2D1_RECT_F& textRect) const noexcept
 {
-    if (! host || ! _multiline)
+    // The width every multiline path wraps at (MultilinePaintLayoutWidthDip), and the height CreateMultilineTextLayout uses.
+    const float widthDip            = MultilinePaintLayoutWidthDip(textRect);
+    const float heightDip           = std::max(kMultilineLayoutHeightDip, std::max(1.0f, textRect.bottom - textRect.top));
+    const std::wstring_view text    = SharedTextView(displayText);
+    IDWriteTextFormat* const format = host ? host->GetTextFormat(_fontRole, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, true) : nullptr;
+    // The same buffer (an edit in place marks the cache dirty) of the same length: the display text is unchanged.
+    const bool sameText =
+        ! _cachedLayoutText.owner_before(displayText) && ! displayText.owner_before(_cachedLayoutText) && displayText && _cachedLayoutTextLength == text.size();
+    if (_multilineLayoutDirty || ! _cachedMultilineLayout || ! sameText || _cachedLayoutSize.width != widthDip || _cachedLayoutSize.height != heightDip ||
+        _cachedLayoutRole != _fontRole || _cachedLayoutFormat.get() != format)
     {
-        return CreateMultilineTextLayout(host, text, _fontRole, widthDip, heightDip);
-    }
-
-    const D2D1_SIZE_F desiredSize = D2D1::SizeF(widthDip, heightDip);
-    const bool sizeChanged = std::abs(_cachedLayoutSize.width - desiredSize.width) > 0.5f || std::abs(_cachedLayoutSize.height - desiredSize.height) > 0.5f;
-    const bool textChanged = text != _cachedLayoutText;
-    const bool roleChanged = _cachedLayoutRole != _fontRole;
-
-    if (_multilineLayoutDirty || sizeChanged || textChanged || roleChanged || ! _cachedMultilineLayout)
-    {
-        _cachedMultilineLayout = CreateMultilineTextLayout(host, text, _fontRole, widthDip, heightDip);
-        _cachedLayoutText.assign(text);
-        _cachedLayoutSize     = desiredSize;
-        _cachedLayoutRole     = _fontRole;
-        _multilineLayoutDirty = false;
+        _cachedMultilineLayout  = format ? CreateMultilineTextLayout(host, text, _fontRole, widthDip, heightDip) : wil::com_ptr<IDWriteTextLayout>();
+        _cachedLayoutText       = displayText;
+        _cachedLayoutTextLength = text.size();
+        _cachedLayoutFormat     = format;
+        _cachedLayoutSize       = D2D1::SizeF(widthDip, heightDip);
+        _cachedLayoutRole       = _fontRole;
+        _multilineLayoutDirty   = false;
+        FillMultilineLineMetrics(_cachedMultilineLayout.get(), _cachedMultilineLineMetrics);
     }
 
     return _cachedMultilineLayout;
+}
+
+float TextField::GetMultilineFallbackLineHeightDip(const ControlHost* host) const noexcept
+{
+    IDWriteTextFormat* const format = host ? host->GetTextFormat(_fontRole, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, true) : nullptr;
+    if (! format)
+        return EstimateMultilineFallbackLineHeightDip(host, _fontRole);
+    if (_cachedFallbackLineHeightFormat.get() != format)
+    {
+        _cachedFallbackLineHeightDip    = EstimateMultilineFallbackLineHeightDip(host, _fontRole);
+        _cachedFallbackLineHeightFormat = format;
+    }
+    return _cachedFallbackLineHeightDip;
 }
 
 wil::com_ptr<IDWriteTextLayout> TextField::GetOrCreateSingleLineLayout(
@@ -3986,12 +4027,17 @@ wil::com_ptr<IDWriteTextLayout> TextField::GetOrCreateSingleLineLayout(
         return GetOrCreateSingleLineTextLayout(host, nullptr, text, _fontRole, minimumWidthDip, heightDip, readingDirection);
     }
 
-    return GetOrCreateSingleLineTextLayout(host, &_singleLineLayoutCache, text, _fontRole, minimumWidthDip, heightDip, readingDirection, true);
+    // A masked field's cache may take its plaintext (while revealed): it is then wiped whenever it is dropped or replaced.
+    _singleLineLayoutCacheSecret = _singleLineLayoutCacheSecret || _masked;
+    return GetOrCreateSingleLineTextLayout(
+        host, &_singleLineLayoutCache, text, _fontRole, minimumWidthDip, heightDip, readingDirection, _singleLineLayoutCacheSecret);
 }
 
 void TextField::InvalidateSingleLineLayoutCache() const noexcept
 {
-    ClearSingleLineTextLayoutCache(_singleLineLayoutCache, true);
+    // Wiped only when it may hold a masked field's text: the field is masked, or was when the cache took its text.
+    ClearSingleLineTextLayoutCache(_singleLineLayoutCache, _masked || _singleLineLayoutCacheSecret);
+    _singleLineLayoutCacheSecret = false;
     _maskedSourceTextElementBoundaries.clear();
 }
 
@@ -3999,7 +4045,11 @@ void TextField::InvalidateMultilineLayoutCache() const noexcept
 {
     _multilineLayoutDirty = true;
     _cachedMultilineLayout.reset();
-    _cachedLayoutText.clear();
+    _cachedLayoutText.reset();
+    _cachedLayoutTextLength = 0u;
+    _cachedLayoutFormat.reset();
+    // Cleared, not released: the next layout's metrics reuse the storage.
+    _cachedMultilineLineMetrics.clear();
 }
 
 void TextField::EnsureCaretVisible(const ControlHost* host, float availableWidthDip) const noexcept
@@ -4046,12 +4096,12 @@ void TextField::EnsureMultilineCaretVisible(const ControlHost* host) noexcept
         return;
     }
 
-    const float viewportHeightDip = std::max(1.0f, textRect.bottom - textRect.top);
-    const auto multilineLayout    = CreateMultilineTextLayout(host, displayText, _fontRole, std::max(1.0f, textRect.right - textRect.left), viewportHeightDip);
-    const std::vector<DWRITE_LINE_METRICS> lineMetrics = GetMultilineLineMetrics(multilineLayout.get());
-    const float fallbackLineHeightDip                  = EstimateMultilineFallbackLineHeightDip(host, _fontRole);
-    const MultilineViewportMetrics viewportMetrics     = BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
-    const size_t displayCaretIndex                     = ControlTextIndexToDisplayTextIndex(_caretIndex);
+    const float viewportHeightDip                       = std::max(1.0f, textRect.bottom - textRect.top);
+    const auto multilineLayout                          = GetOrCreateMultilineLayout(host, displayTextBuffer, textRect);
+    const std::vector<DWRITE_LINE_METRICS>& lineMetrics = _cachedMultilineLineMetrics;
+    const float fallbackLineHeightDip                   = lineMetrics.empty() ? GetMultilineFallbackLineHeightDip(host) : 0.0f;
+    const MultilineViewportMetrics viewportMetrics      = BuildMultilineViewportMetrics(displayText, viewportHeightDip, lineMetrics, fallbackLineHeightDip);
+    const size_t displayCaretIndex                      = ControlTextIndexToDisplayTextIndex(_caretIndex);
     const size_t caretLine =
         TryGetMultilineCaretLineIndex(multilineLayout.get(), lineMetrics, displayCaretIndex, displayText.size())
             .value_or(static_cast<size_t>(

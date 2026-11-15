@@ -1,6 +1,7 @@
 #pragma once
 // FX1 idle caret (plan W0.4): a focused editable single-line TextField, then a focused read-only one, then a focused
-// 64 Ki-unit multiline TextField, each left idle for 10 s of the frozen fixture clock. Proves G1; with FX5, G4. Motion is on and
+// 64 Ki-unit multiline TextField, each left idle for 10 s of the frozen fixture clock; then that multiline field wheeled by
+// quarter notches and paged down (W2.7: no text layout while its text and width stay). Proves G1; with FX5, G4. Motion is on and
 // the caret settings are Windows' defaults (530 ms, 5 s timeout), pinned (W3.2): an editable caret blinks for 5 s after focus,
 // then stays shown with nothing armed; the read-only caret is steady.
 //
@@ -27,6 +28,13 @@ inline constexpr size_t kWarm               = 0u;
 inline constexpr size_t kEditable           = 1u;
 inline constexpr size_t kReadOnly           = 2u;
 inline constexpr size_t kMultiline          = 3u;
+inline constexpr size_t kMultilineWheel     = 4u;
+inline constexpr size_t kMultilinePage      = 5u;
+inline constexpr size_t kWheelSteps         = 16u; // a quarter notch per step: the field scrolls at every fourth step
+inline constexpr float kWheelDelta          = -30.0f;
+inline constexpr size_t kPageSteps          = 8u;
+// Lines per wheel notch, pinned through the test seam so the user's setting is never read (Windows' default is 3).
+inline constexpr UINT kWheelScrollLines = 3u;
 // Windows' defaults: a 530 ms blink phase, and blinking stops 5 s after the latest input with the caret shown (W3.2).
 inline constexpr DxUi::ControlHost::CaretBlinkSettingsForTest kCaretSettings{530u, 5000u};
 
@@ -36,6 +44,11 @@ inline constexpr std::array kPhases{
     Phase{"editable", kIdleSteps, PhaseKind::Measured, "editable single-line field focused and idle: 100 ms of fixture clock per step, 10 s"},
     Phase{"readonly", kIdleSteps, PhaseKind::Measured, "step 0 focuses the read-only single-line field; idle at 100 ms per step, 10 s"},
     Phase{"multiline", kMultilineIdleSteps, PhaseKind::Measured, "step 0 focuses the 64 Ki-unit multiline field; idle at 500 ms per step, 10 s"},
+    Phase{"multiline-wheel",
+          kWheelSteps,
+          PhaseKind::Measured,
+          "the focused multiline field wheeled down a quarter notch per step; it scrolls three lines every fourth step"},
+    Phase{"multiline-page", kPageSteps, PhaseKind::Measured, "PageDown in the focused multiline field, one per step"},
 };
 inline constexpr std::array kSources{std::string_view("Tests/Embedded/Embedded.Tests.PerformanceFixtureFx1.h")};
 
@@ -56,8 +69,18 @@ inline constexpr std::array kSources{std::string_view("Tests/Embedded/Embedded.T
 class Scene final : public Scenario
 {
 public:
+    Scene()                        = default;
+    Scene(const Scene&)            = delete;
+    Scene& operator=(const Scene&) = delete;
+    Scene(Scene&&)                 = delete;
+    Scene& operator=(Scene&&)      = delete;
+    ~Scene() override
+    {
+        DxUi::DebugSetWheelScrollLinesForTest(std::nullopt);
+    }
     HRESULT Build(Context& context) override
     {
+        DxUi::DebugSetWheelScrollLinesForTest(kWheelScrollLines);
         // The caret follows the user's blink time and caret timeout: pinned to Windows' defaults through the host's test seam,
         // never read from the desktop that runs the fixture. Motion is on (the definition), so the editable caret blinks.
         context.controls.DebugSetCaretBlinkSettingsForTest(kCaretSettings);
@@ -95,6 +118,19 @@ public:
                     context.controls.SetFocusControl(multiline_, false);
                 context.port.AdvanceTime(kMultilineStepMs);
                 break;
+            case kMultilineWheel:
+            {
+                // Over the field's centre, in device pixels of the variant.
+                const D2D1_RECT_F bounds = multiline_->GetBounds();
+                const float scale        = context.variant.dpi / 96.0f;
+                static_cast<void>(context.port.Pointer(
+                    {DxUi::PointerAction::Wheel, (bounds.left + bounds.right) * 0.5f * scale, (bounds.top + bounds.bottom) * 0.5f * scale, 0u, kWheelDelta}));
+                break;
+            }
+            case kMultilinePage:
+                static_cast<void>(context.port.Key(VK_NEXT, true));
+                static_cast<void>(context.port.Key(VK_NEXT, false));
+                break;
             default: context.port.AdvanceTime(kStepMs); break;
         }
     }
@@ -108,8 +144,9 @@ private:
 inline constexpr Definition kDefinition{
     .id            = "FX1",
     .title         = "Idle caret",
-    .scenario      = "A focused single-line TextField, editable and read-only, for 10 s; plus a focused 64 Ki-unit multiline TextField. Proves G1; with "
-                     "FX5, G4. The fixture clock advances 100 ms per step (500 ms on the multiline field) with one animation tick per step when "
+    .scenario      = "A focused single-line TextField, editable and read-only, for 10 s; plus a focused 64 Ki-unit multiline TextField, idle, then "
+                     "wheeled by quarter notches and paged down. Proves G1; with FX5, G4. The fixture clock advances 100 ms per step (500 ms on the multiline "
+                     "field) with one animation tick per step when "
                      "animation is pending; a native 8 ms timer would deliver about ten times as many wakes in real time. Motion on; caret "
                      "settings pinned to Windows' defaults (530 ms blink, 5 s caret timeout).",
     .budgets       = kBudgets,

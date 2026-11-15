@@ -6,6 +6,7 @@
 
 #include "Support/Diagnostics.h"
 #include "Support/WindowMessages.h"
+#include "Support/WorkCounters.h"
 
 #include <algorithm>
 #include <chrono>
@@ -2346,6 +2347,7 @@ bool ControlHost::TryReadNativeTextInputState(const Control* control, NativeText
     try
     {
         // The public state carries its own copy of the shared document (a rich editor's revision is materialized once for it).
+        ++Detail::Work().text.nativeTextInputStateCopies;
         outState = _nativeTextInputStateCache;
         outState.text.assign(GetNativeTextInputCacheText());
         if (_nativeTextInputCacheSource)

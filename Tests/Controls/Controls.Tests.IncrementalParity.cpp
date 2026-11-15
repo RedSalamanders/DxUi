@@ -5,6 +5,7 @@
 #include "Controls/DxUi.RetainedCaches.h"
 #include "Support.Tests.ComboBoxPopupLayout.h"
 #include "Support.Tests.IncrementalParity.h"
+#include "Support.Tests.TextFieldPaint.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 // Scenarios are never copied. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -175,6 +176,13 @@ void TestNativeIncrementalParityRichBlocks()
 void TestNativeIncrementalParityComboPopup()
 {
     RunParityScript(ComboBoxPopupLayoutTests::ComboPopupScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+}
+
+// W2.7: the TextField's retained multiline layout, line metrics and single-line layout against a fresh layout, on the window
+// host.
+void TestNativeIncrementalParityTextField()
+{
+    RunParityScript(TextFieldPaintTests::TextFieldScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
 }
 
 // The gate's negative control: a cache that forgets one invalidation must show as a difference, at that control.
@@ -421,4 +429,5 @@ void RunIncrementalParityTests()
     DXUI_RUN_TEST(TestFx10LiveResizeArrangesEveryBodyChild);
     DXUI_RUN_TEST(TestNativeIncrementalParityFx10LiveResize);
     DXUI_RUN_TEST(TestNativeIncrementalParityFx12DenseScreen);
+    DXUI_RUN_TEST(TestNativeIncrementalParityTextField);
 }

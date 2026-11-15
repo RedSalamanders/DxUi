@@ -56,10 +56,11 @@
 
 // Text and typography beyond the resource kinds below.
 #define DXUI_WORK_COUNTERS_TEXT(X)                                                                                                                             \
-    X(text, formatCacheOverBound)   /* TrimCaches passes that left the text-format map above its bound because every remaining entry was in use. */            \
-    X(text, formatCacheTrims)       /* TrimCaches passes that evicted text formats above the key bound (unused by the last two frames). */                     \
-    X(text, formatEvictions)        /* Configured text formats TrimCaches evicted. */                                                                          \
-    X(text, setTextRenderingParams) /* ID2D1RenderTarget::SetTextRenderingParams calls a host made to bind or clear rendering parameters. */
+    X(text, formatCacheOverBound)       /* TrimCaches passes that left the text-format map above its bound because every remaining entry was in use. */        \
+    X(text, formatCacheTrims)           /* TrimCaches passes that evicted text formats above the key bound (unused by the last two frames). */                 \
+    X(text, formatEvictions)            /* Configured text formats TrimCaches evicted. */                                                                      \
+    X(text, nativeTextInputStateCopies) /* Text-input states copied with their document (TryReadNativeTextInputState). */                                      \
+    X(text, setTextRenderingParams)     /* ID2D1RenderTarget::SetTextRenderingParams calls a host made to bind or clear rendering parameters. */
 
 // Popups and menus.
 #define DXUI_WORK_COUNTERS_POPUPS(X)                                                                                                                           \

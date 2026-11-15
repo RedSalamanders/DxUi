@@ -170,39 +170,54 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
             }
         },
              [](const Control&) noexcept { return uint64_t{0u}; }}, // a width inside the control
-            // TextField::_singleLineLayoutCache and _maskedSourceTextElementBoundaries.
+            // TextField::_singleLineLayoutCache (with _singleLineLayoutCacheSecret, which its drop wipes by and resets),
+            // _maskedSourceTextElementBoundaries and _maskedDisplayText, the retained mask (W2.7).
             {"TextField._singleLineLayoutCache",
              [](const Control& control) noexcept
         {
             const auto* field = dynamic_cast<const TextField*>(&control);
-            return field ? Present(field->_singleLineLayoutCache.layout != nullptr) + Present(! field->_maskedSourceTextElementBoundaries.empty()) : 0u;
+            return field ? Present(field->_singleLineLayoutCache.layout != nullptr) + Present(! field->_maskedSourceTextElementBoundaries.empty()) +
+                               Present(field->_maskedDisplayText != nullptr)
+                         : 0u;
         },
              [](Control& control) noexcept
         {
             if (auto* field = dynamic_cast<TextField*>(&control))
+            {
                 field->InvalidateSingleLineLayoutCache();
+                field->_maskedDisplayText.reset();
+            }
         },
              [](const Control& control) noexcept
         {
             const auto* field = dynamic_cast<const TextField*>(&control);
-            return field ? StringBytes(field->_singleLineLayoutCache.text) + VectorBytes(field->_maskedSourceTextElementBoundaries) : 0u;
+            if (! field)
+                return uint64_t{0u};
+            const uint64_t mask = field->_maskedDisplayText ? StringBytes(*field->_maskedDisplayText) : 0u;
+            return StringBytes(field->_singleLineLayoutCache.text) + VectorBytes(field->_maskedSourceTextElementBoundaries) + mask;
         }},
-            // TextField::_cachedMultilineLayout with _cachedLayoutText, _cachedLayoutSize and _cachedLayoutRole.
+            // TextField::_cachedMultilineLayout with its key (_cachedLayoutText, an observed buffer, _cachedLayoutTextLength,
+            // _cachedLayoutFormat, _cachedLayoutSize, _cachedLayoutRole), its line metrics _cachedMultilineLineMetrics (W2.7),
+            // and the fallback line height _cachedFallbackLineHeightDip with its _cachedFallbackLineHeightFormat.
             {"TextField._cachedMultilineLayout",
              [](const Control& control) noexcept
         {
             const auto* field = dynamic_cast<const TextField*>(&control);
-            return field ? Present(field->_cachedMultilineLayout != nullptr) : 0u;
+            return field ? Present(field->_cachedMultilineLayout != nullptr) + Present(field->_cachedFallbackLineHeightFormat != nullptr) : 0u;
         },
              [](Control& control) noexcept
         {
             if (auto* field = dynamic_cast<TextField*>(&control))
+            {
                 field->InvalidateMultilineLayoutCache();
+                field->_cachedMultilineLineMetrics = {};
+                field->_cachedFallbackLineHeightFormat.reset();
+            }
         },
              [](const Control& control) noexcept
         {
             const auto* field = dynamic_cast<const TextField*>(&control);
-            return field ? StringBytes(field->_cachedLayoutText) : 0u;
+            return field ? VectorBytes(field->_cachedMultilineLineMetrics) : 0u;
         }},
             // ComboBox::_singleLineLayoutCache.
             {"ComboBox._singleLineLayoutCache",

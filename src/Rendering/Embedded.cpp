@@ -1850,7 +1850,7 @@ struct RetainedResourceAccess final
         else if (const auto* field = dynamic_cast<const TextField*>(&control))
         {
             AddLayout(stats, field->_singleLineLayoutCache.layout.get(), field->_singleLineLayoutCache.text.size());
-            AddLayout(stats, field->_cachedMultilineLayout.get(), field->_cachedLayoutText.size());
+            AddLayout(stats, field->_cachedMultilineLayout.get(), field->_cachedLayoutTextLength);
         }
         else if (const auto* combo = dynamic_cast<const ComboBox*>(&control))
         {

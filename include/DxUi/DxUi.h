@@ -4068,10 +4068,14 @@ private:
     [[nodiscard]] D2D1_RECT_F GetClearButtonRect() const noexcept;
     [[nodiscard]] bool IsPasswordRevealButtonVisible() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetPasswordRevealButtonRect() const noexcept;
+    // The multiline layout of `displayText` (GetDisplayText) wrapped at the text rectangle's width, retained with its line
+    // metrics (_cachedMultilineLineMetrics) while the buffer, width, height, font role and format stay (W2.7). Null when no
+    // layout can be made; the metrics are then empty.
     [[nodiscard]] wil::com_ptr<IDWriteTextLayout> GetOrCreateMultilineLayout(const ControlHost* host,
-                                                                             std::wstring_view text,
-                                                                             float widthDip,
-                                                                             float heightDip) const noexcept;
+                                                                             const std::shared_ptr<const std::wstring>& displayText,
+                                                                             const D2D1_RECT_F& textRect) const noexcept;
+    // The height of "Ag" in the multiline format, for a field whose layout could not be made; kept per held format.
+    [[nodiscard]] float GetMultilineFallbackLineHeightDip(const ControlHost* host) const noexcept;
     [[nodiscard]] wil::com_ptr<IDWriteTextLayout> GetOrCreateSingleLineLayout(
         const ControlHost* host, std::wstring_view text, float minimumWidthDip, float heightDip, DWRITE_READING_DIRECTION readingDirection) const noexcept;
     friend struct RetainedResourceAccess;
@@ -4118,12 +4122,23 @@ private:
     mutable float _horizontalScrollDip = 0.0f;
     friend struct RetainedCacheAccess;
     mutable SingleLineTextLayoutCache _singleLineLayoutCache;
+    // True once the single-line cache took text while the field was masked: its next drop wipes it even if unmasked since.
+    mutable bool _singleLineLayoutCacheSecret = false;
+    // A masked field's display text (its dots), kept per dot count so a paint reads it without building it again.
+    mutable std::shared_ptr<const std::wstring> _maskedDisplayText;
     mutable std::vector<size_t> _maskedSourceTextElementBoundaries;
     mutable wil::com_ptr<IDWriteTextLayout> _cachedMultilineLayout;
-    mutable std::wstring _cachedLayoutText;
-    mutable D2D1_SIZE_F _cachedLayoutSize           = D2D1::SizeF(0.0f, 0.0f);
-    mutable FontRole _cachedLayoutRole              = FontRole::Body;
-    mutable bool _multilineLayoutDirty              = true;
+    // The display buffer the layout was made from, observed without owning it: holding it would make an edit copy the text.
+    mutable std::weak_ptr<const std::wstring> _cachedLayoutText;
+    mutable size_t _cachedLayoutTextLength = 0u;
+    // Held, not borrowed (as SingleLineTextLayoutCache::textFormat): a new typography revision is a new format.
+    mutable wil::com_ptr<IDWriteTextFormat> _cachedLayoutFormat;
+    mutable std::vector<DWRITE_LINE_METRICS> _cachedMultilineLineMetrics;
+    mutable D2D1_SIZE_F _cachedLayoutSize = D2D1::SizeF(0.0f, 0.0f);
+    mutable FontRole _cachedLayoutRole    = FontRole::Body;
+    mutable bool _multilineLayoutDirty    = true;
+    mutable wil::com_ptr<IDWriteTextFormat> _cachedFallbackLineHeightFormat;
+    mutable float _cachedFallbackLineHeightDip      = 20.0f;
     size_t _multilineFirstVisibleLine               = 0u;
     float _multilineWheelDeltaRemainder             = 0.0f;
     bool _multiline                                 = false;

@@ -11,12 +11,21 @@
 
 #include <DxUi/Diagnostics.h>
 #include <DxUi/Failure.h>
+namespace DxUi::Detail
+{
+// Test-only observation of SecureWipe::SecureClear: called with the text about to be wiped (never empty). Null outside tests.
+inline thread_local constinit void (*secureClearObserverForTest)(std::wstring_view wiped) noexcept = nullptr;
+} // namespace DxUi::Detail
 namespace DxUi::SecureWipe
 {
 inline void SecureClear(std::wstring& value) noexcept
 {
     if (! value.empty())
+    {
+        if (const auto observer = Detail::secureClearObserverForTest)
+            observer(value);
         SecureZeroMemory(value.data(), value.size() * sizeof(wchar_t));
+    }
     value.clear();
 }
 } // namespace DxUi::SecureWipe

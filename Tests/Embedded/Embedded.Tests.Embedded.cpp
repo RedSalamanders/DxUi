@@ -93,6 +93,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.RichTextInputCopies.h"
 #include "Embedded.Tests.RichTextResources.h"
 #include "Embedded.Tests.SemanticProjection.h"
+#include "Embedded.Tests.TextFieldPaint.h"
 #include "Embedded.Tests.TraceProvider.h"
 #include "Embedded.Tests.TreeDataPaths.h"
 #include "Embedded.Tests.UiaTextProvider.h"
@@ -1981,6 +1982,11 @@ __declspec(noinline) static int RunFunctionalTests()
         ComboBoxPopupLayoutTests::Run(gpu);
         return 0;
     }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-text-field-paint")
+    {
+        TextFieldPaintTests::Run(gpu);
+        return 0;
+    }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")
     {
         MarkdownSourceCorrelationTests::LexicalEdits(Check);
@@ -2178,6 +2184,7 @@ __declspec(noinline) static int RunFunctionalTests()
     PerformanceFixtures::TestCaretClockGatesOnFx1();
     SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
     ComboBoxPopupLayoutTests::Run(gpu);
+    TextFieldPaintTests::Run(gpu);
     EmbeddedPointerHit::TestPointerHitFx14AndFx2HitTestOncePerMove();
     EmbeddedPointerHit::TestPointerHitFx10PreparesNoPlainLabelAndSearchesNoTree();
     EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);

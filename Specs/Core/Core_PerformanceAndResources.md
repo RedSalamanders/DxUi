@@ -1274,6 +1274,29 @@ generation change, a theme change and an embedded device replacement release eve
 and text rendering parameter changes keep both, because formats are device-independent and brushes do not depend on
 DPI. The incremental-versus-fresh oracle drops both maps.
 
+### Text field layouts
+
+A multiline `TextField` lays out its display text once per change of that text, its text rectangle's width (and height,
+above the 32,768-DIP layout height), its font role or its configured format (a typography revision), and keeps that one
+layout with its line metrics. Paint (text, selection and caret), caret and range geometry for text input and UI
+Automation, hit-testing (clicks, drags, double-clicks, text-input points), wheel scrolling, the arrow, Home, End, PageUp
+and PageDown keys, bounds changes, read-only imports and keeping the caret in view all read that layout. The key is the
+identity of the display buffer (observed, never owned, so an edit in place is not forced to copy), its length, the exact
+width and height, the role and the held format; every edit, import, undo, font role, padding, density, DPI and multiline
+change also marks it dirty. A composition preview is imported into the field's text, so the layout holds the composed
+text and the composition underlines are drawn over it. A masked field's mask is one retained buffer per dot count, so its layout is reused too; the
+navigation keys of a masked multiline field lay out the field's own text without retaining it, as before. The fallback
+line height (the height of "Ag") is measured only when no layout can be made, once per held format. With unchanged text and
+width a focused paint, a wheel step that does not complete a notch and a PageDown create no text layout (`FX1`, `W2.7`).
+
+A single-line `TextField` (and `ComboBox`) layout that is reused neither clears nor copies its key text. Its copy of the
+display text is wiped (zeroed, then cleared) when a masked field drops or replaces it, including the first drop after the
+field is unmasked or its password hidden, and on destruction; an unmasked field clears it without the wipe. The multiline
+layout keeps no copy of the text: the only DxUi copy of a field's text outside the shared buffers is this single-line key,
+and a concealed masked field's key holds its dots, never its plaintext. DirectWrite's own copy inside a layout object is
+private to DirectWrite and outside these rules. A paint reads the native text-input state (a copy of the document) only
+while a composition is active, once for both underlines.
+
 ### Memory metrics
 
 Every [performance fixture](../Testing/Testing_Validation.md#performance-fixtures) receipt (`fixture`

@@ -521,6 +521,9 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
     }
 
     const float resolvedLayoutWidthDip = std::max({1.0f, resolvedMinimumWidthDip, measuredTextWidthDip + 32.0f});
+    // A hit at the size it already has is the cached layout as it is: nothing is set, cleared or copied.
+    if (cacheHit && cache->layoutWidthDip == resolvedLayoutWidthDip && cache->layoutHeightDip == resolvedHeightDip)
+        return layout;
     if (FAILED(layout->SetMaxWidth(resolvedLayoutWidthDip)) || FAILED(layout->SetMaxHeight(resolvedHeightDip)))
     {
         if (cache)
@@ -530,6 +533,13 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
         return {};
     }
 
+    if (cacheHit)
+    {
+        // The key text is already the cache's: only the size moved.
+        cache->layoutWidthDip  = resolvedLayoutWidthDip;
+        cache->layoutHeightDip = resolvedHeightDip;
+        return layout;
+    }
     if (cache)
     {
         cache->layout = layout;
