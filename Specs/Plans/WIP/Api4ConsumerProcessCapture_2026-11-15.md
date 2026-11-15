@@ -1,12 +1,12 @@
 # API 4 consumer background-process capture
 
-Status: **ACTIVE**. This is a tooling-only maintenance backport, not API 5 adoption or completed qualification.
+Status: **ACTIVE**. This is a tooling maintenance backport with a bounded test-only qualification follow-up, not API 5 adoption or completed qualification.
 
 ## Scope and protected source
 
 Base: `4cdf1ce52c7785446698e346b8aec058ed6a9283` (API revision 4), isolated branch
 `ej/dxui-api4-consumer-capture-20261115`. The active main/API 5 checkout is not changed.
-Preserve every C++ implementation/header, capabilities/API revision, the four public
+Preserve every production C++ implementation/header, capabilities/API revision, the four public
 `Get-DxUiConsumerBuildIdentity` parameters, sole module export and identity/hash algorithm.
 Changing the adopted producer commit intentionally changes the source identity.
 
@@ -177,3 +177,44 @@ workspace and retain a unique child; they do not initialize a new drive root or 
 that write repository-local test data. CI adapters retain their own explicit result child. Product builds,
 foreground input, hosted dispatch, publication and pin adoption require their separate authorized phases.
 Keep this plan in WIP until its acceptance gates are closed; deferred gates are not completed outcomes.
+
+### Local bounded Menu qualification follow-up
+
+H2 manual source `12753a8fabcfd45c6f828abb5835332e2f85b74b`, run `43724475279`, ARM64 Release
+failed delayed sibling-submenu-close popup discovery after activation dismissal before input. The exact
+message/actor remains unproved. H3 source `3f446c640e04b82a45cecfbf88c90ef98b2d4c95`, run `43727329084`,
+ARM64 ASan failed required interactive qualification because the asynchronous cursor fixture was skipped
+when the menu point was covered; its delayed-hover case passed. These are distinct source/profile outcomes,
+not one demonstrated runtime cause. The original failures and evidence remain unchanged.
+
+The local follow-up changes only `Tests/Controls/DxUi.Tests.Menu.cpp` and its owning test contract:
+bounded existing-sink activation/owner diagnostics around H2 calibration/reopen, and one existing governed
+owner-activation setup before H3 asynchronous cursor interaction. Every original assertion/deadline, actual
+hit-test, async API and required-skip rejection remains. No production Menu, public API/ABI, generic helper,
+policy/judge, benchmark workload or performance harness change is included. No historical actor attribution,
+retry/reacquisition workaround, completed fix or qualification is claimed. Test-only source lies outside the
+current library fingerprint, benchmark inputs and paired harness lists; verify actual closure equality before
+using that applicability claim. New ControlTests source/executable receipts and required qualification remain pending.
+
+- [x] Root and independent source review accepted patch `615908d2821d4df17cd422d37dd2f4972d8f68b2b8c81e93571fb11e5cb4ba6a`; applied locally over clean H3. Native evidence and publication remain pending.
+- [ ] Validate owned ordinary-occluder setup, activation refusal, continued occlusion and held cursor failure
+      without weakening original assertions or accepting a required skip; preserve first failures.
+- [ ] Build zero-warning affected profiles and execute relevant focused Menu plus owning native/Full gates.
+- [ ] Retain source-bound evidence and actual dependency/harness closure comparisons; keep I65 and separate
+      RedSalamander adoption gates open until their own acceptance completes.
+
+Local compiler-free checkpoint: the five root source validators, the changed Menu file's pinned
+clang-format 22.1.3 check, fragment validation and canonical producer fold/check passed. Exact-H3 affected
+Explain conservatively selects all 20 scopes because the Menu test source is unmapped, and reports Menu
+`INTERACTIVE_NOT_RUN`; no scope mapping is weakened. The legacy tooling aggregate and native builds/tests
+were not run here. Current native/Full and publication remain pending; no completed qualification is claimed.
+
+Verification reuses `TestNoninteractiveWindowActivationBlockerRejectsFocusStealing` for the canonical
+activation-refusal/no-request contract, and `TestMenuForegroundWitnessReacquiresFocusAfterPreparedSetup`
+for controlled prepared-setup focus restoration. Their current-source native execution remains pending.
+The actual new cursor fixture must still exercise the ordinary owned foreground setup and all three original
+cursor assertions; source reuse alone does not establish that result or a dedicated ordinary-occluder experiment.
+The preserved H3 required-skip failure proves the old occlusion was rejected, not that the new setup always
+prevents occlusion. Existing hit tests and unchanged skip policy retain that negative outcome. A held cursor
+regression still reaches its original assertion without retry; no injected regression/native experiment has
+been executed for this candidate. No mirror tests or new production failure hooks were added.

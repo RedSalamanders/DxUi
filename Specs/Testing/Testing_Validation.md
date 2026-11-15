@@ -648,6 +648,22 @@ state, item rectangles, paint, text and layout, its backdrop, and a bitmap captu
   Cancellation context contains only flags for foreground existence/owner/process and capture owner/popup,
   plus `InSendMessageEx` flags. These observations do not attribute an untraced cancellation or authorize retrying
   a held behavioral failure. The same readiness, hover, timer and elapsed assertions and deadlines still apply.
+  The delayed sibling-submenu-close fixture additionally retains the closed activation message kind
+  (`WM_ACTIVATEAPP`, `WM_ACTIVATE`, `WM_NCACTIVATE`, or unknown), current foreground/capture relation flags
+  and `InSendMessageEx` flags at dismissal. UI-thread snapshots surround calibration, cursor alignment
+  and reopening, with owner loss-count deltas. The existing 64-row bounds, drop accounting and failure-only
+  trace dump remain. These are current observations, not historical sender/creator attribution; same-process
+  transitions and unknown relations are not evidence of external interference or permission to retry or skip.
+- **Asynchronous cursor fixture setup.** `TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside`
+  establishes its owner's actual desktop foreground once, after preparing both windows and immediately
+  before `ShowAsync`, through the existing governed activation helper. This is an explicit ordinary cursor-
+  interaction fixture precondition; the modal-owner rule above did not already require asynchronous activation.
+  Failure to establish it is a setup failure with bounded existing activation observations. The text-cursor
+  fixture remains nonactivating/topmost for its existing outside-menu purpose. No foreign window is modified.
+  The actual `WindowFromPoint` checks and all three cursor assertions remain mandatory and unchanged.
+  Subsequent occlusion still prevents execution and a required interactive skip still blocks qualification.
+  No post-failure reacquisition, retry, timeout growth, coordinate search, popup topmost promotion or skip
+  acceptance is introduced. This setup does not prove the historical covering console's creator or cause.
 
 The native disclosure automation client subscribes from its own MTA thread while the owner thread pumps.
 Cold client setup (COM, `ElementFromHandle` and property-event subscription) has a separate 20-second
