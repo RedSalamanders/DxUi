@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "apiRevision": 5,
+  "apiRevision": 6,
   "library": "DxUi",
   "consumerInterface": {
     "scripts": {
@@ -147,6 +147,7 @@
     "native-arm64-runtime-qualification",
     "physical-touch-device-qualification",
     "consumer-api-revision-4-adoption",
+    "consumer-api-revision-6-adoption",
     "intrinsic-form-consumer-adoption",
     "embedded-host-text-uia-bridge",
     "rich-text-editor",

@@ -51,7 +51,7 @@ Win32 text/accessibility and presentation support inside the same archive.
 their explicit bounds. Applications own values, validation decisions, scrolling and fixed footer actions.
 
 Consumers import [Build/DxUi.Consumer.props](Build/DxUi.Consumer.props) and
-[Build/DxUi.Consumer.targets](Build/DxUi.Consumer.targets), pin an exact commit/API revision 5 with target `["DxUi"]`,
+[Build/DxUi.Consumer.targets](Build/DxUi.Consumer.targets), pin an exact commit/API revision 6 with target `["DxUi"]`,
 and use an isolated restore/build output root. API 5's recorded x64 library scope is qualified at
 `f6791b5070efd1fa8dc86601bc9422ae9a321d2e`; see the [evidence](Measurements/FailurePolicy_2026-11-06/README.md).
 Native ARM64 execution, formal performance-policy acceptance and product adoption remain separate.

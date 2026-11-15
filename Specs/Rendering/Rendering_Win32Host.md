@@ -112,9 +112,9 @@ sibling or the root, hide or destroy its host; a host destroyed or detached duri
 Hover, capture and double-click observers remain pruned by the existing interaction-state validation before dispatch,
 which addresses them only by comparison and lifetime token.
 
-Embedded hosting owns no timer: `AdvanceAnimation` ticks only the due requests, and `NeedsAnimation` stays true while
-any request, a pending deadline included, is held, so an application that polls it every frame keeps the caret
-blinking. The clock rules of the [embedded contract](Rendering_EmbeddedD3D11.md) are unchanged; a hidden view holds
+Embedded hosting owns no timer: the schedule is published as the view's
+[animation request](Rendering_EmbeddedD3D11.md) (`None`, `Continuous` or a `Deadline` on the application's clock,
+API revision 6), and `AdvanceAnimation` ticks only the due requests. The clock rules of the [embedded contract](Rendering_EmbeddedD3D11.md) are unchanged; a hidden view holds
 its requests on a timeline that does not count the hidden time. When the schedule empties outside a wake (a blurred
 caret, a cancelled or forgotten request), the next request is a new start: it wakes the application and the next
 advance sets the timeline's baseline instead of counting the idle time.
@@ -138,8 +138,7 @@ stops) with the caret shown: the flip that shows it is the last, and nothing wak
 as Windows' own caret does. A steady caret is shown and schedules nothing: a read-only `TextField` or `RichTextEditor`
 (the [controls contract](../UI/UI_ControlsAndLayout.md) draws its caret), `INFINITE`, and reduced motion (the theme's
 `reducedMotion`, which `SetTheme` applies at once). The settings are read, never changed: at a host's first caret and
-again by `RefreshCaretBlinkSettings`, which a window host calls on `WM_SETTINGCHANGE`; an embedded host owns no window,
-so its application calls it when its own window receives `WM_SETTINGCHANGE`. A changed setting, or a change of reduced
+again by `RefreshUserSettings` ([user settings](#user-settings)). A changed setting, or a change of reduced
 motion, shows a focused caret and restarts it in the new mode. `DebugSetCaretBlinkSettingsForTest` replaces both settings
 for one host, so tests never touch the user's.
 
@@ -172,9 +171,9 @@ tooltip, a tracking `SetTooltip`, `ClearTooltip` (a click, the host's mouse leav
 a capture change, an inspection, detach. Every such change tells the dispatcher, so no stale wake remains; a
 wake reaching a time the layer no longer waits for does nothing. The layer's `Tick` returns false: nothing about a
 tooltip moves between its deadlines, and the layer is never ticked between them. A native host therefore wakes once to
-show a tooltip and once to hide it, and runs no periodic timer for it; an embedded host's `NeedsAnimation` stays true
-while a deadline is pending, as for any deadline, and `AdvanceAnimation` before it ticks nothing and walks nothing for
-the tooltip. A tooltip has no fade
+show a tooltip and once to hide it, and runs no periodic timer for it; an embedded host's request is that deadline while
+it is pending, as for any deadline, and `AdvanceAnimation` before it ticks nothing and walks nothing for the tooltip. A
+tooltip has no fade
 or motion of its own, so it never requests every frame. A Ctrl change over a rich title resolves the supplemental
 tooltip at the next wake. The layer is host-owned, not a request of the control schedule: within a wake its deadline is
 read after every control's `Tick`, so a `Tick` that dismisses, replaces or re-arms the tooltip is honoured in the same
@@ -197,19 +196,33 @@ tooltip), the hovered control's `OnMouseMove` lets a control that sets its own t
 recompute it for the row or tab now under the pointer, and the supplemental target is resolved again (a changed text
 clears the tooltip and schedules the new one with the full show delay; an unchanged target keeps it as it is). Under
 mouse capture only the supplemental target is resolved, so nothing is sent to the captured control. On an embedded host
-the change makes the schedule's earliest deadline due now (`NeedsAnimation` true) and the next `AdvanceAnimation`
-resolves it. The mark is a flag beside the layer's one deadline, not a second deadline; with no tooltip pending or shown
+the change makes the schedule's earliest deadline due now (the animation request becomes a deadline already reached, and
+the view calls `requestPreparation` because that is sooner than the request it last reported) and the next
+`AdvanceAnimation` resolves it. The mark is a flag beside the layer's one deadline, not a second deadline; with no tooltip pending or shown
 these setters mark nothing and cause no wake. The target is otherwise resolved again only at the supplemental tooltip's
 own deadlines, so a target moved without a data or geometry change of its owner (a plain `SetBounds`, a scroll offset)
 is noticed at the next deadline or pointer move. Work counters record the marks (`tooltipTargetMarks`) and the wakes
 that resolved the target (`tooltipTargetValidations`).
 The show delay is the user's mouse hover time (`SPI_GETMOUSEHOVERTIME`, read and never changed) clamped to 100-2,500 ms,
 500 ms when the system reports none. Each host reads it once, when it first schedules a tooltip, and again on
-`RefreshTooltipHoverTime()`: a window host calls it on `WM_SETTINGCHANGE`; an embedded host has no window, so its
-application calls `Controls().RefreshTooltipHoverTime()` when its own window receives `WM_SETTINGCHANGE`. The next
-tooltip scheduled waits for the refreshed delay. Tests replace the setting through `DebugSetTooltipHoverTimeForTest`.
-Work counters record the layer's ticks (`tooltipDeadlineTicks`) and the shows dropped while hidden
-(`tooltipShowsDropped`).
+`RefreshUserSettings` ([user settings](#user-settings)). The next tooltip scheduled waits for the refreshed delay.
+Tests replace the setting through `DebugSetTooltipHoverTimeForTest`. Work counters record the layer's ticks
+(`tooltipDeadlineTicks`) and the shows dropped while hidden (`tooltipShowsDropped`).
+
+### User settings
+
+Status: implemented (performance and motion plan item W3.5, 15 November 2026) for both hosts.
+
+A host keeps three user settings it reads, never changes: the caret blink time and caret timeout
+([caret clock](#caret-clock)) and the mouse hover time ([tooltip deadlines](#tooltip-deadlines)). One public call,
+`ControlHost::RefreshUserSettings()`, re-reads all three, so a caller cannot refresh one and leave another stale. A
+window host calls it itself when its window receives `WM_SETTINGCHANGE`. Windows broadcasts that message to top-level
+windows only: a host attached to a child window (`WS_CHILD`) receives it only when the application forwards it, and an
+embedded view has no window at all. For both, the application calls `RefreshUserSettings()` (or forwards
+`WM_SETTINGCHANGE` to the child host's `HandleMessage`) when its top-level window receives `WM_SETTINGCHANGE`; until then
+the host keeps the values it read first. DxUi never polls the settings. Lines per wheel notch and the font-smoothing mode
+are process-wide reads with their own rules (a window host refreshes them on `WM_SETTINGCHANGE`; an embedded view reads
+the wheel setting at each wheel event and takes ClearType parameters from `SetTextRenderingMonitor`).
 
 Hit queries revalidate root lifetime and current ownership before dispatch. Root replacement or retirement during
 painting aborts that frame before capture or presentation; the next update applies the current root's bounds before

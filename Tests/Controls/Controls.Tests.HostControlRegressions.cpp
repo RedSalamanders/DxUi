@@ -232,13 +232,14 @@ void TestEmbeddedTransitionsUseApplicationClockIncludingZero()
         RequireSucceeded(view.Prepare(220, 48), "prepare application-clock slider");
         host.SetFocusControl(live, false);
         Require(view.DispatchKey(VK_RIGHT, true), "embedded key starts animated seek");
-        Require(view.AdvanceAnimation(epoch), "first application tick anchors active slider animations");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch)), "first application tick anchors active slider animations");
         RequireFloatNear(static_cast<float>(live->DebugGetDisplayedValue()), 20, 0.001f, "first tick does not mix application and system epochs");
-        Require(view.AdvanceAnimation(epoch + 40), "application-clock slider advances");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 40)), "application-clock slider advances");
         Require(live->DebugGetDisplayedValue() > 20 && live->DebugGetDisplayedValue() < live->GetValue(), "slider interpolates inside the application epoch");
         static_cast<void>(view.AdvanceAnimation(epoch + 1000));
         static_cast<void>(view.AdvanceAnimation(epoch + 1001));
-        Require(! view.NeedsAnimation() && live->DebugGetDisplayedValue() == live->GetValue(), "slider reaches its target and releases animation");
+        Require(! AnimationRequested(view.GetAnimationRequest()) && live->DebugGetDisplayedValue() == live->GetValue(),
+                "slider reaches its target and releases animation");
         // Each attachment has its own monotonic application timeline, with the same independently tested epoch.
         EmbeddedHost pageView;
         RequireSucceeded(pageView.Attach(pool), "attach independent application-clock pages");
@@ -249,15 +250,15 @@ void TestEmbeddedTransitionsUseApplicationClockIncludingZero()
         pageHost->SetPage(std::make_unique<Button>(L"First page"));
         pageHost->SetPage(std::make_unique<Button>(L"Second page"));
         RequireSucceeded(pageView.Prepare(220, 100), "prepare application-clock pages");
-        Require(pageView.AdvanceAnimation(epoch), "first page tick anchors its clock");
+        Require(AnimationRequested(pageView.AdvanceAnimation(epoch)), "first page tick anchors its clock");
         Require(pageHost->HasActiveTransition() && pageHost->DebugGetTransitionState(epoch).linearProgress == 0.0f,
                 "first page tick neither wraps nor fast-forwards");
-        Require(pageView.AdvanceAnimation(epoch + 125), "page progresses in application time");
+        Require(AnimationRequested(pageView.AdvanceAnimation(epoch + 125)), "page progresses in application time");
         const auto progress = pageHost->DebugGetTransitionState(epoch + 125).linearProgress;
         Require(progress > 0 && progress < 1, "page has intermediate application-clock progress");
         static_cast<void>(pageView.AdvanceAnimation(epoch + 1000));
         static_cast<void>(pageView.AdvanceAnimation(epoch + 1001));
-        Require(! pageHost->HasActiveTransition() && ! pageView.NeedsAnimation(), "page settles and releases animation");
+        Require(! pageHost->HasActiveTransition() && ! AnimationRequested(pageView.GetAnimationRequest()), "page settles and releases animation");
     }
 }
 

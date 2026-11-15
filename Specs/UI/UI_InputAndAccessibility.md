@@ -366,7 +366,7 @@ press, a primary press, Escape, loss of capture or focus, disabling, hiding or
 detaching the editor ends the gesture. Ticks use the host animation clock and
 bounded elapsed time; there is no control-owned timer. Embedded applications
 forward middle-button events, retain native capture while requested, and drive
-`AdvanceAnimation` while `NeedsAnimation` is true.
+`AdvanceAnimation` when the view's animation request asks for it.
 
 `BeginSourceMove` creates a source/selection/binding-guarded token for a
 nonempty editable selection. `MoveSelectedSource` accepts a source-coordinate

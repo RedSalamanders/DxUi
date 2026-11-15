@@ -275,7 +275,7 @@ void TestCaretClockInputRestartsPhaseAndTimeout()
     Require(run.wakes == 10u && WakeIsNone(host) && field->DebugIsCaretVisible(), "the timeout counts from the latest input");
 }
 
-// WM_SETTINGCHANGE (window host) and RefreshCaretBlinkSettings (embedded application) apply a changed blink time or
+// WM_SETTINGCHANGE (window host) and RefreshUserSettings (embedded application) apply a changed blink time or
 // timeout at once: the caret shows and restarts; an unchanged setting restarts nothing. Reduced motion follows SetTheme.
 void TestCaretClockSettingChangeWhileFocused()
 {
@@ -301,10 +301,10 @@ void TestCaretClockSettingChangeWhileFocused()
     Require(WakeIsDeadlineAt(host, now - 50u + 200u), "an unrelated WM_SETTINGCHANGE leaves the phase alone");
 
     host.DebugSetCaretBlinkSettingsForTest(Settings{INFINITE, 0u});
-    host.RefreshCaretBlinkSettings();
+    host.RefreshUserSettings();
     Require(WakeIsNone(host) && field->DebugIsCaretVisible(), "a change to INFINITE makes the caret steady at once");
     host.DebugSetCaretBlinkSettingsForTest(Settings{530u, 5000u});
-    host.RefreshCaretBlinkSettings();
+    host.RefreshUserSettings();
     Require(WakeIsDeadlineAt(host, now + 530u), "a change back to a period blinks again from now");
 
     auto theme          = host.GetTheme();
@@ -384,13 +384,13 @@ void TestCaretClockEmbeddedHiddenPopupAndHiddenOwner()
     static_cast<void>(view.AdvanceAnimation(10'000u)); // the root's discovery tick
 
     host.SetFocusControl(field, false);
-    Require(view.NeedsAnimation(), "a focused caret asks for its deadline");
+    Require(AnimationRequested(view.GetAnimationRequest()), "a focused caret asks for its deadline");
     static_cast<void>(view.AdvanceAnimation(10'001u)); // baseline
     static_cast<void>(view.AdvanceAnimation(10'001u + 530u));
     Require(! field->DebugIsCaretVisible(), "the caret blinks off after one period");
 
     view.SetVisible(false);
-    Require(! view.NeedsAnimation(), "a hidden view asks for nothing");
+    Require(! AnimationRequested(view.GetAnimationRequest()), "a hidden view asks for nothing");
     view.SetVisible(true);
     Require(field->DebugIsCaretVisible(), "on show the caret is visible at once");
     Require(WakeIsDeadlineAt(host, host.GetAnimationTickMs() + 530u) && host.DebugGetTickRequestCountForTest() == 1u,
@@ -410,7 +410,7 @@ void TestCaretClockEmbeddedHiddenPopupAndHiddenOwner()
     Require(WakeIsNone(host) && field->DebugIsCaretVisible(), "a caret owner hidden while focused wakes nothing");
     field->SetVisible(true);
     host.SetFocusControl(nullptr, false);
-    Require(WakeIsNone(host) && ! view.NeedsAnimation(), "with no focus the view asks for nothing");
+    Require(WakeIsNone(host) && ! AnimationRequested(view.GetAnimationRequest()), "with no focus the view asks for nothing");
 }
 
 // Native: the window's own WM_SETTINGCHANGE re-reads the settings, and a device loss leaves the caret's phase and its

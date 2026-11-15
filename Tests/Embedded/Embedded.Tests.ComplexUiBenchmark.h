@@ -272,7 +272,13 @@ inline void Run(
     }
     view.SetVisible(false);
     const auto hidden = view.GetStatistics();
-    Check(! view.NeedsAnimation() && ! view.NeedsPreparation(), "complex hidden view requests no work");
+    // A paired-benchmark input, compiled against older trees too: API revision 6 replaced NeedsAnimation (W3.5).
+#if defined(DXUI_HAS_EMBEDDED_ANIMATION_REQUEST)
+    const bool animationRequested = view.GetAnimationRequest().kind != DxUi::EmbeddedAnimationRequest::Kind::None;
+#else
+    const bool animationRequested = view.NeedsAnimation();
+#endif
+    Check(! animationRequested && ! view.NeedsPreparation(), "complex hidden view requests no work");
     Check(view.Prepare(1280, 720) == S_FALSE, "hidden benchmark preparation skipped");
     Check(view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "hidden benchmark composition skipped");
     Check(view.GetStatistics().preparations == hidden.preparations && view.GetStatistics().composites == hidden.composites, "hidden counters unchanged");

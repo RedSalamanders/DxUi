@@ -115,7 +115,7 @@ struct EmbeddedParityScene final
     void Advance(uint64_t milliseconds)
     {
         clock += milliseconds;
-        if (view.NeedsAnimation())
+        if (AnimationRequested(view.GetAnimationRequest()))
             static_cast<void>(view.AdvanceAnimation(clock));
     }
     [[nodiscard]] ParityFrame Capture(bool fresh)

@@ -42,10 +42,11 @@ PageHost's current page participates in Tab traversal and UI Automation, includi
 point hits. Outgoing transition pages are visual-only. Unhandled native keys continue to the application's window
 procedure; host animation ticks request further scheduling independently of repainting changed control pixels.
 
-Call `EmbeddedHost::AdvanceAnimation` with your application's milliseconds, from any epoch, while `NeedsAnimation()` is
-true. The view's animation clock, `ControlHost::GetAnimationTickMs()`, advances by the difference between consecutive
-ticks and stands still while the view is idle, hidden or zero-sized: the first tick after such a pause, or after a new
-attachment, only sets the baseline. Every control stamps its transitions with that clock and `Tick` receives it, so no
+Call `EmbeddedHost::AdvanceAnimation` with your application's milliseconds, from any epoch, when the view's
+`GetAnimationRequest()` asks for it (see [input, DPI and animation](#input-dpi-and-animation)). The view's animation
+clock, `ControlHost::GetAnimationTickMs()`, advances by the difference between consecutive ticks and stands still while
+the view is idle, hidden or zero-sized: the first tick after such a pause, or after a new attachment, only sets the
+baseline. Every control stamps its transitions with that clock and `Tick` receives it, so no
 application epoch, zero or near the top of the range, changes what a transition shows. Natively the clock is the UI
 thread's animation dispatcher timeline. A custom control stamps its own transitions with `host.GetAnimationTickMs()`;
 input timing such as double clicks uses real time, never this clock.
@@ -161,18 +162,51 @@ association when the outer call completes, so neither call can authorize a delay
 The embedded API is not a complete IME, text-store or UI Automation bridge: the consumer must supply the integrations
 described in [input and accessibility](../Specs/UI/UI_InputAndAccessibility.md). Native ControlHost has separate HWND services.
 
-Call `AdvanceAnimation(nowTickMs)` only while `NeedsAnimation()` requests host ticks. `NeedsAnimation()` stays true
-while any control waits for a deadline (a focused caret between blinks), and an advance before the deadline ticks
-nothing, so polling every frame keeps working. A tick marks the view dirty
+`GetAnimationRequest()` says when the view next needs your clock, and `AdvanceAnimation(nowTickMs)` ticks what is due
+and returns the next request (API revision 6). The view owns no timer: you decide when to call. A request is one of:
+
+- `None`: nothing to advance. Sleep until input, your own model changes or the `requestPreparation` callback.
+- `Continuous`: advance on every frame you present (a transition, an indeterminate progress bar).
+- `Deadline`: advance once when your clock reaches `dueTickMs`, which is on the clock you pass to `AdvanceAnimation`. It
+  may already have passed (advance at once); it is 0 for the first advance after a pause, which only takes the
+  baseline. An advance before it ticks nothing and returns the same deadline.
+
+Read the request again after every call into the view (input, `Prepare`, a setter, `AdvanceAnimation`) and after the
+`requestPreparation` callback, which the view also calls when it needs you sooner than the request it last reported
+(something after nothing, every frame after a deadline, an earlier deadline). Reading costs nothing: it walks no tree
+and ticks nothing. Three loops are enough, with `now` your clock in milliseconds:
+
+```cpp
+// Poll every frame: what revision 5's NeedsAnimation() allowed. Correct, but wakes every frame while anything waits.
+if (view.GetAnimationRequest().kind != DxUi::EmbeddedAnimationRequest::Kind::None)
+    static_cast<void>(view.AdvanceAnimation(now));
+
+// Sleep until the request: advance when due, then sleep until the next one (or until woken by input or the callback).
+DxUi::EmbeddedAnimationRequest request = view.GetAnimationRequest();
+using Kind = DxUi::EmbeddedAnimationRequest::Kind;
+if (request.kind == Kind::Continuous || (request.kind == Kind::Deadline && request.dueTickMs <= now))
+    request = view.AdvanceAnimation(now);
+const uint64_t sleepMs = request.kind == Kind::None         ? INFINITE
+                         : request.kind == Kind::Continuous ? frameMs
+                         : request.dueTickMs > now          ? request.dueTickMs - now
+                                                            : 0u;
+
+// A message loop with one timer (as in Samples/EmbeddedControls): after every frame and every WM_TIMER advance, set the
+// timer from the request: KillTimer for None, the frame period for Continuous, dueTickMs - now (at least
+// USER_TIMER_MINIMUM) for a Deadline. A waitable timer works the same way with an absolute due time.
+```
+
+A focused caret at the Windows default blink time therefore costs two wakes per blink period, and none after the caret
+timeout; an idle view costs none. A tick marks the view dirty
 only when a control changes visual state (an indeterminate progress bar on every tick, a caret only when its blink
 phase flips), so check `NeedsPreparation()` after ticking instead of preparing unconditionally. A caret blinks at the
 user's caret blink time until the caret timeout and is steady when read-only or under the theme's reduced motion; a
-steady caret leaves `NeedsAnimation()` false. The view has no window to receive `WM_SETTINGCHANGE`: call
-`Controls().RefreshCaretBlinkSettings()` when your window receives it (see the
+steady caret requests nothing. The view has no window to receive `WM_SETTINGCHANGE`: call
+`Controls().RefreshUserSettings()` when your window receives it, which re-reads every user setting the view keeps (the
+caret blink time and timeout, the tooltip hover time; see the
 [caret clock](../Specs/Rendering/Rendering_Win32Host.md#caret-clock)). A clean `Prepare`
-returns `S_FALSE`. The `requestPreparation` callback also fires when animation first becomes requested, so a host
-that reacts to it observes `NeedsAnimation()` after preparing; a repeated request changes nothing. Stop scheduling
-idle and hidden views. Call `SetVisible(false)` when a view is unavailable:
+returns `S_FALSE`. A hidden or zero-sized view requests nothing; showing it again requests a baseline advance when
+anything was held. Call `SetVisible(false)` when a view is unavailable:
 hiding, like preparing a zero extent, releases the cached surface (`GetStatistics().surfaceBytes` becomes 0), and
 the next visible sized `Prepare` allocates one surface and re-rasterizes the content. `cachedBrushes` and
 `cachedTextFormats` report the bounded per-view caches (256 solid brushes, including those a running color transition
@@ -197,10 +231,13 @@ A native host does this itself: it follows the user's ClearType setting (graysca
 window's monitor, refreshing on `WM_SETTINGCHANGE`, `WM_DPICHANGED` and `WM_MOVE` that you forward to `HandleMessage`.
 
 Tooltips wait for the user's mouse hover time (clamped to 100-2,500 ms), then show for 5 seconds; the view is ticked only
-at those two deadlines, so `NeedsAnimation()` is true while one is pending and an advance before it ticks nothing.
-Hiding the view drops a tooltip that has not shown yet. A view reads the hover time once; when your window receives
-`WM_SETTINGCHANGE`, call `view.Controls().RefreshTooltipHoverTime()` so the next tooltip uses the new value. A native
-host does this itself (see [tooltip deadlines](../Specs/Rendering/Rendering_Win32Host.md#tooltip-deadlines)).
+at those two deadlines, so the request is that deadline while one is pending and an application that sleeps until it
+wakes twice per tooltip. Hiding the view drops a tooltip that has not shown yet; a shown tooltip's hide keeps the time it
+had left, since the view's clock does not count hidden time. A view reads the hover time once; when your window receives
+`WM_SETTINGCHANGE`, `view.Controls().RefreshUserSettings()` reads it again for the next tooltip. A native host attached
+to a top-level window does this itself; Windows sends `WM_SETTINGCHANGE` to top-level windows only, so for a host
+attached to a child window, forward the message to its `HandleMessage` or call `RefreshUserSettings()` (see
+[user settings](../Specs/Rendering/Rendering_Win32Host.md#user-settings)).
 
 ## Native HWND host
 

@@ -63,7 +63,7 @@ partial language profile. Neither status supplies current-source build, runtime,
 performance, physical-input or consumer acceptance. Those results retain their
 own source identities in [the evidence archive](../Measurements/RichText/README.md).
 `capabilities.json` owns the table; `validate-specs.ps1` rejects a changed, missing
-or contradictory row. API revision is 5; pair headers with the exact library.
+or contradictory row. API revision is 6; pair headers with the exact library.
 The source-bound x64 library qualification above does not establish the remaining
 foreground, physical-input, consumer or formal performance gates.
 The added control triple-click virtual has an ordinary-press default for existing

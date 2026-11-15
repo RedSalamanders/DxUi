@@ -1,0 +1,29 @@
+PASS embedded animation request on the application clock
+PASS embedded animation request wakes the application only when needed sooner
+PASS a Grid row change under a shown tooltip wakes a sleeping application
+PASS a tooltip mark alone wakes a sleeping application
+PASS embedded deadlines across a pause, a hidden period and a clock jump
+PASS one RefreshUserSettings call refreshes every user setting of an embedded view
+W3.5 FX1: every advance ticks only the due requests; no deadline wake ticks nothing
+W3.5 FX1: 46 polling advances before a deadline, each walking nothing
+W3.5 FX1 editable: polling application 54 advances (10 Tick calls, 0 tooltip ticks, 4 tick tree visits, 0 tooltip target walks); sleeping application 11 wakes, 11 advances (10 Tick calls, 0 tooltip ticks, 4 tick tree visits, 0 tooltip target walks)
+W3.5 FX1 editable: 10 caret flips, at most 2 wakes in one 1060 ms blink period, 0 advances after the last flip
+W3.5 FX1 multiline: polling application 11 advances (9 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks); sleeping application 10 wakes, 11 advances (10 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks)
+W3.5 FX1 multiline: 10 caret flips, at most 2 wakes in one 1060 ms blink period, 0 advances after the last flip
+W3.5 FX1 readonly: polling application 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks); sleeping application 0 wakes, 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks)
+W3.5 FX13: every advance ticks only the due requests; no deadline wake ticks nothing
+W3.5 FX13: 0 polling advances before a deadline, each walking nothing
+W3.5 FX13 idle-nothing-armed: polling application 1 advances (0 Tick calls, 0 tooltip ticks, 35 tick tree visits, 0 tooltip target walks); sleeping application 1 wakes, 1 advances (0 Tick calls, 0 tooltip ticks, 35 tick tree visits, 0 tooltip target walks)
+W3.5 FX13 idle-focused-caret: polling application 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks); sleeping application 0 wakes, 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks)
+W3.5 FX13 caret-timer-period: polling application 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks); sleeping application 0 wakes, 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks)
+W3.5 FX13 hidden for 60 s: 0 wakes
+W3.5 FX14: every advance ticks only the due requests; no deadline wake ticks nothing
+W3.5 FX14: 0 polling advances before a deadline, each walking nothing
+W3.5 FX14 warm: polling application 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks); sleeping application 0 wakes, 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks)
+W3.5 FX14 enter: polling application 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks); sleeping application 0 wakes, 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks)
+W3.5 FX14 pending: polling application 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks); sleeping application 0 wakes, 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks)
+W3.5 FX14 show: polling application 2 advances (0 Tick calls, 1 tooltip ticks, 2 tick tree visits, 1 tooltip target walks); sleeping application 3 wakes, 3 advances (0 Tick calls, 2 tooltip ticks, 2 tick tree visits, 2 tooltip target walks)
+W3.5 FX14 shown: polling application 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks); sleeping application 0 wakes, 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks)
+W3.5 FX14 hide: polling application 1 advances (0 Tick calls, 1 tooltip ticks, 0 tick tree visits, 1 tooltip target walks); sleeping application 1 wakes, 2 advances (0 Tick calls, 1 tooltip ticks, 0 tick tree visits, 1 tooltip target walks)
+W3.5 FX14 leave: polling application 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks); sleeping application 0 wakes, 0 advances (0 Tick calls, 0 tooltip ticks, 0 tick tree visits, 0 tooltip target walks)
+W3.5 FX14: 3 tooltip wakes for 3 tooltip deadlines (2 shows)

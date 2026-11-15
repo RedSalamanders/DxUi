@@ -63,6 +63,13 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
     }
     return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
 }
+// Whether the view's animation request (API revision 6) asks for anything: what NeedsAnimation() and AdvanceAnimation's
+// bool answered before it.
+[[nodiscard]] static bool AnimationRequested(const DxUi::EmbeddedAnimationRequest& request) noexcept
+{
+    return request.kind != DxUi::EmbeddedAnimationRequest::Kind::None;
+}
+#include "Embedded.Tests.AnimationRequest.h"
 #include "Embedded.Tests.CleanPrepareTimerDiagnostic.h"
 #include "Embedded.Tests.ComplexUiBenchmark.h"
 #include "Embedded.Tests.ComplexUiBoundaries.h"
@@ -135,7 +142,7 @@ static void TestEmbeddedRichHoverIndex(GraphicsFixture& gpu)
     };
     const auto advance = [&]
     {
-        const bool requested = view.NeedsAnimation();
+        const bool requested = AnimationRequested(view.GetAnimationRequest());
         static_cast<void>(view.AdvanceAnimation(++tick));
         return requested;
     };
@@ -162,7 +169,7 @@ __declspec(noinline) static void TestSurfaceLifetime(GraphicsFixture& gpu)
     scene.view.SetVisible(false);
     const auto hidden = scene.view.GetStatistics();
     Check(hidden.surfaceBytes == 0 && hidden.surfaceAllocations == visible.surfaceAllocations, "hiding releases the surface without allocating");
-    Check(! scene.view.NeedsPreparation() && ! scene.view.NeedsAnimation() && requests == requestsBeforeHide,
+    Check(! scene.view.NeedsPreparation() && ! AnimationRequested(scene.view.GetAnimationRequest()) && requests == requestsBeforeHide,
           "hidden view requests no preparation or animation");
     Check(scene.view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "hidden view composites nothing");
     Check(scene.view.Prepare(480, 240) == S_FALSE && scene.view.GetStatistics().surfaceBytes == 0, "hidden preparation allocates no surface");
@@ -183,7 +190,8 @@ __declspec(noinline) static void TestSurfaceLifetime(GraphicsFixture& gpu)
     Check(scene.view.Prepare(0, 0) == S_FALSE, "zero extent suspends");
     Check(scene.view.GetStatistics().surfaceBytes == 0 && scene.view.GetStatistics().surfaceAllocations == restored.surfaceAllocations,
           "zero extent releases the surface");
-    Check(! scene.view.NeedsPreparation() && ! scene.view.NeedsAnimation() && scene.view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE,
+    Check(! scene.view.NeedsPreparation() && ! AnimationRequested(scene.view.GetAnimationRequest()) &&
+              scene.view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE,
           "zero extent requests no work and composites nothing");
     Hr(scene.view.Prepare(480, 240), "prepare after zero extent");
     Check(scene.view.GetStatistics().surfaceBytes == visible.surfaceBytes && scene.view.GetStatistics().surfaceAllocations == restored.surfaceAllocations + 1,
@@ -696,15 +704,15 @@ __declspec(noinline) static void TestTickDirtying(GraphicsFixture& gpu)
     view.Controls().SetRoot(std::move(root));
     Hr(view.Prepare(320, 160), "prepare static root");
     const auto idle = view.GetStatistics();
-    Check(view.NeedsAnimation() && ! view.NeedsPreparation(), "a new root schedules one discovery tick on a clean prepared view");
-    Check(! view.AdvanceAnimation(GetTickCount64()), "static root stops ticking after discovery");
-    Check(! view.NeedsAnimation() && ! view.NeedsPreparation(), "the discovery tick does not dirty a static view");
+    Check(AnimationRequested(view.GetAnimationRequest()) && ! view.NeedsPreparation(), "a new root schedules one discovery tick on a clean prepared view");
+    Check(! AnimationRequested(view.AdvanceAnimation(GetTickCount64())), "static root stops ticking after discovery");
+    Check(! AnimationRequested(view.GetAnimationRequest()) && ! view.NeedsPreparation(), "the discovery tick does not dirty a static view");
     Check(view.Prepare(320, 160) == S_FALSE && view.GetStatistics().preparations == idle.preparations, "the discovery tick causes no preparation");
     view.Controls().RequestAnimation();
     Hr(view.Prepare(320, 160), "prepare after an explicit animation request");
     const auto requested = view.GetStatistics();
-    Check(view.NeedsAnimation() && ! view.NeedsPreparation(), "an explicit animation request leaves a clean prepared view");
-    Check(! view.AdvanceAnimation(GetTickCount64() + 1) && ! view.NeedsPreparation(), "a requested idle tick does not dirty the view");
+    Check(AnimationRequested(view.GetAnimationRequest()) && ! view.NeedsPreparation(), "an explicit animation request leaves a clean prepared view");
+    Check(! AnimationRequested(view.AdvanceAnimation(GetTickCount64() + 1)) && ! view.NeedsPreparation(), "a requested idle tick does not dirty the view");
     Check(view.Prepare(320, 160) == S_FALSE && view.GetStatistics().preparations == requested.preparations, "a requested idle tick causes no preparation");
 
     auto field     = std::make_unique<DxUi::TextField>();
@@ -720,17 +728,17 @@ __declspec(noinline) static void TestTickDirtying(GraphicsFixture& gpu)
     Hr(view.Prepare(320, 160), "prepare text field root");
     view.Controls().SetFocusControl(fieldPtr);
     const uint64_t focusTick = GetTickCount64();
-    Check(fieldPtr->HasFocus() && view.NeedsAnimation(), "focused text field requests caret ticks");
+    Check(fieldPtr->HasFocus() && AnimationRequested(view.GetAnimationRequest()), "focused text field requests caret ticks");
     Hr(view.Prepare(320, 160), "prepare focused text field");
     const auto focused = view.GetStatistics();
     Check(! view.NeedsPreparation(), "focused text field is clean after preparation");
-    Check(view.AdvanceAnimation(focusTick + 10), "caret keeps ticking");
+    Check(AnimationRequested(view.AdvanceAnimation(focusTick + 10)), "caret keeps ticking");
     Check(! view.NeedsPreparation(), "a tick inside the blink phase does not dirty");
-    Check(view.AdvanceAnimation(focusTick + 20), "caret keeps ticking within the phase");
+    Check(AnimationRequested(view.AdvanceAnimation(focusTick + 20)), "caret keeps ticking within the phase");
     Check(! view.NeedsPreparation() && view.Prepare(320, 160) == S_FALSE && view.GetStatistics().preparations == focused.preparations,
           "ticks within the blink period cause no preparation");
     constexpr uint64_t kCaretBlinkPeriodMs = 530u; // the blink time pinned above
-    Check(view.AdvanceAnimation(focusTick + 20 + kCaretBlinkPeriodMs), "caret keeps ticking across the blink");
+    Check(AnimationRequested(view.AdvanceAnimation(focusTick + 20 + kCaretBlinkPeriodMs)), "caret keeps ticking across the blink");
     Check(view.NeedsPreparation(), "a blink-phase flip dirties the view");
     Check(view.Prepare(320, 160) == S_OK && view.GetStatistics().preparations == focused.preparations + 1, "a blink-phase flip prepares exactly once");
 }
@@ -1968,6 +1976,14 @@ __declspec(noinline) static int RunFunctionalTests()
         PerformanceFixtures::TestTooltipDeadlineGatesOnFx14();
         RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
         MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
+        PerformanceFixtures::TestApplicationWakeGatesOnFixtures();
+        return 0;
+    }
+    // W3.5 alone: the embedded animation request (API revision 6) and its application-wake gates on FX1, FX13 and FX14.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-animation-request")
+    {
+        EmbeddedAnimationRequestTests::Run();
+        PerformanceFixtures::TestApplicationWakeGatesOnFixtures();
         return 0;
     }
     // Plan W2.9 alone: the pointer hit result gates, differential and lifetime on WARP.
@@ -2219,6 +2235,8 @@ __declspec(noinline) static int RunFunctionalTests()
     PerformanceFixtures::TestTooltipDeadlineGatesOnFx14();
     GridDataPathTests::TestFx3GridDataPathGate(gpu);
     PerformanceFixtures::TestCaretClockGatesOnFx1();
+    EmbeddedAnimationRequestTests::Run();
+    PerformanceFixtures::TestApplicationWakeGatesOnFixtures();
     SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
     RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
     RichReuseAcrossEditsEmbedded::TestEmbeddedCarryAcrossDeviceReplacement(gpu);
@@ -2649,7 +2667,7 @@ __declspec(noinline) static int RunFunctionalTests()
     Check(scene.view.Composite(gpu.context.get(), invalid) == E_INVALIDARG, "reject NaN viewport");
     const auto shownStats = scene.view.GetStatistics();
     scene.view.SetVisible(false);
-    Check(! scene.view.NeedsAnimation() && ! scene.view.NeedsPreparation(), "hidden has no scheduled work");
+    Check(! AnimationRequested(scene.view.GetAnimationRequest()) && ! scene.view.NeedsPreparation(), "hidden has no scheduled work");
     Check(scene.view.GetStatistics().surfaceBytes == 0, "hidden view holds no surface");
     Check(scene.view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE && ! scene.view.DispatchPointer({DxUi::PointerAction::Down, 45, 84}),
           "hidden ignores render/input");
@@ -2660,7 +2678,7 @@ __declspec(noinline) static int RunFunctionalTests()
           "resume reallocates exactly one surface");
     Check(scene.view.Prepare(0, 0) == S_FALSE, "zero target suspends");
     Check(scene.view.GetStatistics().surfaceBytes == 0, "zero target holds no surface");
-    Check(! scene.view.NeedsPreparation() && ! scene.view.NeedsAnimation(), "zero target schedules no work");
+    Check(! scene.view.NeedsPreparation() && ! AnimationRequested(scene.view.GetAnimationRequest()), "zero target schedules no work");
     Check(! scene.view.DispatchPointer({DxUi::PointerAction::Down, 45, 84}), "zero target ignores input");
     Hr(scene.view.Prepare(960, 480, 192), "DPI and resize");
     // The surface released by the zero target is replaced by exactly one allocation at the new physical extent.
@@ -2825,30 +2843,31 @@ __declspec(noinline) static int RunFunctionalTests()
     auto* progressPtr = progress.get();
     progressPtr->SetIndeterminate(true);
     b.Controls().SetRoot(std::move(progress));
-    Check(b.NeedsAnimation(), "attaching an indeterminate control schedules initial discovery");
+    Check(AnimationRequested(b.GetAnimationRequest()), "attaching an indeterminate control schedules initial discovery");
     Hr(b.Prepare(320, 160, 144), "prepare indeterminate progress");
     Check(! b.NeedsPreparation(), "prepared indeterminate progress is clean until it ticks");
     const auto tick = GetTickCount64();
-    Check(b.AdvanceAnimation(tick), "indeterminate progress requests another host tick");
+    Check(AnimationRequested(b.AdvanceAnimation(tick)), "indeterminate progress requests another host tick");
     Check(b.NeedsPreparation(), "indeterminate progress dirties every tick");
     Check(b.Prepare(0, 0) == S_FALSE, "zero-sized animation suspends");
     Check(b.GetStatistics().surfaceBytes == 0, "zero-sized view releases its surface");
-    Check(! b.NeedsAnimation() && ! b.NeedsPreparation() && ! b.AdvanceAnimation(tick + 8), "zero-sized view has no ticking or preparation");
+    Check(! AnimationRequested(b.GetAnimationRequest()) && ! b.NeedsPreparation() && ! AnimationRequested(b.AdvanceAnimation(tick + 8)),
+          "zero-sized view has no ticking or preparation");
     b.MarkDirty();
     Check(! b.NeedsPreparation(), "zero-sized invalidation remains deferred");
     Hr(b.Prepare(320, 160, 144), "resume sized animation");
-    Check(b.NeedsAnimation(), "sizing restores pending animation");
+    Check(AnimationRequested(b.GetAnimationRequest()), "sizing restores pending animation");
     b.SetVisible(false);
-    Check(! b.NeedsAnimation(), "hidden animation suspends");
+    Check(! AnimationRequested(b.GetAnimationRequest()), "hidden animation suspends");
     b.SetVisible(true);
-    Check(b.NeedsAnimation(), "shown animation resumes");
+    Check(AnimationRequested(b.GetAnimationRequest()), "shown animation resumes");
     progressPtr->SetIndeterminate(false);
-    Check(! b.AdvanceAnimation(tick + 16), "stopped animation goes idle");
+    Check(! AnimationRequested(b.AdvanceAnimation(tick + 16)), "stopped animation goes idle");
     b.Controls().SetTheme(desktopTheme);
     Check(b.Controls().SetTooltipDelayed(L"Help", D2D1::Point2F(8, 8)), "schedule embedded tooltip");
     // The first tick after animation is requested again starts the view's clock; the next one passes the show delay.
-    b.AdvanceAnimation(tick + 2000);
-    b.AdvanceAnimation(tick + 4000);
+    static_cast<void>(b.AdvanceAnimation(tick + 2000));
+    static_cast<void>(b.AdvanceAnimation(tick + 4000));
     Check(b.Controls().HasTooltip(), "host ticks advance tooltip deadlines");
     Hr(scene.view.Prepare(480, 240), "prepare before resize cancellation");
     const double resizeInitial = scene.slider->GetValue();

@@ -2298,6 +2298,18 @@ ControlHost::FrameScheduleWake ControlHost::GetFrameScheduleWake() const noexcep
     return hasDeadline ? FrameScheduleWake{Kind::Deadline, earliestDue} : FrameScheduleWake{};
 }
 
+bool ControlHost::IsEarlierWake(FrameScheduleWake wake, FrameScheduleWake published) noexcept
+{
+    using Kind = FrameScheduleWake::Kind;
+    switch (wake.kind)
+    {
+        case Kind::None: return false;
+        case Kind::Continuous: return published.kind != Kind::Continuous;
+        case Kind::Deadline: return published.kind == Kind::None || (published.kind == Kind::Deadline && wake.dueTickMs < published.dueTickMs);
+    }
+    return false;
+}
+
 bool ControlHost::HasScheduledTicks() const noexcept
 {
     return GetFrameScheduleWake().kind != FrameScheduleWake::Kind::None;
@@ -2345,22 +2357,26 @@ void ControlHost::OnFrameScheduleChanged() noexcept
 {
     if (_embedded)
     {
-        // Wake the application only when animation becomes requested, so a control that requests it while painting (an
-        // indeterminate progress bar, a busy grid) does not re-dirty the view inside every preparation.
-        const bool scheduled = HasScheduledTicks();
-        if (scheduled && ! _embeddedAnimationRequested && ! _tickWakeFrame)
+        // A wake in progress hands the application its next request when AdvanceAnimation returns.
+        if (_tickWakeFrame)
+            return;
+        // Wake the application only when the schedule needs it sooner than the request it last learned of (anything after
+        // nothing, every frame after a deadline, an earlier deadline), so an application that sleeps until its request is
+        // never left asleep, and a control that requests the same while painting (an indeterminate progress bar, a busy
+        // grid) does not re-dirty the view inside every preparation.
+        const FrameScheduleWake wake = GetFrameScheduleWake();
+        if (IsEarlierWake(wake, _embeddedPublishedWake))
         {
-            _embeddedAnimationRequested = true;
             // Nothing ticked the view while it was idle, so the next tick starts the clock again rather than counting the gap.
-            _animationTimelineRebase = true;
+            if (_embeddedPublishedWake.kind == FrameScheduleWake::Kind::None)
+                _animationTimelineRebase = true;
+            _embeddedPublishedWake = wake;
             Invalidate();
         }
-        else if (scheduled && _tickWakeFrame)
-            _embeddedAnimationRequested = true;
-        else if (! scheduled && ! _tickWakeFrame)
+        else if (wake.kind == FrameScheduleWake::Kind::None)
             // Emptied outside a wake (a cancel, a forgotten control): the next request is a new start that rebases the
             // timeline and wakes the application.
-            _embeddedAnimationRequested = false;
+            _embeddedPublishedWake = {};
         return;
     }
     // A wake in progress reports its outcome to the dispatcher when it ends.
@@ -2598,6 +2614,14 @@ void ControlHost::RefreshCaretBlinkSettings() noexcept
     ReadCaretBlinkSettings();
     if (! wasRead || blinkTimeMs != _caretClock.blinkTimeMs || timeoutMs != _caretClock.timeoutMs)
         RearmCaret();
+}
+
+void ControlHost::RefreshUserSettings() noexcept
+{
+    // One entry point for WM_SETTINGCHANGE, a window host's and an embedded application's alike, so no setting the host
+    // keeps can be left stale by forwarding only some of them.
+    RefreshCaretBlinkSettings();
+    RefreshTooltipHoverTime();
 }
 
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -3758,8 +3782,8 @@ bool ControlHost::DebugAnimationTickForTest(uint64_t nowTickMs) noexcept
     {
         if (! RunScheduledTicks(nowTickMs))
             return false;
-        _embeddedAnimationRequested = HasScheduledTicks();
-        return _embeddedAnimationRequested;
+        _embeddedPublishedWake = GetFrameScheduleWake();
+        return _embeddedPublishedWake.kind != FrameScheduleWake::Kind::None;
     }
     bool hostGone                   = false;
     const auto presentationRevision = _nativePresentationRevision;
@@ -4361,10 +4385,8 @@ try
             RefreshWheelScrollLines();
             // So does the text antialias mode on an opaque target, and the monitor's rendering parameters.
             RefreshTextRenderingSetting(wp);
-            // And the caret's blink time and timeout.
-            RefreshCaretBlinkSettings();
-            // And the tooltip's show delay, the user's mouse hover time.
-            RefreshTooltipHoverTime();
+            // And the settings the host keeps: the caret's blink time and timeout, the tooltip's show delay.
+            RefreshUserSettings();
             handled = false;
             return 0;
         case WM_DPICHANGED:

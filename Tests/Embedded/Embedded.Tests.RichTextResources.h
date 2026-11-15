@@ -631,8 +631,8 @@ static void TestRichMiddleAutoScroll(GraphicsFixture& gpu)
     Check(view.DispatchPointer({PointerAction::MiddleUp, 40.0f, 40.0f}), "middle release retains the auto-scroll gesture");
     Check(view.DispatchPointer({PointerAction::Move, 40.0f, 90.0f}), "pointer displacement requests animation");
     for (uint64_t tick = 100u; tick != 180u; tick += 16u)
-        if (view.NeedsAnimation())
-            view.AdvanceAnimation(tick);
+        if (AnimationRequested(view.GetAnimationRequest()))
+            static_cast<void>(view.AdvanceAnimation(tick));
     const auto after = editor->GetScrollInfo();
     Check(after && after->offsetDip > initial->offsetDip && editor->GetText() == source && ! editor->CanUndo(),
           "ticks scroll without changing source or history");
@@ -4551,7 +4551,8 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu, bo
     const auto retainedSelection = editor->GetSelection();
     const bool canUndo           = editor->CanUndo();
     first.SetVisible(false);
-    Check(first.GetStatistics().surfaceBytes == 0 && ! editor->DebugGetState().layoutReady && ! first.NeedsPreparation() && ! first.NeedsAnimation(),
+    Check(first.GetStatistics().surfaceBytes == 0 && ! editor->DebugGetState().layoutReady && ! first.NeedsPreparation() &&
+              ! AnimationRequested(first.GetAnimationRequest()),
           "hidden view releases pixels and layout without periodic work");
     Check(! first.DispatchCharacter(L'x') && PrepareRichEmbeddedContent(first, 480, 240) == S_FALSE, "hidden view rejects input and preparation");
     first.SetVisible(true);

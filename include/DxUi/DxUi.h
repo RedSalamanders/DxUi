@@ -6610,17 +6610,12 @@ public:
     bool ClearTooltip() noexcept;
     [[nodiscard]] bool HasTooltip() const noexcept;
     [[nodiscard]] std::wstring_view GetTooltipText() const noexcept;
-    // Tooltip show delay (Specs/Rendering/Rendering_Win32Host.md, "Tooltip deadlines"): re-reads the user's mouse hover time
-    // (SPI_GETMOUSEHOVERTIME), never changing it; the next tooltip scheduled waits for it. A window host calls it itself on
-    // WM_SETTINGCHANGE. An embedded host has no window: its application calls it when its own window receives
-    // WM_SETTINGCHANGE. UI thread only.
-    void RefreshTooltipHoverTime() noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] std::wstring_view DebugGetPendingTooltipText() const noexcept;
     [[nodiscard]] bool DebugAdvanceTooltipDelayForTest() noexcept;
     // Tests only. Replaces the mouse hover time this host reads, as SPI_GETMOUSEHOVERTIME reports it (the host still clamps
     // it), so a test never changes the user's setting; nullopt reads the system setting again. It takes effect as a real
-    // change does: at the host's next RefreshTooltipHoverTime (a window host's WM_SETTINGCHANGE), or when the host first
+    // change does: at the host's next RefreshUserSettings (a window host's WM_SETTINGCHANGE), or when the host first
     // schedules a tooltip.
     void DebugSetTooltipHoverTimeForTest(std::optional<UINT> hoverTimeMs) noexcept;
     // Tests only. The show delay the host's next scheduled tooltip waits for.
@@ -6659,11 +6654,13 @@ public:
     void RequestAnimation(const Control& control) noexcept;
     void RequestAnimationAt(const Control& control, uint64_t dueTickMs) noexcept;
     void CancelAnimation(const Control& control) noexcept;
-    // Caret clock (Specs/Rendering/Rendering_Win32Host.md, "Caret clock"): re-reads the user's caret blink time
-    // (GetCaretBlinkTime) and caret timeout (SPI_GETCARETTIMEOUT), never changing them, and restarts a focused caret's blink
-    // when either changed. A window host calls it itself on WM_SETTINGCHANGE. An embedded host has no window: its application
-    // calls it when its own window receives WM_SETTINGCHANGE. Reduced motion comes from the theme (SetTheme). UI thread only.
-    void RefreshCaretBlinkSettings() noexcept;
+    // Re-reads every user setting the host keeps (Specs/Rendering/Rendering_Win32Host.md, "User settings"), never changing
+    // them: the caret blink time and caret timeout (GetCaretBlinkTime, SPI_GETCARETTIMEOUT; a focused caret restarts its
+    // blink when either changed) and the mouse hover time that delays tooltips (SPI_GETMOUSEHOVERTIME; the next tooltip
+    // waits for it). A window host calls it itself on WM_SETTINGCHANGE. An embedded host has no window: its application
+    // calls it when its own window receives WM_SETTINGCHANGE. Reduced motion comes from the theme (SetTheme), embedded text
+    // rendering parameters from EmbeddedHost::SetTextRenderingMonitor. UI thread only.
+    void RefreshUserSettings() noexcept;
     // Tests only (DebugSetCaretBlinkSettingsForTest): the two settings as GetCaretBlinkTime and SPI_GETCARETTIMEOUT report
     // them. blinkTimeMs is one phase, INFINITE a steady caret; timeoutMs 0 or INFINITE never stops blinking.
     struct CaretBlinkSettingsForTest final
@@ -6842,7 +6839,7 @@ public:
     [[nodiscard]] DebugFrameScheduleWake DebugGetFrameScheduleWakeForTest() const noexcept;
     // Tests only. Replaces the caret blink time and caret timeout this host reads, so a test never changes the user's
     // settings (CaretBlinkSettingsForTest; nullopt reads the system settings again). It takes effect as a real change does:
-    // at the host's next RefreshCaretBlinkSettings (a window host's WM_SETTINGCHANGE), or when a caret next starts.
+    // at the host's next RefreshUserSettings (a window host's WM_SETTINGCHANGE), or when a caret next starts.
     void DebugSetCaretBlinkSettingsForTest(std::optional<CaretBlinkSettingsForTest> settings) noexcept;
     // Tests only. Whether the host's caret clock shows the caret now (true when no caret blinks).
     [[nodiscard]] bool DebugIsCaretClockVisibleForTest() const noexcept;
@@ -7023,7 +7020,6 @@ private:
     void CancelPreparedContent() noexcept;
     void CancelPreparedVisualContent(Control* subtree = nullptr) noexcept;
     bool _embedded                              = false;
-    bool _embeddedAnimationRequested            = false;
     void* _embeddedContext                      = nullptr;
     void (*_embeddedInvalidate)(void*) noexcept = nullptr;
     friend void ShutdownAllWindowHostsForProcessExit() noexcept;
@@ -7260,7 +7256,15 @@ private:
     bool _tickTreeRequested                     = false;
     bool _tickTreeDiscovery                     = false;
     FrameScheduleWake::Kind _dispatcherWakeKind = FrameScheduleWake::Kind::None;
-    // The user's mouse hover time, read once and refreshed by RefreshTooltipHoverTime; clamped when the delay is used.
+    // Embedded (W3.5): the wake the application last learned of, from AdvanceAnimation or from the wake that a schedule change
+    // needing an earlier one sent it (through the preparation callback). None while nothing is requested.
+    FrameScheduleWake _embeddedPublishedWake;
+    // Whether `wake` needs the application sooner than `published`: something after nothing, every frame after a deadline, an
+    // earlier deadline.
+    [[nodiscard]] static bool IsEarlierWake(FrameScheduleWake wake, FrameScheduleWake published) noexcept;
+    // The user's mouse hover time, read once and refreshed by RefreshTooltipHoverTime (from RefreshUserSettings); clamped
+    // when the delay is used.
+    void RefreshTooltipHoverTime() noexcept;
     UINT _tooltipHoverTimeMs        = 0u;
     bool _tooltipHoverTimeRead      = false;
     bool _tooltipHoverTimeForTestOn = false;
@@ -7297,6 +7301,8 @@ private:
     void ReadCaretBlinkSettings() noexcept;
     // A caret owner that gained or lost its area (Control::SetBounds): a focused owner restarts, steady while it has none.
     void OnCaretOwnerAreaChanged(const Control& control) noexcept;
+    // Re-reads the blink time and timeout (from RefreshUserSettings) and restarts a focused caret when either changed.
+    void RefreshCaretBlinkSettings() noexcept;
     // Withdraws a control's deadline only, so a caret never cancels the same control's every-frame request.
     void CancelAnimationDeadline(const Control& control) noexcept;
     CaretClock _caretClock;

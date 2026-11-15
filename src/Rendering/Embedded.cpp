@@ -268,8 +268,8 @@ void EmbeddedHost::Detach() noexcept
     _host._embeddedInvalidate = nullptr;
     _host._embeddedContext    = nullptr;
     _host.Detach();
-    _host._embedded                   = false;
-    _host._embeddedAnimationRequested = false;
+    _host._embedded              = false;
+    _host._embeddedPublishedWake = {};
     _textInputRevision += attachedState->revision + 1;
     _state.reset();
 }
@@ -430,7 +430,7 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
         // Nothing paints while the view is hidden, so its controls return what painting rebuilds (a Grid's text layouts).
         if (_host._root)
             _host._root->OnHidden();
-        // The schedule is held while hidden: NeedsAnimation answers false, and nothing is ticked. A tooltip still waiting to
+        // The schedule is held while hidden: the request is None, and nothing is ticked. A tooltip still waiting to
         // show is dropped (its pointer is not known when the view returns); a shown tooltip's hide waits on the timeline.
         if (! operationIsCurrent())
             return;
@@ -441,10 +441,11 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
         // The timeline does not count the hidden time: the next tick sets its baseline, so held deadlines keep their
         // place on it and fire when it reaches them.
         // A focused caret is shown at once and restarts its blink when the view returns.
+        // The visibility wake below tells the application of the held schedule.
         _host.RearmCaret();
-        _host._embeddedAnimationRequested = _host.HasScheduledTicks();
-        _host._animationTimelineRebase    = true;
-        _state->dirty                     = true;
+        _host._embeddedPublishedWake   = _host.GetFrameScheduleWake();
+        _host._animationTimelineRebase = true;
+        _state->dirty                  = true;
         if (_state->prepareCallActive)
             _state->recoveryWakePending = true;
         else
@@ -455,17 +456,35 @@ bool EmbeddedHost::NeedsPreparation() const noexcept
 {
     return _state && _state->visible && ! _state->zeroSized && (_state->dirty || _host._pendingVisualPreparation);
 }
-bool EmbeddedHost::NeedsAnimation() const noexcept
+EmbeddedAnimationRequest EmbeddedHost::GetAnimationRequest() const noexcept
 {
-    // True while anything is scheduled, a pending deadline included: an application that polls this every frame keeps
-    // advancing, and AdvanceAnimation ticks only the requests that are due.
-    return _state && _state->visible && ! _state->zeroSized && _host.HasScheduledTicks();
+    using Kind = EmbeddedAnimationRequest::Kind;
+    if (! _state || ! _state->visible || _state->zeroSized)
+        return {};
+    // The schedule's next wake, read from the held requests (no tree walk), is on the view's timeline; the application's
+    // clock runs beside it from the last supplied tick, so a deadline is that tick plus what the timeline still lacks.
+    const ControlHost::FrameScheduleWake wake = _host.GetFrameScheduleWake();
+    switch (wake.kind)
+    {
+        case ControlHost::FrameScheduleWake::Kind::None: return {};
+        case ControlHost::FrameScheduleWake::Kind::Continuous: return {Kind::Continuous, 0u};
+        case ControlHost::FrameScheduleWake::Kind::Deadline: break;
+    }
+    // After a pause the next tick only sets the baseline, and the application's clock is not known until it does: due now.
+    if (_host._animationTimelineRebase)
+        return {Kind::Deadline, 0u};
+    const uint64_t timelineMs = _host._animationTimelineMs;
+    const uint64_t suppliedMs = _host._lastSuppliedAnimationTickMs;
+    if (wake.dueTickMs <= timelineMs)
+        return {Kind::Deadline, suppliedMs};
+    const uint64_t aheadMs = wake.dueTickMs - timelineMs;
+    return {Kind::Deadline, aheadMs > UINT64_MAX - suppliedMs ? UINT64_MAX : suppliedMs + aheadMs};
 }
-bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
+EmbeddedAnimationRequest EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
 {
     const Failure::Scope failureScope;
-    if (! NeedsAnimation())
-        return false;
+    if (GetAnimationRequest().kind == EmbeddedAnimationRequest::Kind::None)
+        return {};
     // The timeline counts the time between ticks the view asked for: the first tick after a pause sets the baseline,
     // and a tick that goes back adds nothing.
     if (! _host._animationTimelineRebase && tick > _host._lastSuppliedAnimationTickMs)
@@ -480,12 +499,21 @@ bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
     ++Detail::Work().wakes.embeddedAdvance;
     if (Detail::Trace::Listening()) [[unlikely]]
         Detail::Trace::Wake(Detail::Trace::WakeSource::EmbeddedAdvance, Detail::Trace::HostIdOf(_host._trace));
+    // An advance before the earliest deadline has nothing due: it runs no wake at all (no Tick, no supplemental-tooltip
+    // target walk) and returns the same deadline.
+    if (const ControlHost::FrameScheduleWake wake = _host.GetFrameScheduleWake();
+        wake.kind == ControlHost::FrameScheduleWake::Kind::Deadline && wake.dueTickMs > nowTickMs)
+    {
+        _host._embeddedPublishedWake = wake;
+        return GetAnimationRequest();
+    }
     // Ticks dirty the view only through control invalidation; an idle tick leaves a clean surface clean. Only the due
-    // requests are ticked; a pending deadline keeps NeedsAnimation true without a Tick.
+    // requests are ticked.
     if (! _host.RunScheduledTicks(nowTickMs))
-        return false;
-    _host._embeddedAnimationRequested = _host.HasScheduledTicks();
-    return _host._embeddedAnimationRequested;
+        return {};
+    // A Tick may have hidden, detached or destroyed this view's tree: the request is read again from what is left.
+    _host._embeddedPublishedWake = _host.GetFrameScheduleWake();
+    return GetAnimationRequest();
 }
 HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
 {

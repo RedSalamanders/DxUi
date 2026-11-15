@@ -1115,10 +1115,12 @@ void TestTooltipDeadlinesOnHiddenHosts()
     RequireSucceeded(view.Prepare(200u, 120u), "prepare the hidden view");
     static_cast<void>(view.AdvanceAnimation(1'000u)); // discovery
     const WorkCounterScope dropped;
-    Require(view.Controls().SetTooltipDelayed(L"Embedded", D2D1::Point2F(20.0f, 20.0f)) && view.NeedsAnimation(), "an embedded show waits");
+    Require(view.Controls().SetTooltipDelayed(L"Embedded", D2D1::Point2F(20.0f, 20.0f)) && AnimationRequested(view.GetAnimationRequest()),
+            "an embedded show waits");
     view.SetVisible(false);
     view.SetVisible(true);
-    Require(! view.NeedsAnimation() && view.Controls().DebugGetPendingTooltipText().empty() && dropped.Delta().frame.tooltipShowsDropped == 1u,
+    Require(! AnimationRequested(view.GetAnimationRequest()) && view.Controls().DebugGetPendingTooltipText().empty() &&
+                dropped.Delta().frame.tooltipShowsDropped == 1u,
             "hiding the view drops the pending show");
     Require(view.Controls().SetTooltipDelayed(L"Embedded held hide", D2D1::Point2F(20.0f, 20.0f)), "a new embedded show waits");
     static_cast<void>(view.AdvanceAnimation(2'000u));
@@ -1129,7 +1131,7 @@ void TestTooltipDeadlinesOnHiddenHosts()
     static_cast<void>(view.AdvanceAnimation(60'000u)); // the timeline does not count the hidden time: this sets its baseline
     Require(view.Controls().HasTooltip(), "the hide keeps its place on the view's timeline");
     static_cast<void>(view.AdvanceAnimation(60'000u + 5'000u));
-    Require(! view.Controls().HasTooltip() && ! view.NeedsAnimation(), "the hide fires when the timeline reaches it");
+    Require(! view.Controls().HasTooltip() && ! AnimationRequested(view.GetAnimationRequest()), "the hide fires when the timeline reaches it");
     view.Controls().DebugSetTooltipHoverTimeForTest(std::nullopt);
 }
 
@@ -1154,7 +1156,7 @@ void TestTooltipHoverTimeIsReadOnceAndRefreshedOnSettingChange()
     for (const auto& [setting, delay] : {std::pair<UINT, uint64_t>{20u, 100u}, std::pair<UINT, uint64_t>{9'000u, 2'500u}, std::pair<UINT, uint64_t>{0u, 500u}})
     {
         host.DebugSetTooltipHoverTimeForTest(setting);
-        host.RefreshTooltipHoverTime();
+        host.RefreshUserSettings();
         Require(host.DebugGetTooltipShowDelayMsForTest() == delay, "the show delay is clamped to 100-2,500 ms, 500 ms when unknown");
     }
     host.DebugSetTooltipHoverTimeForTest(std::nullopt);
@@ -1169,7 +1171,7 @@ void TestTooltipHoverTimeIsReadOnceAndRefreshedOnSettingChange()
     Require(view.Controls().DebugGetTooltipShowDelayMsForTest() == 300u, "an embedded host reads the hover time once");
     view.Controls().DebugSetTooltipHoverTimeForTest(700u);
     Require(view.Controls().DebugGetTooltipShowDelayMsForTest() == 300u, "and keeps it");
-    view.Controls().RefreshTooltipHoverTime();
+    view.Controls().RefreshUserSettings();
     Require(view.Controls().DebugGetTooltipShowDelayMsForTest() == 700u, "until its application relays a settings change");
     view.Controls().DebugSetTooltipHoverTimeForTest(std::nullopt);
 }
@@ -1272,7 +1274,7 @@ void TestTooltipFollowsItsTargetBetweenDeadlinesInRealTime()
                 Require(host.DebugGetFrameScheduleWakeForTest().kind == 2u, "the shown tooltip waits for its hide deadline");
                 // A retitled target schedules its new text with the longest delay, so it stays pending while this test looks.
                 host.DebugSetTooltipHoverTimeForTest(2'500u);
-                host.RefreshTooltipHoverTime();
+                host.RefreshUserSettings();
             }
             const WorkCounterScope scope;
             ApplyTooltipTargetChange(scene, change);
@@ -1293,7 +1295,7 @@ void TestTooltipFollowsItsTargetBetweenDeadlinesInRealTime()
         }
 }
 
-// Embedded: the same changes turn the view's schedule due at once (NeedsAnimation stays true, the earliest deadline is now),
+// Embedded: the same changes turn the view's schedule due at once (the request is a deadline already reached),
 // and one advance resolves the target; a waiting advance with nothing marked walks nothing for the tooltip.
 void TestTooltipFollowsItsTargetBetweenDeadlinesEmbedded()
 {
@@ -1331,9 +1333,11 @@ void TestTooltipFollowsItsTargetBetweenDeadlinesEmbedded()
                 Require(host.HasTooltip(), "the embedded tooltip shows");
             }
             ApplyTooltipTargetChange(scene, change);
-            const auto due = host.DebugGetFrameScheduleWakeForTest();
-            Require(view.NeedsAnimation() && due.kind == 2u && due.dueTickMs <= host.GetAnimationTickMs(),
-                    "after the change the view's schedule is due at once: NeedsAnimation is true and the earliest deadline is now");
+            const auto due                         = host.DebugGetFrameScheduleWakeForTest();
+            const EmbeddedAnimationRequest request = view.GetAnimationRequest();
+            Require(request.kind == EmbeddedAnimationRequest::Kind::Deadline && request.dueTickMs <= clock && due.kind == 2u &&
+                        due.dueTickMs <= host.GetAnimationTickMs(),
+                    "after the change the view's schedule is due at once: the request is a deadline already reached");
             const WorkCounterScope resolve;
             static_cast<void>(view.AdvanceAnimation(clock += 16u));
             std::cout << "    [W3.3 F1] embedded, " << (shown ? "shown" : "pending") << ", target " << TooltipTargetChangeName(change) << ": "
@@ -1558,6 +1562,47 @@ void TestTooltipTargetSettersCostNothingWithoutTooltip()
             "with no tooltip the setters mark nothing, validate nothing and wake nothing");
 }
 
+// W3.5, user settings: Windows sends WM_SETTINGCHANGE to top-level windows only, so a host attached to a child window keeps
+// the hover time and caret settings it read until the application relays the change; one RefreshUserSettings call (or the
+// message forwarded to the child host) then re-reads both. Settings are replaced through the test seams, never changed.
+void TestChildHostRefreshesUserSettingsOnlyWhenTheApplicationRelaysThem()
+{
+    using namespace DxUi;
+    wil::unique_hwnd parent(CreateWindowExW(
+        WS_EX_NOACTIVATE, L"STATIC", L"user-settings parent", WS_OVERLAPPED, -32000, -32000, 360, 240, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
+    Require(parent != nullptr, "the parent window is created");
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+    SetWindowLongPtrW(window.Hwnd(), GWL_STYLE, WS_CHILD);
+    Require(SetParent(window.Hwnd(), parent.get()) != nullptr || GetLastError() == ERROR_SUCCESS, "the host window becomes a child");
+    Require((GetWindowLongPtrW(window.Hwnd(), GWL_STYLE) & WS_CHILD) != 0, "the host window is a child window");
+    auto& host  = window.Host();
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"settings");
+    field->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+    host.SetRoot(std::move(root));
+    host.DebugSetAnimationClockForTest(10'000u);
+    host.DebugSetTooltipHoverTimeForTest(400u);
+    host.DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{530u, 0u});
+    host.SetFocusControl(field, false);
+    Require(host.DebugGetTooltipShowDelayMsForTest() == 400u && host.DebugGetFrameScheduleWakeForTest().dueTickMs == 10'530u, "the settings are read once");
+
+    host.DebugSetTooltipHoverTimeForTest(1'000u);
+    host.DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{200u, 0u});
+    // What Windows does: the top-level window receives the broadcast; a child window receives nothing.
+    SendMessageW(parent.get(), WM_SETTINGCHANGE, SPI_SETMOUSEHOVERTIME, 0);
+    Require(host.DebugGetTooltipShowDelayMsForTest() == 400u && host.DebugGetFrameScheduleWakeForTest().dueTickMs == 10'530u,
+            "a child host does not see a settings change its top-level window received");
+    host.RefreshUserSettings();
+    Require(host.DebugGetTooltipShowDelayMsForTest() == 1'000u && host.DebugGetFrameScheduleWakeForTest().dueTickMs == 10'200u,
+            "one RefreshUserSettings call applies the hover time and the caret blink time");
+    host.DebugSetTooltipHoverTimeForTest(700u);
+    SendMessageW(window.Hwnd(), WM_SETTINGCHANGE, SPI_SETMOUSEHOVERTIME, 0);
+    Require(host.DebugGetTooltipShowDelayMsForTest() == 700u, "forwarding the message to the child host refreshes it too");
+    host.DebugSetTooltipHoverTimeForTest(std::nullopt);
+    host.DebugSetCaretBlinkSettingsForTest(std::nullopt);
+    host.DebugSetAnimationClockForTest(std::nullopt);
+}
+
 } // namespace
 
 void RunTooltipTests()
@@ -1586,6 +1631,7 @@ void RunTooltipTests()
     DXUI_RUN_TEST(TestTooltipDeadlinesAreSafeAcrossLifetimeChanges);
     DXUI_RUN_TEST(TestTooltipDeadlinesOnHiddenHosts);
     DXUI_RUN_TEST(TestTooltipHoverTimeIsReadOnceAndRefreshedOnSettingChange);
+    DXUI_RUN_TEST(TestChildHostRefreshesUserSettingsOnlyWhenTheApplicationRelaysThem);
     DXUI_RUN_TEST(TestTooltipDeadlinesWakeOnlyAtShowAndHideInRealTime);
     DXUI_RUN_TEST(TestTooltipFollowsItsTargetBetweenDeadlinesEmbedded);
     DXUI_RUN_TEST(TestTooltipTargetSettersCostNothingWithoutTooltip);

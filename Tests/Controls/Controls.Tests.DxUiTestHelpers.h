@@ -36,6 +36,13 @@
 
 #pragma comment(lib, "imm32.lib")
 
+// Whether an embedded view's animation request (DxUi::EmbeddedAnimationRequest, API revision 6) asks for anything: what
+// NeedsAnimation() and AdvanceAnimation's bool answered before it.
+template <class Request> [[nodiscard]] inline bool AnimationRequested(const Request& request) noexcept
+{
+    return request.kind != Request::Kind::None;
+}
+
 // Animation fixtures explicitly choose motion instead of depending on the runner's accessibility preference.
 // Tests for reduced motion still set theme.reducedMotion = true. No system setting is changed.
 [[nodiscard]] inline DxUi::ThemePalette MakeAnimatedTestThemePalette(bool dark)

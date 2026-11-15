@@ -30,10 +30,52 @@
 #pragma warning(disable : 4625 4626 5026 5027)
 namespace PerformanceFixtures
 {
+// How the simulated application drives an embedded view's animation clock when a step advances the fixture clock.
+enum class ApplicationLoop : uint8_t
+{
+    // At every AdvanceTime, one AdvanceAnimation at the new time whenever the view's request is not None: the application
+    // that polls each frame, the only kind API revision 5 allowed (NeedsAnimation). Receipts and their wakes.embeddedAdvance
+    // counter are this application's.
+    PollEveryStep,
+    // W3.5: the application sleeps on the fixture clock until the view's request is due and advances exactly then: at a
+    // Deadline's due time, once per step while Continuous (one frame), never while None. A request already due when it is
+    // read (after input, or the baseline Deadline of 0 after a pause) is advanced at once in the same awake turn.
+    SleepUntilRequest,
+};
+// One AdvanceAnimation the simulated application made, with what it cost.
+struct ApplicationAdvance
+{
+    size_t phase  = 0u; // the fixture step that advanced the clock
+    size_t step   = 0u;
+    uint64_t atMs = 0u;
+    // True when the application slept until this advance (a timer it set from the request fired, or a Continuous frame);
+    // false for an advance made at once, in a turn the application was already awake for.
+    bool woke                                    = false;
+    DxUi::EmbeddedAnimationRequest::Kind request = DxUi::EmbeddedAnimationRequest::Kind::None;
+    uint64_t tickCalls                           = 0u;
+    uint64_t tickRequesters                      = 0u;
+    uint64_t treeVisitsTick                      = 0u;
+    uint64_t tooltipDeadlineTicks                = 0u;
+    uint64_t tooltipTargetValidations            = 0u;
+};
+
 // A fixture live on an EmbeddedHost. Instantiate, then Create (attach and build), then any sequence of Step and Frame.
 class EmbeddedInstance final : public HostPort
 {
 public:
+    // The application loop and, when `log` is given, a record of every advance it makes (reserve its capacity first: the
+    // log is never grown during a counted step's allocations).
+    void SetApplicationLoop(ApplicationLoop loop, std::vector<ApplicationAdvance>* log = nullptr) noexcept
+    {
+        loop_ = loop;
+        log_  = log;
+    }
+    // Advances logged from now on carry this phase (a gate's own steps after the fixture's phases).
+    void SetLoggedPhase(size_t phase) noexcept
+    {
+        phase_ = phase;
+        step_  = 0u;
+    }
     // Creates the scenario object (and any model it owns) without attaching anything.
     void Instantiate(const Definition& definition)
     {
@@ -79,6 +121,8 @@ public:
     }
     void Step(size_t phase, size_t step)
     {
+        phase_ = phase;
+        step_  = step;
         scenario_->Step(*context_, phase, step);
     }
     HRESULT Prepare() noexcept
@@ -115,9 +159,37 @@ public:
     }
     void AdvanceTime(uint64_t milliseconds) override
     {
-        now_ += milliseconds;
-        if (view_->NeedsAnimation())
-            static_cast<void>(view_->AdvanceAnimation(now_));
+        using Kind         = DxUi::EmbeddedAnimationRequest::Kind;
+        const uint64_t end = now_ + milliseconds;
+        if (loop_ == ApplicationLoop::PollEveryStep)
+        {
+            now_ = end;
+            if (const auto request = view_->GetAnimationRequest(); request.kind != Kind::None)
+                Advance(request.kind, false);
+            return;
+        }
+        // Each pass reads the request and either stops (None, or a deadline after this step) or advances once; an advance
+        // re-arms at most the requests it ticked, so a step of fixture time needs a bounded number of passes.
+        for (size_t pass = 0u;; ++pass)
+        {
+            Check(pass < 100'000u, "the simulated application settles within one fixture step");
+            const DxUi::EmbeddedAnimationRequest request = view_->GetAnimationRequest();
+            if (request.kind == Kind::None)
+                break;
+            if (request.kind == Kind::Continuous)
+            {
+                // Every frame: one frame at the end of the step, as the fixture renders one frame per step.
+                now_ = end;
+                Advance(request.kind, true);
+                break;
+            }
+            if (request.dueTickMs > end)
+                break;
+            const bool slept = request.dueTickMs > now_;
+            now_             = slept ? request.dueTickMs : now_;
+            Advance(request.kind, slept);
+        }
+        now_ = end;
     }
     void Resize(UINT width, UINT height, float dpi) override
     {
@@ -131,8 +203,32 @@ public:
     }
 
 private:
-    const Definition* definition_ = nullptr;
-    const Variant* variant_       = nullptr;
+    void Advance(DxUi::EmbeddedAnimationRequest::Kind request, bool woke)
+    {
+        const DxUi::Detail::WorkCounterScope scope;
+        static_cast<void>(view_->AdvanceAnimation(now_));
+        if (! log_)
+            return;
+        Check(log_->size() < log_->capacity(), "the advance log was reserved for the run");
+        const DxUi::Detail::WorkCounters work = scope.Delta();
+        log_->push_back(ApplicationAdvance{phase_,
+                                           step_,
+                                           now_,
+                                           woke,
+                                           request,
+                                           work.frame.tickCalls,
+                                           work.frame.tickRequesters,
+                                           work.frame.treeVisitsTick,
+                                           work.frame.tooltipDeadlineTicks,
+                                           work.frame.tooltipTargetValidations});
+    }
+
+    ApplicationLoop loop_                 = ApplicationLoop::PollEveryStep;
+    std::vector<ApplicationAdvance>* log_ = nullptr;
+    size_t phase_                         = 0u;
+    size_t step_                          = 0u;
+    const Definition* definition_         = nullptr;
+    const Variant* variant_               = nullptr;
     // Declared before the host it may own models for, so the host is destroyed first.
     std::unique_ptr<Scenario> scenario_;
     std::unique_ptr<DxUi::EmbeddedHost> ownedView_;
@@ -167,6 +263,9 @@ struct RunOptions
     // live heap bytes that fell, show them again, render one frame and record the live heap bytes the rebuild added. Receipts and the G13 gate run it; it is
     // off by default so that other gates see the scene exactly as their phases left it.
     bool probeGridCells = false;
+    // The simulated application's loop (W3.5) and, optionally, the record of each advance it makes (reserved by the caller).
+    ApplicationLoop applicationLoop                 = ApplicationLoop::PollEveryStep;
+    std::vector<ApplicationAdvance>* applicationLog = nullptr;
 };
 
 // The controls of a tree, and those that keep a text history (TextField, ComboBox).
@@ -290,6 +389,7 @@ inline RunRecord RunEmbedded(const Definition& definition, const Variant& varian
         wrappers.emplace();
     run.drawCallsCounted = options.countDrawCalls;
     instance.Instantiate(definition);
+    instance.SetApplicationLoop(options.applicationLoop, options.applicationLog);
     liveBytes      = 0;
     countLiveBytes = true;
     Hr(instance.Create(gpu.device.get(), variant), "performance fixture build");
@@ -690,7 +790,7 @@ __declspec(noinline) inline void TestFx13G13Budgets()
 // W3.1's frame-schedule gate on the fixtures (Specs/Rendering/Rendering_Win32Host.md, "Frame schedule"). Every catalog
 // fixture: each step ticks exactly the due requesters, and the library's own controls never take the legacy whole-tree path.
 // FX1 editable (G1): the caret is ticked at most 20 times in 10 s, one deadline per blink, with no tree walk. The fixture's
-// application still polls NeedsAnimation every step (it stays true while a deadline is pending), so wakes.embeddedAdvance is
+// application still polls its request every step (PollEveryStep: it is not None while a deadline is pending), so wakes.embeddedAdvance is
 // the polling application's, not the schedule's; the schedule's wakes are the steps whose advance ticked a due request.
 __declspec(noinline) inline void TestFrameScheduleGatesOnFixtures()
 {
@@ -789,7 +889,7 @@ __declspec(noinline) inline void TestCaretClockGatesOnFx1()
         instance.Step(Fx1::kReadOnly, step);
         Hr(instance.Frame(gpu), "FX1 caret gate read-only frame");
         Check(readOnly->HasFocus() && readOnly->DebugIsCaretVisible(), "W3.2: the read-only caret is present in every frame");
-        Check(instance.View().Controls().DebugGetFrameScheduleWakeForTest().kind == 0u && ! instance.View().NeedsAnimation(),
+        Check(instance.View().Controls().DebugGetFrameScheduleWakeForTest().kind == 0u && ! AnimationRequested(instance.View().GetAnimationRequest()),
               "W3.2: a focused read-only field schedules nothing");
     }
     std::cout << "FX1 read-only (embedded, W3.2): caret shown in all " << Fx1::kIdleSteps << " frames, nothing scheduled\n";
@@ -820,6 +920,228 @@ __declspec(noinline) inline void TestTooltipDeadlineGatesOnFx14()
             tooltipWakes += step.work.frame.tooltipDeadlineTicks != 0u ? 1u : 0u;
     }
     Check(tooltipTicks == 2u && tooltipWakes <= 2u, "G1: FX14 wakes from the tooltip <= 2 per show, one show and one hide");
+}
+
+// W3.5's gate (Specs/Rendering/Rendering_EmbeddedD3D11.md, "Animation request"): the same fixtures driven by an application
+// that sleeps on the fixture clock until the view's request is due (ApplicationLoop::SleepUntilRequest), against the
+// application that polls every step, the only one revision 5 allowed (PollEveryStep, the receipts' application). A wake is
+// an advance the sleeping application slept until; never a real timer.
+struct ApplicationRun
+{
+    RunRecord run;
+    std::vector<ApplicationAdvance> advances;
+};
+inline ApplicationRun RunApplication(const Definition& definition,
+                                     ApplicationLoop loop,
+                                     std::function<void(EmbeddedInstance&, GraphicsFixture&)> afterPhases = {})
+{
+    ApplicationRun result;
+    result.advances.reserve(1u << 16u);
+    RunOptions options;
+    options.applicationLoop = loop;
+    options.applicationLog  = &result.advances;
+    options.afterPhases     = std::move(afterPhases);
+    result.run              = RunEmbedded(definition, definition.variants.front(), options);
+    return result;
+}
+struct PhaseAdvances
+{
+    uint64_t advances = 0u, wakes = 0u, tickCalls = 0u, tickRequesters = 0u, treeVisitsTick = 0u, tooltipTicks = 0u, targetWalks = 0u;
+};
+inline PhaseAdvances SummarizeAdvances(const std::vector<ApplicationAdvance>& advances, size_t phase, size_t firstStep = 0u)
+{
+    PhaseAdvances sum;
+    for (const ApplicationAdvance& advance : advances)
+    {
+        if (advance.phase != phase || advance.step < firstStep)
+            continue;
+        ++sum.advances;
+        sum.wakes += advance.woke ? 1u : 0u;
+        sum.tickCalls += advance.tickCalls;
+        sum.tickRequesters += advance.tickRequesters;
+        sum.treeVisitsTick += advance.treeVisitsTick;
+        sum.tooltipTicks += advance.tooltipDeadlineTicks;
+        sum.targetWalks += advance.tooltipTargetValidations;
+    }
+    return sum;
+}
+inline void PrintAdvances(std::string_view fixture, std::string_view phase, const PhaseAdvances& poll, const PhaseAdvances& sleep)
+{
+    std::cout << "W3.5 " << fixture << ' ' << phase << ": polling application " << poll.advances << " advances (" << poll.tickCalls << " Tick calls, "
+              << poll.tooltipTicks << " tooltip ticks, " << poll.treeVisitsTick << " tick tree visits, " << poll.targetWalks
+              << " tooltip target walks); sleeping application " << sleep.wakes << " wakes, " << sleep.advances << " advances (" << sleep.tickCalls
+              << " Tick calls, " << sleep.tooltipTicks << " tooltip ticks, " << sleep.treeVisitsTick << " tick tree visits, " << sleep.targetWalks
+              << " tooltip target walks)\n";
+}
+// Every advance of the sleeping application ticks exactly the due requests, and one it slept until for a deadline ticks
+// something: it never wakes for nothing.
+inline void CheckEveryAdvanceTicksOnlyTheDue(std::string_view fixture, const std::vector<ApplicationAdvance>& advances)
+{
+    for (const ApplicationAdvance& advance : advances)
+    {
+        Check(advance.tickCalls == advance.tickRequesters, "W3.5: an advance ticks exactly the controls whose requests are due");
+        if (advance.woke && advance.request == DxUi::EmbeddedAnimationRequest::Kind::Deadline)
+            Check(advance.tickCalls + advance.tooltipDeadlineTicks != 0u, "W3.5: a wake at a deadline ticks what is due, never nothing");
+    }
+    std::cout << "W3.5 " << fixture << ": every advance ticks only the due requests; no deadline wake ticks nothing\n";
+}
+// The polling application's advances before a deadline (they tick nothing) run no wake at all: no tree visit and no
+// supplemental-tooltip target walk. Returns how many there were.
+inline size_t CheckEarlyAdvancesDoNoWork(const std::vector<ApplicationAdvance>& advances)
+{
+    size_t early = 0u;
+    for (const ApplicationAdvance& advance : advances)
+    {
+        if (advance.request != DxUi::EmbeddedAnimationRequest::Kind::Deadline || advance.tickCalls + advance.tooltipDeadlineTicks != 0u)
+            continue;
+        ++early;
+        Check(advance.treeVisitsTick == 0u && advance.tooltipTargetValidations == 0u, "W3.5: an advance before the deadline walks nothing");
+    }
+    return early;
+}
+
+__declspec(noinline) inline void TestApplicationWakeGatesOnFixtures()
+{
+    using Kind = DxUi::EmbeddedAnimationRequest::Kind;
+    // FX1: the editable caret blinks for its 5 s timeout. The sleeping application wakes once per flip, at most twice per
+    // blink period (two phases of 530 ms), and never after the timeout; the read-only caret wakes nothing. After the phases
+    // the editable field is focused again (blinking) and the view hidden for 10 s: 0 wakes, and the request is None.
+    size_t hiddenAdvances = 0u, shownAdvances = 0u;
+    Kind hiddenRequest           = Kind::Continuous;
+    const auto hideWhileBlinking = [&](EmbeddedInstance& instance, GraphicsFixture&)
+    {
+        auto* const editable = dynamic_cast<DxUi::TextField*>(instance.View().Controls().GetRoot()->GetLogicalChild(0u));
+        Check(editable && ! editable->IsReadOnly(), "FX1's first field is the editable one");
+        instance.SetLoggedPhase(Fx1::kPhases.size());
+        instance.View().Controls().SetFocusControl(editable, false);
+        const DxUi::Detail::WorkCounterScope shown;
+        instance.AdvanceTime(2u * Fx1::kCaretSettings.blinkTimeMs);
+        shownAdvances = static_cast<size_t>(shown.Delta().wakes.embeddedAdvance);
+        instance.View().SetVisible(false);
+        hiddenRequest = instance.View().GetAnimationRequest().kind;
+        const DxUi::Detail::WorkCounterScope hidden;
+        instance.AdvanceTime(10'000u);
+        hiddenAdvances = static_cast<size_t>(hidden.Delta().wakes.embeddedAdvance);
+    };
+    const ApplicationRun fx1Poll  = RunApplication(Fx1::kDefinition, ApplicationLoop::PollEveryStep, hideWhileBlinking);
+    const size_t pollHidden       = hiddenAdvances;
+    const ApplicationRun fx1Sleep = RunApplication(Fx1::kDefinition, ApplicationLoop::SleepUntilRequest, hideWhileBlinking);
+    Check(shownAdvances >= 2u, "FX1: the refocused caret wakes the sleeping application before the view is hidden");
+    Check(hiddenRequest == Kind::None && hiddenAdvances == 0u && pollHidden == 0u, "W3.5: FX1 hidden requests nothing and wakes 0 times, while blinking");
+    CheckEveryAdvanceTicksOnlyTheDue("FX1", fx1Sleep.advances);
+    std::cout << "W3.5 FX1: " << CheckEarlyAdvancesDoNoWork(fx1Poll.advances) << " polling advances before a deadline, each walking nothing\n";
+    const uint64_t blinkPeriodMs = 2u * Fx1::kCaretSettings.blinkTimeMs;
+    for (const size_t phase : {Fx1::kEditable, Fx1::kMultiline})
+    {
+        std::vector<uint64_t> wakeTimes;
+        uint64_t flips = 0u, lastFlipMs = 0u;
+        for (const ApplicationAdvance& advance : fx1Sleep.advances)
+        {
+            if (advance.phase != phase)
+                continue;
+            if (advance.woke)
+                wakeTimes.push_back(advance.atMs);
+            if (advance.tickCalls != 0u && advance.treeVisitsTick == 0u)
+            {
+                ++flips;
+                lastFlipMs = advance.atMs;
+            }
+        }
+        size_t mostInOnePeriod = 0u;
+        for (size_t first = 0u; first < wakeTimes.size(); ++first)
+        {
+            size_t inPeriod = 0u;
+            for (size_t next = first; next < wakeTimes.size() && wakeTimes[next] < wakeTimes[first] + blinkPeriodMs; ++next)
+                ++inPeriod;
+            mostInOnePeriod = (std::max)(mostInOnePeriod, inPeriod);
+        }
+        size_t afterLastFlip = 0u;
+        for (const ApplicationAdvance& advance : fx1Sleep.advances)
+            afterLastFlip += advance.phase == phase && advance.atMs > lastFlipMs ? 1u : 0u;
+        const PhaseAdvances poll  = SummarizeAdvances(fx1Poll.advances, phase);
+        const PhaseAdvances sleep = SummarizeAdvances(fx1Sleep.advances, phase);
+        PrintAdvances("FX1", Fx1::kPhases[phase].name, poll, sleep);
+        std::cout << "W3.5 FX1 " << Fx1::kPhases[phase].name << ": " << flips << " caret flips, at most " << mostInOnePeriod << " wakes in one "
+                  << blinkPeriodMs << " ms blink period, " << afterLastFlip << " advances after the last flip\n";
+        // Ten flips in the 5 s caret timeout. The polling application ticks the same flips on FX1's 100 ms steps; its 500 ms
+        // multiline steps tick each flip late and can merge two into one tick.
+        Check(flips == 10u, "W3.5: the sleeping application ticks every caret flip of the 5 s caret timeout, once");
+        if (phase == Fx1::kEditable)
+            Check(sleep.tickCalls == poll.tickCalls, "W3.5: the sleeping and the polling application tick the caret equally often");
+        Check(mostInOnePeriod <= 2u, "W3.5 gate: FX1 at most 2 application wakes per blink period");
+        Check(afterLastFlip == 0u, "W3.5: 0 wakes after the caret timeout");
+        // The polling application advances every step while anything waits: on 100 ms steps far more often; on the 500 ms
+        // multiline steps about as often as one flip per wake.
+        Check(sleep.wakes <= poll.advances && (phase != Fx1::kEditable || sleep.advances < poll.advances),
+              "W3.5: the sleeping application never wakes more often than the polling one advances");
+    }
+    const PhaseAdvances readOnly = SummarizeAdvances(fx1Sleep.advances, Fx1::kReadOnly);
+    PrintAdvances("FX1", "readonly", SummarizeAdvances(fx1Poll.advances, Fx1::kReadOnly), readOnly);
+    Check(readOnly.advances == 0u, "W3.5: FX1 read-only: 0 application wakes");
+
+    // FX13: 0 wakes with nothing armed (after the new root's one discovery frame at the first step), 0 with its steady caret
+    // (reduced motion), and 0 while hidden for 60 s after the phases.
+    size_t fx13Hidden = 0u;
+    const auto hide60 = [&](EmbeddedInstance& instance, GraphicsFixture&)
+    {
+        instance.View().SetVisible(false);
+        const DxUi::Detail::WorkCounterScope hidden;
+        instance.AdvanceTime(60'000u);
+        fx13Hidden = static_cast<size_t>(hidden.Delta().wakes.embeddedAdvance);
+    };
+    const ApplicationRun fx13Poll  = RunApplication(Fx13::kDefinition, ApplicationLoop::PollEveryStep);
+    const ApplicationRun fx13Sleep = RunApplication(Fx13::kDefinition, ApplicationLoop::SleepUntilRequest, hide60);
+    CheckEveryAdvanceTicksOnlyTheDue("FX13", fx13Sleep.advances);
+    std::cout << "W3.5 FX13: " << CheckEarlyAdvancesDoNoWork(fx13Poll.advances) << " polling advances before a deadline, each walking nothing\n";
+    for (const size_t phase : {Fx13::kNothingArmed, Fx13::kCaret, Fx13::kCaretPeriod})
+    {
+        const PhaseAdvances sleep = SummarizeAdvances(fx13Sleep.advances, phase);
+        PrintAdvances("FX13", Fx13::kPhases[phase].name, SummarizeAdvances(fx13Poll.advances, phase), sleep);
+        const PhaseAdvances idle = SummarizeAdvances(fx13Sleep.advances, phase, phase == Fx13::kNothingArmed ? 1u : 0u);
+        Check(idle.advances == 0u && idle.wakes == 0u, "W3.5 gate: FX13 idle: 0 application wakes");
+    }
+    Check(SummarizeAdvances(fx13Sleep.advances, Fx13::kNothingArmed).treeVisitsTick > 0u,
+          "FX13: the one advance at the first idle step is the new root's discovery");
+    std::cout << "W3.5 FX13 hidden for 60 s: " << fx13Hidden << " wakes\n";
+    Check(fx13Hidden == 0u, "W3.5 gate: FX13 hidden: 0 application wakes");
+
+    // FX14: the sleeping application wakes for the tooltip twice, once to show it and once to hide it.
+    const ApplicationRun fx14Poll  = RunApplication(Fx14::kDefinition, ApplicationLoop::PollEveryStep);
+    const ApplicationRun fx14Sleep = RunApplication(Fx14::kDefinition, ApplicationLoop::SleepUntilRequest);
+    CheckEveryAdvanceTicksOnlyTheDue("FX14", fx14Sleep.advances);
+    std::cout << "W3.5 FX14: " << CheckEarlyAdvancesDoNoWork(fx14Poll.advances) << " polling advances before a deadline, each walking nothing\n";
+    uint64_t tooltipWakes = 0u, tooltipTicks = 0u;
+    for (const Phase& phase : Fx14::kPhases)
+    {
+        const size_t index        = static_cast<size_t>(&phase - Fx14::kPhases.data());
+        const PhaseAdvances sleep = SummarizeAdvances(fx14Sleep.advances, index);
+        PrintAdvances("FX14", phase.name, SummarizeAdvances(fx14Poll.advances, index), sleep);
+        tooltipTicks += sleep.tooltipTicks;
+    }
+    // The sleeping application wakes exactly at the show (400 ms after the hover) and the hide (5 s later), so the hide
+    // comes inside the show step, and the 50 moves of the shown phase then schedule a second show, which the hide step's
+    // 5 s reach. The polling application, on the fixture's coarse steps, sees one show and one hide. Either way every
+    // tooltip deadline is one wake, and a show's cycle is two: the show, then the hide 5 s later with nothing between.
+    std::vector<uint64_t> wakeTimes;
+    std::vector<uint64_t> tooltipWakeTimes;
+    for (const ApplicationAdvance& advance : fx14Sleep.advances)
+    {
+        if (! advance.woke)
+            continue;
+        wakeTimes.push_back(advance.atMs);
+        if (advance.tooltipDeadlineTicks != 0u)
+        {
+            ++tooltipWakes;
+            tooltipWakeTimes.push_back(advance.atMs);
+        }
+    }
+    const uint64_t shows = (tooltipTicks + 1u) / 2u;
+    std::cout << "W3.5 FX14: " << tooltipWakes << " tooltip wakes for " << tooltipTicks << " tooltip deadlines (" << shows << " shows)\n";
+    Check(tooltipWakes == tooltipTicks && tooltipWakes <= 2u * shows, "W3.5 gate: FX14 at most 2 application wakes per tooltip show, one show and one hide");
+    Check(tooltipWakeTimes.size() >= 2u && tooltipWakeTimes[1] == tooltipWakeTimes[0] + Fx14::kDisplayLifetimeMs,
+          "FX14: the hide is one wake, 5 s after the show");
+    for (const uint64_t at : wakeTimes)
+        Check(at <= tooltipWakeTimes[0] || at >= tooltipWakeTimes[1], "FX14: nothing wakes the sleeping application between the show and the hide");
 }
 
 // The timing harness's view of a catalog fixture: performance-timing.ps1 -Phase Dirty plays the timed phase, one step per

@@ -4,9 +4,9 @@
 // (Controls.Tests.PerformanceFixtureColdStart.cpp, which builds the same application on a WindowHost in a fresh process).
 //
 // What is simulated: time is the frozen fixture clock. An idle step advances it by one second and, exactly when the view
-// asks for animation (EmbeddedHost::NeedsAnimation), delivers one AdvanceAnimation tick at the new time, as an application
-// that honours NeedsAnimation does; that tick is the step's wake (wakes.embeddedAdvance) and walks the tree
-// (frame.treeVisitsTick). So an idle step records at most one wake, and 60 steps are 60 simulated seconds. A real native
+// asks for animation (its EmbeddedHost::GetAnimationRequest is not None), delivers one AdvanceAnimation tick at the new
+// time, as an application that polls its request every frame does; that tick is the step's wake (wakes.embeddedAdvance)
+// and walks the tree (frame.treeVisitsTick). So an idle step records at most one wake, and 60 steps are 60 simulated seconds. A real native
 // host wakes from its animation dispatcher's SetTimer(8 ms), which Windows raises to the 10 ms USER_TIMER_MINIMUM, for as
 // long as anything is armed: up to 100 wakes per armed second, which the 1-second steps do not show. The caret-period phase
 // replays one second at that 10 ms period to show the per-second count. A step with nothing armed records 0 wakes on both.

@@ -296,7 +296,7 @@ inline std::vector<uint64_t> RunMotionCase(MotionCase motionCase)
         const auto advance = [&](uint64_t milliseconds)
         {
             now += milliseconds;
-            if (view.NeedsAnimation())
+            if (AnimationRequested(view.GetAnimationRequest()))
                 static_cast<void>(view.AdvanceAnimation(now));
         };
         std::vector<uint8_t> pixels;

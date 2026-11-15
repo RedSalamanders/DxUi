@@ -136,7 +136,7 @@ public:
 } // namespace
 
 // FX5's clause on a scene that moves: a host with many controls ticks only the controls holding a due request, a
-// deadline ticks nothing before it is due while NeedsAnimation stays true, and no wake walks the tree.
+// deadline ticks nothing before it is due while the request stays that deadline, and no wake walks the tree.
 void TestFrameScheduleTicksOnlyDueRequesters()
 {
     GraphicsFixture gpu;
@@ -158,7 +158,7 @@ void TestFrameScheduleTicksOnlyDueRequesters()
         Require(discovery.Delta().frame.tickDiscoveryWalks == 1u && discovery.Delta().frame.tickLegacyTreeWalks == 0u,
                 "a new embedded root gets one discovery walk, not a legacy one");
     }
-    Require(! view.NeedsAnimation(), "nothing requests after the discovery walk");
+    Require(! AnimationRequested(view.GetAnimationRequest()), "nothing requests after the discovery walk");
     continuous->ticks  = 0u;
     deadline->ticks    = 0u;
     continuous->onTick = [continuous](DxUi::ControlHost&, uint64_t) { return continuous->ticks < 3u; };
@@ -166,7 +166,7 @@ void TestFrameScheduleTicksOnlyDueRequesters()
     const uint64_t start = view.Controls().GetAnimationTickMs();
     view.Controls().RequestAnimation(*continuous);
     view.Controls().RequestAnimationAt(*deadline, start + 500u);
-    Require(view.NeedsAnimation(), "the requests ask for ticks");
+    Require(AnimationRequested(view.GetAnimationRequest()), "the requests ask for ticks");
     for (int frame = 0; frame < 10; ++frame)
     {
         const WorkCounterScope wake;
@@ -178,18 +178,18 @@ void TestFrameScheduleTicksOnlyDueRequesters()
         Require(delta.frame.tickCalls == (frame < 3 ? 1u : 0u), "only the continuous requester ticks, until it returns false");
     }
     Require(continuous->ticks == 3u && deadline->ticks == 0u, "the deadline does not tick before it is due");
-    Require(view.NeedsAnimation(), "NeedsAnimation stays true while a deadline is pending");
+    Require(AnimationRequested(view.GetAnimationRequest()), "the request stays a deadline while it is pending");
     const uint64_t due = start + 500u - view.Controls().GetAnimationTickMs();
     tick += due - 1u;
     static_cast<void>(view.AdvanceAnimation(tick));
-    Require(deadline->ticks == 0u && view.NeedsAnimation(), "one millisecond early ticks nothing");
+    Require(deadline->ticks == 0u && AnimationRequested(view.GetAnimationRequest()), "one millisecond early ticks nothing");
     tick += 1u;
     {
         const WorkCounterScope wake;
-        Require(! view.AdvanceAnimation(tick), "the last request is consumed");
+        Require(! AnimationRequested(view.AdvanceAnimation(tick)), "the last request is consumed");
         Require(wake.Delta().frame.tickCalls == 1u && deadline->ticks == 1u, "the due deadline ticks its control once");
     }
-    Require(! view.NeedsAnimation(), "nothing is scheduled after the deadline");
+    Require(! AnimationRequested(view.GetAnimationRequest()), "nothing is scheduled after the deadline");
 }
 
 // Compatibility: a derived control that only returns true from Tick, woken by RequestAnimation() without naming itself,
@@ -229,7 +229,7 @@ void TestFrameScheduleLegacyRequestStillAnimatesDerivedControl()
         const WorkCounterScope legacy;
         view.Controls().RequestAnimation();
         uint64_t tick = 100u;
-        while (view.NeedsAnimation())
+        while (AnimationRequested(view.GetAnimationRequest()))
             static_cast<void>(view.AdvanceAnimation(tick += 16u));
         Require(probe->ticks == 4u && legacy.Delta().frame.tickLegacyTreeWalks == 1u, "embedded: the derived control animates through one legacy walk");
     }
@@ -824,7 +824,7 @@ void TestFrameScheduleEmbeddedEmptiedScheduleRebases()
             view.Controls().SetFocusControl(field, false);
             static_cast<void>(view.AdvanceAnimation(appClock += 16u));
             view.Controls().SetFocusControl(nullptr, false);
-            Require(! view.NeedsAnimation(), "the blurred caret leaves nothing scheduled");
+            Require(! AnimationRequested(view.GetAnimationRequest()), "the blurred caret leaves nothing scheduled");
         }
         RequireSucceeded(view.Prepare(320u, 120u), "prepare after the blur");
         appClock += gapMs;

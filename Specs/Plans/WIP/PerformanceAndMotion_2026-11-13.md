@@ -737,7 +737,7 @@ something is due, and pace native animation frames to the display. Exit: `G1` me
     `FX9` `Tree` with collapsed branches: 0 ticks from collapsed rows; `W0.5` oracle 0 differences on re-show.
   - **Needs**: `W3.1`, `W0.5`. **Size**: M.
 
-- [ ] **W3.5 Embedded animation request (API 6).**
+- [x] **W3.5 Embedded animation request (API 6).**
   - **Why**: `EmbeddedHost::NeedsAnimation()`/`AdvanceAnimation()` (`include/DxUi/Embedded.h:144-148`) is a boolean, so
     an application must advance every frame while anything is armed, including a 530 ms caret, and each advance ticks the
     whole tree (`src/Rendering/Embedded.cpp:433`).

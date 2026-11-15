@@ -269,7 +269,8 @@ snapshot, delta and receipt.
   dropped for a destroyed, departed or hidden control); `tickLegacyTreeWalks` counts whole-tree ticks an anonymous
   `RequestAnimation()` asked for, which the library's own controls never make, and `tickDiscoveryWalks` those an embedded
   root installation asked for; `tickHeldWhileHidden` counts requests that came due while their native host was hidden
-  and fired once on its show.
+  and fired once on its show; `tooltipTargetValidations` counts the wakes that resolved a tooltip's target again (a
+  hit-test walk and a title lookup, not a `Tick`).
 - **Wakes by source.** `animationTimer` (the animation dispatcher's periodic `WM_TIMER`), `deadlineTimer` (its one-shot
   wake for the earliest deadline), `menuHoverTimer`, `paintMessage`
   (`WM_PAINT`) and `embeddedAdvance` (each `EmbeddedHost::AdvanceAnimation` the application made while animation was

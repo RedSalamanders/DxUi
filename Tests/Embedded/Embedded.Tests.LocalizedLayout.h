@@ -118,7 +118,8 @@ static void TestLocalizedShortViewport(GraphicsFixture& gpu, ConfigureAction con
     // idle hidden graph must not request subsequent animation work.
     static_cast<void>(view.AdvanceAnimation(GetTickCount64()));
     Hr(view.Prepare(480, 240, 96), "prepare collapsed graph");
-    Check(! graph->IsVisible() && actions.back()->HasFocus() && ! view.NeedsAnimation(), "graph hiding leaves action focus intact without visual ticks");
+    Check(! graph->IsVisible() && actions.back()->HasFocus() && ! AnimationRequested(view.GetAnimationRequest()),
+          "graph hiding leaves action focus intact without visual ticks");
     view.Detach();
 }
 
@@ -217,7 +218,7 @@ static void TestLocalizedInvalidationAndSelectedDetail(GraphicsFixture& gpu)
     Check(view.Controls().GetFocusControl() == nullptr && view.Controls().GetCapturedControl() == nullptr,
           "replacement tree retains no old action focus or capture");
     view.SetVisible(false);
-    Check(view.GetStatistics().surfaceBytes == 0 && ! view.NeedsAnimation() && view.Prepare(480, 320, 96) == S_FALSE,
+    Check(view.GetStatistics().surfaceBytes == 0 && ! AnimationRequested(view.GetAnimationRequest()) && view.Prepare(480, 320, 96) == S_FALSE,
           "hidden localized detail releases its surface and performs no visual work");
     view.Detach();
 }

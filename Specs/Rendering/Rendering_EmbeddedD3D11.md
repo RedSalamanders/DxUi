@@ -162,7 +162,7 @@ direct setters retain immediate notification. Detach discards obsolete attachmen
 attachment's requests still wait for any older input on that owning host to finish. Direct control setters
 outside these input entries retain synchronous notification and must stop after a lifetime token expires.
 Dirty requests coalesce; requests raised during painting
-remain pending after preparation. The caller advances animation only when NeedsAnimation is true. Hidden views
+remain pending after preparation. The caller advances animation when the view's animation request asks for it. Hidden views
 request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
 view. Failed preparation suppresses composition/input until a successful prepare. An unchanged content failure returns its HRESULT (E_ABORT is normalized to E_FAIL), and schedules no automatic retry; a caller may retry under its own bounded policy. E_ABORT remains reserved for superseded work.
 The callback must not re-enter EmbeddedHost preparation, composition, input, device replacement or lifecycle methods.
@@ -216,25 +216,52 @@ AdvanceAnimation marks the view dirty only through control invalidation. Every `
 invalidates its host: an indeterminate progress bar on every tick, a caret only when its blink phase flips, a
 transition on every tick including the one that settles it, tooltip show/hide, and grid/tree/menu animation. An
 idle tick therefore leaves a clean prepared view clean and causes no raster work. Hosts check NeedsPreparation after
-ticking; an unconditional Prepare of a clean view still returns S_FALSE. `RequestAnimation` wakes the application
-through the preparation callback only when animation becomes requested; a request raised while painting (an
-indeterminate progress bar, a busy grid) does not re-dirty the view inside the preparation that painted it.
-AdvanceAnimation ticks only the controls holding a due request of the host's frame schedule
-([window hosting](Rendering_Win32Host.md#frame-schedule)); `NeedsAnimation` stays true while any request is held, a
-pending deadline included, so a caller that advances every frame while it is true still sees a caret blink, and an
-advance before the deadline ticks nothing. A new root gets one discovery tick of the whole visible tree. A hidden view
-holds its requests; its timeline does not count the hidden time.
+ticking; an unconditional Prepare of a clean view still returns S_FALSE.
+
+**Animation request.** API revision 6 publishes the host's [frame schedule](Rendering_Win32Host.md#frame-schedule) as
+`EmbeddedAnimationRequest GetAnimationRequest() const noexcept` and `EmbeddedAnimationRequest AdvanceAnimation(uint64_t
+nowTickMs) noexcept`. A request is `None`, `Continuous` (advance every presented frame) or `Deadline` with `dueTickMs`.
+The view owns no timer or worker; the application decides when to call. Rules:
+
+1. `GetAnimationRequest` reads the schedule's held requests and the tooltip layer's one deadline; it ticks nothing,
+   walks no tree and allocates nothing. It is `None` while the view is detached, hidden or zero-sized, or nothing is
+   scheduled.
+2. `dueTickMs` is on the application's clock, the one it passes to `AdvanceAnimation`: the last supplied tick plus what
+   the view's timeline still lacks of the earliest deadline, saturating at `UINT64_MAX`. A deadline the timeline has
+   reached is reported at the last supplied tick (due at once). While the next tick would only take the baseline (the
+   first request after a pause: nothing requested, hidden, zero-sized, a new attachment) the request is a `Deadline`
+   of 0, due at once, since the application's clock is not known until that tick.
+3. The clock rules above are unchanged: the baseline after a pause, no going back, saturation. A deadline armed before a
+   pause keeps its place on the view's timeline, so after the pause it is due the time it still lacked after the
+   baseline advance; a clock that jumps forward ticks each due request once and re-arms it from the new time, so a caret
+   ticks once and keeps its phase and a tooltip shows once with its hide 5 s later.
+4. `AdvanceAnimation` with nothing requested does nothing and returns `None`. Otherwise it advances the timeline, ticks
+   only the due requests (an advance before the earliest deadline ticks no control and returns the same deadline) and
+   returns the next request, read after the ticks.
+5. The view tells a sleeping application when the schedule needs it sooner than the request it last reported (something
+   after nothing, `Continuous` after a deadline, an earlier deadline) through the existing `requestPreparation`
+   callback, the one owner wake of the view (`WakeSchedule` of the
+   [explicit state machines](../Plans/WIP/ExplicitStateMachines_2026-11-10.md) catalog `1.1`): the change marks the view
+   dirty, and that wake coalesces like any other until the next `Prepare`. A request raised inside a wake is returned by
+   that `AdvanceAnimation` instead; a request raised while painting (an indeterminate progress bar, a busy grid) does not
+   re-dirty the view inside the preparation that painted it, because it is no sooner than the one already reported.
+   Applications read the request after the callback and after every call they make into the view.
+
+A new root gets one `Continuous` request for its discovery tick of the whole visible tree. A hidden view holds its
+requests and its timeline does not count the hidden time; a held deadline therefore keeps its remaining time across a
+hidden period, where a native host, whose dispatcher timeline keeps running, fires a deadline that passed meanwhile once
+on show. Both drop a tooltip still waiting to show and restart a focused caret on show.
 The caret follows the host's [caret clock](Rendering_Win32Host.md#caret-clock): a blinking caret holds one deadline per
-phase flip, a steady one (read-only, `INFINITE` blink time, reduced motion, after the caret timeout) holds none, so
-`NeedsAnimation` turns false; showing the view shows a focused caret at once and restarts its phase. The view owns no
-window and receives no `WM_SETTINGCHANGE`: the application calls `Controls().RefreshCaretBlinkSettings()` when its own
-window receives one, as it calls `SetTheme` for reduced motion and `SetTextRenderingMonitor` for ClearType changes. DxUi
-never polls the settings.
+phase flip, a steady one (read-only, `INFINITE` blink time, reduced motion, after the caret timeout) holds none, so the
+request turns `None`; showing the view shows a focused caret at once and restarts its phase. The view owns no
+window and receives no `WM_SETTINGCHANGE`: the application calls `Controls().RefreshUserSettings()` when its own
+window receives one ([user settings](Rendering_Win32Host.md#user-settings)), as it calls `SetTheme` for reduced motion
+and `SetTextRenderingMonitor` for ClearType changes. DxUi never polls the settings.
 
 The tooltip shows and hides at two [deadlines](Rendering_Win32Host.md#tooltip-deadlines) and is ticked at nothing
-else; `SetVisible(false)` drops a tooltip still waiting to show, and a change to its target makes the schedule due at once. Its show delay is the user's mouse hover time, read
-once: the view receives no `WM_SETTINGCHANGE`, so the application calls `Controls().RefreshTooltipHoverTime()` when its
-own window receives one. DxUi never polls the setting.
+else; `SetVisible(false)` drops a tooltip still waiting to show, and a change to its target makes the schedule due at once. Its
+show delay is the user's mouse hover time, read once and again at each `RefreshUserSettings`. DxUi never polls the
+setting.
 
 Prepare receives width/height in pixels and DPI (48..768), checks D3D dimension limits and a 64 MiB surface ceiling,
 then performs changed layout/raster work. A resize allocates the replacement surface before releasing the previous
