@@ -1937,6 +1937,7 @@ __declspec(noinline) static int RunFunctionalTests()
         EmbeddedPointerHit::TestPointerHitFx10PreparesNoPlainLabelAndSearchesNoTree();
         EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);
         EmbeddedPointerHit::TestPointerHitEmbeddedResultNeverOutlivesItsControl(gpu);
+        EmbeddedPointerHit::TestPointerHitEmbeddedEverySiteMovesTheRevision(gpu);
         return 0;
     }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-closed-roots")
@@ -2164,6 +2165,7 @@ __declspec(noinline) static int RunFunctionalTests()
     EmbeddedPointerHit::TestPointerHitFx10PreparesNoPlainLabelAndSearchesNoTree();
     EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);
     EmbeddedPointerHit::TestPointerHitEmbeddedResultNeverOutlivesItsControl(gpu);
+    EmbeddedPointerHit::TestPointerHitEmbeddedEverySiteMovesTheRevision(gpu);
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();

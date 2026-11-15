@@ -103,7 +103,9 @@ layout before paint, keyed by text, mnemonic, typography, flow, bounds and host
 resource/typography identity. Repeated paints reuse that layout; labels with no
 mnemonic and no typography override retain their ordinary text draw path and are not prepared at all: a plain label
 never enters visual preparation, however often its bounds change (multiline, alignment, font role and text color keep it
-plain). Its first mnemonic (`SetMnemonic`) or typography override enables preparation. Visual preparation is reached
+plain). A mnemonic (`SetMnemonic`) or typography override enables preparation and clearing the last of them disables it
+again. A class derived from `Label` keeps visual preparation whatever its state, so an overridden `PrepareVisualContent`
+is still called. Visual preparation is reached
 only through the host's preparation pass from its root, so `Label` and `Button` preparation run no tree-membership
 search; a control asked to prepare for a host it is not attached to is refused by its host check.
 

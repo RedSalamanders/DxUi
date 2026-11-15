@@ -329,6 +329,12 @@ subclass of a library control, turns that reuse off while it is attached unless 
 visibility, enabled state and children, or when you call `InvalidateHitTest()` whenever any other state they read
 changes (a hidden hit region, an expanded part):
 
+The declaration covers exactly the class whose constructor makes it: a subclass of `Gauge` declares again in its own
+constructor. `ControlHost::DebugGetUnreportedHitControlCount()` and `DebugGetFirstUnreportedHitControlType()` say why a
+host reuses nothing. DxUi requires RTTI (it uses `dynamic_cast` on controls and `typeid` for this check). A plain `Label`
+(no mnemonic, no typography override) is not visually prepared; a class derived from `Label` always is, so an overridden
+`PrepareVisualContent` keeps being called.
+
 ```cpp
 class Gauge final : public DxUi::Control
 {

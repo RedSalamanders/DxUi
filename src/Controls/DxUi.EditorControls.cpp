@@ -322,7 +322,7 @@ void Splitter::SetOrientation(SplitterOrientation orientation) noexcept
     }
     _orientation = orientation;
     _positionDip = ClampPosition(_positionDip);
-    InvalidateHitTest(); // the separator's hit band moves (GetHitBounds)
+    NoteHitTestChange(*this, HitRevisionSite::SplitterGeometry); // the separator's hit band moves (GetHitBounds)
     RequestInvalidate();
 }
 
@@ -339,7 +339,7 @@ void Splitter::SetThickness(float thicknessDip) noexcept
     }
     _thicknessDip = thicknessDip;
     _positionDip  = ClampPosition(_positionDip);
-    InvalidateHitTest();
+    NoteHitTestChange(*this, HitRevisionSite::SplitterGeometry);
     RequestInvalidate();
 }
 
@@ -356,7 +356,7 @@ void Splitter::SetMinimumFirstPane(float minimumDip) noexcept
     }
     _minimumFirstDip = minimumDip;
     _positionDip     = ClampPosition(_positionDip);
-    InvalidateHitTest();
+    NoteHitTestChange(*this, HitRevisionSite::SplitterGeometry);
     RequestInvalidate();
 }
 
@@ -373,7 +373,7 @@ void Splitter::SetMinimumSecondPane(float minimumDip) noexcept
     }
     _minimumSecondDip = minimumDip;
     _positionDip      = ClampPosition(_positionDip);
-    InvalidateHitTest();
+    NoteHitTestChange(*this, HitRevisionSite::SplitterGeometry);
     RequestInvalidate();
 }
 
@@ -415,7 +415,7 @@ void Splitter::SetPosition(float positionDip) noexcept
         return;
     }
     _positionDip = clamped;
-    InvalidateHitTest();
+    NoteHitTestChange(*this, HitRevisionSite::SplitterPosition);
     const auto lifetime = GetLifetimeToken();
     RequestInvalidate();
     if (lifetime.expired())
@@ -441,7 +441,7 @@ bool Splitter::RequestPosition(ControlHost& host, float positionDip) noexcept
         return true;
     }
     _positionDip = clamped;
-    InvalidateHitTest();
+    NoteHitTestChange(*this, HitRevisionSite::SplitterPosition);
     Invalidate(host);
     NotifyChange(SplitterChangePhase::Commit);
     return true;
@@ -737,7 +737,7 @@ void Splitter::NotifyChange(SplitterChangePhase phase) noexcept
 {
     const Failure::Scope outerFailureScope;
     // Every drag, key and cancel that moved the separator announces it here: its hit band moved with it.
-    InvalidateHitTest();
+    NoteHitTestChange(*this, HitRevisionSite::SplitterPosition);
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     try
     {

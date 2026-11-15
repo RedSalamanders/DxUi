@@ -19,6 +19,7 @@
 #include <random>
 #include <ranges>
 #include <string>
+#include <typeinfo>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -1707,6 +1708,10 @@ void ControlHost::SetTheme(const ThemePalette& palette) noexcept
     if (densityChanged || IsRenderStageActive())
         ++_interactionRevision;
     _palette = palette;
+    // Typography and metrics of the theme size popups and headers (a ComboBox popup, TabControl headers) without moving
+    // bounds; theme changes are rare, so every one moves the hit revision.
+    if (HitRevisionSiteLive(HitRevisionSite::HostTheme))
+        AdvanceHitRevision();
     RecreateBrushCache();
     _forceAllVisualPreparation = true;
     _pendingVisualPreparation  = true;
@@ -2147,6 +2152,14 @@ bool ControlHost::ForgetControl(const Control& control) noexcept
     held = held || _tickRequests.size() != before;
     if (_tickRequests.size() != before)
         OnFrameScheduleChanged();
+    // The pointer event's hit result never names a forgotten control (W2.9). The one caller, Control::PropagateHost, moves
+    // the interaction revision right after (the result's key compares it), so the hit revision is not moved again here.
+    if (_pointerHitCache.target == &control)
+    {
+        _pointerHitCache.valid  = false;
+        _pointerHitCache.target = nullptr;
+        _pointerHitCache.targetLifetime.reset();
+    }
     return held;
 }
 
@@ -3547,6 +3560,28 @@ uint64_t ControlHost::DebugGetHitRevision() const noexcept
     return _hitRevision;
 }
 
+uint32_t ControlHost::DebugGetUnreportedHitControlCount() const noexcept
+{
+    return _unreportedHitControls;
+}
+
+const char* ControlHost::DebugGetFirstUnreportedHitControlType() const noexcept
+{
+    const auto find = [](const auto& self, const Control* control) noexcept -> const Control*
+    {
+        if (! control)
+            return nullptr;
+        if ((control->_hitTestReporting & Control::kHitTestCounted) != 0u)
+            return control;
+        for (size_t index = 0u; index < control->GetLogicalChildCount(); ++index)
+            if (const Control* const found = self(self, control->GetLogicalChild(index)))
+                return found;
+        return nullptr;
+    };
+    const Control* const first = find(find, _root.get());
+    return first ? typeid(*first).name() : nullptr;
+}
+
 bool ControlHost::DebugCaptureBitmap(WindowHostBitmapCapture& out) noexcept
 {
     return DebugCaptureBitmap(out, false);
@@ -3607,7 +3642,8 @@ void ControlHost::OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect
     }
 
     _dpi = resolvedDpi;
-    AdvanceHitRevision(); // the same pixel is another DIP point; geometry may be arranged again
+    if (HitRevisionSiteLive(HitRevisionSite::HostDpi))
+        AdvanceHitRevision(); // the same pixel is another DIP point; geometry may be arranged again
     if (_d2dContext)
     {
         _d2dContext->SetDpi(static_cast<float>(_dpi), static_cast<float>(_dpi));
@@ -3710,9 +3746,12 @@ try
     if (Detail::Trace::Listening()) [[unlikely]]
         TraceWindowHostInput(_trace, msg);
 
-    // A pointer event lasts from WM_SETCURSOR to the end of the next message, which is the client mouse message Windows
-    // announced with it: every other message, and that one when it returns, drops the hit result. A mouse message without
-    // a cursor query (captured, or synthesized) is an event of its own.
+    // A pointer event lasts from a client-area WM_SETCURSOR for this window to the end of the next message this host
+    // handles, which is the client mouse message Windows delivers with it: any other message this host handles, and that one
+    // when it returns, drops the hit result. Work that reaches the host without a message of its own (a TIMERPROC such as
+    // the recovery retry, a message to another window of the thread, a non-client WM_SETCURSOR) does not end the event;
+    // that is safe because every change a hit test reads moves the interaction or hit revision, which the key compares.
+    // A mouse message without a cursor query (captured, or synthesized) is an event of its own.
     const bool pointerHitMessage = msg == WM_MOUSEMOVE || msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_LBUTTONDBLCLK ||
                                    msg == WM_RBUTTONDBLCLK || msg == WM_LBUTTONUP || msg == WM_RBUTTONUP || msg == WM_MBUTTONDOWN || msg == WM_MBUTTONUP;
     if (msg != WM_SETCURSOR)
@@ -3721,6 +3760,11 @@ try
             BeginPointerHitEvent(false);
         else
             EndPointerHitEvent();
+        // The screen point of the input Windows is delivering: WM_NCHITTEST precedes the WM_SETCURSOR of the same delivery,
+        // and GetMessagePos still describes the previously retrieved message while the new one is being delivered.
+        _nonClientHitPointValid = msg == WM_NCHITTEST;
+        if (msg == WM_NCHITTEST)
+            _nonClientHitPoint = POINT{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
     }
     const auto endPointerHitEvent = wil::scope_exit([this, pointerHitMessage]() noexcept
     {
@@ -4042,12 +4086,21 @@ try
                 return 0;
             }
 
-            POINT pointPx = {GET_X_LPARAM(GetMessagePos()), GET_Y_LPARAM(GetMessagePos())};
+            // Windows sends WM_SETCURSOR while it delivers a mouse message, after the WM_NCHITTEST that carries the screen
+            // point of that same input; GetMessagePos describes the last message retrieved, which may be the previous one.
+            // Only a cursor query for this window itself opens a pointer event: the mouse message it announces reuses its
+            // hit test (HandleMessage keeps the event open across this message only). One forwarded from a child window
+            // answers the cursor from a fresh hit test, as before.
+            const bool ownCursorQuery = reinterpret_cast<HWND>(wp) == hwnd;
+            POINT pointPx =
+                ownCursorQuery && _nonClientHitPointValid ? _nonClientHitPoint : POINT{GET_X_LPARAM(GetMessagePos()), GET_Y_LPARAM(GetMessagePos())};
+            _nonClientHitPointValid = false;
             ScreenToClient(hwnd, &pointPx);
             const D2D1_POINT_2F pointDip = D2D1::Point2F(PixelsToDip(static_cast<float>(pointPx.x)), PixelsToDip(static_cast<float>(pointPx.y)));
-            // Windows sends WM_SETCURSOR while it delivers the mouse message, at the same point: that message's hover and
-            // dispatch reuse this hit test (HandleMessage keeps the event open across this message only).
-            BeginPointerHitEvent(true);
+            if (ownCursorQuery)
+                BeginPointerHitEvent(true);
+            else
+                EndPointerHitEvent();
             SetCursor(ResolveCursorHandle(ResolveCursorKindForPoint(pointDip)));
             handled = true;
             return TRUE;
@@ -4122,7 +4175,7 @@ try
             if (! target && _root)
             {
                 // A dismissed popup no longer covers the point: the cursor query's hit result is stale.
-                if (_root->DismissOverlayOnPointerDown(*this, point))
+                if (_root->DismissOverlayOnPointerDown(*this, point) && HitRevisionSiteLive(HitRevisionSite::OverlayDismissal))
                     AdvanceHitRevision();
             }
             if (! target && IsPointerDoubleClickMessage(msg))
@@ -5324,7 +5377,8 @@ void ControlHost::DiscardDeviceResources() noexcept
 {
     // Device loss and detach end any pointer event; no hit result is kept across the recreation.
     EndPointerHitEvent();
-    AdvanceHitRevision();
+    if (HitRevisionSiteLive(HitRevisionSite::DeviceLoss))
+        AdvanceHitRevision();
     CancelPreparedContent();
     CancelPreparedVisualContent();
     ++_resourceGeneration;
@@ -5854,7 +5908,8 @@ void ControlHost::OnSize(UINT widthPx, UINT heightPx) noexcept
 {
     _widthPx  = widthPx;
     _heightPx = heightPx;
-    AdvanceHitRevision(); // a host resize can move what lies under a client point before arrangement runs
+    if (HitRevisionSiteLive(HitRevisionSite::HostSize))
+        AdvanceHitRevision(); // a host resize can move what lies under a client point before arrangement runs
     // Height-only suspension may leave a rich editor's shaping width unchanged.
     // Cancel explicitly before publishing zero-sized text/UIA geometry.
     if (_widthPx == 0u || _heightPx == 0u)
@@ -6321,7 +6376,8 @@ void ControlHost::ResetRootInteractionState() noexcept
     ++_focusRequestRevision;
     // Root replacement and detach: no hit result survives the tree it was found in.
     EndPointerHitEvent();
-    AdvanceHitRevision();
+    if (HitRevisionSiteLive(HitRevisionSite::RootReset))
+        AdvanceHitRevision();
     const bool wasResetting                   = std::exchange(_resettingInteractionState, true);
     const auto endResetting                   = wil::scope_exit([this, wasResetting]() noexcept { _resettingInteractionState = wasResetting; });
     Control* const captured                   = IsControlInTree(_root.get(), _capturedControl) ? _capturedControl : nullptr;
@@ -6389,7 +6445,8 @@ Control* ControlHost::HitTestControl(D2D1_POINT_2F pointDip) noexcept
     auto& cached = _pointerHitCache;
     if (cached.valid && _pointerHitEventOpen && _pointerHitResultEnabled && _unreportedHitControls == 0u && cached.pointDip.x == pointDip.x &&
         cached.pointDip.y == pointDip.y && cached.root == _root.get() && cached.interactionRevision == _interactionRevision &&
-        cached.hitRevision == _hitRevision && (! cached.target || (! cached.targetLifetime.expired() && cached.target->GetHost() == this)))
+        (cached.hitRevision == _hitRevision || ! HitRevisionSiteLive(HitRevisionSite::Key)) &&
+        (! cached.target || (! cached.targetLifetime.expired() && cached.target->GetHost() == this)))
     {
         ++Detail::Work().frame.hitTestReuses;
         return cached.target;

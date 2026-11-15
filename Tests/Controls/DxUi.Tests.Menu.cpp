@@ -7,6 +7,7 @@
 #include "Controls/DxUiNativeMenuInterop.h"
 #include "Support/AnimationDispatcher.h"
 #include "Support/PostedPayload.h"
+#include "Support/WorkCounters.h"
 #include <DxUi/Diagnostics.h>
 #include <cstdio>
 
@@ -12628,6 +12629,42 @@ void TestDescribedMenuChoosesContentWidthBelowItsMaximum()
             "the prepared primary/description layout matches the width actually painted");
 }
 
+// W2.9 with real input (interactive Menu suite only: the desktop lease restores the pointer; run by a person who agreed to
+// the time). Real pointer moves over a non-activating window: Windows sends WM_NCHITTEST and WM_SETCURSOR before each
+// WM_MOUSEMOVE, and the move reuses the cursor query's hit test, so each move walks the tree once.
+void TestPointerHitRealInputReusesTheCursorQuery()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+    Require(SetWindowPos(window.Hwnd(), HWND_TOPMOST, 240, 200, 480, 200, SWP_NOACTIVATE | SWP_SHOWWINDOW) != FALSE, "the window is placed on the desktop");
+    auto root = std::make_unique<Panel>();
+    for (int index = 0; index < 6; ++index)
+        root->AddChild<Button>(std::format(L"B{}", index))
+            ->SetBounds(D2D1::RectF(10.0f + 70.0f * static_cast<float>(index), 20.0f, 70.0f + 70.0f * static_cast<float>(index), 60.0f));
+    window.Host().SetRoot(std::move(root));
+    Require(RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW) != FALSE, "the window paints now");
+    window.PumpMessages(50u);
+    ScopedMenuPointerFixture pointer(window.Hwnd());
+    size_t moves = 0u;
+    for (int step = 0; step < 12; ++step)
+    {
+        POINT screen{20 + 35 * step, 40};
+        Require(ClientToScreen(window.Hwnd(), &screen) != FALSE, "client to screen");
+        const Detail::WorkCounterScope counters;
+        Require(pointer.AlignCursor(screen, window.Hwnd()), "the real pointer reaches the point");
+        window.PumpMessages(100u);
+        const auto work = counters.Delta().frame;
+        std::printf("W2.9 real move %d: hitTests=%llu hitTestReuses=%llu\n",
+                    step,
+                    static_cast<unsigned long long>(work.hitTests),
+                    static_cast<unsigned long long>(work.hitTestReuses));
+        if (work.hitTests == 0u && work.hitTestReuses == 0u)
+            continue; // no mouse message reached the window for this step
+        ++moves;
+        Require(work.hitTests == 1u && work.hitTestReuses == 1u, "a real move walks the tree once and reuses its cursor query's hit test");
+    }
+    Require(moves >= 10u, "real moves reached the window");
+}
 } // namespace
 
 void RunMenuDescriptionTests()
@@ -12695,6 +12732,7 @@ void RunMenuTests()
             DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
     };
 
+    runTest("TestPointerHitRealInputReusesTheCursorQuery", TestPointerHitRealInputReusesTheCursorQuery);
     runTest("TestPointerInputEventMouseMoveUsesDeliveredPoint", TestPointerInputEventMouseMoveUsesDeliveredPoint);
     runTest("TestPointerInputEventButtonUsesDeliveredPointAndFlags", TestPointerInputEventButtonUsesDeliveredPointAndFlags);
     runTest("TestPointerInputEventWheelUsesDeliveredScreenPoint", TestPointerInputEventWheelUsesDeliveredScreenPoint);

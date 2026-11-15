@@ -15,6 +15,7 @@
 #include <d2d1effects.h>
 
 #include "Support/Diagnostics.h"
+#include "Support/Trace.h"
 
 namespace DxUi
 {
@@ -724,9 +725,8 @@ void Control::SetMnemonic(wchar_t mnemonic) noexcept
     if (_mnemonic == normalized)
         return;
     _mnemonic = normalized;
-    // A plain Label is not prepared; its first mnemonic makes it one that is (Label::Label).
-    if (normalized != L'\0' && ! _visualPreparationEnabled && dynamic_cast<const Label*>(this))
-        EnableVisualContentPreparation();
+    // A plain Label is not prepared: a mnemonic makes it one that is, and clearing it makes it plain again (Label::Label).
+    RefreshLabelVisualPreparation();
     RequestVisualContentPreparation(false);
     RequestInvalidate(); // Scheduling may synchronously retire this control.
 }
@@ -1055,11 +1055,42 @@ void Control::InvalidateHitTest() noexcept
         _host->AdvanceHitRevision();
 }
 
+namespace
+{
+// Classes outside the library that declared their hit test reported, each by the exact type whose constructor declared it.
+// Bounded and allocation-free: a declaration that does not fit leaves its class unreported, which only turns reuse off.
+constexpr size_t kMaxDeclaredHitTypes = 256u;
+std::array<const std::type_info*, kMaxDeclaredHitTypes> g_declaredHitTypes{};
+size_t g_declaredHitTypeCount  = 0u;
+SRWLOCK g_declaredHitTypesLock = SRWLOCK_INIT;
+
+[[nodiscard]] bool IsDeclaredHitType(const std::type_info& type) noexcept
+{
+    AcquireSRWLockShared(&g_declaredHitTypesLock);
+    const auto release = wil::scope_exit([]() noexcept { ReleaseSRWLockShared(&g_declaredHitTypesLock); });
+    for (size_t index = 0u; index < g_declaredHitTypeCount; ++index)
+        if (*g_declaredHitTypes[index] == type)
+            return true;
+    return false;
+}
+} // namespace
+
 void Control::DeclareHitTestReported() noexcept
 {
-    _hitTestReporting = static_cast<uint8_t>(_hitTestReporting | kHitTestDeclared);
-    // Declared while attached (not from a constructor): the host stops counting it from now on.
-    if (_host && (_hitTestReporting & kHitTestCounted) != 0u)
+    // In a constructor typeid(*this) is the class being constructed, so the declaration covers exactly that class.
+    const std::type_info& type = typeid(*this);
+    if (! IsDeclaredHitType(type))
+    {
+        AcquireSRWLockExclusive(&g_declaredHitTypesLock);
+        const auto release = wil::scope_exit([]() noexcept { ReleaseSRWLockExclusive(&g_declaredHitTypesLock); });
+        bool present       = false;
+        for (size_t index = 0u; index < g_declaredHitTypeCount && ! present; ++index)
+            present = *g_declaredHitTypes[index] == type;
+        if (! present && g_declaredHitTypeCount < g_declaredHitTypes.size())
+            g_declaredHitTypes[g_declaredHitTypeCount++] = &type;
+    }
+    // Declared while attached (not from a constructor): the host stops counting it once its exact type is declared.
+    if (_host && (_hitTestReporting & kHitTestCounted) != 0u && IsHitTestReported())
     {
         --_host->_unreportedHitControls;
         _hitTestReporting = static_cast<uint8_t>(_hitTestReporting & ~kHitTestCounted);
@@ -1069,11 +1100,9 @@ void Control::DeclareHitTestReported() noexcept
 // The library's own control classes report every change their hit testing reads: bounds, visibility, enabled state and
 // tree membership move the interaction revision, anything else calls InvalidateHitTest (UI_InputAndAccessibility.md,
 // "Pointer hit result"). Only the exact class counts: a subclass defined elsewhere may override hit testing with state the
-// host cannot see, so it is reported only when it declares so. A new library control class is added here.
+// host cannot see, so it is reported only when its own constructor declares so. A new library control class is added here.
 bool Control::IsHitTestReported() const noexcept
 {
-    if ((_hitTestReporting & kHitTestDeclared) != 0u)
-        return true;
     static const std::array<const std::type_info*, 35u> kLibraryTypes{
         &typeid(Panel),       &typeid(PageHost),      &typeid(CardPanel),       &typeid(Label),          &typeid(Separator),
         &typeid(Button),      &typeid(Toggle),        &typeid(Checkbox),        &typeid(RadioButton),    &typeid(RadioButtons),
@@ -1084,9 +1113,35 @@ bool Control::IsHitTestReported() const noexcept
         &typeid(Tree),        &typeid(Grid),          &typeid(Splitter),        &typeid(NumericStepper), &typeid(ColorPicker),
     };
     const std::type_info& type = typeid(*this);
-    return std::ranges::any_of(kLibraryTypes, [&type](const std::type_info* library) noexcept { return *library == type; });
+    return std::ranges::any_of(kLibraryTypes, [&type](const std::type_info* library) noexcept { return *library == type; }) || IsDeclaredHitType(type);
 }
 
+Control::~Control()
+{
+    // Normally a control leaves its host (PropagateHost(nullptr)) before it is destroyed; one destroyed while attached must
+    // not leave the host counting it, which would turn hit-result reuse off for the host's life.
+    if (_host && (_hitTestReporting & kHitTestCounted) != 0u)
+        --_host->_unreportedHitControls;
+}
+
+void Control::RefreshLabelVisualPreparation() noexcept
+{
+    const auto* const label = dynamic_cast<const Label*>(this);
+    if (! label)
+        return;
+    const bool plain = ! label->GetTypographyOverride() && GetMnemonic() == L'\0' && typeid(*this) == typeid(Label);
+    if (plain == ! _visualPreparationEnabled)
+        return;
+    if (! plain)
+    {
+        EnableVisualContentPreparation();
+        return;
+    }
+    // Plain again: nothing to prepare, and a stale prepared layout is released.
+    _visualPreparationEnabled = false;
+    _visualPreparationPending = false;
+    CancelVisualContentPreparation();
+}
 #if DXUI_ENABLE_DIAGNOSTICS
 bool Control::DebugIsHitTestReported() const noexcept
 {
@@ -1352,9 +1407,13 @@ void Control::PropagateHost(ControlHost* host) noexcept
         host->RequestAnimationOnce(*this);
     if (host && ! IsHitTestReported())
     {
-        ++host->_unreportedHitControls;
+        if (host->_unreportedHitControls++ == 0u && Detail::Trace::Listening()) [[unlikely]]
+            Detail::Trace::HitReuseOff(host->_trace);
         _hitTestReporting = static_cast<uint8_t>(_hitTestReporting | kHitTestCounted);
     }
+    // A Label subclass keeps the visual preparation a plain Label does without (its dynamic type is known only now).
+    if (host)
+        RefreshLabelVisualPreparation();
     RequestContentPreparation(false);
     RequestVisualContentPreparation(false);
     InvalidateMeasure();

@@ -410,7 +410,8 @@ private.
 - **Events.** Input received (a `WindowHost` mouse, wheel, key or character message; an `EmbeddedHost` pointer, key or
   character dispatch), frame requested with its reason (the first request after each preparation begins), prepare begin
   and end (a native render pass; an embedded preparation that paints), present (a native swap-chain present) or composite
-  (an embedded composition), and wake by source. Each event site sits beside the work counter of the same moment where one
+  (an embedded composition), wake by source, and hit reuse off (a host stops reusing pointer hit results because a control
+  whose hit testing it cannot see attached). Each event site sits beside the work counter of the same moment where one
   exists: renders and preparations, presents, composites and every wake source.
 - **Correlation and clock.** Every event carries a process-unique host number and a `QueryPerformanceCounter` timestamp.
   Each host numbers its inputs and its preparations; a preparation records the newest input received before it began, and

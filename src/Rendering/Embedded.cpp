@@ -377,7 +377,8 @@ void EmbeddedHost::ReleaseSurface() noexcept
     { return _state.get() == attachedState && _attachmentRevision == attachmentRevision && _operationRevision == operationRevision && ! _detaching; };
     // Hiding and surface loss end any pointer event: no hit result outlives the surface it was found on.
     _host.EndPointerHitEvent();
-    _host.AdvanceHitRevision();
+    if (HitRevisionSiteLive(HitRevisionSite::SurfaceLoss))
+        _host.AdvanceHitRevision();
     DisconnectAccessibility();
     if (! operationIsCurrent())
         return;

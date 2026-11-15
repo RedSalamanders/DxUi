@@ -1665,7 +1665,9 @@ class Control
 {
 public:
     Control() noexcept;
-    virtual ~Control() = default;
+    // A control destroyed while still attached (only possible through the legacy GetChildren() span) leaves its host's
+    // hit-reporting count as it found it.
+    virtual ~Control();
     // Object storage is checked independently from member construction. The
     // factory can report its null result; unreportable member failures are fatal.
     [[nodiscard]] static void* operator new(size_t bytes);
@@ -1786,6 +1788,7 @@ public:
 
 protected:
     friend class Panel;
+    friend class Label;
     friend struct ControlModelQueryAccess;
     friend class PageHost;
     friend class ScrollPanel;
@@ -1805,8 +1808,9 @@ protected:
     [[nodiscard]] virtual WindowHostCursorKind ResolveCursorKind(ControlHost& host, D2D1_POINT_2F pointDip) const noexcept;
     // Declares, from the constructor of a control class outside the library, that its HitTest, HitTestOverlay and
     // GetHitBounds answers depend only on its bounds, visibility, enabled state, children and state whose every change
-    // it reports with InvalidateHitTest. Subclasses inherit the declaration. A host never reuses a hit result while an
-    // undeclared control outside the library (a subclass of a library control included) is attached.
+    // it reports with InvalidateHitTest. The declaration covers exactly the class whose constructor makes it: a subclass
+    // declares for itself. A host never reuses a hit result while an undeclared control outside the library (a subclass
+    // of a library control or of a declaring class included) is attached.
     void DeclareHitTestReported() noexcept;
 
     [[nodiscard]] ControlHost* GetHost() const noexcept;
@@ -1915,10 +1919,13 @@ private:
     mutable ContentPreparationState _contentPreparationState = ContentPreparationState::Ready;
     bool _visualPreparationEnabled                           = false;
     mutable bool _visualPreparationPending                   = false;
-    // kHitTestDeclared: DeclareHitTestReported ran. kHitTestCounted: _host counts this control as unreported.
-    static constexpr uint8_t kHitTestDeclared = 1u, kHitTestCounted = 2u;
-    uint8_t _hitTestReporting = 0u;
+    // kHitTestCounted: _host counts this control as unreported (its hit testing the host cannot see).
+    static constexpr uint8_t kHitTestCounted = 1u;
+    uint8_t _hitTestReporting                = 0u;
     [[nodiscard]] bool IsHitTestReported() const noexcept;
+    // A plain Label (no mnemonic, no typography override, exactly class Label) has no visual preparation; anything else
+    // derived from Label keeps it. Called when a mnemonic or override changes and when the control attaches.
+    void RefreshLabelVisualPreparation() noexcept;
 };
 #pragma warning(pop)
 
@@ -6812,6 +6819,10 @@ public:
     [[nodiscard]] bool DebugHasPointerHitResult() const noexcept;
     [[nodiscard]] Control* DebugGetHoveredControl() const noexcept;
     [[nodiscard]] uint64_t DebugGetHitRevision() const noexcept;
+    // Why a host reuses no hit result: how many attached controls it cannot see hit testing of, and the type name of the
+    // first one in tree order (nullptr when none).
+    [[nodiscard]] uint32_t DebugGetUnreportedHitControlCount() const noexcept;
+    [[nodiscard]] const char* DebugGetFirstUnreportedHitControlType() const noexcept;
     [[nodiscard]] UINT DebugGetWidthPx() const noexcept
     {
         return _widthPx;
@@ -7367,8 +7378,10 @@ private:
         bool valid                   = false;
     };
     PointerHitCache _pointerHitCache;
-    uint64_t _hitRevision                = 0u; // moves on hit-relevant changes the interaction revision does not cover
-    uint32_t _unreportedHitControls      = 0u; // attached controls whose hit testing the host cannot see
+    uint64_t _hitRevision           = 0u; // moves on hit-relevant changes the interaction revision does not cover
+    uint32_t _unreportedHitControls = 0u; // attached controls whose hit testing the host cannot see
+    POINT _nonClientHitPoint{};           // screen point of the last WM_NCHITTEST, for the WM_SETCURSOR of the same delivery
+    bool _nonClientHitPointValid         = false;
     bool _pointerHitEventOpen            = false;
     bool _pointerHitResultEnabled        = true; // false only in tests: the uncached hit test for the differential
     Control* _hoveredControl             = nullptr;

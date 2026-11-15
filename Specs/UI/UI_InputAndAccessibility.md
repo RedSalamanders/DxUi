@@ -962,27 +962,40 @@ from that one hit result (plan item W2.9). The result is the control the host hi
 deepest interactive control); a control's own sub-hit (a `Grid` column edge, a `ComboBox` popup row, a `ScrollPanel`
 child) stays inside that control and is not cached.
 
-- **One event.** A window host opens the event at `WM_SETCURSOR`, which Windows sends at the point of the mouse message it
-  is about to deliver, and ends it when the next message it handles returns: the client mouse message (move, left, right
-  and middle press and release, double-click) reuses the cursor query's result; any other message drops it. A mouse
-  message without a cursor query before it (a captured pointer, a synthesized move) is an event of its own. `WM_MOUSEWHEEL`
-  and the file-drop and diagnostic hit tests always walk the tree. An `EmbeddedHost::DispatchPointer` call is one event:
-  the hover update and the dispatch share its result. No result survives its event.
+- **One event.** A window host opens the event at a client-area `WM_SETCURSOR` for its own window (not one a child window
+  forwards), which Windows sends while it delivers a mouse message. Its point is the screen point of the `WM_NCHITTEST`
+  of the same delivery (`GetMessagePos` describes the last message retrieved, which may be the previous one), converted
+  exactly as the mouse message's client point is. The event ends when the next message the host handles returns: the
+  client mouse message (move, left, right and middle press and release, double-click) reuses the cursor query's result;
+  any other message the host handles drops it. Work that reaches the host without a message of its own (a `TIMERPROC`
+  such as the recovery retry, a message to another window of the thread, a non-client `WM_SETCURSOR`, which returns
+  before touching the event) does not end it; that is safe only because every change a hit test reads moves the
+  interaction or hit revision, which the key compares. A mouse message without a cursor query before it (a captured
+  pointer, a synthesized move) is an event of its own. `WM_MOUSEWHEEL` and the file-drop and diagnostic hit tests always
+  walk the tree. An `EmbeddedHost::DispatchPointer` call is one event: the hover update and the dispatch share its result.
+  No result survives its event.
 - **One key.** The result is reused only for the same client point (in DIPs, exactly), the same root, the same interaction
   revision and the same hit revision, and only while its control is alive and attached to the host. The interaction
   revision moves on bounds, visibility, enabled state, attach and detach (adding, removing and re-parenting a control,
   page and root replacement), model geometry and density. The hit revision moves on everything else a library hit test
-  reads: a `ComboBox` popup opening, closing or refiltering its rows; a `ScrollPanel` offset change; a `PageHost`
+  reads: a `ComboBox` popup opening, closing, refiltering its rows or changing its layout inputs (maximum visible items,
+  minimum row height, no-matches text, bounds; `ComboBox::UpdatePopupLayout` moves it wherever a recomputed placement differs from the previous one, whatever input changed it); a `ScrollPanel` offset change; a `PageHost`
   transition starting or ending; `PageIndicator` page count; `Slider` orientation; `Splitter` orientation, thickness,
   minimum panes and position (setters, drag, keys and cancel); an overlay dismissed by a press; a native size or DPI
-  change; device loss, detach, root replacement and an embedded view hidden or its surface lost. Theme colors, hover,
-  focus, capture and tooltips do not change which control a point hits, and capture bypasses the hit test.
+  change; any theme change (theme typography and metrics size popups and headers); device loss, detach, root replacement
+  and an embedded view hidden or its surface lost. Hover, focus, capture and tooltips do not change which control a point
+  hits, and capture bypasses the hit test. Each site is named (`HitRevisionSite`), and a test suppresses each one alone
+  and shows a press then reaches a stale control.
 - **Controls outside the library.** A control class the library defines reports every change its hit testing reads. A
   class defined elsewhere (a subclass of a library control included) may override `HitTest`, `HitTestOverlay` or
   `GetHitBounds` with state the host cannot see, so while such a control is attached the host reuses no hit result:
   every hit test walks the tree as before. A class opts in by calling `Control::DeclareHitTestReported()` from its
   constructor, which promises that its answers depend only on its bounds, visibility, enabled state, children and state
-  whose every change it reports with `Control::InvalidateHitTest()`. `InvalidateHitTest` is the one way to move the hit
+  whose every change it reports with `Control::InvalidateHitTest()`. The declaration covers exactly the class whose
+  constructor makes it (its `typeid`), so a subclass declares for itself. A destroyed control leaves the count. A host
+  says why it reuses nothing: `ControlHost::DebugGetUnreportedHitControlCount` and
+  `DebugGetFirstUnreportedHitControlType`, and one `HitReuseOff` trace event when it stops reusing. The check uses RTTI
+  (`typeid`), which the library already requires (`dynamic_cast`). `InvalidateHitTest` is the one way to move the hit
   revision; library setters that change hit-testing state call it, and it reaches the one internal entry,
   `ControlHost::AdvanceHitRevision`.
 - **Unchanged semantics.** Hover enter and leave order, capture, cursor shape, tooltip targeting (the supplemental tooltip

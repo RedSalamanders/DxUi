@@ -379,6 +379,7 @@ void WINAPI OnEtwEvent(PEVENT_RECORD event) noexcept
         case Trace::Event::Present: return "Present";
         case Trace::Event::Composite: return "Composite";
         case Trace::Event::Wake: return "Wake";
+        case Trace::Event::HitReuseOff: return "HitReuseOff";
         default: return "";
     }
 }

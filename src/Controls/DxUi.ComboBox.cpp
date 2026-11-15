@@ -2568,6 +2568,7 @@ void ComboBox::RefreshAccessibilitySnapshot() const noexcept
 
 void ComboBox::ResetPopupLayout() noexcept
 {
+    NoteHitTestChange(*this, HitRevisionSite::ComboBoxLayout); // the popup rectangle GetHitBounds and HitTestOverlay read
     _popupBounds                 = D2D1::RectF();
     _popupVisibleItemCount       = 0u;
     _popupLayoutCache.valid      = false; // the placement above is gone: the next UpdatePopupLayout computes it
@@ -2588,7 +2589,7 @@ void ComboBox::OpenPopup(ControlHost& host) noexcept
 
     RebuildPopupItems(&host);
     _open = true;
-    InvalidateHitTest(); // the open popup covers what lies below it
+    NoteHitTestChange(*this, HitRevisionSite::ComboBoxOpen); // the open popup covers what lies below it
     _activePopupIndex = (_selectedIndex && FindPopupListIndexForItem(_selectedIndex.value())) ? _selectedIndex : GetPopupItemIndexAt(0u);
     _hoveredPopupIndex.reset();
     EnsurePopupSelectionVisible(&host);
@@ -2619,7 +2620,7 @@ bool ComboBox::RequestPopup(ControlHost& host)
 void ComboBox::ClosePopup() noexcept
 {
     if (_open)
-        InvalidateHitTest(); // what the popup covered is hit again
+        NoteHitTestChange(*this, HitRevisionSite::ComboBoxClose); // what the popup covered is hit again
     _open = false;
     _activePopupIndex.reset();
     _hoveredPopupIndex.reset();
@@ -2735,7 +2736,17 @@ void ComboBox::UpdatePopupLayout(const ControlHost* host) const noexcept
     {
         return;
     }
-    _popupLayoutCache = inputs;
+    // W2.9: GetHitBounds and HitTestOverlay read the placement. Whatever input changed it (items, filter, no-matches text,
+    // maximum rows, minimum row height, theme, bounds, the client or a containing ScrollPanel's visible bounds and offset),
+    // a recomputed placement that differs from the previous one moves the hit revision, here, where it is known.
+    const D2D1_RECT_F previousPopupBounds = _popupBounds;
+    const auto notePlacementChange        = wil::scope_exit([this, previousPopupBounds]() noexcept
+    {
+        if (_popupBounds.left != previousPopupBounds.left || _popupBounds.top != previousPopupBounds.top || _popupBounds.right != previousPopupBounds.right ||
+            _popupBounds.bottom != previousPopupBounds.bottom)
+            NoteHitTestChange(*const_cast<ComboBox*>(this), HitRevisionSite::ComboBoxLayout);
+    });
+    _popupLayoutCache                     = inputs;
     ++Detail::Work().popups.comboBoxPopupLayouts;
 
     _popupVisibleItemCount       = desiredVisibleRows;
@@ -2915,8 +2926,8 @@ bool ComboBox::HasPopupScrollbar() const noexcept
 void ComboBox::RebuildPopupItems(const ControlHost* host) noexcept
 {
     ++Detail::Work().popups.comboBoxPopupRebuilds;
-    _popupItemWidthCache.filteredValid = false; // the maximum over the filtered items follows the new filter
-    InvalidateHitTest(); // the filtered rows size the popup, which GetHitBounds and HitTestOverlay read
+    _popupItemWidthCache.filteredValid = false;                 // the maximum over the filtered items follows the new filter
+    NoteHitTestChange(*this, HitRevisionSite::ComboBoxRebuild); // the filtered rows size the popup, which GetHitBounds and HitTestOverlay read
     _popupItemIndices.clear();
     _popupItemIndices.reserve(_items.size());
 

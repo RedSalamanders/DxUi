@@ -36,6 +36,7 @@ enum class Event : uint8_t
     Present        = 5u,
     Composite      = 6u,
     Wake           = 7u,
+    HitReuseOff    = 8u, // A host stops reusing pointer hit results: an unreported control attached (W2.9).
 };
 
 enum class InputKind : uint8_t
@@ -168,6 +169,12 @@ template <typename Correlation> void Presented(Correlation& correlation, Event e
                  .result  = result,
                  .frame   = correlation.frameSequence,
                  .input   = correlation.frameInputSequence});
+}
+// A host went from reusing pointer hit results to walking for every hit test: the first control whose hit testing it cannot
+// see attached (ControlHost::DebugGetFirstUnreportedHitControlType names it).
+template <typename Correlation> void HitReuseOff(Correlation& correlation) noexcept
+{
+    Write(Record{.event = Event::HitReuseOff, .hostId = HostIdOf(correlation)});
 }
 inline void Wake(WakeSource source, uint32_t hostId = 0u) noexcept
 {

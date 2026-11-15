@@ -10,6 +10,7 @@
 #include "Embedded.Tests.PerformanceFixtureFx14.h"
 #pragma warning(pop)
 #include "Support.Tests.PointerHitDifferential.h"
+#include "Support/Trace.h"
 #include "Support/WorkCounters.h"
 
 #include <array>
@@ -150,7 +151,10 @@ private:
 class SelfRemover final : public Recorder
 {
 public:
-    using Recorder::Recorder;
+    SelfRemover(std::wstring name, Log& log) : Recorder(std::move(name), log, false)
+    {
+        DeclareHitTestReported(); // a declaration covers exactly its class
+    }
     bool OnMouseMove(DxUi::ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override
     {
         static_cast<void>(Recorder::OnMouseMove(host, point, modifiers));
@@ -419,4 +423,185 @@ void TestPointerHitPlainLabelsAreNotPrepared()
     const auto beforeDetached = DxUi::testMnemonicLayoutCreations;
     detached.PrepareVisualContent(scene.Host());
     Require(DxUi::testMnemonicLayoutCreations == beforeDetached, "a label not attached to the host is refused");
+}
+
+namespace
+{
+// Hit-test classes for the reporting rules (F7): a consumer class that declares, a subclass of it that does not, and one that
+// declares for itself.
+// Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+class DeclaringWidget : public DxUi::Control
+{
+public:
+    DeclaringWidget()
+    {
+        DeclareHitTestReported();
+    }
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+};
+class UndeclaredWidget : public DeclaringWidget
+{
+};
+class RedeclaringWidget final : public UndeclaredWidget
+{
+public:
+    RedeclaringWidget()
+    {
+        DeclareHitTestReported();
+    }
+};
+// A Label subclass with its own visual preparation (F4).
+class PreparingLabel final : public DxUi::Label
+{
+public:
+    using DxUi::Label::Label;
+    size_t prepared = 0u;
+
+protected:
+    void PrepareVisualContent(DxUi::ControlHost& host) noexcept override
+    {
+        ++prepared;
+        DxUi::Label::PrepareVisualContent(host);
+    }
+};
+#pragma warning(pop)
+
+void SendCursorQuery(HWND hwnd, HWND target, WORD hitCode, POINT screen)
+{
+    SendMessageW(hwnd, WM_NCHITTEST, 0u, MAKELPARAM(static_cast<short>(screen.x), static_cast<short>(screen.y)));
+    SendMessageW(hwnd, WM_SETCURSOR, reinterpret_cast<WPARAM>(target), MAKELPARAM(hitCode, WM_MOUSEMOVE));
+}
+} // namespace
+
+// The production cursor-query path, seam-driven (the real-input run is TestPointerHitRealInputReusesTheCursorQuery in the
+// interactive Menu suite): WM_NCHITTEST carries the screen point of the input being delivered, WM_SETCURSOR for this window's
+// client area opens the event at that point, converted exactly as the mouse message's client point is (here at 144 DPI, a
+// non-integer scale, on a window whose screen coordinates are negative), and the WM_MOUSEMOVE reuses it. A non-client cursor
+// query and one forwarded from a child window open no event.
+void TestPointerHitWindowCursorQueryUsesTheDeliveredPoint()
+{
+    NativeHitScene scene(true);
+    auto& host = scene.Host();
+    RECT outer{};
+    GetWindowRect(scene.Hwnd(), &outer);
+    bool ignored = false;
+    static_cast<void>(host.HandleMessage(scene.Hwnd(), WM_DPICHANGED, MAKEWPARAM(144, 144), reinterpret_cast<LPARAM>(&outer), ignored));
+    Require(host.GetDpi() == 144.0f, "the host takes 144 DPI");
+    auto root     = std::make_unique<DxUi::Panel>();
+    auto* buttons = root.get();
+    for (int index = 0; index < 4; ++index)
+        buttons->AddChild<DxUi::Button>(std::format(L"B{}", index))
+            ->SetBounds(D2D1::RectF(10.0f + 60.0f * static_cast<float>(index), 10.0f, 63.0f + 60.0f * static_cast<float>(index), 50.0f));
+    scene.SetRoot(std::move(root));
+    scene.Frame();
+    HWND child = CreateWindowExW(0, L"STATIC", L"", WS_CHILD, 0, 0, 4, 4, scene.Hwnd(), nullptr, GetModuleHandleW(nullptr), nullptr);
+    Require(child != nullptr, "a child window for a forwarded cursor query");
+    const auto destroyChild = wil::scope_exit([child]() noexcept { DestroyWindow(child); });
+
+    for (const LONG x : {17, 23, 101, 157, 233})
+    {
+        const POINT client{x, 41};
+        POINT screen = client;
+        Require(ClientToScreen(scene.Hwnd(), &screen) != FALSE, "client to screen");
+        Require(screen.x < 0 && screen.y < 0, "the off-screen test window has negative screen coordinates");
+        const WorkCounterScope counters;
+        SendCursorQuery(scene.Hwnd(), scene.Hwnd(), HTCLIENT, screen);
+        SendMessageW(scene.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(static_cast<short>(client.x), static_cast<short>(client.y)));
+        const auto work = counters.Delta().frame;
+        Require(work.hitTests == 1u && work.hitTestReuses == 1u, "the move reuses the hit test of the cursor query its WM_NCHITTEST located");
+    }
+    const POINT client{101, 41};
+    POINT screen = client;
+    Require(ClientToScreen(scene.Hwnd(), &screen) != FALSE, "client to screen");
+    {
+        const WorkCounterScope counters;
+        SendCursorQuery(scene.Hwnd(), scene.Hwnd(), HTCAPTION, screen);
+        SendMessageW(scene.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(static_cast<short>(client.x), static_cast<short>(client.y)));
+        Require(counters.Delta().frame.hitTestReuses == 0u, "a non-client cursor query opens no event");
+    }
+    {
+        const WorkCounterScope counters;
+        SendCursorQuery(scene.Hwnd(), child, HTCLIENT, screen);
+        Require(! host.DebugHasPointerHitResult(), "a cursor query forwarded from a child window opens no event");
+        SendMessageW(scene.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(static_cast<short>(client.x), static_cast<short>(client.y)));
+        Require(counters.Delta().frame.hitTestReuses == 0u, "and the move walks the tree");
+    }
+}
+
+// F6/F7: why a host reuses nothing, the declaration covering exactly its class, and the count of a control destroyed while
+// still attached through the legacy GetChildren() span.
+void TestPointerHitWindowReportsWhyReuseIsOff()
+{
+    NativeHitScene scene(true);
+    auto& host         = scene.Host();
+    auto root          = std::make_unique<DxUi::Panel>();
+    DxUi::Panel* panel = root.get();
+    auto* declaring    = panel->AddChild<DeclaringWidget>();
+    scene.SetRoot(std::move(root));
+    Require(declaring->DebugIsHitTestReported() && host.DebugGetUnreportedHitControlCount() == 0u && host.DebugGetFirstUnreportedHitControlType() == nullptr,
+            "a declaring consumer class is reported");
+
+    struct TraceProbe
+    {
+        size_t reuseOff = 0u;
+    } probe;
+    DxUi::Detail::Trace::InstallSinkForTest(
+        [](void* context, const DxUi::Detail::Trace::Record& record) noexcept
+    {
+        if (record.event == DxUi::Detail::Trace::Event::HitReuseOff)
+            ++static_cast<TraceProbe*>(context)->reuseOff;
+    },
+        &probe);
+    const auto removeSink = wil::scope_exit([]() noexcept { DxUi::Detail::Trace::InstallSinkForTest(nullptr, nullptr); });
+    auto* undeclared      = panel->AddChild<UndeclaredWidget>();
+    auto* redeclaring     = panel->AddChild<RedeclaringWidget>();
+    Require(! undeclared->DebugIsHitTestReported(), "a subclass of a declaring class is not reported until it declares for itself");
+    Require(redeclaring->DebugIsHitTestReported(), "a subclass that declares for itself is reported");
+    Require(host.DebugGetUnreportedHitControlCount() == 1u, "the host counts the one unreported control");
+    const char* const type = host.DebugGetFirstUnreportedHitControlType();
+    Require(type && std::string_view(type).find("UndeclaredWidget") != std::string_view::npos, "and names its type");
+    Require(probe.reuseOff == 1u, "one trace event says the host stopped reusing hit results");
+
+    // Destroyed while attached, through the legacy span: the count goes back to 0.
+    for (std::unique_ptr<DxUi::Control>& slot : panel->GetChildren())
+        if (slot.get() == undeclared)
+            slot.reset();
+    Require(host.DebugGetUnreportedHitControlCount() == 0u, "a control destroyed while attached leaves the count");
+    static_cast<void>(panel->CompactChildren());
+}
+
+// F4/F5: a Label subclass keeps its visual preparation; a label that was non-plain and is plain again stops being prepared.
+void TestPointerHitLabelSubclassAndReplainedLabel()
+{
+    NativeHitScene scene(true);
+    auto root      = std::make_unique<DxUi::Panel>();
+    auto* subclass = root->AddChild<PreparingLabel>(L"Subclass");
+    auto* label    = root->AddChild<DxUi::Label>(L"Name");
+    subclass->SetBounds(D2D1::RectF(10.0f, 10.0f, 200.0f, 30.0f));
+    label->SetBounds(D2D1::RectF(10.0f, 40.0f, 200.0f, 60.0f));
+    label->SetMnemonic(L'N');
+    scene.SetRoot(std::move(root));
+    scene.Frame();
+    Require(subclass->DebugVisualPreparationEnabled() && subclass->prepared >= 1u, "a Label subclass is prepared as before");
+    Require(label->DebugVisualPreparationEnabled(), "a label with a mnemonic is prepared");
+
+    label->SetMnemonic(L'\0');
+    Require(! label->DebugVisualPreparationEnabled(), "clearing its mnemonic makes it plain again");
+    const WorkCounterScope counters;
+    label->SetBounds(D2D1::RectF(10.0f, 40.0f, 240.0f, 64.0f));
+    subclass->SetBounds(D2D1::RectF(10.0f, 10.0f, 240.0f, 34.0f));
+    const size_t before = subclass->prepared;
+    scene.Frame();
+    Require(subclass->prepared > before, "the resized subclass is prepared");
+    // The subclass is plain too and reaches Label::PrepareVisualContent by design; the plain-again Label adds nothing.
+    Require(counters.Delta().frame.plainLabelPreparations == subclass->prepared - before, "a resized plain-again label is not prepared");
+
+    Require(SUCCEEDED(label->SetTypographyOverride(DxUi::LabelTypography{18.0f, DWRITE_FONT_WEIGHT_NORMAL, 0.0f})) && label->DebugVisualPreparationEnabled(),
+            "an override enables preparation");
+    static_cast<void>(label->SetTypographyOverride(std::nullopt));
+    Require(! label->DebugVisualPreparationEnabled(), "clearing it disables preparation again");
 }

@@ -65,12 +65,28 @@
           0,
           0
         ],
+        "frame.hitTestReuses": [
+          0,
+          0
+        ],
+        "frame.hitTests": [
+          0,
+          0
+        ],
         "frame.paintExecutions": [
           2,
           0
         ],
         "frame.pixelsPainted": [
           57600,
+          0
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
           0
         ],
         "frame.preparations": [
@@ -281,6 +297,14 @@
           0,
           0
         ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
+          0,
+          0
+        ],
         "popups.comboBoxPopupRebuilds": [
           0,
           0
@@ -290,6 +314,46 @@
           0
         ],
         "popups.menuRowsPainted": [
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0
+        ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
           0,
           0
         ],
@@ -325,6 +389,10 @@
           0,
           0
         ],
+        "rich.identityMapNodes": [
+          0,
+          0
+        ],
         "rich.imageUploadBytes": [
           0,
           0
@@ -342,6 +410,58 @@
           0
         ],
         "rich.preparationTurns": [
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0,
           0
         ],
@@ -401,6 +521,16 @@
           "max": 0,
           "total": 0
         },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.paintExecutions": {
           "min": 0,
           "max": 2,
@@ -410,6 +540,16 @@
           "min": 0,
           "max": 57600,
           "total": 57600
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 0,
@@ -671,6 +811,16 @@
           "max": 0,
           "total": 0
         },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.comboBoxPopupRebuilds": {
           "min": 0,
           "max": 0,
@@ -682,6 +832,56 @@
           "total": 0
         },
         "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -726,6 +926,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -747,6 +952,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -807,11 +1077,23 @@
         "frame.drawCalls": [
           0
         ],
+        "frame.hitTestReuses": [
+          1
+        ],
+        "frame.hitTests": [
+          1
+        ],
         "frame.paintExecutions": [
           2
         ],
         "frame.pixelsPainted": [
           57600
+        ],
+        "frame.plainLabelPreparations": [
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0
         ],
         "frame.preparations": [
           0
@@ -969,6 +1251,12 @@
         "popups.backdropCaptures": [
           0
         ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
+          0
+        ],
         "popups.comboBoxPopupRebuilds": [
           0
         ],
@@ -976,6 +1264,36 @@
           0
         ],
         "popups.menuRowsPainted": [
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0
+        ],
+        "lists.treeExpansionRecordCopies": [
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0
+        ],
+        "lists.treeItemReads": [
+          0
+        ],
+        "lists.treeModelLookups": [
           0
         ],
         "rich.chunksLaid": [
@@ -1002,6 +1320,9 @@
         "rich.hoverScanElements": [
           0
         ],
+        "rich.identityMapNodes": [
+          0
+        ],
         "rich.imageUploadBytes": [
           0
         ],
@@ -1015,6 +1336,45 @@
           0
         ],
         "rich.preparationTurns": [
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0
         ],
         "rich.svgRasterizations": [
@@ -1067,6 +1427,16 @@
           "max": 0,
           "total": 0
         },
+        "frame.hitTestReuses": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.hitTests": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
         "frame.paintExecutions": {
           "min": 2,
           "max": 2,
@@ -1076,6 +1446,16 @@
           "min": 57600,
           "max": 57600,
           "total": 57600
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 0,
@@ -1337,6 +1717,16 @@
           "max": 0,
           "total": 0
         },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.comboBoxPopupRebuilds": {
           "min": 0,
           "max": 0,
@@ -1348,6 +1738,56 @@
           "total": 0
         },
         "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1392,6 +1832,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -1413,6 +1858,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1767,6 +2277,110 @@
           0,
           0
         ],
+        "frame.hitTestReuses": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "frame.hitTests": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
         "frame.paintExecutions": [
           0,
           0,
@@ -1820,6 +2434,110 @@
           0
         ],
         "frame.pixelsPainted": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
           0,
           0,
           0,
@@ -4575,6 +5293,110 @@
           0,
           0
         ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.comboBoxPopupRebuilds": [
           0,
           0,
@@ -4680,6 +5502,526 @@
           0
         ],
         "popups.menuRowsPainted": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
           0,
           0,
           0,
@@ -5147,6 +6489,58 @@
           0,
           0
         ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.imageUploadBytes": [
           0,
           0,
@@ -5356,6 +6750,682 @@
           0
         ],
         "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0,
           0,
           0,
@@ -5751,12 +7821,32 @@
           "max": 0,
           "total": 0
         },
+        "frame.hitTestReuses": {
+          "min": 1,
+          "max": 1,
+          "total": 50
+        },
+        "frame.hitTests": {
+          "min": 1,
+          "max": 1,
+          "total": 50
+        },
         "frame.paintExecutions": {
           "min": 0,
           "max": 0,
           "total": 0
         },
         "frame.pixelsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -6021,6 +8111,16 @@
           "max": 0,
           "total": 0
         },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.comboBoxPopupRebuilds": {
           "min": 0,
           "max": 0,
@@ -6032,6 +8132,56 @@
           "total": 0
         },
         "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -6076,6 +8226,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -6097,6 +8252,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -6157,11 +8377,23 @@
         "frame.drawCalls": [
           0
         ],
+        "frame.hitTestReuses": [
+          0
+        ],
+        "frame.hitTests": [
+          0
+        ],
         "frame.paintExecutions": [
           2
         ],
         "frame.pixelsPainted": [
           57600
+        ],
+        "frame.plainLabelPreparations": [
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0
         ],
         "frame.preparations": [
           0
@@ -6319,6 +8551,12 @@
         "popups.backdropCaptures": [
           0
         ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
+          0
+        ],
         "popups.comboBoxPopupRebuilds": [
           0
         ],
@@ -6326,6 +8564,36 @@
           0
         ],
         "popups.menuRowsPainted": [
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0
+        ],
+        "lists.treeExpansionRecordCopies": [
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0
+        ],
+        "lists.treeItemReads": [
+          0
+        ],
+        "lists.treeModelLookups": [
           0
         ],
         "rich.chunksLaid": [
@@ -6352,6 +8620,9 @@
         "rich.hoverScanElements": [
           0
         ],
+        "rich.identityMapNodes": [
+          0
+        ],
         "rich.imageUploadBytes": [
           0
         ],
@@ -6365,6 +8636,45 @@
           0
         ],
         "rich.preparationTurns": [
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0
         ],
         "rich.svgRasterizations": [
@@ -6417,6 +8727,16 @@
           "max": 0,
           "total": 0
         },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.paintExecutions": {
           "min": 2,
           "max": 2,
@@ -6426,6 +8746,16 @@
           "min": 57600,
           "max": 57600,
           "total": 57600
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 0,
@@ -6687,6 +9017,16 @@
           "max": 0,
           "total": 0
         },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.comboBoxPopupRebuilds": {
           "min": 0,
           "max": 0,
@@ -6698,6 +9038,56 @@
           "total": 0
         },
         "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -6742,6 +9132,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -6763,6 +9158,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -7117,6 +9577,110 @@
           0,
           0
         ],
+        "frame.hitTestReuses": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "frame.hitTests": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
         "frame.paintExecutions": [
           2,
           2,
@@ -7220,6 +9784,110 @@
           57600,
           57600,
           57600
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.preparations": [
           0,
@@ -9925,6 +12593,110 @@
           0,
           0
         ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.comboBoxPopupRebuilds": [
           0,
           0,
@@ -10030,6 +12802,526 @@
           0
         ],
         "popups.menuRowsPainted": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
           0,
           0,
           0,
@@ -10497,6 +13789,58 @@
           0,
           0
         ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.imageUploadBytes": [
           0,
           0,
@@ -10706,6 +14050,682 @@
           0
         ],
         "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0,
           0,
           0,
@@ -11101,6 +15121,16 @@
           "max": 0,
           "total": 0
         },
+        "frame.hitTestReuses": {
+          "min": 1,
+          "max": 1,
+          "total": 50
+        },
+        "frame.hitTests": {
+          "min": 1,
+          "max": 1,
+          "total": 50
+        },
         "frame.paintExecutions": {
           "min": 2,
           "max": 2,
@@ -11110,6 +15140,16 @@
           "min": 57600,
           "max": 57600,
           "total": 2880000
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 0,
@@ -11371,6 +15411,16 @@
           "max": 0,
           "total": 0
         },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.comboBoxPopupRebuilds": {
           "min": 0,
           "max": 0,
@@ -11382,6 +15432,56 @@
           "total": 0
         },
         "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -11426,6 +15526,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -11447,6 +15552,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -11507,11 +15677,23 @@
         "frame.drawCalls": [
           0
         ],
+        "frame.hitTestReuses": [
+          1
+        ],
+        "frame.hitTests": [
+          1
+        ],
         "frame.paintExecutions": [
           2
         ],
         "frame.pixelsPainted": [
           57600
+        ],
+        "frame.plainLabelPreparations": [
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0
         ],
         "frame.preparations": [
           0
@@ -11669,6 +15851,12 @@
         "popups.backdropCaptures": [
           0
         ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
+          0
+        ],
         "popups.comboBoxPopupRebuilds": [
           0
         ],
@@ -11676,6 +15864,36 @@
           0
         ],
         "popups.menuRowsPainted": [
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0
+        ],
+        "lists.treeExpansionRecordCopies": [
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0
+        ],
+        "lists.treeItemReads": [
+          0
+        ],
+        "lists.treeModelLookups": [
           0
         ],
         "rich.chunksLaid": [
@@ -11702,6 +15920,9 @@
         "rich.hoverScanElements": [
           0
         ],
+        "rich.identityMapNodes": [
+          0
+        ],
         "rich.imageUploadBytes": [
           0
         ],
@@ -11715,6 +15936,45 @@
           0
         ],
         "rich.preparationTurns": [
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0
         ],
         "rich.svgRasterizations": [
@@ -11767,6 +16027,16 @@
           "max": 0,
           "total": 0
         },
+        "frame.hitTestReuses": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.hitTests": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
         "frame.paintExecutions": {
           "min": 2,
           "max": 2,
@@ -11776,6 +16046,16 @@
           "min": 57600,
           "max": 57600,
           "total": 57600
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 0,
@@ -12037,6 +16317,16 @@
           "max": 0,
           "total": 0
         },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.comboBoxPopupRebuilds": {
           "min": 0,
           "max": 0,
@@ -12048,6 +16338,56 @@
           "total": 0
         },
         "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -12092,6 +16432,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -12113,6 +16458,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -12151,7 +16561,7 @@
     }
   ],
   "memory": {
-    "entryPrivateBytes": 3072000,
+    "entryPrivateBytes": 3084288,
     "videoMemory": {
       "applicable": false,
       "reason": "software adapter: rendering uses system memory, which privateBytes counts"
@@ -12160,54 +16570,54 @@
     "samples": [
       {
         "at": "device",
-        "privateBytes": 7364608,
-        "workingSetBytes": 17301504
+        "privateBytes": 7389184,
+        "workingSetBytes": 17317888
       },
       {
         "at": "built",
-        "privateBytes": 7491584,
-        "workingSetBytes": 19132416
+        "privateBytes": 7512064,
+        "workingSetBytes": 19169280
       },
       {
         "at": "phase",
         "phase": "warm",
-        "privateBytes": 10678272,
-        "workingSetBytes": 29327360
+        "privateBytes": 10764288,
+        "workingSetBytes": 29249536
       },
       {
         "at": "phase",
         "phase": "enter",
-        "privateBytes": 10702848,
-        "workingSetBytes": 29544448
+        "privateBytes": 10792960,
+        "workingSetBytes": 29372416
       },
       {
         "at": "phase",
         "phase": "pending",
-        "privateBytes": 10706944,
-        "workingSetBytes": 29667328
+        "privateBytes": 10797056,
+        "workingSetBytes": 29597696
       },
       {
         "at": "phase",
         "phase": "show",
-        "privateBytes": 11673600,
-        "workingSetBytes": 31145984
+        "privateBytes": 11538432,
+        "workingSetBytes": 31113216
       },
       {
         "at": "phase",
         "phase": "shown",
-        "privateBytes": 12279808,
-        "workingSetBytes": 31653888
+        "privateBytes": 12320768,
+        "workingSetBytes": 31563776
       },
       {
         "at": "phase",
         "phase": "leave",
-        "privateBytes": 12279808,
-        "workingSetBytes": 31653888
+        "privateBytes": 12320768,
+        "workingSetBytes": 31563776
       },
       {
         "at": "hidden",
-        "privateBytes": 12279808,
-        "workingSetBytes": 31653888
+        "privateBytes": 12320768,
+        "workingSetBytes": 31563776
       }
     ],
     "hiddenResidencyDelta": {
@@ -12233,7 +16643,7 @@
         "budget": "idle native window <= 8 MB private above process entry at 1080p",
         "counter": "private bytes after the last phase, shown, minus private bytes at process entry",
         "limitBytes": 8000000,
-        "measuredBytes": 9207808,
+        "measuredBytes": 9236480,
         "status": "advisory"
       },
       {
@@ -12283,20 +16693,20 @@
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h": "7C2FAFF45C77EFEB1B521D74379AEE3DD335B86CC339FD1C91C4BD216CC77AE0",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "7C5A056727C5F60E1542313F154EFD393DD148F26DB8DC8A526901A144F8729C",
     "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "00844224A58AC9CDD5B726A72BD598293BA5756E9535AC59E26134DD3D7A78DD",
-    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "0D1E9B143845DDFC21A65F974D644E75198BF4D4B37C996B6E97AE0CC825D868",
+    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "B466B2EAE7F7CDF6EC9FE70867F2E5BCE04334639CC4C01B5C85C240E8DB07A3",
     "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
-    "performance-fixtures.ps1": "21650580C135279202B3F1A1DA196D294B72446B92E96A3125ADD4408A0BF50E",
-    "Tools/PerformanceFixtures.psm1": "A2494E5DE019AD96F3A5C4A9FF7B8E3D0695632CBA45A8C16E26B5605E9E0EEB",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx14.h": "5116F11ADE3295CDB87BD2FA6697E3EA7F9351AC50470A86C7D7864EA144378E",
+    "performance-fixtures.ps1": "7137E9356F903546CD9E1D67226AA9375C7E788101409640A9C48F4B34671E5B",
+    "Tools/PerformanceFixtures.psm1": "3AE90348157D4C1C743021DC9FA5CCCC01D7F706591C18CA9CCE9F06FACAABF9",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx14.h": "E8A82211573BFCD521376F89A5349072AB1B88A86317F503E0B5625AF21FDE8A",
     "Tests/Embedded/Embedded.Tests.TooltipHoverPath.h": "A81919294FD43DC0886F3BF36317FD0E987A5DFE1909044AF5C85970E9AD560B"
   },
   "provenance": {
-    "sourceCommit": "93294c485730d1722603c846ca2bcde7d5bbd38f",
+    "sourceCommit": "19673549e3c7a78ad182423311b529819886cea8",
     "sourceDirty": true,
     "platform": "x64",
     "configuration": "Release",
     "command": "performance-fixtures.ps1 -Fixture FX14 -Variant default -Adapter Warp -FixtureHost window -Configuration 'Release' -Platform x64",
-    "executableSha256": "8D29B96C13C3B1BE8318BAB85BD2B7BF6E924980620BBE54C480B3BBBF43E13D",
+    "executableSha256": "25C3CFD051ED4FAA713E61FDDCA1065BCA27EF49B5AEAC94C53FD0155344093D",
     "os": {
       "description": "Microsoft Windows 10.0.26300",
       "build": "26300",
@@ -12326,11 +16736,11 @@
     },
     "hostIdle": {
       "seconds": 3,
-      "busyPercent": 38.72196360558612,
+      "busyPercent": 48.62499999999999,
       "observer": "Tools/Watch-BenchmarkHost.ps1",
       "required": false
     },
     "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
-    "recordedUtc": "2026-11-15T00:00:05.3732628Z"
+    "recordedUtc": "2026-11-15T05:23:31.8055646Z"
   }
 }

@@ -767,6 +767,43 @@ void DrawTextWithMnemonic(ControlHost& host,
 // Nesting depth of ControlHost::PreparePendingPageLayout on this thread: the work counter preparationMembershipSearches
 // counts the IsControlInTree searches that start while it is nonzero.
 inline thread_local constinit uint32_t g_hostPreparationDepth = 0u;
+// Every place the library moves the pointer hit revision (UI_InputAndAccessibility.md, "Pointer hit result"), named so that a
+// test can suppress exactly one and show that a scenario then hits a stale control (mutation coverage of the W2.9
+// differential). `Key` suppresses the hit-revision comparison of the cached result instead.
+enum class HitRevisionSite : uint8_t
+{
+    None,
+    ComboBoxRebuild,
+    ComboBoxOpen,
+    ComboBoxClose,
+    ComboBoxLayout,
+    ScrollOffset,
+    PageTransitionStart,
+    PageTransitionEnd,
+    PageIndicatorCount,
+    SliderOrientation,
+    SplitterGeometry,
+    SplitterPosition,
+    OverlayDismissal,
+    HostSize,
+    HostDpi,
+    HostTheme,
+    DeviceLoss,
+    RootReset,
+    SurfaceLoss,
+    Key,
+};
+inline thread_local constinit HitRevisionSite g_suppressedHitRevisionSiteForTest = HitRevisionSite::None;
+[[nodiscard]] inline bool HitRevisionSiteLive(HitRevisionSite site) noexcept
+{
+    return site != g_suppressedHitRevisionSiteForTest;
+}
+// A library control's hit-testing state changed (Control::InvalidateHitTest), at a named site.
+inline void NoteHitTestChange(Control& control, HitRevisionSite site) noexcept
+{
+    if (HitRevisionSiteLive(site))
+        control.InvalidateHitTest();
+}
 // Item icon text (Grid cells, Tree rows): private-use glyphs need the icon font; letters, digits and symbols keep the
 // small UI font, which the icon font would draw as missing-glyph boxes.
 [[nodiscard]] bool IconTextUsesIconFont(std::wstring_view iconText) noexcept;

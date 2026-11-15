@@ -69,12 +69,28 @@
           15,
           0
         ],
+        "frame.hitTestReuses": [
+          0,
+          0
+        ],
+        "frame.hitTests": [
+          0,
+          0
+        ],
         "frame.paintExecutions": [
           3,
           0
         ],
         "frame.pixelsPainted": [
           2880000,
+          0
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
           0
         ],
         "frame.preparations": [
@@ -325,6 +341,26 @@
           0,
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0
+        ],
         "rich.chunksLaid": [
           0,
           0
@@ -357,6 +393,10 @@
           0,
           0
         ],
+        "rich.identityMapNodes": [
+          0,
+          0
+        ],
         "rich.imageUploadBytes": [
           0,
           0
@@ -374,6 +414,58 @@
           0
         ],
         "rich.preparationTurns": [
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0,
           0
         ],
@@ -438,6 +530,16 @@
           "max": 15,
           "total": 15
         },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.paintExecutions": {
           "min": 0,
           "max": 3,
@@ -447,6 +549,16 @@
           "min": 0,
           "max": 2880000,
           "total": 2880000
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 0,
@@ -758,6 +870,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -798,6 +935,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -819,6 +961,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -882,11 +1089,23 @@
         "frame.drawCalls": [
           39
         ],
+        "frame.hitTestReuses": [
+          0
+        ],
+        "frame.hitTests": [
+          0
+        ],
         "frame.paintExecutions": [
           3
         ],
         "frame.pixelsPainted": [
           2880000
+        ],
+        "frame.plainLabelPreparations": [
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0
         ],
         "frame.preparations": [
           1
@@ -1074,6 +1293,21 @@
         "lists.gridSelectionCopies": [
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0
+        ],
+        "lists.treeItemReads": [
+          0
+        ],
+        "lists.treeModelLookups": [
+          0
+        ],
         "rich.chunksLaid": [
           0
         ],
@@ -1098,6 +1332,9 @@
         "rich.hoverScanElements": [
           0
         ],
+        "rich.identityMapNodes": [
+          0
+        ],
         "rich.imageUploadBytes": [
           0
         ],
@@ -1111,6 +1348,45 @@
           0
         ],
         "rich.preparationTurns": [
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0
         ],
         "rich.svgRasterizations": [
@@ -1168,6 +1444,16 @@
           "max": 39,
           "total": 39
         },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.paintExecutions": {
           "min": 3,
           "max": 3,
@@ -1177,6 +1463,16 @@
           "min": 2880000,
           "max": 2880000,
           "total": 2880000
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 1,
@@ -1488,6 +1784,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -1528,6 +1849,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -1549,6 +1875,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2025,6 +2416,130 @@
           39,
           39
         ],
+        "frame.hitTestReuses": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "frame.hitTests": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
         "frame.paintExecutions": [
           3,
           3,
@@ -2148,6 +2663,130 @@
           2880000,
           2880000,
           2880000
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.preparations": [
           1,
@@ -5993,6 +6632,316 @@
           0,
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.chunksLaid": [
           0,
           0,
@@ -6489,6 +7438,68 @@
           0,
           0
         ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.imageUploadBytes": [
           0,
           0,
@@ -6738,6 +7749,812 @@
           0
         ],
         "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0,
           0,
           0,
@@ -7208,6 +9025,16 @@
           "max": 39,
           "total": 2340
         },
+        "frame.hitTestReuses": {
+          "min": 1,
+          "max": 1,
+          "total": 60
+        },
+        "frame.hitTests": {
+          "min": 1,
+          "max": 1,
+          "total": 60
+        },
         "frame.paintExecutions": {
           "min": 3,
           "max": 3,
@@ -7217,6 +9044,16 @@
           "min": 2880000,
           "max": 2880000,
           "total": 172800000
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 1,
@@ -7528,6 +9365,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -7568,6 +9430,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -7589,6 +9456,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -7652,11 +9584,23 @@
         "frame.drawCalls": [
           16
         ],
+        "frame.hitTestReuses": [
+          0
+        ],
+        "frame.hitTests": [
+          0
+        ],
         "frame.paintExecutions": [
           3
         ],
         "frame.pixelsPainted": [
           2880000
+        ],
+        "frame.plainLabelPreparations": [
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0
         ],
         "frame.preparations": [
           1
@@ -7844,6 +9788,21 @@
         "lists.gridSelectionCopies": [
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0
+        ],
+        "lists.treeItemReads": [
+          0
+        ],
+        "lists.treeModelLookups": [
+          0
+        ],
         "rich.chunksLaid": [
           0
         ],
@@ -7868,6 +9827,9 @@
         "rich.hoverScanElements": [
           0
         ],
+        "rich.identityMapNodes": [
+          0
+        ],
         "rich.imageUploadBytes": [
           0
         ],
@@ -7881,6 +9843,45 @@
           0
         ],
         "rich.preparationTurns": [
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0
         ],
         "rich.svgRasterizations": [
@@ -7938,6 +9939,16 @@
           "max": 16,
           "total": 16
         },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.paintExecutions": {
           "min": 3,
           "max": 3,
@@ -7947,6 +9958,16 @@
           "min": 2880000,
           "max": 2880000,
           "total": 2880000
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 1,
@@ -8258,6 +10279,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -8298,6 +10344,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -8319,6 +10370,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -8515,6 +10631,50 @@
           16,
           16
         ],
+        "frame.hitTestReuses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTests": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.paintExecutions": [
           3,
           3,
@@ -8558,6 +10718,50 @@
           2880000,
           2880000,
           2880000
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.preparations": [
           1,
@@ -9923,6 +12127,116 @@
           0,
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.chunksLaid": [
           0,
           0,
@@ -10099,6 +12413,28 @@
           0,
           0
         ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.imageUploadBytes": [
           0,
           0,
@@ -10188,6 +12524,292 @@
           0
         ],
         "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0,
           0,
           0,
@@ -10378,6 +13000,16 @@
           "max": 16,
           "total": 320
         },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.paintExecutions": {
           "min": 3,
           "max": 3,
@@ -10387,6 +13019,16 @@
           "min": 2880000,
           "max": 2880000,
           "total": 57600000
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 1,
@@ -10698,6 +13340,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -10738,6 +13405,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -10759,6 +13431,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -10822,11 +13559,23 @@
         "frame.drawCalls": [
           129
         ],
+        "frame.hitTestReuses": [
+          0
+        ],
+        "frame.hitTests": [
+          0
+        ],
         "frame.paintExecutions": [
           3
         ],
         "frame.pixelsPainted": [
           2880000
+        ],
+        "frame.plainLabelPreparations": [
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0
         ],
         "frame.preparations": [
           1
@@ -11014,6 +13763,21 @@
         "lists.gridSelectionCopies": [
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0
+        ],
+        "lists.treeItemReads": [
+          0
+        ],
+        "lists.treeModelLookups": [
+          0
+        ],
         "rich.chunksLaid": [
           0
         ],
@@ -11038,6 +13802,9 @@
         "rich.hoverScanElements": [
           0
         ],
+        "rich.identityMapNodes": [
+          0
+        ],
         "rich.imageUploadBytes": [
           0
         ],
@@ -11051,6 +13818,45 @@
           0
         ],
         "rich.preparationTurns": [
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0
         ],
         "rich.svgRasterizations": [
@@ -11108,6 +13914,16 @@
           "max": 129,
           "total": 129
         },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.paintExecutions": {
           "min": 3,
           "max": 3,
@@ -11117,6 +13933,16 @@
           "min": 2880000,
           "max": 2880000,
           "total": 2880000
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 1,
@@ -11428,6 +14254,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -11468,6 +14319,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -11489,6 +14345,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -11685,6 +14606,50 @@
           129,
           129
         ],
+        "frame.hitTestReuses": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "frame.hitTests": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
         "frame.paintExecutions": [
           3,
           3,
@@ -11728,6 +14693,50 @@
           2880000,
           2880000,
           2880000
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.preparations": [
           1,
@@ -13093,6 +16102,116 @@
           0,
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.chunksLaid": [
           0,
           0,
@@ -13269,6 +16388,28 @@
           0,
           0
         ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.imageUploadBytes": [
           0,
           0,
@@ -13358,6 +16499,292 @@
           0
         ],
         "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0,
           0,
           0,
@@ -13548,6 +16975,16 @@
           "max": 129,
           "total": 2580
         },
+        "frame.hitTestReuses": {
+          "min": 1,
+          "max": 1,
+          "total": 20
+        },
+        "frame.hitTests": {
+          "min": 1,
+          "max": 1,
+          "total": 20
+        },
         "frame.paintExecutions": {
           "min": 3,
           "max": 3,
@@ -13557,6 +16994,16 @@
           "min": 2880000,
           "max": 2880000,
           "total": 57600000
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 1,
@@ -13868,6 +17315,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -13908,6 +17380,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -13929,6 +17406,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -13992,11 +17534,23 @@
         "frame.drawCalls": [
           16
         ],
+        "frame.hitTestReuses": [
+          0
+        ],
+        "frame.hitTests": [
+          0
+        ],
         "frame.paintExecutions": [
           3
         ],
         "frame.pixelsPainted": [
           2880000
+        ],
+        "frame.plainLabelPreparations": [
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0
         ],
         "frame.preparations": [
           1
@@ -14184,6 +17738,21 @@
         "lists.gridSelectionCopies": [
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0
+        ],
+        "lists.treeItemReads": [
+          0
+        ],
+        "lists.treeModelLookups": [
+          0
+        ],
         "rich.chunksLaid": [
           0
         ],
@@ -14208,6 +17777,9 @@
         "rich.hoverScanElements": [
           0
         ],
+        "rich.identityMapNodes": [
+          0
+        ],
         "rich.imageUploadBytes": [
           0
         ],
@@ -14221,6 +17793,45 @@
           0
         ],
         "rich.preparationTurns": [
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0
         ],
         "rich.svgRasterizations": [
@@ -14278,6 +17889,16 @@
           "max": 16,
           "total": 16
         },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.paintExecutions": {
           "min": 3,
           "max": 3,
@@ -14287,6 +17908,16 @@
           "min": 2880000,
           "max": 2880000,
           "total": 2880000
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 1,
@@ -14598,6 +18229,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -14638,6 +18294,11 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
           "min": 0,
           "max": 0,
@@ -14659,6 +18320,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -14697,7 +18423,7 @@
     }
   ],
   "memory": {
-    "entryPrivateBytes": 2613248,
+    "entryPrivateBytes": 2646016,
     "videoMemory": {
       "applicable": false,
       "reason": "software adapter: rendering uses system memory, which privateBytes counts"
@@ -14706,14 +18432,14 @@
     "samples": [
       {
         "at": "device",
-        "privateBytes": 19345408,
-        "workingSetBytes": 21737472
+        "privateBytes": 19386368,
+        "workingSetBytes": 21733376
       },
       {
         "at": "built",
-        "privateBytes": 20979712,
-        "workingSetBytes": 25268224,
-        "trackedLiveBytes": 77819,
+        "privateBytes": 20967424,
+        "workingSetBytes": 25346048,
+        "trackedLiveBytes": 77907,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 0,
@@ -14730,9 +18456,9 @@
       {
         "at": "phase",
         "phase": "warm",
-        "privateBytes": 34975744,
-        "workingSetBytes": 29253632,
-        "trackedLiveBytes": 78011,
+        "privateBytes": 35307520,
+        "workingSetBytes": 29585408,
+        "trackedLiveBytes": 78099,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 4,
@@ -14749,9 +18475,9 @@
       {
         "at": "phase",
         "phase": "open",
-        "privateBytes": 47357952,
-        "workingSetBytes": 61636608,
-        "trackedLiveBytes": 81203,
+        "privateBytes": 46804992,
+        "workingSetBytes": 61120512,
+        "trackedLiveBytes": 81291,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 12,
@@ -14768,9 +18494,9 @@
       {
         "at": "phase",
         "phase": "hover",
-        "privateBytes": 100601856,
-        "workingSetBytes": 104927232,
-        "trackedLiveBytes": 81203,
+        "privateBytes": 100581376,
+        "workingSetBytes": 104075264,
+        "trackedLiveBytes": 81291,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 12,
@@ -14787,9 +18513,9 @@
       {
         "at": "phase",
         "phase": "close",
-        "privateBytes": 101683200,
-        "workingSetBytes": 105132032,
-        "trackedLiveBytes": 81203,
+        "privateBytes": 100855808,
+        "workingSetBytes": 104263680,
+        "trackedLiveBytes": 81291,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 12,
@@ -14806,9 +18532,9 @@
       {
         "at": "phase",
         "phase": "type",
-        "privateBytes": 104710144,
-        "workingSetBytes": 107999232,
-        "trackedLiveBytes": 85139,
+        "privateBytes": 104439808,
+        "workingSetBytes": 107503616,
+        "trackedLiveBytes": 85227,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 12,
@@ -14825,9 +18551,9 @@
       {
         "at": "phase",
         "phase": "fit-open",
-        "privateBytes": 125120512,
-        "workingSetBytes": 112050176,
-        "trackedLiveBytes": 85603,
+        "privateBytes": 124841984,
+        "workingSetBytes": 111878144,
+        "trackedLiveBytes": 85691,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 14,
@@ -14844,9 +18570,9 @@
       {
         "at": "phase",
         "phase": "fit-hover",
-        "privateBytes": 168038400,
-        "workingSetBytes": 145981440,
-        "trackedLiveBytes": 85603,
+        "privateBytes": 165761024,
+        "workingSetBytes": 145756160,
+        "trackedLiveBytes": 85691,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 14,
@@ -14863,9 +18589,9 @@
       {
         "at": "phase",
         "phase": "fit-close",
-        "privateBytes": 168038400,
-        "workingSetBytes": 146042880,
-        "trackedLiveBytes": 85603,
+        "privateBytes": 165761024,
+        "workingSetBytes": 145858560,
+        "trackedLiveBytes": 85691,
         "retained": {
           "surfaceBytes": 11520000,
           "cachedBrushes": 14,
@@ -14881,9 +18607,9 @@
       },
       {
         "at": "hidden",
-        "privateBytes": 168038400,
-        "workingSetBytes": 146083840,
-        "trackedLiveBytes": 84483,
+        "privateBytes": 165761024,
+        "workingSetBytes": 145899520,
+        "trackedLiveBytes": 84571,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 14,
@@ -15023,6 +18749,11 @@
         "residentBytes": 0
       },
       {
+        "name": "Tree._visibleIdIndexCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
         "name": "Grid._cellTextLayouts",
         "entries": 0,
         "residentBytes": 0
@@ -15066,7 +18797,7 @@
         "budget": "idle native window <= 8 MB private above process entry at 1080p",
         "counter": "private bytes after the last phase, shown, minus private bytes at process entry",
         "limitBytes": 8000000,
-        "measuredBytes": 165425152,
+        "measuredBytes": 163115008,
         "status": "advisory"
       },
       {
@@ -15083,7 +18814,7 @@
         "budget": "<= 256 B per simple control all-in",
         "counter": "tracked live C++ bytes after the build divided by the controls of the built tree (host attachment included)",
         "limitBytes": 256,
-        "measuredBytes": 25939,
+        "measuredBytes": 25969,
         "status": "exceeded"
       },
       {
@@ -15114,19 +18845,19 @@
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h": "7C2FAFF45C77EFEB1B521D74379AEE3DD335B86CC339FD1C91C4BD216CC77AE0",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "7C5A056727C5F60E1542313F154EFD393DD148F26DB8DC8A526901A144F8729C",
     "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "00844224A58AC9CDD5B726A72BD598293BA5756E9535AC59E26134DD3D7A78DD",
-    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "0D1E9B143845DDFC21A65F974D644E75198BF4D4B37C996B6E97AE0CC825D868",
+    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "B466B2EAE7F7CDF6EC9FE70867F2E5BCE04334639CC4C01B5C85C240E8DB07A3",
     "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
     "performance-fixtures.ps1": "7137E9356F903546CD9E1D67226AA9375C7E788101409640A9C48F4B34671E5B",
     "Tools/PerformanceFixtures.psm1": "3AE90348157D4C1C743021DC9FA5CCCC01D7F706591C18CA9CCE9F06FACAABF9",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx2.h": "E0E2EC93A9AC081B5FFE62877866F234EA4A145B7F9AC1446949AF5CBD01BFAA"
   },
   "provenance": {
-    "sourceCommit": "e588c43e94b806c945938001698d70f586973f80",
-    "sourceDirty": false,
+    "sourceCommit": "19673549e3c7a78ad182423311b529819886cea8",
+    "sourceDirty": true,
     "platform": "x64",
     "configuration": "Release",
     "command": "performance-fixtures.ps1 -Fixture FX2 -Variant default -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64",
-    "executableSha256": "3916215D7041A767B24E279765EA4F13C8482C67515518D5387EFE79BCD6A6F3",
+    "executableSha256": "079231904145D534BBB46B6608D20EFADCA4B7832D199168B86864E6E28ACBD5",
     "os": {
       "description": "Microsoft Windows 10.0.26300",
       "build": "26300",
@@ -15156,11 +18887,11 @@
     },
     "hostIdle": {
       "seconds": 3,
-      "busyPercent": 50.727370689655174,
+      "busyPercent": 44.6849847349431,
       "observer": "Tools/Watch-BenchmarkHost.ps1",
       "required": false
     },
     "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
-    "recordedUtc": "2026-11-15T02:46:42.8961501Z"
+    "recordedUtc": "2026-11-15T05:23:37.8561953Z"
   }
 }

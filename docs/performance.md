@@ -484,6 +484,7 @@ The ETW header adds the process, thread and session time. Fields are written in 
 | `Present` | frame | `Frame`, `Input`, `Partial` (Boolean), `Result` (HRESULT), `Qpc` | A `WindowHost` `Present` or `Present1` call returns. |
 | `Composite` | frame | `Frame`, `Input`, `Qpc` | An `EmbeddedHost::Composite` draws the prepared surface. |
 | `Wake` | wake | `Source` (UInt8), `Qpc` | DxUi takes a turn on the owner thread because something woke it. |
+| `HitReuseOff` | input | `Qpc` | A host stops reusing pointer hit results: the first control whose hit testing it cannot see attached (`ControlHost::DebugGetFirstUnreportedHitControlType` names it). |
 
 `Kind`: 1 pointer move, 2 pointer down (any button, double clicks included), 3 pointer up, 4 wheel, 5 key down, 6 key up,
 7 character, 8 pointer leave and 9 pointer cancel (embedded dispatch only). `Reason`: 1 invalidate (a control or the host

@@ -39,7 +39,7 @@
       "steps": 2,
       "series": {
         "cppAllocations": [
-          135,
+          137,
           25
         ],
         "created": [
@@ -54,7 +54,23 @@
           1,
           1
         ],
+        "frame.compositionDevices": [
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0
+        ],
         "frame.drawCalls": [
+          0,
+          0
+        ],
+        "frame.hitTestReuses": [
+          0,
+          0
+        ],
+        "frame.hitTests": [
           0,
           0
         ],
@@ -66,6 +82,14 @@
           480000,
           480000
         ],
+        "frame.plainLabelPreparations": [
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0
+        ],
         "frame.preparations": [
           1,
           1
@@ -75,6 +99,34 @@
           0
         ],
         "frame.renders": [
+          0,
+          0
+        ],
+        "frame.shadowPasses": [
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0
+        ],
+        "frame.tickCalls": [
+          0,
+          0
+        ],
+        "frame.tickDiscoveryWalks": [
+          0,
+          0
+        ],
+        "frame.tickHeldWhileHidden": [
+          0,
+          0
+        ],
+        "frame.tickLegacyTreeWalks": [
+          0,
+          0
+        ],
+        "frame.tickRequesters": [
           0,
           0
         ],
@@ -95,6 +147,10 @@
           0
         ],
         "wakes.animationTimer": [
+          0,
+          0
+        ],
+        "wakes.deadlineTimer": [
           0,
           0
         ],
@@ -230,6 +286,10 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0
@@ -238,7 +298,75 @@
           0,
           0
         ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
+          0,
+          0
+        ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          1,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          5,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0
+        ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0
+        ],
+        "rich.chunksLaid": [
+          0,
+          0
+        ],
+        "rich.diagramPreparations": [
+          0,
+          0
+        ],
+        "rich.displayUnitsWritten": [
           0,
           0
         ],
@@ -250,11 +378,99 @@
           0,
           0
         ],
+        "rich.elementsBuilt": [
+          0,
+          0
+        ],
         "rich.hoveredTitleCalls": [
           0,
           0
         ],
         "rich.hoverScanElements": [
+          0,
+          0
+        ],
+        "rich.identityMapNodes": [
+          0,
+          0
+        ],
+        "rich.imageUploadBytes": [
+          0,
+          0
+        ],
+        "rich.mathPreparations": [
+          0,
+          0
+        ],
+        "rich.otherDocumentBytesCopied": [
+          0,
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0,
+          0
+        ],
+        "rich.preparationTurns": [
+          1,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
+          0,
+          0
+        ],
+        "rich.svgRasterizations": [
+          0,
+          0
+        ],
+        "rich.wholeLayoutsLaid": [
           0,
           0
         ],
@@ -278,8 +494,8 @@
       "summary": {
         "cppAllocations": {
           "min": 25,
-          "max": 135,
-          "total": 160
+          "max": 137,
+          "total": 162
         },
         "created": {
           "min": 22,
@@ -296,7 +512,27 @@
           "max": 1,
           "total": 2
         },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.drawCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -311,6 +547,16 @@
           "max": 480000,
           "total": 960000
         },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.preparations": {
           "min": 1,
           "max": 1,
@@ -322,6 +568,41 @@
           "total": 0
         },
         "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickDiscoveryWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickHeldWhileHidden": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickLegacyTreeWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickRequesters": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -347,6 +628,11 @@
           "total": 0
         },
         "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.deadlineTimer": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -516,6 +802,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -526,7 +817,92 @@
           "max": 0,
           "total": 0
         },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 1,
+          "total": 1
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 5,
+          "total": 5
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.chunksLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.diagramPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.displayUnitsWritten": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -541,12 +917,122 @@
           "max": 0,
           "total": 0
         },
+        "rich.elementsBuilt": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.hoveredTitleCalls": {
           "min": 0,
           "max": 0,
           "total": 0
         },
         "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.mathPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.preparationTurns": {
+          "min": 0,
+          "max": 1,
+          "total": 1
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.svgRasterizations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.wholeLayoutsLaid": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -707,7 +1193,135 @@
           1,
           1
         ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.drawCalls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTestReuses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTests": [
           0,
           0,
           0,
@@ -803,6 +1417,70 @@
           7879704,
           8294400
         ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.preparations": [
           1,
           1,
@@ -868,6 +1546,230 @@
           0
         ],
         "frame.renders": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickCalls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickDiscoveryWalks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickHeldWhileHidden": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickLegacyTreeWalks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickRequesters": [
           0,
           0,
           0,
@@ -1028,6 +1930,38 @@
           0
         ],
         "wakes.animationTimer": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.deadlineTimer": [
           0,
           0,
           0,
@@ -2115,6 +3049,38 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -2179,7 +3145,551 @@
           0,
           0
         ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.chunksLaid": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.diagramPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.displayUnitsWritten": [
           0,
           0,
           0,
@@ -2275,6 +3785,38 @@
           0,
           0
         ],
+        "rich.elementsBuilt": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.hoveredTitleCalls": [
           0,
           0,
@@ -2308,6 +3850,678 @@
           0
         ],
         "rich.hoverScanElements": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.imageUploadBytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.mathPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.svgRasterizations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.wholeLayoutsLaid": [
           0,
           0,
           0,
@@ -2489,7 +4703,27 @@
           "max": 1,
           "total": 30
         },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.drawCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2504,6 +4738,16 @@
           "max": 8294400,
           "total": 111823660
         },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.preparations": {
           "min": 1,
           "max": 1,
@@ -2515,6 +4759,41 @@
           "total": 0
         },
         "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickDiscoveryWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickHeldWhileHidden": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickLegacyTreeWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickRequesters": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2540,6 +4819,11 @@
           "total": 0
         },
         "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.deadlineTimer": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2709,6 +4993,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -2719,7 +5008,92 @@
           "max": 0,
           "total": 0
         },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.chunksLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.diagramPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.displayUnitsWritten": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2734,12 +5108,122 @@
           "max": 0,
           "total": 0
         },
+        "rich.elementsBuilt": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.hoveredTitleCalls": {
           "min": 0,
           "max": 0,
           "total": 0
         },
         "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.mathPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.svgRasterizations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.wholeLayoutsLaid": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2792,7 +5276,27 @@
           1,
           1
         ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0
+        ],
         "frame.drawCalls": [
+          0,
+          0,
+          0
+        ],
+        "frame.hitTestReuses": [
+          0,
+          0,
+          0
+        ],
+        "frame.hitTests": [
           0,
           0,
           0
@@ -2807,6 +5311,16 @@
           0,
           0
         ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0,
+          0
+        ],
         "frame.preparations": [
           1,
           0,
@@ -2818,6 +5332,41 @@
           0
         ],
         "frame.renders": [
+          0,
+          0,
+          0
+        ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0
+        ],
+        "frame.tickCalls": [
+          0,
+          0,
+          0
+        ],
+        "frame.tickDiscoveryWalks": [
+          0,
+          0,
+          0
+        ],
+        "frame.tickHeldWhileHidden": [
+          0,
+          0,
+          0
+        ],
+        "frame.tickLegacyTreeWalks": [
+          0,
+          0,
+          0
+        ],
+        "frame.tickRequesters": [
           0,
           0,
           0
@@ -2843,6 +5392,11 @@
           0
         ],
         "wakes.animationTimer": [
+          0,
+          0,
+          0
+        ],
+        "wakes.deadlineTimer": [
           0,
           0,
           0
@@ -3012,6 +5566,11 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -3022,7 +5581,92 @@
           0,
           0
         ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
+          0,
+          0,
+          0
+        ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
+          0,
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0,
+          0,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0,
+          0,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0,
+          0
+        ],
+        "rich.chunksLaid": [
+          0,
+          0,
+          0
+        ],
+        "rich.diagramPreparations": [
+          0,
+          0,
+          0
+        ],
+        "rich.displayUnitsWritten": [
           0,
           0,
           0
@@ -3037,12 +5681,122 @@
           0,
           0
         ],
+        "rich.elementsBuilt": [
+          0,
+          0,
+          0
+        ],
         "rich.hoveredTitleCalls": [
           0,
           0,
           0
         ],
         "rich.hoverScanElements": [
+          0,
+          0,
+          0
+        ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0
+        ],
+        "rich.imageUploadBytes": [
+          0,
+          0,
+          0
+        ],
+        "rich.mathPreparations": [
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentBytesCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0,
+          0,
+          0
+        ],
+        "rich.preparationTurns": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
+          0,
+          0,
+          0
+        ],
+        "rich.svgRasterizations": [
+          0,
+          0,
+          0
+        ],
+        "rich.wholeLayoutsLaid": [
           0,
           0,
           0
@@ -3089,7 +5843,27 @@
           "max": 1,
           "total": 3
         },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.drawCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3104,6 +5878,16 @@
           "max": 8294400,
           "total": 8294400
         },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.preparations": {
           "min": 0,
           "max": 1,
@@ -3115,6 +5899,41 @@
           "total": 0
         },
         "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickDiscoveryWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickHeldWhileHidden": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickLegacyTreeWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickRequesters": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3140,6 +5959,11 @@
           "total": 0
         },
         "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.deadlineTimer": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3309,6 +6133,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -3319,7 +6148,92 @@
           "max": 0,
           "total": 0
         },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.chunksLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.diagramPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.displayUnitsWritten": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3334,12 +6248,122 @@
           "max": 0,
           "total": 0
         },
+        "rich.elementsBuilt": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.hoveredTitleCalls": {
           "min": 0,
           "max": 0,
           "total": 0
         },
         "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.mathPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.svgRasterizations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.wholeLayoutsLaid": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3377,14 +6401,14 @@
     "samples": [
       {
         "at": "device",
-        "privateBytes": 40976384,
-        "workingSetBytes": 21733376
+        "privateBytes": 40992768,
+        "workingSetBytes": 21700608
       },
       {
         "at": "built",
-        "privateBytes": 42541056,
-        "workingSetBytes": 25653248,
-        "trackedLiveBytes": 56628,
+        "privateBytes": 42549248,
+        "workingSetBytes": 25710592,
+        "trackedLiveBytes": 57092,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 0,
@@ -3392,15 +6416,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 1,
+          "retainedCacheBytes": 416,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "warm",
-        "privateBytes": 57835520,
-        "workingSetBytes": 37646336,
-        "trackedLiveBytes": 67132,
+        "privateBytes": 59658240,
+        "workingSetBytes": 39038976,
+        "trackedLiveBytes": 68028,
         "retained": {
           "surfaceBytes": 1920000,
           "cachedBrushes": 11,
@@ -3408,15 +6435,18 @@
           "retainedTextLayouts": 32,
           "retainedTextLayoutUnits": 506,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 87,
+          "retainedCacheBytes": 6672,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "sweep",
-        "privateBytes": 502403072,
-        "workingSetBytes": 477732864,
-        "trackedLiveBytes": 94339,
+        "privateBytes": 459108352,
+        "workingSetBytes": 466395136,
+        "trackedLiveBytes": 95235,
         "retained": {
           "surfaceBytes": 33177600,
           "cachedBrushes": 11,
@@ -3424,15 +6454,18 @@
           "retainedTextLayouts": 150,
           "retainedTextLayoutUnits": 2506,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 205,
+          "retainedCacheBytes": 33840,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "rest",
-        "privateBytes": 502407168,
-        "workingSetBytes": 490840064,
-        "trackedLiveBytes": 94339,
+        "privateBytes": 370958336,
+        "workingSetBytes": 376741888,
+        "trackedLiveBytes": 95235,
         "retained": {
           "surfaceBytes": 33177600,
           "cachedBrushes": 11,
@@ -3440,28 +6473,34 @@
           "retainedTextLayouts": 150,
           "retainedTextLayoutUnits": 2506,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 205,
+          "retainedCacheBytes": 33840,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "hidden",
-        "privateBytes": 500719616,
-        "workingSetBytes": 498393088,
-        "trackedLiveBytes": 62844,
+        "privateBytes": 368185344,
+        "workingSetBytes": 376352768,
+        "trackedLiveBytes": 62920,
         "retained": {
           "surfaceBytes": 0,
-          "cachedBrushes": 11,
+          "cachedBrushes": 20,
           "cachedTextFormats": 8,
           "retainedTextLayouts": 5,
           "retainedTextLayoutUnits": 75,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 54,
+          "retainedCacheBytes": 2672,
+          "largestTextHistoryBytes": 0
         }
       }
     ],
     "hiddenResidencyDelta": {
-      "privateBytes": -1687552,
-      "workingSetBytes": 7553024,
+      "privateBytes": -2772992,
+      "workingSetBytes": -389120,
       "surfaceBytes": -33177600,
       "retainedTextLayouts": -145,
       "retainedBitmapBytes": 0
@@ -3473,32 +6512,227 @@
       "Button": 816,
       "Toggle": 904,
       "Checkbox": 912,
-      "RadioButton": 864
-    }
+      "RadioButton": 864,
+      "ThroughputGraphSample": 408
+    },
+    "controls": 54,
+    "gridCellRelease": {
+      "layouts": 142,
+      "releasedHeapBytes": 41927,
+      "rebuiltHeapBytes": 609552
+    },
+    "retainedCaches": [
+      {
+        "name": "ControlHost._brushCache",
+        "entries": 11,
+        "residentBytes": 1408
+      },
+      {
+        "name": "ControlHost._configuredTextFormats",
+        "entries": 8,
+        "residentBytes": 416
+      },
+      {
+        "name": "TooltipLayer._layoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "ControlHost._richTitleHoverCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Accessibility.snapshot",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Label._typographyLayout",
+        "entries": 1,
+        "residentBytes": 0
+      },
+      {
+        "name": "Button._preparedIconTextLayout",
+        "entries": 2,
+        "residentBytes": 0
+      },
+      {
+        "name": "Button._preparedShortcutWidthDip",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Button._preparedHyperlinkWidthDip",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TextField._singleLineLayoutCache",
+        "entries": 5,
+        "residentBytes": 320
+      },
+      {
+        "name": "TextField._cachedMultilineLayout",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "ComboBox._singleLineLayoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "ComboBox._popupItemWidthCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "ComboBox._popupLayoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "ComboBox._popupBackdropBitmap",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "MenuBar._menuBarLayoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TabControl._tabHeaderLayoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TabControl.TabItem.measuredTitleWidthDip",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TabControl._selectedHeaderGeometry",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Tree._badgeWidthCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Tree._visibleIdIndexCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Grid._cellTextLayouts",
+        "entries": 142,
+        "residentBytes": 31456
+      },
+      {
+        "name": "Grid._groupLayoutCache",
+        "entries": 6,
+        "residentBytes": null
+      },
+      {
+        "name": "ColorPicker._saturationBrush",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "FlexPanel._records",
+        "entries": 15,
+        "residentBytes": 240
+      },
+      {
+        "name": "FormField._measureCache",
+        "entries": 15,
+        "residentBytes": 0
+      },
+      {
+        "name": "RichTextEditor.layout",
+        "entries": 0,
+        "residentBytes": null
+      },
+      {
+        "name": "EmbeddedHost.State.texture",
+        "entries": 1,
+        "residentBytes": 33177600
+      }
+    ]
+  },
+  "budgetLines": {
+    "G13": [
+      {
+        "line": "idle-private",
+        "budget": "idle native window <= 8 MB private above process entry at 1080p",
+        "counter": "private bytes after the last phase, shown, minus private bytes at process entry",
+        "limitBytes": 8000000,
+        "measuredBytes": 368349184,
+        "status": "advisory"
+      },
+      {
+        "line": "minimized-video",
+        "budget": "<= 8 MiB video memory when minimized",
+        "counter": "local video memory usage of the process, hidden (a hidden embedded view is its minimized state)",
+        "limitBytes": 8388608,
+        "measuredBytes": null,
+        "status": "not measured",
+        "reason": "software adapter: rendering uses system memory, which private bytes count"
+      },
+      {
+        "line": "per-control",
+        "budget": "<= 256 B per simple control all-in",
+        "counter": "tracked live C++ bytes after the build divided by the controls of the built tree (host attachment included)",
+        "limitBytes": 256,
+        "measuredBytes": 1057,
+        "status": "exceeded"
+      },
+      {
+        "line": "per-grid-cell",
+        "budget": "<= 1 KB per visible single-line Grid cell",
+        "counter": "live heap bytes that rebuilding every Grid's cell layouts adds after hiding released them, per cell layout",
+        "limitBytes": 1000,
+        "measuredBytes": null,
+        "status": "not measured",
+        "reason": "software adapter: WARP's rasterizer threads allocate in the same heaps while the cells are rebuilt (hardware receipts measure this line)"
+      },
+      {
+        "line": "text-history",
+        "budget": "<= 4 MiB text history per editor",
+        "counter": "EmbeddedStatistics::largestTextHistoryBytes after the last phase (TextField and ComboBox; RichTextEditor history is not counted)",
+        "limitBytes": 4194304,
+        "measuredBytes": 0,
+        "status": "met"
+      }
+    ]
   },
   "timing": {
     "status": "not measured",
     "reason": "timing comes only from performance-timing.ps1 on a hardware adapter in a quiet window (W0.2); counts and memory are recorded here"
   },
   "benchmarkInputs": {
-    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "4C14398E31E337CA3D952D76E26372C6588CE6144821D93F648CDB5C95A27F5B",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "BDA786D0E185A83D1ACCFED43106154D374E7C0DDEFCF8A2427FEC0817EAA7C7",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h": "7C2FAFF45C77EFEB1B521D74379AEE3DD335B86CC339FD1C91C4BD216CC77AE0",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "75EB4870FD81EBC5D6024566B0A3945EF3391DBA8BC82C2FFD12A22B069BE2F6",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "7C5A056727C5F60E1542313F154EFD393DD148F26DB8DC8A526901A144F8729C",
     "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "00844224A58AC9CDD5B726A72BD598293BA5756E9535AC59E26134DD3D7A78DD",
-    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "2D896E750A51C98FD64F17E0308D246C816FF0CA578826EA8ED3D297208D4FC8",
+    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "B466B2EAE7F7CDF6EC9FE70867F2E5BCE04334639CC4C01B5C85C240E8DB07A3",
     "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
-    "performance-fixtures.ps1": "2A0ED76BC6F59B8C7FB346ABC746B5A31C18FE3A2AC07069C6C8EF2E2FC78DA0",
-    "Tools/PerformanceFixtures.psm1": "085B1FD8A3927072EF5C1B02C4115D6C42C18847185C7C8660E73B0776BA66AC",
+    "performance-fixtures.ps1": "7137E9356F903546CD9E1D67226AA9375C7E788101409640A9C48F4B34671E5B",
+    "Tools/PerformanceFixtures.psm1": "3AE90348157D4C1C743021DC9FA5CCCC01D7F706591C18CA9CCE9F06FACAABF9",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx10.h": "D80B93DED0763DEEB365DED98E897A352215CD2BCB01D2A1877BBC2995A5D80F",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx9.h": "F0C92B4994C480BDF43B9FC6A35FEB45CCDC90DF21B27EF7DB9226B03A68D076"
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx9.h": "D68B8A8226A39AD907F25EEC465852DF6CF9BF4FA6F89CC4954809B1BA801BA1"
   },
   "provenance": {
-    "sourceCommit": "acac49bb3e969240d5830ab8f98bea38fab44b48",
-    "sourceDirty": false,
+    "sourceCommit": "19673549e3c7a78ad182423311b529819886cea8",
+    "sourceDirty": true,
     "platform": "x64",
     "configuration": "Release",
     "command": "performance-fixtures.ps1 -Fixture FX10 -Variant uhd -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64",
-    "executableSha256": "38B217F6308A601FBB5B9BECCD9860284EF38EE60DC652AE07339EB871B9ABD9",
+    "executableSha256": "079231904145D534BBB46B6608D20EFADCA4B7832D199168B86864E6E28ACBD5",
     "os": {
       "description": "Microsoft Windows 10.0.26300",
       "build": "26300",
@@ -3528,11 +6762,11 @@
     },
     "hostIdle": {
       "seconds": 3,
-      "busyPercent": 75.21097046413502,
+      "busyPercent": 56.704295154185026,
       "observer": "Tools/Watch-BenchmarkHost.ps1",
       "required": false
     },
     "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
-    "recordedUtc": "2026-11-14T20:35:57.6100171Z"
+    "recordedUtc": "2026-11-15T05:23:47.8903246Z"
   }
 }

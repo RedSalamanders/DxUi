@@ -40,26 +40,26 @@ Video memory: reported per sample. Every counter per step is in the receipt's `s
 ### [fx5-default-embedded-warp-x64-release.json](fx5-default-embedded-warp-x64-release.json)
 
 - Host `embedded`, variant `default` (1280x720 at 96 DPI), renderer WARP, x64 Release (compiler 195237025)
-- Source `9f6fdc74084a2f87fa25051c76636678a603f436`, uncommitted changes: False; command: `performance-fixtures.ps1 -Fixture FX5 -Variant default -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64`
+- Source `19673549e3c7a78ad182423311b529819886cea8`, uncommitted changes: True; command: `performance-fixtures.ps1 -Fixture FX5 -Variant default -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64`
 - Adapter: Microsoft Basic Render Driver, driver 10.0.26100.9711; WARP 10.0.26100.9711 (WinBuild.160101.0800)
 - OS Microsoft Windows 10.0.26300 (build 26300.9711); displays: AMD Radeon(TM) Graphics 60 Hz, NVIDIA GeForce RTX 5080 120 Hz; power plan: Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)
-- Host idle record: 89.3% busy over 3 s before the run (recorded, not required); recorded 2026-11-14T21:01:09.3670646Z
+- Host idle record: 54.4% busy over 3 s before the run (recorded, not required); recorded 2026-11-15T05:24:17.8065701Z
 - Timing: not measured
 
 | Phase | Steps | `Paint` executions per step | Preparations | Resources created | Churn | C++ allocations per step |
 | --- | --- | --- | --- | --- | --- | --- |
-| `warm` (warmup) | 20 | 83 | 20 total | 1,137 total | 1,102 total | 53-79 |
+| `warm` (warmup) | 20 | 83 | 20 total | 1,137 total | 1,102 total | 1-32 |
 | `clean` (measured) | 40 | 0 | 0 total | 0 total | 0 total | 0 |
-| `dirty` (measured) | 40 | 83 | 40 total | 2,240 total | 2,240 total | 54 |
+| `dirty` (measured) | 40 | 83 | 40 total | 2,240 total | 2,240 total | 2 |
 
-Tracked live C++ bytes: built 53,149; phase warm 58,173; phase clean 58,173; phase dirty 58,173; hidden 53,629.
+Tracked live C++ bytes: built 53,317; phase warm 58,789; phase clean 58,789; phase dirty 58,789; hidden 54,245.
 Video memory: software adapter: rendering uses system memory, which privateBytes counts. Every counter per step is in the receipt's `series`.
 
 | `G13` line | Budget | Measured bytes | Status |
 | --- | --- | --- | --- |
-| `idle-private` | idle native window <= 8 MB private above process entry at 1080p | 45,862,912 | advisory |
+| `idle-private` | idle native window <= 8 MB private above process entry at 1080p | 56,287,232 | advisory |
 | `minimized-video` | <= 8 MiB video memory when minimized | not measured | not measured (closed by W9.2): software adapter: rendering uses system memory, which private bytes count |
-| `per-control` | <= 256 B per simple control all-in | 640 | recorded exception (closed by W9.6) |
+| `per-control` | <= 256 B per simple control all-in | 642 | recorded exception (closed by W9.6) |
 | `per-grid-cell` | <= 1 KB per visible single-line Grid cell | not measured | not measured (closed by W9.4): software adapter: WARP's rasterizer threads allocate in the same heaps while the cells are rebuilt (hardware receipts measure this line) |
 | `text-history` | <= 4 MiB text history per editor | not measured | not measured: the fixture has no TextField or ComboBox |
 

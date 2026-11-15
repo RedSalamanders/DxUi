@@ -13,4 +13,13 @@
   differential against the uncached hit test on both hosts, lifetime tests (removal between the cursor query and its
   move and from inside the control's own callbacks) and the `Label` gallery tiles at 100%, 150% and 200% are unchanged.
   New work counters: `frame.hitTests`, `frame.hitTestReuses`, `frame.preparationMembershipSearches` and
-  `frame.plainLabelPreparations`. Native menu popups are covered only by the focus-taking suites, which were not run.
+  `frame.plainLabelPreparations`. Native menu popups are covered only by the focus-taking suites, which were not run. After review: the open `ComboBox` popup's layout inputs (`ResetPopupLayout`, and any recomputed placement that differs from the previous one) and any theme change also move the hit
+  revision; the window host takes the cursor query's point from the `WM_NCHITTEST` of the same delivery and opens the
+  event only for a client-area `WM_SETCURSOR` of its own window; a declaration covers exactly the declaring class
+  (`typeid`), so a subclass declares for itself; a control destroyed while attached leaves the unreported count; a host
+  says why it reuses nothing (`DebugGetUnreportedHitControlCount`, `DebugGetFirstUnreportedHitControlType` and a
+  `HitReuseOff` trace event); a class derived from `Label` keeps visual preparation (an overridden
+  `PrepareVisualContent` is still called) and a label whose mnemonic or override is cleared stops being prepared. Each
+  place that moves the revision is named and a test suppresses each one alone to show a press then reaches a stale
+  control. The window host's one hit test per move is seam-driven until the interactive real-input test
+  (`TestPointerHitRealInputReusesTheCursorQuery`, Menu suite) runs.

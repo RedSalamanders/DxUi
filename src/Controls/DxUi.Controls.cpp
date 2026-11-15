@@ -1756,7 +1756,7 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
         return;
     }
 
-    InvalidateHitTest(); // a PageHost in transition hits nothing
+    NoteHitTestChange(*this, HitRevisionSite::PageTransitionStart); // a PageHost in transition hits nothing
     _outgoingPage                     = std::move(_currentPage);
     _currentPage                      = std::move(page);
     _transition.active                = true;
@@ -2741,7 +2741,7 @@ void ControlHost::PublishPreparedContent() noexcept
 bool PageHost::FinishTransition() noexcept
 {
     if (_transition.active)
-        InvalidateHitTest(); // the current page is hit again
+        NoteHitTestChange(*this, HitRevisionSite::PageTransitionEnd); // the current page is hit again
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     _transition.active                     = false;
     _transition.hasConnectedAnimation      = false;
@@ -2837,8 +2837,9 @@ const Control* Separator::HitTest(D2D1_POINT_2F /*point*/) const
     return nullptr;
 }
 
-// A plain label (no typography override, no mnemonic) paints with DrawCenteredText and has nothing to prepare, so it is
-// not prepared: SetTypographyOverride and a mnemonic (Control::SetMnemonic) enable preparation when they make it non-plain.
+// A plain label (no typography override, no mnemonic, exactly class Label) paints with DrawCenteredText and has nothing to
+// prepare, so it is not prepared: SetTypographyOverride and Control::SetMnemonic enable preparation when they make it
+// non-plain and disable it when it is plain again; a subclass keeps it from attachment (RefreshLabelVisualPreparation).
 Label::Label(std::wstring text) : _text(std::move(text))
 {
 }
@@ -2964,8 +2965,7 @@ HRESULT Label::SetTypographyOverride(std::optional<LabelTypography> typography) 
         return S_FALSE;
     _typographyOverride = typography;
     InvalidateTypographyPreparation();
-    if (typography)
-        EnableVisualContentPreparation();
+    RefreshLabelVisualPreparation(); // an override enables preparation, clearing it on a plain label disables it again
     const auto lifetime = GetLifetimeToken();
     InvalidateMeasure();
     // Embedded layout scheduling can synchronously retire the control's root.
@@ -5513,7 +5513,7 @@ void PageIndicator::SetPageCount(uint32_t count) noexcept
         return;
     }
     _pageCount = next;
-    InvalidateHitTest(); // fewer than two pages leave no hit bounds (GetHitBounds)
+    NoteHitTestChange(*this, HitRevisionSite::PageIndicatorCount); // fewer than two pages leave no hit bounds (GetHitBounds)
     if (_pageCount == 0)
     {
         _selectedIndex = 0;
@@ -6411,7 +6411,7 @@ void Slider::SetOrientation(SliderOrientation orientation) noexcept
     }
 
     _orientation = orientation;
-    InvalidateHitTest(); // the hit band follows the orientation (GetHitBounds)
+    NoteHitTestChange(*this, HitRevisionSite::SliderOrientation); // the hit band follows the orientation (GetHitBounds)
     RequestInvalidate();
 }
 
@@ -11312,7 +11312,7 @@ bool ScrollPanel::NotifyScrollChanged(float previousOffsetDip) noexcept
 {
     // Every offset change comes here: content moved under a still pointer (an open popup of a scrolled child included).
     if (_scrollOffsetDip != previousOffsetDip)
-        InvalidateHitTest();
+        NoteHitTestChange(*this, HitRevisionSite::ScrollOffset);
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (_scrollOffsetDip != previousOffsetDip && _onScrollChanged)
     {

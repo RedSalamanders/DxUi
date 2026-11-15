@@ -9,3 +9,6 @@ void TestPointerHitWindowDifferentialMatchesTheUncachedHitTest();
 void TestPointerHitWindowResultNeverOutlivesItsControl();
 void TestPointerHitWindowUnreportedControlIsNeverReused();
 void TestPointerHitPlainLabelsAreNotPrepared();
+void TestPointerHitWindowCursorQueryUsesTheDeliveredPoint();
+void TestPointerHitWindowReportsWhyReuseIsOff();
+void TestPointerHitLabelSubclassAndReplainedLabel();

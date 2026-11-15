@@ -148,11 +148,15 @@ private:
 // A recorder whose hit test has a hole that it opens and closes from its own move callback: state the host cannot see.
 // With `reported` it declares the hit test reported and moves the hit revision (InvalidateHitTest) whenever the hole
 // changes; without it the host never reuses a hit result while it is in the tree.
-class HoleRecorder final : public Recorder
+// One class per variant: a declaration is per class, so the reported and the unreported hole must be different types.
+template <bool kReported> class HoleRecorder final : public Recorder
 {
 public:
-    HoleRecorder(std::wstring name, Log& log, bool reported) : Recorder(std::move(name), log, reported), _reported(reported)
+    HoleRecorder(std::wstring name, Log& log) : Recorder(std::move(name), log, false), _reported(kReported)
     {
+        // A declaration covers exactly the class whose constructor makes it, so the hole declares for itself.
+        if constexpr (kReported)
+            DeclareHitTestReported();
     }
     bool OnMouseMove(DxUi::ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override
     {
@@ -178,7 +182,7 @@ protected:
     }
     [[nodiscard]] const DxUi::Control* HitTest(D2D1_POINT_2F point) const override
     {
-        return const_cast<HoleRecorder*>(this)->HitTest(point);
+        return const_cast<HoleRecorder<kReported>*>(this)->HitTest(point);
     }
 
 private:
@@ -193,7 +197,7 @@ struct SceneSlots final
 {
     DxUi::Panel* root = nullptr;
     std::array<Recorder*, 4> top{};
-    HoleRecorder* hole        = nullptr;
+    Recorder* hole            = nullptr;
     DxUi::ComboBox* combo     = nullptr;
     DxUi::ScrollPanel* scroll = nullptr;
     DxUi::TabControl* tabs    = nullptr;
@@ -211,7 +215,8 @@ template <typename Scene> void BuildScene(Scene& scene, SceneSlots& slots, Log& 
         slots.top[index] = root->AddChild<Recorder>(std::format(L"top{}", index), log);
         place(slots.top[index], 10.0f + 70.0f * static_cast<float>(index), 10.0f, 90.0f + 70.0f * static_cast<float>(index), 50.0f); // 0/1, 1/2 ... overlap
     }
-    slots.hole = root->AddChild<HoleRecorder>(L"hole", log, reportedHole);
+    slots.hole = reportedHole ? static_cast<Recorder*>(root->AddChild<HoleRecorder<true>>(L"hole", log))
+                              : static_cast<Recorder*>(root->AddChild<HoleRecorder<false>>(L"hole", log));
     place(slots.hole, 10.0f, 60.0f, 170.0f, 100.0f);
     slots.combo = root->AddChild<DxUi::ComboBox>();
     slots.combo->SetItems({{L"a", L"Alpha"}, {L"b", L"Beta"}, {L"c", L"Gamma"}, {L"d", L"Delta"}, {L"e", L"Epsilon"}});

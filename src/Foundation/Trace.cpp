@@ -130,6 +130,14 @@ void WriteEvent(const Record& record) noexcept
                               TraceLoggingUInt8(record.detail, "Source"),
                               TraceLoggingUInt64(qpc, "Qpc"));
             break;
+        case Event::HitReuseOff:
+            TraceLoggingWrite(g_dxuiTraceProvider,
+                              "HitReuseOff",
+                              TraceLoggingLevel(kLevel),
+                              TraceLoggingKeyword(kKeywordInput),
+                              TraceLoggingUInt32(record.hostId, "HostId"),
+                              TraceLoggingUInt64(qpc, "Qpc"));
+            break;
         default: break;
     }
 }
