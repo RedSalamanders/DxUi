@@ -640,6 +640,15 @@ void TestNativeDiagramLabelBrushRetirement()
     for (std::size_t index = 0u; index <= ControlHost::kSolidBrushCacheLimit; ++index)
         Require(host.GetSolidBrush(D2D1::ColorF(static_cast<float>(index % 256u) / 255.f, static_cast<float>(index / 256u) / 255.f, .25f)) != nullptr,
                 "overfill the bounded brush cache before the next preparation boundary");
+    // Brushes are evicted by last use (W2.8): the editor stops drawing for three frames, so its label brush, unused by the
+    // last two, leaves the over-bound map at the third.
+    editor->SetVisible(false);
+    for (int frame = 0; frame < 3; ++frame)
+    {
+        WindowHostBitmapCapture hidden;
+        Require(host.DebugCaptureBitmap(hidden, true), "render a frame without the editor");
+    }
+    editor->SetVisible(true);
     editor->SetText(source + L"\n");
     retired->SetColor(D2D1::ColorF(D2D1::ColorF::Magenta));
     Require(PrepareNativeContentForTests(host), "replacement source completes after retiring its prior diagram layout");

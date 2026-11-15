@@ -155,6 +155,9 @@ int wmain(int argc, wchar_t** argv)
     // A performance fixture's WARP receipt on the window host (Tests/README.md, "Performance fixtures").
     if (argc >= 2 && std::wstring_view(argv[1]) == L"--fixture-receipt")
         return RunWindowFixtureReceiptCommand(argc, argv);
+    // One hash of a full window-host frame per fixture step: the W2.8 pixel receipt before and after a change.
+    if (argc >= 2 && std::wstring_view(argv[1]) == L"--fixture-frame-hashes")
+        return RunWindowFixtureFrameHashCommand(argc, argv);
     // FX13's receipt-only cold start: fresh child processes timed to their first presented frame.
     if (const int coldStart = RunFx13ColdStartChild(argc, argv); coldStart >= 0)
         return coldStart;

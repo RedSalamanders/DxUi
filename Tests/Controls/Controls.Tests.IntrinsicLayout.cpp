@@ -751,34 +751,26 @@ void TestButtonPreparedIconTextLayoutMatchesDrawTextW()
         Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == factoryLookupsBeforeSizeChange + 1u,
                 "a changed content-size key takes the DirectWrite factory path once");
 
-        // Eviction can replace a mutable host format with a distinct identity; preparation must rebind once.
-        for (int role = 0;
-             role <= static_cast<int>(FontRole::Small) && host.DebugGetConfiguredTextFormatCount() <= ControlHost::kConfiguredTextFormatCacheLimit;
-             ++role)
-        {
-            for (const auto alignment :
-                 {DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_JUSTIFIED})
-            {
-                for (const auto paragraph : {DWRITE_PARAGRAPH_ALIGNMENT_NEAR, DWRITE_PARAGRAPH_ALIGNMENT_FAR, DWRITE_PARAGRAPH_ALIGNMENT_CENTER})
-                {
-                    for (const bool wrap : {false, true})
-                    {
-                        static_cast<void>(host.GetTextFormat(FontRole(role), alignment, paragraph, wrap));
-                    }
-                }
-            }
-        }
+        // Eviction by last use (W2.8) keeps the format a frame draws with: the icon's layout keeps its held format identity
+        // and is neither rebuilt nor looked up again, while the formats no frame used leave the over-bound map.
+        for (size_t key = 0u; host.DebugGetConfiguredTextFormatCount() <= ControlHost::kConfiguredTextFormatCacheLimit; ++key)
+            static_cast<void>(host.GetTextFormat(FontRole::Body,
+                                                 6.0f + static_cast<float>(key % 160u) * 0.5f,
+                                                 static_cast<DWRITE_FONT_WEIGHT>(key < 160u ? 400u : 700u),
+                                                 DWRITE_TEXT_ALIGNMENT_LEADING,
+                                                 DWRITE_PARAGRAPH_ALIGNMENT_NEAR,
+                                                 false));
         Require(host.DebugGetConfiguredTextFormatCount() > ControlHost::kConfiguredTextFormatCacheLimit,
                 "distinct host text-format configurations overflow the bounded cache before the next paint");
         const uint64_t buildsBeforeFormatTrim         = button->DebugGetPreparedIconTextLayoutBuildCount();
         const uint64_t factoryLookupsBeforeFormatTrim = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
-        requireFallbackParity("configured-format cache eviction");
+        requireFallbackParity("configured-format cache eviction"); // three frames: the third trims what neither of the last two used
         Require(host.DebugGetConfiguredTextFormatCount() <= ControlHost::kConfiguredTextFormatCacheLimit,
-                "the next paint trims the configured-format cache to its bound");
-        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeFormatTrim + 1u,
-                "format-cache eviction creates one replacement layout for the new exact format identity");
-        Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == factoryLookupsBeforeFormatTrim + 1u,
-                "format-cache eviction takes the DirectWrite factory path once for its replacement layout");
+                "the third paint evicts the configured formats no frame used");
+        Require(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeFormatTrim,
+                "W2.8: format-cache eviction keeps the format in use, so the icon layout is not rebuilt");
+        Require(button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == factoryLookupsBeforeFormatTrim,
+                "W2.8: format-cache eviction takes no DirectWrite factory path for the icon");
         const uint64_t warmFactoryLookups = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
         const uint64_t warmLayoutBuilds   = button->DebugGetPreparedIconTextLayoutBuildCount();
         static_cast<void>(capture());

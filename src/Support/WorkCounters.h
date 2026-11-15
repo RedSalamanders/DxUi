@@ -16,10 +16,13 @@
 
 // Frames and hosts: what one preparation, render or composition did.
 #define DXUI_WORK_COUNTERS_FRAME(X)                                                                                                                            \
+    X(frame, brushColorReuses)       /* Transition brushes a host served again by SetColor instead of creating a brush (W2.8). */                              \
+    X(frame, brushEvictions)         /* Keyed solid brushes ControlHost::TrimCaches released, unused by the last two frames, above the bound. */               \
     X(frame, composites)             /* EmbeddedHost::Composite calls that drew the prepared surface. */                                                       \
     X(frame, compositionDevices)     /* DirectComposition devices a thread's shared native device stack created (DCompositionCreateDevice2). */                \
     X(frame, d2dDevices)             /* Direct2D devices a thread's shared native device stack created (ID2D1Factory1::CreateDevice). */                       \
     X(frame, drawCalls)              /* Direct2D draw calls seen by a test executable's counting wrappers; 0 wherever none is installed. */                    \
+    X(frame, fullVisualPreparations) /* Preparation passes that prepared every visible control's visual content, not only the pending ones. */                 \
     X(frame, hitTestReuses)          /* Pointer hit tests a host answered from the hit result of the same pointer event, client point and hit revision. */     \
     X(frame, hitTests)               /* Host hit tests that walked the control tree (overlays, then children) to find the control under a point. */            \
     X(frame, paintExecutions)        /* Control::Paint calls dispatched by a host, Panel or PageHost: one per painted control. */                              \
@@ -51,7 +54,9 @@
 
 // Text and typography beyond the resource kinds below.
 #define DXUI_WORK_COUNTERS_TEXT(X)                                                                                                                             \
-    X(text, formatCacheTrims) /* ControlHost::TrimCaches clears of the text-format cache above its key bound; each forces full-tree visual re-preparation. */  \
+    X(text, formatCacheOverBound)   /* TrimCaches passes that left the text-format map above its bound because every remaining entry was in use. */            \
+    X(text, formatCacheTrims)       /* TrimCaches passes that evicted text formats above the key bound (unused by the last two frames). */                     \
+    X(text, formatEvictions)        /* Configured text formats TrimCaches evicted. */                                                                          \
     X(text, setTextRenderingParams) /* ID2D1RenderTarget::SetTextRenderingParams calls a host made to bind or clear rendering parameters. */
 
 // Popups and menus.

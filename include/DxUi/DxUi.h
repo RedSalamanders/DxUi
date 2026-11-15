@@ -728,7 +728,8 @@ struct SingleLineTextLayoutCache
 {
     wil::com_ptr<IDWriteTextLayout> layout;
     std::wstring text;
-    IDWriteTextFormat* textFormat             = nullptr;
+    // Held, not borrowed: an evicted host format stays alive for this key, so its address is never another format's (W2.8).
+    wil::com_ptr<IDWriteTextFormat> textFormat;
     FontRole role                             = FontRole::Body;
     DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
     float measuredTextWidthDip                = 0.0f;
@@ -2988,13 +2989,13 @@ private:
         const ControlHost* host = nullptr;
         D2D1_RECT_F bounds{};
         DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-        IDWriteTextFormat* textFormat             = nullptr;
-        FontRole fontRole                         = FontRole::Body;
-        float menuBarHeightDip                    = 0.0f;
-        float insetDip                            = 0.0f;
-        float itemGapDip                          = 0.0f;
-        float itemPaddingXDip                     = 0.0f;
-        float measureHeightDip                    = 0.0f;
+        wil::com_ptr<IDWriteTextFormat> textFormat; // held: see SingleLineTextLayoutCache::textFormat
+        FontRole fontRole      = FontRole::Body;
+        float menuBarHeightDip = 0.0f;
+        float insetDip         = 0.0f;
+        float itemGapDip       = 0.0f;
+        float itemPaddingXDip  = 0.0f;
+        float measureHeightDip = 0.0f;
         std::vector<float> itemWidthsDip;
         std::vector<D2D1_RECT_F> itemRects;
     };
@@ -5331,8 +5332,8 @@ private:
     struct TreeBadgeWidthCacheEntry
     {
         std::wstring text;
-        IDWriteTextFormat* textFormat = nullptr;
-        float widthDip                = 0.0f;
+        wil::com_ptr<IDWriteTextFormat> textFormat; // held: see SingleLineTextLayoutCache::textFormat
+        float widthDip = 0.0f;
     };
 
     struct TreeTooltipOverflowCache
@@ -5342,8 +5343,8 @@ private:
         uint64_t itemId     = 0u;
         std::wstring text;
         std::wstring tooltipText;
-        IDWriteTextFormat* textFormat = nullptr;
-        float availableWidthDip       = 0.0f;
+        wil::com_ptr<IDWriteTextFormat> textFormat; // held: see SingleLineTextLayoutCache::textFormat
+        float availableWidthDip = 0.0f;
         std::wstring resolvedTooltipText;
         const ControlHost* host = nullptr;
         uint64_t interactionRevision{}, typographyRevision{}, resourceGeneration{};
@@ -6699,10 +6700,11 @@ public:
                                                    DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) const noexcept;
     [[nodiscard]] bool HasFluentIconFont() const noexcept;
     [[nodiscard]] ID2D1SolidColorBrush* GetSolidBrush(const D2D1_COLOR_F& color) const;
-    // Bounds of the per-host solid-brush and configured-text-format caches. A cache beyond its bound is
-    // cleared at the start of the next paint/preparation, never while a borrowed pointer is in use.
+    // Bounds of the per-host solid-brush and configured-text-format caches. At the start of a paint or preparation a cache
+    // beyond its bound releases the entries neither of the last two frames used; entries in use stay (the bound is soft for
+    // them). Nothing is released while a borrowed pointer is in use.
     static constexpr size_t kSolidBrushCacheLimit           = 256;
-    static constexpr size_t kConfiguredTextFormatCacheLimit = 96;
+    static constexpr size_t kConfiguredTextFormatCacheLimit = 256;
 
     [[nodiscard]] bool CopyTextToClipboard(std::wstring_view text) const noexcept;
     [[nodiscard]] std::optional<std::wstring> ReadTextFromClipboard() const noexcept;
@@ -6865,6 +6867,7 @@ private:
     friend class NativeTextStoreTarget;
     friend struct EmbeddedAccessibilityAccess;
     friend struct RetainedCacheAccess;
+    friend class TransitionBrushScope;
     struct InitialRootChildBatchFrame final
     {
         Panel* root                  = nullptr;
@@ -6931,7 +6934,6 @@ private:
     bool _pendingIntrinsicLayout                            = false;
     mutable bool _pendingContentPreparation                 = false;
     bool _pendingVisualPreparation                          = false;
-    bool _forceAllVisualPreparation                         = false;
     bool _contentPreparationContinues                       = false;
     HRESULT _contentPreparationFailure                      = S_OK;
     bool _contentGeometryChanged                            = false;
@@ -6972,6 +6974,11 @@ private:
     void DiscardDeviceResources() noexcept;
     void RecreateBrushCache() const;
     void TrimCaches() noexcept;
+    // The next transition brush of this frame set to color (see _transitionBrushes); nullptr when none can be made, or with
+    // orFallback the fallback brush set to color.
+    [[nodiscard]] ID2D1SolidColorBrush* GetTransitionBrush(const D2D1_COLOR_F& color, bool orFallback) const;
+    // Releases every keyed and transition brush and the fallback brush's warnings record (device or theme replacement).
+    void ReleaseBrushes() const noexcept;
     void Render(const RECT* dirtyRectPx = nullptr, bool allowHidden = false) noexcept;
     // Invalidate, naming why the frame is requested for the trace provider (src/Support/Trace.h, FrameReason).
     void InvalidateFor(uint8_t traceFrameReason) const noexcept;
@@ -7226,10 +7233,15 @@ private:
     mutable wil::com_ptr<IDWriteTextFormat> _heroIconTextFormat;
     mutable wil::com_ptr<IDWriteTextFormat> _iconLargeTextFormat;
     mutable wil::com_ptr<IDWriteTextFormat> _monoTextFormat;
-    mutable std::unordered_map<uint64_t, wil::com_ptr<IDWriteTextFormat>> _configuredTextFormats =
-        std::unordered_map<uint64_t, wil::com_ptr<IDWriteTextFormat>>(0u);
-    mutable bool _fluentIconFontAvailabilityChecked = false;
-    mutable bool _fluentIconFontAvailable           = false;
+    // A configured text format and the frame that last asked for it (TrimCaches evicts by last use, W2.8).
+    struct ConfiguredTextFormatEntry final
+    {
+        wil::com_ptr<IDWriteTextFormat> format;
+        uint64_t lastUse = 0u;
+    };
+    mutable std::unordered_map<uint64_t, ConfiguredTextFormatEntry> _configuredTextFormats = std::unordered_map<uint64_t, ConfiguredTextFormatEntry>(0u);
+    mutable bool _fluentIconFontAvailabilityChecked                                        = false;
+    mutable bool _fluentIconFontAvailable                                                  = false;
 
     wil::com_ptr<ID3D11Device> _d3dDevice;
     wil::com_ptr<ID3D11DeviceContext> _d3dContext;
@@ -7263,7 +7275,26 @@ private:
     uint32_t _recoveryRetryNextDelayMs  = 0u;
     uint32_t _recoveryRetryArmedDelayMs = 0u;
 
-    mutable std::unordered_map<uint32_t, wil::com_ptr<ID2D1SolidColorBrush>> _brushCache = std::unordered_map<uint32_t, wil::com_ptr<ID2D1SolidColorBrush>>(0u);
+    // A color key (8 bits per channel), the exact color it was first asked for with, which every later request of the key
+    // draws, its keyed brush (none while only transitions drew the color) and the frame that last asked for it. A keyed
+    // brush keeps its color for its whole life.
+    struct SolidBrushEntry final
+    {
+        wil::com_ptr<ID2D1SolidColorBrush> brush;
+        D2D1_COLOR_F color{};
+        uint64_t lastUse = 0u;
+    };
+    mutable std::unordered_map<uint32_t, SolidBrushEntry> _brushCache = std::unordered_map<uint32_t, SolidBrushEntry>(0u);
+    // Brushes for the colors of a transition in progress (TransitionBrushScope, DxUi.Internal.h): the n-th such request of a
+    // frame takes the n-th brush and sets its color, so none is given two colors within one frame; at most
+    // kTransitionBrushLimit, released with the keyed brushes.
+    static constexpr size_t kTransitionBrushLimit                              = 64;
+    mutable std::vector<wil::com_ptr<ID2D1SolidColorBrush>> _transitionBrushes = std::vector<wil::com_ptr<ID2D1SolidColorBrush>>(0u);
+    mutable size_t _transitionBrushesUsed                                      = 0u;
+    mutable uint32_t _transitionBrushScopes                                    = 0u;
+    // The host's frame: one per TrimCaches call (a native render pass or an embedded preparation that paints). Format and
+    // brush entries record the frame that last used them.
+    uint64_t _paintFrame = 1u;
     mutable wil::com_ptr<ID2D1SolidColorBrush> _fallbackBrush;
     mutable std::vector<uint32_t> _brushFailureLogKeys = std::vector<uint32_t>(0u);
     // Keep test-only storage unconditional so ControlHost layout stays stable

@@ -1713,8 +1713,24 @@ void ControlHost::SetTheme(const ThemePalette& palette) noexcept
     if (HitRevisionSiteLive(HitRevisionSite::HostTheme))
         AdvanceHitRevision();
     RecreateBrushCache();
-    _forceAllVisualPreparation = true;
-    _pendingVisualPreparation  = true;
+    // Every control prepares its visual content again for the new palette: each one in the tree (an outgoing page's too) is
+    // marked, visible or not, so a control hidden now prepares when it is shown.
+    if (_root)
+    {
+        const auto mark = [](const auto& self, Control& control) noexcept -> void
+        {
+            if (control._visualPreparationEnabled)
+                control._visualPreparationPending = true;
+            const size_t count = control.GetLogicalChildCount();
+            for (size_t index = 0u; index < count; ++index)
+                if (Control* const child = control.GetLogicalChild(index))
+                    self(self, *child);
+            if (auto* const page = dynamic_cast<PageHost*>(&control); page && page->_outgoingPage && page->_outgoingPage != page->_currentPage)
+                self(self, *page->_outgoingPage);
+        };
+        mark(mark, *_root);
+    }
+    _pendingVisualPreparation = true;
     if (_root && densityChanged)
     {
         _root->OnDensityChanged();
@@ -3075,7 +3091,8 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
     const auto it      = _configuredTextFormats.find(key);
     if (it != _configuredTextFormats.end())
     {
-        return it->second.get();
+        it->second.lastUse = _paintFrame;
+        return it->second.format.get();
     }
 
     if ((role == FontRole::Icon || role == FontRole::HeroIcon || role == FontRole::IconLarge) && ! HasFluentIconFont())
@@ -3112,7 +3129,7 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
         return GetTextFormat(role);
     }
 
-    return _configuredTextFormats.emplace(key, std::move(format)).first->second.get();
+    return _configuredTextFormats.emplace(key, ConfiguredTextFormatEntry{std::move(format), _paintFrame}).first->second.format.get();
 }
 
 IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
@@ -3138,7 +3155,10 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
     {
         // Preserve existing custom-key hits before checking optional font availability.
         if (const auto it = _configuredTextFormats.find(customKey); it != _configuredTextFormats.end())
-            return it->second.get();
+        {
+            it->second.lastUse = _paintFrame;
+            return it->second.format.get();
+        }
         if (! _dwriteFactory && ! EnsureDeviceIndependentResources())
             return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
         // Only canonicalize icon defaults when the configured icon family exists. Otherwise the default path
@@ -3147,7 +3167,10 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
     }
     const uint64_t key = useRoleDefaultKey ? PackTextFormatKey(role, alignment, paragraphAlignment, wrap, readingDirection) : customKey;
     if (const auto it = _configuredTextFormats.find(key); it != _configuredTextFormats.end())
-        return it->second.get();
+    {
+        it->second.lastUse = _paintFrame;
+        return it->second.format.get();
+    }
     if (! _dwriteFactory && ! EnsureDeviceIndependentResources())
         return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
     Typography::Spec spec = roleSpec;
@@ -3161,7 +3184,7 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
         FAILED(format->SetWordWrapping(wrap ? DWRITE_WORD_WRAPPING_WRAP : DWRITE_WORD_WRAPPING_NO_WRAP)) ||
         FAILED(format->SetReadingDirection(readingDirection)))
         return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
-    return _configuredTextFormats.emplace(key, std::move(format)).first->second.get();
+    return _configuredTextFormats.emplace(key, ConfiguredTextFormatEntry{std::move(format), _paintFrame}).first->second.format.get();
 }
 
 bool ControlHost::HasFluentIconFont() const noexcept
@@ -3190,15 +3213,30 @@ ID2D1SolidColorBrush* ControlHost::GetSolidBrush(const D2D1_COLOR_F& color) cons
     const auto it      = _brushCache.find(key);
     if (it != _brushCache.end())
     {
-        return it->second.get();
+        it->second.lastUse = _paintFrame;
+        if (it->second.brush)
+            return it->second.brush.get();
     }
     if (! _d2dContext)
     {
         return nullptr;
     }
+    // A key draws the exact color it was first asked for with, whoever asks for it later.
+    const D2D1_COLOR_F keyColor = it != _brushCache.end() ? it->second.color : color;
+    // A transition in progress draws a color no keyed brush holds through the frame's next transition brush, so no brush is
+    // created per animated color; the key keeps only its color (TransitionBrushScope).
+    if (_transitionBrushScopes != 0u)
+    {
+        if (ID2D1SolidColorBrush* const transition = GetTransitionBrush(keyColor, false))
+        {
+            if (it == _brushCache.end())
+                _brushCache.emplace(key, SolidBrushEntry{nullptr, keyColor, _paintFrame});
+            return transition;
+        }
+    }
 
     wil::com_ptr<ID2D1SolidColorBrush> brush;
-    const HRESULT hr = CountedCreateSolidColorBrush(_d2dContext, color, brush.addressof());
+    const HRESULT hr = CountedCreateSolidColorBrush(_d2dContext, keyColor, brush.addressof());
     if (FAILED(hr) || ! brush)
     {
         if (std::ranges::find(_brushFailureLogKeys, key) == _brushFailureLogKeys.end())
@@ -3220,8 +3258,49 @@ ID2D1SolidColorBrush* ControlHost::GetSolidBrush(const D2D1_COLOR_F& color) cons
 #if DXUI_ENABLE_DIAGNOSTICS
     ++_debugSolidBrushCreateCount;
 #endif
-    _brushCache[key] = brush;
+    _brushCache[key] = SolidBrushEntry{brush, keyColor, _paintFrame};
     return brush.get();
+}
+
+ID2D1SolidColorBrush* ControlHost::GetTransitionBrush(const D2D1_COLOR_F& color, bool orFallback) const
+{
+    if (! _d2dContext)
+        return nullptr;
+    if (_transitionBrushesUsed < _transitionBrushes.size())
+    {
+        // Used by no earlier request of this frame: its last color belongs to an earlier frame, already submitted.
+        ID2D1SolidColorBrush* const brush = _transitionBrushes[_transitionBrushesUsed++].get();
+        brush->SetColor(color);
+        ++Detail::Work().frame.brushColorReuses;
+        return brush;
+    }
+    if (_transitionBrushes.size() < kTransitionBrushLimit)
+    {
+        wil::com_ptr<ID2D1SolidColorBrush> brush;
+        if (SUCCEEDED(CountedCreateSolidColorBrush(_d2dContext, color, brush.addressof())) && brush)
+        {
+#if DXUI_ENABLE_DIAGNOSTICS
+            ++_debugSolidBrushCreateCount;
+#endif
+            _transitionBrushes.push_back(std::move(brush));
+            ++_transitionBrushesUsed;
+            return _transitionBrushes.back().get();
+        }
+    }
+    if (! orFallback)
+        return nullptr;
+    if (! _fallbackBrush)
+        static_cast<void>(CountedCreateSolidColorBrush(_d2dContext, color, _fallbackBrush.addressof()));
+    if (_fallbackBrush)
+        _fallbackBrush->SetColor(color);
+    return _fallbackBrush.get();
+}
+
+void ControlHost::ReleaseBrushes() const noexcept
+{
+    _brushCache.clear();
+    _transitionBrushes.clear();
+    _transitionBrushesUsed = 0u;
 }
 
 bool ControlHost::CopyTextToClipboard(std::wstring_view text) const noexcept
@@ -5048,7 +5127,7 @@ bool ControlHost::EnsureDeviceResources() noexcept
         CancelPreparedVisualContent();
         DiscardSizeDependentResources(L"shared-generation-change");
         // A new device: the brushes of the old device context go with it.
-        _brushCache.clear();
+        ReleaseBrushes();
         _fallbackBrush.reset();
         _dcompVisual.reset();
         _dcompTarget.reset();
@@ -5387,7 +5466,7 @@ void ControlHost::DiscardDeviceResources() noexcept
     {
         PrepareForSwapChainResize();
     }
-    _brushCache.clear();
+    ReleaseBrushes();
     _brushFailureLogKeys.clear();
     _fallbackBrush.reset();
     _targetBitmap.reset();
@@ -5407,22 +5486,30 @@ void ControlHost::DiscardDeviceResources() noexcept
 
 void ControlHost::TrimCaches() noexcept
 {
-    // Called only at paint/preparation start, before any brush or format is borrowed for the frame.
+    // Called only at paint/preparation start, before any brush or format is borrowed for the frame. Each call is one frame
+    // (_paintFrame): entries used by the frame that just ended or the one before it stay; above its bound a map releases
+    // the others. Entries in use stay even above the bound, so a working set beyond it never thrashes. Nothing retains a
+    // raw pointer from either map across frames, so eviction needs no re-preparation: holders keep formats by com_ptr.
+    const uint64_t frame = _paintFrame;
+    const auto stale     = [frame](const auto& entry) noexcept { return entry.second.lastUse + 1u < frame; };
     if (_brushCache.size() > kSolidBrushCacheLimit)
-    {
-        _brushCache.clear();
-    }
+        Detail::Work().frame.brushEvictions += std::erase_if(_brushCache, stale);
     if (_configuredTextFormats.size() > kConfiguredTextFormatCacheLimit)
     {
-        _configuredTextFormats.clear();
-        _forceAllVisualPreparation = true;
-        ++Detail::Work().text.formatCacheTrims;
+        const size_t evicted = std::erase_if(_configuredTextFormats, stale);
+        Detail::Work().text.formatEvictions += evicted;
+        if (evicted != 0u)
+            ++Detail::Work().text.formatCacheTrims;
+        if (_configuredTextFormats.size() > kConfiguredTextFormatCacheLimit)
+            ++Detail::Work().text.formatCacheOverBound;
     }
+    ++_paintFrame;
+    _transitionBrushesUsed = 0u;
 }
 
 void ControlHost::RecreateBrushCache() const
 {
-    _brushCache.clear();
+    ReleaseBrushes();
     _brushFailureLogKeys.clear();
     _fallbackBrush.reset();
     if (! _d2dContext)

@@ -471,8 +471,8 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
 
     const float resolvedMinimumWidthDip = std::max(1.0f, minimumWidthDip);
     const float resolvedHeightDip       = std::max(1.0f, heightDip);
-    const bool cacheHit =
-        cache && cache->layout && cache->text == text && cache->textFormat == format && cache->role == role && cache->readingDirection == readingDirection;
+    const bool cacheHit                 = cache && cache->layout && cache->text == text && cache->textFormat.get() == format && cache->role == role &&
+                                          cache->readingDirection == readingDirection;
 
     wil::com_ptr<IDWriteTextLayout> layout;
     float measuredTextWidthDip = static_cast<float>(text.size()) * 7.0f;

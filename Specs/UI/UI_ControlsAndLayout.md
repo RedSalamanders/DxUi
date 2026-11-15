@@ -482,7 +482,8 @@ host format, flow direction and exact DIP extent. Prepare it through the visual-
 never lazily in `Paint`; this channel does not mark content geometry changed, publish text-input/UIA state or delay
 input readiness. An owner preparation pass resolves the effective format and compares its exact COM identity with
 the retained key before taking the warm return; only a changed key looks up the DirectWrite factory and creates a
-replacement layout. Thus clearing the bounded host format map cannot reuse a layout with a different format pointer.
+replacement layout. The key holds the format by `com_ptr`, so an evicted host format keeps its identity and its address
+cannot be reused by another format; the layout is never reused for a different format.
 Paint the retained layout at the current origin with the current foreground brush and the same
 DirectWrite draw options as the ordinary text path, so state/color changes do not rebuild it. The key retains the
 effective format identity and host/resource/typography generation; text, format, size, flow, host detach, hide and
@@ -492,10 +493,11 @@ malformed UTF-16 content, and any failed optional preparation, continue through 
 Never change the caller's text or geometry to make the cache eligible. Exact-pixel tests cover supported glyph/fallback, flow, DPI, bounds, rendering
 state and text-antialias cases against the original path; any unsupported case remains on that path.
 
-When the bounded configured-format cache is evicted, the host marks visual preparation for the next owner update.
-Embedded hosting trims that cache before its control preparation pass, so an IconOnly Button resolves the new exact
-format identity and replaces its layout before painting the same frame. Eviction does not change geometry or input
-readiness; a clean composition does not trim caches or schedule preparation.
+The bounded configured-format cache evicts only formats neither of the last two frames used, and eviction marks no
+visual preparation ([format and brush caches](../Core/Core_PerformanceAndResources.md#format-and-brush-caches)): a
+format an IconOnly Button paints with stays in the map, and a key that no longer matches the map's format prepares one
+replacement at its next owner pass. Eviction does not change geometry or input readiness; a clean composition does not
+trim caches or schedule preparation.
 
 Control callbacks that synchronously transfer native mouse capture use the same rule. Before transfer, publish state
 needed by the ensuing capture notification and capture the requesting control's weak lifetime. The previous HWND's

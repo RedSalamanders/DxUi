@@ -104,6 +104,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
 #include "Embedded.Tests.FormLayoutBenchmark.h"
 #endif
+#include "Embedded.Tests.FormatBrushCaches.h"
 #include "Embedded.Tests.PreparedTreeAccessibilityBenchmark.h"
 #include "Embedded.Tests.PreparedTreeAccessibilitySemantics.h"
 #include "Embedded.Tests.PreparedTreeEvents.h"
@@ -725,8 +726,9 @@ __declspec(noinline) static void TestTickDirtying(GraphicsFixture& gpu)
     Check(view.Prepare(320, 160) == S_OK && view.GetStatistics().preparations == focused.preparations + 1, "a blink-phase flip prepares exactly once");
 }
 
-// Per-view brush and configured text-format caches stay within their bounds: an over-bound cache is cleared at
-// the next preparation start, never while a paint borrows its entries, and refills with the painted working set.
+// Per-view brush and configured text-format caches stay within their bounds: at a preparation start an over-bound cache
+// releases the entries neither of the last two preparations used (W2.8), never while a paint borrows them, and keeps the
+// painted working set.
 __declspec(noinline) static void TestCacheBounds(GraphicsFixture& gpu)
 {
     std::shared_ptr<DxUi::GraphicsDevice> pool;
@@ -745,23 +747,30 @@ __declspec(noinline) static void TestCacheBounds(GraphicsFixture& gpu)
     for (size_t i = 0; i <= DxUi::ControlHost::kSolidBrushCacheLimit; ++i)
         Check(controls.GetSolidBrush(D2D1::ColorF(float(i % 256) / 255.0f, float(i / 256) / 255.0f, 0.5f)) != nullptr, "distinct solid brush");
     Check(view.GetStatistics().cachedBrushes > DxUi::ControlHost::kSolidBrushCacheLimit, "distinct colors can exceed the brush bound between paints");
-    for (int role = 0; role <= int(DxUi::FontRole::Small) && view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit;
-         ++role)
-        for (auto alignment : {DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_JUSTIFIED})
-            for (auto paragraph : {DWRITE_PARAGRAPH_ALIGNMENT_NEAR, DWRITE_PARAGRAPH_ALIGNMENT_FAR, DWRITE_PARAGRAPH_ALIGNMENT_CENTER})
-                for (bool wrap : {false, true})
-                    Check(controls.GetTextFormat(DxUi::FontRole(role), alignment, paragraph, wrap) != nullptr, "distinct configured text format");
+    for (size_t key = 0u; view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit; ++key)
+        Check(controls.GetTextFormat(DxUi::FontRole::Body,
+                                     6.0f + static_cast<float>(key % 160u) * 0.5f,
+                                     static_cast<DWRITE_FONT_WEIGHT>(key < 160u ? 400u : 700u),
+                                     DWRITE_TEXT_ALIGNMENT_LEADING,
+                                     DWRITE_PARAGRAPH_ALIGNMENT_NEAR,
+                                     false) != nullptr,
+              "distinct configured text format");
     Check(view.GetStatistics().cachedTextFormats > DxUi::ControlHost::kConfiguredTextFormatCacheLimit,
           "distinct configurations can exceed the text-format bound between paints");
-    view.MarkDirty();
-    Hr(view.Prepare(320, 160), "prepare trims the caches");
+    // What was asked for between preparations counts as used by the latest one: the third preparation trims it.
+    for (int frame = 0; frame < 3; ++frame)
+    {
+        view.MarkDirty();
+        Hr(view.Prepare(320, 160), "prepare trims the caches");
+    }
     const auto trimmed = view.GetStatistics();
     Check(trimmed.cachedBrushes > 0 && trimmed.cachedBrushes <= DxUi::ControlHost::kSolidBrushCacheLimit, "preparation trims the brush cache to its bound");
     Check(trimmed.cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit, "preparation trims the text-format cache to its bound");
     Check(trimmed.cachedBrushes == painted.cachedBrushes, "the trimmed brush cache holds exactly the painted working set");
 }
 
-// Evicting configured formats must invalidate visual-only retained layouts before this frame prepares its controls.
+// A format in use is never evicted (W2.8): with the configured-format map over its bound, the icon's retained layout keeps
+// its held format, is not rebuilt and draws the same pixels; the unused formats leave.
 __declspec(noinline) static void TestEmbeddedIconLayoutRebuildsAfterFormatCacheEviction(GraphicsFixture& gpu)
 {
     std::shared_ptr<DxUi::GraphicsDevice> pool;
@@ -789,36 +798,31 @@ __declspec(noinline) static void TestEmbeddedIconLayoutRebuildsAfterFormatCacheE
           "the embedded icon prepares and paints one retained layout before eviction");
 
     auto& controls = view.Controls();
-    for (int role = 0;
-         role <= static_cast<int>(DxUi::FontRole::Small) && view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit;
-         ++role)
-    {
-        for (const auto alignment :
-             {DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_JUSTIFIED})
-        {
-            for (const auto paragraph : {DWRITE_PARAGRAPH_ALIGNMENT_NEAR, DWRITE_PARAGRAPH_ALIGNMENT_FAR, DWRITE_PARAGRAPH_ALIGNMENT_CENTER})
-            {
-                for (const bool wrap : {false, true})
-                {
-                    Check(controls.GetTextFormat(DxUi::FontRole(role), alignment, paragraph, wrap) != nullptr,
-                          "populate distinct formats before embedded eviction");
-                }
-            }
-        }
-    }
+    for (size_t key = 0u; view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit; ++key)
+        Check(controls.GetTextFormat(DxUi::FontRole::Body,
+                                     6.0f + static_cast<float>(key % 160u) * 0.5f,
+                                     static_cast<DWRITE_FONT_WEIGHT>(key < 160u ? 400u : 700u),
+                                     DWRITE_TEXT_ALIGNMENT_LEADING,
+                                     DWRITE_PARAGRAPH_ALIGNMENT_NEAR,
+                                     false) != nullptr,
+              "populate distinct formats before embedded eviction");
     Check(view.GetStatistics().cachedTextFormats > DxUi::ControlHost::kConfiguredTextFormatCacheLimit,
           "the embedded fixture overflows the bounded configured-format cache");
 
     const uint64_t buildsBeforeEviction  = button->DebugGetPreparedIconTextLayoutBuildCount();
     const uint64_t lookupsBeforeEviction = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
     const uint64_t paintsBeforeEviction  = button->DebugGetPreparedIconTextLayoutPaintCount();
-    view.MarkDirty();
-    const auto evictedPixels = capture();
+    std::vector<uint8_t> evictedPixels;
+    for (int frame = 0; frame < 3; ++frame)
+    {
+        view.MarkDirty();
+        evictedPixels = capture();
+    }
     Check(view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit,
-          "the next embedded update trims the configured-format cache before painting");
-    Check(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeEviction + 1u &&
-              button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == lookupsBeforeEviction + 1u,
-          "format eviction prepares exactly one replacement layout through the factory");
+          "the third embedded update after them evicts the unused configured formats");
+    Check(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeEviction &&
+              button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == lookupsBeforeEviction,
+          "W2.8: eviction keeps the format in use, so the icon layout is neither rebuilt nor looked up again");
     Check(button->DebugGetPreparedIconTextLayoutPaintCount() > paintsBeforeEviction, "the post-eviction embedded frame paints the prepared layout");
     Check(firstPixels == evictedPixels, "format eviction preserves every embedded BGRA pixel");
 
@@ -1909,6 +1913,10 @@ __declspec(noinline) static int RunFunctionalTests()
         return PerformanceFixtures::RunCatalogCommand(__argc, __wargv);
     if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fx3-frame-hashes")
         return GridDataPathTests::RunFrameHashCommand(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fixture-frame-hashes")
+        return FormatBrushCacheTests::RunFrameHashCommand(__argc, __wargv);
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-format-brush-caches")
+        return FormatBrushCacheTests::RunTestCommand();
     if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--test-grid-data-paths")
         return GridDataPathTests::RunGateCommand(__argc, __wargv);
     // W2.6: the Tree data path gates alone, and the frame hashes its receipt compares before and after the change.
@@ -2166,6 +2174,7 @@ __declspec(noinline) static int RunFunctionalTests()
     EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);
     EmbeddedPointerHit::TestPointerHitEmbeddedResultNeverOutlivesItsControl(gpu);
     EmbeddedPointerHit::TestPointerHitEmbeddedEverySiteMovesTheRevision(gpu);
+    FormatBrushCacheTests::RunAll(gpu);
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();

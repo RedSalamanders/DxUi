@@ -2392,8 +2392,9 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     // still publish healthy siblings while one control keeps unavailable ink.
     const bool isolateContentFailures = ! _embedded;
     const bool prepareAllContent      = _preparedContentResources != GetResourceGeneration() || _preparedContentTypography != GetTypographyRevision();
-    const bool prepareAllVisual =
-        _forceAllVisualPreparation || _preparedVisualResources != GetResourceGeneration() || _preparedVisualTypography != GetTypographyRevision();
+    // A theme change or a whole-tree cancellation marks every control pending instead; a format or brush eviction prepares
+    // nothing, because no retained key borrows a format pointer (W2.8).
+    const bool prepareAllVisual  = _preparedVisualResources != GetResourceGeneration() || _preparedVisualTypography != GetTypographyRevision();
     _contentPreparationContinues = false;
     _contentPreparationFailure   = S_OK;
     if (! _pendingPageLayout && ! _pendingIntrinsicLayout && ! _pendingContentPreparation && ! prepareAllContent && ! _pendingVisualPreparation &&
@@ -2406,7 +2407,7 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     ++g_hostPreparationDepth;
     const auto endPreparationDepth = wil::scope_exit([]() noexcept { --g_hostPreparationDepth; });
     if (prepareAllVisual)
-        _forceAllVisualPreparation = false;
+        ++Detail::Work().frame.fullVisualPreparations;
     bool contentPending     = false;
     bool contentFailed      = false;
     bool visualPending      = false;
@@ -2635,8 +2636,6 @@ void ControlHost::CancelPreparedVisualContent(Control* subtree) noexcept
     const auto rootCurrent    = [&]() noexcept { return root && ! rootLifetime.expired() && _root.get() == root; };
     Control* const start      = subtree ? subtree : root;
     const auto startLifetime  = start ? GetControlLifetimeToken(*start) : std::weak_ptr<int>{};
-    if (! subtree)
-        _forceAllVisualPreparation = true;
     if (subtree && (! rootCurrent() || subtree->GetHost() != this || ! IsControlInTree(root, subtree)))
         return;
     const auto cancel = [&](auto&& self, Control& control) noexcept -> void
@@ -3801,6 +3800,9 @@ bool Button::Invoke(ControlHost& host, bool focusSelf)
 
 void Button::Paint(ControlHost& host) const
 {
+    // A hover or focus blend in progress draws its colors through the host's transition brushes (W2.8).
+    const TransitionBrushScope transition(
+        host, IsColorTransitionProgress(ResolveHoverAnimationProgress(host)) || IsColorTransitionProgress(ResolveFocusAnimationProgress(host)));
     // A disclosure rotation left pending while the button was hidden resumes ticking when it paints again.
     if (_disclosureTransition.active)
     {
@@ -3933,7 +3935,8 @@ void Button::Paint(ControlHost& host) const
         IDWriteTextFormat* const textFormat = ResolveContentTextFormat(host, FontRole::Body);
         IDWriteTextFormat* const iconFormat =
             host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, ResolveReadingDirection(flowDirection));
-        DrawButtonChrome(host.GetDeviceContext(), host.GetSolidBrush(style.text), textFormat, iconFormat, host.GetTheme(), spec);
+        // DrawButtonChrome sets the brush's color before each draw: it takes a brush no keyed color owns (W2.8).
+        DrawButtonChrome(host.GetDeviceContext(), TransitionBrushScope::ScratchBrush(host, style.text), textFormat, iconFormat, host.GetTheme(), spec);
         return;
     }
 
@@ -4624,6 +4627,8 @@ ToggleLayoutMetrics Toggle::GetLayoutMetrics() const noexcept
 
 void Toggle::Paint(ControlHost& host) const
 {
+    const TransitionBrushScope transition(
+        host, IsColorTransitionProgress(ResolveHoverAnimationProgress(host)) || IsColorTransitionProgress(ResolveFocusAnimationProgress(host)));
     const FlowDirection flowDirection = GetFlowDirection();
     const ToggleVisualStyle style     = ResolveToggleVisualStyle(host.GetTheme(),
                                                                  IsEnabled(),
@@ -4820,6 +4825,8 @@ bool Checkbox::IsIndeterminate() const noexcept
 
 void Checkbox::Paint(ControlHost& host) const
 {
+    const TransitionBrushScope transition(
+        host, IsColorTransitionProgress(ResolveHoverAnimationProgress(host)) || IsColorTransitionProgress(ResolveFocusAnimationProgress(host)));
     const bool rightToLeft          = IsRightToLeft();
     const bool effectiveChecked     = IsChecked() || _indeterminate;
     const CheckboxVisualStyle style = ResolveCheckboxVisualStyle(host.GetTheme(),
@@ -4925,6 +4932,8 @@ void RadioButton::SetGroup(RadioButtons* group) noexcept
 
 void RadioButton::Paint(ControlHost& host) const
 {
+    const TransitionBrushScope transition(
+        host, IsColorTransitionProgress(ResolveHoverAnimationProgress(host)) || IsColorTransitionProgress(ResolveFocusAnimationProgress(host)));
     const bool rightToLeft             = IsRightToLeft();
     const RadioButtonVisualStyle style = ResolveRadioButtonVisualStyle(host.GetTheme(),
                                                                        IsEnabled(),
@@ -8533,8 +8542,8 @@ const MenuBar::MenuBarLayoutCache& MenuBar::EnsureMenuBarLayoutCache(const Contr
 
     const MenuBarLayoutCache& cached = _menuBarLayoutCache;
     if (cached.valid && cached.host == &host && cached.bounds.left == bounds.left && cached.bounds.top == bounds.top && cached.bounds.right == bounds.right &&
-        cached.bounds.bottom == bounds.bottom && cached.readingDirection == readingDirection && cached.textFormat == format && cached.fontRole == fontRole &&
-        cached.menuBarHeightDip == menuBarHeightDip && cached.insetDip == insetDip && cached.itemGapDip == itemGapDip &&
+        cached.bounds.bottom == bounds.bottom && cached.readingDirection == readingDirection && cached.textFormat.get() == format &&
+        cached.fontRole == fontRole && cached.menuBarHeightDip == menuBarHeightDip && cached.insetDip == insetDip && cached.itemGapDip == itemGapDip &&
         cached.itemPaddingXDip == itemPaddingXDip && cached.measureHeightDip == measureHeightDip && cached.itemRects.size() == _items.size())
     {
         return _menuBarLayoutCache;

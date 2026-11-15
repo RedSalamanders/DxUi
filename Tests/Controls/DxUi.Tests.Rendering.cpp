@@ -3265,6 +3265,8 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestPointerHitWindowCursorQueryUsesTheDeliveredPoint);
     DXUI_RUN_TEST(TestPointerHitWindowReportsWhyReuseIsOff);
     DXUI_RUN_TEST(TestPointerHitLabelSubclassAndReplainedLabel);
+    DXUI_RUN_TEST(TestFormatBrushCacheGatesOnWindowFixtures);
+    DXUI_RUN_TEST(TestFormatBrushCachesAcrossDeviceLossAndDpiOnWindowHost);
     DXUI_RUN_TEST(TestTextAntialiasDefaultsFollowTheTargetAlphaMode);
     DXUI_RUN_TEST(TestTextRenderingParamsCompatibilityWithAntialiasModes);
     DXUI_RUN_TEST(TestTextRenderingComplexUiCapturesForEachHost);

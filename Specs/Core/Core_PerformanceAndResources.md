@@ -249,7 +249,11 @@ snapshot, delta and receipt.
   cleared and repainted (the dirty rectangle of a partial native frame). `drawCalls` counts Direct2D draw calls (every
   `Draw…`, `Fill…`, `Clear` and `BlendImage` call DxUi makes on a device context). Only the counting wrappers below
   increment it, so it is populated only where a test executable installs them and is 0 everywhere else, shipping builds
-  included. `shadowPasses` counts shadow effect passes drawn for elevated surfaces (popups, cards, dialogs). A thread's
+  included. `shadowPasses` counts shadow effect passes drawn for elevated surfaces (popups, cards, dialogs).
+  `fullVisualPreparations` counts preparation passes that prepared every visible control's visual content rather than
+  the pending ones (a resource or typography generation change); `brushEvictions` counts keyed solid brushes a host
+  released above its bound and `brushColorReuses` each transition brush served again by `SetColor` instead of created
+  ([format and brush caches](#format-and-brush-caches)). A thread's
   shared native device stack counts `d2dDevices` and `compositionDevices` it creates, and native hosts count the
   `swapChains` they create; with `resources.d3d11Device` and `resources.deviceContext` these give the device creations of
   one menu session (`FX4`, `G10`).
@@ -277,9 +281,10 @@ snapshot, delta and receipt.
   (one per item when its retained widths are stale, the no-matches text once) and each popup placement it computes because
   an input changed counts `popups.comboBoxPopupLayouts`. Each `MenuPopup` content paint counts `popups.menuPopupPaints` and adds the rows it drew
   to `popups.menuRowsPainted`.
-- **Text.** `text.formatCacheTrims` counts each time `ControlHost::TrimCaches` clears the configured text-format cache
-  above its key bound at the start of a preparation or render; each such clear forces every visible control to
-  re-prepare in that pass.
+- **Text.** `text.formatEvictions` counts the configured text formats `ControlHost::TrimCaches` evicted above the key
+  bound, `text.formatCacheTrims` each trim that evicted one, and `text.formatCacheOverBound` each trim that left the
+  map above its bound because every remaining entry was in use. No eviction prepares any control again
+  ([format and brush caches](#format-and-brush-caches)).
 - **Lists.** A `Tree` counts each model row it reads outside `Paint` (`treeItemReads`; `ITreeModel`'s default
   `FindVisibleItemById` scan counts its reads too), each `FindVisibleItemById` it asks of its model (`treeModelLookups`),
   each build of its [id index](../UI/UI_ControlsAndLayout.md#tree-item-lookup-and-model-notifications)
@@ -548,9 +553,10 @@ returning. This preserves exact-format identity through bounded host-cache evict
 replacement. A matching key skips the DirectWrite factory lookup and text-layout creation. This is a narrow owner-pass
 work reduction, not evidence of lower process memory or a measured performance gain.
 
-Evicting the bounded configured text-format cache marks visual preparation for the next owner update. Embedded
-hosts trim before that update's visual-preparation traversal, allowing retained layouts to rebind to the new exact
-format identity before painting. Cache trimming is not performed on clean composition frames.
+Evicting configured text formats prepares nothing: a format a frame draws with is never evicted, and a retained key
+holds its format by `com_ptr`, so an evicted format keeps its identity for that key until the key changes
+([format and brush caches](#format-and-brush-caches)). Embedded hosts trim before an update's visual-preparation
+traversal. Cache trimming is not performed on clean composition frames.
 
 Before changing implementation, measure the existing code with the same workload that will measure the candidate.
 Retain the original baseline and measure again after the change. Record exact source/content and executable/fixture
@@ -1219,6 +1225,47 @@ unpaced and must not replace ordinary unpaced performance/resource acceptance. D
 includes sampling overhead. [The grid investigation](../../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md)
 records the implemented opt-in diagnostics and their unresolved conclusions.
 
+### Format and brush caches
+
+Each host keeps a map of configured text formats (role, size, weight, alignment, wrapping and reading direction) and a
+map of solid brushes keyed by exact color. Every entry carries the host frame that last asked for it. A frame is one
+`TrimCaches` call: one native render pass (`Render`, which also serves `DebugCaptureBitmap`) or one embedded preparation
+that paints; a host that paints twice in one message has two frames, and a hidden host, which neither renders nor
+prepares, has none, so its stamps stand still and nothing is trimmed until it paints again. A request between frames
+(measurement, hit testing) counts as a use by the latest frame. At the start of a frame a map above its bound (256
+formats, 256 brushes) releases only the entries neither of the last two frames used, as `FindTextLayoutEntry` treats
+text layouts. The bound is soft for entries in use: they stay, so a working set above the bound creates nothing after
+its first frame and never thrashes; such a trim counts `text.formatCacheOverBound`. Evictions count
+`text.formatEvictions` (with `text.formatCacheTrims` per trim that evicted) and `frame.brushEvictions`.
+
+Eviction never forces visual re-preparation. Every key a control retains beyond the call that obtained a format holds
+the format by `com_ptr` (single-line text layouts of `TextField` and `ComboBox`, the `MenuBar` layout, `Tree` badge
+widths and tooltip overflow, `Button` icon layouts, `TabControl` title widths, `Grid` cell layouts), so an evicted
+format stays alive for its holder and its address cannot be reused by another format; a holder whose key no longer
+matches the map's current format prepares once again. A retained layout keyed without a format (a `Label` typography
+layout) stays valid because a configured format is a pure function of its key and the host's typography revision.
+Raw format and brush pointers are borrowed only within the call that obtained them.
+
+A color transition in progress (a `Tree` row's fade, a `Button`, `Toggle`, `Checkbox` or `RadioButton` hover or focus
+blend) paints under a `TransitionBrushScope`: a color the keyed map does not hold is then drawn through the host's
+transition brushes instead of becoming a keyed entry. Each such request in a frame takes a brush no earlier request of
+that frame took and sets its color with `SetColor`; the next frame reuses the same brushes (`frame.brushColorReuses`),
+so a running transition creates no brush after its first frame and the keyed map stops growing by one brush per
+animated color. Brushes are keyed by color quantized to 8 bits per channel, and a key draws the exact color it was
+first asked for with, whoever asks for it later; a key only transitions drew keeps that color without a brush (evicted
+by last use like any entry), so a transition and a steady paint of one key draw identical pixels. Because no transition brush is set twice within a frame, a brush that a deferred Direct2D path records
+(the shadow mask command list, a layer, a text layout drawing effect) keeps its color until the frame ends. A keyed
+brush is never given another color; code that sets its own colors before each draw (`DrawButtonChrome`) takes a
+transition brush. Nothing may retain a transition brush beyond the frame; drawing retained across frames (a command
+list kept between frames) uses keyed brushes, which a control that keeps one holds by `com_ptr` (as the rich editor's
+callout, properties and diagram label brushes are). At most 64 transition brushes exist per host; beyond them requests
+use the keyed map.
+
+Both maps are dropped exactly where they were before: a detached host keeps neither; a device loss, a shared device
+generation change, a theme change and an embedded device replacement release every brush (keyed and transition); DPI
+and text rendering parameter changes keep both, because formats are device-independent and brushes do not depend on
+DPI. The incremental-versus-fresh oracle drops both maps.
+
 ### Memory metrics
 
 Every [performance fixture](../Testing/Testing_Validation.md#performance-fixtures) receipt (`fixture`
@@ -1367,9 +1414,9 @@ using tile/raised views admits their summed surface cost. Composite is a single 
 derived from SV_VertexID and needs no per-view vertex/index/dynamic constant buffer. Hidden state performs no timer
 subscription; native WindowHost alone uses the event-driven animation dispatcher. Animation ticks add no raster work
 by themselves: `AdvanceAnimation` never marks the view dirty, and every `Tick` that changes visual state invalidates.
-Per-host caches are bounded to 256 solid brushes and 96 configured text formats; a cache beyond its bound is cleared
-at the start of the next embedded preparation or native paint, never mid-paint, so steady-state residency stays
-proportional to the painted working set. Diagnostics are borrowed and optional; composition does not emit them.
+Per-host caches are bounded to 256 solid brushes and 256 configured text formats by last use (see
+[format and brush caches](#format-and-brush-caches)); nothing is released mid-paint, so steady-state residency stays
+proportional to the painted working set of the last two frames. Diagnostics are borrowed and optional; composition does not emit them.
 The private window-message payload registry is bounded to 128 windows and 128 queued payloads; saturation fails
 immediately and releases transferred ownership. Teardown invalidates queued tokens and drains outside its lock.
 

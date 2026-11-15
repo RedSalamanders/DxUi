@@ -216,6 +216,8 @@ void DrawTreeRow(ControlHost& host,
                  const std::optional<Tree::TypographyOverride>& typographyOverride,
                  bool neutralDecorations) noexcept
 {
+    // A row fading in or out draws its faded colors through the host's transition brushes (W2.8).
+    const TransitionBrushScope transition(host, alpha < 1.0f);
     const TreeResolvedRowVisuals rowVisuals =
         ResolveTreeRowVisuals(theme, item.text, item.badgeTone, selected, current, focused, keyboardFocused, hovered, neutralDecorations);
     const D2D1_COLOR_F fill        = WithAlpha(rowVisuals.fill, alpha);
@@ -2627,7 +2629,7 @@ float Tree::MeasureCachedBadgeTextWidthDip(const ControlHost& host, std::wstring
     auto* textFormat = host.GetTextFormat(FontRole::Small);
     for (const TreeBadgeWidthCacheEntry& entry : _badgeWidthCache)
     {
-        if (entry.text == badgeText && entry.textFormat == textFormat)
+        if (entry.text == badgeText && entry.textFormat.get() == textFormat)
         {
             return entry.widthDip;
         }
@@ -2642,7 +2644,8 @@ float Tree::MeasureCachedBadgeTextWidthDip(const ControlHost& host, std::wstring
     {
         _badgeWidthCache.erase(_badgeWidthCache.begin());
     }
-    _badgeWidthCache.push_back(TreeBadgeWidthCacheEntry{.text = std::wstring(badgeText), .textFormat = textFormat, .widthDip = widthDip});
+    _badgeWidthCache.push_back(
+        TreeBadgeWidthCacheEntry{.text = std::wstring(badgeText), .textFormat = wil::com_ptr<IDWriteTextFormat>(textFormat), .widthDip = widthDip});
     return widthDip;
 }
 
@@ -2665,7 +2668,7 @@ std::wstring Tree::ResolveCachedTreeTooltipText(const ControlHost& host,
                                                              : host.GetTextFormat(FontRole::Body);
     TreeTooltipOverflowCache& cache    = _tooltipOverflowCache;
     if (cache.valid && cache.visibleIndex == visibleIndex && cache.itemId == item.id && cache.text == item.text && cache.tooltipText == item.tooltipText &&
-        cache.textFormat == textFormat && cache.availableWidthDip == availableWidthDip)
+        cache.textFormat.get() == textFormat && cache.availableWidthDip == availableWidthDip)
     {
         cache.host                = &host;
         cache.interactionRevision = host.GetInteractionRevision();

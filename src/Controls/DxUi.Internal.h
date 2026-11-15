@@ -699,6 +699,44 @@ void DrawDropShadow(ControlHost& host,
 
 inline constexpr auto kTextDrawOptions = static_cast<D2D1_DRAW_TEXT_OPTIONS>(D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
+// W2.8 (Specs/Core/Core_PerformanceAndResources.md, "Format and brush caches"). While an active scope lives, a color the
+// host's keyed brush map does not hold is drawn through the host's transition brushes instead of becoming a keyed entry:
+// each such request of a frame takes a brush no earlier request of that frame took and sets its color, and the next
+// frame reuses the same brushes. Library paint code opens a scope only for a color transition in progress (a Tree row's
+// fade, a Button-family hover or focus blend) and never keeps such a brush beyond the call that drew with it.
+class TransitionBrushScope final
+{
+public:
+    TransitionBrushScope(const ControlHost& host, bool active) noexcept : _host(active ? &host : nullptr)
+    {
+        if (_host)
+            ++_host->_transitionBrushScopes;
+    }
+    ~TransitionBrushScope()
+    {
+        if (_host)
+            --_host->_transitionBrushScopes;
+    }
+    TransitionBrushScope(const TransitionBrushScope&)            = delete;
+    TransitionBrushScope& operator=(const TransitionBrushScope&) = delete;
+
+    // A brush set to `color` that no keyed entry owns, for code that sets its own colors before each draw
+    // (DrawButtonChrome): a keyed brush must keep its color.
+    [[nodiscard]] static ID2D1SolidColorBrush* ScratchBrush(const ControlHost& host, const D2D1_COLOR_F& color)
+    {
+        return host.GetTransitionBrush(color, true);
+    }
+
+private:
+    const ControlHost* _host = nullptr;
+};
+
+// Whether a hover or focus progress is between its two states: the colors blended from it are a transition's.
+[[nodiscard]] constexpr bool IsColorTransitionProgress(float progress) noexcept
+{
+    return progress > 0.0f && progress < 1.0f;
+}
+
 void DrawCenteredText(ControlHost& host,
                       std::wstring_view text,
                       const D2D1_RECT_F& rect,

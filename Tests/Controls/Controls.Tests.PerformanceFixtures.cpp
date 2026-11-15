@@ -241,6 +241,45 @@ void RequireDeterministic(const RunRecord& first, const RunRecord& second)
         Require(false, "two consecutive WARP runs of a performance fixture record equal counters");
     }
 }
+
+[[nodiscard]] uint64_t HashCapture(const DxUi::WindowHostBitmapCapture& capture) noexcept
+{
+    uint64_t hash = 0xCBF29CE484222325ull;
+    for (const uint8_t byte : capture.bgraPixels)
+    {
+        hash ^= byte;
+        hash *= 0x100000001B3ull;
+    }
+    return hash;
+}
+
+// Plays a fixture on the window host, one frame per step, and hashes a full frame of the host after each step
+// (DebugCaptureBitmap renders the whole client area and reads it back). before(instance, phase, step) runs before a step.
+template <typename Before> std::vector<uint64_t> WindowFrameHashes(const Definition& definition, const Variant& variant, Before&& before)
+{
+    std::vector<uint64_t> hashes;
+    WindowInstance instance;
+    instance.Instantiate(definition);
+    instance.Create(variant);
+    for (size_t phase = 0u; phase < definition.phases.size(); ++phase)
+        for (size_t step = 0u; step < definition.phases[phase].steps; ++step)
+        {
+            before(instance, phase, step);
+            instance.Step(phase, step);
+            instance.Frame();
+            DxUi::WindowHostBitmapCapture capture;
+            Require(instance.Host().DebugCaptureBitmap(capture, true), "a window fixture frame is captured");
+            hashes.push_back(HashCapture(capture));
+        }
+    return hashes;
+}
+
+[[nodiscard]] uint64_t StepCounter(const StepRecord& step, std::string_view name)
+{
+    const std::optional<uint64_t> value = CounterValue(step, name);
+    Require(value.has_value(), "a W2.8 gate names a counter that exists");
+    return value.value_or(0u);
+}
 } // namespace
 #pragma warning(pop)
 
@@ -323,6 +362,144 @@ void TestFrameScheduleGatesOnWindowFixtures()
 PerformanceFixtures::RunRecord RunWindowFixture(const PerformanceFixtures::Definition& definition, const PerformanceFixtures::Variant& variant)
 {
     return RunWindow(definition, variant);
+}
+
+// W2.8's gate on the window host: FX12 (default and typography-120) forces no full visual re-preparation and creates,
+// evicts or trims no text format in a measured step; FX11's Tree expand and collapse phases (the transitions that animate a
+// color, a row's fade) create no brush after their first frame and draw through the host's transition brushes.
+void TestFormatBrushCacheGatesOnWindowFixtures()
+{
+    for (const char* name : {"default", "typography-120"})
+    {
+        const Variant* variant = Fx12::kDefinition.FindVariant(name);
+        Require(variant != nullptr, "FX12 declares the W2.8 variants");
+        const RunRecord run = RunWindow(Fx12::kDefinition, *variant);
+        for (size_t phase = 0u; phase < Fx12::kPhases.size(); ++phase)
+        {
+            if (Fx12::kPhases[phase].kind != PhaseKind::Measured)
+                continue;
+            const auto& steps = run.phases[phase].steps;
+            for (size_t step = 0u; step < steps.size(); ++step)
+            {
+                const uint64_t full    = StepCounter(steps[step], "frame.fullVisualPreparations");
+                const uint64_t trims   = StepCounter(steps[step], "text.formatCacheTrims");
+                const uint64_t evicted = StepCounter(steps[step], "text.formatEvictions");
+                const uint64_t created = StepCounter(steps[step], "resources.textFormat.created");
+                if (full != 0u || trims != 0u || evicted != 0u || created != 0u)
+                    std::cerr << "FX12@" << name << " (window) " << Fx12::kPhases[phase].name << " step " << step << ": full preparations " << full
+                              << ", trims " << trims << ", formats evicted " << evicted << ", formats created " << created << '\n';
+                Require(full == 0u, "W2.8: an FX12 frame forces no full visual re-preparation on the window host");
+                Require(trims == 0u && evicted == 0u && created == 0u, "W2.8: an FX12 frame creates, evicts and trims no text format on the window host");
+            }
+        }
+    }
+    const RunRecord motion = RunWindow(Fx11::kDefinition, Fx11::kVariants[0]);
+    for (size_t rate = 0u; rate < Fx11::kRates.size(); ++rate)
+        for (const Fx11::Transition transition : {Fx11::Transition::TreeExpand, Fx11::Transition::TreeCollapse})
+        {
+            const size_t phase = Fx11::PhaseIndex(rate, transition);
+            const auto& steps  = motion.phases[phase].steps;
+            uint64_t reuses    = 0u;
+            for (size_t step = 0u; step < steps.size(); ++step)
+            {
+                reuses += StepCounter(steps[step], "frame.brushColorReuses");
+                const uint64_t created = StepCounter(steps[step], "resources.brush.created");
+                if (step > 0u && created != 0u)
+                    std::cerr << "FX11 (window) " << Fx11::kPhases[phase].name << " step " << step << ": " << created << " brushes created\n";
+                Require(step == 0u || created == 0u, "W2.8: an FX11 color transition creates no brush after its first frame on the window host");
+            }
+            Require(reuses > 0u, "W2.8: an FX11 Tree fade draws its colors through the window host's transition brushes");
+        }
+}
+
+// W2.8 on the window host: a device lost in the middle of a Tree fade drops both brush maps, and every frame equals that of an
+// uninterrupted run; a DPI change with FX12's 120 typographies live creates and evicts no text format, and the frame equals a
+// fresh host's (every registered retained cache dropped).
+void TestFormatBrushCachesAcrossDeviceLossAndDpiOnWindowHost()
+{
+    const size_t lossPhase                = Fx11::PhaseIndex(1u, Fx11::Transition::TreeExpand); // 60 Hz
+    constexpr size_t lossStep             = 6u;
+    const std::vector<uint64_t> steady    = WindowFrameHashes(Fx11::kDefinition, Fx11::kVariants[0], [](WindowInstance&, size_t, size_t) {});
+    bool lost                             = false;
+    const std::vector<uint64_t> recovered = WindowFrameHashes(Fx11::kDefinition,
+                                                              Fx11::kVariants[0],
+                                                              [&](WindowInstance& instance, size_t phase, size_t step)
+    {
+        if (phase != lossPhase || step != lossStep)
+            return;
+        instance.Host().DebugSimulateDeviceLoss();
+        Require(instance.Host().DebugGetBrushCacheSize() == 0u, "W2.8: a device loss drops the keyed brushes");
+        lost = true;
+    });
+    Require(lost && steady.size() == recovered.size(), "both FX11 plays render every step");
+    for (size_t index = 0u; index < steady.size(); ++index)
+        if (steady[index] != recovered[index])
+        {
+            const std::optional<PhaseStep> at = StepAt(Fx11::kDefinition, index);
+            std::cerr << "FX11 (window) " << Fx11::kPhases[at->phase].name << " step " << at->step << " differs after the device loss\n";
+            Require(false, "W2.8: frames after a device loss in the middle of a Tree fade equal an uninterrupted run's");
+        }
+
+    const Variant& typography = *Fx12::kDefinition.FindVariant("typography-120");
+    WindowInstance instance;
+    instance.Instantiate(Fx12::kDefinition);
+    instance.Create(typography);
+    for (size_t step = 0u; step < Fx12::kPhases[Fx12::kWarm].steps; ++step)
+    {
+        instance.Step(Fx12::kWarm, step);
+        instance.Frame();
+    }
+    const size_t formats = instance.Host().DebugGetConfiguredTextFormatCount();
+    Require(formats >= 120u, "the typography scene holds its 120 live formats");
+    {
+        const DxUi::Detail::WorkCounterScope scope;
+        instance.Resize(typography.width, typography.height, 144.0f);
+        instance.Host().Invalidate();
+        instance.Frame();
+        const DxUi::Detail::WorkCounters work = scope.Delta();
+        Require(work.resources.textFormat.created == 0u && work.text.formatEvictions == 0u && work.text.formatCacheTrims == 0u,
+                "W2.8: a DPI change keeps every live format on the window host");
+        std::cerr << "    [W2.8] FX12@typography-120 at 144 DPI (window): " << work.frame.fullVisualPreparations << " full visual preparations\n";
+    }
+    Require(instance.Host().DebugGetConfiguredTextFormatCount() == formats, "the format map is unchanged by the DPI change");
+    DxUi::WindowHostBitmapCapture incremental;
+    DxUi::WindowHostBitmapCapture fresh;
+    Require(instance.Host().DebugCaptureBitmap(incremental, true), "capture after the DPI change");
+    instance.Host().DebugDropRetainedStateForTest();
+    Require(instance.Host().DebugCaptureBitmap(fresh, true), "capture after dropping every retained cache");
+    Require(incremental.bgraPixels == fresh.bgraPixels, "W2.8: after a DPI change with 120 formats live the window host draws what a fresh host draws");
+}
+
+int RunWindowFixtureFrameHashCommand(int argc, wchar_t** argv)
+{
+    if (argc != 4)
+    {
+        std::fputs("--fixture-frame-hashes requires FX<N>[@variant] and an output path.\n", stderr);
+        return 2;
+    }
+    const FixtureSelection selection = ParseSelection(argv[2]);
+    const Definition* definition     = FindFixture(selection.id);
+    const Variant* variant           = definition ? FindVariant(*definition, selection.variant) : nullptr;
+    if (! definition || definition->interactiveOnly || ! definition->Built() || ! Supports(definition->hosts, Host::Window) || ! variant ||
+        variant->hardwareOnly)
+    {
+        std::fputs("--fixture-frame-hashes names no WARP variant of a fixture built for the window host.\n", stderr);
+        return 2;
+    }
+    const std::vector<uint64_t> hashes = WindowFrameHashes(*definition, *variant, [](WindowInstance&, size_t, size_t) {});
+    const std::filesystem::path path(argv[3]);
+    if (path.has_parent_path())
+        std::filesystem::create_directories(path.parent_path());
+    std::ofstream output{path, std::ios::binary};
+    Require(bool(output), "frame hash file");
+    size_t index = 0u;
+    for (size_t phase = 0u; phase < definition->phases.size(); ++phase)
+        for (size_t step = 0u; step < definition->phases[phase].steps; ++step)
+            output << definition->phases[phase].name << ' ' << step << ' ' << std::hex << hashes[index++] << std::dec << '\n';
+    output.close();
+    Require(bool(output), "frame hashes written");
+    std::cout << definition->id << '@' << variant->name << " (window): " << hashes.size() << " frame hashes written to " << path.string() << '\n';
+    return 0;
 }
 
 int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv)

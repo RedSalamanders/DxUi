@@ -628,7 +628,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
   - **Gate**: on `FX1` and a 64 Ki-unit multiline field, 0 layouts per focused paint, sub-notch wheel and `PageDown`
     with unchanged text and width, and 0 DxUi-owned allocations per focused single-line paint; exact WARP parity.
   - **Needs**: `W1.5`, `W0.1`, `W0.4`. **Size**: M.
-- [ ] **W2.8 Format and brush caches.**
+- [x] **W2.8 Format and brush caches.**
   - **Why**: above 96 format keys `TrimCaches` clears the format map and forces every visible control to re-prepare,
     every frame while the working set stays above 96 (`DxUi.WindowHost.cpp:4678-4682`, `include/DxUi/DxUi.h:6365`); the
     flag exists because some retained keys hold a raw format pointer (`include/DxUi/DxUi.h:2926`) or no format at all

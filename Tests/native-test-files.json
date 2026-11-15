@@ -118,6 +118,7 @@
   "Tests/Embedded/Embedded.Tests.EmbeddedTextInput.h",
   "Tests/Embedded/Embedded.Tests.EmbeddedUia.h",
   "Tests/Embedded/Embedded.Tests.EmbeddedUiaBridge.h",
+  "Tests/Embedded/Embedded.Tests.FormatBrushCaches.h",
   "Tests/Embedded/Embedded.Tests.FormLayoutBenchmark.h",
   "Tests/Embedded/Embedded.Tests.FrameTiming.h",
   "Tests/Embedded/Embedded.Tests.GridSelectionBenchmark.h",

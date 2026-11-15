@@ -1876,8 +1876,11 @@ EmbeddedStatistics EmbeddedHost::GetStatistics() const noexcept
 {
     if (! _state)
         return {};
-    auto stats              = _state->stats;
-    stats.cachedBrushes     = _host._brushCache.size();
+    auto stats = _state->stats;
+    // Brush objects: the keyed ones (a key only transitions drew holds a color, not a brush) and the transition brushes.
+    stats.cachedBrushes =
+        _host._transitionBrushes.size() +
+        static_cast<uint64_t>(std::ranges::count_if(_host._brushCache, [](const auto& entry) noexcept { return entry.second.brush != nullptr; }));
     stats.cachedTextFormats = _host._configuredTextFormats.size();
     if (_host._root)
         RetainedResourceAccess::Add(stats, *_host._root);

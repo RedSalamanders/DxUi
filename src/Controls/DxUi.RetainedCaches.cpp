@@ -65,24 +65,21 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
 {
     {
         static constexpr std::array<RetainedHostCacheRow, 5u> rows{{
-            // ControlHost::_brushCache (and _brushFailureLogKeys, the warnings already written for it).
+            // ControlHost::_brushCache, its _transitionBrushes (W2.8) and _brushFailureLogKeys, the warnings already written.
             {"ControlHost._brushCache",
-             [](const ControlHost& host) noexcept { return host._brushCache.size(); },
+             [](const ControlHost& host) noexcept { return host._brushCache.size() + host._transitionBrushes.size(); },
              [](ControlHost& host) noexcept
         {
-            host._brushCache.clear();
+            host.ReleaseBrushes();
             host._brushFailureLogKeys.clear();
         },
-             [](const ControlHost& host) noexcept { return UnorderedMapBytes(host._brushCache) + VectorBytes(host._brushFailureLogKeys); }},
-            // ControlHost::_configuredTextFormats. Controls borrow raw format pointers from it (single-line, menu-bar and
-            // tree badge caches); their rows drop those first and every control is prepared again, as TrimCaches does.
+             [](const ControlHost& host) noexcept
+        { return UnorderedMapBytes(host._brushCache) + VectorBytes(host._transitionBrushes) + VectorBytes(host._brushFailureLogKeys); }},
+            // ControlHost::_configuredTextFormats. Controls that keep a format beyond one call hold it by com_ptr (W2.8), so
+            // dropping the map needs no re-preparation of its own; Drop prepares every control again anyway.
             {"ControlHost._configuredTextFormats",
              [](const ControlHost& host) noexcept { return host._configuredTextFormats.size(); },
-             [](ControlHost& host) noexcept
-        {
-            host._configuredTextFormats.clear();
-            host._forceAllVisualPreparation = true;
-        },
+             [](ControlHost& host) noexcept { host._configuredTextFormats.clear(); },
              [](const ControlHost& host) noexcept { return UnorderedMapBytes(host._configuredTextFormats); }},
             // TooltipLayer::_layoutCache of the host's tooltip layer.
             {"TooltipLayer._layoutCache",

@@ -109,7 +109,8 @@ struct EmbeddedStatistics
     uint64_t replacementPeakBytes = 0;
     uint64_t surfaceAllocations   = 0;
     // Current sizes of the bounded per-view caches (ControlHost::kSolidBrushCacheLimit and
-    // kConfiguredTextFormatCacheLimit); a cache beyond its bound is cleared at the next preparation start.
+    // kConfiguredTextFormatCacheLimit; brushes include those serving color transitions). At the next preparation start a
+    // cache beyond its bound releases the entries neither of the last two preparations used.
     uint64_t cachedBrushes     = 0;
     uint64_t cachedTextFormats = 0;
     // Resources the view's controls and tooltip keep between preparations, counted by GetStatistics (never during

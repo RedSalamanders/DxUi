@@ -5,6 +5,11 @@
 void TestPerformanceFixtureFrameworkOnWindowHost();
 void TestPerformanceFixturesAreDeterministicOnWindowHost();
 void TestFrameScheduleGatesOnWindowFixtures();
+// W2.8 (Specs/Core/Core_PerformanceAndResources.md, "Format and brush caches") on the window host.
+void TestFormatBrushCacheGatesOnWindowFixtures();
+void TestFormatBrushCachesAcrossDeviceLossAndDpiOnWindowHost();
+// DxUi.ControlTests.exe --fixture-frame-hashes <FX<N>[@variant]> <output>: a hash of a full frame per step on the window host.
+int RunWindowFixtureFrameHashCommand(int argc, wchar_t** argv);
 // DxUi.ControlTests.exe --fixture-receipt <FX<N>[@variant]> <output.json>: a WARP receipt of one fixture on the window host.
 int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv);
 
