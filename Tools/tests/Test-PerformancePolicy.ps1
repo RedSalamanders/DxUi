@@ -271,7 +271,7 @@ Invoke-FixtureCase 'Full identity requires the harness while PlatformOnly skips 
     param($root)
     foreach ($relative in @('performance.ps1','performance-paired.ps1','build.ps1','vcpkg-install.ps1',
             'Tools/Compare-Performance.ps1','Tools/PerformanceComparison.psm1','Tools/PairedRun.psm1','Tools/BenchmarkGate.psm1','Tools/PerformancePolicy.psm1',
-            'Tools/VisualStudio.psm1','Tools/VcpkgTriplet.psm1','vcpkg.json','vcpkg-tool.json','src/DxUi.vcxproj')) {
+            'Tools/VisualStudio.psm1','Tools/ConsumerBuild.psm1','Tools/VcpkgTriplet.psm1','vcpkg.json','vcpkg-tool.json','src/DxUi.vcxproj')) {
         Set-FixtureFile $root $relative 'fixture input'
     }
     Set-FixtureFile $root 'Tools/VisualStudio.psm1' @'
@@ -582,7 +582,7 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
         Set-FixtureFile $root $path "original tool input: $path"
     }
     foreach ($path in @('performance.ps1','performance-paired.ps1','build.ps1','vcpkg-install.ps1','Tools/Compare-Performance.ps1','Tools/PerformanceComparison.psm1',
-            'Tools/PairedRun.psm1','Tools/BenchmarkGate.psm1','Tools/PerformancePolicy.psm1','Tools/PerformanceAcceptancePolicy.v1.json','Tools/VcpkgTriplet.psm1',
+            'Tools/PairedRun.psm1','Tools/BenchmarkGate.psm1','Tools/PerformancePolicy.psm1','Tools/PerformanceAcceptancePolicy.v1.json','Tools/ConsumerBuild.psm1','Tools/VcpkgTriplet.psm1',
             'Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1','Build/BuildConsole.psm1','vcpkg.json','vcpkg-tool.json')) { Set-FixtureFile $root $path "fixed fixture harness: $path" }
     Set-FixtureFile $root '.build/vcpkg_installed/x64/vcpkg/status' 'fixture installed dependency'
     Set-FixtureFile $root '.build/vcpkg_installed/x64/vcpkg/info/wil_x64-windows.list' 'x64-windows/include/wil.h'
@@ -648,6 +648,24 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
             Assert-True ($changedConsole.harnessIdentity -cne $originalFull.harnessIdentity) 'the transitive console dependency participates in full harness identity'
             Assert-Equal $originalFull.toolchainIdentity $changedConsole.toolchainIdentity 'console reporting does not silently change compiler profiles'
         } finally {Set-FixtureFile $root 'Build/BuildConsole.psm1' $consoleBytes}
+        $consumerPath=Join-Path $root 'Tools/ConsumerBuild.psm1'
+        $consumerBytes=[IO.File]::ReadAllText($consumerPath)
+        try {
+            Set-FixtureFile $root 'Tools/ConsumerBuild.psm1' ($consumerBytes+' changed')
+            $changedConsumer=& $getIdentity
+            Assert-Equal 'verifiable' $changedConsumer.identityStatus 'changed consumer backend bytes remain structurally identifiable'
+            Assert-True ($changedConsumer.harnessIdentity -cne $originalFull.harnessIdentity) 'the consumer backend participates in Full harness identity'
+            Assert-Equal $originalFull.toolchainIdentity $changedConsumer.toolchainIdentity 'consumer backend bytes do not change the compiler profile'
+            Remove-Item -LiteralPath $consumerPath
+            $missingConsumer=& $getIdentity
+            Assert-Equal 'identity-unverifiable' $missingConsumer.identityStatus 'Full identity refuses a missing consumer backend'
+            Assert-True $missingConsumer.identityError.Contains('Cannot attest missing input: Tools/ConsumerBuild.psm1') 'the missing consumer backend is the refusal cause'
+            $partialConsumer=& $getIdentity PlatformOnly
+            Assert-Equal 'platform-only' $partialConsumer.identityStatus 'PlatformOnly still evaluates its platform without harness hashing'
+            Assert-Equal '' $partialConsumer.harnessIdentity 'PlatformOnly cannot claim a Full harness identity'
+            Assert-Equal $originalFull.toolchainIdentity $partialConsumer.toolchainIdentity 'skipping a missing harness input preserves compiler verification'
+        } finally {Set-FixtureFile $root 'Tools/ConsumerBuild.psm1' $consumerBytes}
+        Assert-Equal $originalFull.harnessIdentity (& $getIdentity).harnessIdentity 'restoring exact consumer bytes restores Full harness identity'
         if ($syntheticWindowsEnvironment) {
             $warpBytes = [IO.File]::ReadAllBytes($fixtureWarpPath)
             try {

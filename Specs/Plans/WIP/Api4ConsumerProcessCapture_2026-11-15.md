@@ -145,6 +145,31 @@ paired result. There are zero measurement slots and no regression finding. The r
 artifact lacks the raw per-file hashes needed to replay the complete Full hash independently; the
 observed preflight mismatch and source-level overlay omission remain distinct evidence.
 
+## H2 hosted fixture follow-up
+
+Candidate `12753a8fabcfd45c6f828abb5835332e2f85b74b` (H2) is under qualification in the
+[manual native/A/A cohort](https://github.com/RedSalamanders/DxUi/actions/runs/43724475279) and
+[PR cohort](https://github.com/RedSalamanders/DxUi/actions/runs/43724306804). Both Ubuntu jobs passed
+all 14 consumer-process controls on PowerShell 7.6.10, recording 24 actual starts with no setup error;
+their subjects are H2 and the PR merge checkout respectively. Both aggregates then failed the same
+PerformancePolicy fixture, 39/40: its isolated seed omitted the ConsumerBuild file already required by
+the production Full harness identity. The production dependency contract remains correct.
+
+The next change is limited to `Tools/tests/Test-PerformancePolicy.ps1` and this reporting closeout:
+seed the required file and exercise Full mutation/missing-input rejection while preserving PlatformOnly
+behavior. Its two actual focused fixture cases passed at the frozen test hash
+`9a7f6b4258ccb0e566ef1786b15090ad5cf345282bcdcc4cba35294ee55ca6d7`, with one contained Git
+initialization, zero MSBuild calls and no product build or foreground input. The fixture files and
+assertions are retained; transient identity objects were not retained, so this is not a claim to
+post-hoc replay every intermediate comparison from raw objects. The proof is
+`e32192c74371771ab35412f82decb6c0c3e0f03cad51d6c82ccc65169e8849b9`.
+This is a component checkpoint of the three-file uncommitted follow-up, not qualification of a future
+commit. The four prior source cases and 34 process controls were not repeated. Production capture,
+policy values, judge, workload and CI are unchanged.
+The running native/A/A evidence remains bound to H2, not this dirty fixture follow-up. A/A is a
+diagnostic owner-review packet, not PR acceptance or policy qualification; the base remains unqualified.
+Fresh follow-up native/hosted qualification, policy review and RedSalamander adoption remain pending.
+
 ## Output and remaining qualification
 
 Focused controls borrow an explicit caller-owned existing fixture parent beneath the already approved
