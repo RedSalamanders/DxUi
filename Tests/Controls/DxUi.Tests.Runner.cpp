@@ -106,6 +106,11 @@ void RunWatchdogSelfTestProgress()
 int wmain(int argc, wchar_t** argv)
 {
     DxUiTestFailureReports::RouteAwayFromDialogs();
+    // Tests drive their windows with UpdateWindow and SendMessage and seldom run a message loop. After five seconds
+    // without one, Windows would mark such a window hung and ghost it, after which its invalidations leave no update
+    // region: a slow (ASan) run then failed paint assertions at whichever step crossed that wall-clock line. No test
+    // here wants the shell's stand-in for a hung window.
+    DisableProcessWindowsGhosting();
     if (const auto child = DxUiFailureTests::RunFailureChild(argc, argv); child >= 0)
         return child;
     if (const int subscriber = RunAccessibilityClientGateQueryChild(argc, argv); subscriber >= 0)

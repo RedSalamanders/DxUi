@@ -169,6 +169,10 @@ The activation helper services sent messages through `MsgWaitForMultipleObjectsE
 can outlast a polling interval; the native watchdog still bounds the test. Foreground checks, grants and retry
 limits remain unchanged.
 
+`DxUi.ControlTests` disables window ghosting for its process at startup. Its tests paint with `UpdateWindow` and seldom
+run a message loop, so after five seconds Windows would treat a test window as hung and ghost it; a ghosted window's
+invalidations leave no update region, which made paint assertions fail by wall-clock time on slow (ASan) runs.
+
 Verified GitHub-hosted Windows jobs run requested foreground suites through the same restoring lease with a parent
 anchor and a child-specific foreground grant. Both the PowerShell launcher and native `--run-hosted` mode check the
 exact hosted markers before taking that runner's desktop. Hosted receipts use `.hosted` and record lease results;
