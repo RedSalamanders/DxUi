@@ -244,7 +244,7 @@ jobs:
       relevant: ${{ steps.scope.outputs.relevant }}
     runs-on: windows-2025-vs2026
     # Twelve blocks across three gating scenarios mean 144 benchmark receipts, plus both builds; retain time to publish on timeout.
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 180 || 240 }}
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -269,7 +269,7 @@ jobs:
       - id: measure
         if: ${{ github.event_name == 'workflow_dispatch' || steps.scope.outputs.relevant == 'true' }}
         shell: pwsh
-        timeout-minutes: ${{ github.event_name == 'pull_request' && 150 || 210 }}
+        timeout-minutes: 210
         env:
           BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline || steps.scope.outputs.baseline }}
           BENCHMARK_CANDIDATE: ${{ inputs.benchmark_candidate }}

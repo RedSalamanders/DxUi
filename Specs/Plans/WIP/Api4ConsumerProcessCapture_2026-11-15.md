@@ -362,3 +362,40 @@ GUI failure or waived by policy approval. Fresh exact-head six-profile native,
 eight relocated-consumer and normal paired gates at base P remain required.
 Local staging still awaits review before commit/publication; no local native or
 foreground run, new dispatch, cancellation or consumer pin adoption is claimed.
+
+## H8 paired outer-budget correction prepared privately (2026-11-15)
+
+H7 `b8b72ba645a92b252eed9a12c18938bb3fc3117e` normal paired run
+43753363414/job 132932001330 exhausted the PR measurement step's 150-minute
+outer limit after 135 of the required 144 valid reports. It produced no complete
+summary or verdict; partial observations establish neither completed non-regression
+nor a numerical regression. The preserved failure remains a failure.
+
+This private, unapplied follow-up aligns the PR outer measurement deadline with
+the existing manual 210-minute limit and its enclosing job with the existing manual
+240-minute limit. Restore stays 10/15 minutes. All required scenarios, twelve blocks,
+144-report schedule, native/per-sample deadlines, judge, Gate/StrictControls, policy,
+budgets, cancellation and upload/report boundaries are unchanged. No partial result
+is accepted and no policy approval is inferred. The approved twenty-file full harness
+remains byte-identical at 7249D6FCCF538E722FAC8E615CB1656BD516F9224828BBB7CDFBB64FB82C0E56;
+workflow coverage has a separately derived contract digest pending review.
+
+Focused executable source controls verify the outer budgets/reporting headroom and
+reject undersized budgets or a reduced workload; they are compiler-free observations,
+not a rerun or forecast that a complete study will fit. Exact-source native, consumer,
+formatting and complete normal paired acceptance remain pending. No producer source,
+RS pin, cooking, base branch, policy or numeric threshold is changed by this private
+preparation. Apply/publish only after independent review and conductor assignment.
+
+## H8 paired outer-budget correction applied locally (2026-11-15)
+
+The reviewed six-path H8 budget patch is now **APPLIED LOCAL / FRESH QUALIFICATION
+PENDING** on H7 `b8b72ba645a92b252eed9a12c18938bb3fc3117e`. The private preparation
+checkpoint above remains historical. PR/manual measurement and job bounds are now
+210/240 minutes; restore10/15, the complete workload, all twenty approved harness
+inputs, numeric policy, per-sample deadlines and failure/report boundaries remain
+unchanged. The ordinary dated fragment was canonically folded. Actual focused
+workflow/source controls and final diff/identity checks must accompany the commit;
+no native rerun, complete paired result or consumer pin adoption is claimed here.
+Normal publication and fresh exact-head native, consumer and complete paired CI
+remain required. H7's135/144 timeout remains failed, with no completed verdict.

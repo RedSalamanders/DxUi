@@ -437,7 +437,12 @@ candidate-only policy is explicitly untrusted. `Tools/tests/Test-BenchmarkGate.p
   unmeasured because its scope could not be read. The job is not skipped for such a pull request, because GitHub reports a
   skipped job under its unevaluated name expression and a required check of the same name would wait forever. A manual
   dispatch with `benchmark_baseline` measures the revisions it names. A newer push to a pull request cancels its older run,
-  and its job is bounded at 180 minutes; manual diagnostic runs are bounded at 240 minutes. A
+  and its job is bounded at 240 minutes for both pull requests and manual diagnostics. The outer paired
+  measurement step is bounded at 210 minutes for both, matching the existing manual diagnostic budget;
+  restore remains 10 minutes for a pull request and 15 minutes for a manual run, with a 3-minute scope step.
+  Their ceilings leave reporting time inside the job. Per-sample/native deadlines, all three scenarios,
+  twelve blocks, complete 144-receipt study, judge, policy and gate rules remain unchanged; a partial
+  study has no completed verdict and cannot establish acceptance. A
   pull request's check is named `paired-benchmark (pull request)`, apart from the push and manual runs of the same job, so
   that a required check names exactly one check run.
 - **What is compared.** The candidate is the pull request's merge ref. The baseline is that merge commit's first parent, the

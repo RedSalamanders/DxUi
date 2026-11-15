@@ -1731,18 +1731,37 @@ Invoke-TestCase 'the workflow cancels what a push supersedes, bounds its runtime
     # The twelve-block qualification study takes more observations; its hard limits leave time to publish the verdict and receipts.
     $limit = "\`$\{\{ github\.event_name == 'pull_request' && (\d+) \|\| (\d+) \}\}"
     $job = Get-WorkflowJob 'paired-benchmark'
-    $jobLimit = [regex]::Match($job, "(?m)^    timeout-minutes: $limit\s*`$")
-    Assert-True $jobLimit.Success 'the benchmark job has a timeout for each trigger'
-    Assert-True ([int]$jobLimit.Groups[1].Value -le 180) "a pull request's run is bounded to 180 minutes: $($jobLimit.Groups[1].Value)"
-    Assert-Equal 240 ([int]$jobLimit.Groups[2].Value) 'manual diagnostic scenarios have a bounded longer run'
-    $steps = @([regex]::Matches($job, "(?m)^        timeout-minutes: $limit\s*`$"))
-    $fixed = @([regex]::Matches($job, '(?m)^        timeout-minutes: (\d+)\s*$') | ForEach-Object { [int]$_.Groups[1].Value })
-    Assert-True ($steps.Count -ge 2) 'the restore and the measurement have step limits shorter than the job, so the verdict and artifacts still run'
-    Assert-True ($fixed.Count -ge 1) 'and so has the scope step'
-    foreach ($column in @(1, 2)) {
-        $sum = ($steps | ForEach-Object { [int]$_.Groups[$column].Value } | Measure-Object -Sum).Sum + ($fixed | Measure-Object -Sum).Sum
-        Assert-True ($sum -lt [int]$jobLimit.Groups[$column].Value) "the step limits together leave the job time to report (column $column)"
+    $assertBudget = {
+        param([string] $CandidateJob)
+        $jobLimit = [regex]::Match($CandidateJob, '(?m)^    timeout-minutes: (\d+)\s*$')
+        Assert-True $jobLimit.Success 'the enclosing paired job has an explicit fixed deadline'
+        Assert-Equal 240 ([int]$jobLimit.Groups[1].Value) 'PR and manual jobs share the existing 240-minute diagnostic bound'
+        $measure = [regex]::Match($CandidateJob, '(?ms)^      - id: measure\r?\n.*?^        timeout-minutes: (\d+)\s*$')
+        Assert-True $measure.Success 'measurement has an explicit fixed step deadline'
+        Assert-Equal 210 ([int]$measure.Groups[1].Value) 'PR and manual measurement share the existing 210-minute diagnostic bound'
+        $restore = [regex]::Match($CandidateJob, "(?m)^        timeout-minutes: $limit\s*`$")
+        Assert-True $restore.Success 'restore keeps its per-trigger deadline'
+        Assert-Equal 10 ([int]$restore.Groups[1].Value) 'PR restore remains ten minutes'
+        Assert-Equal 15 ([int]$restore.Groups[2].Value) 'manual restore remains fifteen minutes'
+        $fixed = @([regex]::Matches($CandidateJob, '(?m)^        timeout-minutes: (\d+)\s*$') | ForEach-Object { [int]$_.Groups[1].Value })
+        Assert-True ($fixed -contains 3) 'scope retains its three-minute deadline'
+        foreach ($column in @(1, 2)) {
+            $sum = [int]$restore.Groups[$column].Value + ($fixed | Measure-Object -Sum).Sum
+            Assert-True ($sum -lt [int]$jobLimit.Groups[1].Value) "step ceilings leave time for the verdict and artifacts (column $column)"
+        }
+        Assert-True ($CandidateJob -cmatch '(?m)^            Blocks = 12\s*$') 'the full twelve-block workload is unchanged'
+        Assert-True $CandidateJob.Contains("inputs.benchmark_scenarios || 'Default,MultilineGrid,MultilineGridDistinct'") 'all three PR scenarios remain required'
     }
+    & $assertBudget $job
+    foreach ($counterfactual in @(
+        $job.Replace('    timeout-minutes: 240', '    timeout-minutes: 180'),
+        $job.Replace('        timeout-minutes: 210', '        timeout-minutes: 150'),
+        $job.Replace('            Blocks = 12', '            Blocks = 6'),
+        $job.Replace('Default,MultilineGrid,MultilineGridDistinct', 'Default,MultilineGrid')
+    )) {
+        Assert-Throws { & $assertBudget $counterfactual } 'undersized outer limits or reduced workload are refused'
+    }
+
     Assert-True ($workflow -cmatch '(?m)^permissions:\r?\n  contents: read\s*$') 'the token is read-only'
     Assert-True (-not ($workflow -cmatch '(?m)^\s+\w+:\s*write\s*$')) 'nothing in the workflow writes: the summary and the artifacts need no permission'
     $uses = @([regex]::Matches($workflow, '(?m)^\s*-?\s*uses:\s*(\S+)'))
