@@ -709,7 +709,10 @@ paired sets above, their judges, bands and exact budgets, nor the ComplexUi benc
 
 - **Fixture.** A run measures one registered fixture (`FrameTiming::MakeFixture`) in one phase: clean (no
   application change) or dirty (the fixture's per-frame update). The method is fixture-agnostic; `FX5` is the ComplexUi
-  scene. Each run is a fresh process with 60 warm-up frames.
+  scene. Each run is a fresh process with 60 warm-up frames. Every timed dirty frame is a step the fixture declares:
+  unless the fixture declares that its timed phase repeats (`Definition::timedPhaseRepeats`, FX5), the phase's declared
+  steps are played in a cycle, and before each new cycle the scene is rebuilt and the phases before it replayed outside
+  the timed frames. A judged dirty run requires every timed frame to prepare work (`Prepare` returns `S_OK`).
 - **Run length.** A judged run holds at least 1,000 measured frames and lasts at least 2 s, ending when both hold.
 - **CPU.** `QueryThreadCycleTime` of the measuring UI thread is taken around `Prepare` and around target binding plus
   `Composite`, separately, every frame. Submission wall time (update, preparation and composition) is recorded too.
@@ -728,9 +731,13 @@ paired sets above, their judges, bands and exact budgets, nor the ComplexUi benc
   judge's two-sided exact sign-flip test, which needs at least six sessions. Every result reports the minimum
   detectable effect, (t(0.975, n-1) + t(0.80, n-1)) x sd / sqrt(n) of the session effects, as a percentage.
 - **Noise floor.** A calibration measures one attested executable in all four slots of every session. A metric's noise
-  floor is its largest same-binary pair deviation |B/A - 1| over the sessions. A metric whose noise floor stays below
-  its margin is judged; otherwise it is advisory, recorded with its noise floor, and a comparison reports it without a
-  verdict. With a calibration, a faster or slower verdict must also exceed the metric's noise floor.
+  floor is its largest same-binary pair deviation |B/A - 1| over the sessions. Its resolution is the largest clock step
+  of any run relative to that run's statistic: the UI-thread cycle clock advances in steps (about 427 cycles on the
+  reference machine), submission time in 0.1 us, GPU time in one timestamp tick. A metric is judged when its noise floor
+  stays below its margin and its resolution is at most a tenth of the margin; otherwise it is advisory, recorded with
+  its noise floor and the reason, and a comparison reports it without a verdict. A 0.00% floor is judged only under that
+  resolution rule: a constant statistic has no observable step and is advisory. With a calibration, a faster or slower
+  verdict must also exceed the metric's noise floor.
 - **Admission.** Calibration and comparison require a hardware adapter, the Release configuration, judged run length,
   five sessions (six for a comparison), a required idle preflight and the High Performance power scheme; WARP stays for
   counters and pixels. Anything weaker is a smoke run, labelled as such, with no calibration, noise floor or verdict.
@@ -740,9 +747,30 @@ paired sets above, their judges, bands and exact budgets, nor the ComplexUi benc
   of the highest efficiency class (`auto`), so driver threads are not constrained. Each session starts
   `Tools/Watch-BenchmarkHost.ps1`, refuses the session when the host was busier than the threshold (10% by default)
   over the preflight window, and keeps observing until the session ends. Other people's processes are never stopped.
-- **Receipt.** Every raw run report, its SHA-256, the host observations, the power scheme record, the pinning, adapter
-  identity and driver version, the executables' hashes and this tree's v2 build identity (checked before and after the
-  study under the measured power scheme) are retained beside the receipt.
+- **Receipt.** The committed receipt is the retained form: per-run summaries (statistics, clock steps, resolution,
+  frame counts), each raw run report's path, SHA-256 and size, the judged statistics, the host preflight records, the
+  power scheme record, the pinning, adapter identity and driver version, the executables' hashes and this tree's v2
+  build identity (checked before and after the study under the measured power scheme). The raw reports, the full
+  receipt and the host logs stay in the build tree. `Tools/Convert-FrameTimingReceipt.ps1` derives the retained form
+  from a full receipt and refuses if a summary, floor, minimum detectable effect, equivalence test or status changes.
+
+Calibration on the reference machine (15 November 2026, source `9574105be`, x64 Release, NVIDIA GeForce RTX 5080 driver
+32.0.16.1714, five sessions, idle preflight 5.7 to 8.6% busy; receipt in
+`Measurements/PerformanceAndMotion_2026-11-13/W0.2/`). Comparisons on this machine judge only the judged metrics.
+
+FX5 dirty (ComplexUi, 1280x720, 96 DPI):
+
+| Metric | Margin | Noise floor | Minimum detectable effect | Status |
+| --- | --- | --- | --- | --- |
+| Median preparation cycles | 3% | 0.55% | 0.35% | judged |
+| Median composition cycles | 3% | 7.69% | 3.42% | advisory (one clock step, 7.65% of the statistic) |
+| p95 UI-thread cycles | 3% | 4.81% | 2.09% | advisory |
+| Median submission time | 3% | 0.55% | 0.39% | judged |
+| Median GPU frame time | 5% | 1.24% | 0.63% | judged |
+| p95 GPU frame time | 5% | 15.14% | 4.95% | advisory |
+
+FX3 dirty (Grid wheel): pending. The first calibration timed frames past the end of the Grid's list and is not
+retained; it is rerun with the declared-step rule above.
 
 ### Native accessibility scheduling and synchronization
 

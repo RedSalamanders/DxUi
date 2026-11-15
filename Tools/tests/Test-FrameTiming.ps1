@@ -10,7 +10,9 @@ Import-Module (Join-Path $repository 'Tools/FrameTiming.psm1') -Force
 $fixturePlatform = if ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -eq 'Arm64') { 'ARM64' } else { 'x64' }
 
 function New-TimingRun([int] $Frames = 1000, [double] $Seconds = 2.5, [double] $Scale = 1.0, [string] $Renderer = 'Hardware', [int] $Disjoint = 0,
-    [int] $MinimumFrames = 1000, [double] $MinimumSeconds = 2.0) {
+    [int] $MinimumFrames = 1000, [double] $MinimumSeconds = 2.0, [switch] $Quantized) {
+    # Cycle samples vary in steps of 10 cycles and submission times in 0.5 µs steps, so every statistic is resolved; with
+    # -Quantized the run looks like a frame that does nothing: preparation and submission constant, composition one quantum.
     $valid = @(for ($frame = 0; $frame -lt $Frames; $frame++) { if ($frame -lt $Disjoint) { 0 } else { 1 } })
     return [ordered]@{
         schema = 1; method = 'dxui-frame-timing-v1'; fixture = 'FX5'; phase = 'dirty'; renderer = $Renderer
@@ -18,11 +20,12 @@ function New-TimingRun([int] $Frames = 1000, [double] $Seconds = 2.5, [double] $
         pinning = [ordered]@{ requested = 'auto'; pinned = $true; processor = 3; efficiencyClass = 1; maximumEfficiencyClass = 1; scope = 'measuring UI thread only' }
         warmupFrames = 60; minimumFrames = $MinimumFrames; minimumSeconds = $MinimumSeconds; frames = $Frames; elapsedSeconds = $Seconds
         gpuSlots = 2; gpuReadLatencyFrames = 1; timestampFrequency = 1000000000; disjointFrames = $Disjoint
+        preparedFrames = $Frames; timedSteps = 0; rebuilds = 0
         samples = [ordered]@{
             frames = $Frames
-            prepareCycles = @(for ($frame = 0; $frame -lt $Frames; $frame++) { [long](1000 * $Scale) + ($frame % 10) })
-            compositeCycles = @(for ($frame = 0; $frame -lt $Frames; $frame++) { [long](500 * $Scale) })
-            submitUs = @(for ($frame = 0; $frame -lt $Frames; $frame++) { 400.0 * $Scale })
+            prepareCycles = @(for ($frame = 0; $frame -lt $Frames; $frame++) { if ($Quantized) { 858 } else { [long]((100000 + 10 * ($frame % 10)) * $Scale) } })
+            compositeCycles = @(for ($frame = 0; $frame -lt $Frames; $frame++) { if ($Quantized) { 858 + 430 * ($frame % 2) } else { [long]((50000 + 10 * ($frame % 7)) * $Scale) } })
+            submitUs = @(for ($frame = 0; $frame -lt $Frames; $frame++) { if ($Quantized) { 2.4 } else { (400.0 + 0.5 * ($frame % 5)) * $Scale } })
             gpuPrepareUs = @(for ($frame = 0; $frame -lt $Frames; $frame++) { if ($frame -lt $Disjoint) { 0.0 } else { 200.0 * $Scale } })
             gpuCompositeUs = @(for ($frame = 0; $frame -lt $Frames; $frame++) { if ($frame -lt $Disjoint) { 0.0 } else { 100.0 * $Scale } })
             gpuWaitUs = @(for ($frame = 0; $frame -lt $Frames; $frame++) { 5.0 })
@@ -31,10 +34,10 @@ function New-TimingRun([int] $Frames = 1000, [double] $Seconds = 2.5, [double] $
         }
     }
 }
-function New-Session([double[]] $Scales, [string[]] $Hashes = @('E','E','E','E')) {
+function New-Session([double[]] $Scales, [string[]] $Hashes = @('E','E','E','E'), [switch] $Quantized) {
     $roles = @('A','B','B','A')
     return [ordered]@{ order = 'ABBA'; runs = @(for ($slot = 0; $slot -lt 4; $slot++) {
-        [ordered]@{ role = $roles[$slot]; slot = $slot; executableSha256 = $Hashes[$slot]; summary = (Get-FrameTimingRunSummary (New-TimingRun -Frames 20 -Scale $Scales[$slot] -MinimumFrames 1 -MinimumSeconds 0)) }
+        [ordered]@{ role = $roles[$slot]; slot = $slot; executableSha256 = $Hashes[$slot]; summary = (Get-FrameTimingRunSummary (New-TimingRun -Frames 20 -Scale $Scales[$slot] -MinimumFrames 1 -MinimumSeconds 0 -Quantized:$Quantized)) }
     }) }
 }
 function Get-Metric($Table, [string] $Name) { return @($Table | Where-Object { $_['metric'] -ceq $Name })[0] }
@@ -68,13 +71,33 @@ Invoke-TestCase 'run validation accepts a judged run and refuses short, late-rea
     Assert-FrameTimingRun -Run (New-TimingRun -Disjoint 40) -Judged
     $miscount = New-TimingRun -Disjoint 10; $miscount.disjointFrames = 0
     Assert-Throws { Assert-FrameTimingRun -Run $miscount } 'unaccounted GPU frames'
+    $idle = New-TimingRun; $idle.preparedFrames = 385
+    Assert-FrameTimingRun -Run $idle
+    Assert-Throws { Assert-FrameTimingRun -Run $idle -Judged } 'judged dirty run in which frames prepared nothing'
+    $unknown = New-TimingRun; $unknown.Remove('preparedFrames')
+    Assert-Throws { Assert-FrameTimingRun -Run $unknown -Judged } 'judged dirty run that does not report its prepared frames'
+    $clean = New-TimingRun; $clean.phase = 'clean'; $clean.preparedFrames = 0
+    Assert-FrameTimingRun -Run $clean -Judged
+}
+
+Invoke-TestCase 'clock steps: the smallest gap above rounding, or none for a constant series' {
+    Assert-Equal 428.0 (Get-FrameTimingStep ([double[]]@(858, 859, 1287, 1288, 1716)) 2.0) 'cycle quantum through rounding gaps'
+    Assert-Equal $null (Get-FrameTimingStep ([double[]]@(858, 858, 859)) 2.0) 'a series of one value (and rounding) has no observable step'
+    Assert-True ([Math]::Abs((Get-FrameTimingStep ([double[]]@(2.4, 2.5, 2.7)) 1e-6) - 0.1) -lt 1e-9) 'submission time step'
+    $summary = Get-FrameTimingRunSummary (New-TimingRun -Quantized)
+    Assert-Equal $null $summary.resolutionPercent.submitUsMedian 'constant submission time is unresolved'
+    Assert-True ($summary.resolutionPercent.prepareCyclesMedian -gt 40.0) 'a one-quantum preparation statistic is resolution-limited'
+    Assert-True ((Get-FrameTimingRunSummary (New-TimingRun)).resolutionPercent.prepareCyclesMedian -lt 0.3) 'a large statistic is resolved'
 }
 
 Invoke-TestCase 'run summary separates preparation and composition and excludes disjoint GPU frames' {
-    $summary = Get-FrameTimingRunSummary (New-TimingRun -Disjoint 40)
-    Assert-Equal 1004.5 $summary.prepareCyclesMedian 'preparation cycle median'
-    Assert-Equal 500.0 $summary.compositeCyclesMedian 'composition cycle median'
-    Assert-Equal 1509.0 $summary.uiThreadCyclesP95 'UI-thread cycle p95'
+    $run = New-TimingRun -Disjoint 40
+    $summary = Get-FrameTimingRunSummary $run
+    Assert-Equal 100045.0 $summary.prepareCyclesMedian 'preparation cycle median'
+    Assert-Equal 50030.0 $summary.compositeCyclesMedian 'composition cycle median'
+    $ui = [double[]]@(for ($frame = 0; $frame -lt 1000; $frame++) { [double]$run.samples.prepareCycles[$frame] + [double]$run.samples.compositeCycles[$frame] })
+    Assert-Equal (Get-FrameTimingPercentile $ui 0.95) $summary.uiThreadCyclesP95 'UI-thread cycle p95 over per-frame sums'
+    Assert-Equal 1000 $summary.preparedFrames 'prepared frames carried into the summary'
     Assert-Equal 300.0 $summary.gpuFrameUsMedian 'GPU median over valid frames only'
     Assert-Equal 960 $summary.validGpuFrames 'valid GPU frames'
 }
@@ -121,6 +144,14 @@ Invoke-TestCase 'calibration judges quiet metrics and records noisy ones as advi
     Assert-True ([Math]::Abs($cpu.noiseFloorPercent - 4.0) -lt 1e-9) 'noise floor is the largest pair deviation'
     Assert-Equal 'judged' (Get-Metric $result.metrics 'gpuFrameUsMedian').status 'a 4% deviation stays within the 5% GPU margin'
     Assert-Throws { Get-FrameTimingCalibration -Sessions @(New-Session @(1,1,1,1) @('E','F','F','E')) } 'calibration with two executables'
+    # A 0.00% floor from frames that do nothing (FX3's wheel played past the end of its list) is never judged.
+    $empty = Get-FrameTimingCalibration -Sessions @(for ($i = 0; $i -lt 5; $i++) { New-Session @(1,1,1,1) -Quantized })
+    $prepare = Get-Metric $empty.metrics 'prepareCyclesMedian'
+    Assert-Equal 0.0 ([double]$prepare.noiseFloorPercent) 'a constant statistic has a zero floor'
+    Assert-Equal 'advisory' $prepare.status 'a zero floor at one clock quantum is not judged'
+    Assert-True $prepare.reason.Contains('resolution') 'the reason names the clock resolution'
+    Assert-Equal 'advisory' (Get-Metric $empty.metrics 'submitUsMedian').status 'a constant submission time is not judged'
+    Assert-True (Get-Metric $empty.metrics 'submitUsMedian').reason.Contains('not observable') 'the reason says the step cannot be observed'
 }
 
 Invoke-TestCase 'comparison reports faster, equivalent, inconclusive and advisory verdicts' {
@@ -143,6 +174,49 @@ Invoke-TestCase 'host busy share from observer counters' {
     $samples = @([ordered]@{ idle100ns = 0; kernelIncludingIdle100ns = 0; user100ns = 0 }, [ordered]@{ idle100ns = 900; kernelIncludingIdle100ns = 950; user100ns = 50 })
     Assert-True ([Math]::Abs((Get-FrameTimingHostBusyPercent $samples) - 10.0) -lt 1e-9) 'busy percent'
     Assert-Throws { Get-FrameTimingHostBusyPercent @($samples[0]) } 'one observation'
+}
+
+function New-FullCalibrationReceipt {
+    $roles = @('A','B','B','A')
+    $scales = @(@(1.00, 1.01, 0.99, 1.00), @(1.00, 1.00, 1.01, 0.99), @(1.00, 0.99, 1.00, 1.01), @(1.00, 1.00, 1.00, 1.00), @(1.00, 1.01, 1.00, 1.00))
+    $sessions = @(for ($session = 0; $session -lt 5; $session++) {
+        [ordered]@{ session = $session + 1; order = 'ABBA'; runs = @(for ($slot = 0; $slot -lt 4; $slot++) {
+            $raw = New-TimingRun -Frames 40 -Scale $scales[$session][$slot] -MinimumFrames 1 -MinimumSeconds 0
+            [ordered]@{ role = $roles[$slot]; slot = $slot; report = "raw-$session-$slot.json"; reportSha256 = ('{0:X64}' -f ($session * 4 + $slot)); raw = $raw
+                executableSha256 = 'E'; summary = (Get-FrameTimingRunSummary $raw) }
+        }) }
+    })
+    $receipt = [ordered]@{ schema = 1; purpose = 'Calibration'; workloadOwner = 'DxUi'; fixture = 'dxui-frame-timing-v1'; fixtureName = 'FX5'; sessions = $sessions }
+    $receipt['calibration'] = Get-FrameTimingCalibration -Sessions $sessions
+    return (ConvertTo-Json -InputObject $receipt -Depth 40 -Compress) | ConvertFrom-Json -AsHashtable -Depth 40
+}
+
+Invoke-TestCase 'retained receipt: no samples, same judged values, floors and verdicts, refused when they would differ' {
+    $full = New-FullCalibrationReceipt
+    $sizes = @{}; foreach ($run in @($full.sessions | ForEach-Object { $_.runs })) { $sizes[$run.reportSha256] = 1234 }
+    $retained = ConvertTo-FrameTimingRetainedReceipt -Receipt $full -ReportSizes $sizes
+    Assert-Equal 0 @($retained.sessions | ForEach-Object { $_.runs } | Where-Object { $_.Contains('raw') }).Count 'no raw report retained'
+    Assert-Equal 1234 $retained.sessions[0].runs[0].reportSizeBytes 'report size kept'
+    foreach ($metric in $full.calibration.metrics) {
+        $kept = Get-Metric $retained.calibration.metrics $metric.metric
+        foreach ($key in @('noiseFloorPercent','minimumDetectableEffectPercent','status','pairRatios','sessionEffectsPercent')) {
+            Assert-True (Test-FrameTimingSameValue $metric[$key] $kept[$key]) "$($metric.metric).$key unchanged"
+        }
+        Assert-True (Test-FrameTimingSameValue $metric.equivalence $kept.equivalence) "$($metric.metric) equivalence unchanged"
+    }
+    $recomputed = Get-FrameTimingCalibration -Sessions $retained.sessions
+    Assert-Equal (ConvertTo-Json -InputObject $retained.calibration -Depth 20 -Compress) (ConvertTo-Json -InputObject $recomputed -Depth 20 -Compress) 'the retained summaries reproduce the judgement'
+    $again = ConvertTo-FrameTimingRetainedReceipt -Receipt (New-FullCalibrationReceipt) -ReportSizes $sizes
+    Assert-Equal (ConvertTo-Json -InputObject $retained -Depth 40 -Compress) (ConvertTo-Json -InputObject $again -Depth 40 -Compress) 'conversion is deterministic'
+    $second = ConvertTo-FrameTimingRetainedReceipt -Receipt $retained
+    Assert-Equal (ConvertTo-Json -InputObject $retained -Depth 40 -Compress) (ConvertTo-Json -InputObject $second -Depth 40 -Compress) 'a retained receipt converts to itself'
+    $tampered = New-FullCalibrationReceipt; $samples = $tampered.sessions[1].runs[2].raw.samples
+    for ($frame = 0; $frame -lt $samples.submitUs.Count; $frame++) { $samples.submitUs[$frame] = 9999.0 }
+    Assert-Throws { ConvertTo-FrameTimingRetainedReceipt -Receipt $tampered } 'a summary that its raw report does not reproduce'
+    $floor = New-FullCalibrationReceipt; $floor.calibration.metrics[0].noiseFloorPercent = 0.0
+    Assert-Throws { ConvertTo-FrameTimingRetainedReceipt -Receipt $floor } 'a stored floor that the samples do not reproduce'
+    $verdict = New-FullCalibrationReceipt; $verdict.calibration.metrics[0].status = 'advisory'
+    Assert-Throws { ConvertTo-FrameTimingRetainedReceipt -Receipt $verdict } 'a stored status that the samples do not reproduce'
 }
 
 # A fake powercfg: the active scheme lives in a file; 'absent' hides High Performance, 'stuck' ignores /setactive.
@@ -354,7 +428,18 @@ Invoke-FixtureCase 'runner: calibration activates High Performance, measures it 
     Assert-Equal 'DxUi' $receipt.workloadOwner 'library-owned workload'
     Assert-True $receipt.fixture.StartsWith('dxui-') 'library fixture identity'
     Assert-Equal 6 @($receipt.benchmarkInputs.Keys).Count 'timing input hashes'
-    Assert-Equal 1000 @($receipt.sessions[0].runs[0].raw.samples.submitUs).Count 'raw run report embedded'
+    Assert-True (-not $receipt.sessions[0].runs[0].Contains('raw')) 'the retained receipt embeds no raw report'
+    Assert-Equal 'dxui-frame-timing-retained-v1' $receipt.retainedForm 'retained form'
+    $raw = $receipt.sessions[0].runs[0].report
+    Assert-Equal ([long](Get-Item -LiteralPath $raw).Length) ([long]$receipt.sessions[0].runs[0].reportSizeBytes) 'raw report size recorded'
+    Assert-Equal (Get-FileHash -LiteralPath $raw -Algorithm SHA256).Hash $receipt.sessions[0].runs[0].reportSha256 'raw report hash recorded'
+    Assert-True (Test-Path -LiteralPath $receipt.fullReceipt.path) 'the full receipt stays in the build tree'
+    # The converter, run on the full receipt, reproduces the retained receipt the runner wrote.
+    $converted = Join-Path $root 'converted.json'
+    & (Join-Path $repository 'Tools/Convert-FrameTimingReceipt.ps1') -Path $receipt.fullReceipt.path -OutputPath $converted | Out-Null
+    $again = Get-FixtureJson $root 'converted.json'
+    $receipt.Remove('fullReceipt')
+    Assert-Equal (ConvertTo-Json -InputObject $receipt -Depth 40 -Compress) (ConvertTo-Json -InputObject $again -Depth 40 -Compress) 'conversion of the full receipt equals the runner''s retained receipt'
     Assert-True ([IO.File]::ReadAllText((Join-Path $root 'out/README.md')).Contains('same-binary calibration')) 'generated explanation'
 }
 

@@ -54,6 +54,21 @@ public:
     virtual void Update(size_t frame, Phase phase)                                          = 0;
     virtual HRESULT Prepare()                                                               = 0;
     virtual HRESULT Composite(ID3D11DeviceContext* context, const D3D11_VIEWPORT& viewport) = 0;
+    // Untimed work before frame `frame` (warm-up frames included): a fixture whose timed phase declares a finite number of
+    // steps rebuilds its scene here when the next frame would start the phase again, so every timed frame is a declared step.
+    virtual void BeforeFrame(size_t, Phase)
+    {
+    }
+    // The declared steps of the timed dirty phase, played in a cycle; 0 when every frame index is a valid step.
+    virtual size_t TimedSteps() const noexcept
+    {
+        return 0u;
+    }
+    // How many times BeforeFrame rebuilt the scene.
+    virtual size_t Rebuilds() const noexcept
+    {
+        return 0u;
+    }
 };
 
 // Every built catalog fixture on the embedded host, by its id ("FX5") or id and variant ("FX5@uhd-192dpi"); nullptr for any
@@ -210,6 +225,7 @@ struct Samples
     std::vector<size_t> gpuReadAfterSubmitted; // frames submitted when each frame's GPU result was read
     size_t disjointFrames     = 0u;
     UINT64 timestampFrequency = 0u;
+    size_t preparedFrames     = 0u; // timed frames whose Prepare did work (S_OK); S_FALSE means it found nothing to prepare
 };
 
 struct Run
@@ -222,6 +238,8 @@ struct Run
     AdapterIdentity adapter;
     size_t frames         = 0u;
     double elapsedSeconds = 0.0;
+    size_t timedSteps     = 0u;
+    size_t rebuilds       = 0u;
     Samples samples;
 };
 
@@ -328,6 +346,7 @@ inline Run Measure(Fixture& fixture, const Options& options)
     const D3D11_VIEWPORT viewport = gpu.Viewport();
     for (size_t frame = 0u; frame < options.warmupFrames; ++frame)
     {
+        fixture.BeforeFrame(frame, options.phase);
         fixture.Update(frame, options.phase);
         Hr(fixture.Prepare(), "frame timing warm preparation");
         gpu.Bind();
@@ -356,13 +375,16 @@ inline Run Measure(Fixture& fixture, const Options& options)
         samples.gpuReadAfterSubmitted.push_back(0u);
         auto& slot = slots[frame % kGpuSlots];
         Check(! slot.pending, "frame timing slot was read before reuse");
+        fixture.BeforeFrame(options.warmupFrames + frame, options.phase);
         const auto submitStart = Clock::now();
         fixture.Update(options.warmupFrames + frame, options.phase);
         gpu.context->Begin(slot.disjoint.get());
         gpu.context->End(slot.begin.get());
-        const auto prepareStart = ThreadCycles();
-        Hr(fixture.Prepare(), "frame timing preparation");
+        const auto prepareStart      = ThreadCycles();
+        const HRESULT prepared       = fixture.Prepare();
         samples.prepareCycles[frame] = ThreadCycles() - prepareStart;
+        Hr(prepared, "frame timing preparation");
+        samples.preparedFrames += prepared == S_OK ? 1u : 0u;
         gpu.context->End(slot.prepared.get());
         const auto compositeStart = ThreadCycles();
         gpu.Bind();
@@ -382,6 +404,8 @@ inline Run Measure(Fixture& fixture, const Options& options)
     }
     run.elapsedSeconds = elapsed(started) / 1.0e6;
     run.frames         = frame;
+    run.timedSteps     = fixture.TimedSteps();
+    run.rebuilds       = fixture.Rebuilds();
     for (auto& slot : slots)
         if (slot.pending)
             read(slot, frame);
@@ -412,7 +436,8 @@ inline void Write(const Run& run, std::ostream& output)
            << ",\"warmupFrames\":" << run.options.warmupFrames << ",\"minimumFrames\":" << run.options.minimumFrames
            << ",\"minimumSeconds\":" << run.options.minimumSeconds << ",\"frames\":" << run.frames << ",\"elapsedSeconds\":" << run.elapsedSeconds
            << ",\"gpuSlots\":" << kGpuSlots << ",\"gpuReadLatencyFrames\":1,\"timestampFrequency\":" << s.timestampFrequency
-           << ",\"disjointFrames\":" << s.disjointFrames
+           << ",\"disjointFrames\":" << s.disjointFrames << ",\"preparedFrames\":" << s.preparedFrames << ",\"timedSteps\":" << run.timedSteps
+           << ",\"rebuilds\":" << run.rebuilds
            << ",\"cpuClock\":\"QueryThreadCycleTime (measuring UI thread)\",\"wallClock\":\"std::chrono::steady_clock\",\"samples\":{\"frames\":" << run.frames;
     series("prepareCycles", s.prepareCycles);
     series("compositeCycles", s.compositeCycles);
@@ -513,7 +538,22 @@ inline void SelfTest()
         Check(text.find("\"method\":\"dxui-frame-timing-v1\"") != std::string::npos && text.find("\"gpuReadLatencyFrames\":1") != std::string::npos &&
                   text.back() == '\n',
               "frame timing report is complete");
+        Check(run.timedSteps == 0u && run.rebuilds == 0u, "FX5's dirty phase repeats: its scene is never rebuilt");
+        Check(phase == Phase::Clean || s.preparedFrames == run.frames, "every timed FX5 dirty frame prepares work");
     }
+    // A finite timed phase (FX3: 100 wheel notches of a 2,048-row Grid, which reaches its end after about 675) is played as
+    // declared: frames 100 and 200 rebuild the scene untimed, and every timed frame scrolls and prepares.
+    const auto grid = MakeFixture(L"FX3");
+    Check(grid != nullptr, "frame timing finds FX3 in the fixture catalog");
+    Options options;
+    options.hardware       = false;
+    options.pinCore        = L"none";
+    options.warmupFrames   = 2u;
+    options.minimumFrames  = 210u;
+    options.minimumSeconds = 0.0;
+    const auto run         = Measure(*grid, options);
+    Check(run.frames == 210u && run.timedSteps == 100u && run.rebuilds == 2u, "FX3 replays its 100 declared wheel notches, rebuilding between passes");
+    Check(run.samples.preparedFrames == run.frames, "every timed FX3 frame is a wheel notch that prepares work");
 }
 } // namespace FrameTiming
 #pragma warning(pop)

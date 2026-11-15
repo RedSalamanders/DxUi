@@ -854,38 +854,63 @@ public:
     {
         return variant_.dpi;
     }
+    // Builds the scene and plays the phases before the timed phase (prepared, not composited). BeforeFrame runs it again.
     HRESULT Initialize(ID3D11Device* device) override
     {
-        instance_.Instantiate(definition_);
-        RETURN_IF_FAILED(instance_.Create(device, variant_));
+        device_ = device;
+        instance_.reset(); // first: a scene's teardown can undo a process-wide test setting that the next Build sets
+        instance_.emplace();
+        instance_->Instantiate(definition_);
+        RETURN_IF_FAILED(instance_->Create(device, variant_));
         for (size_t phase = 0u; phase < timedPhase_; ++phase)
             for (size_t step = 0u; step < definition_.phases[phase].steps; ++step)
             {
-                instance_.Step(phase, step);
-                RETURN_IF_FAILED(instance_.Prepare());
+                instance_->Step(phase, step);
+                RETURN_IF_FAILED(instance_->Prepare());
             }
         return S_OK;
     }
+    // Untimed: when the next dirty frame would start a finite timed phase again, the scene is rebuilt (Definition::timedPhaseRepeats).
+    void BeforeFrame(size_t frame, FrameTiming::Phase phase) override
+    {
+        const size_t steps = TimedSteps();
+        if (phase == FrameTiming::Phase::Dirty && steps != 0u && frame != 0u && frame % steps == 0u)
+        {
+            Hr(Initialize(device_), "frame timing rebuilds the fixture before its timed phase repeats");
+            ++rebuilds_;
+        }
+    }
     void Update(size_t frame, FrameTiming::Phase phase) override
     {
+        const size_t steps = TimedSteps();
         if (phase == FrameTiming::Phase::Dirty)
-            instance_.Step(timedPhase_, frame);
+            instance_->Step(timedPhase_, steps == 0u ? frame : frame % steps);
     }
     HRESULT Prepare() override
     {
-        return instance_.Prepare();
+        return instance_->Prepare();
     }
     HRESULT Composite(ID3D11DeviceContext* context, const D3D11_VIEWPORT& viewport) override
     {
-        return instance_.View().Composite(context, viewport);
+        return instance_->View().Composite(context, viewport);
+    }
+    size_t TimedSteps() const noexcept override
+    {
+        return definition_.timedPhaseRepeats ? 0u : definition_.phases[timedPhase_].steps;
+    }
+    size_t Rebuilds() const noexcept override
+    {
+        return rebuilds_;
     }
 
 private:
     const Definition& definition_;
     const Variant& variant_;
     std::string name_;
-    size_t timedPhase_ = 0u;
-    EmbeddedInstance instance_;
+    size_t timedPhase_    = 0u;
+    ID3D11Device* device_ = nullptr; // the timing harness's device, alive for every frame of the run
+    size_t rebuilds_      = 0u;
+    std::optional<EmbeddedInstance> instance_;
 };
 } // namespace PerformanceFixtures
 

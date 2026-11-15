@@ -435,6 +435,20 @@ the measuring UI thread is pinned. Each session first observes the host for five
 rather than stopping other work. A calibration or comparison refuses WARP, Debug, short runs and fewer sessions.
 New fixtures plug in through `FrameTiming::MakeFixture` in `Tests/Embedded/Embedded.Tests.FrameTiming.h`.
 
+A timed dirty frame is always a step the fixture declares. A fixture whose timed phase cannot continue past its last
+step (FX3's wheel reaches the end of the list) has its scene rebuilt, untimed, before the phase starts again; set
+`timedPhaseRepeats` in its definition only when every step past the last does the same work (FX5). A judged dirty run
+refuses frames that prepare nothing, and a metric measured with a clock too coarse for its margin (the UI-thread cycle
+clock moves in steps of about 427 cycles) is advisory, so a 0.00% floor from a constant statistic is never judged.
+
+On the reference machine (RTX 5080, 15 November 2026), FX5 dirty frames judge median preparation cycles (noise floor
+0.55%, minimum detectable effect 0.35%), median submission time (0.55%, 0.39%) and median GPU frame time (1.24%,
+0.63%); median composition cycles, p95 UI-thread cycles and p95 GPU frame time are advisory
+([receipt and table](../Measurements/PerformanceAndMotion_2026-11-13/W0.2/README.md)). FX3's calibration is to be rerun.
+The committed receipt is the retained form, about 43 KB per calibration; the full receipt with every per-frame sample
+stays under `.build/reports/frame-timing/raw/`, and `Tools/Convert-FrameTimingReceipt.ps1` converts an existing full
+receipt, refusing if any judged value would change.
+
 ## Trace provider
 
 DxUi writes a [TraceLogging](https://learn.microsoft.com/en-us/windows/win32/tracelogging/trace-logging-about) provider

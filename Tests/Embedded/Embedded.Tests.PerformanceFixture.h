@@ -164,6 +164,12 @@ struct Definition
     // Scenario, so `create` stays nullptr. Every other runner, gate, receipt command and the timing harness skips it, says
     // "<id>: interactive, not run" and never fails on it.
     bool interactiveOnly = false;
+    // The timed phase's Step(phase, n) does the same kind of work for every n past its declared step count (FX5's
+    // ComplexUiScene::Update is periodic). Otherwise performance-timing.ps1 times only the declared steps: after the last
+    // one, the scene is rebuilt and the phases before the timed phase replayed, outside the timed frames, and the next
+    // frame plays step 0 again. A wheel phase that scrolled on past its declared steps would reach the end of its list
+    // and time thousands of frames that change nothing.
+    bool timedPhaseRepeats = false;
 
     [[nodiscard]] constexpr bool Built() const noexcept
     {

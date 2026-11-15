@@ -61,5 +61,7 @@ inline constexpr Definition kDefinition{
     .timedPhase = "dirty",
     .sources    = kSources,
     .create     = []() -> std::unique_ptr<Scenario> { return std::make_unique<Scene>(); },
+    // ComplexUiScene::Update(n) cycles its values and visible row, so every dirty frame past step 40 changes the scene too.
+    .timedPhaseRepeats = true,
 };
 } // namespace PerformanceFixtures::Fx5

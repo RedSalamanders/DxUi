@@ -4,23 +4,57 @@ Method: [Frame timing method](../../../Specs/Core/Core_PerformanceAndResources.m
 `performance-timing.ps1`. Plan item: `W0.2` in `Specs/Plans/WIP/PerformanceAndMotion_2026-11-13.md`; an input to the
 D-P1 timing policy, not a replacement for it.
 
-## Calibration: pending
+## Calibration: FX5 dirty (15 November 2026)
 
-The gate needs five sessions of same-binary pairs on a hardware adapter, on `FX5` dirty frames and on `FX3` (created
-by `W0.4`), on a quiet machine. Not yet run. The command, from a clean checkout of the commit to calibrate, with no
-other builds or benchmarks running:
+Run by the conductor on a quiet machine, the developer having set the High Performance scheme:
 
 ```powershell
-./performance-timing.ps1 -Purpose Calibration -Fixture FX5 -Phase Dirty -OutputDirectory Measurements/PerformanceAndMotion_2026-11-13/W0.2/calibration-FX5-dirty
+./performance-timing.ps1 -Purpose Calibration -Fixture FX5 -Phase Dirty -SkipBuild
 ```
 
-It builds x64 Release, then runs five sessions of four 2 s processes after a 5 s idle preflight each: about three
-minutes after the build. It activates the existing High Performance power scheme for the study and restores the
-original scheme afterwards, so the person at the machine must agree to that change; it refuses rather than elevating.
-It refuses a session when the host is more than 10% busy. The receipt (`receipt.json`) lists, per metric, the noise
-floor, the minimum detectable effect, equivalence of the same-binary sessions and `judged` or `advisory`. `FX3` is
-calibrated the same way with `-Fixture FX3` once `W0.4` registers it.
+Source commit `9574105be` (integration tip, clean), x64 Release; NVIDIA GeForce RTX 5080, driver 32.0.16.1714; five
+A/B/B/A sessions, idle preflight 8.0, 6.7, 7.6, 5.7 and 8.6% host busy (threshold 10%); UI thread pinned (`auto`). Each
+run held 2,503 to 2,613 frames in 2 s, no disjoint GPU frame. Run medians: preparation 2.93 to 2.97 million cycles,
+composition 5,580 to 6,009 cycles, submission 689 to 699 µs, GPU frame 741 to 756 µs (p95 863 to 1,035 µs). The UI
+thread's cycle clock advances in steps of about 427 cycles on this machine, the submission clock in 0.1 µs, the GPU
+timestamps in 1 ns. Receipt: [`calibration-FX5-dirty`](calibration-FX5-dirty/README.md).
 
+| Metric | Margin | Noise floor | Minimum detectable effect | Resolution | Status |
+| --- | --- | --- | --- | --- | --- |
+| Median preparation cycles | 3% | 0.55% | 0.35% | 0.015% | judged |
+| Median composition cycles | 3% | 7.69% | 3.42% | 7.65% | advisory: the floor is one clock step |
+| p95 UI-thread cycles | 3% | 4.81% | 2.09% | 0.014% | advisory |
+| Median submission time | 3% | 0.55% | 0.39% | 0.015% | judged |
+| Median GPU frame time | 5% | 1.24% | 0.63% | 0.0001% | judged |
+| p95 GPU frame time | 5% | 15.14% | 4.95% | 0.0001% | advisory |
+
+Gate for FX5: met. Every judged metric's same-binary spread is below its margin, and the three others are recorded as
+advisory with their noise floors.
+
+## Calibration: FX3 dirty, to be rerun
+
+The first FX3 calibration (same day, same commit and machine) timed the wrong frames and is not retained. FX3's timed
+phase is 100 wheel notches of 3 lines down a 2,048-row Grid, which reaches its end after about 675 notches. The timing
+adapter played step `n` for every frame `n`, so after 60 warm-up and about 615 timed frames each run was at the end of
+the list and timed about 100,000 frames in which the wheel changed nothing: preparation stayed at 858 cycles (two clock
+steps) and submission at 2.4 µs in every run, which gave the 0.00% floors, and the 101,000 frames per run made the
+71 MB receipt. The adapter now plays only the declared steps: after step 99 the scene is rebuilt and its warm-up phase
+replayed outside the timed frames (`Definition::timedPhaseRepeats`; FX5 declares that its phase repeats). A judged dirty
+run now also requires every timed frame to prepare work, and a metric whose clock step exceeds a tenth of its margin
+is advisory, so neither failure can again be reported as judged. The rerun, on a quiet machine with the High
+Performance scheme set:
+
+```powershell
+./performance-timing.ps1 -Purpose Calibration -Fixture FX3 -Phase Dirty -OutputDirectory Measurements/PerformanceAndMotion_2026-11-13/W0.2/calibration-FX3-dirty
+```
+
+## Retained form
+
+A committed receipt holds per-run summaries (the six statistics, the clock steps and resolution, frame counts), each
+raw run report's path, SHA-256 and size, and the judged statistics: 43 KB for the FX5 calibration, against 2.3 MB with
+the per-frame samples. The runner writes the full receipt (`receipt-full.json`), the raw reports and the host logs to
+`.build/reports/frame-timing/raw/`; `Tools/Convert-FrameTimingReceipt.ps1` turns an existing full receipt into the
+retained form and refuses if any summary, floor, minimum detectable effect, equivalence test or status would change.
 ## Smoke run under load: `smoke-under-load-FX5-dirty`
 
 Not a calibration. One session, run to prove the command works end to end while other workers were building
@@ -37,5 +71,5 @@ not the method's noise floor, and must not be used as one. That directory's READ
 - Runs (A, B, B, A, one executable): 2,332 / 2,379 / 2,310 / 2,367 frames in 2.00 s each. Median preparation 3.07–3.10
   million cycles, median composition 6,009–6,867 cycles, median submission 723–730 µs, median GPU frame 793–805 µs,
   p95 GPU frame 1,047–1,162 µs, median wait for the one-frame-late result 67–69 µs.
-- Retained: `receipt.json` embeds all four raw run reports (with their SHA-256) and the observer completion records;
-  the raw files and the host observation logs stayed under `.build/reports/frame-timing/raw/`.
+- Retained: `receipt.json`, converted to the retained form (15 KB); the raw files and the host observation logs
+  stayed under `.build/reports/frame-timing/raw/`.

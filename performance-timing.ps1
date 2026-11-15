@@ -152,12 +152,13 @@ function Invoke-TimingRun([string] $Executable, [string] $Output) {
     $run = [Text.UTF8Encoding]::new($false, $true).GetString($bytes) | ConvertFrom-Json -AsHashtable -Depth 10
     try { Assert-FrameTimingRun -Run $run -Judged:($Purpose -ne 'Smoke') }
     catch { Move-Item -LiteralPath $Output -Destination ($Output + '.invalid.json'); throw }
-    return [ordered]@{ run = $run; sha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)) }
+    return [ordered]@{ run = $run; sha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)); size = $bytes.Length }
 }
 
 $powerRecord = $null
 $observer = $null
 $sessionRecords = [Collections.Generic.List[object]]::new()
+$reportSizes = @{}
 $schedule = @(Get-FrameTimingSchedule -Sessions $Sessions)
 $startedUtc = [DateTime]::UtcNow.ToString('o')
 Push-Location $PSScriptRoot
@@ -180,6 +181,7 @@ try {
             $role = [string]$schedule[$session][$slot]
             $output = Join-Path $rawDirectory ("session-{0}-slot-{1}-{2}.json" -f ($session + 1), $slot, $role)
             $measured = Invoke-TimingRun $roles[$role] $output
+            $reportSizes[$measured.sha256] = $measured.size
             $runs.Add([ordered]@{ role = $role; slot = $slot; report = $output; reportSha256 = $measured.sha256; raw = $measured.run
                 executableSha256 = $hashes[$role]; summary = (Get-FrameTimingRunSummary -Run $measured.run)
                 adapter = $measured.run['adapter']; pinning = $measured.run['pinning']; disjointFrames = $measured.run['disjointFrames']
@@ -226,8 +228,13 @@ $receipt = [ordered]@{
 if ($Purpose -eq 'Calibration') { $receipt['calibration'] = Get-FrameTimingCalibration -Sessions $sessionRecords.ToArray() }
 elseif ($Purpose -eq 'Comparison') { $receipt['comparison'] = Compare-FrameTimingSessions -Sessions $sessionRecords.ToArray() -Calibration $calibration }
 else { $receipt['sameBinaryObservation'] = (Get-FrameTimingCalibration -Sessions $sessionRecords.ToArray())['metrics'] }
-# Compact: the receipt embeds every per-frame sample.
-[IO.File]::WriteAllText($receiptPath, (ConvertTo-Json -InputObject $receipt -Depth 30 -Compress) + "`n", [Text.UTF8Encoding]::new($false))
+# The full receipt, every raw run report embedded, stays in the build tree; the retained form, recomputed from it and
+# checked equal (Tools/Convert-FrameTimingReceipt.ps1 does the same for an existing full receipt), is what may be committed.
+$fullReceiptPath = Join-Path $rawDirectory 'receipt-full.json'
+[IO.File]::WriteAllText($fullReceiptPath, (ConvertTo-Json -InputObject $receipt -Depth 30 -Compress) + "`n", [Text.UTF8Encoding]::new($false))
+$receipt = ConvertTo-FrameTimingRetainedReceipt -Receipt $receipt -ReportSizes $reportSizes -Calibration $calibration
+$receipt['fullReceipt'] = [ordered]@{ path = $fullReceiptPath; sha256 = (Get-FileHash -LiteralPath $fullReceiptPath -Algorithm SHA256).Hash; sizeBytes = (Get-Item -LiteralPath $fullReceiptPath).Length }
+[IO.File]::WriteAllText($receiptPath, (ConvertTo-Json -InputObject $receipt -Depth 40 -Compress) + "`n", [Text.UTF8Encoding]::new($false))
 $readmePath = Join-Path $OutputDirectory 'README.md'
 if (-not (Test-Path -LiteralPath $readmePath)) {
     $adapterRun = $sessionRecords[0]['runs'][0]
@@ -241,7 +248,7 @@ if (-not (Test-Path -LiteralPath $readmePath)) {
         "- Sessions: $Sessions of A/B/B/A, each run at least $MinimumFrames frames and $MinimumMilliseconds ms; pinning: $PinCore",
         "- Power scheme: $($powerRecord.mode), original $($powerRecord.original.text), restored: $($powerRecord.restored)",
         "- Idle preflight: $IdlePreflight, threshold $IdleThresholdPercent%; busy $busyText",
-        '- `receipt.json` embeds every raw run report with its SHA-256; host observation logs stayed in the build tree.')
+        '- `receipt.json` is the retained form: per-run summaries, each raw report''s SHA-256 and size, and the judged statistics. The raw reports, the full receipt and the host observation logs stayed in the build tree (`rawDirectory`).')
     [IO.File]::WriteAllText($readmePath, ($lines -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
 }
 

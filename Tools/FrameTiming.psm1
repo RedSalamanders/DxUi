@@ -90,6 +90,11 @@ function Assert-FrameTimingRun {
             throw "A judged frame timing run requires at least $script:JudgedMinimumFrames frames and $script:JudgedMinimumSeconds s."
         }
         if ($valid -lt $script:MinimumValidGpuShare * $frames) { throw 'A judged frame timing run requires at least 95% of frames with a valid GPU timestamp.' }
+        # A dirty frame that prepares nothing times no work: a timed phase played past its declared steps (FX3's wheel at the
+        # end of its list) would otherwise calibrate empty frames.
+        if ($Run['phase'] -ceq 'dirty' -and (-not $Run.Contains('preparedFrames') -or [int]$Run['preparedFrames'] -ne $frames)) {
+            throw "A judged dirty frame timing run requires every timed frame to prepare work; $($Run['preparedFrames']) of $frames did."
+        }
     }
 }
 
@@ -110,16 +115,47 @@ function Get-FrameTimingRunSummary {
         if ([int]$samples['gpuValid'][$frame] -eq 1) { $gpu.Add([double]$samples['gpuPrepareUs'][$frame] + [double]$samples['gpuCompositeUs'][$frame]) }
     }
     $series.gpuFrameUs = $gpu.ToArray()
+    # The smallest step each clock resolves in this run. QueryThreadCycleTime advances in quanta (about 429 cycles on the
+    # reference machine), so a statistic of a few quanta cannot show a change smaller than one quantum.
+    $frequency = [double]$Run['timestampFrequency']
+    $steps = [ordered]@{
+        cycles = (Get-FrameTimingStep ([double[]]($series.prepareCycles + $series.compositeCycles)) 2.0)
+        submitUs = (Get-FrameTimingStep $series.submitUs 1e-6)
+        gpuUs = $(if ($frequency -gt 0) { 1e6 / $frequency } else { $null })
+    }
     $summary = [ordered]@{}
+    $resolution = [ordered]@{}
     foreach ($metric in $script:Metrics) {
         $values = $series[$metric.series]
-        $summary[$metric.name] = if ($values.Length -eq 0) { $null } elseif ($metric.statistic -eq 'median') { (Get-FrameTimingMedian $values) } else { Get-FrameTimingPercentile $values 0.95 }
+        $value = if ($values.Length -eq 0) { $null } elseif ($metric.statistic -eq 'median') { (Get-FrameTimingMedian $values) } else { Get-FrameTimingPercentile $values 0.95 }
+        $summary[$metric.name] = $value
+        $step = $steps[$(switch ($metric.series) { 'submitUs' { 'submitUs' } 'gpuFrameUs' { 'gpuUs' } default { 'cycles' } })]
+        $resolution[$metric.name] = if ($null -eq $value -or $null -eq $step -or [double]$value -le 0) { $null } else { 100.0 * $step / [double]$value }
     }
     $summary['frames'] = $frames
     $summary['elapsedSeconds'] = [double]$Run['elapsedSeconds']
     $summary['validGpuFrames'] = $gpu.Count
     $summary['gpuWaitUsMedian'] = (Get-FrameTimingMedian ([double[]]@($samples['gpuWaitUs'])))
+    foreach ($key in @('preparedFrames','timedSteps','rebuilds')) { if ($Run.Contains($key)) { $summary[$key] = $Run[$key] } }
+    $summary['clockSteps'] = $steps
+    $summary['resolutionPercent'] = $resolution
     return $summary
+}
+
+function Get-FrameTimingStep {
+    <# The smallest gap between adjacent distinct sample values that exceeds IgnoreBelow (rounding of a quantized clock
+       produces gaps of a unit or two); null when fewer than two distinct values exist, so the step cannot be observed. #>
+    param([Parameter(Mandatory)][AllowEmptyCollection()][double[]] $Values, [Parameter(Mandatory)][double] $IgnoreBelow)
+    if ($Values.Length -lt 2) { return $null }
+    $sorted = [double[]]$Values.Clone()
+    [Array]::Sort($sorted)
+    $step = [double]::PositiveInfinity
+    for ($index = 1; $index -lt $sorted.Length; $index++) {
+        $gap = $sorted[$index] - $sorted[$index - 1]
+        if ($gap -gt $IgnoreBelow -and $gap -lt $step) { $step = $gap }
+    }
+    if ([double]::IsPositiveInfinity($step)) { return $null }
+    return $step
 }
 
 function Get-FrameTimingSchedule {
@@ -193,8 +229,11 @@ function Get-FrameTimingMinimumDetectableEffect {
 
 function Get-FrameTimingCalibration {
     <# Same-binary calibration: every session runs one executable in all four slots. Per metric, the noise floor is the
-       largest same-binary pair deviation |B/A - 1| over all sessions. A metric is judged when its noise floor stays below
-       its declared margin; otherwise it is advisory and later comparisons report it without a verdict. #>
+       largest same-binary pair deviation |B/A - 1| over all sessions, and the resolution is the largest clock step of any
+       run relative to that run's statistic. A metric is judged when its noise floor stays below its declared margin and
+       its resolution is at most a tenth of the margin (a margin-sized change spans ten clock steps); otherwise it is
+       advisory, with its noise floor and the reason, and later comparisons report it without a verdict. A floor of 0.00%
+       is therefore judged only when the clock resolves the margin: a statistic stuck on one quantum is resolution-limited. #>
     param([Parameter(Mandatory)][object[]] $Sessions)
     foreach ($session in $Sessions) {
         $hashes = @($session['runs'] | ForEach-Object { [string]$_['executableSha256'] } | Select-Object -Unique)
@@ -212,19 +251,29 @@ function Get-FrameTimingCalibration {
         $ratios = @($effects | ForEach-Object { $_['pairRatios'] })
         $floor = (($ratios | ForEach-Object { [Math]::Abs([double]$_ - 1.0) } | Measure-Object -Maximum).Maximum) * 100.0
         $sessionEffects = [double[]]@($effects | ForEach-Object { $_['effect'] })
+        $resolutions = @($Sessions | ForEach-Object { $_['runs'] } | ForEach-Object {
+                $summary = $_['summary']
+                if ($summary.Contains('resolutionPercent') -and $summary['resolutionPercent'].Contains($metric.name)) { $summary['resolutionPercent'][$metric.name] } else { $null } })
+        $resolution = if (@($resolutions | Where-Object { $null -eq $_ }).Count) { $null } else { [double](($resolutions | Measure-Object -Maximum).Maximum) }
+        $reason = if ($floor -ge $metric.marginPercent) { 'noise floor at or above the margin' }
+            elseif ($null -eq $resolution) { 'clock resolution not observable (a constant statistic)' }
+            elseif ($resolution -gt $metric.marginPercent / 10.0) { 'clock resolution coarser than a tenth of the margin' }
+            else { $null }
         [ordered]@{
             metric = $metric.name; kind = $metric.kind; statistic = $metric.statistic; marginPercent = $metric.marginPercent
             noiseFloorPercent = $floor
+            resolutionPercent = $resolution
             pairRatios = [double[]]$ratios
             sessionEffectsPercent = [double[]]@($sessionEffects | ForEach-Object { ([Math]::Exp($_) - 1.0) * 100.0 })
             minimumDetectableEffectPercent = (Get-FrameTimingMinimumDetectableEffect $sessionEffects)
             equivalence = (Test-FrameTimingEquivalence -Effects $sessionEffects -MarginPercent $metric.marginPercent)
-            status = $(if ($floor -lt $metric.marginPercent) { 'judged' } else { 'advisory' })
+            status = $(if ($null -eq $reason) { 'judged' } else { 'advisory' })
+            reason = $reason
         }
     }
     return [ordered]@{
         method = $script:Method; sessions = $Sessions.Count
-        rule = 'judged when the largest same-binary pair deviation is below the declared margin (3% CPU, 5% GPU); otherwise advisory with its noise floor'
+        rule = 'judged when the largest same-binary pair deviation is below the declared margin (3% CPU, 5% GPU) and the clock resolution is at most a tenth of the margin; otherwise advisory with its noise floor and reason'
         judgedMetrics = @($metrics | Where-Object { $_['status'] -ceq 'judged' }).Count
         metrics = @($metrics)
     }
@@ -262,6 +311,88 @@ function Compare-FrameTimingSessions {
         }
     }
     return [ordered]@{ method = $script:Method; sessions = $Sessions.Count; calibrated = [bool]$Calibration; metrics = @($metrics) }
+}
+
+function Test-FrameTimingSameValue([object] $Left, [object] $Right) {
+    # Equal JSON values, numbers to a relative 1e-12 (a value that went through JSON once), arrays and objects recursively.
+    if ($null -eq $Left -or $null -eq $Right) { return $null -eq $Left -and $null -eq $Right }
+    if ($Left -is [Collections.IDictionary] -and $Right -is [Collections.IDictionary]) {
+        foreach ($key in $Left.Keys) { if (-not $Right.Contains($key) -or -not (Test-FrameTimingSameValue $Left[$key] $Right[$key])) { return $false } }
+        return $Left.Count -eq $Right.Count
+    }
+    if (($Left -is [Collections.IList]) -and ($Right -is [Collections.IList])) {
+        if ($Left.Count -ne $Right.Count) { return $false }
+        for ($index = 0; $index -lt $Left.Count; $index++) { if (-not (Test-FrameTimingSameValue $Left[$index] $Right[$index])) { return $false } }
+        return $true
+    }
+    $numeric = { param($v) $v -is [int] -or $v -is [long] -or $v -is [double] -or $v -is [decimal] -or $v -is [single] -or $v -is [bigint] }
+    if ((& $numeric $Left) -and (& $numeric $Right)) {
+        $a = [double]$Left; $b = [double]$Right
+        return $a -eq $b -or [Math]::Abs($a - $b) -le 1e-12 * [Math]::Max([Math]::Abs($a), [Math]::Abs($b))
+    }
+    return [object]::Equals($Left, $Right)
+}
+
+function Get-FrameTimingJudgement {
+    <# The judged statistics a receipt holds, recomputed from its sessions' run summaries: the calibration, the comparison
+       (against the receipt's own calibration input, if any) or a smoke run's same-binary observation. #>
+    param([Parameter(Mandatory)][Collections.IDictionary] $Receipt, [Collections.IDictionary] $Calibration)
+    $sessions = @($Receipt['sessions'])
+    switch ($Receipt['purpose']) {
+        'Calibration' { return [ordered]@{ key = 'calibration'; value = (Get-FrameTimingCalibration -Sessions $sessions) } }
+        'Comparison' { return [ordered]@{ key = 'comparison'; value = (Compare-FrameTimingSessions -Sessions $sessions -Calibration $Calibration) } }
+        default { return [ordered]@{ key = 'sameBinaryObservation'; value = (Get-FrameTimingCalibration -Sessions $sessions)['metrics'] } }
+    }
+}
+
+function Assert-FrameTimingSameJudgement([object] $Stored, [object] $Recomputed, [string] $Context) {
+    # Every field the stored judgement holds must be unchanged; fields it lacks (added by a later judge) are new only.
+    if ($Stored -is [Collections.IDictionary]) {
+        foreach ($key in $Stored.Keys) {
+            if ($key -ceq 'rule') { continue }
+            if (-not $Recomputed.Contains($key)) { throw "Judgement changed: $Context.$key is gone." }
+            Assert-FrameTimingSameJudgement $Stored[$key] $Recomputed[$key] "$Context.$key"
+        }
+        return
+    }
+    if ($Stored -is [Collections.IList] -and $Recomputed -is [Collections.IList] -and $Stored.Count -eq $Recomputed.Count -and
+        ($Stored.Count -eq 0 -or $Stored[0] -is [Collections.IDictionary])) {
+        for ($index = 0; $index -lt $Stored.Count; $index++) { Assert-FrameTimingSameJudgement $Stored[$index] $Recomputed[$index] "$Context[$index]" }
+        return
+    }
+    if (-not (Test-FrameTimingSameValue $Stored $Recomputed)) { throw "Judgement changed: $Context was $Stored, is $Recomputed." }
+}
+
+function ConvertTo-FrameTimingRetainedReceipt {
+    <# The committed form of a receipt: per-run summaries, each raw run report's SHA-256 and size, and the judged
+       statistics; no per-frame samples (the raw reports stay in the build tree). From a full receipt, whose runs embed
+       their raw reports, every run summary and the judgement are recomputed and must equal what the receipt holds; the
+       retained receipt then carries the recomputed values, which also hold the clock resolution. ReportSizes maps a
+       report's SHA-256 to its size in bytes. Deterministic: the same input gives the same output. #>
+    param([Parameter(Mandatory)][Collections.IDictionary] $Receipt, [Collections.IDictionary] $ReportSizes = @{}, [Collections.IDictionary] $Calibration)
+    $retained = (ConvertTo-Json -InputObject $Receipt -Depth 40 -Compress) | ConvertFrom-Json -AsHashtable -Depth 40
+    foreach ($session in @($retained['sessions'])) {
+        foreach ($run in @($session['runs'])) {
+            if ($run.Contains('raw')) {
+                $summary = Get-FrameTimingRunSummary -Run $run['raw']
+                foreach ($key in @($run['summary'].Keys)) {
+                    if (-not $summary.Contains($key) -or -not (Test-FrameTimingSameValue $run['summary'][$key] $summary[$key])) {
+                        throw "A run summary differs from its embedded raw report: session $($session['session']) slot $($run['slot']) $key."
+                    }
+                }
+                $run['summary'] = $summary
+                $run.Remove('raw')
+            }
+            $size = if ($ReportSizes.Contains([string]$run['reportSha256'])) { $ReportSizes[[string]$run['reportSha256']] } elseif ($run.Contains('reportSizeBytes')) { $run['reportSizeBytes'] } else { $null }
+            $run['reportSizeBytes'] = $size
+        }
+    }
+    $judgement = Get-FrameTimingJudgement -Receipt $retained -Calibration $Calibration
+    if ($Receipt.Contains($judgement.key)) { Assert-FrameTimingSameJudgement $Receipt[$judgement.key] $judgement.value $judgement.key }
+    $retained[$judgement.key] = $judgement.value
+    $retained['retainedForm'] = 'dxui-frame-timing-retained-v1'
+    $retained['rawReports'] = 'Not committed: each run keeps its report path, SHA-256 and size; the reports and the full receipt stay under rawDirectory.'
+    return $retained
 }
 
 function Get-FrameTimingHostBusyPercent {
@@ -327,4 +458,5 @@ function Exit-FrameTimingPowerPlan {
 Export-ModuleMember -Function Get-FrameTimingMethod, Get-FrameTimingHighPerformanceScheme, Get-FrameTimingMetrics, Get-FrameTimingMedian, Get-FrameTimingPercentile,
     Assert-FrameTimingRun, Get-FrameTimingRunSummary, Get-FrameTimingSchedule, Get-FrameTimingSessionEffects, Get-FrameTimingUpperSignFlipPValue,
     Test-FrameTimingEquivalence, Get-FrameTimingMinimumDetectableEffect, Get-FrameTimingCalibration, Compare-FrameTimingSessions,
-    Get-FrameTimingHostBusyPercent, Get-FrameTimingActiveScheme, Enter-FrameTimingPowerPlan, Exit-FrameTimingPowerPlan
+    Get-FrameTimingHostBusyPercent, Get-FrameTimingActiveScheme, Get-FrameTimingStep, Test-FrameTimingSameValue, Get-FrameTimingJudgement,
+    ConvertTo-FrameTimingRetainedReceipt, Enter-FrameTimingPowerPlan, Exit-FrameTimingPowerPlan
