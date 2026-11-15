@@ -1116,6 +1116,17 @@ public:
         _applicationMessageHandler = std::move(handler);
     }
 
+    // Called with every message this window's procedure receives, before the host handles it; returning true answers the
+    // message with DefWindowProc and the host never sees it. The performance-fixture runner records the messages per step
+    // (a step that differs between two runs names the message that was in one run and not in the other) and keeps messages
+    // other threads send, such as a desktop UI Automation client's WM_GETOBJECT, away from the host. Null removes it.
+    using MessageObserver = bool (*)(void* context, UINT message, WPARAM wParam, LPARAM lParam);
+    void SetMessageObserver(MessageObserver observer, void* context) noexcept
+    {
+        _messageObserver        = observer;
+        _messageObserverContext = context;
+    }
+
     // How often another application took the foreground from this window: Windows then sends WM_ACTIVATEAPP with FALSE and
     // the thread of the window it activated. The host reacts as designed and releases its native text session, so state a
     // test observes across a pump is gone; see RunWhileForegroundHeld.
@@ -1200,6 +1211,8 @@ private:
         }
         if (self)
         {
+            if (self->_messageObserver && self->_messageObserver(self->_messageObserverContext, msg, wp, lp))
+                return DefWindowProcW(hwnd, msg, wp, lp);
             if (msg == WM_ACTIVATEAPP && wp == FALSE)
             {
                 ++self->_foregroundLossCount;
@@ -1234,6 +1247,8 @@ private:
     wil::unique_hwnd _hwnd;
     DxUi::WindowHost _host;
     ApplicationMessageHandler _applicationMessageHandler;
+    MessageObserver _messageObserver = nullptr;
+    void* _messageObserverContext    = nullptr;
     SIZE _maximumTrackSizePx{};
     uint32_t _foregroundLossCount           = 0u;
     DWORD _lastForegroundThiefThreadId      = 0u;

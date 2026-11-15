@@ -5,6 +5,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <dxgi.h>
 #include <filesystem>
 #include <format>
@@ -229,6 +230,18 @@ template <typename TPredicate>
         if (IsWindowVisible(popupHwnd) && DebugCaptureContextMenuPopupBitmap(popupHwnd, outCapture) && outCapture.widthPx > 1u && outCapture.heightPx > 1u &&
             HasPaintedPopupContent(outCapture))
         {
+            // Diagnostics: a menu popup is a real window on the desktop, so the person's pointer can hover a row of it.
+            ContextMenuPopupDebugState state{};
+            POINT cursor{};
+            if (DebugGetContextMenuPopupState(popupHwnd, state) && state.hoveredIndex && GetCursorPos(&cursor))
+                std::cerr << std::format("  [GALLERY] the captured menu popup has row {} hovered (pointer at {},{}; popup at {},{}-{},{})\n",
+                                         *state.hoveredIndex,
+                                         cursor.x,
+                                         cursor.y,
+                                         state.windowRectPx.left,
+                                         state.windowRectPx.top,
+                                         state.windowRectPx.right,
+                                         state.windowRectPx.bottom);
             return true;
         }
 
@@ -1682,6 +1695,11 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
         Require(window.Host().HasTooltip() && window.Host().GetTooltipText() == L"Tooltip sample",
                 "gallery installs its exact synthetic tooltip after message settling and preparation");
     }
+    // Diagnostics: a sheet whose frame schedule still waits for something holds a control that changes with real time, so
+    // two captures of it can differ. Printed only when something is scheduled.
+    if (const auto wake = window.Host().DebugGetFrameScheduleWakeForTest(); wake.kind != 0u)
+        std::cerr << std::format(
+            "  [GALLERY] the sheet is captured with {} tick request(s) scheduled (wake kind {})\n", window.Host().DebugGetTickRequestCountForTest(), wake.kind);
     Require(window.Host().DebugCaptureBitmap(capture), "gallery section bitmap capture succeeds");
     Require(capture.widthPx > 0u && capture.heightPx > 0u && ! capture.bgraPixels.empty(), "gallery section capture is non-empty");
     return capture;
@@ -2473,11 +2491,64 @@ const GalleryTheme& LightGalleryTheme()
     return themes.front();
 }
 
+// When two captures of one sheet differ: the rectangle the differing pixels span, every tile they fall in with its count,
+// and both crops of that rectangle under .build/test-artifacts/gallery-determinism/<process>, so the next failure names its
+// source. Printed only when the captures differ.
+void ReportGallerySheetDifference(const WindowHostBitmapCapture& first, const WindowHostBitmapCapture& second, std::span<const GalleryTileRecord> records)
+{
+    if (first.widthPx != second.widthPx || first.heightPx != second.heightPx)
+        return;
+    RECT span{LONG_MAX, LONG_MAX, LONG_MIN, LONG_MIN};
+    std::vector<size_t> perTile(records.size(), 0u);
+    size_t outsideTiles = 0u;
+    for (UINT y = 0u; y < first.heightPx; ++y)
+        for (UINT x = 0u; x < first.widthPx; ++x)
+        {
+            const size_t offset = (static_cast<size_t>(y) * first.widthPx + x) * 4u;
+            if (std::memcmp(first.bgraPixels.data() + offset, second.bgraPixels.data() + offset, 4u) == 0)
+                continue;
+            span.left   = (std::min)(span.left, static_cast<LONG>(x));
+            span.top    = (std::min)(span.top, static_cast<LONG>(y));
+            span.right  = (std::max)(span.right, static_cast<LONG>(x) + 1);
+            span.bottom = (std::max)(span.bottom, static_cast<LONG>(y) + 1);
+            bool inTile = false;
+            for (size_t index = 0u; index < records.size(); ++index)
+            {
+                const RECT tile = GalleryTileRectPx(records[index].outerDip, USER_DEFAULT_SCREEN_DPI);
+                if (static_cast<LONG>(x) >= tile.left && static_cast<LONG>(x) < tile.right && static_cast<LONG>(y) >= tile.top &&
+                    static_cast<LONG>(y) < tile.bottom)
+                {
+                    ++perTile[index];
+                    inTile = true;
+                }
+            }
+            outsideTiles += inTile ? 0u : 1u;
+        }
+    if (span.left > span.right)
+        return;
+    std::cerr << std::format("  [GALLERY] the two captures differ in ({},{})-({},{})\n", span.left, span.top, span.right, span.bottom);
+    for (size_t index = 0u; index < records.size(); ++index)
+        if (perTile[index] != 0u)
+            std::wcerr << L"  [GALLERY]   " << perTile[index] << L" differing pixels in tile \"" << records[index].label << L"\"\n";
+    if (outsideTiles != 0u)
+        std::cerr << "  [GALLERY]   " << outsideTiles << " differing pixels outside every tile\n";
+    const std::filesystem::path directory =
+        FindRepoRootForDxUiTests() / L".build" / L"test-artifacts" / L"gallery-determinism" / std::to_wstring(GetCurrentProcessId());
+    std::error_code ec;
+    std::filesystem::create_directories(directory, ec);
+    if (SaveWindowHostBitmapCaptureAsPngForTest(directory / L"first-crop.png", CropGalleryCapture(first, span)) &&
+        SaveWindowHostBitmapCaptureAsPngForTest(directory / L"second-crop.png", CropGalleryCapture(second, span)) &&
+        SaveWindowHostBitmapCaptureAsPngForTest(directory / L"first-sheet.png", first) &&
+        SaveWindowHostBitmapCaptureAsPngForTest(directory / L"second-sheet.png", second))
+        std::cerr << "  [GALLERY]   crops and sheets written to " << directory.string() << '\n';
+}
+
 // A tile captured at 100% through the scale option is today's sheet, cropped: the option adds no second capture path.
 void TestGalleryTileCaptureAtOneHundredPercentMatchesTheSheet()
 {
-    const GalleryTheme& theme             = LightGalleryTheme();
-    const WindowHostBitmapCapture today   = CaptureThemeSection(theme);
+    const GalleryTheme& theme = LightGalleryTheme();
+    std::vector<GalleryTileRecord> records;
+    const WindowHostBitmapCapture today   = CaptureThemeSection(theme, USER_DEFAULT_SCREEN_DPI, &records);
     const std::vector<std::wstring> named = {L"StatusStrip", L"TextField"};
     std::vector<bool> matched;
     WindowHostBitmapCapture optionSheet;
@@ -2487,6 +2558,8 @@ void TestGalleryTileCaptureAtOneHundredPercentMatchesTheSheet()
     Require(tiles.size() == 8u, "the filters select the StatusStrip tile and the seven TextField tiles (two focused, W3.2)");
     Require(optionSheet.widthPx == today.widthPx && optionSheet.heightPx == today.heightPx, "a 100% sheet keeps today's size");
     const BitmapComparisonStats sheetStats = CompareWindowHostBitmapCapturesForTest(optionSheet, today, 0u);
+    if (sheetStats.differingPixels != 0u)
+        ReportGallerySheetDifference(today, optionSheet, records);
     Require(sheetStats.totalPixels > 0u && sheetStats.differingPixels == 0u, "a 100% sheet through the scale option is today's sheet pixel for pixel");
     for (const GalleryTileCapture& tile : tiles)
     {

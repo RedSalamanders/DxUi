@@ -1517,6 +1517,19 @@ when it is recorded. Every built fixture keeps at least its default variant in t
 counter of the first difference. A nondeterministic counter is a defect of the fixture or of the library, never a
 reason to exclude the counter.
 
+A step's counters MUST NOT depend on load or on other processes. The window runner therefore drives time only through
+the fixture clock (no `WM_TIMER` is dispatched), drains only the messages the host posted to itself and paints with
+`UpdateWindow`; it answers every message another thread sends to the fixture window (UI Automation `WM_GETOBJECT`,
+setting and theme broadcasts) with `DefWindowProc` without the host, and pins the accessibility build gate to a listening
+client for the run, so a desktop client can neither publish a snapshot in the middle of a step nor change whether the
+host publishes. Library work that is asynchronous by design (a thread-pool delivery) is completed through a test seam at
+a fixed point of the step. When the gate fails it reports, for the differing step and the one before it, every differing
+counter and the window messages, ticks, snapshot builds and frame-schedule state present in one run and not the other.
+A difference is resolved at its source: a real-time or message-queue leak in the runner, a missing delivery seam, or a
+reported library defect when the same inputs produce different work. Retries, counter tolerances and skipped fixtures
+are not permitted. The same rule holds for gallery captures: two captures of one sheet in one process MUST be equal
+pixel for pixel, and a failure names the differing rectangle and tiles and retains both crops under `.build`.
+
 `performance-fixtures.ps1` writes a fixture's receipt under `Measurements/PerformanceAndMotion_2026-11-13/<FX>/` with
 provenance (source commit and dirty flag, build profile, compiler, OS build, adapter and driver or WARP version, display
 refresh rates, power plan, host-idle observation, executable and input hashes) and regenerates that directory's README.

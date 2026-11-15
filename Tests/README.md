@@ -361,6 +361,21 @@ the notification queue at a fixed point of each step (`DebugCompletePendingAcces
 thread-pool delivery would otherwise decide how much the owner allocates, and would raise events to whoever listens on
 the desktop.
 
+**What keeps a window step deterministic.** The window runner renders a step's frame from what the step queued: it
+pumps the messages the host posted to itself, leaves `WM_TIMER` and the system caret timer queued (time reaches the host
+only through the fixture clock) and paints with `UpdateWindow`. The desktop is kept out of the step: every message
+another thread sends to the fixture window (a UI Automation client's `WM_GETOBJECT` and `WM_GETTEXT`, setting and theme
+broadcasts) is answered by `DefWindowProc` without the host, and the accessibility build gate answers as if a client
+listens (`DebugSetAccessibilitySystemListenersForTest(true)`) whatever the desktop's clients do. Without that, a client's
+`WM_GETOBJECT` arriving between two paints of one step publishes the snapshot early and splits the step's one coalesced
+publication into two (`FX10` then copies its rich document twice). When the gate fails it prints, for the differing step
+and the one before it, every counter that differs and the events that reached the host in one run and not the other:
+window messages (marked when another thread sent them), messages dequeued, an invalid region painted by `UpdateWindow`,
+fixture ticks, snapshot builds, a change of `UiaClientsAreListening` and the frame schedule left waiting. A new
+difference names its event there: if it is a real-time or queue leak, fix the runner; if it is library work that is
+asynchronous by design, give it a delivery seam completed at a fixed point of the step; if the same inputs produce
+different work, report it as a library defect. Never retry, tolerate or skip.
+
 The fixture header compiles in both test executables: use only DxUi, the standard library and the model header, never
 `Check`, `Require`, `GraphicsFixture` or a test window. Nothing else changes: the determinism gate, receipts and
 `performance-timing.ps1 -Fixture FX<N>` find the fixture through the catalog.

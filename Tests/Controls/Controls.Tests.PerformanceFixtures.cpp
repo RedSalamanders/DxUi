@@ -17,7 +17,9 @@
 
 #include <psapi.h>
 
+#include <format>
 #include <fstream>
+#include <map>
 #include <sstream>
 
 // Instances are owned in place and never copied. Owner: DxUi maintainers; review: 2027-01-31.
@@ -31,6 +33,25 @@ using namespace PerformanceFixtures;
 class WindowInstance final : public HostPort
 {
 public:
+    // The accessibility build gate answers as if a UI Automation client listens, whatever the desktop's clients do while the
+    // fixture runs (UiaClientsAreListening changes as other processes start and stop listening): the state of a developer
+    // desktop and of the retained window receipts. With foreign messages kept from the host (ObserveMessage), the host
+    // publishes its snapshot exactly when the fixture's own changes ask for it.
+    WindowInstance() : listenersBefore_(DxUi::DebugGetAccessibilitySystemListenersForTest())
+    {
+        DxUi::DebugSetAccessibilitySystemListenersForTest(true);
+    }
+    ~WindowInstance() override
+    {
+        context_.reset();
+        window_.reset();
+        DxUi::DebugSetAccessibilitySystemListenersForTest(listenersBefore_);
+    }
+    WindowInstance(const WindowInstance&)            = delete;
+    WindowInstance& operator=(const WindowInstance&) = delete;
+    WindowInstance(WindowInstance&&)                 = delete;
+    WindowInstance& operator=(WindowInstance&&)      = delete;
+
     void Instantiate(const Definition& definition)
     {
         definition_ = &definition;
@@ -39,6 +60,7 @@ public:
     void Create(const Variant& variant)
     {
         window_.emplace(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
+        window_->SetMessageObserver(&WindowInstance::ObserveMessage, this);
         // The host's animation clock is the fixture clock from the start: a delay scheduled before the first tick (a tooltip's
         // show delay) is measured on it, never on GetTickCount64.
         window_->Host().DebugSetAnimationClockForTest(now_);
@@ -75,10 +97,73 @@ public:
             // The test window sits off every monitor, so the system posts WM_MOUSELEAVE as soon as the host's TrackMouseEvent asks for
             // it; dispatching it would turn every pointer move into a leave and a re-entry. Only a step's own Leave reaches the host.
             if (message.message == WM_MOUSELEAVE && message.hwnd == Hwnd())
+            {
+                Note("dropped queued WM_MOUSELEAVE");
                 continue;
+            }
+            if (events_)
+                Note("dequeued " + MessageName(message.message) +
+                     (message.hwnd == Hwnd() ? " for the host window"
+                      : message.hwnd         ? " for another window"
+                                             : " for the thread"));
+            if (message.message == WM_PAINT && message.hwnd == Hwnd())
+            {
+                PaintIfTheHostInvalidated(false);
+                continue;
+            }
             static_cast<void>(DispatchQueuedMessageForTest(message));
         }
-        static_cast<void>(UpdateWindow(window_->Hwnd()));
+        PaintIfTheHostInvalidated(true);
+    }
+
+    // Another process may invalidate any window (RedrawWindow from a desktop tool, which also repaints the frame): Windows
+    // then sends the fixture window a WM_PAINT the step never asked for, and the host renders a whole extra frame. The host
+    // invalidates only through ControlHost::Invalidate, always the whole client area (a resize included, through OnSize), so
+    // the window paints exactly when the host invalidated since its last paint. A region nobody in the fixture asked for is
+    // validated unpainted and recorded.
+    void PaintIfTheHostInvalidated(bool updateWindow)
+    {
+        const HWND hwnd = window_->Hwnd();
+        RECT invalid{};
+        if (GetUpdateRect(hwnd, &invalid, FALSE) == FALSE)
+            return;
+        const uint64_t invalidations = window_->Host().DebugGetInvalidateCount();
+        if (invalidations == paintedInvalidations_)
+        {
+            Note(std::format(
+                "a region the host did not invalidate ({},{})-({},{}) validated unpainted", invalid.left, invalid.top, invalid.right, invalid.bottom));
+            static_cast<void>(ValidateRect(hwnd, nullptr));
+            return;
+        }
+        paintedInvalidations_ = invalidations;
+        if (updateWindow)
+            Note(std::format("UpdateWindow paints an invalid region ({},{})-({},{})", invalid.left, invalid.top, invalid.right, invalid.bottom));
+        static_cast<void>(UpdateWindow(hwnd));
+    }
+
+    // Diagnostics (Tests/README.md, "Performance fixtures"): what reached the host during one step, so a step whose counters
+    // differ between two runs names the event that was in one run and not in the other.
+    void BeginStepEvents(std::vector<std::string>& events)
+    {
+        events_ = &events;
+        if (const bool listening = UiaClientsAreListening() != FALSE; listening != uiaListening_)
+        {
+            uiaListening_ = listening;
+            Note(listening ? "UI Automation clients started listening (UiaClientsAreListening)" : "UI Automation clients stopped listening");
+        }
+        snapshotBuilds_ = DxUi::DebugGetAccessibilitySnapshotBuildCountForTest();
+    }
+    void EndStepEvents()
+    {
+        if (! events_)
+            return;
+        if (const uint64_t builds = DxUi::DebugGetAccessibilitySnapshotBuildCountForTest() - snapshotBuilds_; builds != 0u)
+            Note(std::format("{} accessibility snapshot build(s), any thread", builds));
+        const auto wake = window_->Host().DebugGetFrameScheduleWakeForTest();
+        if (wake.kind != 0u)
+            Note(std::format(
+                "frame schedule waits: kind {} due {}", wake.kind, wake.dueTickMs >= now_ ? std::format("now+{}", wake.dueTickMs - now_) : "earlier"));
+        events_ = nullptr;
     }
 
     bool Pointer(const DxUi::PointerEvent& event) override
@@ -124,7 +209,8 @@ public:
     {
         now_ += milliseconds;
         window_->Host().DebugSetAnimationClockForTest(now_);
-        static_cast<void>(window_->Host().DebugAnimationTickForTest(now_));
+        const bool pending = window_->Host().DebugAnimationTickForTest(now_);
+        Note(std::format("fixture tick (+{} ms){}", milliseconds, pending ? ", animation still pending" : ""));
     }
     // The client area becomes `width` x `height` device pixels at `dpi`, the DPI delivered as Windows would deliver it.
     void Resize(UINT width, UINT height, float dpi) override
@@ -158,12 +244,79 @@ public:
     }
 
 private:
+    [[nodiscard]] static std::string MessageName(UINT message)
+    {
+        switch (message)
+        {
+            case WM_PAINT: return "WM_PAINT";
+            case WM_TIMER: return "WM_TIMER";
+            case WM_GETOBJECT: return "WM_GETOBJECT";
+            case WM_SETTINGCHANGE: return "WM_SETTINGCHANGE";
+            case WM_THEMECHANGED: return "WM_THEMECHANGED";
+            case WM_DISPLAYCHANGE: return "WM_DISPLAYCHANGE";
+            case WM_DWMCOLORIZATIONCOLORCHANGED: return "WM_DWMCOLORIZATIONCOLORCHANGED";
+            case WM_MOUSELEAVE: return "WM_MOUSELEAVE";
+            case WM_MOUSEMOVE: return "WM_MOUSEMOVE";
+            case WM_SETCURSOR: return "WM_SETCURSOR";
+            case WM_NCHITTEST: return "WM_NCHITTEST";
+            case WM_WINDOWPOSCHANGING: return "WM_WINDOWPOSCHANGING";
+            case WM_WINDOWPOSCHANGED: return "WM_WINDOWPOSCHANGED";
+            case WM_SIZE: return "WM_SIZE";
+            case WM_ERASEBKGND: return "WM_ERASEBKGND";
+            case WM_NCPAINT: return "WM_NCPAINT";
+            case WM_ACTIVATEAPP: return "WM_ACTIVATEAPP";
+            case WM_IME_NOTIFY: return "WM_IME_NOTIFY";
+            default: break;
+        }
+        if (message >= 0xC000u)
+        {
+            // A registered message: its name shares the atom table of clipboard formats.
+            wchar_t name[128]{};
+            const int length = GetClipboardFormatNameW(message, name, static_cast<int>(std::size(name)));
+            std::string text = "registered ";
+            for (int index = 0; index < length; ++index)
+                text.push_back(name[index] < 0x80 ? static_cast<char>(name[index]) : '?');
+            return text;
+        }
+        return std::format("message 0x{:04X}", message);
+    }
+    void Note(std::string event)
+    {
+        if (events_)
+            events_->push_back(std::move(event));
+    }
+    // A message another thread sends is the desktop's, never the fixture's: a UI Automation client's WM_GETOBJECT (which
+    // would publish the host's accessibility snapshot in the middle of a step and split the step's one coalesced
+    // publication in two), its WM_GETTEXT, a settings or theme broadcast. DefWindowProc answers it and the host never sees
+    // it, so a step's counters cannot depend on what else runs on the desktop. The fixture's own input is sent from this
+    // thread or posted by the host itself.
+    static bool ObserveMessage(void* context, UINT message, WPARAM, LPARAM lParam)
+    {
+        auto& self         = *static_cast<WindowInstance*>(context);
+        const DWORD send   = InSendMessageEx(nullptr);
+        const bool foreign = (send & (ISMEX_SEND | ISMEX_NOTIFY | ISMEX_CALLBACK)) != 0u;
+        if (self.events_)
+        {
+            // Every message is recorded, the step's own input included: both runs send that input, so only a difference shows.
+            std::string origin = foreign ? " from another thread, answered without the host" : "";
+            if (message == WM_GETOBJECT)
+                origin += std::format(" (object id {})", static_cast<LONG>(static_cast<DWORD>(lParam)));
+            self.Note("window procedure: " + MessageName(message) + origin);
+        }
+        return foreign;
+    }
+
     const Definition* definition_ = nullptr;
     // Declared before the window it may own models for, so the window and its host are destroyed first.
     std::unique_ptr<Scenario> scenario_;
     std::optional<AttachedHostWindow> window_;
     std::optional<Context> context_;
     uint64_t now_ = kClockOriginMs;
+    std::optional<bool> listenersBefore_;
+    uint64_t paintedInvalidations_    = 0u;
+    std::vector<std::string>* events_ = nullptr;
+    std::optional<bool> uiaListening_;
+    uint64_t snapshotBuilds_ = 0u;
 };
 
 [[nodiscard]] PROCESS_MEMORY_COUNTERS_EX ProcessMemory()
@@ -174,9 +327,17 @@ private:
     return memory;
 }
 
+// What reached the host in each step of a run (WindowInstance::BeginStepEvents), indexed like StepAt: phase by phase.
+// Real-time durations are kept apart: they always differ and are printed only beside a difference.
+struct WindowRunEvents
+{
+    std::vector<std::vector<std::string>> steps;
+    std::vector<int64_t> durationsUs;
+};
+
 // One run on the window host, as RunEmbedded does on the embedded host (counters per step after a tracker sweep, memory
 // per phase), without the C++ allocation sink, retained statistics or video memory, which this host does not report.
-RunRecord RunWindow(const Definition& definition, const Variant& variant)
+RunRecord RunWindow(const Definition& definition, const Variant& variant, WindowRunEvents* events = nullptr)
 {
     Require(definition.Built() && Supports(definition.hosts, Host::Window), "the fixture is built for the window host");
     Require(! variant.hardwareOnly, "the window runner renders on WARP only");
@@ -217,11 +378,17 @@ RunRecord RunWindow(const Definition& definition, const Variant& variant)
         {
             for (size_t step = 0u; step < definition.phases[phase].steps; ++step)
             {
+                const auto started = std::chrono::steady_clock::now();
+                if (events)
+                    instance.BeginStepEvents(events->steps.emplace_back());
                 const DxUi::Detail::WorkCounterScope scope;
                 instance.Step(phase, step);
                 instance.Frame();
                 static_cast<void>(tracker.Sweep());
                 run.phases[phase].steps.push_back(StepRecord{scope.Delta(), 0u});
+                instance.EndStepEvents();
+                if (events)
+                    events->durationsUs.push_back(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started).count());
             }
             sample("phase", definition.phases[phase].name);
         }
@@ -233,11 +400,71 @@ RunRecord RunWindow(const Definition& definition, const Variant& variant)
     return run;
 }
 
-void RequireDeterministic(const RunRecord& first, const RunRecord& second)
+// The flat index of a phase's step, as StepAt counts.
+[[nodiscard]] size_t FlatStepIndex(const Definition& definition, std::string_view phaseName, size_t step)
+{
+    size_t index = 0u;
+    for (const Phase& phase : definition.phases)
+    {
+        if (phase.name == phaseName)
+            return index + step;
+        index += phase.steps;
+    }
+    return index;
+}
+
+// Prints one step of both runs: every counter that differs, then what reached the host in either run and not in the other
+// (a multiset difference), then both event lists in order. Printed only when the gate fails.
+void PrintStepDifference(const RunRecord& first, const RunRecord& second, const WindowRunEvents& a, const WindowRunEvents& b, size_t index)
+{
+    const std::optional<PhaseStep> at = StepAt(*first.definition, index);
+    if (! at || index >= a.steps.size() || index >= b.steps.size())
+        return;
+    std::cerr << "  -- " << first.definition->phases[at->phase].name << " step " << at->step << " (run times " << a.durationsUs[index] << " us and "
+              << b.durationsUs[index] << " us)\n";
+    std::vector<std::pair<std::string, uint64_t>> values;
+    ForEachCounter(first.phases[at->phase].steps[at->step], [&](std::string_view name, uint64_t value) { values.emplace_back(std::string(name), value); });
+    size_t counter = 0u;
+    ForEachCounter(second.phases[at->phase].steps[at->step],
+                   [&](std::string_view, uint64_t value)
+    {
+        if (values[counter].second != value)
+            std::cerr << "     counter " << values[counter].first << ": " << values[counter].second << " then " << value << '\n';
+        ++counter;
+    });
+    std::map<std::string, int> balance;
+    for (const std::string& event : a.steps[index])
+        ++balance[event];
+    for (const std::string& event : b.steps[index])
+        --balance[event];
+    for (const auto& [event, count] : balance)
+        if (count != 0)
+            std::cerr << "     only in the " << (count > 0 ? "first" : "second") << " run (x" << std::abs(count) << "): " << event << '\n';
+    for (const auto* run : {&a, &b})
+    {
+        std::cerr << "     " << (run == &a ? "first" : "second") << " run events:";
+        for (const std::string& event : run->steps[index])
+            std::cerr << "\n       " << event;
+        std::cerr << '\n';
+    }
+}
+
+void RequireDeterministic(const RunRecord& first,
+                          const RunRecord& second,
+                          const WindowRunEvents* firstEvents  = nullptr,
+                          const WindowRunEvents* secondEvents = nullptr)
 {
     if (const std::optional<Difference> difference = FirstDifference(first, second))
     {
         std::cerr << "Nondeterministic performance fixture: " << Describe(first, *difference) << '\n';
+        if (firstEvents && secondEvents)
+        {
+            // The differing step and the one before it: work that slips by a step shows in both.
+            const size_t index = FlatStepIndex(*first.definition, difference->phase, difference->step);
+            if (index > 0u)
+                PrintStepDifference(first, second, *firstEvents, *secondEvents, index - 1u);
+            PrintStepDifference(first, second, *firstEvents, *secondEvents, index);
+        }
         Require(false, "two consecutive WARP runs of a performance fixture record equal counters");
     }
 }
@@ -286,9 +513,11 @@ template <typename Before> std::vector<uint64_t> WindowFrameHashes(const Definit
 void TestPerformanceFixtureFrameworkOnWindowHost()
 {
     const Definition& definition = SelfTest::kDefinition;
-    const RunRecord first        = RunWindow(definition, SelfTest::kVariants[0]);
-    const RunRecord second       = RunWindow(definition, SelfTest::kVariants[0]);
-    RequireDeterministic(first, second);
+    WindowRunEvents firstEvents;
+    WindowRunEvents secondEvents;
+    const RunRecord first  = RunWindow(definition, SelfTest::kVariants[0], &firstEvents);
+    const RunRecord second = RunWindow(definition, SelfTest::kVariants[0], &secondEvents);
+    RequireDeterministic(first, second, &firstEvents, &secondEvents);
     Require(first.trackerOverflow == 0u, "the tracker observed every resource the fixture created");
     for (const StepRecord& step : first.Phase("clean").steps)
         Require(step.work.frame.renders == 0u && step.work.frame.paintExecutions == 0u && DxUi::Detail::TotalCreated(step.work) == 0u,
@@ -320,7 +549,11 @@ void TestPerformanceFixturesAreDeterministicOnWindowHost()
             if (variant.hardwareOnly || variant.receiptOnly)
                 continue;
             const auto started = std::chrono::steady_clock::now();
-            RequireDeterministic(RunWindow(*definition, variant), RunWindow(*definition, variant));
+            WindowRunEvents firstEvents;
+            WindowRunEvents secondEvents;
+            const RunRecord first  = RunWindow(*definition, variant, &firstEvents);
+            const RunRecord second = RunWindow(*definition, variant, &secondEvents);
+            RequireDeterministic(first, second, &firstEvents, &secondEvents);
             std::cerr << "    [FIXTURE] " << definition->id << '@' << variant.name << " (window, WARP): two runs record equal counters ("
                       << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count() << " ms)\n";
         }
