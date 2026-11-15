@@ -128,7 +128,7 @@ At about 280 bytes per glyph run against about 18 KB per layout, nearly every re
 
 ## Pixels
 
-- Equivalence oracle `TestRetainedTextLayoutsDrawWhatDrawTextDraws`: 1,728 cases at 96, 120, 144, 168 and 192 DPI
+- Equivalence oracle `TestRetainedTextLayoutsDrawWhatDrawTextDraws`: 1,782 cases (54 of them pairs of boxes sharing only their width or only their height) at 96, 120, 144, 168 and 192 DPI
   (embedded, grayscale) and at the system DPI on a native window (ClearType). Every frame through the table, on the frame
   that creates the layouts and on the next, is byte-identical to the frame through `DrawText`.
 - FX5 captures with the item, identical to [W6.4](../W6.4/README.md): `hwnd-dark-96dpi` `0xAEDE74BE5EBED69C`,

@@ -6,3 +6,4 @@
 // covers the key, the bound and what hiding, detaching, a device replacement and a DPI change do to the table.
 void TestRetainedTextLayoutsDrawWhatDrawTextDraws();
 void TestRetainedTextLayoutsKeyBoundAndLifetime();
+void TestRetainedTextLayoutsReleasedWhenAChildHostCannotPaint();

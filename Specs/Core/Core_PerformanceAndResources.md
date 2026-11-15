@@ -1070,24 +1070,44 @@ keeps one table (`ControlHost::_textLayoutCache`, a registered retained cache) i
 cell tables above (32 ways a set; 32 entries growing to 2,048, `kTextLayoutCacheMaxEntries`). An entry is keyed by the whole string (hashed to choose
 its set, compared in full on a hit, which allocates nothing), its text format (held by the entry, so a released format's
 address can never match) and the exact width and height of the box. Its layout is created with that format at that size
-and drawn at the box's origin with the caller's draw options; that draws exactly what `DrawText` draws.
+and drawn at the box's origin with the caller's draw options; that draws exactly what `DrawText` draws. A host text
+format is immutable once created: the key holds a format by identity and hashes only its size, weight, style, stretch,
+alignments, wrapping and reading direction, so a format changed afterwards would be drawn with layouts made before the
+change. Debug builds compare, on every hit, the format's trimming, line spacing, flow direction, tab stop, locale and
+family with those its layout was made with and report a difference.
 
 Each host paint (a native render, an embedded preparation) is one generation. When it ends, every entry it did not draw
 releases its layout and format and keeps only its string storage for later keys, so the table holds the strings of the
 last paint and never more. A paint that meets a full set at the bound draws the string through `DrawText` rather than
 evict a layout the same paint drew (`text.textLayoutCacheOverflows`), so no paint creates a layout twice. Not retained,
 and drawn through `DrawText` as before (`text.textLayoutCacheBypasses`): a draw outside a host paint, a box whose width or
-height is not positive and finite, and a string over 4,096 UTF-16 units; an empty string draws nothing. A hidden,
-minimized, zero-sized or detached host and a device loss or replacement release the whole table; a new typography
-revision (a new DirectWrite factory) releases it at the next paint; a DPI change keeps it, since layouts are in DIPs. On
-an embedded view a string new to the table is laid out during preparation; composition only composites the surface.
+height is not positive and finite, and a string over 4,096 UTF-16 units; an empty string draws nothing. A single-line
+field that could not create its own layout draws its text through `DrawText` and never through the table, because a
+released entry keeps its string for reuse without wiping it and that text may be a revealed password. After a change of
+draw order, the first frame at the bound can lay out up to a set's worth of strings again before it settles, and a table
+that halves can drop entries when two merged sets hold more than 32 current entries; either costs only a miss.
 
-The equivalence oracle (`TestRetainedTextLayoutsDrawWhatDrawTextDraws`) draws 1,728 cases through `DrawText` (the
+The whole table is released:
+
+- by an embedded view when it releases its surface: hidden, prepared at zero extent, device replaced or detached;
+- by a native host when `SetNativePresentationVisible(false)`, `WM_SHOWWINDOW` false, `WM_SIZE` minimized or a client
+  area of zero width or height reaches it, on device loss or replacement and on detach;
+- by a native host whose window or an ancestor stopped showing it without a message (a minimized top-level, a hidden
+  parent, `SWP_HIDEWINDOW`) at its next schedule wake, which finds the window not visible. A host with nothing scheduled
+  has no such wake and keeps its table until a message or a paint reaches it.
+
+A parent's `WM_SETREDRAW` false sends `WM_SHOWWINDOW` false, so a redraw block releases the table too and the next
+paint lays every string out again. A new typography revision (a new DirectWrite factory) releases it at the next paint;
+a DPI change keeps it, since layouts are in DIPs. On an embedded view a string new to the table is laid out during
+preparation; composition only composites the surface.
+
+The equivalence oracle (`TestRetainedTextLayoutsDrawWhatDrawTextDraws`) draws 1,782 cases through `DrawText` (the
 `DebugSetTextLayoutCacheEnabledForTest` seam) and through the table, on the frame that creates the layouts and on the
 next, and requires identical BGRA on WARP at 96, 120, 144, 168 and 192 DPI on an embedded view and at the system DPI on a
 native window: 12 strings (among them an empty one, tabs, ampersands, colour emoji, CJK, combining marks, Arabic and hard
 line breaks), 8 boxes (whole and fractional origins and sizes, boxes narrower and shorter than their text, zero and
-negative sizes), every alignment and paragraph alignment, wrapping, both reading directions, `DrawCenteredText`,
+negative sizes, and boxes sharing only their width or only their height with another box drawn in the same frame with
+the same string and format), every alignment and paragraph alignment, wrapping, both reading directions, `DrawCenteredText`,
 clip-only options and a rotated transform. The FX5 frames of the HWND, composition and embedded hosts are byte-identical
 with and without the table in both themes.
 
@@ -1106,8 +1126,8 @@ distinct strings, which a 1,024-entry table (32 sets of 32 ways) holds only abou
 layouts; the Grid's ceiling of 16,384 would allow about 290 MB. A screen beyond the bound draws its overflow through
 `DrawText` each frame (the 10,000-row form, `form-layout-10k`, lays out 374 of its 9,000 strings per frame at 2,048
 entries, against 9,000 without the table). The table holds only what the last paint drew, so a sparse screen holds little:
-FX13 21 layouts (about 0.4 MB), FX5 34 (about 0.65 MB), FX1 none. The table is released when its host hides, minimizes,
-loses or replaces its device or detaches; releasing it when a visible host goes idle is planned with `W9.2`. Text measurement reads the first line's metrics into a 16-line stack buffer, so a `Label`
+FX13 21 layouts (about 0.4 MB), FX5 34 (about 0.65 MB), FX1 none. Releasing it when a visible host goes idle is
+planned with `W9.2`. Text measurement reads the first line's metrics into a 16-line stack buffer, so a `Label`
 measure makes no C++ allocation; text with more lines reads them into a heap buffer (`text.lineMetricsHeapFallbacks`).
 
 ### I19 accepted resource trade-off

@@ -83,9 +83,32 @@ constexpr std::array<D2D1_RECT_F, 8u> kBoxes{
 constexpr std::array kAlignments{DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_TRAILING};
 constexpr std::array kParagraphs{DWRITE_PARAGRAPH_ALIGNMENT_NEAR, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_FAR};
 
+// Boxes that share their width or their height with kBoxes[0], drawn first, in one frame, with the same text and format:
+// a key that ignored the height or the width would draw one box's layout in another, which wraps or places the text
+// differently, and the oracle would see it.
+constexpr std::array<D2D1_RECT_F, 3u> kKeyPairBoxes{
+    D2D1_RECT_F{4.0f, 4.0f, 104.0f, 30.0f}, // as kBoxes[0]
+    D2D1_RECT_F{4.0f, 4.0f, 104.0f, 20.0f}, // same width, another height
+    D2D1_RECT_F{4.0f, 4.0f, 64.0f, 30.0f},  // same height, another width
+};
+constexpr size_t kKeyPairCases = 2u * 3u * 3u * kKeyPairBoxes.size();
+
 std::vector<TextCase> BuildCases()
 {
     std::vector<TextCase> cases;
+    for (const bool wrap : {true, false})
+        for (const DWRITE_TEXT_ALIGNMENT alignment : kAlignments)
+            for (const DWRITE_PARAGRAPH_ALIGNMENT paragraph : kParagraphs)
+                for (const D2D1_RECT_F& box : kKeyPairBoxes)
+                {
+                    TextCase value;
+                    value.text      = wrap ? kTexts[3] : kTexts[2]; // a paragraph that wraps; a line wider than every box
+                    value.alignment = alignment;
+                    value.paragraph = paragraph;
+                    value.wrap      = wrap;
+                    value.box       = box;
+                    cases.push_back(value);
+                }
     size_t index = 0u;
     for (size_t text = 0u; text < kTexts.size(); ++text)
         for (size_t box = 0u; box < kBoxes.size(); ++box)
@@ -384,7 +407,7 @@ void TestRetainedTextLayoutsDrawWhatDrawTextDraws()
         clipOnly += value.mode == DrawMode::ClipOnly ? 1u : 0u;
         rotated += value.mode == DrawMode::Rotated ? 1u : 0u;
     }
-    Require(cases.size() == kTexts.size() * kBoxes.size() * 2u * 9u && clipOnly > 0u && rotated > 0u,
+    Require(cases.size() == kKeyPairCases + kTexts.size() * kBoxes.size() * 2u * 9u && kKeyPairCases <= kCellsPerFrame && clipOnly > 0u && rotated > 0u,
             "the matrix covers every string and box with half of the wrapping and direction pairs, every alignment pair and each draw mode");
     // 100%, 125%, 150%, 175% and 200%.
     for (const float dpi : {96.0f, 120.0f, 144.0f, 168.0f, 192.0f})
@@ -422,9 +445,28 @@ public:
     ~StringRows() override                   = default;
 
     std::vector<std::wstring> strings;
+    // Draw the strings as a single-line field does when its own layout could not be created (a null layout): that
+    // fallback may show a revealed password, so it must retain nothing in the host's table.
+    bool singleLineFallback = false;
 
     void Paint(ControlHost& host) const override
     {
+        if (singleLineFallback)
+        {
+            for (size_t index = 0u; index < strings.size(); ++index)
+            {
+                const float top = 2.0f + static_cast<float>(index) * 20.0f;
+                DrawSingleLineTextClippedWithLayout(host,
+                                                    strings[index],
+                                                    D2D1::RectF(2.0f, top, 200.0f, top + 18.0f),
+                                                    FontRole::Body,
+                                                    host.GetTheme().text,
+                                                    0.0f,
+                                                    DWRITE_READING_DIRECTION_LEFT_TO_RIGHT,
+                                                    nullptr);
+            }
+            return;
+        }
         for (size_t index = 0u; index < strings.size(); ++index)
         {
             const float top  = 2.0f + static_cast<float>(index % 40u) * 14.0f;
@@ -499,6 +541,19 @@ struct LifetimeScene
         return const_cast<EmbeddedHost&>(view).Controls().DebugGetTextLayoutCacheCapacity();
     }
 };
+
+// Pumps this thread's messages for `durationMs` of real time, blocking between them.
+void PumpFor(uint64_t durationMs)
+{
+    const uint64_t end = GetTickCount64() + durationMs;
+    for (uint64_t now = GetTickCount64(); now < end; now = GetTickCount64())
+    {
+        MSG message{};
+        while (PeekMessageW(&message, nullptr, 0u, 0u, PM_REMOVE))
+            static_cast<void>(DispatchQueuedMessageForTest(message));
+        static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, static_cast<DWORD>(end - now), QS_ALLINPUT, MWMO_INPUTAVAILABLE));
+    }
+}
 
 std::vector<std::wstring> Numbered(std::wstring_view prefix, size_t count, size_t first = 0u)
 {
@@ -597,6 +652,16 @@ void TestRetainedTextLayoutsKeyBoundAndLifetime()
     const std::vector<uint8_t> replaced = scene.Frame(abc, work);
     Require(work.text.textLayoutCacheMisses == 3u && replaced == scene.Oracle(abc), "after a replacement the strings are created again and draw exactly");
 
+    // A single-line field's fallback (its own layout failed) may draw a revealed password: it draws through DrawText and
+    // the host's table, whose released entries keep their strings, never sees the text.
+    scene.rows->singleLineFallback = true;
+    static_cast<void>(scene.Frame({L"correct horse battery staple", L"hunter2"}, work));
+    Require(scene.Entries() == 0u && work.text.textLayoutCacheMisses == 0u && work.text.textLayoutCacheHits == 0u &&
+                work.resources.implicitTextLayout.created == 2u,
+            "the single-line fallback retains nothing in the host's table");
+    scene.rows->singleLineFallback = false;
+    static_cast<void>(scene.Frame(abc, work));
+
     // Composition only composites: a preparation of all-new strings creates their layouts, the composition none.
     scene.rows->strings = Numbered(L"Fresh ", 20u);
     scene.view.MarkDirty();
@@ -615,4 +680,84 @@ void TestRetainedTextLayoutsKeyBoundAndLifetime()
     scene.view.Detach();
     Require(scene.Entries() == 0u && scene.Capacity() == 0u, "a detached view keeps no retained layout");
     std::cerr << "    [W2.1] key, bound, DPI, hide, zero size, device replacement, composition and detach behave as specified\n";
+}
+
+// W2.1 review F1: a native host in a child window receives no message when its top-level is minimized or its parent is
+// hidden with SWP_HIDEWINDOW (ShowWindow does send the child WM_SHOWWINDOW); it finds out at its next schedule wake (a focused caret keeps one armed here) and
+// releases its table there. A host resized to 0 px releases it in WM_SIZE. A parent's redraw block sends WM_SHOWWINDOW
+// FALSE, which releases it too. Each time the next paint lays the strings out again and draws what DrawText draws.
+void TestRetainedTextLayoutsReleasedWhenAChildHostCannotPaint()
+{
+    enum class Hide
+    {
+        ParentHidden,
+        ParentHiddenWithoutMessage,
+        ParentRedrawBlock,
+        ZeroWidth,
+    };
+    for (const Hide hide : {Hide::ParentHidden, Hide::ParentHiddenWithoutMessage, Hide::ParentRedrawBlock, Hide::ZeroWidth})
+    {
+        wil::unique_hwnd parent(CreateWindowExW(WS_EX_NOACTIVATE,
+                                                L"STATIC",
+                                                L"retained text layout parent",
+                                                WS_OVERLAPPED,
+                                                -32000,
+                                                -32000,
+                                                360,
+                                                240,
+                                                nullptr,
+                                                nullptr,
+                                                GetModuleHandleW(nullptr),
+                                                nullptr));
+        Require(parent != nullptr, "the parent window is created");
+        AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+        SetWindowLongPtrW(window.Hwnd(), GWL_STYLE, WS_CHILD | WS_VISIBLE);
+        Require(SetParent(window.Hwnd(), parent.get()) != nullptr || GetLastError() == ERROR_SUCCESS, "the host window becomes a child");
+        SetWindowPos(window.Hwnd(), nullptr, 0, 0, 320, 200, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+        WindowHost& host = window.Host();
+        host.DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{100u, 0u});
+        auto root    = std::make_unique<Panel>();
+        auto* first  = root->AddChild<Label>(L"Retained alpha");
+        auto* second = root->AddChild<Label>(L"Retained beta");
+        auto* field  = root->AddChild<TextField>(L"caret");
+        first->SetBounds(D2D1::RectF(8.0f, 8.0f, 208.0f, 32.0f));
+        second->SetBounds(D2D1::RectF(8.0f, 40.0f, 208.0f, 64.0f));
+        field->SetBounds(D2D1::RectF(8.0f, 72.0f, 208.0f, 104.0f));
+        host.SetRoot(std::move(root));
+        ShowWindow(parent.get(), SW_SHOWNOACTIVATE);
+        PumpFor(200u);
+        host.SetFocusControl(field, false);
+        PumpFor(150u);
+        WindowHostBitmapCapture painted;
+        Require(host.DebugCaptureBitmap(painted) && host.DebugGetTextLayoutCacheEntries() >= 2u, "the child host retains its labels' layouts");
+        if (hide == Hide::ParentHidden)
+            ShowWindow(parent.get(), SW_HIDE);
+        else if (hide == Hide::ParentHiddenWithoutMessage) // SWP_HIDEWINDOW: no WM_SHOWWINDOW to the parent or the child
+            SetWindowPos(parent.get(), nullptr, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        else if (hide == Hide::ParentRedrawBlock)
+            SendMessageW(parent.get(), WM_SETREDRAW, FALSE, 0);
+        else
+            SetWindowPos(window.Hwnd(), nullptr, 0, 0, 0, 200, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE);
+        PumpFor(1'500u); // the hidden host's probe wake comes within a second
+        Require(host.DebugGetTextLayoutCacheEntries() == 0u && host.DebugGetTextLayoutCacheCapacity() == 0u,
+                "a child host that cannot paint (parent hidden, parent redraw block, 0 px wide) keeps no retained layout");
+        if (hide == Hide::ParentHidden || hide == Hide::ParentHiddenWithoutMessage)
+            ShowWindow(parent.get(), SW_SHOWNOACTIVATE);
+        else if (hide == Hide::ParentRedrawBlock)
+            SendMessageW(parent.get(), WM_SETREDRAW, TRUE, 0);
+        else
+            SetWindowPos(window.Hwnd(), nullptr, 0, 0, 320, 200, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE);
+        PumpFor(1'500u);
+        WindowHostBitmapCapture refilled;
+        Require(host.DebugCaptureBitmap(refilled), "the shown child host paints");
+        const uint64_t entries = host.DebugGetTextLayoutCacheEntries();
+        host.DebugSetTextLayoutCacheEnabledForTest(false);
+        WindowHostBitmapCapture oracle;
+        Require(host.DebugCaptureBitmap(oracle), "the shown child host paints through DrawText");
+        host.DebugSetTextLayoutCacheEnabledForTest(true);
+        Require(entries >= 2u && refilled.bgraPixels == oracle.bgraPixels, "the next paint refills the table and draws what DrawText draws");
+        std::cerr << "    [W2.1] child host " << static_cast<int>(hide) << ": released while it could not paint, refilled with " << entries << " layouts\n";
+        host.SetFocusControl(nullptr, false);
+        SetParent(window.Hwnd(), nullptr);
+    }
 }

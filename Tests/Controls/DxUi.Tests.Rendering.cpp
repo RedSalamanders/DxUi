@@ -3279,6 +3279,7 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestTextRenderingRetainedLayoutsKeepComplexUiPixels);
     DXUI_RUN_TEST(TestRetainedTextLayoutsDrawWhatDrawTextDraws);
     DXUI_RUN_TEST(TestRetainedTextLayoutsKeyBoundAndLifetime);
+    DXUI_RUN_TEST(TestRetainedTextLayoutsReleasedWhenAChildHostCannotPaint);
     DXUI_RUN_TEST(TestEmbeddedGraphicsRetirementPreservesApplicationBindings);
     DXUI_RUN_TEST(TestGridMultilineClampPreservesCompleteModelText);
     DXUI_RUN_TEST(TestGridMultilineShortRowsPaintClippedFirstLine);

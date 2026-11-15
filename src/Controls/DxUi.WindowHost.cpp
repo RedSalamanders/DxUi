@@ -5816,6 +5816,38 @@ void ControlHost::TrimCaches() noexcept
     _transitionBrushesUsed = 0u;
 }
 
+#if defined(_DEBUG)
+namespace
+{
+// Whether `format` still has the properties the retained `layout` was created with, those the key does not hash included.
+[[nodiscard]] bool RetainedLayoutMatchesFormat(IDWriteTextLayout& layout, IDWriteTextFormat& format) noexcept
+{
+    DWRITE_TRIMMING layoutTrimming{}, formatTrimming{};
+    wil::com_ptr<IDWriteInlineObject> layoutSign, formatSign;
+    DWRITE_LINE_SPACING_METHOD layoutMethod{}, formatMethod{};
+    float layoutSpacing = 0.0f, layoutBaseline = 0.0f, formatSpacing = 0.0f, formatBaseline = 0.0f;
+    std::array<wchar_t, 128> layoutName{}, formatName{};
+    if (FAILED(layout.GetTrimming(&layoutTrimming, layoutSign.put())) || FAILED(format.GetTrimming(&formatTrimming, formatSign.put())) ||
+        FAILED(layout.GetLineSpacing(&layoutMethod, &layoutSpacing, &layoutBaseline)) ||
+        FAILED(format.GetLineSpacing(&formatMethod, &formatSpacing, &formatBaseline)))
+        return true; // nothing to compare
+    if (layoutTrimming.granularity != formatTrimming.granularity || layoutTrimming.delimiter != formatTrimming.delimiter ||
+        layoutTrimming.delimiterCount != formatTrimming.delimiterCount || layoutSign.get() != formatSign.get() || layoutMethod != formatMethod ||
+        layoutSpacing != formatSpacing || layoutBaseline != formatBaseline || layout.GetFlowDirection() != format.GetFlowDirection() ||
+        layout.GetIncrementalTabStop() != format.GetIncrementalTabStop())
+        return false;
+    if (SUCCEEDED(layout.GetLocaleName(layoutName.data(), static_cast<UINT32>(layoutName.size()))) &&
+        SUCCEEDED(format.GetLocaleName(formatName.data(), static_cast<UINT32>(formatName.size()))) && std::wstring_view(layoutName.data()) != formatName.data())
+        return false;
+    if (SUCCEEDED(layout.GetFontFamilyName(layoutName.data(), static_cast<UINT32>(layoutName.size()))) &&
+        SUCCEEDED(format.GetFontFamilyName(formatName.data(), static_cast<UINT32>(formatName.size()))) &&
+        std::wstring_view(layoutName.data()) != formatName.data())
+        return false;
+    return true;
+}
+} // namespace
+#endif
+
 void TextLayoutCacheAccess::Draw(ControlHost& host,
                                  ID2D1RenderTarget* target,
                                  std::wstring_view text,
@@ -5868,6 +5900,12 @@ void TextLayoutCacheAccess::Draw(ControlHost& host,
                                           hit);
         if (hit)
         {
+#if defined(_DEBUG)
+            // Host text formats are immutable once created: the key holds a format by identity and hashes only some of its
+            // properties. A layout keeps every property of the format it was made from, so a hit compares the rest.
+            if (! RetainedLayoutMatchesFormat(*entry.layout, *format))
+                Debug::Error(L"DxUi::ControlHost: a text format changed after a retained layout was made from it; host formats must not change.");
+#endif
             ++Detail::Work().text.textLayoutCacheHits;
             entry.lastUse = generation;
             target->DrawTextLayout(D2D1::Point2F(rect.left, rect.top), entry.layout.get(), brush, options);
@@ -6509,6 +6547,7 @@ void ControlHost::OnSize(UINT widthPx, UINT heightPx) noexcept
     {
         CancelPreparedContent();
         CancelPreparedVisualContent();
+        TextLayoutCacheAccess::Release(*this); // a zero-sized host paints nothing and keeps no retained text layout
     }
     if (_root)
     {
@@ -7411,10 +7450,14 @@ ControlHost::FrameScheduleWake ControlHost::OnScheduledWake(uint64_t nowTickMs, 
         {
             _animationSuspendedWhileHidden = true;
             DropPendingTooltipShowWhileHidden();
+            TextLayoutCacheAccess::Release(*this); // hidden without WM_SHOWWINDOW (SWP_HIDEWINDOW) keeps no retained layout
             SyncDispatcherSubscription({});
             return {};
         }
         DropPendingTooltipShowWhileHidden();
+        // Hidden through an ancestor (a minimized top-level, a hidden parent, a parent's redraw block): no message reached
+        // this window, and it paints nothing until it shows again.
+        TextLayoutCacheAccess::Release(*this);
         _hiddenThroughAncestor = true;
         // Hidden only through an ancestor (a minimized top-level, a hidden parent, a parent's redraw block): this window
         // receives no message when the ancestor shows again, so the held schedule looks once a second (no Tick runs).

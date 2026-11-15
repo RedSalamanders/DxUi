@@ -9,3 +9,6 @@
   allocation. New work counters `text.textLayoutCacheHits`, `textLayoutCacheMisses`, `textLayoutCacheBypasses`,
   `textLayoutCacheOverflows` and `lineMetricsHeapFallbacks`; registry row `ControlHost._textLayoutCache`; FX5 gains a
   20-frame hover phase.
+  A native host in a child window also releases its table at the schedule wake that finds its window or an ancestor no
+  longer showing it, and when resized to zero width or height; host text formats are immutable once created (checked in
+  Debug builds), and a single-line field's fallback draw retains nothing.

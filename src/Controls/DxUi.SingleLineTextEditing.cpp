@@ -703,16 +703,20 @@ void DrawSingleLineTextClippedWithLayout(ControlHost& host,
         return;
     }
 
+    // Reached only when the field's own layout could not be created. The text may be a revealed password, and the host's
+    // retained layouts keep their key strings for reuse without wiping them, so it is drawn through DrawText, retaining
+    // nothing (W2.1 review, F4).
     if (auto* format = host.GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, readingDirection))
     {
         dc->PushAxisAlignedClip(snappedRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-        DrawHostText(host,
-                     dc,
-                     text,
-                     format,
-                     D2D1::RectF(snappedRect.left - scrollDip, snappedRect.top, snappedRect.right - scrollDip, snappedRect.bottom),
-                     brush,
-                     kTextDrawOptions);
+        CountedDrawText(dc,
+                        text.data(),
+                        static_cast<UINT32>(text.size()),
+                        format,
+                        D2D1::RectF(snappedRect.left - scrollDip, snappedRect.top, snappedRect.right - scrollDip, snappedRect.bottom),
+                        brush,
+                        kTextDrawOptions,
+                        DWRITE_MEASURING_MODE_NATURAL);
         dc->PopAxisAlignedClip();
     }
 }
