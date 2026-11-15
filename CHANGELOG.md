@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Preserve the API 4 consumer surface while capturing producer-owned background identity, Visual Studio discovery, pin-validation and dependency-restore processes without requesting secondary console UI. Keep literal arguments, separate concurrent streams, actual exit codes and interactive installer console inheritance; add retained standalone tooling controls for Windows PowerShell 5.1 and PowerShell 7, plus a version 6 carry-forward guide. Native profile, hosted and consumer-pin qualifications remain separate gates.
 - Record passing local x64 runtime qualification and ARM64 cross-builds for the common build policy, with immutable Release size evidence and remaining performance/CI gates explicit.
 - Record the current native profile and pinned-archive policy audit, qualified native builds and explicit remaining runtime, performance and integration gates.
 - Reconcile the toolchain contract with 16-character DxUi source/output locators, complete identity metadata and the retained conservative long-path compatibility guarantee.

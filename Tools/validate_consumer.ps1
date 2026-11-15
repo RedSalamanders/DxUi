@@ -1,14 +1,17 @@
 [CmdletBinding()]
 param([Parameter(Mandatory)][string] $DxUiRoot, [Parameter(Mandatory)][string] $LockFile)
 $ErrorActionPreference = 'Stop'
+$consumerBuildModule = Import-Module (Join-Path $PSScriptRoot 'ConsumerBuild.psm1') -PassThru -Scope Local -ErrorAction Stop
+$git = Get-Command git -CommandType Application -ErrorAction Stop | Select-Object -First 1
 $pin = Get-Content -LiteralPath $LockFile -Raw | ConvertFrom-Json
 if ($pin.commit -notmatch '^[0-9a-f]{40}$' -or $pin.repository -ne 'https://github.com/RedSalamanders/DxUi') {
     throw 'DxUi lock must name the canonical repository and an exact 40-character commit.'
 }
-$head = & git -C $DxUiRoot rev-parse HEAD
-if ($LASTEXITCODE -ne 0 -or $head.Trim() -ne $pin.commit) { throw 'DxUi checkout does not match the consumer lock.' }
-$dirty = & git -C $DxUiRoot status --porcelain --untracked-files=normal
-if ($LASTEXITCODE -ne 0 -or $dirty) { throw 'Pinned DxUi checkout is not clean.' }
+$headResult = & $consumerBuildModule { param($executable, $root) Invoke-DxUiConsumerNativeQuery -FilePath $executable -Arguments @('-C', $root, 'rev-parse', 'HEAD') } $git.Source $DxUiRoot
+$head = $headResult.StandardOutput.Trim()
+if ($headResult.ExitCode -ne 0 -or $head -ne $pin.commit) { throw 'DxUi checkout does not match the consumer lock.' }
+$dirtyResult = & $consumerBuildModule { param($executable, $root) Invoke-DxUiConsumerNativeQuery -FilePath $executable -Arguments @('-C', $root, 'status', '--porcelain', '--untracked-files=normal') } $git.Source $DxUiRoot
+if ($dirtyResult.ExitCode -ne 0 -or $dirtyResult.StandardOutput) { throw 'Pinned DxUi checkout is not clean.' }
 $api = Get-Content -LiteralPath (Join-Path $DxUiRoot 'capabilities.json') -Raw | ConvertFrom-Json
 if ($pin.apiRevision -ne $api.apiRevision) { throw 'DxUi public API revision mismatch.' }
 if (@($pin.targets).Count -ne 1 -or $pin.targets[0] -ne 'DxUi') { throw 'The single supported target is DxUi.' }

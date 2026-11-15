@@ -1,5 +1,7 @@
 # Active plans
 
+- **ACTIVE**: [API 4 consumer background-process capture](Api4ConsumerProcessCapture_2026-11-15.md). Tooling-only backport based on exact API 4 pin `4cdf1ce52c7785446698e346b8aec058ed6a9283`; standalone PS5.1/7 capture and producer-owned restore launch sites are implemented. Focused Windows PowerShell 5.1/PowerShell 7 component controls pass; governance, producer qualification, maintenance delivery and separate RedSalamander adoption remain pending. The separate version 6 integration guide records carry-forward work without implementing that port.
+
 - **ACTIVE**: [Native build policy, terminal results and short DxUi paths](NativeBuildPolicyCoherence_2026-10-28.md). Shared /Wall without /WX, zero-warning validation, Debug/ASan symbols, Release-only ICF, terminal results and verified short dependency folders.
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.
