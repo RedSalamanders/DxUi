@@ -2233,6 +2233,9 @@ void TextField::OnEnabledChanged(bool enabled) noexcept
         _passwordRevealKeyboardFocused = false;
         RemaskPasswordReveal();
     }
+    // A focused field disabled or enabled again: its caret stops blinking, or blinks again from now.
+    if (ControlHost* const host = GetHost(); host && HasFocus())
+        ResetCaretBlink(*host);
 }
 
 WindowHostCursorKind TextField::ResolveCursorKind(ControlHost&, D2D1_POINT_2F point) const noexcept
@@ -4149,8 +4152,8 @@ void TextField::OnDensityChanged() noexcept
 
 void TextField::ResetCaretBlink(ControlHost& host) noexcept
 {
-    // Focus gain or input: the caret shows now. A read-only field's caret is steady and schedules nothing.
-    CaretClockAccess::Restart(host, *this, ! _readOnly);
+    // Focus gain or input: the caret shows now. A read-only or disabled field's caret is steady and schedules nothing.
+    CaretClockAccess::Restart(host, *this, ! _readOnly && IsEnabled());
 }
 
 bool TextField::NotifyChanged()

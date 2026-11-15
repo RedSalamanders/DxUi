@@ -2478,8 +2478,16 @@ float ComboBox::EnsureEditableCaretVisible(const ControlHost* host, float availa
 
 void ComboBox::ResetEditableCaretBlink(ControlHost& host) noexcept
 {
-    // Focus gain or input: the caret shows now and blinks from here.
-    CaretClockAccess::Restart(host, *this, true);
+    // Focus gain or input: the caret shows now and blinks from here; a disabled box's caret is steady.
+    CaretClockAccess::Restart(host, *this, IsEnabled());
+}
+
+void ComboBox::OnEnabledChanged(bool enabled) noexcept
+{
+    Control::OnEnabledChanged(enabled);
+    // A focused editable box disabled or enabled again: its caret stops blinking, or blinks again from now.
+    if (ControlHost* const host = GetHost(); host && _editable && HasFocus())
+        ResetEditableCaretBlink(*host);
 }
 
 void ComboBox::OnFocusChanged(ControlHost& host, bool focused)

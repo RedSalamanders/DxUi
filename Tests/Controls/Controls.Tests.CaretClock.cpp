@@ -2,6 +2,7 @@
 
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "GraphicsFixture.h"
+#include "Support/WorkCounters.h"
 
 #include <iostream>
 #include <optional>
@@ -12,6 +13,7 @@
 namespace
 {
 using DxUi::ControlHost;
+using DxUi::Detail::WorkCounterScope;
 using Settings = DxUi::ControlHost::CaretBlinkSettingsForTest;
 
 constexpr uint64_t kOriginMs = 1'000'000u;
@@ -77,6 +79,20 @@ void SettleTransitions(ControlHost& host, uint64_t& now)
     Require(host.DebugGetFrameScheduleWakeForTest().kind != 1u, "transitions settle");
 }
 
+// Gives every child of `root` without bounds a 200 x 32 DIP slot: a caret owner with no area draws no caret and does not blink.
+void SizeChildren(DxUi::Panel& root)
+{
+    float top = 8.0f;
+    for (size_t index = 0u; index < root.GetLogicalChildCount(); ++index)
+    {
+        DxUi::Control* const child = root.GetLogicalChild(index);
+        const D2D1_RECT_F bounds   = child->GetBounds();
+        if (! (bounds.right > bounds.left && bounds.bottom > bounds.top))
+            child->SetBounds(D2D1::RectF(8.0f, top, 208.0f, top + 32.0f));
+        top += 40.0f;
+    }
+}
+
 [[nodiscard]] std::shared_ptr<DxUi::GraphicsDevice> MakeCaretPool(GraphicsFixture& gpu)
 {
     RequireSucceeded(gpu.Create(), "create the caret clock WARP device");
@@ -118,6 +134,7 @@ void TestCaretClockSettingsCases()
         host.SetTheme(theme);
         auto root   = std::make_unique<DxUi::Panel>();
         auto* field = root->AddChild<DxUi::TextField>(L"alpha");
+        SizeChildren(*root);
         host.SetRoot(std::move(root));
         host.SetFocusControl(field, false);
         Require(field->DebugIsCaretVisible(), "focus shows the caret at once");
@@ -164,6 +181,7 @@ void TestCaretClockServesEveryCaretOwner()
         }
         else
             control = rich = root->AddChild<DxUi::RichTextEditor>(L"alpha");
+        SizeChildren(*root);
         host.SetRoot(std::move(root));
         host.SetFocusControl(control, false);
         Require(WakeIsDeadlineAt(host, kOriginMs + 530u), "every caret owner's first flip is one system period after focus");
@@ -193,6 +211,7 @@ void TestCaretClockReadOnlyCaretIsSteady()
     auto* multiline = root->AddChild<DxUi::TextField>(L"one\ntwo");
     multiline->SetMultiline(true);
     multiline->SetReadOnly(true);
+    SizeChildren(*root);
     host.SetRoot(std::move(root));
     for (DxUi::TextField* field : {readOnly, multiline})
     {
@@ -227,6 +246,7 @@ void TestCaretClockInputRestartsPhaseAndTimeout()
     auto root   = std::make_unique<DxUi::Panel>();
     auto* field = root->AddChild<DxUi::TextField>(L"alpha");
     field->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 32.0f));
+    SizeChildren(*root);
     host.SetRoot(std::move(root));
     host.SetFocusControl(field, false);
     uint64_t now = kOriginMs;
@@ -263,6 +283,7 @@ void TestCaretClockSettingChangeWhileFocused()
     PrepareHost(host, Settings{530u, 0u});
     auto root   = std::make_unique<DxUi::Panel>();
     auto* field = root->AddChild<DxUi::TextField>(L"alpha");
+    SizeChildren(*root);
     host.SetRoot(std::move(root));
     host.SetFocusControl(field, false);
     uint64_t now = kOriginMs;
@@ -309,6 +330,7 @@ void TestCaretClockOneOwnerPerHost()
     auto* button = root->AddChild<DxUi::Button>(L"Apply");
     combo->SetEditable(true);
     combo->SetText(L"beta");
+    SizeChildren(*root);
     host.SetRoot(std::move(root));
     Require(WakeIsNone(host), "a host with no focus schedules nothing");
 
@@ -356,6 +378,7 @@ void TestCaretClockEmbeddedHiddenPopupAndHiddenOwner()
     combo->SetEditable(true);
     combo->SetItems({DxUi::ComboBox::Item{L"one", L"One"}, DxUi::ComboBox::Item{L"two", L"Two"}});
     combo->SetBounds(D2D1::RectF(8.0f, 48.0f, 208.0f, 80.0f));
+    SizeChildren(*root);
     host.SetRoot(std::move(root));
     RequireSucceeded(view.Prepare(320u, 240u), "prepare the caret view");
     static_cast<void>(view.AdvanceAnimation(10'000u)); // the root's discovery tick
@@ -402,6 +425,7 @@ void TestCaretClockNativeSettingChangeAndDeviceLoss()
     auto root   = std::make_unique<DxUi::Panel>();
     auto* field = root->AddChild<DxUi::TextField>(L"alpha");
     field->SetBounds(D2D1::RectF(8.0f, 8.0f, 208.0f, 40.0f));
+    SizeChildren(*root);
     host.SetRoot(std::move(root));
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
     window.PumpMessages(100u);
@@ -423,4 +447,191 @@ void TestCaretClockNativeSettingChangeAndDeviceLoss()
     Require(rearmed.kind == 2u && rearmed.dueTickMs >= armed.dueTickMs, "and a period again blinks from now");
     host.SetFocusControl(nullptr, false);
     Require(WakeIsNone(host), "blur leaves nothing armed");
+}
+
+namespace
+{
+// Pumps this thread's messages for `durationMs` of real time, blocking between them (no busy polling).
+void PumpCaretFor(uint64_t durationMs)
+{
+    const uint64_t end = GetTickCount64() + durationMs;
+    for (uint64_t now = GetTickCount64(); now < end; now = GetTickCount64())
+    {
+        MSG message{};
+        while (PeekMessageW(&message, nullptr, 0u, 0u, PM_REMOVE))
+            static_cast<void>(DispatchQueuedMessageForTest(message));
+        static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, static_cast<DWORD>(end - now), QS_ALLINPUT, MWMO_INPUTAVAILABLE));
+    }
+}
+} // namespace
+
+// W3.2 review F2: a host hidden only through an ancestor (a hidden parent, the parent's redraw block) gets no message when
+// the ancestor shows again; the first wake that finds it visible resumes as a show does, so a focused caret restarts its
+// phase (and its caret timeout) instead of firing the held flip from the old anchor. Blink 100 ms, timeout 600 ms: about
+// six flips after the restart, whether the hide was shorter or longer than the timeout.
+void TestCaretClockRestartsWhenAnAncestorShowsAgain()
+{
+    enum class Hide
+    {
+        ParentHiddenShort,
+        ParentHiddenLong,
+        ParentRedrawBlock,
+    };
+    for (const Hide hide : {Hide::ParentHiddenShort, Hide::ParentHiddenLong, Hide::ParentRedrawBlock})
+    {
+        wil::unique_hwnd parent(CreateWindowExW(
+            WS_EX_NOACTIVATE, L"STATIC", L"caret clock parent", WS_OVERLAPPED, -32000, -32000, 360, 240, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
+        Require(parent != nullptr, "the parent window is created");
+        AttachedHostWindow window(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
+        SetWindowLongPtrW(window.Hwnd(), GWL_STYLE, WS_CHILD | WS_VISIBLE);
+        Require(SetParent(window.Hwnd(), parent.get()) != nullptr || GetLastError() == ERROR_SUCCESS, "the host window becomes a child");
+        SetWindowPos(window.Hwnd(), nullptr, 0, 0, 320, 200, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+        auto& host = window.Host();
+        EnableMotionForTest(host);
+        host.DebugSetCaretBlinkSettingsForTest(Settings{100u, 600u});
+        auto root   = std::make_unique<DxUi::Panel>();
+        auto* field = root->AddChild<DxUi::TextField>(L"caret");
+        field->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+        SizeChildren(*root);
+        host.SetRoot(std::move(root));
+        ShowWindow(parent.get(), SW_SHOWNOACTIVATE);
+        PumpCaretFor(200u);
+        host.SetFocusControl(field, false);
+        PumpCaretFor(150u);
+        if (hide == Hide::ParentRedrawBlock)
+        {
+            SendMessageW(parent.get(), WM_SETREDRAW, FALSE, 0);
+            PumpCaretFor(1'500u);
+            SendMessageW(parent.get(), WM_SETREDRAW, TRUE, 0);
+        }
+        else
+        {
+            ShowWindow(parent.get(), SW_HIDE);
+            PumpCaretFor(hide == Hide::ParentHiddenShort ? 300u : 1'500u);
+            ShowWindow(parent.get(), SW_SHOWNOACTIVATE);
+        }
+        // The ancestor's show reaches the host at its next look (at most a second), then the restarted caret blinks until
+        // its 600 ms timeout.
+        const WorkCounterScope shown;
+        PumpCaretFor(2'500u);
+        const uint64_t ticks = shown.Delta().frame.tickCalls;
+        std::cout << "    caret after the ancestor is shown again (" << static_cast<int>(hide) << "): " << ticks << " Tick calls\n";
+        Require(ticks >= 4u, "W3.2: a caret whose host was hidden through an ancestor restarts its blink when the ancestor shows again");
+        Require(host.DebugIsCaretClockVisibleForTest() && WakeIsNone(host), "and times out again, shown, with nothing armed");
+        host.SetFocusControl(nullptr, false);
+        SetParent(window.Hwnd(), nullptr);
+    }
+}
+
+// W3.2 review F4: a focused caret owner that is disabled draws no blinking caret: its clock schedules nothing and
+// invalidates nothing; enabled again while still focused, it blinks from then on.
+void TestCaretClockDisabledWhileFocusedSchedulesNothing()
+{
+    for (int owner = 0; owner < 3; ++owner)
+    {
+        DxUi::WindowHost host;
+        PrepareHost(host, Settings{530u, 5000u});
+        auto root              = std::make_unique<DxUi::Panel>();
+        DxUi::Control* control = nullptr;
+        if (owner == 0)
+            control = root->AddChild<DxUi::TextField>(L"alpha");
+        else if (owner == 1)
+        {
+            auto* combo = root->AddChild<DxUi::ComboBox>();
+            combo->SetEditable(true);
+            combo->SetText(L"alpha");
+            control = combo;
+        }
+        else
+            control = root->AddChild<DxUi::RichTextEditor>(L"alpha");
+        control->SetBounds(D2D1::RectF(8.0f, 8.0f, 300.0f, 180.0f));
+        SizeChildren(*root);
+        host.SetRoot(std::move(root));
+        host.SetFocusControl(control, false);
+        Require(WakeIsDeadlineAt(host, kOriginMs + 530u), "the focused caret holds its deadline");
+        control->SetEnabled(false);
+        uint64_t now       = kOriginMs;
+        const SleepRun run = SleepUntilDeadlines(host, now, kOriginMs + 10'000u);
+        Require(run.wakes == 0u && run.invalidations == 0u && WakeIsNone(host), "W3.2: a disabled focused caret owner wakes and invalidates nothing");
+        control->SetEnabled(true);
+        if (control->HasFocus())
+            Require(WakeIsDeadlineAt(host, now + 530u), "W3.2: enabled again while focused, the caret blinks from now");
+        else
+            Require(WakeIsNone(host), "a caret owner that lost focus when disabled schedules nothing");
+    }
+}
+
+// W3.2 review: a disabled ancestor. Control::IsEnabled is the control's own flag and nothing tells a descendant that an
+// ancestor was disabled; every caret owner's paint tests only its own state, so it still draws its caret, and the clock
+// keeps blinking it, consistently. The host drops the focus of a control below a disabled ancestor at its next message
+// (interaction-state pruning), which stops the caret and leaves nothing armed.
+void TestCaretClockDisabledAncestor()
+{
+    for (int owner = 0; owner < 3; ++owner)
+    {
+        DxUi::WindowHost host;
+        PrepareHost(host, Settings{530u, 0u});
+        auto root              = std::make_unique<DxUi::Panel>();
+        auto* group            = root->AddChild<DxUi::Panel>();
+        DxUi::Control* control = nullptr;
+        if (owner == 0)
+            control = group->AddChild<DxUi::TextField>(L"alpha");
+        else if (owner == 1)
+        {
+            auto* combo = group->AddChild<DxUi::ComboBox>();
+            combo->SetEditable(true);
+            combo->SetText(L"alpha");
+            control = combo;
+        }
+        else
+            control = group->AddChild<DxUi::RichTextEditor>(L"alpha");
+        root->SetBounds(D2D1::RectF(0.0f, 0.0f, 400.0f, 300.0f));
+        group->SetBounds(D2D1::RectF(0.0f, 0.0f, 400.0f, 300.0f));
+        control->SetBounds(D2D1::RectF(8.0f, 8.0f, 300.0f, 180.0f));
+        host.SetRoot(std::move(root));
+        host.SetFocusControl(control, false);
+        group->SetEnabled(false);
+        Require(control->IsEnabled() && control->HasFocus(), "an owner below a disabled ancestor keeps its own enabled state and, until a message, its focus");
+        uint64_t now       = kOriginMs;
+        const SleepRun run = SleepUntilDeadlines(host, now, kOriginMs + 2'000u);
+        Require(run.wakes == 3u && run.invalidations == 3u, "W3.2: its caret, which paint still draws, keeps blinking");
+        bool handled = false;
+        static_cast<void>(host.HandleMessage(nullptr, WM_MOUSEMOVE, 0u, MAKELPARAM(390, 290), handled));
+        Require(! control->HasFocus() && WakeIsNone(host), "W3.2: the next message drops the focus below the disabled ancestor and the caret stops");
+    }
+}
+
+// W3.2 review: a caret owner with no area draws nothing, so its caret holds no deadline; given an area while focused, it
+// shows its caret and blinks from then on; losing its area again withdraws the deadline.
+void TestCaretClockOwnerWithoutAreaSchedulesNothing()
+{
+    for (int owner = 0; owner < 3; ++owner)
+    {
+        DxUi::WindowHost host;
+        PrepareHost(host, Settings{530u, 0u});
+        auto root              = std::make_unique<DxUi::Panel>();
+        DxUi::Control* control = nullptr;
+        if (owner == 0)
+            control = root->AddChild<DxUi::TextField>(L"alpha");
+        else if (owner == 1)
+        {
+            auto* combo = root->AddChild<DxUi::ComboBox>();
+            combo->SetEditable(true);
+            combo->SetText(L"alpha");
+            control = combo;
+        }
+        else
+            control = root->AddChild<DxUi::RichTextEditor>(L"alpha");
+        host.SetRoot(std::move(root));
+        host.SetFocusControl(control, false);
+        uint64_t now = kOriginMs;
+        Require(control->HasFocus() && WakeIsNone(host), "W3.2: a focused caret owner with no area schedules nothing");
+        Require(SleepUntilDeadlines(host, now, kOriginMs + 5'000u).wakes == 0u, "and wakes nothing");
+        control->SetBounds(D2D1::RectF(8.0f, 8.0f, 300.0f, 40.0f));
+        Require(WakeIsDeadlineAt(host, now + 530u), "W3.2: given an area, the focused caret blinks from now");
+        const SleepRun run = SleepUntilDeadlines(host, now, now + 1'100u);
+        Require(run.wakes == 2u && run.invalidations == 2u, "and flips once per period");
+        control->SetBounds(D2D1::RectF(8.0f, 8.0f, 8.0f, 40.0f));
+        Require(WakeIsNone(host), "W3.2: losing its area withdraws the caret's deadline");
+    }
 }

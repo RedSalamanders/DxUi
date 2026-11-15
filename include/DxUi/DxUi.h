@@ -4265,6 +4265,7 @@ protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
     [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
     void OnFocusChanged(ControlHost& host, bool focused) override;
+    void OnEnabledChanged(bool enabled) noexcept override;
     void OnBoundsChanged() noexcept override;
     [[nodiscard]] Control* HitTestOverlay(D2D1_POINT_2F point) override;
     [[nodiscard]] const Control* HitTestOverlay(D2D1_POINT_2F point) const override;
@@ -7288,6 +7289,8 @@ private:
     void RearmCaret() noexcept;
     void ArmCaret(const Control& owner) noexcept;
     void ReadCaretBlinkSettings() noexcept;
+    // A caret owner that gained or lost its area (Control::SetBounds): a focused owner restarts, steady while it has none.
+    void OnCaretOwnerAreaChanged(const Control& control) noexcept;
     // Withdraws a control's deadline only, so a caret never cancels the same control's every-frame request.
     void CancelAnimationDeadline(const Control& control) noexcept;
     CaretClock _caretClock;
@@ -7574,7 +7577,10 @@ private:
     bool _animationTimelineRebase         = true;
     std::optional<uint64_t> _animationClockForTest;
     bool _animationSuspendedWhileHidden = false;
-    bool _nativePresentationVisible     = true;
+    // Seen hidden only through an ancestor at a wake (W3.2 review): the first wake that finds the window visible again resumes
+    // as a show does (the caret restarts, held deadlines are counted).
+    bool _hiddenThroughAncestor     = false;
+    bool _nativePresentationVisible = true;
     uint64_t _nativePresentationRevision{};
     // Logical input ownership, unlike a focus-request revision, survives idempotent focus refreshes.
     uint64_t _keyboardOwnerEpoch                = 0u;

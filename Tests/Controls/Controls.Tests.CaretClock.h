@@ -10,3 +10,7 @@ void TestCaretClockSettingChangeWhileFocused();
 void TestCaretClockOneOwnerPerHost();
 void TestCaretClockEmbeddedHiddenPopupAndHiddenOwner();
 void TestCaretClockNativeSettingChangeAndDeviceLoss();
+void TestCaretClockRestartsWhenAnAncestorShowsAgain();
+void TestCaretClockDisabledWhileFocusedSchedulesNothing();
+void TestCaretClockDisabledAncestor();
+void TestCaretClockOwnerWithoutAreaSchedulesNothing();

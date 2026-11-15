@@ -9,3 +9,9 @@
   and an embedded application calls when its own window receives it, and the test seam
   `ControlHost::DebugSetCaretBlinkSettingsForTest`. On `FX1` the editable caret wakes 10 times in 10 s (was 18) and 0
   times after the timeout, and the read-only caret wakes nothing.
+  - Fixed two caret clock defects found in review (W3.2): a focused caret whose host was hidden only through an ancestor
+    (a hidden parent, a parent's redraw block) now restarts its blink at the first wake that finds the window visible
+    again, instead of firing its held flip from the old anchor and staying steady when the hide outlasted the caret timeout;
+    and a focused `TextField`, editable `ComboBox` or `RichTextEditor` that is disabled, or a `RichTextEditor` navigating
+    semantic elements with the keyboard, or one with empty bounds, no longer keeps waking and invalidating for a caret it
+    does not draw.

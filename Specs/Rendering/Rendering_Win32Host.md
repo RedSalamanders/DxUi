@@ -144,10 +144,16 @@ motion, shows a focused caret and restarts it in the new mode. `DebugSetCaretBli
 for one host, so tests never touch the user's.
 
 A hidden or minimized host wakes nothing (above); when it is shown, a focused caret is shown at once and restarts its
-phase, replacing the flip it held. A window that loses focus blurs its focused control, which stops the caret; focus that
+phase, replacing the flip it held. A host hidden only through an ancestor (a hidden or minimized parent, a parent's redraw
+block) receives no message when the ancestor shows again: the first wake that finds its window visible (at most one
+look later) resumes the same way before it ticks anything. A window that loses focus blurs its focused control, which stops the caret; focus that
 returns restarts it. A popup that does not take focus (the `ComboBox` list) leaves the caret blinking. A caret owner
 hidden while focused keeps its deadline without waking (above) and, shown again, is ticked once and continues its
-phase from the latest restart. A device loss leaves the phase and its
+phase from the latest restart. A focused owner that draws no caret holds no deadline either: a disabled `TextField`, editable
+`ComboBox` or `RichTextEditor` (enabling it again restarts the blink) and a `RichTextEditor` navigating semantic elements
+with the keyboard, and an owner with empty bounds (given an area while focused, its caret shows and blinks from then
+on). An owner below a disabled ancestor keeps its own enabled state and still draws and blinks its caret until the host
+drops its focus at its next message. A device loss leaves the phase and its
 deadline alone. `GetFrameScheduleWake` therefore reports `None` for a steady caret, a read-only field and a timed-out
 caret, and exactly one `Deadline` per phase otherwise. Every flip still repaints the whole window or surface: the host
 cannot invalidate only the caret yet (`FX1` records one preparation per flip). The Win32 system caret

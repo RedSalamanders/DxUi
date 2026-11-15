@@ -385,11 +385,19 @@ void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
                     ++_host->_intrinsicArrangeBoundsRevision;
             }
         }
+        const bool hadArea                = _bounds.right > _bounds.left && _bounds.bottom > _bounds.top;
         _bounds                           = bounds;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         OnBoundsChanged();
         if (lifetime.expired())
             return;
+        // A caret owner that gains or loses its area starts or stops blinking (W3.2): with no area it draws nothing.
+        if (ControlHost* const host = GetHost(); host && hadArea != (bounds.right > bounds.left && bounds.bottom > bounds.top))
+        {
+            host->OnCaretOwnerAreaChanged(*this);
+            if (lifetime.expired() || GetHost() != host)
+                return;
+        }
         if (ControlHost* const host = GetHost())
         {
             host->NotifyTextInputLayoutChanged(this);

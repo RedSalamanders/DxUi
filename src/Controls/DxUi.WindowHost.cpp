@@ -1659,6 +1659,7 @@ void ControlHost::Detach(bool processExit) noexcept
     _tickTreeRequested             = false;
     _tickTreeDiscovery             = false;
     _animationSuspendedWhileHidden = false;
+    _hiddenThroughAncestor         = false;
     _nativePresentationVisible     = true;
 #if DXUI_ENABLE_DIAGNOSTICS
     _debugTextStoreLayoutObserver.reset();
@@ -2400,7 +2401,9 @@ void ControlHost::ResumeScheduleAfterShow() noexcept
     // Requests that came due while the host was hidden fire once now, at the first wake after the show.
     if (! IsScheduleSuspended())
     {
-        // A focused caret is shown at once and restarts its blink, replacing the flip it held.
+        // A focused caret is shown at once and restarts its blink, replacing the flip it held. A message announced this show,
+        // so the wake need not resume an ancestor's hide again.
+        _hiddenThroughAncestor = false;
         RearmCaret();
         CountHeldDeadlines();
     }
@@ -2468,6 +2471,16 @@ bool ControlHost::CaretBlinks() const noexcept
     return clock.editable && clock.blinkTimeMs != 0u && clock.blinkTimeMs != INFINITE && ! _palette.reducedMotion;
 }
 
+namespace
+{
+// An owner with empty bounds draws no caret, so its caret holds no deadline.
+[[nodiscard]] bool CaretOwnerHasArea(const Control& owner) noexcept
+{
+    const D2D1_RECT_F bounds = owner.GetBounds();
+    return bounds.right > bounds.left && bounds.bottom > bounds.top;
+}
+} // namespace
+
 bool ControlHost::IsCaretShown(const Control& control) const noexcept
 {
     return ! IsCaretOwner(control) || _caretClock.visible;
@@ -2484,9 +2497,10 @@ void ControlHost::CancelAnimationDeadline(const Control& control) noexcept
 
 void ControlHost::ArmCaret(const Control& owner) noexcept
 {
-    // A blinking caret sleeps until its first flip; a steady one (read-only, INFINITE, reduced motion) holds nothing.
+    // A blinking caret sleeps until its first flip; a steady one (read-only, disabled, INFINITE, reduced motion) or one whose
+    // owner has no area holds nothing.
     const CaretClock& clock = _caretClock;
-    if (CaretBlinks())
+    if (CaretBlinks() && CaretOwnerHasArea(owner))
         RequestAnimationAt(owner, NextCaretBlinkFlipTickMs(clock.anchorTickMs, clock.anchorTickMs, clock.blinkTimeMs));
     else
         CancelAnimationDeadline(owner);
@@ -2529,7 +2543,7 @@ bool ControlHost::TickCaret(const Control& owner, uint64_t nowTickMs) noexcept
     CaretClock& clock        = _caretClock;
     const bool wasVisible    = clock.visible;
     const uint64_t elapsedMs = ElapsedTickMs(clock.anchorTickMs, nowTickMs);
-    if (! CaretBlinks())
+    if (! CaretBlinks() || ! CaretOwnerHasArea(owner))
         clock.visible = true;
     else if (CaretTimeoutApplies(clock.timeoutMs) && elapsedMs >= clock.timeoutMs)
     {
@@ -2559,6 +2573,12 @@ void ControlHost::RearmCaret() noexcept
     ArmCaret(*clock.owner);
     if (! wasVisible)
         Invalidate();
+}
+
+void ControlHost::OnCaretOwnerAreaChanged(const Control& control) noexcept
+{
+    if (IsCaretOwner(control))
+        RearmCaret();
 }
 
 void ControlHost::RefreshCaretBlinkSettings() noexcept
@@ -7154,12 +7174,20 @@ ControlHost::FrameScheduleWake ControlHost::OnScheduledWake(uint64_t nowTickMs, 
             return {};
         }
         DropPendingTooltipShowWhileHidden();
+        _hiddenThroughAncestor = true;
         // Hidden only through an ancestor (a minimized top-level, a hidden parent, a parent's redraw block): this window
         // receives no message when the ancestor shows again, so the held schedule looks once a second (no Tick runs).
         const FrameScheduleWake probe =
             HasScheduledTicks() ? FrameScheduleWake{FrameScheduleWake::Kind::Deadline, nowTickMs + kHiddenAncestorProbeMs} : FrameScheduleWake{};
         SyncDispatcherSubscription(probe);
         return probe;
+    }
+    // Visible again after a hide only an ancestor made: no message announced the show, so this wake resumes as a show does,
+    // before anything is ticked (a focused caret is shown and restarts; held deadlines are counted).
+    if (std::exchange(_hiddenThroughAncestor, false))
+    {
+        RearmCaret();
+        CountHeldDeadlines();
     }
     if (! RunScheduledTicks(nowTickMs))
     {

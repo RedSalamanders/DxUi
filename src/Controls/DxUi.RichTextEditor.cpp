@@ -6408,6 +6408,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     {
                         _state->keyboardNavigationDocument = document;
                         _state->keyboardNavigationElement  = element;
+                        // Element navigation draws no caret: it holds no deadline until the selection moves again.
+                        CaretClockAccess::Restart(host, *this, false);
                         break;
                     }
             }
@@ -6717,7 +6719,9 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                             return false;
                         _state->keyboardNavigationDocument = document;
                         _state->keyboardNavigationElement  = target;
-                        _state->caretLink                  = document->Elements()[target].display;
+                        // Element navigation draws no caret: it holds no deadline until the selection moves again.
+                        CaretClockAccess::Restart(host, *this, false);
+                        _state->caretLink = document->Elements()[target].display;
                         // Even a no-op scroll needs the new keyboard adornment painted.
                         const auto lifetime = GetLifetimeToken();
                         RequestInvalidate();
@@ -8097,6 +8101,9 @@ void RichTextEditor::OnEnabledChanged(bool) noexcept
     _state->middleAutoScroll     = false;
     _state->middleAutoScrollTick.reset();
     _state->scrollbarDragging = false;
+    // A focused editor disabled draws no caret, so its caret holds no deadline; enabled again, it blinks from now.
+    if (tooltipHost && HasFocus())
+        CaretClockAccess::Restart(*tooltipHost, *this, Editable());
     if (wasMiddleAutoScroll && tooltipHost && ControlCaptureAccess::GestureOwner(*tooltipHost) == this)
         tooltipHost->ReleaseMouseCapture();
     if (! tooltipLifetime.expired() && GetHost() == tooltipHost && wasSelecting)

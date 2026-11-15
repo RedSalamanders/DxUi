@@ -761,6 +761,7 @@ void TestTextFieldTickTracksFocusedCaretAnimation()
     host.SetTheme(theme);
     auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<TextField>(L"alpha");
+    field->SetBounds(D2D1::RectF(8.0f, 8.0f, 208.0f, 40.0f)); // a caret owner with no area does not blink
     host.DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{530u, 0u});
     host.SetRoot(std::move(root));
     host.SetFocusControl(field);
@@ -786,6 +787,7 @@ void TestEditableComboBoxTickTracksFocusedCaretAnimation()
     host.SetRoot(std::move(root));
     combo->SetEditable(true);
     combo->SetText(L"alpha");
+    combo->SetBounds(D2D1::RectF(8.0f, 8.0f, 208.0f, 40.0f)); // a caret owner with no area does not blink
     host.DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{530u, 0u});
     host.SetFocusControl(combo);
 
@@ -1701,6 +1703,10 @@ void RunAnimationTests()
     DXUI_RUN_TEST(TestCaretClockOneOwnerPerHost);
     DXUI_RUN_TEST(TestCaretClockEmbeddedHiddenPopupAndHiddenOwner);
     DXUI_RUN_TEST(TestCaretClockNativeSettingChangeAndDeviceLoss);
+    DXUI_RUN_TEST(TestCaretClockRestartsWhenAnAncestorShowsAgain);
+    DXUI_RUN_TEST(TestCaretClockDisabledWhileFocusedSchedulesNothing);
+    DXUI_RUN_TEST(TestCaretClockDisabledAncestor);
+    DXUI_RUN_TEST(TestCaretClockOwnerWithoutAreaSchedulesNothing);
     DXUI_RUN_TEST(TestFrameRuntimeElapsedUsHandlesLargeQpcDelta);
     DXUI_RUN_TEST(TestFrameRuntimeElapsedUsHandlesWideCrossSignDelta);
     DXUI_RUN_TEST(TestFrameRuntimeReducedMotionPolicy);
