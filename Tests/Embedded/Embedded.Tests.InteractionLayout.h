@@ -397,6 +397,11 @@ static void TestEmbeddedTabHeaderPreparationAvoidsPaintWork(GraphicsFixture& gpu
     EmbeddedHost first, second;
     Hr(first.Attach(graphics), "attach first tab host");
     Hr(second.Attach(graphics), "attach second tab host");
+    // The tab captions draw through the host's retained text layouts (W2.1), whose table allocates its entries and key
+    // strings during the paint that first draws a string. This test is about the TabControl's own prepared header, so its
+    // hosts draw captions through DrawText, as before W2.1, and every allocation counted during paint is the TabControl's.
+    first.Controls().DebugSetTextLayoutCacheEnabledForTest(false);
+    second.Controls().DebugSetTextLayoutCacheEnabledForTest(false);
     Hr(PrepareRichEmbeddedContent(first, 220u, 140u), "initialize first blank tab host resources");
     Hr(PrepareRichEmbeddedContent(second, 220u, 140u), "initialize second blank tab host resources");
     auto root   = std::make_unique<Panel>();

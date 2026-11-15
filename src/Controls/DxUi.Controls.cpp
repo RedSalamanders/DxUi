@@ -870,7 +870,9 @@ void DrawSingleFocusRing(ID2D1RenderTarget* target,
     target->DrawRoundedRectangle(D2D1::RoundedRect(focusRect, cornerRadius + focusOutset, cornerRadius + focusOutset), brush, focusStroke);
 }
 
-void DrawRawCenteredText(ID2D1RenderTarget* target,
+// With a host (Button's own chrome), through the host's retained layouts; the public DrawButtonChrome has none.
+void DrawRawCenteredText(ControlHost* host,
+                         ID2D1RenderTarget* target,
                          ID2D1SolidColorBrush* brush,
                          IDWriteTextFormat* format,
                          std::wstring_view text,
@@ -883,7 +885,10 @@ void DrawRawCenteredText(ID2D1RenderTarget* target,
     }
 
     brush->SetColor(color);
-    CountedDrawText(target, text.data(), static_cast<UINT32>(text.size()), format, rect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
+    if (host)
+        DrawHostText(*host, target, text, format, rect, brush, kTextDrawOptions);
+    else
+        CountedDrawText(target, text.data(), static_cast<UINT32>(text.size()), format, rect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
 }
 
 } // namespace
@@ -994,12 +999,37 @@ ButtonChromeResolvedStyle ResolveButtonChromeResolvedStyle(const ThemePalette& t
     return resolved;
 }
 
+namespace
+{
+void DrawButtonChromeText(ControlHost* host,
+                          ID2D1RenderTarget* target,
+                          ID2D1SolidColorBrush* brush,
+                          IDWriteTextFormat* textFormat,
+                          IDWriteTextFormat* iconFormat,
+                          const ThemePalette& theme,
+                          const ButtonChromeDrawSpec& spec) noexcept;
+} // namespace
+
 void DrawButtonChrome(ID2D1RenderTarget* target,
                       ID2D1SolidColorBrush* brush,
                       IDWriteTextFormat* textFormat,
                       IDWriteTextFormat* iconFormat,
                       const ThemePalette& theme,
                       const ButtonChromeDrawSpec& spec) noexcept
+{
+    DrawButtonChromeText(nullptr, target, brush, textFormat, iconFormat, theme, spec);
+}
+
+namespace
+{
+// DrawButtonChrome; with a host, its text draws through the host's retained layouts.
+void DrawButtonChromeText(ControlHost* host,
+                          ID2D1RenderTarget* target,
+                          ID2D1SolidColorBrush* brush,
+                          IDWriteTextFormat* textFormat,
+                          IDWriteTextFormat* iconFormat,
+                          const ThemePalette& theme,
+                          const ButtonChromeDrawSpec& spec) noexcept
 {
     if (! target || ! brush || ! HasPaintableArea(spec.bounds))
     {
@@ -1049,7 +1079,8 @@ void DrawButtonChrome(ID2D1RenderTarget* target,
 
     if (spec.variant == ButtonVariant::IconOnly)
     {
-        DrawRawCenteredText(target, brush, iconFormat ? iconFormat : textFormat, spec.text, OffsetButtonChromeRect(spec.bounds, offsetX, offsetY), style.text);
+        DrawRawCenteredText(
+            host, target, brush, iconFormat ? iconFormat : textFormat, spec.text, OffsetButtonChromeRect(spec.bounds, offsetX, offsetY), style.text);
         return;
     }
 
@@ -1062,14 +1093,15 @@ void DrawButtonChrome(ID2D1RenderTarget* target,
     }
 
     const D2D1_RECT_F textRect = OffsetButtonChromeRect(layout.textRect, offsetX, offsetY);
-    DrawRawCenteredText(target, brush, textFormat, spec.text, textRect, style.text);
+    DrawRawCenteredText(host, target, brush, textFormat, spec.text, textRect, style.text);
 
     if (layout.hasChevron)
     {
         const wchar_t chevronText[2]{spec.chevronGlyph != L'\0' ? spec.chevronGlyph : kButtonDropDownChevronGlyph, L'\0'};
-        DrawRawCenteredText(target, brush, iconFormat ? iconFormat : textFormat, std::wstring_view(chevronText, 1u), layout.chevronRect, style.chevron);
+        DrawRawCenteredText(host, target, brush, iconFormat ? iconFormat : textFormat, std::wstring_view(chevronText, 1u), layout.chevronRect, style.chevron);
     }
 }
+} // namespace
 
 void DrawCenteredText(ControlHost& host,
                       std::wstring_view text,
@@ -1092,7 +1124,7 @@ void DrawCenteredText(ControlHost& host,
 
     if (auto* brush = host.GetSolidBrush(color))
     {
-        CountedDrawText(dc, text.data(), static_cast<UINT32>(text.size()), format, rect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
+        DrawHostText(host, dc, text, format, rect, brush, kTextDrawOptions);
     }
 }
 
@@ -3949,7 +3981,8 @@ void Button::Paint(ControlHost& host) const
         IDWriteTextFormat* const iconFormat =
             host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, ResolveReadingDirection(flowDirection));
         // DrawButtonChrome sets the brush's color before each draw: it takes a brush no keyed color owns (W2.8).
-        DrawButtonChrome(host.GetDeviceContext(), TransitionBrushScope::ScratchBrush(host, style.text), textFormat, iconFormat, host.GetTheme(), spec);
+        DrawButtonChromeText(
+            &host, host.GetDeviceContext(), TransitionBrushScope::ScratchBrush(host, style.text), textFormat, iconFormat, host.GetTheme(), spec);
         return;
     }
 
@@ -6341,13 +6374,7 @@ void ThroughputGraph::Paint(ControlHost& host) const
             {
                 if (auto* textBrush = host.GetSolidBrush(palette.text))
                 {
-                    CountedDrawText(context,
-                                    _currentValueLabel.data(),
-                                    static_cast<UINT32>(_currentValueLabel.size()),
-                                    format,
-                                    leadingBounds,
-                                    textBrush,
-                                    D2D1_DRAW_TEXT_OPTIONS_CLIP);
+                    DrawHostText(host, context, _currentValueLabel, format, leadingBounds, textBrush, D2D1_DRAW_TEXT_OPTIONS_CLIP);
                 }
             }
 
@@ -6359,13 +6386,7 @@ void ThroughputGraph::Paint(ControlHost& host) const
                     {
                         const D2D1_RECT_F trailingBounds =
                             D2D1::RectF(labelCenter + kLabelGapDip * 0.5f, bounds.top + 3.0f, bounds.right - kLabelInsetDip, bounds.bottom);
-                        CountedDrawText(context,
-                                        _currentValueTrailingLabel.data(),
-                                        static_cast<UINT32>(_currentValueTrailingLabel.size()),
-                                        format,
-                                        trailingBounds,
-                                        textBrush,
-                                        D2D1_DRAW_TEXT_OPTIONS_CLIP);
+                        DrawHostText(host, context, _currentValueTrailingLabel, format, trailingBounds, textBrush, D2D1_DRAW_TEXT_OPTIONS_CLIP);
                     }
                 }
             }
@@ -6378,7 +6399,7 @@ void ThroughputGraph::Paint(ControlHost& host) const
         {
             if (auto* textBrush = host.GetSolidBrush(palette.text))
             {
-                CountedDrawText(context, _overlayText.data(), static_cast<UINT32>(_overlayText.size()), format, bounds, textBrush, D2D1_DRAW_TEXT_OPTIONS_CLIP);
+                DrawHostText(host, context, _overlayText, format, bounds, textBrush, D2D1_DRAW_TEXT_OPTIONS_CLIP);
             }
         }
     }

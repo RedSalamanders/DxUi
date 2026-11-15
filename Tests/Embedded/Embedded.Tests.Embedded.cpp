@@ -90,6 +90,8 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 // After the performance fixtures: the W2.2 gate drives FX2.
 #include "Embedded.Tests.ComboBoxPopupLayout.h"
 #include "Embedded.Tests.PointerHit.h"
+// After the performance fixtures: the W2.1 gate drives FX5.
+#include "Embedded.Tests.RetainedTextLayouts.h"
 #include "Embedded.Tests.RichDocumentStorageResources.h"
 #include "Embedded.Tests.RichGeometryResources.h"
 #include "Embedded.Tests.RichImageCapture.h"
@@ -1949,6 +1951,8 @@ __declspec(noinline) static int RunFunctionalTests()
         return PerformanceFixtures::RunReceiptCommand(__argc, __wargv);
     if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fixture-catalog")
         return PerformanceFixtures::RunCatalogCommand(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--measure-text-layout-bound")
+        return RetainedTextLayoutTests::RunBoundMeasurement(__argc, __wargv);
     if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fx3-frame-hashes")
         return GridDataPathTests::RunFrameHashCommand(__argc, __wargv);
     if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fixture-frame-hashes")
@@ -2034,6 +2038,12 @@ __declspec(noinline) static int RunFunctionalTests()
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-text-field-paint")
     {
         TextFieldPaintTests::Run(gpu);
+        return 0;
+    }
+    // Plan W2.1 alone: the retained text layout gate on FX5 and the allocation-free label measure.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-retained-text-layouts")
+    {
+        RetainedTextLayoutTests::Run(gpu);
         return 0;
     }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")
@@ -2245,6 +2255,7 @@ __declspec(noinline) static int RunFunctionalTests()
     MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
     ComboBoxPopupLayoutTests::Run(gpu);
     TextFieldPaintTests::Run(gpu);
+    RetainedTextLayoutTests::Run(gpu);
     EmbeddedPointerHit::TestPointerHitFx14AndFx2HitTestOncePerMove();
     EmbeddedPointerHit::TestPointerHitFx10PreparesNoPlainLabelAndSearchesNoTree();
     EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);

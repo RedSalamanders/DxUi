@@ -289,6 +289,13 @@ Evicting configured text formats forces visual-only preparation in that same pas
 rebuild against current format identities before Paint. Trimming never occurs on a clean Composite and does not
 change geometry or input-readiness state.
 
+The view's host retains a text layout for each string of plain text its last preparation drew
+([retained text layouts](../Core/Core_PerformanceAndResources.md#retained-text-layouts)). A string new to that table is
+laid out in preparation, never in Composite, which creates no layout and makes no allocation. Releasing the surface
+(hidden, zero extent, device replacement, detach) releases the table too. Its entries and bytes are reported by
+`retainedCacheEntries` and `retainedCacheBytes` (registry row `ControlHost._textLayoutCache`), not by
+`retainedTextLayouts`, which counts what controls and the tooltip keep.
+
 Composite requires the same device's immediate context and a host-bound render target. It issues one premultiplied
 alpha triangle, sets the viewport and every other state it depends on (including disabled scissor/depth/predication
 and unused shader stages), then unbinds its SRV. It does not preserve the caller's pipeline state. Negative origins

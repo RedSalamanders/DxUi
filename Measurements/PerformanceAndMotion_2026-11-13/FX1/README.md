@@ -38,27 +38,58 @@ Video memory: software adapter: rendering uses system memory, which privateBytes
 | `per-grid-cell` | <= 1 KB per visible single-line Grid cell | not measured | not measured: the fixture keeps no Grid cell layout |
 | `text-history` | <= 4 MiB text history per editor | 0 | met |
 
-### [fx1-default-window-warp-x64-release.json](fx1-default-window-warp-x64-release.json)
+### [fx1-default-embedded-warp-x64-release.json](fx1-default-embedded-warp-x64-release.json)
 
-- Host `window`, variant `default` (800x600 at 96 DPI), renderer WARP, x64 Release (compiler 195237025)
-- Source `34e43605be028749a8e0f523766738936f0ffa9e`, uncommitted changes: False; command: `performance-fixtures.ps1 -Fixture FX1 -Variant default -Adapter Warp -FixtureHost window -Configuration 'Release' -Platform x64`
-- Adapter: Microsoft Basic Render Driver (WindowHost forceWarp), driver 0.0.0.0; WARP 10.0.26100.9711 (WinBuild.160101.0800)
-- OS Microsoft Windows 10.0.26300 (build 26300.9711); displays: AMD Radeon(TM) Graphics 60 Hz, NVIDIA GeForce RTX 5080 120 Hz; power plan: Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)
-- Host idle record: 90.8% busy over 3 s before the run (recorded, not required); recorded 2026-11-15T06:15:25.7015061Z
+- Host `embedded`, variant `default` (800x600 at 96 DPI), renderer WARP, x64 Release (compiler 195237025)
+- Source `352943dde6c2a34b59e521b59b86464b97f2e6af`, uncommitted changes: False; command: `performance-fixtures.ps1 -Fixture FX1 -Variant default -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64`
+- Adapter: Microsoft Basic Render Driver, driver 10.0.26100.9711; WARP 10.0.26100.9711 (WinBuild.160101.0800)
+- OS Microsoft Windows 10.0.26300 (build 26300.9711); displays: AMD Radeon(TM) Graphics 60 Hz, NVIDIA GeForce RTX 5080 120 Hz; power plan: Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)
+- Host idle record: 53.3% busy over 3 s before the run (recorded, not required); recorded 2026-11-15T16:27:00.0688395Z
 - Timing: not measured
 
 | Phase | Steps | `Paint` executions per step | Preparations | Resources created | Churn | C++ allocations per step |
 | --- | --- | --- | --- | --- | --- | --- |
-| `warm` (warmup) | 2 | 0-4 | 0 total | 34 total | 2 total | not counted |
-| `editable` (measured) | 100 | 0-4 | 0 total | 20 total | 20 total | not counted |
-| `readonly` (measured) | 100 | 0-4 | 0 total | 1 total | 1 total | not counted |
-| `multiline` (measured) | 20 | 0-4 | 0 total | 18 total | 17 total | not counted |
+| `warm` (warmup) | 2 | 0-4 | 1 total | 14 total | 0 total | 0-17 |
+| `editable` (measured) | 100 | 0-4 | 10 total | 0 total | 0 total | 0-1 |
+| `readonly` (measured) | 100 | 0-4 | 1 total | 0 total | 0 total | 0 |
+| `multiline` (measured) | 20 | 0-4 | 9 total | 1 total | 0 total | 0-1 |
+| `multiline-wheel` (measured) | 16 | 0-4 | 5 total | 1 total | 0 total | 0-1 |
+| `multiline-page` (measured) | 8 | 4 | 8 total | 1 total | 0 total | 0-2 |
+
+Tracked live C++ bytes: built 141,155; phase warm 168,722; phase editable 168,762; phase readonly 168,762; phase multiline 168,818; phase multiline-wheel 168,874; phase multiline-page 169,826; hidden 166,402.
+Video memory: software adapter: rendering uses system memory, which privateBytes counts. Every counter per step is in the receipt's `series`.
+
+| `G13` line | Budget | Measured bytes | Status |
+| --- | --- | --- | --- |
+| `idle-private` | idle native window <= 8 MB private above process entry at 1080p | 46,714,880 | advisory |
+| `minimized-video` | <= 8 MiB video memory when minimized | not measured | not measured: software adapter: rendering uses system memory, which private bytes count |
+| `per-control` | <= 256 B per simple control all-in | 35,288 | exceeded |
+| `per-grid-cell` | <= 1 KB per visible single-line Grid cell | not measured | not measured: the fixture keeps no Grid cell layout |
+| `text-history` | <= 4 MiB text history per editor | 0 | met |
+
+### [fx1-default-window-warp-x64-release.json](fx1-default-window-warp-x64-release.json)
+
+- Host `window`, variant `default` (800x600 at 96 DPI), renderer WARP, x64 Release (compiler 195237025)
+- Source `352943dde6c2a34b59e521b59b86464b97f2e6af`, uncommitted changes: False; command: `performance-fixtures.ps1 -Fixture FX1 -Variant default -Adapter Warp -FixtureHost window -Configuration 'Release' -Platform x64`
+- Adapter: Microsoft Basic Render Driver (WindowHost forceWarp), driver 0.0.0.0; WARP 10.0.26100.9711 (WinBuild.160101.0800)
+- OS Microsoft Windows 10.0.26300 (build 26300.9711); displays: AMD Radeon(TM) Graphics 60 Hz, NVIDIA GeForce RTX 5080 120 Hz; power plan: Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)
+- Host idle record: 55.6% busy over 3 s before the run (recorded, not required); recorded 2026-11-15T16:27:05.5048718Z
+- Timing: not measured
+
+| Phase | Steps | `Paint` executions per step | Preparations | Resources created | Churn | C++ allocations per step |
+| --- | --- | --- | --- | --- | --- | --- |
+| `warm` (warmup) | 2 | 0-4 | 0 total | 32 total | 0 total | not counted |
+| `editable` (measured) | 100 | 0-4 | 0 total | 0 total | 0 total | not counted |
+| `readonly` (measured) | 100 | 0-4 | 0 total | 0 total | 0 total | not counted |
+| `multiline` (measured) | 20 | 0-4 | 0 total | 1 total | 0 total | not counted |
+| `multiline-wheel` (measured) | 16 | 0-4 | 0 total | 0 total | 0 total | not counted |
+| `multiline-page` (measured) | 8 | 4 | 0 total | 1 total | 0 total | not counted |
 
 Video memory: software adapter: rendering uses system memory, which privateBytes counts. Every counter per step is in the receipt's `series`.
 
 | `G13` line | Budget | Measured bytes | Status |
 | --- | --- | --- | --- |
-| `idle-private` | idle native window <= 8 MB private above process entry at 1080p | 15,282,176 | advisory |
+| `idle-private` | idle native window <= 8 MB private above process entry at 1080p | 23,547,904 | advisory |
 | `minimized-video` | <= 8 MiB video memory when minimized | not measured | not measured: software adapter: rendering uses system memory, which private bytes count |
 | `per-control` | <= 256 B per simple control all-in | not measured | not measured: this executable does not replace the allocation functions |
 | `per-grid-cell` | <= 1 KB per visible single-line Grid cell | not measured | not measured: the run did not probe Grid cell release |

@@ -4,7 +4,7 @@
   "fixture": "dxui-performance-fixture-v1",
   "fixtureId": "FX12",
   "title": "Dense screen",
-  "scenario": "Variants default and uhd-192dpi: 2,000 controls (a 40 x 50 grid of cells cycling three Labels, Button, Checkbox, Toggle, ProgressBar, Slider) filling 1920x1080 DIP, at 1920x1080 and 96 DPI or at 3840x2160 and 192 DPI. typography-120: the same screen with a two-row Tree in place of every eighth cell's Label and every Label and Tree typed by one of 120 distinct (size, weight) typographies. form-10k: 10,000 controls in one ScrollPanel, 2,000 rows of Label, TextField, Checkbox, Toggle and Button. Absolute layout, reduced motion. Phases: full frames, one hover change, one Label text change, wheel scrolling. Per-control memory is the built sample's tracked live bytes over the control count. G5 is a hardware timing verdict: not measured here.",
+  "scenario": "Variants default and uhd-192dpi: 2,000 controls (a 40 x 50 grid of cells cycling three Labels, Button, Checkbox, Toggle, ProgressBar, Slider) filling 1920x1080 DIP, at 1920x1080 and 96 DPI or at 3840x2160 and 192 DPI. typography-120: the same screen with a two-row Tree in place of every eighth cell's Label and every Label and Tree typed by one of 120 distinct (size, weight) typographies. form-10k: 10,000 controls in one ScrollPanel, 2,000 rows of Label, TextField, Checkbox, Toggle and Button, absolutely positioned. form-layout and form-layout-10k: the same rows (200 or 2,000) arranged by the library, a column FlexPanel of 100-row section FlexPanels of row FlexPanels inside the ScrollPanel. Reduced motion. Phases: full frames, one hover change, one Label text change, wheel scrolling, a Label that grows and shrinks, a column width change. Per-control memory is the built sample's tracked live bytes over the control count. G5 is a hardware timing verdict: not measured here.",
   "budgets": [
     "G5",
     "G15",
@@ -34,7 +34,7 @@
   },
   "cppAllocations": "not counted: this executable does not replace the allocation functions",
   "drawCalls": "not counted: frame.drawCalls is 0 without the counting wrappers",
-  "trackedResources": 662,
+  "trackedResources": 930,
   "trackerOverflow": 0,
   "phases": [
     {
@@ -44,14 +44,24 @@
       "steps": 3,
       "series": {
         "created": [
-          1743,
-          1207,
-          1205
+          1178,
+          252,
+          250
         ],
         "churn": [
-          1083,
-          1205,
-          1205
+          250,
+          250,
+          250
+        ],
+        "frame.brushColorReuses": [
+          0,
+          0,
+          0
+        ],
+        "frame.brushEvictions": [
+          0,
+          0,
+          0
         ],
         "frame.composites": [
           0,
@@ -73,6 +83,21 @@
           0,
           0
         ],
+        "frame.fullVisualPreparations": [
+          1,
+          0,
+          0
+        ],
+        "frame.hitTestReuses": [
+          0,
+          0,
+          0
+        ],
+        "frame.hitTests": [
+          0,
+          1,
+          1
+        ],
         "frame.paintExecutions": [
           2001,
           2001,
@@ -82,6 +107,16 @@
           2073600,
           2073600,
           2073600
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0,
+          0
         ],
         "frame.preparations": [
           0,
@@ -129,6 +164,26 @@
           0
         ],
         "frame.tickRequesters": [
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetMarks": [
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetValidations": [
           0,
           0,
           0
@@ -259,14 +314,14 @@
           0
         ],
         "resources.implicitTextLayout.created": [
-          1083,
-          1083,
-          1083
+          250,
+          250,
+          250
         ],
         "resources.implicitTextLayout.destroyed": [
-          1083,
-          1083,
-          1083
+          250,
+          250,
+          250
         ],
         "resources.layer.created": [
           0,
@@ -300,16 +355,16 @@
         ],
         "resources.textFormat.created": [
           136,
-          122,
-          122
+          0,
+          0
         ],
         "resources.textFormat.destroyed": [
           0,
-          122,
-          122
+          0,
+          0
         ],
         "resources.textLayout.created": [
-          500,
+          768,
           0,
           0
         ],
@@ -318,13 +373,53 @@
           0,
           0
         ],
+        "text.formatCacheOverBound": [
+          0,
+          0,
+          0
+        ],
         "text.formatCacheTrims": [
           0,
-          1,
-          1
+          0,
+          0
+        ],
+        "text.formatEvictions": [
+          0,
+          0,
+          0
+        ],
+        "text.lineMetricsHeapFallbacks": [
+          0,
+          0,
+          0
+        ],
+        "text.nativeTextInputStateCopies": [
+          0,
+          0,
+          0
         ],
         "text.setTextRenderingParams": [
           1,
+          0,
+          0
+        ],
+        "text.textLayoutCacheBypasses": [
+          250,
+          250,
+          250
+        ],
+        "text.textLayoutCacheHits": [
+          565,
+          833,
+          833
+        ],
+        "text.textLayoutCacheMisses": [
+          268,
+          0,
+          0
+        ],
+        "text.textLayoutCacheOverflows": [
+          0,
           0,
           0
         ],
@@ -339,6 +434,16 @@
           0
         ],
         "popups.backdropCaptures": [
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
           0,
           0,
           0
@@ -383,6 +488,31 @@
           0,
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0,
+          0
+        ],
         "rich.chunksLaid": [
           0,
           0,
@@ -423,7 +553,72 @@
           0,
           0
         ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0
+        ],
         "rich.imageUploadBytes": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownBlockUnitsScanned": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidations": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidationsReused": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineFullReparses": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesParsed": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineUnitsScanned": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownLexicalUnitsScanned": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownNodesCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownParses": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsMaterialized": [
           0,
           0,
           0
@@ -444,6 +639,71 @@
           0
         ],
         "rich.preparationTurns": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0,
           0,
           0
@@ -478,6 +738,11 @@
           0,
           0
         ],
+        "layout.arrangedChildren": [
+          0,
+          0,
+          0
+        ],
         "layout.measureCacheEvictions": [
           0,
           0,
@@ -506,14 +771,24 @@
       },
       "summary": {
         "created": {
-          "min": 1205,
-          "max": 1743,
-          "total": 4155
+          "min": 250,
+          "max": 1178,
+          "total": 1680
         },
         "churn": {
-          "min": 1083,
-          "max": 1205,
-          "total": 3493
+          "min": 250,
+          "max": 250,
+          "total": 750
+        },
+        "frame.brushColorReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.composites": {
           "min": 0,
@@ -535,6 +810,21 @@
           "max": 0,
           "total": 0
         },
+        "frame.fullVisualPreparations": {
+          "min": 0,
+          "max": 1,
+          "total": 1
+        },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 1,
+          "total": 2
+        },
         "frame.paintExecutions": {
           "min": 2001,
           "max": 2001,
@@ -544,6 +834,16 @@
           "min": 2073600,
           "max": 2073600,
           "total": 6220800
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 0,
@@ -591,6 +891,26 @@
           "total": 0
         },
         "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetMarks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetValidations": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -721,14 +1041,14 @@
           "total": 0
         },
         "resources.implicitTextLayout.created": {
-          "min": 1083,
-          "max": 1083,
-          "total": 3249
+          "min": 250,
+          "max": 250,
+          "total": 750
         },
         "resources.implicitTextLayout.destroyed": {
-          "min": 1083,
-          "max": 1083,
-          "total": 3249
+          "min": 250,
+          "max": 250,
+          "total": 750
         },
         "resources.layer.created": {
           "min": 0,
@@ -761,34 +1081,74 @@
           "total": 0
         },
         "resources.textFormat.created": {
-          "min": 122,
+          "min": 0,
           "max": 136,
-          "total": 380
+          "total": 136
         },
         "resources.textFormat.destroyed": {
           "min": 0,
-          "max": 122,
-          "total": 244
+          "max": 0,
+          "total": 0
         },
         "resources.textLayout.created": {
           "min": 0,
-          "max": 500,
-          "total": 500
+          "max": 768,
+          "total": 768
         },
         "resources.textLayout.destroyed": {
           "min": 0,
           "max": 0,
           "total": 0
         },
+        "text.formatCacheOverBound": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.formatCacheTrims": {
           "min": 0,
-          "max": 1,
-          "total": 2
+          "max": 0,
+          "total": 0
+        },
+        "text.formatEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.lineMetricsHeapFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.nativeTextInputStateCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "text.setTextRenderingParams": {
           "min": 0,
           "max": 1,
           "total": 1
+        },
+        "text.textLayoutCacheBypasses": {
+          "min": 250,
+          "max": 250,
+          "total": 750
+        },
+        "text.textLayoutCacheHits": {
+          "min": 565,
+          "max": 833,
+          "total": 2231
+        },
+        "text.textLayoutCacheMisses": {
+          "min": 0,
+          "max": 268,
+          "total": 268
+        },
+        "text.textLayoutCacheOverflows": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "popups.backdropBlurPasses": {
           "min": 0,
@@ -801,6 +1161,16 @@
           "total": 0
         },
         "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -845,6 +1215,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -885,7 +1280,72 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownBlockUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidationsReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineFullReparses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesParsed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownLexicalUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownNodesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownParses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsMaterialized": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -906,6 +1366,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -936,6 +1461,11 @@
           "total": 2000
         },
         "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.arrangedChildren": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -974,16 +1504,28 @@
       "steps": 4,
       "series": {
         "created": [
-          1205,
-          1205,
-          1205,
-          1205
+          250,
+          250,
+          250,
+          250
         ],
         "churn": [
-          1205,
-          1205,
-          1205,
-          1205
+          250,
+          250,
+          250,
+          250
+        ],
+        "frame.brushColorReuses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.brushEvictions": [
+          0,
+          0,
+          0,
+          0
         ],
         "frame.composites": [
           0,
@@ -1009,6 +1551,24 @@
           0,
           0
         ],
+        "frame.fullVisualPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTestReuses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTests": [
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.paintExecutions": [
           2001,
           2001,
@@ -1020,6 +1580,18 @@
           2073600,
           2073600,
           2073600
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0,
+          0,
+          0
         ],
         "frame.preparations": [
           0,
@@ -1076,6 +1648,30 @@
           0
         ],
         "frame.tickRequesters": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetMarks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetValidations": [
           0,
           0,
           0,
@@ -1232,16 +1828,16 @@
           0
         ],
         "resources.implicitTextLayout.created": [
-          1083,
-          1083,
-          1083,
-          1083
+          250,
+          250,
+          250,
+          250
         ],
         "resources.implicitTextLayout.destroyed": [
-          1083,
-          1083,
-          1083,
-          1083
+          250,
+          250,
+          250,
+          250
         ],
         "resources.layer.created": [
           0,
@@ -1280,16 +1876,16 @@
           0
         ],
         "resources.textFormat.created": [
-          122,
-          122,
-          122,
-          122
+          0,
+          0,
+          0,
+          0
         ],
         "resources.textFormat.destroyed": [
-          122,
-          122,
-          122,
-          122
+          0,
+          0,
+          0,
+          0
         ],
         "resources.textLayout.created": [
           0,
@@ -1303,13 +1899,61 @@
           0,
           0
         ],
+        "text.formatCacheOverBound": [
+          0,
+          0,
+          0,
+          0
+        ],
         "text.formatCacheTrims": [
-          1,
-          1,
-          1,
-          1
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.formatEvictions": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.lineMetricsHeapFallbacks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.nativeTextInputStateCopies": [
+          0,
+          0,
+          0,
+          0
         ],
         "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheBypasses": [
+          250,
+          250,
+          250,
+          250
+        ],
+        "text.textLayoutCacheHits": [
+          833,
+          833,
+          833,
+          833
+        ],
+        "text.textLayoutCacheMisses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheOverflows": [
           0,
           0,
           0,
@@ -1328,6 +1972,18 @@
           0
         ],
         "popups.backdropCaptures": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
           0,
           0,
           0,
@@ -1381,6 +2037,36 @@
           0,
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.chunksLaid": [
           0,
           0,
@@ -1429,7 +2115,85 @@
           0,
           0
         ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.imageUploadBytes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownBlockUnitsScanned": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidationsReused": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineFullReparses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesParsed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineUnitsScanned": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownLexicalUnitsScanned": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownNodesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownParses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsMaterialized": [
           0,
           0,
           0,
@@ -1454,6 +2218,84 @@
           0
         ],
         "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0,
           0,
           0,
@@ -1495,6 +2337,12 @@
           0,
           0
         ],
+        "layout.arrangedChildren": [
+          0,
+          0,
+          0,
+          0
+        ],
         "layout.measureCacheEvictions": [
           0,
           0,
@@ -1528,14 +2376,24 @@
       },
       "summary": {
         "created": {
-          "min": 1205,
-          "max": 1205,
-          "total": 4820
+          "min": 250,
+          "max": 250,
+          "total": 1000
         },
         "churn": {
-          "min": 1205,
-          "max": 1205,
-          "total": 4820
+          "min": 250,
+          "max": 250,
+          "total": 1000
+        },
+        "frame.brushColorReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.composites": {
           "min": 0,
@@ -1557,6 +2415,21 @@
           "max": 0,
           "total": 0
         },
+        "frame.fullVisualPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.paintExecutions": {
           "min": 2001,
           "max": 2001,
@@ -1566,6 +2439,16 @@
           "min": 2073600,
           "max": 2073600,
           "total": 8294400
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 0,
@@ -1613,6 +2496,26 @@
           "total": 0
         },
         "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetMarks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetValidations": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1743,14 +2646,14 @@
           "total": 0
         },
         "resources.implicitTextLayout.created": {
-          "min": 1083,
-          "max": 1083,
-          "total": 4332
+          "min": 250,
+          "max": 250,
+          "total": 1000
         },
         "resources.implicitTextLayout.destroyed": {
-          "min": 1083,
-          "max": 1083,
-          "total": 4332
+          "min": 250,
+          "max": 250,
+          "total": 1000
         },
         "resources.layer.created": {
           "min": 0,
@@ -1783,14 +2686,14 @@
           "total": 0
         },
         "resources.textFormat.created": {
-          "min": 122,
-          "max": 122,
-          "total": 488
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "resources.textFormat.destroyed": {
-          "min": 122,
-          "max": 122,
-          "total": 488
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "resources.textLayout.created": {
           "min": 0,
@@ -1802,12 +2705,52 @@
           "max": 0,
           "total": 0
         },
+        "text.formatCacheOverBound": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.formatCacheTrims": {
-          "min": 1,
-          "max": 1,
-          "total": 4
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.formatEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.lineMetricsHeapFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.nativeTextInputStateCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheBypasses": {
+          "min": 250,
+          "max": 250,
+          "total": 1000
+        },
+        "text.textLayoutCacheHits": {
+          "min": 833,
+          "max": 833,
+          "total": 3332
+        },
+        "text.textLayoutCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheOverflows": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1823,6 +2766,16 @@
           "total": 0
         },
         "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1867,6 +2820,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -1907,7 +2885,72 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownBlockUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidationsReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineFullReparses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesParsed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownLexicalUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownNodesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownParses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsMaterialized": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1928,6 +2971,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1958,6 +3066,11 @@
           "total": 0
         },
         "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.arrangedChildren": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1996,20 +3109,36 @@
       "steps": 6,
       "series": {
         "created": [
-          1205,
-          1205,
-          1205,
-          1205,
-          1205,
-          1205
+          250,
+          250,
+          250,
+          250,
+          250,
+          250
         ],
         "churn": [
-          1205,
-          1205,
-          1205,
-          1205,
-          1205,
-          1205
+          250,
+          250,
+          250,
+          250,
+          250,
+          250
+        ],
+        "frame.brushColorReuses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.brushEvictions": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.composites": [
           0,
@@ -2043,6 +3172,30 @@
           0,
           0
         ],
+        "frame.fullVisualPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTestReuses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTests": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
         "frame.paintExecutions": [
           2001,
           2001,
@@ -2058,6 +3211,22 @@
           2073600,
           2073600,
           2073600
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.preparations": [
           0,
@@ -2132,6 +3301,38 @@
           0
         ],
         "frame.tickRequesters": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetMarks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetValidations": [
           0,
           0,
           0,
@@ -2340,20 +3541,20 @@
           0
         ],
         "resources.implicitTextLayout.created": [
-          1083,
-          1083,
-          1083,
-          1083,
-          1083,
-          1083
+          250,
+          250,
+          250,
+          250,
+          250,
+          250
         ],
         "resources.implicitTextLayout.destroyed": [
-          1083,
-          1083,
-          1083,
-          1083,
-          1083,
-          1083
+          250,
+          250,
+          250,
+          250,
+          250,
+          250
         ],
         "resources.layer.created": [
           0,
@@ -2404,20 +3605,20 @@
           0
         ],
         "resources.textFormat.created": [
-          122,
-          122,
-          122,
-          122,
-          122,
-          122
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "resources.textFormat.destroyed": [
-          122,
-          122,
-          122,
-          122,
-          122,
-          122
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "resources.textLayout.created": [
           0,
@@ -2435,15 +3636,79 @@
           0,
           0
         ],
+        "text.formatCacheOverBound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "text.formatCacheTrims": [
-          1,
-          1,
-          1,
-          1,
-          1,
-          1
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.formatEvictions": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.lineMetricsHeapFallbacks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.nativeTextInputStateCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheBypasses": [
+          250,
+          250,
+          250,
+          250,
+          250,
+          250
+        ],
+        "text.textLayoutCacheHits": [
+          833,
+          833,
+          833,
+          833,
+          833,
+          833
+        ],
+        "text.textLayoutCacheMisses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheOverflows": [
           0,
           0,
           0,
@@ -2468,6 +3733,22 @@
           0
         ],
         "popups.backdropCaptures": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
           0,
           0,
           0,
@@ -2539,6 +3820,46 @@
           0,
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.chunksLaid": [
           0,
           0,
@@ -2603,7 +3924,111 @@
           0,
           0
         ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.imageUploadBytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownBlockUnitsScanned": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidationsReused": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineFullReparses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesParsed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineUnitsScanned": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownLexicalUnitsScanned": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownNodesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownParses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsMaterialized": [
           0,
           0,
           0,
@@ -2636,6 +4061,110 @@
           0
         ],
         "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0,
           0,
           0,
@@ -2691,6 +4220,14 @@
           0,
           0
         ],
+        "layout.arrangedChildren": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "layout.measureCacheEvictions": [
           0,
           0,
@@ -2734,14 +4271,24 @@
       },
       "summary": {
         "created": {
-          "min": 1205,
-          "max": 1205,
-          "total": 7230
+          "min": 250,
+          "max": 250,
+          "total": 1500
         },
         "churn": {
-          "min": 1205,
-          "max": 1205,
-          "total": 7230
+          "min": 250,
+          "max": 250,
+          "total": 1500
+        },
+        "frame.brushColorReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.composites": {
           "min": 0,
@@ -2763,6 +4310,21 @@
           "max": 0,
           "total": 0
         },
+        "frame.fullVisualPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 1,
+          "max": 1,
+          "total": 6
+        },
         "frame.paintExecutions": {
           "min": 2001,
           "max": 2001,
@@ -2772,6 +4334,16 @@
           "min": 2073600,
           "max": 2073600,
           "total": 12441600
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 0,
@@ -2819,6 +4391,26 @@
           "total": 0
         },
         "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetMarks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetValidations": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2949,14 +4541,14 @@
           "total": 0
         },
         "resources.implicitTextLayout.created": {
-          "min": 1083,
-          "max": 1083,
-          "total": 6498
+          "min": 250,
+          "max": 250,
+          "total": 1500
         },
         "resources.implicitTextLayout.destroyed": {
-          "min": 1083,
-          "max": 1083,
-          "total": 6498
+          "min": 250,
+          "max": 250,
+          "total": 1500
         },
         "resources.layer.created": {
           "min": 0,
@@ -2989,14 +4581,14 @@
           "total": 0
         },
         "resources.textFormat.created": {
-          "min": 122,
-          "max": 122,
-          "total": 732
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "resources.textFormat.destroyed": {
-          "min": 122,
-          "max": 122,
-          "total": 732
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "resources.textLayout.created": {
           "min": 0,
@@ -3008,12 +4600,52 @@
           "max": 0,
           "total": 0
         },
+        "text.formatCacheOverBound": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.formatCacheTrims": {
-          "min": 1,
-          "max": 1,
-          "total": 6
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.formatEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.lineMetricsHeapFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.nativeTextInputStateCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheBypasses": {
+          "min": 250,
+          "max": 250,
+          "total": 1500
+        },
+        "text.textLayoutCacheHits": {
+          "min": 833,
+          "max": 833,
+          "total": 4998
+        },
+        "text.textLayoutCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheOverflows": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3029,6 +4661,16 @@
           "total": 0
         },
         "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3073,6 +4715,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -3113,7 +4780,72 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownBlockUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidationsReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineFullReparses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesParsed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownLexicalUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownNodesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownParses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsMaterialized": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3134,6 +4866,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3164,6 +4961,11 @@
           "total": 0
         },
         "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.arrangedChildren": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3202,16 +5004,28 @@
       "steps": 4,
       "series": {
         "created": [
-          1206,
-          1206,
-          1206,
-          1206
+          251,
+          251,
+          251,
+          251
         ],
         "churn": [
-          1206,
-          1206,
-          1206,
-          1206
+          251,
+          251,
+          251,
+          251
+        ],
+        "frame.brushColorReuses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.brushEvictions": [
+          0,
+          0,
+          0,
+          0
         ],
         "frame.composites": [
           0,
@@ -3237,6 +5051,24 @@
           0,
           0
         ],
+        "frame.fullVisualPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTestReuses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTests": [
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.paintExecutions": [
           2001,
           2001,
@@ -3248,6 +5080,18 @@
           2073600,
           2073600,
           2073600
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0,
+          0,
+          0
         ],
         "frame.preparations": [
           0,
@@ -3304,6 +5148,30 @@
           0
         ],
         "frame.tickRequesters": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetMarks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetValidations": [
           0,
           0,
           0,
@@ -3460,16 +5328,16 @@
           0
         ],
         "resources.implicitTextLayout.created": [
-          1083,
-          1083,
-          1083,
-          1083
+          250,
+          250,
+          250,
+          250
         ],
         "resources.implicitTextLayout.destroyed": [
-          1083,
-          1083,
-          1083,
-          1083
+          250,
+          250,
+          250,
+          250
         ],
         "resources.layer.created": [
           0,
@@ -3508,16 +5376,16 @@
           0
         ],
         "resources.textFormat.created": [
-          122,
-          122,
-          122,
-          122
+          0,
+          0,
+          0,
+          0
         ],
         "resources.textFormat.destroyed": [
-          122,
-          122,
-          122,
-          122
+          0,
+          0,
+          0,
+          0
         ],
         "resources.textLayout.created": [
           1,
@@ -3531,13 +5399,61 @@
           1,
           1
         ],
+        "text.formatCacheOverBound": [
+          0,
+          0,
+          0,
+          0
+        ],
         "text.formatCacheTrims": [
-          1,
-          1,
-          1,
-          1
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.formatEvictions": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.lineMetricsHeapFallbacks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.nativeTextInputStateCopies": [
+          0,
+          0,
+          0,
+          0
         ],
         "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheBypasses": [
+          250,
+          250,
+          250,
+          250
+        ],
+        "text.textLayoutCacheHits": [
+          833,
+          833,
+          833,
+          833
+        ],
+        "text.textLayoutCacheMisses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheOverflows": [
           0,
           0,
           0,
@@ -3556,6 +5472,18 @@
           0
         ],
         "popups.backdropCaptures": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
           0,
           0,
           0,
@@ -3609,6 +5537,36 @@
           0,
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.chunksLaid": [
           0,
           0,
@@ -3657,7 +5615,85 @@
           0,
           0
         ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.imageUploadBytes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownBlockUnitsScanned": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidationsReused": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineFullReparses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesParsed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineUnitsScanned": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownLexicalUnitsScanned": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownNodesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownParses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsMaterialized": [
           0,
           0,
           0,
@@ -3682,6 +5718,84 @@
           0
         ],
         "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0,
           0,
           0,
@@ -3723,6 +5837,12 @@
           0,
           0
         ],
+        "layout.arrangedChildren": [
+          0,
+          0,
+          0,
+          0
+        ],
         "layout.measureCacheEvictions": [
           0,
           0,
@@ -3756,14 +5876,24 @@
       },
       "summary": {
         "created": {
-          "min": 1206,
-          "max": 1206,
-          "total": 4824
+          "min": 251,
+          "max": 251,
+          "total": 1004
         },
         "churn": {
-          "min": 1206,
-          "max": 1206,
-          "total": 4824
+          "min": 251,
+          "max": 251,
+          "total": 1004
+        },
+        "frame.brushColorReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.composites": {
           "min": 0,
@@ -3785,6 +5915,21 @@
           "max": 0,
           "total": 0
         },
+        "frame.fullVisualPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.paintExecutions": {
           "min": 2001,
           "max": 2001,
@@ -3794,6 +5939,16 @@
           "min": 2073600,
           "max": 2073600,
           "total": 8294400
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.preparations": {
           "min": 0,
@@ -3841,6 +5996,26 @@
           "total": 0
         },
         "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetMarks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetValidations": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3971,14 +6146,14 @@
           "total": 0
         },
         "resources.implicitTextLayout.created": {
-          "min": 1083,
-          "max": 1083,
-          "total": 4332
+          "min": 250,
+          "max": 250,
+          "total": 1000
         },
         "resources.implicitTextLayout.destroyed": {
-          "min": 1083,
-          "max": 1083,
-          "total": 4332
+          "min": 250,
+          "max": 250,
+          "total": 1000
         },
         "resources.layer.created": {
           "min": 0,
@@ -4011,14 +6186,14 @@
           "total": 0
         },
         "resources.textFormat.created": {
-          "min": 122,
-          "max": 122,
-          "total": 488
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "resources.textFormat.destroyed": {
-          "min": 122,
-          "max": 122,
-          "total": 488
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "resources.textLayout.created": {
           "min": 1,
@@ -4030,12 +6205,52 @@
           "max": 1,
           "total": 4
         },
+        "text.formatCacheOverBound": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.formatCacheTrims": {
-          "min": 1,
-          "max": 1,
-          "total": 4
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.formatEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.lineMetricsHeapFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.nativeTextInputStateCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheBypasses": {
+          "min": 250,
+          "max": 250,
+          "total": 1000
+        },
+        "text.textLayoutCacheHits": {
+          "min": 833,
+          "max": 833,
+          "total": 3332
+        },
+        "text.textLayoutCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheOverflows": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -4051,6 +6266,16 @@
           "total": 0
         },
         "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -4095,6 +6320,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -4135,7 +6385,72 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownBlockUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidationsReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineFullReparses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesParsed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownLexicalUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownNodesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownParses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsMaterialized": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -4156,6 +6471,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -4186,6 +6566,11 @@
           "total": 8000
         },
         "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.arrangedChildren": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -4239,6 +6624,22 @@
           0,
           0
         ],
+        "frame.brushColorReuses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.brushEvictions": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.composites": [
           0,
           0,
@@ -4271,6 +6672,30 @@
           0,
           0
         ],
+        "frame.fullVisualPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTestReuses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTests": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.paintExecutions": [
           0,
           0,
@@ -4280,6 +6705,22 @@
           0
         ],
         "frame.pixelsPainted": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
           0,
           0,
           0,
@@ -4360,6 +6801,38 @@
           0
         ],
         "frame.tickRequesters": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetMarks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetValidations": [
           0,
           0,
           0,
@@ -4663,6 +7136,14 @@
           0,
           0
         ],
+        "text.formatCacheOverBound": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "text.formatCacheTrims": [
           0,
           0,
@@ -4671,7 +7152,63 @@
           0,
           0
         ],
+        "text.formatEvictions": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.lineMetricsHeapFallbacks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.nativeTextInputStateCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheBypasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheHits": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheMisses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheOverflows": [
           0,
           0,
           0,
@@ -4696,6 +7233,22 @@
           0
         ],
         "popups.backdropCaptures": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
           0,
           0,
           0,
@@ -4767,6 +7320,46 @@
           0,
           0
         ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.chunksLaid": [
           0,
           0,
@@ -4831,7 +7424,111 @@
           0,
           0
         ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.imageUploadBytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownBlockUnitsScanned": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidationsReused": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineFullReparses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesParsed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineUnitsScanned": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownLexicalUnitsScanned": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownNodesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownParses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsMaterialized": [
           0,
           0,
           0,
@@ -4864,6 +7561,110 @@
           0
         ],
         "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
           0,
           0,
           0,
@@ -4912,6 +7713,14 @@
           0
         ],
         "accessibility.wordUnitsVisited": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.arrangedChildren": [
           0,
           0,
           0,
@@ -4971,6 +7780,16 @@
           "max": 0,
           "total": 0
         },
+        "frame.brushColorReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.composites": {
           "min": 0,
           "max": 0,
@@ -4991,12 +7810,37 @@
           "max": 0,
           "total": 0
         },
+        "frame.fullVisualPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.paintExecutions": {
           "min": 0,
           "max": 0,
           "total": 0
         },
         "frame.pixelsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -5047,6 +7891,26 @@
           "total": 0
         },
         "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetMarks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetValidations": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -5236,12 +8100,52 @@
           "max": 0,
           "total": 0
         },
+        "text.formatCacheOverBound": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.formatCacheTrims": {
           "min": 0,
           "max": 0,
           "total": 0
         },
+        "text.formatEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.lineMetricsHeapFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.nativeTextInputStateCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheBypasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheOverflows": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -5257,6 +8161,16 @@
           "total": 0
         },
         "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -5301,6 +8215,31 @@
           "max": 0,
           "total": 0
         },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.chunksLaid": {
           "min": 0,
           "max": 0,
@@ -5341,7 +8280,72 @@
           "max": 0,
           "total": 0
         },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownBlockUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidationsReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineFullReparses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesParsed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownLexicalUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownNodesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownParses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsMaterialized": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -5362,6 +8366,71 @@
           "total": 0
         },
         "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -5396,6 +8465,3221 @@
           "max": 0,
           "total": 0
         },
+        "layout.arrangedChildren": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheVerifyMismatches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureOverrideExecutions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "size",
+      "kind": "measured",
+      "description": "one Label's text grows and shrinks, moving its row (form-layout variants; elsewhere unchanged frames)",
+      "steps": 4,
+      "series": {
+        "created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "churn": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.brushColorReuses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.brushEvictions": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.composites": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.drawCalls": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.fullVisualPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTestReuses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTests": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.paintExecutions": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.pixelsPainted": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.presents": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.renders": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickCalls": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickDiscoveryWalks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickHeldWhileHidden": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickLegacyTreeWalks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickRequesters": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetMarks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetValidations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsHitTest": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsPaint": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsStatistics": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsTick": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.animationTimer": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.deadlineTimer": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.embeddedAdvance": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.menuHoverTimer": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.paintMessage": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.bitmap.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.bitmap.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.brush.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.brush.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.commandList.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.commandList.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.d3d11Device.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.d3d11Device.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.deviceContext.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.deviceContext.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.effect.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.effect.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.geometry.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.geometry.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.gradientStops.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.gradientStops.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.implicitTextLayout.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.implicitTextLayout.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.layer.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.layer.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.strokeStyle.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.strokeStyle.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textFormat.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textFormat.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textLayout.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textLayout.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.formatCacheOverBound": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.formatCacheTrims": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.formatEvictions": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.lineMetricsHeapFallbacks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.nativeTextInputStateCopies": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheBypasses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheHits": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheMisses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheOverflows": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.backdropCapturePixels": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.backdropCaptures": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.chunksLaid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.diagramPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.displayUnitsWritten": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentFlattens": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.elementsBuilt": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.hoveredTitleCalls": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.hoverScanElements": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.imageUploadBytes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownBlockUnitsScanned": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidationsReused": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineFullReparses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesParsed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineUnitsScanned": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownLexicalUnitsScanned": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownNodesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownParses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsMaterialized": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.mathPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentBytesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.svgRasterizations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.wholeLayoutsLaid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotBuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotBytes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotNodes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.arrangedChildren": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheEvictions": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheHits": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheMisses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheVerifyMismatches": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureOverrideExecutions": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "summary": {
+        "created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "churn": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushColorReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.composites": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.drawCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.fullVisualPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.paintExecutions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pixelsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.presents": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickDiscoveryWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickHeldWhileHidden": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickLegacyTreeWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetMarks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsHitTest": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsPaint": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsTick": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.deadlineTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.embeddedAdvance": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.menuHoverTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.paintMessage": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.implicitTextLayout.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.implicitTextLayout.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.formatCacheOverBound": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.formatEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.lineMetricsHeapFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.nativeTextInputStateCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheBypasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheOverflows": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCapturePixels": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.chunksLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.diagramPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.displayUnitsWritten": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.elementsBuilt": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoveredTitleCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownBlockUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidationsReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineFullReparses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesParsed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownLexicalUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownNodesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownParses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsMaterialized": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.mathPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.svgRasterizations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.wholeLayoutsLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.arrangedChildren": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheVerifyMismatches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureOverrideExecutions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "name": "width",
+      "kind": "measured",
+      "description": "the form column narrows by 40 DIP and widens back (form-layout variants; elsewhere unchanged frames)",
+      "steps": 4,
+      "series": {
+        "created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "churn": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.brushColorReuses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.brushEvictions": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.composites": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.drawCalls": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.fullVisualPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTestReuses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitTests": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.paintExecutions": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.pixelsPainted": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.plainLabelPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.preparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.presents": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.renders": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickCalls": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickDiscoveryWalks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickHeldWhileHidden": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickLegacyTreeWalks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickRequesters": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetMarks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetValidations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsHitTest": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsPaint": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsStatistics": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.treeVisitsTick": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.animationTimer": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.deadlineTimer": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.embeddedAdvance": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.menuHoverTimer": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.paintMessage": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.bitmap.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.bitmap.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.brush.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.brush.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.commandList.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.commandList.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.d3d11Device.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.d3d11Device.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.deviceContext.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.deviceContext.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.effect.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.effect.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.geometry.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.geometry.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.gradientStops.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.gradientStops.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.implicitTextLayout.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.implicitTextLayout.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.layer.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.layer.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.strokeStyle.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.strokeStyle.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textFormat.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textFormat.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textLayout.created": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "resources.textLayout.destroyed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.formatCacheOverBound": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.formatCacheTrims": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.formatEvictions": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.lineMetricsHeapFallbacks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.nativeTextInputStateCopies": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheBypasses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheHits": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheMisses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheOverflows": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.backdropCapturePixels": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.backdropCaptures": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecordCopies": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeItemReads": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.treeModelLookups": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.chunksLaid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.diagramPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.displayUnitsWritten": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.documentFlattens": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.elementsBuilt": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.hoveredTitleCalls": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.hoverScanElements": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.identityMapNodes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.imageUploadBytes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownBlockUnitsScanned": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidationsReused": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineFullReparses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesParsed": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineUnitsScanned": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownLexicalUnitsScanned": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownNodesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownParses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsMaterialized": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.mathPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentBytesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.svgRasterizations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.wholeLayoutsLaid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotBuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotBytes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.snapshotNodes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.arrangedChildren": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheEvictions": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheHits": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheMisses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheVerifyMismatches": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureOverrideExecutions": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "summary": {
+        "created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "churn": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushColorReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.composites": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.drawCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.fullVisualPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTestReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.paintExecutions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pixelsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.presents": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickDiscoveryWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickHeldWhileHidden": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickLegacyTreeWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetMarks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsHitTest": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsPaint": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsTick": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.deadlineTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.embeddedAdvance": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.menuHoverTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.paintMessage": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.implicitTextLayout.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.implicitTextLayout.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.formatCacheOverBound": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.formatEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.lineMetricsHeapFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.nativeTextInputStateCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheBypasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheOverflows": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCapturePixels": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.chunksLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.diagramPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.displayUnitsWritten": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.elementsBuilt": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoveredTitleCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownBlockUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidationsReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineFullReparses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesParsed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownLexicalUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownNodesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownParses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsMaterialized": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.mathPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.svgRasterizations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.wholeLayoutsLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.arrangedChildren": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "layout.measureCacheEvictions": {
           "min": 0,
           "max": 0,
@@ -5425,7 +11709,7 @@
     }
   ],
   "memory": {
-    "entryPrivateBytes": 3104768,
+    "entryPrivateBytes": 3117056,
     "videoMemory": {
       "applicable": false,
       "reason": "software adapter: rendering uses system memory, which privateBytes counts"
@@ -5434,53 +11718,65 @@
     "samples": [
       {
         "at": "device",
-        "privateBytes": 7331840,
+        "privateBytes": 7360512,
         "workingSetBytes": 17281024
       },
       {
         "at": "built",
-        "privateBytes": 9342976,
-        "workingSetBytes": 21094400
+        "privateBytes": 9383936,
+        "workingSetBytes": 21254144
       },
       {
         "at": "phase",
         "phase": "warm",
-        "privateBytes": 245907456,
-        "workingSetBytes": 209129472
+        "privateBytes": 255111168,
+        "workingSetBytes": 215142400
       },
       {
         "at": "phase",
         "phase": "full",
-        "privateBytes": 274440192,
-        "workingSetBytes": 225480704
+        "privateBytes": 270667776,
+        "workingSetBytes": 228876288
       },
       {
         "at": "phase",
         "phase": "hover",
-        "privateBytes": 296595456,
-        "workingSetBytes": 254087168
+        "privateBytes": 273305600,
+        "workingSetBytes": 227123200
       },
       {
         "at": "phase",
         "phase": "value",
-        "privateBytes": 315416576,
-        "workingSetBytes": 276795392
+        "privateBytes": 275722240,
+        "workingSetBytes": 233029632
       },
       {
         "at": "phase",
         "phase": "scroll",
-        "privateBytes": 315416576,
-        "workingSetBytes": 276795392
+        "privateBytes": 275722240,
+        "workingSetBytes": 233029632
+      },
+      {
+        "at": "phase",
+        "phase": "size",
+        "privateBytes": 275722240,
+        "workingSetBytes": 233029632
+      },
+      {
+        "at": "phase",
+        "phase": "width",
+        "privateBytes": 275722240,
+        "workingSetBytes": 233029632
       },
       {
         "at": "hidden",
-        "privateBytes": 287924224,
-        "workingSetBytes": 266579968
+        "privateBytes": 255152128,
+        "workingSetBytes": 226545664
       }
     ],
     "hiddenResidencyDelta": {
-      "privateBytes": -27492352,
-      "workingSetBytes": -10215424
+      "privateBytes": -20570112,
+      "workingSetBytes": -6483968
     },
     "minimizedResidency": "hidden",
     "controlBytes": {
@@ -5501,7 +11797,7 @@
         "budget": "idle native window <= 8 MB private above process entry at 1080p",
         "counter": "private bytes after the last phase, shown, minus private bytes at process entry",
         "limitBytes": 8000000,
-        "measuredBytes": 312311808,
+        "measuredBytes": 272605184,
         "status": "advisory"
       },
       {
@@ -5547,23 +11843,23 @@
     "reason": "timing comes only from performance-timing.ps1 on a hardware adapter in a quiet window (W0.2); counts and memory are recorded here"
   },
   "benchmarkInputs": {
-    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "BDA786D0E185A83D1ACCFED43106154D374E7C0DDEFCF8A2427FEC0817EAA7C7",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "16A49479AA99AE6F235B6F79A4812E12051C693B0D0B5861AF6DEB1998139420",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h": "7C2FAFF45C77EFEB1B521D74379AEE3DD335B86CC339FD1C91C4BD216CC77AE0",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "7C5A056727C5F60E1542313F154EFD393DD148F26DB8DC8A526901A144F8729C",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "D3B906C018B075D1539C87B5FBF2E8B7D8CAC25CF10CFBC30396E9CA8CD0049D",
     "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "00844224A58AC9CDD5B726A72BD598293BA5756E9535AC59E26134DD3D7A78DD",
-    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "3FA4A7E0D0B358BD48779821358AB91DDD188277408510A197D73B1807C60737",
+    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "984749E4C0604C981013422A25633C8128D6C3D99AA99ACC35F73EE19F250527",
     "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
     "performance-fixtures.ps1": "7137E9356F903546CD9E1D67226AA9375C7E788101409640A9C48F4B34671E5B",
     "Tools/PerformanceFixtures.psm1": "3AE90348157D4C1C743021DC9FA5CCCC01D7F706591C18CA9CCE9F06FACAABF9",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx12.h": "E111B2E925B00F097F9A1C9E7F09485B3A02645667EC5ABDF92E30A069B963DB"
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx12.h": "8B1D5E2D32BE19BCA942C324F276E421B8EB59DCA35A9EA51A2CD7207C4BE966"
   },
   "provenance": {
-    "sourceCommit": "f58b3c968bedcb5c5a1d64f1a5e391f1c14cd155",
+    "sourceCommit": "352943dde6c2a34b59e521b59b86464b97f2e6af",
     "sourceDirty": true,
     "platform": "x64",
     "configuration": "Release",
     "command": "performance-fixtures.ps1 -Fixture FX12 -Variant typography-120 -Adapter Warp -FixtureHost window -Configuration 'Release' -Platform x64",
-    "executableSha256": "A76BD41B436241CB79D7719C1E1E56959CF1EA2734B9978482358A17A0E1D4B2",
+    "executableSha256": "B8858D21EDA4DD77F8AED71C5E6713639CC69BB34090AC9AE6188757A5D9E592",
     "os": {
       "description": "Microsoft Windows 10.0.26300",
       "build": "26300",
@@ -5588,16 +11884,16 @@
       }
     ],
     "powerPlan": {
-      "guid": "381b4222-f694-41f0-9685-ff5bb260df2e",
-      "text": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)"
+      "guid": "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
+      "text": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)"
     },
     "hostIdle": {
       "seconds": 3,
-      "busyPercent": 41.47600446428571,
+      "busyPercent": 58.24728260869565,
       "observer": "Tools/Watch-BenchmarkHost.ps1",
       "required": false
     },
     "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
-    "recordedUtc": "2026-11-15T04:53:40.9888428Z"
+    "recordedUtc": "2026-11-15T16:28:28.1630696Z"
   }
 }

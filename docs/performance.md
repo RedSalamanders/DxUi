@@ -339,6 +339,12 @@ frame creates nothing or that an action paints exactly the controls it changed. 
 through the counted helpers (`CountedCreateTextLayout(factory, …)` instead of `factory->CreateTextLayout(…)`);
 `Tools/tests/Test-CountedCreation.ps1` fails on a raw call, whatever its receiver.
 
+Plain text a control draws through its host goes through `DrawHostText` (which `DrawCenteredText` uses), not
+`DrawText`: the host keeps one layout per string of its last paint, so an unchanged string is laid out once, not on every
+frame. A hover frame of the ComplexUi fixture (`FX5`) creates no text layout. The
+[contract](../Specs/Core/Core_PerformanceAndResources.md#retained-text-layouts) states the key, the bound, what releases
+the layouts and the oracle that proves they draw exactly what `DrawText` draws; `--test-retained-text-layouts` runs the gate.
+
 ```powershell
 # The ComplexUi work receipt: per-frame counters for 40 clean and 40 dirty frames, with the C++ allocation sink.
 .\.build\x64\Release\DxUi.EmbeddedTests.exe --test-work-counters .build\work-counters.json

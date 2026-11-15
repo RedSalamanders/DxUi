@@ -219,7 +219,10 @@ headers that have these fields. `retainedCacheEntries` and `retainedCacheBytes` 
 view and its controls (bytes are the storage DxUi itself holds; DirectWrite and Direct2D objects are not included), and
 `largestTextHistoryBytes` reports the undo and redo history of the TextField or editable ComboBox that holds the most
 (each keeps at most 4 MiB, unless a single edit of a text over 2 Mi units needs more on its own); `DXUI_HAS_RETAINED_CACHE_STATISTICS`
-marks headers that have them. Change layout in DIPs and pass the new physical extent/DPI to Prepare; do not rasterize at each
+marks headers that have them. The view also keeps one text layout for each plain-text string (labels, captions, list
+rows) its last preparation drew, so a repaint that only changes hover or values does not lay text out again; those
+layouts count in `retainedCacheEntries`, not in `retainedTextLayouts`, are created only inside `Prepare`, never in
+`Composite`, and are released when the view is hidden or detached. Change layout in DIPs and pass the new physical extent/DPI to Prepare; do not rasterize at each
 intermediate animation scale. Theme and layout changes need refreshed docs/gallery when changing the library.
 
 Embedded text is drawn grayscale, since the view's surface is premultiplied. To draw it with the ClearType tuning (gamma,

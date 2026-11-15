@@ -406,6 +406,8 @@ void EmbeddedHost::ReleaseSurface() noexcept
     s.contentPending             = false;
     s.preparationRequested       = false;
     s.dirty                      = true;
+    // A view without a surface paints nothing, so it keeps no retained text layout either.
+    TextLayoutCacheAccess::Release(_host);
     // This is deliberately the final operation: visual cancellation can invoke
     // arbitrary control callbacks, including detaching this EmbeddedHost.
     _host.CancelPreparedVisualContent();
@@ -723,6 +725,9 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         });
         // Grayscale always; the application's monitor parameters only when it supplied a monitor.
         static_cast<void>(_host.ApplyTextRendering());
+        // One generation of the host's retained text layouts: a string new to them is laid out here, in preparation, never
+        // in composition, which only composites the surface.
+        const TextLayoutPaintScope textLayoutPaint(_host);
         dc->BeginDraw();
         auto finish = wil::scope_exit([&] { (void)Detail::EndDrawNative(dc); });
         dc->SetTransform(D2D1::Matrix3x2F::Identity());

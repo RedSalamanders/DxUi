@@ -10,3 +10,5 @@ void TestTextRenderingWindowHostFollowsFontSmoothingOnComplexUi();
 void TestTextRenderingDefaultSettingKeepsTodaysPixels();
 void TestTextRenderingEmbeddedComplexUiUnderEachSetting();
 void TestTextRenderingWindowHostRebindsOnDpiMonitorAndSettingChanges();
+// W2.1: each host's FX5 frame through the host's retained text layouts equals its frame through DrawText.
+void TestTextRenderingRetainedLayoutsKeepComplexUiPixels();

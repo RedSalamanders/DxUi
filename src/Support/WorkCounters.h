@@ -61,8 +61,14 @@
     X(text, formatCacheOverBound)       /* TrimCaches passes that left the text-format map above its bound because every remaining entry was in use. */        \
     X(text, formatCacheTrims)           /* TrimCaches passes that evicted text formats above the key bound (unused by the last two frames). */                 \
     X(text, formatEvictions)            /* Configured text formats TrimCaches evicted. */                                                                      \
+    X(text, lineMetricsHeapFallbacks)   /* Text measurements with more lines than the stack buffer, which read their line metrics into a heap buffer. */       \
     X(text, nativeTextInputStateCopies) /* Text-input states copied with their document (TryReadNativeTextInputState). */                                      \
-    X(text, setTextRenderingParams)     /* ID2D1RenderTarget::SetTextRenderingParams calls a host made to bind or clear rendering parameters. */
+    X(text, setTextRenderingParams)     /* ID2D1RenderTarget::SetTextRenderingParams calls a host made to bind or clear rendering parameters. */               \
+    X(text, textLayoutCacheBypasses)  /* Host-drawn strings the host's layout table did not serve, drawn through DrawText: no paint in progress, a box that is \
+                                         not positive and finite, a string over 4,096 units, or the test seam. */                                              \
+    X(text, textLayoutCacheHits)      /* Host-drawn strings drawn with a layout the host's table already held. */                                              \
+    X(text, textLayoutCacheMisses)    /* Host-drawn strings whose layout the host's table created and kept. */                                                 \
+    X(text, textLayoutCacheOverflows) /* Host-drawn strings drawn through DrawText because the table was at its bound and every way of the set was in use. */
 
 // Popups and menus.
 #define DXUI_WORK_COUNTERS_POPUPS(X)                                                                                                                           \

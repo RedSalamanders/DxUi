@@ -6825,6 +6825,15 @@ public:
     // Tests only. Drops every registered retained cache of this host and its controls (DxUi.RetainedCaches.h) and asks for a
     // full preparation, so the next frame is drawn as a freshly built host would draw it (incremental-versus-fresh oracle).
     void DebugDropRetainedStateForTest() noexcept;
+    // Tests only (W2.1). Off: host-drawn plain text is drawn through DrawText as before the host's layout table, the
+    // equivalence oracle's reference. The ceiling of the table (0 restores 2,048), its live layouts and its entries.
+    void DebugSetTextLayoutCacheEnabledForTest(bool enabled) noexcept;
+    void DebugSetTextLayoutCacheLimitForTest(size_t maxEntries) noexcept;
+    [[nodiscard]] size_t DebugGetTextLayoutCacheEntries() const noexcept;
+    [[nodiscard]] size_t DebugGetTextLayoutCacheCapacity() const noexcept;
+    // Of the live layouts, those a captured glyph run could replace (plan item W6.5): one line, no trimming, and only
+    // basic-plane text (no colour glyph from a supplementary-plane emoji).
+    [[nodiscard]] size_t DebugCountGlyphRunEligibleTextLayouts() const noexcept;
     [[nodiscard]] bool DebugHasActiveAnimationSubscription() const noexcept;
     // Tests only. Runs one frame-schedule wake at nowTickMs as the dispatcher would; true while the schedule still waits
     // for something (and the host is not hidden).
@@ -7367,8 +7376,28 @@ private:
         uint64_t lastUse = 0u;
     };
     mutable std::unordered_map<uint64_t, ConfiguredTextFormatEntry> _configuredTextFormats = std::unordered_map<uint64_t, ConfiguredTextFormatEntry>(0u);
-    mutable bool _fluentIconFontAvailabilityChecked                                        = false;
-    mutable bool _fluentIconFontAvailable                                                  = false;
+    // Retained layouts of the plain text this host's controls draw (DrawCenteredText and the other host-aware DrawText
+    // replacements, plan item W2.1): one entry per string, format and box the last paint drew, in the set-associative table
+    // the Grid's cell layouts use (DxUi.Internal.h). A key holds its format, so a freed format's address never matches.
+    struct RetainedTextLayout final
+    {
+        std::wstring text;
+        wil::com_ptr<IDWriteTextFormat> format;
+        wil::com_ptr<IDWriteTextLayout> layout;
+        uint64_t keyHash = 0u;
+        uint64_t lastUse = 0u; // the paint generation that last drew the entry
+        float width      = 0.0f;
+        float height     = 0.0f;
+    };
+    friend struct TextLayoutCacheAccess;
+    mutable std::vector<RetainedTextLayout> _textLayoutCache;
+    uint64_t _textLayoutPaintGeneration             = 1u;
+    uint64_t _textLayoutCacheTypography             = 0u; // the typography revision the table's layouts were made under
+    uint32_t _textLayoutPaintDepth                  = 0u; // host paints in progress; the table serves only inside one
+    size_t _debugTextLayoutCacheLimit               = 0u; // 0: the bound of DxUi.Internal.h
+    bool _debugTextLayoutCacheDisabled              = false;
+    mutable bool _fluentIconFontAvailabilityChecked = false;
+    mutable bool _fluentIconFontAvailable           = false;
 
     wil::com_ptr<ID3D11Device> _d3dDevice;
     wil::com_ptr<ID3D11DeviceContext> _d3dContext;

@@ -2068,8 +2068,10 @@ HRESULT ControlHost::SetNativePresentationVisible(bool visible) noexcept
     if (! visible)
     {
         // The schedule is held, not dropped: the host stops waking until it is shown. A tooltip still waiting to show is
-        // dropped: its pointer is not known when the host returns.
+        // dropped: its pointer is not known when the host returns. A hidden host paints nothing, so it keeps no retained
+        // text layout.
         DropPendingTooltipShowWhileHidden();
+        TextLayoutCacheAccess::Release(*this);
         OnFrameScheduleChanged();
     }
     else
@@ -4329,6 +4331,8 @@ try
         case WM_SIZE:
             handled = true;
             OnSize(static_cast<UINT>(LOWORD(lp)), static_cast<UINT>(HIWORD(lp)));
+            if (wp == SIZE_MINIMIZED)
+                TextLayoutCacheAccess::Release(*this); // a minimized window paints nothing and keeps no retained text layout
             if (wp == SIZE_MINIMIZED && ! _animationSuspendedWhileHidden)
             {
                 // A minimized host holds its schedule and does not wake until it is restored.
@@ -4368,6 +4372,7 @@ try
                 CancelPreparedContent();
                 CancelPreparedVisualContent();
                 DeactivateNativeTextInputSession();
+                TextLayoutCacheAccess::Release(*this); // a hidden window keeps no retained text layout
             }
             handled = false;
             return 0;
@@ -5767,6 +5772,8 @@ void ControlHost::DiscardDeviceResources() noexcept
     {
         PrepareForSwapChainResize();
     }
+    // Device loss, replacement and detach keep no retained text layout: the next paint lays its strings out again.
+    TextLayoutCacheAccess::Release(*this);
     ReleaseBrushes();
     _brushFailureLogKeys.clear();
     _fallbackBrush.reset();
@@ -5807,6 +5814,201 @@ void ControlHost::TrimCaches() noexcept
     ++_paintFrame;
     _transitionBrushesUsed = 0u;
 }
+
+void TextLayoutCacheAccess::Draw(ControlHost& host,
+                                 ID2D1RenderTarget* target,
+                                 std::wstring_view text,
+                                 IDWriteTextFormat* format,
+                                 const D2D1_RECT_F& rect,
+                                 ID2D1Brush* brush,
+                                 D2D1_DRAW_TEXT_OPTIONS options) noexcept
+{
+    if (! target || ! format || ! brush)
+        return;
+    const auto drawText = [&]() noexcept
+    { CountedDrawText(target, text.data(), static_cast<UINT32>(text.size()), format, rect, brush, options, DWRITE_MEASURING_MODE_NATURAL); };
+    if (host._debugTextLayoutCacheDisabled)
+    {
+        ++Detail::Work().text.textLayoutCacheBypasses;
+        drawText();
+        return;
+    }
+    // DrawText of an empty string draws nothing (the equivalence oracle compares it).
+    if (text.empty())
+        return;
+    const float width             = rect.right - rect.left;
+    const float height            = rect.bottom - rect.top;
+    IDWriteFactory* const factory = host._dwriteFactory.get();
+    if (host._textLayoutPaintDepth == 0u || ! factory || text.size() > kMaxRetainedTextLayoutUnits || ! (width > 0.0f) || ! (height > 0.0f) ||
+        ! std::isfinite(width) || ! std::isfinite(height))
+    {
+        ++Detail::Work().text.textLayoutCacheBypasses;
+        drawText();
+        return;
+    }
+    try
+    {
+        const uint64_t generation = host._textLayoutPaintGeneration;
+        // The format enters the hash by what it lays out with, never by its address, so placement repeats from run to run;
+        // strings drawn in several formats at one box then spread over sets instead of overflowing one.
+        const uint64_t formatKey = (uint64_t(std::bit_cast<uint32_t>(format->GetFontSize())) << 32u) ^ (uint64_t(format->GetFontWeight()) << 16u) ^
+                                   (uint64_t(format->GetFontStyle()) << 12u) ^ (uint64_t(format->GetFontStretch()) << 8u) ^
+                                   (uint64_t(format->GetTextAlignment()) << 6u) ^ (uint64_t(format->GetParagraphAlignment()) << 4u) ^
+                                   (uint64_t(format->GetWordWrapping()) << 1u) ^ uint64_t(format->GetReadingDirection()) * 0x9E37u;
+        const uint64_t keyHash   = HashTextLayoutKey(text, width, height, formatKey);
+        bool hit                 = false;
+        auto& entry              = FindTextLayoutEntry(host._textLayoutCache,
+                                                       keyHash,
+                                                       generation,
+                                                       kTextLayoutCacheInitialEntries,
+                                                       host._debugTextLayoutCacheLimit != 0u ? host._debugTextLayoutCacheLimit : kTextLayoutCacheMaxEntries,
+                                                       [&](const ControlHost::RetainedTextLayout& candidate)
+        { return candidate.format.get() == format && candidate.width == width && candidate.height == height && candidate.text == text; },
+                                          hit);
+        if (hit)
+        {
+            ++Detail::Work().text.textLayoutCacheHits;
+            entry.lastUse = generation;
+            target->DrawTextLayout(D2D1::Point2F(rect.left, rect.top), entry.layout.get(), brush, options);
+            return;
+        }
+        // At the bound a full set offers the least recently used way; when this paint drew every way, evicting one would
+        // lay its string out again later in the paint, so the string is drawn without retention instead.
+        if (entry.layout && entry.lastUse == generation)
+        {
+            ++Detail::Work().text.textLayoutCacheOverflows;
+            drawText();
+            return;
+        }
+        wil::com_ptr<IDWriteTextLayout> layout;
+        if (FAILED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.put())) || ! layout)
+        {
+            ++Detail::Work().text.textLayoutCacheBypasses;
+            drawText();
+            return;
+        }
+        ReserveTextStorage(entry.text, text.size());
+        entry.text.assign(text);
+        entry.format  = format;
+        entry.layout  = std::move(layout);
+        entry.keyHash = keyHash;
+        entry.lastUse = generation;
+        entry.width   = width;
+        entry.height  = height;
+        ++Detail::Work().text.textLayoutCacheMisses;
+        target->DrawTextLayout(D2D1::Point2F(rect.left, rect.top), entry.layout.get(), brush, options);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    catch (const std::exception&)
+    {
+        Failure::FailUnexpected();
+    }
+}
+
+void TextLayoutCacheAccess::BeginPaint(ControlHost& host) noexcept
+{
+    if (host._textLayoutPaintDepth++ != 0u)
+        return;
+    ++host._textLayoutPaintGeneration;
+    // A new typography revision (a new DirectWrite factory) retires every layout made under the old one.
+    if (host._textLayoutCacheTypography != host._typographyRevision)
+    {
+        Release(host);
+        host._textLayoutCacheTypography = host._typographyRevision;
+    }
+}
+
+void TextLayoutCacheAccess::EndPaint(ControlHost& host) noexcept
+{
+    if (host._textLayoutPaintDepth == 0u || --host._textLayoutPaintDepth != 0u)
+        return;
+    EndTextLayoutPaint(host._textLayoutCache,
+                       host._textLayoutPaintGeneration,
+                       kTextLayoutCacheInitialEntries,
+                       [](ControlHost::RetainedTextLayout& entry) noexcept
+    {
+        entry.layout.reset();
+        entry.format.reset();
+    });
+}
+
+void TextLayoutCacheAccess::Release(ControlHost& host) noexcept
+{
+    std::vector<ControlHost::RetainedTextLayout>().swap(host._textLayoutCache);
+}
+
+size_t TextLayoutCacheAccess::Entries(const ControlHost& host) noexcept
+{
+    return static_cast<size_t>(
+        std::ranges::count_if(host._textLayoutCache, [](const ControlHost::RetainedTextLayout& entry) { return entry.layout != nullptr; }));
+}
+
+uint64_t TextLayoutCacheAccess::ResidentBytes(const ControlHost& host) noexcept
+{
+    // The MSVC standard library keeps up to 7 UTF-16 units inside the string object. (Not HoldsTextStorage: an empty
+    // std::wstring allocates its debug iterator proxy, and a statistics query allocates nothing.)
+    constexpr size_t inlineCapacity = (16u / sizeof(wchar_t)) - 1u;
+    uint64_t bytes                  = uint64_t(host._textLayoutCache.capacity()) * sizeof(ControlHost::RetainedTextLayout);
+    for (const ControlHost::RetainedTextLayout& entry : host._textLayoutCache)
+        if (entry.text.capacity() > inlineCapacity)
+            bytes += uint64_t(entry.text.capacity() + 1u) * sizeof(wchar_t);
+    return bytes;
+}
+
+void DrawHostText(ControlHost& host,
+                  ID2D1RenderTarget* target,
+                  std::wstring_view text,
+                  IDWriteTextFormat* format,
+                  const D2D1_RECT_F& rect,
+                  ID2D1Brush* brush,
+                  D2D1_DRAW_TEXT_OPTIONS options) noexcept
+{
+    TextLayoutCacheAccess::Draw(host, target, text, format, rect, brush, options);
+}
+
+#if DXUI_ENABLE_DIAGNOSTICS
+void ControlHost::DebugSetTextLayoutCacheEnabledForTest(bool enabled) noexcept
+{
+    _debugTextLayoutCacheDisabled = ! enabled;
+}
+
+void ControlHost::DebugSetTextLayoutCacheLimitForTest(size_t maxEntries) noexcept
+{
+    // The table takes power-of-two sizes from 32 up.
+    _debugTextLayoutCacheLimit = maxEntries == 0u ? 0u : (std::max)(kTextLayoutCacheInitialEntries, std::bit_floor(maxEntries));
+}
+
+size_t ControlHost::DebugGetTextLayoutCacheEntries() const noexcept
+{
+    return TextLayoutCacheAccess::Entries(*this);
+}
+
+size_t ControlHost::DebugGetTextLayoutCacheCapacity() const noexcept
+{
+    return _textLayoutCache.size();
+}
+
+size_t ControlHost::DebugCountGlyphRunEligibleTextLayouts() const noexcept
+{
+    size_t eligible = 0u;
+    for (const RetainedTextLayout& entry : _textLayoutCache)
+    {
+        if (! entry.layout || ! entry.format || std::ranges::any_of(entry.text, [](wchar_t unit) { return IS_HIGH_SURROGATE(unit); }))
+            continue;
+        DWRITE_TRIMMING trimming{};
+        wil::com_ptr<IDWriteInlineObject> sign;
+        DWRITE_LINE_METRICS line{};
+        UINT32 lines = 0u;
+        if (SUCCEEDED(entry.format->GetTrimming(&trimming, sign.put())) && trimming.granularity == DWRITE_TRIMMING_GRANULARITY_NONE &&
+            SUCCEEDED(entry.layout->GetLineMetrics(&line, 1u, &lines)) && lines == 1u)
+            ++eligible;
+    }
+    return eligible;
+}
+#endif
 
 void ControlHost::RecreateBrushCache() const
 {
@@ -6078,6 +6280,8 @@ try
         const bool tracedPrepare = Detail::Trace::Listening();
         if (tracedPrepare) [[unlikely]]
             Detail::Trace::PrepareBegin(_trace);
+        // One generation of the retained text layouts; the strings this paint does not draw release theirs when it ends.
+        const TextLayoutPaintScope textLayoutPaint(*this);
         _d2dContext->BeginDraw();
         auto endDrawGuard = wil::scope_exit([&]
         {

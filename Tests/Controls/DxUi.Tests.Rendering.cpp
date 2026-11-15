@@ -4,6 +4,7 @@
 #include "Controls.Tests.IncrementalParity.h"
 #include "Controls.Tests.PerformanceFixtures.h"
 #include "Controls.Tests.PointerHit.h"
+#include "Controls.Tests.RetainedTextLayouts.h"
 #include "Controls.Tests.TextRenderingParams.h"
 #include "Controls.Tests.TraceProvider.h"
 #include "Controls.Tests.WorkCounters.h"
@@ -3275,6 +3276,9 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestTextRenderingDefaultSettingKeepsTodaysPixels);
     DXUI_RUN_TEST(TestTextRenderingEmbeddedComplexUiUnderEachSetting);
     DXUI_RUN_TEST(TestTextRenderingWindowHostRebindsOnDpiMonitorAndSettingChanges);
+    DXUI_RUN_TEST(TestTextRenderingRetainedLayoutsKeepComplexUiPixels);
+    DXUI_RUN_TEST(TestRetainedTextLayoutsDrawWhatDrawTextDraws);
+    DXUI_RUN_TEST(TestRetainedTextLayoutsKeyBoundAndLifetime);
     DXUI_RUN_TEST(TestEmbeddedGraphicsRetirementPreservesApplicationBindings);
     DXUI_RUN_TEST(TestGridMultilineClampPreservesCompleteModelText);
     DXUI_RUN_TEST(TestGridMultilineShortRowsPaintClippedFirstLine);

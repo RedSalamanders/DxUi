@@ -64,7 +64,7 @@ template <typename Map> [[nodiscard]] uint64_t UnorderedMapBytes(const Map& map)
 std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
 {
     {
-        static constexpr std::array<RetainedHostCacheRow, 5u> rows{{
+        static constexpr std::array<RetainedHostCacheRow, 6u> rows{{
             // ControlHost::_brushCache, its _transitionBrushes (W2.8) and _brushFailureLogKeys, the warnings already written.
             {"ControlHost._brushCache",
              [](const ControlHost& host) noexcept { return host._brushCache.size() + host._transitionBrushes.size(); },
@@ -81,6 +81,15 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
              [](const ControlHost& host) noexcept { return host._configuredTextFormats.size(); },
              [](ControlHost& host) noexcept { host._configuredTextFormats.clear(); },
              [](const ControlHost& host) noexcept { return UnorderedMapBytes(host._configuredTextFormats); }},
+            // ControlHost::_textLayoutCache, the retained layouts of the plain text the last paint drew (W2.1), with
+            // _textLayoutCacheTypography (the revision they were made under; the test seams _debugTextLayoutCacheLimit and
+            // _debugTextLayoutCacheDisabled hold no cache): live layouts; bytes are the table and its key strings only. DirectWrite
+            // keeps the layouts' own storage, about 18 KB of heap per short string (W2.1 receipt): 1,014 entries report about
+            // 147 KB here while the process holds about 18 MB of heap for them (see kTextLayoutCacheMaxEntries).
+            {"ControlHost._textLayoutCache",
+             [](const ControlHost& host) noexcept { return TextLayoutCacheAccess::Entries(host); },
+             [](ControlHost& host) noexcept { TextLayoutCacheAccess::Release(host); },
+             [](const ControlHost& host) noexcept { return TextLayoutCacheAccess::ResidentBytes(host); }},
             // TooltipLayer::_layoutCache of the host's tooltip layer.
             {"TooltipLayer._layoutCache",
              [](const ControlHost& host) noexcept { return Present(host._tooltipLayer._layoutCache.valid || host._tooltipLayer._layoutCache.layout); },

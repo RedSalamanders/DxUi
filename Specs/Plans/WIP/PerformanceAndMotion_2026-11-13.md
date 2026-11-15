@@ -512,7 +512,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
 Remove the biggest verified costs with the caches and helpers DxUi already has, without new architecture. Exit: every
 item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`, `G10` and `G11` met.
 
-- [ ] **W2.1 Retained text layouts.**
+- [x] **W2.1 Retained text layouts.**
   - **Why**: `DrawCenteredText` (`DxUi.Controls.cpp:1072-1095`, 61 callers) calls `DrawTextW`, which lays out the whole
     string on every call; plain `Label` returns early from preparation (`:2972-2976`) and paints the same way. `Label`
     measure creates a fresh layout and a heap line-metrics vector per call (`DxUi.Layout.cpp:99`, `:266`, `:291`), and

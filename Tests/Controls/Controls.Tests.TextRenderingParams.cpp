@@ -775,3 +775,64 @@ void TestTextRenderingWindowHostRebindsOnDpiMonitorAndSettingChanges()
             host.GetDeviceContext(), MonitorFromWindow(window.Hwnd(), MONITOR_DEFAULTTONEAREST), "the rebound parameters are the monitor's");
     });
 }
+
+// W2.1 on FX5: every host's frame drawn through DrawText (the seam), through the retained text layouts on the frame that
+// creates them, and on the next frame, which only retains them, is byte-identical, in both themes.
+void TestTextRenderingRetainedLayoutsKeepComplexUiPixels()
+{
+    for (const bool dark : {true, false})
+    {
+        for (const WindowHost::PresentationMode mode : {WindowHost::PresentationMode::HwndSwapChain, WindowHost::PresentationMode::CompositionSwapChain})
+            RunOnFreshThread([&]
+            {
+                ComplexUiWindowScene scene;
+                AttachedHostWindow window(mode, true);
+                WindowHost& host    = window.Host();
+                auto theme          = MakeDefaultThemePalette(dark);
+                theme.reducedMotion = true;
+                host.SetTheme(theme);
+                BuildComplexUiRoot(host, scene);
+                ResizeComplexUiWindow(window);
+                host.DebugSetTextLayoutCacheEnabledForTest(false);
+                const std::vector<uint8_t> drawText = CaptureFrameZero(host, scene);
+                host.DebugSetTextLayoutCacheEnabledForTest(true);
+                const Detail::WorkCounterScope creating;
+                const std::vector<uint8_t> created = CaptureFrameZero(host, scene);
+                Require(creating.Delta().text.textLayoutCacheMisses > 0u && host.DebugGetTextLayoutCacheEntries() > 0u,
+                        "the native FX5 frame creates and keeps its strings' layouts");
+                const Detail::WorkCounterScope retaining;
+                const std::vector<uint8_t> retained = CaptureFrameZero(host, scene);
+                const Detail::WorkCounters work     = retaining.Delta();
+                Require(work.text.textLayoutCacheMisses == 0u && work.resources.implicitTextLayout.created == 0u,
+                        "the next native FX5 frame draws every string from a retained layout");
+                Require(created == drawText && retained == drawText, "native FX5 frames with retained text layouts equal the frames drawn through DrawText");
+                std::cerr << std::format("    [W2.1] {} {}: identical with and without retained layouts (fnv1a64=0x{:016X})\n",
+                                         mode == WindowHost::PresentationMode::HwndSwapChain ? "hwnd" : "composition",
+                                         dark ? "dark" : "light",
+                                         HashPixels(retained));
+            });
+        GraphicsFixture gpu;
+        gpu.width  = kComplexUiWidthPx;
+        gpu.height = kComplexUiHeightPx;
+        RequireSucceeded(gpu.Create(), "ComplexUi embedded WARP device");
+        ComplexUiScene scene;
+        RequireSucceeded(scene.Initialize(gpu.device.get()), "ComplexUi embedded scene");
+        auto theme          = MakeDefaultThemePalette(dark);
+        theme.reducedMotion = true;
+        scene.view.Controls().SetTheme(theme);
+        Detail::WorkCounters work{};
+        scene.view.Controls().DebugSetTextLayoutCacheEnabledForTest(false);
+        const std::vector<uint8_t> drawText = PrepareEmbeddedFrame(gpu, scene, 0u, work);
+        scene.view.Controls().DebugSetTextLayoutCacheEnabledForTest(true);
+        scene.view.MarkDirty();
+        const std::vector<uint8_t> created = PrepareEmbeddedFrame(gpu, scene, 0u, work);
+        Require(work.text.textLayoutCacheMisses > 0u, "the embedded FX5 preparation creates its strings' layouts");
+        scene.view.MarkDirty();
+        const std::vector<uint8_t> retained = PrepareEmbeddedFrame(gpu, scene, 0u, work);
+        Require(work.text.textLayoutCacheMisses == 0u && work.resources.implicitTextLayout.created == 0u,
+                "the next embedded FX5 preparation draws every string from a retained layout");
+        Require(created == drawText && retained == drawText, "embedded FX5 frames with retained text layouts equal the frames drawn through DrawText");
+        std::cerr << std::format(
+            "    [W2.1] embedded {}: identical with and without retained layouts (fnv1a64=0x{:016X})\n", dark ? "dark" : "light", HashPixels(retained));
+    }
+}

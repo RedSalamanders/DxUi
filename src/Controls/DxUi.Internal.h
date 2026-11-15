@@ -462,6 +462,64 @@ void EndTextLayoutPaint(std::vector<Entry>& table, uint64_t generation, size_t i
         ResizeTextLayoutTable(table, table.size() / 2u, generation);
     }
 }
+
+// The host's retained layouts of the plain text its controls draw (ControlHost::_textLayoutCache, plan item W2.1), in the
+// table above, 32 entries growing to kTextLayoutCacheMaxEntries. A string is keyed by its whole text (compared on a hit,
+// which allocates nothing), its format (held) and the exact width and height of its box; a layout of that size drawn at
+// the box's origin with the caller's options draws what DrawText draws. A string longer than kMaxRetainedTextLayoutUnits,
+// an empty, negative or non-finite box, a draw outside a host paint, and a string meeting a full set at the bound (whose
+// ways this paint uses: none is evicted for it) are drawn through DrawText instead, and counted. Each host paint is one
+// generation: the entries it did not draw release their layouts when it ends, so the table holds the strings of the last
+// paint. A hidden, detached or device-replaced host and a new typography revision keep none.
+inline constexpr size_t kTextLayoutCacheInitialEntries = 32u;
+// The bound balances memory against layout work (W2.1 receipt, "Bound"). DirectWrite keeps about 18 KB of live heap per
+// retained short string (about 27 KB of private bytes with the heap's own retention), which the registry's byte count (the
+// table and its key strings) does not see, so 2,048 entries hold about 37 MB of heap (about 55 MB private) at most per
+// host, within the developer's envelope of about 50 MB at 2,048; the Grid's ceiling of 16,384 would allow about 290 MB. A table
+// takes power-of-two sizes and a set holds 32 ways, so 1,024 entries keep only about 950 of FX12's 1,014 distinct strings
+// and lay 67 out again every frame; 2,048 keep all of them, the densest real 1080p and 4K screen measured. Strings beyond
+// the bound are drawn through DrawText.
+inline constexpr size_t kTextLayoutCacheMaxEntries  = 2048u;
+inline constexpr size_t kMaxRetainedTextLayoutUnits = 4096u;
+struct TextLayoutCacheAccess final
+{
+    // DrawHostText: the retained layout of `text` in `format` at `rect`'s size, created on a miss, or DrawText.
+    static void Draw(ControlHost& host,
+                     ID2D1RenderTarget* target,
+                     std::wstring_view text,
+                     IDWriteTextFormat* format,
+                     const D2D1_RECT_F& rect,
+                     ID2D1Brush* brush,
+                     D2D1_DRAW_TEXT_OPTIONS options) noexcept;
+    // A host paint: nested paints share the outer one's generation.
+    static void BeginPaint(ControlHost& host) noexcept;
+    static void EndPaint(ControlHost& host) noexcept;
+    // Returns every layout, string and the table itself.
+    static void Release(ControlHost& host) noexcept;
+    [[nodiscard]] static size_t Entries(const ControlHost& host) noexcept;
+    // The table's own storage: its entries and their heap strings (DirectWrite keeps the layouts' storage).
+    [[nodiscard]] static uint64_t ResidentBytes(const ControlHost& host) noexcept;
+};
+// Brackets one host paint of the tree (native render, embedded preparation).
+class TextLayoutPaintScope final
+{
+public:
+    explicit TextLayoutPaintScope(ControlHost& host) noexcept : _host(host)
+    {
+        TextLayoutCacheAccess::BeginPaint(_host);
+    }
+    ~TextLayoutPaintScope()
+    {
+        TextLayoutCacheAccess::EndPaint(_host);
+    }
+    TextLayoutPaintScope(const TextLayoutPaintScope&)            = delete;
+    TextLayoutPaintScope& operator=(const TextLayoutPaintScope&) = delete;
+    TextLayoutPaintScope(TextLayoutPaintScope&&)                 = delete;
+    TextLayoutPaintScope& operator=(TextLayoutPaintScope&&)      = delete;
+
+private:
+    ControlHost& _host;
+};
 struct safearray_deleter
 {
     void operator()(SAFEARRAY* sa) const noexcept
@@ -802,6 +860,16 @@ private:
 {
     return progress > 0.0f && progress < 1.0f;
 }
+
+// Draws `text` in `format` into `rect` as DrawText would, with the host's retained layout of it when the host serves one
+// (TextLayoutCacheAccess): the layout drawn at the box's origin with the same options. An empty string draws nothing.
+void DrawHostText(ControlHost& host,
+                  ID2D1RenderTarget* target,
+                  std::wstring_view text,
+                  IDWriteTextFormat* format,
+                  const D2D1_RECT_F& rect,
+                  ID2D1Brush* brush,
+                  D2D1_DRAW_TEXT_OPTIONS options) noexcept;
 
 void DrawCenteredText(ControlHost& host,
                       std::wstring_view text,

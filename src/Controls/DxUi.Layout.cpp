@@ -4,6 +4,7 @@
 #include "Support/MeasureCache.Tests.Hooks.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <dwrite_1.h>
@@ -34,6 +35,34 @@ void ApplyMinimum(const LayoutConstraints& constraints, DesiredSize& result) noe
     result.sizeDip.height = (std::max)(result.sizeDip.height, constraints.minimumDip.height);
     result.overflow       = result.overflow || (constraints.maximumWidthDip && result.sizeDip.width > *constraints.maximumWidthDip) ||
                             (constraints.maximumHeightDip && result.sizeDip.height > *constraints.maximumHeightDip);
+}
+
+// The first line's metrics (its baseline is the measured baseline), with no heap allocation for up to kStackLineMetrics
+// lines; a layout with more lines reads them into a heap buffer, counted as text.lineMetricsHeapFallbacks.
+inline constexpr UINT32 kStackLineMetrics = 16u;
+[[nodiscard]] HRESULT ReadFirstLineMetrics(IDWriteTextLayout& layout, DWRITE_LINE_METRICS& first)
+{
+    std::array<DWRITE_LINE_METRICS, kStackLineMetrics> lines{};
+    UINT32 lineCount = 0u;
+    HRESULT hr       = layout.GetLineMetrics(lines.data(), kStackLineMetrics, &lineCount);
+    if (SUCCEEDED(hr))
+    {
+        if (lineCount == 0u)
+            return E_FAIL;
+        first = lines.front();
+        return S_OK;
+    }
+    if (hr != E_NOT_SUFFICIENT_BUFFER)
+        return hr;
+    if (lineCount == 0u || lineCount > kMaxIntrinsicTextUnits + 1u)
+        return E_FAIL;
+    ++Detail::Work().text.lineMetricsHeapFallbacks;
+    std::vector<DWRITE_LINE_METRICS> heap(lineCount);
+    hr = layout.GetLineMetrics(heap.data(), lineCount, &lineCount);
+    if (FAILED(hr))
+        return hr;
+    first = heap.front();
+    return S_OK;
 }
 
 // Measurement uses the same host formats as paint, but retains only numbers in its owning container. A missing
@@ -90,21 +119,15 @@ void ApplyMinimum(const LayoutConstraints& constraints, DesiredSize& result) noe
     hr = layout->GetMetrics(&metrics);
     if (FAILED(hr))
         return hr;
-    UINT32 lineCount = 0u;
-    hr               = layout->GetLineMetrics(nullptr, 0u, &lineCount);
-    if (FAILED(hr) && hr != E_NOT_SUFFICIENT_BUFFER)
-        return hr;
-    if (lineCount == 0u || lineCount > kMaxIntrinsicTextUnits + 1u)
-        return E_FAIL;
-    std::vector<DWRITE_LINE_METRICS> lines(lineCount);
-    hr = layout->GetLineMetrics(lines.data(), lineCount, &lineCount);
+    DWRITE_LINE_METRICS firstLine{};
+    hr = ReadFirstLineMetrics(*layout, firstLine);
     if (FAILED(hr))
         return hr;
     // A wrapped line's trailing space hangs past the width it wrapped to, so wrapped text is as wide as its ink; one line
     // keeps its trailing space, which separates it from what follows.
     const float textWidth = wrap ? metrics.width : metrics.widthIncludingTrailingWhitespace;
     result.sizeDip        = D2D1::SizeF((empty ? 0.0f : textWidth) + horizontalChrome, (std::max)(minimumHeight, metrics.height + verticalChrome));
-    result.baselineDip    = baselineInset + lines.front().baseline;
+    result.baselineDip    = baselineInset + firstLine.baseline;
     ApplyMinimum(constraints, result);
     return S_OK;
 }
@@ -559,18 +582,12 @@ HRESULT Label::MeasureOverride(const MeasureContext& context, const LayoutConstr
         hr = layout->GetMetrics(&metrics);
         if (FAILED(hr))
             return hr;
-        UINT32 lineCount{};
-        hr = layout->GetLineMetrics(nullptr, 0u, &lineCount);
-        if (FAILED(hr) && hr != E_NOT_SUFFICIENT_BUFFER)
-            return hr;
-        if (! lineCount || lineCount > kMaxIntrinsicTextUnits + 1u)
-            return E_FAIL;
-        std::vector<DWRITE_LINE_METRICS> lines(lineCount);
-        hr = layout->GetLineMetrics(lines.data(), lineCount, &lineCount);
+        DWRITE_LINE_METRICS firstLine{};
+        hr = ReadFirstLineMetrics(*layout, firstLine);
         if (FAILED(hr))
             return hr;
         result.sizeDip     = D2D1::SizeF((_text.empty() ? 0.0f : (_multiline ? metrics.width : metrics.widthIncludingTrailingWhitespace)), metrics.height);
-        result.baselineDip = lines.front().baseline;
+        result.baselineDip = firstLine.baseline;
         ApplyMinimum(constraints, result);
         return S_OK;
     }

@@ -292,7 +292,12 @@ snapshot, delta and receipt.
 - **Text.** `text.formatEvictions` counts the configured text formats `ControlHost::TrimCaches` evicted above the key
   bound, `text.formatCacheTrims` each trim that evicted one, and `text.formatCacheOverBound` each trim that left the
   map above its bound because every remaining entry was in use. No eviction prepares any control again
-  ([format and brush caches](#format-and-brush-caches)).
+  ([format and brush caches](#format-and-brush-caches)). The host's [retained text layouts](#retained-text-layouts) count each string drawn from a
+  retained layout (`text.textLayoutCacheHits`), each layout the table created and kept (`text.textLayoutCacheMisses`; also
+  a `resources.textLayout` creation), each string drawn through `DrawText` because the table could not serve it
+  (`text.textLayoutCacheBypasses`) and each one drawn through `DrawText` at the table's bound
+  (`text.textLayoutCacheOverflows`). `text.lineMetricsHeapFallbacks` counts text measurements with more lines than the
+  16-line stack buffer of line metrics.
 - **Lists.** A `Tree` counts each model row it reads outside `Paint` (`treeItemReads`; `ITreeModel`'s default
   `FindVisibleItemById` scan counts its reads too), each `FindVisibleItemById` it asks of its model (`treeModelLookups`),
   each build of its [id index](../UI/UI_ControlsAndLayout.md#tree-item-lookup-and-model-notifications)
@@ -412,6 +417,13 @@ character typed with the popup open or closed, every repaint of the 100-row popu
 create no measuring layout ([controls and layout](../UI/UI_ControlsAndLayout.md#combobox-popup-layout)). The receipt is
 retained under
 [Measurements/PerformanceAndMotion_2026-11-13/W2.2](../../Measurements/PerformanceAndMotion_2026-11-13/W2.2/README.md).
+
+Retained text layout gate (`FX5`, `DxUi.EmbeddedTests.exe --test-retained-text-layouts`, also run by the Embedded suite;
+[retained text layouts](#retained-text-layouts)): every frame of the fixture's hover phase creates 0 text layouts,
+explicit or inside `DrawText` (`G11`); after every step the host's table holds no more entries than the strings its last
+paint drew; the first frame creates its layouts in preparation while its composition creates nothing and makes no C++
+allocation; and each of FX5's labels measures with 0 C++ allocations. The receipt is retained under
+[Measurements/PerformanceAndMotion_2026-11-13/W2.1](../../Measurements/PerformanceAndMotion_2026-11-13/W2.1/README.md).
 
 ## Trace provider
 
@@ -1000,6 +1012,56 @@ another model, it keeps none. Layouts beyond the cells of the last paint, any la
 painting, and any rise in the painting path's allocations remain regressions that need developer advice. The
 accepted retention is bounded by the cells on screen, not by the model's size.
 
+### Retained text layouts
+
+Plain text that a control draws through its host (`DrawCenteredText` and the host-aware replacements of `DrawText`:
+`Button`'s selector chrome, `ThroughputGraph`'s labels, a `Tree` row with a typography override and a single-line field
+without its own layout) is drawn with a layout the host retains, not through `DrawText`, which lays its string out on
+every call (plan item `W2.1`). The public `DrawButtonChrome`, which has no host, still draws through `DrawText`. The host
+keeps one table (`ControlHost::_textLayoutCache`, a registered retained cache) in the set-associative form of the Grid's
+cell tables above (32 ways a set; 32 entries growing to 2,048, `kTextLayoutCacheMaxEntries`). An entry is keyed by the whole string (hashed to choose
+its set, compared in full on a hit, which allocates nothing), its text format (held by the entry, so a released format's
+address can never match) and the exact width and height of the box. Its layout is created with that format at that size
+and drawn at the box's origin with the caller's draw options; that draws exactly what `DrawText` draws.
+
+Each host paint (a native render, an embedded preparation) is one generation. When it ends, every entry it did not draw
+releases its layout and format and keeps only its string storage for later keys, so the table holds the strings of the
+last paint and never more. A paint that meets a full set at the bound draws the string through `DrawText` rather than
+evict a layout the same paint drew (`text.textLayoutCacheOverflows`), so no paint creates a layout twice. Not retained,
+and drawn through `DrawText` as before (`text.textLayoutCacheBypasses`): a draw outside a host paint, a box whose width or
+height is not positive and finite, and a string over 4,096 UTF-16 units; an empty string draws nothing. A hidden,
+minimized, zero-sized or detached host and a device loss or replacement release the whole table; a new typography
+revision (a new DirectWrite factory) releases it at the next paint; a DPI change keeps it, since layouts are in DIPs. On
+an embedded view a string new to the table is laid out during preparation; composition only composites the surface.
+
+The equivalence oracle (`TestRetainedTextLayoutsDrawWhatDrawTextDraws`) draws 1,728 cases through `DrawText` (the
+`DebugSetTextLayoutCacheEnabledForTest` seam) and through the table, on the frame that creates the layouts and on the
+next, and requires identical BGRA on WARP at 96, 120, 144, 168 and 192 DPI on an embedded view and at the system DPI on a
+native window: 12 strings (among them an empty one, tabs, ampersands, colour emoji, CJK, combining marks, Arabic and hard
+line breaks), 8 boxes (whole and fractional origins and sizes, boxes narrower and shorter than their text, zero and
+negative sizes), every alignment and paragraph alignment, wrapping, both reading directions, `DrawCenteredText`,
+clip-only options and a rotated transform. The FX5 frames of the HWND, composition and embedded hosts are byte-identical
+with and without the table in both themes.
+
+A retained layout is resident memory that `DrawText` freed after each call: one DirectWrite layout per distinct string
+of the last paint: about 18 KB of live heap for a short string (17.8 KB to 18.0 KB per layout returned when FX12's table is
+released), about 27 KB of private bytes with the heap's own retention. The registry row reports only the table's entries
+and its own bytes (the entries and their key strings, about 147 KB for 1,014 entries); the layouts' storage is
+DirectWrite's, about 18 MB of heap for those entries, which the
+[W2.1 receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W2.1/README.md) measures.
+
+That cost sets the bound, chosen from the receipt's balance of memory against layout work within the developer's
+envelope (2,048 entries at about 50 MB accepted). It is the smallest table that keeps every string of the densest
+fixtures that fit a real screen, so an unchanged frame lays nothing out: FX12's 1080p and 4K dense screens draw 1,014
+distinct strings, which a 1,024-entry table (32 sets of 32 ways) holds only about 950 of, laying 67 out again every frame;
+2,048 entries hold all of them. A host therefore keeps at most about 37 MB of heap (about 55 MB private) for its retained
+layouts; the Grid's ceiling of 16,384 would allow about 290 MB. A screen beyond the bound draws its overflow through
+`DrawText` each frame (the 10,000-row form, `form-layout-10k`, lays out 374 of its 9,000 strings per frame at 2,048
+entries, against 9,000 without the table). The table holds only what the last paint drew, so a sparse screen holds little:
+FX13 21 layouts (about 0.4 MB), FX5 34 (about 0.65 MB), FX1 none. The table is released when its host hides, minimizes,
+loses or replaces its device or detaches; releasing it when a visible host goes idle is planned with `W9.2`. Text measurement reads the first line's metrics into a 16-line stack buffer, so a `Label`
+measure makes no C++ allocation; text with more lines reads them into a heap buffer (`text.lineMetricsHeapFallbacks`).
+
 ### I19 accepted resource trade-off
 
 On 2026-09-13 the user accepted the measured static-library adoption trade-off and
@@ -1342,7 +1404,7 @@ against older libraries: every Embedded run writes the WARP receipt of each buil
 `.build/test-artifacts/performance-fixtures/`, `performance-fixtures.ps1` writes retained receipts, and
 `DxUi.EmbeddedTests.exe --memory-receipt <report.json>` or `--memory-receipt-hardware <report.json>` writes the FX5 receipt
 on demand, the latter on the default hardware adapter. Samples are untimed, each after an immediate-context flush: device,
-built, after each phase (for FX5: 20 warm, 40 clean and 40 dirty frames) and hidden; the last phase sample is the shown
+built, after each phase (for FX5: 20 warm, 40 clean, 40 dirty and 20 hover frames) and hidden; the last phase sample is the shown
 state. (The first FX5 receipt, `dxui-complex-ui-memory-v1` under W0.3, sampled 200 scrolling frames instead.)
 Counted fields are exact and deterministic on one build; private bytes and working set remain advisory bands and never
 become pass/fail gates.

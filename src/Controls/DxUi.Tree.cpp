@@ -295,14 +295,7 @@ void DrawTreeRow(ControlHost& host,
         if (dc && format)
         {
             if (auto* brush = host.GetSolidBrush(textColor))
-                CountedDrawText(dc,
-                                item.text.data(),
-                                static_cast<UINT32>(item.text.size()),
-                                format,
-                                layout.textRect,
-                                brush,
-                                kTextDrawOptions,
-                                DWRITE_MEASURING_MODE_NATURAL);
+                DrawHostText(host, dc, item.text, format, layout.textRect, brush, kTextDrawOptions);
         }
     }
     else
