@@ -993,7 +993,8 @@ public:
                    std::vector<MarkdownEmptyLine>& emptyLines,
                    MarkdownExtensions extensions,
                    std::optional<MarkdownSourceRegion> sourceRegion = std::nullopt,
-                   bool emptyInlineRegion                           = false)
+                   bool emptyInlineRegion                           = false,
+                   bool reserveLines                                = true)
         : source_(source),
           nodes_(nodes),
           emptyLines_(emptyLines),
@@ -1006,22 +1007,29 @@ public:
           sourceProfile_(profile),
           extensions_(extensions)
     {
-        // Admission/copy already scans the bounded source. Reserve a physical-
-        // line upper bound once so old/new publications cannot incur geometric
-        // empty-line vector growth peaks during replacement. CRLF counts once.
-        std::size_t physicalLines = 1u;
-        for (std::size_t i = 0u; i < source.size(); ++i)
-            if (source[i] == L'\r' || source[i] == L'\n')
-            {
-                ++physicalLines;
-                if (source[i] == L'\r' && i + 1u < source.size() && source[i + 1u] == L'\n')
-                    ++i;
-            }
-        emptyLines_.reserve(physicalLines);
+        // Reserve a physical-line upper bound once so old/new publications cannot
+        // incur geometric empty-line vector growth peaks during replacement. CRLF
+        // counts once. An incremental parser supplies the count instead (W7.2).
+        if (reserveLines)
+        {
+            std::size_t physicalLines = 1u;
+            for (std::size_t i = 0u; i < source.size(); ++i)
+                if (source[i] == L'\r' || source[i] == L'\n')
+                {
+                    ++physicalLines;
+                    if (source[i] == L'\r' && i + 1u < source.size() && source[i + 1u] == L'\n')
+                        ++i;
+                }
+            emptyLines_.reserve(physicalLines);
+        }
         Add(Kind::Document, MarkdownNoNode);
         nodes_[0].block.source  = {0u, source.size()};
         nodes_[0].block.content = nodes_[0].block.source;
         open_.push_back(0u);
+    }
+    void ReserveEmptyLines(std::size_t physicalLines)
+    {
+        emptyLines_.reserve(physicalLines);
     }
     bool CanImportClosedRoot() const noexcept
     {
@@ -1072,6 +1080,18 @@ public:
                                currentFirst + (old.insertion - oldFirst),
                                owner,
                                old.indent});
+    }
+    // W7.2: a document-level blank line copied from the previous parse while nothing is open, exactly as Line records
+    // it (owner document, the whole physical line, insertion before its line ending) without scanning it.
+    void ImportDocumentBlankLine(const MarkdownEmptyLine& old, std::size_t oldFirst, std::size_t currentFirst)
+    {
+        const auto shift = [&](std::size_t at) noexcept { return currentFirst + (at - oldFirst); };
+        lineFirst_       = shift(old.source.first);
+        lineEnd_         = shift(old.source.last);
+        lastOtherMarker_.fill(MarkdownNoNode);
+        emptyLines_.push_back({{lineFirst_, lineEnd_}, shift(old.insertion), 0u, containerIndent_});
+        blank_[0] = true;
+        Extend();
     }
     void FinishClosedRoot(std::size_t end) noexcept
     {

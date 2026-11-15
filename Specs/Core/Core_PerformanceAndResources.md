@@ -113,8 +113,15 @@ units), one staged result and one published result per parser. Advance has an
 operation budget; source validation/copy/comparison and allocator work are not
 hard wall-clock bounds. Block transitions inspect one bounded physical line;
 reference finalization, block-tree compaction, construct lookahead, emphasis resolution and sorting are
-indivisible bounded work. Each revision reparses block/inline dependencies before identity reconciliation; this is not
-incremental block reuse. Lexical reference recognition examines at most
+indivisible bounded work. An incremental revision (plan item W7.2, rules in [controls and
+layout](../UI/UI_ControlsAndLayout.md)) scans block lines, lexemes and inline leaves only from the enclosing top-level
+block to the next stable cut, imports unchanged top-level subtrees and their inline forests, and validates front matter
+only when its envelope may have changed. Imports are copies with shifted absolute ranges, so node, inline, lexeme,
+root and identity passes still visit every published record once per revision, and the owned source is one complete
+copy (prefix and suffix from the previous publication, the edit window from the piece tree). Work counters
+`rich.markdownBlockUnitsScanned`, `rich.markdownLexicalUnitsScanned`, `rich.markdownInlineUnitsScanned`,
+`rich.markdownFrontMatterValidations` and their copy counterparts record it; on `FX8` each scan of a one-character
+insert stays within the enclosing block plus the next. Lexical reference recognition examines at most
 33 source units per candidate and uses a fixed sorted standard-data table.
 Native tests bound scanner/root/index/reconciliation steps by
 16 * (current source units + previous source units) + 32. M3 adds global-reference,

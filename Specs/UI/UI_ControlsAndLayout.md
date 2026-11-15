@@ -1598,9 +1598,51 @@ the named work, not complete parser CPU or a latency guarantee.
 
 DocumentIdentity scopes nonzero node identities to one parser lifetime until
 Clear; move transfers that scope, and reuse of the moved-from parser creates a
-new one. Revisions retain immutable old trees. Reparse the entire bounded block
-source before reconciling identities; the older projection's line-local widening
-is unsafe for fences/containers/references. Prefer Begin(SourceSnapshot, ...):
+new one. Revisions retain immutable old trees. The older projection's line-local
+widening is unsafe for fences/containers/references; an incremental parse instead
+reuses only what the stable-cut rules below prove unchanged, and its publication
+MUST equal a fresh parse of the same text in every published field (blocks, nodes,
+lines, empty lines, lexemes, inlines with their resolution, diagnostics, footnotes
+and capacity refusal); only node identities differ by lineage.
+
+Incremental parse reuse (plan item W7.2). A parse with a compatible previous
+publication (same profile and extensions, no source-region request on either,
+an unchanged-prefix/suffix correlation that does not discard identities) scans
+from the start of the top-level block enclosing the edit to the next stable cut.
+A stable cut is the start of a top-level block where, in the new parse, only the
+document is open (no open container, leaf or table row), the position lies wholly
+before the edit with an unchanged document-owned blank line after the old block,
+or wholly after it at the shifted start of an old closed non-empty top-level
+block, and the document-start context is unchanged. That block's whole subtree is
+then imported: its nodes, lines and owned empty lines are copied with their
+source ranges shifted by the edit delta; a document-level blank line at such a
+position is copied the same way. A line before the edit counts as unchanged only
+when its line ending also precedes the edit (a final line without one, or a CR an
+LF could join, is parsed again). A subtree whose code, HTML or envelope leaf
+reaches the end of a source that ends in a line break is not imported when the
+previous parse finished with that leaf open. The edit window is the trusted
+correlation envelope with unchanged edge units trimmed, and the lexical margins
+stop at a line break. Lazy continuation, setext underlines,
+lists and block quotes that absorb the next line, open fences, unterminated HTML
+blocks and table rows all keep a container or leaf open, so they widen the window
+to the next cut; a top-level block containing a link reference definition is
+never imported. A closed front-matter envelope before the edit is a cut without a
+following blank line when its closing line, line ending included, precedes the
+edit. Each imported leaf (paragraph, heading, table cell) and opaque HTML block
+copies its inline forest, shifted, unless the document's effective link
+reference definitions (first definition per normalized label) differ from the
+previous parse, in which case every leaf is parsed again and counted, or the old
+forest holds a footnote reference. Imported nodes keep their previous identities;
+only nodes outside the imported subtrees enter identity reconciliation. A closed
+front-matter envelope imported unchanged carries its previous validation result
+and is not validated again; creating, editing, unclosing or destroying the
+envelope validates it. Node-capacity admission counts a copied leaf's previous
+staging, so the incremental and fresh parses refuse the same documents. The owned
+source copy takes the unchanged prefix and suffix from the previous publication
+and reads only the edit window from the snapshot's piece tree. Reused nodes are
+copied, not shared: each publication still holds dense absolute-range vectors.
+
+Prefer Begin(SourceSnapshot, ...):
 tracked source ancestry distinguishes equal paragraphs and pending sibling edits.
 Trusted unchanged/tracked/full-replacement snapshot metadata MUST be honored
 before reading source units for common-prefix/suffix correlation. A full

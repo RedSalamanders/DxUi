@@ -76,6 +76,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.IncrementalParity.h"
 #include "Embedded.Tests.InteractionLayout.h"
 #include "Embedded.Tests.LocalizedLayout.h"
+#include "Embedded.Tests.MarkdownParseReuse.h"
 #include "Embedded.Tests.MemoryMetrics.h"
 #include "Embedded.Tests.PerformanceFixtures.h"
 #include "Embedded.Tests.PerformanceGridDataPaths.h"
@@ -1966,6 +1967,7 @@ __declspec(noinline) static int RunFunctionalTests()
         SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
         PerformanceFixtures::TestTooltipDeadlineGatesOnFx14();
         RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
+        MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
         return 0;
     }
     // Plan W2.9 alone: the pointer hit result gates, differential and lifetime on WARP.
@@ -1978,6 +1980,13 @@ __declspec(noinline) static int RunFunctionalTests()
         EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);
         EmbeddedPointerHit::TestPointerHitEmbeddedResultNeverOutlivesItsControl(gpu);
         EmbeddedPointerHit::TestPointerHitEmbeddedEverySiteMovesTheRevision(gpu);
+        return 0;
+    }
+    // Plan W7.2 alone: the FX8 parse gates (parser per insert kind, then the fixture through the editor).
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-parse-reuse")
+    {
+        MarkdownParseReuseFx8::TestFx8ParserInsertKinds();
+        MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
         return 0;
     }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-closed-roots")
@@ -2214,6 +2223,8 @@ __declspec(noinline) static int RunFunctionalTests()
     RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
     RichReuseAcrossEditsEmbedded::TestEmbeddedCarryAcrossDeviceReplacement(gpu);
     RichReuseAcrossEditsEmbedded::TestRichObjectsOracleCatchesAWrongCarry(gpu);
+    MarkdownParseReuseFx8::TestFx8ParserInsertKinds();
+    MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
     ComboBoxPopupLayoutTests::Run(gpu);
     TextFieldPaintTests::Run(gpu);
     EmbeddedPointerHit::TestPointerHitFx14AndFx2HitTestOncePerMove();

@@ -101,13 +101,25 @@
     X(rich, hoverScanElements)   /* Semantic elements a pointer-hover lookup tested one by one; the prepared hover index adds none. */                         \
     X(rich, identityMapNodes)    /* Nodes or boxes inserted into an identity map to pair an old revision with a new one; block-range pairing adds none. */     \
     X(rich, imageUploadBytes)    /* Pixel bytes rich-image preparation uploaded into Direct2D bitmaps (creation with pixels or CopyFromMemory). */             \
-    X(rich, mathPreparations)    /* Prepared math formulas built (beside the testRichMathPreparations seam). */                                                \
-    X(rich, otherDocumentBytesCopied) /* Bytes copied out of any other RichText::Document (code-fence line numbers, labels, scratch documents). */             \
-    X(rich, otherDocumentFlattens)    /* Copies of such a whole non-empty other Document (a subset of otherDocumentBytesCopied). */                            \
-    X(rich, preparationTurns)         /* RichTextEditor::PrepareContent calls: owner turns of cooperative rich-content preparation. */                         \
-    X(rich, semanticBlocksReused)     /* Top-level semantic blocks a SemanticBuilder copied from its previous publication instead of building. */              \
-    X(rich, semanticBytesCopied)      /* Bytes a semantic build copied from reused blocks: display text, elements with their strings, paragraphs, spans, runs, \
-                                         headings, records and source formats. */                                                                              \
+    X(rich, markdownBlockUnitsScanned) /* Source units the Markdown block scanner stepped over; closed roots imported from the previous parse add none. */     \
+    X(rich, markdownFrontMatterValidations)       /* YAML or TOML front-matter validations a Markdown parse ran. */                                            \
+    X(rich, markdownFrontMatterValidationsReused) /* Front-matter results a Markdown parse carried from its previous parse (unchanged envelope). */            \
+    X(rich, markdownInlineFullReparses)  /* Markdown parses with a previous parse that rebuilt every leaf's inlines (reference definitions changed). */        \
+    X(rich, markdownInlineLeavesCopied)  /* Leaves and opaque HTML blocks whose inline forest a Markdown parse copied, shifted, from its previous parse. */    \
+    X(rich, markdownInlineLeavesParsed)  /* Leaves and opaque HTML blocks whose inlines a Markdown parse built from source. */                                 \
+    X(rich, markdownInlineUnitsScanned)  /* Source units inline parsing read to build parsed leaves and opaque HTML blocks; copied leaves add none. */         \
+    X(rich, markdownLexicalUnitsScanned) /* Source units the Markdown lexical scanner stepped over; prefix and suffix tokens copied add none. */               \
+    X(rich, markdownNodesCopied)         /* Block and inline nodes a Markdown parse copied, shifted, from its previous parse. */                               \
+    X(rich, markdownParses)              /* Markdown parse preparations staged (MarkdownParser::Begin and its variants that did not coalesce). */              \
+    X(rich, markdownSourceUnitsCopied)   /* UTF-16 units written into a Markdown parse's owned source copy. */                                                 \
+    X(rich, markdownSourceUnitsMaterialized) /* Of those, units read out of the document's piece tree rather than the previous parse's source. */              \
+    X(rich, mathPreparations)                /* Prepared math formulas built (beside the testRichMathPreparations seam). */                                    \
+    X(rich, otherDocumentBytesCopied)        /* Bytes copied out of any other RichText::Document (code-fence line numbers, labels, scratch documents). */      \
+    X(rich, otherDocumentFlattens)           /* Copies of such a whole non-empty other Document (a subset of otherDocumentBytesCopied). */                     \
+    X(rich, preparationTurns)                /* RichTextEditor::PrepareContent calls: owner turns of cooperative rich-content preparation. */                  \
+    X(rich, semanticBlocksReused)            /* Top-level semantic blocks a SemanticBuilder copied from its previous publication instead of building. */       \
+    X(rich, semanticBytesCopied) /* Bytes a semantic build copied from reused blocks: display text, elements with their strings, paragraphs, spans, runs,      \
+                                    headings, records and source formats. */                                                                                   \
     X(rich, semanticDisplayUnitsCopied)     /* Display UTF-16 units copied, with their spans and runs, from reused semantic blocks. */                         \
     X(rich, semanticElementsCopied)         /* Semantic elements copied (shifted) from reused blocks. */                                                       \
     X(rich, semanticFullBuildAbbreviations) /* Full semantic builds because abbreviation definitions exist or were edited. */                                  \

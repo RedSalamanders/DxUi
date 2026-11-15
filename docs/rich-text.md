@@ -1277,8 +1277,14 @@ until Clear and reconciled under compatible parent identities. Generated missing
 table cells may share empty ranges; each consumes one prior identity in traversal
 order, retaining distinct IDs across unrelated edits and undo/redo. String Begin uses
 common-prefix/suffix mapping; deleted/reclassified/reparented nodes may acquire
-new IDs, and no unbounded syntax history is retained. Blocks are reparsed across
-the bounded source before reconciliation. Per-line transitions, paragraph
+new IDs, and no unbounded syntax history is retained. An edit reparses from the
+top-level block that encloses it (unchanged blocks before it count only when an
+unchanged blank line or a closed front-matter fence ends them) to the first
+unchanged top-level block the new parse reaches with no container, paragraph,
+fence or table still open; unchanged top-level blocks are copied with their inline content and identities, and front
+matter is validated again only when its envelope may have changed. The result is
+always identical to parsing the new text from scratch; a change to the link
+reference definitions reparses every paragraph's inlines. Per-line transitions, paragraph
 finalization and tree compaction remain indivisible; step budgets are not hard
 latency guarantees.
 `BlockStatistics()` reports deterministic prefix inspection and container closure

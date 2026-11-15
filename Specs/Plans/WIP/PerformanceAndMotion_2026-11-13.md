@@ -1351,7 +1351,7 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
     multimap nodes 0; map bytes at the cap ≤ display text plus spans; seeded edit fuzz equal to a fresh build.
   - **Needs**: `W0.1`, `W0.5`. **Size**: L.
 
-- [ ] **W7.2 Incremental parse reuse.**
+- [x] **W7.2 Incremental parse reuse.**
   - **Why**: each parse builds a new `MarkdownSyntax` owning a full source copy (`DxUi.MarkdownSyntax.cpp:135`) with
     only lexical prefix/suffix reuse (`:392-408`) and revalidates front matter wherever the edit is (YAML `:446-449`,
     TOML `:436-439`). How much block and inline parsing is whole-document beyond that reuse is not verified.
