@@ -1,6 +1,6 @@
 # Active plans
 
-- **ACTIVE**: [API 4 consumer background-process capture](Api4ConsumerProcessCapture_2026-11-15.md). Tooling-only backport based on exact API 4 pin `4cdf1ce52c7785446698e346b8aec058ed6a9283`; standalone PS5.1/7 capture and producer-owned restore launch sites are implemented. Draft maintenance PR 256 is published; its first candidate failed compiler-free qualification and paired preflight before measurement. Historical focused controls pass, while the measured-input, common-build-overlay, workflow-guard and setup-diagnostic follow-up requires fresh qualification. Producer acceptance and separate RedSalamander adoption remain pending. The separate version 6 integration guide records carry-forward work without implementing that port.
+- **ACTIVE**: [API 4 consumer background-process capture](Api4ConsumerProcessCapture_2026-11-15.md). Independent API4 policy approval/local seed P and staged P-into-H5 integration are recorded. The reviewed bounded material-menu owner precondition/diagnostics are applied locally after H5 ARM64 Debug failure; source-bound H5 evidence and fresh exact-H6 native/consumer/paired qualification remain separate and pending. No remote/pin advancement or version6 authority transfer is claimed.
 
 - **ACTIVE**: [Native build policy, terminal results and short DxUi paths](NativeBuildPolicyCoherence_2026-10-28.md). Shared /Wall without /WX, zero-warning validation, Debug/ASan symbols, Release-only ICF, terminal results and verified short dependency folders.
 

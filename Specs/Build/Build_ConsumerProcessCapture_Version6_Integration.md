@@ -218,6 +218,14 @@ The review/qualification packet must retain these controls and their limits:
 
 ## Integrate with version6 qualification and delivery
 
+The API4 initial policy qualification and its owner record are scoped to the
+reviewed API4 study and one-time metadata transition. Do not copy the qualified
+policy state, approval fields or owner record into the cooking API5/version6
+destination as authority. Review the destination's own measured base, policy,
+judge, harness, runner/toolchain and complete calibration under its current
+performance contract; obtain any required independent owner decision there.
+The API4 approval and later API4 native/paired results do not qualify that destination.
+
 - Update the destination's owning build spec, helper catalog/help, active plan,
   change fragment, tooling registration and required dependency closure. A fixture
   that copies VisualStudio must include its co-versioned ConsumerBuild dependency.

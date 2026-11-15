@@ -575,6 +575,16 @@ noninteractive WindowHost regression covers that case. Modal context-menu fixtur
 before opening. Desktop availability alone establishes no foreground grant, and failure to acquire it still fails
 qualification. Production deactivation/dismissal behavior, skip rules and local desktop consent remain unchanged.
 
+The modal menu-material capture fixture applies that same owner-foreground precondition once for each owned
+fixture, after preparation and before its single driver and `ContextMenu::Show` start. Refusal fails the case.
+Its Mica, Mica Alt and Acrylic captures retain one discovered popup identity, the existing 5000 ms bitmap-readiness
+bound, and all geometry and material-difference assertions. Bounded test-local traces distinguish UI-thread owner
+and dismissal observations from driver observations; full rows print only on failure. Capture failure records
+whether `Show` returned and scalar popup lifetime, visibility, exact-owner and same-process observations. It does
+not publish native identities, retry or reacquire a popup, excuse a same-process activation defect, or infer an
+unavailable graphics HRESULT or external actor. Establishing the existing precondition does not prove the cause
+of an earlier capture failure; fresh exact-source native qualification remains required.
+
 `DxUi.ControlTests.exe --foreground-thief[=<minMs>,<maxMs>]` (default 30,95) reproduces the desktop application: a worker
 thread takes the foreground for its own window that long after a window of the process became the foreground window. It
 reports how often it did, and says so when no window of the process ever held the foreground (Windows keeps it with the

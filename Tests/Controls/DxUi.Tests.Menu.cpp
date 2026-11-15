@@ -2763,14 +2763,17 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
                                  : theme.overlayMaterial == OverlayMaterial::Acrylic ? "Acrylic"
                                                                                      : "Solid";
     std::atomic<bool> showReturned{false};
-    const auto started   = std::chrono::steady_clock::now();
-    const auto elapsedMs = [started] { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count(); };
-    std::thread driver([&]
+    std::chrono::steady_clock::time_point started{};
+    const auto elapsedMs = [&started] { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count(); };
+    MenuHoverTraceForTest trace(false, false, ownerWindow.Hwnd());
+    const uint32_t foregroundLossesBefore = ownerWindow.ForegroundLossCount();
+    const auto driveCapture               = [&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
+            trace.Driver("capture.popup-missing", static_cast<size_t>(elapsedMs()), showReturned.load() ? 1u : 0u);
             driverFailure = std::format("menu popup window appears for material capture validation ({}: no popup after {} ms, and ContextMenu::Show {})",
                                         material,
                                         elapsedMs(),
@@ -2778,6 +2781,16 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
             return;
         }
         const long long appearedMs = elapsedMs();
+        // Driver-local observations of this one popup: alive, visible, exact owner and same process.
+        // Native identities never enter the bounded trace or failure text.
+        const auto popupRelationFlags = [&]() noexcept
+        {
+            DWORD process{};
+            static_cast<void>(GetWindowThreadProcessId(popupHwnd, &process));
+            return (IsWindow(popupHwnd) != FALSE ? 1u : 0u) | (IsWindowVisible(popupHwnd) != FALSE ? 2u : 0u) |
+                   (GetWindow(popupHwnd, GW_OWNER) == ownerWindow.Hwnd() ? 4u : 0u) | (process == GetCurrentProcessId() ? 8u : 0u);
+        };
+        trace.Driver("capture.popup-ready", popupRelationFlags(), showReturned.load() ? 1u : 0u);
 
         const auto dismissPopup = wil::scope_exit([&]() noexcept
         {
@@ -2789,18 +2802,49 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
 
         if (! WaitForContextMenuPopupBitmapCapture(popupHwnd, capture))
         {
-            driverFailure = std::format(
-                "menu popup bitmap capture succeeds for material validation ({}: popup after {} ms, no capture by {} ms)", material, appearedMs, elapsedMs());
+            const unsigned relations = popupRelationFlags();
+            const bool returned      = showReturned.load();
+            trace.Driver("capture.bitmap-failed", relations, returned ? 1u : 0u);
+            driverFailure = std::format("menu popup bitmap capture succeeds for material validation ({}: popup after {} ms, no capture by {} ms, "
+                                        "showReturned={} alive={} visible={} ownerMatches={} sameProcess={})",
+                                        material,
+                                        appearedMs,
+                                        elapsedMs(),
+                                        returned,
+                                        (relations & 1u) != 0u,
+                                        (relations & 2u) != 0u,
+                                        (relations & 4u) != 0u,
+                                        (relations & 8u) != 0u);
             return;
         }
+        trace.Driver("capture.bitmap-ready", capture.widthPx, capture.heightPx);
         std::cerr << "    [TRACE] material capture " << material << ": popup after " << appearedMs << " ms, captured after " << elapsedMs() << " ms\n"
                   << std::flush;
-    });
+    };
 
+    trace.OwnerSnapshot("owner.before-activation", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
+    const char* activationStage = "not-started";
+    DxUiActivationObservation activationObservation{};
+    const bool activated = TryActivateDxUiTestWindow(ownerWindow.Hwnd(), 800u, &activationStage, &activationObservation);
+    trace.OwnerSnapshot("owner.after-activation", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
+    if (! activated)
+    {
+        PrintDxUiActivationObservation(activationObservation, "menu-material-capture-setup", 1u);
+        std::cerr << "    [MENU MATERIAL SETUP] stage=" << activationStage << '\n';
+        trace.Dump(true);
+    }
+    Require(activated, "material-capture modal menu owner establishes foreground before its popup opens");
+    // Preserve the original driver's observation clock; activation is not charged to capture readiness.
+    started = std::chrono::steady_clock::now();
+    std::thread driver(driveCapture);
+    trace.OwnerSnapshot("owner.before-show", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     showReturned.store(true);
+    trace.OwnerSnapshot("owner.after-show", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
     driver.join();
 
+    trace.OwnerSnapshot("owner.after-driver", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
+    trace.Dump(! driverFailure.empty() || result.has_value());
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the material-capture menu with Escape returns no invoked command");
     return capture;

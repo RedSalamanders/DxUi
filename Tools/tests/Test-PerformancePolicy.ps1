@@ -4,6 +4,56 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformancePolicy.psm1') -Force
 
+function Assert-InitialPolicyOwnerRecord {
+    # Mechanical checked-in-state guard, not authentication of human approval or a candidate trust anchor.
+    # Full measurement identities retain raw checkout bytes; this source binding normalizes CRLF only for cross-platform validation.
+    param([Parameter(Mandatory)][string] $Root)
+    $policyPath = Join-Path $Root 'Tools/PerformanceAcceptancePolicy.v1.json'
+    $source = [Text.UTF8Encoding]::new($false, $true).GetString([IO.File]::ReadAllBytes($policyPath)) -replace "`r`n", "`n"
+    $policy = $source | ConvertFrom-Json
+    Assert-True ($policy.schemaVersion -eq 1 -and $policy.qualified -is [bool]) 'the checked-in policy has a supported explicit qualification state'
+    if (-not $policy.qualified) {
+        Assert-Equal 'policy-review-required' $policy.qualificationStatus 'an unqualified policy remains explicitly under review'
+        return
+    }
+    Assert-Equal 'qualified' $policy.qualificationStatus 'a qualified policy has a consistent status'
+    $sourceHash = (Get-Sha256Hex ([Text.Encoding]::UTF8.GetBytes($source))).ToUpperInvariant()
+    Assert-Equal '3BC4542822B664139E42B4CFBAED6EE5A92AF30AFD130DEA1928D3BDB7D3D5FF' $sourceHash 'only the independently reviewed initial policy source may be qualified'
+    $relative = 'Measurements/InitialPolicyQualification_2026-11-15/owner-review.md'
+    Assert-True $policy.qualificationNote.Contains($relative) 'the policy points to the versioned independent owner record'
+    $recordPath = Join-Path $Root $relative
+    Assert-True ([IO.File]::Exists($recordPath)) 'initial qualification requires its exact versioned owner record'
+    $record = [IO.File]::ReadAllText($recordPath)
+    $fields = @{}
+    foreach ($name in @('ReviewRecordVersion','State','OwnerApproval','OwnerIdentity','ApprovalUtc','ApprovalEvidence','NormativeClarificationDecision',
+            'HarnessTransitionDecision','AdditionalCalibrationDecision','PolicySourceSha256','ReviewedStudyRun','RawArtifactSha256','IndependentReplaySha256',
+            'IndependentActualReviewSha256','OldHarnessIdentity','QualifiedHarnessIdentity')) {
+        $matches = [regex]::Matches($record, ('(?m)^' + [regex]::Escape($name) + ': ([^\r\n]+)\r?$'))
+        Assert-Equal 1 $matches.Count "the owner record contains exactly one $name field"
+        $fields[$name] = $matches[0].Groups[1].Value.Trim()
+        Assert-True (-not [string]::IsNullOrWhiteSpace($fields[$name]) -and $fields[$name] -cnotin @('PENDING','DRAFT','TODO','null')) "the owner record completes $name"
+    }
+    $expected = [ordered]@{
+        ReviewRecordVersion='dxui-initial-policy-owner-review-v1'; State='APPROVED'; OwnerApproval='APPROVED'
+        NormativeClarificationDecision='APPROVED-ONE-TIME-CLARIFICATION'
+        HarnessTransitionDecision='APPROVED-INITIAL-METADATA-TRANSITION'
+        AdditionalCalibrationDecision='NO-ADDITIONAL-AA-BEFORE-SEED; FRESH-H6-CI-NATIVE-PAIRED-REQUIRED'
+        PolicySourceSha256=$sourceHash; ReviewedStudyRun='43724475279'
+        RawArtifactSha256='0FCE2543BDEA2B239589FBA1A164752EDF5311E616AA204C72F6DB573A3BDD2A'
+        IndependentReplaySha256='BED5272EE3A1988C2015564396158B947EF6F0989FFA6030B27E8A04DDBB1DC2'
+        IndependentActualReviewSha256='9B11B83CA99FAC9F2A64D11CDFB832DCDB0D9943A9CD845364DED89B3FC7606C'
+        OldHarnessIdentity='05D21B361020046345D1D122713626CE400CE6115079A67D15F47E8F015B648F'
+        QualifiedHarnessIdentity='7249D6FCCF538E722FAC8E615CB1656BD516F9224828BBB7CDFBB64FB82C0E56'
+    }
+    foreach ($name in $expected.Keys) { Assert-Equal $expected[$name] $fields[$name] "the initial owner record binds $name" }
+    Assert-True ($fields.OwnerIdentity -match '\S' -and $fields.OwnerIdentity.Length -le 200) 'an independent owner identity is recorded'
+    Assert-True ($fields.ApprovalEvidence -match '^owner-decision:\S{8,}$') 'an exact retained owner-decision receipt or chat reference is recorded'
+    $approved = [DateTimeOffset]::MinValue
+    $validDate = $fields.ApprovalUtc -match '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,7})?Z$' -and
+        [DateTimeOffset]::TryParse($fields.ApprovalUtc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::None, [ref]$approved)
+    Assert-True ($validDate -and $approved -ge [DateTimeOffset]::Parse('2026-11-15T17:05:44.2527378Z') -and $approved -le [DateTimeOffset]::UtcNow) 'owner approval has a real UTC after the reviewed study and not in the future'
+}
+
 Invoke-TestCase 'process environment restoration distinguishes unset from empty' {
     $name = 'DXUI_TEST_PROCESS_ENV_RESTORE'
     $previous = [Environment]::GetEnvironmentVariable($name)
@@ -1534,10 +1584,114 @@ Invoke-TestCase 'build-only toolchain identity cannot qualify a benchmark receip
     Assert-True (-not $result.verifiable -and $result.missing -contains 'identityStatus' -and $result.missing -contains 'identityScope') 'build-only identity was accepted as full measurement provenance'
 }
 
+Invoke-FixtureCase 'initial policy owner-record guard accepts only the bound completed state across checkout line endings' {
+    param($root)
+    # TEST ONLY: every approval below is synthetic fixture data, never the repository's pending owner decision.
+    $checkedIn = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../PerformanceAcceptancePolicy.v1.json')) -replace "`r`n", "`n"
+    $qualified = $checkedIn | ConvertFrom-Json
+    Assert-True $qualified.qualified 'this controlled qualified-state fixture uses the proposed checked-in policy'
+    $relative = 'Measurements/InitialPolicyQualification_2026-11-15/owner-review.md'
+    $record = @"
+ReviewRecordVersion: dxui-initial-policy-owner-review-v1
+State: APPROVED
+OwnerApproval: APPROVED
+OwnerIdentity: TEST-ONLY-INDEPENDENT-OWNER
+ApprovalUtc: $([DateTime]::UtcNow.ToString('o'))
+ApprovalEvidence: owner-decision:TEST-ONLY-SYNTHETIC-APPROVAL-RECEIPT
+NormativeClarificationDecision: APPROVED-ONE-TIME-CLARIFICATION
+HarnessTransitionDecision: APPROVED-INITIAL-METADATA-TRANSITION
+AdditionalCalibrationDecision: NO-ADDITIONAL-AA-BEFORE-SEED; FRESH-H6-CI-NATIVE-PAIRED-REQUIRED
+PolicySourceSha256: 3BC4542822B664139E42B4CFBAED6EE5A92AF30AFD130DEA1928D3BDB7D3D5FF
+ReviewedStudyRun: 43724475279
+RawArtifactSha256: 0FCE2543BDEA2B239589FBA1A164752EDF5311E616AA204C72F6DB573A3BDD2A
+IndependentReplaySha256: BED5272EE3A1988C2015564396158B947EF6F0989FFA6030B27E8A04DDBB1DC2
+IndependentActualReviewSha256: 9B11B83CA99FAC9F2A64D11CDFB832DCDB0D9943A9CD845364DED89B3FC7606C
+OldHarnessIdentity: 05D21B361020046345D1D122713626CE400CE6115079A67D15F47E8F015B648F
+QualifiedHarnessIdentity: 7249D6FCCF538E722FAC8E615CB1656BD516F9224828BBB7CDFBB64FB82C0E56
+"@
+    foreach ($ending in @("`n", "`r`n")) {
+        $policy = $checkedIn -replace "`n", $ending
+        Set-FixtureFile $root 'Tools/PerformanceAcceptancePolicy.v1.json' $policy
+        Set-FixtureFile $root $relative (($record -replace "`r`n", "`n") -replace "`n", $ending)
+        Assert-InitialPolicyOwnerRecord -Root $root
+        Remove-Item -LiteralPath (Join-Path $root $relative)
+        Assert-Throws { Assert-InitialPolicyOwnerRecord -Root $root } 'a qualified policy without its versioned owner record is rejected'
+        foreach ($mutation in @(
+                @('State: APPROVED','State: DRAFT'), @('OwnerApproval: APPROVED','OwnerApproval: PENDING'),
+                @('OwnerIdentity: TEST-ONLY-INDEPENDENT-OWNER','OwnerIdentity: PENDING'),
+                @('ReviewRecordVersion: dxui-initial-policy-owner-review-v1','ReviewRecordVersion: arbitrary-record'),
+                @('PolicySourceSha256: 3BC454','PolicySourceSha256: ABC454'),
+                @('RawArtifactSha256: 0FCE','RawArtifactSha256: AFCE'),
+                @('IndependentReplaySha256: BED5','IndependentReplaySha256: AED5'),
+                @('IndependentActualReviewSha256: 9B11','IndependentActualReviewSha256: AB11'),
+                @('OldHarnessIdentity: 05D2','OldHarnessIdentity: A5D2'),
+                @('QualifiedHarnessIdentity: 7249','QualifiedHarnessIdentity: A249'),
+                @('NormativeClarificationDecision: APPROVED-ONE-TIME-CLARIFICATION','NormativeClarificationDecision: PENDING'),
+                @('HarnessTransitionDecision: APPROVED-INITIAL-METADATA-TRANSITION','HarnessTransitionDecision: PENDING'),
+                @('AdditionalCalibrationDecision: NO-ADDITIONAL-AA-BEFORE-SEED; FRESH-H6-CI-NATIVE-PAIRED-REQUIRED','AdditionalCalibrationDecision: PENDING'),
+                @('ApprovalEvidence: owner-decision:TEST-ONLY-SYNTHETIC-APPROVAL-RECEIPT','ApprovalEvidence: PENDING'))) {
+            Set-FixtureFile $root $relative $record.Replace($mutation[0], $mutation[1])
+            Assert-Throws { Assert-InitialPolicyOwnerRecord -Root $root } "incomplete or mismatched owner evidence is rejected: $($mutation[0])"
+        }
+        Set-FixtureFile $root $relative ($record + "`nOwnerApproval: APPROVED`n")
+        Assert-Throws { Assert-InitialPolicyOwnerRecord -Root $root } 'duplicate approval fields are rejected'
+        Set-FixtureFile $root $relative ($record -replace '(?m)^ApprovalUtc: .*$', 'ApprovalUtc: 2020-01-01T00:00:00Z')
+        Assert-Throws { Assert-InitialPolicyOwnerRecord -Root $root } 'approval before the study is rejected'
+        Set-FixtureFile $root $relative ($record -replace '(?m)^ApprovalUtc: .*$', 'ApprovalUtc: not-a-date')
+        Assert-Throws { Assert-InitialPolicyOwnerRecord -Root $root } 'invalid approval dates are rejected'
+        Set-FixtureFile $root $relative $record
+        Set-FixtureFile $root 'Tools/PerformanceAcceptancePolicy.v1.json' ($policy.Replace('"timingBandPercent": 5','"timingBandPercent": 6'))
+        Assert-Throws { Assert-InitialPolicyOwnerRecord -Root $root } 'completed record cannot authorize different numeric policy bytes'
+        Set-FixtureFile $root 'Tools/PerformanceAcceptancePolicy.v1.json' ($policy + ' ')
+        Assert-Throws { Assert-InitialPolicyOwnerRecord -Root $root } 'completed record cannot authorize an unreviewed source-byte change'
+    }
+    Set-FixtureFile $root 'Tools/PerformanceAcceptancePolicy.v1.json' '{"schemaVersion":1,"qualified":false,"qualificationStatus":"policy-review-required"}'
+    Remove-Item -LiteralPath (Join-Path $root $relative)
+    Assert-InitialPolicyOwnerRecord -Root $root
+    Set-FixtureFile $root 'Tools/PerformanceAcceptancePolicy.v1.json' '{"schemaVersion":1,"qualified":false,"qualificationStatus":"qualified"}'
+    Assert-Throws { Assert-InitialPolicyOwnerRecord -Root $root } 'inconsistent unqualified status is rejected'
+}
+
+Invoke-FixtureCase 'the complete actual owner-record template accepts only allowed synthetic completion fields' {
+    param($root)
+    # TEST ONLY: copy the complete versioned narrative; never complete or alter the real owner record.
+    $relative = 'Measurements/InitialPolicyQualification_2026-11-15/owner-review.md'
+    $repository = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    $template = [IO.File]::ReadAllText((Join-Path $repository $relative)) -replace "`r`n", "`n"
+    $policy = [IO.File]::ReadAllText((Join-Path $repository 'Tools/PerformanceAcceptancePolicy.v1.json')) -replace "`r`n", "`n"
+    $completion = [ordered]@{
+        State='APPROVED'; OwnerApproval='APPROVED'; OwnerIdentity='TEST-ONLY-FULL-TEMPLATE-OWNER'
+        ApprovalUtc=[DateTime]::UtcNow.ToString('o'); ApprovalEvidence='owner-decision:TEST-ONLY-FULL-TEMPLATE-APPROVAL'
+        NormativeClarificationDecision='APPROVED-ONE-TIME-CLARIFICATION'
+        HarnessTransitionDecision='APPROVED-INITIAL-METADATA-TRANSITION'
+        AdditionalCalibrationDecision='NO-ADDITIONAL-AA-BEFORE-SEED; FRESH-H6-CI-NATIVE-PAIRED-REQUIRED'
+    }
+    $draft = $template; $approved = $template
+    foreach ($name in $completion.Keys) {
+        $pattern = '(?m)^' + [regex]::Escape($name) + ': [^\r\n]+$'
+        Assert-Equal 1 ([regex]::Matches($template, $pattern).Count) "the full actual template has exactly one allowed $name header"
+        $pending = if ($name -ceq 'State') { 'DRAFT' } else { 'PENDING' }
+        $draft = [regex]::Replace($draft, $pattern, ($name + ': ' + $pending))
+        $approved = [regex]::Replace($approved, $pattern, ($name + ': ' + $completion[$name]))
+    }
+    $mask = '(?m)^(' + (($completion.Keys | ForEach-Object { [regex]::Escape($_) }) -join '|') + '): [^\r\n]+$'
+    $narrative = [regex]::Replace($template, $mask, '$1: <OWNER-FIELD>')
+    Assert-Equal $narrative ([regex]::Replace($approved, $mask, '$1: <OWNER-FIELD>')) 'only State plus seven allowed owner fields change in the complete narrative'
+    foreach ($ending in @("`n", "`r`n")) {
+        Set-FixtureFile $root 'Tools/PerformanceAcceptancePolicy.v1.json' ($policy -replace "`n", $ending)
+        Set-FixtureFile $root $relative ($draft -replace "`n", $ending)
+        Assert-Throws { Assert-InitialPolicyOwnerRecord -Root $root } 'the full actual draft copy cannot qualify the policy'
+        Set-FixtureFile $root $relative ($approved -replace "`n", $ending)
+        Assert-InitialPolicyOwnerRecord -Root $root
+    }
+}
+
 Invoke-TestCase 'the migrated acceptance policy describes the implemented family and exact peak rules without self-qualification' {
     $policyPath = Join-Path $PSScriptRoot '../PerformanceAcceptancePolicy.v1.json'
     $policy = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json
-    Assert-Equal $false $policy.qualified 'the policy remains explicitly unqualified'
+    Assert-InitialPolicyOwnerRecord -Root (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+    Assert-True ($policy.minimumIndependentBlocks -eq 12 -and $policy.timingBandPercent -eq 5 -and $policy.memoryBandPercent -eq 2) 'the reviewed block minimum and investigation bands remain fixed'
+    Assert-Equal 'surfaceBytes,replacementPeakBytes,cppAllocations,composeAllocations' ($policy.exactBudgets -join ',') 'the reviewed exact-budget inventory remains fixed'
     Assert-True $policy.primaryFamily.Contains('26 predeclared phase-metric slots per benchmark scenario') 'the Holm family matches the judge'
     Assert-True $policy.exactBudgetRule.Contains('raw candidate-round maximum above the retained baseline raw-round maximum') 'the exact peak gate is documented'
     Assert-True $policy.exactBudgetRule.Contains('candidate run median above the baseline run-median median') 'the exact median gate is preserved'

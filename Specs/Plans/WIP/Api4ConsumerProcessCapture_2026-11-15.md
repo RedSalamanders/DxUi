@@ -223,3 +223,93 @@ The preserved H3 required-skip failure proves the old occlusion was rejected, no
 prevents occlusion. Existing hit tests and unchanged skip policy retain that negative outcome. A held cursor
 regression still reaches its original assertion without retry; no injected regression/native experiment has
 been executed for this candidate. No mirror tests or new production failure hooks were added.
+
+## Owner decision and local P integration checkpoint (2026-11-15)
+
+The independent owner approved the reviewed v3 initial API4 policy seed and its
+explicit one-time trust-metadata harness transition as `eric-jesover`. The
+approval receipt was recorded at `2026-11-15T17:54:51Z`; this is recorded receipt
+UTC, not an unavailable user-click timestamp. The permanent
+[owner review record](../../../Measurements/InitialPolicyQualification_2026-11-15/owner-review.md)
+binds that decision and the retained H2 diagnostic study. Its 144 raw receipts,
+72/72 unstable controls and 24 within-budget exact slots remain H2 evidence;
+no runner-noise, native acceptance or PR-performance pass is inferred.
+
+Local seed P `c07dc7ccbc142a3af78a7ca3926cf48f92614a22` was created normally
+with sole parent `4cdf1ce52c7785446698e346b8aec058ed6a9283` (B). B remains an
+immutable unqualified source. P contains the independently approved qualified
+policy and completed record; P's original 19-input authority harness is distinct
+from H5/H6's 20-input measurement harness.
+
+A normal no-commit merge of P into exact H5
+`144c6cbc7112fefbda58e48db5c8ac88976f94bb` is locally prepared for staged review.
+The generated changelog is resolved from exact H5's file by recreating the exact
+seed fragment and folding it together with the guide-boundary fragment. H5's
+ConsumerBuild fixture repair and capture/harness normative additions are retained
+alongside P's owner-record guard. The version6 guide explicitly prevents carrying
+this API4 approval into cooking API5/version6 as authority; no such port is applied.
+
+No integration commit, remote base advancement, head publication or RedSalamander
+pin change is complete at this checkpoint. Fresh exact-H6 native, consumer,
+compiler-free and normal paired qualification remain required before adoption;
+local static/guard controls do not close those gates. Existing H5 hosted jobs and
+first-failure custody remain bound to H5 and are neither retired nor relabelled by
+this local preparation. Historical checkpoint paragraphs above retain their
+original source/time scopes; this ledger updates only the current delivery state.
+
+## Menu material-capture follow-up prepared for review (2026-11-15)
+
+Exact H5 validation run `43740334621`, ARM64 Debug job `132892223599`, failed
+the real Menu assertion in `TestMenuPopupMaterialsProduceDistinctCaptures`:
+Mica's owned popup appeared after 72 ms, but no bitmap was captured by 5073 ms.
+The process exited 1 with no skips; its prior cursor and delayed sibling-close
+cases passed. Raw log and official artifact ZIP were preserved and the ZIP
+matched the service digest before interpretation. The relocated public consumer
+passed independently; that result does not waive the native failure.
+
+Frozen-source review found that this modal fixture omitted the owner-foreground
+setup already required by the authoritative validation spec. The prepared local
+test-only patch restores one canonical activation plus a required assertion before
+each owned fixture's single driver and Show. Existing bounded local tracing records
+UI-thread owner/dismissal observations separately from the driver, and capture
+failure adds Show-returned and scalar popup lifetime/visibility/ownership context.
+No retry, reacquisition, new Skip, timeout growth, production or benchmark change
+is included; all three materials and original capture comparisons remain required.
+
+The captured failure does not identify a dismissal event, graphics HRESULT or
+external actor. The precondition gap is validated; its causal sufficiency for this
+execution is untested. This checkpoint records a private patch
+candidate, not an applied or natively qualified fix. Application, its ordinary
+dated change fragment and canonical fold, final static checks, and fresh exact-head
+native/consumer/paired qualification remain pending. Policy approval separately
+authorizes its documented seed and never waives this functional failure.
+## Menu material follow-up applied locally (2026-11-15)
+
+The reviewed three-path material-capture artifact
+`56761276e13dda7f2cd1520ee838ce90e579942bdd7d84e7fd8b65eb1011e331`
+is **APPLIED LOCAL / NATIVE QUALIFICATION PENDING** on the staged P-into-H5
+integration. The prepared-patch checkpoint above remains a point-in-time record;
+application does not relabel that earlier review or any H5 execution as a pass.
+
+The final H5 native cohort has five passing profiles and one ARM64 Debug material
+Menu failure; all eight relocated/annotation-policy public-consumer checks passed.
+Those results stay bound to frozen H5
+`144c6cbc7112fefbda58e48db5c8ac88976f94bb` and actual hosted test-merge T5
+`205902cb18b0c76d65b21cf112ce1564f86d35d9` (B/H5 parents, H5-identical source tree).
+The retained native-cohort proof is SHA-256
+`a667b30f36c02a43ad1e8887d8224ef874de3d95535fec2cd31d2f615533b3ad`;
+the six-native custody seal is
+`be54d3842b48daaed3aa6f709b73c0d2675b7b3ad9cd0f8e3f016de96a6f5f23`. The first failure log and every
+native artifact ZIP were retained before interpretation or any publication. The
+existing owner-precondition omission is validated; the actual dismissal/backend
+cause and the applied change's causal sufficiency remain unproved.
+
+The local change uses one existing owner activation and Require before the single
+driver/Show, with bounded existing trace/lifetime/showReturned diagnostics. It
+preserves 5000 ms capture readiness, all three materials, original assertions and
+one discovered popup; no retry, reacquisition, Skip, production/runtime/ABI or
+benchmark change is included. The owner-policy seed and guide authority boundary
+remain unchanged. This application still requires final source/static checks and
+fresh exact-H6 native, consumer and normal paired CI; no local native/foreground
+run, CI rerun, merge commit, push, job cancellation or consumer pin change is
+claimed at this checkpoint. The API4 policy approval waives none of these gates.
