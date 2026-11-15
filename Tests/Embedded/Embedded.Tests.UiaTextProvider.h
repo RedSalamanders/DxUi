@@ -4,10 +4,14 @@
 // from offset 0; a native caret event reads the caret alone. The tests:
 // - word and character expansion equal the algorithms they replaced, kept here as oracles, at every UTF-16 offset of seeded
 //   texts (CJK, emoji with ZWJ, combining marks, surrogate pairs, lone halves, punctuation, path and whitespace runs) and of
-//   the empty and one-unit documents;
+//   the empty and one-unit documents, and on every string of up to five units over a mixed alphabet;
+// - a word expansion costs its enclosing unit, never the offset, also for one 64 Ki-unit word;
 // - the FX6 word walk (one client) makes no document-sized allocation and visits at most twice the document's units;
-// - caret moves in a native TextField with no client make no document-sized allocation, though each raises the event;
-// - a range keeps reading the snapshot it resolved after the owner thread published two newer ones and dropped it.
+// - caret moves in a native TextField and RichTextEditor with no client make no document-sized allocation (nor flatten the
+//   rich document), though each raises the event;
+// - a range keeps reading the snapshot it resolved after the owner thread published two newer ones and dropped it;
+// - composition and conversion-target ranges read their own text copy, shared with clones, never a snapshot, and stay safe
+//   after their view detaches.
 // Included by Embedded.Tests.Embedded.cpp after the allocation instrument and the performance fixtures.
 #include "Controls/DxUi.Internal.h"
 #include "Support/WorkCounters.h"
@@ -395,9 +399,10 @@ inline void TestRangeReadsThePinnedSnapshotAfterTheOwnerReplacesIt()
         GetText,
         ExpandWord,
         MoveWord,
+        MoveEndpointWord,
     };
     size_t current = 0u;
-    for (const Call call : {Call::GetText, Call::ExpandWord, Call::MoveWord})
+    for (const Call call : {Call::GetText, Call::ExpandWord, Call::MoveWord, Call::MoveEndpointWord})
     {
         const wil::com_ptr_nothrow<ITextRangeProvider> range = Lifetime::DocumentRange(*provider);
         Lifetime::Gate gate;
@@ -430,6 +435,7 @@ inline void TestRangeReadsThePinnedSnapshotAfterTheOwnerReplacesIt()
                         result = range->ExpandToEnclosingUnit(TextUnit_Word);
                     break;
                 case Call::MoveWord: result = range->Move(TextUnit_Word, 1, &moved); break;
+                case Call::MoveEndpointWord: result = range->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Word, 1, &moved); break;
             }
             Detail::textRangeResolvedObserver = nullptr;
         });
@@ -457,8 +463,8 @@ inline void TestRangeReadsThePinnedSnapshotAfterTheOwnerReplacesIt()
         Hr(result, "the range call succeeds across the replacement");
         if (call == Call::GetText)
             Check(read == pinnedText, "GetText returns the characters of the snapshot it pinned");
-        else if (call == Call::MoveWord)
-            Check(moved == 1, "Move(Word) steps over the pinned characters");
+        else if (call == Call::MoveWord || call == Call::MoveEndpointWord)
+            Check(moved == 1, "Move(Word) and MoveEndpointByUnit(Word) step over the pinned characters");
         else
         {
             // The expansion took its offsets from the pinned characters: with that text published again they hold its last word.
@@ -473,14 +479,296 @@ inline void TestRangeReadsThePinnedSnapshotAfterTheOwnerReplacesIt()
             Check(Lifetime::PumpUntil(nullptr, readsLastWord), "ExpandToEnclosingUnit(Word) found the last word of the pinned characters");
         }
     }
-    std::cout << "W8.4 a range read its pinned snapshot after the owner published two newer ones, for GetText, ExpandToEnclosingUnit and Move\n";
+    std::cout << "W8.4 a range read its pinned snapshot after the owner published two newer ones, for GetText, ExpandToEnclosingUnit, Move and "
+                 "MoveEndpointByUnit\n";
+}
+
+// Every string of up to five units over an alphabet of word, CJK, whitespace, separator, punctuation, line-break,
+// combining and lone-surrogate units, at every offset: word and character expansion equal the scans they replaced.
+inline void TestEnclosingSpansEqualTheReplacedScansOnEveryShortString()
+{
+    constexpr std::array<wchar_t, 13u> kAlphabet{L'a',
+                                                 static_cast<wchar_t>(0x4e2du),
+                                                 L' ',
+                                                 L'\t',
+                                                 L'/',
+                                                 L'\\',
+                                                 L'.',
+                                                 L':',
+                                                 L'\r',
+                                                 L'\n',
+                                                 static_cast<wchar_t>(0x0301u),
+                                                 static_cast<wchar_t>(0xD800u),
+                                                 static_cast<wchar_t>(0xDC00u)};
+    constexpr size_t kMaximumLength = 5u;
+    std::array<size_t, kMaximumLength> digits{};
+    std::wstring text;
+    text.reserve(kMaximumLength);
+    size_t strings = 0u, positions = 0u;
+    for (size_t length = 0u; length <= kMaximumLength; ++length)
+    {
+        digits.fill(0u);
+        for (;;)
+        {
+            text.assign(length, L'a');
+            for (size_t index = 0u; index < length; ++index)
+                text[index] = kAlphabet[digits[index]];
+            for (size_t position = 0u; position <= length + 1u; ++position)
+            {
+                const auto word     = DxUi::GetEnclosingAccessibilityTextUnitSpan(text, position, TextUnit_Word);
+                const auto expected = OracleWordSpan(text, position);
+                const auto letter   = DxUi::GetEnclosingAccessibilityTextUnitSpan(text, position, TextUnit_Character);
+                const auto oracle   = OracleCharacterSpan(text, position);
+                if (word.start != expected.start || word.end != expected.end || letter.start != oracle.start || letter.end != oracle.end)
+                {
+                    std::cerr << "    [W8.4] string";
+                    for (const wchar_t unit : text)
+                        std::cerr << ' ' << std::hex << static_cast<unsigned>(unit) << std::dec;
+                    std::cerr << " position " << position << ": word " << word.start << '-' << word.end << " expected " << expected.start << '-' << expected.end
+                              << "; character " << letter.start << '-' << letter.end << " expected " << oracle.start << '-' << oracle.end << '\n';
+                    Check(false, "word and character expansion equal the replaced scans on every short string");
+                }
+                ++positions;
+            }
+            ++strings;
+            size_t digit = 0u;
+            while (digit < length && ++digits[digit] == kAlphabet.size())
+                digits[digit++] = 0u;
+            if (digit == length)
+                break;
+        }
+    }
+    std::cout << "W8.4 enclosing spans equal the replaced scans on all " << strings << " strings of up to " << kMaximumLength << " units, at " << positions
+              << " offsets\n";
+}
+
+// The cost is the enclosing unit, never the offset: in one 64 Ki-unit run of a single class, an expansion anywhere visits
+// at most about twice the run (back to its start, then forward to its end).
+inline void TestWordExpansionCostIsTheEnclosingUnit()
+{
+    const std::wstring document(65'536u, L'a');
+    uint64_t maximum = 0u;
+    for (const size_t position : {size_t{0u}, size_t{1u}, document.size() / 2u, document.size() - 1u, document.size()})
+    {
+        const DxUi::Detail::WorkCounterScope scope;
+        const auto span = DxUi::GetEnclosingAccessibilityTextUnitSpan(document, position, TextUnit_Word);
+        Check(span.start == 0u && span.end == document.size(), "a single-class document is one word unit");
+        maximum = (std::max)(maximum, scope.Delta().accessibility.wordUnitsVisited);
+    }
+    std::cout << "W8.4 word expansion in one 64 Ki-unit word visits at most " << maximum << " units\n";
+    Check(maximum <= 2u * document.size(), "a word expansion visits at most twice its enclosing unit");
+}
+
+// Rich-editor caret moves on a native host with no client: the caret event reads the caret and the length of the editor's
+// source revision, so it neither copies nor materializes the document.
+inline void TestNativeRichEditorCaretEventsCopyNoDocument()
+{
+    using namespace DxUi;
+    const std::optional<bool> outerListeners = DebugGetAccessibilitySystemListenersForTest();
+    DebugSetAccessibilitySystemListenersForTest(false);
+    const auto restoreListeners = wil::scope_exit([&] { DebugSetAccessibilitySystemListenersForTest(outerListeners); });
+    ControlHost host;
+    const wil::unique_hwnd window = CreateTextProviderWindow(host);
+    const auto detach             = wil::scope_exit([&] { host.Detach(); });
+    static_cast<void>(ShowWindow(window.get(), SW_SHOWNOACTIVATE));
+    const HWND foregroundBefore = GetForegroundWindow();
+    host.SetTextInputBackend(TextInputBackend::Native);
+    // RichTextEditor documents stop at 64 Ki units: seven-letter words and spaces, no line breaks.
+    std::wstring document(65'536u - 64u, L'a');
+    for (size_t index = 0u; index < document.size(); ++index)
+        document[index] = (index % 8u) == 7u ? L' ' : static_cast<wchar_t>(L'a' + (index % 26u));
+    auto root    = std::make_unique<Panel>();
+    auto* editor = root->AddChild<RichTextEditor>(document);
+    editor->SetBounds(D2D1::RectF(0.0f, 0.0f, 460.0f, 220.0f));
+    host.SetRoot(std::move(root));
+    host.SetFocusControl(editor, false);
+    Check(host.HasActiveTextInput(), "the editor's native text input is active without focus");
+
+    constexpr size_t kMoves     = 16u;
+    const uint64_t eventsBefore = host.DebugGetNativeTextInputEventCounters().uiaActiveTextPositionChangedCount;
+    size_t copies               = 0u;
+    uint64_t flattens           = 0u;
+    for (size_t move = 0u; move < kMoves; ++move)
+    {
+        const size_t caret = 1'000u + move * 2'000u;
+        const Detail::WorkCounterScope scope;
+        largeAllocationMinimumBytes = document.size() * sizeof(wchar_t);
+        largeAllocations            = 0u;
+        countAllocations            = true;
+        editor->SetSelection(RichText::Selection{caret, caret});
+        countAllocations            = false;
+        largeAllocationMinimumBytes = std::numeric_limits<size_t>::max();
+        copies += largeAllocations;
+        flattens += scope.Delta().rich.documentFlattens;
+    }
+    const uint64_t events = host.DebugGetNativeTextInputEventCounters().uiaActiveTextPositionChangedCount - eventsBefore;
+    std::cout << "W8.4 native rich-editor caret moves with no client: " << kMoves << " moves, " << events << " caret events, " << copies
+              << " document-sized allocations, " << flattens << " document flattens\n";
+    Check(events == kMoves, "each rich-editor caret move raises the caret event");
+    Check(copies == 0u && flattens == 0u, "no rich-editor caret event copies or flattens the document while no client listens");
+    Check(GetForegroundWindow() == foregroundBefore, "the native rich-editor host never takes the foreground");
+}
+
+namespace Retention
+{
+inline std::weak_ptr<const void> g_resolved;
+inline void Observe(const std::shared_ptr<const void>& owner, std::wstring_view) noexcept
+{
+    g_resolved = owner;
+}
+} // namespace Retention
+
+// A composition or conversion-target range owns one copy of its field's text, shared with its clones, never the snapshot it
+// was read from: a client that keeps every composition range it asks for (a managed client holds them until its garbage
+// collection) keeps one field's text per range. Proved on an embedded view, whose IME preview needs no focus; a native
+// window host's text store refuses a window without keyboard focus, so the same scenario there needs the desktop. The range
+// reads its own copy (the owner it resolves is not the snapshot's) and a clone shares that copy. Then the view detaches
+// under the held ranges and their clones, and they are used again.
+inline void TestCompositionRangesOwnTheirTextNotTheSnapshot()
+{
+    using namespace DxUi;
+    GraphicsFixture gpu;
+    Hr(gpu.Create(), "composition ranges WARP device");
+    std::shared_ptr<GraphicsDevice> graphics;
+    Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "composition ranges graphics device");
+    EmbeddedHost view;
+    Hr(view.Attach(std::move(graphics)), "attach the composition view");
+    // Long enough that every syllable's composition span lies inside the published text.
+    const std::wstring base = L"composition base for eight syllables";
+    auto root               = std::make_unique<Panel>();
+    for (size_t index = 0u; index < 400u; ++index)
+        root->AddChild<Label>(L"Unrelated label " + std::to_wstring(index))->SetBounds(D2D1::RectF(0.0f, 40.0f, 200.0f, 60.0f));
+    auto* field = root->AddChild<TextField>(base);
+    field->SetBounds(D2D1::RectF(0.0f, 0.0f, 460.0f, 32.0f));
+    view.Controls().SetRoot(std::move(root));
+    view.Controls().SetFocusControl(field);
+    Hr(view.Prepare(480u, 240u), "prepare the composition view");
+    auto site = std::make_shared<PerformanceFixtures::Fx6::Site>();
+    const EmbeddedAccessibilityPlacement placement{{0.0, 0.0, 480.0, 240.0}, false};
+    Hr(view.AttachAccessibility(site, 0x5738340000000002ull, placement), "attach the composition view's accessibility");
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider;
+    Hr(view.GetAccessibilityProvider(provider.put()), "composition view root provider");
+    site->root = provider.get();
+
+    wil::com_ptr_nothrow<ITextEditProvider> edits;
+    wil::com_ptr_nothrow<ITextRangeProvider> document;
+    {
+        wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+        Hr(provider.query_to(fragment.put()), "composition root fragment");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> child;
+        Hr(fragment->Navigate(NavigateDirection_LastChild, child.put()), "composition field element");
+        Check(bool(child), "the composition view exposes its field");
+        wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
+        Hr(child.query_to(simple.put()), "composition field simple provider");
+        wil::com_ptr_nothrow<IUnknown> pattern;
+        Hr(simple->GetPatternProvider(UIA_TextEditPatternId, pattern.put()), "composition field TextEdit pattern");
+        Check(bool(pattern), "the field exposes the TextEdit pattern");
+        Hr(pattern.query_to(edits.put()), "composition field TextEdit interface");
+        wil::com_ptr_nothrow<ITextProvider> text;
+        Hr(pattern.query_to(text.put()), "composition field Text interface");
+        Hr(text->get_DocumentRange(document.put()), "composition field document range");
+    }
+    // The owner a range's read resolves, through the test hook.
+    const auto resolvedOwner = [](ITextRangeProvider& range, std::wstring& read)
+    {
+        Detail::textRangeResolvedObserver = &Retention::Observe;
+        wil::unique_bstr text;
+        const HRESULT hr                  = range.GetText(-1, text.put());
+        Detail::textRangeResolvedObserver = nullptr;
+        Hr(hr, "read a text range");
+        read.assign(text ? text.get() : L"", text ? SysStringLen(text.get()) : 0u);
+        return Retention::g_resolved.lock();
+    };
+
+    constexpr size_t kSyllables = 8u;
+    std::vector<wil::com_ptr_nothrow<ITextRangeProvider>> held;
+    for (size_t count = 1u; count <= kSyllables; ++count)
+    {
+        // Syllable `count` of a composition previewed at offset 11, as an application's text service applies it.
+        EmbeddedTextInputSnapshot input;
+        Hr(view.ReadTextInput(input), "read the composition view's text input");
+        NativeTextInputState next = input.state;
+        next.text                 = base;
+        next.text.insert(11u, ImeCopies::kSyllables.substr(0u, count));
+        next.caretIndex = 11u + count;
+        next.selectionAnchorIndex.reset();
+        next.compositionStartIndex      = 11u;
+        next.compositionEndIndex        = 11u + count;
+        next.conversionTargetStartIndex = 11u;
+        next.conversionTargetEndIndex   = 11u + count;
+        Hr(view.ApplyTextInput(input.revision, next, EmbeddedTextInputAction::Preview), "preview the composition");
+        // The application publishes once its preparation is coherent again (S_FALSE until then).
+        HRESULT published = S_FALSE;
+        for (size_t turn = 0u; turn < 16u && published == S_FALSE; ++turn)
+        {
+            Hr(view.Prepare(480u, 240u), "prepare the previewed composition");
+            published = view.UpdateAccessibility(placement);
+        }
+        Check(published == S_OK, "the previewed composition is published");
+
+        std::wstring documentText;
+        const std::shared_ptr<const void> snapshot = resolvedOwner(*document.get(), documentText);
+        if (! snapshot || documentText.size() < 11u + count)
+            std::cerr << "    [W8.4] syllable " << count << ": owner " << (snapshot ? "set" : "null") << ", document range read " << documentText.size()
+                      << " units\n";
+        Check(snapshot != nullptr && documentText.size() >= 11u + count, "the document range reads the published snapshot");
+        wil::com_ptr_nothrow<ITextRangeProvider> composition, conversion, clone;
+        Hr(edits->GetActiveComposition(composition.put()), "active composition range");
+        Hr(edits->GetConversionTarget(conversion.put()), "conversion-target range");
+        Check(composition && conversion, "the composition has composition and conversion-target ranges");
+        Hr(composition->Clone(clone.put()), "clone the composition range");
+        std::wstring compositionText, cloneText, conversionText;
+        const std::shared_ptr<const void> own       = resolvedOwner(*composition.get(), compositionText);
+        const std::shared_ptr<const void> cloned    = resolvedOwner(*clone.get(), cloneText);
+        const std::shared_ptr<const void> converted = resolvedOwner(*conversion.get(), conversionText);
+        // The ranges read the composition's span of the snapshot they were created from.
+        Check(compositionText == documentText.substr(11u, count) && cloneText == compositionText && conversionText == compositionText,
+              "composition, clone and conversion-target ranges read the composition span of their snapshot");
+        Check(own && own.get() != snapshot.get() && converted && converted.get() != snapshot.get(),
+              "a composition or conversion-target range reads its own text copy, never the snapshot");
+        Check(cloned.get() == own.get(), "a clone shares its range's text copy");
+        held.push_back(std::move(composition));
+        held.push_back(std::move(clone));
+        held.push_back(std::move(conversion));
+    }
+    std::cout << "W8.4 composition ranges: " << held.size() << " held ranges, each reading its own text copy, never a snapshot" << std::endl;
+
+    // The view goes away under the held ranges and their clones.
+    document.reset();
+    edits.reset();
+    site->root = nullptr;
+    provider.reset();
+    view.DisconnectAccessibility();
+    view.Detach();
+    for (const auto& range : held)
+    {
+        wil::unique_bstr text;
+        const HRESULT read = range->GetText(-1, text.put());
+        Check(SUCCEEDED(read) || read == UIA_E_ELEMENTNOTAVAILABLE, "a held range reads or reports its element gone after the view detached");
+        wil::com_ptr_nothrow<ITextRangeProvider> clone;
+        const HRESULT cloned = range->Clone(clone.put());
+        Check(SUCCEEDED(cloned) || cloned == UIA_E_ELEMENTNOTAVAILABLE, "a held range clones or reports its element gone");
+        int moved             = 0;
+        const HRESULT stepped = range->Move(TextUnit_Character, 1, &moved);
+        Check(SUCCEEDED(stepped) || stepped == UIA_E_ELEMENTNOTAVAILABLE, "a held range moves or reports its element gone");
+        if (clone)
+        {
+            const HRESULT again = clone->Move(TextUnit_Word, 1, &moved);
+            Check(SUCCEEDED(again) || again == UIA_E_ELEMENTNOTAVAILABLE, "a clone made after the view detached moves or reports its element gone");
+        }
+    }
+    held.clear();
 }
 
 inline void Run()
 {
     TestEnclosingSpansEqualTheReplacedScans();
+    TestEnclosingSpansEqualTheReplacedScansOnEveryShortString();
+    TestWordExpansionCostIsTheEnclosingUnit();
     TestFx6WordWalkGate();
     TestNativeCaretEventsCopyNoDocument();
+    TestNativeRichEditorCaretEventsCopyNoDocument();
     TestRangeReadsThePinnedSnapshotAfterTheOwnerReplacesIt();
+    TestCompositionRangesOwnTheirTextNotTheSnapshot();
 }
 } // namespace AccessibilityTextProvider

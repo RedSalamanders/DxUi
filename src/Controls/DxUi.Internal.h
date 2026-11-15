@@ -840,7 +840,9 @@ namespace Detail
 {
 // Called on the calling thread each time a text range resolves its text, with the owner that pins the characters and the
 // view the call is about to read (PinnedRangeText in DxUi.Accessibility.cpp). Lets a lifetime test replace and drop the
-// published snapshot after resolution and before the read. Null outside tests.
+// published snapshot after resolution and before the read. Null outside tests; compiled into every configuration, where it
+// costs one thread-local read per resolution. It is called while the range holds its target's snapshotMutex, so an observer
+// must never wait for another thread that takes that mutex (any text-range call on the same window).
 inline thread_local constinit void (*textRangeResolvedObserver)(const std::shared_ptr<const void>& owner, std::wstring_view text) noexcept = nullptr;
 } // namespace Detail
 // Holds every call of `hwnd`'s fragment-root GetFocus before it counts itself or reads the snapshot, so a test decides

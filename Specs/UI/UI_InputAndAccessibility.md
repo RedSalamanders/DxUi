@@ -1102,14 +1102,18 @@ view, never a copy: each call holds the snapshot it resolved for as long as it r
 calls it, so the owner thread may publish newer snapshots, and the window may detach, while a worker still reads the one it
 resolved. A line request dispatched to the window's thread carries that pinned snapshot in the request itself, which lives
 as long as the window's thread may run it, also after the waiting worker has timed out. A composition or conversion-target
-range (`GetActiveComposition`, `GetConversionTarget`) reads the text of the snapshot it was created from: it pins that
-snapshot for its own life instead of copying the document, and its clones share the pin. The rule is stated at
+range (`GetActiveComposition`, `GetConversionTarget`) reads the field's text as it was when the range was created: it
+copies that one text once at creation and its clones share the copy, so a held range retains one field's text, never a
+snapshot (every record and every other control's text), however long a client holds it, and reads it without a copy per
+call. On a window host no range pins a snapshot beyond the call that reads it; an embedded range keeps its existing
+creation-snapshot ownership. The rule is stated at
 `PinnedRangeText` in `DxUi.Accessibility.cpp` and proved under ASan by a range that reads after the owner published two
 newer snapshots (`Embedded.Tests.UiaTextProvider.h`). `ExpandToEnclosingUnit(Word)` finds the unit around the
 position locally: it walks back to the nearest unit start (offset 0, or a code point that is not whitespace and whose
 class, path separator, word character or other, differs from the code point before it, unless only whitespace precedes
 it) and takes one `FindNextWordBoundary` for its end. It returns the same span as the scan from offset 0 it replaced at
-every offset, and costs the unit and the whitespace before it, never the offset: the `FX6` word walk over 64 Ki units
+every offset; the cost is the enclosing unit and the whitespace before it, never the offset (at most about twice the
+unit for one long run of a single class), and the `FX6` word walk over 64 Ki units
 copies no document and visits at most twice the document's units. Character expansion walks forward once from the
 nearest established grapheme boundary instead of snapping, stepping back and stepping forward over the same units. A
 native caret event (`ActiveTextPositionChanged`) records the caret from the host's text-input cache alone, without

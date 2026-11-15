@@ -209,12 +209,14 @@ enum class AccessibilityUiActionKind : uint8_t
 
 // The characters one text-range call reads, and what keeps them alive (AccessibilityTextRangeProvider::ResolveText).
 // Ownership rule, which every reader of `text` relies on:
-// - `text` points into the controlAccessibleText of a record of the snapshot `owner` holds, so `owner` keeps the characters
-//   alive on whatever thread holds it. An empty view may have no owner.
+// - `text` points into the controlAccessibleText of a record of the snapshot `owner` holds, or into the one copy of a field's
+//   text a composition or conversion-target range made at creation (CopyRangeTextOverride), which `owner` then holds; either
+//   way `owner` keeps the characters alive on whatever thread holds it. An empty view may have no owner.
 // - A view is read only while the PinnedRangeText it came from is alive: a local of the provider call that resolved it; the
 //   request of a call dispatched to the window's thread, which owns its copy for as long as that thread may run it, also
-//   after the waiting caller has given up; or a range's text override, a member that pins its creation snapshot for the
-//   range's life. A view is never stored or returned without its owner.
+//   after the waiting caller has given up; or a range's text override, a member that owns its own text copy for the
+//   range's life. A view is never stored or returned without its owner, and no range member pins a whole snapshot of a
+//   window host (an embedded range already pins its creation snapshot, unchanged).
 // - So the owner thread may publish a new snapshot, and the window may detach, while a UI Automation worker reads: the
 //   published pointer moves on, and the old snapshot's characters stay valid until the last such reader lets go.
 struct PinnedRangeText final
@@ -1737,7 +1739,7 @@ void RequestEmbeddedAccessibility(WindowHostAccessibilityTarget& target) noexcep
     }
 }
 
-[[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> CaptureAccessibilitySnapshot(WindowHostAccessibilityTarget* target, HWND hwnd)
+[[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> CaptureAccessibilitySnapshot(WindowHostAccessibilityTarget* target, HWND hwnd) noexcept
 {
     if (! target || (target->embedded && (! target->host.load(std::memory_order_acquire) || target->rootLifetime.expired())))
     {
@@ -1755,7 +1757,16 @@ void RequestEmbeddedAccessibility(WindowHostAccessibilityTarget& target) noexcep
         return snapshot;
     }
 
-    return MakeEmptyAccessibilitySnapshot(hwnd);
+    // After a detach published no snapshot. Its callers are noexcept provider paths: an allocation failure takes the fatal
+    // path with its context, as the registration that makes the same stand-in does.
+    try
+    {
+        return MakeEmptyAccessibilitySnapshot(hwnd);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation(sizeof(AccessibilitySnapshot));
+    }
 }
 
 [[nodiscard]] WindowHostAccessibilityTarget* AcquireWindowHostAccessibilityTarget(HWND hwnd) noexcept
@@ -6200,9 +6211,9 @@ private:
     WindowHostAccessibilityTarget* _target = nullptr;
     HWND _hwnd                             = nullptr;
     std::shared_ptr<const AccessibilitySnapshot> _snapshot;
-    // A composition or conversion-target range reads the text of the snapshot it was created from: a view of that snapshot's
-    // record, which this member pins for the range's life (PinnedRangeText). Immutable once constructed and shared by clones;
-    // a null owner means no override.
+    // A composition or conversion-target range reads the field's text as it was when the range was created: one copy made then
+    // (CopyRangeTextOverride), which this member owns for the range's life, never the snapshot it came from. Immutable once
+    // constructed and shared by clones; a null owner means no override.
     PinnedRangeText _textOverride{};
     std::optional<std::vector<D2D1_RECT_F>> _boundsOverrideDip;
     std::weak_ptr<const RichText::SemanticDocument> _semanticDocument;
@@ -10280,6 +10291,23 @@ HRESULT AccessibilityProvider::get_SupportedTextSelection(SupportedTextSelection
     return S_OK;
 }
 
+// The text a composition or conversion-target range keeps: one copy of the field's text, made once when the range is
+// created and shared by its clones. A held range therefore retains that text, never the snapshot it was read from, however
+// long a client holds it; reading it costs no copy per call.
+[[nodiscard]] PinnedRangeText CopyRangeTextOverride(std::wstring_view text) noexcept
+{
+    try
+    {
+        auto copy = std::make_shared<const std::wstring>(text);
+        const std::wstring_view view(*copy);
+        return PinnedRangeText{std::move(copy), view};
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation(text.size() * sizeof(wchar_t));
+    }
+}
+
 HRESULT AccessibilityProvider::GetActiveComposition(ITextRangeProvider** outRange) noexcept
 {
     const Failure::Scope outerFailureScope;
@@ -10311,10 +10339,10 @@ HRESULT AccessibilityProvider::GetActiveComposition(ITextRangeProvider** outRang
 
     const TextRangeSpan range =
         ClampTextRangeSpan(record->controlTextCompositionStart.value(), record->controlTextCompositionEnd.value(), record->controlAccessibleText.size());
-    *outRange = record->controlSupportsText2
-                    ? CreateTextRangeProvider(record->path, range.start, range.end, CaptureControlIdentity(*record))
-                    : CreateTextRangeProvider(
-                          record->path, range.start, range.end, PinnedRangeText{snapshot, record->controlAccessibleText}, CaptureControlIdentity(*record));
+    *outRange        = record->controlSupportsText2
+                           ? CreateTextRangeProvider(record->path, range.start, range.end, CaptureControlIdentity(*record))
+                           : CreateTextRangeProvider(
+                                 record->path, range.start, range.end, CopyRangeTextOverride(record->controlAccessibleText), CaptureControlIdentity(*record));
     const HRESULT hr = *outRange ? S_OK : E_OUTOFMEMORY;
     Debug::Perf::Emit(
         L"dxui.uia.text_range_us", L"active-composition", Debug::Perf::ElapsedUs(startedAt), range.end - range.start, record->controlAccessibleText.size(), hr);
@@ -10352,10 +10380,10 @@ HRESULT AccessibilityProvider::GetConversionTarget(ITextRangeProvider** outRange
 
     const TextRangeSpan range = ClampTextRangeSpan(
         record->controlTextConversionTargetStart.value(), record->controlTextConversionTargetEnd.value(), record->controlAccessibleText.size());
-    *outRange = record->controlSupportsText2
-                    ? CreateTextRangeProvider(record->path, range.start, range.end, CaptureControlIdentity(*record))
-                    : CreateTextRangeProvider(
-                          record->path, range.start, range.end, PinnedRangeText{snapshot, record->controlAccessibleText}, CaptureControlIdentity(*record));
+    *outRange        = record->controlSupportsText2
+                           ? CreateTextRangeProvider(record->path, range.start, range.end, CaptureControlIdentity(*record))
+                           : CreateTextRangeProvider(
+                                 record->path, range.start, range.end, CopyRangeTextOverride(record->controlAccessibleText), CaptureControlIdentity(*record));
     const HRESULT hr = *outRange ? S_OK : E_OUTOFMEMORY;
     Debug::Perf::Emit(
         L"dxui.uia.text_range_us", L"conversion-target", Debug::Perf::ElapsedUs(startedAt), range.end - range.start, record->controlAccessibleText.size(), hr);
