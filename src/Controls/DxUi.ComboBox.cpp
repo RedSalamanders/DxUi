@@ -25,7 +25,6 @@ namespace
 constexpr float kComboBoxPopupPaddingDip      = 4.0f;
 constexpr float kComboBoxPopupCornerRadiusDip = kPopupRoundSmallCornerRadiusDip;
 constexpr size_t kComboBoxMaxVisibleItems     = 8u;
-constexpr uint64_t kCaretBlinkPeriodMs        = 530u;
 constexpr GUID kComboBoxGaussianBlurEffectId  = {0x1feb6d69, 0x2fe6, 0x4ac9, {0x8c, 0x58, 0x1d, 0x7f, 0x93, 0xe7, 0xa6, 0xa5}};
 
 struct ComboBoxPopupMaterialStyle
@@ -605,6 +604,14 @@ void ComboBox::SetEditable(bool editable) noexcept
         _selectionAnchorIndex.reset();
         _dragSelecting = false;
     }
+    // A focused box gains or loses its caret with the mode.
+    if (ControlHost* const host = GetHost(); host && HasFocus())
+    {
+        if (_editable)
+            ResetEditableCaretBlink(*host);
+        else
+            CaretClockAccess::Stop(*host, *this);
+    }
 }
 
 bool ComboBox::IsEditable() const noexcept
@@ -719,8 +726,6 @@ void ComboBox::SetText(std::wstring text)
     _undoHistory.clear();
     _redoHistory.clear();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
-    _caretBlinkAnchorTickMs.reset();
-    _caretVisible = true;
     // A focused editable box restarts its blink now, with the caret shown, and sleeps until the first flip.
     if (ControlHost* const caretHost = GetHost(); caretHost && _editable && HasFocus())
         ResetEditableCaretBlink(*caretHost);
@@ -879,7 +884,7 @@ void ComboBox::Paint(ControlHost& host) const
         DrawTextInputUnderlineRects(host, BuildNativeCompositionUnderlineRects(host, *this, true), theme.accent);
     }
 
-    if (_editable && HasFocus() && _caretVisible)
+    if (_editable && HasFocus() && CaretClockAccess::Shown(host, *this))
     {
         const float caretMaxX = std::max(textRect.left, textRect.right - 1.0f);
         const float caretX    = std::clamp(textRect.left + editableCaretOffsetDip - _editableHorizontalScrollDip, textRect.left, caretMaxX);
@@ -1223,7 +1228,8 @@ D2D1_RECT_F ComboBox::DebugGetEditableTextRect() const noexcept
 
 bool ComboBox::DebugIsCaretVisible() const noexcept
 {
-    return _caretVisible;
+    const ControlHost* const host = GetHost();
+    return ! host || CaretClockAccess::Shown(*host, *this);
 }
 
 bool ComboBox::DebugGetEditablePaintState(const ControlHost& host, ComboBoxDebugEditablePaintState& out) const noexcept
@@ -1943,32 +1949,13 @@ bool ComboBox::DebugIsPopupOpen() const noexcept
 
 bool ComboBox::Tick(ControlHost& host, uint64_t nowTickMs)
 {
-    if (! _editable || ! HasFocus())
+    // Only the caret blinks; an open list has nothing that moves on its own, so it keeps no frames ticking. The host's
+    // caret clock flips the phase and arms the next flip.
+    if (_editable && HasFocus() && CaretClockAccess::Tick(host, *this, nowTickMs))
     {
-        // Only the caret blinks; an open list has nothing that moves on its own, so it keeps no frames ticking.
-        _caretVisible = true;
-        _caretBlinkAnchorTickMs.reset();
-        return false;
-    }
-
-    const bool caretWasVisible = _caretVisible;
-    if (! _caretBlinkAnchorTickMs)
-    {
-        _caretBlinkAnchorTickMs = nowTickMs;
-        _caretVisible           = true;
-    }
-    else
-    {
-        _caretVisible = ((ElapsedTickMs(*_caretBlinkAnchorTickMs, nowTickMs) / kCaretBlinkPeriodMs) % 2u) == 0u;
-    }
-    if (_caretVisible != caretWasVisible)
-    {
-        // Only a blink-phase flip changes pixels; ticks within one phase leave the surface clean.
+        // Only a blink-phase flip changes pixels; a tick within one phase leaves the surface clean.
         Invalidate(host);
     }
-
-    // Sleep until the next phase flip: one deadline per flip, nothing in between.
-    host.RequestAnimationAt(*this, NextCaretBlinkFlipTickMs(*_caretBlinkAnchorTickMs, nowTickMs, kCaretBlinkPeriodMs));
     return false;
 }
 
@@ -2487,9 +2474,8 @@ float ComboBox::EnsureEditableCaretVisible(const ControlHost* host, float availa
 
 void ComboBox::ResetEditableCaretBlink(ControlHost& host) noexcept
 {
-    _caretBlinkAnchorTickMs = host.GetAnimationTickMs();
-    _caretVisible           = true;
-    host.RequestAnimationAt(*this, NextCaretBlinkFlipTickMs(*_caretBlinkAnchorTickMs, *_caretBlinkAnchorTickMs, kCaretBlinkPeriodMs));
+    // Focus gain or input: the caret shows now and blinks from here.
+    CaretClockAccess::Restart(host, *this, true);
 }
 
 void ComboBox::OnFocusChanged(ControlHost& host, bool focused)
@@ -2503,10 +2489,8 @@ void ComboBox::OnFocusChanged(ControlHost& host, bool focused)
     }
     else if (! focused)
     {
-        _caretBlinkAnchorTickMs.reset();
         // The caret is the box's only tick: an unfocused box waits for nothing.
-        host.CancelAnimation(*this);
-        _caretVisible  = true;
+        CaretClockAccess::Stop(host, *this);
         _dragSelecting = false;
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);
         // Focus left mid-composition: the preview it shows is the text now.

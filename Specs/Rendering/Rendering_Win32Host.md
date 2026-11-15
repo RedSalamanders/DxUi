@@ -68,8 +68,8 @@ request: every frame wins over the next frame, which wins over a deadline, and a
 for the next frame. The tooltip layer holds its own request. Every library control asks for its own ticks:
 transitions, phase loops and scrolling (`Button`, `ProgressBar`, `ThroughputGraph`, `Slider`, `PageHost`, `Tree`,
 `Grid`, scrollbars, the menu popup's slider, the rich editor's middle-button scrolling) request `Continuous`; the carets
-of `TextField`, editable `ComboBox` (530 ms) and `RichTextEditor` (500 ms) request one `Deadline` per phase flip,
-counted from the blink anchor, and cancel it on blur.
+of `TextField`, editable `ComboBox` and `RichTextEditor` hold one `Deadline` per phase flip, armed by the host's caret
+clock (below), and none on blur.
 
 Compatibility: `RequestAnimation()` without a control, and an embedded root installation (one discovery tick), tick
 every visible control once (`Panel` and `PageHost` leave their children to that walk while the host dispatches); each
@@ -119,6 +119,40 @@ its requests on a timeline that does not count the hidden time. When the schedul
 caret, a cancelled or forgotten request), the next request is a new start: it wakes the application and the next
 advance sets the timeline's baseline instead of counting the idle time.
 
+### Caret clock
+
+Status: implemented (performance and motion plan item W3.2, 15 November 2026) for both hosts.
+
+Each `ControlHost` has one caret clock. It owns the blink phase of the host's one focused caret owner (`TextField`,
+editable `ComboBox`, `RichTextEditor`): the owner tells it when it gains focus or input happens (restart), when it
+loses focus (stop), forwards its scheduled `Tick`, and asks it at paint whether the caret is shown. A restart shows the
+caret at once and, while the caret blinks, arms the owner's `Deadline` one period later; each flip is one `Tick` that
+invalidates once and arms the next flip, counted from the restart, so a late wake never shifts the phase. Input is a
+keystroke, a selection move, a click, a text-input import (IME composition update or commit) and a text or selection the
+application sets while the owner is focused. Focus that moves between two caret owners in one frame leaves only the new
+owner's deadline; a host with no focused caret owner schedules nothing for a caret.
+
+The period is the user's caret blink time (`GetCaretBlinkTime`; `INFINITE` is a steady caret; 530 ms when it cannot be
+read). Blinking stops `SPI_GETCARETTIMEOUT` after the latest restart (5 s when it cannot be read; 0 or `INFINITE` never
+stops) with the caret shown: the flip that shows it is the last, and nothing wakes until input, which restarts blinking,
+as Windows' own caret does. A steady caret is shown and schedules nothing: a read-only `TextField` or `RichTextEditor`
+(the [controls contract](../UI/UI_ControlsAndLayout.md) draws its caret), `INFINITE`, and reduced motion (the theme's
+`reducedMotion`, which `SetTheme` applies at once). The settings are read, never changed: at a host's first caret and
+again by `RefreshCaretBlinkSettings`, which a window host calls on `WM_SETTINGCHANGE`; an embedded host owns no window,
+so its application calls it when its own window receives `WM_SETTINGCHANGE`. A changed setting, or a change of reduced
+motion, shows a focused caret and restarts it in the new mode. `DebugSetCaretBlinkSettingsForTest` replaces both settings
+for one host, so tests never touch the user's.
+
+A hidden or minimized host wakes nothing (above); when it is shown, a focused caret is shown at once and restarts its
+phase, replacing the flip it held. A window that loses focus blurs its focused control, which stops the caret; focus that
+returns restarts it. A popup that does not take focus (the `ComboBox` list) leaves the caret blinking. A caret owner
+hidden while focused keeps its deadline without waking (above) and, shown again, is ticked once and continues its
+phase from the latest restart. A device loss leaves the phase and its
+deadline alone. `GetFrameScheduleWake` therefore reports `None` for a steady caret, a read-only field and a timed-out
+caret, and exactly one `Deadline` per phase otherwise. Every flip still repaints the whole window or surface: the host
+cannot invalidate only the caret yet (`FX1` records one preparation per flip). The Win32 system caret
+(`CreateCaret`, used for IME and accessibility positioning) and UI Automation are unaffected: they follow the caret's
+position, not its blink.
 Hit queries revalidate root lifetime and current ownership before dispatch. Root replacement or retirement during
 painting aborts that frame before capture or presentation; the next update applies the current root's bounds before
 painting it. A checked native `PrepareContent` failure is isolated to that control: healthy siblings can still

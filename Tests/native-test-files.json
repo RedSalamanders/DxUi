@@ -6,6 +6,8 @@
   "Tests/Controls/Controls.Tests.AccessibilityFx6.h",
   "Tests/Controls/Controls.Tests.AnimationClock.cpp",
   "Tests/Controls/Controls.Tests.AnimationClock.h",
+  "Tests/Controls/Controls.Tests.CaretClock.cpp",
+  "Tests/Controls/Controls.Tests.CaretClock.h",
   "Tests/Controls/Controls.Tests.ClipboardTransport.h",
   "Tests/Controls/Controls.Tests.DxUiFocusEventClient.h",
   "Tests/Controls/Controls.Tests.DxUiTestHelpers.h",

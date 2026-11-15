@@ -708,6 +708,11 @@ __declspec(noinline) static void TestTickDirtying(GraphicsFixture& gpu)
     fieldPtr->SetText(L"Caret");
     fieldPtr->SetBounds(D2D1::RectF(8, 8, 300, 48));
     view.Controls().SetRoot(std::move(field));
+    // The caret blinks only with motion on, at the user's blink time: both pinned, never read from this desktop.
+    auto motion          = view.Controls().GetTheme();
+    motion.reducedMotion = false;
+    view.Controls().SetTheme(motion);
+    view.Controls().DebugSetCaretBlinkSettingsForTest(DxUi::ControlHost::CaretBlinkSettingsForTest{530u, 0u});
     Hr(view.Prepare(320, 160), "prepare text field root");
     view.Controls().SetFocusControl(fieldPtr);
     const uint64_t focusTick = GetTickCount64();
@@ -720,7 +725,7 @@ __declspec(noinline) static void TestTickDirtying(GraphicsFixture& gpu)
     Check(view.AdvanceAnimation(focusTick + 20), "caret keeps ticking within the phase");
     Check(! view.NeedsPreparation() && view.Prepare(320, 160) == S_FALSE && view.GetStatistics().preparations == focused.preparations,
           "ticks within the blink period cause no preparation");
-    constexpr uint64_t kCaretBlinkPeriodMs = 530u; // kCaretBlinkPeriodMs in DxUi.TextInput.cpp
+    constexpr uint64_t kCaretBlinkPeriodMs = 530u; // the blink time pinned above
     Check(view.AdvanceAnimation(focusTick + 20 + kCaretBlinkPeriodMs), "caret keeps ticking across the blink");
     Check(view.NeedsPreparation(), "a blink-phase flip dirties the view");
     Check(view.Prepare(320, 160) == S_OK && view.GetStatistics().preparations == focused.preparations + 1, "a blink-phase flip prepares exactly once");
@@ -1933,6 +1938,7 @@ __declspec(noinline) static int RunFunctionalTests()
         PerformanceFixtures::TestCatalogIsDeterministic(L".build/test-artifacts/performance-fixtures");
         PerformanceFixtures::TestFx5MatchesWorkCounterReceipt();
         PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
+        PerformanceFixtures::TestCaretClockGatesOnFx1();
         SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
         return 0;
     }
@@ -2167,6 +2173,7 @@ __declspec(noinline) static int RunFunctionalTests()
     PerformanceFixtures::TestFx13G13Budgets();
     PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
     GridDataPathTests::TestFx3GridDataPathGate(gpu);
+    PerformanceFixtures::TestCaretClockGatesOnFx1();
     SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
     ComboBoxPopupLayoutTests::Run(gpu);
     EmbeddedPointerHit::TestPointerHitFx14AndFx2HitTestOncePerMove();

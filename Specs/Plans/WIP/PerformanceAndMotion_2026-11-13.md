@@ -698,7 +698,7 @@ something is due, and pace native animation frames to the display. Exit: `G1` me
     `Tick` calls per wake equal requesting controls; detach and popup-close fuzz under ASan with 0 stale pointers.
   - **Needs**: `W0.1`, `W0.4`. **Size**: L.
 
-- [ ] **W3.2 Caret clock.**
+- [x] **W3.2 Caret clock.**
   - **Why**: `TextField` blinks at a fixed 530 ms (`DxUi.TextInput.cpp:17`) and its `Tick` returns `true` while focused
     (`:1787-1813`); `ComboBox` the same while editable and focused (`DxUi.ComboBox.cpp:1883-1910`); `RichTextEditor` at
     500 ms (`DxUi.RichTextEditor.cpp:5505-5511`). `GetCaretBlinkTime` and `SPI_GETCARETTIMEOUT` appear nowhere in `src`,

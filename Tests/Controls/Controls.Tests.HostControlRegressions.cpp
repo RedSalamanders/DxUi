@@ -268,6 +268,9 @@ void TestNativeCaretTicksInvalidateOnlyWhenPixelsChange()
     auto field   = std::make_unique<TextField>(L"Caret");
     auto* editor = field.get();
     window.Host().SetRoot(std::move(field));
+    // The caret blinks only with motion on, at the user's blink time: both are pinned, never read from this desktop.
+    EnableMotionForTest(window.Host());
+    window.Host().DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{530u, 0u});
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
     window.Host().SetFocusControl(editor, false);
     const uint64_t tick = GetTickCount64();

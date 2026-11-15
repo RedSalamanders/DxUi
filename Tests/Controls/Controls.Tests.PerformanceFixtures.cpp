@@ -342,6 +342,7 @@ void TestFrameScheduleGatesOnWindowFixtures()
             continue;
         const RunRecord run    = RunWindow(*definition, variant);
         uint64_t editableTicks = 0u;
+        uint64_t readOnlyTicks = 0u;
         for (size_t phase = 0u; phase < run.phases.size(); ++phase)
             for (const StepRecord& step : run.phases[phase].steps)
             {
@@ -350,11 +351,16 @@ void TestFrameScheduleGatesOnWindowFixtures()
                         "a window fixture step ticks only due requesters and never walks the tree");
                 if (definition == &Fx1::kDefinition && phase == Fx1::kEditable)
                     editableTicks += step.work.frame.tickCalls;
+                if (definition == &Fx1::kDefinition && phase == Fx1::kReadOnly)
+                    readOnlyTicks += step.work.frame.tickCalls;
             }
         if (definition == &Fx1::kDefinition)
         {
             std::cerr << "    [FIXTURE] FX1 editable (window, fixture clock): " << editableTicks << " caret ticks in 10 s\n";
-            Require(editableTicks <= 20u && editableTicks >= 15u, "G1: FX1 editable ticks its caret at most 20 times in 10 s on the window host");
+            // W3.2: the caret blinks for the 5 s caret timeout FX1 pins (10 flips at 530 ms), then nothing is armed; the read-only
+            // caret is steady.
+            Require(editableTicks <= 20u && editableTicks >= 9u, "G1: FX1 editable ticks its caret at most 20 times in 10 s on the window host");
+            Require(readOnlyTicks == 0u, "W3.2: FX1 read-only ticks nothing on the window host");
         }
     }
 }

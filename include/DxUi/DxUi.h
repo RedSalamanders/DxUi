@@ -4092,8 +4092,6 @@ private:
     size_t _caretIndex = 0;
     std::optional<size_t> _selectionAnchorIndex;
     std::optional<float> _preferredMultilineXOffsetDip;
-    std::optional<uint64_t> _caretBlinkAnchorTickMs;
-    bool _caretVisible                 = true;
     mutable float _horizontalScrollDip = 0.0f;
     friend struct RetainedCacheAccess;
     mutable SingleLineTextLayoutCache _singleLineLayoutCache;
@@ -4342,10 +4340,8 @@ private:
     std::optional<size_t> _hoveredPopupIndex;
     size_t _caretIndex = 0u;
     std::optional<size_t> _selectionAnchorIndex;
-    size_t _popupScrollIndex = 0u;
-    std::optional<uint64_t> _caretBlinkAnchorTickMs;
+    size_t _popupScrollIndex                   = 0u;
     uint64_t _lastTypeaheadTickMs              = 0u;
-    bool _caretVisible                         = true;
     mutable float _editableHorizontalScrollDip = 0.0f;
     friend struct RetainedCacheAccess;
     mutable SingleLineTextLayoutCache _singleLineLayoutCache;
@@ -6612,6 +6608,18 @@ public:
     void RequestAnimation(const Control& control) noexcept;
     void RequestAnimationAt(const Control& control, uint64_t dueTickMs) noexcept;
     void CancelAnimation(const Control& control) noexcept;
+    // Caret clock (Specs/Rendering/Rendering_Win32Host.md, "Caret clock"): re-reads the user's caret blink time
+    // (GetCaretBlinkTime) and caret timeout (SPI_GETCARETTIMEOUT), never changing them, and restarts a focused caret's blink
+    // when either changed. A window host calls it itself on WM_SETTINGCHANGE. An embedded host has no window: its application
+    // calls it when its own window receives WM_SETTINGCHANGE. Reduced motion comes from the theme (SetTheme). UI thread only.
+    void RefreshCaretBlinkSettings() noexcept;
+    // Tests only (DebugSetCaretBlinkSettingsForTest): the two settings as GetCaretBlinkTime and SPI_GETCARETTIMEOUT report
+    // them. blinkTimeMs is one phase, INFINITE a steady caret; timeoutMs 0 or INFINITE never stops blinking.
+    struct CaretBlinkSettingsForTest final
+    {
+        UINT blinkTimeMs = 530u;
+        UINT timeoutMs   = 5000u;
+    };
     // Compatibility: a request that names no control ticks the whole visible tree once on the next frame, and every
     // control whose Tick returns true then keeps a request of its own. A derived control should call
     // RequestAnimation(*this) instead; the library's own controls never use this form.
@@ -6781,6 +6789,12 @@ public:
         uint64_t dueTickMs = 0u;
     };
     [[nodiscard]] DebugFrameScheduleWake DebugGetFrameScheduleWakeForTest() const noexcept;
+    // Tests only. Replaces the caret blink time and caret timeout this host reads, so a test never changes the user's
+    // settings (CaretBlinkSettingsForTest; nullopt reads the system settings again). It takes effect as a real change does:
+    // at the host's next RefreshCaretBlinkSettings (a window host's WM_SETTINGCHANGE), or when a caret next starts.
+    void DebugSetCaretBlinkSettingsForTest(std::optional<CaretBlinkSettingsForTest> settings) noexcept;
+    // Tests only. Whether the host's caret clock shows the caret now (true when no caret blinks).
+    [[nodiscard]] bool DebugIsCaretClockVisibleForTest() const noexcept;
     [[nodiscard]] size_t DebugGetTickRequestCountForTest() const noexcept;
     [[nodiscard]] bool DebugScheduleHoldsControlForTest(const void* controlAddress) const noexcept;
     // Tests only. A native host's animation clock reads nowTickMs until reset with nullopt, while ticks still carry the time a
@@ -7179,6 +7193,39 @@ private:
     bool _tickTreeDiscovery                     = false;
     bool _tooltipTickRequested                  = false;
     FrameScheduleWake::Kind _dispatcherWakeKind = FrameScheduleWake::Kind::None;
+
+    // Caret clock (W3.2; Specs/Rendering/Rendering_Win32Host.md, "Caret clock"). One per host: it owns the blink phase of
+    // the one focused caret (TextField, editable ComboBox, RichTextEditor) and arms that control's deadline for each phase
+    // flip. The owner's address is compared only, beside its lifetime token, like a schedule request.
+    struct CaretClock final
+    {
+        const Control* owner = nullptr;
+        std::weak_ptr<int> ownerLifetime;
+        uint64_t anchorTickMs = 0u;
+        UINT blinkTimeMs      = 530u;
+        UINT timeoutMs        = 5000u;
+        bool settingsRead     = false;
+        bool editable         = false;
+        bool visible          = true;
+        std::optional<CaretBlinkSettingsForTest> settingsForTest;
+    };
+    friend struct CaretClockAccess;
+    // Focus gain and input: the caret shows now and, when it blinks, its first flip is one period later.
+    void RestartCaret(const Control& owner, bool editable) noexcept;
+    // Blur: the clock forgets the owner and withdraws its deadline.
+    void StopCaret(const Control& owner) noexcept;
+    // The owner's scheduled Tick: true when the caret's visibility changed (the owner invalidates).
+    [[nodiscard]] bool TickCaret(const Control& owner, uint64_t nowTickMs) noexcept;
+    [[nodiscard]] bool IsCaretShown(const Control& control) const noexcept;
+    [[nodiscard]] bool IsCaretOwner(const Control& control) const noexcept;
+    [[nodiscard]] bool CaretBlinks() const noexcept;
+    // Restarts a focused owner's phase after a settings or theme change, or when a hidden host is shown.
+    void RearmCaret() noexcept;
+    void ArmCaret(const Control& owner) noexcept;
+    void ReadCaretBlinkSettings() noexcept;
+    // Withdraws a control's deadline only, so a caret never cancels the same control's every-frame request.
+    void CancelAnimationDeadline(const Control& control) noexcept;
+    CaretClock _caretClock;
 
     struct NativeSystemCaret final
     {

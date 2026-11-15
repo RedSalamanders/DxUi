@@ -1702,7 +1702,8 @@ void ControlHost::Detach(bool processExit) noexcept
 
 void ControlHost::SetTheme(const ThemePalette& palette) noexcept
 {
-    const bool densityChanged = _palette.density != palette.density;
+    const bool densityChanged       = _palette.density != palette.density;
+    const bool reducedMotionChanged = _palette.reducedMotion != palette.reducedMotion;
     // Density changes hit geometry. A theme assigned while painting also invalidates that mixed-palette frame;
     // ordinary color-only changes keep paint-dirty pointer dispatch available until preparation.
     if (densityChanged || IsRenderStageActive())
@@ -1735,6 +1736,9 @@ void ControlHost::SetTheme(const ThemePalette& palette) noexcept
     {
         _root->OnDensityChanged();
     }
+    // Reduced motion makes a focused caret steady, and lifting it lets the caret blink again.
+    if (reducedMotionChanged)
+        RearmCaret();
     Invalidate();
 }
 
@@ -2160,6 +2164,13 @@ bool ControlHost::ForgetControl(const Control& control) noexcept
 {
     const size_t before = _tickRequests.size();
     std::erase_if(_tickRequests, [&control](const TickRequest& request) noexcept { return request.control == &control; });
+    // A caret whose deadline is dropped is shown steady until its owner restarts it.
+    if (_caretClock.owner == &control)
+    {
+        _caretClock.owner = nullptr;
+        _caretClock.ownerLifetime.reset();
+        _caretClock.visible = true;
+    }
     // A wake in progress holds a snapshot: blank the control there too, so the wake never reaches it.
     bool held = false;
     for (const TickRequest& due : _tickDue)
@@ -2291,6 +2302,8 @@ void ControlHost::OnFrameScheduleChanged() noexcept
     if (_animationSuspendedWhileHidden && IsHostWindowEffectivelyVisible(_hwnd))
     {
         _animationSuspendedWhileHidden = false;
+        // A focused caret is shown at once and restarts its blink, replacing the flip it held.
+        RearmCaret();
         CountHeldDeadlines();
     }
     SyncDispatcherSubscription(IsScheduleSuspended() ? FrameScheduleWake{} : GetFrameScheduleWake());
@@ -2328,7 +2341,11 @@ void ControlHost::ResumeScheduleAfterShow() noexcept
 {
     // Requests that came due while the host was hidden fire once now, at the first wake after the show.
     if (! IsScheduleSuspended())
+    {
+        // A focused caret is shown at once and restarts its blink, replacing the flip it held.
+        RearmCaret();
         CountHeldDeadlines();
+    }
     OnFrameScheduleChanged();
 }
 
@@ -2341,6 +2358,171 @@ void ControlHost::CountHeldDeadlines() noexcept
             ++Detail::Work().frame.tickHeldWhileHidden;
     }
 }
+
+// Caret clock (W3.2; Specs/Rendering/Rendering_Win32Host.md, "Caret clock").
+namespace
+{
+constexpr UINT kDefaultCaretBlinkTimeMs = 530u;  // Windows' default when GetCaretBlinkTime fails
+constexpr UINT kDefaultCaretTimeoutMs   = 5000u; // Windows' default when SPI_GETCARETTIMEOUT cannot be read
+
+[[nodiscard]] constexpr bool CaretTimeoutApplies(UINT timeoutMs) noexcept
+{
+    return timeoutMs != 0u && timeoutMs != INFINITE;
+}
+
+[[nodiscard]] constexpr uint64_t SaturatingAddMs(uint64_t tickMs, uint64_t addMs) noexcept
+{
+    return addMs > UINT64_MAX - tickMs ? UINT64_MAX : tickMs + addMs;
+}
+} // namespace
+
+void ControlHost::ReadCaretBlinkSettings() noexcept
+{
+    CaretClock& clock = _caretClock;
+    if (clock.settingsForTest)
+    {
+        clock.blinkTimeMs = clock.settingsForTest->blinkTimeMs;
+        clock.timeoutMs   = clock.settingsForTest->timeoutMs;
+    }
+    else
+    {
+        // Read, never written: the user's settings belong to the user.
+        const UINT blinkTimeMs = GetCaretBlinkTime();
+        clock.blinkTimeMs      = blinkTimeMs == 0u ? kDefaultCaretBlinkTimeMs : blinkTimeMs;
+        DWORD timeoutMs        = 0u;
+        clock.timeoutMs = SystemParametersInfoW(SPI_GETCARETTIMEOUT, 0u, &timeoutMs, 0u) != FALSE ? static_cast<UINT>(timeoutMs) : kDefaultCaretTimeoutMs;
+    }
+    clock.settingsRead = true;
+}
+
+bool ControlHost::IsCaretOwner(const Control& control) const noexcept
+{
+    // A destroyed owner's token has expired, so a new control at a reused address is never taken for it.
+    return _caretClock.owner == &control && ! _caretClock.ownerLifetime.expired();
+}
+
+bool ControlHost::CaretBlinks() const noexcept
+{
+    const CaretClock& clock = _caretClock;
+    return clock.editable && clock.blinkTimeMs != 0u && clock.blinkTimeMs != INFINITE && ! _palette.reducedMotion;
+}
+
+bool ControlHost::IsCaretShown(const Control& control) const noexcept
+{
+    return ! IsCaretOwner(control) || _caretClock.visible;
+}
+
+void ControlHost::CancelAnimationDeadline(const Control& control) noexcept
+{
+    const size_t before = _tickRequests.size();
+    std::erase_if(_tickRequests,
+                  [&control](const TickRequest& request) noexcept { return request.control == &control && request.kind == TickRequestKind::Deadline; });
+    if (_tickRequests.size() != before)
+        OnFrameScheduleChanged();
+}
+
+void ControlHost::ArmCaret(const Control& owner) noexcept
+{
+    // A blinking caret sleeps until its first flip; a steady one (read-only, INFINITE, reduced motion) holds nothing.
+    const CaretClock& clock = _caretClock;
+    if (CaretBlinks())
+        RequestAnimationAt(owner, NextCaretBlinkFlipTickMs(clock.anchorTickMs, clock.anchorTickMs, clock.blinkTimeMs));
+    else
+        CancelAnimationDeadline(owner);
+}
+
+void ControlHost::RestartCaret(const Control& owner, bool editable) noexcept
+{
+    if (_detachInProgress.load(std::memory_order_acquire) || owner.GetHost() != this)
+        return;
+    CaretClock& clock = _caretClock;
+    if (! clock.settingsRead)
+        ReadCaretBlinkSettings();
+    // One caret per host. Focus that moves between two caret owners in one frame leaves the previous owner nothing armed,
+    // whichever of its blur and the new owner's gain comes first.
+    if (clock.owner && clock.owner != &owner && IsCaretOwner(*clock.owner) && clock.owner->GetHost() == this)
+        CancelAnimationDeadline(*clock.owner);
+    clock.owner         = &owner;
+    clock.ownerLifetime = owner.GetLifetimeToken();
+    clock.editable      = editable;
+    clock.visible       = true;
+    clock.anchorTickMs  = GetAnimationTickMs();
+    ArmCaret(owner);
+}
+
+void ControlHost::StopCaret(const Control& owner) noexcept
+{
+    if (_caretClock.owner != &owner)
+        return;
+    _caretClock.owner = nullptr;
+    _caretClock.ownerLifetime.reset();
+    _caretClock.visible = true;
+    CancelAnimationDeadline(owner);
+}
+
+bool ControlHost::TickCaret(const Control& owner, uint64_t nowTickMs) noexcept
+{
+    // A flip for a control that no longer owns the caret is not re-armed.
+    if (! IsCaretOwner(owner))
+        return false;
+    CaretClock& clock        = _caretClock;
+    const bool wasVisible    = clock.visible;
+    const uint64_t elapsedMs = ElapsedTickMs(clock.anchorTickMs, nowTickMs);
+    if (! CaretBlinks())
+        clock.visible = true;
+    else if (CaretTimeoutApplies(clock.timeoutMs) && elapsedMs >= clock.timeoutMs)
+    {
+        // The caret timeout: blinking stops with the caret shown, and nothing wakes until input restarts it.
+        clock.visible = true;
+    }
+    else
+    {
+        clock.visible                 = (elapsedMs / clock.blinkTimeMs) % 2u == 0u;
+        const uint64_t nextFlipTickMs = NextCaretBlinkFlipTickMs(clock.anchorTickMs, nowTickMs, clock.blinkTimeMs);
+        // The last flip before the timeout shows the caret; a caret already shown at that point simply stays.
+        const bool timedOut = CaretTimeoutApplies(clock.timeoutMs) && nextFlipTickMs >= SaturatingAddMs(clock.anchorTickMs, clock.timeoutMs);
+        if (! timedOut || ! clock.visible)
+            RequestAnimationAt(owner, nextFlipTickMs);
+    }
+    return clock.visible != wasVisible;
+}
+
+void ControlHost::RearmCaret() noexcept
+{
+    CaretClock& clock = _caretClock;
+    if (! clock.owner || ! IsCaretOwner(*clock.owner) || clock.owner->GetHost() != this || ! clock.owner->HasFocus())
+        return;
+    const bool wasVisible = clock.visible;
+    clock.visible         = true;
+    clock.anchorTickMs    = GetAnimationTickMs();
+    ArmCaret(*clock.owner);
+    if (! wasVisible)
+        Invalidate();
+}
+
+void ControlHost::RefreshCaretBlinkSettings() noexcept
+{
+    const bool wasRead     = _caretClock.settingsRead;
+    const UINT blinkTimeMs = _caretClock.blinkTimeMs;
+    const UINT timeoutMs   = _caretClock.timeoutMs;
+    ReadCaretBlinkSettings();
+    if (! wasRead || blinkTimeMs != _caretClock.blinkTimeMs || timeoutMs != _caretClock.timeoutMs)
+        RearmCaret();
+}
+
+#if DXUI_ENABLE_DIAGNOSTICS
+void ControlHost::DebugSetCaretBlinkSettingsForTest(std::optional<CaretBlinkSettingsForTest> settings) noexcept
+{
+    _caretClock.settingsForTest = settings;
+    // Read again at the next refresh or caret start, as a real change would be.
+    _caretClock.settingsRead = false;
+}
+
+bool ControlHost::DebugIsCaretClockVisibleForTest() const noexcept
+{
+    return _caretClock.visible;
+}
+#endif
 
 uint64_t ControlHost::GetAnimationTickMs() const noexcept
 {
@@ -4088,6 +4270,8 @@ try
             RefreshWheelScrollLines();
             // So does the text antialias mode on an opaque target, and the monitor's rendering parameters.
             RefreshTextRenderingSetting(wp);
+            // And the caret's blink time and timeout.
+            RefreshCaretBlinkSettings();
             handled = false;
             return 0;
         case WM_DPICHANGED:

@@ -456,6 +456,40 @@ void CopyCaptureInto(WindowHostBitmapCapture& destination, const WindowHostBitma
     return capture;
 }
 
+// A focused TextField in a host of its own (the sheet's one focus belongs to the rich editor), editable or read-only, with
+// a frozen caret phase: the caret clock's blink time is INFINITE through the host's test seam, so the caret is drawn in its
+// shown phase whenever the capture runs (W3.2). Logical focus only: no native focus transfer, no activation.
+// The width a one-column tile gives its content (GalleryFlow::Next insets it 12 DIP each side): the capture is drawn unscaled.
+constexpr float kGalleryFieldWidthDip = kTileWidthDip - 24.0f;
+[[nodiscard]] WindowHostBitmapCapture CaptureFocusedTextFieldBitmapForGallery(const ThemePalette& theme, bool readOnly, UINT dpi)
+{
+    AttachedHostWindow window;
+    ApplyGalleryDpi(window, dpi);
+    ResizeClientArea(window, DipsToPixelsCeil(window.Host(), kGalleryFieldWidthDip), DipsToPixelsCeil(window.Host(), 34.0f));
+    window.Host().SetTheme(theme);
+    window.Host().DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{INFINITE, 0u});
+
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(readOnly ? L"Read-only value" : L"Search text");
+    field->SetReadOnly(readOnly);
+    field->SetBounds(D2D1::RectF(0.0f, 1.0f, kGalleryFieldWidthDip, 33.0f));
+    window.Host().SetRoot(std::move(root));
+
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages(100u);
+    window.Host().SetFocusControl(field, false);
+    Require(field->HasFocus() && field->DebugIsCaretVisible() && window.Host().DebugGetFrameScheduleWakeForTest().kind == 0u,
+            "gallery focused field shows its steady caret with nothing scheduled");
+
+    RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+    window.PumpMessages(100u);
+
+    WindowHostBitmapCapture capture;
+    Require(window.Host().DebugCaptureBitmap(capture), "gallery focused field bitmap capture succeeds");
+    Require(capture.widthPx > 0u && capture.heightPx > 0u && ! capture.bgraPixels.empty(), "gallery focused field capture is non-empty");
+    return capture;
+}
+
 struct GalleryMenuCaptures
 {
     WindowHostBitmapCapture buttonDropDown;
@@ -465,6 +499,8 @@ struct GalleryMenuCaptures
     WindowHostBitmapCapture comboWindowOpen;
     WindowHostBitmapCapture comboModernOpen;
     WindowHostBitmapCapture comboEditOpen;
+    WindowHostBitmapCapture textFieldFocused;
+    WindowHostBitmapCapture textFieldFocusedReadOnly;
 };
 
 [[nodiscard]] GalleryMenuCaptures CaptureGalleryMenus(const ThemePalette& theme, UINT dpi)
@@ -484,10 +520,12 @@ struct GalleryMenuCaptures
          .text          = leaf,
          .commandId     = 802,
          .secondaryText = L"D:\\Sauvegardes\\Archives photographiques personnelles\\Collection permanente du musée"}};
-    captures.menuDescriptions = CaptureMenuPopupBitmapForGallery(theme, describedItems, leaf, dpi);
-    captures.comboWindowOpen  = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Window, false, dpi);
-    captures.comboModernOpen  = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Modern, false, dpi);
-    captures.comboEditOpen    = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Window, true, dpi);
+    captures.menuDescriptions         = CaptureMenuPopupBitmapForGallery(theme, describedItems, leaf, dpi);
+    captures.comboWindowOpen          = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Window, false, dpi);
+    captures.comboModernOpen          = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Modern, false, dpi);
+    captures.comboEditOpen            = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Window, true, dpi);
+    captures.textFieldFocused         = CaptureFocusedTextFieldBitmapForGallery(theme, false, dpi);
+    captures.textFieldFocusedReadOnly = CaptureFocusedTextFieldBitmapForGallery(theme, true, dpi);
     return captures;
 }
 
@@ -1503,6 +1541,18 @@ void AddComboItems(ComboBox& combo)
         auto* label = panel->AddChild<Label>(L"Absolute child layout");
         label->SetBounds(tile.content);
     }
+    {
+        // Focused TextFields, in a host of their own: the editable caret in its shown phase, and the read-only caret, which is
+        // steady (W3.2). Last on the sheet, so no earlier tile moves.
+        const Tile tile = flow.Next(*scene.root, L"TextField / Focused");
+        auto* preview   = scene.root->AddChild<GalleryBitmapPreview>(std::move(menuCaptures.textFieldFocused));
+        preview->SetBounds(CenterIn(tile.content, kGalleryFieldWidthDip, 34.0f));
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"TextField / Focused read-only");
+        auto* preview   = scene.root->AddChild<GalleryBitmapPreview>(std::move(menuCaptures.textFieldFocusedReadOnly));
+        preview->SetBounds(CenterIn(tile.content, kGalleryFieldWidthDip, 34.0f));
+    }
     if (flow.rowHeight > 0.0f)
     {
         flow.NewRow();
@@ -2434,7 +2484,7 @@ void TestGalleryTileCaptureAtOneHundredPercentMatchesTheSheet()
     const std::vector<GalleryTileCapture> tiles = CaptureGalleryTiles(theme, USER_DEFAULT_SCREEN_DPI, named, matched, &optionSheet);
 
     Require(matched.size() == 2u && matched[0] && matched[1], "both tile filters name gallery tiles");
-    Require(tiles.size() == 6u, "the filters select the StatusStrip tile and the five TextField tiles");
+    Require(tiles.size() == 8u, "the filters select the StatusStrip tile and the seven TextField tiles (two focused, W3.2)");
     Require(optionSheet.widthPx == today.widthPx && optionSheet.heightPx == today.heightPx, "a 100% sheet keeps today's size");
     const BitmapComparisonStats sheetStats = CompareWindowHostBitmapCapturesForTest(optionSheet, today, 0u);
     Require(sheetStats.totalPixels > 0u && sheetStats.differingPixels == 0u, "a 100% sheet through the scale option is today's sheet pixel for pixel");

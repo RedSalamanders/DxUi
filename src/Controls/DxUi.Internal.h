@@ -30,6 +30,29 @@ namespace DxUi
     return offsetMs > UINT64_MAX - anchorTickMs ? UINT64_MAX : anchorTickMs + offsetMs;
 }
 
+// The caret owners' view of their host's caret clock (Specs/Rendering/Rendering_Win32Host.md, "Caret clock"). A focused
+// TextField, editable ComboBox or RichTextEditor tells it "focus gained or input happened" (Restart), "focus lost" (Stop),
+// forwards its scheduled Tick, and asks at paint whether the caret is shown. `editable` false is a steady caret.
+struct CaretClockAccess final
+{
+    static void Restart(ControlHost& host, const Control& owner, bool editable) noexcept
+    {
+        host.RestartCaret(owner, editable);
+    }
+    static void Stop(ControlHost& host, const Control& owner) noexcept
+    {
+        host.StopCaret(owner);
+    }
+    [[nodiscard]] static bool Tick(ControlHost& host, const Control& owner, uint64_t nowTickMs) noexcept
+    {
+        return host.TickCaret(owner, nowTickMs);
+    }
+    [[nodiscard]] static bool Shown(const ControlHost& host, const Control& control) noexcept
+    {
+        return host.IsCaretShown(control);
+    }
+};
+
 inline constexpr float kToggleTrackWidthDip           = 34.0f;
 inline constexpr float kToggleTrackHeightDip          = 20.0f;
 inline constexpr float kToggleKnobDiameterDip         = 16.0f;

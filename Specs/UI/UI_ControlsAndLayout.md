@@ -503,6 +503,9 @@ Control callbacks that synchronously transfer native mouse capture use the same 
 needed by the ensuing capture notification and capture the requesting control's weak lifetime. The previous HWND's
 `WM_CAPTURECHANGED` callback may replace the requesting host's root before capture returns; afterward the requester
 MUST verify that its lifetime and current host ownership still match before reading members or continuing input.
+A focused `TextField`, editable `ComboBox` or `RichTextEditor` blinks its caret at the user's caret blink time until the
+caret timeout, through the host's [caret clock](../Rendering/Rendering_Win32Host.md#caret-clock); a read-only field draws
+the same caret steady (shown in every frame, never blinking), as it does under reduced motion or an `INFINITE` blink time.
 A multiline `TextField` draws its caret only inside its text viewport, at every DPI and editable or read-only: a caret on a
 partly visible line is cut at the viewport's edge, and one the wheel scrolled out of view is not drawn. Its painted text
 and selection wrap at the text viewport's own unsnapped width, the width its caret, hit-testing and line metrics use, so

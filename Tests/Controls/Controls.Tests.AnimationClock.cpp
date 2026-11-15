@@ -348,7 +348,7 @@ void TestEmbeddedSliderVisualTransitionsAtAnyEpoch()
 void TestEmbeddedCaretRestartsVisibleAndBlinksAtAnyEpoch()
 {
     using namespace DxUi;
-    constexpr uint64_t kCaretBlinkPeriodMs = 530u; // kCaretBlinkPeriodMs in DxUi.TextInput.cpp and DxUi.ComboBox.cpp
+    constexpr UINT kCaretBlinkPeriodMs = 530u; // Windows' default blink time, pinned on each view below
     GraphicsFixture gpu;
     const auto pool = MakeClockPool(gpu);
     for (const ClockCase& clock : kClockCases)
@@ -379,6 +379,8 @@ void TestEmbeddedCaretRestartsVisibleAndBlinksAtAnyEpoch()
                 owned                 = std::move(field);
             }
             StartClockView(view, pool, std::move(owned), epoch, clock.viewClockMs, 240u, 40u);
+            // The blink time is the user's setting: pinned through the test seam, with no caret timeout.
+            view.Controls().DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{kCaretBlinkPeriodMs, 0u});
 
             view.Controls().SetFocusControl(editor);
             Require(view.NeedsAnimation(), "a focused caret asks for ticks");

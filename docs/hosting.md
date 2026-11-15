@@ -59,7 +59,9 @@ walk of the tree, so name the control instead. A native host whose window is hid
 the application hid, holds its requests and is not woken; a deadline that passed meanwhile fires once when it is shown.
 A hidden control keeps its request without being ticked and is ticked again when shown, so a transition finishes. Call
 these methods on the host's owner thread: from another thread they do nothing and set `ERROR_INVALID_THREAD_ID`.
-See [window hosting](../Specs/Rendering/Rendering_Win32Host.md#frame-schedule).
+See [window hosting](../Specs/Rendering/Rendering_Win32Host.md#frame-schedule). Carets need none of this: the host's
+[caret clock](../Specs/Rendering/Rendering_Win32Host.md#caret-clock) arms one deadline per blink of the focused
+`TextField`, editable `ComboBox` or `RichTextEditor`, following the user's blink time, caret timeout and reduced motion.
 Device replacement and detach release owned graphics without clearing or flushing the application's immediate
 context; composition retains its documented pipeline-binding behavior.
 
@@ -163,7 +165,11 @@ Call `AdvanceAnimation(nowTickMs)` only while `NeedsAnimation()` requests host t
 while any control waits for a deadline (a focused caret between blinks), and an advance before the deadline ticks
 nothing, so polling every frame keeps working. A tick marks the view dirty
 only when a control changes visual state (an indeterminate progress bar on every tick, a caret only when its blink
-phase flips), so check `NeedsPreparation()` after ticking instead of preparing unconditionally; a clean `Prepare`
+phase flips), so check `NeedsPreparation()` after ticking instead of preparing unconditionally. A caret blinks at the
+user's caret blink time until the caret timeout and is steady when read-only or under the theme's reduced motion; a
+steady caret leaves `NeedsAnimation()` false. The view has no window to receive `WM_SETTINGCHANGE`: call
+`Controls().RefreshCaretBlinkSettings()` when your window receives it (see the
+[caret clock](../Specs/Rendering/Rendering_Win32Host.md#caret-clock)). A clean `Prepare`
 returns `S_FALSE`. The `requestPreparation` callback also fires when animation first becomes requested, so a host
 that reacts to it observes `NeedsAnimation()` after preparing; a repeated request changes nothing. Stop scheduling
 idle and hidden views. Call `SetVisible(false)` when a view is unavailable:

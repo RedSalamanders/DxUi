@@ -718,13 +718,76 @@ __declspec(noinline) inline void TestFrameScheduleGatesOnFixtures()
         wakesWithTicks += step.work.frame.tickCalls != 0u ? 1u : 0u;
     }
     std::cout << "FX1 editable (embedded, fixture clock): " << tickCalls << " caret ticks at " << wakesWithTicks << " wakes in 10 s\n";
-    Check(wakesWithTicks <= 20u && tickCalls <= 20u && tickCalls >= 15u, "G1: FX1 editable needs at most 20 wakes in 10 s, one per caret blink");
+    // W3.2: the caret blinks for the 5 s caret timeout FX1 pins (10 flips at 530 ms), then nothing is armed.
+    Check(wakesWithTicks <= 20u && tickCalls <= 20u && tickCalls >= 9u, "G1: FX1 editable needs at most 20 wakes in 10 s, one per caret blink");
     const RunRecord fx5 = RunEmbedded(Fx5::kDefinition, Fx5::kVariants[0]);
     for (const PhaseRecord& phase : fx5.phases)
         for (const StepRecord& step : phase.steps)
             Check(step.work.frame.tickCalls == step.work.frame.tickRequesters && step.work.frame.treeVisitsTick == 0u &&
                       step.work.frame.tickLegacyTreeWalks == 0u,
                   "FX5: Tick calls per wake equal the requesting controls, with no tree walk");
+}
+// W3.2's caret-clock gate on FX1 (Specs/Rendering/Rendering_Win32Host.md, "Caret clock"), embedded, on the fixture clock:
+// motion on and the caret settings pinned to Windows' defaults (530 ms, 5 s timeout). A wake is a step whose advance ticked
+// the caret. Editable: at most 20 wakes in 10 s, one per flip, and 0 wakes (no advance at all) after the timeout; read-only:
+// 0 wakes and the caret present at every frame, with nothing armed. Also prints the paints per flip (one whole-surface
+// preparation each: the host cannot invalidate only the caret yet, W3.7 and W4).
+__declspec(noinline) inline void TestCaretClockGatesOnFx1()
+{
+    const RunRecord fx1 = RunEmbedded(Fx1::kDefinition, Fx1::kVariants[0]);
+    // The last flip is at 5,300 ms of the view's timeline (the 5 s timeout); the timeline starts at the first advance after
+    // the focus, so it lags the fixture clock by one step. Everything after the step of the last flip is "after the timeout".
+    size_t wakes = 0u, preparations = 0u, paints = 0u, wakesAfterTimeout = 0u, advancesAfterTimeout = 0u, lastFlipStep = 0u;
+    const PhaseRecord& editable = fx1.Phase("editable");
+    for (size_t index = 0u; index < editable.steps.size(); ++index)
+    {
+        const StepRecord& step = editable.steps[index];
+        Check(step.work.frame.tickCalls <= 1u, "FX1 editable: a step ticks the caret at most once");
+        if (step.work.frame.tickCalls != 0u)
+        {
+            ++wakes;
+            preparations += step.work.frame.preparations;
+            paints += step.work.frame.paintExecutions;
+            lastFlipStep = index;
+        }
+    }
+    Check(lastFlipStep * Fx1::kStepMs <= 5'500u, "FX1 editable: the last flip comes at the 5 s caret timeout");
+    for (size_t index = lastFlipStep + 1u; index < editable.steps.size(); ++index)
+    {
+        wakesAfterTimeout += editable.steps[index].work.frame.tickCalls;
+        advancesAfterTimeout += editable.steps[index].work.wakes.embeddedAdvance;
+    }
+    std::cout << "FX1 editable (embedded, W3.2): " << wakes << " caret wakes in 10 s, the last at step " << lastFlipStep << ", " << wakesAfterTimeout
+              << " after it; per flip " << (wakes ? preparations / wakes : 0u) << " preparation(s) and " << (wakes ? paints / wakes : 0u)
+              << " paint executions\n";
+    Check(wakes <= 20u && wakes == 10u, "W3.2: FX1 editable at the 530 ms default wakes once per flip, at most 20 times in 10 s");
+    Check(wakesAfterTimeout == 0u && advancesAfterTimeout == 0u, "W3.2: 0 wakes after the caret timeout, not even a polling advance");
+    for (const StepRecord& step : fx1.Phase("readonly").steps)
+        Check(step.work.frame.tickCalls == 0u && step.work.wakes.embeddedAdvance == 0u, "W3.2: FX1 read-only wakes nothing");
+
+    // The read-only caret at every frame, on FX1's own scene stepped by hand.
+    GraphicsFixture gpu;
+    Hr(gpu.Create(), "FX1 caret gate device");
+    EmbeddedInstance instance;
+    instance.Instantiate(Fx1::kDefinition);
+    Hr(instance.Create(gpu.device.get(), Fx1::kVariants[0]), "FX1 caret gate scene");
+    auto* const root     = instance.View().Controls().GetRoot();
+    auto* const readOnly = root ? dynamic_cast<DxUi::TextField*>(root->GetLogicalChild(1u)) : nullptr;
+    Check(readOnly && readOnly->IsReadOnly(), "FX1's second field is the read-only one");
+    for (size_t step = 0u; step < Fx1::kPhases[Fx1::kWarm].steps; ++step)
+    {
+        instance.Step(Fx1::kWarm, step);
+        Hr(instance.Frame(gpu), "FX1 caret gate warm frame");
+    }
+    for (size_t step = 0u; step < Fx1::kIdleSteps; ++step)
+    {
+        instance.Step(Fx1::kReadOnly, step);
+        Hr(instance.Frame(gpu), "FX1 caret gate read-only frame");
+        Check(readOnly->HasFocus() && readOnly->DebugIsCaretVisible(), "W3.2: the read-only caret is present in every frame");
+        Check(instance.View().Controls().DebugGetFrameScheduleWakeForTest().kind == 0u && ! instance.View().NeedsAnimation(),
+              "W3.2: a focused read-only field schedules nothing");
+    }
+    std::cout << "FX1 read-only (embedded, W3.2): caret shown in all " << Fx1::kIdleSteps << " frames, nothing scheduled\n";
 }
 
 // The timing harness's view of a catalog fixture: performance-timing.ps1 -Phase Dirty plays the timed phase, one step per

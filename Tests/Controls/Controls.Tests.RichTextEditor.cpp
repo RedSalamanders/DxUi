@@ -1083,14 +1083,14 @@ void TestRichTextEditorScrollAndHostClock()
     Require(detachedText != nullptr && ControlModelQueryAccess::Host(*detachedText) == nullptr &&
                 ! detachedText->ScrollSourceRangeIntoView(detachedHost, 0u, 4u, true),
             "detached editor rejects a stale host scroll request");
-    window.Host().SetFocusControl(raw, false);
     auto theme          = window.Host().GetTheme();
     theme.reducedMotion = false;
     window.Host().SetTheme(theme);
-    // W3.1: the caret sleeps between phase flips; each Tick asks for a deadline at the next flip instead of every frame.
-    // This test ticks the editor directly, outside a wake: drop the next-frame restart the focus change asked for, so the
-    // deadline each Tick asks for is what the schedule holds.
-    window.Host().CancelAnimation(*raw);
+    // W3.2: the host's caret clock owns the phase, at the system blink time (pinned here through the test seam) from the
+    // focus on the host's clock, starting at zero; each Tick asks for a deadline at the next flip instead of every frame.
+    window.Host().DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{500u, 0u});
+    window.Host().DebugSetAnimationClockForTest(0u);
+    window.Host().SetFocusControl(raw, false);
     const auto sleepsUntil = [&](uint64_t flipTickMs)
     {
         const auto wake = window.Host().DebugGetFrameScheduleWakeForTest();
@@ -1103,7 +1103,8 @@ void TestRichTextEditorScrollAndHostClock()
     Require(! raw->Tick(window.Host(), 500) && sleepsUntil(1000u) && window.Host().DebugGetInvalidateCount() > invalidations, "phase flip invalidates");
     Require(! raw->Tick(window.Host(), 10) && sleepsUntil(500u), "backwards host timestamp resets epoch safely");
     raw->SetReadOnly(true);
-    Require(! raw->Tick(window.Host(), 1000), "read-only caret requests no periodic work");
+    Require(! raw->Tick(window.Host(), 1000) && window.Host().DebugGetFrameScheduleWakeForTest().kind == 0u, "read-only caret requests no periodic work");
+    window.Host().DebugSetAnimationClockForTest(std::nullopt);
 }
 
 void TestRichTextEditorCatalogAndRebinding()

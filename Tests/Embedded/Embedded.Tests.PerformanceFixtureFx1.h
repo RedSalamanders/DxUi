@@ -1,6 +1,8 @@
 #pragma once
 // FX1 idle caret (plan W0.4): a focused editable single-line TextField, then a focused read-only one, then a focused
-// 64 Ki-unit multiline TextField, each left idle for 10 s of the frozen fixture clock. Proves G1; with FX5, G4.
+// 64 Ki-unit multiline TextField, each left idle for 10 s of the frozen fixture clock. Proves G1; with FX5, G4. Motion is on and
+// the caret settings are Windows' defaults (530 ms, 5 s timeout), pinned (W3.2): an editable caret blinks for 5 s after focus,
+// then stays shown with nothing armed; the read-only caret is steady.
 //
 // What is simulated: every idle step advances the fixture clock by 100 ms and delivers one animation tick when the host has
 // animation pending (embedded: EmbeddedHost::AdvanceAnimation, counted as wakes.embeddedAdvance; window:
@@ -25,6 +27,8 @@ inline constexpr size_t kWarm               = 0u;
 inline constexpr size_t kEditable           = 1u;
 inline constexpr size_t kReadOnly           = 2u;
 inline constexpr size_t kMultiline          = 3u;
+// Windows' defaults: a 530 ms blink phase, and blinking stops 5 s after the latest input with the caret shown (W3.2).
+inline constexpr DxUi::ControlHost::CaretBlinkSettingsForTest kCaretSettings{530u, 5000u};
 
 inline constexpr std::array kVariants{Variant{"default", 800u, 600u, 96.0f, false}};
 inline constexpr std::array kPhases{
@@ -54,6 +58,9 @@ class Scene final : public Scenario
 public:
     HRESULT Build(Context& context) override
     {
+        // The caret follows the user's blink time and caret timeout: pinned to Windows' defaults through the host's test seam,
+        // never read from the desktop that runs the fixture. Motion is on (the definition), so the editable caret blinks.
+        context.controls.DebugSetCaretBlinkSettingsForTest(kCaretSettings);
         auto root = std::make_unique<DxUi::Panel>();
         editable_ = root->AddChild<DxUi::TextField>();
         editable_->SetText(L"Editable field");
@@ -99,17 +106,19 @@ private:
 };
 
 inline constexpr Definition kDefinition{
-    .id         = "FX1",
-    .title      = "Idle caret",
-    .scenario   = "A focused single-line TextField, editable and read-only, for 10 s; plus a focused 64 Ki-unit multiline TextField. Proves G1; with "
-                  "FX5, G4. The fixture clock advances 100 ms per step (500 ms on the multiline field) with one animation tick per step when "
-                  "animation is pending; a native 8 ms timer would deliver about ten times as many wakes in real time.",
-    .budgets    = kBudgets,
-    .hosts      = kBothHosts,
-    .variants   = kVariants,
-    .phases     = kPhases,
-    .timedPhase = "editable",
-    .sources    = kSources,
-    .create     = []() -> std::unique_ptr<Scenario> { return std::make_unique<Scene>(); },
+    .id            = "FX1",
+    .title         = "Idle caret",
+    .scenario      = "A focused single-line TextField, editable and read-only, for 10 s; plus a focused 64 Ki-unit multiline TextField. Proves G1; with "
+                     "FX5, G4. The fixture clock advances 100 ms per step (500 ms on the multiline field) with one animation tick per step when "
+                     "animation is pending; a native 8 ms timer would deliver about ten times as many wakes in real time. Motion on; caret "
+                     "settings pinned to Windows' defaults (530 ms blink, 5 s caret timeout).",
+    .budgets       = kBudgets,
+    .hosts         = kBothHosts,
+    .variants      = kVariants,
+    .phases        = kPhases,
+    .timedPhase    = "editable",
+    .sources       = kSources,
+    .reducedMotion = false,
+    .create        = []() -> std::unique_ptr<Scenario> { return std::make_unique<Scene>(); },
 };
 } // namespace PerformanceFixtures::Fx1

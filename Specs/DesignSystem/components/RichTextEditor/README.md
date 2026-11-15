@@ -14,7 +14,7 @@ the same prepared inset in either reading direction; narrow frames retain at lea
 `showVerticalScrollbar=true` reserves the native themed lane and paints its thumb only for actual overflow.
 
 - **Consumer supplies**: initial Markdown, a bounded rectangle, view/read-only policy and an optional text-change callback. Persistence belongs to the application.
-- **Metrics**: 8 DIP inset on each side, 6 when compact; 4 DIP corners; 1 DIP caret; 500 ms blink phase using the host clock. Wheel scrolling moves 48 DIP per detent.
+- **Metrics**: 8 DIP inset on each side, 6 when compact; 4 DIP corners; 1 DIP caret; blink phase at the user's caret blink time (530 ms by default) through the host's caret clock, steady when read-only or under reduced motion. Wheel scrolling moves 48 DIP per detent.
 - **Document surface**: `SetAppearance` can remove the input border, blend with the window background, center a bounded text column and override body/code families, sizes, font-relative line height and heading scale or explicit per-level heading values. Defaults preserve the metrics above. Geometry, caret and accessible font attributes follow the same prepared options. Borderless keyboard focus retains a visible outline; focused high contrast retains it persistently.
 - **Typography**: host Body with Monospace family for code; headings use the existing rich-layout heading scale. Semantic headings retain explicit strong weight.
 - **Colors**: TextField's input, border, text, selection and caret roles. Focus adds the host accent bottom stroke. Selection ink uses the selected-text role, including high contrast.

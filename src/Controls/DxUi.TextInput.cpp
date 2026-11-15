@@ -16,7 +16,6 @@ namespace DxUi
 namespace
 {
 constexpr float kMultilineLayoutHeightDip = 32768.0f;
-constexpr uint64_t kCaretBlinkPeriodMs    = 530u;
 
 [[nodiscard]] std::wstring NormalizeMultilineLineEndings(std::wstring_view text, bool multiline);
 
@@ -1278,8 +1277,6 @@ void TextField::SetText(std::wstring text)
     _selectionAnchorIndex.reset();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     _preferredMultilineXOffsetDip.reset();
-    _caretBlinkAnchorTickMs.reset();
-    _caretVisible = true;
     // A focused field restarts its blink now, with the caret shown, and sleeps until the first flip.
     if (ControlHost* const caretHost = GetHost(); caretHost && HasFocus())
         ResetCaretBlink(*caretHost);
@@ -1376,8 +1373,6 @@ void TextField::SetSelectionRange(const size_t selectionStart, const size_t sele
         _selectionAnchorIndex = clampedStart;
         _caretIndex           = clampedEnd;
     }
-    _caretBlinkAnchorTickMs.reset();
-    _caretVisible = true;
     // A focused field restarts its blink now, with the caret shown, and sleeps until the first flip.
     if (ControlHost* const caretHost = GetHost(); caretHost && HasFocus())
         ResetCaretBlink(*caretHost);
@@ -1412,8 +1407,6 @@ void TextField::ReplaceSelectionAndNotify(std::wstring_view replacement)
     _caretIndex += replacement.size();
     _selectionAnchorIndex.reset();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
-    _caretBlinkAnchorTickMs.reset();
-    _caretVisible = true;
     // A focused field restarts its blink now, with the caret shown, and sleeps until the first flip.
     if (ControlHost* const caretHost = GetHost(); caretHost && HasFocus())
         ResetCaretBlink(*caretHost);
@@ -1796,6 +1789,8 @@ void TextField::SetReadOnly(bool readOnly) noexcept
     }
     if (ControlHost* const host = GetHost(); host && HasFocus())
     {
+        // An editable caret blinks and a read-only one is steady: the caret restarts in its new mode.
+        ResetCaretBlink(*host);
         host->SyncTextInput(this);
         if (lifetime.expired())
             return;
@@ -1919,7 +1914,8 @@ bool TextField::DebugGetSingleLinePaintState(const ControlHost& host, TextFieldD
 
 bool TextField::DebugIsCaretVisible() const noexcept
 {
-    return _caretVisible;
+    const ControlHost* const host = GetHost();
+    return ! host || CaretClockAccess::Shown(*host, *this);
 }
 
 bool TextField::DebugGetCaretRect(const ControlHost& host, size_t controlTextIndex, D2D1_RECT_F& outRect) const noexcept
@@ -2049,7 +2045,7 @@ void TextField::Paint(ControlHost& host) const
         DrawTextInputUnderlineRects(host, BuildNativeCompositionUnderlineRects(host, *this, true), host.GetTheme().accent);
     }
 
-    if (HasFocus() && _caretVisible)
+    if (HasFocus() && CaretClockAccess::Shown(host, *this))
     {
         D2D1_RECT_F caretRect = D2D1::RectF();
         if (_multiline)
@@ -2131,31 +2127,12 @@ void TextField::Paint(ControlHost& host) const
 
 bool TextField::Tick(ControlHost& host, uint64_t nowTickMs)
 {
-    if (! HasFocus())
+    // The caret is the field's only tick: the host's caret clock flips its phase and arms the next flip.
+    if (HasFocus() && CaretClockAccess::Tick(host, *this, nowTickMs))
     {
-        _caretVisible = true;
-        _caretBlinkAnchorTickMs.reset();
-        return false;
-    }
-
-    const bool caretWasVisible = _caretVisible;
-    if (! _caretBlinkAnchorTickMs)
-    {
-        _caretBlinkAnchorTickMs = nowTickMs;
-        _caretVisible           = true;
-    }
-    else
-    {
-        _caretVisible = ((ElapsedTickMs(*_caretBlinkAnchorTickMs, nowTickMs) / kCaretBlinkPeriodMs) % 2u) == 0u;
-    }
-    if (_caretVisible != caretWasVisible)
-    {
-        // Only a blink-phase flip changes pixels; ticks within one phase leave the surface clean.
+        // Only a blink-phase flip changes pixels; a tick within one phase leaves the surface clean.
         Invalidate(host);
     }
-
-    // Sleep until the next phase flip: one deadline per flip, nothing in between.
-    host.RequestAnimationAt(*this, NextCaretBlinkFlipTickMs(*_caretBlinkAnchorTickMs, nowTickMs, kCaretBlinkPeriodMs));
     return false;
 }
 
@@ -2180,10 +2157,8 @@ void TextField::OnFocusChanged(ControlHost& host, bool focused)
     {
         RemaskPasswordReveal();
         BreakDirectEditMerge();
-        _caretBlinkAnchorTickMs.reset();
         // The caret is the field's only tick: an unfocused field waits for nothing.
-        host.CancelAnimation(*this);
-        _caretVisible  = true;
+        CaretClockAccess::Stop(host, *this);
         _dragSelecting = false;
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);
         _preferredMultilineXOffsetDip.reset();
@@ -4103,9 +4078,8 @@ void TextField::OnDensityChanged() noexcept
 
 void TextField::ResetCaretBlink(ControlHost& host) noexcept
 {
-    _caretBlinkAnchorTickMs = host.GetAnimationTickMs();
-    _caretVisible           = true;
-    host.RequestAnimationAt(*this, NextCaretBlinkFlipTickMs(*_caretBlinkAnchorTickMs, *_caretBlinkAnchorTickMs, kCaretBlinkPeriodMs));
+    // Focus gain or input: the caret shows now. A read-only field's caret is steady and schedules nothing.
+    CaretClockAccess::Restart(host, *this, ! _readOnly);
 }
 
 bool TextField::NotifyChanged()

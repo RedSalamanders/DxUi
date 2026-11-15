@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-gallery-tiles",
+  "command": "gallery.ps1 -Configuration 'Release' -Platform x64 -Scale 100,150,200 -Tiles 'textfield-focused','textfield-focused-read-only' -Warp",
+  "sourceCommit": "c030d60ce7ce879f5f99dd514811970ab568aa85",
+  "sourceDirty": true,
+  "configuration": "Release",
+  "platform": "x64",
+  "nativeArchitecture": "X64",
+  "benchmarkInputs": {
+    "gallery.ps1": "3e159f7d6abf6fd18bd548b8a0f4f10b881bb2aa3ed4782a1f4cec5197bd8fa8",
+    "Tools/GalleryCapture.psm1": "15f150485530506fb7ad044e5e5254956be5718ada29e19c81a20a0527cd254b",
+    "Tests/Controls/DxUi.Tests.Gallery.cpp": "03f5637453b617e12628e19272ce26b78c190a3b031f2f558375174d576e973b",
+    "Tests/Controls/DxUi.Tests.Runner.cpp": "a12d7524b7b246db0a5e4937e7910a494f48944216d3694b484321c353fe3ad1"
+  },
+  "adapter": "WARP (forced)",
+  "forceWarp": true,
+  "scales": [
+    {
+      "percent": 100,
+      "dpi": 96
+    },
+    {
+      "percent": 150,
+      "dpi": 144
+    },
+    {
+      "percent": 200,
+      "dpi": 192
+    }
+  ],
+  "themes": [
+    "light",
+    "dark",
+    "rainbow-light",
+    "rainbow-dark",
+    "high-contrast"
+  ],
+  "tileFilters": [
+    "textfield-focused",
+    "textfield-focused-read-only"
+  ],
+  "tileCount": 30,
+  "tilesFile": "tiles.tsv",
+  "pixelDigest": "SHA-256 of the PNG decoded to 32-bit BGRA rows, top to bottom (Tools/GalleryCapture.psm1, Get-GalleryPixelDigest)"
+}

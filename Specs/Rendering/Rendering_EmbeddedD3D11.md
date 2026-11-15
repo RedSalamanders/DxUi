@@ -224,6 +224,12 @@ AdvanceAnimation ticks only the controls holding a due request of the host's fra
 pending deadline included, so a caller that advances every frame while it is true still sees a caret blink, and an
 advance before the deadline ticks nothing. A new root gets one discovery tick of the whole visible tree. A hidden view
 holds its requests; its timeline does not count the hidden time.
+The caret follows the host's [caret clock](Rendering_Win32Host.md#caret-clock): a blinking caret holds one deadline per
+phase flip, a steady one (read-only, `INFINITE` blink time, reduced motion, after the caret timeout) holds none, so
+`NeedsAnimation` turns false; showing the view shows a focused caret at once and restarts its phase. The view owns no
+window and receives no `WM_SETTINGCHANGE`: the application calls `Controls().RefreshCaretBlinkSettings()` when its own
+window receives one, as it calls `SetTheme` for reduced motion and `SetTextRenderingMonitor` for ClearType changes. DxUi
+never polls the settings.
 
 Prepare receives width/height in pixels and DPI (48..768), checks D3D dimension limits and a 64 MiB surface ceiling,
 then performs changed layout/raster work. A resize allocates the replacement surface before releasing the previous

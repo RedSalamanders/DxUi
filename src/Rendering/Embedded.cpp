@@ -435,6 +435,8 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
     {
         // The timeline does not count the hidden time: the next tick sets its baseline, so held deadlines keep their
         // place on it and fire when it reaches them.
+        // A focused caret is shown at once and restarts its blink when the view returns.
+        _host.RearmCaret();
         _host._embeddedAnimationRequested = _host.HasScheduledTicks();
         _host._animationTimelineRebase    = true;
         _state->dirty                     = true;

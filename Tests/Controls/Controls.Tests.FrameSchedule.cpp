@@ -536,6 +536,10 @@ void TestFrameScheduleNativeFx1CaretWakesInRealTime()
     using namespace PerformanceFixtures;
     AttachedHostWindow window(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
     auto& host = window.Host();
+    // FX1's motion setting, as its runners apply it (W3.2: a caret blinks only with motion on).
+    auto theme          = host.GetTheme();
+    theme.reducedMotion = Fx1::kDefinition.reducedMotion;
+    host.SetTheme(theme);
     IdlePort port;
     Context context{Host::Window, Fx1::kVariants[0], host, port};
     const std::unique_ptr<Scenario> scene = Fx1::kDefinition.create();
@@ -551,14 +555,29 @@ void TestFrameScheduleNativeFx1CaretWakesInRealTime()
 
     scene->Step(context, Fx1::kWarm, 0u); // focuses the editable field (no native focus transfer)
     {
+        // W3.2: FX1 pins Windows' defaults, so the caret blinks for 5 s (about 10 flips at 530 ms) and then stays shown.
         const WorkCounterScope editable;
-        PumpFor(10'000u);
+        PumpFor(6'000u);
         const WorkCounters delta = editable.Delta();
-        std::cout << "    FX1 editable, native, 10 s real time: " << delta.wakes.deadlineTimer << " deadline wakes, " << delta.wakes.animationTimer
+        std::cout << "    FX1 editable, native, first 6 s real time: " << delta.wakes.deadlineTimer << " deadline wakes, " << delta.wakes.animationTimer
                   << " periodic wakes, " << delta.frame.tickCalls << " Tick calls, " << delta.wakes.paintMessage << " paints\n";
         Require(TimerWakes(delta) <= 20u, "G1: FX1 editable wakes in 10 s <= 20");
-        Require(delta.wakes.animationTimer == 0u && delta.frame.tickCalls >= 15u, "the caret blinks through deadlines alone");
+        Require(delta.wakes.animationTimer == 0u && delta.frame.tickCalls >= 9u, "the caret blinks through deadlines alone");
         Require(delta.frame.treeVisitsTick == 0u && delta.frame.tickLegacyTreeWalks == 0u, "no wake walks the tree");
+        const WorkCounterScope timedOut;
+        PumpFor(4'000u);
+        std::cout << "    FX1 editable, native, the 4 s after the caret timeout: " << TimerWakes(timedOut.Delta()) << " wakes\n";
+        Require(TimerWakes(timedOut.Delta()) == 0u && timedOut.Delta().frame.tickCalls == 0u && host.DebugIsCaretClockVisibleForTest(),
+                "W3.2: 0 wakes after the caret timeout, with the caret shown");
+    }
+    {
+        scene->Step(context, Fx1::kReadOnly, 0u); // focuses the read-only field
+        const WorkCounterScope readOnly;
+        PumpFor(2'000u);
+        Require(TimerWakes(readOnly.Delta()) == 0u && host.DebugIsCaretClockVisibleForTest() && host.DebugGetFrameScheduleWakeForTest().kind == 0u,
+                "W3.2: a focused read-only field wakes nothing and shows a steady caret");
+        host.SetFocusControl(nullptr, false);
+        scene->Step(context, Fx1::kWarm, 0u); // the editable field again: its caret restarts
     }
     {
         ShowWindow(window.Hwnd(), SW_SHOWMINNOACTIVE);
@@ -567,9 +586,13 @@ void TestFrameScheduleNativeFx1CaretWakesInRealTime()
         Require(TimerWakes(minimized.Delta()) == 0u && minimized.Delta().frame.tickCalls == 0u, "0 wakes while minimized");
         const WorkCounterScope restored;
         ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        const uint64_t shownAt = GetTickCount64();
+        Require(host.DebugIsCaretClockVisibleForTest(), "W3.2: on restore the caret is shown at once");
         Require(PumpUntil(2'000u, [&restored] { return restored.Delta().frame.tickCalls > 0u; }), "the restored caret ticks");
-        Require(restored.Delta().frame.tickHeldWhileHidden == 1u && restored.Delta().frame.tickCalls == 1u && TimerWakes(restored.Delta()) == 1u,
-                "the deadline that expired while minimized fires once, at one wake");
+        const uint64_t firstFlipMs = GetTickCount64() - shownAt;
+        Require(restored.Delta().frame.tickHeldWhileHidden == 0u && restored.Delta().frame.tickCalls == 1u && TimerWakes(restored.Delta()) == 1u,
+                "W3.2: the restart on show replaces the flip held while minimized: one wake, one Tick");
+        Require(firstFlipMs >= 400u, "W3.2: the phase restarts on show: the first flip comes about one period later, not at once");
     }
     {
         Require(host.SetNativePresentationVisible(false) == S_OK, "hide the native presentation");
@@ -620,6 +643,9 @@ DxUi::TextField* FocusCaret(AttachedHostWindow& window)
     auto* field = root->AddChild<DxUi::TextField>(L"caret");
     field->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
     window.Host().SetRoot(std::move(root));
+    // W3.2: a caret blinks only with motion on, at the user's blink time; both pinned (530 ms, no caret timeout).
+    EnableMotionForTest(window.Host());
+    window.Host().DebugSetCaretBlinkSettingsForTest(DxUi::ControlHost::CaretBlinkSettingsForTest{530u, 0u});
     window.Host().SetFocusControl(field, false);
     return field;
 }
@@ -640,6 +666,7 @@ void TestFrameScheduleHiddenHostResumesWhenVisibleAgain()
         Require(! window.Host().DebugHasActiveAnimationSubscription(), "a host hidden by its own redraw block stops waking");
         SendMessageW(window.Hwnd(), WM_SETREDRAW, TRUE, 0);
         Require(window.Host().DebugHasActiveAnimationSubscription(), "the end of the redraw block resumes the held schedule");
+        Require(window.Host().DebugIsCaretClockVisibleForTest(), "W3.2: the caret is shown at once when the redraw block ends");
         const WorkCounterScope resumed;
         Require(PumpUntil(2'000u, [&resumed] { return resumed.Delta().frame.tickCalls > 0u; }), "the caret blinks again after the redraw block");
     }

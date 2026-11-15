@@ -644,7 +644,6 @@ struct RichTextEditor::State
     std::optional<uint64_t> middleAutoScrollTick;
     bool scrollbarDragging = false;
     float scrollbarDragY = 0.0f, scrollbarDragOffset = 0.0f;
-    bool caretVisible            = true;
     wchar_t pendingLeadSurrogate = 0;
     // Text-input copy (W7.4): at most one contiguous copy of one source revision, for text-input readers that need
     // contiguous text (a TSF lock, IMM, a public snapshot). It is keyed by textInputSource's identity, so a copy of an older
@@ -652,7 +651,6 @@ struct RichTextEditor::State
     // (MutableSharedText's sole-owner rule), and released on focus loss and destruction.
     std::optional<RichText::SourceSnapshot> textInputSource;
     SharedText textInputText;
-    std::optional<uint64_t> blinkEpoch;
     std::optional<float> preferredCaretX;
     // Native visual affinity only. Several padded cells share a real source ACP;
     // this identity never enters Document selection, TSF text or undo records.
@@ -3697,8 +3695,6 @@ void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePr
     _state->revealCaret = revealCaret;
     if (revealCaret)
         _state->viewportAnchor.reset();
-    _state->caretVisible = true;
-    _state->blinkEpoch.reset();
     UpdateCaretLinkDisplayRange();
     const auto lifetime = GetLifetimeToken();
     auto* host          = GetHost();
@@ -3712,9 +3708,9 @@ void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePr
     if (lifetime.expired() || GetHost() != host)
         return;
     RequestInvalidate();
-    // The next frame restarts the blink (Tick sets its epoch), then the caret sleeps until each flip.
-    if (! lifetime.expired() && GetHost() == host && host && HasFocus() && Editable() && ! host->GetTheme().reducedMotion)
-        host->RequestAnimationOnce(*this);
+    // The caret shows now and, while it blinks, sleeps until each flip; a read-only editor's caret is steady.
+    if (! lifetime.expired() && GetHost() == host && host && HasFocus())
+        CaretClockAccess::Restart(*host, *this, Editable());
     if (publishSelection && ! lifetime.expired() && GetHost() == host)
         PublishSelectionChanged();
 }
@@ -5591,7 +5587,7 @@ void RichTextEditor::Paint(ControlHost& host) const
             state.keyboardNavigationDocument.lock() == GetAcknowledgedSemanticDocument(host))
             if (const auto bounds = GetSemanticElementBounds(host, state.keyboardNavigationElement))
                 context->DrawRectangle(*bounds, host.GetSolidBrush(host.GetTheme().focusStroke), 1.0f);
-        if (HasFocus() && IsEnabled() && state.caretVisible && state.keyboardNavigationElement == RichText::MarkdownNoNode)
+        if (HasFocus() && IsEnabled() && CaretClockAccess::Shown(host, *this) && state.keyboardNavigationElement == RichText::MarkdownNoNode)
         {
             const auto caret =
                 state.layout.SourceCaret(selection.caret, state.sourceCaretSite, state.CaretAffinityAt(selection.caret, state.document.selectionEpoch_));
@@ -5625,7 +5621,6 @@ void RichTextEditor::Paint(ControlHost& host) const
         PaintScrollbar(host, track, thumb, ResolveScrollbarVisuals(host.GetTheme(), false, false, state.scrollbarDragging));
     }
 }
-constexpr uint64_t kRichCaretBlinkPeriodMs = 500u;
 bool RichTextEditor::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     auto& state = *_state;
@@ -5651,27 +5646,10 @@ bool RichTextEditor::Tick(ControlHost& host, uint64_t nowTickMs)
                 return true;
         }
     }
-    if (! HasFocus() || ! IsVisible() || ! Editable() || host.GetTheme().reducedMotion)
-    {
-        const bool changed = ! state.caretVisible;
-        state.caretVisible = true;
-        state.blinkEpoch.reset();
-        if (changed)
-            RequestInvalidate();
-        return false;
-    }
-    // The application supplies the embedded epoch, including zero. No uptime,
-    // private timer, or thread is introduced by this control.
-    if (! state.blinkEpoch || nowTickMs < *state.blinkEpoch)
-        state.blinkEpoch = nowTickMs;
-    const bool visible = ((nowTickMs - *state.blinkEpoch) / kRichCaretBlinkPeriodMs) % 2u == 0;
-    if (visible != state.caretVisible)
-    {
-        state.caretVisible = visible;
+    // The host's caret clock flips the phase on the host's (or the application's) clock and arms the next flip. No uptime,
+    // private timer or thread is introduced by this control.
+    if (HasFocus() && IsVisible() && CaretClockAccess::Tick(host, *this, nowTickMs))
         RequestInvalidate();
-    }
-    // Sleep until the next phase flip: one deadline per flip, nothing in between.
-    host.RequestAnimationAt(*this, NextCaretBlinkFlipTickMs(*state.blinkEpoch, nowTickMs, kRichCaretBlinkPeriodMs));
     return false;
 }
 size_t RichTextEditor::HitSource(ControlHost& host, D2D1_POINT_2F point) const
@@ -8069,7 +8047,6 @@ void RichTextEditor::PropagateHost(ControlHost* host) noexcept
         _state->middleAutoScroll     = false;
         _state->middleAutoScrollTick.reset();
         _state->scrollbarDragging = false;
-        _state->blinkEpoch.reset();
     }
     Control::PropagateHost(host);
 }
@@ -8120,7 +8097,6 @@ void RichTextEditor::OnEnabledChanged(bool) noexcept
     _state->middleAutoScroll     = false;
     _state->middleAutoScrollTick.reset();
     _state->scrollbarDragging = false;
-    _state->blinkEpoch.reset();
     if (wasMiddleAutoScroll && tooltipHost && ControlCaptureAccess::GestureOwner(*tooltipHost) == this)
         tooltipHost->ReleaseMouseCapture();
     if (! tooltipLifetime.expired() && GetHost() == tooltipHost && wasSelecting)
@@ -8144,7 +8120,6 @@ void RichTextEditor::OnHidden() noexcept
     _state->middleAutoScroll     = false;
     _state->middleAutoScrollTick.reset();
     _state->scrollbarDragging = false;
-    _state->blinkEpoch.reset();
     if (wasMiddleAutoScroll && tooltipHost && ControlCaptureAccess::GestureOwner(*tooltipHost) == this)
         tooltipHost->ReleaseMouseCapture();
     if (! tooltipLifetime.expired() && GetHost() == tooltipHost && wasSelecting)
@@ -8179,6 +8154,7 @@ void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
         _state->textInputText.reset();
         _state->textInputSource.reset();
         // The caret and middle-button scrolling are the editor's only ticks, and both end with focus.
+        CaretClockAccess::Stop(host, *this);
         host.CancelAnimation(*this);
     }
     SelectionChanged();
