@@ -1472,7 +1472,9 @@ void TextField::SetMasked(bool masked) noexcept
     if (lifetime.expired())
         return;
     RegenerateConcealedMaskEpoch();
+    // Masking or unmasking changes the shown text: the layouts of the old one, plaintext included, are released now.
     InvalidateSingleLineLayoutCache();
+    InvalidateMultilineLayoutCache();
     if (ControlHost* const host = GetHost(); host && HasFocus())
     {
         host->SyncTextInput(this);
@@ -1573,7 +1575,9 @@ void TextField::SetPasswordRevealState(PasswordRevealState state) noexcept
         if (lifetime.expired())
             return;
     }
+    // Revealing or concealing changes the shown text: a layout of the plaintext is released the moment it is hidden again.
     InvalidateSingleLineLayoutCache();
+    InvalidateMultilineLayoutCache();
     RefreshAccessibilitySnapshot();
     if (lifetime.expired())
         return;
@@ -1966,7 +1970,14 @@ bool TextField::DebugGetCaretRect(const ControlHost& host, size_t controlTextInd
 void TextField::OnBoundsChanged() noexcept
 {
     InvalidateSingleLineLayoutCache();
-    InvalidateMultilineLayoutCache();
+    {
+        // A move keeps the multiline layout: only the width and the layout height its key holds change what it lays out.
+        const D2D1_RECT_F movedTextRect = GetTextRect();
+        const float widthDip            = MultilinePaintLayoutWidthDip(movedTextRect);
+        const float heightDip           = std::max(kMultilineLayoutHeightDip, std::max(1.0f, movedTextRect.bottom - movedTextRect.top));
+        if (_cachedLayoutSize.width != widthDip || _cachedLayoutSize.height != heightDip)
+            InvalidateMultilineLayoutCache();
+    }
     if (! _multiline)
     {
         _horizontalScrollDip = 0.0f;

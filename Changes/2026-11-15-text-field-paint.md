@@ -6,3 +6,5 @@
   reused single-line layout no longer clears and copies its text, a focused single-line paint allocates nothing, the
   secure wipe of a layout cache's text copy applies to masked fields only (including the first drop after unmasking), and
   a paint reads the text-input state only while a composition is active, once. Pixels are unchanged.
+  Moving a multiline field without resizing it keeps its layout, and masking a field or hiding its revealed password
+  releases its layouts of the plaintext at once instead of at the next paint.

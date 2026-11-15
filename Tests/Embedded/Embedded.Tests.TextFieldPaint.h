@@ -11,10 +11,15 @@
 // - TestTextFieldStaleLayoutIsNeverUsed: after each change that invalidates the multiline layout, its line metrics or the
 //   single-line layout (text, typing, a composition preview, width, height, font role, padding, density, DPI, masking, reveal,
 //   a device replacement that moves the typography revision), the caret rectangle, hit tests and range bounds the field answers
-//   from its retained layouts equal those it answers after every retained cache was dropped.
+//   from its retained layouts equal those it answers after every retained cache was dropped. Every such change also moves a
+//   part of the layout key. Six position-only moves of the multiline field lay nothing out.
+// - TestTextFieldInPlaceUndoIsFresh: undo and redo of an equal-length replacement and of a coalesced typing run, applied in
+//   place since W9.3 (same buffer, same length: only the dirty flag guards them), equal a fresh layout in geometry and pixels;
+//   a masked field's mask and wipe stay right across such an undo.
 // - TestMaskedTextFieldWipesItsCopies: the single-line layout cache's copy of the display text is wiped (SecureWipe) whenever a
 //   masked field drops or overwrites it, also right after the field is unmasked, and only then: a cache hit neither clears nor
 //   copies, and an unmasked field's copy is cleared without the wipe. The multiline layout cache keeps no copy of the text.
+//   Masking a field or hiding its revealed password releases its single-line and multiline layouts (DirectWrite's copy) at once.
 // - TestTextFieldParity: the "text-field" incremental-versus-fresh script (Support.Tests.TextFieldPaint.h).
 // - --test-text-field-paint: the tests above alone.
 #include "Embedded.Tests.IncrementalParity.h"
@@ -327,6 +332,27 @@ __declspec(noinline) inline void TestTextFieldStaleLayoutIsNeverUsed(GraphicsFix
         });
         change(*field, "long text", [&] { field->SetText(field->IsMultiline() ? ParityMultilineText() : std::wstring(L"Single line field again")); });
     }
+
+    // Moving the field without resizing it keeps its layout: N moves lay nothing out, and what it answers stays fresh.
+    view.Controls().SetFocusControl(multiline, false);
+    prepare();
+    static_cast<void>(Detail::ReadGeometry(view, *multiline));
+    {
+        const DxUi::Detail::WorkCounterScope scope;
+        for (int move = 1; move <= 6; ++move)
+        {
+            const D2D1_RECT_F bounds = multiline->GetBounds();
+            const float dx = (move % 2 ? 3.5f : -2.0f), dy = (move % 3 ? 1.25f : -4.0f);
+            multiline->SetBounds(D2D1::RectF(bounds.left + dx, bounds.top + dy, bounds.right + dx, bounds.bottom + dy));
+            prepare();
+            static_cast<void>(Detail::ReadGeometry(view, *multiline));
+        }
+        const uint64_t created = scope.Delta().resources.textLayout.created;
+        if (created != 0u)
+            std::cerr << "  6 moves of the multiline field created " << created << " text layouts\n";
+        Check(created == 0u, "W2.7: moving a multiline field without resizing it creates no text layout");
+    }
+    validate(*multiline, "position-only moves");
     view.Detach();
     std::cout << "PASS text field retained layouts: " << compared << " changes, retained geometry equals fresh geometry after each\n";
 }
@@ -356,6 +382,7 @@ __declspec(noinline) inline void TestMaskedTextFieldWipesItsCopies(GraphicsFixtu
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "W2.7 wipe graphics");
         Hr(view.Attach(graphics), "W2.7 wipe view");
         auto rootOwner        = std::make_unique<DxUi::Panel>();
+        auto* const panel     = rootOwner.get();
         constexpr auto secret = L"correct horse battery";
         auto* field           = rootOwner->AddChild<DxUi::TextField>(secret);
         field->SetMasked(true);
@@ -399,6 +426,42 @@ __declspec(noinline) inline void TestMaskedTextFieldWipesItsCopies(GraphicsFixtu
         wiped.clear();
         field->SetPasswordRevealState(DxUi::PasswordRevealState::Hidden);
         Check(anyWipeHolds(secret), "hiding a revealed password wipes the plaintext copy");
+        // DirectWrite's own copy of the plaintext goes with the layout object, released the moment the field is concealed.
+        bool singleLayout = true, multilineLayout = true;
+        DxUi::RetainedCacheAccess::TextFieldLayoutsForTest(*field, singleLayout, multilineLayout);
+        Check(! singleLayout, "W2.7: hiding a revealed password releases the single-line layout of the plaintext at once");
+        prepare();
+        field->SetMasked(false);
+        prepare();
+        DxUi::RetainedCacheAccess::TextFieldLayoutsForTest(*field, singleLayout, multilineLayout);
+        Check(singleLayout, "an unmasked field paints from a single-line layout of its text");
+        field->SetMasked(true);
+        DxUi::RetainedCacheAccess::TextFieldLayoutsForTest(*field, singleLayout, multilineLayout);
+        Check(! singleLayout, "W2.7: masking a field releases the single-line layout of its plaintext at once");
+        prepare();
+
+        // The same for a multiline field: revealed then hidden, and unmasked then masked.
+        auto* lines = panel->AddChild<DxUi::TextField>(L"correct horse\nbattery staple");
+        lines->SetMultiline(true);
+        lines->SetMasked(true);
+        lines->SetBounds(D2D1::RectF(16.0f, 104.0f, 320.0f, 150.0f));
+        lines->SetPasswordRevealState(DxUi::PasswordRevealState::Visible);
+        prepare();
+        DxUi::RetainedCacheAccess::TextFieldLayoutsForTest(*lines, singleLayout, multilineLayout);
+        Check(multilineLayout, "a revealed masked multiline field paints from a multiline layout of its plaintext");
+        lines->SetPasswordRevealState(DxUi::PasswordRevealState::Hidden);
+        DxUi::RetainedCacheAccess::TextFieldLayoutsForTest(*lines, singleLayout, multilineLayout);
+        Check(! multilineLayout, "W2.7: hiding a revealed multiline password releases the layout of the plaintext at once");
+        lines->SetMasked(false);
+        prepare();
+        DxUi::RetainedCacheAccess::TextFieldLayoutsForTest(*lines, singleLayout, multilineLayout);
+        Check(multilineLayout, "an unmasked multiline field paints from a multiline layout of its text");
+        lines->SetMasked(true);
+        DxUi::RetainedCacheAccess::TextFieldLayoutsForTest(*lines, singleLayout, multilineLayout);
+        Check(! multilineLayout, "W2.7: masking a multiline field releases the layout of its plaintext at once");
+        field->SetPasswordRevealState(DxUi::PasswordRevealState::Visible);
+        prepare();
+        field->SetPasswordRevealState(DxUi::PasswordRevealState::Hidden);
         prepare();
         field->SetPasswordRevealState(DxUi::PasswordRevealState::Visible);
         prepare();
@@ -410,6 +473,124 @@ __declspec(noinline) inline void TestMaskedTextFieldWipesItsCopies(GraphicsFixtu
     DxUi::Detail::secureClearObserverForTest = nullptr;
     Detail::g_wiped                          = nullptr;
     std::cout << "PASS masked text field: every layout-cache copy of its plaintext is wiped; unmasked fields and cache hits skip the wipe\n";
+}
+
+// Undo and redo apply the stored span to the field's buffer in place (W9.3): an undone or redone replacement of equal length
+// keeps the buffer and its length, which is everything the multiline layout key compares, so only the dirty flag keeps the
+// retained layout from being reused: RestoreEditHistoryState sets it, and so does the NotifyChanged that follows a Ctrl+Z
+// or Ctrl+Y (with both removed, the redo step below fails). Each step below is compared with a fresh
+// layout: caret, hit tests and range bounds, and the prepared surface's pixels.
+__declspec(noinline) inline void TestTextFieldInPlaceUndoIsFresh(GraphicsFixture& gpu)
+{
+    std::vector<std::wstring> wiped;
+    Detail::g_wiped                          = &wiped;
+    DxUi::Detail::secureClearObserverForTest = &Detail::ObserveWipe;
+    DxUi::EmbeddedHost view;
+    std::shared_ptr<DxUi::GraphicsDevice> graphics;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "W2.7 undo graphics");
+    Hr(view.Attach(graphics), "W2.7 undo view");
+    view.Controls().SetTheme(IncrementalParity::ParityTheme(false));
+    auto rootOwner   = std::make_unique<DxUi::Panel>();
+    auto* const root = rootOwner.get();
+    // Narrow glyphs replaced by wide ones of the same count rewrap the paragraph.
+    constexpr std::wstring_view kNarrow = L"iiiiiiii iiiiiiii iiiiiiii iiiiiiii iiiiiiii iiiiiiii\nend";
+    auto* multiline                     = root->AddChild<DxUi::TextField>(std::wstring(kNarrow));
+    multiline->SetMultiline(true);
+    multiline->SetBounds(D2D1::RectF(16.0f, 16.0f, 220.0f, 200.0f));
+    auto* masked = root->AddChild<DxUi::TextField>(L"iiiiiiii secret");
+    masked->SetMasked(true);
+    masked->SetBounds(D2D1::RectF(16.0f, 220.0f, 300.0f, 252.0f));
+    // Focus rests here while the fields are edited: the host's text-input cache then holds this field's buffer, so an edited
+    // field is its buffer's only owner and its undo and redo write in place, as in a field edited without the host's input.
+    auto* other = root->AddChild<DxUi::TextField>(L"focus rests here");
+    other->SetBounds(D2D1::RectF(16.0f, 256.0f, 300.0f, 276.0f));
+    view.Controls().SetRoot(std::move(rootOwner));
+    const auto prepare = [&] { Hr(view.Prepare(400u, 280u), "W2.7 undo prepare"); };
+    const auto surface = [&]
+    {
+        DxUi::WindowHostBitmapCapture capture;
+        Hr(view.DebugReadSurfaceForTest(capture), "W2.7 undo surface");
+        return GridDataPathTests::HashBytes(capture.bgraPixels);
+    };
+    size_t inPlace = 0u, compared = 0u;
+    // Paints with what the field retained, then compares with a fresh layout of the same state.
+    const auto compare = [&](DxUi::TextField& field, std::string_view step, const wchar_t* bufferBefore)
+    {
+        const bool sameBuffer = field.GetText().data() == bufferBefore;
+        inPlace += sameBuffer ? 1u : 0u;
+        prepare(); // paints the unfocused field with what it retained
+        view.Controls().SetFocusControl(&field, false);
+        prepare();
+        const Detail::Geometry retained = Detail::ReadGeometry(view, field);
+        const uint64_t retainedPixels   = surface();
+        view.DebugDropRetainedStateForTest();
+        prepare();
+        const Detail::Geometry fresh = Detail::ReadGeometry(view, field);
+        const uint64_t freshPixels   = surface();
+        std::cout << "  " << step << ": buffer " << (sameBuffer ? "kept (in place)" : "replaced") << '\n';
+        if (! (retained == fresh) || retainedPixels != freshPixels)
+            std::cerr << "  retained and fresh text field differ after: " << step << '\n';
+        Check(retained == fresh && retainedPixels == freshPixels, "W2.7: an in-place undo or redo never reuses a stale layout");
+        ++compared;
+        view.Controls().SetFocusControl(other, false);
+        prepare();
+    };
+    // Ctrl+Z and Ctrl+Y delivered to the field itself, which is not the focused control.
+    DxUi::TextField* target = multiline;
+    const auto key          = [&](UINT virtualKey) { static_cast<void>(target->OnKeyDown(view.Controls(), virtualKey, MK_CONTROL)); };
+
+    view.Controls().SetFocusControl(other, false);
+    prepare();
+    // A selection replaced by the same number of wide glyphs: one step.
+    multiline->SetSelectionRange(0u, 8u);
+    multiline->ReplaceSelectionAndNotify(L"WWWWWWWW");
+    compare(*multiline, "replacement of equal length", nullptr);
+    const wchar_t* buffer = multiline->GetText().data();
+    key('Z');
+    Check(multiline->GetText() == kNarrow, "undo restores the narrow text");
+    compare(*multiline, "undo of the replacement", buffer);
+    buffer = multiline->GetText().data();
+    key('Y');
+    Check(multiline->GetText().substr(0u, 8u) == L"WWWWWWWW", "redo restores the wide text");
+    compare(*multiline, "redo of the replacement", buffer);
+    // A coalesced typing run over a selection, undone in one step.
+    multiline->SetSelectionRange(9u, 17u);
+    for (int unit = 0; unit < 8; ++unit)
+        static_cast<void>(multiline->OnChar(view.Controls(), L'M', 0u));
+    compare(*multiline, "coalesced typing run", nullptr);
+    buffer = multiline->GetText().data();
+    key('Z');
+    Check(multiline->GetText().substr(9u, 8u) == L"iiiiiiii", "one undo removes the whole typing run");
+    compare(*multiline, "undo of the typing run", buffer);
+
+    // A masked field: concealed, the mask's dot count does not move with an equal-length undo, and the retained mask
+    // still shows it; revealed, the plaintext copy its single-line cache held is wiped by the undo.
+    target = masked;
+    masked->SetSelectionRange(0u, 8u);
+    masked->ReplaceSelectionAndNotify(L"WWWWWWWW");
+    compare(*masked, "masked replacement", nullptr);
+    buffer = masked->GetText().data();
+    key('Z');
+    compare(*masked, "masked undo, concealed", buffer);
+    masked->SetPasswordRevealState(DxUi::PasswordRevealState::Visible);
+    masked->SetSelectionRange(0u, 8u);
+    masked->ReplaceSelectionAndNotify(L"WWWWWWWW");
+    prepare();
+    wiped.clear();
+    buffer = masked->GetText().data();
+    key('Z');
+    Check(std::ranges::any_of(wiped, [](const std::wstring& entry) { return entry.find(L"WWWWWWWW secret") != std::wstring::npos; }),
+          "W2.7: an undo in a revealed masked field wipes the plaintext its layout cache held");
+    compare(*masked, "masked undo, revealed", buffer);
+
+    view.Detach();
+    DxUi::Detail::secureClearObserverForTest = nullptr;
+    Detail::g_wiped                          = nullptr;
+    // Which steps write in place depends on who else holds the buffer at that moment (the host's text-input cache, a pinned
+    // snapshot); at least the redo does here, and that step is the one only the dirty flag guards.
+    Check(inPlace >= 1u, "an undo or redo of an unshared buffer is applied in place");
+    std::cout << "PASS text field in-place undo and redo: " << compared << " steps, " << inPlace
+              << " of them in place, retained geometry and pixels equal a fresh layout after each\n";
 }
 
 __declspec(noinline) inline void TestTextFieldParity(GraphicsFixture& gpu)
@@ -424,6 +605,7 @@ inline void Run(GraphicsFixture& gpu)
     TestTextFieldCompositionStateCopies();
     TestTextFieldStaleLayoutIsNeverUsed(gpu);
     TestMaskedTextFieldWipesItsCopies(gpu);
+    TestTextFieldInPlaceUndoIsFresh(gpu);
     TestTextFieldParity(gpu);
 }
 } // namespace TextFieldPaintTests

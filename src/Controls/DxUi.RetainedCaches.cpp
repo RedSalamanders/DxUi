@@ -494,6 +494,12 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
     }
 }
 
+void RetainedCacheAccess::TextFieldLayoutsForTest(const TextField& field, bool& singleLine, bool& multiline) noexcept
+{
+    singleLine = field._singleLineLayoutCache.layout != nullptr;
+    multiline  = field._cachedMultilineLayout != nullptr;
+}
+
 void RetainedCacheAccess::Drop(ControlHost& host) noexcept
 {
     const Failure::Scope failureScope;

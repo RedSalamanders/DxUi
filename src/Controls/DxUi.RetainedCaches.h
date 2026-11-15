@@ -78,6 +78,8 @@ struct RetainedCacheAccess final
     // Defined in Embedded.cpp: the embedded surface is a cache of the view (W4.7 keeps it between preparations).
     static void Drop(EmbeddedHost& host) noexcept;
     static void Count(EmbeddedHost& host, std::vector<RetainedCacheCount>& out);
+    // Tests only (W2.7): whether the field holds a single-line and a multiline layout object.
+    static void TextFieldLayoutsForTest(const TextField& field, bool& singleLine, bool& multiline) noexcept;
 
 private:
     // The rows live here so their entries/drop functions share this struct's friendship with the classes they read.
