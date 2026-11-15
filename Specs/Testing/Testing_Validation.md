@@ -460,14 +460,18 @@ neither the canonical 20-frame warm-up nor the judges, thresholds, exact budgets
 `performance-timing.ps1` runs the frame timing method of the performance contract. `Tools/tests/Test-FrameTiming.ps1`
 covers its statistics (run validation, the six metrics, A/B/B/A session effects, equivalence, the minimum detectable
 effect, the noise-floor and clock-resolution classification, comparison verdicts, and the retained-form conversion with
-its refusal of any changed value) and runs the public runner in isolated children with
+its refusal of any changed value, admission decisions on recorded samples (quiet, loaded elsewhere, loaded on the
+sibling, the thread preempted, another process busy on the measured GPU, the original 10% rule), GPU engine deltas,
+load placement and the load-sensitivity verdict, and the synthetic load's own child process) and runs the public
+runner in isolated children with
 a shimmed executable, `powercfg`, build, identity helpers and host observer. Those cases check that weaker
 calibration or comparison admissions are refused before any machine change, that the High Performance scheme is
 never created or activated through elevation, and that the original scheme is restored and the observer stopped
 after success, a failed run and a refused idle preflight. The ordinary `Embedded` suite and its isolated
 `--test-frame-timing` entry check the native mechanics on WARP: one sample per frame, separate preparation and
 composition cycles, every GPU result read after the next frame was submitted, the frames-and-duration stopping rule,
-and FX3 replaying its 100 declared wheel notches from a rebuilt scene with every frame preparing work. None of these
+FX3 replaying its 100 declared wheel notches from a rebuilt scene with every frame preparing work, the quietest-core
+choice, and the per-frame running share and interference records. None of these
 supplies a timing value or a calibration.
 
 Offline UIA investigation replay MUST check the declared process/test inventory, complete child failure and

@@ -1892,6 +1892,10 @@ __declspec(noinline) static int RunFunctionalTests()
     // The fixture-agnostic frame timing method (performance-timing.ps1); also outside the fingerprinted benchmark entry.
     if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--timing-method")
         return FrameTiming::RunCommand(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--processor-topology")
+        return FrameTiming::TopologyCommand(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--busy-load")
+        return FrameTiming::BusyLoadCommand(__argc, __wargv);
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-frame-timing")
     {
         FrameTiming::SelfTest();

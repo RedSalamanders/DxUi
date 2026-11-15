@@ -137,9 +137,28 @@ function Get-FrameTimingRunSummary {
     $summary['validGpuFrames'] = $gpu.Count
     $summary['gpuWaitUsMedian'] = (Get-FrameTimingMedian ([double[]]@($samples['gpuWaitUs'])))
     foreach ($key in @('preparedFrames','timedSteps','rebuilds')) { if ($Run.Contains($key)) { $summary[$key] = $Run[$key] } }
+    $running = Get-FrameTimingRunningShare -Run $Run
+    if ($null -ne $running) { $summary['runningShareMedian'] = $running.median; $summary['runningShareP05'] = $running.p05 }
+    if ($Run.Contains('interference') -and $Run['interference'] -is [Collections.IDictionary]) {
+        $interference = [ordered]@{}
+        foreach ($key in @('logicalProcessors','ownProcessors','threadShare','measuringBusy','siblingBusy','otherOnMeasuring','otherProcessors')) {
+            if ($Run['interference'].Contains($key)) { $interference[$key] = $Run['interference'][$key] }
+        }
+        $summary['interference'] = $interference
+    }
     $summary['clockSteps'] = $steps
     $summary['resolutionPercent'] = $resolution
     return $summary
+}
+
+function Get-FrameTimingRunningShare {
+    <# Median and 5th percentile of the measuring thread's per-frame running share (cycles over TSC ticks during
+       preparation and composition): 1.0 when the thread ran the whole frame. Null when the run has no TSC record. #>
+    param([Parameter(Mandatory)][Collections.IDictionary] $Run)
+    if (-not $Run.Contains('samples') -or -not $Run['samples'].Contains('runningPermyriad')) { return $null }
+    $values = [double[]]@($Run['samples']['runningPermyriad'] | ForEach-Object { [double]$_ / 10000.0 })
+    if ($values.Length -eq 0 -or @($values | Where-Object { $_ -gt 0 }).Count -ne $values.Length) { return $null }
+    return [ordered]@{ median = (Get-FrameTimingMedian $values); p05 = (Get-FrameTimingPercentile $values 0.05) }
 }
 
 function Get-FrameTimingStep {
@@ -341,6 +360,7 @@ function Get-FrameTimingJudgement {
     switch ($Receipt['purpose']) {
         'Calibration' { return [ordered]@{ key = 'calibration'; value = (Get-FrameTimingCalibration -Sessions $sessions) } }
         'Comparison' { return [ordered]@{ key = 'comparison'; value = (Compare-FrameTimingSessions -Sessions $sessions -Calibration $Calibration) } }
+        'LoadSensitivity' { return [ordered]@{ key = 'loadSensitivity'; value = (Get-FrameTimingLoadSensitivity -Sessions $sessions -Calibration $Calibration) } }
         default { return [ordered]@{ key = 'sameBinaryObservation'; value = (Get-FrameTimingCalibration -Sessions $sessions)['metrics'] } }
     }
 }
@@ -393,6 +413,217 @@ function ConvertTo-FrameTimingRetainedReceipt {
     $retained['retainedForm'] = 'dxui-frame-timing-retained-v1'
     $retained['rawReports'] = 'Not committed: each run keeps its report path, SHA-256 and size; the reports and the full receipt stay under rawDirectory.'
     return $retained
+}
+
+# --- Admission ------------------------------------------------------------------------------------------------------
+# A run is admitted on what disturbs the measurement: the measuring thread's own running share, other work on its
+# physical core, other processes' work on the measured GPU, and only a loose cap on everything else.
+$script:AdmissionRules = [ordered]@{
+    'interference-interim-v1' = [ordered]@{
+        id = 'interference-interim-v1'; interim = $true
+        description = 'Interim (until the load-sensitivity run sets the limits): the measuring thread ran at least 99% of its frame time at the median and 97% at the 5th percentile; the sibling of its processor was at most 10% busy and its own processor at most 5% busy with other work; other processes kept at most a quarter of the logical processors busy (at least one) and the busiest engine of the measured GPU at most 15% busy.'
+        runningShareMedianMin = 0.99; runningShareP05Min = 0.97; siblingBusyMax = 0.10; otherOnMeasuringMax = 0.05
+        otherProcessorsFraction = 0.25; otherGpuBusyMax = 0.15
+    }
+    'host-busy-10pct-v1' = [ordered]@{
+        id = 'host-busy-10pct-v1'; interim = $false
+        description = 'The original rule: the idle preflight refuses a session when the whole host was more than 10% busy; runs are not judged on interference.'
+        hostBusyPercentMax = 10.0
+    }
+}
+
+function Get-FrameTimingAdmissionRule {
+    <# A copy of a named admission rule: interference-interim-v1 (default) or host-busy-10pct-v1 (the original rule,
+       kept so earlier receipts stay reproducible). #>
+    param([ValidateSet('interference-interim-v1','host-busy-10pct-v1')][string] $Name = 'interference-interim-v1')
+    $copy = [ordered]@{}
+    foreach ($key in $script:AdmissionRules[$Name].Keys) { $copy[$key] = $script:AdmissionRules[$Name][$key] }
+    return $copy
+}
+
+function Get-FrameTimingOtherProcessorCap {
+    <# The loose cap on other processes' load, in logical processors: a quarter of them, at least one. #>
+    param([Parameter(Mandatory)][Collections.IDictionary] $Rule, [Parameter(Mandatory)][int] $LogicalProcessors)
+    if (-not $Rule.Contains('otherProcessorsFraction')) { return $null }
+    return [Math]::Max(1.0, [Math]::Floor($LogicalProcessors * [double]$Rule['otherProcessorsFraction']))
+}
+
+function Test-FrameTimingPreflight {
+    <# The idle preflight before a session, from Watch-BenchmarkHost.ps1 samples taken while nothing of the study ran.
+       host-busy-10pct-v1: at most 10% of all processors busy. interference-interim-v1: at most the other-process cap,
+       in logical processors. #>
+    param([Parameter(Mandatory)][object[]] $Samples, [Parameter(Mandatory)][Collections.IDictionary] $Rule, [Parameter(Mandatory)][int] $LogicalProcessors)
+    $busy = Get-FrameTimingHostBusyPercent -Samples $Samples
+    $busyProcessors = $busy / 100.0 * $LogicalProcessors
+    if ($Rule['id'] -ceq 'host-busy-10pct-v1') {
+        $admitted = $busy -le [double]$Rule['hostBusyPercentMax']
+        $reason = if ($admitted) { $null } else { [string]::Format([Globalization.CultureInfo]::InvariantCulture, 'the host was {0:0.0}% busy, above {1}%', $busy, $Rule['hostBusyPercentMax']) }
+    } else {
+        $cap = Get-FrameTimingOtherProcessorCap -Rule $Rule -LogicalProcessors $LogicalProcessors
+        $admitted = $busyProcessors -le $cap
+        $reason = if ($admitted) { $null } else { [string]::Format([Globalization.CultureInfo]::InvariantCulture, 'other processes kept {0:0.0} logical processors busy, above the cap of {1}', $busyProcessors, $cap) }
+    }
+    return [ordered]@{ rule = $Rule['id']; busyPercent = $busy; busyProcessors = $busyProcessors; logicalProcessors = $LogicalProcessors; admitted = [bool]$admitted; reason = $reason }
+}
+
+function Test-FrameTimingRunAdmission {
+    <# Whether one run's measurement was disturbed, from what the run recorded itself (running share, processor busy
+       shares) and the other-process GPU busy share measured around its session. Every indicator is recorded whatever
+       the rule; host-busy-10pct-v1 admits every run. A run without interference records (an older executable) is
+       refused by the interim rule. #>
+    param([Parameter(Mandatory)][Collections.IDictionary] $Summary, [AllowNull()][object] $OtherGpuBusy, [Parameter(Mandatory)][Collections.IDictionary] $Rule)
+    $interference = if ($Summary.Contains('interference')) { $Summary['interference'] } else { $null }
+    $indicators = [ordered]@{
+        runningShareMedian = $(if ($Summary.Contains('runningShareMedian')) { $Summary['runningShareMedian'] } else { $null })
+        runningShareP05 = $(if ($Summary.Contains('runningShareP05')) { $Summary['runningShareP05'] } else { $null })
+        siblingBusy = $(if ($interference) { $interference['siblingBusy'] } else { $null })
+        otherOnMeasuring = $(if ($interference) { $interference['otherOnMeasuring'] } else { $null })
+        otherProcessors = $(if ($interference) { $interference['otherProcessors'] } else { $null })
+        logicalProcessors = $(if ($interference) { $interference['logicalProcessors'] } else { $null })
+        otherGpuBusy = $OtherGpuBusy
+    }
+    $reasons = [Collections.Generic.List[string]]::new()
+    if ($Rule['id'] -cne 'host-busy-10pct-v1') {
+        $check = { param($Name, $Value, $Limit, [switch] $Minimum, $Text)
+            if ($null -eq $Value) { $reasons.Add("$Name was not recorded") }
+            elseif (($Minimum -and [double]$Value -lt $Limit) -or (-not $Minimum -and [double]$Value -gt $Limit)) {
+                $reasons.Add([string]::Format([Globalization.CultureInfo]::InvariantCulture, $Text, [double]$Value, $Limit)) } }
+        & $check 'the running share' $indicators.runningShareMedian $Rule['runningShareMedianMin'] -Minimum 'the measuring thread ran {0:0.0000} of its frame time at the median, below {1}'
+        & $check 'the running share' $indicators.runningShareP05 $Rule['runningShareP05Min'] -Minimum 'the measuring thread ran {0:0.0000} of its frame time at the 5th percentile, below {1}'
+        & $check 'the sibling load' $indicators.siblingBusy $Rule['siblingBusyMax'] 'the measuring processor''s sibling was {0:0.000} busy, above {1}'
+        & $check 'the measuring processor load' $indicators.otherOnMeasuring $Rule['otherOnMeasuringMax'] 'other work kept the measuring processor {0:0.000} busy, above {1}'
+        $cap = if ($null -ne $indicators.logicalProcessors) { Get-FrameTimingOtherProcessorCap -Rule $Rule -LogicalProcessors ([int]$indicators.logicalProcessors) } else { $null }
+        & $check 'the other-process load' $indicators.otherProcessors $cap 'other processes kept {0:0.00} logical processors busy, above the cap of {1}'
+        & $check 'the other-process GPU load' $OtherGpuBusy $Rule['otherGpuBusyMax'] 'other processes kept the measured GPU''s busiest engine {0:0.000} busy, above {1}'
+    }
+    return [ordered]@{ rule = $Rule['id']; admitted = ($reasons.Count -eq 0); reasons = $reasons.ToArray(); indicators = $indicators }
+}
+
+function Get-FrameTimingGpuEngineSnapshot {
+    <# Cumulative running time (100 ns) of every "GPU Engine" counter instance (pid_<pid>_luid_<luid>_phys_<n>_eng_<n>
+       _engtype_<type>), readable without elevation. Slow (seconds), so it is taken around a session, not a frame. #>
+    $snapshot = @{}
+    $samples = @((Get-Counter -Counter '\GPU Engine(*)\Running Time' -ErrorAction SilentlyContinue).CounterSamples)
+    # RawValue is unsigned: an engine instance being created or reset can read a wrapped value near 2^64, which is no
+    # running time; such an instance is left out of this snapshot, and so out of any delta that uses it.
+    foreach ($sample in $samples) {
+        $value = [double]$sample.RawValue
+        if ($sample.InstanceName -and $value -lt 9.2e18) { $snapshot[[string]$sample.InstanceName] = $value }
+    }
+    return $snapshot
+}
+
+function Get-FrameTimingOtherGpuBusy {
+    <# The busiest engine's share of the wall time spent on other processes' work, on the adapter with Luid
+       ("0xHIGH_0xLOW"), between two snapshots. Per-instance deltas: an instance present in only one snapshot (a process
+       that started or ended, including the study's own children) is left out, and a counter that went backwards (an
+       engine reset) counts from zero. Null when either snapshot is empty. #>
+    param([Parameter(Mandatory)][hashtable] $Before, [Parameter(Mandatory)][hashtable] $After, [Parameter(Mandatory)][string] $Luid,
+        [Parameter(Mandatory)][double] $Seconds, [int[]] $ExcludeProcessIds = @())
+    if ($Before.Count -eq 0 -or $After.Count -eq 0 -or $Seconds -le 0) { return $null }
+    $engines = @{}
+    $needle = '_luid_' + $Luid.ToLowerInvariant() + '_'
+    foreach ($name in $After.Keys) {
+        if (-not $Before.ContainsKey($name)) { continue }
+        $lower = $name.ToLowerInvariant()
+        if (-not $lower.Contains($needle)) { continue }
+        if ($lower -match '^pid_(\d+)_' -and [int]$Matches[1] -in $ExcludeProcessIds) { continue }
+        if ($lower -notmatch '_phys_(\d+)_eng_(\d+)_') { continue }
+        $engine = "$($Matches[1]).$($Matches[2])"
+        $delta = [double]$After[$name] - [double]$Before[$name]
+        if ($delta -lt 0) { $delta = [double]$After[$name] }
+        $engines[$engine] = [double]$(if ($engines.ContainsKey($engine)) { $engines[$engine] } else { 0 }) + $delta
+    }
+    $busiest = 0.0
+    foreach ($value in $engines.Values) { $busiest = [Math]::Max($busiest, [double]$value / 1.0e7 / $Seconds) }
+    return $busiest
+}
+
+function Get-FrameTimingLoadPlan {
+    <# The arms of a load-sensitivity study and where each places its synthetic load. Numeric levels place that many
+       busy logical processors away from the measuring core: one per other physical core first (cores far from the
+       measuring core first), then their second hardware threads. 'sibling' places one busy thread on the measuring
+       processor's sibling. Level 0 is the same-binary control. #>
+    param([Parameter(Mandatory)][object[]] $Processors, [Parameter(Mandatory)][int] $MeasuringProcessor, [Parameter(Mandatory)][int[]] $Levels,
+        [switch] $Sibling)
+    $measuring = @($Processors | Where-Object { [int]$_['index'] -eq $MeasuringProcessor })[0]
+    if ($null -eq $measuring) { throw "The measuring processor $MeasuringProcessor is not in the topology." }
+    $core = [int]$measuring['core']
+    $others = @($Processors | Where-Object { [int]$_['core'] -ne $core })
+    $byCore = @($others | Group-Object { [int]$_['core'] } | Sort-Object { [Math]::Abs([int]$_.Name - $core) } -Descending)
+    $order = [Collections.Generic.List[int]]::new()
+    $depth = ($byCore | ForEach-Object { $_.Count } | Measure-Object -Maximum).Maximum
+    for ($thread = 0; $thread -lt $depth; $thread++) {
+        foreach ($group in $byCore) {
+            $members = @($group.Group | Sort-Object { [int]$_['index'] })
+            if ($thread -lt $members.Count) { $order.Add([int]$members[$thread]['index']) }
+        }
+    }
+    $arms = foreach ($level in $Levels) {
+        if ($level -gt $order.Count) { throw "Level $level exceeds the $($order.Count) logical processors away from the measuring core." }
+        [ordered]@{ name = "$level"; level = $level; placement = 'away'; processors = [int[]]@($order | Select-Object -First $level) }
+    }
+    if ($Sibling) {
+        $siblings = @($Processors | Where-Object { [int]$_['core'] -eq $core -and [int]$_['index'] -ne $MeasuringProcessor } | ForEach-Object { [int]$_['index'] })
+        if ($siblings.Count -eq 0) { throw 'The measuring core has no sibling: the sibling arm cannot run.' }
+        $arms = @($arms) + @([ordered]@{ name = 'sibling'; level = 1; placement = 'sibling'; processors = [int[]]@($siblings[0]) })
+    }
+    return @($arms)
+}
+
+function Get-FrameTimingLoadSensitivity {
+    <# Per arm, the loaded runs (B) against the quiet runs (A) of its sessions: each judged metric's equivalence within its
+       margin. The admissible level is the largest numeric level at which every judged metric of that arm and of every
+       lower numeric arm is equivalent; the sibling arm is reported on its own. Judged metrics come from a calibration
+       when one is given, otherwise all six. #>
+    param([Parameter(Mandatory)][object[]] $Sessions, [Collections.IDictionary] $Calibration)
+    $judged = if ($Calibration) { @($Calibration['metrics'] | Where-Object { $_['status'] -ceq 'judged' } | ForEach-Object { $_['metric'] }) } else { @($script:Metrics | ForEach-Object { $_.name }) }
+    $arms = foreach ($group in ($Sessions | Group-Object { [string]$_['arm'] })) {
+        $comparison = Compare-FrameTimingSessions -Sessions @($group.Group) -Calibration $Calibration
+        $rows = @($comparison.metrics | Where-Object { $_['metric'] -in $judged })
+        [ordered]@{
+            arm = $group.Name; level = $group.Group[0]['level']; placement = $group.Group[0]['placement']; sessions = $group.Count
+            judgedMetrics = $judged; equivalent = [bool](@($rows | Where-Object { -not $_['equivalence']['equivalent'] }).Count -eq 0)
+            metrics = @($comparison.metrics)
+        }
+    }
+    $numeric = @($arms | Where-Object { $_['placement'] -ceq 'away' } | Sort-Object { [int]$_['level'] })
+    $admissible = $null
+    foreach ($arm in $numeric) { if ($arm['equivalent']) { $admissible = [int]$arm['level'] } else { break } }
+    $siblingArm = @($arms | Where-Object { $_['placement'] -ceq 'sibling' })
+    return [ordered]@{
+        rule = 'the largest numeric level at which every judged metric of it and of every lower level is equivalent to the quiet arm within its margin'
+        admissibleLevel = $admissible
+        siblingEquivalent = $(if ($siblingArm.Count) { [bool]$siblingArm[0]['equivalent'] } else { $null })
+        arms = @($arms)
+    }
+}
+
+function Start-FrameTimingLoad {
+    <# Starts the synthetic background load: one child process (DxUi.EmbeddedTests.exe --busy-load) spinning one thread
+       on each listed logical processor, waiting until it says it runs. Only Stop-FrameTimingLoad ends it. #>
+    param([Parameter(Mandatory)][string] $Executable, [Parameter(Mandatory)][int[]] $Processors, [string[]] $PrefixArguments = @())
+    $start = [Diagnostics.ProcessStartInfo]::new($Executable)
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $start.RedirectStandardOutput = $true
+    foreach ($argument in @($PrefixArguments) + @('--busy-load', ($Processors -join ','))) { $start.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::Start($start)
+    $line = $process.StandardOutput.ReadLineAsync()
+    if (-not $line.Wait(30000) -or $null -eq $line.Result -or -not $line.Result.StartsWith('busy load running', [StringComparison]::Ordinal)) {
+        Stop-FrameTimingLoad -Process $process
+        throw 'The synthetic load did not start.'
+    }
+    return $process
+}
+
+function Stop-FrameTimingLoad {
+    <# Ends the load process Start-FrameTimingLoad started; never any other process. #>
+    param([AllowNull()][Diagnostics.Process] $Process)
+    if ($null -eq $Process) { return }
+    try {
+        if (-not $Process.HasExited) { $Process.Kill(); [void]$Process.WaitForExit(30000) }
+    } finally { $Process.Dispose() }
 }
 
 function Get-FrameTimingHostBusyPercent {
@@ -459,4 +690,6 @@ Export-ModuleMember -Function Get-FrameTimingMethod, Get-FrameTimingHighPerforma
     Assert-FrameTimingRun, Get-FrameTimingRunSummary, Get-FrameTimingSchedule, Get-FrameTimingSessionEffects, Get-FrameTimingUpperSignFlipPValue,
     Test-FrameTimingEquivalence, Get-FrameTimingMinimumDetectableEffect, Get-FrameTimingCalibration, Compare-FrameTimingSessions,
     Get-FrameTimingHostBusyPercent, Get-FrameTimingActiveScheme, Get-FrameTimingStep, Test-FrameTimingSameValue, Get-FrameTimingJudgement,
-    ConvertTo-FrameTimingRetainedReceipt, Enter-FrameTimingPowerPlan, Exit-FrameTimingPowerPlan
+    ConvertTo-FrameTimingRetainedReceipt, Get-FrameTimingRunningShare, Get-FrameTimingAdmissionRule, Get-FrameTimingOtherProcessorCap,
+    Test-FrameTimingPreflight, Test-FrameTimingRunAdmission, Get-FrameTimingGpuEngineSnapshot, Get-FrameTimingOtherGpuBusy, Get-FrameTimingLoadPlan,
+    Get-FrameTimingLoadSensitivity, Start-FrameTimingLoad, Stop-FrameTimingLoad, Enter-FrameTimingPowerPlan, Exit-FrameTimingPowerPlan

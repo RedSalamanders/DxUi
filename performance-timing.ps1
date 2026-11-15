@@ -4,15 +4,21 @@
 DxUi.EmbeddedTests.exe --timing-method process holding at least 1,000 frames and 2 s. Calibration measures this tree's
 attested executable in all four slots of every session and records each judged metric's same-binary noise floor;
 Comparison measures -BaselineExecutable (A) against this tree's executable (B). Smoke runs the same path with relaxed
-admission and is labelled as such: it never calibrates or judges.
+admission and is labelled as such: it never calibrates or judges. LoadSensitivity measures, per arm, quiet runs (A)
+against runs under a synthetic background load (B) of 0, 2, 4, 8 and 12 busy logical processors away from the measuring
+core and one on its sibling, and reports the largest level at which every judged metric stays equivalent.
 The High Performance scheme is activated only when it exists, without elevation, and the original scheme is restored
-however the study ends. Only the measuring UI thread of each child is pinned. Every session starts with an idle
-preflight from Tools/Watch-BenchmarkHost.ps1, which keeps observing until the session ends.
+however the study ends. Only the measuring UI thread of each child is pinned, by default to the quietest physical core.
+Every session starts with an idle preflight from Tools/Watch-BenchmarkHost.ps1, which keeps observing until the session
+ends. -Admission Interim (default) judges every run on what disturbs the measurement (the measuring thread's running
+share, its sibling and own processor, other processes' load in logical processors and on the measured GPU) and repeats a
+rejected session up to -SessionAttempts times; -Admission Legacy10 is the original 10% whole-host preflight.
 .EXAMPLE ./performance-timing.ps1 -Purpose Calibration -Fixture FX5 -Phase Dirty -OutputDirectory Measurements/PerformanceAndMotion_2026-11-13/W0.2/calibration-FX5-dirty
+.EXAMPLE ./performance-timing.ps1 -Purpose LoadSensitivity -Fixture FX5 -Phase Dirty -CalibrationPath Measurements/PerformanceAndMotion_2026-11-13/W0.2/calibration-FX5-dirty/receipt.json -OutputDirectory Measurements/PerformanceAndMotion_2026-11-13/W0.2/load-sensitivity-FX5-dirty
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Calibration','Comparison','Smoke')][string] $Purpose = 'Calibration',
+    [ValidateSet('Calibration','Comparison','Smoke','LoadSensitivity')][string] $Purpose = 'Calibration',
     [ValidatePattern('^FX[0-9]+(@[a-z0-9-]+)?$')][string] $Fixture = 'FX5',
     [ValidateSet('Dirty','Clean')][string] $Phase = 'Dirty',
     [ValidateSet('Hardware','Warp')][string] $Adapter = 'Hardware',
@@ -22,8 +28,12 @@ param(
     [string] $OutputDirectory = '',
     [ValidateSet('HighPerformance','Keep')][string] $PowerPlan = 'HighPerformance',
     [ValidateSet('Require','Record')][string] $IdlePreflight = 'Require',
+    [ValidateSet('Interim','Legacy10')][string] $Admission = 'Interim',
+    [ValidateRange(1,5)][int] $SessionAttempts = 3,
     [ValidateRange(0.5,100)][double] $IdleThresholdPercent = 10,
     [ValidateRange(1,60)][int] $PreflightSeconds = 5,
+    [ValidateRange(0,62)][int[]] $LoadLevels = @(0, 2, 4, 8, 12),
+    [switch] $NoSiblingArm,
     [ValidatePattern('^(auto|none|[0-9]{1,2})$')][string] $PinCore = 'auto',
     [ValidateRange(1,200000)][int] $MinimumFrames = 1000,
     [ValidateRange(0,600000)][int] $MinimumMilliseconds = 2000,
@@ -46,6 +56,7 @@ if ($Purpose -ne 'Smoke') {
     if ($Configuration -ne 'Release') { $refusals += 'the Release configuration' }
     if ($Sessions -lt 5) { $refusals += 'at least five sessions (fewer can never establish equivalence)' }
     if ($Purpose -eq 'Comparison' -and $Sessions -lt 6) { $refusals += 'at least six sessions for a comparison (five cannot reach two-sided p < 0.05)' }
+    if ($Purpose -eq 'LoadSensitivity' -and $LoadLevels -notcontains 0) { $refusals += 'a level-0 arm (the same-binary control)' }
     if ($MinimumFrames -lt 1000 -or $MinimumMilliseconds -lt 2000) { $refusals += 'runs of at least 1,000 frames and 2 s' }
     if ($IdlePreflight -ne 'Require') { $refusals += 'a required idle preflight' }
     if ($PowerPlan -ne 'HighPerformance') { $refusals += 'the High Performance power scheme' }
@@ -111,6 +122,24 @@ if ($catalogEntry.Count -and $catalogEntry[0].Contains('interactiveOnly') -and $
     }
     return
 }
+$rule = Get-FrameTimingAdmissionRule -Name $(if ($Admission -eq 'Legacy10') { 'host-busy-10pct-v1' } else { 'interference-interim-v1' })
+if ($Admission -eq 'Legacy10') { $rule['hostBusyPercentMax'] = $IdleThresholdPercent }
+$logicalProcessors = [Environment]::ProcessorCount
+# Calibrations and comparisons repeat a rejected session; smoke runs and load-sensitivity studies (deliberately loaded)
+# record every admission decision and enforce none after the preflight.
+$enforceRuns = $Purpose -in @('Calibration','Comparison')
+$arms = @($null)
+if ($Purpose -eq 'LoadSensitivity') {
+    # One measuring processor for every run, so the load can be placed away from its core or on its sibling.
+    $topologyPath = [IO.Path]::GetFullPath((Join-Path $rawDirectory 'topology.json'))
+    $global:LASTEXITCODE = 0
+    & $candidate '--processor-topology' $topologyPath | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw "The processor topology could not be read (exit code $LASTEXITCODE)." }
+    $topology = Get-Content -Raw -LiteralPath $topologyPath | ConvertFrom-Json -AsHashtable -Depth 10
+    if ($PinCore -eq 'auto') { $PinCore = [string]$topology['quietest']['processor'] }
+    elseif ($PinCore -eq 'none') { throw 'LoadSensitivity pins the measuring thread: use -PinCore auto or a processor index.' }
+    $arms = @(Get-FrameTimingLoadPlan -Processors @($topology['processors']) -MeasuringProcessor ([int]$PinCore) -Levels $LoadLevels -Sibling:(-not $NoSiblingArm))
+}
 $roles = @{ A = $(if ($Purpose -eq 'Comparison') { $BaselineExecutable } else { $candidate }); B = $candidate }
 $hashes = @{ A = (Get-FileHash -LiteralPath $roles.A -Algorithm SHA256).Hash; B = (Get-FileHash -LiteralPath $roles.B -Algorithm SHA256).Hash }
 if ($Purpose -eq 'Comparison' -and $hashes.A -ceq $hashes.B) { throw 'A comparison needs two different executables; use -Purpose Calibration for a same-binary study.' }
@@ -154,10 +183,57 @@ function Invoke-TimingRun([string] $Executable, [string] $Output) {
     catch { Move-Item -LiteralPath $Output -Destination ($Output + '.invalid.json'); throw }
     return [ordered]@{ run = $run; sha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)); size = $bytes.Length }
 }
+# One A/B/B/A session: preflight, GPU engine snapshot, four runs (B under the arm's load, if any), GPU snapshot, and an
+# admission decision for every run. Throws when the preflight refuses; returns the session otherwise.
+function Invoke-TimingSession([int] $Number, [int] $Attempt, [object] $Arm) {
+    $tag = if ($Attempt -gt 1) { "session-$Number-attempt-$Attempt" } else { "session-$Number" }
+    if ($Arm) { $tag += "-arm-$($Arm['name'])" }
+    $observerPath = Join-Path $rawDirectory "$tag-host.jsonl"
+    $script:observerPath = $observerPath
+    $script:observer = Start-HostObserver $observerPath
+    Start-Sleep -Seconds $PreflightSeconds
+    $preflight = Test-FrameTimingPreflight -Samples (Read-HostObservations $observerPath) -Rule $rule -LogicalProcessors $logicalProcessors
+    $preflight['mode'] = $IdlePreflight
+    $preflight['seconds'] = $PreflightSeconds
+    if ($IdlePreflight -eq 'Require' -and -not $preflight.admitted) {
+        throw ("Idle preflight refused session {0}: {1}. Never stop other people's work to make it quiet; rerun later." -f $Number, $preflight.reason)
+    }
+    $gpuBefore = if ($Purpose -ne 'LoadSensitivity') { Get-FrameTimingGpuEngineSnapshot } else { @{} }
+    $gpuStart = [Diagnostics.Stopwatch]::StartNew()
+    $runs = [Collections.Generic.List[object]]::new()
+    for ($slot = 0; $slot -lt 4; $slot++) {
+        $role = [string]$schedule[0][$slot]
+        $output = Join-Path $rawDirectory ("$tag-slot-{0}-{1}.json" -f $slot, $role)
+        $load = $null
+        try {
+            if ($Arm -and $role -ceq 'B' -and $Arm['processors'].Count) { $load = Start-FrameTimingLoad -Executable $candidate -Processors $Arm['processors'] }
+            $measured = Invoke-TimingRun $roles[$role] $output
+        } finally { Stop-FrameTimingLoad -Process $load }
+        $script:reportSizes[$measured.sha256] = $measured.size
+        $runs.Add([ordered]@{ role = $role; slot = $slot; report = $output; reportSha256 = $measured.sha256; raw = $measured.run
+            executableSha256 = $hashes[$role]; summary = (Get-FrameTimingRunSummary -Run $measured.run)
+            adapter = $measured.run['adapter']; pinning = $measured.run['pinning']; disjointFrames = $measured.run['disjointFrames']
+            timestampFrequency = $measured.run['timestampFrequency'] })
+    }
+    $gpuSeconds = $gpuStart.Elapsed.TotalSeconds
+    $gpuAfter = if ($Purpose -ne 'LoadSensitivity') { Get-FrameTimingGpuEngineSnapshot } else { @{} }
+    Stop-HostObserver $script:observer $observerPath
+    $script:observer = $null
+    $luid = if ($runs[0]['adapter'] -is [Collections.IDictionary] -and $runs[0]['adapter'].Contains('luid')) { [string]$runs[0]['adapter']['luid'] } else { '' }
+    $otherGpu = if ($luid) { Get-FrameTimingOtherGpuBusy -Before $gpuBefore -After $gpuAfter -Luid $luid -Seconds $gpuSeconds } else { $null }
+    foreach ($run in $runs) { $run['admission'] = Test-FrameTimingRunAdmission -Summary $run['summary'] -OtherGpuBusy $otherGpu -Rule $rule }
+    $record = [ordered]@{ session = $Number; attempt = $Attempt; order = $schedule[0]; idlePreflight = $preflight
+        otherGpuBusy = $otherGpu; gpuWindowSeconds = $gpuSeconds; hostObservations = $observerPath
+        hostObservationCompletion = (Get-Content -Raw -LiteralPath ($observerPath + '.completion.json') | ConvertFrom-Json -AsHashtable)
+        admitted = [bool](@($runs | Where-Object { -not $_['admission']['admitted'] }).Count -eq 0); runs = $runs.ToArray() }
+    if ($Arm) { $record['arm'] = $Arm['name']; $record['level'] = $Arm['level']; $record['placement'] = $Arm['placement']; $record['loadProcessors'] = $Arm['processors'] }
+    return $record
+}
 
 $powerRecord = $null
 $observer = $null
 $sessionRecords = [Collections.Generic.List[object]]::new()
+$rejectedSessions = [Collections.Generic.List[object]]::new()
 $reportSizes = @{}
 $schedule = @(Get-FrameTimingSchedule -Sessions $Sessions)
 $startedUtc = [DateTime]::UtcNow.ToString('o')
@@ -167,32 +243,21 @@ try {
     # Captured under the measured power scheme, so the before/after identity check spans the whole study.
     $before = Get-PerformanceMeasurementState -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
     Assert-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration -State $before
-    for ($session = 0; $session -lt $Sessions; $session++) {
-        $observerPath = Join-Path $rawDirectory ("session-{0}-host.jsonl" -f ($session + 1))
-        $observer = Start-HostObserver $observerPath
-        Start-Sleep -Seconds $PreflightSeconds
-        $busy = Get-FrameTimingHostBusyPercent -Samples (Read-HostObservations $observerPath)
-        $idle = [ordered]@{ mode = $IdlePreflight; seconds = $PreflightSeconds; busyPercent = $busy; thresholdPercent = $IdleThresholdPercent; quiet = [bool]($busy -le $IdleThresholdPercent) }
-        if ($IdlePreflight -eq 'Require' -and -not $idle.quiet) {
-            throw ("Idle preflight refused session {0}: the host was {1:0.0}% busy (threshold {2}%). Never stop other people's work to make it quiet; rerun later." -f ($session + 1), $busy, $IdleThresholdPercent)
+    # Load-sensitivity sessions run arm after arm within each round, so drift reaches every arm alike.
+    $number = 0
+    for ($round = 0; $round -lt $Sessions; $round++) {
+        foreach ($arm in $arms) {
+            $number++
+            for ($attempt = 1; ; $attempt++) {
+                $record = Invoke-TimingSession -Number $number -Attempt $attempt -Arm $arm
+                if ($record['admitted'] -or -not $enforceRuns) { $sessionRecords.Add($record); break }
+                $reasons = @($record['runs'] | Where-Object { -not $_['admission']['admitted'] } | ForEach-Object { "slot $($_['slot']): $($_['admission']['reasons'] -join '; ')" })
+                $rejectedSessions.Add([ordered]@{ session = $number; attempt = $attempt; reasons = $reasons; runs = @($record['runs'] | ForEach-Object {
+                    [ordered]@{ slot = $_['slot']; role = $_['role']; reportSha256 = $_['reportSha256']; admission = $_['admission'] } }) })
+                Write-Host "Session $number attempt $attempt rejected: $($reasons -join ' | ')"
+                if ($attempt -ge $SessionAttempts) { throw "Session $number was rejected $attempt times; the study is refused: $($reasons -join ' | ')" }
+            }
         }
-        $runs = [Collections.Generic.List[object]]::new()
-        for ($slot = 0; $slot -lt 4; $slot++) {
-            $role = [string]$schedule[$session][$slot]
-            $output = Join-Path $rawDirectory ("session-{0}-slot-{1}-{2}.json" -f ($session + 1), $slot, $role)
-            $measured = Invoke-TimingRun $roles[$role] $output
-            $reportSizes[$measured.sha256] = $measured.size
-            $runs.Add([ordered]@{ role = $role; slot = $slot; report = $output; reportSha256 = $measured.sha256; raw = $measured.run
-                executableSha256 = $hashes[$role]; summary = (Get-FrameTimingRunSummary -Run $measured.run)
-                adapter = $measured.run['adapter']; pinning = $measured.run['pinning']; disjointFrames = $measured.run['disjointFrames']
-                timestampFrequency = $measured.run['timestampFrequency'] })
-        }
-        Stop-HostObserver $observer $observerPath
-        $observer = $null
-        $sessionRecords.Add([ordered]@{ session = $session + 1; order = $schedule[$session]; idlePreflight = $idle
-            hostObservations = $observerPath
-            hostObservationCompletion = (Get-Content -Raw -LiteralPath ($observerPath + '.completion.json') | ConvertFrom-Json -AsHashtable)
-            runs = $runs.ToArray() })
     }
     $after = Get-PerformanceMeasurementState -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
     Assert-PerformanceMeasurementState -Before $before -After $after
@@ -214,11 +279,14 @@ $receipt = [ordered]@{
     benchmarkInputs = $timingInputs
     benchmarkInputsScope = 'The frame timing harness, its dispatcher, the FX5 scene, the performance fixture framework and catalog, the device fixture, the runner and the judge; build.benchmarkInputs is the canonical ComplexUi closure.'
     rawDirectory = $rawDirectory
-    classification = $(switch ($Purpose) { 'Calibration' { 'same-binary calibration' } 'Comparison' { 'interleaved A/B comparison' } default { 'smoke run: exercises the method only; no calibration, noise floor or verdict' } })
+    classification = $(switch ($Purpose) { 'Calibration' { 'same-binary calibration' } 'Comparison' { 'interleaved A/B comparison' } 'LoadSensitivity' { 'load sensitivity: quiet against synthetically loaded runs of one executable, per load level' } default { 'smoke run: exercises the method only; no calibration, noise floor or verdict' } })
+    admission = [ordered]@{ rule = $rule; interim = [bool]$rule['interim']; enforcedPerRun = $enforceRuns; logicalProcessors = $logicalProcessors
+        otherProcessorsCap = (Get-FrameTimingOtherProcessorCap -Rule $rule -LogicalProcessors $logicalProcessors); sessionAttempts = $SessionAttempts }
+    rejectedSessions = $rejectedSessions.ToArray()
     phase = $Phase.ToLowerInvariant(); adapterMode = $Adapter
     startedUtc = $startedUtc; completedUtc = [DateTime]::UtcNow.ToString('o')
     runLength = [ordered]@{ minimumFrames = $MinimumFrames; minimumMilliseconds = $MinimumMilliseconds }
-    pinCore = $PinCore; powerPlan = $powerRecord; schedule = $schedule
+    pinCore = $PinCore; powerPlan = $powerRecord; schedule = @($sessionRecords | ForEach-Object { $_['order'] })
     executables = [ordered]@{ A = [ordered]@{ path = $roles.A; sha256 = $hashes.A }; B = [ordered]@{ path = $roles.B; sha256 = $hashes.B } }
     metrics = (Get-FrameTimingMetrics)
     sessions = $sessionRecords.ToArray()
@@ -227,6 +295,7 @@ $receipt = [ordered]@{
 }
 if ($Purpose -eq 'Calibration') { $receipt['calibration'] = Get-FrameTimingCalibration -Sessions $sessionRecords.ToArray() }
 elseif ($Purpose -eq 'Comparison') { $receipt['comparison'] = Compare-FrameTimingSessions -Sessions $sessionRecords.ToArray() -Calibration $calibration }
+elseif ($Purpose -eq 'LoadSensitivity') { $receipt['loadSensitivity'] = Get-FrameTimingLoadSensitivity -Sessions $sessionRecords.ToArray() -Calibration $calibration; $receipt['arms'] = $arms }
 else { $receipt['sameBinaryObservation'] = (Get-FrameTimingCalibration -Sessions $sessionRecords.ToArray())['metrics'] }
 # The full receipt, every raw run report embedded, stays in the build tree; the retained form, recomputed from it and
 # checked equal (Tools/Convert-FrameTimingReceipt.ps1 does the same for an existing full receipt), is what may be committed.
@@ -239,6 +308,7 @@ $readmePath = Join-Path $OutputDirectory 'README.md'
 if (-not (Test-Path -LiteralPath $readmePath)) {
     $adapterRun = $sessionRecords[0]['runs'][0]
     $busyText = @($sessionRecords | ForEach-Object { [string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0:0.0}%', $_['idlePreflight']['busyPercent']) }) -join ', '
+    $admittedText = if ($rule['interim']) { "$($rule['id']) (interim), $($rejectedSessions.Count) rejected session attempts" } else { "$($rule['id']), $($rejectedSessions.Count) rejected session attempts" }
     $lines = @(
         "# Frame timing $Purpose`: $Fixture $($Phase.ToLowerInvariant())", '',
         "Generated by ``performance-timing.ps1``; method: Frame timing method in ``Specs/Core/Core_PerformanceAndResources.md``.", '',
@@ -247,11 +317,18 @@ if (-not (Test-Path -LiteralPath $readmePath)) {
         "- Adapter: $($adapterRun['adapter']['description']), driver $($adapterRun['adapter']['driverVersion']); requested $Adapter",
         "- Sessions: $Sessions of A/B/B/A, each run at least $MinimumFrames frames and $MinimumMilliseconds ms; pinning: $PinCore",
         "- Power scheme: $($powerRecord.mode), original $($powerRecord.original.text), restored: $($powerRecord.restored)",
-        "- Idle preflight: $IdlePreflight, threshold $IdleThresholdPercent%; busy $busyText",
+        "- Idle preflight: $IdlePreflight; busy $busyText",
+        "- Admission: $admittedText",
         '- `receipt.json` is the retained form: per-run summaries, each raw report''s SHA-256 and size, and the judged statistics. The raw reports, the full receipt and the host observation logs stayed in the build tree (`rawDirectory`).')
     [IO.File]::WriteAllText($readmePath, ($lines -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
 }
 
+if ($Purpose -eq 'LoadSensitivity') {
+    foreach ($arm in $receipt['loadSensitivity']['arms']) { Write-Host ("arm {0,-8} level {1,-3} equivalent: {2}" -f $arm['arm'], $arm['level'], $arm['equivalent']) }
+    Write-Host "Admissible level: $($receipt['loadSensitivity']['admissibleLevel']) busy logical processors away from the measuring core; sibling load equivalent: $($receipt['loadSensitivity']['siblingEquivalent'])"
+    Write-Host "Frame timing receipt ($Purpose): $receiptPath"
+    return
+}
 $table = if ($Purpose -eq 'Comparison') { $receipt['comparison']['metrics'] } elseif ($Purpose -eq 'Calibration') { $receipt['calibration']['metrics'] } else { $receipt['sameBinaryObservation'] }
 foreach ($row in $table) {
     $state = if ($row.Contains('verdict')) { $row['verdict'] } elseif ($Purpose -eq 'Smoke') { 'smoke' } else { $row['status'] }

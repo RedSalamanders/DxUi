@@ -5,9 +5,12 @@
 // so it may use the current library freely. Requires GraphicsFixture, Check and Hr from its includer.
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <fstream>
+#include <intrin.h>
 #include <iomanip>
 #include <memory>
 #include <sstream>
@@ -95,6 +98,80 @@ inline bool RunComplete(size_t frames, double elapsedSeconds, const Options& opt
     return frames >= kMaximumFrames || (frames >= options.minimumFrames && elapsedSeconds >= options.minimumSeconds);
 }
 
+// One logical processor of group 0, from the CPU set inventory: its physical core, efficiency class and last-level cache.
+struct LogicalProcessor
+{
+    BYTE index           = 0u;
+    BYTE core            = 0u;
+    BYTE efficiencyClass = 0u;
+    BYTE cache           = 0u;
+};
+
+inline std::vector<LogicalProcessor> ProcessorTopology()
+{
+    ULONG length = 0u;
+    static_cast<void>(GetSystemCpuSetInformation(nullptr, 0u, &length, GetCurrentProcess(), 0u));
+    Check(length > 0u, "frame timing CPU set inventory size");
+    std::vector<std::byte> buffer(length);
+    Check(GetSystemCpuSetInformation(reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buffer.data()), length, &length, GetCurrentProcess(), 0u) != FALSE,
+          "frame timing CPU set inventory");
+    std::vector<LogicalProcessor> processors;
+    for (ULONG offset = 0u; offset < length;)
+    {
+        const auto* entry = reinterpret_cast<const SYSTEM_CPU_SET_INFORMATION*>(buffer.data() + offset);
+        Check(entry->Size > 0u, "frame timing CPU set entry size");
+        if (entry->Type == CpuSetInformation && entry->CpuSet.Group == 0u && entry->CpuSet.LogicalProcessorIndex < 64u)
+            processors.push_back(
+                {entry->CpuSet.LogicalProcessorIndex, entry->CpuSet.CoreIndex, entry->CpuSet.EfficiencyClass, entry->CpuSet.LastLevelCacheIndex});
+        offset += entry->Size;
+    }
+    std::sort(processors.begin(), processors.end(), [](const LogicalProcessor& a, const LogicalProcessor& b) { return a.index < b.index; });
+    Check(! processors.empty(), "frame timing finds logical processors in group 0");
+    return processors;
+}
+
+// Cumulative idle and total (kernel, which includes idle, plus user) time of every logical processor of the calling
+// thread's group, in 100 ns units, from NtQuerySystemInformation(SystemProcessorPerformanceInformation): no elevation.
+struct ProcessorTimes
+{
+    std::vector<int64_t> idle, total;
+};
+
+inline ProcessorTimes SampleProcessorTimes()
+{
+    struct Entry
+    {
+        LARGE_INTEGER idle, kernel, user, reserved1[2];
+        ULONG reserved2;
+    };
+    using Query        = LONG(WINAPI*)(ULONG, PVOID, ULONG, PULONG);
+    static Query query = reinterpret_cast<Query>(reinterpret_cast<void*>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtQuerySystemInformation")));
+    Check(query != nullptr, "frame timing processor time query");
+    std::vector<Entry> entries(64u);
+    ULONG returned = 0u;
+    Check(query(8u, entries.data(), static_cast<ULONG>(entries.size() * sizeof(Entry)), &returned) >= 0, "frame timing processor times");
+    ProcessorTimes times;
+    for (size_t index = 0u; index < returned / sizeof(Entry); ++index)
+    {
+        times.idle.push_back(entries[index].idle.QuadPart);
+        times.total.push_back(entries[index].kernel.QuadPart + entries[index].user.QuadPart);
+    }
+    return times;
+}
+
+// The busy share (0 to 1) of every logical processor between two samples.
+inline std::vector<double> ProcessorBusy(const ProcessorTimes& before, const ProcessorTimes& after)
+{
+    std::vector<double> busy(after.total.size(), 0.0);
+    for (size_t index = 0u; index < busy.size() && index < before.total.size(); ++index)
+    {
+        const double total = static_cast<double>(after.total[index] - before.total[index]);
+        const double idle  = static_cast<double>(after.idle[index] - before.idle[index]);
+        busy[index]        = total > 0.0 ? (std::clamp)(1.0 - idle / total, 0.0, 1.0) : 0.0;
+    }
+    return busy;
+}
+
 struct Pinning
 {
     std::string requested;
@@ -103,48 +180,127 @@ struct Pinning
     DWORD_PTR previousMask = 0u;
     BYTE efficiencyClass   = 0u;
     BYTE maximumEfficiency = 0u;
+    BYTE core              = 0u;
+    BYTE cache             = 0u;
+    std::vector<DWORD> siblings;     // the other logical processors of the same physical core
+    std::vector<double> sampledBusy; // auto: every processor's busy share over the selection sample
 };
 
-// Choose a logical processor of the highest efficiency class in group 0, preferring the highest index (processor 0
-// services the most interrupts). Only the measuring UI thread is pinned; driver threads stay unrestricted.
+inline constexpr DWORD kQuietCoreSampleMilliseconds = 500u;
+
+// The quietest physical core: of the highest efficiency class, not the core of processor 0 (which services the most
+// interrupts) unless it is the only one, with the lowest busy share summed over its logical processors during a
+// 500 ms sample (ties: the higher core index); the measuring thread runs on its lowest-numbered logical processor and
+// its siblings, which share the core's execution resources, are recorded.
+inline LogicalProcessor QuietestProcessor(const std::vector<LogicalProcessor>& processors, const std::vector<double>& busy)
+{
+    BYTE maximum = 0u;
+    for (const auto& processor : processors)
+        maximum = (std::max)(maximum, processor.efficiencyClass);
+    const BYTE interruptCore = processors.front().core;
+    bool otherCores          = false;
+    for (const auto& processor : processors)
+        otherCores = otherCores || (processor.core != interruptCore && processor.efficiencyClass == maximum);
+    double bestScore             = 0.0;
+    const LogicalProcessor* best = nullptr;
+    for (const auto& candidate : processors)
+    {
+        if (candidate.efficiencyClass != maximum || (otherCores && candidate.core == interruptCore))
+            continue;
+        double score                  = 0.0;
+        const LogicalProcessor* first = nullptr;
+        for (const auto& member : processors)
+            if (member.core == candidate.core)
+            {
+                score += member.index < busy.size() ? busy[member.index] : 0.0;
+                if (! first)
+                    first = &member;
+            }
+        if (first != &candidate)
+            continue; // score each core once, from its lowest-numbered logical processor
+        if (! best || score < bestScore - 1e-9 || (score <= bestScore + 1e-9 && candidate.core > best->core))
+        {
+            best      = &candidate;
+            bestScore = score;
+        }
+    }
+    Check(best != nullptr, "frame timing finds a core to pin");
+    return *best;
+}
+
 inline Pinning PinMeasuringThread(std::wstring_view request)
 {
     Pinning result;
     result.requested = request == L"none" ? "none" : request == L"auto" ? "auto" : "explicit";
     if (request == L"none")
         return result;
-    ULONG length = 0u;
-    static_cast<void>(GetSystemCpuSetInformation(nullptr, 0u, &length, GetCurrentProcess(), 0u));
-    Check(length > 0u, "frame timing CPU set inventory size");
-    std::vector<std::byte> buffer(length);
-    Check(GetSystemCpuSetInformation(reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buffer.data()), length, &length, GetCurrentProcess(), 0u) != FALSE,
-          "frame timing CPU set inventory");
+    const auto processors = ProcessorTopology();
+    for (const auto& processor : processors)
+        result.maximumEfficiency = (std::max)(result.maximumEfficiency, processor.efficiencyClass);
+    LogicalProcessor chosen{};
     bool found = false;
-    for (ULONG offset = 0u; offset < length;)
+    if (result.requested == "auto")
     {
-        const auto* entry = reinterpret_cast<const SYSTEM_CPU_SET_INFORMATION*>(buffer.data() + offset);
-        Check(entry->Size > 0u, "frame timing CPU set entry size");
-        if (entry->Type == CpuSetInformation && entry->CpuSet.Group == 0u && entry->CpuSet.LogicalProcessorIndex < 64u)
-        {
-            const BYTE index         = entry->CpuSet.LogicalProcessorIndex;
-            const BYTE efficiency    = entry->CpuSet.EfficiencyClass;
-            result.maximumEfficiency = (std::max)(result.maximumEfficiency, efficiency);
-            const bool explicitMatch = result.requested == "explicit" && std::to_wstring(static_cast<unsigned>(index)) == request;
-            const bool better        = ! found || efficiency > result.efficiencyClass || (efficiency == result.efficiencyClass && index > result.processor);
-            if ((result.requested == "auto" && better) || explicitMatch)
-            {
-                found                  = true;
-                result.processor       = index;
-                result.efficiencyClass = efficiency;
-            }
-        }
-        offset += entry->Size;
+        const auto before = SampleProcessorTimes();
+        Sleep(kQuietCoreSampleMilliseconds);
+        result.sampledBusy = ProcessorBusy(before, SampleProcessorTimes());
+        chosen             = QuietestProcessor(processors, result.sampledBusy);
+        found              = true;
     }
+    else
+        for (const auto& processor : processors)
+            if (std::to_wstring(static_cast<unsigned>(processor.index)) == request)
+            {
+                chosen = processor;
+                found  = true;
+            }
     Check(found, "frame timing pinned processor exists in group 0");
+    result.processor       = chosen.index;
+    result.efficiencyClass = chosen.efficiencyClass;
+    result.core            = chosen.core;
+    result.cache           = chosen.cache;
+    for (const auto& processor : processors)
+        if (processor.core == chosen.core && processor.index != chosen.index)
+            result.siblings.push_back(processor.index);
     result.previousMask = SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR{1} << result.processor);
     Check(result.previousMask != 0u, "frame timing thread affinity");
     result.pinned = true;
     return result;
+}
+
+// What else ran while the run was measured: per-processor busy shares, this process's own processor use, and the
+// measuring thread's share of its processor (its cycle time against the time-stamp counter).
+struct Interference
+{
+    bool tscAvailable  = false;
+    double wallSeconds = 0.0;
+    std::vector<double> processorBusy;
+    double ownProcessors    = 0.0; // this process's CPU time over the wall time, in logical processors
+    double threadShare      = 0.0; // measuring thread's cycles over TSC ticks for the whole loop (0 without a TSC)
+    double measuringBusy    = 0.0;
+    double siblingBusy      = 0.0; // the busiest sibling of the measuring processor
+    double otherOnMeasuring = 0.0; // the measuring processor's busy share not spent by the measuring thread
+    double otherProcessors  = 0.0; // all processors' busy time not spent by this process, in logical processors
+};
+
+inline uint64_t ProcessCpuTime()
+{
+    FILETIME created{}, exited{}, kernel{}, user{};
+    Check(GetProcessTimes(GetCurrentProcess(), &created, &exited, &kernel, &user) != FALSE, "frame timing process times");
+    const auto value = [](const FILETIME& time) { return (static_cast<uint64_t>(time.dwHighDateTime) << 32u) | time.dwLowDateTime; };
+    return value(kernel) + value(user);
+}
+
+// The time-stamp counter on x64, which QueryThreadCycleTime counts in; no equivalent is read on ARM64.
+inline bool ReadTsc(uint64_t& value) noexcept
+{
+#if defined(_M_X64)
+    value = __rdtsc();
+    return true;
+#else
+    value = 0u;
+    return false;
+#endif
 }
 
 inline std::string Utf8(std::wstring_view text)
@@ -182,6 +338,7 @@ struct AdapterIdentity
     bool software     = false;
     uint64_t driver   = 0u;
     SIZE_T videoBytes = 0u;
+    LUID luid{};
 };
 
 inline AdapterIdentity DescribeAdapter(ID3D11Device* device)
@@ -196,6 +353,7 @@ inline AdapterIdentity DescribeAdapter(ID3D11Device* device)
     DXGI_ADAPTER_DESC1 desc{};
     Hr(adapter1->GetDesc1(&desc), "frame timing adapter description");
     identity.description = Utf8(desc.Description);
+    identity.luid        = desc.AdapterLuid;
     identity.vendorId    = desc.VendorId;
     identity.deviceId    = desc.DeviceId;
     identity.software    = (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) != 0u;
@@ -223,6 +381,9 @@ struct Samples
     std::vector<double> submitUs, gpuPrepareUs, gpuCompositeUs, gpuWaitUs;
     std::vector<uint8_t> gpuValid;
     std::vector<size_t> gpuReadAfterSubmitted; // frames submitted when each frame's GPU result was read
+    // The measuring thread's cycles over TSC ticks during preparation and composition, in 1/10,000: below 10,000, the
+    // thread lost processor time inside the frame (preempted or waiting). Zero throughout without a TSC (ARM64).
+    std::vector<uint16_t> runningPermyriad;
     size_t disjointFrames     = 0u;
     UINT64 timestampFrequency = 0u;
     size_t preparedFrames     = 0u; // timed frames whose Prepare did work (S_OK); S_FALSE means it found nothing to prepare
@@ -241,6 +402,7 @@ struct Run
     size_t timedSteps     = 0u;
     size_t rebuilds       = 0u;
     Samples samples;
+    Interference interference;
 };
 
 inline uint64_t ThreadCycles()
@@ -361,8 +523,15 @@ inline Run Measure(Fixture& fixture, const Options& options)
         gpu.context->Unmap(slot.completion.get(), 0u);
     }
 
-    const auto started = Clock::now();
-    size_t frame       = 0u;
+    const auto started           = Clock::now();
+    const auto processorsBefore  = SampleProcessorTimes();
+    const uint64_t processBefore = ProcessCpuTime();
+    ULONG64 processCyclesBefore  = 0u;
+    Check(QueryProcessCycleTime(GetCurrentProcess(), &processCyclesBefore) != FALSE, "frame timing process cycles");
+    const uint64_t threadBefore   = ThreadCycles();
+    uint64_t tscBefore            = 0u;
+    run.interference.tscAvailable = ReadTsc(tscBefore);
+    size_t frame                  = 0u;
     while (! RunComplete(frame, elapsed(started) / 1.0e6, options))
     {
         samples.prepareCycles.push_back(0u);
@@ -373,6 +542,7 @@ inline Run Measure(Fixture& fixture, const Options& options)
         samples.gpuWaitUs.push_back(0.0);
         samples.gpuValid.push_back(0u);
         samples.gpuReadAfterSubmitted.push_back(0u);
+        samples.runningPermyriad.push_back(0u);
         auto& slot = slots[frame % kGpuSlots];
         Check(! slot.pending, "frame timing slot was read before reuse");
         fixture.BeforeFrame(options.warmupFrames + frame, options.phase);
@@ -380,16 +550,27 @@ inline Run Measure(Fixture& fixture, const Options& options)
         fixture.Update(options.warmupFrames + frame, options.phase);
         gpu.context->Begin(slot.disjoint.get());
         gpu.context->End(slot.begin.get());
+        uint64_t prepareTsc = 0u, prepareTscEnd = 0u, compositeTsc = 0u, compositeTscEnd = 0u;
+        static_cast<void>(ReadTsc(prepareTsc));
         const auto prepareStart      = ThreadCycles();
         const HRESULT prepared       = fixture.Prepare();
         samples.prepareCycles[frame] = ThreadCycles() - prepareStart;
+        static_cast<void>(ReadTsc(prepareTscEnd));
         Hr(prepared, "frame timing preparation");
         samples.preparedFrames += prepared == S_OK ? 1u : 0u;
         gpu.context->End(slot.prepared.get());
+        static_cast<void>(ReadTsc(compositeTsc));
         const auto compositeStart = ThreadCycles();
         gpu.Bind();
         Hr(fixture.Composite(gpu.context.get(), viewport), "frame timing composition");
         samples.compositeCycles[frame] = ThreadCycles() - compositeStart;
+        static_cast<void>(ReadTsc(compositeTscEnd));
+        if (run.interference.tscAvailable)
+        {
+            const double ticks              = static_cast<double>((prepareTscEnd - prepareTsc) + (compositeTscEnd - compositeTsc));
+            const double cycles             = static_cast<double>(samples.prepareCycles[frame] + samples.compositeCycles[frame]);
+            samples.runningPermyriad[frame] = static_cast<uint16_t>(ticks > 0.0 ? (std::min)(65535.0, std::round(10000.0 * cycles / ticks)) : 0.0);
+        }
         gpu.context->End(slot.composited.get());
         gpu.context->End(slot.disjoint.get());
         gpu.context->CopySubresourceRegion(slot.completion.get(), 0u, 0u, 0u, 0u, gpu.target.get(), 0u, &corner);
@@ -404,12 +585,50 @@ inline Run Measure(Fixture& fixture, const Options& options)
     }
     run.elapsedSeconds = elapsed(started) / 1.0e6;
     run.frames         = frame;
-    run.timedSteps     = fixture.TimedSteps();
-    run.rebuilds       = fixture.Rebuilds();
+    {
+        auto& interference         = run.interference;
+        const uint64_t threadAfter = ThreadCycles();
+        uint64_t tscAfter          = 0u;
+        static_cast<void>(ReadTsc(tscAfter));
+        interference.wallSeconds   = run.elapsedSeconds;
+        interference.processorBusy = ProcessorBusy(processorsBefore, SampleProcessorTimes());
+        // Process cycles over TSC ticks where the TSC is read (exact for short runs); otherwise process times, which
+        // advance in scheduler ticks.
+        ULONG64 processCyclesAfter = 0u;
+        Check(QueryProcessCycleTime(GetCurrentProcess(), &processCyclesAfter) != FALSE, "frame timing process cycles");
+        interference.ownProcessors = interference.tscAvailable && tscAfter > tscBefore
+                                         ? static_cast<double>(processCyclesAfter - processCyclesBefore) / static_cast<double>(tscAfter - tscBefore)
+                                         : static_cast<double>(ProcessCpuTime() - processBefore) / 1.0e7 / (std::max)(1e-9, interference.wallSeconds);
+        interference.threadShare   = interference.tscAvailable && tscAfter > tscBefore
+                                         ? (std::min)(1.0, static_cast<double>(threadAfter - threadBefore) / static_cast<double>(tscAfter - tscBefore))
+                                         : 0.0;
+        const auto busy            = [&](DWORD index) { return index < interference.processorBusy.size() ? interference.processorBusy[index] : 0.0; };
+        if (run.pinning.pinned)
+        {
+            interference.measuringBusy    = busy(run.pinning.processor);
+            interference.otherOnMeasuring = interference.tscAvailable ? (std::max)(0.0, interference.measuringBusy - interference.threadShare) : 0.0;
+            for (const DWORD sibling : run.pinning.siblings)
+                interference.siblingBusy = (std::max)(interference.siblingBusy, busy(sibling));
+        }
+        double total = 0.0;
+        for (const double value : interference.processorBusy)
+            total += value;
+        interference.otherProcessors = (std::max)(0.0, total - interference.ownProcessors);
+    }
+    run.timedSteps = fixture.TimedSteps();
+    run.rebuilds   = fixture.Rebuilds();
     for (auto& slot : slots)
         if (slot.pending)
             read(slot, frame);
     return run;
+}
+
+// The adapter LUID as the "GPU Engine" performance counters spell it in their instance names: 0xHIGH_0xLOW.
+inline std::string LuidText(const LUID& luid)
+{
+    std::ostringstream text;
+    text << "0x" << std::hex << std::setw(8) << std::setfill('0') << static_cast<unsigned long>(luid.HighPart) << "_0x" << std::setw(8) << luid.LowPart;
+    return text.str();
 }
 
 inline void Write(const Run& run, std::ostream& output)
@@ -429,11 +648,25 @@ inline void Write(const Run& run, std::ostream& output)
            << ",\"vendorId\":" << run.adapter.vendorId << ",\"deviceId\":" << run.adapter.deviceId
            << ",\"software\":" << (run.adapter.software ? "true" : "false") << ",\"driverVersion\":\"" << (run.adapter.driver >> 48u) << '.'
            << ((run.adapter.driver >> 32u) & 0xFFFFu) << '.' << ((run.adapter.driver >> 16u) & 0xFFFFu) << '.' << (run.adapter.driver & 0xFFFFu)
-           << "\",\"dedicatedVideoBytes\":" << run.adapter.videoBytes << "},\"pinning\":{\"requested\":" << JsonString(run.pinning.requested)
-           << ",\"pinned\":" << (run.pinning.pinned ? "true" : "false") << ",\"processor\":" << run.pinning.processor
-           << ",\"efficiencyClass\":" << +run.pinning.efficiencyClass << ",\"maximumEfficiencyClass\":" << +run.pinning.maximumEfficiency
-           << ",\"scope\":\"measuring UI thread only\"}"
-           << ",\"warmupFrames\":" << run.options.warmupFrames << ",\"minimumFrames\":" << run.options.minimumFrames
+           << "\",\"dedicatedVideoBytes\":" << run.adapter.videoBytes << ",\"luid\":\"" << LuidText(run.adapter.luid)
+           << "\"},\"pinning\":{\"requested\":" << JsonString(run.pinning.requested) << ",\"pinned\":" << (run.pinning.pinned ? "true" : "false")
+           << ",\"processor\":" << run.pinning.processor << ",\"efficiencyClass\":" << +run.pinning.efficiencyClass
+           << ",\"maximumEfficiencyClass\":" << +run.pinning.maximumEfficiency << ",\"core\":" << +run.pinning.core
+           << ",\"lastLevelCache\":" << +run.pinning.cache;
+    series("siblings", run.pinning.siblings);
+    series("sampledBusy", run.pinning.sampledBusy);
+    const auto& interference = run.interference;
+    output << ",\"selection\":"
+           << JsonString(run.pinning.requested == "auto" ? "quietest physical core of the highest efficiency class over a 500 ms sample, not processor 0's "
+                                                           "core; its lowest-numbered logical processor"
+                                                         : run.pinning.requested)
+           << ",\"scope\":\"measuring UI thread only\"},\"interference\":{\"tscAvailable\":" << (interference.tscAvailable ? "true" : "false")
+           << ",\"wallSeconds\":" << interference.wallSeconds << ",\"logicalProcessors\":" << interference.processorBusy.size()
+           << ",\"ownProcessors\":" << interference.ownProcessors << ",\"threadShare\":" << interference.threadShare
+           << ",\"measuringBusy\":" << interference.measuringBusy << ",\"siblingBusy\":" << interference.siblingBusy
+           << ",\"otherOnMeasuring\":" << interference.otherOnMeasuring << ",\"otherProcessors\":" << interference.otherProcessors;
+    series("processorBusy", interference.processorBusy);
+    output << '}' << ",\"warmupFrames\":" << run.options.warmupFrames << ",\"minimumFrames\":" << run.options.minimumFrames
            << ",\"minimumSeconds\":" << run.options.minimumSeconds << ",\"frames\":" << run.frames << ",\"elapsedSeconds\":" << run.elapsedSeconds
            << ",\"gpuSlots\":" << kGpuSlots << ",\"gpuReadLatencyFrames\":1,\"timestampFrequency\":" << s.timestampFrequency
            << ",\"disjointFrames\":" << s.disjointFrames << ",\"preparedFrames\":" << s.preparedFrames << ",\"timedSteps\":" << run.timedSteps
@@ -447,6 +680,7 @@ inline void Write(const Run& run, std::ostream& output)
     series("gpuWaitUs", s.gpuWaitUs);
     series("gpuValid", s.gpuValid);
     series("gpuReadAfterSubmitted", s.gpuReadAfterSubmitted);
+    series("runningPermyriad", s.runningPermyriad);
     output << "}}\n";
 }
 
@@ -462,6 +696,86 @@ inline bool TryParseCount(std::wstring_view text, size_t& value)
         value = value * 10u + static_cast<size_t>(c - L'0');
     }
     return true;
+}
+
+// DxUi.EmbeddedTests.exe --processor-topology <output>: group 0's logical processors (core, efficiency class, last-level
+// cache, busy share over a 500 ms sample) and the quietest physical core, as -PinCore auto would choose it.
+inline int TopologyCommand(int argc, wchar_t** argv)
+{
+    if (argc != 3)
+    {
+        std::fputs("Processor topology requires an output path.\n", stderr);
+        return 2;
+    }
+    const auto processors = ProcessorTopology();
+    const auto before     = SampleProcessorTimes();
+    Sleep(kQuietCoreSampleMilliseconds);
+    const auto busy   = ProcessorBusy(before, SampleProcessorTimes());
+    const auto chosen = QuietestProcessor(processors, busy);
+    std::ofstream output{std::filesystem::path(argv[2])};
+    Check(bool(output), "processor topology output file");
+    output << std::setprecision(6) << "{\"schema\":1,\"processors\":[";
+    for (size_t index = 0u; index < processors.size(); ++index)
+    {
+        const auto& processor = processors[index];
+        output << (index ? "," : "") << "{\"index\":" << +processor.index << ",\"core\":" << +processor.core
+               << ",\"efficiencyClass\":" << +processor.efficiencyClass << ",\"lastLevelCache\":" << +processor.cache
+               << ",\"busy\":" << (processor.index < busy.size() ? busy[processor.index] : 0.0) << '}';
+    }
+    output << "],\"quietest\":{\"processor\":" << +chosen.index << ",\"core\":" << +chosen.core << "}}\n";
+    output.close();
+    Check(bool(output), "processor topology written");
+    return 0;
+}
+
+// DxUi.EmbeddedTests.exe --busy-load <i,j,...>: a synthetic background load for performance-timing.ps1 -Purpose
+// LoadSensitivity. One thread per listed logical processor of group 0, pinned there, spins until the runner ends this
+// process (its own child). Test tool only; never part of a measured run.
+inline std::atomic<bool> busyLoadStop{false};
+inline DWORD WINAPI BusyLoadThread(void*) noexcept
+{
+    volatile uint64_t counter = 0u;
+    while (! busyLoadStop.load(std::memory_order_relaxed))
+        counter = counter + 1u;
+    return 0u;
+}
+
+inline int BusyLoadCommand(int argc, wchar_t** argv)
+{
+    std::vector<DWORD> processors;
+    if (argc == 3)
+    {
+        std::wstring_view list(argv[2]);
+        while (! list.empty())
+        {
+            const size_t comma = list.find(L',');
+            size_t value       = 0u;
+            if (! TryParseCount(list.substr(0u, comma), value) || value >= 64u)
+            {
+                processors.clear();
+                break;
+            }
+            processors.push_back(static_cast<DWORD>(value));
+            list = comma == std::wstring_view::npos ? std::wstring_view() : list.substr(comma + 1u);
+        }
+    }
+    if (processors.empty())
+    {
+        std::fputs("Busy load requires a comma-separated list of logical processors of group 0.\n", stderr);
+        return 2;
+    }
+    std::vector<wil::unique_handle> threads;
+    for (const DWORD processor : processors)
+    {
+        wil::unique_handle thread(CreateThread(nullptr, 0u, BusyLoadThread, nullptr, CREATE_SUSPENDED, nullptr));
+        Check(thread.is_valid(), "busy load thread");
+        Check(SetThreadAffinityMask(thread.get(), DWORD_PTR{1} << processor) != 0u, "busy load thread affinity");
+        Check(ResumeThread(thread.get()) != static_cast<DWORD>(-1), "busy load thread start");
+        threads.push_back(std::move(thread));
+    }
+    std::cout << "busy load running on " << processors.size() << " logical processors\n" << std::flush;
+    Sleep(INFINITE);
+    return 0;
 }
 
 // DxUi.EmbeddedTests.exe --timing-method <output> <fixture> Clean|Dirty Hardware|Warp <auto|none|index> <minFrames> <minMilliseconds>
@@ -540,9 +854,31 @@ inline void SelfTest()
               "frame timing report is complete");
         Check(run.timedSteps == 0u && run.rebuilds == 0u, "FX5's dirty phase repeats: its scene is never rebuilt");
         Check(phase == Phase::Clean || s.preparedFrames == run.frames, "every timed FX5 dirty frame prepares work");
+        const auto& interference = run.interference;
+        Check(! interference.processorBusy.empty() && interference.ownProcessors >= 0.0 && interference.wallSeconds > 0.0,
+              "frame timing records every processor's busy share and its own processor use");
+        Check(s.runningPermyriad.size() == run.frames, "frame timing records one running share per frame");
+#if defined(_M_X64)
+        Check(interference.tscAvailable && interference.threadShare > 0.0 && interference.threadShare <= 1.0 && interference.ownProcessors > 0.0,
+              "frame timing measures the measuring thread's share of the time-stamp counter");
+        for (const uint16_t share : s.runningPermyriad)
+            Check(share > 0u, "every frame's running share is measured on x64");
+#endif
     }
     // A finite timed phase (FX3: 100 wheel notches of a 2,048-row Grid, which reaches its end after about 675) is played as
     // declared: frames 100 and 200 rebuild the scene untimed, and every timed frame scrolls and prepares.
+    // The quietest core is chosen per physical core, never processor 0's, and pinned on its lowest-numbered processor.
+    const std::vector<LogicalProcessor> topology{
+        {0u, 0u, 1u, 0u}, {1u, 0u, 1u, 0u}, {2u, 1u, 1u, 0u}, {3u, 1u, 1u, 0u}, {4u, 2u, 1u, 0u}, {5u, 2u, 1u, 0u}, {6u, 3u, 0u, 0u}, {7u, 3u, 0u, 0u}};
+    const std::vector<double> sampled{0.0, 0.0, 0.5, 0.0, 0.05, 0.02, 0.0, 0.0};
+    const auto quietest = QuietestProcessor(topology, sampled);
+    Check(quietest.index == 4u && quietest.core == 2u, "frame timing pins the quietest core of the highest class, not processor 0's");
+    const auto processors = ProcessorTopology();
+    const auto pinned     = PinMeasuringThread(std::to_wstring(static_cast<unsigned>(processors.back().index)));
+    Check(pinned.pinned && SetThreadAffinityMask(GetCurrentThread(), pinned.previousMask) != 0u, "frame timing pins and restores an explicit processor");
+    for (const DWORD sibling : pinned.siblings)
+        Check(std::any_of(processors.begin(), processors.end(), [&](const LogicalProcessor& p) { return p.index == sibling && p.core == pinned.core; }),
+              "a recorded sibling shares the pinned processor's core");
     const auto grid = MakeFixture(L"FX3");
     Check(grid != nullptr, "frame timing finds FX3 in the fixture catalog");
     Options options;

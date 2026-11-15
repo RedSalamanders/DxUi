@@ -18,7 +18,19 @@
   - Calibration, 15 November 2026, RTX 5080, source `9574105be`: FX5 dirty judges median preparation cycles (noise
     floor 0.55%), median submission time (0.55%) and median GPU frame time (1.24%); composition cycles, p95 UI-thread
     cycles and p95 GPU time are advisory. The first FX3 calibration timed about 100,000 frames past the end of the
-    Grid's list per run (0.00% floors) and is not retained; FX3 is to be recalibrated.
+    Grid's list per run (0.00% floors) and is not retained. Recalibrated with the declared-step rule (source
+    `19e970047`), FX3 dirty judges median preparation cycles (1.85%) and median submission time (1.69%); its
+    composition cycles (a constant ten clock steps), GPU median (5.64%, above its 5% margin) and both p95 values
+    are advisory.
+  - Runs are admitted on what disturbs the measurement instead of a 10% whole-host limit, which refused most runs on a
+    32-thread machine with idle cores. `-PinCore auto` pins the quietest physical core and records its siblings; every
+    run records the measuring thread's per-frame running share (thread cycles over time-stamp-counter ticks), every
+    processor's busy share, the sibling's and own processor's other load and other processes' load in logical
+    processors; each session records other processes' busy share of the measured GPU (`GPU Engine` counters). The
+    default `interference-interim-v1` rule rejects a disturbed run and repeats its session; `-Admission Legacy10` keeps
+    the original rule. Existing data show that whole-host load did not predict differences while the measuring thread's
+    own running share did. `-Purpose LoadSensitivity` (synthetic load through `DxUi.EmbeddedTests.exe --busy-load`)
+    will set the final limits; its run is pending.
   - Validation: `Tools/tests/Test-FrameTiming.ps1` (statistics, resolution rule, retained-form conversion; runner with
     shimmed executable, `powercfg`, build and observer, including restoration after a failed run and a refused
     preflight) and the WARP mechanics check `--test-frame-timing` in the ordinary `Embedded` suite, which now also

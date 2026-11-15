@@ -436,9 +436,21 @@ minutes for five sessions of FX5 dirty frames, plus the build:
 
 The study switches to the existing High Performance power scheme and restores the original however it ends; it
 never creates a scheme or asks for elevation, so use `-PowerPlan Keep` (smoke only) where the scheme is absent. Only
-the measuring UI thread is pinned. Each session first observes the host for five seconds with
-`Tools/Watch-BenchmarkHost.ps1` and refuses to start when the host is more than 10% busy; wait for a quiet window
-rather than stopping other work. A calibration or comparison refuses WARP, Debug, short runs and fewer sessions.
+the measuring UI thread is pinned, by default to the quietest physical core. A run is admitted on what disturbs the
+measurement, not on total load: every run records whether the measuring thread kept its processor for the whole frame,
+how busy its core's sibling and its own processor were, and how many logical processors other processes kept busy;
+each session also records how busy other processes kept the measured GPU. Under the default interim rule a session
+starts when other processes keep at most a quarter of the logical processors busy (8 of 32), and a calibration or
+comparison repeats a session whose runs were disturbed, up to three times. `-Admission Legacy10` restores the original
+10%-of-the-host preflight. Wait for a quiet window rather than stopping other work. A calibration or comparison refuses
+WARP, Debug, short runs and fewer sessions.
+
+The interim limits are replaced by a load-sensitivity study (about ten minutes on a quiet machine) that measures FX5
+quiet against 0, 2, 4, 8 and 12 busy logical processors away from the measuring core and one on its sibling:
+
+```powershell
+./performance-timing.ps1 -Purpose LoadSensitivity -Fixture FX5 -Phase Dirty -PreflightSeconds 1 -CalibrationPath Measurements/PerformanceAndMotion_2026-11-13/W0.2/calibration-FX5-dirty/receipt.json -OutputDirectory Measurements/PerformanceAndMotion_2026-11-13/W0.2/load-sensitivity-FX5-dirty
+```
 New fixtures plug in through `FrameTiming::MakeFixture` in `Tests/Embedded/Embedded.Tests.FrameTiming.h`.
 
 A timed dirty frame is always a step the fixture declares. A fixture whose timed phase cannot continue past its last
@@ -450,7 +462,9 @@ clock moves in steps of about 427 cycles) is advisory, so a 0.00% floor from a c
 On the reference machine (RTX 5080, 15 November 2026), FX5 dirty frames judge median preparation cycles (noise floor
 0.55%, minimum detectable effect 0.35%), median submission time (0.55%, 0.39%) and median GPU frame time (1.24%,
 0.63%); median composition cycles, p95 UI-thread cycles and p95 GPU frame time are advisory
-([receipt and table](../Measurements/PerformanceAndMotion_2026-11-13/W0.2/README.md)). FX3's calibration is to be rerun.
+([receipt and table](../Measurements/PerformanceAndMotion_2026-11-13/W0.2/README.md)). FX3 dirty frames (Grid wheel) judge
+median preparation cycles (1.85%, 0.87%) and median submission time (1.69%, 0.83%); its GPU median is advisory there,
+with a 5.64% floor above the 5% margin, as are its composition cycles (a constant ten clock steps) and both p95 values.
 The committed receipt is the retained form, about 43 KB per calibration; the full receipt with every per-frame sample
 stays under `.build/reports/frame-timing/raw/`, and `Tools/Convert-FrameTimingReceipt.ps1` converts an existing full
 receipt, refusing if any judged value would change.

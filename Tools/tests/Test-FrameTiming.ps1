@@ -10,13 +10,16 @@ Import-Module (Join-Path $repository 'Tools/FrameTiming.psm1') -Force
 $fixturePlatform = if ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -eq 'Arm64') { 'ARM64' } else { 'x64' }
 
 function New-TimingRun([int] $Frames = 1000, [double] $Seconds = 2.5, [double] $Scale = 1.0, [string] $Renderer = 'Hardware', [int] $Disjoint = 0,
-    [int] $MinimumFrames = 1000, [double] $MinimumSeconds = 2.0, [switch] $Quantized) {
+    [int] $MinimumFrames = 1000, [double] $MinimumSeconds = 2.0, [switch] $Quantized, [double] $SiblingBusy = 0.01, [double] $OtherProcessors = 2.0,
+    [int] $RunningPermyriad = 9990) {
     # Cycle samples vary in steps of 10 cycles and submission times in 0.5 µs steps, so every statistic is resolved; with
     # -Quantized the run looks like a frame that does nothing: preparation and submission constant, composition one quantum.
     $valid = @(for ($frame = 0; $frame -lt $Frames; $frame++) { if ($frame -lt $Disjoint) { 0 } else { 1 } })
     return [ordered]@{
         schema = 1; method = 'dxui-frame-timing-v1'; fixture = 'FX5'; phase = 'dirty'; renderer = $Renderer
-        adapter = [ordered]@{ description = 'Synthetic'; vendorId = 1; deviceId = 2; software = ($Renderer -eq 'WARP'); driverVersion = '1.2.3.4'; dedicatedVideoBytes = 0 }
+        adapter = [ordered]@{ description = 'Synthetic'; vendorId = 1; deviceId = 2; software = ($Renderer -eq 'WARP'); driverVersion = '1.2.3.4'; dedicatedVideoBytes = 0; luid = '0x00000000_0x0001bdd0' }
+        interference = [ordered]@{ tscAvailable = $true; wallSeconds = $Seconds; logicalProcessors = 32; ownProcessors = 1.2; threadShare = 0.9
+            measuringBusy = 0.95; siblingBusy = $SiblingBusy; otherOnMeasuring = 0.02; otherProcessors = $OtherProcessors; processorBusy = @(for ($i = 0; $i -lt 32; $i++) { 0.05 }) }
         pinning = [ordered]@{ requested = 'auto'; pinned = $true; processor = 3; efficiencyClass = 1; maximumEfficiencyClass = 1; scope = 'measuring UI thread only' }
         warmupFrames = 60; minimumFrames = $MinimumFrames; minimumSeconds = $MinimumSeconds; frames = $Frames; elapsedSeconds = $Seconds
         gpuSlots = 2; gpuReadLatencyFrames = 1; timestampFrequency = 1000000000; disjointFrames = $Disjoint
@@ -31,6 +34,7 @@ function New-TimingRun([int] $Frames = 1000, [double] $Seconds = 2.5, [double] $
             gpuWaitUs = @(for ($frame = 0; $frame -lt $Frames; $frame++) { 5.0 })
             gpuValid = $valid
             gpuReadAfterSubmitted = @(for ($frame = 0; $frame -lt $Frames; $frame++) { if ($frame + 1 -lt $Frames) { $frame + 2 } else { $Frames } })
+            runningPermyriad = @(for ($frame = 0; $frame -lt $Frames; $frame++) { $RunningPermyriad })
         }
     }
 }
@@ -219,6 +223,90 @@ Invoke-TestCase 'retained receipt: no samples, same judged values, floors and ve
     Assert-Throws { ConvertTo-FrameTimingRetainedReceipt -Receipt $verdict } 'a stored status that the samples do not reproduce'
 }
 
+Invoke-TestCase 'admission: decisions on recorded samples (quiet, loaded elsewhere, loaded on the sibling, GPU busy, thread preempted)' {
+    $rule = Get-FrameTimingAdmissionRule
+    $admit = { param($Run, $Gpu = 0.02) Test-FrameTimingRunAdmission -Summary (Get-FrameTimingRunSummary $Run) -OtherGpuBusy $Gpu -Rule $rule }
+    $quiet = & $admit (New-TimingRun)
+    Assert-True $quiet.admitted "a quiet run is admitted: $($quiet.reasons -join '; ')"
+    Assert-Equal 0.999 $quiet.indicators.runningShareMedian 'running share recorded'
+    Assert-True (& $admit (New-TimingRun -OtherProcessors 7.5)).admitted 'seven and a half busy logical processors elsewhere on 32 stay under the cap of 8'
+    $elsewhere = & $admit (New-TimingRun -OtherProcessors 9.0)
+    Assert-True (-not $elsewhere.admitted -and $elsewhere.reasons[0].Contains('cap of 8')) 'nine busy logical processors exceed the cap'
+    $sibling = & $admit (New-TimingRun -SiblingBusy 0.4)
+    Assert-True (-not $sibling.admitted -and $sibling.reasons[0].Contains('sibling')) 'a busy sibling is refused'
+    $gpu = & $admit (New-TimingRun) 0.2
+    Assert-True (-not $gpu.admitted -and $gpu.reasons[0].Contains('GPU')) 'another process busy on the measured GPU is refused'
+    $preempted = & $admit (New-TimingRun -RunningPermyriad 9700)
+    Assert-True (-not $preempted.admitted -and $preempted.reasons[0].Contains('median')) 'a thread that lost 3% of its frame time is refused'
+    $old = New-TimingRun; $old.Remove('interference'); $old.samples.Remove('runningPermyriad')
+    $unrecorded = & $admit $old
+    Assert-True (-not $unrecorded.admitted -and ($unrecorded.reasons -join ' ').Contains('not recorded')) 'a run without interference records is refused by the interim rule'
+    $legacy = Test-FrameTimingRunAdmission -Summary (Get-FrameTimingRunSummary (New-TimingRun -SiblingBusy 0.9)) -OtherGpuBusy 0.9 -Rule (Get-FrameTimingAdmissionRule -Name 'host-busy-10pct-v1')
+    Assert-True $legacy.admitted 'the legacy rule judges no run'
+    Assert-Equal 0.9 $legacy.indicators.siblingBusy 'the legacy rule still records the indicators'
+}
+
+Invoke-TestCase 'admission: the preflight caps other load in logical processors; the legacy rule caps 10% of the host' {
+    $samples = @([ordered]@{ idle100ns = 0; kernelIncludingIdle100ns = 0; user100ns = 0 }, [ordered]@{ idle100ns = 800; kernelIncludingIdle100ns = 1000; user100ns = 0 })
+    $interim = Test-FrameTimingPreflight -Samples $samples -Rule (Get-FrameTimingAdmissionRule) -LogicalProcessors 32
+    Assert-True $interim.admitted '20% of 32 logical processors (6.4) is under the cap of 8'
+    $busier = @($samples[0], [ordered]@{ idle100ns = 500; kernelIncludingIdle100ns = 1000; user100ns = 0 })
+    Assert-True (-not (Test-FrameTimingPreflight -Samples $busier -Rule (Get-FrameTimingAdmissionRule) -LogicalProcessors 8).admitted) '50% of 8 (4) is over the cap of 2'
+    $legacy = Test-FrameTimingPreflight -Samples $samples -Rule (Get-FrameTimingAdmissionRule -Name 'host-busy-10pct-v1') -LogicalProcessors 32
+    Assert-True (-not $legacy.admitted -and $legacy.reason.Contains('20.0%')) 'the legacy rule refuses 20% of the host'
+    Assert-Equal 1.0 (Get-FrameTimingOtherProcessorCap -Rule (Get-FrameTimingAdmissionRule) -LogicalProcessors 2) 'the cap is at least one logical processor'
+}
+
+Invoke-TestCase 'admission: other-process GPU busy from per-instance counter deltas on the measured adapter' {
+    $luid = '0x00000000_0x0001bdd0'
+    $before = @{ 'pid_10_luid_0x00000000_0x0001bdd0_phys_0_eng_0_engtype_3d' = 1000; 'pid_11_luid_0x00000000_0x0001bdd0_phys_0_eng_0_engtype_3d' = 2000
+        'pid_10_luid_0x00000000_0x0001bdd0_phys_0_eng_3_engtype_copy' = 0; 'pid_12_luid_0x00000000_0x00099999_phys_0_eng_0_engtype_3d' = 0
+        'pid_13_luid_0x00000000_0x0001bdd0_phys_0_eng_0_engtype_3d' = 9000000 }
+    $after = @{ 'pid_10_luid_0x00000000_0x0001bdd0_phys_0_eng_0_engtype_3d' = 1001000; 'pid_11_luid_0x00000000_0x0001bdd0_phys_0_eng_0_engtype_3d' = 1002000
+        'pid_10_luid_0x00000000_0x0001bdd0_phys_0_eng_3_engtype_copy' = 500000; 'pid_12_luid_0x00000000_0x00099999_phys_0_eng_0_engtype_3d' = 50000000
+        'pid_13_luid_0x00000000_0x0001bdd0_phys_0_eng_0_engtype_3d' = 100000; 'pid_14_luid_0x00000000_0x0001bdd0_phys_0_eng_0_engtype_3d' = 90000000 }
+    # Engine 0: 0.1 s + 0.1 s, plus 0.01 s from the reset counter of pid 13; pid 14 appeared (left out); the other adapter is left out.
+    Assert-True ([Math]::Abs((Get-FrameTimingOtherGpuBusy -Before $before -After $after -Luid $luid -Seconds 1.0) - 0.21) -lt 1e-9) 'busiest engine share'
+    Assert-True ([Math]::Abs((Get-FrameTimingOtherGpuBusy -Before $before -After $after -Luid $luid -Seconds 1.0 -ExcludeProcessIds 10) - 0.11) -lt 1e-9) 'an excluded process is left out'
+    Assert-Equal $null (Get-FrameTimingOtherGpuBusy -Before @{} -After $after -Luid $luid -Seconds 1.0) 'no snapshot, no figure'
+}
+
+Invoke-TestCase 'load sensitivity: placement away from the measuring core or on its sibling, and the admissible level' {
+    $topology = @(for ($index = 0; $index -lt 16; $index++) { [ordered]@{ index = $index; core = [int][Math]::Floor($index / 2); efficiencyClass = 0; lastLevelCache = 0 } })
+    $arms = Get-FrameTimingLoadPlan -Processors $topology -MeasuringProcessor 14 -Levels @(0, 2, 4, 8, 12) -Sibling
+    Assert-Equal '0|2|4|8|12|sibling' (($arms | ForEach-Object { $_.name }) -join '|') 'arms in order'
+    Assert-Equal '0,2,4,6' (($arms[2].processors) -join ',') 'one thread per other core, farthest first'
+    Assert-Equal 12 $arms[4].processors.Count 'twelve processors'
+    Assert-True (-not (@($arms | Where-Object { $_.placement -eq 'away' } | ForEach-Object { $_.processors }) | Where-Object { $_ -in 14, 15 })) 'nothing placed on the measuring core'
+    Assert-Equal '15' (($arms[5].processors) -join ',') 'the sibling arm loads the measuring processor''s sibling'
+    Assert-Throws { Get-FrameTimingLoadPlan -Processors $topology -MeasuringProcessor 14 -Levels @(15) } 'more load than processors away from the core'
+    $session = { param([string] $Arm, [int] $Level, [string] $Placement, [double] $Loaded)
+        $s = New-Session @(1.0, $Loaded, $Loaded, 1.0); $s['arm'] = $Arm; $s['level'] = $Level; $s['placement'] = $Placement; $s }
+    $sessions = foreach ($i in 1..5) {
+        & $session '0' 0 'away' 1.0
+        & $session '2' 2 'away' 1.002
+        & $session '4' 4 'away' 1.005
+        & $session '8' 8 'away' 1.08
+        & $session '12' 12 'away' 1.001
+        & $session 'sibling' 1 'sibling' 1.2
+    }
+    $result = Get-FrameTimingLoadSensitivity -Sessions @($sessions)
+    Assert-Equal 4 $result.admissibleLevel 'the largest level below the first non-equivalent one'
+    Assert-Equal $false $result.siblingEquivalent 'a 20% slower sibling arm is not equivalent'
+}
+
+Invoke-TestCase 'load sensitivity: the load process is this tool''s own child and stops with it' {
+    $script = Join-Path ([IO.Path]::GetTempPath()) ('fake-load-' + [guid]::NewGuid().ToString('N') + '.ps1')
+    Set-Content -LiteralPath $script -Value 'param($Flag, $List) "busy load running on $List"; Start-Sleep -Seconds 120'
+    try {
+        $process = Start-FrameTimingLoad -Executable (Join-Path $PSHOME 'pwsh.exe') -PrefixArguments @('-NoProfile', '-File', $script) -Processors @(3, 5)
+        $id = $process.Id
+        Assert-True (-not $process.HasExited) 'the load runs'
+        Stop-FrameTimingLoad -Process $process
+        Assert-True ($null -eq (Get-Process -Id $id -ErrorAction SilentlyContinue)) 'the load process ended'
+    } finally { Remove-Item -LiteralPath $script -ErrorAction SilentlyContinue }
+}
+
 # A fake powercfg: the active scheme lives in a file; 'absent' hides High Performance, 'stuck' ignores /setactive.
 $script:PowerState = $null
 function global:Invoke-FakePowerCfg {
@@ -320,6 +408,20 @@ $ErrorActionPreference = 'Stop'
 $global:TimingFixtureRoot = $PSScriptRoot
 $arguments = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'arguments.json')) | ConvertFrom-Json -AsHashtable
 $platform = if ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -eq 'Arm64') { 'ARM64' } else { 'x64' }
+# A fake "GPU Engine" counter: another process's 3D engine on the measured adapter advances by 100 s per sample in
+# gpu-busy mode, never otherwise.
+Set-Item -Path 'Function:global:Get-Counter' -Value {
+    $root = $global:TimingFixtureRoot
+    $statePath = Join-Path $root 'gpu-samples.txt'
+    $count = if (Test-Path -LiteralPath $statePath) { [int][IO.File]::ReadAllText($statePath) } else { 0 }
+    [IO.File]::WriteAllText($statePath, [string]($count + 1))
+    [IO.File]::AppendAllText((Join-Path $root 'calls.txt'), "gpu-counter`n")
+    $busy = [IO.File]::ReadAllText((Join-Path $root 'mode.txt')) -eq 'gpu-busy'
+    [pscustomobject]@{ CounterSamples = @(
+        [pscustomobject]@{ InstanceName = 'pid_4242_luid_0x00000000_0x0001bdd0_phys_0_eng_0_engtype_3d'; RawValue = [long]$(if ($busy) { $count * 1000000000 } else { 5000 }) },
+        [pscustomobject]@{ InstanceName = 'pid_4242_luid_0x00000000_0x0009ffff_phys_0_eng_0_engtype_3d'; RawValue = [long]($count * 1000000000) },
+        [pscustomobject]@{ InstanceName = 'pid_4243_luid_0x00000000_0x0001bdd0_phys_0_eng_0_engtype_3d'; RawValue = [uint64]18446744072192316715 }) }
+}
 Set-Item -Path 'Function:global:powercfg.exe' -Value {
     $root = $global:TimingFixtureRoot
     [IO.File]::AppendAllText((Join-Path $root 'calls.txt'), "powercfg:$($args -join ' ')`n")
@@ -346,6 +448,8 @@ $native = {
     if ([IO.File]::ReadAllText((Join-Path $root 'mode.txt')) -eq 'fail-third' -and $count -eq 3) { $global:LASTEXITCODE = 7; return }
     $run = [IO.File]::ReadAllText((Join-Path $root 'run-template.json')) | ConvertFrom-Json -AsHashtable
     $run['minimumFrames'] = [int]$Frames; $run['minimumSeconds'] = [double]$Milliseconds / 1000.0
+    $mode = [IO.File]::ReadAllText((Join-Path $root 'mode.txt'))
+    if ($mode -eq 'sibling-loaded' -or ($mode -eq 'reject-first-session' -and $count -le 4)) { $run['interference']['siblingBusy'] = 0.6 }
     if ($Adapter -eq 'Warp') { $run['renderer'] = 'WARP'; $run['adapter']['software'] = $true }
     [IO.File]::WriteAllText($Output, (ConvertTo-Json -Depth 6 -Compress -InputObject $run))
 }
@@ -414,6 +518,7 @@ Invoke-FixtureCase 'runner: calibration activates High Performance, measures it 
     New-TimingRunnerFixture $root
     $run = Invoke-TimingRunner $root @{ Purpose = 'Calibration'; Sessions = 5; SkipBuild = $true }
     Assert-Equal 0 $run.Exit "calibration failed: $($run.Text)"
+    Assert-Equal 10 @(Get-Calls $root | Where-Object { $_ -eq 'gpu-counter' }).Count 'one GPU engine snapshot before and after every session'
     $calls = Get-Calls $root
     Assert-Contains $calls 'powercfg:/setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c' 'High Performance activated'
     Assert-Equal 'powercfg:/setactive 381b4222-f694-41f0-9685-ff5bb260df2e' @($calls | Where-Object { $_ -like 'powercfg:/setactive*' })[-1] 'original scheme restored last'
@@ -441,6 +546,46 @@ Invoke-FixtureCase 'runner: calibration activates High Performance, measures it 
     $receipt.Remove('fullReceipt')
     Assert-Equal (ConvertTo-Json -InputObject $receipt -Depth 40 -Compress) (ConvertTo-Json -InputObject $again -Depth 40 -Compress) 'conversion of the full receipt equals the runner''s retained receipt'
     Assert-True ([IO.File]::ReadAllText((Join-Path $root 'out/README.md')).Contains('same-binary calibration')) 'generated explanation'
+}
+
+Invoke-FixtureCase 'runner: a session rejected for its sibling load is repeated and recorded' {
+    param($root)
+    New-TimingRunnerFixture $root
+    Set-FixtureFile $root 'mode.txt' 'reject-first-session'
+    $run = Invoke-TimingRunner $root @{ Purpose = 'Calibration'; Sessions = 5; SkipBuild = $true }
+    Assert-Equal 0 $run.Exit "calibration with one rejected session failed: $($run.Text)"
+    $receipt = Get-FixtureJson $root 'out/receipt.json'
+    Assert-Equal 1 @($receipt.rejectedSessions).Count 'one rejected attempt recorded'
+    Assert-True ($receipt.rejectedSessions[0].reasons[0].Contains('sibling')) 'the rejection names the sibling load'
+    Assert-Equal 5 @($receipt.sessions).Count 'five admitted sessions'
+    Assert-Equal 2 ([int]$receipt.sessions[0].attempt) 'the first session was admitted on its second attempt'
+    Assert-Equal 'interference-interim-v1' $receipt.admission.rule.id 'the interim rule admitted the receipt'
+    Assert-True $receipt.admission.interim 'the receipt says the rule is interim'
+    Assert-Equal 24 @(Get-Calls $root | Where-Object { $_ -like 'native:*' }).Count 'the rejected session was measured again'
+}
+
+Invoke-FixtureCase 'runner: a sibling loaded in every attempt refuses the study and restores the scheme' {
+    param($root)
+    New-TimingRunnerFixture $root
+    Set-FixtureFile $root 'mode.txt' 'sibling-loaded'
+    $run = Invoke-TimingRunner $root @{ Purpose = 'Calibration'; Sessions = 5; SkipBuild = $true; SessionAttempts = 2 }
+    Assert-True ($run.Exit -ne 0 -and $run.Text.Contains('rejected 2 times')) "a loaded sibling was admitted: $($run.Text)"
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $root 'out/receipt.json'))) 'no receipt'
+    Assert-Equal '381b4222-f694-41f0-9685-ff5bb260df2e' ([IO.File]::ReadAllText((Join-Path $root 'power.txt'))) 'scheme restored'
+}
+
+Invoke-FixtureCase 'runner: another process busy on the measured GPU rejects the session; the legacy rule ignores it' {
+    param($root)
+    New-TimingRunnerFixture $root
+    Set-FixtureFile $root 'mode.txt' 'gpu-busy'
+    $run = Invoke-TimingRunner $root @{ Purpose = 'Calibration'; Sessions = 5; SkipBuild = $true; SessionAttempts = 1 }
+    Assert-True ($run.Exit -ne 0 -and $run.Text.Contains('GPU')) "a busy GPU was admitted: $($run.Text)"
+    Remove-Item -LiteralPath (Join-Path $root 'calls.txt'), (Join-Path $root 'gpu-samples.txt') -ErrorAction SilentlyContinue
+    $legacy = Invoke-TimingRunner $root @{ Purpose = 'Calibration'; Sessions = 5; SkipBuild = $true; Admission = 'Legacy10'; OutputDirectory = (Join-Path $root 'legacy') }
+    Assert-Equal 0 $legacy.Exit "the legacy rule refused: $($legacy.Text)"
+    $receipt = Get-FixtureJson $root 'legacy/receipt.json'
+    Assert-Equal 'host-busy-10pct-v1' $receipt.admission.rule.id 'legacy rule recorded'
+    Assert-True ($receipt.sessions[0].otherGpuBusy -gt 0.1) 'the GPU load is still recorded'
 }
 
 Invoke-FixtureCase 'runner: a failed run still restores the scheme and stops the observer' {

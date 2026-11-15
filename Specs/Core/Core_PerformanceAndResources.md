@@ -763,10 +763,48 @@ paired sets above, their judges, bands and exact budgets, nor the ComplexUi benc
   counters and pixels. Anything weaker is a smoke run, labelled as such, with no calibration, noise floor or verdict.
 - **Machine state.** The runner activates the existing High Performance scheme with `powercfg` and restores the
   original scheme however the study ends, verifying the restoration. It never creates a scheme and never elevates; an
-  absent or refused scheme stops the study. Only the measuring UI thread of each child is pinned, to a logical processor
-  of the highest efficiency class (`auto`), so driver threads are not constrained. Each session starts
-  `Tools/Watch-BenchmarkHost.ps1`, refuses the session when the host was busier than the threshold (10% by default)
-  over the preflight window, and keeps observing until the session ends. Other people's processes are never stopped.
+  absent or refused scheme stops the study. Only the measuring UI thread of each child is pinned, so driver threads are
+  not constrained. `auto` samples every logical processor's busy share for 500 ms and pins the lowest-numbered logical
+  processor of the quietest physical core of the highest efficiency class, never processor 0's core when another exists;
+  the run records the core, its siblings, the last-level cache and the sample. Each session starts
+  `Tools/Watch-BenchmarkHost.ps1` for the idle preflight and keeps observing until the session ends. Other people's
+  processes are never stopped.
+- **Interference records.** Every run records, for its timed loop, without elevation: each frame's running share (the
+  measuring thread's cycles over time-stamp-counter ticks during preparation and composition, x64 only); every logical
+  processor's busy share (`NtQuerySystemInformation`); this process's own processor use; hence the busiest sibling of
+  the measuring processor, other work on the measuring processor itself, and other processes' load in logical
+  processors. Per-processor busy shares are not attributed to processes, so the sibling's figure also holds this
+  process's own unpinned threads (driver workers, WARP rasterizer threads); the load-sensitivity run's quiet arm shows
+  that baseline on hardware. Around each session the runner reads the `GPU Engine` running-time counters and records the busiest engine
+  of the measured adapter (by LUID) occupied by other processes, from per-instance deltas.
+- **Admission rule.** Receipts name the rule they were admitted under. `interference-interim-v1` (default, interim
+  until the load-sensitivity run below sets the limits): the preflight refuses a session when other processes keep more
+  than a quarter of the logical processors busy (at least one; 8 on the 32-thread reference machine); a run is rejected
+  when the measuring thread's running share is below 0.99 at the median or 0.97 at the 5th percentile, its sibling is
+  more than 10% busy, other work keeps its own processor more than 5% busy, other processes keep more logical processors
+  busy than the cap, or other processes keep the measured GPU's busiest engine more than 15% busy. A calibration or
+  comparison repeats a rejected session up to three times and records every rejection; smoke and load-sensitivity runs
+  record the decisions without enforcing them. A run without these records (an older executable, or ARM64, which has no
+  time-stamp counter read) is not admitted by this rule. `host-busy-10pct-v1`, the original rule (the preflight refuses
+  a session when the whole host is more than 10% busy; runs are not judged on interference), stays selectable with
+  `-Admission Legacy10`; receipts without an admission field were taken under it, and stay valid.
+- **Evidence for the interim rule.** Whole-host load does not predict the result in the existing data: in two rejected
+  attribution runs (100 passes, other-process load 5.9 to 15.6% of 32 logical processors) the paired passes whose
+  higher load was 9% or more differed by at most 0.74% while lower-load pairs differed by up to 3.79%; in the two
+  calibrations the runs' deviations from the median correlate with session host load by at most 0.34. The measuring
+  thread's own record does: the largest attribution difference (7.3%) came from a pass whose cycles-per-tick ratio was
+  0.976 (undisturbed passes read 0.997 to 1.001), and the three FX5 calibration runs whose 5th-percentile cycle rate fell
+  about 6% below the other seventeen carried the three largest GPU p95 deviations (+13 to +18%; correlation -0.95)
+  while their host load was ordinary. The sibling, own-processor, total-load and GPU limits are conservative choices
+  that the existing data neither confirms nor rejects.
+- **Load sensitivity.** `-Purpose LoadSensitivity` measures one executable on FX5 dirty frames with the measuring thread
+  pinned to the quietest core, in arms of five A/B/B/A sessions run round-robin: A runs quiet, B runs under a synthetic
+  load of 0, 2, 4, 8 and 12 busy logical processors placed away from the measuring core (one per other core, farthest
+  first, then second hardware threads) and one arm with one busy thread on the measuring processor's sibling. The load
+  is `DxUi.EmbeddedTests.exe --busy-load`, the runner's own child, started before and ended after each B run. Per arm,
+  every judged metric of the given calibration is tested for equivalence within its margin; the admissible level is the
+  largest level at which it and every lower level are equivalent. That level replaces the interim total-load cap, and
+  the sibling arm decides whether a busy sibling is admissible.
 - **Receipt.** The committed receipt is the retained form: per-run summaries (statistics, clock steps, resolution,
   frame counts), each raw run report's path, SHA-256 and size, the judged statistics, the host preflight records, the
   power scheme record, the pinning, adapter identity and driver version, the executables' hashes and this tree's v2
@@ -789,8 +827,18 @@ FX5 dirty (ComplexUi, 1280x720, 96 DPI):
 | Median GPU frame time | 5% | 1.24% | 0.63% | judged |
 | p95 GPU frame time | 5% | 15.14% | 4.95% | advisory |
 
-FX3 dirty (Grid wheel): pending. The first calibration timed frames past the end of the Grid's list and is not
-retained; it is rerun with the declared-step rule above.
+FX3 dirty (2,048-row Grid, one wheel notch per frame, 800x600, 96 DPI; source `19e970047`, idle preflight 7.7 to 9.9%
+busy). Each run replays the 100 declared notches about 57 times from a rebuilt scene. A first calibration that timed
+frames past the end of the list is not retained.
+
+| Metric | Margin | Noise floor | Minimum detectable effect | Status |
+| --- | --- | --- | --- | --- |
+| Median preparation cycles | 3% | 1.85% | 0.87% | judged |
+| Median composition cycles | 3% | 0.00% | 0.00% | advisory (one clock step is 9.95% of the statistic) |
+| p95 UI-thread cycles | 3% | 15.04% | 11.89% | advisory |
+| Median submission time | 3% | 1.69% | 0.83% | judged |
+| Median GPU frame time | 5% | 5.64% | 2.66% | advisory |
+| p95 GPU frame time | 5% | 9.05% | 6.90% | advisory |
 
 ### Native accessibility scheduling and synchronization
 
