@@ -1559,6 +1559,12 @@ previous publication in one indivisible event each (block-incremental projection
 this is not v0 chunk reuse. The copy itself remains proportional to the document. Immutable CPU syntax/document ownership can
 outlive native geometry when clients hold it. Raster preparation may allocate;
 composition must not call the builder/layout backend or allocate.
+Prepared formulas, diagrams, SVG rasters and image bitmaps carry from the published generation into the next by exact
+content keys ([prepared objects across edits](../UI/UI_ControlsAndLayout.md#prepared-objects-across-edits)): on `FX8`
+an edit, arrow key or width step outside every object prepares no formula, SVG raster or diagram and uploads no image
+byte, and a device replacement prepares them all again. The carry adds no cache: an object lives only while a
+publication or the one staged preparation holds it, and an unclaimed one is released when the next generation is
+published.
 
 Geometry preparation indexes source line units and bounds cooperatively before
 publication; cancelling or clearing owns no new heap work. Hidden/retired controls

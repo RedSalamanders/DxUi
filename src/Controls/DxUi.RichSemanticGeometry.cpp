@@ -27,6 +27,11 @@
 #pragma warning(pop)
 #pragma comment(lib, "shlwapi.lib")
 
+namespace DxUi
+{
+// DxUi.RetainedCaches.h: the incremental-versus-fresh oracle's fresh scene prepares without carrying objects (W2.3).
+[[nodiscard]] bool IsFreshPreparationForTest() noexcept;
+} // namespace DxUi
 namespace DxUi::RichText::Detail
 {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -44,6 +49,8 @@ thread_local HRESULT testRichMathGlyphMetricsFailure{S_OK};
 thread_local HRESULT testRichMathGlyphIndexFailure{S_OK};
 thread_local std::size_t testRichMathConstantReads{};
 thread_local std::size_t testRichMathPreparations{};
+thread_local std::size_t testRichLiveMathPreparations{};
+thread_local bool testRichMathCarryIgnoresSource{};
 thread_local std::size_t testRichMathTextFormats{};
 thread_local std::span<const std::uint8_t> testRichMathTableOverride{};
 #endif
@@ -190,6 +197,12 @@ struct NativeImagePlacement
     std::shared_ptr<PreparedMath> tag;
     std::shared_ptr<std::vector<RowTag>> rowTags;
     std::shared_ptr<NativeColorPalette> mathPalette;
+    // A formula's content key (W2.3): the exact source its expression was parsed from (a view of its element's name, valid
+    // while the owning document lives), the font size it was prepared at and display mode. Every other input of a prepared
+    // formula is a geometry-wide option, a factory or a target that the carry checks before it reads this generation.
+    std::wstring_view mathSource;
+    float mathFont{};
+    bool mathDisplay{};
     bool bodyReady{}, tagReady{};
     float tagScale{1.f};
     unsigned imageWidth{}, imageHeight{};
@@ -269,7 +282,8 @@ struct NativeImageGeometry
                         std::vector<NativeObjectRejection>& rejected)
         : placements(resources.placements.size() + SemanticExtensionAccess::Maths(document).size()),
           unsupportedPixels(0u),
-          targetIdentity(target)
+          targetIdentity(target),
+          owner(&document)
     {
         if (! target)
             Failure::FailContract(E_INVALIDARG);
@@ -333,14 +347,19 @@ struct NativeImageGeometry
         const auto maths              = SemanticExtensionAccess::Maths(document);
         const PreparedMath* constants = nullptr;
         std::shared_ptr<MathTextFormats> textFormats;
+        // Each previous formula carries to at most one new formula, so equal formulas keep one prepared object each, as a
+        // fresh preparation gives them.
+        std::vector<std::uint8_t> claimed(previous && ! maths.empty() ? previous->placements.size() : 0u, std::uint8_t{});
         for (std::size_t index = 0; index < maths.size(); ++index)
         {
-            auto& placement   = placements[resources.placements.size() + index];
-            placement.element = maths[index].element;
-            placement.display = document.Elements()[placement.element].display;
-            float font        = options.fontSizeDip;
-            const auto runs   = document.Runs();
-            const auto run    = std::upper_bound(
+            auto& placement       = placements[resources.placements.size() + index];
+            placement.element     = maths[index].element;
+            placement.display     = document.Elements()[placement.element].display;
+            placement.mathSource  = document.Elements()[placement.element].name;
+            placement.mathDisplay = maths[index].display;
+            float font            = options.fontSizeDip;
+            const auto runs       = document.Runs();
+            const auto run        = std::upper_bound(
                 runs.begin(), runs.end(), placement.display.first, [](std::size_t offset, const StyleRun& candidate) { return offset < candidate.start; });
             if (run != runs.begin())
             {
@@ -362,21 +381,30 @@ struct NativeImageGeometry
             // affected formula is known. Bounded AST validation can still
             // reject this formula as a local geometry-capacity failure.
             {
-                if (previous)
+                placement.mathFont = font;
+                // W2.3: carry a finished formula of the previous publication by content, not by element index, so that an
+                // edit elsewhere (a block inserted before it included) reuses it. The caller passes `previous` only for
+                // the same factory, target, resource epochs and options (width aside), which cover every other input.
+                for (std::size_t prior = 0u; prior < claimed.size(); ++prior)
                 {
-                    const auto prior =
-                        std::lower_bound(previous->placements.begin(), previous->placements.end(), placement.element, [](const auto& value, auto element) {
-                        return value.element < element;
-                    });
-                    if (prior != previous->placements.end() && prior->element == placement.element)
-                    {
-                        placement.math        = prior->math;
-                        placement.tag         = prior->tag;
-                        placement.rowTags     = prior->rowTags;
-                        placement.mathPalette = prior->mathPalette;
-                        placement.bodyReady   = prior->bodyReady;
-                        placement.tagReady    = prior->tagReady;
-                    }
+                    const auto& candidate = previous->placements[prior];
+#if DXUI_ENABLE_DIAGNOSTICS
+                    const bool sameSource = testRichMathCarryIgnoresSource || candidate.mathSource == placement.mathSource;
+#else
+                    const bool sameSource = candidate.mathSource == placement.mathSource;
+#endif
+                    if (claimed[prior] || ! candidate.math || ! candidate.bodyReady || ! candidate.TagsReady() ||
+                        (! candidate.math->Colors().empty() && (! candidate.mathPalette || ! candidate.mathPalette->Ready())) ||
+                        candidate.mathDisplay != placement.mathDisplay || candidate.mathFont != font || ! sameSource)
+                        continue;
+                    claimed[prior]        = 1u;
+                    placement.math        = candidate.math;
+                    placement.tag         = candidate.tag;
+                    placement.rowTags     = candidate.rowTags;
+                    placement.mathPalette = candidate.mathPalette;
+                    placement.bodyReady   = candidate.bodyReady;
+                    placement.tagReady    = candidate.tagReady;
+                    break;
                 }
                 if (! placement.math)
                 {
@@ -421,6 +449,9 @@ struct NativeImageGeometry
     std::size_t retainedImageBytes{};
     HRESULT nativeResult = S_OK;
     ID2D1RenderTarget* targetIdentity; // Identity only after staging; never dereferenced here.
+    // The document whose element names the placements' mathSource views read (W2.3). The owning State keeps it alive;
+    // Begin checks that a geometry it carries from still belongs to the published State's document before reading them.
+    const SemanticDocument* owner;
     struct UploadProgress
     {
         bool complete{}, attempted{}, unsupported{};
@@ -1075,6 +1106,7 @@ struct PreparedSemanticGeometry::Preparation
           raster(state->images || state->hasScripts || (state->native && state->native->targetBound) ? target : nullptr),
           previousState(previous),
           previousNativeState(previousNative),
+          nativeClaimed(previousNative && previousNative->native ? previousNative->native->placements.size() : 0u, std::uint8_t{}),
 
           emptyLayouts(0u),
           markers(state->document->Paragraphs().size()),
@@ -1120,6 +1152,7 @@ struct PreparedSemanticGeometry::Preparation
     bool scriptColorTargetAvailable{};
     const State* previousState{};
     const State* previousNativeState{};
+    std::vector<std::uint8_t> nativeClaimed; // Previous diagram placements already carried into this generation (W2.3).
 
     std::size_t paintGroup{}, paintCursor{}, paintCount{};
     unsigned paintPhase{};
@@ -2541,24 +2574,33 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
         valid_ = true;
         return LayoutPreparationStatus::Complete;
     }
-    // Completion/frame publication replaces the immutable snapshot. Reuse is
-    // per element/pixel identity, while factory, target, epoch and options stay
-    // compatible; placement geometry is rebuilt for the new snapshot.
+    // Completion/frame publication replaces the immutable snapshot. Prepared
+    // objects carry from the published generation only (W2.3, never from an
+    // abandoned preparation and never across two generations): rasters by
+    // decoded-pixel identity, SVG rasters by pixels and raster size, formulas
+    // and diagrams by exact content, while factory, target, resource epochs and
+    // options stay compatible. Placement geometry is rebuilt for the new
+    // snapshot, and what the new one does not claim is released when it is
+    // published. The oracle's fresh scene carries nothing.
+    const bool carry                          = ! IsFreshPreparationForTest();
     const NativeImageGeometry* previousImages = nullptr;
-    if (state_ && state_->images && state_->factory.get() == factory && state_->document == document && state_->images->targetIdentity == raster &&
-        state_->imageEpochs == epochs)
+    if (carry && state_ && state_->images && state_->factory.get() == factory && state_->images->targetIdentity == raster && state_->imageEpochs == epochs)
     {
         LayoutOptions priorOptions = state_->options;
         priorOptions.widthDip      = options.widthDip;
         if (SameOptions(priorOptions, options))
             previousImages = state_->images.get();
     }
+    // Carried formulas compare their sources through views of the previous document's element names: that document must
+    // be the one the published State keeps alive for the whole preparation (it is released only after publication).
+    if (previousImages && previousImages->owner != state_->document.get())
+        Failure::FailContract(E_UNEXPECTED);
     const auto* previous =
         state_ && state_->factory.get() == factory && state_->imageEpochs == epochs && SameOptions(state_->options, options) ? state_.get() : nullptr;
-    const auto* previousNative = state_ && state_->document == document && state_->factory.get() == factory && state_->native &&
-                                         state_->native->drawing.get() == drawing && state_->native->epochs == epochs &&
-                                         state_->options.fontFamily == options.fontFamily && state_->options.fontSizeDip == options.fontSizeDip &&
-                                         state_->options.locale == options.locale && state_->options.readingDirection == options.readingDirection &&
+    const auto* previousNative = carry && state_ && state_->factory.get() == factory && state_->native && state_->native->drawing.get() == drawing &&
+                                         state_->native->epochs == epochs && state_->options.fontFamily == options.fontFamily &&
+                                         state_->options.fontSizeDip == options.fontSizeDip && state_->options.locale == options.locale &&
+                                         state_->options.readingDirection == options.readingDirection &&
                                          state_->options.diagramLabelWidthDip == options.diagramLabelWidthDip &&
                                          state_->options.autoParagraphDirection == options.autoParagraphDirection &&
                                          state_->options.mathAbsoluteUnitScale == options.mathAbsoluteUnitScale
@@ -2772,10 +2814,28 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 }
                 if (! placement.paint && work.previousNativeState && work.previousNativeState->native)
                 {
-                    auto* retained = work.previousNativeState->native->Find(placement.element);
-                    if (retained && retained->paint && retained->paint->Ready())
+                    // W2.3: carry a finished diagram of the previous publication by its exact graph source, each previous
+                    // diagram to at most one new one. The model's revision field only names the syntax revision that
+                    // parsed it; a model is a function of its source. Typography, factories and epochs were checked
+                    // before this generation was read (Begin); the palette also needs the same raster target.
+                    const auto& graph   = *diagrams[work.nativeIndex].graph;
+                    const auto& retired = work.previousNativeState->native->placements;
+                    for (std::size_t prior = 0u; prior < retired.size() && prior < work.nativeClaimed.size(); ++prior)
                     {
-                        placement.paint = retained->paint;
+                        const auto& retained = retired[prior];
+                        if (work.nativeClaimed[prior] || ! retained.paint || ! retained.paint->Ready())
+                            continue;
+                        const auto* source = SemanticExtensionAccess::Diagram(*work.previousNativeState->document, retained.element);
+                        if (! source || ! source->graph || source->graph->source != graph.source)
+                            continue;
+                        work.nativeClaimed[prior] = 1u;
+                        placement.paint           = retained.paint;
+                        if (retained.palette && retained.palette->Ready() && retained.palette->target.get() == work.raster.get())
+                            placement.palette = retained.palette;
+                        break;
+                    }
+                    if (placement.paint)
+                    {
                         ++result.blockSteps;
                         continue;
                     }
@@ -2829,12 +2889,6 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                         ++work.nativeIndex;
                         ++result.blockSteps;
                         continue;
-                    }
-                    if (! placement.palette && work.previousNativeState && work.previousNativeState->native)
-                    {
-                        const auto* retained = work.previousNativeState->native->Find(placement.element);
-                        if (retained && retained->palette && retained->palette->Ready() && retained->palette->Matches(graph.get(), work.raster.get()))
-                            placement.palette = retained->palette;
                     }
                     if (! placement.palette)
                     {

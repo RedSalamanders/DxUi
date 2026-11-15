@@ -47,6 +47,9 @@ extern thread_local std::size_t testRichScriptColorTargetQueries;
 extern thread_local HRESULT testRichScriptColorTargetFailure;
 extern thread_local unsigned testRichPreparationFailure;
 extern thread_local std::size_t testRichPreparationFailureAttempts;
+// W2.3 negative control: while set, a formula carries without comparing its source (a deliberately wrong key), so the
+// incremental-versus-fresh oracle and the geometry tests must report a difference after an edit inside a formula.
+extern thread_local bool testRichMathCarryIgnoresSource;
 #endif
 struct SourceCaretHit
 {

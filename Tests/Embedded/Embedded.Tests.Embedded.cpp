@@ -87,6 +87,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.RichImageCapture.h"
 #include "Embedded.Tests.RichImageFailures.h"
 #include "Embedded.Tests.RichProjectionResources.h"
+#include "Embedded.Tests.RichReuseAcrossEdits.h"
 #include "Embedded.Tests.RichSemanticDocumentResources.h"
 #include "Embedded.Tests.RichSemanticGeometryResources.h"
 #include "Embedded.Tests.RichSemanticResources.h"
@@ -1565,6 +1566,19 @@ __declspec(noinline) static int RunFunctionalTests()
         EmbeddedParity::TestEmbeddedIncrementalParity(gpu);
         return 0;
     }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-reuse-across-edits")
+    {
+        // W2.3 alone: the FX8 gate, the device replacement between two edits and the richObjects oracle script.
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "reuse across edits WARP fixture");
+        RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
+        RichReuseAcrossEditsEmbedded::TestEmbeddedCarryAcrossDeviceReplacement(gpu);
+        const auto make = [&] { return std::make_unique<EmbeddedParity::EmbeddedParityScene>(gpu.device.get()); };
+        IncrementalParity::RunParityScript(
+            IncrementalParity::RichObjectsScript<EmbeddedParity::EmbeddedParityScene>(), make, "embedded", EmbeddedParity::kReplay);
+        RichReuseAcrossEditsEmbedded::TestRichObjectsOracleCatchesAWrongCarry(gpu);
+        return 0;
+    }
     if (__argc == 4 && std::wstring_view(__wargv[1]) == L"--capture-rich-images")
     {
         const std::wstring_view theme(__wargv[3]);
@@ -1942,6 +1956,7 @@ __declspec(noinline) static int RunFunctionalTests()
         PerformanceFixtures::TestCaretClockGatesOnFx1();
         SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
         PerformanceFixtures::TestTooltipDeadlineGatesOnFx14();
+        RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
         return 0;
     }
     // Plan W2.9 alone: the pointer hit result gates, differential and lifetime on WARP.
@@ -2183,6 +2198,9 @@ __declspec(noinline) static int RunFunctionalTests()
     GridDataPathTests::TestFx3GridDataPathGate(gpu);
     PerformanceFixtures::TestCaretClockGatesOnFx1();
     SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
+    RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
+    RichReuseAcrossEditsEmbedded::TestEmbeddedCarryAcrossDeviceReplacement(gpu);
+    RichReuseAcrossEditsEmbedded::TestRichObjectsOracleCatchesAWrongCarry(gpu);
     ComboBoxPopupLayoutTests::Run(gpu);
     TextFieldPaintTests::Run(gpu);
     EmbeddedPointerHit::TestPointerHitFx14AndFx2HitTestOncePerMove();

@@ -24,6 +24,7 @@
 #include "Controls/DxUi.RetainedCaches.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 #include <DxUi/DxUi.h>
+#include <DxUi/RichImage.h>
 
 #include <UIAutomation.h>
 #include <wil/com.h>
@@ -902,6 +903,172 @@ template <typename Scene> void BuildRichBlocksScene(Scene& scene)
                     L"| A | B |\r\n| --- | --- |\r\n| 1 | 2 |\r\n\r\n```cpp\r\nint value = 1;\r\n```\r\n\r\nLast paragraph.\r\n");
 }
 
+// Script "richObjects" (W2.3): every prepared object kind (display and inline formulas, two equal formulas, a diagram, a
+// raster image, an SVG) edited before, inside and after each object, objects deleted and re-inserted (undo), a duplicate
+// image added and the width changed, so the incremental scene carries prepared objects across edits while the fresh one
+// prepares every object again. Both scenes complete the editor's image requests with the same decoded pictures before each
+// step, as an application would after each preparation. The steps are fixed; the seed only names the run.
+struct ParityPictures final
+{
+    std::shared_ptr<const DxUi::RichText::RichImage> raster, vector;
+};
+[[nodiscard]] inline const ParityPictures& RichObjectPictures()
+{
+    static const ParityPictures pictures = []
+    {
+        const HRESULT apartment = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        const auto uninitialize = wil::scope_exit([&]() noexcept
+        {
+            if (SUCCEEDED(apartment))
+                CoUninitialize();
+        });
+        ParityPictures result;
+        std::array<std::byte, 8u * 6u * 4u> pixels{};
+        for (size_t index = 0u; index < pixels.size(); index += 4u)
+        {
+            pixels[index]      = std::byte{static_cast<unsigned char>(index * 7u % 256u)};
+            pixels[index + 1u] = std::byte{0x90};
+            pixels[index + 2u] = std::byte{static_cast<unsigned char>(255u - index * 3u % 256u)};
+            pixels[index + 3u] = std::byte{0xff};
+        }
+        if (FAILED(DxUi::RichText::RichImage::CreatePbgra(8u, 6u, pixels, result.raster)))
+            Fail("the richObjects raster picture is created");
+        constexpr std::string_view svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 30'><rect width='40' height='30' fill='#2060c0'/>"
+                                         "<circle cx='20' cy='15' r='9' fill='#f0c020'/></svg>";
+        if (FAILED(DxUi::RichText::RichImage::CreateSvg(40u, 30u, std::as_bytes(std::span(svg)), result.vector)))
+            Fail("the richObjects SVG picture is created");
+        return result;
+    }();
+    return pictures;
+}
+template <typename Scene> void ServiceRichObjectImages(Scene& scene)
+{
+    auto* editor = static_cast<DxUi::RichTextEditor*>(scene.slots[1]);
+    std::vector<DxUi::RichText::RichImageRequest> requests;
+    editor->TakePendingImageRequests(requests);
+    for (const auto& request : requests)
+        static_cast<void>(
+            editor->CompleteImageRequest(request, request.Source().ends_with(L".svg") ? RichObjectPictures().vector : RichObjectPictures().raster));
+}
+template <typename Scene> void BuildRichObjectsScene(Scene& scene)
+{
+    BuildRichScene(scene);
+    auto* editor = static_cast<DxUi::RichTextEditor*>(scene.slots[1]);
+    editor->SetDocumentFilePath(L"C:\\parity\\objects.md"); // resolves the relative image sources; never opened
+    editor->SetSvgImagesEnabled(true);
+    editor->SetText(
+        L"Intro paragraph.\n\n$$\nx + y\n$$\n\n$$\nx + y\n$$\n\n```mermaid\nflowchart TD\nA[Start]-->B[Stop]\nstyle A fill:#204080,color:#ffffff\n```\n\n"
+        L"Inline $a^2$ formula.\n\n![raster](picture.png)\n\n![vector](shape.svg)\n\nLast paragraph.\n");
+    editor->SetSelection({0u, 0u});
+}
+template <typename Scene> void StepRichObjects(Scene& scene, Rng& /*rng*/, size_t step)
+{
+    ServiceRichObjectImages(scene);
+    auto* editor       = static_cast<DxUi::RichTextEditor*>(scene.slots[1]);
+    const auto text    = editor->GetText();
+    const auto caretAt = [&](std::wstring_view marker, size_t offset)
+    {
+        const size_t at = text.find(marker);
+        if (at == std::wstring::npos)
+            Fail(std::format("richObjects step {}: marker not found", step));
+        editor->SetSelection({at + offset, at + offset});
+    };
+    const auto remove = [&](std::wstring_view block)
+    {
+        const size_t at = text.find(block);
+        if (at == std::wstring::npos)
+            Fail(std::format("richObjects step {}: block not found", step));
+        editor->SetSelection({at, at + block.size()});
+        static_cast<void>(editor->ReplaceSelection(L""));
+    };
+    switch (step)
+    {
+        case 1u: NoteStep("objects: images completed"); break;
+        case 2u:
+            NoteStep("objects: type before every object");
+            caretAt(L"Intro paragraph", 15u);
+            scene.Character(L'x');
+            break;
+        case 3u:
+            NoteStep("objects: Enter before every object");
+            scene.Key(VK_RETURN);
+            scene.Character(L'n');
+            break;
+        case 4u:
+            NoteStep("objects: type inside the first formula");
+            caretAt(L"x + y", 5u);
+            scene.Character(L'z');
+            break;
+        case 5u:
+            NoteStep("objects: type after every object");
+            caretAt(L"Last paragraph", 14u);
+            scene.Character(L'q');
+            break;
+        case 6u:
+            NoteStep("objects: delete the second formula");
+            remove(L"$$\nx + y\n$$\n\n");
+            break;
+        case 7u:
+            NoteStep("objects: undo re-inserts the formula");
+            static_cast<void>(editor->Undo());
+            break;
+        case 8u:
+            NoteStep("objects: add a duplicate formula and a duplicate image");
+            caretAt(L"Last paragraph", 0u);
+            static_cast<void>(editor->ReplaceSelection(L"$$\nx + y\n$$\n\n![again](picture.png)\n\n"));
+            break;
+        case 9u:
+        {
+            NoteStep("objects: width narrower");
+            D2D1_RECT_F bounds = editor->GetBounds();
+            bounds.right       = bounds.left + 300.0f;
+            editor->SetBounds(bounds);
+            break;
+        }
+        case 10u:
+            NoteStep("objects: type inside the diagram");
+            caretAt(L"B[Stop]", 6u);
+            scene.Character(L's');
+            break;
+        case 11u:
+            NoteStep("objects: delete the diagram");
+            remove(L"```mermaid\nflowchart TD\nA[Start]-->B[Stops]\nstyle A fill:#204080,color:#ffffff\n```\n\n");
+            break;
+        case 12u:
+            NoteStep("objects: undo re-inserts the diagram");
+            static_cast<void>(editor->Undo());
+            break;
+        case 13u:
+            NoteStep("objects: delete the first raster image");
+            remove(L"![raster](picture.png)\n\n");
+            break;
+        case 14u:
+            NoteStep("objects: delete the SVG");
+            remove(L"![vector](shape.svg)\n\n");
+            break;
+        case 15u:
+            NoteStep("objects: undo twice re-inserts both images");
+            static_cast<void>(editor->Undo());
+            static_cast<void>(editor->Undo());
+            break;
+        case 16u:
+            NoteStep("objects: type inside the inline formula");
+            caretAt(L"$a^2$", 4u);
+            scene.Character(L'3');
+            break;
+        default:
+        {
+            NoteStep("objects: width restored and prose typed");
+            D2D1_RECT_F bounds = editor->GetBounds();
+            bounds.right       = 620.0f;
+            editor->SetBounds(bounds);
+            caretAt(L"Intro paragraph", 0u);
+            scene.Character(L'w');
+            break;
+        }
+    }
+}
+
 inline constexpr std::array<uint64_t, 3u> kLayoutSeeds{0x5EED00A1u, 0x5EED00A2u, 0x5EED00A3u};
 inline constexpr std::array<uint64_t, 3u> kInteractionSeeds{0x5EED00B1u, 0x5EED00B2u, 0x5EED00B3u};
 inline constexpr std::array<uint64_t, 2u> kRichSeeds{0x5EED00C1u, 0x5EED00C2u};
@@ -922,6 +1089,11 @@ inline constexpr std::array<uint64_t, 2u> kRichBlocksSeeds{0x5EED00D1u, 0x5EED00
 template <typename Scene> [[nodiscard]] ParityScript<Scene> RichBlocksScript() noexcept
 {
     return {"richBlocks", kRichBlocksSeeds, 24u, &BuildRichBlocksScene<Scene>, &StepRich<Scene>};
+}
+inline constexpr std::array<uint64_t, 1u> kRichObjectsSeeds{0x5EED00E1u};
+template <typename Scene> [[nodiscard]] ParityScript<Scene> RichObjectsScript() noexcept
+{
+    return {"richObjects", kRichObjectsSeeds, 18u, &BuildRichObjectsScene<Scene>, &StepRichObjects<Scene>};
 }
 
 // The registry's rows read populated before the drop on the controls and rich scenes together, except those the scenes

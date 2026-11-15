@@ -437,8 +437,20 @@ struct PreparedFlowchart::Preparation
     std::size_t cursor{};
 };
 #pragma warning(pop)
+#if DXUI_ENABLE_DIAGNOSTICS
+thread_local std::size_t testRichLiveDiagramPreparations{};
+PreparedFlowchart::PreparedFlowchart() noexcept
+{
+    ++testRichLiveDiagramPreparations;
+}
+PreparedFlowchart::~PreparedFlowchart() noexcept
+{
+    --testRichLiveDiagramPreparations;
+}
+#else
 PreparedFlowchart::PreparedFlowchart() noexcept  = default;
 PreparedFlowchart::~PreparedFlowchart() noexcept = default;
+#endif
 LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
                                                  ID2D1Factory* drawing,
                                                  std::shared_ptr<const FlowchartModel> graph,

@@ -4,6 +4,7 @@
 #include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.PreparedFlowchart.h"
 #include "Support.Tests.RichHoverIndex.h"
+#include "Support.Tests.RichReuseAcrossEdits.h"
 #include "Support.Tests.RichSemanticEditor.h"
 #include "Support.Tests.RichSemanticGeometry.h"
 #include "Support/Utilities.h"
@@ -944,6 +945,77 @@ void TestRichSemanticGeometryLinkRasterOracle()
     RichSemanticTests::Run(RichSemanticGeometryTests::MathWidthReflowAndTargetReplacement);
 #endif
 }
+#if DXUI_ENABLE_DIAGNOSTICS
+// W2.3: prepared formulas, diagrams, SVG rasters and image uploads carry across edits by content, equal a fresh preparation
+// and are released at publication.
+void TestRichSemanticGeometryReuseAcrossEdits()
+{
+    RichSemanticTests::Run(RichReuseAcrossEditsTests::CarryAcrossEdits);
+}
+// W2.3 on the native window host: a device loss between two edits carries no GPU-bound object (the resource generation
+// changes), and the next edit carries every object again. This is not the negative control of the epoch guard: the new
+// device context has a different address, so the target check alone would also refuse the carry. That control is the
+// "resource generation" row of RichReuseAcrossEditsTests::CarryAcrossEdits, which changes only the epoch.
+void TestRichSemanticNativeCarryAcrossDeviceLoss()
+{
+    using namespace DxUi::RichText;
+    RichSemanticTests::Run([]
+    {
+        const RichReuseAcrossEditsTests::Pictures pictures;
+        AttachedHostWindow window;
+        auto owned   = std::make_unique<DxUi::RichTextEditor>(RichReuseAcrossEditsTests::Source());
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetDocumentFilePath(L"C:\\fixture\\objects.md"); // resolves relative image sources; never opened
+        editor->SetSvgImagesEnabled(true);
+        window.Host().SetRoot(std::move(owned));
+        const auto scale = window.Host().GetDpi() / 96.f;
+        Require(
+            SetWindowPos(
+                window.Hwnd(), nullptr, 0, 0, static_cast<int>(640.f * scale), static_cast<int>(900.f * scale), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) !=
+                FALSE,
+            "native carry fixture has a stable DIP viewport");
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        window.PumpMessages();
+        const auto prepare = [&]
+        {
+            Require(PrepareNativeContentForTests(window.Host()), "prepare the native carry fixture");
+            std::vector<RichImageRequest> requests;
+            editor->TakePendingImageRequests(requests);
+            for (const auto& request : requests)
+                static_cast<void>(editor->CompleteImageRequest(request, request.Source().ends_with(L".svg") ? pictures.vector : pictures.raster));
+            if (! requests.empty())
+                Require(PrepareNativeContentForTests(window.Host()), "prepare the native carry fixture with completed images");
+        };
+        const auto edit = [&]
+        {
+            const DxUi::Detail::WorkCounterScope scope;
+            const auto text = editor->GetText();
+            const auto at   = text.find(L"Intro paragraph") + 15u;
+            editor->SetSelection({at, at});
+            Require(editor->ReplaceSelection(L"x"), "native carry fixture prose edit");
+            prepare();
+            return RichReuseAcrossEditsTests::Measure(scope);
+        };
+        prepare();
+        prepare();
+        auto work = edit();
+        Require(work.None(), "a prose edit carries every prepared object on the native host");
+        window.Host().DebugSimulateDeviceLoss();
+        work = edit();
+        std::cout << "  native edit after device loss: maths " << work.maths << ", diagrams " << work.diagrams << ", SVG rasterizations " << work.svgs
+                  << ", upload bytes " << work.uploadBytes << '\n';
+        Require(work.maths == 3u && work.diagrams == 1u && work.svgs >= 1u && work.uploadBytes > 0u,
+                "after a device loss every formula, diagram, SVG raster and image is prepared again on the new device");
+        std::vector<RichImageRequest> requests;
+        editor->TakePendingImageRequests(requests);
+        Require(requests.empty(), "device recovery re-uploads held pixels without asking the application again");
+        work = edit();
+        Require(work.None(), "the next edit after device recovery carries every object again");
+    });
+}
+#endif
 void TestRichSemanticGeometryTaskCheckboxAlignment()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::TaskCheckboxAlignment);
@@ -1143,6 +1215,10 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticNativeHangingMarkersLinksAndHtml);
     DXUI_RUN_TEST(TestRichSemanticCalloutLiteralHtmlRenders);
     DXUI_RUN_TEST(TestRichSemanticGeometryReuseAcrossLargeEdits);
+#if DXUI_ENABLE_DIAGNOSTICS
+    DXUI_RUN_TEST(TestRichSemanticGeometryReuseAcrossEdits);
+    DXUI_RUN_TEST(TestRichSemanticNativeCarryAcrossDeviceLoss);
+#endif
     DXUI_RUN_TEST(TestRichSemanticNativeRetainedRendering);
     DXUI_RUN_TEST(TestRichSemanticNativeRenderingAdmissionFallback);
 }

@@ -637,8 +637,10 @@ pixels with the incremental-versus-fresh oracle: two identical scenes run a seed
 the second drops every retained cache (`DebugDropRetainedStateForTest()` on `ControlHost` or `EmbeddedHost`) before it
 draws. Pixels (exact BGRA on WARP), control bounds and the UI Automation tree must match. Run it natively with
 `./test.ps1 -Configuration Debug -Platform x64 -Suites Rendering -Tests TestNativeIncrementalParityLayout` (or
-`...Interaction`, `...Rich`); the embedded scripts run in the Embedded suite and alone with
-`DxUi.EmbeddedTests.exe --test-incremental-parity`. A failure prints the script, seed, step, pixel and control; set
+`...Interaction`, `...Rich`, `...RichObjects`); the embedded scripts run in the Embedded suite and alone with
+`DxUi.EmbeddedTests.exe --test-incremental-parity`. `richObjects` edits around and inside every prepared rich object
+kind and completes the same decoded pictures in both scenes, so it proves objects carried across edits (W2.3) against a
+fresh preparation of every object. A failure prints the script, seed, step, pixel and control; set
 `DXUI_PARITY_SEED` to that seed to replay it alone. A new cache adds its row to `src/Controls/DxUi.RetainedCaches.cpp`
 (an entries count and a drop) or an exemption with its reason; a new script is one build and one step function beside
 the others in `Tests/Support/Support.Tests.IncrementalParity.h`. Native frames are read from the back buffer of a full

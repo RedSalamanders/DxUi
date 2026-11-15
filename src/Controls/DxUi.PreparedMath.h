@@ -42,6 +42,7 @@ extern thread_local HRESULT testRichMathGlyphMetricsFailure;
 extern thread_local HRESULT testRichMathGlyphIndexFailure;
 extern thread_local std::size_t testRichMathConstantReads;
 extern thread_local std::size_t testRichMathPreparations;
+extern thread_local std::size_t testRichLiveMathPreparations; // PreparedMath objects alive on this thread.
 extern thread_local std::size_t testRichMathTextFormats;
 extern thread_local std::span<const std::uint8_t> testRichMathTableOverride;
 #endif
@@ -546,6 +547,27 @@ class PreparedMath final
     Extent extent;
     bool displayStyle{}, finalized{}, capacityExceeded{};
     mutable HRESULT lastResult = S_OK;
+#if DXUI_ENABLE_DIAGNOSTICS
+    // Live prepared formulas on this thread, so tests observe when a generation releases one (W2.3).
+    struct LiveCount
+    {
+        LiveCount() noexcept
+        {
+            ++testRichLiveMathPreparations;
+        }
+        LiveCount(const LiveCount&) noexcept : LiveCount()
+        {
+        }
+        LiveCount& operator=(const LiveCount&) noexcept
+        {
+            return *this;
+        }
+        ~LiveCount()
+        {
+            --testRichLiveMathPreparations;
+        }
+    } liveCount;
+#endif
 
     static std::int16_t Signed16(const BYTE* bytes) noexcept
     {

@@ -602,7 +602,8 @@ std::span<const RetainedCacheExemption> RetainedCacheAccess::Exemptions() noexce
         {"Accessibility.rootProvider", "The canonical root provider object: its identity must survive for clients that hold it."},
         {"RichTextEditor.State.images",
          "Decoded images come from the application's asynchronous decoder; dropping them shows alternative text until the "
-         "application decodes again. Oracle scripts use no images; W2.3 keys image reuse itself."},
+         "application decodes again. The richObjects oracle script completes the same decoded pictures in both scenes, and the "
+         "fresh scene uploads them again (W2.3 carries GPU objects by decoded-pixel identity, never these pixels themselves)."},
         {"MenuPopup.descriptionLayouts",
          "Native menu popups (descriptionLayouts, liveRowLayouts, backdropSnapshot, the popup host) run only in the focus-taking "
          "Menu suites; their resources are reported by DebugGetContextMenuResources."},

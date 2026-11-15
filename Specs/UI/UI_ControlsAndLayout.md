@@ -1935,6 +1935,40 @@ Semantic geometry pairs previous boxes with new paragraphs by order within a bou
 256 boxes in all), or through the block pairing when alignment is lost, and compares a candidate layout's input with the document's display text and runs in
 place before building any input copy.
 
+#### Prepared objects across edits
+
+Semantic geometry carries prepared native objects from its published generation into the next one, whatever document
+that generation holds, so an edit outside an object prepares and uploads nothing for it. A carried object must be the
+object a fresh preparation of the new document would build, so each kind carries only under a key that covers every input
+its preparation reads:
+
+| Kind | Inputs its preparation reads | Carry key | Rebuilt by |
+| --- | --- | --- | --- |
+| Raster image bitmap | decoded pixels (orientation and premultiplied BGRA applied at decode), the raster target | the same immutable `RichImage`, the same target, resource and typography epochs, factory and options apart from width | a new decode, another target or device, any option other than width (conservatively DPI too, although the bitmap is DPI-independent) |
+| SVG raster | the SVG bytes and nominal size, the raster size in pixels (from width, DPI and authored size), the target's device | the same `RichImage` and raster width and height, plus the raster image key | a raster size change (a width below the image's size, DPI, authored size), another device |
+| Formula | expression source, display or inline mode, font size at its position (body, code or heading), DPI, math, body and code font families, locale, absolute-unit scale, the DirectWrite factory; explicit colors bind brushes on the target | the exact source string the expression was parsed from, the mode and the font size, plus the raster image key | an edit inside it, a move that changes its font size (into a heading or code), any of those options, another target or epoch |
+| Diagram | graph source, body font family and size, locale, reading direction and automatic direction, label width, absolute-unit scale, both factories, epochs; authored colors bind brushes on the target | the exact graph source with those options; the authored-color palette also needs the same target | an edit inside it, any of those options or epochs; the palette also by another target |
+
+The keys rely on two purity rules that must stay true: a formula's expression is a function of its source alone
+(`ParseMath` reads no macro, label, counter or other document-wide state; equation tags are explicit in the source), and
+a diagram model is a function of its body alone (`NativeFlowchartParser` reads only the body). Diagram preparation reads no
+DPI. Theme colors, text rendering parameters and the window's monitor are bound at paint, not at preparation, so they are no
+key. A diagram model's `revision` names the syntax revision that parsed it and is not part of its content: a model is a
+function of its source, so a diagram carries across revisions by source. Each previous object carries to at most one new
+one, in document order: equal formulas or diagrams keep one prepared object each, as a fresh preparation gives them,
+while equal images share one bitmap as they always do. Hit-testing, selection, hover titles and accessibility read the
+new document and the new placements, never the carried object's previous element.
+
+The carry reads only the published generation: never an abandoned preparation and never an older generation. A
+preparation holds a shared reference to each object it claims; what it does not claim stays owned by the published
+generation until the new one is published, when that generation and every unclaimed object are released. So deleting a
+formula, diagram or image releases its prepared object at publication, not before, and the objects held never exceed
+what the previous publication held plus what the new document adds. A superseded preparation (a further edit before
+publication) releases only what it built; the next one carries from the publication again. Destroying the geometry
+releases a pending preparation before the publication it reads. Only finished objects carry, so a published generation
+never shares an object that another preparation still advances. The incremental-versus-fresh oracle's fresh scene
+carries nothing (`SetFreshPreparationForTest`).
+
 The role graph retains headings, quotes, lists/items, code, tables/rows/cells,
 links, images, task objects and rules. Cells retain header/alignment/row/column
 metadata. Source task markers and image alternatives are atomic source objects;

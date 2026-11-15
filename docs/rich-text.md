@@ -1933,6 +1933,16 @@ dirtiness is reported separately from a ready content frame.
 `lastAdvanceImageWork` counts image candidates actually visited in the last
 owner turn, including rejected candidates, independently of geometry block steps.
 
+Editing outside a formula, diagram or image does not prepare it again: the next
+geometry carries each prepared object whose content and inputs are unchanged (the
+formula's source, mode and font size; the diagram's source; the same decoded
+image and raster size) from the current one, including when blocks are inserted
+before it, so typing uploads no image bytes. Editing inside an object, or a
+change of font, DPI, locale, direction, raster target or device, prepares the
+objects that read it again. A deleted object is released when the edited
+geometry is published. The keys are in the
+[contract](../Specs/UI/UI_ControlsAndLayout.md#prepared-objects-across-edits).
+
 Limits are 16,384 source units, 4,096 staging/syntax nodes, 64 parsed nesting
 levels, 64 rows/columns and 1,024 cells per formula including generated padding.
 Math nodes, graph nodes/edges/groups and image placements share 32,768 records

@@ -543,7 +543,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
     per open hover frame, 0 per typed character open or closed, and 0 per paint of the 100-item all-fit popup after the
     first measure; exact WARP parity of the open popup.
   - **Needs**: `W0.4`. **Size**: S.
-- [ ] **W2.3 Reuse across edits.**
+- [x] **W2.3 Reuse across edits.**
   - **Why**: image and native-object reuse requires `state_->document == document` (`DxUi.RichSemanticGeometry.cpp:2437`,
     `:2447`) and every edit builds a new semantic document (`DxUi.RichSemanticDocument.cpp:2848-2855`), so each
     keystroke re-uploads every raster image (up to `MaximumDecodedBytes`, 64 MiB, `DxUi.RichImageResources.h:26`),

@@ -3,6 +3,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.DxUiTestMovedControls.h"
 #include "Controls/DxUi.RetainedCaches.h"
+#include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.ComboBoxPopupLayout.h"
 #include "Support.Tests.IncrementalParity.h"
 #include "Support.Tests.TextFieldPaint.h"
@@ -169,6 +170,24 @@ void TestNativeIncrementalParityRich()
 void TestNativeIncrementalParityRichBlocks()
 {
     RunParityScript(RichBlocksScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+}
+
+// W2.3: formulas, diagrams, raster images and SVG rasters carried across edits against a fresh preparation of every object.
+void TestNativeIncrementalParityRichObjects()
+{
+    RunParityScript(RichObjectsScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+}
+
+// W2.3 negative control: a deliberately wrong carry key (the formula source ignored) must show as a difference when the
+// script edits inside a formula.
+void TestNativeIncrementalParityRichObjectsDetectsAWrongCarry()
+{
+    DxUi::RichText::Detail::testRichMathCarryIgnoresSource = true;
+    const auto restore                                     = wil::scope_exit([] { DxUi::RichText::Detail::testRichMathCarryIgnoresSource = false; });
+    const std::string difference                           = RunParityScriptOnce(RichObjectsScript<NativeParityScene>(), kRichObjectsSeeds[0], MakeNativeScene);
+    std::cout << "  native wrong-carry negative control: " << difference << '\n';
+    Require(difference.starts_with("step 4 ") && difference.find("inside the first formula") != std::string::npos,
+            "a formula carried under a wrong key differs from a fresh preparation at the edit inside it");
 }
 
 // W2.2: the ComboBox popup's retained widths and placement against a fresh measurement, on the window host (where the
@@ -425,6 +444,8 @@ void RunIncrementalParityTests()
     DXUI_RUN_TEST(TestNativeIncrementalParityInteraction);
     DXUI_RUN_TEST(TestNativeIncrementalParityRich);
     DXUI_RUN_TEST(TestNativeIncrementalParityRichBlocks);
+    DXUI_RUN_TEST(TestNativeIncrementalParityRichObjects);
+    DXUI_RUN_TEST(TestNativeIncrementalParityRichObjectsDetectsAWrongCarry);
     DXUI_RUN_TEST(TestNativeIncrementalParityComboPopup);
     DXUI_RUN_TEST(TestFx10LiveResizeArrangesEveryBodyChild);
     DXUI_RUN_TEST(TestNativeIncrementalParityFx10LiveResize);
