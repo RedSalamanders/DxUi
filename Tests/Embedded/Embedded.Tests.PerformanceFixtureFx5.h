@@ -18,6 +18,8 @@ inline constexpr std::array kVariants{
     Variant{"default", 1280u, 720u, 96.0f, false},
     // G4 is judged here, on a hardware adapter only.
     Variant{"uhd-192dpi", 3840u, 2160u, 192.0f, true},
+    // The hardware attribution receipt (W0.7) at 1920x1080: 144 DPI scales the 1280x720 DIP scene to fill the view.
+    Variant{"fhd-144dpi", 1920u, 1080u, 144.0f, true, true},
 };
 inline constexpr std::array kPhases{
     Phase{"warm", kWarmSteps, PhaseKind::Warmup, "ComplexUiScene::Update(n): first-use resources and caches settle"},

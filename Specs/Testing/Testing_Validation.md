@@ -475,6 +475,14 @@ FX3 replaying its 100 declared wheel notches from a rebuilt scene with every fra
 choice, and the per-frame running share and interference records. None of these
 supplies a timing value or a calibration.
 
+`performance-attribution.ps1` runs the hardware attribution method of the performance contract.
+`Tools/tests/Test-FrameAttribution.ps1` covers its case matrix, the timing, phases, sampling and present summaries, the
+reading of the decision rule in each region (and the regions it leaves open), and runs the public runner in isolated
+children with shimmed executables, `powercfg`, `wpr`, identity helpers and host observer: the power scheme is only read,
+a receipt is refused on WARP, with short passes, without a required preflight or without High performance already
+active, before any work, and a busy host is refused before any measurement. The ordinary `Embedded` suite and its
+isolated `--test-frame-attribution` entry check the native mechanics on WARP. None of these supplies a timing value.
+
 Offline UIA investigation replay MUST check the declared process/test inventory, complete child failure and
 truncation flags, exact log bindings, quiet intervals and matching callback/provider snapshot cutoffs. Callback
 entry order may differ from completion order; late or in-flight callbacks MUST remain explicit observations.

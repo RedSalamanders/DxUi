@@ -1,4 +1,5 @@
 #pragma once
+#include "Support.Tests.CallTicks.h"
 #include <dwrite.h>
 #include <limits>
 #include <string_view>
@@ -121,6 +122,7 @@ public:
                                                WCHAR const* localeName,
                                                IDWriteTextFormat** textFormat) noexcept override
     {
+        const NativeWorkTests::TimedCall<&NativeWorkTests::CallTicks::textFormats> timed;
         ++formats;
         if (FAILED(formatFailure))
         {
@@ -147,6 +149,7 @@ public:
                                                FLOAT maxHeight,
                                                IDWriteTextLayout** textLayout) noexcept override
     {
+        const NativeWorkTests::TimedCall<&NativeWorkTests::CallTicks::textLayouts> timed;
         const auto call         = layouts++;
         const bool matchingText = failLayoutText && string && std::wstring_view(string, stringLength) == failLayoutText;
         matchingLayouts += matchingText;
@@ -181,6 +184,7 @@ public:
                                                             BOOL useGdiNatural,
                                                             IDWriteTextLayout** textLayout) noexcept override
     {
+        const NativeWorkTests::TimedCall<&NativeWorkTests::CallTicks::textLayouts> timed;
         return Counted(real->CreateGdiCompatibleTextLayout(
                            string, stringLength, textFormat, layoutWidth, layoutHeight, pixelsPerDip, transform, useGdiNatural, textLayout),
                        textLayout,

@@ -3,7 +3,8 @@
 // DirectWrite factory, for test executables only (Specs/Core/Core_PerformanceAndResources.md, "Work counters"). Installed
 // through the private creation seam Detail::FactoryInterposer, they observe what actually reaches Direct2D and DirectWrite,
 // independently of DxUi's source: every successful Create... by resource kind, and every Direct2D draw call, which they add
-// to Detail::Work().frame.drawCalls (the only place that counter is incremented).
+// to Detail::Work().frame.drawCalls (the only place that counter is incremented). While a test installs a CallTicks record
+// (Support.Tests.CallTicks.h, hardware attribution only), they also time draw calls, BeginDraw, EndDraw and Flush.
 //
 // Pass-through rules. Every method forwards to the real object with the caller's arguments unchanged and returns its result.
 // Objects are wrapped only where DxUi itself holds them: the factory (ID2D1Factory1, the highest version DxUi requests), the
@@ -14,6 +15,7 @@
 // itself (one COM identity) only when the real object implements that version; any other interface is answered by the real
 // object and counted in escapedInterfaces, since calls through it are no longer seen. A wrapper holds one reference to its
 // real object and releases it when it is destroyed, so the real object's lifetime is the wrapper's.
+#include "Support.Tests.CallTicks.h"
 #include "Support.Tests.CountingWriteFactory.h"
 #include "Support/NativeRendering.h"
 #include "Support/WorkCounters.h"
@@ -51,6 +53,15 @@ inline void NoteDraw() noexcept
 {
     ++DxUi::Detail::Work().frame.drawCalls;
 }
+// One forwarded draw call: counted, and timed into CallTicks::drawCalls while a test installs a CallTicks record (W0.7).
+struct DrawCall final
+{
+    DrawCall() noexcept
+    {
+        NoteDraw();
+    }
+    TimedCall<&CallTicks::drawCalls> timed;
+};
 template <typename Interface> inline void NoteCreated(Direct2DWork& work, HRESULT hr, DxUi::Detail::ResourceKind kind, Interface** object) noexcept
 {
     if (SUCCEEDED(hr) && object && *object)
@@ -520,17 +531,17 @@ public:
     void STDMETHODCALLTYPE
     DrawLine(D2D1_POINT_2F point0, D2D1_POINT_2F point1, ID2D1Brush* brush, FLOAT strokeWidth, ID2D1StrokeStyle* strokeStyle) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->DrawLine(point0, point1, brush, strokeWidth, strokeStyle);
     }
     void STDMETHODCALLTYPE DrawRectangle(const D2D1_RECT_F* rect, ID2D1Brush* brush, FLOAT strokeWidth, ID2D1StrokeStyle* strokeStyle) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->DrawRectangle(rect, brush, strokeWidth, strokeStyle);
     }
     void STDMETHODCALLTYPE FillRectangle(const D2D1_RECT_F* rect, ID2D1Brush* brush) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->FillRectangle(rect, brush);
     }
     void STDMETHODCALLTYPE DrawRoundedRectangle(const D2D1_ROUNDED_RECT* rect,
@@ -538,43 +549,43 @@ public:
                                                 FLOAT strokeWidth,
                                                 ID2D1StrokeStyle* strokeStyle) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->DrawRoundedRectangle(rect, brush, strokeWidth, strokeStyle);
     }
     void STDMETHODCALLTYPE FillRoundedRectangle(const D2D1_ROUNDED_RECT* rect, ID2D1Brush* brush) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->FillRoundedRectangle(rect, brush);
     }
     void STDMETHODCALLTYPE DrawEllipse(const D2D1_ELLIPSE* ellipse, ID2D1Brush* brush, FLOAT strokeWidth, ID2D1StrokeStyle* strokeStyle) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->DrawEllipse(ellipse, brush, strokeWidth, strokeStyle);
     }
     void STDMETHODCALLTYPE FillEllipse(const D2D1_ELLIPSE* ellipse, ID2D1Brush* brush) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->FillEllipse(ellipse, brush);
     }
     void STDMETHODCALLTYPE DrawGeometry(ID2D1Geometry* geometry, ID2D1Brush* brush, FLOAT strokeWidth, ID2D1StrokeStyle* strokeStyle) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->DrawGeometry(geometry, brush, strokeWidth, strokeStyle);
     }
     void STDMETHODCALLTYPE FillGeometry(ID2D1Geometry* geometry, ID2D1Brush* brush, ID2D1Brush* opacityBrush) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->FillGeometry(geometry, brush, opacityBrush);
     }
     void STDMETHODCALLTYPE FillMesh(ID2D1Mesh* mesh, ID2D1Brush* brush) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->FillMesh(mesh, brush);
     }
     void STDMETHODCALLTYPE FillOpacityMask(
         ID2D1Bitmap* mask, ID2D1Brush* brush, D2D1_OPACITY_MASK_CONTENT content, const D2D1_RECT_F* destination, const D2D1_RECT_F* source) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->FillOpacityMask(mask, brush, content, destination, source);
     }
     void STDMETHODCALLTYPE DrawBitmap(ID2D1Bitmap* bitmap,
@@ -583,7 +594,7 @@ public:
                                       D2D1_BITMAP_INTERPOLATION_MODE interpolationMode,
                                       const D2D1_RECT_F* source) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->DrawBitmap(bitmap, destination, opacity, interpolationMode, source);
     }
     // DrawText lays its string out on every call: one implicit text layout, as CountedDrawText counts it.
@@ -595,13 +606,13 @@ public:
                                     D2D1_DRAW_TEXT_OPTIONS options,
                                     DWRITE_MEASURING_MODE measuringMode) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         ++Work().seen.implicitTextLayout.created;
         Target()->DrawText(string, length, format, layoutRect, brush, options, measuringMode);
     }
     void STDMETHODCALLTYPE DrawTextLayout(D2D1_POINT_2F origin, IDWriteTextLayout* layout, ID2D1Brush* brush, D2D1_DRAW_TEXT_OPTIONS options) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->DrawTextLayout(origin, layout, brush, options);
     }
     void STDMETHODCALLTYPE DrawGlyphRun(D2D1_POINT_2F origin,
@@ -609,12 +620,12 @@ public:
                                         ID2D1Brush* brush,
                                         DWRITE_MEASURING_MODE measuringMode) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->DrawGlyphRun(origin, run, brush, measuringMode);
     }
     void STDMETHODCALLTYPE Clear(const D2D1_COLOR_F* color) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         Target()->Clear(color);
     }
 
@@ -669,6 +680,7 @@ public:
     }
     HRESULT STDMETHODCALLTYPE Flush(D2D1_TAG* tag1, D2D1_TAG* tag2) noexcept override
     {
+        const TimedCall<&CallTicks::flush> timed;
         return Target()->Flush(tag1, tag2);
     }
     void STDMETHODCALLTYPE SaveDrawingState(ID2D1DrawingStateBlock* block) const noexcept override
@@ -689,10 +701,12 @@ public:
     }
     void STDMETHODCALLTYPE BeginDraw() noexcept override
     {
+        const TimedCall<&CallTicks::beginDraw> timed;
         Target()->BeginDraw();
     }
     HRESULT STDMETHODCALLTYPE EndDraw(D2D1_TAG* tag1, D2D1_TAG* tag2) noexcept override
     {
+        const TimedCall<&CallTicks::endDraw> timed;
         return Target()->EndDraw(tag1, tag2);
     }
     D2D1_PIXEL_FORMAT STDMETHODCALLTYPE GetPixelFormat() const noexcept override
@@ -889,7 +903,7 @@ public:
                                         ID2D1Brush* brush,
                                         DWRITE_MEASURING_MODE measuringMode) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real->DrawGlyphRun(origin, run, description, brush, measuringMode);
     }
     void STDMETHODCALLTYPE DrawImage(ID2D1Image* image,
@@ -898,12 +912,12 @@ public:
                                      D2D1_INTERPOLATION_MODE interpolationMode,
                                      D2D1_COMPOSITE_MODE compositeMode) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real->DrawImage(image, offset, rectangle, interpolationMode, compositeMode);
     }
     void STDMETHODCALLTYPE DrawGdiMetafile(ID2D1GdiMetafile* metafile, const D2D1_POINT_2F* offset) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real->DrawGdiMetafile(metafile, offset);
     }
     void STDMETHODCALLTYPE DrawBitmap(ID2D1Bitmap* bitmap,
@@ -913,12 +927,12 @@ public:
                                       const D2D1_RECT_F* source,
                                       const D2D1_MATRIX_4X4_F* perspective) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real->DrawBitmap(bitmap, destination, opacity, interpolationMode, source, perspective);
     }
     void STDMETHODCALLTYPE FillOpacityMask(ID2D1Bitmap* mask, ID2D1Brush* brush, const D2D1_RECT_F* destination, const D2D1_RECT_F* source) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real->FillOpacityMask(mask, brush, destination, source);
     }
 
@@ -938,7 +952,7 @@ public:
     }
     void STDMETHODCALLTYPE DrawGeometryRealization(ID2D1GeometryRealization* realization, ID2D1Brush* brush) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real1->DrawGeometryRealization(realization, brush);
     }
 
@@ -985,17 +999,17 @@ public:
     }
     void STDMETHODCALLTYPE DrawInk(ID2D1Ink* ink, ID2D1Brush* brush, ID2D1InkStyle* inkStyle) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real2->DrawInk(ink, brush, inkStyle);
     }
     void STDMETHODCALLTYPE DrawGradientMesh(ID2D1GradientMesh* mesh) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real2->DrawGradientMesh(mesh);
     }
     void STDMETHODCALLTYPE DrawGdiMetafile(ID2D1GdiMetafile* metafile, const D2D1_RECT_F* destination, const D2D1_RECT_F* source) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real2->DrawGdiMetafile(metafile, destination, source);
     }
     HRESULT STDMETHODCALLTYPE CreateTransformedImageSource(ID2D1ImageSource* imageSource,
@@ -1017,7 +1031,7 @@ public:
                                            D2D1_BITMAP_INTERPOLATION_MODE interpolationMode,
                                            D2D1_SPRITE_OPTIONS options) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real3->DrawSpriteBatch(spriteBatch, startIndex, spriteCount, bitmap, interpolationMode, options);
     }
 
@@ -1036,7 +1050,7 @@ public:
                                     D2D1_DRAW_TEXT_OPTIONS options,
                                     DWRITE_MEASURING_MODE measuringMode) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         ++Work().seen.implicitTextLayout.created;
         _real4->DrawText(string, length, format, layoutRect, brush, svgGlyphStyle, colorPaletteIndex, options, measuringMode);
     }
@@ -1047,7 +1061,7 @@ public:
                                           UINT32 colorPaletteIndex,
                                           D2D1_DRAW_TEXT_OPTIONS options) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real4->DrawTextLayout(origin, layout, brush, svgGlyphStyle, colorPaletteIndex, options);
     }
     void STDMETHODCALLTYPE DrawColorBitmapGlyphRun(DWRITE_GLYPH_IMAGE_FORMATS format,
@@ -1056,7 +1070,7 @@ public:
                                                    DWRITE_MEASURING_MODE measuringMode,
                                                    D2D1_COLOR_BITMAP_GLYPH_SNAP_OPTION snap) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real4->DrawColorBitmapGlyphRun(format, origin, run, measuringMode, snap);
     }
     void STDMETHODCALLTYPE DrawSvgGlyphRun(D2D1_POINT_2F origin,
@@ -1066,7 +1080,7 @@ public:
                                            UINT32 colorPaletteIndex,
                                            DWRITE_MEASURING_MODE measuringMode) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real4->DrawSvgGlyphRun(origin, run, brush, svgGlyphStyle, colorPaletteIndex, measuringMode);
     }
     HRESULT STDMETHODCALLTYPE GetColorBitmapGlyphImage(DWRITE_GLYPH_IMAGE_FORMATS format,
@@ -1111,7 +1125,7 @@ public:
     }
     void STDMETHODCALLTYPE DrawSvgDocument(ID2D1SvgDocument* document) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real5->DrawSvgDocument(document);
     }
     HRESULT STDMETHODCALLTYPE CreateColorContextFromDxgiColorSpace(DXGI_COLOR_SPACE_TYPE colorSpace, ID2D1ColorContext1** colorContext) noexcept override
@@ -1131,7 +1145,7 @@ public:
                                       const D2D1_RECT_F* rectangle,
                                       D2D1_INTERPOLATION_MODE interpolationMode) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real6->BlendImage(image, blendMode, offset, rectangle, interpolationMode);
     }
 
@@ -1143,7 +1157,7 @@ public:
     void STDMETHODCALLTYPE DrawPaintGlyphRun(
         D2D1_POINT_2F origin, const DWRITE_GLYPH_RUN* run, ID2D1Brush* brush, UINT32 colorPaletteIndex, DWRITE_MEASURING_MODE measuringMode) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real7->DrawPaintGlyphRun(origin, run, brush, colorPaletteIndex, measuringMode);
     }
     void STDMETHODCALLTYPE DrawGlyphRunWithColorSupport(D2D1_POINT_2F origin,
@@ -1155,7 +1169,7 @@ public:
                                                         DWRITE_MEASURING_MODE measuringMode,
                                                         D2D1_COLOR_BITMAP_GLYPH_SNAP_OPTION snap) noexcept override
     {
-        Detail::NoteDraw();
+        const Detail::DrawCall drawCall;
         _real7->DrawGlyphRunWithColorSupport(origin, run, description, brush, svgGlyphStyle, colorPaletteIndex, measuringMode, snap);
     }
 

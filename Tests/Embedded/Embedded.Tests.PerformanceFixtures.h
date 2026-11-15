@@ -1182,16 +1182,33 @@ __declspec(noinline) inline void TestApplicationWakeGatesOnFixtures()
         Check(at <= tooltipWakeTimes[0] || at >= tooltipWakeTimes[1], "FX14: nothing wakes the sleeping application between the show and the hide");
 }
 
+// What a dirty timed frame does (FrameTiming::Phase::Dirty): one step of the fixture's timed phase (performance-timing.ps1),
+// one step of another named phase, or ControlHost::Invalidate with nothing changed, a full frame (performance-attribution.ps1, W0.7).
+struct TimedFrame
+{
+    enum class Kind : uint8_t
+    {
+        TimedPhase,
+        Phase,
+        Invalidate,
+    };
+    Kind kind    = Kind::TimedPhase;
+    size_t phase = 0u; // Kind::Phase only
+};
+
 // The timing harness's view of a catalog fixture: performance-timing.ps1 -Phase Dirty plays the timed phase, one step per
-// frame; -Phase Clean renders unchanged frames. Phases before the timed phase are played (prepared, not composited) first.
+// frame; -Phase Clean renders unchanged frames. Phases before the timed phase (before the named phase for TimedFrame::Kind::Phase)
+// are played (prepared, not composited) first.
 class CatalogTimingFixture final : public FrameTiming::Fixture
 {
 public:
-    CatalogTimingFixture(const Definition& definition, const Variant& variant)
+    CatalogTimingFixture(const Definition& definition, const Variant& variant, TimedFrame frame = {})
         : definition_(definition),
           variant_(variant),
           name_(variant.name == definition.variants.front().name ? std::string(definition.id) : std::string(definition.id) + '@' + std::string(variant.name)),
-          timedPhase_(definition.FindPhase(definition.timedPhase).value_or(0u))
+          timedPhase_(frame.kind == TimedFrame::Kind::Phase ? frame.phase : definition.FindPhase(definition.timedPhase).value_or(0u)),
+          invalidate_(frame.kind == TimedFrame::Kind::Invalidate),
+          namedPhase_(frame.kind == TimedFrame::Kind::Phase)
     {
     }
     std::string_view Name() const noexcept override
@@ -1242,9 +1259,16 @@ public:
     }
     void Update(size_t frame, FrameTiming::Phase phase) override
     {
-        const size_t steps = TimedSteps();
-        if (phase == FrameTiming::Phase::Dirty)
-            instance_->Step(timedPhase_, steps == 0u ? frame : frame % steps);
+        if (phase != FrameTiming::Phase::Dirty)
+            return;
+        if (invalidate_)
+        {
+            instance_->View().Controls().Invalidate();
+            return;
+        }
+        // A named phase (W0.7) repeats its declared steps in place; the timed phase follows TimedSteps.
+        const size_t steps = namedPhase_ ? definition_.phases[timedPhase_].steps : TimedSteps();
+        instance_->Step(timedPhase_, steps == 0u ? frame : frame % steps);
     }
     HRESULT Prepare() override
     {
@@ -1256,7 +1280,8 @@ public:
     }
     size_t TimedSteps() const noexcept override
     {
-        return definition_.timedPhaseRepeats ? 0u : definition_.phases[timedPhase_].steps;
+        // A full frame (Invalidate) and a named phase never rebuild the scene: they repeat in place (W0.7).
+        return invalidate_ || namedPhase_ || definition_.timedPhaseRepeats ? 0u : definition_.phases[timedPhase_].steps;
     }
     size_t Rebuilds() const noexcept override
     {
@@ -1270,8 +1295,41 @@ private:
     size_t timedPhase_    = 0u;
     ID3D11Device* device_ = nullptr; // the timing harness's device, alive for every frame of the run
     size_t rebuilds_      = 0u;
+    bool invalidate_      = false; // TimedFrame::Kind::Invalidate
+    bool namedPhase_      = false; // TimedFrame::Kind::Phase
     std::optional<EmbeddedInstance> instance_;
 };
+
+// The attribution harness's fixture (performance-attribution.ps1, W0.7): a catalog fixture as FX<N>[@variant] whose dirty frame
+// is `frame`: "full" (ControlHost::Invalidate, nothing changed), "timed" (the timed phase, as performance-timing.ps1 plays it) or
+// "phase:<name>" (one step of that phase). nullptr for any other fixture or frame.
+inline std::unique_ptr<FrameTiming::Fixture> MakeAttributionFixture(std::wstring_view name, std::wstring_view frame)
+{
+    const FixtureSelection selection = ParseSelection(name);
+    const Definition* definition     = FindFixture(selection.id);
+    if (! definition || definition->interactiveOnly || ! definition->Built() || ! Supports(definition->hosts, Host::Embedded) ||
+        ! definition->FindPhase(definition->timedPhase))
+        return nullptr;
+    const Variant* variant = FindVariant(*definition, selection.variant);
+    if (! variant)
+        return nullptr;
+    TimedFrame timed;
+    constexpr std::wstring_view kPhasePrefix = L"phase:";
+    if (frame == L"full")
+        timed.kind = TimedFrame::Kind::Invalidate;
+    else if (frame.starts_with(kPhasePrefix))
+    {
+        const std::string phaseName = FrameTiming::Utf8(frame.substr(kPhasePrefix.size()));
+        const auto phase            = definition->FindPhase(phaseName);
+        if (! phase)
+            return nullptr;
+        timed.kind  = TimedFrame::Kind::Phase;
+        timed.phase = *phase;
+    }
+    else if (frame != L"timed")
+        return nullptr;
+    return std::make_unique<CatalogTimingFixture>(*definition, *variant, timed);
+}
 } // namespace PerformanceFixtures
 
 // Declared in Embedded.Tests.FrameTiming.h: every built embedded catalog fixture, as FX<N> or FX<N>@<variant>.

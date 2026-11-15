@@ -340,7 +340,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
     and mode.
   - **Needs**: nothing. **Size**: M.
 
-- [ ] **W0.7 Hardware attribution receipt.**
+- [x] **W0.7 Hardware attribution receipt.**
   - **Why**: no profile of where frame time goes exists; there is no timestamp query or hardware-GPU receipt anywhere
     in `src/`, `Tests/` or `Tools/`, and the benchmark readback is not displayed FPS
     ([performance](../../../docs/performance.md) `:301-303`). The choice between `W4` and `W10.4` rests on it.

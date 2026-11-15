@@ -163,6 +163,9 @@ int wmain(int argc, wchar_t** argv)
     // One hash of a full window-host frame per fixture step: the W2.8 pixel receipt before and after a change.
     if (argc >= 2 && std::wstring_view(argv[1]) == L"--fixture-frame-hashes")
         return RunWindowFixtureFrameHashCommand(argc, argv);
+    // The window-host present pass of the hardware attribution method (performance-attribution.ps1, plan W0.7).
+    if (argc >= 2 && std::wstring_view(argv[1]) == L"--present-attribution")
+        return RunWindowPresentAttributionCommand(argc, argv);
     // FX13's receipt-only cold start: fresh child processes timed to their first presented frame.
     if (const int coldStart = RunFx13ColdStartChild(argc, argv); coldStart >= 0)
         return coldStart;

@@ -120,6 +120,11 @@ UI-thread cycles and late-read GPU timestamps, equivalence against 3%/5% margins
 `DxUi.EmbeddedTests.exe --test-frame-timing` checks its native mechanics on WARP and runs in the ordinary `Embedded`
 suite; `Tools/tests/Test-FrameTiming.ps1` checks its statistics and machine-state restoration with fakes. Neither
 supplies a timing value or a calibration.
+`performance-attribution.ps1` runs the hardware attribution method (plan `W0.7`: timing, phases and sampling passes per
+fixture, size and frame, and the window host's `Present`); see [performance](../docs/performance.md#where-a-frames-time-goes).
+`DxUi.EmbeddedTests.exe --test-frame-attribution` checks its native mechanics on WARP (module classes, every pass on
+`FX5`, wrapped-call time inside preparation, samples inside a frame's work) and runs in the ordinary `Embedded` suite;
+`Tools/tests/Test-FrameAttribution.ps1` checks its summaries, the decision reading and the runner's admissions with fakes.
 UIA client regressions fail a quiet-wait timeout and retain client/provider timelines for the unchanged Grid selection
 case. A quiet interval and a passing repeat do not establish the cause of a previously delayed event.
 The shared UIA client's owner waits wake for incoming COM messages with a bounded message wait. Sender caching and

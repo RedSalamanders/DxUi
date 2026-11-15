@@ -13,6 +13,9 @@ int RunWindowFixtureFrameHashCommand(int argc, wchar_t** argv);
 void TestTooltipDeadlineGatesOnWindowFx14();
 // DxUi.ControlTests.exe --fixture-receipt <FX<N>[@variant]> <output.json>: a WARP receipt of one fixture on the window host.
 int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv);
+// DxUi.ControlTests.exe --present-attribution <output.json> <FX<N>[@variant]> Hardware|Warp <minFrames> <minMilliseconds>: the
+// window-host present pass of the hardware attribution method (performance-attribution.ps1, plan W0.7).
+int RunWindowPresentAttributionCommand(int argc, wchar_t** argv);
 
 namespace PerformanceFixtures
 {

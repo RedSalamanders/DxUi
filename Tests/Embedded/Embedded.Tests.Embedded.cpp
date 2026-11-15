@@ -88,9 +88,10 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.MemoryMetrics.h"
 #include "Embedded.Tests.PerformanceFixtures.h"
 #include "Embedded.Tests.PerformanceGridDataPaths.h"
-// After the performance fixtures: the W2.2 gate drives FX2.
+// After the performance fixtures: the W2.2 gate drives FX2, the W0.7 attribution runs catalog fixtures.
 #include "Embedded.Tests.AssignSetters.h"
 #include "Embedded.Tests.ComboBoxPopupLayout.h"
+#include "Embedded.Tests.FrameAttribution.h"
 #include "Embedded.Tests.PointerHit.h"
 // After the performance fixtures: the W2.1 gate drives FX5.
 #include "Embedded.Tests.RetainedTextLayouts.h"
@@ -1903,6 +1904,15 @@ __declspec(noinline) static int RunFunctionalTests()
         std::cout << "PASS frame timing method mechanics\n";
         return 0;
     }
+    // The hardware attribution method (performance-attribution.ps1, plan W0.7); outside the fingerprinted benchmark entry too.
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--frame-attribution")
+        return FrameAttribution::RunCommand(__argc, __wargv);
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-frame-attribution")
+    {
+        FrameAttribution::SelfTest();
+        std::cout << "PASS frame attribution method mechanics\n";
+        return 0;
+    }
 #if DXUI_ENABLE_DIAGNOSTICS
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-property-registration-retirement")
     {
@@ -2043,6 +2053,7 @@ __declspec(noinline) static int RunFunctionalTests()
     Check(! DxUi::IsContextMenuDiagnosticsEnabled(), "clearing sink disables native diagnostics");
     CleanPrepareTimerDiagnostic::RunOracle();
     FrameTiming::SelfTest();
+    FrameAttribution::SelfTest();
     GraphicsFixture gpu;
     Hr(gpu.Create(), "supplied WARP device");
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-combobox-popup-layout")

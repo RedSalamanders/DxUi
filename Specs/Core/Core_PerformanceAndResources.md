@@ -857,6 +857,71 @@ frames past the end of the list is not retained.
 | Median GPU frame time | 5% | 5.64% | 2.66% | advisory |
 | p95 GPU frame time | 5% | 9.05% | 6.90% | advisory |
 
+### Hardware attribution method
+
+Where a frame's time goes on a hardware adapter is recorded by the hardware attribution method
+(`performance-attribution.ps1`, `Tools/FrameAttribution.psm1`, native `DxUi.EmbeddedTests.exe --frame-attribution` and
+`DxUi.ControlTests.exe --present-attribution`). It is the `W0.7` receipt of the performance and motion plan and the input to
+the choice between retained painting (`W4`) and a DxUi-owned GPU backend (`W10.4`). It needs no kernel-trace rights.
+
+- **Matrix.** `FX5`, `FX3` and `FX12` at 1920x1080 and 3840x2160 (`FX5@fhd-144dpi` and `@uhd-192dpi`; `FX3@fhd` and
+  `@uhd-192dpi`; `FX12`'s dense screen, default and `@uhd-192dpi`, and its library-laid-out `@form-layout-10k` and
+  `@form-layout-10k-uhd`), each with a full frame (`ControlHost::Invalidate` with nothing changed) and a typical dirty
+  frame (the timed phase of `FX5` and `FX3`, one hover change on `FX12`), on the embedded host; and `FX12`'s dense screen
+  at both sizes on the window host.
+- **Passes.** Each case runs three fresh processes on the frame timing method's loop, each at least 10 s for a receipt.
+  *Timing* is that method unchanged: the frame's UI-thread CPU (preparation plus composition thread cycles, converted at the
+  time-stamp counter rate, which `QueryThreadCycleTime` counts in on x64; the report checks thread cycles per tick), the GPU
+  timeline from timestamps around preparation and composition, and the GPU's busy time: the per-process "GPU Engine"
+  performance counters' running time over the measured frames, readable without elevation. The timeline of a CPU-bound
+  frame includes the GPU waiting for the CPU's next submission, so GPU time is compared with CPU time through the busy time
+  wherever the counters exist. *Phases* installs the counting COM wrappers with a test-only
+  call-time record: the time inside `BeginDraw`, `EndDraw`, `Flush`, every Direct2D draw call and DirectWrite text layout
+  and format creation, per frame, with the `W0.1` counters (Direct2D draw calls, `Paint` executions, pixels painted,
+  preparations, layouts created). Preparation minus every wrapped call is DxUi's own code, with the C++ runtime and system
+  calls it makes. The pass is instrumented; its overhead against the timing pass is recorded, and its shares, not its
+  absolute times, are its result. *Sampling* runs a sampler thread of the test process that suspends the measuring thread
+  about every millisecond while it is inside preparation or composition, reads its instruction pointer and attributes the
+  sample to the module holding it: DxUi (the executable), `d2d1`, `dwrite` (with `textshaping`), `d3d11` with `dxgi` and the
+  user-mode driver (every module under the driver store), the C++ runtime, system (`ntdll`, `kernelbase`, `kernel32`,
+  `win32u`) and other. It is leaf-module, user-mode sampling: a sample in a system call lands in its user-mode stub, callee
+  time is never credited to a caller, and a blocked thread's samples are counted apart as waiting.
+- **Present.** On the window host the pass draws full frames of the non-activating test window, which sits off every
+  monitor, through the host's own `WM_PAINT`, and reads its render and `Present` wall times from the public frame metrics
+  (`SetFrameMetricSink`). `DwmFlush` after each frame lets the compositor take the frame first, so `Present` measures its
+  own cost, not a wait for a free buffer. The embedded host has no `Present`: its composition is the equivalent.
+- **Kernel sampling.** Each run probes the documented unelevated route once (`wpr.exe -start CPU`, cancelled at once if
+  accepted) and records the result with the command an administrator would run. Without kernel-trace rights the module
+  attribution is the in-process sampling above; no number is invented for what it cannot see.
+- **Machine state.** The power scheme is read, never switched: a receipt refuses unless High performance is already
+  active. A receipt also requires a hardware adapter, Release, x64, 10 s passes and a `Tools/Watch-BenchmarkHost.ps1`
+  preflight that the frame timing method's admission rule admits; the observer keeps running and each pass records the
+  host's load beside its own. Nothing takes focus. A smoke run relaxes these and says so.
+- **Clean passes, retries and resumption.** A pass is clean when at least 95% of its frames did work and the frame timing
+  method's admission rule (interference with the measuring thread, `interference-interim-v2` by default; earlier rules
+  selectable) admits it. Every embedded pass pins its measuring thread with the method's isolating form, which keeps the
+  measured process's other threads off the measuring core; the pass records whether isolation took effect. Admission is
+  judged on the interference the timing child recorded during the pass and on other processes' busy time on the measured
+  adapter. The sampling pass is judged on every indicator but the measuring thread's running share,
+  which its own sampler lowers by design; the window-host present pass, whose thread is not pinned, on other processes' load
+  from the observer against the rule's cap. Each pass records its indicators and admission, and the receipt names the rule.
+  In a receipt run an unclean pass is measured again once the host is quiet,
+  within a bound per pass and in all; every attempt and its load is recorded, and only clean attempts enter the run. After
+  every pass the run writes a checkpoint beside its raw reports; a later run may resume from it, reusing clean passes of the
+  same commit, build attestation, executables, adapter and driver, power scheme and run length, within a maximum age, and
+  records which run measured each pass. The receipt is published only when every case of the matrix has every pass clean; a
+  run of part of the matrix (the two decision cases alone, for example) writes a partial record, never the receipt.
+- **Decision reading.** For `FX12@uhd-192dpi` (the 2,000-control screen at 4K of budget `G5`) and
+  `FX12@form-layout-10k-uhd`, the receipt reads `W0.7`'s rule on the full frame: at most 4 ms of UI-thread CPU with GPU time
+  below it, more than 8.33 ms with `d2d1`, `d3d11` and driver submission dominating, or between. Dominance is read
+  inclusively, as the phases pass's share of the frame spent inside Direct2D calls (which contains DirectWrite rendering,
+  the runtime and the driver work those calls do) reaching half; the sampled leaf shares are recorded beside it. The two
+  regions the rule leaves open are reported as outside the rule. The decision is the developer's.
+- **Receipt.** `attribution.json` holds summaries only (medians, means, shares, counters, adapter and driver, source
+  commit, build profile and executables' hashes, power scheme as read, idle preflight and host load); every raw per-frame
+  report stays in the build tree, named in the receipt with its SHA-256. Fixture code, the wrappers, the sampler thread and
+  the timers are test-only: no library path gains a timer, thread or query.
+
 ### Native accessibility scheduling and synchronization
 
 Native attachments start without a full tree snapshot. Mutations mark a revision dirty and post at most one private,

@@ -475,6 +475,29 @@ The committed receipt is the retained form, about 43 KB per calibration; the ful
 stays under `.build/reports/frame-timing/raw/`, and `Tools/Convert-FrameTimingReceipt.ps1` converts an existing full
 receipt, refusing if any judged value would change.
 
+### Where a frame's time goes
+
+`performance-attribution.ps1` records, on a hardware adapter, where the UI thread's frame time goes on `FX5`, `FX3` and
+`FX12` at 1920x1080 and 3840x2160: frame CPU and GPU time from the timing method above; the time inside `EndDraw`,
+Direct2D draw calls and DirectWrite layout creation, measured through the test-only counting wrappers, with DxUi's own
+code as the rest of preparation; the share of sampled CPU by module (DxUi, `d2d1`, `dwrite`, `d3d11` and the driver,
+runtime, system); and the window host's `Present` time. The module shares come from sampling inside the test process, so
+no kernel-trace rights are needed; the run records whether kernel sampling would have been allowed. It reads the power
+scheme without switching it, refuses a receipt unless High performance is active and the machine is quiet, measures a pass
+again when other processes disturbed it or its frames did no work, and keeps per-frame data in the build tree:
+
+```powershell
+# The two cases the W0.7 decision rule reads first (about 3 minutes), then the rest, reusing their clean passes:
+./performance-attribution.ps1 -Purpose Receipt -CaseSet Decision
+./performance-attribution.ps1 -Purpose Receipt -SkipBuild -ResumeFrom .build/reports/frame-attribution/Receipt-Hardware-<utc>
+# Or the whole receipt at once: about 15 minutes on a quiet machine (18 cases, three 10 s passes each, plus scene builds).
+./performance-attribution.ps1 -Purpose Receipt
+# Exercise the method on WARP or under load, without a receipt:
+./performance-attribution.ps1 -Purpose Smoke -Adapter Warp -Seconds 1 -IdlePreflight Record
+```
+
+The method and its limits are in [the performance contract](../Specs/Core/Core_PerformanceAndResources.md#hardware-attribution-method).
+
 ## Trace provider
 
 DxUi writes a [TraceLogging](https://learn.microsoft.com/en-us/windows/win32/tracelogging/trace-logging-about) provider

@@ -15,12 +15,20 @@
 #include "Embedded.Tests.PerformanceFixtureSelfTest.h"
 #pragma warning(pop)
 
+#include "Support.Tests.CallTicks.h"
+
+#include <dwmapi.h>
+#include <dxgi.h>
 #include <psapi.h>
 
 #include <format>
 #include <fstream>
+#include <iomanip>
 #include <map>
 #include <sstream>
+
+#pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "dxgi.lib")
 
 // Instances are owned in place and never copied. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -57,9 +65,10 @@ public:
         definition_ = &definition;
         scenario_   = definition.create();
     }
-    void Create(const Variant& variant)
+    // forceWarp false only for the hardware attribution's present pass (RunWindowPresentAttributionCommand).
+    void Create(const Variant& variant, bool forceWarp = true)
     {
-        window_.emplace(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
+        window_.emplace(DxUi::WindowHost::PresentationMode::HwndSwapChain, forceWarp);
         window_->SetMessageObserver(&WindowInstance::ObserveMessage, this);
         // The host's animation clock is the fixture clock from the start: a delay scheduled before the first tick (a tooltip's
         // show delay) is measured on it, never on GetTickCount64.
@@ -809,5 +818,218 @@ int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv)
     WriteReceiptJson(output, run);
     output.close();
     Require(bool(output), "performance fixture receipt written");
+    return 0;
+}
+
+namespace
+{
+// A WindowHost frame's public metrics (DxUi::SetFrameMetricSink), in microseconds of wall time.
+struct PresentFrameMetrics
+{
+    uint64_t totalUs   = 0u;
+    uint64_t renderUs  = 0u;
+    uint64_t presentUs = 0u;
+    uint32_t frames    = 0u;
+};
+void CollectPresentFrameMetric(void* context, std::wstring_view metric, uint64_t value) noexcept
+{
+    auto& metrics = *static_cast<PresentFrameMetrics*>(context);
+    if (metric == L"dxui.frame.total_us")
+    {
+        metrics.totalUs = value;
+        ++metrics.frames;
+    }
+    else if (metric == L"dxui.frame.render_us")
+        metrics.renderUs = value;
+    else if (metric == L"dxui.frame.present_us")
+        metrics.presentUs = value;
+}
+
+[[nodiscard]] uint64_t PresentThreadCycles()
+{
+    ULONG64 cycles = 0u;
+    Require(QueryThreadCycleTime(GetCurrentThread(), &cycles) != FALSE, "present attribution thread cycles");
+    return cycles;
+}
+
+void WritePresentJsonString(std::ostream& output, std::wstring_view text)
+{
+    output << '"';
+    for (const wchar_t c : text)
+        output << (c == L'"' || c == L'\\' ? "\\" : "") << (c >= 0x20 && c < 0x7F ? static_cast<char>(c) : '?');
+    output << '"';
+}
+} // namespace
+
+// DxUi.ControlTests.exe --present-attribution <output.json> <FX<N>[@variant]> Hardware|Warp <minFrames> <minMilliseconds>: the
+// window-host pass of the hardware attribution method (plan W0.7; Specs/Core/Core_PerformanceAndResources.md, "Hardware
+// attribution method"). Full frames (ControlHost::Invalidate with nothing changed) of a fixture on a WindowHost of the
+// non-activating test window, which sits off every monitor as the window runner places it: nothing takes focus, moves the
+// pointer or covers the desktop. Each frame is the host's own WM_PAINT (UpdateWindow), which renders the whole client area and
+// calls Present(1, 0). The host's public frame metrics give its render and Present wall times, QueryThreadCycleTime around the
+// paint the UI-thread cycles. DwmFlush after each frame lets the compositor take the frame first, so Present measures its own
+// cost rather than a wait for a free buffer.
+int RunWindowPresentAttributionCommand(int argc, wchar_t** argv)
+{
+    size_t minimumFrames = 0u;
+    size_t milliseconds  = 0u;
+    const auto parse     = [](std::wstring_view text, size_t& value)
+    {
+        value = 0u;
+        if (text.empty() || text.size() > 9u)
+            return false;
+        for (const wchar_t c : text)
+        {
+            if (c < L'0' || c > L'9')
+                return false;
+            value = value * 10u + static_cast<size_t>(c - L'0');
+        }
+        return true;
+    };
+    if (argc != 7 || (std::wstring_view(argv[4]) != L"Hardware" && std::wstring_view(argv[4]) != L"Warp") || ! parse(argv[5], minimumFrames) ||
+        ! parse(argv[6], milliseconds) || minimumFrames == 0u)
+    {
+        std::fputs("--present-attribution requires an output path, FX<N>[@variant], Hardware|Warp, minimum frames and minimum milliseconds.\n", stderr);
+        return 2;
+    }
+    const FixtureSelection selection = ParseSelection(argv[3]);
+    const Definition* definition     = FindFixture(selection.id);
+    const Variant* variant           = definition ? FindVariant(*definition, selection.variant) : nullptr;
+    if (! definition || ! definition->Built() || definition->interactiveOnly || ! Supports(definition->hosts, Host::Window) || ! variant ||
+        definition->settlePreparation)
+    {
+        std::fputs("--present-attribution names no variant of a fixture built for the window host.\n", stderr);
+        return 2;
+    }
+    const bool hardware = std::wstring_view(argv[4]) == L"Hardware";
+
+    // The adapter a hardware WindowHost device lands on: the default adapter, as the host creates its device with none named.
+    std::wstring adapterName = L"Microsoft Basic Render Driver (WindowHost forceWarp)";
+    UINT vendorId = 0x1414u, deviceId = 0u;
+    uint64_t driver = 0u;
+    std::vector<HMONITOR> adapterMonitors;
+    if (hardware)
+    {
+        wil::com_ptr<IDXGIFactory1> factory;
+        Require(SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(factory.put()))), "present attribution DXGI factory");
+        wil::com_ptr<IDXGIAdapter1> adapter;
+        Require(SUCCEEDED(factory->EnumAdapters1(0u, adapter.put())), "present attribution default adapter");
+        DXGI_ADAPTER_DESC1 desc{};
+        Require(SUCCEEDED(adapter->GetDesc1(&desc)), "present attribution adapter description");
+        adapterName = desc.Description;
+        vendorId    = desc.VendorId;
+        deviceId    = desc.DeviceId;
+        LARGE_INTEGER version{};
+        if (SUCCEEDED(adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &version)))
+            driver = static_cast<uint64_t>(version.QuadPart);
+        wil::com_ptr<IDXGIOutput> output;
+        for (UINT index = 0u; SUCCEEDED(adapter->EnumOutputs(index, output.put())); ++index)
+        {
+            DXGI_OUTPUT_DESC outputDesc{};
+            if (SUCCEEDED(output->GetDesc(&outputDesc)))
+                adapterMonitors.push_back(outputDesc.Monitor);
+            output.reset();
+        }
+    }
+
+    WindowInstance instance;
+    instance.Instantiate(*definition);
+    instance.Create(*variant, ! hardware);
+    HMONITOR monitor = MonitorFromWindow(instance.Hwnd(), MONITOR_DEFAULTTONEAREST);
+    MONITORINFOEXW monitorInfo{};
+    monitorInfo.cbSize = sizeof(monitorInfo);
+    static_cast<void>(GetMonitorInfoW(monitor, &monitorInfo));
+    RECT windowRect{};
+    static_cast<void>(GetWindowRect(instance.Hwnd(), &windowRect));
+    const bool monitorOnAdapter = std::find(adapterMonitors.begin(), adapterMonitors.end(), monitor) != adapterMonitors.end();
+
+    PresentFrameMetrics metrics;
+    DxUi::SetFrameMetricSink(&CollectPresentFrameMetric, &metrics);
+    const auto clearSink           = wil::scope_exit([] { DxUi::SetFrameMetricSink(nullptr, nullptr); });
+    constexpr size_t kWarmupFrames = 60u;
+    const auto frame               = [&]
+    {
+        instance.Host().Invalidate();
+        instance.Frame();
+    };
+    for (size_t index = 0u; index < kWarmupFrames; ++index)
+    {
+        frame();
+        static_cast<void>(DwmFlush());
+    }
+    std::vector<uint64_t> cycles, renderUs, presentUs, totalUs, presents, renders;
+    using Clock = std::chrono::steady_clock;
+    LARGE_INTEGER qpc0{}, qpc1{};
+    static_cast<void>(QueryPerformanceCounter(&qpc0));
+    const uint64_t ticks0 = NativeWorkTests::ReadCallTicks();
+    const auto started    = Clock::now();
+    size_t missingMetrics = 0u;
+    for (;;)
+    {
+        const double elapsed = std::chrono::duration<double>(Clock::now() - started).count();
+        if (cycles.size() >= minimumFrames && elapsed * 1000.0 >= static_cast<double>(milliseconds))
+            break;
+        metrics.frames = 0u;
+        const DxUi::Detail::WorkCounterScope scope;
+        const uint64_t before = PresentThreadCycles();
+        frame();
+        cycles.push_back(PresentThreadCycles() - before);
+        const DxUi::Detail::WorkCounters work = scope.Delta();
+        missingMetrics += metrics.frames == 1u ? 0u : 1u;
+        renderUs.push_back(metrics.renderUs);
+        presentUs.push_back(metrics.presentUs);
+        totalUs.push_back(metrics.totalUs);
+        presents.push_back(work.frame.presents);
+        renders.push_back(work.frame.renders);
+        static_cast<void>(DwmFlush());
+    }
+    const double seconds = std::chrono::duration<double>(Clock::now() - started).count();
+    static_cast<void>(QueryPerformanceCounter(&qpc1));
+    const uint64_t ticks1 = NativeWorkTests::ReadCallTicks();
+    LARGE_INTEGER frequency{};
+    static_cast<void>(QueryPerformanceFrequency(&frequency));
+    const double clockSeconds = static_cast<double>(qpc1.QuadPart - qpc0.QuadPart) / static_cast<double>(frequency.QuadPart);
+    ShowWindow(instance.Hwnd(), SW_HIDE);
+
+    const std::filesystem::path path(argv[2]);
+    if (path.has_parent_path())
+        std::filesystem::create_directories(path.parent_path());
+    std::ofstream output{path, std::ios::binary};
+    Require(bool(output), "present attribution report file");
+    output << std::setprecision(10) << "{\"schema\":1,\"method\":\"dxui-frame-attribution-v1\",\"pass\":\"present\",\"fixture\":\"" << definition->id
+           << (variant == &definition->variants.front() ? std::string() : '@' + std::string(variant->name)) << "\",\"width\":" << variant->width
+           << ",\"height\":" << variant->height << ",\"dpi\":" << variant->dpi << ",\"renderer\":\"" << (hardware ? "Hardware" : "WARP")
+           << "\",\"adapter\":{\"description\":";
+    WritePresentJsonString(output, adapterName);
+    output << ",\"vendorId\":" << vendorId << ",\"deviceId\":" << deviceId << ",\"driverVersion\":\"" << (driver >> 48u) << '.' << ((driver >> 32u) & 0xFFFFu)
+           << '.' << ((driver >> 16u) & 0xFFFFu) << '.' << (driver & 0xFFFFu) << "\",\"selection\":\"default adapter (the WindowHost names none)\"}"
+           << ",\"window\":{\"left\":" << windowRect.left << ",\"top\":" << windowRect.top << ",\"nonActivating\":true,\"monitor\":";
+    WritePresentJsonString(output, monitorInfo.szDevice);
+    output << ",\"monitorOnAdapter\":" << (monitorOnAdapter ? "true" : "false") << "},\"presentation\":\"HwndSwapChain, Present(1, 0)\""
+           << ",\"pacing\":\"DwmFlush after every frame\",\"warmupFrames\":" << kWarmupFrames << ",\"frames\":" << cycles.size()
+           << ",\"elapsedSeconds\":" << seconds << ",\"minimumFrames\":" << minimumFrames
+           << ",\"minimumSeconds\":" << static_cast<double>(milliseconds) / 1000.0 << ",\"framesWithoutMetrics\":" << missingMetrics << ",\"tickSource\":\""
+#if defined(_M_X64)
+           << "rdtsc"
+#else
+           << "QueryPerformanceCounter"
+#endif
+           << "\",\"ticksPerSecond\":" << (clockSeconds > 0.0 ? static_cast<double>(ticks1 - ticks0) / clockSeconds : 0.0) << ",\"samples\":{";
+    const auto series = [&](const char* name, const std::vector<uint64_t>& values, bool first)
+    {
+        output << (first ? "" : ",") << '"' << name << "\":[";
+        for (size_t index = 0u; index < values.size(); ++index)
+            output << (index ? "," : "") << values[index];
+        output << ']';
+    };
+    series("frameCycles", cycles, true);
+    series("renderUs", renderUs, false);
+    series("presentUs", presentUs, false);
+    series("totalUs", totalUs, false);
+    series("presents", presents, false);
+    series("renders", renders, false);
+    output << "}}\n";
+    output.close();
+    Require(bool(output), "present attribution report written");
     return 0;
 }

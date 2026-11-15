@@ -1,11 +1,10 @@
 #pragma once
 // FX12 Dense screen (plan W0.4): 2,000 controls filling 1920x1080 DIP (3840x2160 at 192 DPI in variant uhd-192dpi), a
 // 10,000-control scrolling form (variant form-10k), and the dense screen using 120 distinct text-format keys (variant
-// typography-120). Variants form-layout (200 rows) and form-layout-10k (2,000 rows) arrange the form's rows with the
-// library's FlexPanels (W6.2), with two more phases: a label that grows and shrinks, and a column width change. Full frames,
-// one hover change, one label text change and wheel scrolling. G5 (full-frame CPU and GPU
-// time at 4K) is a hardware timing verdict and stays "not measured" in WARP receipts; they record the work of each frame
-// and the scene's tracked bytes, from which per-control memory follows (G13).
+// typography-120). Variants form-layout (200 rows) and form-layout-10k (2,000 rows; form-layout-10k-uhd at 3840x2160 and
+// 192 DPI) arrange the form's rows with the library's FlexPanels (W6.2), with two more phases: a label that grows and shrinks, and a column width change. Full
+// frames, one hover change, one label text change and wheel scrolling. G5 (full-frame CPU and GPU time at 4K) is a hardware timing verdict and stays "not
+// measured" in WARP receipts; they record the work of each frame and the scene's tracked bytes, from which per-control memory follows (G13).
 #include "Embedded.Tests.PerformanceFixture.h"
 
 #include <format>
@@ -38,6 +37,8 @@ inline constexpr std::array kVariants{
     Variant{"form-layout", 1920u, 1080u, 96.0f, false, false},
     // 2,000 rows (10,000 controls) laid out by the library: G15 and the W6.2, W6.3 and W4.8 baselines at full size.
     Variant{"form-layout-10k", 1920u, 1080u, 96.0f, false, true},
+    // form-layout-10k at 3840x2160 and 192 DPI, the same DIP layout: the hardware attribution receipt (W0.7).
+    Variant{"form-layout-10k-uhd", 3840u, 2160u, 192.0f, true, true},
 };
 inline constexpr size_t kWarm  = 0u;
 inline constexpr size_t kFull  = 1u;
@@ -100,7 +101,7 @@ public:
             BuildForm(*root, width, height);
         else if (context.variant.name == "form-layout")
             BuildFormLayout(*root, width, height, kFormLayoutRows);
-        else if (context.variant.name == "form-layout-10k")
+        else if (context.variant.name == "form-layout-10k" || context.variant.name == "form-layout-10k-uhd")
             BuildFormLayout(*root, width, height, kFormRows);
         else
             BuildDense(*root, width, height, context.variant.name == "typography-120");
@@ -331,8 +332,8 @@ inline constexpr Definition kDefinition{
     .scenario   = "Variants default and uhd-192dpi: 2,000 controls (a 40 x 50 grid of cells cycling three Labels, Button, Checkbox, Toggle, ProgressBar, "
                   "Slider) filling 1920x1080 DIP, at 1920x1080 and 96 DPI or at 3840x2160 and 192 DPI. typography-120: the same screen with a two-row "
                   "Tree in place of every eighth cell's Label and every Label and Tree typed by one of 120 distinct (size, weight) typographies. form-10k: "
-                  "10,000 controls in one ScrollPanel, 2,000 rows of Label, TextField, Checkbox, Toggle and Button, absolutely positioned. form-layout and "
-                  "form-layout-10k: "
+                  "10,000 controls in one ScrollPanel, 2,000 rows of Label, TextField, Checkbox, Toggle and Button, absolutely positioned. form-layout, "
+                  "form-layout-10k and form-layout-10k-uhd (3840x2160, 192 DPI): "
                   "the same rows (200 or 2,000) arranged by the library, a column FlexPanel of 100-row section FlexPanels of row FlexPanels inside the "
                   "ScrollPanel. Reduced motion. Phases: "
                   "full frames, one hover change, one Label text change, wheel scrolling, a Label that grows and shrinks, a column width change. Per-control "

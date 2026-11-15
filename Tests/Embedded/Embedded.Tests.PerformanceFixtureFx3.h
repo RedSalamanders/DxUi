@@ -37,6 +37,9 @@ inline constexpr size_t kSelectedArrow = 7u;
 inline constexpr std::array kVariants{
     Variant{"default", 800u, 600u, 96.0f, false},
     Variant{"grouped-full", 800u, 600u, 96.0f, false, true},
+    // The hardware attribution receipt (W0.7) at 1920x1080 and 3840x2160: the Grid fills the larger view.
+    Variant{"fhd", 1920u, 1080u, 96.0f, true, true},
+    Variant{"uhd-192dpi", 3840u, 2160u, 192.0f, true, true},
 };
 inline constexpr std::array kPhases{
     Phase{"warm", 2u, PhaseKind::Warmup, "nothing changes: the first frames lay out the Grid"},
