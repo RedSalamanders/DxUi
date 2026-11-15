@@ -99,9 +99,11 @@ parser, process, SDK or GPU bound. General pathological capacity remains M6.
 Status: normative current contract
 Last reviewed: 2026-10-21
 
-The migrated paired acceptance policy is under review and is not yet qualified. Until a qualified versioned policy exists in
-the measured base, paired reports are `policy-review-required`; neither the candidate's policy nor the candidate's judge
-can authorize its own pass. Historical receipts remain readable under their original judge and are not migrated or rewritten.
+The migrated paired acceptance policy's trust state is determined by the independently reviewed, versioned policy and
+permanent initial-qualification record in the measured base. Until that base contains a qualified policy, paired reports
+are `policy-review-required`; neither the candidate's policy nor the candidate's judge can authorize its own pass.
+The initial-seeding procedure below does not make every checkout or later candidate qualified. Historical receipts remain
+readable under their original judge and are not migrated or rewritten.
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -308,6 +310,19 @@ qualification replays them exactly. Repetitions inside a block are not treated a
   policy, reviewers inspect a retained, same-source A/A calibration for the same runner, toolchain, harness and scenarios,
   including full provenance, per-metric controls and exact-budget findings. A/A review is manual, has no invented numeric
   pass threshold, and cannot qualify a pull request.
+  For this first qualification only, an independent owner may explicitly approve a bounded transition from the inspected
+  unqualified-policy harness to the initial qualified-policy harness when the only changed full-harness input is the
+  policy JSON's trust metadata (`qualified`, `qualificationStatus` and `qualificationNote`). This is a human review
+  decision, never automatic hash equivalence: the permanent initial-policy review record must bind the exact JSON diff,
+  old/new policy-byte and full-harness hashes, the complete retained same-source A/A study and independent replay,
+  all per-metric controls, exact-budget findings and provenance limits. The owner must confirm unchanged library and
+  benchmark source closure, judge and assignment source/version/protocol, scenarios, toolchain/runner scope, numeric
+  policy, investigation bands and absolute/exact budgets, and explicitly approve both initial seeding and this bounded
+  identity transition. The owner may instead require a fresh complete diagnostic A/A under the reviewed final harness
+  before qualification. The old study retains its actual source, executable and harness identities; this decision does
+  not establish runner noise, qualify a pull request, create a numeric A/A pass/rejection threshold, or waive the general
+  same-harness requirement for later changes. The qualified versioned policy must still be present in the measured
+  base before a candidate can be eligible; candidate authors or candidate policy/judge code cannot self-approve.
 - The migration summary loads the legacy judge from `git show <measured-base>:Tools/PerformanceComparison.psm1` in an
   isolated module scope, then runs it and the candidate judge over identical parsed reports. It records both source
   hashes, the base commit, every receipt SHA-256, and both decisions; the report files are rehashed around judgment. An

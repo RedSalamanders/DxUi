@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Qualify the initial API 4 performance acceptance policy after independent owner review, preserving the judge, randomized assignment, investigation bands, and allocation budgets; retain the A/A control-instability findings, bind the one-time trust-metadata transition, and guard the completed owner record. Fresh native and paired CI remain required before consumer pin adoption.
 - Record passing local x64 runtime qualification and ARM64 cross-builds for the common build policy, with immutable Release size evidence and remaining performance/CI gates explicit.
 - Record the current native profile and pinned-archive policy audit, qualified native builds and explicit remaining runtime, performance and integration gates.
 - Reconcile the toolchain contract with 16-character DxUi source/output locators, complete identity metadata and the retained conservative long-path compatibility guarantee.
