@@ -3,6 +3,7 @@
 #include "Controls.Tests.MarkdownCorpus.h"
 #include "Controls/DxUi.NativeFlowchart.h"
 #include "Controls/DxUi.PreparedMath.h"
+#include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.Footnotes.h"
 #include "Support.Tests.MathCorpus.h"
 #include "Support.Tests.RichSemanticDocument.h"
@@ -1136,18 +1137,24 @@ void TestSemanticProjectionEditFuzzEqualsFreshBuild()
         const char* name;
         MarkdownProfile profile;
         std::optional<MarkdownExtensions> extensions;
+        bool documentWide = true;
+        double minimumIncremental{}; // Share of publications that must reuse blocks.
     };
+    // The local profile never inserts a construct with document-wide effect, so nearly every edit must be incremental;
+    // the others insert footnotes and the like, which correctly turn later edits into counted full builds.
     const Profile profiles[] = {{"rich", MarkdownProfile::RichMarkdown, std::nullopt},
                                 {"rich+definitions+abbreviations", MarkdownProfile::RichMarkdown, MarkdownExtensions::RichOptionalMask},
-                                {"gfm", MarkdownProfile::Gfm029, std::nullopt}};
+                                {"gfm", MarkdownProfile::Gfm029, std::nullopt},
+                                {"rich local", MarkdownProfile::RichMarkdown, MarkdownExtensions::RichOptionalMask, false, 0.9}};
     for (const auto seed : seeds)
         for (const auto& profile : profiles)
         {
             const auto start  = std::chrono::steady_clock::now();
-            const auto result = SemanticProjectionTests::RunEditFuzz(seed, edits, profile.profile, profile.extensions);
+            const auto result = SemanticProjectionTests::RunEditFuzz(seed, edits, profile.profile, profile.extensions, profile.documentWide);
             const auto ms     = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
             Require(result.edits == edits + 1u, "every fuzz edit publishes and is compared");
-            Require(result.incremental > 0u, "fuzz edits reuse blocks instead of rebuilding");
+            Require(result.incremental > 0u && static_cast<double>(result.incremental) >= profile.minimumIncremental * static_cast<double>(result.edits),
+                    "fuzz edits reuse blocks instead of rebuilding, at the profile's required share");
             std::cout << std::format("  semantic fuzz seed 0x{:08X} {}: {} publications equal to fresh ({} incremental, {} full) in {} ms\n",
                                      seed,
                                      profile.name,
@@ -1411,6 +1418,55 @@ void TestSemanticProjectionFullRebuildCauses()
         SemanticProjectionTests::CompareDocuments(*document, *SemanticProjectionTests::CompleteBuild(fresh, second.Published(), 4096u), "structure");
     }
 }
+// W7.1 review: capacity edges. Object admission (128 objects) one below, at and one above the limit, and the
+// definition-list paragraph margin near 4,096, with edits before, inside and after the copied ranges: every incremental
+// publication equals a fresh build.
+void TestSemanticProjectionCapacityEdges()
+{
+    using namespace DxUi::RichText;
+    const auto sequence = [](const std::vector<std::wstring>& texts, std::optional<MarkdownExtensions> extensions, const char* name)
+    {
+        MarkdownParser parser;
+        SemanticBuilder builder;
+        std::uint64_t revision = 1u;
+        for (const auto& text : texts)
+        {
+            parser.Begin(text, revision++, MarkdownProfile::RichMarkdown, extensions);
+            while (parser.HasPendingPreparation())
+                parser.Advance(1u << 20u);
+            const auto document = SemanticProjectionTests::CompleteBuild(builder, parser.Published(), 4096u);
+            SemanticBuilder fresh;
+            const auto reference = SemanticProjectionTests::CompleteBuild(fresh, parser.Published(), 4096u);
+            Require(static_cast<bool>(document) == static_cast<bool>(reference), "capacity edge: both builds publish or both fail");
+            if (document)
+                SemanticProjectionTests::CompareDocuments(*document, *reference, std::format("{} revision {}", name, revision - 1u));
+        }
+    };
+    for (const std::size_t count : {127u, 128u, 129u})
+    {
+        std::wstring base;
+        for (std::size_t index = 0u; index < count; ++index)
+            base += std::format(L"![i{}](p{}.png)\n\n", index, index);
+        const std::wstring image = L"![new](n.png)\n\n";
+        const auto middle        = base.find(std::format(L"![i{}]", count / 2u));
+        std::wstring removed     = base;
+        removed.erase(middle, base.find(L"\n\n", middle) + 2u - middle);
+        sequence({base, image + base, base, base.substr(0u, middle) + image + base.substr(middle), base, base + image, base, removed, base, L"x" + base},
+                 std::nullopt,
+                 "objects");
+    }
+    for (const std::size_t count : {1980u, 2000u, 2015u, 2030u})
+    {
+        std::wstring base = L"Term\n: Definition\n\n";
+        for (std::size_t index = 0u; index < count; ++index)
+            base += std::format(L"p{}\n\n", index);
+        base += L"Other\n: Described\n\n";
+        const auto middle = base.find(std::format(L"p{}\n", count / 2u));
+        sequence({base, L"q\n\n" + base, base, base.substr(0u, middle) + L"q\n\n" + base.substr(middle), base, base + L"q\n\nT\n: d\n"},
+                 MarkdownExtensions::RichOptionalMask,
+                 "definition lists");
+    }
+}
 // W7.1: the sparse map answers exactly as the former dense anchors, in source order and with reordered primary spans.
 void TestSemanticProjectionSparseMapMatchesDenseAnchors()
 {
@@ -1505,12 +1561,49 @@ void TestRichSemanticCalloutBodyLiteralHtml()
     static_cast<void>(display(L"> <s>", MarkdownProfile::RichMarkdown));
     static_cast<void>(display(L">[!tip] <s>\n<s>", MarkdownProfile::RichMarkdown));
 }
+namespace
+{
+// W7.1 review: a malformed semantic map must fail the contract in every configuration, on the incremental copy path too.
+// The seam drops the last display span of the second (incremental) publication, leaving the display partition short.
+__declspec(noinline) void SemanticMapDefectOrigin()
+{
+    using namespace DxUi::RichText;
+    MarkdownParser parser;
+    SemanticBuilder builder;
+    const auto build = [&](std::wstring_view text, std::uint64_t revision)
+    {
+        parser.Begin(text, revision, MarkdownProfile::RichMarkdown);
+        while (parser.HasPendingPreparation())
+            parser.Advance(4096u);
+        builder.Begin(parser.Published());
+        while (builder.HasPendingPreparation())
+            builder.Advance(4096u);
+    };
+    build(L"# Head\n\nSome *text* here.\n\nLast paragraph.\n", 1u);
+    Detail::testSemanticMapDefect = 1u;
+    build(L"# Head\n\nSome *text* hereX.\n\nLast paragraph.\n", 2u);
+    std::exit(9); // A defect that publishes must fail the child oracle.
+}
+[[maybe_unused]] const bool registeredSemanticMapDefect = DxUiFailureTests::RegisterFatalChildCase({L"semantic-map-defect",
+                                                                                                    "SemanticMapDefectOrigin",
+                                                                                                    SemanticMapDefectOrigin,
+                                                                                                    DxUiFailureTests::FatalFaultClass::ContractViolation,
+                                                                                                    true,
+                                                                                                    static_cast<std::uint32_t>(E_UNEXPECTED)});
+} // namespace
+void TestSemanticProjectionMalformedMapIsFatal()
+{
+    Require(DxUiFailureTests::ExpectFatalChild(L"semantic-map-defect"),
+            "a malformed incremental semantic map is a fatal contract failure in every configuration");
+}
 void RunRichSemanticDocumentTests()
 {
+    DXUI_RUN_TEST(TestSemanticProjectionMalformedMapIsFatal);
     DXUI_RUN_TEST(TestRichSemanticCalloutBodyLiteralHtml);
     DXUI_RUN_TEST(TestSemanticProjectionEditFuzzEqualsFreshBuild);
     DXUI_RUN_TEST(TestSemanticProjectionPerInsertWorkAtCapacity);
     DXUI_RUN_TEST(TestSemanticProjectionFullRebuildCauses);
+    DXUI_RUN_TEST(TestSemanticProjectionCapacityEdges);
     DXUI_RUN_TEST(TestSemanticProjectionSparseMapMatchesDenseAnchors);
     DXUI_RUN_TEST(TestRichSemanticSupplementaryWordStarts);
     DXUI_RUN_TEST(TestRichSemanticSupplementaryWordNavigation);

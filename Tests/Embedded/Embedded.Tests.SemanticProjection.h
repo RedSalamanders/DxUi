@@ -1,7 +1,8 @@
 #pragma once
-// W7.1 gate on FX8 (plan item W7.1, block-incremental semantic projection): one-character inserts and Enter presses in the
-// rich typing fixture rebuild only the edited top-level block of the semantic document. Included by
-// Embedded.Tests.Embedded.cpp after Embedded.Tests.PerformanceFixtures.h; uses its Check.
+// W7.1 gate on FX8 (plan item W7.1, block-incremental semantic projection, part 1): one-character inserts and Enter
+// presses in the rich typing fixture build only the edited top-level block of the semantic document. The unchanged blocks
+// are still copied, O(document) per edit; the copy counters are printed (and recorded by the receipts), not bounded here.
+// Included by Embedded.Tests.Embedded.cpp after Embedded.Tests.PerformanceFixtures.h; uses its Check.
 #include "Embedded.Tests.PerformanceFixtureFx8.h"
 #include "Embedded.Tests.PerformanceFixtures.h"
 
@@ -24,19 +25,22 @@ inline void TestFx8RebuildsOnlyTheEditedBlock()
         const auto builds   = summarize(phase, "rich.semanticIncrementalBuilds");
         const auto elements = summarize(phase, "rich.elementsBuilt");
         const auto written  = summarize(phase, "rich.displayUnitsWritten");
-        const auto reused   = summarize(phase, "rich.semanticDisplayUnitsReused");
+        const auto units    = summarize(phase, "rich.semanticDisplayUnitsCopied");
+        const auto copied   = summarize(phase, "rich.semanticElementsCopied");
+        const auto bytes    = summarize(phase, "rich.semanticBytesCopied");
         const uint64_t full = summarize(phase, "rich.semanticFullBuildNoPrevious").total + summarize(phase, "rich.semanticFullBuildPresentation").total +
                               summarize(phase, "rich.semanticFullBuildFootnotes").total + summarize(phase, "rich.semanticFullBuildReferences").total +
                               summarize(phase, "rich.semanticFullBuildFrontMatter").total + summarize(phase, "rich.semanticFullBuildAbbreviations").total +
                               summarize(phase, "rich.semanticFullBuildCapacity").total + summarize(phase, "rich.semanticFullBuildStructure").total;
         const auto steps    = run.Phase(phase).steps.size();
         std::cout << "  FX8 " << phase << ": " << steps << " steps, incremental builds " << builds.total << ", full builds " << full
-                  << ", elements built per step max " << elements.maximum << " (total " << elements.total << "), display units written max " << written.maximum
-                  << " (total " << written.total << "), reused units total " << reused.total << '\n';
+                  << "; built per step: elements max " << elements.maximum << ", display units max " << written.maximum << "; copied per step: elements max "
+                  << copied.maximum << ", display units max " << units.maximum << ", bytes max " << bytes.maximum << " (bytes total " << bytes.total << ")\n";
         Check(full == 0u && builds.minimum >= 1u, "every FX8 edit builds the semantic document incrementally");
         Check(elements.maximum <= (phase == "enter" ? kEnterElements : kInsertElements),
-              "FX8 elements built per edit are at most those of the edited block (plus the document root)");
-        Check(written.maximum < reused.minimum, "FX8 display units written per edit are a fraction of the reused ones");
+              "FX8 builder work per edit is at most the edited block (plus the document root)");
+        Check(written.maximum < units.minimum, "FX8 display units built per edit are a fraction of the copied ones");
+        Check(copied.minimum > 0u && bytes.minimum > 0u, "FX8 copied work is counted (it remains O(document) per edit)");
     }
     const auto arrows = summarize("arrow", "rich.elementsBuilt");
     Check(arrows.maximum == 0u, "FX8 arrow keys build no semantic element");

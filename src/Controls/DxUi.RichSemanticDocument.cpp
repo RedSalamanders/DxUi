@@ -15,6 +15,12 @@ namespace DxUi
 // DxUi.RetainedCaches.h: the incremental-versus-fresh oracle's fresh scene builds without reuse.
 [[nodiscard]] bool IsFreshPreparationForTest() noexcept;
 } // namespace DxUi
+#if DXUI_ENABLE_DIAGNOSTICS
+namespace DxUi::RichText::Detail
+{
+thread_local unsigned testSemanticMapDefect{};
+} // namespace DxUi::RichText::Detail
+#endif
 namespace DxUi::RichText
 {
 namespace
@@ -821,6 +827,11 @@ struct SemanticBuilder::Preparation
     }
     // The syntax node a reused element or paragraph refers to, checked against
     // the new syntax. MarkdownNoNode means the pairing failed.
+    // Assumption: every node of a reused top-level subtree moves by the same
+    // index offset as its top-level node (the parser numbers each top-level
+    // subtree contiguously in the same order in both revisions). An incremental
+    // parse (W7.2) must keep that numbering or replace this pairing; otherwise
+    // every edit falls back to a full build counted as Structure.
     std::size_t PairedNode(std::size_t oldNode, std::size_t nodeDelta, std::size_t sourceDelta) const noexcept
     {
         if (oldNode == MarkdownNoNode)
@@ -935,6 +946,7 @@ struct SemanticBuilder::Preparation
         const auto paragraphDelta = paragraphs.size() - from.paragraph;
         const auto headingDelta   = document->headings_.size() - from.heading;
         const auto lastTop        = tails.empty() ? MarkdownNoNode : tails[0u];
+        std::uint64_t copied{}; // Bytes copied besides the display text (semanticBytesCopied).
         // Display text, then spans and runs clipped to the copied range.
         output.AppendText(old.Map().Display().substr(from.display, to.display - from.display));
         if (output.capacityExceeded)
@@ -951,6 +963,7 @@ struct SemanticBuilder::Preparation
             piece.display = Shift(piece.display, displayDelta);
             piece.source  = Shift(piece.source, sourceDelta);
             output.AppendSpan(piece);
+            copied += sizeof(DisplaySpan);
         }
         if (output.capacityExceeded)
             return false;
@@ -961,6 +974,7 @@ struct SemanticBuilder::Preparation
         {
             const auto first = std::max(from.display, run->start), last = std::min(to.display, run->start + run->length);
             output.AppendRun({first + displayDelta, last - first, run->flags, run->heading});
+            copied += sizeof(StyleRun);
         }
         // Blocks: cuts, elements and paragraphs with their syntax pairing.
         for (auto block = oldFirst; block < oldLast; ++block)
@@ -1015,6 +1029,7 @@ struct SemanticBuilder::Preparation
                     RestartFull(FullBuild::Structure);
                     return false;
                 }
+                copied += sizeof(SemanticElement) + (element.name.size() + element.destination.size() + element.title.size()) * sizeof(wchar_t);
                 elements.push_back(std::move(element));
                 tails.push_back(MarkdownNoNode);
             }
@@ -1038,6 +1053,7 @@ struct SemanticBuilder::Preparation
                     return false;
                 }
                 paragraphs.push_back(paragraph);
+                copied += sizeof(SemanticParagraph);
             }
         }
         // Root linkage: the first copied top-level element follows the last
@@ -1059,6 +1075,7 @@ struct SemanticBuilder::Preparation
             heading.element += elementDelta;
             heading.source = Shift(heading.source, sourceDelta);
             heading.target = Shift(heading.target, sourceDelta);
+            copied += sizeof(SemanticHeading) + (heading.name.size() + heading.slug.size()) * sizeof(wchar_t);
             document->headings_.push_back(std::move(heading));
         }
         if (oldExtensions && (to.maths != from.maths || to.images != from.images || to.diagrams != from.diagrams || to.diagnostics != from.diagnostics ||
@@ -1070,9 +1087,11 @@ struct SemanticBuilder::Preparation
                 auto formula = oldExtensions->maths[index];
                 formula.element += elementDelta;
                 extensions.maths.push_back(std::move(formula));
+                copied += sizeof(Detail::SemanticExtensions::Formula);
             }
             for (auto index = from.images; index < to.images; ++index)
                 extensions.images.push_back(oldExtensions->images[index] + elementDelta);
+            copied += sizeof(std::size_t);
             for (auto index = from.diagrams; index < to.diagrams; ++index)
             {
                 auto graph = oldExtensions->diagrams[index];
@@ -1081,6 +1100,15 @@ struct SemanticBuilder::Preparation
                 for (auto& unit : graph.bodyUnits)
                     unit.source = Shift(unit.source, sourceDelta);
                 graph.sourceEnd += sourceDelta;
+                // A fresh build parses the body at the new syntax revision; the
+                // copied model carries it too (bounded by the diagram admission).
+                if (graph.graph && graph.graph->revision != document->syntax_->Revision())
+                {
+                    auto model      = std::make_shared<Detail::FlowchartModel>(*graph.graph);
+                    model->revision = document->syntax_->Revision();
+                    graph.graph     = std::move(model);
+                }
+                copied += sizeof(Detail::SemanticDiagram) + graph.bodyUnits.size() * sizeof(Detail::SemanticValueUnit);
                 extensions.diagrams.push_back(std::move(graph));
             }
             for (auto index = from.diagnostics; index < to.diagnostics; ++index)
@@ -1089,6 +1117,7 @@ struct SemanticBuilder::Preparation
                 diagnostic.element += elementDelta;
                 diagnostic.source = Shift(diagnostic.source, sourceDelta);
                 extensions.diagnostics.push_back(diagnostic);
+                copied += sizeof(SemanticDiagnostic);
             }
             extensions.records += to.records - from.records;
             extensions.candidates += to.candidates - from.candidates;
@@ -1097,7 +1126,8 @@ struct SemanticBuilder::Preparation
         document->hasCallouts_ = callouts != 0u;
         auto& work             = ::DxUi::Detail::Work().rich;
         work.semanticBlocksReused += oldLast - oldFirst;
-        work.semanticElementsReused += to.element - from.element;
+        work.semanticElementsCopied += to.element - from.element;
+        work.semanticBytesCopied += copied + (to.display - from.display) * sizeof(wchar_t) + (oldLast - oldFirst) * sizeof(Detail::SemanticBlockCut);
         return true;
     }
     // The block identity a copied element must still have: its own syntax
@@ -3234,6 +3264,10 @@ struct SemanticBuilder::Preparation
                 return false;
             }
             CloseElement(0u);
+#if DXUI_ENABLE_DIAGNOSTICS
+            if (Detail::testSemanticMapDefect && ! output.spans.empty())
+                output.spans.pop_back();
+#endif
             // The map lends the immutable syntax source instead of copying it.
             const auto mapResult = Detail::SourceDisplayMapAccess::TryBuildBorrowed(
                 document->syntax_, document->syntax_->Source(), std::move(output.text), std::move(output.spans), document->map_);
@@ -3313,7 +3347,10 @@ struct SemanticBuilder::Preparation
         for (auto run = std::upper_bound(runs.begin(), runs.end(), first, [](auto value, const auto& item) { return value < item.start + item.length; });
              run != runs.end() && run->start < last;
              ++run)
+        {
             AppendSourceFormat(std::max(first, run->start) + sourceDelta, std::min(last, run->start + run->length) + sourceDelta, run->flags, run->heading);
+            ::DxUi::Detail::Work().rich.semanticBytesCopied += sizeof(StyleRun);
+        }
     }
     // Format units for source [sourceFirst, sourceLast) from the display window
     // [displayFirst, displayLast) that projects exactly that source.

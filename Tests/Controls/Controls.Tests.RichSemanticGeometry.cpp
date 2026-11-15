@@ -1007,6 +1007,66 @@ void TestRichSemanticCalloutLiteralHtmlRenders()
                 }
     });
 }
+// W7.1 review: semantic geometry pairs previous boxes without an identity map. More than 64 inserted or deleted boxes,
+// and a block moved far away, must still reuse the unchanged paragraphs' layouts (the block pairing realigns the cursor).
+void TestRichSemanticGeometryReuseAcrossLargeEdits()
+{
+    using namespace DxUi::RichText;
+    RichSemanticTests::Run([&]
+    {
+        const auto factory   = RichSemanticGeometryTests::Factory();
+        const auto paragraph = [](std::size_t index) { return std::format(L"Paragraph {} with plain text.\n\n", index); };
+        std::wstring base;
+        for (std::size_t index = 0u; index < 200u; ++index)
+            base += paragraph(index);
+        struct Edit
+        {
+            const char* name;
+            std::wstring text;
+            std::size_t minimumReused;
+        };
+        std::wstring inserted;
+        for (std::size_t index = 0u; index < 100u; ++index)
+            inserted += std::format(L"New {} paragraph.\n\n", index);
+        std::wstring moved = base;
+        const auto block   = paragraph(10u);
+        moved.erase(moved.find(block), block.size());
+        moved.insert(moved.find(paragraph(190u)) + paragraph(190u).size(), block);
+        std::wstring deleted = base;
+        deleted.erase(deleted.find(paragraph(50u)), deleted.find(paragraph(150u)) - deleted.find(paragraph(50u)));
+        const Edit edits[] = {
+            {"100 paragraphs inserted first", inserted + base, 200u},
+            {"100 paragraphs inserted in the middle", base.substr(0u, base.find(paragraph(100u))) + inserted + base.substr(base.find(paragraph(100u))), 200u},
+            {"100 paragraphs deleted", deleted, 99u}, // The paragraph after the cut starts inside the edit envelope.
+            // A move is one edit envelope from the old to the new position: the parser gives every paragraph inside it a new
+            // identity (as before W7.1), so only the 19 paragraphs outside the envelope can keep their layouts.
+            {"a paragraph moved 180 blocks later", moved, 19u}};
+        for (const auto& edit : edits)
+        {
+            MarkdownParser parser;
+            SemanticBuilder builder;
+            Detail::PreparedSemanticGeometry geometry;
+            LayoutOptions options;
+            options.widthDip       = 360.0f;
+            std::uint64_t revision = 1u;
+            const auto prepare     = [&](const std::wstring& text)
+            {
+                parser.Begin(text, revision++, MarkdownProfile::RichMarkdown);
+                while (parser.HasPendingPreparation())
+                    parser.Advance(1u << 20u);
+                builder.Begin(parser.Published());
+                while (builder.HasPendingPreparation())
+                    builder.Advance(1u << 20u);
+                geometry.Begin(factory.get(), builder.Published(), options);
+                RichSemanticGeometryTests::Complete(geometry);
+            };
+            prepare(base);
+            prepare(edit.text);
+            std::cout << "  geometry reuse, " << edit.name << ": " << geometry.ReusedBoxCount() << " of " << geometry.BoxCount() << " boxes reused\n";
+            Require(geometry.ReusedBoxCount() >= edit.minimumReused, "unchanged paragraphs keep their layouts across a large edit");
+        }
+    });
+}
 void TestRichSemanticNativeRetainedRendering()
 {
     AttachedHostWindow window;
@@ -1073,6 +1133,7 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticNativeSourceCaretSites);
     DXUI_RUN_TEST(TestRichSemanticNativeHangingMarkersLinksAndHtml);
     DXUI_RUN_TEST(TestRichSemanticCalloutLiteralHtmlRenders);
+    DXUI_RUN_TEST(TestRichSemanticGeometryReuseAcrossLargeEdits);
     DXUI_RUN_TEST(TestRichSemanticNativeRetainedRendering);
     DXUI_RUN_TEST(TestRichSemanticNativeRenderingAdmissionFallback);
 }

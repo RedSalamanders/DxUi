@@ -80,7 +80,8 @@ private:
     // (public TryBuild) or a view borrowed from an immutable owner the map keeps
     // alive (semantic publication). primaryOrder_ is empty while every span's
     // source start is nondecreasing in display order; otherwise it lists the
-    // primary spans in source order.
+    // primary spans in source order. It is also kept when more than 16 non-primary
+    // spans follow one another, so every source lookup is O(log n + 16) span visits.
     std::wstring ownedSource_, display_;
     std::wstring_view source_;
     std::shared_ptr<const void> sourceOwner_;

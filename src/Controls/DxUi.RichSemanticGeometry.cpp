@@ -1467,7 +1467,7 @@ struct PreparedSemanticGeometry::Preparation
     // cursors. A block the semantic builder reused names its old paragraph, so
     // a cursor that lost alignment after a large insertion or deletion jumps
     // there. A candidate is reused only if accept() confirms every input.
-    static constexpr std::size_t ReuseWindow = 64u;
+    static constexpr std::size_t ReuseWindow = 64u, ScanLimit = 4u * ReuseWindow;
     std::size_t markerReuseCursor{}, bodyReuseCursor{};
     std::size_t PairedBoxCursor(std::size_t newParagraph) const noexcept
     {
@@ -1497,8 +1497,10 @@ struct PreparedSemanticGeometry::Preparation
         const auto& nodes = previousState->document->Syntax()->Nodes();
         const auto scan   = [&](std::size_t from)
         {
+            // At most ReuseWindow candidates of this kind, and at most
+            // ScanLimit boxes in all (caret-only and other-kind boxes included).
             std::size_t seen = 0u;
-            for (auto index = from; index < boxes.size() && seen < ReuseWindow; ++index)
+            for (auto index = from; index < boxes.size() && seen < ReuseWindow && index - from < ScanLimit; ++index)
             {
                 const auto& box = *boxes[index];
                 if (box.caretOnly || (box.markerOnly && ! box.markerLayout) || box.markerLayout != marker || ! box.layout.Ready() ||

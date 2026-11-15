@@ -64,6 +64,18 @@
           1,
           1
         ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.drawCalls": [
           73,
           75,
@@ -95,6 +107,18 @@
           0
         ],
         "frame.renders": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
           0,
           0,
           0,
@@ -328,6 +352,12 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -341,6 +371,18 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
           0,
           0,
           0,
@@ -365,14 +407,14 @@
           0
         ],
         "rich.documentBytesCopied": [
-          288704,
-          27584,
+          261120,
+          0,
           0,
           0
         ],
         "rich.documentFlattens": [
-          2002,
-          2001,
+          1,
+          0,
           0,
           0
         ],
@@ -412,6 +454,18 @@
           0,
           0
         ],
+        "rich.otherDocumentBytesCopied": [
+          27584,
+          27584,
+          0,
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          2001,
+          2001,
+          0,
+          0
+        ],
         "rich.preparationTurns": [
           1233,
           826,
@@ -424,13 +478,19 @@
           0,
           0
         ],
-        "rich.semanticDisplayUnitsReused": [
+        "rich.semanticBytesCopied": [
           0,
           0,
           0,
           0
         ],
-        "rich.semanticElementsReused": [
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
           0,
           0,
           0,
@@ -548,6 +608,16 @@
           "max": 1,
           "total": 4
         },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.drawCalls": {
           "min": 0,
           "max": 75,
@@ -574,6 +644,16 @@
           "total": 0
         },
         "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -768,6 +848,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -779,6 +864,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -800,13 +895,13 @@
         },
         "rich.documentBytesCopied": {
           "min": 0,
-          "max": 288704,
-          "total": 316288
+          "max": 261120,
+          "total": 261120
         },
         "rich.documentFlattens": {
           "min": 0,
-          "max": 2002,
-          "total": 4003
+          "max": 1,
+          "total": 1
         },
         "rich.elementsBuilt": {
           "min": 0,
@@ -838,6 +933,16 @@
           "max": 3,
           "total": 3
         },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 27584,
+          "total": 55168
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 2001,
+          "total": 4002
+        },
         "rich.preparationTurns": {
           "min": 0,
           "max": 1233,
@@ -848,12 +953,17 @@
           "max": 0,
           "total": 0
         },
-        "rich.semanticDisplayUnitsReused": {
+        "rich.semanticBytesCopied": {
           "min": 0,
           "max": 0,
           "total": 0
         },
-        "rich.semanticElementsReused": {
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -942,46 +1052,46 @@
       "steps": 40,
       "series": {
         "cppAllocations": [
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87182,
-          87183,
-          87185,
-          87185,
-          87185,
-          87185,
-          87185,
-          87185,
-          87184,
-          87183,
-          87183,
-          87185,
-          87184,
-          87185,
-          87184,
-          87184,
-          87184,
-          87184,
-          87184,
-          87184,
-          87184
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87190,
+          87191,
+          87193,
+          87193,
+          87193,
+          87193,
+          87193,
+          87193,
+          87192,
+          87191,
+          87191,
+          87193,
+          87192,
+          87193,
+          87192,
+          87192,
+          87192,
+          87192,
+          87192,
+          87192,
+          87192
         ],
         "created": [
           6587,
@@ -1108,6 +1218,90 @@
           1,
           1,
           1
+        ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.drawCalls": [
           75,
@@ -1361,6 +1555,90 @@
           0,
           0
         ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.treeVisitsHitTest": [
           0,
           0,
@@ -2957,6 +3235,48 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -3042,6 +3362,90 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
           0,
           0,
           0,
@@ -3210,88 +3614,88 @@
           134
         ],
         "rich.documentBytesCopied": [
-          288708,
-          288712,
-          288716,
-          288720,
-          288724,
-          288728,
-          288732,
-          288736,
-          288740,
-          288744,
-          288748,
-          288752,
-          288756,
-          288760,
-          288764,
-          288768,
-          288772,
-          288776,
-          288780,
-          288784,
-          288788,
-          288792,
-          288796,
-          288800,
-          288804,
-          288808,
-          288812,
-          288816,
-          288820,
-          288824,
-          288828,
-          288832,
-          288836,
-          288840,
-          288844,
-          288848,
-          288852,
-          288856,
-          288860,
-          288864
+          261124,
+          261128,
+          261132,
+          261136,
+          261140,
+          261144,
+          261148,
+          261152,
+          261156,
+          261160,
+          261164,
+          261168,
+          261172,
+          261176,
+          261180,
+          261184,
+          261188,
+          261192,
+          261196,
+          261200,
+          261204,
+          261208,
+          261212,
+          261216,
+          261220,
+          261224,
+          261228,
+          261232,
+          261236,
+          261240,
+          261244,
+          261248,
+          261252,
+          261256,
+          261260,
+          261264,
+          261268,
+          261272,
+          261276,
+          261280
         ],
         "rich.documentFlattens": [
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
         ],
         "rich.elementsBuilt": [
           2,
@@ -3545,6 +3949,90 @@
           3,
           3
         ],
+        "rich.otherDocumentBytesCopied": [
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584
+        ],
+        "rich.otherDocumentFlattens": [
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001
+        ],
         "rich.preparationTurns": [
           892,
           892,
@@ -3629,7 +4117,49 @@
           257,
           257
         ],
-        "rich.semanticDisplayUnitsReused": [
+        "rich.semanticBytesCopied": [
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724,
+          1068724
+        ],
+        "rich.semanticDisplayUnitsCopied": [
           53746,
           53746,
           53746,
@@ -3671,7 +4201,7 @@
           53746,
           53746
         ],
-        "rich.semanticElementsReused": [
+        "rich.semanticElementsCopied": [
           1710,
           1710,
           1710,
@@ -4346,9 +4876,9 @@
       },
       "summary": {
         "cppAllocations": {
-          "min": 87182,
-          "max": 87185,
-          "total": 3487325
+          "min": 87190,
+          "max": 87193,
+          "total": 3487645
         },
         "created": {
           "min": 6587,
@@ -4364,6 +4894,16 @@
           "min": 1,
           "max": 1,
           "total": 40
+        },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.drawCalls": {
           "min": 75,
@@ -4391,6 +4931,16 @@
           "total": 0
         },
         "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -4585,6 +5135,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -4596,6 +5151,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -4616,14 +5181,14 @@
           "total": 4580
         },
         "rich.documentBytesCopied": {
-          "min": 288708,
-          "max": 288864,
-          "total": 11551440
+          "min": 261124,
+          "max": 261280,
+          "total": 10448080
         },
         "rich.documentFlattens": {
-          "min": 2002,
-          "max": 2002,
-          "total": 80080
+          "min": 1,
+          "max": 1,
+          "total": 40
         },
         "rich.elementsBuilt": {
           "min": 2,
@@ -4655,6 +5220,16 @@
           "max": 3,
           "total": 120
         },
+        "rich.otherDocumentBytesCopied": {
+          "min": 27584,
+          "max": 27584,
+          "total": 1103360
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 2001,
+          "max": 2001,
+          "total": 80040
+        },
         "rich.preparationTurns": {
           "min": 892,
           "max": 892,
@@ -4665,12 +5240,17 @@
           "max": 257,
           "total": 10280
         },
-        "rich.semanticDisplayUnitsReused": {
+        "rich.semanticBytesCopied": {
+          "min": 1068724,
+          "max": 1068724,
+          "total": 42748960
+        },
+        "rich.semanticDisplayUnitsCopied": {
           "min": 53746,
           "max": 53746,
           "total": 2149840
         },
-        "rich.semanticElementsReused": {
+        "rich.semanticElementsCopied": {
           "min": 1710,
           "max": 1710,
           "total": 68400
@@ -4759,16 +5339,16 @@
       "steps": 10,
       "series": {
         "cppAllocations": [
-          87218,
-          87241,
-          87187,
-          87197,
-          87207,
-          87217,
-          87228,
-          87237,
-          87247,
-          87257
+          87226,
+          87249,
+          87195,
+          87205,
+          87215,
+          87225,
+          87236,
+          87245,
+          87255,
+          87265
         ],
         "created": [
           6587,
@@ -4805,6 +5385,30 @@
           1,
           1,
           1
+        ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.drawCalls": [
           76,
@@ -4867,6 +5471,30 @@
           0
         ],
         "frame.renders": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
           0,
           0,
           0,
@@ -5334,6 +5962,18 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -5359,6 +5999,30 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
           0,
           0,
           0,
@@ -5407,28 +6071,28 @@
           0
         ],
         "rich.documentBytesCopied": [
-          288868,
-          288872,
-          288876,
-          288880,
-          288884,
-          288888,
-          288892,
-          288896,
-          288900,
-          288904
+          261284,
+          261288,
+          261292,
+          261296,
+          261300,
+          261304,
+          261308,
+          261312,
+          261316,
+          261320
         ],
         "rich.documentFlattens": [
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
         ],
         "rich.elementsBuilt": [
           2,
@@ -5502,6 +6166,30 @@
           3,
           3
         ],
+        "rich.otherDocumentBytesCopied": [
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584
+        ],
+        "rich.otherDocumentFlattens": [
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001
+        ],
         "rich.preparationTurns": [
           892,
           893,
@@ -5526,7 +6214,19 @@
           259,
           259
         ],
-        "rich.semanticDisplayUnitsReused": [
+        "rich.semanticBytesCopied": [
+          1068724,
+          1068724,
+          1070380,
+          1070380,
+          1070380,
+          1070380,
+          1070380,
+          1070380,
+          1070380,
+          1070380
+        ],
+        "rich.semanticDisplayUnitsCopied": [
           53746,
           53746,
           53881,
@@ -5538,7 +6238,7 @@
           53881,
           53881
         ],
-        "rich.semanticElementsReused": [
+        "rich.semanticElementsCopied": [
           1710,
           1710,
           1712,
@@ -5733,9 +6433,9 @@
       },
       "summary": {
         "cppAllocations": {
-          "min": 87187,
-          "max": 87257,
-          "total": 872236
+          "min": 87195,
+          "max": 87265,
+          "total": 872316
         },
         "created": {
           "min": 6587,
@@ -5751,6 +6451,16 @@
           "min": 1,
           "max": 1,
           "total": 10
+        },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.drawCalls": {
           "min": 75,
@@ -5778,6 +6488,16 @@
           "total": 0
         },
         "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -5972,6 +6692,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -5983,6 +6708,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -6003,14 +6738,14 @@
           "total": 270
         },
         "rich.documentBytesCopied": {
-          "min": 288868,
-          "max": 288904,
-          "total": 2888860
+          "min": 261284,
+          "max": 261320,
+          "total": 2613020
         },
         "rich.documentFlattens": {
-          "min": 2002,
-          "max": 2002,
-          "total": 20020
+          "min": 1,
+          "max": 1,
+          "total": 10
         },
         "rich.elementsBuilt": {
           "min": 1,
@@ -6042,6 +6777,16 @@
           "max": 3,
           "total": 30
         },
+        "rich.otherDocumentBytesCopied": {
+          "min": 27584,
+          "max": 27584,
+          "total": 275840
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 2001,
+          "max": 2001,
+          "total": 20010
+        },
         "rich.preparationTurns": {
           "min": 892,
           "max": 894,
@@ -6052,12 +6797,17 @@
           "max": 259,
           "total": 2586
         },
-        "rich.semanticDisplayUnitsReused": {
+        "rich.semanticBytesCopied": {
+          "min": 1068724,
+          "max": 1070380,
+          "total": 10700488
+        },
+        "rich.semanticDisplayUnitsCopied": {
           "min": 53746,
           "max": 53881,
           "total": 538540
         },
-        "rich.semanticElementsReused": {
+        "rich.semanticElementsCopied": {
           "min": 1710,
           "max": 1712,
           "total": 17116
@@ -6352,6 +7102,110 @@
           1,
           1,
           1
+        ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.drawCalls": [
           81,
@@ -6665,6 +7519,110 @@
           0,
           0
         ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.treeVisitsHitTest": [
           0,
           0,
@@ -8641,6 +9599,58 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -8746,6 +9756,110 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
           0,
           0,
           0,
@@ -9369,6 +10483,110 @@
           0,
           0
         ],
+        "rich.otherDocumentBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.preparationTurns": [
           1,
           1,
@@ -9473,7 +10691,7 @@
           0,
           0
         ],
-        "rich.semanticDisplayUnitsReused": [
+        "rich.semanticBytesCopied": [
           0,
           0,
           0,
@@ -9525,7 +10743,59 @@
           0,
           0
         ],
-        "rich.semanticElementsReused": [
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
           0,
           0,
           0,
@@ -10379,6 +11649,16 @@
           "max": 1,
           "total": 50
         },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.drawCalls": {
           "min": 81,
           "max": 81,
@@ -10405,6 +11685,16 @@
           "total": 0
         },
         "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -10599,6 +11889,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -10610,6 +11905,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -10669,6 +11974,16 @@
           "max": 0,
           "total": 0
         },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.preparationTurns": {
           "min": 1,
           "max": 1,
@@ -10679,12 +11994,17 @@
           "max": 0,
           "total": 0
         },
-        "rich.semanticDisplayUnitsReused": {
+        "rich.semanticBytesCopied": {
           "min": 0,
           "max": 0,
           "total": 0
         },
-        "rich.semanticElementsReused": {
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -10784,6 +12104,12 @@
         "frame.composites": [
           1
         ],
+        "frame.compositionDevices": [
+          0
+        ],
+        "frame.d2dDevices": [
+          0
+        ],
         "frame.drawCalls": [
           2009
         ],
@@ -10800,6 +12126,12 @@
           0
         ],
         "frame.renders": [
+          0
+        ],
+        "frame.shadowPasses": [
+          0
+        ],
+        "frame.swapChains": [
           0
         ],
         "frame.treeVisitsHitTest": [
@@ -10916,6 +12248,9 @@
         "text.setTextRenderingParams": [
           0
         ],
+        "popups.backdropBlurPasses": [
+          0
+        ],
         "popups.backdropCapturePixels": [
           0
         ],
@@ -10923,6 +12258,12 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0
+        ],
+        "popups.menuRowsPainted": [
           0
         ],
         "rich.chunksLaid": [
@@ -10958,16 +12299,25 @@
         "rich.mathPreparations": [
           0
         ],
+        "rich.otherDocumentBytesCopied": [
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0
+        ],
         "rich.preparationTurns": [
           1
         ],
         "rich.semanticBlocksReused": [
           0
         ],
-        "rich.semanticDisplayUnitsReused": [
+        "rich.semanticBytesCopied": [
           0
         ],
-        "rich.semanticElementsReused": [
+        "rich.semanticDisplayUnitsCopied": [
+          0
+        ],
+        "rich.semanticElementsCopied": [
           0
         ],
         "rich.semanticFullBuildAbbreviations": [
@@ -11037,6 +12387,16 @@
           "max": 1,
           "total": 1
         },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.drawCalls": {
           "min": 2009,
           "max": 2009,
@@ -11063,6 +12423,16 @@
           "total": 0
         },
         "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -11257,6 +12627,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -11268,6 +12643,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -11327,6 +12712,16 @@
           "max": 0,
           "total": 0
         },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.preparationTurns": {
           "min": 1,
           "max": 1,
@@ -11337,12 +12732,17 @@
           "max": 0,
           "total": 0
         },
-        "rich.semanticDisplayUnitsReused": {
+        "rich.semanticBytesCopied": {
           "min": 0,
           "max": 0,
           "total": 0
         },
-        "rich.semanticElementsReused": {
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -11431,36 +12831,36 @@
       "steps": 30,
       "series": {
         "cppAllocations": [
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87307,
-          87306,
-          87306,
-          87307,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87306,
-          87307,
-          87306,
-          87306
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87315,
+          87314,
+          87314,
+          87315,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87314,
+          87315,
+          87314,
+          87314
         ],
         "created": [
           6605,
@@ -11557,6 +12957,70 @@
           1,
           1,
           1
+        ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.drawCalls": [
           2011,
@@ -11750,6 +13214,70 @@
           0,
           0
         ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.treeVisitsHitTest": [
           0,
           0,
@@ -12966,6 +14494,38 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -13031,6 +14591,70 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
           0,
           0,
           0,
@@ -13159,68 +14783,68 @@
           12920
         ],
         "rich.documentBytesCopied": [
-          288908,
-          288912,
-          288916,
-          288920,
-          288924,
-          288928,
-          288932,
-          288936,
-          288940,
-          288944,
-          288948,
-          288952,
-          288956,
-          288960,
-          288964,
-          288968,
-          288972,
-          288976,
-          288980,
-          288984,
-          288988,
-          288992,
-          288996,
-          289000,
-          289004,
-          289008,
-          289012,
-          289016,
-          289020,
-          289024
+          261324,
+          261328,
+          261332,
+          261336,
+          261340,
+          261344,
+          261348,
+          261352,
+          261356,
+          261360,
+          261364,
+          261368,
+          261372,
+          261376,
+          261380,
+          261384,
+          261388,
+          261392,
+          261396,
+          261400,
+          261404,
+          261408,
+          261412,
+          261416,
+          261420,
+          261424,
+          261428,
+          261432,
+          261436,
+          261440
         ],
         "rich.documentFlattens": [
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
         ],
         "rich.elementsBuilt": [
           2,
@@ -13414,6 +15038,70 @@
           3,
           3
         ],
+        "rich.otherDocumentBytesCopied": [
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584
+        ],
+        "rich.otherDocumentFlattens": [
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001
+        ],
         "rich.preparationTurns": [
           898,
           898,
@@ -13478,7 +15166,39 @@
           258,
           258
         ],
-        "rich.semanticDisplayUnitsReused": [
+        "rich.semanticBytesCopied": [
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204,
+          1018204
+        ],
+        "rich.semanticDisplayUnitsCopied": [
           40991,
           40991,
           40991,
@@ -13510,7 +15230,7 @@
           40991,
           40991
         ],
-        "rich.semanticElementsReused": [
+        "rich.semanticElementsCopied": [
           1711,
           1711,
           1711,
@@ -14025,9 +15745,9 @@
       },
       "summary": {
         "cppAllocations": {
-          "min": 87306,
-          "max": 87307,
-          "total": 2619183
+          "min": 87314,
+          "max": 87315,
+          "total": 2619423
         },
         "created": {
           "min": 6605,
@@ -14043,6 +15763,16 @@
           "min": 1,
           "max": 1,
           "total": 30
+        },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.drawCalls": {
           "min": 2011,
@@ -14070,6 +15800,16 @@
           "total": 0
         },
         "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -14264,6 +16004,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -14275,6 +16020,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -14295,14 +16050,14 @@
           "total": 387165
         },
         "rich.documentBytesCopied": {
-          "min": 288908,
-          "max": 289024,
-          "total": 8668980
+          "min": 261324,
+          "max": 261440,
+          "total": 7841460
         },
         "rich.documentFlattens": {
-          "min": 2002,
-          "max": 2002,
-          "total": 60060
+          "min": 1,
+          "max": 1,
+          "total": 30
         },
         "rich.elementsBuilt": {
           "min": 2,
@@ -14334,6 +16089,16 @@
           "max": 3,
           "total": 90
         },
+        "rich.otherDocumentBytesCopied": {
+          "min": 27584,
+          "max": 27584,
+          "total": 827520
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 2001,
+          "max": 2001,
+          "total": 60030
+        },
         "rich.preparationTurns": {
           "min": 898,
           "max": 898,
@@ -14344,12 +16109,17 @@
           "max": 258,
           "total": 7740
         },
-        "rich.semanticDisplayUnitsReused": {
+        "rich.semanticBytesCopied": {
+          "min": 1018204,
+          "max": 1018204,
+          "total": 30546120
+        },
+        "rich.semanticDisplayUnitsCopied": {
           "min": 40991,
           "max": 40991,
           "total": 1229730
         },
-        "rich.semanticElementsReused": {
+        "rich.semanticElementsCopied": {
           "min": 1711,
           "max": 1711,
           "total": 51330
@@ -14449,6 +16219,12 @@
         "frame.composites": [
           1
         ],
+        "frame.compositionDevices": [
+          0
+        ],
+        "frame.d2dDevices": [
+          0
+        ],
         "frame.drawCalls": [
           2056
         ],
@@ -14465,6 +16241,12 @@
           0
         ],
         "frame.renders": [
+          0
+        ],
+        "frame.shadowPasses": [
+          0
+        ],
+        "frame.swapChains": [
           0
         ],
         "frame.treeVisitsHitTest": [
@@ -14581,6 +16363,9 @@
         "text.setTextRenderingParams": [
           0
         ],
+        "popups.backdropBlurPasses": [
+          0
+        ],
         "popups.backdropCapturePixels": [
           0
         ],
@@ -14588,6 +16373,12 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0
+        ],
+        "popups.menuRowsPainted": [
           0
         ],
         "rich.chunksLaid": [
@@ -14623,16 +16414,25 @@
         "rich.mathPreparations": [
           0
         ],
+        "rich.otherDocumentBytesCopied": [
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0
+        ],
         "rich.preparationTurns": [
           1
         ],
         "rich.semanticBlocksReused": [
           0
         ],
-        "rich.semanticDisplayUnitsReused": [
+        "rich.semanticBytesCopied": [
           0
         ],
-        "rich.semanticElementsReused": [
+        "rich.semanticDisplayUnitsCopied": [
+          0
+        ],
+        "rich.semanticElementsCopied": [
           0
         ],
         "rich.semanticFullBuildAbbreviations": [
@@ -14702,6 +16502,16 @@
           "max": 1,
           "total": 1
         },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.drawCalls": {
           "min": 2056,
           "max": 2056,
@@ -14728,6 +16538,16 @@
           "total": 0
         },
         "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -14922,6 +16742,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -14933,6 +16758,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -14992,6 +16827,16 @@
           "max": 0,
           "total": 0
         },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.preparationTurns": {
           "min": 1,
           "max": 1,
@@ -15002,12 +16847,17 @@
           "max": 0,
           "total": 0
         },
-        "rich.semanticDisplayUnitsReused": {
+        "rich.semanticBytesCopied": {
           "min": 0,
           "max": 0,
           "total": 0
         },
-        "rich.semanticElementsReused": {
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -15096,36 +16946,36 @@
       "steps": 30,
       "series": {
         "cppAllocations": [
-          87268,
-          87268,
-          87268,
-          87268,
-          87270,
-          87271,
-          87271,
-          87271,
-          87271,
-          87271,
-          87271,
-          87271,
-          87271,
-          87271,
-          87271,
-          87272,
-          87272,
-          87271,
-          87271,
-          87271,
-          87271,
-          87271,
-          87271,
-          87271,
-          87272,
-          87274,
-          87274,
-          87274,
-          87274,
-          87274
+          87276,
+          87276,
+          87276,
+          87276,
+          87278,
+          87279,
+          87279,
+          87279,
+          87279,
+          87279,
+          87279,
+          87279,
+          87279,
+          87279,
+          87279,
+          87280,
+          87280,
+          87279,
+          87279,
+          87279,
+          87279,
+          87279,
+          87279,
+          87279,
+          87280,
+          87282,
+          87282,
+          87282,
+          87282,
+          87282
         ],
         "created": [
           6605,
@@ -15222,6 +17072,70 @@
           1,
           1,
           1
+        ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.drawCalls": [
           2058,
@@ -15415,6 +17329,70 @@
           0,
           0
         ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.treeVisitsHitTest": [
           0,
           0,
@@ -16631,6 +18609,38 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -16696,6 +18706,70 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
           0,
           0,
           0,
@@ -16824,68 +18898,68 @@
           120
         ],
         "rich.documentBytesCopied": [
-          289028,
-          289032,
-          289036,
-          289040,
-          289044,
-          289048,
-          289052,
-          289056,
-          289060,
-          289064,
-          289068,
-          289072,
-          289076,
-          289080,
-          289084,
-          289088,
-          289092,
-          289096,
-          289100,
-          289104,
-          289108,
-          289112,
-          289116,
-          289120,
-          289124,
-          289128,
-          289132,
-          289136,
-          289140,
-          289144
+          261444,
+          261448,
+          261452,
+          261456,
+          261460,
+          261464,
+          261468,
+          261472,
+          261476,
+          261480,
+          261484,
+          261488,
+          261492,
+          261496,
+          261500,
+          261504,
+          261508,
+          261512,
+          261516,
+          261520,
+          261524,
+          261528,
+          261532,
+          261536,
+          261540,
+          261544,
+          261548,
+          261552,
+          261556,
+          261560
         ],
         "rich.documentFlattens": [
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002,
-          2002
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
         ],
         "rich.elementsBuilt": [
           2,
@@ -17079,6 +19153,70 @@
           3,
           3
         ],
+        "rich.otherDocumentBytesCopied": [
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584
+        ],
+        "rich.otherDocumentFlattens": [
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001
+        ],
         "rich.preparationTurns": [
           895,
           895,
@@ -17143,7 +19281,39 @@
           258,
           258
         ],
-        "rich.semanticDisplayUnitsReused": [
+        "rich.semanticBytesCopied": [
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542,
+          1069542
+        ],
+        "rich.semanticDisplayUnitsCopied": [
           53821,
           53821,
           53821,
@@ -17175,7 +19345,7 @@
           53821,
           53821
         ],
-        "rich.semanticElementsReused": [
+        "rich.semanticElementsCopied": [
           1711,
           1711,
           1711,
@@ -17690,9 +19860,9 @@
       },
       "summary": {
         "cppAllocations": {
-          "min": 87268,
-          "max": 87274,
-          "total": 2618135
+          "min": 87276,
+          "max": 87282,
+          "total": 2618375
         },
         "created": {
           "min": 6605,
@@ -17708,6 +19878,16 @@
           "min": 1,
           "max": 1,
           "total": 30
+        },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.drawCalls": {
           "min": 2058,
@@ -17735,6 +19915,16 @@
           "total": 0
         },
         "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -17929,6 +20119,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -17940,6 +20135,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -17960,14 +20165,14 @@
           "total": 3165
         },
         "rich.documentBytesCopied": {
-          "min": 289028,
-          "max": 289144,
-          "total": 8672580
+          "min": 261444,
+          "max": 261560,
+          "total": 7845060
         },
         "rich.documentFlattens": {
-          "min": 2002,
-          "max": 2002,
-          "total": 60060
+          "min": 1,
+          "max": 1,
+          "total": 30
         },
         "rich.elementsBuilt": {
           "min": 2,
@@ -17999,6 +20204,16 @@
           "max": 3,
           "total": 90
         },
+        "rich.otherDocumentBytesCopied": {
+          "min": 27584,
+          "max": 27584,
+          "total": 827520
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 2001,
+          "max": 2001,
+          "total": 60030
+        },
         "rich.preparationTurns": {
           "min": 895,
           "max": 895,
@@ -18009,12 +20224,17 @@
           "max": 258,
           "total": 7740
         },
-        "rich.semanticDisplayUnitsReused": {
+        "rich.semanticBytesCopied": {
+          "min": 1069542,
+          "max": 1069542,
+          "total": 32086260
+        },
+        "rich.semanticDisplayUnitsCopied": {
           "min": 53821,
           "max": 53821,
           "total": 1614630
         },
-        "rich.semanticElementsReused": {
+        "rich.semanticElementsCopied": {
           "min": 1711,
           "max": 1711,
           "total": 51330
@@ -18230,6 +20450,70 @@
           1,
           1
         ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.drawCalls": [
           2056,
           2056,
@@ -18391,6 +20675,70 @@
           0
         ],
         "frame.renders": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
           0,
           0,
           0,
@@ -19638,6 +21986,38 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -19703,6 +22083,70 @@
           0
         ],
         "popups.comboBoxPopupRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
           0,
           0,
           0,
@@ -19831,68 +22275,68 @@
           0
         ],
         "rich.documentBytesCopied": [
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584,
-          27584
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "rich.documentFlattens": [
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001,
-          2001
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "rich.elementsBuilt": [
           0,
@@ -20086,6 +22530,70 @@
           0,
           0
         ],
+        "rich.otherDocumentBytesCopied": [
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584,
+          27584
+        ],
+        "rich.otherDocumentFlattens": [
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001,
+          2001
+        ],
         "rich.preparationTurns": [
           1140,
           1140,
@@ -20150,7 +22658,7 @@
           0,
           0
         ],
-        "rich.semanticDisplayUnitsReused": [
+        "rich.semanticBytesCopied": [
           0,
           0,
           0,
@@ -20182,7 +22690,39 @@
           0,
           0
         ],
-        "rich.semanticElementsReused": [
+        "rich.semanticDisplayUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.semanticElementsCopied": [
           0,
           0,
           0,
@@ -20716,6 +23256,16 @@
           "max": 1,
           "total": 30
         },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.drawCalls": {
           "min": 2056,
           "max": 2075,
@@ -20742,6 +23292,16 @@
           "total": 0
         },
         "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -20936,6 +23496,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -20947,6 +23512,16 @@
           "total": 0
         },
         "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -20967,14 +23542,14 @@
           "total": 0
         },
         "rich.documentBytesCopied": {
-          "min": 27584,
-          "max": 27584,
-          "total": 827520
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "rich.documentFlattens": {
-          "min": 2001,
-          "max": 2001,
-          "total": 60030
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "rich.elementsBuilt": {
           "min": 0,
@@ -21006,6 +23581,16 @@
           "max": 0,
           "total": 0
         },
+        "rich.otherDocumentBytesCopied": {
+          "min": 27584,
+          "max": 27584,
+          "total": 827520
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 2001,
+          "max": 2001,
+          "total": 60030
+        },
         "rich.preparationTurns": {
           "min": 1140,
           "max": 1140,
@@ -21016,12 +23601,17 @@
           "max": 0,
           "total": 0
         },
-        "rich.semanticDisplayUnitsReused": {
+        "rich.semanticBytesCopied": {
           "min": 0,
           "max": 0,
           "total": 0
         },
-        "rich.semanticElementsReused": {
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -21105,7 +23695,7 @@
     }
   ],
   "memory": {
-    "entryPrivateBytes": 2613248,
+    "entryPrivateBytes": 2637824,
     "videoMemory": {
       "applicable": false,
       "reason": "software adapter: rendering uses system memory, which privateBytes counts"
@@ -21114,14 +23704,14 @@
     "samples": [
       {
         "at": "device",
-        "privateBytes": 11563008,
-        "workingSetBytes": 21786624
+        "privateBytes": 11591680,
+        "workingSetBytes": 21798912
       },
       {
         "at": "built",
-        "privateBytes": 13991936,
-        "workingSetBytes": 28811264,
-        "trackedLiveBytes": 188486,
+        "privateBytes": 13860864,
+        "workingSetBytes": 28753920,
+        "trackedLiveBytes": 188526,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 0,
@@ -21129,15 +23719,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 0,
+          "retainedCacheBytes": 320,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "warm",
-        "privateBytes": 68308992,
-        "workingSetBytes": 75927552,
-        "trackedLiveBytes": 7540203,
+        "privateBytes": 68337664,
+        "workingSetBytes": 75563008,
+        "trackedLiveBytes": 7540243,
         "retained": {
           "surfaceBytes": 3686400,
           "cachedBrushes": 17,
@@ -21145,15 +23738,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 3,
-          "retainedBitmapBytes": 37021
+          "retainedBitmapBytes": 37021,
+          "retainedCacheEntries": 1538,
+          "retainedCacheBytes": 1760,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "prose-insert",
-        "privateBytes": 96935936,
-        "workingSetBytes": 96522240,
-        "trackedLiveBytes": 7511488,
+        "privateBytes": 86720512,
+        "workingSetBytes": 87461888,
+        "trackedLiveBytes": 7511528,
         "retained": {
           "surfaceBytes": 3686400,
           "cachedBrushes": 17,
@@ -21161,15 +23757,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 3,
-          "retainedBitmapBytes": 37021
+          "retainedBitmapBytes": 37021,
+          "retainedCacheEntries": 1538,
+          "retainedCacheBytes": 1760,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "enter",
-        "privateBytes": 99971072,
-        "workingSetBytes": 100024320,
-        "trackedLiveBytes": 7558552,
+        "privateBytes": 86978560,
+        "workingSetBytes": 88784896,
+        "trackedLiveBytes": 7558592,
         "retained": {
           "surfaceBytes": 3686400,
           "cachedBrushes": 17,
@@ -21177,15 +23776,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 3,
-          "retainedBitmapBytes": 37021
+          "retainedBitmapBytes": 37021,
+          "retainedCacheEntries": 1548,
+          "retainedCacheBytes": 1760,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "arrow",
-        "privateBytes": 106348544,
-        "workingSetBytes": 109355008,
-        "trackedLiveBytes": 7558552,
+        "privateBytes": 97681408,
+        "workingSetBytes": 98308096,
+        "trackedLiveBytes": 7558592,
         "retained": {
           "surfaceBytes": 3686400,
           "cachedBrushes": 17,
@@ -21193,15 +23795,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 3,
-          "retainedBitmapBytes": 37021
+          "retainedBitmapBytes": 37021,
+          "retainedCacheEntries": 1548,
+          "retainedCacheBytes": 1760,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "seek-fence",
-        "privateBytes": 106352640,
-        "workingSetBytes": 109645824,
-        "trackedLiveBytes": 7558552,
+        "privateBytes": 97947648,
+        "workingSetBytes": 98627584,
+        "trackedLiveBytes": 7558592,
         "retained": {
           "surfaceBytes": 3686400,
           "cachedBrushes": 17,
@@ -21209,15 +23814,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 3,
-          "retainedBitmapBytes": 37021
+          "retainedBitmapBytes": 37021,
+          "retainedCacheEntries": 1548,
+          "retainedCacheBytes": 1760,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "fence-insert",
-        "privateBytes": 127574016,
-        "workingSetBytes": 127410176,
-        "trackedLiveBytes": 7613272,
+        "privateBytes": 108314624,
+        "workingSetBytes": 113606656,
+        "trackedLiveBytes": 7613312,
         "retained": {
           "surfaceBytes": 3686400,
           "cachedBrushes": 17,
@@ -21225,15 +23833,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 3,
-          "retainedBitmapBytes": 37021
+          "retainedBitmapBytes": 37021,
+          "retainedCacheEntries": 1548,
+          "retainedCacheBytes": 1760,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "seek-table",
-        "privateBytes": 118595584,
-        "workingSetBytes": 117039104,
-        "trackedLiveBytes": 7613272,
+        "privateBytes": 111321088,
+        "workingSetBytes": 98967552,
+        "trackedLiveBytes": 7613312,
         "retained": {
           "surfaceBytes": 3686400,
           "cachedBrushes": 17,
@@ -21241,15 +23852,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 3,
-          "retainedBitmapBytes": 37021
+          "retainedBitmapBytes": 37021,
+          "retainedCacheEntries": 1548,
+          "retainedCacheBytes": 1760,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "table-insert",
-        "privateBytes": 142184448,
-        "workingSetBytes": 140382208,
-        "trackedLiveBytes": 7576208,
+        "privateBytes": 114196480,
+        "workingSetBytes": 116867072,
+        "trackedLiveBytes": 7576248,
         "retained": {
           "surfaceBytes": 3686400,
           "cachedBrushes": 17,
@@ -21257,15 +23871,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 3,
-          "retainedBitmapBytes": 37021
+          "retainedBitmapBytes": 37021,
+          "retainedCacheEntries": 1548,
+          "retainedCacheBytes": 1760,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "resize",
-        "privateBytes": 329134080,
-        "workingSetBytes": 315523072,
-        "trackedLiveBytes": 7785688,
+        "privateBytes": 150003712,
+        "workingSetBytes": 135843840,
+        "trackedLiveBytes": 7785728,
         "retained": {
           "surfaceBytes": 1958400,
           "cachedBrushes": 17,
@@ -21273,14 +23890,17 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 3,
-          "retainedBitmapBytes": 37021
+          "retainedBitmapBytes": 37021,
+          "retainedCacheEntries": 1548,
+          "retainedCacheBytes": 1760,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "hidden",
-        "privateBytes": 245878784,
-        "workingSetBytes": 261042176,
-        "trackedLiveBytes": 3615330,
+        "privateBytes": 73478144,
+        "workingSetBytes": 91848704,
+        "trackedLiveBytes": 3614250,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 17,
@@ -21288,13 +23908,16 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 3,
-          "retainedBitmapBytes": 37021
+          "retainedBitmapBytes": 37021,
+          "retainedCacheEntries": 17,
+          "retainedCacheBytes": 1760,
+          "largestTextHistoryBytes": 0
         }
       }
     ],
     "hiddenResidencyDelta": {
-      "privateBytes": -83255296,
-      "workingSetBytes": -54480896,
+      "privateBytes": -76525568,
+      "workingSetBytes": -43995136,
       "surfaceBytes": -1958400,
       "retainedTextLayouts": 0,
       "retainedBitmapBytes": 0
@@ -21306,32 +23929,208 @@
       "Button": 816,
       "Toggle": 904,
       "Checkbox": 912,
-      "RadioButton": 864
-    }
+      "RadioButton": 864,
+      "ThroughputGraphSample": 408
+    },
+    "controls": 1,
+    "gridCellRelease": {
+      "layouts": 0,
+      "releasedHeapBytes": 0,
+      "rebuiltHeapBytes": 0
+    },
+    "retainedCaches": [
+      {
+        "name": "ControlHost._brushCache",
+        "entries": 17,
+        "residentBytes": 1600
+      },
+      {
+        "name": "ControlHost._configuredTextFormats",
+        "entries": 0,
+        "residentBytes": 160
+      },
+      {
+        "name": "TooltipLayer._layoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "ControlHost._richTitleHoverCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Accessibility.snapshot",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Label._typographyLayout",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Button._preparedIconTextLayout",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Button._preparedShortcutWidthDip",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Button._preparedHyperlinkWidthDip",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TextField._singleLineLayoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TextField._cachedMultilineLayout",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "ComboBox._singleLineLayoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "ComboBox._popupBackdropBitmap",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "MenuBar._menuBarLayoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TabControl._tabHeaderLayoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TabControl.TabItem.measuredTitleWidthDip",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TabControl._selectedHeaderGeometry",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Tree._badgeWidthCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Grid._cellTextLayouts",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "ColorPicker._saturationBrush",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "FlexPanel._records",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "FormField._measureCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "RichTextEditor.layout",
+        "entries": 1531,
+        "residentBytes": null
+      },
+      {
+        "name": "EmbeddedHost.State.texture",
+        "entries": 1,
+        "residentBytes": 1958400
+      }
+    ]
+  },
+  "budgetLines": {
+    "G13": [
+      {
+        "line": "idle-private",
+        "budget": "idle native window <= 8 MB private above process entry at 1080p",
+        "counter": "private bytes after the last phase, shown, minus private bytes at process entry",
+        "limitBytes": 8000000,
+        "measuredBytes": 147365888,
+        "status": "advisory"
+      },
+      {
+        "line": "minimized-video",
+        "budget": "<= 8 MiB video memory when minimized",
+        "counter": "local video memory usage of the process, hidden (a hidden embedded view is its minimized state)",
+        "limitBytes": 8388608,
+        "measuredBytes": null,
+        "status": "not measured",
+        "reason": "software adapter: rendering uses system memory, which private bytes count"
+      },
+      {
+        "line": "per-control",
+        "budget": "<= 256 B per simple control all-in",
+        "counter": "tracked live C++ bytes after the build divided by the controls of the built tree (host attachment included)",
+        "limitBytes": 256,
+        "measuredBytes": 188526,
+        "status": "exceeded"
+      },
+      {
+        "line": "per-grid-cell",
+        "budget": "<= 1 KB per visible single-line Grid cell",
+        "counter": "live heap bytes that rebuilding every Grid's cell layouts adds after hiding released them, per cell layout",
+        "limitBytes": 1000,
+        "measuredBytes": null,
+        "status": "not measured",
+        "reason": "the fixture keeps no Grid cell layout"
+      },
+      {
+        "line": "text-history",
+        "budget": "<= 4 MiB text history per editor",
+        "counter": "EmbeddedStatistics::largestTextHistoryBytes after the last phase (TextField and ComboBox; RichTextEditor history is not counted)",
+        "limitBytes": 4194304,
+        "measuredBytes": null,
+        "status": "not measured",
+        "reason": "the fixture's editors are RichTextEditors, whose piece-shared history has no byte count yet (W9.3)"
+      }
+    ]
   },
   "timing": {
     "status": "not measured",
     "reason": "timing comes only from performance-timing.ps1 on a hardware adapter in a quiet window (W0.2); counts and memory are recorded here"
   },
   "benchmarkInputs": {
-    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "A7E9A430625412741405BD7321DDDF2BBB399B34937497B1D70E130C66179683",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "BDA786D0E185A83D1ACCFED43106154D374E7C0DDEFCF8A2427FEC0817EAA7C7",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h": "7C2FAFF45C77EFEB1B521D74379AEE3DD335B86CC339FD1C91C4BD216CC77AE0",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "E9875E17CD2F7992FCA3954061462B345A80646A1D66356F5C352C1A03325847",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "EDEC5AE67A1932C468910C24995FFF6ABD2C4CA0680435AFB6B666C85FB5DEE3",
     "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "00844224A58AC9CDD5B726A72BD598293BA5756E9535AC59E26134DD3D7A78DD",
-    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "53088A60C13DFC654E05033FE5AD0ECAF7E76492833E653FC0755966CFE26735",
+    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "AC1E75B8BC8781DACE4A00413B6102CC4F5F1A7503659035E8A1E7FC4339FAED",
     "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
-    "performance-fixtures.ps1": "2A0ED76BC6F59B8C7FB346ABC746B5A31C18FE3A2AC07069C6C8EF2E2FC78DA0",
-    "Tools/PerformanceFixtures.psm1": "085B1FD8A3927072EF5C1B02C4115D6C42C18847185C7C8660E73B0776BA66AC",
+    "performance-fixtures.ps1": "21650580C135279202B3F1A1DA196D294B72446B92E96A3125ADD4408A0BF50E",
+    "Tools/PerformanceFixtures.psm1": "A2494E5DE019AD96F3A5C4A9FF7B8E3D0695632CBA45A8C16E26B5605E9E0EEB",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx8.h": "A193A9705330D2A77263B0DECF7B3B6A25A792F0367E757D0C717AA0B2B8118A",
     "Tests/Support/Support.Tests.RichImage.h": "1A25B86F8D25A3BF637D1656951A79599A956D4578F957EF2725C6FC4878B8A4"
   },
   "provenance": {
-    "sourceCommit": "e3fe6c9f8044d984596800b44b3e902c62911c5c",
-    "sourceDirty": true,
+    "sourceCommit": "fbd0cadc8f40b83e167ad44d524e9dbc0ff01fc5",
+    "sourceDirty": false,
     "platform": "x64",
     "configuration": "Release",
     "command": "performance-fixtures.ps1 -Fixture FX8 -Variant full -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64",
-    "executableSha256": "4C204F5D2F13B7FB544131FFC0028553035C98A4DD0F3F182EA726F3D2B0711D",
+    "executableSha256": "26388010EB6D97FF2E9958EC97E981F9627BD4B10A71705DE1AA106EF5F60198",
     "os": {
       "description": "Microsoft Windows 10.0.26300",
       "build": "26300",
@@ -21361,11 +24160,11 @@
     },
     "hostIdle": {
       "seconds": 3,
-      "busyPercent": 66.20762711864407,
+      "busyPercent": 56.31853070175439,
       "observer": "Tools/Watch-BenchmarkHost.ps1",
       "required": false
     },
     "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
-    "recordedUtc": "2026-11-14T21:31:59.5992059Z"
+    "recordedUtc": "2026-11-15T03:44:10.9009443Z"
   }
 }

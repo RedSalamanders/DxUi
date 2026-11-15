@@ -296,8 +296,9 @@ snapshot, delta and receipt.
   the pixel bytes it uploads into image bitmaps, at creation with pixels or by `CopyFromMemory` (`imageUploadBytes`).
   Document layout counts each text chunk it lays out rather than reuses (`chunksLaid`) and each whole-document layout it builds (`wholeLayoutsLaid`). Each owner turn of a
   `RichTextEditor`'s cooperative content preparation counts `preparationTurns`.
-  A semantic build also counts the top-level blocks, elements and display units it copies from the previous publication
-  (`semanticBlocksReused`, `semanticElementsReused`, `semanticDisplayUnitsReused`). A build that reused blocks counts
+  A semantic build also counts the top-level blocks it reuses (`semanticBlocksReused`) and what it copies from the
+  previous publication for them: elements (`semanticElementsCopied`), display units (`semanticDisplayUnitsCopied`) and
+  all bytes copied, strings, spans, runs, records and source formats included (`semanticBytesCopied`). A build that reused blocks counts
   `semanticIncrementalBuilds`; every other build counts exactly one cause: `semanticFullBuildNoPrevious`, `Presentation`,
   `Footnotes`, `References`, `FrontMatter`, `Abbreviations`, `Capacity` or `Structure`. `identityMapNodes` counts nodes or
   boxes inserted into an identity map to pair one revision with the next: the parser's old-node map (until incremental
@@ -1453,7 +1454,7 @@ and staged native geometry graph. A source edit builds only the top-level semant
 blocks between the unchanged leading and trailing blocks, which it copies from the
 previous publication in one indivisible event each (block-incremental projection in
 [controls and layout](../UI/UI_ControlsAndLayout.md#block-incremental-semantic-projection));
-this is not v0 chunk reuse. Immutable CPU syntax/document ownership can
+this is not v0 chunk reuse. The copy itself remains proportional to the document. Immutable CPU syntax/document ownership can
 outlive native geometry when clients hold it. Raster preparation may allocate;
 composition must not call the builder/layout backend or allocate.
 

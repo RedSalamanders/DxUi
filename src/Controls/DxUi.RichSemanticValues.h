@@ -1,5 +1,6 @@
 #pragma once
 #include "Support/WorkCounters.h"
+#include <DxUi/Configuration.h>
 #include <DxUi/Failure.h>
 #include <DxUi/RichSemanticDocument.h>
 #include <span>
@@ -24,6 +25,12 @@ struct SourceDisplayMapAccess
     static std::size_t Bytes(const SourceDisplayMap& map) noexcept;
     static std::size_t ReservedBytes(const SourceDisplayMap& map) noexcept;
 };
+#if DXUI_ENABLE_DIAGNOSTICS
+// Test seam: while nonzero on the calling thread, the semantic builder drops the
+// last display span before it publishes the map, a malformed publication that
+// map validation must refuse in every configuration (a fatal contract failure).
+extern thread_local unsigned testSemanticMapDefect;
+#endif
 struct SemanticValueUnit
 {
     MarkdownRange source;
@@ -254,7 +261,7 @@ public:
             return;
         }
         text.append(value);
-        ::DxUi::Detail::Work().rich.semanticDisplayUnitsReused += value.size();
+        ::DxUi::Detail::Work().rich.semanticDisplayUnitsCopied += value.size();
     }
     void AppendSpan(const DisplaySpan& span)
     {

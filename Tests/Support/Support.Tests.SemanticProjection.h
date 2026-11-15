@@ -121,6 +121,23 @@ template <typename T, typename Same> bool SameRange(std::span<const T> a, std::s
     return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), same);
 }
 
+// Native object content, not just presence: a parsed formula tree and a diagram model with its syntax revision.
+inline bool SameMathNode(const MathNode& a, const MathNode& b)
+{
+    return a.kind == b.kind && a.text == b.text && a.columns == b.columns && a.children.size() == b.children.size() &&
+           std::equal(a.children.begin(), a.children.end(), b.children.begin(), [](const auto& x, const auto& y) { return SameMathNode(x, y); });
+}
+inline bool SameMath(const MathExpression* a, const MathExpression* b)
+{
+    return a == b || (a && b && a->issue == b->issue && a->diagnostic == b->diagnostic && SameMathNode(a->root, b->root));
+}
+inline bool SameGraph(const DxUi::RichText::Detail::FlowchartModel* a, const DxUi::RichText::Detail::FlowchartModel* b)
+{
+    return a == b || (a && b && a->source == b->source && a->revision == b->revision && a->family == b->family && a->direction == b->direction &&
+                      a->outcome == b->outcome && a->accessibleTitle == b->accessibleTitle && a->accessibleDescription == b->accessibleDescription &&
+                      a->nodes.size() == b->nodes.size() && a->edges.size() == b->edges.size() && a->groups.size() == b->groups.size());
+}
+
 // Everything a SemanticDocument publishes, and every map query at every offset.
 inline void CompareDocuments(const SemanticDocument& incremental, const SemanticDocument& fresh, const std::string& context)
 {
@@ -168,7 +185,7 @@ inline void CompareDocuments(const SemanticDocument& incremental, const Semantic
     Expect(SameRange(Access::Maths(incremental),
                      Access::Maths(fresh),
                      [](const auto& x, const auto& y)
-    { return x.element == y.element && x.display == y.display && static_cast<bool>(x.expression) == static_cast<bool>(y.expression); }),
+    { return x.element == y.element && x.display == y.display && SameMath(x.expression.get(), y.expression.get()); }),
            context,
            "math objects");
     Expect(SameRange(Access::Images(incremental), Access::Images(fresh), [](auto x, auto y) { return x == y; }), context, "image objects");
@@ -182,7 +199,7 @@ inline void CompareDocuments(const SemanticDocument& incremental, const Semantic
         return x.element == y.element && x.display == y.display && x.sourceEnd == y.sourceEnd && x.bodyUnits.size() == y.bodyUnits.size() &&
                std::equal(x.bodyUnits.begin(), x.bodyUnits.end(), y.bodyUnits.begin(), [](const auto& p, const auto& q) {
             return p.source == q.source && p.generated == q.generated && p.transformed == q.transformed;
-        }) && static_cast<bool>(x.graph) == static_cast<bool>(y.graph);
+        }) && SameGraph(x.graph.get(), y.graph.get());
     }),
            context,
            "diagram objects");
@@ -283,6 +300,19 @@ inline constexpr std::wstring_view kSnippets[] = {L"a",
                                                   L"HTML ",
                                                   L"```mermaid\nflowchart LR\nC-->D\n```\n"};
 
+// Without documentWide, snippets that create constructs with document-wide effect (footnotes, reference definitions,
+// front matter, abbreviation definitions) are never inserted, so almost every edit can reuse blocks.
+inline std::wstring_view Snippet(Random& random, bool documentWide)
+{
+    for (;;)
+    {
+        const auto snippet = kSnippets[random.Below(std::size(kSnippets))];
+        if (documentWide || (snippet.find(L"[^") == snippet.npos && snippet.find(L"]: ") == snippet.npos && snippet.find(L"---\ntitle") == snippet.npos &&
+                             snippet.find(L"*[") == snippet.npos))
+            return snippet;
+    }
+}
+
 inline std::size_t Boundary(std::wstring_view text, std::size_t offset) noexcept
 {
     offset = std::min(offset, text.size());
@@ -310,7 +340,8 @@ inline std::shared_ptr<const SemanticDocument> CompleteBuild(SemanticBuilder& bu
 
 // One seeded run: every edit is parsed by one persistent parser (as an editor does), built incrementally by one
 // persistent builder and compared with a fresh builder's publication of the same syntax.
-inline FuzzResult RunEditFuzz(std::uint64_t seed, std::size_t edits, MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
+inline FuzzResult RunEditFuzz(
+    std::uint64_t seed, std::size_t edits, MarkdownProfile profile, std::optional<MarkdownExtensions> extensions, bool documentWide = true)
 {
     Random random{seed};
     std::wstring text = RichBase();
@@ -346,7 +377,7 @@ inline FuzzResult RunEditFuzz(std::uint64_t seed, std::size_t edits, MarkdownPro
             const auto kind = random.Below(5u);
             if (kind <= 1u || text.size() < 8u)
             {
-                const auto snippet = kSnippets[random.Below(std::size(kSnippets))];
+                const auto snippet = Snippet(random, documentWide);
                 text.insert(at, snippet);
                 operation = std::format("insert {} units at {}", snippet.size(), at);
             }
@@ -365,7 +396,7 @@ inline FuzzResult RunEditFuzz(std::uint64_t seed, std::size_t edits, MarkdownPro
                 auto last = Boundary(text, at + random.Below(12u));
                 while (last < text.size() && ! IsEditBoundary(text, last))
                     ++last;
-                const auto snippet = kSnippets[random.Below(std::size(kSnippets))];
+                const auto snippet = Snippet(random, documentWide);
                 text.replace(at, last - at, snippet);
                 operation = std::format("replace [{}, {}) with {} units", at, last, snippet.size());
             }

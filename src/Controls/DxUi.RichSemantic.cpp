@@ -99,9 +99,11 @@ std::shared_ptr<const SourceDisplayMap> SourceDisplayMap::Build(std::wstring_vie
 }
 namespace
 {
-// Admission checks shared by the public builder and the Debug validation of a
-// semantic publication. Malformed spans and partitions are rejected before any
-// map storage is allocated.
+// Admission checks shared by the public builder and every semantic publication,
+// in every configuration. Malformed spans and partitions are rejected before any
+// map storage is allocated: capacity, well-formed UTF-16, ranges in bounds on
+// scalar/CRLF boundaries, one contiguous display partition, kind and primary
+// rules, and source-backed display text equal to its source.
 SourceResult ValidateSourceDisplaySpans(std::wstring_view source, std::wstring_view display, std::span<const DisplaySpan> spans) noexcept
 {
     if (source.size() > Document::MaximumUnits || display.size() > SourceDisplayMap::MaximumDisplayUnits || spans.size() > SourceDisplayMap::MaximumSpans)
@@ -122,8 +124,9 @@ SourceResult ValidateSourceDisplaySpans(std::wstring_view source, std::wstring_v
                     return SourceResult::InvalidRange;
                 break;
             case DisplaySpanKind::Source:
-                if (source.substr(span.source.first, span.source.last - span.source.first) !=
-                    display.substr(span.display.first, span.display.last - span.display.first))
+                if (span.source.last - span.source.first != span.display.last - span.display.first ||
+                    (source.substr(span.source.first, span.source.last - span.source.first) !=
+                     display.substr(span.display.first, span.display.last - span.display.first)))
                     return SourceResult::InvalidRange;
                 [[fallthrough]];
             case DisplaySpanKind::Transformed:
@@ -174,16 +177,23 @@ SourceDisplayMap::SourceDisplayMap(
 {
     result = SourceResult::Success;
 }
-// Record whether the spans are already in source order. Only a reordered
-// projection (for example a footnote footer) pays for an explicit order of its
-// primary spans. Ambiguous primary ownership and unmatched repetitions fail.
+// Record whether the spans are already in source order with short gaps between
+// primary spans. Only a reordered projection (for example a footnote footer), or
+// one with a run of more than MaximumSecondaryRun non-primary spans (many empty
+// list items or table cells), pays for an explicit order of its primary spans,
+// so a lookup is O(log n + MaximumSecondaryRun). Ambiguous primary ownership and
+// unmatched repetitions fail.
 void SourceDisplayMap::IndexPrimary(SourceResult& result)
 {
-    bool monotonic        = true;
-    std::size_t primaries = 0u;
+    constexpr std::size_t MaximumSecondaryRun = 16u;
+    bool monotonic                            = true;
+    std::size_t primaries = 0u, run = 0u;
     for (std::size_t i = 0u; i < spans_.size(); ++i)
     {
         if (i && spans_[i].source.first < spans_[i - 1u].source.first)
+            monotonic = false;
+        run = spans_[i].primary ? 0u : run + 1u;
+        if (run > MaximumSecondaryRun)
             monotonic = false;
         if (spans_[i].primary)
             ++primaries;
@@ -441,12 +451,12 @@ SourceResult Detail::SourceDisplayMapAccess::TryBuildBorrowed(std::shared_ptr<co
     const Failure::Scope failureScope;
     if (source.size() > Document::MaximumUnits || display.size() > SourceDisplayMap::MaximumDisplayUnits || spans.size() > SourceDisplayMap::MaximumSpans)
         return SourceResult::CapacityExceeded;
-#ifdef _DEBUG
-    // The builder's own output is trusted in Release; Debug proves it against
-    // the public admission rules on every publication, incremental or not.
+    // Every configuration proves each publication, incremental or not, against
+    // the public admission rules before it is published; a refusal is a fatal
+    // contract failure in the builder (Core_FailureHandling.md). The text
+    // comparison is one linear pass over the display, as the copy itself is.
     if (const auto admitted = ValidateSourceDisplaySpans(source, display, spans); admitted != SourceResult::Success)
         return admitted;
-#endif
     SourceResult result = SourceResult::Success;
     std::shared_ptr<SourceDisplayMap> staged(new SourceDisplayMap(std::move(sourceOwner), source, std::move(display), std::move(spans), result));
     staged->IndexPrimary(result);

@@ -72,7 +72,7 @@
     X(rich, chunksLaid)          /* Rich text layout chunks laid out by a document-layout preparation (not reused). */                                         \
     X(rich, diagramPreparations) /* Native diagram paint objects begun by a semantic geometry preparation (not carried). */                                    \
     X(rich,                                                                                                                                                    \
-      displayUnitsWritten) /* Display UTF-16 units a semantic build emitted from syntax; units copied from reused blocks are semanticDisplayUnitsReused. */    \
+      displayUnitsWritten) /* Display UTF-16 units a semantic build emitted from syntax; units copied from reused blocks are semanticDisplayUnitsCopied. */    \
     X(rich, documentBytesCopied) /* Bytes of a RichTextEditor's own source or display text copied into a string: slices, flattens, text-input copies. */       \
     X(rich, documentFlattens)    /* Copies of an editor's whole non-empty source or display text (a subset of documentBytesCopied). */                         \
     X(rich, elementsBuilt)       /* Semantic elements a semantic document build created. */                                                                    \
@@ -81,12 +81,14 @@
     X(rich, identityMapNodes)    /* Nodes or boxes inserted into an identity map to pair an old revision with a new one; block-range pairing adds none. */     \
     X(rich, imageUploadBytes)    /* Pixel bytes rich-image preparation uploaded into Direct2D bitmaps (creation with pixels or CopyFromMemory). */             \
     X(rich, mathPreparations)    /* Prepared math formulas built (beside the testRichMathPreparations seam). */                                                \
-    X(rich, otherDocumentBytesCopied)       /* Bytes copied out of any other RichText::Document (code-fence line numbers, labels, scratch documents). */       \
-    X(rich, otherDocumentFlattens)          /* Copies of such a whole non-empty other Document (a subset of otherDocumentBytesCopied). */                      \
-    X(rich, preparationTurns)               /* RichTextEditor::PrepareContent calls: owner turns of cooperative rich-content preparation. */                   \
-    X(rich, semanticBlocksReused)           /* Top-level semantic blocks a SemanticBuilder copied from its previous publication instead of building. */        \
-    X(rich, semanticDisplayUnitsReused)     /* Display UTF-16 units copied, with their spans and runs, from reused semantic blocks. */                         \
-    X(rich, semanticElementsReused)         /* Semantic elements copied (shifted) from reused blocks. */                                                       \
+    X(rich, otherDocumentBytesCopied) /* Bytes copied out of any other RichText::Document (code-fence line numbers, labels, scratch documents). */             \
+    X(rich, otherDocumentFlattens)    /* Copies of such a whole non-empty other Document (a subset of otherDocumentBytesCopied). */                            \
+    X(rich, preparationTurns)         /* RichTextEditor::PrepareContent calls: owner turns of cooperative rich-content preparation. */                         \
+    X(rich, semanticBlocksReused)     /* Top-level semantic blocks a SemanticBuilder copied from its previous publication instead of building. */              \
+    X(rich, semanticBytesCopied)      /* Bytes a semantic build copied from reused blocks: display text, elements with their strings, paragraphs, spans, runs, \
+                                         headings, records and source formats. */                                                                              \
+    X(rich, semanticDisplayUnitsCopied)     /* Display UTF-16 units copied, with their spans and runs, from reused semantic blocks. */                         \
+    X(rich, semanticElementsCopied)         /* Semantic elements copied (shifted) from reused blocks. */                                                       \
     X(rich, semanticFullBuildAbbreviations) /* Full semantic builds because abbreviation definitions exist or were edited. */                                  \
     X(rich, semanticFullBuildCapacity)      /* Full semantic builds because an object, record or paragraph admission bound could change. */                    \
     X(rich, semanticFullBuildFootnotes)     /* Full semantic builds because the document has footnotes (document-wide numbering and footer). */                \

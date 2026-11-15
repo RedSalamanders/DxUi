@@ -1782,7 +1782,11 @@ suffix form the edit envelope. Top-level blocks are paired by range: leading blo
 inside the prefix, and trailing blocks with the same kind and range shifted by the length change inside the suffix.
 Paired blocks copy their elements, geometry paragraphs, display text, spans, runs, headings and native object records
 from the previous publication, shifted by the source and display deltas; only the blocks between them are built from
-syntax. Each copied element and paragraph is checked against the new syntax (kind, shifted range and block identity),
+syntax. Building is therefore proportional to the edited blocks, but copying is still proportional to the document:
+every unchanged element (with its name, destination and title strings), paragraph, span, run, heading and display
+unit is copied on each edit, because the published values are absolute and contiguous. Removing that copy (storage
+relative to its block, element names as display ranges) changes public types and is remaining work for API revision 6;
+the copy is counted (`semanticElementsCopied`, `semanticDisplayUnitsCopied`, `semanticBytesCopied`). Each copied element and paragraph is checked against the new syntax (kind, shifted range and block identity),
 and the trailing range is copied only when the state where it starts (last display unit, pending native HTML insertion)
 matches; otherwise that block is rebuilt and the next one is tried. Copied spans and runs are clipped at block edges and
 merged with the same rule as emitted ones. A reused-range copy is one indivisible event. Heading slugs are kept when
@@ -1796,16 +1800,21 @@ definition, front matter or (with the extension) an abbreviation definition in a
 or diagram admission, or an admission or definition-list capacity margin a copy could change; a scoped source block,
 source region, native fallback or changed disclosure override; and a reused block whose syntax node or identity does not
 pair. A different profile, extension set, label set or soft-break policy has no compatible publication. Previous
-publications stay immutable: reused values are copies, never shared storage. The publication records one block cut per
+publications stay immutable: reused values are copies, except immutable formula trees, which are shared; a copied
+diagram model carries the new syntax revision, as a fresh build's does. The publication records one block cut per
 top-level block (where its output starts, and which old block it was copied from) as the old-to-new pairing later
-preparation stages follow instead of an identity map of all nodes.
+preparation stages follow instead of an identity map of all nodes. Pairing assumes that every node of a reused top-level
+subtree moves by the same index offset as its top-level node: an incremental parse must keep that numbering or replace
+the pairing, or every edit becomes a full build counted as `Structure`. Every publication, copied or built, is checked
+against the public map admission rules in every configuration before it is published, and a refusal is a fatal
+contract failure ([failure handling](../Core/Core_FailureHandling.md)).
 
 `SourceDisplayMap` stores no per-unit anchors. A semantic publication's map borrows the immutable syntax source, which
 it keeps alive, and owns its display text and spans; source-to-display lookups binary-search the primary spans, which
-are already in source order unless the projection reorders them (a footnote footer), in which case the map also keeps
-their source order. A map from the public `TryBuild` owns a copy of its source. Results equal the former dense anchors.
-Semantic geometry pairs previous boxes with new paragraphs by order within a bounded window, or through the block
-pairing when alignment is lost, and compares a candidate layout's input with the document's display text and runs in
+are already in source order unless the projection reorders them (a footnote footer) or more than 16 non-primary spans
+follow one another, in which case the map also keeps their source order; a lookup visits O(log n + 16) spans. A map from the public `TryBuild` owns a copy of its source. Results equal the former dense anchors.
+Semantic geometry pairs previous boxes with new paragraphs by order within a bounded window (64 candidates of the kind,
+256 boxes in all), or through the block pairing when alignment is lost, and compares a candidate layout's input with the document's display text and runs in
 place before building any input copy.
 
 The role graph retains headings, quotes, lists/items, code, tables/rows/cells,
