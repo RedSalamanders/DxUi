@@ -33,5 +33,8 @@ The Release dirty value matches the retained benchmark sink (2,160 allocations p
 container, as the benchmark's separate Debug ceiling records. Counts are identical in all three configurations except the
 allocation sink.
 
+This receipt is the plan's baseline and is not rewritten. `W2.5` (the Grid column-description cache) lowers the Release
+dirty value to 2; its [receipt](../W2.5/WorkCounters/README.md) is the value the Embedded gates now pin.
+
 The second part of W0.1, the counting COM wrappers and the Direct2D draw-call count on the same fixture, has its own
 [receipt](CountingWrappers/README.md).

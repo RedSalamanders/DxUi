@@ -27,10 +27,18 @@ inline constexpr size_t kWarmFrames         = 20u;
 inline constexpr size_t kFramesPerScenario  = 40u;
 inline constexpr size_t kComplexUiControls  = 83u;
 inline constexpr size_t kTrackedResourceCap = 16384u;
-// The C++ allocations of one dirty ComplexUi frame in a Release build (no debug iterators): the retained WARP receipt's
-// 2,160 allocations per 40 dirty frames (Measurements/EmbeddedInteractionLayout/Default-B1.json). A change that alters it
-// changes this value with its own receipt; it is never rebaselined silently.
-inline constexpr size_t kReleaseDirtyFrameAllocations = 54u;
+// The C++ allocations of one dirty ComplexUi frame in a Release build (no debug iterators). Definition: after 20 warm-up and
+// 40 clean frames, the allocation sink's count from ComplexUiScene::Update(20 + n) through Prepare and Composite on the
+// 1280x720 WARP target, the WorkCounterScope constructed before counting starts; every one of the 40 dirty frames must
+// equal it. The FX5 fixture's dirty step (Fx5::Scene::Step, then EmbeddedInstance::Frame, which also flushes) counts the
+// same calls in the same window, so its per-step value and the FX5 receipt's dirty series equal this per-frame value; the
+// trace provider's quiet frame is this frame again. The W0.1 baseline receipt and
+// the benchmark sink (Measurements/EmbeddedInteractionLayout/Default-B1.json) recorded 54; W2.5's Grid column-description
+// cache removed the 52 "Column N" titles the scene's Grid model formatted for each header and visible cell, and its receipt
+// (Measurements/PerformanceAndMotion_2026-11-13/W2.5/WorkCounters) records the remaining 2: the paint's visible-item list
+// and the model's cell text. A change that alters it changes this value with its own receipt; it is never rebaselined
+// silently. The FX5 fixture gate and the trace-provider gate pin the same constant.
+inline constexpr size_t kReleaseDirtyFrameAllocations = 2u;
 
 struct FrameRecord final
 {
@@ -292,7 +300,7 @@ inline RunResult Run(const RunOptions& options)
         Check(frame.work.frame.treeVisitsPaint == visibleControls, "the dirty paint walk examines every control once");
         Check(frame.work.frame.pixelsPainted == uint64_t(kWidth) * kHeight, "a dirty ComplexUi frame repaints the whole surface");
 #if _ITERATOR_DEBUG_LEVEL == 0 && ! defined(__SANITIZE_ADDRESS__)
-        Check(frame.cppAllocations == kReleaseDirtyFrameAllocations, "a Release dirty ComplexUi frame makes today's 54 C++ allocations");
+        Check(frame.cppAllocations == kReleaseDirtyFrameAllocations, "a Release dirty ComplexUi frame makes the receipt's 2 C++ allocations");
 #endif
         Check(options.wrapped ? frame.work.frame.drawCalls != 0u : frame.work.frame.drawCalls == 0u,
               "Direct2D draw calls are counted exactly where the counting wrappers are installed");

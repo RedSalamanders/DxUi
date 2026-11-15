@@ -11,6 +11,10 @@
   caches" in the controls contract); diagnostics builds verify it with `Grid::DebugSetDataPathVerification`, which the
   Grid suite runs fatal. On `FX3` (Release, WARP, each step with its frame) a steady grouped wheel step drops from 36,142
   C++ allocations to 93 and an arrow after the select-all from 30,155 to 89, with every frame's pixels unchanged; the gate is in
-  `Embedded.Tests.PerformanceGridDataPaths.h` and the equality tests in `Controls.Tests.GridDataPaths.cpp`.
+  `Embedded.Tests.PerformanceGridDataPaths.h` and the equality tests in `Controls.Tests.GridDataPaths.cpp`. A dirty
+  ComplexUi (`FX5`) frame drops from 54 C++ allocations to 2 in Release, and from 257 to 23 in Debug and ASan Debug (the
+  scene's Grid formatted a "Column N" title for each header and visible cell); the work-counter, FX5 and trace-provider
+  gates pin the new Release count from one constant, with
+  the receipt under `Measurements/PerformanceAndMotion_2026-11-13/W2.5/WorkCounters`.
   `performance-fixtures.ps1 -OutputRoot` now writes the generated README's links from the directory it writes them in (they
   were one level too shallow under a nested output root).

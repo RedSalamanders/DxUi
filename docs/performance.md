@@ -344,8 +344,9 @@ through the counted helpers (`CountedCreateTextLayout(factory, …)` instead of 
 .\.build\x64\Release\DxUi.EmbeddedTests.exe --test-work-counters .build\work-counters.json
 ```
 
-Today a dirty ComplexUi frame paints all 83 controls and makes 54 C++ allocations in Release; a clean frame makes none
-and creates nothing ([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W0.1/README.md)).
+Today a dirty ComplexUi frame paints all 83 controls and makes 2 C++ allocations in Release (54 at the
+[baseline](../Measurements/PerformanceAndMotion_2026-11-13/W0.1/README.md)); a clean frame makes none and creates nothing
+([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W2.5/WorkCounters/README.md)).
 
 The source matcher proves only that DxUi's source names no raw creation call. Counting COM wrappers, which exist only in
 test executables, check what actually reaches Direct2D and DirectWrite: a test constructs
@@ -450,7 +451,7 @@ stall in the field.
 
 The provider is registered for the life of the process and is dormant until a session enables it. While no session
 listens, each event site is one branch: nothing is allocated, formatted or locked, and the ComplexUi dirty frame still
-makes exactly its 54 Release allocations. With a session listening, events are written on the thread doing the work and
+makes exactly its 2 Release allocations. With a session listening, events are written on the thread doing the work and
 still allocate nothing ([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W0.8/README.md)). An `EmbeddedHost`
 gains no thread, timer or window. Events carry identifiers, counts, sizes,
 reasons, results and times only: never text, control names, file paths or document content.

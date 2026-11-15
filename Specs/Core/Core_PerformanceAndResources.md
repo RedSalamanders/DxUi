@@ -370,9 +370,10 @@ Baseline on the ComplexUi fixture (FX5 of the [performance fixtures](../Testing/
 83 controls, 1280×720, 96 DPI, WARP, reduced motion; `DxUi.EmbeddedTests.exe --test-work-counters <receipt>`, also run by
 the Embedded suite; the fixture framework's FX5 run must report the same counts): a dirty frame prepares and composites once, paints
 every visible control once (83 `Paint` executions and 83 paint visits), repaints 921,600 pixels and, in a Release build,
-makes 54 C++ allocations; a clean frame composites once and reports 0 allocations, 0 created resources, 0 churn and no
-paint. The receipt is retained under
-[Measurements/PerformanceAndMotion_2026-11-13/W0.1](../../Measurements/PerformanceAndMotion_2026-11-13/W0.1/README.md).
+makes 2 C++ allocations (54 at the W0.1 baseline; the Grid column-description cache removed 52); a clean frame composites
+once and reports 0 allocations, 0 created resources, 0 churn and no paint. The baseline receipt is retained under
+[Measurements/PerformanceAndMotion_2026-11-13/W0.1](../../Measurements/PerformanceAndMotion_2026-11-13/W0.1/README.md), the
+current one under [W2.5/WorkCounters](../../Measurements/PerformanceAndMotion_2026-11-13/W2.5/WorkCounters/README.md).
 Under the counting wrappers (`--test-counting-wrappers <receipt> <comparison>`) a dirty frame makes 399 Direct2D draw
 calls and a clean frame 0, identically in consecutive runs; the wrappers' creations equal the helpers' (49 implicit
 `DrawText` layouts and 7 text layouts per dirty frame, nothing per clean frame) and no pixel changes
@@ -421,7 +422,7 @@ private.
   or document content.
 
 Gate (WARP): with nothing listening, a dirty ComplexUi frame makes exactly the allocations of the work-counter baseline
-(54 in Release), and with a test sink listening it makes the same number while writing one prepare begin, prepare end and
+(2 in Release), and with a test sink listening it makes the same number while writing one prepare begin, prepare end and
 composite per frame (`TraceProviderComplexUi`, Embedded suite). On a 2,048-row `Grid` scrolled in a `WindowHost` by 100
 wheel notches with pointer moves and keys between them, every input yields exactly one input-received event, every
 present exactly one present event (equal to the present counter), and each notch's input-to-present is computed from its

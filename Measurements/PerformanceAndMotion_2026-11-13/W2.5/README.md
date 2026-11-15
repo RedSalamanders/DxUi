@@ -54,6 +54,10 @@ item) tracks 44,832 and 45,248 bytes after its grid phase before and 45,408 and 
 the same 416-byte difference between the two row counts, so nothing the change adds grows with the rows. Its grid scroll
 step drops from 129 to 103 C++ allocations.
 
+On `FX5` (ComplexUi) a dirty frame drops from 54 C++ allocations to 2 in Release: the 52 were the scene model's "Column N"
+titles, one per header and visible cell. The [work-counter receipt](WorkCounters/README.md) records it in all three
+configurations.
+
 ## Gate
 
 `TestFx3GridDataPathGate` ([gate](../../../Tests/Embedded/Embedded.Tests.PerformanceGridDataPaths.h), Embedded suite) asserts on

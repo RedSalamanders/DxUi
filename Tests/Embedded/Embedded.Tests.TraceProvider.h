@@ -3,9 +3,9 @@
 // drives it. Included by Embedded.Tests.Embedded.cpp after Embedded.Tests.BenchmarkInstrument.h (the C++ allocation sink)
 // and Embedded.Tests.WorkCounters.h (the fixture constants).
 //
-// The gate: with nothing listening a dirty frame makes exactly the allocations it made before the provider existed (54 in a
-// Release build, the work-counter receipt); with a test sink listening it makes the same number, and each frame writes its
-// prepare-begin, prepare-end and composite events, all with one frame number.
+// The gate: with nothing listening a dirty frame makes exactly the allocations it made before the provider existed
+// (WorkCountersComplexUi::kReleaseDirtyFrameAllocations in a Release build, the work-counter receipt); with a test sink
+// listening it makes the same number, and each frame writes its prepare-begin, prepare-end and composite events, all with one frame number.
 #include "ComplexUiScene.h"
 #include "Embedded.Tests.WorkCounters.h"
 #include "Support/Trace.h"
@@ -77,7 +77,7 @@ inline void Run()
     for (const size_t value : quiet)
         Check(value == quiet.front(), "every quiet dirty ComplexUi frame makes the same number of C++ allocations");
 #if _ITERATOR_DEBUG_LEVEL == 0 && ! defined(__SANITIZE_ADDRESS__)
-    Check(quiet.front() == kReleaseDirtyFrameAllocations, "with the trace provider compiled in, a Release dirty frame still makes 54 C++ allocations");
+    Check(quiet.front() == kReleaseDirtyFrameAllocations, "with the trace provider in, a Release dirty frame makes the work-counter allocations");
 #endif
 
     // A sink listening: the same allocations, and per frame one prepare begin and end and one composite, in that order.

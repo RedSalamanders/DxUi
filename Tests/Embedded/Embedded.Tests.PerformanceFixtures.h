@@ -12,6 +12,7 @@
 // - FrameTiming::MakeFixture, so performance-timing.ps1 -Fixture FX<N>[@variant] times the same definition.
 // Nothing here is edited to add a fixture.
 #include "Embedded.Tests.PerformanceFixtureCatalog.h"
+#include "Embedded.Tests.WorkCounters.h"
 #include "Support.Tests.CountingDirect2D.h"
 #pragma warning(push)
 #pragma warning(disable : 4625 4626 5026 5027) // scenarios are never copied
@@ -518,9 +519,11 @@ __declspec(noinline) inline void TestCatalogIsDeterministic(const wchar_t* artif
     Check(compared > 0u, "the determinism gate compared at least one fixture");
 }
 
-// The worked example of an item gate on a fixture: FX5 through the framework must report what the W0.1 work-counter
-// receipt reports (Measurements/PerformanceAndMotion_2026-11-13/W0.1) and carry the W0.3 memory fields. A mismatch is a
-// finding about the framework or the library, never a reason to change these values.
+// The worked example of an item gate on a fixture: FX5 through the framework must report what the work-counter receipt
+// reports (the W0.1 baseline, then each item's receipt that changes it) and carry the W0.3 memory fields. Its dirty step
+// counts the same window as the work-counter frame (Update(20 + n), prepare, composite; see
+// WorkCountersComplexUi::kReleaseDirtyFrameAllocations), so the two gates share that constant rather than pin two numbers.
+// A mismatch is a finding about the framework or the library, never a reason to change these values.
 __declspec(noinline) inline void TestFx5MatchesWorkCounterReceipt()
 {
     const auto countVisible = [](const auto& self, const DxUi::Control* control) -> uint64_t
@@ -554,7 +557,8 @@ __declspec(noinline) inline void TestFx5MatchesWorkCounterReceipt()
               "an FX5 dirty frame paints and visits every visible control once");
         Check(frame.work.frame.pixelsPainted == uint64_t(variant.width) * variant.height, "an FX5 dirty frame repaints the whole surface");
 #if _ITERATOR_DEBUG_LEVEL == 0 && ! defined(__SANITIZE_ADDRESS__)
-        Check(frame.cppAllocations == 54u, "a Release FX5 dirty frame makes the W0.1 receipt's 54 C++ allocations");
+        Check(frame.cppAllocations == WorkCountersComplexUi::kReleaseDirtyFrameAllocations,
+              "a Release FX5 dirty frame makes the work-counter receipt's C++ allocations");
 #endif
     }
     const MemorySample& built  = run.memory[1];
