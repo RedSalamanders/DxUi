@@ -29,6 +29,9 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #pragma warning(push)
@@ -1658,6 +1661,82 @@ struct MeasureContext
 [[nodiscard]] bool AreValidLayoutConstraints(const LayoutConstraints& constraints) noexcept;
 inline constexpr size_t kMaxIntrinsicTextUnits = 65'536u;
 
+// The equality of Control::Assign (UI_ControlsAndLayout.md, "Assigning a property"): a value is unchanged when storing it
+// would leave the field as it is. Floating point compares exactly, except that every NaN equals every NaN (a NaN assigned
+// again is no change) and -0 equals +0 (the field keeps the zero it holds). Strings compare by content, a string with a view
+// included; raw and smart pointers by identity; colours, rectangles, sizes and points member by member; optionals, tuples
+// (std::tie of several fields) and other ranges element by element. A type with none of these and no operator== supplies
+// SameAssignedValue(a, b), found by argument-dependent lookup, rather than comparing bytes (padding). A callable has no
+// equality: a setter that stores one does not use Assign.
+namespace AssignEquality
+{
+void SameAssignedValue()                                = delete; // Unqualified lookup finds this; argument-dependent lookup adds a type's own.
+template <typename T> inline constexpr bool kIsOptional = false;
+template <typename T> inline constexpr bool kIsOptional<std::optional<T>> = true;
+template <typename T> inline constexpr bool kIsTuple                      = false;
+template <typename... T> inline constexpr bool kIsTuple<std::tuple<T...>> = true;
+
+template <typename A, typename B> [[nodiscard]] constexpr bool Same(const A& a, const B& b) noexcept;
+
+template <typename A, typename B, size_t... Index> [[nodiscard]] constexpr bool SameTuple(const A& a, const B& b, std::index_sequence<Index...>) noexcept
+{
+    return (Same(std::get<Index>(a), std::get<Index>(b)) && ...);
+}
+
+template <typename A, typename B> [[nodiscard]] constexpr bool SameRange(const A& a, const B& b) noexcept
+{
+    auto left  = a.begin();
+    auto right = b.begin();
+    for (; left != a.end() && right != b.end(); ++left, ++right)
+        if (! Same(*left, *right))
+            return false;
+    return left == a.end() && right == b.end();
+}
+
+template <typename A, typename B> constexpr bool Same(const A& a, const B& b) noexcept
+{
+    if constexpr (requires { SameAssignedValue(a, b); })
+        return SameAssignedValue(a, b);
+    else if constexpr (std::is_floating_point_v<A> && std::is_floating_point_v<B>)
+        return a == b || (a != a && b != b);
+    else if constexpr (std::is_base_of_v<D3DCOLORVALUE, A> && std::is_base_of_v<D3DCOLORVALUE, B>) // D2D1::ColorF included
+        return Same(a.r, b.r) && Same(a.g, b.g) && Same(a.b, b.b) && Same(a.a, b.a);
+    else if constexpr (std::is_same_v<A, D2D_RECT_F> && std::is_same_v<B, D2D_RECT_F>)
+        return Same(a.left, b.left) && Same(a.top, b.top) && Same(a.right, b.right) && Same(a.bottom, b.bottom);
+    else if constexpr (std::is_same_v<A, D2D_SIZE_F> && std::is_same_v<B, D2D_SIZE_F>)
+        return Same(a.width, b.width) && Same(a.height, b.height);
+    else if constexpr (std::is_same_v<A, D2D_POINT_2F> && std::is_same_v<B, D2D_POINT_2F>)
+        return Same(a.x, b.x) && Same(a.y, b.y);
+    else if constexpr (kIsOptional<A> && kIsOptional<B>)
+        return a.has_value() == b.has_value() && (! a.has_value() || Same(*a, *b));
+    else if constexpr (kIsOptional<A>)
+        return a.has_value() && Same(*a, b);
+    else if constexpr (kIsTuple<A> && kIsTuple<B>)
+        return SameTuple(a, b, std::make_index_sequence<std::tuple_size_v<A>>{});
+    else if constexpr (std::is_convertible_v<const A&, std::wstring_view> && std::is_convertible_v<const B&, std::wstring_view>)
+        return std::wstring_view(a) == std::wstring_view(b);
+    else if constexpr (requires {
+                           a.begin();
+                           a.end();
+                           b.begin();
+                           b.end();
+                       })
+        return SameRange(a, b);
+    else
+        return a == b;
+}
+
+// Stores a changed value: by assignment, or for a container given a range of another type (a vector from a span) by
+// assigning its elements, which keeps the container's storage.
+template <typename Field, typename Value> constexpr void Store(Field& field, Value&& value)
+{
+    if constexpr (std::is_assignable_v<Field&, Value&&>)
+        field = std::forward<Value>(value);
+    else
+        field.assign(value.begin(), value.end());
+}
+} // namespace AssignEquality
+
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -1701,6 +1780,27 @@ public:
     // reason calls InvalidateHitTest when it changes; a control outside the library must also declare its hit test
     // reported (DeclareHitTestReported) before a host reuses results while it is attached.
     void InvalidateHitTest() noexcept;
+    // What a property's value reaches, which Assign routes when the value changes (UI_ControlsAndLayout.md, "Assigning a
+    // property"): Paint invalidates the host, Layout calls InvalidateMeasure, Hit calls InvalidateHitTest, and the three
+    // semantic aspects raise one accessibility mutation (SemanticState one that can change patterns or focus).
+    enum class Affects : uint8_t
+    {
+        None          = 0u,
+        Paint         = 1u << 0u,
+        Layout        = 1u << 1u,
+        Hit           = 1u << 2u,
+        SemanticName  = 1u << 3u,
+        SemanticValue = 1u << 4u,
+        SemanticState = 1u << 5u,
+    };
+    [[nodiscard]] friend constexpr Affects operator|(Affects left, Affects right) noexcept
+    {
+        return static_cast<Affects>(static_cast<uint8_t>(left) | static_cast<uint8_t>(right));
+    }
+    [[nodiscard]] friend constexpr bool HasAffects(Affects set, Affects flags) noexcept
+    {
+        return (static_cast<uint8_t>(set) & static_cast<uint8_t>(flags)) != 0u;
+    }
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] bool DebugIsHitTestReported() const noexcept;
     [[nodiscard]] bool DebugVisualPreparationEnabled() const noexcept;
@@ -1791,6 +1891,7 @@ protected:
     friend class Panel;
     friend class Label;
     friend struct ControlModelQueryAccess;
+    friend struct AssignAccess;
     friend class PageHost;
     friend class ScrollPanel;
     friend class ControlHost;
@@ -1844,6 +1945,39 @@ protected:
     // Measure then reuses one result across maxima. Default true; return false only for a measure that never wraps.
     [[nodiscard]] virtual bool MeasureDependsOnMaximum() const noexcept;
     void InvalidateMeasure() noexcept;
+    // One way to assign a property (UI_ControlsAndLayout.md, "Assigning a property"). An equal value (AssignEquality) is no
+    // change: Assign returns false and does nothing else. A changed value is stored, then `onStored` runs (the setter's own
+    // bookkeeping: retiring a cache, clamping a dependent field), then `affects` is routed once unless onStored destroyed the
+    // control, in this order: Hit, Layout, Paint, then one accessibility mutation for the semantic aspects. Assign returns true.
+    // Routing can run the application's code (an embedded host's invalidation callback, an accessibility event), which may
+    // destroy this control: a setter returns after a true Assign, or holds GetLifetimeToken() to touch the control again.
+    // A control outside the library assigns its properties the same way. Field may be a std::tie of several fields, given a
+    // std::tuple of their values.
+    // Extension points: incremental accessibility publication marks only this control's record dirty for the semantic aspects
+    // RouteAffects receives; animated assignment compares with the same AssignEquality, retargets toward a changed value and
+    // routes Affects::Paint on each frame through RouteAffects.
+    template <typename Field, typename Value> bool Assign(Field&& field, Value&& value, Affects affects)
+    {
+        if (AssignEquality::Same(field, value))
+            return false;
+        AssignEquality::Store(field, std::forward<Value>(value));
+        RouteAffects(affects);
+        return true;
+    }
+    template <typename Field, typename Value, typename OnStored> bool Assign(Field&& field, Value&& value, Affects affects, OnStored&& onStored)
+    {
+        if (AssignEquality::Same(field, value))
+            return false;
+        AssignEquality::Store(field, std::forward<Value>(value));
+        const std::weak_ptr<int> lifetime = _lifetimeToken;
+        std::forward<OnStored>(onStored)();
+        if (! lifetime.expired())
+            RouteAffects(affects);
+        return true;
+    }
+    // Routes `affects` as a changed assignment does. For a value Assign cannot store (an element of a keyed list), call it
+    // only after the value changed.
+    void RouteAffects(Affects affects) noexcept;
     void EnableIntrinsicLayout() noexcept;
     void RequestIntrinsicLayout() noexcept;
     [[nodiscard]] virtual HRESULT PrepareIntrinsicLayout(const MeasureContext& context) noexcept;
@@ -1876,6 +2010,8 @@ protected:
 private:
     // A host snapshots these before reset callbacks can retire the old parent chain.
     void ReparentWithPreviousInheritance(Control* parent, ControlHost* host, FlowDirection previousFlowDirection, Density previousDensity) noexcept;
+    // RouteAffects with the library's named hit-revision site for Affects::Hit (0: the assignment site).
+    void RouteAffectsAt(Affects affects, uint8_t hitRevisionSite) noexcept;
     Control* _parent    = nullptr;
     ControlHost* _host  = nullptr;
     D2D1_RECT_F _bounds = D2D1::RectF();
@@ -2889,6 +3025,7 @@ private:
 
     [[nodiscard]] double ClampValue(double value) const noexcept;
     [[nodiscard]] double GetDisplayedNormalizedValue() const noexcept;
+    [[nodiscard]] bool IsSameValueTarget(double clamped) const noexcept;
     void SetValueInternal(ControlHost* host, double value, bool notifyChanged, bool animatePosition) noexcept;
     void SnapDisplayedValue() noexcept;
     void PublishRangeState() noexcept;
@@ -3197,7 +3334,8 @@ private:
     };
 
     friend struct ControlModelQueryAccess;
-    [[nodiscard]] bool SyncLayout() noexcept;
+    // route false leaves the repaint and the accessibility publication to the caller (a setter's Control::Assign).
+    [[nodiscard]] bool SyncLayout(bool route = true) noexcept;
     [[nodiscard]] bool UpdateVisiblePageBounds() noexcept;
     [[nodiscard]] std::optional<size_t> FindTabIndex(const Control* page, const std::weak_ptr<int>& pageLifetime) const noexcept;
     [[nodiscard]] bool RemoveTabByIdentity(Control* page,

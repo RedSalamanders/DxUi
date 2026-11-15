@@ -797,12 +797,7 @@ HRESULT FlexPanel::SetOrientation(StackOrientation orientation) noexcept
 {
     if (orientation != StackOrientation::Horizontal && orientation != StackOrientation::Vertical)
         return E_INVALIDARG;
-    if (_orientation != orientation)
-    {
-        _orientation = orientation;
-        ++_layoutRevision;
-        InvalidateMeasure();
-    }
+    Assign(_orientation, orientation, Affects::Layout, [this]() noexcept { ++_layoutRevision; });
     return S_OK;
 }
 
@@ -815,12 +810,7 @@ HRESULT FlexPanel::SetGap(float gapDip) noexcept
 {
     if (! IsExtent(gapDip))
         return E_INVALIDARG;
-    if (_gapDip != gapDip)
-    {
-        _gapDip = gapDip;
-        ++_layoutRevision;
-        InvalidateMeasure();
-    }
+    Assign(_gapDip, gapDip, Affects::Layout, [this]() noexcept { ++_layoutRevision; });
     return S_OK;
 }
 
@@ -834,24 +824,13 @@ HRESULT FlexPanel::SetPadding(float leftDip, float topDip, float rightDip, float
     if (! IsExtent(leftDip) || ! IsExtent(topDip) || ! IsExtent(rightDip) || ! IsExtent(bottomDip) || ! IsExtent(leftDip + rightDip) ||
         ! IsExtent(topDip + bottomDip))
         return E_INVALIDARG;
-    const D2D1_RECT_F padding = D2D1::RectF(leftDip, topDip, rightDip, bottomDip);
-    if (! SameRect(_padding, padding))
-    {
-        _padding = padding;
-        ++_layoutRevision;
-        InvalidateMeasure();
-    }
+    Assign(_padding, D2D1::RectF(leftDip, topDip, rightDip, bottomDip), Affects::Layout, [this]() noexcept { ++_layoutRevision; });
     return S_OK;
 }
 
 HRESULT FlexPanel::SetWrap(bool wrap) noexcept
 {
-    if (_wrap != wrap)
-    {
-        _wrap = wrap;
-        ++_layoutRevision;
-        InvalidateMeasure();
-    }
+    Assign(_wrap, wrap, Affects::Layout, [this]() noexcept { ++_layoutRevision; });
     return S_OK;
 }
 
@@ -925,6 +904,15 @@ size_t FlexPanel::CompactChildren() noexcept
     return Panel::CompactChildren();
 }
 
+// Control::Assign's equality for a child's options (AssignEquality): every member.
+[[nodiscard]] static bool SameAssignedValue(const FlexChildOptions& a, const FlexChildOptions& b) noexcept
+{
+    return AssignEquality::Same(a.constraints.minimumDip, b.constraints.minimumDip) &&
+           AssignEquality::Same(a.constraints.maximumWidthDip, b.constraints.maximumWidthDip) &&
+           AssignEquality::Same(a.constraints.maximumHeightDip, b.constraints.maximumHeightDip) && AssignEquality::Same(a.explicitSizeDip, b.explicitSizeDip) &&
+           AssignEquality::Same(a.grow, b.grow) && a.alignment == b.alignment;
+}
+
 HRESULT FlexPanel::SetChildOptions(const Control* child, const FlexChildOptions& options) noexcept
 {
     if (! child || ! ValidOptions(options))
@@ -936,9 +924,7 @@ HRESULT FlexPanel::SetChildOptions(const Control* child, const FlexChildOptions&
     {
         if (record.child == child)
         {
-            record.options = options;
-            ++_layoutRevision;
-            InvalidateMeasure();
+            Assign(record.options, options, Affects::Layout, [this]() noexcept { ++_layoutRevision; });
             return S_OK;
         }
     }

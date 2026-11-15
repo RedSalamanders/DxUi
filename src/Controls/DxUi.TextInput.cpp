@@ -1333,36 +1333,31 @@ std::wstring_view TextField::GetText() const noexcept
 
 void TextField::SetFontRole(const FontRole fontRole) noexcept
 {
-    if (static_cast<uint8_t>(fontRole) > static_cast<uint8_t>(FontRole::IconLarge) || _fontRole == fontRole)
+    if (static_cast<uint8_t>(fontRole) > static_cast<uint8_t>(FontRole::IconLarge))
         return;
-
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    _fontRole                         = fontRole;
-    InvalidateSingleLineLayoutCache();
-    InvalidateMultilineLayoutCache();
-    _preferredMultilineXOffsetDip.reset();
-    InvalidateMeasure();
-    if (lifetime.expired())
-        return;
-
-    if (ControlHost* const host = GetHost())
+    // The font sets the text's geometry, which UI Automation's text ranges report.
+    Assign(_fontRole,
+           fontRole,
+           Affects::Layout | Affects::Paint | Affects::SemanticValue,
+           [this]() noexcept
     {
-        if (_multiline)
-            EnsureMultilineCaretVisible(host);
-        else
-            EnsureCaretVisible(host, std::max(1.0f, GetTextRect().right - GetTextRect().left));
-        if (HasFocus())
-            host->SyncTextInput(this);
-        if (lifetime.expired() || GetHost() != host)
-            return;
-        host->NotifyTextInputLayoutChanged(this);
-        if (lifetime.expired())
-            return;
-    }
-    RefreshAccessibilitySnapshot();
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
+        const std::weak_ptr<int> lifetime = GetLifetimeToken();
+        InvalidateSingleLineLayoutCache();
+        InvalidateMultilineLayoutCache();
+        _preferredMultilineXOffsetDip.reset();
+        if (ControlHost* const host = GetHost())
+        {
+            if (_multiline)
+                EnsureMultilineCaretVisible(host);
+            else
+                EnsureCaretVisible(host, std::max(1.0f, GetTextRect().right - GetTextRect().left));
+            if (HasFocus())
+                host->SyncTextInput(this);
+            if (lifetime.expired() || GetHost() != host)
+                return;
+            host->NotifyTextInputLayoutChanged(this);
+        }
+    });
 }
 
 FontRole TextField::GetFontRole() const noexcept
@@ -1461,32 +1456,19 @@ void TextField::SetTextAndNotify(std::wstring text)
 
 void TextField::SetMasked(bool masked) noexcept
 {
-    const auto lifetime = GetLifetimeToken();
-    if (_masked == masked)
+    // A masked field is a password field without a text pattern or value (UI Automation).
+    Assign(_masked,
+           masked,
+           Affects::Layout | Affects::Paint | Affects::SemanticState,
+           [this]() noexcept
     {
-        return;
-    }
-
-    _masked = masked;
-    InvalidateMeasure();
-    if (lifetime.expired())
-        return;
-    RegenerateConcealedMaskEpoch();
-    // Masking or unmasking changes the shown text: the layouts of the old one, plaintext included, are released now.
-    InvalidateSingleLineLayoutCache();
-    InvalidateMultilineLayoutCache();
-    if (ControlHost* const host = GetHost(); host && HasFocus())
-    {
-        host->SyncTextInput(this);
-        if (lifetime.expired())
-            return;
-    }
-    RefreshAccessibilitySnapshot();
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
+        RegenerateConcealedMaskEpoch();
+        // Masking or unmasking changes the shown text: the layouts of the old one, plaintext included, are released now.
+        InvalidateSingleLineLayoutCache();
+        InvalidateMultilineLayoutCache();
+        if (ControlHost* const host = GetHost(); host && HasFocus())
+            host->SyncTextInput(this);
+    });
 }
 
 bool TextField::IsMasked() const noexcept
@@ -1496,7 +1478,8 @@ bool TextField::IsMasked() const noexcept
 
 void TextField::SetInputScope(TextInputScope scope) noexcept
 {
-    _inputScope = scope;
+    // Read by the text services when the field next takes or synchronizes input.
+    Assign(_inputScope, scope, Affects::None);
 }
 
 TextInputScope TextField::GetInputScope() const noexcept
@@ -1506,42 +1489,33 @@ TextInputScope TextField::GetInputScope() const noexcept
 
 void TextField::SetPasswordRevealMode(PasswordRevealMode mode) noexcept
 {
-    const auto lifetime = GetLifetimeToken();
-    if (_passwordRevealMode == mode)
+    // The mode reserves the reveal button (measure) and shows it to UI Automation.
+    Assign(_passwordRevealMode,
+           mode,
+           Affects::Layout | Affects::Paint | Affects::SemanticState,
+           [this]() noexcept
     {
-        return;
-    }
+        const auto lifetime            = GetLifetimeToken();
+        _passwordRevealButtonHovered   = false;
+        _passwordRevealButtonPressed   = false;
+        _passwordRevealKeyboardFocused = false;
 
-    _passwordRevealMode = mode;
-    InvalidateMeasure();
-    if (lifetime.expired())
-        return;
-    _passwordRevealButtonHovered   = false;
-    _passwordRevealButtonPressed   = false;
-    _passwordRevealKeyboardFocused = false;
+        if (_passwordRevealMode == PasswordRevealMode::Visible)
+        {
+            SetPasswordRevealState(PasswordRevealState::Visible);
+        }
+        else if (_passwordRevealMode == PasswordRevealMode::Hidden)
+        {
+            SetPasswordRevealState(PasswordRevealState::Hidden);
+        }
+        else if (_passwordRevealState == PasswordRevealState::Visible)
+        {
+            SetPasswordRevealState(PasswordRevealState::Hidden);
+        }
 
-    if (_passwordRevealMode == PasswordRevealMode::Visible)
-    {
-        SetPasswordRevealState(PasswordRevealState::Visible);
-    }
-    else if (_passwordRevealMode == PasswordRevealMode::Hidden)
-    {
-        SetPasswordRevealState(PasswordRevealState::Hidden);
-    }
-    else if (_passwordRevealState == PasswordRevealState::Visible)
-    {
-        SetPasswordRevealState(PasswordRevealState::Hidden);
-    }
-
-    if (lifetime.expired())
-        return;
-    InvalidateSingleLineLayoutCache();
-    RefreshAccessibilitySnapshot();
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
+        if (! lifetime.expired())
+            InvalidateSingleLineLayoutCache();
+    });
 }
 
 PasswordRevealMode TextField::GetPasswordRevealMode() const noexcept
@@ -1551,7 +1525,6 @@ PasswordRevealMode TextField::GetPasswordRevealMode() const noexcept
 
 void TextField::SetPasswordRevealState(PasswordRevealState state) noexcept
 {
-    const auto lifetime = GetLifetimeToken();
     if (_passwordRevealMode == PasswordRevealMode::Visible)
     {
         state = PasswordRevealState::Visible;
@@ -1561,33 +1534,25 @@ void TextField::SetPasswordRevealState(PasswordRevealState state) noexcept
         state = PasswordRevealState::Hidden;
     }
 
-    if (_passwordRevealState == state)
-    {
-        return;
-    }
-
     const auto startedAt = std::chrono::steady_clock::now();
-    _passwordRevealState = state;
-    // A masked multiline field measures its displayed text: the mask or the revealed value.
-    if (_multiline && _masked)
+    const bool masked    = _masked;
+    if (! Assign(_passwordRevealState,
+                 state,
+                 Affects::Paint | Affects::SemanticState,
+                 [this]() noexcept
     {
-        InvalidateMeasure();
-        if (lifetime.expired())
-            return;
-    }
-    // Revealing or concealing changes the shown text: a layout of the plaintext is released the moment it is hidden again.
-    InvalidateSingleLineLayoutCache();
-    InvalidateMultilineLayoutCache();
-    RefreshAccessibilitySnapshot();
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
-    if (lifetime.expired())
+        // A masked multiline field measures its displayed text: the mask or the revealed value.
+        if (_multiline && _masked)
+            InvalidateMeasure();
+        // Revealing or concealing changes the shown text: a layout of the plaintext is released the moment it is hidden again.
+        InvalidateSingleLineLayoutCache();
+        InvalidateMultilineLayoutCache();
+    }))
         return;
     if (Debug::Perf::IsCaptureEnabled())
     {
         Debug::Perf::Emit(
-            L"dxui.textinput.reveal_toggle_us", L"textfield", Debug::Perf::ElapsedUs(startedAt), static_cast<uint64_t>(state), _masked ? 1u : 0u, S_OK);
+            L"dxui.textinput.reveal_toggle_us", L"textfield", Debug::Perf::ElapsedUs(startedAt), static_cast<uint64_t>(state), masked ? 1u : 0u, S_OK);
     }
 }
 
@@ -1598,18 +1563,17 @@ PasswordRevealState TextField::GetPasswordRevealState() const noexcept
 
 void TextField::SetPasswordMaskLengthPolicy(PasswordMaskLengthPolicy policy) noexcept
 {
-    if (_maskLengthPolicy == policy)
+    Assign(_maskLengthPolicy,
+           policy,
+           Affects::Paint,
+           [this]() noexcept
     {
-        return;
-    }
-
-    _maskLengthPolicy = policy;
-    // The policy sets how many dots a masked multiline field displays, and so measures.
-    if (_multiline && _masked)
-        InvalidateMeasure();
-    RegenerateConcealedMaskEpoch();
-    InvalidateSingleLineLayoutCache();
-    RequestInvalidate();
+        // The policy sets how many dots a masked multiline field displays, and so measures.
+        if (_multiline && _masked)
+            InvalidateMeasure();
+        RegenerateConcealedMaskEpoch();
+        InvalidateSingleLineLayoutCache();
+    });
 }
 
 PasswordMaskLengthPolicy TextField::GetPasswordMaskLengthPolicy() const noexcept
@@ -1649,7 +1613,8 @@ size_t TextField::GetSecretVisibleDotCount() const noexcept
 
 void TextField::SetPasswordRevealAccessibleName(std::wstring name)
 {
-    _passwordRevealAccessibleName = std::move(name);
+    // The name UI Automation reports for the reveal button while it is shown.
+    Assign(_passwordRevealAccessibleName, std::move(name), Affects::SemanticName);
 }
 
 std::wstring_view TextField::GetPasswordRevealAccessibleName() const noexcept
@@ -1697,23 +1662,24 @@ bool TextField::InvokePasswordRevealButton(ControlHost& host)
 
 void TextField::SetPlaceholder(std::wstring text)
 {
-    _placeholder = std::move(text);
+    // Painted while the field is empty.
+    Assign(_placeholder, std::move(text), Affects::Paint);
 }
 
 void TextField::SetMultiline(bool multiline) noexcept
 {
-    const auto lifetime = GetLifetimeToken();
-    if (_multiline == multiline)
-        return;
-    _multiline = multiline;
-    InvalidateMeasure();
-    if (lifetime.expired())
-        return;
-    _preferredMultilineXOffsetDip.reset();
-    _multilineFirstVisibleLine    = 0u;
-    _multilineWheelDeltaRemainder = 0.0f;
-    InvalidateSingleLineLayoutCache();
-    InvalidateMultilineLayoutCache();
+    // A multiline field measures its text, paints lines and has no Value pattern (UI Automation).
+    Assign(_multiline,
+           multiline,
+           Affects::Layout | Affects::Paint | Affects::SemanticState,
+           [this]() noexcept
+    {
+        _preferredMultilineXOffsetDip.reset();
+        _multilineFirstVisibleLine    = 0u;
+        _multilineWheelDeltaRemainder = 0.0f;
+        InvalidateSingleLineLayoutCache();
+        InvalidateMultilineLayoutCache();
+    });
 }
 
 bool TextField::IsMultiline() const noexcept
@@ -1723,17 +1689,17 @@ bool TextField::IsMultiline() const noexcept
 
 void TextField::SetClearButtonEnabled(bool enabled) noexcept
 {
-    const auto lifetime = GetLifetimeToken();
-    if (_clearButtonEnabled == enabled)
-        return;
-    _clearButtonEnabled = enabled;
-    InvalidateMeasure();
-    if (lifetime.expired())
-        return;
-    if (! enabled)
+    // The measure reserves the button; paint shows it.
+    Assign(_clearButtonEnabled,
+           enabled,
+           Affects::Layout | Affects::Paint,
+           [this, enabled]() noexcept
     {
-        _clearButtonHovered = false;
-    }
+        if (! enabled)
+        {
+            _clearButtonHovered = false;
+        }
+    });
 }
 
 bool TextField::IsClearButtonEnabled() const noexcept
@@ -1743,97 +1709,63 @@ bool TextField::IsClearButtonEnabled() const noexcept
 
 void TextField::SetCaretColor(std::optional<D2D1_COLOR_F> caretColor) noexcept
 {
-    _caretColorOverride = caretColor;
+    Assign(_caretColorOverride, caretColor, Affects::Paint);
 }
 
 void TextField::SetHorizontalTextPadding(float leftDip, float rightDip) noexcept
 {
-    const auto lifetime         = GetLifetimeToken();
-    const float clampedLeftDip  = std::max(0.0f, leftDip);
-    const float clampedRightDip = std::max(0.0f, rightDip);
-    if (_hasExplicitHorizontalTextPadding && _textPaddingLeftDip == clampedLeftDip && _textPaddingRightDip == clampedRightDip)
+    Assign(std::tie(_hasExplicitHorizontalTextPadding, _textPaddingLeftDip, _textPaddingRightDip),
+           std::tuple<bool, float, float>(true, std::max(0.0f, leftDip), std::max(0.0f, rightDip)),
+           Affects::Layout | Affects::Paint,
+           [this]() noexcept
     {
-        return;
-    }
-
-    _hasExplicitHorizontalTextPadding = true;
-    _textPaddingLeftDip               = clampedLeftDip;
-    _textPaddingRightDip              = clampedRightDip;
-    InvalidateMeasure();
-    if (lifetime.expired())
-        return;
-    InvalidateSingleLineLayoutCache();
-    InvalidateMultilineLayoutCache();
-    if (auto* host = GetHost(); host && host->GetFocusControl() == this)
-    {
-        host->SyncTextInput(this);
-        if (lifetime.expired())
-            return;
-    }
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
+        InvalidateSingleLineLayoutCache();
+        InvalidateMultilineLayoutCache();
+        if (auto* host = GetHost(); host && host->GetFocusControl() == this)
+            host->SyncTextInput(this);
+    });
 }
 
 void TextField::SetVerticalTextPadding(float topDip, float bottomDip) noexcept
 {
-    const auto lifetime          = GetLifetimeToken();
-    const float clampedTopDip    = std::max(0.0f, topDip);
-    const float clampedBottomDip = std::max(0.0f, bottomDip);
-    if (_hasExplicitVerticalTextPadding && _textPaddingTopDip == clampedTopDip && _textPaddingBottomDip == clampedBottomDip)
+    Assign(std::tie(_hasExplicitVerticalTextPadding, _textPaddingTopDip, _textPaddingBottomDip),
+           std::tuple<bool, float, float>(true, std::max(0.0f, topDip), std::max(0.0f, bottomDip)),
+           Affects::Layout | Affects::Paint,
+           [this]() noexcept
     {
-        return;
-    }
-
-    _hasExplicitVerticalTextPadding = true;
-    _textPaddingTopDip              = clampedTopDip;
-    _textPaddingBottomDip           = clampedBottomDip;
-    InvalidateMeasure();
-    if (lifetime.expired())
-        return;
-    InvalidateSingleLineLayoutCache();
-    InvalidateMultilineLayoutCache();
-    if (auto* host = GetHost(); host && host->GetFocusControl() == this)
-    {
-        host->SyncTextInput(this);
-        if (lifetime.expired())
-            return;
-    }
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
+        InvalidateSingleLineLayoutCache();
+        InvalidateMultilineLayoutCache();
+        if (auto* host = GetHost(); host && host->GetFocusControl() == this)
+            host->SyncTextInput(this);
+    });
 }
 
 void TextField::SetReadOnly(bool readOnly) noexcept
 {
-    const auto lifetime   = GetLifetimeToken();
     _pendingLeadSurrogate = 0;
-    if (_readOnly == readOnly)
+    // UI Automation reports a read-only value.
+    Assign(_readOnly,
+           readOnly,
+           Affects::Paint | Affects::SemanticState,
+           [this]() noexcept
     {
-        return;
-    }
-
-    _readOnly = readOnly;
-    if (_readOnly)
-    {
-        _passwordRevealButtonHovered   = false;
-        _passwordRevealButtonPressed   = false;
-        _passwordRevealKeyboardFocused = false;
-        RemaskPasswordReveal();
-        if (lifetime.expired())
-            return;
-    }
-    if (ControlHost* const host = GetHost(); host && HasFocus())
-    {
-        // An editable caret blinks and a read-only one is steady: the caret restarts in its new mode.
-        ResetCaretBlink(*host);
-        host->SyncTextInput(this);
-        if (lifetime.expired())
-            return;
-    }
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
+        const auto lifetime = GetLifetimeToken();
+        if (_readOnly)
+        {
+            _passwordRevealButtonHovered   = false;
+            _passwordRevealButtonPressed   = false;
+            _passwordRevealKeyboardFocused = false;
+            RemaskPasswordReveal();
+            if (lifetime.expired())
+                return;
+        }
+        if (ControlHost* const host = GetHost(); host && HasFocus())
+        {
+            // An editable caret blinks and a read-only one is steady: the caret restarts in its new mode.
+            ResetCaretBlink(*host);
+            host->SyncTextInput(this);
+        }
+    });
 }
 
 bool TextField::IsReadOnly() const noexcept

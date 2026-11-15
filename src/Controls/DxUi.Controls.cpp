@@ -2794,11 +2794,7 @@ bool PageHost::FinishTransition() noexcept
 
 void CardPanel::SetCornerRadius(float cornerRadiusDip) noexcept
 {
-    const float next = (std::max)(0.0f, cornerRadiusDip);
-    if (next == _cornerRadiusDip)
-        return;
-    _cornerRadiusDip = next;
-    RequestInvalidate();
+    Assign(_cornerRadiusDip, (std::max)(0.0f, cornerRadiusDip), Affects::Paint);
 }
 
 float CardPanel::GetCornerRadius() const noexcept
@@ -2821,16 +2817,9 @@ Separator::Separator() noexcept
 
 void Separator::SetOrientation(SeparatorOrientation orientation) noexcept
 {
-    const auto next = orientation == SeparatorOrientation::Horizontal ? SeparatorOrientation::Horizontal : SeparatorOrientation::Vertical;
-    if (_orientation == next)
-        return;
-    _orientation        = next;
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    // Embedded layout scheduling can synchronously retire the control's root.
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
+    Assign(_orientation,
+           orientation == SeparatorOrientation::Horizontal ? SeparatorOrientation::Horizontal : SeparatorOrientation::Vertical,
+           Affects::Layout | Affects::Paint);
 }
 
 SeparatorOrientation Separator::GetOrientation() const noexcept
@@ -2907,25 +2896,16 @@ void Label::OnHostDpiChanged(ControlHost& host) noexcept
 
 void Label::SetText(std::wstring text)
 {
-    if (_text != text)
+    // The text names the label, and through a mnemonic target that control too.
+    Assign(_text,
+           std::move(text),
+           Affects::Layout | Affects::Paint | Affects::SemanticName,
+           [this]() noexcept
     {
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        _text                             = std::move(text);
         // Test seam: the oracle's negative control leaves the retained layout current, as a forgotten invalidation would.
         if (! IsStaleLabelLayoutInjectedForTest())
             InvalidateTypographyPreparation();
-        InvalidateMeasure();
-        // Embedded preparation can synchronously retire the owning root.
-        if (lifetime.expired())
-            return;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
-            if (lifetime.expired())
-                return;
-        }
-        RequestInvalidate();
-    }
+    });
 }
 
 std::wstring_view Label::GetText() const noexcept
@@ -2940,45 +2920,22 @@ Control* Label::GetMnemonicTarget() const noexcept
 
 void Label::SetFontRole(FontRole fontRole) noexcept
 {
-    if (_fontRole == fontRole)
-        return;
-    _fontRole = fontRole;
-    InvalidateTypographyPreparation();
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    // Embedded layout scheduling can synchronously retire the control's root.
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
+    Assign(_fontRole, fontRole, Affects::Layout | Affects::Paint, [this]() noexcept { InvalidateTypographyPreparation(); });
 }
 
 void Label::SetAlignment(DWRITE_TEXT_ALIGNMENT alignment) noexcept
 {
-    if (_alignment == alignment)
-        return;
-    _alignment = alignment;
-    InvalidateTypographyPreparation();
-    RequestInvalidate();
+    Assign(_alignment, alignment, Affects::Paint, [this]() noexcept { InvalidateTypographyPreparation(); });
 }
 
 void Label::SetMultiline(bool multiline) noexcept
 {
-    if (_multiline == multiline)
-        return;
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    _multiline                        = multiline;
-    InvalidateTypographyPreparation();
-    InvalidateMeasure();
-    // Embedded preparation can synchronously retire the owning root.
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
+    Assign(_multiline, multiline, Affects::Layout | Affects::Paint, [this]() noexcept { InvalidateTypographyPreparation(); });
 }
 
 void Label::SetTextColor(std::optional<D2D1_COLOR_F> color) noexcept
 {
-    _textColor = color;
-    RequestInvalidate();
+    Assign(_textColor, color, Affects::Paint);
 }
 
 HRESULT Label::SetTypographyOverride(std::optional<LabelTypography> typography) noexcept
@@ -2992,18 +2949,16 @@ HRESULT Label::SetTypographyOverride(std::optional<LabelTypography> typography) 
         typography->fontSizeDip         = static_cast<float>(std::lround(typography->fontSizeDip * 64.0f)) / 64.0f;
         typography->characterSpacingDip = static_cast<float>(std::lround(typography->characterSpacingDip * 64.0f)) / 64.0f;
     }
-    if (_typographyOverride == typography)
-        return S_FALSE;
-    _typographyOverride = typography;
-    InvalidateTypographyPreparation();
-    RefreshLabelVisualPreparation(); // an override enables preparation, clearing it on a plain label disables it again
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    // Embedded layout scheduling can synchronously retire the control's root.
-    if (lifetime.expired())
-        return S_OK;
-    RequestInvalidate();
-    return S_OK;
+    return Assign(_typographyOverride,
+                  typography,
+                  Affects::Layout | Affects::Paint,
+                  [this]() noexcept
+    {
+        InvalidateTypographyPreparation();
+        RefreshLabelVisualPreparation(); // an override enables preparation, clearing it on a plain label disables it again
+    })
+               ? S_OK
+               : S_FALSE;
 }
 
 std::optional<LabelTypography> Label::GetTypographyOverride() const noexcept
@@ -3013,14 +2968,8 @@ std::optional<LabelTypography> Label::GetTypographyOverride() const noexcept
 
 void Label::SetMnemonicTarget(Control* target) noexcept
 {
-    if (_mnemonicTarget != target)
-    {
-        _mnemonicTarget = target;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-    }
+    // The label's text names its target (UI Automation): nothing of the label itself is painted differently.
+    Assign(_mnemonicTarget, target, Affects::SemanticName);
 }
 
 void Label::PrepareVisualContent(ControlHost& host) noexcept
@@ -3179,14 +3128,7 @@ void Button::RetirePreparedIconTextLayout() noexcept
 
 void Button::SetMultiline(bool multiline) noexcept
 {
-    if (_multiline != multiline)
-    {
-        _multiline          = multiline;
-        const auto lifetime = GetLifetimeToken();
-        InvalidateMeasure();
-        if (! lifetime.expired())
-            RequestInvalidate();
-    }
+    Assign(_multiline, multiline, Affects::Layout | Affects::Paint);
 }
 
 bool Button::IsMultiline() const noexcept
@@ -3200,19 +3142,16 @@ HRESULT Button::SetContentFontSizeDip(std::optional<float> fontSizeDip) noexcept
         return E_INVALIDARG;
     if (fontSizeDip)
         fontSizeDip = static_cast<float>(std::lround(fontSizeDip.value() * 64.0f)) / 64.0f;
-    if (_contentFontSizeDip == fontSizeDip)
-        return S_FALSE;
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    _contentFontSizeDip               = fontSizeDip;
-    RetirePreparedIconTextLayout();
-    if (lifetime.expired())
-        return S_OK;
-    RequestVisualContentPreparation(false);
-    InvalidateMeasure();
-    // Embedded preparation scheduling may synchronously retire this control or its owning root.
-    if (! lifetime.expired())
-        RequestInvalidate();
-    return S_OK;
+    return Assign(_contentFontSizeDip,
+                  fontSizeDip,
+                  Affects::Layout | Affects::Paint,
+                  [this]() noexcept
+    {
+        RetirePreparedIconTextLayout();
+        RequestVisualContentPreparation(false);
+    })
+               ? S_OK
+               : S_FALSE;
 }
 
 std::optional<float> Button::GetContentFontSizeDip() const noexcept
@@ -3542,31 +3481,19 @@ void Button::OnHostDpiChanged(ControlHost& host) noexcept
 
 void Button::SetText(std::wstring text)
 {
-    if (_text != text)
+    Assign(_text,
+           std::move(text),
+           Affects::Layout | Affects::Paint | Affects::SemanticName,
+           [this]() noexcept
     {
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        _text                             = std::move(text);
         RetirePreparedIconTextLayout();
-        if (lifetime.expired())
-            return;
         RequestVisualContentPreparation(false);
-        InvalidateMeasure();
-        if (lifetime.expired())
-            return;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
-            if (lifetime.expired())
-                return;
-        }
-        RequestInvalidate();
-    }
+    });
 }
 
 void Button::SetPrimary(bool primary) noexcept
 {
-    _primary = primary;
-    RequestInvalidate();
+    Assign(_primary, primary, Affects::Paint);
 }
 
 bool Button::IsPrimary() const noexcept
@@ -3576,8 +3503,6 @@ bool Button::IsPrimary() const noexcept
 
 void Button::SetThemePreview(std::optional<ButtonThemePreview> preview) noexcept
 {
-    const auto sameColor = [](const D2D1_COLOR_F& left, const D2D1_COLOR_F& right) noexcept
-    { return left.r == right.r && left.g == right.g && left.b == right.b && left.a == right.a; };
     const auto validColor = [](const D2D1_COLOR_F& color) noexcept
     {
         return std::isfinite(color.r) && std::isfinite(color.g) && std::isfinite(color.b) && std::isfinite(color.a) && color.r >= 0.0f && color.r <= 1.0f &&
@@ -3585,10 +3510,7 @@ void Button::SetThemePreview(std::optional<ButtonThemePreview> preview) noexcept
     };
     if (preview && ! std::ranges::all_of(preview->swatches, validColor))
         return;
-    if (_themePreview.has_value() == preview.has_value() && (! preview || std::ranges::equal(_themePreview->swatches, preview->swatches, sameColor)))
-        return;
-    _themePreview = std::move(preview);
-    RequestInvalidate();
+    Assign(_themePreview, std::move(preview), Affects::Paint);
 }
 
 std::optional<ButtonThemePreview> Button::GetThemePreview() const noexcept
@@ -3598,17 +3520,8 @@ std::optional<ButtonThemePreview> Button::GetThemePreview() const noexcept
 
 void Button::SetToggleState(std::optional<bool> checked) noexcept
 {
-    if (_toggleState == checked)
-        return;
-    _toggleState                      = checked;
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    if (ControlHost* const host = GetHost())
-    {
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
-    }
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
+    // The toggle state UI Automation reads, published as content: a mutation that cannot move focus (as before Assign).
+    Assign(_toggleState, checked, Affects::Paint | Affects::SemanticValue);
 }
 
 std::optional<bool> Button::GetToggleState() const noexcept
@@ -3618,21 +3531,17 @@ std::optional<bool> Button::GetToggleState() const noexcept
 
 void Button::SetVariant(ButtonVariant variant) noexcept
 {
-    if (_variant == variant)
-        return;
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    _variant                          = variant;
-    RetirePreparedIconTextLayout();
-    if (lifetime.expired())
-        return;
-    if ((variant == ButtonVariant::IconOnly || variant == ButtonVariant::Hyperlink) && ! dynamic_cast<Toggle*>(this) && ! dynamic_cast<RadioButton*>(this))
-        EnableVisualContentPreparation();
-    else
-        RequestVisualContentPreparation(false);
-    InvalidateMeasure();
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
+    Assign(_variant,
+           variant,
+           Affects::Layout | Affects::Paint,
+           [this, variant]() noexcept
+    {
+        RetirePreparedIconTextLayout();
+        if ((variant == ButtonVariant::IconOnly || variant == ButtonVariant::Hyperlink) && ! dynamic_cast<Toggle*>(this) && ! dynamic_cast<RadioButton*>(this))
+            EnableVisualContentPreparation();
+        else
+            RequestVisualContentPreparation(false);
+    });
 }
 
 ButtonVariant Button::GetVariant() const noexcept
@@ -3642,10 +3551,7 @@ ButtonVariant Button::GetVariant() const noexcept
 
 void Button::SetAppearance(ButtonAppearance appearance) noexcept
 {
-    if (_appearance == appearance)
-        return;
-    _appearance = appearance;
-    RequestInvalidate();
+    Assign(_appearance, appearance, Affects::Paint);
 }
 
 ButtonAppearance Button::GetAppearance() const noexcept
@@ -3655,13 +3561,7 @@ ButtonAppearance Button::GetAppearance() const noexcept
 
 void Button::SetLeadingIcon(std::wstring glyph)
 {
-    if (_leadingIcon == glyph)
-        return;
-    _leadingIcon        = std::move(glyph);
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    if (! lifetime.expired())
-        RequestInvalidate();
+    Assign(_leadingIcon, std::move(glyph), Affects::Layout | Affects::Paint);
 }
 
 std::wstring_view Button::GetLeadingIcon() const noexcept
@@ -3671,16 +3571,15 @@ std::wstring_view Button::GetLeadingIcon() const noexcept
 
 void Button::SetShortcutText(std::wstring text)
 {
-    if (_shortcutText == text)
-        return;
-    _shortcutText             = std::move(text);
-    _preparedShortcutWidthDip = 0.0f;
-    _preparedShortcutValid    = false;
-    EnableVisualContentPreparation();
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    if (! lifetime.expired())
-        RequestInvalidate();
+    Assign(_shortcutText,
+           std::move(text),
+           Affects::Layout | Affects::Paint,
+           [this]() noexcept
+    {
+        _preparedShortcutWidthDip = 0.0f;
+        _preparedShortcutValid    = false;
+        EnableVisualContentPreparation();
+    });
 }
 
 std::wstring_view Button::GetShortcutText() const noexcept
@@ -3690,12 +3589,7 @@ std::wstring_view Button::GetShortcutText() const noexcept
 
 void Button::SetDisclosureCollapsedDirection(ChevronDirection direction) noexcept
 {
-    const ChevronDirection collapsedDirection = direction == ChevronDirection::Left ? ChevronDirection::Left : ChevronDirection::Right;
-    if (_disclosureCollapsedDirection != collapsedDirection)
-    {
-        _disclosureCollapsedDirection = collapsedDirection;
-        RequestInvalidate();
-    }
+    Assign(_disclosureCollapsedDirection, direction == ChevronDirection::Left ? ChevronDirection::Left : ChevronDirection::Right, Affects::Paint);
 }
 
 void Button::SetDisclosureExpanded(bool expanded) noexcept
@@ -4383,7 +4277,8 @@ void Button::SetPressed(bool pressed) noexcept
 
 void Button::SetPressedVisual(bool pressed) noexcept
 {
-    SetPressed(pressed);
+    // The pressed look an application drives itself (SetPressed is the press gesture's own store, which repaints with it).
+    Assign(_pressed, pressed, Affects::Paint);
 }
 
 void Button::OnCaptureLost(ControlHost& host)
@@ -4612,19 +4507,7 @@ Toggle::Toggle(std::wstring text) : Button(std::move(text))
 
 void Toggle::SetChecked(bool checked) noexcept
 {
-    if (_checked != checked)
-    {
-        _checked                          = checked;
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-        if (! lifetime.expired())
-        {
-            RequestInvalidate();
-        }
-    }
+    Assign(_checked, checked, Affects::Paint | Affects::SemanticState);
 }
 
 bool Toggle::IsChecked() const noexcept
@@ -4634,15 +4517,11 @@ bool Toggle::IsChecked() const noexcept
 
 void Toggle::SetStateLabels(std::wstring uncheckedText, std::wstring checkedText)
 {
-    // Unchanged labels (an application that sets them on every refresh) relay out nothing.
-    if (_uncheckedText == uncheckedText && _checkedText == checkedText)
-        return;
-    _uncheckedText      = std::move(uncheckedText);
-    _checkedText        = std::move(checkedText);
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    if (! lifetime.expired())
-        RequestInvalidate();
+    // Unchanged labels (an application that sets them on every refresh) relay out nothing. A toggle without text is named by
+    // the label of its state.
+    Assign(std::tie(_uncheckedText, _checkedText),
+           std::tuple<std::wstring, std::wstring>(std::move(uncheckedText), std::move(checkedText)),
+           Affects::Layout | Affects::Paint | Affects::SemanticName);
 }
 
 std::wstring_view Toggle::GetActiveStateLabel() const noexcept
@@ -4846,22 +4725,8 @@ bool Checkbox::OnMnemonic(ControlHost& host)
 
 void Checkbox::SetIndeterminate(bool indeterminate) noexcept
 {
-    if (_indeterminate == indeterminate)
-    {
-        return;
-    }
-    _indeterminate = indeterminate;
-    // UI Automation reads the third toggle state, as SetChecked publishes the other two. Publication can deliver events
-    // that run application code, so the checkbox may be gone afterwards.
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    if (ControlHost* const host = GetHost())
-    {
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-    }
-    if (! lifetime.expired())
-    {
-        RequestInvalidate();
-    }
+    // UI Automation reads the third toggle state, as SetChecked publishes the other two.
+    Assign(_indeterminate, indeterminate, Affects::Paint | Affects::SemanticState);
 }
 
 bool Checkbox::IsIndeterminate() const noexcept
@@ -4972,8 +4837,10 @@ void RadioButton::SetOnSelected(std::function<void()> onSelected)
 
 void RadioButton::SetGroup(RadioButtons* group) noexcept
 {
-    _group         = group;
-    _groupLifetime = group ? GetControlLifetimeToken(*group) : std::weak_ptr<int>{};
+    // A destroyed group is no group: a new one at the same address is a change.
+    if (_groupLifetime.expired())
+        _group = nullptr;
+    Assign(_group, group, Affects::None, [this, group]() noexcept { _groupLifetime = group ? GetControlLifetimeToken(*group) : std::weak_ptr<int>{}; });
 }
 
 void RadioButton::Paint(ControlHost& host) const
@@ -5180,15 +5047,7 @@ void RadioButtons::SetOnSelectionChanged(std::function<void(int)> onSelectionCha
 void RadioButtons::SetHeader(std::wstring text)
 {
     const Failure::Scope outerFailureScope;
-    if (_header == text)
-        return;
-    _header             = std::move(text);
-    const auto lifetime = GetLifetimeToken();
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
-    if (ControlHost* const host = GetHost())
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    Assign(_header, std::move(text), Affects::Paint | Affects::SemanticName);
 }
 
 void RadioButtons::SelectItem(RadioButton* item)
@@ -5280,16 +5139,10 @@ struct ProgressTrack
 
 void ProgressBar::SetValue(double value) noexcept
 {
-    // Like Slider, a non-finite value is rejected: NaN would reach UI Automation and never compare equal.
+    // Like Slider, a non-finite value is rejected: NaN would reach UI Automation.
     if (! std::isfinite(value))
         return;
-    _value              = value;
-    const auto lifetime = GetLifetimeToken();
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
-    if (ControlHost* const host = GetHost())
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    Assign(_value, value, Affects::Paint | Affects::SemanticValue);
 }
 
 double ProgressBar::GetValue() const noexcept
@@ -5301,13 +5154,7 @@ void ProgressBar::SetMinimum(double minimum) noexcept
 {
     if (! std::isfinite(minimum))
         return;
-    _minimum            = minimum;
-    const auto lifetime = GetLifetimeToken();
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
-    if (ControlHost* const host = GetHost())
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    Assign(_minimum, minimum, Affects::Paint | Affects::SemanticValue);
 }
 
 double ProgressBar::GetMinimum() const noexcept
@@ -5319,13 +5166,7 @@ void ProgressBar::SetMaximum(double maximum) noexcept
 {
     if (! std::isfinite(maximum))
         return;
-    _maximum            = maximum;
-    const auto lifetime = GetLifetimeToken();
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
-    if (ControlHost* const host = GetHost())
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    Assign(_maximum, maximum, Affects::Paint | Affects::SemanticValue);
 }
 
 double ProgressBar::GetMaximum() const noexcept
@@ -5335,24 +5176,19 @@ double ProgressBar::GetMaximum() const noexcept
 
 void ProgressBar::SetIndeterminate(bool indeterminate) noexcept
 {
-    if (_indeterminate == indeterminate)
+    Assign(_indeterminate,
+           indeterminate,
+           Affects::Paint,
+           [this, indeterminate]() noexcept
     {
-        return;
-    }
-
-    _indeterminate      = indeterminate;
-    _animationPhase     = 0.0f;
-    _lastTickMs         = 0u;
-    const auto lifetime = GetLifetimeToken();
-    if (indeterminate && ! _animationPaused && IsEnabled() && IsVisible())
-    {
-        if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
+        _animationPhase = 0.0f;
+        _lastTickMs     = 0u;
+        if (indeterminate && ! _animationPaused && IsEnabled() && IsVisible())
         {
-            host->RequestAnimation(*this);
+            if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
+                host->RequestAnimation(*this);
         }
-    }
-    if (! lifetime.expired())
-        RequestInvalidate();
+    });
 }
 
 bool ProgressBar::IsIndeterminate() const noexcept
@@ -5362,18 +5198,18 @@ bool ProgressBar::IsIndeterminate() const noexcept
 
 void ProgressBar::SetAnimationPaused(bool paused) noexcept
 {
-    if (_animationPaused == paused)
-        return;
-    _animationPaused    = paused;
-    _lastTickMs         = 0u;
-    const auto lifetime = GetLifetimeToken();
-    if (! paused && _indeterminate && IsEnabled() && IsVisible())
+    Assign(_animationPaused,
+           paused,
+           Affects::Paint,
+           [this, paused]() noexcept
     {
-        if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
-            host->RequestAnimation(*this);
-    }
-    if (! lifetime.expired())
-        RequestInvalidate();
+        _lastTickMs = 0u;
+        if (! paused && _indeterminate && IsEnabled() && IsVisible())
+        {
+            if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
+                host->RequestAnimation(*this);
+        }
+    });
 }
 
 bool ProgressBar::IsAnimationPaused() const noexcept
@@ -5383,12 +5219,7 @@ bool ProgressBar::IsAnimationPaused() const noexcept
 
 void ProgressBar::SetTrackHeightDip(float heightDip) noexcept
 {
-    const float next = std::max(0.0f, heightDip);
-    if (_trackHeightDip != next)
-    {
-        _trackHeightDip = next;
-        RequestInvalidate();
-    }
+    Assign(_trackHeightDip, std::max(0.0f, heightDip), Affects::Paint);
 }
 
 float ProgressBar::GetTrackHeightDip() const noexcept
@@ -5398,11 +5229,9 @@ float ProgressBar::GetTrackHeightDip() const noexcept
 
 void ProgressBar::SetSegmentedValues(double primaryValue, double secondaryValue, D2D1_COLOR_F secondaryColor) noexcept
 {
-    _primarySegmentValue   = primaryValue;
-    _secondarySegmentValue = secondaryValue;
-    _secondarySegmentColor = secondaryColor;
-    _segmented             = true;
-    RequestInvalidate();
+    Assign(std::tie(_primarySegmentValue, _secondarySegmentValue, _secondarySegmentColor, _segmented),
+           std::tuple<double, double, D2D1_COLOR_F, bool>(primaryValue, secondaryValue, secondaryColor, true),
+           Affects::Paint);
 }
 
 void ProgressBar::ClearSegmentedValues() noexcept
@@ -5562,24 +5391,24 @@ PageIndicator::PageIndicator()
 
 void PageIndicator::SetPageCount(uint32_t count) noexcept
 {
-    const uint32_t next = (std::min)(count, kMaximumPages);
-    if (_pageCount == next)
+    // Fewer than two pages leave no hit bounds (GetHitBounds); the count is the range maximum UI Automation reads.
+    AssignAccess::Assign(*this,
+                         HitRevisionSite::PageIndicatorCount,
+                         _pageCount,
+                         (std::min)(count, kMaximumPages),
+                         Affects::Paint | Affects::Hit | Affects::SemanticValue,
+                         [this]() noexcept
     {
-        return;
-    }
-    _pageCount = next;
-    NoteHitTestChange(*this, HitRevisionSite::PageIndicatorCount); // fewer than two pages leave no hit bounds (GetHitBounds)
-    if (_pageCount == 0)
-    {
-        _selectedIndex = 0;
-    }
-    else if (_selectedIndex >= _pageCount)
-    {
-        _selectedIndex = _pageCount - 1;
-    }
-    SetFocusable(_pageCount >= 2);
-    PublishAccessibility();
-    RequestInvalidate();
+        if (_pageCount == 0)
+        {
+            _selectedIndex = 0;
+        }
+        else if (_selectedIndex >= _pageCount)
+        {
+            _selectedIndex = _pageCount - 1;
+        }
+        SetFocusable(_pageCount >= 2);
+    });
 }
 
 uint32_t PageIndicator::GetPageCount() const noexcept
@@ -5593,14 +5422,7 @@ void PageIndicator::SetSelectedIndex(uint32_t index) noexcept
     {
         return;
     }
-    const uint32_t next = (std::min)(index, _pageCount - 1);
-    if (_selectedIndex == next)
-    {
-        return;
-    }
-    _selectedIndex = next;
-    PublishAccessibility();
-    RequestInvalidate();
+    Assign(_selectedIndex, (std::min)(index, _pageCount - 1), Affects::Paint | Affects::SemanticValue);
 }
 
 uint32_t PageIndicator::GetSelectedIndex() const noexcept
@@ -5838,6 +5660,61 @@ D2D1_COLOR_F ThroughputGraphColorFromHue(float hueDegrees, bool dark) noexcept
     return D2D1::ColorF(red + match, green + match, blue + match, 1.0f);
 }
 
+// Control::Assign's equality for the graph's samples (AssignEquality): every member, so that an unchanged series repaints
+// nothing and a changed one is stored.
+[[nodiscard]] static bool SameAssignedValue(const ThroughputGraphHueWeight& a, const ThroughputGraphHueWeight& b) noexcept
+{
+    return AssignEquality::Same(a.hueDegrees, b.hueDegrees) && AssignEquality::Same(a.weight, b.weight) && a.colorSlot == b.colorSlot;
+}
+
+[[nodiscard]] static bool SameAssignedValue(const ThroughputGraphSample& a, const ThroughputGraphSample& b) noexcept
+{
+    return AssignEquality::Same(a.value, b.value) && AssignEquality::Same(a.hueDegrees, b.hueDegrees) && a.colorSlot == b.colorSlot &&
+           a.hueWeightCount == b.hueWeightCount && AssignEquality::Same(a.hueWeights, b.hueWeights);
+}
+
+namespace
+{
+// The secondary series as SetSecondarySamples stores it, negative samples at zero: a range Control::Assign compares with the
+// retained series and copies into it, read in place.
+struct NonNegativeSamples final
+{
+    std::span<const double> samples;
+    struct Iterator final
+    {
+        using iterator_category = std::forward_iterator_tag;
+        using value_type        = double;
+        using difference_type   = std::ptrdiff_t;
+        using pointer           = const double*;
+        using reference         = double;
+        const double* at        = nullptr;
+        [[nodiscard]] double operator*() const noexcept
+        {
+            return std::max(0.0, *at);
+        }
+        Iterator& operator++() noexcept
+        {
+            ++at;
+            return *this;
+        }
+        Iterator operator++(int) noexcept
+        {
+            Iterator previous = *this;
+            ++at;
+            return previous;
+        }
+        [[nodiscard]] bool operator==(const Iterator&) const noexcept = default;
+    };
+    [[nodiscard]] Iterator begin() const noexcept
+    {
+        return Iterator{.at = samples.data()};
+    }
+    [[nodiscard]] Iterator end() const noexcept
+    {
+        return Iterator{.at = samples.data() + samples.size()};
+    }
+};
+} // namespace
 namespace
 {
 [[nodiscard]] wil::com_ptr<ID2D1PathGeometry> CreateThroughputGraphAreaGeometry(
@@ -6113,95 +5990,91 @@ ThroughputGraphBandPaintMetrics PaintThroughputGraphBands(ID2D1RenderTarget* tar
 void ThroughputGraph::SetSamples(std::span<const ThroughputGraphSample> samples)
 {
     const double previousTarget = _targetLatestValue;
-    const size_t retainedCount  = std::min(samples.size(), ThroughputGraphSample::kMaxSamples);
-    _samples.assign(samples.end() - static_cast<std::ptrdiff_t>(retainedCount), samples.end());
-    _targetLatestValue = _samples.empty() ? 0.0 : std::max(0.0, _samples.back().value);
+    // The newest kMaxSamples, copied into the retained storage only when they differ from it.
+    Assign(_samples,
+           samples.last(std::min(samples.size(), ThroughputGraphSample::kMaxSamples)),
+           Affects::Paint,
+           [this, previousTarget]() noexcept
+    {
+        _targetLatestValue = _samples.empty() ? 0.0 : std::max(0.0, _samples.back().value);
 
-    ControlHost* const host  = GetHost();
-    const bool targetChanged = previousTarget != _targetLatestValue;
-    if (host && ! host->GetTheme().reducedMotion && ! _samples.empty() && targetChanged)
-    {
-        _transitionStartValue  = _displayedLatestValue;
-        _transitionStartTickMs = 0u;
-        _transitionActive      = true;
-        host->RequestAnimation(*this);
-    }
-    else if (! _transitionActive || ! host || host->GetTheme().reducedMotion || _samples.empty())
-    {
-        _displayedLatestValue = _targetLatestValue;
-        _transitionActive     = false;
-    }
-    RequestInvalidate();
+        ControlHost* const host  = GetHost();
+        const bool targetChanged = previousTarget != _targetLatestValue;
+        if (host && ! host->GetTheme().reducedMotion && ! _samples.empty() && targetChanged)
+        {
+            _transitionStartValue  = _displayedLatestValue;
+            _transitionStartTickMs = 0u;
+            _transitionActive      = true;
+            host->RequestAnimation(*this);
+        }
+        else if (! _transitionActive || ! host || host->GetTheme().reducedMotion || _samples.empty())
+        {
+            _displayedLatestValue = _targetLatestValue;
+            _transitionActive     = false;
+        }
+    });
 }
 
 void ThroughputGraph::SetSecondarySamples(std::span<const double> samples)
 {
-    const size_t retainedCount = std::min(samples.size(), ThroughputGraphSample::kMaxSamples);
-    _secondarySamples.assign(samples.end() - static_cast<std::ptrdiff_t>(retainedCount), samples.end());
-    for (double& sample : _secondarySamples)
-    {
-        sample = std::max(0.0, sample);
-    }
-    RequestInvalidate();
+    // The newest kMaxSamples, negative values at zero, copied into the retained storage only when they differ from it.
+    Assign(_secondarySamples, NonNegativeSamples{samples.last(std::min(samples.size(), ThroughputGraphSample::kMaxSamples))}, Affects::Paint);
 }
 
 void ThroughputGraph::SetSecondarySeriesColor(D2D1_COLOR_F color) noexcept
 {
-    _secondarySeriesColor = color;
-    RequestInvalidate();
+    Assign(_secondarySeriesColor, color, Affects::Paint);
 }
 
 void ThroughputGraph::SetLimit(double value) noexcept
 {
-    _limit = std::max(0.0, value);
-    RequestInvalidate();
+    Assign(_limit, std::max(0.0, value), Affects::Paint);
 }
 
 void ThroughputGraph::SetCurrentValueMarker(double value, std::wstring label, std::wstring trailingLabel)
 {
-    const double nextTarget    = std::max(0.0, value);
-    _currentValueLabel         = std::move(label);
-    _currentValueTrailingLabel = std::move(trailingLabel);
-
-    ControlHost* const host  = GetHost();
-    const bool targetChanged = _targetCurrentValue != nextTarget;
-    _targetCurrentValue      = nextTarget;
-    if (host && ! host->GetTheme().reducedMotion && targetChanged)
+    const double previousTarget = _targetCurrentValue;
+    Assign(std::tie(_targetCurrentValue, _currentValueLabel, _currentValueTrailingLabel),
+           std::tuple<double, std::wstring, std::wstring>(std::max(0.0, value), std::move(label), std::move(trailingLabel)),
+           Affects::Paint,
+           [this, previousTarget]() noexcept
     {
-        _currentValueTransitionStart       = _displayedCurrentValue;
-        _currentValueTransitionStartTickMs = 0u;
-        _currentValueTransitionActive      = true;
-        host->RequestAnimation(*this);
-    }
-    else if (! _currentValueTransitionActive || ! host || host->GetTheme().reducedMotion)
-    {
-        _displayedCurrentValue        = _targetCurrentValue;
-        _currentValueTransitionActive = false;
-    }
-    RequestInvalidate();
+        ControlHost* const host  = GetHost();
+        const bool targetChanged = previousTarget != _targetCurrentValue;
+        if (host && ! host->GetTheme().reducedMotion && targetChanged)
+        {
+            _currentValueTransitionStart       = _displayedCurrentValue;
+            _currentValueTransitionStartTickMs = 0u;
+            _currentValueTransitionActive      = true;
+            host->RequestAnimation(*this);
+        }
+        else if (! _currentValueTransitionActive || ! host || host->GetTheme().reducedMotion)
+        {
+            _displayedCurrentValue        = _targetCurrentValue;
+            _currentValueTransitionActive = false;
+        }
+    });
 }
 
 void ThroughputGraph::SetOverlayText(std::wstring text)
 {
-    _overlayText = std::move(text);
-    RequestInvalidate();
+    Assign(_overlayText, std::move(text), Affects::Paint);
 }
 
 void ThroughputGraph::SetRainbowMode(bool enabled) noexcept
 {
-    _rainbowMode = enabled;
-    RequestInvalidate();
+    Assign(_rainbowMode, enabled, Affects::Paint);
 }
 
 void ThroughputGraph::SetPerStreamBands(bool enabled) noexcept
 {
-    _perStreamBands = enabled;
-    RequestInvalidate();
+    Assign(_perStreamBands, enabled, Affects::Paint);
 }
 
 void ThroughputGraph::SetTransitionDuration(uint64_t durationMs) noexcept
 {
-    _transitionDurationMs = std::max<uint64_t>(1u, durationMs);
+    // Read by the next transition step, never painted directly.
+    Assign(_transitionDurationMs, std::max<uint64_t>(1u, durationMs), Affects::None);
 }
 
 ThroughputGraphDebugState ThroughputGraph::GetDebugState() const noexcept
@@ -6448,14 +6321,8 @@ bool ThroughputGraph::Tick(ControlHost& host, uint64_t nowTickMs)
 
 void Slider::SetOrientation(SliderOrientation orientation) noexcept
 {
-    if (_orientation == orientation)
-    {
-        return;
-    }
-
-    _orientation = orientation;
-    NoteHitTestChange(*this, HitRevisionSite::SliderOrientation); // the hit band follows the orientation (GetHitBounds)
-    RequestInvalidate();
+    // The hit band follows the orientation (GetHitBounds).
+    AssignAccess::Assign(*this, HitRevisionSite::SliderOrientation, _orientation, orientation, Affects::Paint | Affects::Hit, []() noexcept {});
 }
 
 SliderOrientation Slider::GetOrientation() const noexcept
@@ -6467,19 +6334,23 @@ void Slider::SetMinimum(double minimum) noexcept
 {
     if (! std::isfinite(minimum) || ! std::isfinite((std::max)(_maximum, minimum) - minimum))
         return;
-    _minimum = minimum;
-    if (_maximum < _minimum)
+    Assign(_minimum,
+           minimum,
+           Affects::Paint | Affects::SemanticValue,
+           [this]() noexcept
     {
-        _maximum = _minimum;
-    }
-    for (double& tick : _tickMarks)
-    {
-        tick = ClampValue(tick);
-    }
-    std::ranges::sort(_tickMarks);
-    _value = ClampValue(_value);
-    SnapDisplayedValue();
-    PublishRangeState();
+        if (_maximum < _minimum)
+        {
+            _maximum = _minimum;
+        }
+        for (double& tick : _tickMarks)
+        {
+            tick = ClampValue(tick);
+        }
+        std::ranges::sort(_tickMarks);
+        _value = ClampValue(_value);
+        SnapDisplayedValue();
+    });
 }
 
 double Slider::GetMinimum() const noexcept
@@ -6491,15 +6362,19 @@ void Slider::SetMaximum(double maximum) noexcept
 {
     if (! std::isfinite(maximum) || ! std::isfinite((std::max)(maximum, _minimum) - _minimum))
         return;
-    _maximum = (std::max)(maximum, _minimum);
-    for (double& tick : _tickMarks)
+    Assign(_maximum,
+           (std::max)(maximum, _minimum),
+           Affects::Paint | Affects::SemanticValue,
+           [this]() noexcept
     {
-        tick = ClampValue(tick);
-    }
-    std::ranges::sort(_tickMarks);
-    _value = ClampValue(_value);
-    SnapDisplayedValue();
-    PublishRangeState();
+        for (double& tick : _tickMarks)
+        {
+            tick = ClampValue(tick);
+        }
+        std::ranges::sort(_tickMarks);
+        _value = ClampValue(_value);
+        SnapDisplayedValue();
+    });
 }
 
 double Slider::GetMaximum() const noexcept
@@ -6509,7 +6384,21 @@ double Slider::GetMaximum() const noexcept
 
 void Slider::SetValue(double value) noexcept
 {
-    SetValueInternal(nullptr, value, false, false);
+    if (! std::isfinite(value))
+        return;
+    const double clamped = ClampValue(value);
+    if (IsSameValueTarget(clamped))
+    {
+        // A model acknowledgement can match the accepted target while the painted thumb is still easing. SetValue is silent
+        // and immediate even for that same target: it retires the animation work.
+        if (_valueAnimationActive)
+        {
+            SnapDisplayedValue();
+            RequestInvalidate();
+        }
+        return;
+    }
+    Assign(_value, clamped, Affects::Paint | Affects::SemanticValue, [this]() noexcept { SnapDisplayedValue(); });
 }
 
 bool Slider::RequestValue(ControlHost& host, double value) noexcept
@@ -6529,9 +6418,9 @@ void Slider::SetStep(double step) noexcept
 {
     if (! std::isfinite(step))
         return;
-    _step      = (std::max)(step, 0.0001);
-    _largeStep = (std::max)(_largeStep, _step);
-    PublishRangeState();
+    const double next = (std::max)(step, 0.0001);
+    // UI Automation's small and large changes; neither is painted.
+    Assign(std::tie(_step, _largeStep), std::tuple<double, double>(next, (std::max)(_largeStep, next)), Affects::SemanticValue);
 }
 
 double Slider::GetStep() const noexcept
@@ -6543,8 +6432,7 @@ void Slider::SetLargeStep(double step) noexcept
 {
     if (! std::isfinite(step))
         return;
-    _largeStep = (std::max)(step, _step);
-    PublishRangeState();
+    Assign(_largeStep, (std::max)(step, _step), Affects::SemanticValue);
 }
 
 double Slider::GetLargeStep() const noexcept
@@ -6563,13 +6451,12 @@ void Slider::PublishRangeState() noexcept
 
 void Slider::SetTickMarks(std::vector<double> tickMarks)
 {
-    _tickMarks = std::move(tickMarks);
-    for (double& tick : _tickMarks)
+    for (double& tick : tickMarks)
     {
         tick = ClampValue(tick);
     }
-    std::ranges::sort(_tickMarks);
-    RequestInvalidate();
+    std::ranges::sort(tickMarks);
+    Assign(_tickMarks, std::move(tickMarks), Affects::Paint);
 }
 
 std::span<const double> Slider::GetTickMarks() const noexcept
@@ -6773,13 +6660,17 @@ void Slider::SyncInteractionVisuals(ControlHost& host) noexcept
     BeginVisualTransition(host, _touchTransition, (_dragging && _touchDragging) ? 1.0f : 0.0f);
 }
 
+// "Same target" absorbs floating noise, well below the smallest step (0.0001), so a minimum step still moves.
+bool Slider::IsSameValueTarget(double clamped) const noexcept
+{
+    return std::fabs(clamped - _value) <= (std::min)(0.0001, _step * 1.0e-3);
+}
 void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChanged, bool animatePosition) noexcept
 {
     if (! std::isfinite(value))
         return;
     const double clamped = ClampValue(value);
-    // "Same target" absorbs floating noise, well below the smallest step (0.0001), so a minimum step still moves.
-    if (std::fabs(clamped - _value) <= (std::min)(0.0001, _step * 1.0e-3))
+    if (IsSameValueTarget(clamped))
     {
         // A model acknowledgement can match the accepted target while the painted thumb is still easing.
         // SetValue is silent and immediate even for that same target; it must also retire animation work.
@@ -7421,23 +7312,27 @@ TagPicker::TagPicker()
 
 void TagPicker::SetOptions(std::wstring allLabel, std::vector<std::wstring> options)
 {
-    _allLabel = std::move(allLabel);
-    _options.clear();
-    _options.reserve(options.size());
+    // Empty and repeated options (compared as FindOptionIndex compares them) are dropped first.
+    std::vector<std::wstring> next;
+    next.reserve(options.size());
     for (std::wstring& option : options)
     {
-        if (option.empty() || ContainsOption(option))
+        if (option.empty() || std::ranges::any_of(next, [&option](const std::wstring& kept) noexcept { return TagPickerEqualsIgnoreCase(kept, option); }))
         {
             continue;
         }
-        _options.push_back(std::move(option));
+        next.push_back(std::move(option));
     }
-
-    PruneSelectedValues();
-    RefreshComboItems();
-    RebuildDisplayTags();
-    LayoutParts();
-    RequestInvalidate();
+    Assign(std::tie(_allLabel, _options),
+           std::tuple<std::wstring, std::vector<std::wstring>>(std::move(allLabel), std::move(next)),
+           Affects::Paint,
+           [this]()
+    {
+        PruneSelectedValues();
+        RefreshComboItems();
+        RebuildDisplayTags();
+        LayoutParts();
+    });
 }
 
 std::span<const std::wstring> TagPicker::GetOptions() const noexcept
@@ -7447,22 +7342,28 @@ std::span<const std::wstring> TagPicker::GetOptions() const noexcept
 
 void TagPicker::SetSelectedValues(std::vector<std::wstring> values)
 {
-    _selectedValues.clear();
-    _selectedValues.reserve(values.size());
-    for (std::wstring& value : values)
+    // Each value names an option (its spelling is the option's); unknown and repeated values are dropped first.
+    std::vector<std::wstring> next;
+    next.reserve(values.size());
+    for (const std::wstring& value : values)
     {
         const std::optional<size_t> optionIndex = FindOptionIndex(value);
-        if (! optionIndex || ContainsSelectedValue(_options[optionIndex.value()]))
+        if (! optionIndex ||
+            std::ranges::any_of(next, [&](const std::wstring& kept) noexcept { return TagPickerEqualsIgnoreCase(kept, _options[optionIndex.value()]); }))
         {
             continue;
         }
-        _selectedValues.push_back(_options[optionIndex.value()]);
+        next.push_back(_options[optionIndex.value()]);
     }
-
-    RebuildDisplayTags();
-    RefreshComboItems();
-    LayoutParts();
-    RequestInvalidate();
+    Assign(_selectedValues,
+           std::move(next),
+           Affects::Paint,
+           [this]()
+    {
+        RebuildDisplayTags();
+        RefreshComboItems();
+        LayoutParts();
+    });
 }
 
 std::span<const std::wstring> TagPicker::GetSelectedValues() const noexcept
@@ -8043,23 +7944,32 @@ MenuBar::MenuBar()
     SetFocusable(true);
 }
 
+// Control::Assign's equality for menu bar items (AssignEquality): every member.
+[[nodiscard]] static bool SameAssignedValue(const MenuBarItem& a, const MenuBarItem& b) noexcept
+{
+    return a.text == b.text && a.mnemonic == b.mnemonic && a.enabled == b.enabled && a.rightJustified == b.rightJustified && a.sourceIndex == b.sourceIndex;
+}
 void MenuBar::SetItems(std::vector<MenuBarItem> items)
 {
-    _items = std::move(items);
-    InvalidateMenuBarLayoutCache();
-    if (_selectedIndex.has_value() && _selectedIndex.value() >= _items.size())
+    Assign(_items,
+           std::move(items),
+           Affects::Paint,
+           [this]() noexcept
     {
-        _selectedIndex.reset();
-    }
-    if (_hoveredIndex.has_value() && _hoveredIndex.value() >= _items.size())
-    {
-        _hoveredIndex.reset();
-    }
-    if (_pressedIndex.has_value() && _pressedIndex.value() >= _items.size())
-    {
-        _pressedIndex.reset();
-    }
-    RequestInvalidate();
+        InvalidateMenuBarLayoutCache();
+        if (_selectedIndex.has_value() && _selectedIndex.value() >= _items.size())
+        {
+            _selectedIndex.reset();
+        }
+        if (_hoveredIndex.has_value() && _hoveredIndex.value() >= _items.size())
+        {
+            _hoveredIndex.reset();
+        }
+        if (_pressedIndex.has_value() && _pressedIndex.value() >= _items.size())
+        {
+            _pressedIndex.reset();
+        }
+    });
 }
 
 std::span<const MenuBarItem> MenuBar::GetItems() const noexcept
@@ -8083,11 +7993,7 @@ void MenuBar::SetSelectedIndex(std::optional<size_t> index) noexcept
     {
         index.reset();
     }
-    if (_selectedIndex != index)
-    {
-        _selectedIndex = index;
-        RequestInvalidate();
-    }
+    Assign(_selectedIndex, index, Affects::Paint);
 }
 
 void MenuBar::ClearInteractionState() noexcept
@@ -8104,7 +8010,8 @@ void MenuBar::ClearInteractionState() noexcept
 
 void MenuBar::SetRetainSelectedIndexOnFocusLost(bool retain) noexcept
 {
-    _retainSelectedIndexOnFocusLost = retain;
+    // Read when focus leaves the bar.
+    Assign(_retainSelectedIndexOnFocusLost, retain, Affects::None);
 }
 
 std::optional<size_t> MenuBar::GetSelectedIndex() const noexcept
@@ -8915,12 +8822,17 @@ void TabControl::SetTabTitle(size_t index, std::wstring title)
     {
         return;
     }
-
-    _tabs[index].title = std::move(title);
-    _tabs[index].measuredTitleWidthDip.reset();
-    _tabs[index].measuredTitleTextFormat = nullptr;
-    InvalidateTabHeaderLayoutCache();
-    static_cast<void>(SyncLayout());
+    // A title names its tab item (UI Automation).
+    Assign(_tabs[index].title,
+           std::move(title),
+           Affects::Paint | Affects::SemanticName,
+           [this, index]() noexcept
+    {
+        _tabs[index].measuredTitleWidthDip.reset();
+        _tabs[index].measuredTitleTextFormat = nullptr;
+        InvalidateTabHeaderLayoutCache();
+        static_cast<void>(SyncLayout(false));
+    });
 }
 
 std::wstring_view TabControl::GetTabTitle(size_t index) const noexcept
@@ -8934,8 +8846,8 @@ void TabControl::SetTabTooltip(size_t index, std::wstring tooltipText)
     {
         return;
     }
-
-    _tabs[index].tooltipText = std::move(tooltipText);
+    // Read when the pointer next rests on the tab.
+    Assign(_tabs[index].tooltipText, std::move(tooltipText), Affects::None);
 }
 
 std::wstring_view TabControl::GetTabTooltip(size_t index) const noexcept
@@ -8949,15 +8861,14 @@ void TabControl::SetTabClosable(size_t index, bool closable) noexcept
     {
         return;
     }
-
-    if (_tabs[index].closable == closable)
+    Assign(_tabs[index].closable,
+           closable,
+           Affects::Paint,
+           [this]() noexcept
     {
-        return;
-    }
-
-    _tabs[index].closable = closable;
-    InvalidateTabHeaderLayoutCache();
-    static_cast<void>(SyncLayout());
+        InvalidateTabHeaderLayoutCache();
+        static_cast<void>(SyncLayout(false));
+    });
 }
 
 bool TabControl::IsTabClosable(size_t index) const noexcept
@@ -8967,52 +8878,57 @@ bool TabControl::IsTabClosable(size_t index) const noexcept
 
 void TabControl::SetTabVisible(size_t index, bool visible) noexcept
 {
-    if (index >= _tabs.size() || _tabs[index].visible == visible)
+    if (index >= _tabs.size())
     {
         return;
     }
-
-    _tabs[index].visible = visible;
-    if (! visible)
+    // The visible tabs are the tab items UI Automation lists, and hiding the selected one selects another.
+    Assign(_tabs[index].visible,
+           visible,
+           Affects::Paint | Affects::SemanticState,
+           [this, index, visible]() noexcept
     {
-        if (_hoveredTabIndex == index)
+        if (! visible)
         {
-            _hoveredTabIndex.reset();
-        }
-        if (_pressedTabIndex == index)
-        {
-            _pressedTabIndex.reset();
-        }
-        if (_closePressedIndex == index)
-        {
-            _closePressedIndex.reset();
-        }
-        if (_draggingTabIndex == index)
-        {
-            _draggingTabIndex.reset();
-            _dragReordering = false;
-        }
-    }
-
-    if (_selectedIndex == index && ! visible)
-    {
-        _selectedIndex.reset();
-        for (size_t candidate = 0u; candidate < _tabs.size(); ++candidate)
-        {
-            if (_tabs[candidate].visible)
+            if (_hoveredTabIndex == index)
             {
-                _selectedIndex = candidate;
-                break;
+                _hoveredTabIndex.reset();
+            }
+            if (_pressedTabIndex == index)
+            {
+                _pressedTabIndex.reset();
+            }
+            if (_closePressedIndex == index)
+            {
+                _closePressedIndex.reset();
+            }
+            if (_draggingTabIndex == index)
+            {
+                _draggingTabIndex.reset();
+                _dragReordering = false;
             }
         }
-    }
-    else if (! _selectedIndex.has_value() && visible)
-    {
-        _selectedIndex = index;
-    }
 
-    InvalidateTabHeaderLayoutCache();
-    static_cast<void>(SyncLayout());
+        if (_selectedIndex == index && ! visible)
+        {
+            _selectedIndex.reset();
+            for (size_t candidate = 0u; candidate < _tabs.size(); ++candidate)
+            {
+                if (_tabs[candidate].visible)
+                {
+                    _selectedIndex = candidate;
+                    break;
+                }
+            }
+        }
+        else if (! _selectedIndex.has_value() && visible)
+        {
+            _selectedIndex = index;
+        }
+
+        InvalidateTabHeaderLayoutCache();
+        static_cast<void>(SyncLayout(false));
+    });
 }
 
 bool TabControl::IsTabVisible(size_t index) const noexcept
@@ -9022,16 +8938,17 @@ bool TabControl::IsTabVisible(size_t index) const noexcept
 
 void TabControl::SetTabReorderingEnabled(bool enabled) noexcept
 {
-    if (_tabReorderingEnabled == enabled)
+    Assign(_tabReorderingEnabled,
+           enabled,
+           Affects::None,
+           [this, enabled]() noexcept
     {
-        return;
-    }
-    _tabReorderingEnabled = enabled;
-    if (! enabled)
-    {
-        _draggingTabIndex.reset();
-        _dragReordering = false;
-    }
+        if (! enabled)
+        {
+            _draggingTabIndex.reset();
+            _dragReordering = false;
+        }
+    });
 }
 
 bool TabControl::IsTabReorderingEnabled() const noexcept
@@ -9063,14 +8980,8 @@ void TabControl::SetSelectedIndex(std::optional<size_t> index) noexcept
             }
         }
     }
-
-    if (_selectedIndex == index)
-    {
-        return;
-    }
-
-    _selectedIndex = index;
-    static_cast<void>(SyncLayout());
+    // The selected tab item, and the one a focused tab control reports focused.
+    Assign(_selectedIndex, index, Affects::Paint | Affects::SemanticState, [this]() noexcept { static_cast<void>(SyncLayout(false)); });
 }
 
 std::optional<size_t> TabControl::GetSelectedIndex() const noexcept
@@ -9535,7 +9446,7 @@ bool TabControl::UpdateVisiblePageBounds() noexcept
     return ! ownerLifetime.expired();
 }
 
-bool TabControl::SyncLayout() noexcept
+bool TabControl::SyncLayout(bool route) noexcept
 {
     RequestVisualContentPreparation(false);
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
@@ -9559,6 +9470,9 @@ bool TabControl::SyncLayout() noexcept
     {
         return false;
     }
+    // A setter that assigns through Control::Assign routes the repaint and the publication itself.
+    if (! route)
+        return true;
     RequestInvalidate();
     if (ownerLifetime.expired())
         return false;
@@ -10394,10 +10308,14 @@ StatusStrip::StatusStrip(std::wstring text) : _text(std::move(text))
 {
 }
 
+// Control::Assign's equality for status sections (AssignEquality): every member.
+[[nodiscard]] static bool SameAssignedValue(const StatusStrip::Section& a, const StatusStrip::Section& b) noexcept
+{
+    return a.text == b.text && AssignEquality::Same(a.widthDip, b.widthDip) && a.alignment == b.alignment && a.leadingEllipsis == b.leadingEllipsis;
+}
 void StatusStrip::SetText(std::wstring text)
 {
-    _text = std::move(text);
-    RequestInvalidate();
+    Assign(_text, std::move(text), Affects::Paint);
 }
 
 std::wstring_view StatusStrip::GetText() const noexcept
@@ -10407,19 +10325,12 @@ std::wstring_view StatusStrip::GetText() const noexcept
 
 void StatusStrip::SetFontRole(FontRole fontRole) noexcept
 {
-    _fontRole = fontRole;
-    RequestInvalidate();
+    Assign(_fontRole, fontRole, Affects::Paint);
 }
 
 void StatusStrip::SetBlendWithWindowBackground(bool blend) noexcept
 {
-    if (_blendWithWindowBackground == blend)
-    {
-        return;
-    }
-
-    _blendWithWindowBackground = blend;
-    RequestInvalidate();
+    Assign(_blendWithWindowBackground, blend, Affects::Paint);
 }
 
 bool StatusStrip::GetBlendWithWindowBackground() const noexcept
@@ -10429,16 +10340,14 @@ bool StatusStrip::GetBlendWithWindowBackground() const noexcept
 
 void StatusStrip::SetSections(std::vector<Section> sections)
 {
-    _sections = std::move(sections);
-    RequestInvalidate();
+    Assign(_sections, std::move(sections), Affects::Paint);
 }
 
 void StatusStrip::SetSectionText(size_t index, std::wstring text)
 {
     if (index < _sections.size())
     {
-        _sections[index].text = std::move(text);
-        RequestInvalidate();
+        Assign(_sections[index].text, std::move(text), Affects::Paint);
     }
 }
 
@@ -10677,8 +10586,7 @@ void ColorSwatch::SetOnClick(std::function<void()> onClick)
 
 void ColorSwatch::SetSwatchValue(std::optional<uint32_t> swatchArgb) noexcept
 {
-    _swatchArgb = swatchArgb;
-    RequestInvalidate();
+    Assign(_swatchArgb, swatchArgb, Affects::Paint);
 }
 
 std::optional<uint32_t> ColorSwatch::GetSwatchValue() const noexcept
@@ -10800,12 +10708,7 @@ const Control* PopupLayer::HitTestOverlay(D2D1_POINT_2F point) const
 
 void StackPanel::SetOrientation(StackOrientation orientation) noexcept
 {
-    if (_orientation != orientation)
-    {
-        _orientation = orientation;
-        ++_layoutRevision;
-    }
-    RequestInvalidate();
+    Assign(_orientation, orientation, Affects::Layout | Affects::Paint, [this]() noexcept { ++_layoutRevision; });
 }
 
 StackOrientation StackPanel::GetOrientation() const noexcept
@@ -10815,12 +10718,7 @@ StackOrientation StackPanel::GetOrientation() const noexcept
 
 void StackPanel::SetGap(float gapDip) noexcept
 {
-    if (_gapDip != gapDip)
-    {
-        _gapDip = gapDip;
-        ++_layoutRevision;
-    }
-    RequestInvalidate();
+    Assign(_gapDip, gapDip, Affects::Layout | Affects::Paint, [this]() noexcept { ++_layoutRevision; });
 }
 
 float StackPanel::GetGap() const noexcept
@@ -10830,15 +10728,10 @@ float StackPanel::GetGap() const noexcept
 
 void StackPanel::SetPadding(float left, float top, float right, float bottom) noexcept
 {
-    if (_padLeft != left || _padTop != top || _padRight != right || _padBottom != bottom)
-    {
-        _padLeft   = left;
-        _padTop    = top;
-        _padRight  = right;
-        _padBottom = bottom;
-        ++_layoutRevision;
-    }
-    RequestInvalidate();
+    Assign(std::tie(_padLeft, _padTop, _padRight, _padBottom),
+           std::tuple<float, float, float, float>(left, top, right, bottom),
+           Affects::Layout | Affects::Paint,
+           [this]() noexcept { ++_layoutRevision; });
 }
 
 void StackPanel::SetChildExtent(const Control* child, float extentDip)
@@ -10853,16 +10746,13 @@ void StackPanel::SetChildExtent(const Control* child, float extentDip)
     {
         if (entry.child == child)
         {
-            if (entry.extentDip != extentDip)
-            {
-                entry.extentDip = extentDip;
-                ++_layoutRevision;
-            }
+            Assign(entry.extentDip, extentDip, Affects::Layout | Affects::Paint, [this]() noexcept { ++_layoutRevision; });
             return;
         }
     }
     _childExtents.push_back(ChildExtent{.child = child, .lifetime = GetControlLifetimeToken(*child), .extentDip = extentDip});
     ++_layoutRevision;
+    RouteAffects(Affects::Layout | Affects::Paint);
 }
 
 float StackPanel::FindChildExtent(const Control& child) const noexcept
@@ -11178,10 +11068,9 @@ void ScrollPanel::ClearChildren() noexcept
 void ScrollPanel::SetContentHeight(float heightDip) noexcept
 {
     const float previousOffset = _scrollOffsetDip;
-    _contentHeightDip          = (std::max)(0.0f, heightDip);
-    ClampScrollOffset();
-    RequestInvalidate();
-    static_cast<void>(NotifyScrollChanged(previousOffset));
+    const auto lifetime        = GetLifetimeToken();
+    if (Assign(_contentHeightDip, (std::max)(0.0f, heightDip), Affects::Paint, [this]() noexcept { ClampScrollOffset(); }) && ! lifetime.expired())
+        static_cast<void>(NotifyScrollChanged(previousOffset));
 }
 
 void StackPanel::OnBoundsChanged() noexcept
@@ -11226,13 +11115,17 @@ float ScrollPanel::GetScrollOffset() const noexcept
 void ScrollPanel::SetScrollOffset(float offsetDip) noexcept
 {
     const float previousOffset = _scrollOffsetDip;
-    _scrollOffsetDip           = offsetDip;
-    ClampScrollOffset();
-    if (_scrollOffsetDip != previousOffset)
-    {
-        RequestInvalidate();
+    const float extent         = GetScrollableExtent();
+    const auto lifetime        = GetLifetimeToken();
+    // Content moves under a still pointer (the hit revision moves at the scroll site), then the application hears of it.
+    if (AssignAccess::Assign(*this,
+                             HitRevisionSite::ScrollOffset,
+                             _scrollOffsetDip,
+                             (extent <= 0.0f) ? 0.0f : (std::clamp)(offsetDip, 0.0f, extent),
+                             Affects::Paint | Affects::Hit,
+                             []() noexcept {}) &&
+        ! lifetime.expired())
         static_cast<void>(NotifyScrollChanged(previousOffset));
-    }
 }
 
 void ScrollPanel::ScrollToTop() noexcept
@@ -11242,19 +11135,21 @@ void ScrollPanel::ScrollToTop() noexcept
 
 void ScrollPanel::SetScrollStepDip(float stepDip) noexcept
 {
-    _scrollStepDip = (std::max)(1.0f, stepDip);
+    // Read by the next wheel or key step.
+    Assign(_scrollStepDip, (std::max)(1.0f, stepDip), Affects::None);
 }
 
 void ScrollPanel::SetInternalScrollbarEnabled(bool enabled) noexcept
 {
-    if (_internalScrollbarEnabled != enabled)
+    Assign(_internalScrollbarEnabled,
+           enabled,
+           Affects::Paint,
+           [this]() noexcept
     {
-        _internalScrollbarEnabled = enabled;
-        _scrollbarHotPart         = HotPart::None;
-        _dragThumb                = false;
-        _dragThumbOffsetDip       = 0.0f;
-        RequestInvalidate();
-    }
+        _scrollbarHotPart   = HotPart::None;
+        _dragThumb          = false;
+        _dragThumbOffsetDip = 0.0f;
+    });
 }
 
 void ScrollPanel::SetOnScrollChanged(std::function<void(float)> callback) noexcept

@@ -945,6 +945,7 @@ inline thread_local constinit uint32_t g_hostPreparationDepth = 0u;
 enum class HitRevisionSite : uint8_t
 {
     None,
+    Assign, // Control::Assign and RouteAffects with Affects::Hit
     ComboBoxRebuild,
     ComboBoxOpen,
     ComboBoxClose,
@@ -971,11 +972,31 @@ inline thread_local constinit HitRevisionSite g_suppressedHitRevisionSiteForTest
     return site != g_suppressedHitRevisionSiteForTest;
 }
 // A library control's hit-testing state changed (Control::InvalidateHitTest), at a named site.
+
 inline void NoteHitTestChange(Control& control, HitRevisionSite site) noexcept
+
 {
     if (HitRevisionSiteLive(site))
+
         control.InvalidateHitTest();
-}
+
+} // Control::Assign for a library setter whose hit-test change keeps its own named site, so that the hit revision's mutation
+// coverage can still suppress that site alone: Affects::Hit moves the revision at site instead of HitRevisionSite::Assign.
+struct AssignAccess
+{
+    template <typename Field, typename Value, typename OnStored>
+    static bool Assign(Control& control, HitRevisionSite site, Field&& field, Value&& value, Control::Affects affects, OnStored&& onStored)
+    {
+        if (AssignEquality::Same(field, value))
+            return false;
+        AssignEquality::Store(field, std::forward<Value>(value));
+        const std::weak_ptr<int> lifetime = control._lifetimeToken;
+        std::forward<OnStored>(onStored)();
+        if (! lifetime.expired())
+            control.RouteAffectsAt(affects, static_cast<uint8_t>(site));
+        return true;
+    }
+};
 // Item icon text (Grid cells, Tree rows): private-use glyphs need the icon font; letters, digits and symbols keep the
 // small UI font, which the icon font would draw as missing-glyph boxes.
 [[nodiscard]] bool IconTextUsesIconFont(std::wstring_view iconText) noexcept;

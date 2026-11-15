@@ -1971,10 +1971,7 @@ bool RichTextEditor::InvokeDefaultContextMenuCommand(ControlHost& host, int comm
 }
 void RichTextEditor::SetFocusModeEnabled(bool enabled) noexcept
 {
-    if (_state->focusMode == enabled)
-        return;
-    _state->focusMode = enabled;
-    RequestInvalidate();
+    Assign(_state->focusMode, enabled, Affects::Paint);
 }
 bool RichTextEditor::IsFocusModeEnabled() const noexcept
 {
@@ -2860,7 +2857,8 @@ RichText::SourceResult RichTextEditor::TrySetSearchQuery(std::wstring_view query
 }
 void RichTextEditor::SetSearchShortcutsEnabled(bool enabled) noexcept
 {
-    _state->searchShortcutsEnabled = enabled;
+    // Read by the next key.
+    Assign(_state->searchShortcutsEnabled, enabled, Affects::None);
 }
 void RichTextEditor::SetOnFindRequested(std::function<void()> callback)
 {
@@ -2870,13 +2868,15 @@ void RichTextEditor::SetOnFindRequested(std::function<void()> callback)
 }
 void RichTextEditor::SetMarkdownShortcutsEnabled(bool enabled) noexcept
 {
-    _state->markdownShortcutsEnabled = enabled;
+    // Read by the next key.
+    Assign(_state->markdownShortcutsEnabled, enabled, Affects::None);
 }
 void RichTextEditor::SetAutoPairEnabled(bool enabled) noexcept
 {
+    // Any call ends the pending typing run, as before; the flag is read by the next character.
     _state->autoFormatRun.reset();
     _state->smartTypingSite.reset();
-    _state->autoPairEnabled = enabled;
+    Assign(_state->autoPairEnabled, enabled, Affects::None);
 }
 bool RichTextEditor::IsAutoPairEnabled() const noexcept
 {
@@ -2884,8 +2884,9 @@ bool RichTextEditor::IsAutoPairEnabled() const noexcept
 }
 void RichTextEditor::SetSmartTypographyEnabled(bool enabled) noexcept
 {
+    // Any call ends the pending typing site, as before; the flag is read by the next character.
     _state->smartTypingSite.reset();
-    _state->smartTypographyEnabled = enabled;
+    Assign(_state->smartTypographyEnabled, enabled, Affects::None);
 }
 bool RichTextEditor::IsSmartTypographyEnabled() const noexcept
 {
@@ -2893,8 +2894,9 @@ bool RichTextEditor::IsSmartTypographyEnabled() const noexcept
 }
 void RichTextEditor::SetMarkdownAutoFormatEnabled(bool enabled) noexcept
 {
-    _state->markdownAutoFormatEnabled = enabled;
+    // Any call ends the pending auto-format run, as before; the flag is read by the next character.
     _state->autoFormatRun.reset();
+    Assign(_state->markdownAutoFormatEnabled, enabled, Affects::None);
 }
 bool RichTextEditor::IsMarkdownAutoFormatEnabled() const noexcept
 {

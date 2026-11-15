@@ -14015,6 +14015,7 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, Access
 {
     if (! host)
         return;
+    ++Detail::Work().accessibility.mutations;
     if (! hwnd)
         return; // EmbeddedHost::UpdateAccessibility publishes after coherent preparation.
 

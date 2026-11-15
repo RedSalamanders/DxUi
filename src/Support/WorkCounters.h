@@ -23,8 +23,10 @@
     X(frame, d2dDevices)             /* Direct2D devices a thread's shared native device stack created (ID2D1Factory1::CreateDevice). */                       \
     X(frame, drawCalls)              /* Direct2D draw calls seen by a test executable's counting wrappers; 0 wherever none is installed. */                    \
     X(frame, fullVisualPreparations) /* Preparation passes that prepared every visible control's visual content, not only the pending ones. */                 \
+    X(frame, hitRevisionMoves)       /* Moves of a host's pointer hit revision (ControlHost::AdvanceHitRevision): InvalidateHitTest and the named sites. */    \
     X(frame, hitTestReuses)          /* Pointer hit tests a host answered from the hit result of the same pointer event, client point and hit revision. */     \
     X(frame, hitTests)               /* Host hit tests that walked the control tree (overlays, then children) to find the control under a point. */            \
+    X(frame, invalidations)          /* ControlHost::Invalidate requests (a native InvalidateRect or an embedded invalidation callback), changed or not. */    \
     X(frame, paintExecutions)        /* Control::Paint calls dispatched by a host, Panel or PageHost: one per painted control. */                              \
     X(frame, pixelsPainted)          /* Device pixels inside the area a preparation or render cleared and repainted. */                                        \
     X(frame, plainLabelPreparations) /* Label::PrepareVisualContent calls on a Label with neither a typography override nor a mnemonic. */                     \
@@ -142,6 +144,7 @@
 
 // UI Automation.
 #define DXUI_WORK_COUNTERS_ACCESSIBILITY(X)                                                                                                                    \
+    X(accessibility, mutations)        /* Accessibility mutations controls raised (RefreshWindowHostAccessibilitySnapshot with a host), built or not. */       \
     X(accessibility, snapshotBuilds)   /* Whole-window UI Automation snapshot builds that reached the tree walk. */                                            \
     X(accessibility, snapshotBytes)    /* Bytes reserved by those snapshots' per-control record arrays (excluding owned strings). */                           \
     X(accessibility, snapshotNodes)    /* Control records those snapshots hold. */                                                                             \
@@ -157,6 +160,7 @@
     X(layout, measureCacheHits)             /* Control::Measure calls answered from the control's measure cache, MeasureOverride not run. */                   \
     X(layout, measureCacheMisses)           /* Control::Measure calls with valid input that found no cached result and ran MeasureOverride. */                 \
     X(layout, measureCacheVerifyMismatches) /* Debug verification: a cache hit whose re-run MeasureOverride returned a different result. */                    \
+    X(layout, measureInvalidations)         /* Control::InvalidateMeasure calls: one per control whose measured size may have changed. */                      \
     X(layout, measureOverrideExecutions)    /* MeasureOverride calls Control::Measure made for a miss (not verification re-runs). */
 
 // Every counter of every group except the resource kinds.

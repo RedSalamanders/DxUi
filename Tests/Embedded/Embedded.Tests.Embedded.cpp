@@ -88,6 +88,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.PerformanceFixtures.h"
 #include "Embedded.Tests.PerformanceGridDataPaths.h"
 // After the performance fixtures: the W2.2 gate drives FX2.
+#include "Embedded.Tests.AssignSetters.h"
 #include "Embedded.Tests.ComboBoxPopupLayout.h"
 #include "Embedded.Tests.PointerHit.h"
 // After the performance fixtures: the W2.1 gate drives FX5.
@@ -2009,6 +2010,15 @@ __declspec(noinline) static int RunFunctionalTests()
         MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
         return 0;
     }
+    // Plan W2.10 alone: every public setter twice to the same value on FX5, and Assign's equality.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-assign-setters")
+    {
+        GraphicsFixture gpu;
+        Hr(gpu.Create(true), "assignment gate WARP device");
+        AssignSetterGate::TestAssignEquality();
+        AssignSetterGate::TestFx5EverySetterAssignsOnce(gpu);
+        return 0;
+    }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-closed-roots")
     {
         MarkdownSourceCorrelationTests::ClosedRootDifferential(Check);
@@ -2262,6 +2272,8 @@ __declspec(noinline) static int RunFunctionalTests()
     EmbeddedPointerHit::TestPointerHitEmbeddedResultNeverOutlivesItsControl(gpu);
     EmbeddedPointerHit::TestPointerHitEmbeddedEverySiteMovesTheRevision(gpu);
     FormatBrushCacheTests::RunAll(gpu);
+    AssignSetterGate::TestAssignEquality();
+    AssignSetterGate::TestFx5EverySetterAssignsOnce(gpu);
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();

@@ -1780,16 +1780,7 @@ void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
 
 void Grid::SetVisualMode(GridVisualMode mode) noexcept
 {
-    if (_visualMode == mode)
-    {
-        return;
-    }
-
-    _visualMode = mode;
-    if (ControlHost* host = GetHost())
-    {
-        Invalidate(*host);
-    }
+    Assign(_visualMode, mode, Affects::Paint);
 }
 
 void Grid::SetRowHeightDip(float rowHeightDip) noexcept
@@ -1825,35 +1816,23 @@ void Grid::SetHeaderHeightDip(float headerHeightDip) noexcept
 
 void Grid::SetCellTextFontRole(FontRole fontRole) noexcept
 {
-    if (_cellTextFontRole == fontRole)
-    {
-        return;
-    }
-
-    _cellTextFontRole = fontRole;
-    RequestInvalidate();
+    Assign(_cellTextFontRole, fontRole, Affects::Paint);
 }
 
 void Grid::SetIconSizeDip(float iconSizeDip) noexcept
 {
     const float normalized = std::clamp(iconSizeDip, 1.0f, 64.0f);
+    // Sizes within a hundredth of a DIP draw the same icon: such a size is no change.
     if (std::abs(_iconSizeDip - normalized) <= 0.01f)
     {
         return;
     }
-
-    _iconSizeDip = normalized;
-    RequestInvalidate();
+    Assign(_iconSizeDip, normalized, Affects::Paint);
 }
 
 void Grid::SetLineClamp(uint32_t lineClamp) noexcept
 {
-    const auto normalized = std::max(1u, lineClamp);
-    if (_lineClamp != normalized)
-    {
-        _lineClamp = normalized;
-        RequestInvalidate();
-    }
+    Assign(_lineClamp, std::max(1u, lineClamp), Affects::Paint);
 }
 
 void Grid::OnDensityChanged() noexcept
@@ -1867,8 +1846,7 @@ void Grid::OnDensityChanged() noexcept
 
 void Grid::SetEmptyStateText(std::wstring text)
 {
-    _emptyStateText = std::move(text);
-    RequestInvalidate();
+    Assign(_emptyStateText, std::move(text), Affects::Paint);
 }
 
 std::wstring_view Grid::GetEmptyStateText() const noexcept
@@ -1878,48 +1856,40 @@ std::wstring_view Grid::GetEmptyStateText() const noexcept
 
 void Grid::SetHeaderBusy(bool busy) noexcept
 {
-    if (_headerBusy == busy)
-        return;
-    _headerBusy = busy;
-    RequestInvalidate();
+    Assign(_headerBusy, busy, Affects::Paint);
 }
 
 void Grid::SetHeaderBusyColumn(std::optional<size_t> columnIndex) noexcept
 {
-    if (_headerBusyColumn == columnIndex)
-        return;
-    _headerBusyColumn = columnIndex;
-    RequestInvalidate();
+    Assign(_headerBusyColumn, columnIndex, Affects::Paint);
+}
+
+// Control::Assign's equality for a sort (AssignEquality): column and direction.
+[[nodiscard]] static bool SameAssignedValue(const GridSortSpec& a, const GridSortSpec& b) noexcept
+{
+    return a.columnIndex == b.columnIndex && a.direction == b.direction;
 }
 
 void Grid::SetSortSpec(const GridSortSpec& sortSpec) noexcept
 {
-    const bool changed = _sortSpec.columnIndex != sortSpec.columnIndex || _sortSpec.direction != sortSpec.direction;
-    if (! changed)
-    {
-        return;
-    }
-
     const GridSortSpec previousSortSpec = _sortSpec;
-    _sortSpec                           = sortSpec;
-    if (previousSortSpec.direction == SortDirection::None && sortSpec.direction == SortDirection::None)
-    {
-        _sortGlyphTransition = {};
-        return;
-    }
-
     // The glyph cross-fades on its host's animation clock; with no host nothing ticks it, so it moves at once.
-    const ControlHost* const host = GetHost();
-    if (! host)
+    Assign(_sortSpec,
+           sortSpec,
+           Affects::Paint,
+           [this, previousSortSpec, sortSpec]() noexcept
     {
-        _sortGlyphTransition = {};
-        return;
-    }
-    _sortGlyphTransition.from        = previousSortSpec;
-    _sortGlyphTransition.to          = sortSpec;
-    _sortGlyphTransition.startTickMs = host->GetAnimationTickMs();
-    _sortGlyphTransition.active      = true;
-    RequestInvalidate();
+        const ControlHost* const host = GetHost();
+        if ((previousSortSpec.direction == SortDirection::None && sortSpec.direction == SortDirection::None) || ! host)
+        {
+            _sortGlyphTransition = {};
+            return;
+        }
+        _sortGlyphTransition.from        = previousSortSpec;
+        _sortGlyphTransition.to          = sortSpec;
+        _sortGlyphTransition.startTickMs = host->GetAnimationTickMs();
+        _sortGlyphTransition.active      = true;
+    });
 }
 
 GridSortSpec Grid::GetSortSpec() const noexcept

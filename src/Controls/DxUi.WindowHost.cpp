@@ -2032,6 +2032,7 @@ void ControlHost::Invalidate() const noexcept
 
 void ControlHost::InvalidateFor(uint8_t traceFrameReason) const noexcept
 {
+    ++Detail::Work().frame.invalidations;
     if (_embedded)
     {
         if (_embeddedInvalidate)
@@ -7009,6 +7010,7 @@ void ControlHost::ResetRootInteractionState() noexcept
 
 void ControlHost::AdvanceHitRevision() noexcept
 {
+    ++Detail::Work().frame.hitRevisionMoves;
     ++_hitRevision;
 }
 

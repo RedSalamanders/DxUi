@@ -656,7 +656,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
   - **Gate**: on `FX14` and `FX2`, 1 hit-test per `WM_MOUSEMOVE`; on `FX10`, 0 `IsControlInTree` calls during
     preparation and 0 plain labels pending preparation after each step; exact WARP parity on `FX5`.
   - **Needs**: `W0.1`, `W0.4`. **Size**: M.
-- [ ] **W2.10 One way to assign a property.**
+- [x] **W2.10 One way to assign a property.**
   - **Why**: about 30 setters invalidate without an unchanged-value guard, 28 counted
     (`DxUi.Controls.cpp:2911`, `:3495`, `:5186`, `:5205`, `:5223`, `:5304`, `:6051-6103`, `:6476`, `:7334`, `:7360`,
     `:7958`, `:10537`, `StackPanel` `:10660-10701`; `NumericStepper` and `ColorPicker` in

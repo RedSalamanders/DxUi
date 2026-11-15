@@ -165,6 +165,38 @@ StackPanel layout reacquires owned child storage after each bounds callback and 
 retirement or a nested change to layout inputs. It allocates no traversal snapshot. Call ApplyLayout after changing
 children, bounds or layout settings; a nested completed reflow is not overwritten by stale outer geometry.
 
+## Assigning a property
+
+A public setter stores its property through `Control::Assign(field, value, affects[, onStored])`. An equal value is no
+change: `Assign` returns `false` and invalidates, measures, moves the hit revision and publishes nothing. Equality is
+`AssignEquality::Same`: floating point exactly, every NaN equal to every NaN and -0 equal to +0; strings by content (a
+string with a view included); pointers and smart pointers by identity; colours, rectangles, sizes and points member by
+member; optionals, tuples (`std::tie` of several fields) and ranges element by element; other types by `operator==` or a
+`SameAssignedValue(a, b)` found by argument-dependent lookup, never by bytes. A callable has no equality, so a setter that
+registers a callback does not use `Assign`. A setter normalizes first (clamping, validation), so values that normalize to
+the stored one are no change.
+
+A changed value is stored, then the setter's own bookkeeping runs (`onStored`: a cache retired, a dependent field clamped,
+a transition started), then `affects` is routed once, in this order: `Hit` moves the pointer hit revision
+(`InvalidateHitTest`; a library setter with a named hit-revision site moves it there), `Layout` calls `InvalidateMeasure`,
+`Paint` invalidates the host, and `SemanticName`, `SemanticValue` and `SemanticState` together raise one accessibility
+mutation through the host's mutation entry point, so the client gate still decides whether a snapshot is built
+([UI_InputAndAccessibility.md](UI_InputAndAccessibility.md)): a state as a mutation that can change patterns or focus, a
+name or value as a content-only one. An embedded view publishes only at the application's `UpdateAccessibility` after a
+preparation, so on an embedded host a semantic change that is not also painted invalidates the view. Each step can run application code that destroys the control, and none runs after
+that. A property's `Affects` is what reads it: `Paint` when a paint path does, `Layout` when a `MeasureOverride` or an
+arrange does, `Hit` when `HitTest`, `HitTestOverlay`, `GetHitBounds` or interactivity does, and the semantic aspect the
+accessibility snapshot reads it as. A composite whose property lives on a part forwards to the part's setter, which routes.
+
+Every public `Set*` of a public control class under `src/Controls` uses `Assign`, registers a callback, or is on the
+reviewed allow list of `Tools/AssignSetters.psm1` with its reason (tree state and geometry the host tracks through the
+interaction revision, model bindings that reload on every call, editing state that a programmatic set resets on every
+call, scheduled transitions and deadlines, and the rich text editor's document options). The tooling test
+`Tools/tests/Test-AssignSetters.ps1` fails any other setter and any stale entry, and requires each setter that uses
+`Assign` to be a row of the native gate on FX5 (`Tests/Embedded/Embedded.Tests.AssignSetters.h`), which proves that an
+unchanged value routes nothing and a changed one routes what its `Affects` declares. A control outside the library assigns
+its properties the same way: `Assign` and `Affects` are available to every subclass and add no storage.
+
 ## Opt-in intrinsic measurement and flow
 
 `Control::Measure(MeasureContext, LayoutConstraints, DesiredSize&)` is an additive, non-pure extension point.

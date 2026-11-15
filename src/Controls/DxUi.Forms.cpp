@@ -239,20 +239,16 @@ HRESULT FormField::SetValidation(ValidationState state, std::wstring explanation
 }
 HRESULT FormField::SetRequired(bool required) noexcept
 {
-    if (_required == required)
+    // Presented on the editor part, which publishes its own form properties.
+    if (! Assign(_required, required, Affects::None))
         return S_FALSE;
-    _required = required;
     return SyncAccessibility();
 }
 HRESULT FormField::SetEditorPreferredSize(D2D1_SIZE_F sizeDip) noexcept
 {
     if (! ValidExtent(sizeDip.width) || ! ValidExtent(sizeDip.height) || sizeDip.width < kMinimumEditorWidthDip || sizeDip.height <= 0)
         return E_INVALIDARG;
-    if (_editorPreferredSize.width == sizeDip.width && _editorPreferredSize.height == sizeDip.height)
-        return S_FALSE;
-    _editorPreferredSize = sizeDip;
-    InvalidateMeasure();
-    return S_OK;
+    return Assign(_editorPreferredSize, sizeDip, Affects::Layout) ? S_OK : S_FALSE;
 }
 
 HRESULT FormField::MeasurePart(const Control* control, const MeasureContext& context, float widthDip, DesiredSize& desired) const noexcept
@@ -655,12 +651,7 @@ HRESULT FormPanel::SetColumns(size_t columns) noexcept
 {
     if (columns != 1 && columns != 2)
         return E_INVALIDARG;
-    if (_columns == columns)
-        return S_FALSE;
-    _columns = columns;
-    ++_layoutRevision;
-    InvalidateMeasure();
-    return S_OK;
+    return Assign(_columns, columns, Affects::Layout, [this]() noexcept { ++_layoutRevision; }) ? S_OK : S_FALSE;
 }
 size_t FormPanel::GetColumns() const noexcept
 {
@@ -670,35 +661,24 @@ HRESULT FormPanel::SetLabelPlacement(LabelPlacement placement) noexcept
 {
     if (placement != LabelPlacement::Above && placement != LabelPlacement::Beside)
         return E_INVALIDARG;
-    if (_labelPlacement == placement)
-        return S_FALSE;
-    _labelPlacement = placement;
-    ++_layoutRevision;
-    InvalidateMeasure();
-    return S_OK;
+    return Assign(_labelPlacement, placement, Affects::Layout, [this]() noexcept { ++_layoutRevision; }) ? S_OK : S_FALSE;
 }
 HRESULT FormPanel::SetGap(float horizontalDip, float verticalDip) noexcept
 {
     if (! ValidExtent(horizontalDip) || ! ValidExtent(verticalDip))
         return E_INVALIDARG;
-    if (_horizontalGapDip == horizontalDip && _verticalGapDip == verticalDip)
-        return S_FALSE;
-    _horizontalGapDip = horizontalDip;
-    _verticalGapDip   = verticalDip;
-    ++_layoutRevision;
-    InvalidateMeasure();
-    return S_OK;
+    return Assign(std::tie(_horizontalGapDip, _verticalGapDip),
+                  std::tuple<float, float>(horizontalDip, verticalDip),
+                  Affects::Layout,
+                  [this]() noexcept { ++_layoutRevision; })
+               ? S_OK
+               : S_FALSE;
 }
 HRESULT FormPanel::SetPadding(float paddingDip) noexcept
 {
     if (! ValidExtent(paddingDip))
         return E_INVALIDARG;
-    if (_paddingDip == paddingDip)
-        return S_FALSE;
-    _paddingDip = paddingDip;
-    ++_layoutRevision;
-    InvalidateMeasure();
-    return S_OK;
+    return Assign(_paddingDip, paddingDip, Affects::Layout, [this]() noexcept { ++_layoutRevision; }) ? S_OK : S_FALSE;
 }
 D2D1_SIZE_F FormPanel::GetContentSize() const noexcept
 {

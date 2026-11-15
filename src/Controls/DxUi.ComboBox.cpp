@@ -497,37 +497,43 @@ const std::wstring& ComboBox::FilterText() const noexcept
 void ComboBox::SetVariant(ComboBoxVariant variant) noexcept
 {
     _typeaheadBuffer.clear();
-    const bool changed  = _variant != variant;
-    _variant            = variant;
-    const bool editable = variant == ComboBoxVariant::Edit;
-    _editable           = editable;
-    if (_editable)
+    // An editable box has a text pattern and a writable value (UI Automation); the measure reads neither. The popup's rows are
+    // filtered again, and they size the popup (GetHitBounds, HitTestOverlay).
+    AssignAccess::Assign(*this,
+                         HitRevisionSite::ComboBoxRebuild,
+                         _variant,
+                         variant,
+                         Affects::Paint | Affects::Hit | Affects::SemanticState,
+                         [this, variant]() noexcept
     {
-        if (_text->empty() && _selectedIndex && _selectedIndex.value() < _items.size())
+        const bool editable = variant == ComboBoxVariant::Edit;
+        _editable           = editable;
+        if (_editable)
         {
-            try
+            if (_text->empty() && _selectedIndex && _selectedIndex.value() < _items.size())
             {
-                if (! _items[_selectedIndex.value()].value.empty())
-                    TextEditHistory::NoteUnrecordedChange(_undoHistory, _redoHistory, *_text);
+                try
+                {
+                    if (! _items[_selectedIndex.value()].value.empty())
+                        TextEditHistory::NoteUnrecordedChange(_undoHistory, _redoHistory, *_text);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    Failure::FailAllocation();
+                }
+                _text = MakeSharedText(_items[_selectedIndex.value()].value);
+                _committedText.reset();
             }
-            catch (const std::bad_alloc&)
-            {
-                Failure::FailAllocation();
-            }
-            _text = MakeSharedText(_items[_selectedIndex.value()].value);
-            _committedText.reset();
+            SyncEditableSelectionFromText();
+            _caretIndex = std::min(_caretIndex, _text->size());
         }
-        SyncEditableSelectionFromText();
-        _caretIndex = std::min(_caretIndex, _text->size());
-    }
-    else
-    {
-        _caretIndex = 0u;
-    }
-    InvalidateSingleLineLayoutCache();
-    RebuildPopupItems();
-    if (changed)
-        InvalidateMeasure();
+        else
+        {
+            _caretIndex = 0u;
+        }
+        InvalidateSingleLineLayoutCache();
+        RebuildPopupItems();
+    });
 }
 
 ComboBoxVariant ComboBox::GetVariant() const noexcept
@@ -537,16 +543,8 @@ ComboBoxVariant ComboBox::GetVariant() const noexcept
 
 void ComboBox::SetChromeVisible(bool visible) noexcept
 {
-    if (_chromeVisible == visible)
-    {
-        return;
-    }
-
-    _chromeVisible      = visible;
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    if (! lifetime.expired())
-        RequestInvalidate();
+    // Paint only: the measure reserves the same chrome either way.
+    Assign(_chromeVisible, visible, Affects::Paint);
 }
 
 bool ComboBox::IsChromeVisible() const noexcept
@@ -556,18 +554,23 @@ bool ComboBox::IsChromeVisible() const noexcept
 
 void ComboBox::SetMaxVisibleItems(size_t maxItems) noexcept
 {
-    _maxVisibleItemsOverride = maxItems;
-    ResetPopupLayout();
+    // The popup's rectangle (GetHitBounds, HitTestOverlay) is placed again.
+    AssignAccess::Assign(
+        *this, HitRevisionSite::ComboBoxLayout, _maxVisibleItemsOverride, maxItems, Affects::Paint | Affects::Hit, [this]() noexcept { ResetPopupLayout(); });
 }
 
 void ComboBox::SetNoMatchesText(std::wstring text)
 {
-    if (_noMatchesText == text)
-        return;
-    _noMatchesText                      = std::move(text);
-    _popupItemWidthCache.noMatchesValid = false;
-    ResetPopupLayout();
-    RequestInvalidate();
+    AssignAccess::Assign(*this,
+                         HitRevisionSite::ComboBoxLayout,
+                         _noMatchesText,
+                         std::move(text),
+                         Affects::Paint | Affects::Hit,
+                         [this]() noexcept
+    {
+        _popupItemWidthCache.noMatchesValid = false;
+        ResetPopupLayout();
+    });
 }
 
 std::wstring_view ComboBox::GetNoMatchesText() const noexcept
@@ -577,19 +580,25 @@ std::wstring_view ComboBox::GetNoMatchesText() const noexcept
 
 void ComboBox::SetMinimumPopupItemHeight(float heightDip) noexcept
 {
-    if (! std::isfinite(heightDip) || heightDip < 0.0f || heightDip > 4096.0f || heightDip == _minimumPopupItemHeightDip)
+    if (! std::isfinite(heightDip) || heightDip < 0.0f || heightDip > 4096.0f)
     {
         return;
     }
-    _minimumPopupItemHeightDip = heightDip;
-    ResetPopupLayout();
-    if (_open)
+    AssignAccess::Assign(*this,
+                         HitRevisionSite::ComboBoxLayout,
+                         _minimumPopupItemHeightDip,
+                         heightDip,
+                         Affects::Paint | Affects::Hit,
+                         [this]() noexcept
     {
-        _hoveredPopupIndex.reset();
-        _dragPopupScrollbar = false;
-        EnsurePopupSelectionVisible(GetHost());
-    }
-    RequestInvalidate();
+        ResetPopupLayout();
+        if (_open)
+        {
+            _hoveredPopupIndex.reset();
+            _dragPopupScrollbar = false;
+            EnsurePopupSelectionVisible(GetHost());
+        }
+    });
 }
 
 float ComboBox::GetMinimumPopupItemHeight() const noexcept
@@ -631,7 +640,8 @@ bool ComboBox::IsEditable() const noexcept
 
 void ComboBox::SetAutoOpenOnTextInput(bool autoOpen) noexcept
 {
-    _autoOpenOnTextInput = autoOpen;
+    // Read by the next typed character.
+    Assign(_autoOpenOnTextInput, autoOpen, Affects::None);
 }
 
 bool ComboBox::GetAutoOpenOnTextInput() const noexcept
@@ -639,37 +649,47 @@ bool ComboBox::GetAutoOpenOnTextInput() const noexcept
     return _autoOpenOnTextInput;
 }
 
+// Control::Assign's equality for items (AssignEquality): both strings.
+[[nodiscard]] static bool SameAssignedValue(const ComboBox::Item& a, const ComboBox::Item& b) noexcept
+{
+    return a.value == b.value && a.display == b.display;
+}
+
 void ComboBox::SetItems(std::vector<Item> items)
 {
     _typeaheadBuffer.clear();
-    _items            = std::move(items);
-    _popupScrollIndex = 0u;
-    // New items: their widths are measured again at the next placement of the open popup.
-    _popupItemWidthCache.valid = false;
-    RebuildPopupItems();
-    if (_editable)
+    // The items give the shown text and selection UI Automation reads, and the popup's rows (GetHitBounds, HitTestOverlay); an
+    // unchanged list keeps the popup as it is.
+    AssignAccess::Assign(*this,
+                         HitRevisionSite::ComboBoxRebuild,
+                         _items,
+                         std::move(items),
+                         Affects::Paint | Affects::Hit | Affects::SemanticValue,
+                         [this]()
     {
-        SyncEditableSelectionFromText();
-        _caretIndex = std::min(_caretIndex, _text->size());
-        _selectionAnchorIndex.reset();
-        _editableHorizontalScrollDip = 0.0f;
-        _dragSelecting               = false;
-        InvalidateSingleLineLayoutCache();
+        _popupScrollIndex = 0u;
+        // New items: their widths are measured again at the next placement of the open popup.
+        _popupItemWidthCache.valid = false;
+        RebuildPopupItems();
+        if (_editable)
+        {
+            SyncEditableSelectionFromText();
+            _caretIndex = std::min(_caretIndex, _text->size());
+            _selectionAnchorIndex.reset();
+            _editableHorizontalScrollDip = 0.0f;
+            _dragSelecting               = false;
+            InvalidateSingleLineLayoutCache();
+        }
+        else if (_items.empty())
+        {
+            _selectedIndex.reset();
+        }
+        else if (! _selectedIndex || _selectedIndex.value() >= _items.size())
+        {
+            _selectedIndex = 0u;
+        }
         EnsurePopupSelectionVisible();
-        RequestInvalidate();
-        return;
-    }
-
-    if (_items.empty())
-    {
-        _selectedIndex.reset();
-    }
-    else if (! _selectedIndex || _selectedIndex.value() >= _items.size())
-    {
-        _selectedIndex = 0u;
-    }
-    EnsurePopupSelectionVisible();
-    RequestInvalidate();
+    });
 }
 
 std::span<const ComboBox::Item> ComboBox::GetItems() const noexcept
@@ -680,22 +700,24 @@ std::span<const ComboBox::Item> ComboBox::GetItems() const noexcept
 void ComboBox::SetSelectedIndex(std::optional<size_t> selectedIndex) noexcept
 {
     _typeaheadBuffer.clear();
-    if (selectedIndex && selectedIndex.value() >= _items.size())
+    // An index past the items selects nothing.
+    const bool rejected = selectedIndex && selectedIndex.value() >= _items.size();
+    if (rejected)
+        selectedIndex.reset();
+    Assign(_selectedIndex,
+           selectedIndex,
+           Affects::Paint | Affects::SemanticValue,
+           [this, rejected]() noexcept
     {
-        _selectedIndex.reset();
-        RefreshAccessibilitySnapshot();
-        RequestInvalidate();
-        return;
-    }
-    _selectedIndex = selectedIndex;
-    if (_editable)
-    {
-        _selectionAnchorIndex.reset();
-        _dragSelecting = false;
-    }
-    EnsurePopupSelectionVisible();
-    RefreshAccessibilitySnapshot();
-    RequestInvalidate();
+        if (rejected)
+            return;
+        if (_editable)
+        {
+            _selectionAnchorIndex.reset();
+            _dragSelecting = false;
+        }
+        EnsurePopupSelectionVisible();
+    });
 }
 
 std::optional<size_t> ComboBox::GetSelectedIndex() const noexcept
@@ -792,7 +814,8 @@ std::wstring_view ComboBox::GetText() const noexcept
 
 void ComboBox::SetPlaceholder(std::wstring text)
 {
-    _placeholder = std::move(text);
+    // Painted while nothing is selected or typed.
+    Assign(_placeholder, std::move(text), Affects::Paint);
 }
 
 void ComboBox::SetOnTextChanged(std::function<void(std::wstring_view)> onTextChanged)

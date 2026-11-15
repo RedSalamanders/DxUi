@@ -556,14 +556,7 @@ bool Control::IsEnabled() const noexcept
 void Control::SetFocusable(bool focusable) noexcept
 {
     const Failure::Scope outerFailureScope;
-    if (_focusable != focusable)
-    {
-        _focusable = focusable;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-    }
+    Assign(_focusable, focusable, Affects::SemanticState);
 }
 
 bool Control::IsFocusable() const noexcept
@@ -583,12 +576,16 @@ bool Control::IsHovered() const noexcept
 
 void Control::SetTooltipText(std::wstring tooltipText)
 {
-    if (_tooltipText == tooltipText)
-        return;
-    _tooltipText = std::move(tooltipText);
-    // A pending or shown supplemental tooltip shows the new text, or none, from the next wake.
-    if (_host && _host->MarkTooltipTargetStale())
-        _host->OnTooltipScheduleChanged();
+    // Read when the pointer next rests on the control (OnMouseMove): nothing paints, measures, hit-tests or publishes it. A
+    // pending or shown supplemental tooltip shows the new text, or none, from the next wake.
+    Assign(_tooltipText,
+           std::move(tooltipText),
+           Affects::None,
+           [this]() noexcept
+    {
+        if (_host && _host->MarkTooltipTargetStale())
+            _host->OnTooltipScheduleChanged();
+    });
 }
 
 std::wstring_view Control::GetTooltipText() const noexcept
@@ -750,14 +747,15 @@ ControlHost* Control::GetHost() const noexcept
 
 void Control::SetMnemonic(wchar_t mnemonic) noexcept
 {
-    const auto normalized = NormalizeMnemonicChar(mnemonic);
-    if (_mnemonic == normalized)
-        return;
-    _mnemonic = normalized;
     // A plain Label is not prepared: a mnemonic makes it one that is, and clearing it makes it plain again (Label::Label).
-    RefreshLabelVisualPreparation();
-    RequestVisualContentPreparation(false);
-    RequestInvalidate(); // Scheduling may synchronously retire this control.
+    Assign(_mnemonic,
+           NormalizeMnemonicChar(mnemonic),
+           Affects::Paint,
+           [this]() noexcept
+    {
+        RefreshLabelVisualPreparation();
+        RequestVisualContentPreparation(false);
+    });
 }
 
 wchar_t Control::GetMnemonic() const noexcept
@@ -862,11 +860,8 @@ bool Control::IsCompactDensity() const noexcept
 
 void Control::SetConnectedAnimationKey(std::wstring key)
 {
-    if (_connectedAnimationKey != key)
-    {
-        _connectedAnimationKey = std::move(key);
-        RequestInvalidate();
-    }
+    // Read when a PageHost starts a transition, never painted.
+    Assign(_connectedAnimationKey, std::move(key), Affects::None);
 }
 
 std::wstring_view Control::GetConnectedAnimationKey() const noexcept
@@ -877,18 +872,7 @@ std::wstring_view Control::GetConnectedAnimationKey() const noexcept
 void Control::SetAccessibleName(std::wstring name)
 {
     const Failure::Scope outerFailureScope;
-    if (_accessibleName != name)
-    {
-        _accessibleName     = std::move(name);
-        const auto lifetime = GetLifetimeToken();
-        RequestInvalidate();
-        if (lifetime.expired())
-            return;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-    }
+    Assign(_accessibleName, std::move(name), Affects::SemanticName);
 }
 
 std::wstring_view Control::GetAccessibleName() const noexcept
@@ -899,18 +883,7 @@ std::wstring_view Control::GetAccessibleName() const noexcept
 void Control::SetAccessibleHelpText(std::wstring helpText)
 {
     const Failure::Scope outerFailureScope;
-    if (_accessibleHelpText != helpText)
-    {
-        _accessibleHelpText = std::move(helpText);
-        const auto lifetime = GetLifetimeToken();
-        RequestInvalidate();
-        if (lifetime.expired())
-            return;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-    }
+    Assign(_accessibleHelpText, std::move(helpText), Affects::SemanticName);
 }
 
 std::wstring_view Control::GetAccessibleHelpText() const noexcept
@@ -977,14 +950,7 @@ std::wstring_view Control::GetAccessibleItemStatus() const noexcept
 void Control::SetAccessibleAutomationId(std::wstring automationId)
 {
     const Failure::Scope outerFailureScope;
-    if (_accessibleAutomationId != automationId)
-    {
-        _accessibleAutomationId = std::move(automationId);
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-    }
+    Assign(_accessibleAutomationId, std::move(automationId), Affects::SemanticName);
 }
 
 std::wstring_view Control::GetAccessibleAutomationId() const noexcept
@@ -995,18 +961,8 @@ std::wstring_view Control::GetAccessibleAutomationId() const noexcept
 void Control::SetAccessibilityRole(AccessibilityRole role) noexcept
 {
     const Failure::Scope outerFailureScope;
-    if (_accessibilityRole != role)
-    {
-        _accessibilityRole  = role;
-        const auto lifetime = GetLifetimeToken();
-        RequestInvalidate();
-        if (lifetime.expired())
-            return;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-    }
+    // The control type and patterns UI Automation reports: a state, never painted.
+    Assign(_accessibilityRole, role, Affects::SemanticState);
 }
 
 AccessibilityRole Control::GetAccessibilityRole() const noexcept
@@ -1082,6 +1038,54 @@ void Control::InvalidateHitTest() noexcept
 {
     if (_host)
         _host->AdvanceHitRevision();
+}
+
+void Control::RouteAffects(Affects affects) noexcept
+{
+    RouteAffectsAt(affects, static_cast<uint8_t>(HitRevisionSite::Assign));
+}
+
+// The routing of a changed assignment (UI_ControlsAndLayout.md, "Assigning a property"). Each step can run the application's
+// code (an embedded invalidation callback, an accessibility event) that destroys this control, so each later step first
+// checks that it is still alive.
+void Control::RouteAffectsAt(Affects affects, uint8_t hitRevisionSite) noexcept
+{
+    if (affects == Affects::None)
+        return;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    if (HasAffects(affects, Affects::Hit))
+        NoteHitTestChange(*this, static_cast<HitRevisionSite>(hitRevisionSite));
+    if (HasAffects(affects, Affects::Layout))
+    {
+        InvalidateMeasure();
+        if (lifetime.expired())
+            return;
+    }
+    if (HasAffects(affects, Affects::Paint))
+    {
+        RequestInvalidate();
+        if (lifetime.expired())
+            return;
+    }
+    // One mutation for every semantic aspect: the snapshot is rebuilt whole today. A state can change patterns and focus
+    // (General); a name or value cannot (ContentOnly), so an already posted flush publishes it. An embedded view publishes
+    // at the application's UpdateAccessibility after a preparation, so a change it has not repainted asks for one.
+    if (HasAffects(affects, Affects::SemanticName | Affects::SemanticValue | Affects::SemanticState))
+    {
+        if (ControlHost* const host = GetHost())
+        {
+            if (host->IsEmbedded() && ! HasAffects(affects, Affects::Paint))
+            {
+                RequestInvalidate();
+                if (lifetime.expired() || GetHost() != host)
+                    return;
+            }
+            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(),
+                                                   host,
+                                                   HasAffects(affects, Affects::SemanticState) ? AccessibilityMutationKind::General
+                                                                                               : AccessibilityMutationKind::ContentOnly);
+        }
+    }
 }
 
 namespace
@@ -1291,6 +1295,7 @@ void Control::RequestInvalidate() const noexcept
 
 void Control::InvalidateMeasure() noexcept
 {
+    ++Detail::Work().layout.measureInvalidations;
     bool hasLayoutOwner = false;
     for (Control* control = this; control; control = control->_parent)
     {

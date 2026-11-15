@@ -114,6 +114,7 @@
   "Tests/Controls/DxUi.Tests.Tree.cpp",
   "Tests/Controls/DxUi.Tests.WindowHost.cpp",
   "Tests/Embedded/Embedded.Tests.AnimationRequest.h",
+  "Tests/Embedded/Embedded.Tests.AssignSetters.h",
   "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h",
   "Tests/Embedded/Embedded.Tests.BenchmarkMain.h",
   "Tests/Embedded/Embedded.Tests.CleanPrepareTimerDiagnostic.h",

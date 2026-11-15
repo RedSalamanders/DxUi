@@ -325,6 +325,41 @@ struct SiteScenario
     bool siteAlone = true; // false: another site also moves the revision for this change, so suppressing this one alone changes nothing
 };
 
+// A control outside the library whose hit region is a property it assigns with Affects::Hit (W2.10): Control::Assign moves
+// the hit revision at its own site (HitRevisionSite::Assign), which declaring the hit test reported relies on.
+class AssignedHitRegion final : public DxUi::Control
+{
+public:
+    AssignedHitRegion()
+    {
+        DeclareHitTestReported();
+    }
+    AssignedHitRegion(const AssignedHitRegion&)            = delete;
+    AssignedHitRegion(AssignedHitRegion&&)                 = delete;
+    AssignedHitRegion& operator=(const AssignedHitRegion&) = delete;
+    AssignedHitRegion& operator=(AssignedHitRegion&&)      = delete;
+    void SetHittable(bool hittable) noexcept
+    {
+        Assign(_hittable, hittable, Affects::Hit | Affects::Paint);
+    }
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+
+protected:
+    [[nodiscard]] Control* HitTest(D2D1_POINT_2F point) override
+    {
+        return _hittable ? Control::HitTest(point) : nullptr;
+    }
+    [[nodiscard]] const Control* HitTest(D2D1_POINT_2F point) const override
+    {
+        return _hittable ? Control::HitTest(point) : nullptr;
+    }
+
+private:
+    bool _hittable = true;
+};
+
 // Returns whether the `under` recorder received the press.
 [[nodiscard]] inline bool RunSiteScenario(GraphicsFixture& gpu, const SiteScenario& scenario, DxUi::HitRevisionSite suppressed)
 {
@@ -478,6 +513,16 @@ struct SiteScenario
         slider->SetBounds(D2D1::RectF(20.0f, 20.0f, 320.0f, 120.0f));
         state.point  = D2D1::Point2F(40.0f, 70.0f);
         state.change = [slider](DxUi::ControlHost&) { slider->SetOrientation(DxUi::SliderOrientation::Vertical); };
+    }});
+    scenarios.push_back({"A control outside the library assigns its hit region (Control::Assign, Affects::Hit)",
+                         HitRevisionSite::Assign,
+                         true,
+                         [](DxUi::Panel& root, Log&, SiteState& state)
+    {
+        auto* region = root.AddChild<AssignedHitRegion>();
+        region->SetBounds(D2D1::RectF(20.0f, 20.0f, 320.0f, 120.0f));
+        state.point  = D2D1::Point2F(170.0f, 70.0f);
+        state.change = [region](DxUi::ControlHost&) { region->SetHittable(false); };
     }});
     scenarios.push_back({"PageIndicator SetPageCount leaves no hit bounds",
                          HitRevisionSite::PageIndicatorCount,

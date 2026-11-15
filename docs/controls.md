@@ -340,10 +340,12 @@ class Gauge final : public DxUi::Control
 {
 public:
     Gauge() { DeclareHitTestReported(); }
-    void SetHandleVisible(bool visible) noexcept { _handle = visible; InvalidateHitTest(); RequestInvalidate(); }
+    void SetHandleVisible(bool visible) noexcept { Assign(_handle, visible, Affects::Hit | Affects::Paint); }
     // HitTest reads _handle ...
 };
 ```
+
+Store a property in its setter with `Assign(field, value, affects)`, as the library's own controls do ([assigning a property](../Specs/UI/UI_ControlsAndLayout.md#assigning-a-property)). An unchanged value does nothing and returns `false`; a changed one is stored and routed once: `Affects::Hit` calls `InvalidateHitTest()`, `Affects::Layout` calls `InvalidateMeasure()`, `Affects::Paint` repaints and `Affects::SemanticName`, `SemanticValue` or `SemanticState` publish the change to UI Automation. Declare what reads the property: what paint, measure, hit testing or UI Automation would show stale otherwise. An optional fourth argument runs the setter's own bookkeeping (retiring a cache) after the store and before the routing; after a `true` result, return or hold `GetLifetimeToken()`, because routing can run application code that destroys the control. Several fields are assigned together as `std::tie(...)` with a `std::tuple` of values.
 
 Use keyboard/focus, cancellation, disabled and hidden states alongside pointer input. Verify high contrast,
 Unicode, DPI and minimum layout bounds. Consult [hosting](hosting.md) for the embedded text/UIA limitations.

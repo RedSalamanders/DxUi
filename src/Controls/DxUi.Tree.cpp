@@ -365,21 +365,25 @@ void ITreeDelegate::OnTreeSelectionSetChanged(std::span<const uint64_t> /*select
 
 void Tree::SetReorderEnabled(bool enabled) noexcept
 {
-    if (_reorderEnabled == enabled)
+    // Read by the next press. Disabling mid-drag ends it like a cancel: no capture stays behind and the indicator is
+    // repainted away.
+    Assign(_reorderEnabled,
+           enabled,
+           Affects::None,
+           [this, enabled]() noexcept
     {
-        return;
-    }
-    _reorderEnabled = enabled;
-    if (! enabled && _reorderArmed)
-    {
-        // Disabling mid-drag ends it like a cancel: no capture stays behind and the indicator is repainted away.
-        ClearReorderDrag();
-        if (ControlHost* const host = GetHost(); host && host->GetCapturedControl() == this)
+        if (! enabled && _reorderArmed)
         {
-            host->ReleaseMouseCapture();
+            ClearReorderDrag();
+            const auto lifetime = GetLifetimeToken();
+            if (ControlHost* const host = GetHost(); host && host->GetCapturedControl() == this)
+            {
+                host->ReleaseMouseCapture();
+            }
+            if (! lifetime.expired())
+                RequestInvalidate();
         }
-        RequestInvalidate();
-    }
+    });
 }
 
 void Tree::ClearReorderDrag() noexcept
@@ -547,11 +551,7 @@ Tree::Tree()
 
 void Tree::SetAppearance(const TreeAppearance& appearance) noexcept
 {
-    if (_appearance == appearance)
-        return;
-    _appearance = appearance;
-    InvalidateTreeTextMeasurementCaches();
-    RequestInvalidate();
+    Assign(_appearance, appearance, Affects::Paint, [this]() noexcept { InvalidateTreeTextMeasurementCaches(); });
 }
 
 const TreeAppearance& Tree::GetAppearance() const noexcept
@@ -577,10 +577,7 @@ void Tree::PropagateHost(ControlHost* host) noexcept
 
 void Tree::SetEmptyStateText(std::wstring text)
 {
-    if (_emptyStateText == text)
-        return;
-    _emptyStateText = std::move(text);
-    RequestInvalidate();
+    Assign(_emptyStateText, std::move(text), Affects::Paint);
 }
 
 std::wstring_view Tree::GetEmptyStateText() const noexcept
@@ -637,10 +634,8 @@ void Tree::SetDelegate(ITreeDelegate* delegate) noexcept
 
 void Tree::SetInvokeOnSingleClick(bool enabled) noexcept
 {
-    if (_invokeOnSingleClick == enabled)
-        return;
-    _invokeOnSingleClick = enabled;
-    _singleClickInvokeItemId.reset();
+    // Read by the next click.
+    Assign(_invokeOnSingleClick, enabled, Affects::None, [this]() noexcept { _singleClickInvokeItemId.reset(); });
 }
 
 HRESULT Tree::SetTypographyOverride(std::optional<TypographyOverride> typography) noexcept
@@ -651,12 +646,7 @@ HRESULT Tree::SetTypographyOverride(std::optional<TypographyOverride> typography
         return E_INVALIDARG;
     if (typography)
         typography->fontSizeDip = static_cast<float>(std::lround(typography->fontSizeDip * 64.0f)) / 64.0f;
-    if (_typographyOverride == typography)
-        return S_FALSE;
-    _typographyOverride = typography;
-    InvalidateTreeTextMeasurementCaches();
-    RequestInvalidate();
-    return S_OK;
+    return Assign(_typographyOverride, typography, Affects::Paint, [this]() noexcept { InvalidateTreeTextMeasurementCaches(); }) ? S_OK : S_FALSE;
 }
 
 std::optional<Tree::TypographyOverride> Tree::GetTypographyOverride() const noexcept
@@ -847,43 +837,38 @@ bool Tree::NotifyItemPresentationChanged(uint64_t itemId) noexcept
 
 void Tree::SetMultiSelectEnabled(bool enabled) noexcept
 {
-    if (_multiSelect == enabled)
+    // UI Automation's CanSelectMultiple, and the selection painted.
+    Assign(_multiSelect,
+           enabled,
+           Affects::Paint | Affects::SemanticState,
+           [this, enabled]() noexcept
     {
-        return;
-    }
-
-    _multiSelect               = enabled;
-    _reorderCollapsesSelection = false;
-    if (enabled)
-    {
-        // The selected item carries over as the whole selection and the anchor.
-        _selection.Clear();
-        if (_selectedItemId)
+        _reorderCollapsesSelection = false;
+        if (enabled)
         {
-            _selection.SetSingle(_selectedItemId.value());
-        }
-    }
-    else
-    {
-        // Keep focus as the one selection when possible, else keep the last remaining selected item.
-        if (! _focusedItemId || ! _selection.IsSelected(*_focusedItemId))
-        {
-            const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
-            _selectedItemId                           = selection.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(selection.back());
+            // The selected item carries over as the whole selection and the anchor.
+            _selection.Clear();
+            if (_selectedItemId)
+            {
+                _selection.SetSingle(_selectedItemId.value());
+            }
         }
         else
         {
-            _selectedItemId = _focusedItemId;
+            // Keep focus as the one selection when possible, else keep the last remaining selected item.
+            if (! _focusedItemId || ! _selection.IsSelected(*_focusedItemId))
+            {
+                const std::span<const uint64_t> selection = _selection.GetOrderedSelection();
+                _selectedItemId                           = selection.empty() ? std::optional<uint64_t>() : std::optional<uint64_t>(selection.back());
+            }
+            else
+            {
+                _selectedItemId = _focusedItemId;
+            }
+            _focusedItemId = _selectedItemId;
+            _selection.Clear();
         }
-        _focusedItemId = _selectedItemId;
-        _selection.Clear();
-    }
-    const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
-    RefreshAccessibilitySnapshot();
-    if (! selfLifetime.expired())
-    {
-        RequestInvalidate();
-    }
+    });
 }
 
 void Tree::SetSelectedItemId(std::optional<uint64_t> itemId) noexcept
