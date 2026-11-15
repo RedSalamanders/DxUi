@@ -231,6 +231,11 @@ window and receives no `WM_SETTINGCHANGE`: the application calls `Controls().Ref
 window receives one, as it calls `SetTheme` for reduced motion and `SetTextRenderingMonitor` for ClearType changes. DxUi
 never polls the settings.
 
+The tooltip shows and hides at two [deadlines](Rendering_Win32Host.md#tooltip-deadlines) and is ticked at nothing
+else; `SetVisible(false)` drops a tooltip still waiting to show. Its show delay is the user's mouse hover time, read
+once: the view receives no `WM_SETTINGCHANGE`, so the application calls `Controls().RefreshTooltipHoverTime()` when its
+own window receives one. DxUi never polls the setting.
+
 Prepare receives width/height in pixels and DPI (48..768), checks D3D dimension limits and a 64 MiB surface ceiling,
 then performs changed layout/raster work. A resize allocates the replacement surface before releasing the previous
 one, so the single-surface cap bounds the transactional replacement peak to 128 MiB per view by construction;

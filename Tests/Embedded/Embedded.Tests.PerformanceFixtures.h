@@ -790,6 +790,33 @@ __declspec(noinline) inline void TestCaretClockGatesOnFx1()
     std::cout << "FX1 read-only (embedded, W3.2): caret shown in all " << Fx1::kIdleSteps << " frames, nothing scheduled\n";
 }
 
+// W3.3's gate on FX14 (Specs/Rendering/Rendering_Win32Host.md, "Tooltip deadlines"): the tooltip is ticked at its show
+// deadline and at its hide deadline, nothing ticks between them, and it never asks for every frame. The show step's first
+// advance (+1 ms) only sets the view's timeline baseline, as every first advance after a pause does: it ticks nothing.
+__declspec(noinline) inline void TestTooltipDeadlineGatesOnFx14()
+{
+    const RunRecord run   = RunEmbedded(Fx14::kDefinition, Fx14::kVariants[0]);
+    uint64_t tooltipTicks = 0u;
+    uint64_t tooltipWakes = 0u;
+    for (const Phase& phase : Fx14::kPhases)
+    {
+        if (phase.kind != PhaseKind::Measured)
+            continue;
+        const uint64_t ticks    = Summarize(run.Phase(phase.name), "frame.tooltipDeadlineTicks").total;
+        const uint64_t controls = Summarize(run.Phase(phase.name), "frame.tickCalls").total;
+        const uint64_t advances = Summarize(run.Phase(phase.name), "wakes.embeddedAdvance").total;
+        std::cout << "FX14 " << phase.name << " (embedded): " << ticks << " tooltip deadline ticks, " << controls << " control Tick calls, " << advances
+                  << " advances\n";
+        const bool atDeadline = phase.name == "show" || phase.name == "hide";
+        Check(ticks == (atDeadline ? 1u : 0u), "FX14: the tooltip is ticked once at its show and once at its hide deadline, never between them");
+        Check(controls == 0u, "FX14: no Tick call between the deadlines");
+        tooltipTicks += ticks;
+        for (const StepRecord& step : run.Phase(phase.name).steps)
+            tooltipWakes += step.work.frame.tooltipDeadlineTicks != 0u ? 1u : 0u;
+    }
+    Check(tooltipTicks == 2u && tooltipWakes <= 2u, "G1: FX14 wakes from the tooltip <= 2 per show, one show and one hide");
+}
+
 // The timing harness's view of a catalog fixture: performance-timing.ps1 -Phase Dirty plays the timed phase, one step per
 // frame; -Phase Clean renders unchanged frames. Phases before the timed phase are played (prepared, not composited) first.
 class CatalogTimingFixture final : public FrameTiming::Fixture

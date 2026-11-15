@@ -68,7 +68,7 @@ void RequireIdleView(DxUi::EmbeddedHost& view, UINT width, UINT height, const ch
     Require(SUCCEEDED(view.Prepare(width, height)) && ! view.NeedsAnimation() && ! view.NeedsPreparation(), message);
 }
 
-// The host's show delay (ResolveTooltipShowDelayMs in DxUi.WindowHost.cpp): the system hover time, within 100 to 2,500 ms.
+// The host's show delay (ClampTooltipShowDelayMs in DxUi.WindowHost.cpp): the system hover time, within 100 to 2,500 ms.
 [[nodiscard]] uint64_t ExpectedTooltipShowDelayMs() noexcept
 {
     UINT hoverTimeMs = 0u;

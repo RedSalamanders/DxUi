@@ -2,6 +2,11 @@
 #include "Embedded.Tests.TooltipHoverPath.h"
 #include "GraphicsFixture.h"
 #include "Support/AnimationDispatcher.h"
+#include "Support/WorkCounters.h"
+
+#include <functional>
+#include <iostream>
+#include <utility>
 
 namespace
 {
@@ -765,6 +770,406 @@ void TestTooltipPendingOriginMovesDoNotInvalidateEmbeddedHost()
     RequireRectNear(shownBounds, view.Controls().DebugGetTooltipBoundsDip(), "the embedded tooltip shows at the last pointer origin");
 }
 
+// ---- W3.3 tooltip deadlines (Specs/Rendering/Rendering_Win32Host.md, "Tooltip deadlines") ----------------------------
+
+using DxUi::Detail::WorkCounters;
+using DxUi::Detail::WorkCounterScope;
+
+// A control whose Tick runs a test's function, so a test can act on the tooltip from inside a wake.
+class TooltipTickProbe final : public DxUi::Control
+{
+public:
+    TooltipTickProbe()                                   = default;
+    TooltipTickProbe(const TooltipTickProbe&)            = delete;
+    TooltipTickProbe& operator=(const TooltipTickProbe&) = delete;
+    TooltipTickProbe(TooltipTickProbe&&)                 = delete;
+    TooltipTickProbe& operator=(TooltipTickProbe&&)      = delete;
+    ~TooltipTickProbe() override                         = default;
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+    bool Tick(DxUi::ControlHost& host, uint64_t nowTickMs) override
+    {
+        ++ticks;
+        if (onTick)
+            onTick(host, nowTickMs);
+        return false;
+    }
+
+    size_t ticks = 0u;
+    std::function<void(DxUi::ControlHost&, uint64_t)> onTick;
+};
+
+[[nodiscard]] uint64_t TooltipTimerWakes(const WorkCounters& delta) noexcept
+{
+    return delta.wakes.animationTimer + delta.wakes.deadlineTimer;
+}
+
+// Pumps this thread's messages until `reached` holds or `limitMs` of real time passed, blocking between messages. The test
+// window sits off every monitor, so the system posts WM_MOUSELEAVE for it right after a move: it is dropped, as the FX14
+// window runner drops it, so the pointer rests over the control.
+template <class Condition> [[nodiscard]] bool PumpWithoutLeaveUntil(HWND hwnd, uint64_t limitMs, Condition&& reached)
+{
+    const uint64_t end = GetTickCount64() + limitMs;
+    for (uint64_t now = GetTickCount64(); now < end; now = GetTickCount64())
+    {
+        MSG message{};
+        while (PeekMessageW(&message, nullptr, 0u, 0u, PM_REMOVE))
+        {
+            if (message.message == WM_MOUSELEAVE && message.hwnd == hwnd)
+                continue;
+            static_cast<void>(DispatchQueuedMessageForTest(message));
+            if (reached())
+                return true;
+        }
+        static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, static_cast<DWORD>(end - now), QS_ALLINPUT, MWMO_INPUTAVAILABLE));
+    }
+    return reached();
+}
+
+void SendHoverPathMove(HWND hwnd, size_t move)
+{
+    const POINT pixel = TooltipHoverPathPixel(move);
+    SendMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(pixel.x, pixel.y));
+}
+
+// G1 for the tooltip on a native window in real time: FX14's scene (the W1.6 hover path) on a WARP window shown without
+// activation, real dispatcher wakes counted. Waiting for the show and while shown, the host's timer wakes once at each
+// deadline: no periodic timer, no Tick between them.
+void TestTooltipDeadlinesWakeOnlyAtShowAndHideInRealTime()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+    auto& host = window.Host();
+    host.DebugSetTooltipHoverTimeForTest(400u);
+    constexpr std::wstring_view tooltipText = L"Real-time tooltip help";
+    host.SetRoot(MakeTooltipHoverPathRoot(tooltipText));
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    static_cast<void>(PumpWithoutLeaveUntil(window.Hwnd(), 300u, [] { return false; })); // first frames
+
+    SendHoverPathMove(window.Hwnd(), 0u);
+    Require(! host.HasTooltip() && host.DebugGetPendingTooltipText() == tooltipText, "entering the control schedules its tooltip");
+    Require(host.DebugGetFrameScheduleWakeForTest().kind == 2u, "the pending tooltip waits for a deadline, not every frame");
+    WorkCounters waiting{};
+    {
+        const WorkCounterScope scope;
+        for (size_t move = 1u; move <= kTooltipHoverPathMoves; ++move)
+            SendHoverPathMove(window.Hwnd(), move);
+        Require(PumpWithoutLeaveUntil(window.Hwnd(), 3'000u, [&host] { return host.HasTooltip(); }), "the tooltip shows after its delay");
+        waiting = scope.Delta();
+    }
+    Require(host.GetTooltipText() == tooltipText, "the shown tooltip has its text");
+    Require(host.DebugGetFrameScheduleWakeForTest().kind == 2u, "the shown tooltip waits for its hide deadline, not every frame");
+    WorkCounters shown{};
+    {
+        const WorkCounterScope scope;
+        for (size_t move = 1u; move <= kTooltipHoverPathMoves; ++move)
+            SendHoverPathMove(window.Hwnd(), move);
+        Require(PumpWithoutLeaveUntil(window.Hwnd(), 7'000u, [&host] { return ! host.HasTooltip(); }), "the tooltip hides after its display lifetime");
+        shown = scope.Delta();
+    }
+    std::cout << "    [W3.3] native, real time: waiting for the show " << waiting.wakes.deadlineTimer << " deadline wakes, " << waiting.wakes.animationTimer
+              << " periodic wakes, " << waiting.frame.tooltipDeadlineTicks << " tooltip ticks, " << waiting.frame.tickCalls << " Tick calls; shown "
+              << shown.wakes.deadlineTimer << " deadline wakes, " << shown.wakes.animationTimer << " periodic wakes, " << shown.frame.tooltipDeadlineTicks
+              << " tooltip ticks, " << shown.frame.tickCalls << " Tick calls\n";
+    Require(waiting.wakes.animationTimer == 0u && shown.wakes.animationTimer == 0u, "no periodic wake while waiting or while shown");
+    Require(waiting.frame.tooltipDeadlineTicks == 1u && shown.frame.tooltipDeadlineTicks == 1u, "the tooltip is ticked once at each deadline");
+    Require(waiting.frame.tickCalls == 0u && shown.frame.tickCalls == 0u, "no control is ticked between the deadlines");
+    Require(TooltipTimerWakes(waiting) + TooltipTimerWakes(shown) <= 2u, "G1: at most 2 wakes per tooltip shown, one show and one hide");
+    {
+        const WorkCounterScope after;
+        static_cast<void>(PumpWithoutLeaveUntil(window.Hwnd(), 1'000u, [] { return false; }));
+        Require(TooltipTimerWakes(after.Delta()) == 0u, "nothing is armed after the hide");
+    }
+    host.DebugSetTooltipHoverTimeForTest(std::nullopt);
+}
+
+// Decision table, deterministic on a test clock: every exit from a waiting mode withdraws its deadline, and a deadline
+// reached in a mode that no longer waits for it does nothing.
+void TestTooltipDeadlinesFollowTheWaitingModes()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+    auto& host = window.Host();
+    host.DebugSetTooltipHoverTimeForTest(400u);
+    host.SetRoot(std::make_unique<Panel>());
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    uint64_t now = 100'000u;
+    host.DebugSetAnimationClockForTest(now);
+    const auto tickAt = [&](uint64_t at)
+    {
+        now = at;
+        host.DebugSetAnimationClockForTest(now);
+        static_cast<void>(host.DebugAnimationTickForTest(now));
+    };
+    const auto wake = [&host] { return host.DebugGetFrameScheduleWakeForTest(); };
+
+    Require(wake().kind == 0u, "Hidden: nothing is armed");
+    Require(host.SetTooltipDelayed(L"First", D2D1::Point2F(20.0f, 20.0f)), "Hidden -> ShowScheduled");
+    Require(wake().kind == 2u && wake().dueTickMs == now + 400u && host.DebugHasActiveAnimationSubscription(), "ShowScheduled arms the show deadline");
+    {
+        const WorkCounterScope early;
+        tickAt(now + 399u);
+        Require(! host.HasTooltip() && early.Delta().frame.tooltipDeadlineTicks == 0u, "before its deadline the layer is not ticked");
+    }
+    // A pending tooltip replaced by another control's starts its own delay.
+    Require(host.SetTooltipDelayed(L"Second", D2D1::Point2F(30.0f, 30.0f)), "ShowScheduled -> ShowScheduled (replaced)");
+    Require(wake().dueTickMs == now + 400u, "the replacement re-arms the show deadline from now");
+    Require(host.BeginTooltipHideDelay(), "ShowScheduled -> Hidden (pointer left during the delay)");
+    Require(wake().kind == 0u && ! host.DebugHasActiveAnimationSubscription(), "leaving during the delay cancels the show deadline");
+    {
+        const WorkCounterScope stale;
+        tickAt(now + 1'000u);
+        Require(! host.HasTooltip() && stale.Delta().frame.tooltipDeadlineTicks == 0u, "a stale wake at the old deadline shows nothing");
+    }
+
+    Require(host.SetTooltipDelayed(L"Third", D2D1::Point2F(30.0f, 30.0f)), "Hidden -> ShowScheduled again");
+    const uint64_t showDue = wake().dueTickMs;
+    {
+        const WorkCounterScope show;
+        tickAt(showDue);
+        Require(host.HasTooltip() && host.GetTooltipText() == L"Third" && show.Delta().frame.tooltipDeadlineTicks == 1u,
+                "ShowScheduled -> VisiblePassive at the deadline");
+    }
+    Require(wake().kind == 2u && wake().dueTickMs == showDue + 5'000u, "VisibleHideScheduled arms the 5 s hide deadline");
+    Require(host.BeginTooltipHideDelay(100u), "a pointer leave shortens the hide");
+    Require(wake().dueTickMs == now + 100u, "the leave's hide delay replaces the display lifetime");
+    Require(host.SetTooltip(L"Third", D2D1::Point2F(60.0f, 60.0f)), "a tracking update returns to VisiblePassive");
+    Require(wake().kind == 0u, "a tracking tooltip has no hide deadline");
+    Require(host.BeginTooltipHideDelay(100u) && wake().kind == 2u, "VisiblePassive -> VisibleHideScheduled");
+    Require(host.ClearTooltip() && wake().kind == 0u, "a dismissal (click, capture, leave of the host) withdraws the hide deadline");
+
+    Require(host.SetTooltipDelayed(L"Fourth", D2D1::Point2F(30.0f, 30.0f)), "ShowScheduled once more");
+    Require(host.InspectTooltip(L"Inspection", D2D1::Point2F(30.0f, 30.0f)), "an inspection replaces the pending tooltip");
+    Require(wake().kind == 0u, "an inspection waits for no deadline");
+    Require(host.HandleTooltipInspectionKey(VK_ESCAPE) && ! host.HasTooltip() && wake().kind == 0u, "Escape ends the inspection, nothing armed");
+
+    Require(host.SetTooltipDelayed(L"Fifth", D2D1::Point2F(30.0f, 30.0f)), "ShowScheduled before a capture change");
+    SendMessageW(window.Hwnd(), WM_CAPTURECHANGED, 0, 0);
+    Require(host.DebugGetPendingTooltipText().empty() && wake().kind == 0u, "a capture change clears the tooltip and its deadline");
+    host.DebugSetAnimationClockForTest(std::nullopt);
+    host.DebugSetTooltipHoverTimeForTest(std::nullopt);
+}
+
+// Lifetime: the tooltip dismissed and re-armed from inside a control's Tick in the wake of its deadline; the supplemental
+// target destroyed while the show waits; the host detached while the hide waits.
+void TestTooltipDeadlinesAreSafeAcrossLifetimeChanges()
+{
+    using namespace DxUi;
+    {
+        AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+        auto& host  = window.Host();
+        auto root   = std::make_unique<Panel>();
+        auto* probe = root->AddChild<TooltipTickProbe>();
+        host.SetRoot(std::move(root));
+        host.DebugSetTooltipHoverTimeForTest(400u);
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        uint64_t now = 200'000u;
+        host.DebugSetAnimationClockForTest(now);
+        Require(host.SetTooltipDelayed(L"Original", D2D1::Point2F(20.0f, 20.0f)), "the original tooltip waits to show");
+        const uint64_t due = host.DebugGetFrameScheduleWakeForTest().dueTickMs;
+        probe->onTick      = [](ControlHost& owner, uint64_t)
+        {
+            static_cast<void>(owner.ClearTooltip());
+            static_cast<void>(owner.SetTooltipDelayed(L"Re-armed", D2D1::Point2F(40.0f, 40.0f)));
+        };
+        host.RequestAnimationAt(*probe, due);
+        {
+            const WorkCounterScope wake;
+            now = due;
+            host.DebugSetAnimationClockForTest(now);
+            static_cast<void>(host.DebugAnimationTickForTest(now));
+            Require(probe->ticks == 1u && wake.Delta().frame.tooltipDeadlineTicks == 0u && ! host.HasTooltip(),
+                    "a tooltip dismissed and re-armed inside the wake of its deadline is not shown by the old deadline");
+        }
+        Require(host.DebugGetPendingTooltipText() == L"Re-armed" && host.DebugGetFrameScheduleWakeForTest().dueTickMs == due + 400u,
+                "the re-armed tooltip waits for its own delay");
+        probe->onTick = [](ControlHost& owner, uint64_t) { static_cast<void>(owner.ClearTooltip()); };
+        host.RequestAnimationAt(*probe, due + 400u);
+        {
+            const WorkCounterScope wake;
+            now = due + 400u;
+            host.DebugSetAnimationClockForTest(now);
+            static_cast<void>(host.DebugAnimationTickForTest(now));
+            Require(wake.Delta().frame.tooltipDeadlineTicks == 0u && ! host.HasTooltip() && host.DebugGetFrameScheduleWakeForTest().kind == 0u,
+                    "a tooltip dismissed inside the wake of its deadline is neither shown nor left armed");
+        }
+        host.DebugSetAnimationClockForTest(std::nullopt);
+        host.DebugSetTooltipHoverTimeForTest(std::nullopt);
+    }
+    {
+        AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+        auto& host = window.Host();
+        host.SetRoot(MakeTooltipHoverPathRoot(L"Destroyed target help"));
+        host.DebugSetTooltipHoverTimeForTest(400u);
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        host.DebugSetAnimationClockForTest(300'000u);
+        SendHoverPathMove(window.Hwnd(), 0u);
+        Require(host.DebugGetPendingTooltipText() == L"Destroyed target help", "the target's tooltip waits to show");
+        auto* panel = dynamic_cast<Panel*>(host.GetRoot());
+        Require(panel != nullptr && panel->TakeChild(0u) != nullptr, "the target control is removed and destroyed");
+        const WorkCounterScope wake;
+        host.DebugSetAnimationClockForTest(301'000u);
+        static_cast<void>(host.DebugAnimationTickForTest(301'000u));
+        Require(! host.HasTooltip() && wake.Delta().frame.tooltipDeadlineTicks == 0u && host.DebugGetFrameScheduleWakeForTest().kind == 0u,
+                "a destroyed target's pending tooltip never shows and leaves nothing armed");
+        host.DebugSetAnimationClockForTest(std::nullopt);
+        host.DebugSetTooltipHoverTimeForTest(std::nullopt);
+    }
+    {
+        AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+        auto& host = window.Host();
+        host.SetRoot(std::make_unique<Panel>());
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        host.DebugSetAnimationClockForTest(400'000u);
+        Require(host.SetTooltipDelayed(L"Detached", D2D1::Point2F(20.0f, 20.0f)) && host.DebugAdvanceTooltipDelayForTest() && host.HasTooltip(),
+                "the tooltip is shown and waits for its hide");
+        Require(host.DebugHasActiveAnimationSubscription() && host.DebugGetFrameScheduleWakeForTest().kind == 2u, "the hide deadline is armed");
+        host.Detach();
+        Require(! host.HasTooltip() && ! host.DebugHasActiveAnimationSubscription() && host.DebugGetFrameScheduleWakeForTest().kind == 0u,
+                "detach clears the tooltip and leaves the dispatcher");
+        const WorkCounterScope after;
+        static_cast<void>(host.DebugAnimationTickForTest(500'000u));
+        Require(after.Delta().frame.tooltipDeadlineTicks == 0u, "nothing fires after detach");
+        host.DebugSetAnimationClockForTest(std::nullopt);
+    }
+}
+
+// Hidden hosts: a show still waiting when the host is hidden is dropped (its pointer is stale when the host returns); a
+// shown tooltip's hide that came due while hidden hides it at the first wake after the show.
+void TestTooltipDeadlinesOnHiddenHosts()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+    auto& host = window.Host();
+    host.SetRoot(std::make_unique<Panel>());
+    host.DebugSetTooltipHoverTimeForTest(400u);
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    uint64_t now = 500'000u;
+    host.DebugSetAnimationClockForTest(now);
+    const auto tickAt = [&](uint64_t at)
+    {
+        now = at;
+        host.DebugSetAnimationClockForTest(now);
+        static_cast<void>(host.DebugAnimationTickForTest(now));
+    };
+
+    {
+        const WorkCounterScope dropped;
+        Require(host.SetTooltipDelayed(L"Presentation", D2D1::Point2F(20.0f, 20.0f)), "a show waits");
+        Require(host.SetNativePresentationVisible(false) == S_OK, "the presentation is hidden");
+        tickAt(now + 1'000u);
+        Require(host.SetNativePresentationVisible(true) == S_OK, "the presentation is shown");
+        tickAt(now + 16u);
+        Require(! host.HasTooltip() && host.DebugGetPendingTooltipText().empty() && dropped.Delta().frame.tooltipShowsDropped == 1u &&
+                    dropped.Delta().frame.tooltipDeadlineTicks == 0u,
+                "a show pending when the presentation was hidden is dropped, not shown on return");
+    }
+    {
+        const WorkCounterScope dropped;
+        Require(host.SetTooltipDelayed(L"Minimized", D2D1::Point2F(20.0f, 20.0f)), "a show waits");
+        ShowWindow(window.Hwnd(), SW_SHOWMINNOACTIVE);
+        tickAt(now + 1'000u);
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        tickAt(now + 16u);
+        Require(! host.HasTooltip() && dropped.Delta().frame.tooltipShowsDropped == 1u, "a show pending when the window was minimized is dropped");
+    }
+    {
+        const WorkCounterScope dropped;
+        Require(host.SetTooltipDelayed(L"Hidden window", D2D1::Point2F(20.0f, 20.0f)), "a show waits");
+        ShowWindow(window.Hwnd(), SW_HIDE);
+        tickAt(now + 1'000u); // the show deadline's wake finds the window hidden
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        tickAt(now + 16u);
+        Require(! host.HasTooltip() && dropped.Delta().frame.tooltipShowsDropped == 1u && dropped.Delta().frame.tooltipDeadlineTicks == 0u,
+                "a show whose deadline came while the window was hidden is dropped at that wake");
+    }
+    {
+        Require(host.SetTooltipDelayed(L"Held hide", D2D1::Point2F(20.0f, 20.0f)) && host.DebugAdvanceTooltipDelayForTest() && host.HasTooltip(),
+                "a tooltip is shown");
+        const uint64_t hideDue = host.DebugGetFrameScheduleWakeForTest().dueTickMs;
+        Require(host.SetNativePresentationVisible(false) == S_OK, "the presentation is hidden while the hide waits");
+        tickAt(hideDue + 100u);
+        Require(host.HasTooltip(), "a hidden host holds the hide");
+        const WorkCounterScope shown;
+        Require(host.SetNativePresentationVisible(true) == S_OK && shown.Delta().frame.tickHeldWhileHidden == 1u, "the expired hide was held");
+        tickAt(now + 16u);
+        Require(! host.HasTooltip() && shown.Delta().frame.tooltipDeadlineTicks == 1u && host.DebugGetFrameScheduleWakeForTest().kind == 0u,
+                "and hides the tooltip at the first wake after the show");
+    }
+    host.DebugSetAnimationClockForTest(std::nullopt);
+    host.DebugSetTooltipHoverTimeForTest(std::nullopt);
+
+    GraphicsFixture gpu;
+    RequireSucceeded(gpu.Create(), "create the hidden-view WARP device");
+    std::shared_ptr<GraphicsDevice> pool;
+    RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), pool), "share the hidden-view graphics");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(pool), "attach the hidden view");
+    view.Controls().SetRoot(std::make_unique<Panel>());
+    view.Controls().DebugSetTooltipHoverTimeForTest(400u);
+    RequireSucceeded(view.Prepare(200u, 120u), "prepare the hidden view");
+    static_cast<void>(view.AdvanceAnimation(1'000u)); // discovery
+    const WorkCounterScope dropped;
+    Require(view.Controls().SetTooltipDelayed(L"Embedded", D2D1::Point2F(20.0f, 20.0f)) && view.NeedsAnimation(), "an embedded show waits");
+    view.SetVisible(false);
+    view.SetVisible(true);
+    Require(! view.NeedsAnimation() && view.Controls().DebugGetPendingTooltipText().empty() && dropped.Delta().frame.tooltipShowsDropped == 1u,
+            "hiding the view drops the pending show");
+    Require(view.Controls().SetTooltipDelayed(L"Embedded held hide", D2D1::Point2F(20.0f, 20.0f)), "a new embedded show waits");
+    static_cast<void>(view.AdvanceAnimation(2'000u));
+    static_cast<void>(view.AdvanceAnimation(2'000u + 400u));
+    Require(view.Controls().HasTooltip(), "the embedded tooltip shows");
+    view.SetVisible(false);
+    view.SetVisible(true);
+    static_cast<void>(view.AdvanceAnimation(60'000u)); // the timeline does not count the hidden time: this sets its baseline
+    Require(view.Controls().HasTooltip(), "the hide keeps its place on the view's timeline");
+    static_cast<void>(view.AdvanceAnimation(60'000u + 5'000u));
+    Require(! view.Controls().HasTooltip() && ! view.NeedsAnimation(), "the hide fires when the timeline reaches it");
+    view.Controls().DebugSetTooltipHoverTimeForTest(std::nullopt);
+}
+
+// The show delay is the user's mouse hover time, read once per host, clamped to 100-2,500 ms and read again on a settings
+// change; tests replace the setting and never change it.
+void TestTooltipHoverTimeIsReadOnceAndRefreshedOnSettingChange()
+{
+    using namespace DxUi;
+    AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
+    auto& host = window.Host();
+    host.DebugSetTooltipHoverTimeForTest(400u);
+    Require(host.DebugGetTooltipShowDelayMsForTest() == 400u, "the first read takes the hover time");
+    host.DebugSetTooltipHoverTimeForTest(1'000u);
+    Require(host.DebugGetTooltipShowDelayMsForTest() == 400u, "later tooltips use the value read once, not a new read");
+    SendMessageW(window.Hwnd(), WM_SETTINGCHANGE, SPI_SETMOUSEHOVERTIME, 0);
+    Require(host.DebugGetTooltipShowDelayMsForTest() == 1'000u, "WM_SETTINGCHANGE reads the hover time again");
+    host.DebugSetAnimationClockForTest(10'000u);
+    Require(host.SetTooltipDelayed(L"Delay", D2D1::Point2F(10.0f, 10.0f)) && host.DebugGetFrameScheduleWakeForTest().dueTickMs == 11'000u,
+            "the next tooltip waits for the refreshed delay");
+    static_cast<void>(host.ClearTooltip());
+    host.DebugSetAnimationClockForTest(std::nullopt);
+    for (const auto& [setting, delay] : {std::pair<UINT, uint64_t>{20u, 100u}, std::pair<UINT, uint64_t>{9'000u, 2'500u}, std::pair<UINT, uint64_t>{0u, 500u}})
+    {
+        host.DebugSetTooltipHoverTimeForTest(setting);
+        host.RefreshTooltipHoverTime();
+        Require(host.DebugGetTooltipShowDelayMsForTest() == delay, "the show delay is clamped to 100-2,500 ms, 500 ms when unknown");
+    }
+    host.DebugSetTooltipHoverTimeForTest(std::nullopt);
+
+    GraphicsFixture gpu;
+    RequireSucceeded(gpu.Create(), "create the hover-time WARP device");
+    std::shared_ptr<GraphicsDevice> pool;
+    RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), pool), "share the hover-time graphics");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(pool), "attach the hover-time view");
+    view.Controls().DebugSetTooltipHoverTimeForTest(300u);
+    Require(view.Controls().DebugGetTooltipShowDelayMsForTest() == 300u, "an embedded host reads the hover time once");
+    view.Controls().DebugSetTooltipHoverTimeForTest(700u);
+    Require(view.Controls().DebugGetTooltipShowDelayMsForTest() == 300u, "and keeps it");
+    view.Controls().RefreshTooltipHoverTime();
+    Require(view.Controls().DebugGetTooltipShowDelayMsForTest() == 700u, "until its application relays a settings change");
+    view.Controls().DebugSetTooltipHoverTimeForTest(std::nullopt);
+}
+
 } // namespace
 
 void RunTooltipTests()
@@ -789,4 +1194,9 @@ void RunTooltipTests()
     DXUI_RUN_TEST(TestPassiveSupplementalTooltipUsesHostHitTestingDelayLifetimeAndClickThrough);
     DXUI_RUN_TEST(TestTooltipPendingOriginMovesDoNotInvalidateNativeHost);
     DXUI_RUN_TEST(TestTooltipPendingOriginMovesDoNotInvalidateEmbeddedHost);
+    DXUI_RUN_TEST(TestTooltipDeadlinesFollowTheWaitingModes);
+    DXUI_RUN_TEST(TestTooltipDeadlinesAreSafeAcrossLifetimeChanges);
+    DXUI_RUN_TEST(TestTooltipDeadlinesOnHiddenHosts);
+    DXUI_RUN_TEST(TestTooltipHoverTimeIsReadOnceAndRefreshedOnSettingChange);
+    DXUI_RUN_TEST(TestTooltipDeadlinesWakeOnlyAtShowAndHideInRealTime);
 }

@@ -712,7 +712,7 @@ something is due, and pace native animation frames to the display. Exit: `G1` me
     frame; 0 wakes after the caret timeout; harness gallery capture of focused read-only and editable `TextField`.
   - **Needs**: `W3.1`. **Size**: M.
 
-- [ ] **W3.3 Tooltip deadlines.**
+- [x] **W3.3 Tooltip deadlines.**
   - **Why**: `TooltipLayer::Tick` returns `true` on every tick while a show is pending and while shown
     (`DxUi.Controls.cpp:12156-12158, 12183-12186`); the show delay is `SPI_GETMOUSEHOVERTIME` clamped to 100–2,500 ms
     (`DxUi.WindowHost.cpp:499-507`) and the hide 5,000 ms (`DxUi.Controls.cpp:12167`): about 345 ticks per tooltip at

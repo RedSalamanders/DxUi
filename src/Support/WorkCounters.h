@@ -39,6 +39,8 @@
     X(frame, tickHeldWhileHidden)           /* Requests that came due while their native host was hidden and waited for its show. */                           \
     X(frame, tickLegacyTreeWalks)           /* Whole-tree ticks an anonymous RequestAnimation() asked for; the library's own controls never do. */             \
     X(frame, tickRequesters)                /* Due requests the frame schedule found at its wakes, one per requesting control. */                              \
+    X(frame, tooltipDeadlineTicks)          /* Host tooltip-layer Ticks at a reached show or hide deadline; never between deadlines. */                        \
+    X(frame, tooltipShowsDropped)           /* Pending tooltip shows a host dropped because it was hidden before they came due. */                             \
     X(frame, treeVisitsHitTest)             /* Controls a hit test examined: the root and each child a container offered to it. */                             \
     X(frame, treeVisitsPaint)               /* Controls a paint walk examined, visible or not. */                                                              \
     X(frame, treeVisitsStatistics)          /* Controls an EmbeddedHost::GetStatistics retained-resource walk examined. */                                     \

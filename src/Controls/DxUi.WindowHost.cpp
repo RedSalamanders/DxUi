@@ -534,15 +534,10 @@ template <typename... Args> void TraceWindowHostDiagnostics(std::wstring_view ev
     }
 }
 
-[[nodiscard]] uint64_t ResolveTooltipShowDelayMs() noexcept
+// The show delay for a mouse hover time as SPI_GETMOUSEHOVERTIME reports it (0: not read).
+[[nodiscard]] uint64_t ClampTooltipShowDelayMs(UINT hoverTimeMs) noexcept
 {
-    UINT hoverTimeMs = 0u;
-    if (SystemParametersInfoW(SPI_GETMOUSEHOVERTIME, 0u, &hoverTimeMs, 0u) != FALSE && hoverTimeMs > 0u)
-    {
-        return std::clamp<uint64_t>(hoverTimeMs, kTooltipMinShowDelayMs, kTooltipMaxShowDelayMs);
-    }
-
-    return kTooltipFallbackShowDelayMs;
+    return hoverTimeMs > 0u ? std::clamp<uint64_t>(hoverTimeMs, kTooltipMinShowDelayMs, kTooltipMaxShowDelayMs) : kTooltipFallbackShowDelayMs;
 }
 
 [[nodiscard]] bool IsWithinSystemDoubleClickBounds(POINT firstPointPx, POINT secondPointPx) noexcept
@@ -1663,7 +1658,6 @@ void ControlHost::Detach(bool processExit) noexcept
     _tickDue.clear();
     _tickTreeRequested             = false;
     _tickTreeDiscovery             = false;
-    _tooltipTickRequested          = false;
     _animationSuspendedWhileHidden = false;
     _nativePresentationVisible     = true;
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -1820,6 +1814,8 @@ bool ControlHost::SetTooltip(std::wstring text, const D2D1_POINT_2F& originDip)
     const bool changed = _tooltipLayer.SetTooltip(std::move(text), originDip);
     if (changed)
     {
+        // A tracking tooltip ends any pending show or hide.
+        OnTooltipScheduleChanged();
         Invalidate();
     }
     return changed;
@@ -1837,6 +1833,8 @@ bool ControlHost::InspectTooltip(std::wstring text, const D2D1_POINT_2F& originD
     }
     ClearPendingPointerDoubleClick();
     const bool active = _tooltipLayer.Inspect(std::move(text), originDip);
+    // An inspection waits for no deadline.
+    OnTooltipScheduleChanged();
     Invalidate();
     return active;
 }
@@ -1878,10 +1876,11 @@ bool ControlHost::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& orig
     // The host's animation clock: an idle native host reads the dispatcher's current time rather than its own stale
     // tick, and an embedded host its timeline, which its ticks advance.
     const uint64_t nowTickMs = GetAnimationTickMs();
-    const bool changed       = _tooltipLayer.SetTooltipDelayed(std::wstring(text), originDip, nowTickMs, ResolveTooltipShowDelayMs());
+    const bool changed       = _tooltipLayer.SetTooltipDelayed(std::wstring(text), originDip, nowTickMs, GetTooltipShowDelayMs());
     if (changed)
     {
-        RequestTooltipTick();
+        // Entering, replacing or ending a pending show: the dispatcher learns the one deadline that is left.
+        OnTooltipScheduleChanged();
         Invalidate();
     }
     return changed;
@@ -1895,7 +1894,7 @@ bool ControlHost::BeginTooltipHideDelay(uint64_t delayMs) noexcept
     const bool changed       = _tooltipLayer.BeginHideDelay(nowTickMs, delayMs);
     if (changed)
     {
-        RequestTooltipTick();
+        OnTooltipScheduleChanged();
     }
     return changed;
 }
@@ -1915,6 +1914,7 @@ bool ControlHost::ClearTooltip() noexcept
     }
     if (changed)
     {
+        OnTooltipScheduleChanged();
         Invalidate();
     }
     return changed;
@@ -1941,14 +1941,48 @@ bool ControlHost::DebugAdvanceTooltipDelayForTest() noexcept
     // The host's animation clock: an idle native host reads the dispatcher's current time rather than its own stale
     // tick, and an embedded host its timeline, which its ticks advance.
     const uint64_t nowTickMs = GetAnimationTickMs();
-    const bool changed       = _tooltipLayer.Tick(*this, nowTickMs + ResolveTooltipShowDelayMs() + 1u);
+    const bool wasShown      = _tooltipLayer.HasTooltip();
+    static_cast<void>(_tooltipLayer.Tick(*this, nowTickMs + GetTooltipShowDelayMs() + 1u));
+    OnTooltipScheduleChanged();
+    const bool changed = _tooltipLayer.HasTooltip() != wasShown;
     if (changed)
     {
         Invalidate();
     }
     return changed;
 }
+
+void ControlHost::DebugSetTooltipHoverTimeForTest(std::optional<UINT> hoverTimeMs) noexcept
+{
+    _tooltipHoverTimeForTestOn = hoverTimeMs.has_value();
+    _tooltipHoverTimeForTestMs = hoverTimeMs.value_or(0u);
+}
+
+uint64_t ControlHost::DebugGetTooltipShowDelayMsForTest() noexcept
+{
+    return GetTooltipShowDelayMs();
+}
 #endif
+
+void ControlHost::RefreshTooltipHoverTime() noexcept
+{
+    UINT hoverTimeMs = 0u;
+    if (_tooltipHoverTimeForTestOn)
+        hoverTimeMs = _tooltipHoverTimeForTestMs;
+    // Read, never written: the setting belongs to the user.
+    else if (SystemParametersInfoW(SPI_GETMOUSEHOVERTIME, 0u, &hoverTimeMs, 0u) == FALSE)
+        hoverTimeMs = 0u;
+    _tooltipHoverTimeMs   = hoverTimeMs;
+    _tooltipHoverTimeRead = true;
+}
+
+uint64_t ControlHost::GetTooltipShowDelayMs() noexcept
+{
+    // Read once per host, then only on a settings change (RefreshTooltipHoverTime).
+    if (! _tooltipHoverTimeRead)
+        RefreshTooltipHoverTime();
+    return ClampTooltipShowDelayMs(_tooltipHoverTimeMs);
+}
 
 void ControlHost::SetSmokeOverlayVisible(bool visible) noexcept
 {
@@ -2032,7 +2066,9 @@ HRESULT ControlHost::SetNativePresentationVisible(bool visible) noexcept
     ++_nativePresentationRevision;
     if (! visible)
     {
-        // The schedule is held, not dropped: the host stops waking until it is shown.
+        // The schedule is held, not dropped: the host stops waking until it is shown. A tooltip still waiting to show is
+        // dropped: its pointer is not known when the host returns.
+        DropPendingTooltipShowWhileHidden();
         OnFrameScheduleChanged();
     }
     else
@@ -2198,21 +2234,43 @@ void ControlHost::ReleaseHiddenLatch() noexcept
     ResumeScheduleAfterShow();
 }
 
-void ControlHost::RequestTooltipTick() noexcept
+std::optional<uint64_t> ControlHost::GetTooltipWakeDueTickMs() const noexcept
+{
+    // A Ctrl change over a rich title resolves the supplemental tooltip at the next wake.
+    if (_supplementalTooltipNeedsResolve)
+        return 0u;
+    if (const auto deadline = _tooltipLayer.GetPendingDeadline())
+        return deadline->dueTickMs;
+    return std::nullopt;
+}
+
+void ControlHost::OnTooltipScheduleChanged() noexcept
 {
     if (_detachInProgress.load(std::memory_order_acquire) || ! IsScheduleCallerOnOwnerThread())
         return;
-    _tooltipTickRequested = true;
     OnFrameScheduleChanged();
+}
+
+void ControlHost::DropPendingTooltipShowWhileHidden() noexcept
+{
+    const auto deadline = _tooltipLayer.GetPendingDeadline();
+    if (! deadline || ! deadline->show)
+        return;
+    // Ending the pending show is the layer's own ShowScheduled -> Hidden transition (the pointer leaving during the delay).
+    static_cast<void>(_tooltipLayer.BeginHideDelay(GetAnimationTickMs(), 0u));
+    ++Detail::Work().frame.tooltipShowsDropped;
+    OnTooltipScheduleChanged();
 }
 
 ControlHost::FrameScheduleWake ControlHost::GetFrameScheduleWake() const noexcept
 {
     using Kind = FrameScheduleWake::Kind;
-    if (_tickTreeRequested || _tooltipTickRequested)
+    if (_tickTreeRequested)
         return {Kind::Continuous, 0u};
-    bool hasDeadline     = false;
-    uint64_t earliestDue = 0u;
+    // The tooltip waits for one deadline and never for every frame.
+    const std::optional<uint64_t> tooltipDue = GetTooltipWakeDueTickMs();
+    bool hasDeadline                         = tooltipDue.has_value();
+    uint64_t earliestDue                     = tooltipDue.value_or(0u);
     for (const TickRequest& request : _tickRequests)
     {
         // A request of a hidden control (or one below a hidden control) is held and costs no wake until it is shown.
@@ -2357,6 +2415,9 @@ void ControlHost::CountHeldDeadlines() noexcept
         if (request.kind == TickRequestKind::Deadline && request.dueTickMs <= nowTickMs && ! request.lifetime.expired())
             ++Detail::Work().frame.tickHeldWhileHidden;
     }
+    // A shown tooltip's hide that came due meanwhile (a pending show was dropped when the host was seen hidden).
+    if (const auto deadline = _tooltipLayer.GetPendingDeadline(); deadline && ! deadline->show && deadline->dueTickMs <= nowTickMs)
+        ++Detail::Work().frame.tickHeldWhileHidden;
 }
 
 // Caret clock (W3.2; Specs/Rendering/Rendering_Win32Host.md, "Caret clock").
@@ -3689,7 +3750,7 @@ ControlHost::DebugFrameScheduleWake ControlHost::DebugGetFrameScheduleWakeForTes
 
 size_t ControlHost::DebugGetTickRequestCountForTest() const noexcept
 {
-    return _tickRequests.size() + (_tickTreeRequested ? 1u : 0u) + (_tooltipTickRequested ? 1u : 0u);
+    return _tickRequests.size() + (_tickTreeRequested ? 1u : 0u) + (GetTooltipWakeDueTickMs().has_value() ? 1u : 0u);
 }
 
 bool ControlHost::DebugScheduleHoldsControlForTest(const void* controlAddress) const noexcept
@@ -4219,6 +4280,7 @@ try
             {
                 // A minimized host holds its schedule and does not wake until it is restored.
                 _animationSuspendedWhileHidden = true;
+                DropPendingTooltipShowWhileHidden();
                 OnFrameScheduleChanged();
             }
             else if ((wp == SIZE_RESTORED || wp == SIZE_MAXIMIZED) && _hwnd && IsHostWindowEffectivelyVisible(_hwnd) && _animationSuspendedWhileHidden)
@@ -4272,6 +4334,8 @@ try
             RefreshTextRenderingSetting(wp);
             // And the caret's blink time and timeout.
             RefreshCaretBlinkSettings();
+            // And the tooltip's show delay, the user's mouse hover time.
+            RefreshTooltipHoverTime();
             handled = false;
             return 0;
         case WM_DPICHANGED:
@@ -4909,6 +4973,7 @@ try
             // This is internal cleanup caused by capture changing; it must not invalidate an
             // InspectTooltip transaction whose capture-cancel callback is still running.
             static_cast<void>(_tooltipLayer.Clear());
+            OnTooltipScheduleChanged();
             Invalidate();
             return 0;
         case WM_CANCELMODE:
@@ -7054,7 +7119,7 @@ void ControlHost::UpdateModifierStateForKey(UINT virtualKey, bool keyDown, bool 
     {
         _supplementalTooltipModifiers    = (_supplementalTooltipModifiers & ~MK_CONTROL) | (_modifierState & MK_CONTROL);
         _supplementalTooltipNeedsResolve = true;
-        RequestTooltipTick();
+        OnTooltipScheduleChanged();
     }
 }
 
@@ -7073,6 +7138,7 @@ ControlHost::FrameScheduleWake ControlHost::OnScheduledWake(uint64_t nowTickMs, 
     // Held, not run: a hidden host keeps its requests and does not wake until it is shown (ResumeScheduleAfterShow).
     if (! _nativePresentationVisible)
     {
+        DropPendingTooltipShowWhileHidden();
         SyncDispatcherSubscription({});
         return {};
     }
@@ -7083,9 +7149,11 @@ ControlHost::FrameScheduleWake ControlHost::OnScheduledWake(uint64_t nowTickMs, 
         if (IsIconic(_hwnd) || (GetWindowLongPtrW(_hwnd, GWL_STYLE) & WS_VISIBLE) == 0)
         {
             _animationSuspendedWhileHidden = true;
+            DropPendingTooltipShowWhileHidden();
             SyncDispatcherSubscription({});
             return {};
         }
+        DropPendingTooltipShowWhileHidden();
         // Hidden only through an ancestor (a minimized top-level, a hidden parent, a parent's redraw block): this window
         // receives no message when the ancestor shows again, so the held schedule looks once a second (no Tick runs).
         const FrameScheduleWake probe =
@@ -7145,10 +7213,10 @@ bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
     Detail::Work().frame.tickRequesters += _tickDue.size();
     const bool tree     = std::exchange(_tickTreeRequested, false);
     const bool discover = std::exchange(_tickTreeDiscovery, false);
-    const bool tooltip  = std::exchange(_tooltipTickRequested, false);
 
     // Whatever this wake has not done when the host is hidden mid-wake waits, with the rest of the schedule, for its show.
-    const auto holdRemaining = [&](size_t firstDue, bool treePending, bool tooltipPending) noexcept
+    // The tooltip's deadline lives in its layer, so it waits there by itself.
+    const auto holdRemaining = [&](size_t firstDue, bool treePending) noexcept
     {
         for (size_t index = firstDue; index < _tickDue.size(); ++index)
         {
@@ -7156,9 +7224,8 @@ bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
             if (held.control && ! held.lifetime.expired() && held.control->GetHost() == this)
                 AddTickRequest(*held.control, held.kind, held.dueTickMs);
         }
-        _tickTreeRequested    = _tickTreeRequested || treePending;
-        _tickTreeDiscovery    = _tickTreeDiscovery || (treePending && discover);
-        _tooltipTickRequested = _tooltipTickRequested || tooltipPending;
+        _tickTreeRequested = _tickTreeRequested || treePending;
+        _tickTreeDiscovery = _tickTreeDiscovery || (treePending && discover);
         _tickDue.clear();
     };
 
@@ -7170,7 +7237,7 @@ bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
         {
             if (frame.abandoned)
                 return false;
-            holdRemaining(0u, true, tooltip);
+            holdRemaining(0u, true);
             return true;
         }
     }
@@ -7199,24 +7266,21 @@ bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
             AddTickRequest(*control, TickRequestKind::Continuous, 0u);
         if (interrupted())
         {
-            holdRemaining(index + 1u, false, tooltip);
+            holdRemaining(index + 1u, false);
             return true;
         }
     }
     _tickDue.clear();
 
-    if (tooltip)
+    // The tooltip's deadline, read now rather than at the start of the wake: a Tick above may have dismissed, replaced or
+    // re-armed it, and a deadline whose waiting mode has ended is gone with it. The layer is ticked only when it is due;
+    // between its deadlines it is never ticked.
+    if (const auto tooltipDeadline = _tooltipLayer.GetPendingDeadline(); tooltipDeadline && tooltipDeadline->dueTickMs <= nowTickMs)
     {
-        const bool tooltipTicking = _tooltipLayer.Tick(*this, nowTickMs);
+        ++Detail::Work().frame.tooltipDeadlineTicks;
+        static_cast<void>(TryControlCallback([&] { static_cast<void>(_tooltipLayer.Tick(*this, nowTickMs)); }));
         if (frame.abandoned)
             return false;
-        if (tooltipTicking)
-        {
-            _tooltipTickRequested = true;
-            // A host without a root has nothing else that repaints the tooltip's frames.
-            if (! _root)
-                Invalidate();
-        }
     }
     // Tick's return value requests future ticks, not a repaint. Controls invalidate only when pixels change, including
     // their settling tick, just as they do in embedded hosting.

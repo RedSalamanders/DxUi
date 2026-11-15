@@ -10,6 +10,7 @@ void TestFormatBrushCacheGatesOnWindowFixtures();
 void TestFormatBrushCachesAcrossDeviceLossAndDpiOnWindowHost();
 // DxUi.ControlTests.exe --fixture-frame-hashes <FX<N>[@variant]> <output>: a hash of a full frame per step on the window host.
 int RunWindowFixtureFrameHashCommand(int argc, wchar_t** argv);
+void TestTooltipDeadlineGatesOnWindowFx14();
 // DxUi.ControlTests.exe --fixture-receipt <FX<N>[@variant]> <output.json>: a WARP receipt of one fixture on the window host.
 int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv);
 

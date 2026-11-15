@@ -12316,13 +12316,35 @@ std::wstring_view TooltipLayer::DebugGetPendingTooltipText() const noexcept
 }
 #endif
 
+std::optional<TooltipLayer::PendingDeadline> TooltipLayer::GetPendingDeadline() const noexcept
+{
+    if (_showScheduled)
+        return PendingDeadline{true, _showTickMs};
+    if (_hideScheduled)
+        return PendingDeadline{false, _hideTickMs};
+    return std::nullopt;
+}
+
+// Show and hide are deadlines (W3.3): Tick does something only when one is reached and asks for no next frame, since
+// nothing about a tooltip moves between them. The owning host ticks its layer at the deadline GetPendingDeadline names.
+// A layer placed in a control tree instead names its next deadline to its host's frame schedule itself.
 bool TooltipLayer::Tick(ControlHost& host, uint64_t nowTickMs)
 {
+    // Invalidate may run application code (an embedded view's callback) that destroys a layer placed in a tree.
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const auto armNext                = wil::scope_exit([this, &host, &lifetime]() noexcept
+    {
+        if (! lifetime.expired() && GetHost() == &host)
+        {
+            if (const auto next = GetPendingDeadline())
+                host.RequestAnimationAt(*this, next->dueTickMs);
+        }
+    });
     if (_showScheduled)
     {
         if (nowTickMs < _showTickMs)
         {
-            return true;
+            return false;
         }
 
         std::wstring text             = std::move(_pendingText);
@@ -12339,7 +12361,7 @@ bool TooltipLayer::Tick(ControlHost& host, uint64_t nowTickMs)
         {
             Invalidate(host);
         }
-        return changed;
+        return false;
     }
 
     if (! _hideScheduled)
@@ -12349,17 +12371,16 @@ bool TooltipLayer::Tick(ControlHost& host, uint64_t nowTickMs)
 
     if (nowTickMs < _hideTickMs)
     {
-        return true;
+        return false;
     }
 
-    _hideScheduled     = false;
-    _hideTickMs        = 0u;
-    const bool cleared = Clear();
-    if (cleared)
+    _hideScheduled = false;
+    _hideTickMs    = 0u;
+    if (Clear())
     {
         Invalidate(host);
     }
-    return cleared;
+    return false;
 }
 
 void TooltipLayer::OnHostDpiChanged(ControlHost& host) noexcept

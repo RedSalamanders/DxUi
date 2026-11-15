@@ -195,6 +195,12 @@ repaints with those parameters. Without that call, or after `SetTextRenderingMon
 A native host does this itself: it follows the user's ClearType setting (grayscale when ClearType is off) and its
 window's monitor, refreshing on `WM_SETTINGCHANGE`, `WM_DPICHANGED` and `WM_MOVE` that you forward to `HandleMessage`.
 
+Tooltips wait for the user's mouse hover time (clamped to 100-2,500 ms), then show for 5 seconds; the view is ticked only
+at those two deadlines, so `NeedsAnimation()` is true while one is pending and an advance before it ticks nothing.
+Hiding the view drops a tooltip that has not shown yet. A view reads the hover time once; when your window receives
+`WM_SETTINGCHANGE`, call `view.Controls().RefreshTooltipHoverTime()` so the next tooltip uses the new value. A native
+host does this itself (see [tooltip deadlines](../Specs/Rendering/Rendering_Win32Host.md#tooltip-deadlines)).
+
 ## Native HWND host
 
 Use `ControlHost` (`WindowHost` is its compatibility alias) with a caller-owned HWND. After the HWND exists,

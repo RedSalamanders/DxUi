@@ -4,7 +4,7 @@
   "fixture": "dxui-performance-fixture-v1",
   "fixtureId": "FX14",
   "title": "Tooltip path",
-  "scenario": "The pointer moving inside one tooltip-bearing control during the hover delay and while shown (the W1.6 path: 50 moves each), with the show delay passed on the frozen fixture clock. Proves G1, G2.",
+  "scenario": "The pointer moving inside one tooltip-bearing control during the hover delay and while shown (the W1.6 path: 50 moves each), with the show delay and the 5 s display lifetime passed on the frozen fixture clock. Proves G1, G2.",
   "budgets": [
     "G1",
     "G2"
@@ -130,6 +130,14 @@
           0
         ],
         "frame.tickRequesters": [
+          0,
+          0
+        ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
           0,
           0
         ],
@@ -606,6 +614,16 @@
           "total": 0
         },
         "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1137,6 +1155,12 @@
         "frame.tickRequesters": [
           0
         ],
+        "frame.tooltipDeadlineTicks": [
+          0
+        ],
+        "frame.tooltipShowsDropped": [
+          0
+        ],
         "frame.treeVisitsHitTest": [
           2
         ],
@@ -1520,6 +1544,16 @@
           "total": 0
         },
         "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3127,6 +3161,110 @@
           0
         ],
         "frame.tickRequesters": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
           0,
           0,
           0,
@@ -7975,6 +8113,16 @@
           "max": 0,
           "total": 0
         },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsHitTest": {
           "min": 2,
           "max": 2,
@@ -8502,6 +8650,12 @@
         "frame.tickRequesters": [
           0
         ],
+        "frame.tooltipDeadlineTicks": [
+          1
+        ],
+        "frame.tooltipShowsDropped": [
+          0
+        ],
         "frame.treeVisitsHitTest": [
           0
         ],
@@ -8885,6 +9039,16 @@
           "total": 0
         },
         "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipDeadlineTicks": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.tooltipShowsDropped": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -10492,6 +10656,110 @@
           0
         ],
         "frame.tickRequesters": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
           0,
           0,
           0,
@@ -15340,6 +15608,16 @@
           "max": 0,
           "total": 0
         },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsHitTest": {
           "min": 2,
           "max": 2,
@@ -15793,9 +16071,9 @@
       }
     },
     {
-      "name": "leave",
+      "name": "hide",
       "kind": "measured",
-      "description": "the pointer leaves the Label for empty space",
+      "description": "the pointer rests until the fixture clock reaches the 5 s display lifetime: the tooltip hides",
       "steps": 1,
       "series": {
         "cppAllocations": [
@@ -15820,10 +16098,10 @@
           2
         ],
         "frame.hitTestReuses": [
-          1
+          0
         ],
         "frame.hitTests": [
-          1
+          0
         ],
         "frame.paintExecutions": [
           2
@@ -15867,8 +16145,14 @@
         "frame.tickRequesters": [
           0
         ],
+        "frame.tooltipDeadlineTicks": [
+          1
+        ],
+        "frame.tooltipShowsDropped": [
+          0
+        ],
         "frame.treeVisitsHitTest": [
-          2
+          0
         ],
         "frame.treeVisitsPaint": [
           2
@@ -15886,7 +16170,7 @@
           0
         ],
         "wakes.embeddedAdvance": [
-          0
+          1
         ],
         "wakes.menuHoverTimer": [
           0
@@ -16175,14 +16459,14 @@
           "total": 2
         },
         "frame.hitTestReuses": {
-          "min": 1,
-          "max": 1,
-          "total": 1
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.hitTests": {
-          "min": 1,
-          "max": 1,
-          "total": 1
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.paintExecutions": {
           "min": 2,
@@ -16254,10 +16538,20 @@
           "max": 0,
           "total": 0
         },
+        "frame.tooltipDeadlineTicks": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsHitTest": {
-          "min": 2,
-          "max": 2,
-          "total": 2
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.treeVisitsPaint": {
           "min": 2,
@@ -16285,9 +16579,9 @@
           "total": 0
         },
         "wakes.embeddedAdvance": {
-          "min": 0,
-          "max": 0,
-          "total": 0
+          "min": 1,
+          "max": 1,
+          "total": 1
         },
         "wakes.menuHoverTimer": {
           "min": 0,
@@ -16705,10 +16999,940 @@
           "total": 0
         }
       }
+    },
+    {
+      "name": "leave",
+      "kind": "measured",
+      "description": "the pointer leaves the Label for empty space",
+      "steps": 1,
+      "series": {
+        "cppAllocations": [
+          0
+        ],
+        "created": [
+          0
+        ],
+        "churn": [
+          0
+        ],
+        "frame.composites": [
+          1
+        ],
+        "frame.compositionDevices": [
+          0
+        ],
+        "frame.d2dDevices": [
+          0
+        ],
+        "frame.drawCalls": [
+          0
+        ],
+        "frame.hitTestReuses": [
+          1
+        ],
+        "frame.hitTests": [
+          1
+        ],
+        "frame.paintExecutions": [
+          0
+        ],
+        "frame.pixelsPainted": [
+          0
+        ],
+        "frame.plainLabelPreparations": [
+          0
+        ],
+        "frame.preparationMembershipSearches": [
+          0
+        ],
+        "frame.preparations": [
+          0
+        ],
+        "frame.presents": [
+          0
+        ],
+        "frame.renders": [
+          0
+        ],
+        "frame.shadowPasses": [
+          0
+        ],
+        "frame.swapChains": [
+          0
+        ],
+        "frame.tickCalls": [
+          0
+        ],
+        "frame.tickDiscoveryWalks": [
+          0
+        ],
+        "frame.tickHeldWhileHidden": [
+          0
+        ],
+        "frame.tickLegacyTreeWalks": [
+          0
+        ],
+        "frame.tickRequesters": [
+          0
+        ],
+        "frame.tooltipDeadlineTicks": [
+          0
+        ],
+        "frame.tooltipShowsDropped": [
+          0
+        ],
+        "frame.treeVisitsHitTest": [
+          2
+        ],
+        "frame.treeVisitsPaint": [
+          0
+        ],
+        "frame.treeVisitsStatistics": [
+          0
+        ],
+        "frame.treeVisitsTick": [
+          0
+        ],
+        "wakes.animationTimer": [
+          0
+        ],
+        "wakes.deadlineTimer": [
+          0
+        ],
+        "wakes.embeddedAdvance": [
+          0
+        ],
+        "wakes.menuHoverTimer": [
+          0
+        ],
+        "wakes.paintMessage": [
+          0
+        ],
+        "resources.bitmap.created": [
+          0
+        ],
+        "resources.bitmap.destroyed": [
+          0
+        ],
+        "resources.brush.created": [
+          0
+        ],
+        "resources.brush.destroyed": [
+          0
+        ],
+        "resources.commandList.created": [
+          0
+        ],
+        "resources.commandList.destroyed": [
+          0
+        ],
+        "resources.d3d11Device.created": [
+          0
+        ],
+        "resources.d3d11Device.destroyed": [
+          0
+        ],
+        "resources.deviceContext.created": [
+          0
+        ],
+        "resources.deviceContext.destroyed": [
+          0
+        ],
+        "resources.effect.created": [
+          0
+        ],
+        "resources.effect.destroyed": [
+          0
+        ],
+        "resources.geometry.created": [
+          0
+        ],
+        "resources.geometry.destroyed": [
+          0
+        ],
+        "resources.gradientStops.created": [
+          0
+        ],
+        "resources.gradientStops.destroyed": [
+          0
+        ],
+        "resources.implicitTextLayout.created": [
+          0
+        ],
+        "resources.implicitTextLayout.destroyed": [
+          0
+        ],
+        "resources.layer.created": [
+          0
+        ],
+        "resources.layer.destroyed": [
+          0
+        ],
+        "resources.renderingParams.created": [
+          0
+        ],
+        "resources.renderingParams.destroyed": [
+          0
+        ],
+        "resources.strokeStyle.created": [
+          0
+        ],
+        "resources.strokeStyle.destroyed": [
+          0
+        ],
+        "resources.textFormat.created": [
+          0
+        ],
+        "resources.textFormat.destroyed": [
+          0
+        ],
+        "resources.textLayout.created": [
+          0
+        ],
+        "resources.textLayout.destroyed": [
+          0
+        ],
+        "text.formatCacheTrims": [
+          0
+        ],
+        "text.setTextRenderingParams": [
+          0
+        ],
+        "popups.backdropBlurPasses": [
+          0
+        ],
+        "popups.backdropCapturePixels": [
+          0
+        ],
+        "popups.backdropCaptures": [
+          0
+        ],
+        "popups.comboBoxItemWidthMeasurements": [
+          0
+        ],
+        "popups.comboBoxPopupLayouts": [
+          0
+        ],
+        "popups.comboBoxPopupRebuilds": [
+          0
+        ],
+        "popups.menuPopupPaints": [
+          0
+        ],
+        "popups.menuRowsPainted": [
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0
+        ],
+        "lists.treeExpansionRecordCopies": [
+          0
+        ],
+        "lists.treeExpansionRecords": [
+          0
+        ],
+        "lists.treeIdIndexBuilds": [
+          0
+        ],
+        "lists.treeItemReads": [
+          0
+        ],
+        "lists.treeModelLookups": [
+          0
+        ],
+        "rich.chunksLaid": [
+          0
+        ],
+        "rich.diagramPreparations": [
+          0
+        ],
+        "rich.displayUnitsWritten": [
+          0
+        ],
+        "rich.documentBytesCopied": [
+          0
+        ],
+        "rich.documentFlattens": [
+          0
+        ],
+        "rich.elementsBuilt": [
+          0
+        ],
+        "rich.hoveredTitleCalls": [
+          0
+        ],
+        "rich.hoverScanElements": [
+          0
+        ],
+        "rich.identityMapNodes": [
+          0
+        ],
+        "rich.imageUploadBytes": [
+          0
+        ],
+        "rich.mathPreparations": [
+          0
+        ],
+        "rich.otherDocumentBytesCopied": [
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0
+        ],
+        "rich.preparationTurns": [
+          0
+        ],
+        "rich.semanticBlocksReused": [
+          0
+        ],
+        "rich.semanticBytesCopied": [
+          0
+        ],
+        "rich.semanticDisplayUnitsCopied": [
+          0
+        ],
+        "rich.semanticElementsCopied": [
+          0
+        ],
+        "rich.semanticFullBuildAbbreviations": [
+          0
+        ],
+        "rich.semanticFullBuildCapacity": [
+          0
+        ],
+        "rich.semanticFullBuildFootnotes": [
+          0
+        ],
+        "rich.semanticFullBuildFrontMatter": [
+          0
+        ],
+        "rich.semanticFullBuildNoPrevious": [
+          0
+        ],
+        "rich.semanticFullBuildPresentation": [
+          0
+        ],
+        "rich.semanticFullBuildReferences": [
+          0
+        ],
+        "rich.semanticFullBuildStructure": [
+          0
+        ],
+        "rich.semanticIncrementalBuilds": [
+          0
+        ],
+        "rich.svgRasterizations": [
+          0
+        ],
+        "rich.wholeLayoutsLaid": [
+          0
+        ],
+        "accessibility.snapshotBuilds": [
+          0
+        ],
+        "accessibility.snapshotBytes": [
+          0
+        ],
+        "accessibility.snapshotNodes": [
+          0
+        ],
+        "accessibility.wordUnitsVisited": [
+          0
+        ]
+      },
+      "summary": {
+        "cppAllocations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "churn": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.composites": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.drawCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitTestReuses": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.hitTests": {
+          "min": 1,
+          "max": 1,
+          "total": 1
+        },
+        "frame.paintExecutions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pixelsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.plainLabelPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparationMembershipSearches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.preparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.presents": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.renders": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickDiscoveryWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickHeldWhileHidden": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickLegacyTreeWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsHitTest": {
+          "min": 2,
+          "max": 2,
+          "total": 2
+        },
+        "frame.treeVisitsPaint": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsStatistics": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.treeVisitsTick": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.deadlineTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.embeddedAdvance": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.menuHoverTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.paintMessage": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.bitmap.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.brush.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.commandList.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.d3d11Device.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.deviceContext.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.effect.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.geometry.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.gradientStops.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.implicitTextLayout.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.implicitTextLayout.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.layer.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.renderingParams.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.strokeStyle.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textFormat.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.created": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "resources.textLayout.destroyed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCapturePixels": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.backdropCaptures": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxItemWidthMeasurements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupLayouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.comboBoxPopupRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecordCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeExpansionRecords": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeIdIndexBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeItemReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.treeModelLookups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.chunksLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.diagramPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.displayUnitsWritten": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.documentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.elementsBuilt": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoveredTitleCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.identityMapNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.mathPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBlocksReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticDisplayUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticElementsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildAbbreviations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildCapacity": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFootnotes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildFrontMatter": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildNoPrevious": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildPresentation": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildReferences": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticFullBuildStructure": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.semanticIncrementalBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.svgRasterizations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.wholeLayoutsLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.snapshotNodes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        }
+      }
     }
   ],
   "memory": {
-    "entryPrivateBytes": 2629632,
+    "entryPrivateBytes": 2609152,
     "videoMemory": {
       "applicable": false,
       "reason": "software adapter: rendering uses system memory, which privateBytes counts"
@@ -16717,14 +17941,14 @@
     "samples": [
       {
         "at": "device",
-        "privateBytes": 8069120,
-        "workingSetBytes": 21733376
+        "privateBytes": 8085504,
+        "workingSetBytes": 21790720
       },
       {
         "at": "built",
-        "privateBytes": 9662464,
-        "workingSetBytes": 25272320,
-        "trackedLiveBytes": 7262,
+        "privateBytes": 9703424,
+        "workingSetBytes": 25219072,
+        "trackedLiveBytes": 7270,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 0,
@@ -16741,9 +17965,9 @@
       {
         "at": "phase",
         "phase": "warm",
-        "privateBytes": 11632640,
-        "workingSetBytes": 28819456,
-        "trackedLiveBytes": 7326,
+        "privateBytes": 11681792,
+        "workingSetBytes": 28733440,
+        "trackedLiveBytes": 7334,
         "retained": {
           "surfaceBytes": 230400,
           "cachedBrushes": 1,
@@ -16760,9 +17984,9 @@
       {
         "at": "phase",
         "phase": "enter",
-        "privateBytes": 12660736,
-        "workingSetBytes": 29003776,
-        "trackedLiveBytes": 7422,
+        "privateBytes": 11812864,
+        "workingSetBytes": 28966912,
+        "trackedLiveBytes": 7430,
         "retained": {
           "surfaceBytes": 230400,
           "cachedBrushes": 1,
@@ -16779,9 +18003,9 @@
       {
         "at": "phase",
         "phase": "pending",
-        "privateBytes": 14950400,
-        "workingSetBytes": 31137792,
-        "trackedLiveBytes": 7422,
+        "privateBytes": 14819328,
+        "workingSetBytes": 31035392,
+        "trackedLiveBytes": 7430,
         "retained": {
           "surfaceBytes": 230400,
           "cachedBrushes": 1,
@@ -16798,9 +18022,9 @@
       {
         "at": "phase",
         "phase": "show",
-        "privateBytes": 15269888,
-        "workingSetBytes": 31698944,
-        "trackedLiveBytes": 7550,
+        "privateBytes": 15114240,
+        "workingSetBytes": 31621120,
+        "trackedLiveBytes": 7558,
         "retained": {
           "surfaceBytes": 230400,
           "cachedBrushes": 4,
@@ -16817,9 +18041,9 @@
       {
         "at": "phase",
         "phase": "shown",
-        "privateBytes": 22712320,
-        "workingSetBytes": 37457920,
-        "trackedLiveBytes": 7550,
+        "privateBytes": 21143552,
+        "workingSetBytes": 35655680,
+        "trackedLiveBytes": 7558,
         "retained": {
           "surfaceBytes": 230400,
           "cachedBrushes": 4,
@@ -16835,10 +18059,29 @@
       },
       {
         "at": "phase",
+        "phase": "hide",
+        "privateBytes": 21143552,
+        "workingSetBytes": 35659776,
+        "trackedLiveBytes": 7558,
+        "retained": {
+          "surfaceBytes": 230400,
+          "cachedBrushes": 4,
+          "cachedTextFormats": 2,
+          "retainedTextLayouts": 0,
+          "retainedTextLayoutUnits": 0,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 6,
+          "retainedCacheBytes": 512,
+          "largestTextHistoryBytes": 0
+        }
+      },
+      {
+        "at": "phase",
         "phase": "leave",
-        "privateBytes": 22732800,
-        "workingSetBytes": 37482496,
-        "trackedLiveBytes": 7502,
+        "privateBytes": 21143552,
+        "workingSetBytes": 35659776,
+        "trackedLiveBytes": 7510,
         "retained": {
           "surfaceBytes": 230400,
           "cachedBrushes": 4,
@@ -16854,9 +18097,9 @@
       },
       {
         "at": "hidden",
-        "privateBytes": 22732800,
-        "workingSetBytes": 37515264,
-        "trackedLiveBytes": 6382,
+        "privateBytes": 21143552,
+        "workingSetBytes": 35684352,
+        "trackedLiveBytes": 6390,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 4,
@@ -16873,7 +18116,7 @@
     ],
     "hiddenResidencyDelta": {
       "privateBytes": 0,
-      "workingSetBytes": 32768,
+      "workingSetBytes": 24576,
       "surfaceBytes": -230400,
       "retainedTextLayouts": 0,
       "retainedBitmapBytes": 0
@@ -17044,7 +18287,7 @@
         "budget": "idle native window <= 8 MB private above process entry at 1080p",
         "counter": "private bytes after the last phase, shown, minus private bytes at process entry",
         "limitBytes": 8000000,
-        "measuredBytes": 20103168,
+        "measuredBytes": 18534400,
         "status": "advisory"
       },
       {
@@ -17061,7 +18304,7 @@
         "budget": "<= 256 B per simple control all-in",
         "counter": "tracked live C++ bytes after the build divided by the controls of the built tree (host attachment included)",
         "limitBytes": 256,
-        "measuredBytes": 3631,
+        "measuredBytes": 3635,
         "status": "exceeded"
       },
       {
@@ -17091,22 +18334,22 @@
   "benchmarkInputs": {
     "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "BDA786D0E185A83D1ACCFED43106154D374E7C0DDEFCF8A2427FEC0817EAA7C7",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h": "7C2FAFF45C77EFEB1B521D74379AEE3DD335B86CC339FD1C91C4BD216CC77AE0",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "7C5A056727C5F60E1542313F154EFD393DD148F26DB8DC8A526901A144F8729C",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "8A9AD71AA5D406B4526D14DD9A14A2F6882CC45750985087C185F92D07AC93A3",
     "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "00844224A58AC9CDD5B726A72BD598293BA5756E9535AC59E26134DD3D7A78DD",
-    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "B466B2EAE7F7CDF6EC9FE70867F2E5BCE04334639CC4C01B5C85C240E8DB07A3",
+    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "F7532FB091262C60D761E7B988A2929DE93828AD8A127FAA97649FF4167410D4",
     "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
     "performance-fixtures.ps1": "7137E9356F903546CD9E1D67226AA9375C7E788101409640A9C48F4B34671E5B",
     "Tools/PerformanceFixtures.psm1": "3AE90348157D4C1C743021DC9FA5CCCC01D7F706591C18CA9CCE9F06FACAABF9",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx14.h": "E8A82211573BFCD521376F89A5349072AB1B88A86317F503E0B5625AF21FDE8A",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx14.h": "FB6B15A6BCA8A81706B073F3B7F42472C60EECAEC3B812D8210F835D1B3B776D",
     "Tests/Embedded/Embedded.Tests.TooltipHoverPath.h": "A81919294FD43DC0886F3BF36317FD0E987A5DFE1909044AF5C85970E9AD560B"
   },
   "provenance": {
-    "sourceCommit": "19673549e3c7a78ad182423311b529819886cea8",
+    "sourceCommit": "3e6e1c19116c5a726dfd23108e48aec8ef7e7ea6",
     "sourceDirty": false,
     "platform": "x64",
     "configuration": "Release",
     "command": "performance-fixtures.ps1 -Fixture FX14 -Variant default -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64",
-    "executableSha256": "079231904145D534BBB46B6608D20EFADCA4B7832D199168B86864E6E28ACBD5",
+    "executableSha256": "9E32F9FEC5F825ECE7D1C1EE43FCCCA28229AA52F83EAC972E6F355F3EF14400",
     "os": {
       "description": "Microsoft Windows 10.0.26300",
       "build": "26300",
@@ -17136,11 +18379,11 @@
     },
     "hostIdle": {
       "seconds": 3,
-      "busyPercent": 47.70099118942731,
+      "busyPercent": 65.32866379310344,
       "observer": "Tools/Watch-BenchmarkHost.ps1",
       "required": false
     },
     "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
-    "recordedUtc": "2026-11-15T05:23:26.3035148Z"
+    "recordedUtc": "2026-11-15T07:06:20.5254192Z"
   }
 }

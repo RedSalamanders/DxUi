@@ -508,6 +508,29 @@ int RunWindowFixtureFrameHashCommand(int argc, wchar_t** argv)
     return 0;
 }
 
+// W3.3's gate on FX14 on the window host, through the fixture clock: the tooltip is ticked once at its show deadline and
+// once at its hide deadline, never between them. Real dispatcher wakes are counted by
+// TestTooltipDeadlinesWakeOnlyAtShowAndHideInRealTime (Tooltip suite), since this runner never dispatches a timer.
+void TestTooltipDeadlineGatesOnWindowFx14()
+{
+    const RunRecord run   = RunWindow(Fx14::kDefinition, Fx14::kVariants[0]);
+    uint64_t tooltipTicks = 0u;
+    for (const Phase& phase : Fx14::kPhases)
+    {
+        if (phase.kind != PhaseKind::Measured)
+            continue;
+        const uint64_t ticks    = Summarize(run.Phase(phase.name), "frame.tooltipDeadlineTicks").total;
+        const uint64_t controls = Summarize(run.Phase(phase.name), "frame.tickCalls").total;
+        std::cerr << "    [FIXTURE] FX14 " << phase.name << " (window, fixture clock): " << ticks << " tooltip deadline ticks, " << controls
+                  << " control Tick calls\n";
+        const bool atDeadline = phase.name == "show" || phase.name == "hide";
+        Require(ticks == (atDeadline ? 1u : 0u), "FX14: the tooltip is ticked once at its show and once at its hide deadline, never between them");
+        Require(controls == 0u, "FX14: no Tick call between the deadlines");
+        tooltipTicks += ticks;
+    }
+    Require(tooltipTicks == 2u, "G1: FX14 wakes from the tooltip <= 2 per show on the window host, one show and one hide");
+}
+
 int RunWindowFixtureReceiptCommand(int argc, wchar_t** argv)
 {
     const bool interactive = argc == 5 && std::wstring_view(argv[4]) == L"--interactive";

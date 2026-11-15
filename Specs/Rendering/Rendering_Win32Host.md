@@ -65,7 +65,7 @@ wake walks the tree. A request is `Continuous` (`RequestAnimation(control)`: the
 control's `Tick` returns true), `Deadline` (`RequestAnimationAt(control, dueTickMs)`: one `Tick` when the animation clock
 reaches the time, nothing before) or `Once` (one tick on the next frame; the rich editor restarts its caret blink with it; a deadline already passed is due at the next wake). A control holds at most one
 request: every frame wins over the next frame, which wins over a deadline, and a new deadline replaces the previous one; `CancelAnimation(control)` withdraws it. Whatever a scheduled `Tick` returns, true asks
-for the next frame. The tooltip layer holds its own request. Every library control asks for its own ticks:
+for the next frame. The tooltip layer waits for deadlines of its own ([tooltip deadlines](#tooltip-deadlines)). Every library control asks for its own ticks:
 transitions, phase loops and scrolling (`Button`, `ProgressBar`, `ThroughputGraph`, `Slider`, `PageHost`, `Tree`,
 `Grid`, scrollbars, the menu popup's slider, the rich editor's middle-button scrolling) request `Continuous`; the carets
 of `TextField`, editable `ComboBox` and `RichTextEditor` hold one `Deadline` per phase flip, armed by the host's caret
@@ -153,6 +153,40 @@ caret, and exactly one `Deadline` per phase otherwise. Every flip still repaints
 cannot invalidate only the caret yet (`FX1` records one preparation per flip). The Win32 system caret
 (`CreateCaret`, used for IME and accessibility positioning) and UI Automation are unaffected: they follow the caret's
 position, not its blink.
+
+### Tooltip deadlines
+
+Status: implemented (performance and motion plan item W3.3, 15 November 2026) for both hosts.
+
+The host's tooltip layer waits for at most one deadline: the show of a pending tooltip (`SetTooltipDelayed`, after the
+show delay) or the hide of a shown one (5,000 ms after it shows, or the delay a pointer leave passes to
+`BeginTooltipHideDelay`). The deadline is read from the layer whenever the schedule is computed, so it is armed by
+entering a waiting mode and gone with leaving it: a pointer leave during the delay, a replacement by another control's
+tooltip, a tracking `SetTooltip`, `ClearTooltip` (a click, the host's mouse leave, a removed or re-resolved supplemental
+target), a capture change, an inspection, detach. Every such change tells the dispatcher, so no stale wake remains; a
+wake reaching a time the layer no longer waits for does nothing. The layer's `Tick` returns false: nothing about a
+tooltip moves between its deadlines, and the layer is never ticked between them. A native host therefore wakes once to
+show a tooltip and once to hide it, and runs no periodic timer for it; an embedded host's `NeedsAnimation` stays true
+while a deadline is pending, as for any deadline, and `AdvanceAnimation` before it ticks nothing. A tooltip has no fade
+or motion of its own, so it never requests every frame. A Ctrl change over a rich title resolves the supplemental
+tooltip at the next wake. The layer is host-owned, not a request of the control schedule: within a wake its deadline is
+read after every control's `Tick`, so a `Tick` that dismisses, replaces or re-arms the tooltip is honoured in the same
+wake, and detach clears the layer after leaving the dispatcher, so nothing fires after detach. A `TooltipLayer` placed in
+a control tree instead requests its next deadline from its host with `RequestAnimationAt` when it is ticked.
+
+A host that is hidden (`SetNativePresentationVisible(false)`, minimized, its window hidden as observed at a wake, or an
+embedded view's `SetVisible(false)`) drops a tooltip still waiting to show, since the pointer that asked for it is no
+longer known when the host returns; a shown tooltip's hide is held like any deadline and hides it at the first wake after
+the show (an embedded view's timeline does not count the hidden time).
+
+The show delay is the user's mouse hover time (`SPI_GETMOUSEHOVERTIME`, read and never changed) clamped to 100-2,500 ms,
+500 ms when the system reports none. Each host reads it once, when it first schedules a tooltip, and again on
+`RefreshTooltipHoverTime()`: a window host calls it on `WM_SETTINGCHANGE`; an embedded host has no window, so its
+application calls `Controls().RefreshTooltipHoverTime()` when its own window receives `WM_SETTINGCHANGE`. The next
+tooltip scheduled waits for the refreshed delay. Tests replace the setting through `DebugSetTooltipHoverTimeForTest`.
+Work counters record the layer's ticks (`tooltipDeadlineTicks`) and the shows dropped while hidden
+(`tooltipShowsDropped`).
+
 Hit queries revalidate root lifetime and current ownership before dispatch. Root replacement or retirement during
 painting aborts that frame before capture or presentation; the next update applies the current root's bounds before
 painting it. A checked native `PrepareContent` failure is isolated to that control: healthy siblings can still
@@ -342,7 +376,7 @@ that call reports failure and never fires its callback; a dismissed submenu or r
 through the posted request or the modal loop.
 
 A native host's animation clock, `GetAnimationTickMs`, is the current UI-thread dispatcher timeline, not the last tick
-of an idle individual host. Transitions and tooltip show/hide deadlines stamp it, so a resumed host neither shows nor
+of an idle individual host. Transitions and tooltip show/hide deadlines ([tooltip deadlines](#tooltip-deadlines)) stamp it, so a resumed host neither shows nor
 hides a newly scheduled tooltip at once because its previous tick is stale, nor holds a transition still because the
 dispatcher lost a stall beyond its hitch clamp. An embedded host's clock is its own timeline
 ([embedded D3D11](Rendering_EmbeddedD3D11.md)).

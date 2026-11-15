@@ -5097,6 +5097,16 @@ private:
     };
 
     friend struct RetainedResourceAccess;
+    // Deadlines (W3.3; Specs/Rendering/Rendering_Win32Host.md, "Tooltip deadlines"). The layer waits for at most one
+    // deadline at a time: the show of a pending tooltip or the hide of a shown one. The host that owns the layer reads it
+    // from here; it is never stored anywhere else, so a deadline whose waiting mode has ended no longer exists.
+    friend class ControlHost;
+    struct PendingDeadline final
+    {
+        bool show          = false; // the show of a pending tooltip; false: the hide of a shown one
+        uint64_t dueTickMs = 0u;
+    };
+    [[nodiscard]] std::optional<PendingDeadline> GetPendingDeadline() const noexcept;
     void InvalidateLayoutCache() noexcept;
     [[nodiscard]] bool EnsureLayoutCache(const ControlHost& host) const noexcept;
     [[nodiscard]] D2D1_RECT_F ComputeBoundsDip(const ControlHost& host) const noexcept;
@@ -6576,9 +6586,21 @@ public:
     bool ClearTooltip() noexcept;
     [[nodiscard]] bool HasTooltip() const noexcept;
     [[nodiscard]] std::wstring_view GetTooltipText() const noexcept;
+    // Tooltip show delay (Specs/Rendering/Rendering_Win32Host.md, "Tooltip deadlines"): re-reads the user's mouse hover time
+    // (SPI_GETMOUSEHOVERTIME), never changing it; the next tooltip scheduled waits for it. A window host calls it itself on
+    // WM_SETTINGCHANGE. An embedded host has no window: its application calls it when its own window receives
+    // WM_SETTINGCHANGE. UI thread only.
+    void RefreshTooltipHoverTime() noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] std::wstring_view DebugGetPendingTooltipText() const noexcept;
     [[nodiscard]] bool DebugAdvanceTooltipDelayForTest() noexcept;
+    // Tests only. Replaces the mouse hover time this host reads, as SPI_GETMOUSEHOVERTIME reports it (the host still clamps
+    // it), so a test never changes the user's setting; nullopt reads the system setting again. It takes effect as a real
+    // change does: at the host's next RefreshTooltipHoverTime (a window host's WM_SETTINGCHANGE), or when the host first
+    // schedules a tooltip.
+    void DebugSetTooltipHoverTimeForTest(std::optional<UINT> hoverTimeMs) noexcept;
+    // Tests only. The show delay the host's next scheduled tooltip waits for.
+    [[nodiscard]] uint64_t DebugGetTooltipShowDelayMsForTest() noexcept;
 #endif
 
     void SetSmokeOverlayVisible(bool visible) noexcept;
@@ -7178,7 +7200,18 @@ private:
     void CountHeldDeadlines() noexcept;
     // How often a host hidden only through an ancestor looks whether it is visible again while it holds requests.
     static constexpr uint64_t kHiddenAncestorProbeMs = 1'000u;
-    void RequestTooltipTick() noexcept;
+    // Tooltip deadlines (W3.3; Specs/Rendering/Rendering_Win32Host.md, "Tooltip deadlines"). The host-owned tooltip layer is
+    // not a request of the control schedule: its one deadline (show or hide) is read from the layer itself whenever the
+    // schedule is computed, so no copy can outlive the waiting mode that armed it; a wake re-reads it after every control's
+    // Tick and ticks the layer only when it is still due. Detach clears the layer after leaving the dispatcher, so nothing
+    // fires after detach. A supplemental-tooltip resolve (Ctrl pressed over a rich title) is due at the next wake.
+    [[nodiscard]] std::optional<uint64_t> GetTooltipWakeDueTickMs() const noexcept;
+    // Tells the dispatcher the tooltip's deadline changed; a request from another thread or a detaching host changes nothing.
+    void OnTooltipScheduleChanged() noexcept;
+    // A host that is hidden (presentation, window, minimized or an embedded view) drops a tooltip still waiting to show: the
+    // pointer that asked for it is no longer known when the host returns. A shown tooltip's hide stays held and fires on show.
+    void DropPendingTooltipShowWhileHidden() noexcept;
+    [[nodiscard]] uint64_t GetTooltipShowDelayMs() noexcept;
     [[nodiscard]] FrameScheduleWake GetFrameScheduleWake() const noexcept;
     [[nodiscard]] bool HasScheduledTicks() const noexcept;
     [[nodiscard]] bool IsScheduleSuspended() const noexcept;
@@ -7196,8 +7229,12 @@ private:
     TickWakeFrame* _tickWakeFrame               = nullptr;
     bool _tickTreeRequested                     = false;
     bool _tickTreeDiscovery                     = false;
-    bool _tooltipTickRequested                  = false;
     FrameScheduleWake::Kind _dispatcherWakeKind = FrameScheduleWake::Kind::None;
+    // The user's mouse hover time, read once and refreshed by RefreshTooltipHoverTime; clamped when the delay is used.
+    UINT _tooltipHoverTimeMs        = 0u;
+    bool _tooltipHoverTimeRead      = false;
+    bool _tooltipHoverTimeForTestOn = false;
+    UINT _tooltipHoverTimeForTestMs = 0u;
 
     // Caret clock (W3.2; Specs/Rendering/Rendering_Win32Host.md, "Caret clock"). One per host: it owns the blink phase of
     // the one focused caret (TextField, editable ComboBox, RichTextEditor) and arms that control's deadline for each phase

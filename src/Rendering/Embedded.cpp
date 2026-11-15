@@ -429,7 +429,11 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
         // Nothing paints while the view is hidden, so its controls return what painting rebuilds (a Grid's text layouts).
         if (_host._root)
             _host._root->OnHidden();
-        // The schedule is held while hidden: NeedsAnimation answers false, and nothing is ticked.
+        // The schedule is held while hidden: NeedsAnimation answers false, and nothing is ticked. A tooltip still waiting to
+        // show is dropped (its pointer is not known when the view returns); a shown tooltip's hide waits on the timeline.
+        if (! operationIsCurrent())
+            return;
+        _host.DropPendingTooltipShowWhileHidden();
     }
     else
     {
@@ -1179,7 +1183,7 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
     {
         _host._supplementalTooltipModifiers    = down ? modifiers | MK_CONTROL : modifiers & ~MK_CONTROL;
         _host._supplementalTooltipNeedsResolve = true;
-        _host.RequestTooltipTick();
+        _host.OnTooltipScheduleChanged();
     }
     if (! KeyboardInputIsAvailable())
         return false;

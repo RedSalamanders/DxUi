@@ -1940,6 +1940,7 @@ __declspec(noinline) static int RunFunctionalTests()
         PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
         PerformanceFixtures::TestCaretClockGatesOnFx1();
         SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
+        PerformanceFixtures::TestTooltipDeadlineGatesOnFx14();
         return 0;
     }
     // Plan W2.9 alone: the pointer hit result gates, differential and lifetime on WARP.
@@ -2172,6 +2173,7 @@ __declspec(noinline) static int RunFunctionalTests()
     PerformanceFixtures::TestFx5G13Budgets();
     PerformanceFixtures::TestFx13G13Budgets();
     PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
+    PerformanceFixtures::TestTooltipDeadlineGatesOnFx14();
     GridDataPathTests::TestFx3GridDataPathGate(gpu);
     PerformanceFixtures::TestCaretClockGatesOnFx1();
     SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
