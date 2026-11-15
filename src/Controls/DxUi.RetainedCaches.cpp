@@ -111,7 +111,7 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
 std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noexcept
 {
     {
-        static constexpr std::array<RetainedControlCacheRow, 22u> rows{{
+        static constexpr std::array<RetainedControlCacheRow, 21u> rows{{
             // Label::_typographyLayout, the retained layout of a label with a mnemonic or a typography override.
             {"Label._typographyLayout",
              [](const Control& control) noexcept
@@ -443,47 +443,12 @@ std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noex
             }
         },
              [](const Control&) noexcept { return uint64_t{0u}; }}, // brush objects only
-            // FlexPanel::_records (the measured part of each child record) and _lines.
-            {"FlexPanel._records",
-             [](const Control& control) noexcept
-        {
-            const auto* flex = dynamic_cast<const FlexPanel*>(&control);
-            return flex ? static_cast<size_t>(std::ranges::count_if(flex->_records, [](const auto& record) { return record.measuredValid; })) : 0u;
-        },
-             [](Control& control) noexcept
-        {
-            if (auto* flex = dynamic_cast<FlexPanel*>(&control))
-            {
-                for (auto& record : flex->_records)
-                    record.measuredValid = false;
-                flex->_lines.clear();
-            }
-        },
-             [](const Control& control) noexcept
-        {
-            // The child records exist for every child; only the line table is the cache's own storage.
-            const auto* flex = dynamic_cast<const FlexPanel*>(&control);
-            return flex ? VectorBytes(flex->_lines) : 0u;
-        }},
-            // FormField::_measureCache and _sharedLabelCache.
-            {"FormField._measureCache",
-             [](const Control& control) noexcept
-        {
-            const auto* field = dynamic_cast<const FormField*>(&control);
-            if (! field)
-                return size_t{0u};
-            const auto valid = [](const auto& part) { return part.host != nullptr; };
-            return static_cast<size_t>(std::ranges::count_if(field->_measureCache, valid)) + Present(valid(field->_sharedLabelCache));
-        },
-             [](Control& control) noexcept
-        {
-            if (auto* field = dynamic_cast<FormField*>(&control))
-            {
-                field->_measureCache.fill({});
-                field->_sharedLabelCache = {};
-            }
-        },
-             [](const Control&) noexcept { return uint64_t{0u}; }}, // fixed records inside the control
+            // Control::_measureCache, every control's cached measurements (Control::Measure; it replaced the per-parent
+            // FlexPanel::_records measurements and FormField::_measureCache).
+            {"Control._measureCache",
+             [](const Control& control) noexcept { return control.GetMeasureCacheEntries(); },
+             [](Control& control) noexcept { control.DropMeasureCache(); },
+             [](const Control& control) noexcept { return static_cast<uint64_t>(control.GetMeasureCacheBytes()); }},
             // RichTextEditor::State::layout (prepared document layout and semantic geometry with its hover index), its overlay geometry, inks,
             // brushes and staged parser and builder work: everything RichTextEditor::RetireLayout(false) clears.
             {"RichTextEditor.layout",

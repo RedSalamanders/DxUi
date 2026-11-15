@@ -136,6 +136,22 @@ struct ControlModelQueryAccess
                 owner.RequestInvalidate();
         });
     }
+    // Control::Measure for a container that counts its children's actual measurements: `executed` reports whether
+    // MeasureOverride ran (false on a measure-cache hit or on input refused before it).
+    [[nodiscard]] static HRESULT MeasureCounted(
+        const Control& control, const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result, bool& executed) noexcept
+    {
+        return control.MeasureCounted(context, constraints, result, &executed);
+    }
+    // Releases a control's measure cache (a hidden container's children; tests comparing with an uncached measure).
+    static void DropMeasureCache(const Control& control) noexcept
+    {
+        control.DropMeasureCache();
+    }
+    [[nodiscard]] static size_t MeasureCacheEntries(const Control& control) noexcept
+    {
+        return control.GetMeasureCacheEntries();
+    }
     // The logical parent, a PageHost or TabControl included, which GetParent (Panels only, and protected) is not.
     [[nodiscard]] static const Control* LogicalParent(const Control& control) noexcept
     {

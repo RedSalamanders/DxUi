@@ -1,22 +1,35 @@
 #include "Controls.Tests.IntrinsicLayout.h"
 
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.PerformanceFixtures.h"
 #include "Controls/DxUi.Internal.h"
+// Scenarios are never copied. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+#include "Embedded.Tests.PerformanceFixtureFx10.h"
+#include "Embedded.Tests.PerformanceFixtureFx12.h"
+#pragma warning(pop)
 #include "GraphicsFixture.h"
 #include "Support.Tests.FatalChildren.h"
+#include "Support/MeasureCache.Tests.Hooks.h"
 
 #include <DxUi/Failure.h>
 #include <DxUi/Typography.h>
 #include <atomic>
+#include <bit>
+#include <chrono>
 #include <dwrite_1.h>
 #include <exception>
+#include <format>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <new>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <tuple>
 
 namespace
 {
@@ -1898,6 +1911,10 @@ void TestFlexBudgetsAndUnsupportedChildrenFailBeforeGeometryCommit()
     otherLabel->SetText(L"Short following label");
     RequireSucceeded(tooMuchText.ApplyLayout(host), "shorter current content recovers after a shaping budget failure");
     size_t remaining = 4u;
+    // The arrangement left this label's measurement in its measure cache, and a cached result consumes no units (W6.2).
+    DesiredSize cached;
+    Require(otherLabel->Measure({host, &remaining}, {}, cached) == S_OK && remaining == 4u, "a cached measurement consumes no shaping budget");
+    ControlModelQueryAccess::DropMeasureCache(*otherLabel);
     DesiredSize untouched{.sizeDip = D2D1::SizeF(123.0f, 456.0f)};
     Require(otherLabel->Measure({host, &remaining}, {}, untouched) == HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW) && remaining == 4u &&
                 untouched.sizeDip.width == 123.0f,
@@ -2317,8 +2334,615 @@ void TestFlexCompactChildrenKeepsEachChildsOptions()
             "each child keeps the extent its options give it");
 }
 
+namespace
+{
+// ---- Measure cache (performance and motion plan W6.2; Specs/UI/UI_ControlsAndLayout.md, "Measure cache") ----
+
+void PrintLine(const std::string& text)
+{
+    std::cerr << text;
+}
+
+// Bitwise: the cache must return exactly what MeasureOverride computed.
+[[nodiscard]] bool SameMeasure(const DesiredSize& a, const DesiredSize& b) noexcept
+{
+    const auto bits = [](float value) noexcept { return std::bit_cast<uint32_t>(value); };
+    return bits(a.sizeDip.width) == bits(b.sizeDip.width) && bits(a.sizeDip.height) == bits(b.sizeDip.height) &&
+           a.baselineDip.has_value() == b.baselineDip.has_value() && (! a.baselineDip || bits(*a.baselineDip) == bits(*b.baselineDip)) &&
+           a.overflow == b.overflow;
+}
+
+[[nodiscard]] std::string Describe(const DesiredSize& value)
+{
+    return std::format(
+        "{}x{} baseline {} overflow {}", value.sizeDip.width, value.sizeDip.height, value.baselineDip ? *value.baselineDip : -1.0f, value.overflow);
+}
+
+// An uncached measurement: the twin's cache is dropped before and after, so it answers from MeasureOverride.
+[[nodiscard]] HRESULT MeasureUncached(const Control& control, ControlHost& host, const LayoutConstraints& constraints, DesiredSize& result)
+{
+    ControlModelQueryAccess::DropMeasureCache(control);
+    const HRESULT hr = control.Measure({host}, constraints, result);
+    ControlModelQueryAccess::DropMeasureCache(control);
+    return hr;
+}
+
+struct MeasureCase
+{
+    const char* name;
+    std::function<std::unique_ptr<Control>()> make;
+};
+
+// The types that declare MeasureDependsOnMaximum() == false, each in the configurations that do.
+[[nodiscard]] std::vector<MeasureCase> MaximumIndependentCases()
+{
+    std::vector<MeasureCase> cases;
+    cases.push_back({"Label", [] { return std::make_unique<Label>(L"Quarterly operations review é"); }});
+    cases.push_back({"Label typography override",
+                     []
+    {
+        auto label = std::make_unique<Label>(L"Quarterly operations review");
+        static_cast<void>(label->SetTypographyOverride(LabelTypography{22.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD, 1.5f}));
+        return label;
+    }});
+    cases.push_back({"Label empty", [] { return std::make_unique<Label>(); }});
+    cases.push_back({"Button", [] { return std::make_unique<Button>(L"Export shipments"); }});
+    cases.push_back({"Button shortcut and icon",
+                     []
+    {
+        auto button = std::make_unique<Button>(L"Save site");
+        button->SetShortcutText(L"Ctrl+S");
+        button->SetLeadingIcon(L"\xE74E");
+        return button;
+    }});
+    cases.push_back({"Button icon only",
+                     []
+    {
+        auto button = std::make_unique<Button>(L"\xE710");
+        button->SetVariant(ButtonVariant::IconOnly);
+        return button;
+    }});
+    cases.push_back({"Button multiline drop-down (does not wrap)",
+                     []
+    {
+        auto button = std::make_unique<Button>(L"Open audit log");
+        button->SetMultiline(true);
+        button->SetVariant(ButtonVariant::DropDown);
+        return button;
+    }});
+    cases.push_back({"Toggle text", [] { return std::make_unique<Toggle>(L"Sync"); }});
+    cases.push_back({"Toggle state labels",
+                     []
+    {
+        auto toggle = std::make_unique<Toggle>();
+        toggle->SetStateLabels(L"Off", L"Enabled and synchronized");
+        return toggle;
+    }});
+    cases.push_back({"Toggle bare", [] { return std::make_unique<Toggle>(); }});
+    cases.push_back({"Checkbox", [] { return std::make_unique<Checkbox>(L"Audited this quarter"); }});
+    cases.push_back({"RadioButton", [] { return std::make_unique<RadioButton>(L"Option with a longer label"); }});
+    cases.push_back({"TextField", [] { return std::make_unique<TextField>(L"depot.north@example.com"); }});
+    cases.push_back({"ComboBox", [] { return std::make_unique<ComboBox>(); }});
+    return cases;
+}
+
+// Each opted-in type: a sweep of the maximum width across its natural width at 1/64 DIP, maxima of 0 and infinity, a
+// maximum height at and just below its natural height and both flow directions, each probe equal to an uncached
+// measurement and all but the first answered from the cache.
+void TestMeasureCacheWidthSweepEqualsUncachedMeasure()
+{
+    ControlHost host;
+    for (const MeasureCase& entry : MaximumIndependentCases())
+        for (const FlowDirection flow : {FlowDirection::LeftToRight, FlowDirection::RightToLeft})
+        {
+            const auto cached    = entry.make();
+            const auto reference = entry.make();
+            cached->SetFlowDirection(flow);
+            reference->SetFlowDirection(flow);
+            DesiredSize natural;
+            RequireSucceeded(MeasureUncached(*reference, host, {}, natural), "natural size");
+            std::vector<LayoutConstraints> probes{LayoutConstraints{}, LayoutConstraints::AtMost(0.0f), LayoutConstraints::AtMost(0.0f, 0.0f)};
+            const float start = std::floor((std::max)(0.0f, natural.sizeDip.width - 2.0f) * 64.0f) / 64.0f;
+            for (float width = start; width <= natural.sizeDip.width + 2.0f; width += 1.0f / 64.0f)
+                probes.push_back(LayoutConstraints::AtMost(width));
+            for (const float height : {natural.sizeDip.height, natural.sizeDip.height - 1.0f / 64.0f, natural.sizeDip.height + 1.0f / 64.0f})
+                probes.push_back(LayoutConstraints::AtMost(natural.sizeDip.width, height));
+            probes.push_back(LayoutConstraints::AtMost(std::nextafter(natural.sizeDip.width, 0.0f)));
+            probes.push_back(LayoutConstraints::AtMost(std::nextafter(natural.sizeDip.width, 1.0e6f)));
+            probes.push_back(LayoutConstraints::AtMost((std::numeric_limits<float>::max)()));
+            uint64_t executions = 0u;
+            size_t overflowing  = 0u;
+            for (const LayoutConstraints& constraints : probes)
+            {
+                DesiredSize expected;
+                RequireSucceeded(MeasureUncached(*reference, host, constraints, expected), "uncached probe");
+                DesiredSize actual;
+                const Detail::WorkCounterScope scope;
+                RequireSucceeded(cached->Measure({host}, constraints, actual), "cached probe");
+                executions += scope.Delta().layout.measureOverrideExecutions;
+                if (! SameMeasure(actual, expected))
+                {
+                    PrintLine(std::format("    {} {} at maximum {}x{}: cached {}, uncached {}\n",
+                                          entry.name,
+                                          flow == FlowDirection::RightToLeft ? "RTL" : "LTR",
+                                          constraints.maximumWidthDip.value_or(-1.0f),
+                                          constraints.maximumHeightDip.value_or(-1.0f),
+                                          Describe(actual),
+                                          Describe(expected)));
+                    Require(false, "a cached maximum-independent measurement equals the uncached one at every probe");
+                }
+                overflowing += expected.overflow ? 1u : 0u;
+            }
+            Require(executions == 1u, "one MeasureOverride serves every maximum of a maximum-independent control");
+            Require(overflowing > 0u && overflowing < probes.size(), "the sweep crosses the point where the measurement starts to overflow");
+            // A different minimum is a different key: measured again, and still equal to the uncached measurement.
+            const auto raised = LayoutConstraints{.minimumDip = D2D1::SizeF(natural.sizeDip.width + 3.0f, 0.0f), .maximumWidthDip = 400.0f};
+            DesiredSize expected;
+            DesiredSize actual;
+            RequireSucceeded(MeasureUncached(*reference, host, raised, expected), "uncached raised minimum");
+            const Detail::WorkCounterScope scope;
+            RequireSucceeded(cached->Measure({host}, raised, actual), "cached raised minimum");
+            Require(scope.Delta().layout.measureOverrideExecutions == 1u && SameMeasure(actual, expected), "a new minimum is measured once, as uncached");
+        }
+}
+
+// Types whose measurement reads the maximum (wrapping text and the layout containers) never reuse a result across maxima:
+// every distinct maximum is measured, a repeated one is answered from the cache, and both equal an uncached measurement.
+void TestMeasureCacheMaximumDependentTypesKeyEveryMaximum()
+{
+    ControlHost host;
+    std::vector<MeasureCase> cases;
+    cases.push_back({"Label multiline",
+                     []
+    {
+        auto label = std::make_unique<Label>(L"This review collects the quarter's operational figures and explains the variances.");
+        label->SetMultiline(true);
+        return label;
+    }});
+    cases.push_back({"Button multiline",
+                     []
+    {
+        auto button = std::make_unique<Button>(L"Rebalance carrier contracts before the holiday peak");
+        button->SetMultiline(true);
+        return button;
+    }});
+    cases.push_back({"Checkbox multiline",
+                     []
+    {
+        auto checkbox = std::make_unique<Checkbox>(L"Move the weekly audit to Tuesdays so it no longer collides");
+        checkbox->SetMultiline(true);
+        return checkbox;
+    }});
+    cases.push_back({"TextField multiline",
+                     []
+    {
+        auto field = std::make_unique<TextField>(L"Figures are provisional until the finance team closes the quarter.");
+        field->SetMultiline(true);
+        return field;
+    }});
+    cases.push_back({"NumericStepper", [] { return std::make_unique<NumericStepper>(); }});
+    cases.push_back({"FlexPanel",
+                     []
+    {
+        auto panel = std::make_unique<FlexPanel>();
+        static_cast<void>(panel->SetOrientation(StackOrientation::Horizontal));
+        static_cast<void>(panel->SetWrap(true));
+        static_cast<void>(panel->SetGap(8.0f));
+        for (const wchar_t* text : {L"Save site", L"Revert changes", L"Export shipments", L"Print summary"})
+            panel->AddChild<Button>(text);
+        return panel;
+    }});
+    cases.push_back({"FormField",
+                     []
+    {
+        auto field = std::make_unique<FormField>(L"site.name", L"Site name");
+        field->AddEditor<TextField>(L"Northern depot");
+        field->SetDescription(L"Regions group sites for the quarterly totals.");
+        return field;
+    }});
+    cases.push_back({"FormPanel",
+                     []
+    {
+        auto form = std::make_unique<FormPanel>();
+        static_cast<void>(form->SetColumns(2u));
+        for (const wchar_t* label : {L"Site name", L"Manager", L"Address"})
+            form->AddField(std::wstring(L"f.") + label, label)->AddEditor<TextField>(L"Value");
+        return form;
+    }});
+    for (const MeasureCase& entry : cases)
+        for (const FlowDirection flow : {FlowDirection::LeftToRight, FlowDirection::RightToLeft})
+        {
+            const auto cached    = entry.make();
+            const auto reference = entry.make();
+            cached->SetFlowDirection(flow);
+            reference->SetFlowDirection(flow);
+            for (const float width : {120.0f, 240.0f, 241.0f / 1.0f, 240.0f + 1.0f / 64.0f, 480.0f, 120.0f})
+            {
+                const auto constraints = LayoutConstraints::AtMost(width);
+                DesiredSize expected;
+                RequireSucceeded(MeasureUncached(*reference, host, constraints, expected), "uncached probe");
+                DesiredSize first;
+                DesiredSize second;
+                const Detail::WorkCounterScope scope;
+                RequireSucceeded(cached->Measure({host}, constraints, first), "first probe");
+                const auto afterFirst = scope.Delta().layout.measureCacheHits;
+                RequireSucceeded(cached->Measure({host}, constraints, second), "repeated probe");
+                Require(SameMeasure(first, expected) && SameMeasure(second, expected), "every probe equals the uncached measurement");
+                Require(scope.Delta().layout.measureCacheHits > afterFirst, "a repeated key is answered from the cache");
+            }
+        }
+}
+
+// Each measured input changes through a setter, an inherited setting or the host: the next measurement must equal an
+// uncached one (the change reached the key or the measure revision), and differ from before where the input matters.
+void TestMeasureCacheEveryMeasuredInputInvalidates()
+{
+    ControlHost host;
+    struct Mutation
+    {
+        const char* name;
+        std::function<std::unique_ptr<Panel>(Control*&)> make;
+        std::function<void(Panel&, Control&)> change;
+    };
+    const auto inPanel = [](auto&& make)
+    {
+        return [make](Control*& target)
+        {
+            auto panel = std::make_unique<Panel>();
+            target     = make(*panel);
+            return panel;
+        };
+    };
+    std::vector<Mutation> mutations;
+    mutations.push_back({"Label text",
+                         inPanel([](Panel& p) { return p.AddChild<Label>(L"Short"); }),
+                         [](Panel&, Control& c) { static_cast<Label&>(c).SetText(L"A considerably longer label"); }});
+    mutations.push_back({"Label font role",
+                         inPanel([](Panel& p) { return p.AddChild<Label>(L"Heading"); }),
+                         [](Panel&, Control& c) { static_cast<Label&>(c).SetFontRole(FontRole::Title); }});
+    mutations.push_back({"Label multiline",
+                         inPanel([](Panel& p) { return p.AddChild<Label>(L"Wrapping words that do not fit"); }),
+                         [](Panel&, Control& c) { static_cast<Label&>(c).SetMultiline(true); }});
+    mutations.push_back({"Label typography",
+                         inPanel([](Panel& p) { return p.AddChild<Label>(L"Typed"); }),
+                         [](Panel&, Control& c)
+    { static_cast<void>(static_cast<Label&>(c).SetTypographyOverride(LabelTypography{24.0f, DWRITE_FONT_WEIGHT_BOLD, 2.0f})); }});
+    mutations.push_back(
+        {"parent density", inPanel([](Panel& p) { return p.AddChild<Button>(L"Dense"); }), [](Panel& p, Control&) { p.SetDensity(Density::Compact); }});
+    mutations.push_back({"parent flow",
+                         inPanel([](Panel& p) { return p.AddChild<TextField>(L"Flow"); }),
+                         [](Panel& p, Control&) { p.SetFlowDirection(FlowDirection::RightToLeft); }});
+    mutations.push_back({"Button variant",
+                         inPanel([](Panel& p) { return p.AddChild<Button>(L"Variant"); }),
+                         [](Panel&, Control& c) { static_cast<Button&>(c).SetVariant(ButtonVariant::DropDown); }});
+    mutations.push_back({"Button leading icon",
+                         inPanel([](Panel& p) { return p.AddChild<Button>(L"Icon"); }),
+                         [](Panel&, Control& c) { static_cast<Button&>(c).SetLeadingIcon(L"\xE74E"); }});
+    mutations.push_back({"Button shortcut",
+                         inPanel([](Panel& p) { return p.AddChild<Button>(L"Shortcut"); }),
+                         [](Panel&, Control& c) { static_cast<Button&>(c).SetShortcutText(L"Ctrl+Shift+S"); }});
+    mutations.push_back({"Button content size",
+                         inPanel([](Panel& p) { return p.AddChild<Button>(L"Size"); }),
+                         [](Panel&, Control& c) { static_cast<void>(static_cast<Button&>(c).SetContentFontSizeDip(20.0f)); }});
+    mutations.push_back({"Button first disclosure state",
+                         inPanel(
+                             [](Panel& p)
+    {
+        auto* button = p.AddChild<Button>(L"Disclosure");
+        static_cast<void>(button->SetContentFontSizeDip(20.0f));
+        return button;
+    }),
+                         [](Panel&, Control& c) { static_cast<Button&>(c).SetDisclosureExpanded(true); }});
+    mutations.push_back({"Toggle state labels",
+                         inPanel([](Panel& p) { return p.AddChild<Toggle>(); }),
+                         [](Panel&, Control& c) { static_cast<Toggle&>(c).SetStateLabels(L"Off", L"On and synchronized"); }});
+    mutations.push_back({"Checkbox text",
+                         inPanel([](Panel& p) { return p.AddChild<Checkbox>(L"A"); }),
+                         [](Panel&, Control& c) { static_cast<Checkbox&>(c).SetText(L"A much longer option"); }});
+    mutations.push_back({"TextField padding",
+                         inPanel([](Panel& p) { return p.AddChild<TextField>(L"Pad"); }),
+                         [](Panel&, Control& c) { static_cast<TextField&>(c).SetHorizontalTextPadding(30.0f, 30.0f); }});
+    mutations.push_back({"TextField clear button",
+                         inPanel([](Panel& p) { return p.AddChild<TextField>(L"Clear"); }),
+                         [](Panel&, Control& c) { static_cast<TextField&>(c).SetClearButtonEnabled(true); }});
+    mutations.push_back({"TextField font role",
+                         inPanel([](Panel& p) { return p.AddChild<TextField>(L"Role"); }),
+                         [](Panel&, Control& c) { static_cast<TextField&>(c).SetFontRole(FontRole::Title); }});
+    mutations.push_back({"multiline TextField text",
+                         inPanel(
+                             [](Panel& p)
+    {
+        auto* field = p.AddChild<TextField>(L"One line");
+        field->SetMultiline(true);
+        return field;
+    }),
+                         [](Panel&, Control& c) { static_cast<TextField&>(c).SetText(L"One line\nTwo lines\nThree lines"); }});
+    mutations.push_back({"masked multiline TextField reveal",
+                         inPanel(
+                             [](Panel& p)
+    {
+        auto* field = p.AddChild<TextField>(L"secret value that is long");
+        field->SetMultiline(true);
+        field->SetMasked(true);
+        return field;
+    }),
+                         [](Panel&, Control& c) { static_cast<TextField&>(c).SetPasswordRevealState(PasswordRevealState::Visible); }});
+    mutations.push_back({"masked multiline TextField mask policy",
+                         inPanel(
+                             [](Panel& p)
+    {
+        auto* field = p.AddChild<TextField>(L"secret value that is long");
+        field->SetMultiline(true);
+        field->SetMasked(true);
+        field->SetPasswordMaskLengthPolicy(PasswordMaskLengthPolicy::Exact);
+        return field;
+    }),
+                         [](Panel&, Control& c) { static_cast<TextField&>(c).SetPasswordMaskLengthPolicy(PasswordMaskLengthPolicy::Concealed); }});
+    mutations.push_back({"NumericStepper unit",
+                         inPanel([](Panel& p) { return p.AddChild<NumericStepper>(); }),
+                         [](Panel&, Control& c) { static_cast<NumericStepper&>(c).SetUnit(L"pallets", 60.0f); }});
+    mutations.push_back({"NumericStepper field font role",
+                         inPanel([](Panel& p) { return p.AddChild<NumericStepper>(); }),
+                         [](Panel&, Control& c) { static_cast<NumericStepper&>(c).Field().SetFontRole(FontRole::Title); }});
+    mutations.push_back({"FlexPanel child text",
+                         inPanel(
+                             [](Panel& p)
+    {
+        auto* flex = p.AddChild<FlexPanel>();
+        flex->AddChild<Label>(L"Child");
+        return flex;
+    }),
+                         [](Panel&, Control& c) { static_cast<Label*>(static_cast<FlexPanel&>(c).GetLogicalChild(0u))->SetText(L"A longer child label"); }});
+    mutations.push_back({"FlexPanel child visibility",
+                         inPanel(
+                             [](Panel& p)
+    {
+        auto* flex = p.AddChild<FlexPanel>();
+        flex->AddChild<Label>(L"Shown");
+        flex->AddChild<Label>(L"Hidden later");
+        return flex;
+    }),
+                         [](Panel&, Control& c) { static_cast<FlexPanel&>(c).GetLogicalChild(1u)->SetVisible(false); }});
+    mutations.push_back({"FlexPanel child options",
+                         inPanel(
+                             [](Panel& p)
+    {
+        auto* flex = p.AddChild<FlexPanel>();
+        flex->AddChild<Label>(L"Child");
+        return flex;
+    }),
+                         [](Panel&, Control& c)
+    {
+        auto& flex = static_cast<FlexPanel&>(c);
+        static_cast<void>(flex.SetChildOptions(flex.GetLogicalChild(0u), FlexChildOptions{.constraints = {.minimumDip = D2D1::SizeF(200.0f, 40.0f)}}));
+    }});
+    mutations.push_back({"FlexPanel added child",
+                         inPanel(
+                             [](Panel& p)
+    {
+        auto* flex = p.AddChild<FlexPanel>();
+        flex->AddChild<Label>(L"Child");
+        return flex;
+    }),
+                         [](Panel&, Control& c) { static_cast<FlexPanel&>(c).AddChild<Button>(L"Added"); }});
+    mutations.push_back({"FormField description",
+                         inPanel(
+                             [](Panel& p)
+    {
+        auto* field = p.AddChild<FormField>(L"id", L"Label");
+        field->AddEditor<TextField>(L"Value");
+        return field;
+    }),
+                         [](Panel&, Control& c) { static_cast<FormField&>(c).SetDescription(L"A description that wraps under the editor in its lane."); }});
+    mutations.push_back({"FormField preferred size",
+                         inPanel(
+                             [](Panel& p)
+    {
+        auto* field = p.AddChild<FormField>(L"id", L"Label");
+        field->AddEditor<TextField>(L"Value");
+        return field;
+    }),
+                         [](Panel&, Control& c) { static_cast<void>(static_cast<FormField&>(c).SetEditorPreferredSize(D2D1::SizeF(180.0f, 64.0f))); }});
+    mutations.push_back({"FormField editor text part",
+                         inPanel(
+                             [](Panel& p)
+    {
+        auto* field = p.AddChild<FormField>(L"id", L"Label");
+        field->AddEditor<Checkbox>(L"Option");
+        return field;
+    }),
+                         [](Panel&, Control& c) { static_cast<Checkbox*>(static_cast<FormField&>(c).GetEditor())->SetText(L"A much longer option text"); }});
+    for (const Mutation& mutation : mutations)
+        for (const auto& constraints : {LayoutConstraints{}, LayoutConstraints::AtMost(160.0f)})
+        {
+            Control* target  = nullptr;
+            Control* twin    = nullptr;
+            const auto panel = mutation.make(target);
+            const auto other = mutation.make(twin);
+            DesiredSize before;
+            RequireSucceeded(target->Measure({host}, constraints, before), "measure before the change");
+            RequireSucceeded(target->Measure({host}, constraints, before), "a warm cache before the change");
+            mutation.change(*panel, *target);
+            mutation.change(*other, *twin);
+            DesiredSize after;
+            DesiredSize expected;
+            RequireSucceeded(target->Measure({host}, constraints, after), "measure after the change");
+            RequireSucceeded(MeasureUncached(*twin, host, constraints, expected), "uncached after the change");
+            if (! SameMeasure(after, expected))
+            {
+                PrintLine(std::format("    {}: cached {}, uncached {}\n", mutation.name, Describe(after), Describe(expected)));
+                Require(false, "a change of a measured input reaches the measure cache");
+            }
+        }
+}
+
+uint64_t g_intendedVerifyMismatches = 0u;
+
+// A consumer control that changes what it measures without InvalidateMeasure breaks the public contract. The cache then
+// answers with its earlier size; Debug verification (on in the layout tests) re-runs the measurement on every hit and
+// counts the disagreement. Release has no verification.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+class RuleBreakingProbe final : public Control
+{
+public:
+    float width = 40.0f;
+    void Paint(ControlHost&) const override
+    {
+    }
+
+protected:
+    HRESULT MeasureOverride(const MeasureContext&, const LayoutConstraints&, DesiredSize& result) const override
+    {
+        result.sizeDip = D2D1::SizeF(width, 20.0f);
+        return S_OK;
+    }
+};
+#pragma warning(pop)
+
+void TestMeasureCacheVerificationCatchesAControlThatSkipsInvalidateMeasure()
+{
+    ControlHost host;
+    RuleBreakingProbe probe;
+    DesiredSize size;
+    RequireSucceeded(probe.Measure({host}, {}, size), "first measurement");
+    probe.width          = 90.0f; // no InvalidateMeasure: the contract is broken
+    const bool available = Detail::SetMeasureCacheVerificationForTest(true);
+    const Detail::WorkCounterScope scope;
+    RequireSucceeded(probe.Measure({host}, {}, size), "cached measurement");
+    Require(size.sizeDip.width == 40.0f, "the cache answers the size measured before the unannounced change");
+    g_intendedVerifyMismatches += scope.Delta().layout.measureCacheVerifyMismatches;
+    Require(scope.Delta().layout.measureCacheVerifyMismatches == (available ? 1u : 0u),
+            "Debug verification counts the disagreement on the hit; Release has none");
+    probe.width = 40.0f;
+    const Detail::WorkCounterScope agreeing;
+    RequireSucceeded(probe.Measure({host}, {}, size), "cached measurement that agrees");
+    Require(agreeing.Delta().layout.measureCacheVerifyMismatches == 0u, "a control that keeps the rule shows no disagreement");
+}
+
+// Every probe of a run, by control and complete key (revision, host, typography, DPI, flow, density, constraints): a
+// probe whose key the control was already asked is repeated, any other unique. The measure cache gate (W6.2) is that no
+// repeated probe runs MeasureOverride.
+class MeasureProbeLedger final
+{
+public:
+    MeasureProbeLedger() noexcept
+    {
+        previous_ = Detail::SetMeasureProbeObserverForTest(&Observe, this, &previousContext_);
+    }
+    ~MeasureProbeLedger()
+    {
+        static_cast<void>(Detail::SetMeasureProbeObserverForTest(previous_, previousContext_, nullptr));
+    }
+    MeasureProbeLedger(const MeasureProbeLedger&)            = delete;
+    MeasureProbeLedger& operator=(const MeasureProbeLedger&) = delete;
+    MeasureProbeLedger(MeasureProbeLedger&&)                 = delete;
+    MeasureProbeLedger& operator=(MeasureProbeLedger&&)      = delete;
+
+    uint64_t unique             = 0u;
+    uint64_t repeated           = 0u;
+    uint64_t repeatedExecutions = 0u;
+    uint64_t executions         = 0u;
+    size_t controls             = 0u;
+
+private:
+    using Key = std::tuple<const ControlHost*, uint64_t, uint64_t, uint32_t, int, int, uint32_t, uint32_t, uint32_t, uint32_t>;
+    static void Observe(const Detail::MeasureProbe& probe, void* context) noexcept
+    {
+        auto& ledger       = *static_cast<MeasureProbeLedger*>(context);
+        const auto maximum = [](const std::optional<float>& value) noexcept { return value ? std::bit_cast<uint32_t>(*value) : 0xFFFFFFFFu; };
+        const Key key{probe.host,
+                      probe.revision,
+                      probe.typography,
+                      std::bit_cast<uint32_t>(probe.dpi),
+                      static_cast<int>(probe.flow),
+                      static_cast<int>(probe.density),
+                      std::bit_cast<uint32_t>(probe.constraints.minimumDip.width),
+                      std::bit_cast<uint32_t>(probe.constraints.minimumDip.height),
+                      maximum(probe.constraints.maximumWidthDip),
+                      maximum(probe.constraints.maximumHeightDip)};
+        auto& keys          = ledger.seen_[probe.control];
+        const bool repeated = std::ranges::find(keys, key) != keys.end();
+        if (! repeated)
+            keys.push_back(key);
+        ledger.controls = ledger.seen_.size();
+        (repeated ? ledger.repeated : ledger.unique) += 1u;
+        ledger.executions += probe.executed ? 1u : 0u;
+        ledger.repeatedExecutions += repeated && probe.executed ? 1u : 0u;
+    }
+    std::map<const Control*, std::vector<Key>> seen_;
+    Detail::MeasureProbeObserver previous_ = nullptr;
+    void* previousContext_                 = nullptr;
+};
+
+[[nodiscard]] uint64_t PhaseTotal(const PerformanceFixtures::RunRecord& run, std::string_view phase, std::string_view counter)
+{
+    return PerformanceFixtures::Summarize(run.Phase(phase), counter).total;
+}
+
+// Gate of W6.2 on FX10 (live resize of a library-panel layout, window host, suite variant): no MeasureOverride runs for
+// a key its control was already asked, so every repeated probe is a cache hit; unchanged frames measure nothing.
+void TestFx10MeasureCacheRunsNoMeasureForAnUnchangedKey()
+{
+    MeasureProbeLedger ledger;
+    const auto run = ::RunWindowFixture(PerformanceFixtures::Fx10::kDefinition, PerformanceFixtures::Fx10::kVariants[0]);
+    PrintLine(std::format("    [W6.2] FX10 default (window): {} measured controls, {} unique and {} repeated probes, {} executions; sweep {} hits {} "
+                          "misses {} evictions\n",
+                          ledger.controls,
+                          ledger.unique,
+                          ledger.repeated,
+                          ledger.executions,
+                          PhaseTotal(run, "sweep", "layout.measureCacheHits"),
+                          PhaseTotal(run, "sweep", "layout.measureCacheMisses"),
+                          PhaseTotal(run, "sweep", "layout.measureCacheEvictions")));
+    Require(ledger.unique > 0u && ledger.repeated > 0u, "the live resize measures controls and asks some of them again");
+    Require(ledger.repeatedExecutions == 0u, "no MeasureOverride runs for a key the control was already asked (FX10)");
+    // A key a control has not been asked can still be a hit: a maximum-independent control reuses its size across maxima.
+    Require(ledger.executions <= ledger.unique, "only keys never asked before are measured");
+    Require(PhaseTotal(run, "rest", "layout.measureOverrideExecutions") == 0u, "unchanged frames at the final size measure nothing");
+    Require(PhaseTotal(run, "sweep", "layout.measureCacheHits") > PhaseTotal(run, "sweep", "layout.measureCacheMisses"),
+            "most probes of the resize are answered from the cache");
+}
+
+// Gate of W6.2 on FX12: the dense screen and the 10,000-control form (receipt-only, run here once) lay out absolutely, so
+// nothing measures; the gate holds with no MeasureOverride at all.
+void TestFx12MeasureCacheRunsNoMeasureForAnUnchangedKey()
+{
+    // form-10k runs in Release only: a Debug window run of 10,000 controls exceeds the suite's 300 s test timeout. Its
+    // receipt (performance-fixtures.ps1) covers it in every configuration it is taken in.
+#if defined(_DEBUG)
+    constexpr std::array kVariants{"default"};
+    PrintLine("    [W6.2] FX12 form-10k: not run in a Debug build (over the test timeout); see its receipt\n");
+#else
+    constexpr std::array kVariants{"default", "form-10k"};
+#endif
+    for (const char* name : kVariants)
+    {
+        const auto* variant = PerformanceFixtures::Fx12::kDefinition.FindVariant(name);
+        Require(variant != nullptr, "the FX12 variant exists");
+        MeasureProbeLedger ledger;
+        const auto started  = std::chrono::steady_clock::now();
+        const auto run      = ::RunWindowFixture(PerformanceFixtures::Fx12::kDefinition, *variant);
+        uint64_t executions = 0u;
+        for (const auto& phase : PerformanceFixtures::Fx12::kPhases)
+            executions += PhaseTotal(run, phase.name, "layout.measureOverrideExecutions");
+        PrintLine(std::format("    [W6.2] FX12 {} (window): {} probes, {} MeasureOverride executions, {} ms\n",
+                              name,
+                              ledger.unique + ledger.repeated,
+                              executions,
+                              std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count()));
+        Require(ledger.repeatedExecutions == 0u && executions == ledger.executions, "no MeasureOverride runs for an unchanged key (FX12)");
+    }
+}
+} // namespace
+
 void RunIntrinsicLayoutTests()
 {
+    // Debug verification of every measure-cache hit is on for the layout tests: a library control whose measured input
+    // changes without InvalidateMeasure fails the count at the end.
+    const bool verified = Detail::SetMeasureCacheVerificationForTest(true);
+    const auto restore  = wil::scope_exit([] { static_cast<void>(Detail::SetMeasureCacheVerificationForTest(false)); });
+    const Detail::WorkCounterScope verification;
     DXUI_RUN_TEST(TestIntrinsicMeasurementContainsFailuresAndPreservesOutputs);
     DXUI_RUN_TEST(TestIntrinsicLeavesShapeUnicodeAndKeepEditorsStable);
     DXUI_RUN_TEST(TestLabelTypographyCharacterSpacingUsesRequestedTotal);
@@ -2355,4 +2979,14 @@ void RunIntrinsicLayoutTests()
     DXUI_RUN_TEST(TestFlexCompactChildrenKeepsEachChildsOptions);
     DXUI_RUN_TEST(TestTextFieldFontRolePreservesEmbeddedCompositionAndUpdatesGeometry);
     DXUI_RUN_TEST(TestTextFieldFontRoleReturnsAfterEmbeddedPreparationOwnerRetires);
+    DXUI_RUN_TEST(TestMeasureCacheWidthSweepEqualsUncachedMeasure);
+    DXUI_RUN_TEST(TestMeasureCacheMaximumDependentTypesKeyEveryMaximum);
+    DXUI_RUN_TEST(TestMeasureCacheEveryMeasuredInputInvalidates);
+    DXUI_RUN_TEST(TestMeasureCacheVerificationCatchesAControlThatSkipsInvalidateMeasure);
+    DXUI_RUN_TEST(TestFx10MeasureCacheRunsNoMeasureForAnUnchangedKey);
+    DXUI_RUN_TEST(TestFx12MeasureCacheRunsNoMeasureForAnUnchangedKey);
+    // The verification test breaks the rule on purpose once; nothing else may.
+    const auto mismatches = verification.Delta().layout.measureCacheVerifyMismatches;
+    PrintLine(std::format("    [W6.2] measure-cache verification {}: {} mismatches\n", verified ? "on" : "unavailable in this build", mismatches));
+    Require(mismatches == g_intendedVerifyMismatches, "no library control changes a measured input without InvalidateMeasure in the layout tests");
 }

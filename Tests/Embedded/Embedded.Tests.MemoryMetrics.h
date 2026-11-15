@@ -14,20 +14,22 @@ namespace MemoryMetricsTests
 // exceed: W9.6 lowers them. ThroughputGraphSample is the graph's per-sample record (180 per graph), held at its size by
 // the same line; no plan item lowers it yet. The accessibility snapshot record is probed beside its private definition
 // (src/Controls/DxUi.Accessibility.cpp) and W9.7 lowers it.
+// W6.2 (2026-11-14) raised every control probe by 8 bytes: Control::_measureCache, the pointer to the out-of-line measure
+// cache that replaced the per-parent FlexPanel and FormField measurement records; a control never measured pays only it.
 #if _ITERATOR_DEBUG_LEVEL != 0
-inline constexpr size_t kControlBytes     = 336;
-inline constexpr size_t kLabelBytes       = 496;
-inline constexpr size_t kButtonBytes      = 880;
-inline constexpr size_t kToggleBytes      = 984;
-inline constexpr size_t kCheckboxBytes    = 992;
-inline constexpr size_t kRadioButtonBytes = 928;
+inline constexpr size_t kControlBytes     = 344;
+inline constexpr size_t kLabelBytes       = 504;
+inline constexpr size_t kButtonBytes      = 888;
+inline constexpr size_t kToggleBytes      = 992;
+inline constexpr size_t kCheckboxBytes    = 1000;
+inline constexpr size_t kRadioButtonBytes = 936;
 #else
-inline constexpr size_t kControlBytes     = 296;
-inline constexpr size_t kLabelBytes       = 448;
-inline constexpr size_t kButtonBytes      = 816;
-inline constexpr size_t kToggleBytes      = 904;
-inline constexpr size_t kCheckboxBytes    = 912;
-inline constexpr size_t kRadioButtonBytes = 864;
+inline constexpr size_t kControlBytes     = 304;
+inline constexpr size_t kLabelBytes       = 456;
+inline constexpr size_t kButtonBytes      = 824;
+inline constexpr size_t kToggleBytes      = 912;
+inline constexpr size_t kCheckboxBytes    = 920;
+inline constexpr size_t kRadioButtonBytes = 872;
 #endif
 inline constexpr size_t kThroughputGraphSampleBytes = 408; // no container: equal in every configuration
 static_assert(sizeof(void*) == 8, "the size probes are measured for 64-bit targets");

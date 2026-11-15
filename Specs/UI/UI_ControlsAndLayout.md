@@ -187,15 +187,49 @@ per container pass across cache misses and nested measures. `MeasureContext::rem
 an existing pass budget; nested containers preserve it and cached results consume no units. Excess input fails
 before text-layout allocation. No character-count width approximation is a measurement fallback.
 
-`FlexPanel` owns bounded, reusable numeric measurement and arrangement records for at most 1,024 live child
+#### Measure cache
+
+Status: implemented (performance and motion plan item W6.2, 14 November 2026).
+
+`Control::Measure` keeps every control's results in one cache shared by every parent; no container keeps a second
+copy. The cache holds one context: the control's measure revision, the measuring host, that host's typography revision,
+its DPI and the control's resolved flow direction and density. A change of any of them empties it. Within that context
+up to two results are kept, most recently used first, each keyed by the exact constraints (minimum and maximum of each
+axis; an absent maximum is its own value). Two slots cover the probes of the library's containers: a container measures
+a child once while it is measured and once while it is arranged, and the W0.1 counters on `FX10` showed no repeated
+probe beyond the second (receipt `Measurements/PerformanceAndMotion_2026-11-13/W6.2`). A hit returns the stored result
+without calling `MeasureOverride` and consumes no shaping budget; it returns `S_OK`. `E_NOTIMPL` is cached like a result;
+other failures, refused input and a measurement that a callback superseded are never stored. The cache lives out of
+line: a control that is never measured pays one pointer, and its storage is allocated by the first successful
+measurement. It is released when the control moves to another host (or none), when a `FlexPanel` that contains it is
+hidden (showing the panel measures its children once more) and by the retained-cache drop of the incremental oracle.
+
+The contract for every control, the library's and a consumer's: a `MeasureOverride` reads only the constraints, the
+host's typography, DPI and the control's flow direction and density through the context, and inputs whose every change
+calls `InvalidateMeasure` (which also advances every ancestor's revision, so a parent's cached result never outlives a
+child's change). A control that changes its measured size without `InvalidateMeasure` was already measured stale by
+`FlexPanel` and `FormField`, which cached by the child's revision; it is now measured stale by every parent. Debug builds
+can verify the rule: while `Detail::SetMeasureCacheVerificationForTest` is on (off by default, on in the library's layout
+tests), every hit re-runs `MeasureOverride` and counts a different answer in `layout.measureCacheVerifyMismatches`.
+
+A type may declare `MeasureDependsOnMaximum() == false` (default `true`) when its size does not depend on the maximum
+constraints, only its overflow flag does. Its result is then reused across maxima with the overflow flag recomputed from
+the stored size, which is exact for a measurement whose size only grows after the maximum is compared. Declared by
+`Label`, `Button`, `Checkbox` and `TextField` while they do not wrap, and by `Toggle`, `RadioButton` and `ComboBox`.
+`NumericStepper` (its field's maximum is derived by subtraction, so overflow is not a comparison of its own size),
+`FlexPanel` (lines grow to the maximum), `FormField` (its width is at least the maximum) and `FormPanel` keep the
+default. Each declaring type matches an uncached measurement across a 1/64 DIP sweep of the maximum around its natural
+width, maxima of zero and infinity and both flow directions (`TestMeasureCacheWidthSweepEqualsUncachedMeasure`).
+
+`FlexPanel` owns bounded, reusable arrangement records (options and the current pass's sizes) for at most 1,024 live child
 controls (a slot `TakeChild` emptied does not count). It supports horizontal or vertical order, explicit wrapping, padding, gaps, child minimum/maximum
 constraints, cross-axis alignment and positive growth. A child maximum caps growth; remaining growth is
 redistributed among eligible siblings. Hidden children occupy no flow space. RTL mirrors physical rectangles
-while preserving logical ownership and focus/accessibility order. Measurement cache identity includes the
-child's measurement revision, constraints, host typography revision, DPI, flow and density. Content, font,
-wrapping, chrome, availability, ownership and inherited settings invalidate the relevant records. Color,
-checked state, hover and position-only changes reuse shape results. Containers retain no DirectWrite layout
-per leaf, and hidden containers retire their numeric entries for one fresh preparation when shown again. Showing a
+while preserving logical ownership and focus/accessibility order. Children's measurements come from their own
+[measure cache](#measure-cache), keyed by the child's measurement revision, constraints, host typography revision, DPI,
+flow and density. Content, font, wrapping, chrome, availability, ownership and inherited settings invalidate the
+relevant results. Color, checked state, hover and position-only changes reuse shape results. Containers retain no DirectWrite layout
+per leaf, and hidden containers retire their children's measurements for one fresh preparation when shown again. Showing a
 control asks the host for that preparation even when no layout owner sits on its own ancestor chain, so an owner
 below a plain container that was hidden (an unselected tab page) is laid out when the container is shown.
 
@@ -260,8 +294,8 @@ that keeps growing with each offered width fails with `HRESULT_FROM_WIN32(ERROR_
 The settled width is cached by input revision, typography, host, available width and horizontal origin, so unchanged
 overflowing forms do not repeatedly rediscover their minima.
 
-Measurement uses the same aggregate text budget as `FlexPanel`, numeric per-part caches and current host
-typography. A form's shared-label measurement is pure: it does not mutate a field's layout inputs or revisions
+Measurement uses the same aggregate text budget as `FlexPanel`, each part's own [measure cache](#measure-cache) and
+current host typography. A form's shared-label measurement is pure: it does not mutate a field's layout inputs or revisions
 while measuring. Unchanged preparation performs no new shaping. Complete numeric geometry is validated before
 any bounds callback, using each part's final represented endpoint width as its cache key. The commit half performs no
 measurement or allocation from translation rounding. Reentrant measurement/arrangement stops the older pass and preserves a newer completed

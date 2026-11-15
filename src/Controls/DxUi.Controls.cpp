@@ -3680,6 +3680,13 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
         _disclosureTransition.initialized   = true;
         _disclosureTransition.active        = false;
         const auto lifetime                 = GetLifetimeToken();
+        // Measure reads whether a disclosure state exists when a content font size is set.
+        if (_contentFontSizeDip)
+        {
+            InvalidateMeasure();
+            if (lifetime.expired())
+                return;
+        }
         RequestInvalidate();
         if (lifetime.expired())
             return;
@@ -3740,6 +3747,12 @@ void Button::ClearDisclosureState() noexcept
         _disclosureExpanded.reset();
         _disclosureTransition = {};
         const auto lifetime   = GetLifetimeToken();
+        if (_contentFontSizeDip)
+        {
+            InvalidateMeasure();
+            if (lifetime.expired())
+                return;
+        }
         RequestInvalidate();
         if (lifetime.expired())
             return;

@@ -1366,6 +1366,8 @@ void Control::PropagateHost(ControlHost* host) noexcept
     if (_host == host)
         return;
 
+    // Measurements belong to the host that made them: none survive a move, even to a later host at the same address.
+    _measureCache.reset();
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     ControlHost* const previousHost   = _host;
     if (previousHost && _visualPreparationEnabled)

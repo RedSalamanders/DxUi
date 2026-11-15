@@ -127,6 +127,14 @@
 // Memory. Reserved for counted memory work; byte metrics live in receipts, not here.
 #define DXUI_WORK_COUNTERS_MEMORY(X)
 
+// Intrinsic layout: Control::Measure and its measure cache.
+#define DXUI_WORK_COUNTERS_LAYOUT(X)                                                                                                                           \
+    X(layout, measureCacheEvictions)        /* Measure-cache misses that displaced a slot valid for the control's current revision and context. */             \
+    X(layout, measureCacheHits)             /* Control::Measure calls answered from the control's measure cache, MeasureOverride not run. */                   \
+    X(layout, measureCacheMisses)           /* Control::Measure calls with valid input that found no cached result and ran MeasureOverride. */                 \
+    X(layout, measureCacheVerifyMismatches) /* Debug verification: a cache hit whose re-run MeasureOverride returned a different result. */                    \
+    X(layout, measureOverrideExecutions)    /* MeasureOverride calls Control::Measure made for a miss (not verification re-runs). */
+
 // Every counter of every group except the resource kinds.
 #define DXUI_WORK_COUNTER_FIELDS(X)                                                                                                                            \
     DXUI_WORK_COUNTERS_FRAME(X)                                                                                                                                \
@@ -136,7 +144,8 @@
     DXUI_WORK_COUNTERS_LISTS(X)                                                                                                                                \
     DXUI_WORK_COUNTERS_RICH(X)                                                                                                                                 \
     DXUI_WORK_COUNTERS_ACCESSIBILITY(X)                                                                                                                        \
-    DXUI_WORK_COUNTERS_MEMORY(X)
+    DXUI_WORK_COUNTERS_MEMORY(X)                                                                                                                               \
+    DXUI_WORK_COUNTERS_LAYOUT(X)
 
 // Native resources created through the counted helpers of Support/CountedCreation.h, one tally each. Every kind counts
 // creations; destructions are observed only for objects created while a test's ResourceLifetimeTracker is installed. An
@@ -192,6 +201,10 @@ struct MemoryWork final
 {
     DXUI_WORK_COUNTERS_MEMORY(DXUI_WORK_DECLARE_FIELD)
 };
+struct LayoutWork final
+{
+    DXUI_WORK_COUNTERS_LAYOUT(DXUI_WORK_DECLARE_FIELD)
+};
 #undef DXUI_WORK_DECLARE_FIELD
 
 struct ResourceTally final
@@ -226,6 +239,7 @@ struct WorkCounters final
     RichWork rich;
     AccessibilityWork accessibility;
     MemoryWork memory;
+    LayoutWork layout;
 };
 
 // The calling thread's record. Constant-initialized, so reading it never runs a thread-local constructor.
@@ -273,6 +287,7 @@ template <typename Visitor> void ForEachWorkCounter(const WorkCounters& counters
     DXUI_WORK_COUNTERS_RICH(DXUI_WORK_VISIT_FIELD)
     DXUI_WORK_COUNTERS_ACCESSIBILITY(DXUI_WORK_VISIT_FIELD)
     DXUI_WORK_COUNTERS_MEMORY(DXUI_WORK_VISIT_FIELD)
+    DXUI_WORK_COUNTERS_LAYOUT(DXUI_WORK_VISIT_FIELD)
 #undef DXUI_WORK_VISIT_FIELD
 }
 

@@ -6,6 +6,11 @@
 #include "Support.Tests.ComboBoxPopupLayout.h"
 #include "Support.Tests.IncrementalParity.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
+// Scenarios are never copied. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+#include "Embedded.Tests.PerformanceFixtureFx12.h"
+#pragma warning(pop)
 
 #include <windowsx.h>
 
@@ -190,6 +195,152 @@ void TestNativeIncrementalParityDetectsAStaleCache()
             "an injected stale Label layout yields a nonzero BGRA difference at the label");
 }
 
+// A performance fixture replayed by the oracle: its Scenario builds on the scene's host and each oracle step k applies the
+// fixture's step k - 1 through this port (Tests/README.md, "Performance fixtures"). Pointer and key input arrive as the
+// window messages the fixture's window runner sends; Resize sets the scene's client area and DPI.
+class FixtureParityPort final : public PerformanceFixtures::HostPort
+{
+public:
+    FixtureParityPort(NativeParityScene& scene, const PerformanceFixtures::Definition& definition, const PerformanceFixtures::Variant& variant)
+        : scene_(scene),
+          definition_(definition),
+          scenario_(definition.create())
+    {
+        context_.emplace(PerformanceFixtures::Context{PerformanceFixtures::Host::Window, variant, scene.Host(), *this});
+    }
+    FixtureParityPort(const FixtureParityPort&)            = delete;
+    FixtureParityPort& operator=(const FixtureParityPort&) = delete;
+    FixtureParityPort(FixtureParityPort&&)                 = delete;
+    FixtureParityPort& operator=(FixtureParityPort&&)      = delete;
+    ~FixtureParityPort() override                          = default;
+    void Build()
+    {
+        scene_.window.AllowOuterSizeBeyondDesktop(SIZE{8192, 8192});
+        Resize(context_->variant.width, context_->variant.height, context_->variant.dpi);
+        RequireSucceeded(scenario_->Build(*context_), "the fixture builds on the oracle scene");
+    }
+    void Step(size_t index)
+    {
+        const auto at = PerformanceFixtures::StepAt(definition_, index);
+        Require(at.has_value(), "the oracle step is a fixture step");
+        NoteStep(definition_.phases[at->phase].name);
+        scenario_->Step(*context_, at->phase, at->step);
+    }
+    bool Pointer(const PointerEvent& event) override
+    {
+        const LPARAM at = MAKELPARAM(static_cast<short>(std::lround(event.xPixels)), static_cast<short>(std::lround(event.yPixels)));
+        const HWND hwnd = scene_.window.Hwnd();
+        switch (event.action)
+        {
+            case PointerAction::Move: SendMessageW(hwnd, WM_MOUSEMOVE, 0u, at); break;
+            case PointerAction::Down: SendMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, at); break;
+            case PointerAction::Up: SendMessageW(hwnd, WM_LBUTTONUP, 0u, at); break;
+            case PointerAction::MiddleDown: SendMessageW(hwnd, WM_MBUTTONDOWN, MK_MBUTTON, at); break;
+            case PointerAction::MiddleUp: SendMessageW(hwnd, WM_MBUTTONUP, 0u, at); break;
+            case PointerAction::Cancel: SendMessageW(hwnd, WM_CANCELMODE, 0u, 0); break;
+            case PointerAction::Leave: SendMessageW(hwnd, WM_MOUSELEAVE, 0u, 0); break;
+            case PointerAction::Wheel:
+            {
+                POINT screen{GET_X_LPARAM(at), GET_Y_LPARAM(at)};
+                ClientToScreen(hwnd, &screen);
+                SendMessageW(hwnd,
+                             WM_MOUSEWHEEL,
+                             MAKEWPARAM(0u, static_cast<short>(std::lround(event.wheelDelta))),
+                             MAKELPARAM(static_cast<short>(screen.x), static_cast<short>(screen.y)));
+                break;
+            }
+        }
+        return true;
+    }
+    bool Key(UINT virtualKey, bool down, UINT) override
+    {
+        SendMessageW(scene_.window.Hwnd(), down ? WM_KEYDOWN : WM_KEYUP, virtualKey, down ? 1 : static_cast<LPARAM>(0xC0000001u));
+        return true;
+    }
+    bool Character(wchar_t character, UINT) override
+    {
+        scene_.Character(character);
+        return true;
+    }
+    void AdvanceTime(uint64_t milliseconds) override
+    {
+        scene_.Advance(milliseconds);
+    }
+    void Resize(UINT width, UINT height, float dpi) override
+    {
+        const float scale = dpi / 96.0f;
+        DxUiTestMoved::ConfigureHostPlace(scene_.window,
+                                          static_cast<UINT>(std::lround(dpi)),
+                                          true,
+                                          Density::Standard,
+                                          D2D1::SizeF(static_cast<float>(width) / scale, static_cast<float>(height) / scale));
+        scene_.Host().SetTheme(ParityTheme(true));
+    }
+    [[nodiscard]] uint64_t NowMs() const noexcept override
+    {
+        return scene_.clock;
+    }
+
+private:
+    NativeParityScene& scene_;
+    const PerformanceFixtures::Definition& definition_;
+    std::unique_ptr<PerformanceFixtures::Scenario> scenario_;
+    std::optional<PerformanceFixtures::Context> context_;
+};
+
+// Runs a fixture variant through the oracle: after every step the incremental scene (warm measure caches and every other
+// retained cache) and the fresh scene (all of them dropped) must agree on the bounds and state of every control (the
+// bounds oracle), then on every pixel and UIA element.
+template <const PerformanceFixtures::Definition& Fixture> void RunFixtureParity(std::string_view variantName)
+{
+    const PerformanceFixtures::Variant* variant = Fixture.FindVariant(variantName);
+    Require(variant != nullptr, "the fixture variant exists");
+    const auto build = [&](NativeParityScene& scene)
+    {
+        auto port = std::make_shared<FixtureParityPort>(scene, Fixture, *variant);
+        scene.models.push_back(port);
+        port->Build();
+        return port;
+    };
+    const auto incremental     = MakeNativeScene();
+    const auto fresh           = MakeNativeScene();
+    const auto incrementalPort = build(*incremental);
+    const auto freshPort       = build(*fresh);
+    const size_t steps         = PerformanceFixtures::TotalSteps(Fixture);
+    for (size_t step = 0u; step <= steps; ++step)
+    {
+        if (step != 0u)
+        {
+            incrementalPort->Step(step - 1u);
+            freshPort->Step(step - 1u);
+        }
+        const ParityFrame a = incremental->Capture(false);
+        const ParityFrame b = fresh->Capture(true);
+        if (a.controls != b.controls)
+        {
+            ParityFrame boundsOnlyA = a;
+            ParityFrame boundsOnlyB = b;
+            boundsOnlyA.bgra        = boundsOnlyB.bgra;
+            boundsOnlyA.uia         = boundsOnlyB.uia;
+            Fail(std::format("bounds oracle, {} {}, step {} ({}): {}", Fixture.id, variantName, step, g_lastStep, FirstDifference(boundsOnlyA, boundsOnlyB)));
+        }
+        if (std::string difference = FirstDifference(a, b, 0u, NativeParityScene::kKnownDifferences); ! difference.empty())
+        {
+            Fail(std::format("incremental-versus-fresh oracle, {} {}, step {} ({}): {}", Fixture.id, variantName, step, g_lastStep, difference));
+        }
+    }
+    std::cout << "  parity native " << Fixture.id << ' ' << variantName << ": " << steps << " steps, 0 differences in bounds, pixels or UIA\n";
+}
+
+// W6.2: FX12's dense screen lays out and paints exactly as when every retained cache, the measure caches included, is
+// dropped. FX10 is not registered here yet: its incremental scene leaves the RichTextEditor of its body row unarranged
+// after the first resize, with every measure cache disabled too, so the difference is not the measure cache's; it is
+// reported to the plan (W6.2 receipt README) for the arrangement items.
+void TestNativeIncrementalParityFx12DenseScreen()
+{
+    RunFixtureParity<PerformanceFixtures::Fx12::kDefinition>("default");
+}
+
 // After the drop every registered cache reads 0, and the scenes populate the rows they exercise beforehand.
 void TestNativeRetainedCachesDropToZero()
 {
@@ -236,4 +387,5 @@ void RunIncrementalParityTests()
     DXUI_RUN_TEST(TestNativeIncrementalParityRich);
     DXUI_RUN_TEST(TestNativeIncrementalParityRichBlocks);
     DXUI_RUN_TEST(TestNativeIncrementalParityComboPopup);
+    DXUI_RUN_TEST(TestNativeIncrementalParityFx12DenseScreen);
 }

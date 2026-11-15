@@ -1544,6 +1544,13 @@ void TextField::SetPasswordRevealState(PasswordRevealState state) noexcept
 
     const auto startedAt = std::chrono::steady_clock::now();
     _passwordRevealState = state;
+    // A masked multiline field measures its displayed text: the mask or the revealed value.
+    if (_multiline && _masked)
+    {
+        InvalidateMeasure();
+        if (lifetime.expired())
+            return;
+    }
     InvalidateSingleLineLayoutCache();
     RefreshAccessibilitySnapshot();
     if (lifetime.expired())
@@ -1571,6 +1578,9 @@ void TextField::SetPasswordMaskLengthPolicy(PasswordMaskLengthPolicy policy) noe
     }
 
     _maskLengthPolicy = policy;
+    // The policy sets how many dots a masked multiline field displays, and so measures.
+    if (_multiline && _masked)
+        InvalidateMeasure();
     RegenerateConcealedMaskEpoch();
     InvalidateSingleLineLayoutCache();
     RequestInvalidate();
@@ -2144,6 +2154,14 @@ void TextField::OnFocusChanged(ControlHost& host, bool focused)
     if (focused)
     {
         RegenerateConcealedMaskEpoch();
+        // A new epoch can change how many dots a concealed multiline mask displays, which its measurement reads.
+        if (_multiline && UsesMaskedDisplayText() && _maskLengthPolicy != PasswordMaskLengthPolicy::Exact)
+        {
+            const std::weak_ptr<int> lifetime = GetLifetimeToken();
+            InvalidateMeasure();
+            if (lifetime.expired())
+                return;
+        }
         if (_multiline)
         {
             if (! _readOnly)

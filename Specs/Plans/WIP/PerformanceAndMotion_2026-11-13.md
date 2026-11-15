@@ -1258,7 +1258,7 @@ measure runs once per key, and a layout pass visits only dirty subtrees and stop
     fresh preparation at every step.
   - **Needs**: `W0.2`, `W0.5`, `W2.1`; the v0-chunk part also `W7.3`. **Size**: M.
 
-- [ ] **W6.2 Measure cache in `Control::Measure`.**
+- [x] **W6.2 Measure cache in `Control::Measure`.**
   - **Why**: measure results are cached per parent in one slot: `FlexPanel::_records`, keyed by child revision,
     constraints, typography, DPI, flow and density (`DxUi.Layout.cpp:699-710`), and `FormField::_measureCache`
     (`DxUi.Forms.cpp:274-275`); other parents measure again. A `Label` measure creates an `IDWriteTextLayout` and a heap

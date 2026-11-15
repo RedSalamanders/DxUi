@@ -233,8 +233,8 @@ plain `uint64_t` increments, present in every configuration, Release included. C
 the record; its cost is an increment, with no allocation, lock, I/O, worker or timer, so composition and clean or hidden
 frames keep their contracts. A reading is per thread: work another thread does is in that thread's record. Counters only
 grow; a test measures an action as the difference of two readings (`WorkCounterScope::Delta`). Counters are grouped by
-subsystem, each group a list kept in alphabetical order: frame, wakes, resources, text, popups, lists, rich and
-accessibility, and a reserved memory group. A new counter is one line in its group's list and is then present in every
+subsystem, each group a list kept in alphabetical order: frame, wakes, resources, text, popups, lists, rich,
+accessibility and layout, and a reserved memory group. A new counter is one line in its group's list and is then present in every
 snapshot, delta and receipt.
 
 - **Frame and walks.** `paintExecutions` counts each control whose `Paint` a host, `Panel` or `PageHost` dispatched;
@@ -327,6 +327,12 @@ snapshot, delta and receipt.
   the bytes its per-control record arrays reserve (`snapshotBytes`, owned strings excluded). It counts the same builds as
   the diagnostic `DebugGetAccessibilitySnapshotBuildCountForTest`, which remains. Text-range movement by word counts the
   UTF-16 units it steps over (`wordUnitsVisited`), the enclosing-word search's walk from offset 0 included.
+- **Layout.** Each `Control::Measure` with valid input counts a `measureCacheHits` (answered from the control's
+  [measure cache](../UI/UI_ControlsAndLayout.md#measure-cache)) or a `measureCacheMisses`; each miss counts one
+  `measureOverrideExecutions`. `measureCacheEvictions` counts misses that displaced a slot still valid for the control's
+  current revision and context: while it stays 0, every miss is a key the control had not been asked before in that
+  revision, so no `MeasureOverride` ran for an unchanged key. `measureCacheVerifyMismatches` counts Debug verification
+  disagreements (a hit whose re-run measurement differed), which reveal a control that skipped `InvalidateMeasure`.
 
 Destruction is observed only by a test-owned `ResourceLifetimeTracker`, in storage the test supplies: while installed on
 a thread it holds one extra reference to each resource the helpers create there, and `Sweep` counts and releases those

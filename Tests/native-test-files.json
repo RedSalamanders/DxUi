@@ -240,5 +240,6 @@
   "Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp",
   "Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp",
   "src/Support/Failure.Tests.Hooks.h",
+  "src/Support/MeasureCache.Tests.Hooks.h",
   "src/Support/RetainedCaches.Tests.Hooks.h"
 ]

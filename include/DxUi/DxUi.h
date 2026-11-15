@@ -1838,6 +1838,11 @@ protected:
     virtual void OnHostDpiChanged(ControlHost& host) noexcept;
     // Existing custom controls remain valid: the default hook returns E_NOTIMPL, requiring an explicit owner-supplied extent.
     [[nodiscard]] virtual HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const;
+    // Measure caches each result keyed by the measure revision, constraints and the host context (typography revision, DPI,
+    // flow, density). A control whose MeasureOverride reads anything else must call InvalidateMeasure when it changes.
+    // Returning false declares that the result does not depend on the maximum constraints (only its overflow flag does):
+    // Measure then reuses one result across maxima. Default true; return false only for a measure that never wraps.
+    [[nodiscard]] virtual bool MeasureDependsOnMaximum() const noexcept;
     void InvalidateMeasure() noexcept;
     void EnableIntrinsicLayout() noexcept;
     void RequestIntrinsicLayout() noexcept;
@@ -1905,11 +1910,23 @@ private:
     std::shared_ptr<const std::function<HRESULT(ControlHost&)>> _onAccessibleInvoke;
     std::shared_ptr<const std::function<void(POINT screenPoint, bool keyboardInvocation)>> _onContextMenu;
     std::shared_ptr<int> _lifetimeToken = std::make_shared<int>(0);
-    uint64_t _measureRevision           = 0u;
-    bool _intrinsicLayoutEnabled        = false;
-    bool _intrinsicLayoutPending        = false;
-    bool _intrinsicAllocationRetryUsed  = false;
-    bool _contentPreparationEnabled     = false;
+    // The measure cache (Specs/UI/UI_ControlsAndLayout.md, "Measure cache"): out of line, allocated by the first successful
+    // measurement, so a control that is never measured pays one pointer.
+    struct MeasureCache;
+    struct MeasureCacheDeleter // not final: an empty deleter keeps the pointer at 8 bytes
+    {
+        void operator()(MeasureCache* cache) const noexcept;
+    };
+    HRESULT MeasureCounted(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result, bool* executed) const noexcept;
+    [[nodiscard]] size_t GetMeasureCacheEntries() const noexcept;
+    [[nodiscard]] size_t GetMeasureCacheBytes() const noexcept;
+    void DropMeasureCache() const noexcept;
+    mutable std::unique_ptr<MeasureCache, MeasureCacheDeleter> _measureCache;
+    uint64_t _measureRevision          = 0u;
+    bool _intrinsicLayoutEnabled       = false;
+    bool _intrinsicLayoutPending       = false;
+    bool _intrinsicAllocationRetryUsed = false;
+    bool _contentPreparationEnabled    = false;
     enum class ContentPreparationState : uint8_t
     {
         Ready,
@@ -2166,6 +2183,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
     void PrepareVisualContent(ControlHost& host) noexcept override;
     void CancelVisualContentPreparation() noexcept override;
     void OnBoundsChanged() noexcept override;
@@ -2317,6 +2335,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
     [[nodiscard]] bool IsPressed() const noexcept;
     void SetPressed(bool pressed) noexcept;
     void PrepareVisualContent(ControlHost& host) noexcept override;
@@ -2449,6 +2468,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
 
 private:
     void ApplyCheckedState(ControlHost& host, bool checked, bool notify);
@@ -2479,6 +2499,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
 
 private:
     bool _indeterminate = false;
@@ -2509,6 +2530,7 @@ public:
 protected:
     // The circle and its gaps, not a push button's chrome, beside the label.
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
 
 private:
     friend class RadioButtons;
@@ -3987,6 +4009,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
     void OnBoundsChanged() noexcept override;
     void OnFocusChanged(ControlHost& host, bool focused) override;
     void OnEnabledChanged(bool enabled) noexcept override;
@@ -4220,6 +4243,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
     void OnFocusChanged(ControlHost& host, bool focused) override;
     void OnBoundsChanged() noexcept override;
     [[nodiscard]] Control* HitTestOverlay(D2D1_POINT_2F point) override;
@@ -4681,16 +4705,6 @@ private:
     [[nodiscard]] Label* LabelPart() const noexcept;
     [[nodiscard]] Label* DescriptionPart() const noexcept;
     [[nodiscard]] Label* ValidationPart() const noexcept;
-    struct PartMeasure
-    {
-        const Control* control = nullptr;
-        std::weak_ptr<int> lifetime;
-        uint64_t revision       = 0;
-        uint64_t typography     = 0;
-        const ControlHost* host = nullptr;
-        float width             = -1.0f;
-        DesiredSize desired;
-    };
     struct PartColumns
     {
         float labelLeft   = 0.0f;
@@ -4700,7 +4714,7 @@ private:
     };
     static HRESULT ResolvePartColumns(
         const D2D1_RECT_F& bounds, LabelPlacement placement, float labelWidthDip, bool rtl, float minimumEditorWidthDip, PartColumns& columns) noexcept;
-    HRESULT MeasurePart(const Control* control, const MeasureContext& context, float widthDip, PartMeasure& cache, DesiredSize& desired) const noexcept;
+    HRESULT MeasurePart(const Control* control, const MeasureContext& context, float widthDip, DesiredSize& desired) const noexcept;
     HRESULT MeasureSharedLabel(const MeasureContext& context, float widthDip, DesiredSize& desired) const noexcept;
     HRESULT MeasureParts(const MeasureContext& context,
                          const D2D1_RECT_F& bounds,
@@ -4726,12 +4740,11 @@ private:
                         std::array<PartLayout, 4>& staged) const noexcept;
     bool ArePartsCurrent(const std::array<PartLayout, 4>& parts, size_t completed) const noexcept;
     HRESULT ApplyLayoutFor(const ControlHost& host, LabelPlacement placement, float labelWidthDip, const std::array<PartLayout, 4>* staged = nullptr) noexcept;
-    friend struct RetainedCacheAccess;
-    mutable std::array<PartMeasure, 4> _measureCache;
-    mutable PartMeasure _sharedLabelCache;
-    mutable uint64_t _measureCount = 0;
-    mutable bool _measuring        = false;
-    uint64_t _layoutRevision       = 0;
+    // The editor's last measured width (before the preferred size applies), which FormPanel reads to bound a shared label.
+    mutable float _editorMeasuredWidthDip = 0.0f;
+    mutable uint64_t _measureCount        = 0;
+    mutable bool _measuring               = false;
+    uint64_t _layoutRevision              = 0;
     std::wstring _fieldId;
     Label* _label       = nullptr;
     Label* _description = nullptr;
@@ -4868,16 +4881,9 @@ private:
         const Control* child = nullptr;
         std::weak_ptr<int> lifetime;
         FlexChildOptions options;
-        LayoutConstraints measuredConstraints;
+        // The child's desired size in the current pass; the child's own measure cache keeps it between passes.
         DesiredSize measured;
-        const ControlHost* measuredHost = nullptr;
-        uint64_t measuredRevision       = 0u;
-        uint64_t typographyRevision     = 0u;
-        float dpi                       = 0.0f;
-        FlowDirection flow              = FlowDirection::LeftToRight;
-        Density density                 = Density::Standard;
-        bool measuredValid              = false;
-        bool visible                    = false;
+        bool visible = false;
         D2D1_RECT_F bounds{};
         D2D1_RECT_F entryBounds{};
         size_t line        = 0u;
@@ -4898,7 +4904,6 @@ private:
     float _gapDip                 = 0.0f;
     D2D1_RECT_F _padding{};
     bool _wrap = false;
-    friend struct RetainedCacheAccess;
     mutable std::vector<ChildRecord> _records;
     mutable std::vector<LineRecord> _lines;
     mutable uint64_t _measureCount    = 0u;

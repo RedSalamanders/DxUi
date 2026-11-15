@@ -63,6 +63,16 @@
           1,
           1
         ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0
+        ],
         "frame.drawCalls": [
           5084,
           5085,
@@ -93,6 +103,41 @@
           0,
           0
         ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0
+        ],
+        "frame.tickCalls": [
+          0,
+          0,
+          0
+        ],
+        "frame.tickDiscoveryWalks": [
+          0,
+          0,
+          0
+        ],
+        "frame.tickHeldWhileHidden": [
+          0,
+          0,
+          0
+        ],
+        "frame.tickLegacyTreeWalks": [
+          0,
+          0,
+          0
+        ],
+        "frame.tickRequesters": [
+          0,
+          0,
+          0
+        ],
         "frame.treeVisitsHitTest": [
           0,
           3996,
@@ -114,6 +159,11 @@
           0
         ],
         "wakes.animationTimer": [
+          0,
+          0,
+          0
+        ],
+        "wakes.deadlineTimer": [
           0,
           0,
           0
@@ -283,6 +333,11 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -298,6 +353,56 @@
           0,
           0
         ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
+          0,
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0,
+          0,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0,
+          0,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0,
+          0
+        ],
+        "rich.chunksLaid": [
+          0,
+          0,
+          0
+        ],
+        "rich.diagramPreparations": [
+          0,
+          0,
+          0
+        ],
+        "rich.displayUnitsWritten": [
+          0,
+          0,
+          0
+        ],
         "rich.documentBytesCopied": [
           0,
           0,
@@ -308,12 +413,52 @@
           0,
           0
         ],
+        "rich.elementsBuilt": [
+          0,
+          0,
+          0
+        ],
         "rich.hoveredTitleCalls": [
           0,
           0,
           0
         ],
         "rich.hoverScanElements": [
+          0,
+          0,
+          0
+        ],
+        "rich.imageUploadBytes": [
+          0,
+          0,
+          0
+        ],
+        "rich.mathPreparations": [
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentBytesCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0,
+          0,
+          0
+        ],
+        "rich.preparationTurns": [
+          0,
+          0,
+          0
+        ],
+        "rich.svgRasterizations": [
+          0,
+          0,
+          0
+        ],
+        "rich.wholeLayoutsLaid": [
           0,
           0,
           0
@@ -334,6 +479,31 @@
           0
         ],
         "accessibility.wordUnitsVisited": [
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheEvictions": [
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheHits": [
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheMisses": [
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheVerifyMismatches": [
+          0,
+          0,
+          0
+        ],
+        "layout.measureOverrideExecutions": [
           0,
           0,
           0
@@ -359,6 +529,16 @@
           "min": 1,
           "max": 1,
           "total": 3
+        },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.drawCalls": {
           "min": 5084,
@@ -390,6 +570,41 @@
           "max": 0,
           "total": 0
         },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickDiscoveryWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickHeldWhileHidden": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickLegacyTreeWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsHitTest": {
           "min": 0,
           "max": 3996,
@@ -411,6 +626,11 @@
           "total": 0
         },
         "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.deadlineTimer": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -580,6 +800,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -595,6 +820,56 @@
           "max": 0,
           "total": 0
         },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.chunksLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.diagramPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.displayUnitsWritten": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.documentBytesCopied": {
           "min": 0,
           "max": 0,
@@ -605,12 +880,52 @@
           "max": 0,
           "total": 0
         },
+        "rich.elementsBuilt": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.hoveredTitleCalls": {
           "min": 0,
           "max": 0,
           "total": 0
         },
         "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.mathPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.svgRasterizations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.wholeLayoutsLaid": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -631,6 +946,31 @@
           "total": 0
         },
         "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheVerifyMismatches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureOverrideExecutions": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -666,6 +1006,18 @@
           1,
           1,
           1
+        ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0
         ],
         "frame.drawCalls": [
           5085,
@@ -703,6 +1055,48 @@
           0,
           0
         ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickCalls": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickDiscoveryWalks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickHeldWhileHidden": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickLegacyTreeWalks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickRequesters": [
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.treeVisitsHitTest": [
           0,
           0,
@@ -728,6 +1122,12 @@
           0
         ],
         "wakes.animationTimer": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.deadlineTimer": [
           0,
           0,
           0,
@@ -931,6 +1331,12 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -949,6 +1355,66 @@
           0,
           0
         ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.chunksLaid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.diagramPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.displayUnitsWritten": [
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.documentBytesCopied": [
           0,
           0,
@@ -961,6 +1427,12 @@
           0,
           0
         ],
+        "rich.elementsBuilt": [
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.hoveredTitleCalls": [
           0,
           0,
@@ -968,6 +1440,48 @@
           0
         ],
         "rich.hoverScanElements": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.imageUploadBytes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.mathPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentBytesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.svgRasterizations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.wholeLayoutsLaid": [
           0,
           0,
           0,
@@ -996,6 +1510,36 @@
           0,
           0,
           0
+        ],
+        "layout.measureCacheEvictions": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheHits": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheMisses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheVerifyMismatches": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureOverrideExecutions": [
+          0,
+          0,
+          0,
+          0
         ]
       },
       "summary": {
@@ -1018,6 +1562,16 @@
           "min": 1,
           "max": 1,
           "total": 4
+        },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.drawCalls": {
           "min": 5085,
@@ -1049,6 +1603,41 @@
           "max": 0,
           "total": 0
         },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickDiscoveryWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickHeldWhileHidden": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickLegacyTreeWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsHitTest": {
           "min": 0,
           "max": 0,
@@ -1070,6 +1659,11 @@
           "total": 0
         },
         "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.deadlineTimer": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1239,6 +1833,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -1254,6 +1853,56 @@
           "max": 0,
           "total": 0
         },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.chunksLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.diagramPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.displayUnitsWritten": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.documentBytesCopied": {
           "min": 0,
           "max": 0,
@@ -1264,12 +1913,52 @@
           "max": 0,
           "total": 0
         },
+        "rich.elementsBuilt": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.hoveredTitleCalls": {
           "min": 0,
           "max": 0,
           "total": 0
         },
         "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.mathPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.svgRasterizations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.wholeLayoutsLaid": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1290,6 +1979,31 @@
           "total": 0
         },
         "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheVerifyMismatches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureOverrideExecutions": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1334,6 +2048,22 @@
           1,
           1
         ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.drawCalls": [
           5085,
           5085,
@@ -1375,6 +2105,62 @@
           0
         ],
         "frame.renders": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickCalls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickDiscoveryWalks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickHeldWhileHidden": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickLegacyTreeWalks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickRequesters": [
           0,
           0,
           0,
@@ -1422,6 +2208,14 @@
           0,
           0
         ],
+        "wakes.deadlineTimer": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "wakes.embeddedAdvance": [
           0,
           0,
@@ -1686,6 +2480,14 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -1710,6 +2512,86 @@
           0,
           0
         ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.chunksLaid": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.diagramPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.displayUnitsWritten": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.documentBytesCopied": [
           0,
           0,
@@ -1726,6 +2608,14 @@
           0,
           0
         ],
+        "rich.elementsBuilt": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.hoveredTitleCalls": [
           0,
           0,
@@ -1735,6 +2625,62 @@
           0
         ],
         "rich.hoverScanElements": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.imageUploadBytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.mathPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.svgRasterizations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.wholeLayoutsLaid": [
           0,
           0,
           0,
@@ -1773,6 +2719,46 @@
           0,
           0,
           0
+        ],
+        "layout.measureCacheEvictions": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheHits": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheMisses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheVerifyMismatches": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureOverrideExecutions": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ]
       },
       "summary": {
@@ -1795,6 +2781,16 @@
           "min": 1,
           "max": 1,
           "total": 6
+        },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.drawCalls": {
           "min": 5085,
@@ -1826,6 +2822,41 @@
           "max": 0,
           "total": 0
         },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickDiscoveryWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickHeldWhileHidden": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickLegacyTreeWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsHitTest": {
           "min": 3980,
           "max": 3996,
@@ -1847,6 +2878,11 @@
           "total": 0
         },
         "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.deadlineTimer": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2016,6 +3052,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -2031,6 +3072,56 @@
           "max": 0,
           "total": 0
         },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.chunksLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.diagramPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.displayUnitsWritten": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.documentBytesCopied": {
           "min": 0,
           "max": 0,
@@ -2041,12 +3132,52 @@
           "max": 0,
           "total": 0
         },
+        "rich.elementsBuilt": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.hoveredTitleCalls": {
           "min": 0,
           "max": 0,
           "total": 0
         },
         "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.mathPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.svgRasterizations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.wholeLayoutsLaid": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2067,6 +3198,31 @@
           "total": 0
         },
         "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheVerifyMismatches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureOverrideExecutions": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2102,6 +3258,18 @@
           1,
           1,
           1
+        ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0
         ],
         "frame.drawCalls": [
           5085,
@@ -2139,6 +3307,48 @@
           0,
           0
         ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickCalls": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickDiscoveryWalks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickHeldWhileHidden": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickLegacyTreeWalks": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickRequesters": [
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.treeVisitsHitTest": [
           0,
           0,
@@ -2164,6 +3374,12 @@
           0
         ],
         "wakes.animationTimer": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.deadlineTimer": [
           0,
           0,
           0,
@@ -2367,6 +3583,12 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -2385,6 +3607,66 @@
           0,
           0
         ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.chunksLaid": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.diagramPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.displayUnitsWritten": [
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.documentBytesCopied": [
           0,
           0,
@@ -2397,6 +3679,12 @@
           0,
           0
         ],
+        "rich.elementsBuilt": [
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.hoveredTitleCalls": [
           0,
           0,
@@ -2404,6 +3692,48 @@
           0
         ],
         "rich.hoverScanElements": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.imageUploadBytes": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.mathPreparations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentBytesCopied": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.svgRasterizations": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.wholeLayoutsLaid": [
           0,
           0,
           0,
@@ -2432,6 +3762,36 @@
           0,
           0,
           0
+        ],
+        "layout.measureCacheEvictions": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheHits": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheMisses": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheVerifyMismatches": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureOverrideExecutions": [
+          0,
+          0,
+          0,
+          0
         ]
       },
       "summary": {
@@ -2454,6 +3814,16 @@
           "min": 1,
           "max": 1,
           "total": 4
+        },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.drawCalls": {
           "min": 5085,
@@ -2485,6 +3855,41 @@
           "max": 0,
           "total": 0
         },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickDiscoveryWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickHeldWhileHidden": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickLegacyTreeWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsHitTest": {
           "min": 0,
           "max": 0,
@@ -2506,6 +3911,11 @@
           "total": 0
         },
         "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.deadlineTimer": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2675,6 +4085,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -2690,6 +4105,56 @@
           "max": 0,
           "total": 0
         },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.chunksLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.diagramPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.displayUnitsWritten": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.documentBytesCopied": {
           "min": 0,
           "max": 0,
@@ -2700,12 +4165,52 @@
           "max": 0,
           "total": 0
         },
+        "rich.elementsBuilt": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.hoveredTitleCalls": {
           "min": 0,
           "max": 0,
           "total": 0
         },
         "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.mathPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.svgRasterizations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.wholeLayoutsLaid": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2726,6 +4231,31 @@
           "total": 0
         },
         "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheVerifyMismatches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureOverrideExecutions": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -2770,6 +4300,22 @@
           1,
           1
         ],
+        "frame.compositionDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.d2dDevices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.drawCalls": [
           0,
           0,
@@ -2818,6 +4364,62 @@
           0,
           0
         ],
+        "frame.shadowPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.swapChains": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickCalls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickDiscoveryWalks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickHeldWhileHidden": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickLegacyTreeWalks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tickRequesters": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.treeVisitsHitTest": [
           0,
           0,
@@ -2851,6 +4453,14 @@
           0
         ],
         "wakes.animationTimer": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.deadlineTimer": [
           0,
           0,
           0,
@@ -3122,6 +4732,14 @@
           0,
           0
         ],
+        "popups.backdropBlurPasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "popups.backdropCapturePixels": [
           0,
           0,
@@ -3146,6 +4764,86 @@
           0,
           0
         ],
+        "popups.menuPopupPaints": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "popups.menuRowsPainted": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridCollectOrderedGroups": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridColumnDescRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGetColumnCalls": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridGroupLayoutRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "lists.gridSelectionCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.chunksLaid": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.diagramPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.displayUnitsWritten": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.documentBytesCopied": [
           0,
           0,
@@ -3162,6 +4860,14 @@
           0,
           0
         ],
+        "rich.elementsBuilt": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.hoveredTitleCalls": [
           0,
           0,
@@ -3171,6 +4877,62 @@
           0
         ],
         "rich.hoverScanElements": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.imageUploadBytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.mathPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentBytesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.otherDocumentFlattens": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.preparationTurns": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.svgRasterizations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.wholeLayoutsLaid": [
           0,
           0,
           0,
@@ -3209,6 +4971,46 @@
           0,
           0,
           0
+        ],
+        "layout.measureCacheEvictions": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheHits": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheMisses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheVerifyMismatches": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureOverrideExecutions": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ]
       },
       "summary": {
@@ -3231,6 +5033,16 @@
           "min": 1,
           "max": 1,
           "total": 6
+        },
+        "frame.compositionDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.d2dDevices": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.drawCalls": {
           "min": 0,
@@ -3262,6 +5074,41 @@
           "max": 0,
           "total": 0
         },
+        "frame.shadowPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.swapChains": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickDiscoveryWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickHeldWhileHidden": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickLegacyTreeWalks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tickRequesters": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsHitTest": {
           "min": 0,
           "max": 0,
@@ -3283,6 +5130,11 @@
           "total": 0
         },
         "wakes.animationTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.deadlineTimer": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3452,6 +5304,11 @@
           "max": 0,
           "total": 0
         },
+        "popups.backdropBlurPasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "popups.backdropCapturePixels": {
           "min": 0,
           "max": 0,
@@ -3467,6 +5324,56 @@
           "max": 0,
           "total": 0
         },
+        "popups.menuPopupPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "popups.menuRowsPainted": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridCollectOrderedGroups": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridColumnDescRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGetColumnCalls": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridGroupLayoutRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "lists.gridSelectionCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.chunksLaid": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.diagramPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.displayUnitsWritten": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.documentBytesCopied": {
           "min": 0,
           "max": 0,
@@ -3477,12 +5384,52 @@
           "max": 0,
           "total": 0
         },
+        "rich.elementsBuilt": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.hoveredTitleCalls": {
           "min": 0,
           "max": 0,
           "total": 0
         },
         "rich.hoverScanElements": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.mathPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentBytesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.otherDocumentFlattens": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.preparationTurns": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.svgRasterizations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.wholeLayoutsLaid": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -3506,12 +5453,37 @@
           "min": 0,
           "max": 0,
           "total": 0
+        },
+        "layout.measureCacheEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheVerifyMismatches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureOverrideExecutions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         }
       }
     }
   ],
   "memory": {
-    "entryPrivateBytes": 2613248,
+    "entryPrivateBytes": 2609152,
     "videoMemory": {
       "applicable": false,
       "reason": "software adapter: rendering uses system memory, which privateBytes counts"
@@ -3520,14 +5492,14 @@
     "samples": [
       {
         "at": "device",
-        "privateBytes": 40976384,
-        "workingSetBytes": 21749760
+        "privateBytes": 40972288,
+        "workingSetBytes": 21733376
       },
       {
         "at": "built",
-        "privateBytes": 44253184,
-        "workingSetBytes": 26787840,
-        "trackedLiveBytes": 1409750,
+        "privateBytes": 43900928,
+        "workingSetBytes": 26800128,
+        "trackedLiveBytes": 1425846,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 0,
@@ -3535,15 +5507,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 0,
+          "retainedCacheBytes": 320,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "warm",
-        "privateBytes": 100237312,
-        "workingSetBytes": 111448064,
-        "trackedLiveBytes": 1411286,
+        "privateBytes": 99389440,
+        "workingSetBytes": 110632960,
+        "trackedLiveBytes": 1427382,
         "retained": {
           "surfaceBytes": 33177600,
           "cachedBrushes": 17,
@@ -3551,15 +5526,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 20,
+          "retainedCacheBytes": 1856,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "full",
-        "privateBytes": 101486592,
-        "workingSetBytes": 113291264,
-        "trackedLiveBytes": 1411286,
+        "privateBytes": 100769792,
+        "workingSetBytes": 113799168,
+        "trackedLiveBytes": 1427382,
         "retained": {
           "surfaceBytes": 33177600,
           "cachedBrushes": 17,
@@ -3567,15 +5545,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 20,
+          "retainedCacheBytes": 1856,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "hover",
-        "privateBytes": 101425152,
-        "workingSetBytes": 114229248,
-        "trackedLiveBytes": 1411286,
+        "privateBytes": 102416384,
+        "workingSetBytes": 114839552,
+        "trackedLiveBytes": 1427382,
         "retained": {
           "surfaceBytes": 33177600,
           "cachedBrushes": 17,
@@ -3583,15 +5564,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 20,
+          "retainedCacheBytes": 1856,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "value",
-        "privateBytes": 102039552,
-        "workingSetBytes": 114012160,
-        "trackedLiveBytes": 1411302,
+        "privateBytes": 99909632,
+        "workingSetBytes": 113393664,
+        "trackedLiveBytes": 1427398,
         "retained": {
           "surfaceBytes": 33177600,
           "cachedBrushes": 17,
@@ -3599,15 +5583,18 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 20,
+          "retainedCacheBytes": 1856,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "phase",
         "phase": "scroll",
-        "privateBytes": 102039552,
-        "workingSetBytes": 114069504,
-        "trackedLiveBytes": 1411302,
+        "privateBytes": 99909632,
+        "workingSetBytes": 113446912,
+        "trackedLiveBytes": 1427398,
         "retained": {
           "surfaceBytes": 33177600,
           "cachedBrushes": 17,
@@ -3615,14 +5602,17 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 20,
+          "retainedCacheBytes": 1856,
+          "largestTextHistoryBytes": 0
         }
       },
       {
         "at": "hidden",
-        "privateBytes": 102039552,
-        "workingSetBytes": 114077696,
-        "trackedLiveBytes": 1411302,
+        "privateBytes": 99909632,
+        "workingSetBytes": 113463296,
+        "trackedLiveBytes": 1426278,
         "retained": {
           "surfaceBytes": 0,
           "cachedBrushes": 17,
@@ -3630,49 +5620,228 @@
           "retainedTextLayouts": 0,
           "retainedTextLayoutUnits": 0,
           "retainedBitmaps": 0,
-          "retainedBitmapBytes": 0
+          "retainedBitmapBytes": 0,
+          "retainedCacheEntries": 20,
+          "retainedCacheBytes": 1856,
+          "largestTextHistoryBytes": 0
         }
       }
     ],
     "hiddenResidencyDelta": {
       "privateBytes": 0,
-      "workingSetBytes": 8192,
+      "workingSetBytes": 16384,
       "surfaceBytes": -33177600,
       "retainedTextLayouts": 0,
       "retainedBitmapBytes": 0
     },
     "minimizedResidency": "hidden",
     "controlBytes": {
-      "Control": 296,
-      "Label": 448,
-      "Button": 816,
-      "Toggle": 904,
-      "Checkbox": 912,
-      "RadioButton": 864
-    }
+      "Control": 304,
+      "Label": 456,
+      "Button": 824,
+      "Toggle": 912,
+      "Checkbox": 920,
+      "RadioButton": 872,
+      "ThroughputGraphSample": 408
+    },
+    "controls": 2001,
+    "gridCellRelease": {
+      "layouts": 0,
+      "releasedHeapBytes": 0,
+      "rebuiltHeapBytes": 0
+    },
+    "retainedCaches": [
+      {
+        "name": "ControlHost._brushCache",
+        "entries": 17,
+        "residentBytes": 1600
+      },
+      {
+        "name": "ControlHost._configuredTextFormats",
+        "entries": 3,
+        "residentBytes": 256
+      },
+      {
+        "name": "TooltipLayer._layoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "ControlHost._richTitleHoverCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Accessibility.snapshot",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Label._typographyLayout",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Button._preparedIconTextLayout",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Button._preparedShortcutWidthDip",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Button._preparedHyperlinkWidthDip",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TextField._singleLineLayoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TextField._cachedMultilineLayout",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "ComboBox._singleLineLayoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "ComboBox._popupBackdropBitmap",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "MenuBar._menuBarLayoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TabControl._tabHeaderLayoutCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TabControl.TabItem.measuredTitleWidthDip",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "TabControl._selectedHeaderGeometry",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Tree._badgeWidthCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Grid._cellTextLayouts",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Grid._groupLayoutCache",
+        "entries": 0,
+        "residentBytes": null
+      },
+      {
+        "name": "ColorPicker._saturationBrush",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "Control._measureCache",
+        "entries": 0,
+        "residentBytes": 0
+      },
+      {
+        "name": "RichTextEditor.layout",
+        "entries": 0,
+        "residentBytes": null
+      },
+      {
+        "name": "EmbeddedHost.State.texture",
+        "entries": 1,
+        "residentBytes": 33177600
+      }
+    ]
+  },
+  "budgetLines": {
+    "G13": [
+      {
+        "line": "idle-private",
+        "budget": "idle native window <= 8 MB private above process entry at 1080p",
+        "counter": "private bytes after the last phase, shown, minus private bytes at process entry",
+        "limitBytes": 8000000,
+        "measuredBytes": 97300480,
+        "status": "advisory"
+      },
+      {
+        "line": "minimized-video",
+        "budget": "<= 8 MiB video memory when minimized",
+        "counter": "local video memory usage of the process, hidden (a hidden embedded view is its minimized state)",
+        "limitBytes": 8388608,
+        "measuredBytes": null,
+        "status": "not measured",
+        "reason": "software adapter: rendering uses system memory, which private bytes count"
+      },
+      {
+        "line": "per-control",
+        "budget": "<= 256 B per simple control all-in",
+        "counter": "tracked live C++ bytes after the build divided by the controls of the built tree (host attachment included)",
+        "limitBytes": 256,
+        "measuredBytes": 712,
+        "status": "exceeded"
+      },
+      {
+        "line": "per-grid-cell",
+        "budget": "<= 1 KB per visible single-line Grid cell",
+        "counter": "live heap bytes that rebuilding every Grid's cell layouts adds after hiding released them, per cell layout",
+        "limitBytes": 1000,
+        "measuredBytes": null,
+        "status": "not measured",
+        "reason": "the fixture keeps no Grid cell layout"
+      },
+      {
+        "line": "text-history",
+        "budget": "<= 4 MiB text history per editor",
+        "counter": "EmbeddedStatistics::largestTextHistoryBytes after the last phase (TextField and ComboBox; RichTextEditor history is not counted)",
+        "limitBytes": 4194304,
+        "measuredBytes": null,
+        "status": "not measured",
+        "reason": "the fixture has no TextField or ComboBox"
+      }
+    ]
   },
   "timing": {
     "status": "not measured",
     "reason": "timing comes only from performance-timing.ps1 on a hardware adapter in a quiet window (W0.2); counts and memory are recorded here"
   },
   "benchmarkInputs": {
-    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "4C14398E31E337CA3D952D76E26372C6588CE6144821D93F648CDB5C95A27F5B",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "BDA786D0E185A83D1ACCFED43106154D374E7C0DDEFCF8A2427FEC0817EAA7C7",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h": "7C2FAFF45C77EFEB1B521D74379AEE3DD335B86CC339FD1C91C4BD216CC77AE0",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "75EB4870FD81EBC5D6024566B0A3945EF3391DBA8BC82C2FFD12A22B069BE2F6",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "7C5A056727C5F60E1542313F154EFD393DD148F26DB8DC8A526901A144F8729C",
     "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "00844224A58AC9CDD5B726A72BD598293BA5756E9535AC59E26134DD3D7A78DD",
-    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "2D896E750A51C98FD64F17E0308D246C816FF0CA578826EA8ED3D297208D4FC8",
+    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "3FA4A7E0D0B358BD48779821358AB91DDD188277408510A197D73B1807C60737",
     "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
-    "performance-fixtures.ps1": "2A0ED76BC6F59B8C7FB346ABC746B5A31C18FE3A2AC07069C6C8EF2E2FC78DA0",
-    "Tools/PerformanceFixtures.psm1": "085B1FD8A3927072EF5C1B02C4115D6C42C18847185C7C8660E73B0776BA66AC",
+    "performance-fixtures.ps1": "7137E9356F903546CD9E1D67226AA9375C7E788101409640A9C48F4B34671E5B",
+    "Tools/PerformanceFixtures.psm1": "3AE90348157D4C1C743021DC9FA5CCCC01D7F706591C18CA9CCE9F06FACAABF9",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx12.h": "E111B2E925B00F097F9A1C9E7F09485B3A02645667EC5ABDF92E30A069B963DB"
   },
   "provenance": {
-    "sourceCommit": "acac49bb3e969240d5830ab8f98bea38fab44b48",
-    "sourceDirty": false,
+    "sourceCommit": "f58b3c968bedcb5c5a1d64f1a5e391f1c14cd155",
+    "sourceDirty": true,
     "platform": "x64",
     "configuration": "Release",
     "command": "performance-fixtures.ps1 -Fixture FX12 -Variant uhd-192dpi -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64",
-    "executableSha256": "38B217F6308A601FBB5B9BECCD9860284EF38EE60DC652AE07339EB871B9ABD9",
+    "executableSha256": "0534E81ED9A4DDF00BD4758B416EBE9C1685C71C997087CF70B3FEE4A27A7653",
     "os": {
       "description": "Microsoft Windows 10.0.26300",
       "build": "26300",
@@ -3702,11 +5871,11 @@
     },
     "hostIdle": {
       "seconds": 3,
-      "busyPercent": 68.66883116883116,
+      "busyPercent": 41.78292410714286,
       "observer": "Tools/Watch-BenchmarkHost.ps1",
       "required": false
     },
     "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
-    "recordedUtc": "2026-11-14T20:36:45.5917204Z"
+    "recordedUtc": "2026-11-15T04:54:06.7551075Z"
   }
 }
