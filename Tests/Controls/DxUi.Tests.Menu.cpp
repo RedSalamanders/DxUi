@@ -1297,13 +1297,14 @@ public:
                 if (message.find(marker) != std::wstring_view::npos)
                 {
                     _active->Ui(phase);
-                    if ((std::wstring_view(marker) == L"menu.dismiss-cause-activation" ||
-                         std::wstring_view(marker) == L"menu.loop-dismiss-activation") && _active->_owner)
+                    if ((std::wstring_view(marker) == L"menu.dismiss-cause-activation" || std::wstring_view(marker) == L"menu.loop-dismiss-activation") &&
+                        _active->_owner)
                     {
                         // Keep closed message kinds and current owner relations, never diagnostic text or native identities.
-                        const size_t kind = message.find(L"msg=WM_ACTIVATEAPP ") != std::wstring_view::npos ? 1u :
-                                            message.find(L"msg=WM_ACTIVATE ") != std::wstring_view::npos ? 2u :
-                                            message.find(L"msg=WM_NCACTIVATE ") != std::wstring_view::npos ? 3u : 0u;
+                        const size_t kind = message.find(L"msg=WM_ACTIVATEAPP ") != std::wstring_view::npos  ? 1u
+                                            : message.find(L"msg=WM_ACTIVATE ") != std::wstring_view::npos   ? 2u
+                                            : message.find(L"msg=WM_NCACTIVATE ") != std::wstring_view::npos ? 3u
+                                                                                                             : 0u;
                         _active->Ui("dismiss.activation-kind", kind, InSendMessageEx(nullptr));
                         _active->Ui("dismiss.activation-context", _active->OwnerRelationFlags());
                     }
@@ -1394,12 +1395,10 @@ private:
         const HWND capture = GetCapture();
         // Low bits preserve cancellation semantics; menu popups are directly owned by this test owner.
         // Added bits describe only current foreground: directly owned window, known foreign process, unknown process.
-        return (foreground ? 1u : 0u) | (foreground == _owner ? 2u : 0u) |
-               (foregroundProcess == GetCurrentProcessId() ? 4u : 0u) | (capture == _owner ? 8u : 0u) |
-               (capture && GetWindow(capture, GW_OWNER) == _owner ? 16u : 0u) |
+        return (foreground ? 1u : 0u) | (foreground == _owner ? 2u : 0u) | (foregroundProcess == GetCurrentProcessId() ? 4u : 0u) |
+               (capture == _owner ? 8u : 0u) | (capture && GetWindow(capture, GW_OWNER) == _owner ? 16u : 0u) |
                (foreground && GetWindow(foreground, GW_OWNER) == _owner ? 32u : 0u) |
-               (foregroundProcess != 0u && foregroundProcess != GetCurrentProcessId() ? 64u : 0u) |
-               (foreground && foregroundProcess == 0u ? 128u : 0u);
+               (foregroundProcess != 0u && foregroundProcess != GetCurrentProcessId() ? 64u : 0u) | (foreground && foregroundProcess == 0u ? 128u : 0u);
     }
     struct Entry
     {
@@ -4531,7 +4530,7 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
         }
     });
 
-    const ThemePalette theme                   = MakeAnimatedTestThemePalette(true);
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     trace.OwnerSnapshot("owner.before-calibration", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
     const std::optional<int> calibrationResult = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     calibrationDriver.join();

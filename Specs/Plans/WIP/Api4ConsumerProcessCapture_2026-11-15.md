@@ -203,8 +203,13 @@ using that applicability claim. New ControlTests source/executable receipts and 
 - [ ] Retain source-bound evidence and actual dependency/harness closure comparisons; keep I65 and separate
       RedSalamander adoption gates open until their own acceptance completes.
 
-Local compiler-free checkpoint: the five root source validators, the changed Menu file's pinned
-clang-format 22.1.3 check, fragment validation and canonical producer fold/check passed. Exact-H3 affected
+Local compiler-free checkpoint at H4: the five root source validators, fragment validation and canonical
+producer fold/check passed. The reported local Menu formatting pass is explicitly retracted: the archived
+argv contained one combined style/options/path string and no file operand, so its zero exit did not check
+Menu source. H4 (`578e2585c7e76881faff6dad138f08c7c1ca4c1b`, run `43738233391`) first failed CI formatting in `Tests/Controls/DxUi.Tests.Menu.cpp`; the
+original false-green records and CI failure remain preserved. A local whitespace-only Menu correction
+matches the official formatter hunks. The corrected canonical `format.ps1 -Check` passed over 264 actual
+owned C++ files with pinned clang-format 22.1.3; real formatter output bytes equal the corrected Menu file. Exact-H3 affected
 Explain conservatively selects all 20 scopes because the Menu test source is unmapped, and reports Menu
 `INTERACTIVE_NOT_RUN`; no scope mapping is weakened. The legacy tooling aggregate and native builds/tests
 were not run here. Current native/Full and publication remain pending; no completed qualification is claimed.
