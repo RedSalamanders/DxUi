@@ -3,6 +3,7 @@
 #endif
 
 #include "DxUi.Internal.h"
+#include "DxUi.TextEditHistory.h"
 
 #include <algorithm>
 #include <chrono>
@@ -504,6 +505,15 @@ void ComboBox::SetVariant(ComboBoxVariant variant) noexcept
     {
         if (_text->empty() && _selectedIndex && _selectedIndex.value() < _items.size())
         {
+            try
+            {
+                if (! _items[_selectedIndex.value()].value.empty())
+                    TextEditHistory::NoteUnrecordedChange(_undoHistory, _redoHistory, *_text);
+            }
+            catch (const std::bad_alloc&)
+            {
+                Failure::FailAllocation();
+            }
             _text = MakeSharedText(_items[_selectedIndex.value()].value);
             _committedText.reset();
         }
@@ -2151,6 +2161,10 @@ bool ComboBox::ImportTextInputText(ControlHost& host, std::shared_ptr<const std:
     {
         RecordUndoStateForEditableEdit();
     }
+    else if (changed)
+    {
+        TextEditHistory::NoteUnrecordedChange(_undoHistory, _redoHistory, *previousText);
+    }
     // A notifying import commits its text. A silent one that changes the text is a composition preview (or its
     // cancellation): the popup keeps filtering by the committed text until the composition commits.
     if (notifyChange)
@@ -2207,7 +2221,6 @@ ComboBox::EditHistoryState ComboBox::CaptureEditHistoryState() const
 void ComboBox::RestoreEditHistoryState(const EditHistoryState& state) noexcept
 {
     _typeaheadBuffer.clear();
-    _text = state.text;
     _committedText.reset();
     _caretIndex = std::min(state.caretIndex, _text->size());
     if (state.selectionAnchorIndex)
@@ -2231,50 +2244,41 @@ void ComboBox::RestoreEditHistoryState(const EditHistoryState& state) noexcept
 
 void ComboBox::RecordUndoStateForEditableEdit()
 {
-    _undoHistory.push_back(CaptureEditHistoryState());
-    if (_undoHistory.size() > kMaxEditHistoryEntries)
-    {
-        _undoHistory.erase(_undoHistory.begin());
-    }
-    _redoHistory.clear();
+    TextEditHistory::Record(_undoHistory, _redoHistory, *_text, CaptureEditHistoryState(), kMaxEditHistoryEntries);
 }
 
 bool ComboBox::TryUndoEditableEdit() noexcept
 {
-    if (_undoHistory.empty())
+    try
     {
-        return false;
+        EditHistoryState applied;
+        bool textChanged = false;
+        if (! TextEditHistory::Undo(_undoHistory, _redoHistory, _text, CaptureEditHistoryState(), kMaxEditHistoryEntries, applied, textChanged))
+            return false;
+        RestoreEditHistoryState(applied);
+        return true;
     }
-
-    _redoHistory.push_back(CaptureEditHistoryState());
-    if (_redoHistory.size() > kMaxEditHistoryEntries)
+    catch (const std::bad_alloc&)
     {
-        _redoHistory.erase(_redoHistory.begin());
+        Failure::FailAllocation();
     }
-
-    const EditHistoryState state = std::move(_undoHistory.back());
-    _undoHistory.pop_back();
-    RestoreEditHistoryState(state);
-    return true;
 }
 
 bool ComboBox::TryRedoEditableEdit() noexcept
 {
-    if (_redoHistory.empty())
+    try
     {
-        return false;
+        EditHistoryState applied;
+        bool textChanged = false;
+        if (! TextEditHistory::Redo(_undoHistory, _redoHistory, _text, CaptureEditHistoryState(), kMaxEditHistoryEntries, applied, textChanged))
+            return false;
+        RestoreEditHistoryState(applied);
+        return true;
     }
-
-    _undoHistory.push_back(CaptureEditHistoryState());
-    if (_undoHistory.size() > kMaxEditHistoryEntries)
+    catch (const std::bad_alloc&)
     {
-        _undoHistory.erase(_undoHistory.begin());
+        Failure::FailAllocation();
     }
-
-    const EditHistoryState state = std::move(_redoHistory.back());
-    _redoHistory.pop_back();
-    RestoreEditHistoryState(state);
-    return true;
 }
 
 void ComboBox::RefreshEditableTextAfterMutation(ControlHost& host)
@@ -2988,6 +2992,9 @@ void ComboBox::CommitSelection(ControlHost& host, size_t itemIndex, bool closePo
     _activePopupIndex = itemIndex;
     if (_editable)
     {
+        // The committed item replaces the text without an undo step: the history's newest steps keep restoring their text.
+        if (! SharedTextEquals(_text, _items[itemIndex].value))
+            TextEditHistory::NoteUnrecordedChange(_undoHistory, _redoHistory, *_text);
         _text = MakeSharedText(_items[itemIndex].value);
         _committedText.reset();
         _caretIndex = _text->size();

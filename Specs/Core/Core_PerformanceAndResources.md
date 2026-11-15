@@ -1364,6 +1364,43 @@ well, so the item that closes a line deletes its exception and the gate then enf
 Embedded suite apply this gate; the current exceptions and measurements are in
 [the W9.1 receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W9.1/README.md).
 
+#### Single-line text history
+
+A `TextField` and an editable `ComboBox` keep undo and redo by bytes, like the rich document's history above
+(`src/Controls/DxUi.TextEditHistory.h`). What one undo step is does not change: a typing run, a Backspace run and a
+Delete run of a `TextField` are each one step until the caret moves or another kind of edit starts; every other edit (a
+paste, a cut, a word deletion, a replacement, an IME commit) is one step, and an editable `ComboBox` makes each typed
+character one step; a selection change, a composition preview or its cancellation records none, and `SetText` clears
+both histories. Undo restores the text, caret, selection and scroll position the step started from, and redo the state
+its undo started from, with the same text-change, selection and accessibility notifications as before.
+
+- Entry: the caret, selection and scroll position to restore and the text in one of two forms. The newest undo step,
+  while its edit is in progress (a typing run), is open: it shares the whole text the step started from, which costs no
+  copy when it is recorded. The next history operation seals it against the text then current: it keeps only the units between the two
+  texts' common prefix and suffix (position, units replaced, units put back), so the restored text is identical unit for
+  unit wherever a span edge falls (inside a surrogate pair or a grapheme cluster included). A sealed typed character or
+  paste keeps no text (an insertion puts nothing back); a deletion, a cut or a replacement keeps the units it removed; a
+  replace-all keeps the old text once. Undo and redo apply a step in place and push its inverse, which keeps the text the
+  step replaced (undoing a 64 Ki-unit paste keeps the pasted 64 Ki units for redo). A text change that records no history
+  (a composition preview left in place, an item an editable `ComboBox` commits) first reopens the newest sealed step of
+  each history against the text before it, so undo still restores exactly the text it restored before the change.
+- Budget: at most 64 steps each way (the count cap is unchanged) and at most 4 MiB per editor across undo and redo
+  together: the stacks' element storage, every sealed entry's span and every open step's whole earlier text. When an
+  edit, undo, redo or reopening exceeds it, the oldest sealed steps are dropped first, the undo side before the redo side,
+  until the sealed spans and storage fit 4 MiB less the open texts. The step the operation just added and an open step
+  are never dropped, so an edit larger than the budget is still applied and stays undoable while it is the newest step;
+  the next step drops it with everything older. When a single open step's text alone exceeds 4 MiB (a text of more than
+  2 Mi UTF-16 units), that step stays, as the newest, and every older step is dropped: the history then holds that one
+  text and exceeds the budget by it until the next history operation seals it.
+- Counter: `EmbeddedStatistics::largestTextHistoryBytes` (G13's `text-history` line) counts the same bytes (an open
+  step's earlier text only once the current text no longer shares it), read without allocating, so it never exceeds
+  4 MiB except in the single-oversized-step cases above. The gate: the FX7 `TextField` and
+  FX2 editable `ComboBox` "history" variants (64 Ki units, 128 edits each, every edit its own step) MUST keep at most
+  4 MiB after the edits and after every undo and redo, and every undo and redo MUST restore the expected text, caret and
+  selection; a scripted edit sequence MUST record the same text, caret and selection after every operation, undo and redo
+  as the full-text snapshot history it replaced (`Controls.Tests.TextHistory.cpp`). Measurements:
+  [the W9.3 receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W9.3/README.md).
+
 Teardown accounting: after one FX5 lifetime (scene build, 20 warm and 20 changing frames, hide, destruction) has
 created the process's first-use state, a second lifetime MUST return every tracked C++ byte (0 live tracked bytes) in
 every configuration, and in Debug on a D3D11 debug-layer WARP device MUST leave the debug layer's live-object report

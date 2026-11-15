@@ -2,6 +2,7 @@
 
 #include "Controls/DxUi.Internal.h"
 #include "Controls/DxUi.RetainedCaches.h"
+#include "Controls/DxUi.TextEditHistory.h"
 #include "Support/Diagnostics.h"
 #include "Support/NativeRendering.h"
 #include "Support/Trace.h"
@@ -1810,23 +1811,11 @@ struct RetainedResourceAccess final
             if (entry.layout && ! (entry.truncated && sharedTail(entry.layout.get())))
                 AddLayout(stats, entry.layout.get(), entry.text.size());
     }
-    // An editor's undo and redo entries and the text buffers they keep beyond its current text. Consecutive entries that
-    // share a buffer count it once; a buffer shared by entries further apart counts again, so this can only overstate.
+    // An editor's undo and redo entries, their spans and the earlier text an open entry keeps beyond the current text: the
+    // count the history's byte budget uses (TextEditHistory::Bytes).
     template <typename History> static uint64_t HistoryBytes(const History& undo, const History& redo, const std::wstring* current) noexcept
     {
-        uint64_t bytes = uint64_t(undo.capacity() + redo.capacity()) * sizeof(typename History::value_type);
-        for (const History* entries : {&undo, &redo})
-        {
-            const std::wstring* previous = current;
-            for (const auto& entry : *entries)
-            {
-                const std::wstring* text = entry.text.get();
-                if (text && text != current && text != previous)
-                    bytes += uint64_t(text->capacity() + 1u) * sizeof(wchar_t);
-                previous = text;
-            }
-        }
-        return bytes;
+        return TextEditHistory::Bytes(undo, redo, current);
     }
     static void AddHistory(EmbeddedStatistics& stats, uint64_t bytes) noexcept
     {

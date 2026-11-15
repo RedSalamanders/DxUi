@@ -1586,7 +1586,7 @@ are hand counts until the `W9.1` probes exist. Exit: `G13` met.
     `surfaceBytes` on an owned device; embedded tests see 0 `Trim`, `ClearState` or `Flush` on the application's device.
   - **Needs**: `W9.1`, `W3.1`. **Size**: M.
 
-- [ ] **W9.3 Text history by bytes.**
+- [x] **W9.3 Text history by bytes.**
   - **Why**: `TextField` and `ComboBox` cap history at 64 entries (`include/DxUi/DxUi.h:4025, 4224`), each a full-text
     `EditHistoryState` (`:3911-3917`; `DxUi.TextInput.cpp:3362-3366`, `DxUi.ComboBox.cpp:2163, 2197`): a 64 Ki-unit
     field holds up to 64 × 131,072 B = 8 MiB of undo plus 8 MiB of redo.

@@ -4032,11 +4032,15 @@ protected:
     [[nodiscard]] virtual bool KeepsDefaultTextInputState() const noexcept;
 
 private:
+    // One undo or redo step (src/Controls/DxUi.TextEditHistory.h). Open: `text` is the whole text the step restores, shared
+    // with the text it was captured from. Sealed: applying the step replaces `replacedLength` units at `position` with `text`.
     struct EditHistoryState
     {
-        // Shared with the field's text when it was captured; an edit never writes to a shared buffer.
         std::shared_ptr<const std::wstring> text;
-        size_t caretIndex = 0u;
+        size_t position       = 0u;
+        size_t replacedLength = 0u;
+        bool sealed           = false;
+        size_t caretIndex     = 0u;
         std::optional<size_t> selectionAnchorIndex;
         size_t firstVisibleLine = 0u;
     };
@@ -4088,7 +4092,8 @@ private:
     [[nodiscard]] bool HasSelection() const noexcept;
     [[nodiscard]] bool DeleteSelection() noexcept;
     [[nodiscard]] EditHistoryState CaptureEditHistoryState() const;
-    void RestoreEditHistoryState(const EditHistoryState& state) noexcept;
+    // Restores the caret, selection and scroll state of `state`; the history has already put its text in place.
+    void RestoreEditHistoryState(const EditHistoryState& state, bool textChanged) noexcept;
     void SecureClearStorage() noexcept;
     void RefreshAccessibilitySnapshot() const noexcept;
     void BeginEditTransactionMetric(const wchar_t* detail) noexcept;
@@ -4279,11 +4284,14 @@ protected:
     [[nodiscard]] virtual bool KeepsDefaultTextInputState() const noexcept;
 
 private:
+    // One undo or redo step, as TextField's (src/Controls/DxUi.TextEditHistory.h).
     struct EditHistoryState
     {
-        // Shared with the editable text when it was captured; an edit never writes to a shared buffer.
         std::shared_ptr<const std::wstring> text;
-        size_t caretIndex = 0u;
+        size_t position       = 0u;
+        size_t replacedLength = 0u;
+        bool sealed           = false;
+        size_t caretIndex     = 0u;
         std::optional<size_t> selectionAnchorIndex;
         float horizontalScrollDip = 0.0f;
     };

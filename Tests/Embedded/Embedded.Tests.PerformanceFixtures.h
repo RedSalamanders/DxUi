@@ -72,6 +72,11 @@ public:
     {
         return *context_;
     }
+    // The live scene, for a gate that reads what its fixture recorded (W9.3's text-history edits).
+    [[nodiscard]] Scenario& GetScenario() noexcept
+    {
+        return *scenario_;
+    }
     void Step(size_t phase, size_t step)
     {
         scenario_->Step(*context_, phase, step);

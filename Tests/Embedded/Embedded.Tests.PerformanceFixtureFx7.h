@@ -14,6 +14,7 @@
 // which the determinism gate's two runs per suite cannot afford; W8.6's own tests keep that text.
 #include "Controls/DxUi.Internal.h"
 #include "Embedded.Tests.PerformanceFixture.h"
+#include "Embedded.Tests.TextHistoryEdits.h"
 #include "Embedded.Tests.TsfDoubles.h"
 
 #include <DxUi/Failure.h>
@@ -34,9 +35,12 @@ inline constexpr size_t kLockSteps = 2u * 10u + 1u;
 inline constexpr UINT kWidth       = 640u;
 inline constexpr UINT kHeight      = 480u;
 
-inline constexpr std::array kVariants{Variant{"default", kWidth, kHeight, 96.0f, false}};
+// "history" (W9.3, receipt only): after the composition phases, the history phase makes 128 edits in the TextField
+// (Embedded.Tests.TextHistoryEdits.h), each its own undo step; in every other variant that phase does nothing.
+inline constexpr std::array kVariants{Variant{"default", kWidth, kHeight, 96.0f, false}, Variant{"history", kWidth, kHeight, 96.0f, false, true}};
 inline constexpr size_t kTextField  = 1u;
 inline constexpr size_t kRichEditor = 3u;
+inline constexpr size_t kHistory    = 4u;
 inline constexpr std::array kPhases{
     Phase{"warm",
           2u,
@@ -50,9 +54,15 @@ inline constexpr std::array kPhases{
           "owner callback, caret, text read back), step 2k+1 its read lock (selection, end, extent, text); step 20 the commit lock"},
     Phase{"switch", 1u, PhaseKind::Warmup, "the TextField's store is released; the RichTextEditor takes logical focus and its store answers the extent query"},
     Phase{"richtext", kLockSteps, PhaseKind::Measured, "RichTextEditor: the same 21 locks as the TextField phase"},
+    Phase{"history",
+          TextHistoryEdits::kEdits,
+          PhaseKind::Measured,
+          "history variant: the TextField takes logical focus again and step k makes edit k of 128 at its own place (W9.3); other "
+          "variants: nothing"},
 };
 inline constexpr std::array kSources{std::string_view("Tests/Embedded/Embedded.Tests.PerformanceFixtureFx7.h"),
-                                     std::string_view("Tests/Embedded/Embedded.Tests.TsfDoubles.h")};
+                                     std::string_view("Tests/Embedded/Embedded.Tests.TsfDoubles.h"),
+                                     std::string_view("Tests/Embedded/Embedded.Tests.TextHistoryEdits.h")};
 
 // The W8.5 document: words of seven letters and a space, no line breaks (Embedded.Tests.ImeCopies.h, MakeDocument).
 [[nodiscard]] inline std::wstring MakeDocument()
@@ -273,8 +283,27 @@ public:
                 }
                 break;
             case kRichEditor: session_.Step(step); break;
+            case kHistory:
+                if (context.variant.name != "history")
+                    break;
+                if (step == 0u)
+                {
+                    history_.reserve(TextHistoryEdits::kEdits);
+                    context.controls.SetFocusControl(field_, false);
+                }
+                TextHistoryEdits::Apply(context, *field_, step, history_);
+                break;
             default: break;
         }
+    }
+    // The history variant's edits, in order (W9.3 gate).
+    [[nodiscard]] const std::vector<TextHistoryEdits::Record>& History() const noexcept
+    {
+        return history_;
+    }
+    [[nodiscard]] DxUi::TextField& Field() const noexcept
+    {
+        return *field_;
     }
 
 private:
@@ -282,6 +311,7 @@ private:
     DxUi::EmbeddedHost view_;
     DxUi::TextField* field_       = nullptr;
     DxUi::RichTextEditor* editor_ = nullptr;
+    std::vector<TextHistoryEdits::Record> history_;
     Session session_;
 };
 
@@ -291,7 +321,8 @@ inline constexpr Definition kDefinition{
     .scenario             = "A TextField and a RichTextEditor holding the W8.5 document of 65,472 UTF-16 units (seven-letter words), caret mid-document, "
                             "640x480 offscreen EmbeddedHost, reduced motion. Ten Hangul syllables are composed and committed through the production "
                             "TSF text store with in-process doubles (the W8.5 scenario), no focus and no text service: one TSF lock per step, each "
-                            "followed by one frame. cppLargeAllocations counts allocations of at least one document's bytes (130,944 B). Proves the W8 gates.",
+                            "followed by one frame. cppLargeAllocations counts allocations of at least one document's bytes (130,944 B). Proves the W8 gates. "
+                            "The history variant then makes 128 edits in the TextField, each its own undo step: proves W9.3's text-history gate (G13).",
     .hosts                = kEmbedded,
     .variants             = kVariants,
     .phases               = kPhases,

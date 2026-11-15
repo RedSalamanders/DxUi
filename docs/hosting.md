@@ -183,7 +183,8 @@ images other than the surface. These are counted when you call `GetStatistics`, 
 loop's hot path; hiding a view returns a Grid's layouts and the surface. `DXUI_HAS_RETAINED_RESOURCE_STATISTICS` marks
 headers that have these fields. `retainedCacheEntries` and `retainedCacheBytes` total every cache DxUi keeps for the
 view and its controls (bytes are the storage DxUi itself holds; DirectWrite and Direct2D objects are not included), and
-`largestTextHistoryBytes` reports the undo history of the editor that holds the most; `DXUI_HAS_RETAINED_CACHE_STATISTICS`
+`largestTextHistoryBytes` reports the undo and redo history of the TextField or editable ComboBox that holds the most
+(each keeps at most 4 MiB, unless a single edit of a text over 2 Mi units needs more on its own); `DXUI_HAS_RETAINED_CACHE_STATISTICS`
 marks headers that have them. Change layout in DIPs and pass the new physical extent/DPI to Prepare; do not rasterize at each
 intermediate animation scale. Theme and layout changes need refreshed docs/gallery when changing the library.
 

@@ -95,6 +95,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.RichTextResources.h"
 #include "Embedded.Tests.SemanticProjection.h"
 #include "Embedded.Tests.TextFieldPaint.h"
+#include "Embedded.Tests.TextHistory.h"
 #include "Embedded.Tests.TraceProvider.h"
 #include "Embedded.Tests.TreeDataPaths.h"
 #include "Embedded.Tests.UiaTextProvider.h"
@@ -1917,6 +1918,14 @@ __declspec(noinline) static int RunFunctionalTests()
         PerformanceFixtures::TestFx13G13Budgets();
         return 0;
     }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-text-history")
+    {
+        TextHistoryTests::TestTextHistoryEntryCosts();
+        TextHistoryTests::TestTextHistoryBudgetEvictsOldestFirst();
+        TextHistoryTests::TestImeCommitIsOneUndoStep();
+        TextHistoryTests::TestFx7AndFx2TextHistoryGate();
+        return 0;
+    }
     // The FX5 receipt of the performance fixture framework, which carries the W0.3 memory fields (WARP or hardware).
     if (__argc == 3 && (std::wstring_view(__wargv[1]) == L"--memory-receipt" || std::wstring_view(__wargv[1]) == L"--memory-receipt-hardware"))
     {
@@ -2193,6 +2202,10 @@ __declspec(noinline) static int RunFunctionalTests()
     PerformanceFixtures::TestFx5MatchesWorkCounterReceipt();
     PerformanceFixtures::TestFx5G13Budgets();
     PerformanceFixtures::TestFx13G13Budgets();
+    TextHistoryTests::TestTextHistoryEntryCosts();
+    TextHistoryTests::TestTextHistoryBudgetEvictsOldestFirst();
+    TextHistoryTests::TestImeCommitIsOneUndoStep();
+    TextHistoryTests::TestFx7AndFx2TextHistoryGate();
     PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
     PerformanceFixtures::TestTooltipDeadlineGatesOnFx14();
     GridDataPathTests::TestFx3GridDataPathGate(gpu);

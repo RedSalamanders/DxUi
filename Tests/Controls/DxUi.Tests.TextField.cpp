@@ -1,4 +1,5 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.TextHistory.h"
 #include "Controls.Tests.TextStoreComposition.h"
 #include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.MaskedInputPolicy.h"
@@ -2495,6 +2496,8 @@ void RunTextFieldTests()
     DXUI_RUN_TEST(TestTextFieldUndoSplitsTypingRunsAfterCaretMove);
     DXUI_RUN_TEST(TestTextFieldUndoCoalescesBackspaceRun);
     DXUI_RUN_TEST(TestTextFieldUndoCoalescesDeleteRun);
+    DXUI_RUN_TEST(TestTextFieldHistoryMatchesSnapshotHistory);
+    DXUI_RUN_TEST(TestComboBoxHistoryMatchesSnapshotHistory);
     DXUI_RUN_TEST(TestTextFieldEmojiZwJBackspaceDeletesWholeTextElement);
     DXUI_RUN_TEST(TestTextFieldEmojiZwJDeleteDeletesWholeTextElement);
     DXUI_RUN_TEST(TestTextFieldRegionalIndicatorFlagBackspaceDeletesWholeTextElement);

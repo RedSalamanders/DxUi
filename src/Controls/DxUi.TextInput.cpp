@@ -1,4 +1,5 @@
 #include "DxUi.Internal.h"
+#include "DxUi.TextEditHistory.h"
 #include <DxUi/Failure.h>
 
 #include <algorithm>
@@ -3547,6 +3548,8 @@ bool TextField::ImportTextInputText(ControlHost& host, std::shared_ptr<const std
     // A changed notifying import is one committed edit, regardless of how many previews preceded it.
     if (notifyChange && changed)
         RecordUndoStateForDirectEdit();
+    else if (changed)
+        TextEditHistory::NoteUnrecordedChange(_undoHistory, _redoHistory, *previousText);
     BreakDirectEditMerge();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     // Adopts the buffer: the store, the host cache and this field now share it, and none of them writes to it.
@@ -3630,10 +3633,9 @@ TextField::EditHistoryState TextField::CaptureEditHistoryState() const
         .text = _text, .caretIndex = _caretIndex, .selectionAnchorIndex = _selectionAnchorIndex, .firstVisibleLine = _multilineFirstVisibleLine};
 }
 
-void TextField::RestoreEditHistoryState(const EditHistoryState& state) noexcept
+void TextField::RestoreEditHistoryState(const EditHistoryState& state, bool textChanged) noexcept
 {
-    const bool remeasure = _multiline && ! SharedTextEquals(_text, state.text);
-    _text                = state.text;
+    const bool remeasure = _multiline && textChanged;
     _caretIndex          = std::min(state.caretIndex, _text->size());
     if (state.selectionAnchorIndex)
     {
@@ -3740,15 +3742,10 @@ void TextField::RecordUndoStateForDirectEdit(DirectEditMergeKind mergeKind)
 {
     BeginEditTransactionMetric(L"direct-edit");
     const bool mergeable = mergeKind != DirectEditMergeKind::None;
-    const bool coalesced = mergeable && _directEditMergeKind == mergeKind && ! _undoHistory.empty() && ! HasSelection();
+    // A run adds to its open step, which still restores the text the run started from.
+    const bool coalesced = mergeable && _directEditMergeKind == mergeKind && ! _undoHistory.empty() && ! _undoHistory.back().sealed && ! HasSelection();
     if (! coalesced)
-    {
-        _undoHistory.push_back(CaptureEditHistoryState());
-        if (_undoHistory.size() > kMaxEditHistoryEntries)
-        {
-            _undoHistory.erase(_undoHistory.begin());
-        }
-    }
+        TextEditHistory::Record(_undoHistory, _redoHistory, *_text, CaptureEditHistoryState(), kMaxEditHistoryEntries);
     _directEditMergeKind = mergeable ? mergeKind : DirectEditMergeKind::None;
     _redoHistory.clear();
 }
@@ -3762,16 +3759,19 @@ bool TextField::TryUndoDirectEdit() noexcept
 
     BeginEditTransactionMetric(L"undo");
     BreakDirectEditMerge();
-    _redoHistory.push_back(CaptureEditHistoryState());
-    if (_redoHistory.size() > kMaxEditHistoryEntries)
+    try
     {
-        _redoHistory.erase(_redoHistory.begin());
+        EditHistoryState applied;
+        bool textChanged = false;
+        if (! TextEditHistory::Undo(_undoHistory, _redoHistory, _text, CaptureEditHistoryState(), kMaxEditHistoryEntries, applied, textChanged))
+            return false;
+        RestoreEditHistoryState(applied, textChanged);
+        return true;
     }
-
-    const EditHistoryState state = std::move(_undoHistory.back());
-    _undoHistory.pop_back();
-    RestoreEditHistoryState(state);
-    return true;
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
 }
 
 bool TextField::TryRedoDirectEdit() noexcept
@@ -3783,16 +3783,19 @@ bool TextField::TryRedoDirectEdit() noexcept
 
     BeginEditTransactionMetric(L"redo");
     BreakDirectEditMerge();
-    _undoHistory.push_back(CaptureEditHistoryState());
-    if (_undoHistory.size() > kMaxEditHistoryEntries)
+    try
     {
-        _undoHistory.erase(_undoHistory.begin());
+        EditHistoryState applied;
+        bool textChanged = false;
+        if (! TextEditHistory::Redo(_undoHistory, _redoHistory, _text, CaptureEditHistoryState(), kMaxEditHistoryEntries, applied, textChanged))
+            return false;
+        RestoreEditHistoryState(applied, textChanged);
+        return true;
     }
-
-    const EditHistoryState state = std::move(_redoHistory.back());
-    _redoHistory.pop_back();
-    RestoreEditHistoryState(state);
-    return true;
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
 }
 
 void TextField::RemaskPasswordReveal() noexcept
