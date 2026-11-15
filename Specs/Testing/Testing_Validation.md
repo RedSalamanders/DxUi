@@ -392,7 +392,11 @@ driver succeeded and otherwise keeps closing the popups of its owner for up to e
 closed are gone; `TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu` (in the described-menu group) has a driver
 that fails at once, before its popup exists, and requires the guard to close the
 menu that then comes up and the owner thread's `Show` to return, and a source scan in `Tools/tests/Test-TestWatchdog.ps1`
-requires the guard first in every driver. A UI Automation client thread a Menu or Accessibility test joins is waited for,
+requires the guard first in every driver. Keep each driver declaration in the existing inline lambda form recognized by that scan.
+A Menu driver-fixture refactor must execute that actual source-contract case with its existing assertion helpers, alongside
+formatting, before native qualification. Isolate the existing source-only case for compiler-free preflight rather than mirroring
+its check or running its native watchdog fixtures. This proves source validation only; native watchdog, interactive lease and
+runtime acceptance remain separate requirements. A UI Automation client thread a Menu or Accessibility test joins is waited for,
 pumping, for as long as its setup was allowed (20 s) and then fails the test, since its teardown may need the pumping thread and
 a join does not pump.
 The sent modal-cancellation fixture first places its owner onscreen and verifies that the owner holds the

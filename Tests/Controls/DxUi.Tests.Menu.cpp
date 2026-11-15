@@ -2767,7 +2767,21 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
     const auto elapsedMs = [&started] { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count(); };
     MenuHoverTraceForTest trace(false, false, ownerWindow.Hwnd());
     const uint32_t foregroundLossesBefore = ownerWindow.ForegroundLossCount();
-    const auto driveCapture               = [&]
+    trace.OwnerSnapshot("owner.before-activation", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
+    const char* activationStage = "not-started";
+    DxUiActivationObservation activationObservation{};
+    const bool activated = TryActivateDxUiTestWindow(ownerWindow.Hwnd(), 800u, &activationStage, &activationObservation);
+    trace.OwnerSnapshot("owner.after-activation", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
+    if (! activated)
+    {
+        PrintDxUiActivationObservation(activationObservation, "menu-material-capture-setup", 1u);
+        std::cerr << "    [MENU MATERIAL SETUP] stage=" << activationStage << '\n';
+        trace.Dump(true);
+    }
+    Require(activated, "material-capture modal menu owner establishes foreground before its popup opens");
+    // Preserve the original driver's observation clock; activation is not charged to capture readiness.
+    started = std::chrono::steady_clock::now();
+    std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
@@ -2820,23 +2834,7 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
         trace.Driver("capture.bitmap-ready", capture.widthPx, capture.heightPx);
         std::cerr << "    [TRACE] material capture " << material << ": popup after " << appearedMs << " ms, captured after " << elapsedMs() << " ms\n"
                   << std::flush;
-    };
-
-    trace.OwnerSnapshot("owner.before-activation", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
-    const char* activationStage = "not-started";
-    DxUiActivationObservation activationObservation{};
-    const bool activated = TryActivateDxUiTestWindow(ownerWindow.Hwnd(), 800u, &activationStage, &activationObservation);
-    trace.OwnerSnapshot("owner.after-activation", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
-    if (! activated)
-    {
-        PrintDxUiActivationObservation(activationObservation, "menu-material-capture-setup", 1u);
-        std::cerr << "    [MENU MATERIAL SETUP] stage=" << activationStage << '\n';
-        trace.Dump(true);
-    }
-    Require(activated, "material-capture modal menu owner establishes foreground before its popup opens");
-    // Preserve the original driver's observation clock; activation is not charged to capture readiness.
-    started = std::chrono::steady_clock::now();
-    std::thread driver(driveCapture);
+    });
     trace.OwnerSnapshot("owner.before-show", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     showReturned.store(true);

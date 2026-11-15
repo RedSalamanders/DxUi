@@ -313,3 +313,52 @@ remain unchanged. This application still requires final source/static checks and
 fresh exact-H6 native, consumer and normal paired CI; no local native/foreground
 run, CI rerun, merge commit, push, job cancellation or consumer pin change is
 claimed at this checkpoint. The API4 policy approval waives none of these gates.
+
+## H6 source-watchdog failure and H7 syntax candidate (2026-11-15)
+
+Actual H6 validation run 43749601063, x64 Debug job 132920693133, built with
+zero warnings/errors but failed the pre-suite Test-TestWatchdog source case:
+it counted 50 Menu driver declarations and recognized 49. The newly factored
+material driver callback retained its first cleanup guard but was outside the
+existing inline-lambda source grammar. The preserved native artifact's completed
+run has an empty payload; ordinary Menu/material/runtime suites were not reached.
+This is a source-contract failure, not a new Mica capture assertion. The relocated
+consumer passed separately and does not waive native acceptance.
+
+A private H7 syntax candidate restores the original inline driver declaration,
+with DismissMenusIfDriverFails still its first statement. The one canonical owner
+activation and Require remain before any driver; the timer assignment remains
+immediately before thread construction. Driver body, trace/atomic state, one Show,
+single popup identity, all material assertions and 5000 ms readiness are preserved.
+The actual existing source-case AST and its actual assertion helpers accept the
+corrected 50/50 guarded declarations, reject unchanged H6 at 50/49, and reject a
+private one-guard-removed counterfactual. These are source-only checks, not a
+passing whole-watchdog, native, GUI or material-rendering experiment.
+
+The owning validation spec now records the existing inline/guard contract and
+source-only preflight alongside formatting. No watchdog implementation, production
+code, benchmark input, policy, threshold, Skip or retry criterion changes. This
+checkpoint is a private candidate for review; application and the ordinary dated
+fragment/canonical fold remain pending. Fresh exact-head full native, relocated
+consumer and normal paired gates remain required; policy approval waives none.
+
+## H7 inline-driver follow-up applied locally (2026-11-15)
+
+The reviewed exact three-path H7 source/watchdog compatibility patch is now
+**APPLIED LOCAL / NATIVE QUALIFICATION PENDING** on H6
+`f4143122cb790c9e7fc79482f79cf88bd275b15d`; the private-candidate checkpoint above
+remains its point-in-time preparation record. The existing watchdog source case
+is unchanged. The material driver is inline with its existing cleanup guard
+first; one activation/Require precedes the driver, with the observation clock
+immediately before construction. Original assertions, 5000 ms readiness, three
+materials, trace/lifetimes and single Show remain unchanged. No retry, Skip,
+threshold or production/runtime change is introduced.
+
+Actual final-source watchdog positive/negative controls and canonical formatting
+must be retained with final staging evidence. They establish source validation,
+not whole-watchdog, native, lease, GUI or Mica acceptance. The preserved H6 failure
+remains a pre-suite static source-contract failure; it is not relabeled as a new
+GUI failure or waived by policy approval. Fresh exact-head six-profile native,
+eight relocated-consumer and normal paired gates at base P remain required.
+Local staging still awaits review before commit/publication; no local native or
+foreground run, new dispatch, cancellation or consumer pin adoption is claimed.

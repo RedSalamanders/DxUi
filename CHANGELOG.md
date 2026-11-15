@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Restore the inline Menu material driver declaration with its existing first cleanup guard, preserving activation, assertions and capture deadline; validate the actual watchdog source case alongside formatting before fresh native qualification.
 - Apply the existing owner-foreground precondition once before material-menu capture and retain bounded popup lifetime/show-return diagnostics on failure, preserving the 5000 ms deadline, three materials and original assertions; fresh exact-head native qualification remains required.
 - Qualify the initial API 4 performance acceptance policy after independent owner review, preserving the judge, randomized assignment, investigation bands, and allocation budgets; retain the A/A control-instability findings, bind the one-time trust-metadata transition, and guard the completed owner record. Fresh native and paired CI remain required before consumer pin adoption.
 - Clarify that the API 4 initial-policy owner approval and later API 4 native/paired evidence do not authorize the cooking API 5/version 6 destination, and record the local integration with fresh source-bound qualification still required.
