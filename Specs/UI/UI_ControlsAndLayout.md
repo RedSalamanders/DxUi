@@ -194,10 +194,12 @@ Status: implemented (performance and motion plan item W6.2, 14 November 2026).
 `Control::Measure` keeps every control's results in one cache shared by every parent; no container keeps a second
 copy. The cache holds one context: the control's measure revision, the measuring host, that host's typography revision,
 its DPI and the control's resolved flow direction and density. A change of any of them empties it. Within that context
-up to two results are kept, most recently used first, each keyed by the exact constraints (minimum and maximum of each
-axis; an absent maximum is its own value). Two slots cover the probes of the library's containers: a container measures
-a child once while it is measured and once while it is arranged, and the W0.1 counters on `FX10` showed no repeated
-probe beyond the second (receipt `Measurements/PerformanceAndMotion_2026-11-13/W6.2`). A hit returns the stored result
+results are kept most recently used first, each keyed by the exact constraints (minimum and maximum of each axis; an
+absent maximum is its own value): two for a control whose size does not depend on the maximum (below), whose keys differ
+only by minimum, and four for any other. A container asks a child once while it is measured and once while it is arranged,
+so a width that returns to its previous value (a resize dragged back) asks a container four keys; the W0.1 probe ledger on
+`FX10` and `FX12` form-layout shows no repeated key measured twice with these counts (receipt
+`Measurements/PerformanceAndMotion_2026-11-13/W6.2`). The cache is 96 or 160 bytes. A hit returns the stored result
 without calling `MeasureOverride` and consumes no shaping budget; it returns `S_OK`. `E_NOTIMPL` is cached like a result;
 other failures, refused input and a measurement that a callback superseded are never stored. The cache lives out of
 line: a control that is never measured pays one pointer, and its storage is allocated by the first successful
@@ -253,7 +255,9 @@ layout owner stages all numeric geometry before the first
 extensible bounds callback and leaves child bounds unchanged on validation, allocation, measurement or arithmetic
 failure. After custom measurement or bounds callbacks it rechecks lifetime, ownership, host, geometry and input
 revisions. A callback that retires, reparents or replaces the owner/child, changes sibling geometry, or starts a
-newer layout aborts the stale pass. Geometry authored by such a callback remains authoritative; already completed
+newer layout aborts the stale pass. Geometry a child changes about itself while it is being arranged (a `Grid` clamping
+its scroll to the bounds it was just given) is its own and does not abort the pass; before W6.2 it did, and every later
+sibling stayed unarranged until another change (the `FX10` body row's `RichTextEditor`). Geometry authored by such a callback remains authoritative; already completed
 callbacks are not rolled back, and the incomplete outer pass does not publish its content extent or frame.
 
 Flex arrangement stages absolute endpoints in logical line order. Positive intrinsic extents, gaps and padding that collapse at a

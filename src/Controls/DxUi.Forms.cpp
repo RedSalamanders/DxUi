@@ -533,6 +533,7 @@ HRESULT FormField::ApplyLayoutFor(const ControlHost& host, LabelPlacement placem
         const auto accepted                 = mutableHost._intrinsicArrangeBoundsRevision;
         const auto interaction              = host.GetInteractionRevision();
         mutableHost._intrinsicArrangeBranch = control;
+        ++Detail::Work().layout.arrangedChildren;
         control->SetBounds(part.bounds);
         mutableHost._intrinsicArrangeBranch = previous;
         if (lifetime.expired() || part.lifetime.expired())
@@ -976,6 +977,7 @@ HRESULT FormPanel::ApplyLayout(const ControlHost& host) noexcept
         const auto accepted                 = mutableHost._intrinsicArrangeBoundsRevision;
         const auto interaction              = host.GetInteractionRevision();
         mutableHost._intrinsicArrangeBranch = record.field;
+        ++Detail::Work().layout.arrangedChildren;
         record.field->SetBounds(record.bounds);
         mutableHost._intrinsicArrangeBranch = previous;
         if (! current(index, index + 1))

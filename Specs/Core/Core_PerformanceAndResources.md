@@ -333,6 +333,8 @@ snapshot, delta and receipt.
   current revision and context: while it stays 0, every miss is a key the control had not been asked before in that
   revision, so no `MeasureOverride` ran for an unchanged key. `measureCacheVerifyMismatches` counts Debug verification
   disagreements (a hit whose re-run measurement differed), which reveal a control that skipped `InvalidateMeasure`.
+  `arrangedChildren` counts each child `SetBounds` an intrinsic owner's arrangement (`FlexPanel`, `FormPanel`,
+  `FormField`) makes.
 
 Destruction is observed only by a test-owned `ResourceLifetimeTracker`, in storage the test supplies: while installed on
 a thread it holds one extra reference to each resource the helpers create there, and `Sweep` counts and releases those

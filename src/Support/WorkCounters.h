@@ -129,6 +129,7 @@
 
 // Intrinsic layout: Control::Measure and its measure cache.
 #define DXUI_WORK_COUNTERS_LAYOUT(X)                                                                                                                           \
+    X(layout, arrangedChildren)             /* Child SetBounds calls an intrinsic owner's arrangement made (FlexPanel, FormPanel, FormField). */               \
     X(layout, measureCacheEvictions)        /* Measure-cache misses that displaced a slot valid for the control's current revision and context. */             \
     X(layout, measureCacheHits)             /* Control::Measure calls answered from the control's measure cache, MeasureOverride not run. */                   \
     X(layout, measureCacheMisses)           /* Control::Measure calls with valid input that found no cached result and ran MeasureOverride. */                 \

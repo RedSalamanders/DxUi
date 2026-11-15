@@ -127,7 +127,22 @@ struct ControlModelQueryAccess
     template <typename Owner> [[nodiscard]] static auto InvalidateGeometry(Owner& owner) noexcept
     {
         if (auto* const host = owner.GetHost())
+        {
             ++host->_interactionRevision;
+            // During an intrinsic arrangement, geometry the arranged branch changes about itself (a Grid clamping its scroll
+            // to the bounds it was just given) is accepted like the branch's own bounds; anything outside it is foreign. Without
+            // this an owner aborted after such a child and left every later sibling unarranged until an unrelated change.
+            if (host->_intrinsicArrangeBranch)
+            {
+                const Control* ancestor = &owner;
+                while (ancestor && ancestor != host->_intrinsicArrangeBranch)
+                    ancestor = ancestor->_parent;
+                if (ancestor)
+                    ++host->_intrinsicArrangeBoundsRevision;
+                else
+                    ++host->_intrinsicArrangeForeignRevision;
+            }
+        }
         const auto lifetime = owner.GetLifetimeToken();
         // Every exit, including a failed getter, leaves a surviving model owner scheduled for fresh preparation.
         return wil::scope_exit([&owner, lifetime]() noexcept
@@ -151,6 +166,10 @@ struct ControlModelQueryAccess
     [[nodiscard]] static size_t MeasureCacheEntries(const Control& control) noexcept
     {
         return control.GetMeasureCacheEntries();
+    }
+    [[nodiscard]] static size_t MeasureCacheBytes(const Control& control) noexcept
+    {
+        return control.GetMeasureCacheBytes();
     }
     // The logical parent, a PageHost or TabControl included, which GetParent (Panels only, and protected) is not.
     [[nodiscard]] static const Control* LogicalParent(const Control& control) noexcept

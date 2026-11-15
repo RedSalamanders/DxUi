@@ -5,10 +5,14 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <dwrite_1.h>
 #include <exception>
 #include <limits>
 #include <new>
+#include <span>
+#include <type_traits>
+#include <utility>
 
 namespace DxUi
 {
@@ -208,14 +212,17 @@ bool SetMeasureCacheVerificationForTest(bool enabled) noexcept
 // context, the control's measure revision with the host, its typography revision, DPI and the control's resolved flow and
 // density; a context change empties every slot, so the slots key only the constraints. Slots are kept most recently used
 // first. A slot filled while the control declared MeasureDependsOnMaximum() == false matches any maximum and recomputes
-// only its overflow flag. Two slots: the W0.1 probe distribution on FX10 (Measurements/PerformanceAndMotion_2026-11-13/W6.2).
+// only its overflow flag. The slots follow the 32-byte context in one allocation: two for a control whose size does not
+// depend on the maximum (its keys differ only by minimum), four for any other, which a container asks once while it is
+// measured and once while it is arranged, at each of two widths when a width returns (receipt W6.2).
 struct Control::MeasureCache final
 {
-    static constexpr size_t kSlots               = 2u;
-    static constexpr uint8_t kValid              = 1u;
-    static constexpr uint8_t kOverflow           = 2u;
-    static constexpr uint8_t kMaximumIndependent = 4u;
-    static constexpr uint8_t kNotImplemented     = 8u;
+    static constexpr uint8_t kMaximumIndependentSlots = 2u;
+    static constexpr uint8_t kMaximumDependentSlots   = 4u;
+    static constexpr uint8_t kValid                   = 1u;
+    static constexpr uint8_t kOverflow                = 2u;
+    static constexpr uint8_t kMaximumIndependent      = 4u;
+    static constexpr uint8_t kNotImplemented          = 8u;
     struct Slot final
     {
         float minimumWidth  = 0.0f;
@@ -233,8 +240,30 @@ struct Control::MeasureCache final
     float dpi               = 0.0f;
     FlowDirection flow      = FlowDirection::LeftToRight;
     Density density         = Density::Standard;
-    std::array<Slot, kSlots> slots{};
+    uint8_t capacity        = 0u;
 
+    // One allocation: the context, then `slots` value-initialized slots. Throws std::bad_alloc like operator new.
+    [[nodiscard]] static MeasureCache* Create(uint8_t slots)
+    {
+        void* const storage = ::operator new(Bytes(slots));
+        auto* const cache   = new (storage) MeasureCache();
+        cache->capacity     = slots;
+        for (uint8_t index = 0u; index < slots; ++index)
+            new (static_cast<std::byte*>(storage) + sizeof(MeasureCache) + index * sizeof(Slot)) Slot();
+        return cache;
+    }
+    [[nodiscard]] static constexpr size_t Bytes(uint8_t slots) noexcept
+    {
+        return sizeof(MeasureCache) + slots * sizeof(Slot);
+    }
+    [[nodiscard]] std::span<Slot> Slots() noexcept
+    {
+        return {std::launder(reinterpret_cast<Slot*>(reinterpret_cast<std::byte*>(this) + sizeof(MeasureCache))), capacity};
+    }
+    [[nodiscard]] std::span<const Slot> Slots() const noexcept
+    {
+        return {std::launder(reinterpret_cast<const Slot*>(reinterpret_cast<const std::byte*>(this) + sizeof(MeasureCache))), capacity};
+    }
     [[nodiscard]] static float Maximum(const std::optional<float>& maximum) noexcept
     {
         return maximum ? *maximum : -1.0f;
@@ -251,11 +280,12 @@ struct Control::MeasureCache final
         dpi        = d;
         flow       = f;
         density    = n;
-        slots.fill({});
+        std::ranges::fill(Slots(), Slot{});
     }
     // The slot answering these constraints, moved to the front; nullptr when none does.
     [[nodiscard]] const Slot* Find(const LayoutConstraints& constraints, bool maximumIndependent) noexcept
     {
+        const std::span<Slot> slots = Slots();
         for (size_t index = 0u; index < slots.size(); ++index)
         {
             const Slot& slot = slots[index];
@@ -272,7 +302,8 @@ struct Control::MeasureCache final
     // Stores a result in front; returns whether it displaced a valid slot.
     bool Store(const LayoutConstraints& constraints, const DesiredSize* result, bool maximumIndependent) noexcept
     {
-        const bool evicted = (slots.back().flags & kValid) != 0u;
+        const std::span<Slot> slots = Slots();
+        const bool evicted          = (slots.back().flags & kValid) != 0u;
         std::rotate(slots.begin(), slots.end() - 1, slots.end());
         Slot& slot         = slots.front();
         slot.minimumWidth  = constraints.minimumDip.width;
@@ -302,29 +333,32 @@ struct Control::MeasureCache final
 
 void Control::MeasureCacheDeleter::operator()(MeasureCache* cache) const noexcept
 {
-    delete cache;
+    // Context and slots are trivially destructible: the storage Create took is released as one block.
+    ::operator delete(static_cast<void*>(cache));
 }
 
 size_t Control::GetMeasureCacheEntries() const noexcept
 {
     if (! _measureCache)
         return 0u;
-    return static_cast<size_t>(
-        std::ranges::count_if(_measureCache->slots, [](const MeasureCache::Slot& slot) noexcept { return (slot.flags & MeasureCache::kValid) != 0u; }));
+    return static_cast<size_t>(std::ranges::count_if(std::as_const(*_measureCache).Slots(),
+                                                     [](const MeasureCache::Slot& slot) noexcept { return (slot.flags & MeasureCache::kValid) != 0u; }));
 }
 
 size_t Control::GetMeasureCacheBytes() const noexcept
 {
-    return _measureCache ? sizeof(MeasureCache) : 0u;
+    return _measureCache ? MeasureCache::Bytes(_measureCache->capacity) : 0u;
 }
 
 void Control::DropMeasureCache() const noexcept
 {
     static_assert(sizeof(_measureCache) == sizeof(void*), "the empty deleter must add nothing to every control");
-    static_assert(sizeof(MeasureCache) == 96u, "a measured control's cache: a 32-byte context and two 32-byte slots (W6.2 receipt)");
+    static_assert(std::is_trivially_destructible_v<MeasureCache> && std::is_trivially_destructible_v<MeasureCache::Slot> &&
+                  alignof(MeasureCache::Slot) <= alignof(MeasureCache) && sizeof(MeasureCache) % alignof(MeasureCache::Slot) == 0u);
+    static_assert(MeasureCache::Bytes(MeasureCache::kMaximumIndependentSlots) == 96u && MeasureCache::Bytes(MeasureCache::kMaximumDependentSlots) == 160u,
+                  "a measured control's cache: a 32-byte context and two or four 32-byte slots (W6.2 receipt)");
     _measureCache.reset();
 }
-
 bool Control::MeasureDependsOnMaximum() const noexcept
 {
     return true;
@@ -454,8 +488,9 @@ HRESULT Control::MeasureCounted(const MeasureContext& context, const LayoutConst
     // Only a result whose context and revision held through the measurement reaches here: store it.
     try
     {
-        if (! _measureCache)
-            _measureCache.reset(new MeasureCache());
+        const uint8_t capacity = maximumIndependent ? MeasureCache::kMaximumIndependentSlots : MeasureCache::kMaximumDependentSlots;
+        if (! _measureCache || _measureCache->capacity < capacity)
+            _measureCache.reset(MeasureCache::Create(capacity));
     }
     catch (const std::bad_alloc&)
     {
@@ -1303,6 +1338,7 @@ HRESULT FlexPanel::ApplyLayout(const ControlHost& host) noexcept
         const auto geometry                 = mutableHost._interactionRevision;
         const auto acceptedBounds           = mutableHost._intrinsicArrangeBoundsRevision;
         mutableHost._intrinsicArrangeBranch = child;
+        ++Detail::Work().layout.arrangedChildren;
         child->SetBounds(childBounds);
         mutableHost._intrinsicArrangeBranch = previousBranch;
         if (lifetime.expired())

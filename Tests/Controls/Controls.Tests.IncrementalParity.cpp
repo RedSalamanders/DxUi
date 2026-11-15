@@ -9,6 +9,7 @@
 // Scenarios are never copied. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
 #pragma warning(disable : 4625 4626 5026 5027)
+#include "Embedded.Tests.PerformanceFixtureFx10.h"
 #include "Embedded.Tests.PerformanceFixtureFx12.h"
 #pragma warning(pop)
 
@@ -332,10 +333,40 @@ template <const PerformanceFixtures::Definition& Fixture> void RunFixtureParity(
     std::cout << "  parity native " << Fixture.id << ' ' << variantName << ": " << steps << " steps, 0 differences in bounds, pixels or UIA\n";
 }
 
-// W6.2: FX12's dense screen lays out and paints exactly as when every retained cache, the measure caches included, is
-// dropped. FX10 is not registered here yet: its incremental scene leaves the RichTextEditor of its body row unarranged
-// after the first resize, with every measure cache disabled too, so the difference is not the measure cache's; it is
-// reported to the plan (W6.2 receipt README) for the arrangement items.
+// W6.2's FX10 finding, on the window host outside the oracle: the body row's RichTextEditor follows a Grid, whose
+// OnBoundsChanged clamps its scroll through InvalidateGeometry. The arranging FlexPanel took that for a foreign geometry
+// change, aborted with E_ABORT, and the host kept the half-arranged geometry: the editor stayed at empty bounds from the first
+// frame and through every later frame. Every body child is arranged after the build, after a resize and on later frames.
+void TestFx10LiveResizeArrangesEveryBodyChild()
+{
+    const auto scene = MakeNativeScene();
+    auto port        = std::make_shared<FixtureParityPort>(*scene, PerformanceFixtures::Fx10::kDefinition, PerformanceFixtures::Fx10::kVariants[0]);
+    scene->models.push_back(port);
+    port->Build();
+    const auto requireArranged = [&](const char* when)
+    {
+        static_cast<void>(scene->Capture(false));
+        const Control* const body = scene->Host().GetRoot()->GetLogicalChild(2u);
+        Require(body && body->GetLogicalChildCount() == 3u, "the FX10 body row holds the form, the list and the notes");
+        for (size_t index = 0u; index < body->GetLogicalChildCount(); ++index)
+        {
+            const auto bounds = body->GetLogicalChild(index)->GetBounds();
+            if (! (bounds.right > bounds.left && bounds.bottom > bounds.top))
+                Fail(std::format("FX10 body child {} has empty bounds {}", index, when));
+        }
+    };
+    requireArranged("after the build");
+    port->Step(0u); // resized to 800x600
+    requireArranged("after the first resize");
+    requireArranged("on the next frame");
+}
+
+// W6.2: FX10's live resize and FX12's dense screen lay out and paint exactly as when every retained cache, the measure caches
+// included, is dropped.
+void TestNativeIncrementalParityFx10LiveResize()
+{
+    RunFixtureParity<PerformanceFixtures::Fx10::kDefinition>("default");
+}
 void TestNativeIncrementalParityFx12DenseScreen()
 {
     RunFixtureParity<PerformanceFixtures::Fx12::kDefinition>("default");
@@ -387,5 +418,7 @@ void RunIncrementalParityTests()
     DXUI_RUN_TEST(TestNativeIncrementalParityRich);
     DXUI_RUN_TEST(TestNativeIncrementalParityRichBlocks);
     DXUI_RUN_TEST(TestNativeIncrementalParityComboPopup);
+    DXUI_RUN_TEST(TestFx10LiveResizeArrangesEveryBodyChild);
+    DXUI_RUN_TEST(TestNativeIncrementalParityFx10LiveResize);
     DXUI_RUN_TEST(TestNativeIncrementalParityFx12DenseScreen);
 }

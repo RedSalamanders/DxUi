@@ -2776,6 +2776,33 @@ void TestMeasureCacheEveryMeasuredInputInvalidates()
         }
 }
 
+// Found by the W6.2 fixture oracle on FX10: a Grid's OnBoundsChanged clamps its scroll through InvalidateGeometry, which a
+// FlexPanel arranging it took for a foreign geometry change. The arrangement aborted after the Grid, the host kept that
+// failure until something else changed, and every later sibling stayed unarranged. Geometry the arranged branch changes about
+// itself is now accepted like its own bounds; a change outside the branch still aborts.
+void TestFlexArrangesSiblingsAfterAChildThatInvalidatesItsGeometry()
+{
+    ControlHost host;
+    auto root   = std::make_unique<FlexPanel>();
+    auto* panel = root.get();
+    RequireSucceeded(panel->SetOrientation(StackOrientation::Horizontal), "a row");
+    auto* grid  = panel->AddChild<Grid>();
+    auto* after = panel->AddChild<Label>(L"After the grid");
+    RequireSucceeded(panel->SetChildOptions(grid, FlexChildOptions{.explicitSizeDip = D2D1::SizeF(120.0f, 80.0f)}), "an explicit grid extent");
+    host.SetRoot(std::move(root));
+    panel->SetBounds(D2D1::RectF(0.0f, 0.0f, 400.0f, 200.0f));
+    RequireSucceeded(panel->ApplyLayout(host), "the row arranges past a child that invalidates its own geometry");
+    const auto bounds = after->GetBounds();
+    Require(grid->GetBounds().right == 120.0f && bounds.left >= 120.0f && bounds.right > bounds.left, "the sibling after the grid is arranged");
+    // Two such children in one row: everything after each is still arranged.
+    Label* const outside = after;
+    auto* moving         = panel->AddChild<Grid>();
+    RequireSucceeded(panel->SetChildOptions(moving, FlexChildOptions{.explicitSizeDip = D2D1::SizeF(60.0f, 40.0f)}), "a second grid");
+    panel->SetBounds(D2D1::RectF(0.0f, 0.0f, 410.0f, 200.0f));
+    RequireSucceeded(panel->ApplyLayout(host), "the wider row arranges every child");
+    Require(outside->GetBounds().right > outside->GetBounds().left && moving->GetBounds().right > moving->GetBounds().left, "both later siblings are arranged");
+}
+
 uint64_t g_intendedVerifyMismatches = 0u;
 
 // A consumer control that changes what it measures without InvalidateMeasure breaks the public contract. The cache then
@@ -2844,6 +2871,7 @@ public:
     uint64_t repeatedExecutions = 0u;
     uint64_t executions         = 0u;
     size_t controls             = 0u;
+    std::string firstRepeat;
 
 private:
     using Key = std::tuple<const ControlHost*, uint64_t, uint64_t, uint32_t, int, int, uint32_t, uint32_t, uint32_t, uint32_t>;
@@ -2869,6 +2897,14 @@ private:
         (repeated ? ledger.repeated : ledger.unique) += 1u;
         ledger.executions += probe.executed ? 1u : 0u;
         ledger.repeatedExecutions += repeated && probe.executed ? 1u : 0u;
+        if (repeated && probe.executed && ledger.firstRepeat.empty())
+            ledger.firstRepeat = std::format("{} at {}x{} min {}x{}, {} keys seen for it",
+                                             typeid(*probe.control).name(),
+                                             probe.constraints.maximumWidthDip.value_or(-1.0f),
+                                             probe.constraints.maximumHeightDip.value_or(-1.0f),
+                                             probe.constraints.minimumDip.width,
+                                             probe.constraints.minimumDip.height,
+                                             keys.size());
     }
     std::map<const Control*, std::vector<Key>> seen_;
     Detail::MeasureProbeObserver previous_ = nullptr;
@@ -2904,34 +2940,142 @@ void TestFx10MeasureCacheRunsNoMeasureForAnUnchangedKey()
             "most probes of the resize are answered from the cache");
 }
 
-// Gate of W6.2 on FX12: the dense screen and the 10,000-control form (receipt-only, run here once) lay out absolutely, so
-// nothing measures; the gate holds with no MeasureOverride at all.
+// Gate of W6.2 on FX12. The dense screen and the 10,000-control form are laid out absolutely, so nothing measures. The
+// form-layout variants arrange the same rows with the library's FlexPanels: no MeasureOverride runs for a key its control
+// was already asked, unchanged frames measure and arrange nothing, and the per-step baselines of measure executions,
+// arranged children and paints are printed for W6.3 (invalidation scopes) and W4.8 (culling). The 10,000-control variants
+// run in Release only: a Debug window run of them exceeds the suite's 300 s test timeout; their receipts cover them.
 void TestFx12MeasureCacheRunsNoMeasureForAnUnchangedKey()
 {
-    // form-10k runs in Release only: a Debug window run of 10,000 controls exceeds the suite's 300 s test timeout. Its
-    // receipt (performance-fixtures.ps1) covers it in every configuration it is taken in.
 #if defined(_DEBUG)
-    constexpr std::array kVariants{"default"};
-    PrintLine("    [W6.2] FX12 form-10k: not run in a Debug build (over the test timeout); see its receipt\n");
+    constexpr std::array kVariants{"default", "form-layout"};
+    PrintLine("    [W6.2] FX12 form-10k and form-layout-10k: not run in a Debug build (over the test timeout); see their receipts\n");
 #else
-    constexpr std::array kVariants{"default", "form-10k"};
+    constexpr std::array kVariants{"default", "form-10k", "form-layout", "form-layout-10k"};
 #endif
     for (const char* name : kVariants)
     {
         const auto* variant = PerformanceFixtures::Fx12::kDefinition.FindVariant(name);
         Require(variant != nullptr, "the FX12 variant exists");
         MeasureProbeLedger ledger;
-        const auto started  = std::chrono::steady_clock::now();
-        const auto run      = ::RunWindowFixture(PerformanceFixtures::Fx12::kDefinition, *variant);
-        uint64_t executions = 0u;
-        for (const auto& phase : PerformanceFixtures::Fx12::kPhases)
-            executions += PhaseTotal(run, phase.name, "layout.measureOverrideExecutions");
-        PrintLine(std::format("    [W6.2] FX12 {} (window): {} probes, {} MeasureOverride executions, {} ms\n",
+        const auto started = std::chrono::steady_clock::now();
+        const auto run     = ::RunWindowFixture(PerformanceFixtures::Fx12::kDefinition, *variant);
+        PrintLine(std::format("    [W6.2] FX12 {} (window): {} measured controls, {} unique and {} repeated probes, {} executions, {} ms\n",
                               name,
-                              ledger.unique + ledger.repeated,
-                              executions,
+                              ledger.controls,
+                              ledger.unique,
+                              ledger.repeated,
+                              ledger.executions,
                               std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count()));
-        Require(ledger.repeatedExecutions == 0u && executions == ledger.executions, "no MeasureOverride runs for an unchanged key (FX12)");
+        for (const auto& phase : PerformanceFixtures::Fx12::kPhases)
+        {
+            const auto measured = PerformanceFixtures::Summarize(run.Phase(phase.name), "layout.measureOverrideExecutions");
+            const auto arranged = PerformanceFixtures::Summarize(run.Phase(phase.name), "layout.arrangedChildren");
+            const auto painted  = PerformanceFixtures::Summarize(run.Phase(phase.name), "frame.paintExecutions");
+            PrintLine(std::format("      {:<6} per step: measure executions {}-{}, arranged children {}-{}, paints {}-{}\n",
+                                  phase.name,
+                                  measured.minimum,
+                                  measured.maximum,
+                                  arranged.minimum,
+                                  arranged.maximum,
+                                  painted.minimum,
+                                  painted.maximum));
+        }
+        if (ledger.repeatedExecutions != 0u)
+            PrintLine(std::format("    first repeated execution: {}\n", ledger.firstRepeat));
+        Require(ledger.repeatedExecutions == 0u, "no MeasureOverride runs for an unchanged key (FX12)");
+        Require(PhaseTotal(run, "full", "layout.measureOverrideExecutions") == 0u && PhaseTotal(run, "full", "layout.arrangedChildren") == 0u,
+                "an unchanged frame measures and arranges nothing");
+        if (std::string_view(name).starts_with("form-layout"))
+            Require(ledger.executions > 0u && PhaseTotal(run, "width", "layout.arrangedChildren") > 0u, "the library form is measured and arranged");
+    }
+}
+
+// The local input port is never copied. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+// FX12 form-layout's cost to build and lay out, and its memory per control with and without measure caches (embedded host,
+// WARP): the build, the first preparation (every measurement and arrangement, and the first paint), and the bytes each
+// measured control's cache adds.
+void TestFx12FormLayoutBuildAndLayoutCost()
+{
+#if defined(_DEBUG)
+    constexpr std::array kVariants{"form-layout"};
+#else
+    constexpr std::array kVariants{"form-layout", "form-layout-10k"};
+#endif
+    for (const char* name : kVariants)
+    {
+        const auto* variant = PerformanceFixtures::Fx12::kDefinition.FindVariant(name);
+        GraphicsFixture graphics;
+        RequireSucceeded(graphics.Create(), "FX12 form-layout WARP fixture");
+        std::shared_ptr<GraphicsDevice> device;
+        RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "FX12 form-layout graphics pool");
+        EmbeddedHost view;
+        RequireSucceeded(view.Attach(device), "FX12 form-layout embedded attach");
+        class NoInput final : public PerformanceFixtures::HostPort
+        {
+        public:
+            bool Pointer(const PointerEvent&) override
+            {
+                return false;
+            }
+            bool Key(UINT, bool, UINT) override
+            {
+                return false;
+            }
+            bool Character(wchar_t, UINT) override
+            {
+                return false;
+            }
+            void AdvanceTime(uint64_t) override
+            {
+            }
+            void Resize(UINT, UINT, float) override
+            {
+            }
+            [[nodiscard]] uint64_t NowMs() const noexcept override
+            {
+                return PerformanceFixtures::kClockOriginMs;
+            }
+        } port;
+        auto scenario = PerformanceFixtures::Fx12::kDefinition.create();
+        PerformanceFixtures::Context context{PerformanceFixtures::Host::Embedded, *variant, view.Controls(), port};
+        const auto started = std::chrono::steady_clock::now();
+        RequireSucceeded(scenario->Build(context), "FX12 form-layout builds");
+        const auto built = std::chrono::steady_clock::now();
+        const Detail::WorkCounterScope scope;
+        RequireSucceeded(view.Prepare(variant->width, variant->height, variant->dpi), "FX12 form-layout first preparation");
+        const auto prepared                            = std::chrono::steady_clock::now();
+        size_t controls                                = 0u;
+        size_t cached                                  = 0u;
+        size_t bytes                                   = 0u;
+        const std::function<void(const Control&)> walk = [&](const Control& control)
+        {
+            ++controls;
+            if (const size_t entries = ControlModelQueryAccess::MeasureCacheEntries(control); entries != 0u)
+                ++cached;
+            bytes += ControlModelQueryAccess::MeasureCacheBytes(control);
+            for (size_t index = 0u; index < control.GetLogicalChildCount(); ++index)
+                if (const Control* child = control.GetLogicalChild(index))
+                    walk(*child);
+        };
+        walk(*view.Controls().GetRoot());
+        const auto delta = scope.Delta();
+        PrintLine(std::format("    [W6.2] FX12 {} (embedded): {} controls; build {} ms; first preparation {} ms ({} measure executions, {} arranged "
+                              "children, {} paints); {} controls hold a measure cache: {} bytes, {:.1f} per control in the scene\n",
+                              name,
+                              controls,
+                              std::chrono::duration_cast<std::chrono::milliseconds>(built - started).count(),
+                              std::chrono::duration_cast<std::chrono::milliseconds>(prepared - built).count(),
+                              delta.layout.measureOverrideExecutions,
+                              delta.layout.arrangedChildren,
+                              delta.frame.paintExecutions,
+                              cached,
+                              bytes,
+                              static_cast<double>(bytes) / static_cast<double>(controls)));
+        Require(cached > 0u && delta.layout.measureOverrideExecutions > 0u, "the library form measures its controls in the first preparation");
+        view.Controls().SetRoot(nullptr);
     }
 }
 } // namespace
@@ -2979,14 +3123,17 @@ void RunIntrinsicLayoutTests()
     DXUI_RUN_TEST(TestFlexCompactChildrenKeepsEachChildsOptions);
     DXUI_RUN_TEST(TestTextFieldFontRolePreservesEmbeddedCompositionAndUpdatesGeometry);
     DXUI_RUN_TEST(TestTextFieldFontRoleReturnsAfterEmbeddedPreparationOwnerRetires);
+    DXUI_RUN_TEST(TestFlexArrangesSiblingsAfterAChildThatInvalidatesItsGeometry);
     DXUI_RUN_TEST(TestMeasureCacheWidthSweepEqualsUncachedMeasure);
     DXUI_RUN_TEST(TestMeasureCacheMaximumDependentTypesKeyEveryMaximum);
     DXUI_RUN_TEST(TestMeasureCacheEveryMeasuredInputInvalidates);
     DXUI_RUN_TEST(TestMeasureCacheVerificationCatchesAControlThatSkipsInvalidateMeasure);
     DXUI_RUN_TEST(TestFx10MeasureCacheRunsNoMeasureForAnUnchangedKey);
     DXUI_RUN_TEST(TestFx12MeasureCacheRunsNoMeasureForAnUnchangedKey);
+    DXUI_RUN_TEST(TestFx12FormLayoutBuildAndLayoutCost);
     // The verification test breaks the rule on purpose once; nothing else may.
     const auto mismatches = verification.Delta().layout.measureCacheVerifyMismatches;
     PrintLine(std::format("    [W6.2] measure-cache verification {}: {} mismatches\n", verified ? "on" : "unavailable in this build", mismatches));
     Require(mismatches == g_intendedVerifyMismatches, "no library control changes a measured input without InvalidateMeasure in the layout tests");
 }
+#pragma warning(pop)

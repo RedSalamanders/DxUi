@@ -14,7 +14,7 @@ An old arranged rectangle is never a fallback intrinsic size.
 
 Labels, buttons, toggles, checkboxes, text fields, combo boxes and numeric steppers use actual DirectWrite
 metrics. Toggle state captions reserve their maximum extent, and single-line editors keep stable preferred
-width while their values change. `Control::Measure` caches each control's results (up to two, keyed by constraints)
+width while their values change. `Control::Measure` caches each control's results (two or four, keyed by constraints)
 for its measure revision, host, typography, DPI, flow and density, and every parent shares them; color and hover changes
 do not invalidate shaping. Text, wrapping, font, DPI, density, flow direction and ownership changes invalidate their
 dependencies. A custom control must call `InvalidateMeasure` whenever anything its `MeasureOverride` reads changes;
