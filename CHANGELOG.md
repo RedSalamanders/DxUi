@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Include the shared consumer process boundary in measured build/restore and Full harness identity, overlay its exact common build helpers for paired qualification, retain only the exact public failure-evidence upload exception, and make focused process observations and setup diagnostics platform-aware and privacy-safe. The first hosted API 4 candidate remains failed; follow-up qualification and consumer adoption are pending.
 - Preserve the API 4 consumer surface while capturing producer-owned background identity, Visual Studio discovery, pin-validation and dependency-restore processes without requesting secondary console UI. Keep literal arguments, separate concurrent streams, actual exit codes and interactive installer console inheritance; add retained standalone tooling controls for Windows PowerShell 5.1 and PowerShell 7, plus a version 6 carry-forward guide. Native profile, hosted and consumer-pin qualifications remain separate gates.
 - Record passing local x64 runtime qualification and ARM64 cross-builds for the common build policy, with immutable Release size evidence and remaining performance/CI gates explicit.
 - Record the current native profile and pinned-archive policy audit, qualified native builds and explicit remaining runtime, performance and integration gates.

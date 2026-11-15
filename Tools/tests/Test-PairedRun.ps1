@@ -445,10 +445,18 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     $tokens = $null; $errors = $null
     $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'performance-paired.ps1'), [ref]$tokens, [ref]$errors)
     Assert-Equal 0 $errors.Count 'paired driver parses'
-    $assignment = $ast.Find({ param($node) $node -is [Management.Automation.Language.AssignmentStatementAst] -and
-        $node.Left -is [Management.Automation.Language.VariableExpressionAst] -and $node.Left.VariablePath.UserPath -ceq 'harness' }, $true)
+    $assignments = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.AssignmentStatementAst] -and
+        $node.Left -is [Management.Automation.Language.VariableExpressionAst] -and $node.Left.VariablePath.UserPath -ceq 'harness' }, $true))
+    Assert-Equal 1 $assignments.Count 'one actual common build-overlay selector'
+    $assignment=$assignments[0]
     $harness = @(& ([scriptblock]::Create($assignment.Right.Extent.Text)))
     Assert-Contains $harness 'build.ps1' 'the measured build driver is shared'
+    $buildClosure=@('vcpkg-install.ps1','Tools/VisualStudio.psm1','Tools/ConsumerBuild.psm1')
+    foreach($path in $buildClosure) {
+        Assert-Contains $harness $path 'the exact co-versioned captured build dependency is shared'
+        Assert-True (@(Get-PairedHarness) -cnotcontains $path) 'build plumbing does not become benchmark workload input'
+        Assert-True (@(Get-BenchmarkInputPaths) -cnotcontains $path) 'the compiled benchmark input hash retains its separate meaning'
+    }
     Assert-Contains $harness 'Tools/ScopedTesting.psm1' 'old baselines receive the current attestation helper'
     Assert-Contains $harness 'Tools/Validation.psm1' 'the exact solution-mapping validator is shared'
     Assert-Contains $harness 'Tools/Changelog.psm1' 'the validator import closure is complete'
@@ -459,6 +467,8 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     $backup = Join-Path $root 'backup'
     Set-FixtureFile $target 'src/Control.cpp' 'original baseline library source'
     Set-FixtureFile $target 'src/DxUi.vcxproj' 'original baseline project'
+    Set-FixtureFile $target 'include/DxUi/Control.h' 'original baseline public header'
+    foreach($path in $buildClosure){Set-FixtureFile $target $path ('original baseline '+$path)}
     Set-FixtureFile $target 'build.ps1' 'original baseline build driver'
     Set-FixtureFile $target 'Tools/ScopedTesting.psm1' 'original baseline scoped helper'
     Set-FixtureFile $target 'Tools/Validation.psm1' 'original baseline solution validator'
@@ -467,10 +477,22 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Set-FixtureFile $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' 'original baseline benchmark project'
     $records = @(Copy-HarnessOverlay -Source $repository -Target $target -Paths $harness -BackupDirectory $backup)
     Assert-HarnessOverlay -Target $target -Records $records
+    foreach($path in $buildClosure) {
+        Assert-Equal (Get-FileHash -LiteralPath (Join-Path $repository $path) -Algorithm SHA256).Hash (Get-FileHash -LiteralPath (Join-Path $target $path) -Algorithm SHA256).Hash 'the actual common build dependency bytes were copied'
+        Assert-Equal 1 @($records|Where-Object {$_['path'] -ceq $path -and $_['action'] -ceq 'replaced'}).Count 'the replacement has one exact rollback record'
+    }
     Assert-Equal 'original baseline library source' ([IO.File]::ReadAllText((Join-Path $target 'src/Control.cpp'))) 'candidate library source did not enter the baseline'
     Assert-Equal 'original baseline project' ([IO.File]::ReadAllText((Join-Path $target 'src/DxUi.vcxproj'))) 'baseline compiler/project inputs stay their own'
+    Assert-Equal 'original baseline public header' ([IO.File]::ReadAllText((Join-Path $target 'include/DxUi/Control.h'))) 'baseline public headers stay their own'
     Assert-Equal ([IO.File]::ReadAllText((Join-Path $repository 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) ([IO.File]::ReadAllText((Join-Path $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) 'the benchmark uses the same actual project options on both sides'
+    # A changed backend cannot pass the existing byte check. Restore only the
+    # deliberate corruption to the measured source before exercising rollback.
+    $backend=Join-Path $target 'Tools/ConsumerBuild.psm1'
+    [IO.File]::AppendAllText($backend,'synthetic copied-backend corruption')
+    Assert-Throws {Assert-HarnessOverlay -Target $target -Records $records} 'a corrupted copied process backend is refused'
+    [IO.File]::WriteAllBytes($backend,[IO.File]::ReadAllBytes((Join-Path $repository 'Tools/ConsumerBuild.psm1')))
     Restore-HarnessOverlay -Target $target -Records $records -BackupDirectory $backup
+    foreach($path in $buildClosure){Assert-Equal ('original baseline '+$path) ([IO.File]::ReadAllText((Join-Path $target $path))) 'each baseline build dependency is restored'}
     Assert-Equal 'original baseline build driver' ([IO.File]::ReadAllText((Join-Path $target 'build.ps1'))) 'the baseline build driver was restored'
     Assert-Equal 'original baseline scoped helper' ([IO.File]::ReadAllText((Join-Path $target 'Tools/ScopedTesting.psm1'))) 'the baseline scoped helper was restored'
     Assert-Equal 'original baseline solution validator' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Validation.psm1'))) 'the baseline validator was restored'
@@ -478,6 +500,22 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Assert-Equal 'original shared changelog implementation' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Modules/Documentation/Changelog.psm1'))) 'the shared implementation was restored'
     Assert-Equal 'original baseline benchmark project' ([IO.File]::ReadAllText((Join-Path $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) 'the original benchmark compiler configuration was restored'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'Tools/PerformancePolicy.psm1'))) 'created harness files are removed after the study'
+
+    # Use the actual selector's three build entries. A missing final backend
+    # must unwind already-copied installer/discovery files and preserve library
+    # content; never substitute the candidate library or suppress identity checks.
+    $selectedClosure=@($harness|Where-Object {$_ -cin $buildClosure})
+    Assert-Equal 3 $selectedClosure.Count 'the selected build dependency closure is exact'
+    $incomplete=Join-Path $root 'incomplete-harness'
+    foreach($path in @('vcpkg-install.ps1','Tools/VisualStudio.psm1')){Set-FixtureFile $incomplete $path ('new '+$path)}
+    $missingTarget=Join-Path $root 'missing-backend-baseline'
+    Set-FixtureFile $missingTarget 'src/Control.cpp' 'untouched baseline library'
+    Set-FixtureFile $missingTarget 'vcpkg-install.ps1' 'untouched baseline installer'
+    $message=Get-ErrorMessage {Copy-HarnessOverlay -Source $incomplete -Target $missingTarget -Paths $selectedClosure -BackupDirectory (Join-Path $root 'missing-backup')}
+    Assert-True $message.Contains('Missing benchmark harness input: Tools/ConsumerBuild.psm1') 'missing captured backend fails specifically'
+    Assert-Equal 'untouched baseline installer' ([IO.File]::ReadAllText((Join-Path $missingTarget 'vcpkg-install.ps1'))) 'partial replacement is rolled back'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $missingTarget 'Tools/VisualStudio.psm1'))) 'partial created dependency is removed'
+    Assert-Equal 'untouched baseline library' ([IO.File]::ReadAllText((Join-Path $missingTarget 'src/Control.cpp'))) 'failed staging preserves baseline library bytes'
 }
 
 function Get-PairedBuildPreflightForTest([string] $Name='Assert-PairedBuildCompatibility') {

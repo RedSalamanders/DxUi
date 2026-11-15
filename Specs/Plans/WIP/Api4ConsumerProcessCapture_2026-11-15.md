@@ -74,6 +74,77 @@ planning observations, not native-suite execution.
 The full Tooling aggregate, native/hosted producer qualification, maintenance publication and RedSalamander
 adoption remain pending. Earlier failed fixture and governance wrappers retain their original verdicts.
 
+## First hosted candidate and follow-up (2026-11-15)
+
+The first committed candidate is `78c685830e569f70521d696eda9d198fbf4c23fd` (H), published in
+[draft maintenance PR 256](https://github.com/RedSalamanders/DxUi/pull/256) against the exact API 4 base.
+Its [manual exact-H cohort](https://github.com/RedSalamanders/DxUi/actions/runs/43716379570) is separate
+from the [PR cohort](https://github.com/RedSalamanders/DxUi/actions/runs/43716357670), whose checkout is
+synthetic merge `4ec5a04b9fe730a24046b9651a849f800a302be8` (T). An API run's reported head H is not
+evidence that a pull-request job checked out H rather than T.
+
+Both Ubuntu validation jobs failed. Their public consumer-control summaries recorded zero cases and
+zero starts with a control-failure error digest; the available hosted evidence does not retain the
+actual exception, so its cause is unknown. Zero recorded rows do not establish zero process creation.
+The aggregates also exposed a
+missing ConsumerBuild measured-input/Full harness-identity dependency and an outdated native-scope
+guard that rejected the exact public failure-evidence upload. Both Windows tooling jobs failed these
+two guards. Their ordinary PowerShell 7.6.9 aggregate consumer controls passed 16/16 on H and T, with
+25 recorded starts per run and no visible owned console/PIPE stdout and stderr. The later explicit
+selected-MSBuild 17-case controls for PowerShell 7 and 5.1, and the ASan smoke step, were skipped after
+the earlier failure. These aggregate observations do not replace the earlier standalone controls or
+establish current hosted acceptance.
+
+At 13:16 UTC, the manual cohort's x64 Debug job had reached its relocated-consumer step, x64 Release
+and ASan Debug were in native qualification, and the ARM64 profiles were still building. These are
+progress observations, not terminal native or consumer passes. H is unqualified and must not be adopted.
+
+The follow-up restores the measured and harness dependency closures, narrows the upload exception,
+and records process starts before fallible platform metadata. Its public setup diagnostics expose
+only closed phase/type/HResult fields; detailed failures remain private. The post-start recording
+change addresses an observability gap, not a proved cause of the historical Unix exception. At that
+checkpoint, fresh follow-up component, tooling, native, hosted and consumer-adoption qualification was pending;
+the earlier 34 process and 29 governance controls remain historical evidence for their tested bytes.
+
+The first focused follow-up attempt passed all four selected source cases, then Windows PowerShell
+5.1 passed 16 of 17 controls with two actual identity observations and 29 actual starts. The factory
+control's first pure fake used a throwing ScriptProperty; that host suppressed its intended getter
+failure and a null-method error surfaced instead. PowerShell 7 was not launched. The failed raw run
+and fixture remain preserved; neither the 16 passing controls nor the four source passes relabel its
+failed verdict. The fixture correction uses exact held-Process getter MethodInfos and explicit reader
+seams, with strict null/live/Windows/unrelated-error refusals and fatal propagation. It changes neither
+the production capture core nor the 17-case plan and does not prove the historical Linux failure's
+cause. The four unchanged source cases retain their prior passing evidence and were not repeated.
+
+### Corrected getter component checkpoint
+
+The reviewed getter correction changed five files within the follow-up scope: the control fixture,
+owning build spec, this plan, the fragment and the version 6 guide. The uncommitted snapshot based on H
+then passed 17/17 controls on Windows PowerShell 5.1.26100.9711 and 17/17 on PowerShell 7.6.9: 34 current
+passing cases, separate from the four earlier source-case passes. Each host recorded two actual
+evaluation-only MSBuild identities and 29 guarded native starts. The annotation-policy identity
+fingerprints matched across hosts; strict metadata counterfactuals, owned-console/PIPE facts and the
+closed public/private diagnostic bindings passed. All 58 recorded native instances and six contained
+driver children closed, and the 30 frozen inputs plus executable/Utility bindings had zero drift.
+
+The sealed component proof is
+`591329327958ce563d555d6d9b4a8993045705c134dbbac7420c08a366f471a7`.
+The four earlier source cases remain bound separately by
+`7162a82b65400f366bd43bfe9670dadc534aac094823590a34acb0a9f822876e`;
+their original run's WinPS 16/17 failure remains failed and preserved. These are component checks of
+the recorded snapshot, not qualification of a future commit. Fresh successor tooling/hosted/native,
+trusted-base policy review, paired acceptance and RedSalamander adoption remain pending.
+
+The PR paired job also failed strict Full harness preflight before any measurement slot. H's common
+BUILD overlay omitted the changed installer and VisualStudio discovery helpers that its Full identity
+included; H also omitted ConsumerBuild from that identity. The follow-up adds ConsumerBuild to the
+Full identity and overlays exactly those three producer tooling files on both revisions, preserving
+each revision's C++/headers/library project and the
+separate benchmark-workload selector and hash algorithm. It does not relax equality or fabricate a
+paired result. There are zero measurement slots and no regression finding. The retained historical
+artifact lacks the raw per-file hashes needed to replay the complete Full hash independently; the
+observed preflight mismatch and source-level overlay omission remain distinct evidence.
+
 ## Output and remaining qualification
 
 Focused controls borrow an explicit caller-owned existing fixture parent beneath the already approved

@@ -128,6 +128,21 @@ staging preserves their library sources and compiler/linker project rather than 
 the measured implementation or its policy. Missing-module and warning-bearing controls
 must fail, and restoring a named tree removes only the dependency introduced by the overlay.
 
+The co-versioned `Tools/ConsumerBuild.psm1` process backend is a transitive input of
+Visual Studio discovery and restore. The explicit paired build/restore scope and
+Full harness-identity file selection both include it. Changing that backend must
+change the selected identity; omitting it cannot admit receipt reuse. The tooling
+import walk and a mutation/omission control over the actual Full selector guard
+this closure without compiling or claiming a completed paired study.
+The existing common **build** overlay also supplies the current `vcpkg-install.ps1`,
+`Tools/VisualStudio.psm1` and `Tools/ConsumerBuild.psm1` to both measured trees.
+They are separate from `Get-PairedHarness`'s benchmark workload-input selection;
+the benchmark-input hash is not widened to represent build plumbing. Staging
+checks their installed bytes and restores originals or removes only introduced
+files on success and partial failure. Each side retains its own library source,
+public headers and library project. The strict Full harness-identity preflight
+still refuses unequal build contexts before any measurement slot.
+
 Compiled shared-fixture includes must also resolve under the historical baseline's include profile. The embedded
 benchmark names its scene relative to the staged header, preserving the baseline library/project configuration.
 A real compiler preprocessing control must reproduce the old missing include, accept the staged real headers and

@@ -162,6 +162,36 @@ with `host_bootstrap_sha256`. Carry this setup into the destination's isolated t
 host, not into the shipped SDK. Do not change `PSModulePath`, production hashing
 or the consumer identity algorithm to repair a test-host module mismatch.
 
+Record the exact successfully started process object before querying fallible
+creation/handle metadata. If observation then fails, retain that start and dispose
+only its owned process while preserving the primary failure and fatal semantics.
+On Unix, `Process.SafeHandle` is supported but represents a runtime wait object,
+not a Windows process-instance lease. A short child may exit before uncached
+creation metadata is available; report that outcome explicitly without inventing
+a timestamp or reopening a PID. Retain positive creation/handle assertions on
+Windows and actual positive creation evidence for the controlled long-lived child.
+Exercise both already-exited and still-live observation failures deterministically.
+
+The test observer must invoke the exact owned `Diagnostics.Process` `StartTime`,
+`SafeHandle` and `HasExited` getter methods explicitly. PowerShell's property
+binder can suppress ordinary CLR or ScriptProperty getter failures into null;
+property syntax alone does not preserve the error being tested. Unwrap the method
+failure with `GetBaseException`, validate a positive `DateTime`, held `SafeHandle`
+and actual boolean exit result, and reject null or wrong-type facts. Only the
+known `InvalidOperationException`/`Win32Exception` creation errors on Unix plus a
+verified boolean true exit result permit the unavailable-creation outcome.
+Windows, live-child and unrelated errors remain failures; fatal errors propagate.
+Keep controlled reader seams inside the existing test
+case; they must not manufacture native starts or change the shipped process core.
+
+Public control projection v2 adds only the closed `setup.phase`, `setup.type` and
+signed 32-bit `setup.code` fields. Keep phases and exception categories allowlisted;
+never publish an arbitrary exception type, message, path or stack there. Preserve
+the detailed primary failure privately in `control-error.json`, alongside the raw
+start observations and existing summary/manifest hash bindings. The earlier Linux
+failure's exact exception remains unproved: a reachable post-start metadata race
+is not evidence that Unix wait handles are unsupported or that it caused that run.
+
 The review/qualification packet must retain these controls and their limits:
 
 1. Standalone copied-module import, unchanged public export/parameters and a frozen
@@ -192,6 +222,17 @@ The review/qualification packet must retain these controls and their limits:
   change fragment, tooling registration and required dependency closure. A fixture
   that copies VisualStudio must include its co-versioned ConsumerBuild dependency.
   Keep ConsumerBuild itself independently importable.
+- Include the co-versioned process backend in the destination's applicable paired
+  build/restore relevance and Full harness identity. Port the import-closure guard
+  and actual-selector mutation/omission controls so a backend change invalidates
+  reuse. The actual common build-harness overlay must also carry the co-versioned
+  installer, discovery and process backend onto both sides; a hash-only addition
+  cannot make different restore implementations comparable. Keep workload/fixture
+  identity separate from that build overlay, and preserve the real baseline, each
+  side's library source/project, dependency pins, judge and strict preflight equality.
+  Cover missing-backend refusal, copy/rollback and library preservation using the
+  destination's actual selector. Do not copy an API4 path list or workflow digest
+  over destination policy.
 - Adapt CI tests to the destination's current unified adapter and scoped/evidence
   contracts. Add always-run-on-failure retention/upload for only the owned control
   result directory. Publish closed-field digests/counts and limitations, not raw

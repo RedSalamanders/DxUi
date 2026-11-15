@@ -40,7 +40,7 @@ Invoke-TestCase 'every library, build, benchmark and measurement path is measure
         'Tests/Embedded/Embedded.Tests.Embedded.cpp' = 'benchmark executable'; 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' = 'benchmark executable'; 'Tests/Support/Support.Tests.TestWatchdog.h' = 'benchmark executable'
         'Samples/EmbeddedControls/EmbeddedScene.h' = 'fixture or sample compiled into it'
         'DxUi.sln' = 'build or restore'; 'build.ps1' = 'build or restore'; 'vcpkg-install.ps1' = 'build or restore'; 'vcpkg-configuration.json' = 'build or restore'
-        'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'
+        'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/ConsumerBuild.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'
         'Tools/Validation.psm1' = 'build or restore'; 'Tools/Changelog.psm1' = 'build or restore'; 'Tools/Modules/Documentation/Changelog.psm1' = 'build or restore'
         'Tools/PairedRun.psm1' = 'benchmark harness'; 'Tools/BenchmarkGate.psm1' = 'benchmark harness'
         'Tools/PerformancePolicy.psm1' = 'benchmark harness'; 'Tools/PerformanceAcceptancePolicy.v1.json' = 'paired measurement or gate'
@@ -158,6 +158,36 @@ Invoke-TestCase 'every module the build and measurement scripts import is measur
     }
     Assert-True ($seen.Contains('Tools/PerformanceComparison.psm1') -and $seen.Contains('Tools/PairedRun.psm1') -and $seen.Contains('Tools/VcpkgTriplet.psm1')) 'the walk reaches the comparator, the schedule and the restore'
     Assert-True ($seen.Contains('Tools/Validation.psm1') -and $seen.Contains('Tools/Changelog.psm1')) 'the solution attestation helper closure is measured too'
+    Assert-True ($seen.Contains('Tools/ConsumerBuild.psm1')) 'VisualStudio and restore reach the captured consumer process backend'
+
+    # Execute the actual Full identity file-selection expression with an in-memory
+    # hash delegate. No toolchain discovery or source-local fixture is required.
+    $tokens=$null; $errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'Tools/PerformancePolicy.psm1'),[ref]$tokens,[ref]$errors)
+    Assert-Equal 0 @($errors).Count 'the owning receipt implementation parses'
+    $selections=@($ast.FindAll({param($node)
+        $node -is [Management.Automation.Language.AssignmentStatementAst] -and
+        $node.Left.Extent.Text -ceq '$harness' -and $node.Right.Extent.Text.Contains('& $hashFiles -Paths @(')
+    },$true))
+    Assert-Equal 1 $selections.Count 'one real Full harness identity selection'
+    $selection=$selections[0].Extent.Text
+    $evaluate=[scriptblock]::Create($selection+'; $harness')
+    $contents=@{'Tools/ConsumerBuild.psm1'='before'}
+    $hashFiles={param([string[]]$Paths)
+        $rows=@(foreach($path in $Paths){$value=if($contents.ContainsKey($path)){$contents[$path]}else{'unchanged'}; $path+' '+$value})
+        Get-Sha256Hex ([Text.Encoding]::UTF8.GetBytes(($rows -join "`n")))
+    }
+    $before=& $evaluate
+    $contents['Tools/ConsumerBuild.psm1']='after'
+    $after=& $evaluate
+    Assert-True ($before -cne $after) 'a consumer backend mutation invalidates actual Full harness identity'
+    $omitted=$selection.Replace("'Tools/ConsumerBuild.psm1',",'')
+    Assert-True ($omitted -cne $selection) 'the omission counterfactual changes the actual selector'
+    $without=[scriptblock]::Create($omitted+'; $harness')
+    $withoutBefore=& $without
+    $contents['Tools/ConsumerBuild.psm1']='third'
+    Assert-Equal $withoutBefore (& $without) 'the omitted-dependency counterfactual loses mutation detection'
+    Assert-True ($withoutBefore -cne (& $evaluate)) 'the real selector preserves the required dependency binding'
 }
 
 Invoke-FixtureCase 'the baseline is the merge commit''s first parent, so only this pull request is compared' {

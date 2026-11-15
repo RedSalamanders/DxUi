@@ -240,7 +240,49 @@ exported ImplementingType identity. A legitimate manifest/nested-export module-w
 not a failure. Bootstrap and callable-binding records are private, hash-bound diagnostic evidence.
 CI publishes only the closed summary/manifest pair: the manifest excludes itself and binds the summary's
 exact name, length and digest. Raw captures, command lines, environment, paths and identity queries are
-not publication inputs.
+not publication inputs. The public control summary uses
+`dxui.consumer-process-controls-public.v2`; its additional `setup` object contains only a closed
+phase, closed exception-type category and signed 32-bit HResult code. The allowed phases are
+`initializing`, `source-head.pre-start`, `source-head.post-start`,
+`source-head.ownership-recorded`, `source-head.metadata`, `source-head.returned`, `cases` and
+`completed`. Type categories are `NONE`, `InvalidOperationException`, `Win32Exception`, `IOException`,
+`PlatformNotSupportedException`, `CommandNotFoundException`, `RuntimeException` and `OTHER`.
+Raw exception messages, fully qualified error identifiers and stacks stay in private
+`control-error.json`; they must not enter the public projection.
+
+Record an actual process start and PID immediately after process creation, before optional or
+platform-specific process metadata can throw. Zero recorded starts do not prove that no child was
+created. Windows controls retain positive creation identity and the native process handle. Unix
+controls use supported process/wait ownership and explicitly distinguish a fast child that exited
+before observation. A long-lived callback/cleanup control still requires actual positive start-time
+evidence; synthetic metadata-error controls are not counted as actual native starts.
+
+The fixture observes `StartTime`, `SafeHandle` and `HasExited` through their exact
+`System.Diagnostics.Process` getter MethodInfos on the held process object. Preserve the getter's
+base exception rather than treating an adapted null property result as valid metadata. Null results,
+Windows creation failures, live-child failures and unrelated errors remain failures; only the known
+Unix already-exited observation may use its explicit unavailable-time outcome. Direct and wrapped
+fatal exceptions still propagate. Pure reader seams model these cases without claiming actual starts;
+a throwing PowerShell ScriptProperty is not an equivalent cross-host CLR getter model.
+
+`Tools/ConsumerBuild.psm1` is a measured build/restore input and a Full harness-identity input because
+VisualStudio discovery and dependency installation invoke its private boundary. Both closures must
+include it even when no public consumer-identity function is called directly. Omitting it must fail
+the existing dependency-walk and harness file-selection controls rather than permit stale evidence.
+
+Paired qualification must overlay the same common build harness onto both isolated revisions.
+The existing `performance-paired.ps1` common BUILD list includes `vcpkg-install.ps1`,
+`Tools/VisualStudio.psm1` and `Tools/ConsumerBuild.psm1` alongside `build.ps1` and
+`Tools/ScopedTesting.psm1`, because the Full harness identity includes their behavioral closure.
+Keep these build helpers out of the benchmark-workload input selector; this does not change the
+`benchmarkSha256` algorithm. Preserve each revision's C++ source, headers, library project and actual
+workload, and retain strict Full harness, toolchain, pin and judge equality. A preflight mismatch is
+an invalid paired comparison, not a regression or a measurement result.
+
+The native-scope workflow guard admits only the exact pinned, public-projection-only, failure-retention
+upload step already owned by this workflow. This exception does not admit conditional jobs, conditional
+required validation steps, `continue-on-error`, changed host/MSBuild selection, duplicate uploads or
+broader artifact paths. Keeping public failure evidence available must not bypass a required check.
 
 The dated component checkpoint and remaining gates are tracked in the
 [active API 4 backport plan](../Plans/WIP/Api4ConsumerProcessCapture_2026-11-15.md).

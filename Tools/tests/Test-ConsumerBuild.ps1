@@ -16,6 +16,9 @@ Console case results and bounded JSON observations beneath the unique fixture ch
 Only public/summary.json and public/manifest.json are publication projections;
 the remaining files are private raw evidence. HEAD plus component hashes does
 not attest that an uncommitted workspace is a qualified commit.
+Public projection v2 adds only closed setup phase/type/code diagnostics. Raw
+exceptions remain in the private control-error.json. Unix SafeHandle denotes a
+runtime wait object; short-lived child creation metadata can be unavailable.
 #>
 [CmdletBinding()]
 param(
@@ -139,6 +142,10 @@ if ([IO.Path]::GetFileName($hostExecutable).ToLowerInvariant() -notin @('pwsh','
 $git = Get-Command git -CommandType Application -ErrorAction Stop | Select-Object -First 1
 $primaryFailure = $false
 $primaryErrorHash = ''
+$primaryErrorRecord = $null
+$script:SetupPhase = 'initializing'
+$script:SetupErrorType = 'NONE'
+$script:SetupErrorCode = 0
 $script:CaptureOrdinal = 0
 $script:ObservedSourceHead = ''
 
@@ -168,7 +175,7 @@ function New-ControlPublicProjection([object[]] $Cases, [bool] $PrimaryFailure, 
         $console=[pscustomobject][ordered]@{window_present=[bool]$facts.window_present;window_visible=[bool]$facts.window_visible;stdout_type=[int]$facts.stdout_type;stderr_type=[int]$facts.stderr_type}
     }
     return [pscustomobject][ordered]@{
-        schema='dxui.consumer-process-controls-public.v1';run_token=([IO.Path]::GetFileName($root).Substring(9));
+        schema='dxui.consumer-process-controls-public.v2';run_token=([IO.Path]::GetFileName($root).Substring(9));
         source_commit=$script:ObservedSourceHead;test_sha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash;
         module_sha256=(Get-FileHash -LiteralPath $modulePath -Algorithm SHA256).Hash;
         host_version=$PSVersionTable.PSVersion.ToString();platform_family=$(if($isWindowsHost){'Windows'}else{'Unix'});
@@ -176,16 +183,17 @@ function New-ControlPublicProjection([object[]] $Cases, [bool] $PrimaryFailure, 
         status=$(if($PrimaryFailure -or $failed -or $Cases.Count -ne $expected){'FAILED'}else{'PASSED'});
         counts=[pscustomobject][ordered]@{passed=$Cases.Count-$failed;failed=$failed;total=$Cases.Count;expected=$expected};
         error_category=$(if($failed){'CASE_FAILURE'}elseif($PrimaryFailure){'CONTROL_FAILURE'}elseif($Cases.Count -ne $expected){'INCOMPLETE'}else{'NONE'});
-        error_sha256=$PrimaryErrorHash;observations_sha256=$ObservationHash;native_starts=(& $module {$script:TestStarts.Count});owned_console=$console;cases=$rows
+        error_sha256=$PrimaryErrorHash;setup=[pscustomobject][ordered]@{phase=$script:SetupPhase;type=$script:SetupErrorType;code=$script:SetupErrorCode};
+        observations_sha256=$ObservationHash;native_starts=(& $module {$script:TestStarts.Count});owned_console=$console;cases=$rows
     }
 }
 
 function Assert-ControlPublicProjection($Projection) {
     # A deliberately closed publication shape, not a sanitizer for arbitrary data.
-    $fields=@('schema','run_token','source_commit','test_sha256','module_sha256','host_version','platform_family','host_utility','status','counts','error_category','error_sha256','observations_sha256','native_starts','owned_console','cases')
+    $fields=@('schema','run_token','source_commit','test_sha256','module_sha256','host_version','platform_family','host_utility','status','counts','error_category','error_sha256','setup','observations_sha256','native_starts','owned_console','cases')
     if ($null -eq $Projection -or $Projection -isnot [pscustomobject] -or
         (@($Projection.PSObject.Properties.Name | Sort-Object) -join '|') -cne (@($fields | Sort-Object) -join '|')) { throw 'Public projection has an unapproved field set.' }
-    if ($Projection.schema -cne 'dxui.consumer-process-controls-public.v1' -or $Projection.run_token -cnotmatch '^[0-9a-f]{8}$') { throw 'Public projection schema or token is invalid.' }
+    if ($Projection.schema -cne 'dxui.consumer-process-controls-public.v2' -or $Projection.run_token -cnotmatch '^[0-9a-f]{8}$') { throw 'Public projection schema or token is invalid.' }
     if ($Projection.source_commit -and $Projection.source_commit -cnotmatch '^[0-9a-f]{40}$') { throw 'Public projection source is invalid.' }
     foreach($name in @('test_sha256','module_sha256','observations_sha256')) {
         if ($Projection.$name -notmatch '^[0-9a-fA-F]{64}$') { throw 'Public projection hash is invalid.' }
@@ -198,6 +206,11 @@ function Assert-ControlPublicProjection($Projection) {
         $utility.version -notmatch '^\d+\.\d+(?:\.\d+){0,2}$' -or $utility.manifest_sha256 -notmatch '^[0-9a-fA-F]{64}$' -or
         $utility.hash_command_kind -cnotin @('Function','Cmdlet') -or $utility.owner_verified -isnot [bool] -or -not $utility.owner_verified) {throw 'Public projection host-module fields are invalid.'}
     if (($Projection.native_starts -isnot [int] -and $Projection.native_starts -isnot [long]) -or $Projection.native_starts -lt 0) {throw 'Public projection launch count is invalid.'}
+    $setup=$Projection.setup
+    if ((@($setup.PSObject.Properties.Name|Sort-Object) -join '|') -cne 'code|phase|type' -or
+        $setup.phase -cnotin @('initializing','source-head.pre-start','source-head.post-start','source-head.ownership-recorded','source-head.metadata','source-head.returned','cases','completed') -or
+        $setup.type -cnotin @('NONE','InvalidOperationException','Win32Exception','IOException','PlatformNotSupportedException','CommandNotFoundException','RuntimeException','OTHER') -or
+        ($setup.code -isnot [int] -and $setup.code -isnot [long]) -or $setup.code -lt [int]::MinValue -or $setup.code -gt [int]::MaxValue) {throw 'Public projection setup fields are invalid.'}
     if ($null -ne $Projection.owned_console) {
         $console=$Projection.owned_console
         if ((@($console.PSObject.Properties.Name|Sort-Object) -join '|') -cne 'stderr_type|stdout_type|window_present|window_visible' -or
@@ -271,43 +284,123 @@ function Assert-IdentityOracle($Actual, [string] $Head, $Properties, [string] $B
 try {
     [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
     & $module {
-        param($FixtureRoot)
+        param($FixtureRoot,$WindowsHost)
         $script:NeverStarted = Join-Path $FixtureRoot 'never-started.exe'
+        $script:FixtureWindows = $WindowsHost
+        $script:StartStage = 'pre-start'
         $script:TestStarts = [Collections.Generic.List[object]]::new()
         $script:TestLines = [Collections.Generic.List[object]]::new()
         $script:OriginalStart = (Get-Command Start-DxUiConsumerQueryProcess -CommandType Function).ScriptBlock
         $script:OriginalLine = (Get-Command Write-DxUiConsumerProcessLine -CommandType Function).ScriptBlock
         $script:LiveAck = ''
         $script:FailLine = ''
+        # PowerShell's property binder can turn getter exceptions into null,
+        # including CLR getters. Invoke these exact owned-object getters as
+        # methods so the underlying exception survives for strict classification.
+        # https://github.com/PowerShell/PowerShell/blob/v7.6.10/src/System.Management.Automation/engine/runtime/Binding/Binders.cs#L5027-L5040
+        # https://learn.microsoft.com/dotnet/api/system.reflection.methodbase.invoke
+        $script:StartTimeGetter=[Diagnostics.Process].GetProperty('StartTime').GetGetMethod()
+        $script:SafeHandleGetter=[Diagnostics.Process].GetProperty('SafeHandle').GetGetMethod()
+        $script:HasExitedGetter=[Diagnostics.Process].GetProperty('HasExited').GetGetMethod()
+        $script:ReadProcessStartTime={param($Process) $script:StartTimeGetter.Invoke($Process,[object[]]@())}
+        $script:ReadProcessSafeHandle={
+            param($Process)
+            $handle=$script:SafeHandleGetter.Invoke($Process,[object[]]@())
+            if($handle -isnot [Runtime.InteropServices.SafeHandle]){throw [IO.InvalidDataException]::new('Owned child handle getter returned no SafeHandle.')}
+            $handle
+        }
+        $script:ReadProcessHasExited={param($Process) $script:HasExitedGetter.Invoke($Process,[object[]]@())}
+        $script:ReadStartMetadata = {
+            param($Process,$Record)
+            # Unix SafeHandle is supported, but represents a runtime wait object,
+            # not a native Windows process-instance lease. Never reopen a PID.
+            $Record.Handle=& $script:ReadProcessSafeHandle $Process
+            $Record.HandleKind=if($script:FixtureWindows){'windows-process'}else{'unix-wait'}
+            $creation=$null
+            $unavailable=$false
+            try {
+                $creation=& $script:ReadProcessStartTime $Process
+            } catch {
+                if(Test-DxUiConsumerFatalException $_.Exception){throw}
+                $cause=$_.Exception.GetBaseException()
+                if($script:FixtureWindows -or ($cause -isnot [InvalidOperationException] -and $cause -isnot [ComponentModel.Win32Exception])){throw}
+                $exited=& $script:ReadProcessHasExited $Process
+                if($exited -isnot [bool] -or -not $exited){throw}
+                $unavailable=$true
+                $Record.StartTimeState='exited-before-observation'
+            }
+            if(-not $unavailable) {
+                if($creation -isnot [DateTime] -or $creation.Ticks -le 0){throw [IO.InvalidDataException]::new('Owned child creation getter returned no positive DateTime.')}
+                $Record.StartedTicks=$creation.ToUniversalTime().Ticks
+                $Record.StartTimeState='observed'
+            }
+            if($null -eq $Record.Handle -or $Record.Handle.IsInvalid -or $Record.Handle.IsClosed -or
+                ($script:FixtureWindows -and ($null -eq $Record.StartedTicks -or $Record.StartedTicks -le 0))) {
+                throw [IO.InvalidDataException]::new('Started test child lacks its required owned handle/creation evidence.')
+            }
+        }
         Set-Item Function:script:Start-DxUiConsumerQueryProcess {
             param([Diagnostics.ProcessStartInfo] $StartInfo)
             # This assertion runs BEFORE the original factory can start a child.
             if ($StartInfo.UseShellExecute -or -not $StartInfo.CreateNoWindow -or
                 -not $StartInfo.RedirectStandardOutput -or -not $StartInfo.RedirectStandardError) { throw 'Unsafe test child refused before start.' }
+            $script:StartStage='pre-start'
             $process = & $script:OriginalStart -StartInfo $StartInfo
-            [void]$script:TestStarts.Add([pscustomobject]@{
+            $script:StartStage='post-start'
+            try {
+                # Retain the exact object immediately, before fallible procfs or
+                # handle metadata. A recorded start is distinct from an attempt.
+                $record=[pscustomobject]@{
                 Pid = $process.Id; FileName = $StartInfo.FileName; Arguments = $StartInfo.Arguments
                 WorkingDirectory = $StartInfo.WorkingDirectory; NoWindow = $StartInfo.CreateNoWindow
                 RedirectOutput = $StartInfo.RedirectStandardOutput; RedirectError = $StartInfo.RedirectStandardError
-                StartedTicks = $process.StartTime.ToUniversalTime().Ticks; Process = $process; Handle = $process.SafeHandle
-            })
+                StartedTicks=$null; StartTimeState='pending'; Process=$process; Handle=$null; HandleKind='pending'; ObservationDisposed=$false
+                }
+                [void]$script:TestStarts.Add($record)
+                $script:StartStage='ownership-recorded'
+                $script:StartStage='metadata'
+                & $script:ReadStartMetadata $process $record
+                $script:StartStage='returned'
+            } catch {
+                $primary=$_
+                try {
+                    $exited=& $script:ReadProcessHasExited $process
+                    if($exited -isnot [bool]){throw [IO.InvalidDataException]::new('Owned child exit getter returned no boolean.')}
+                    if(-not $exited){$process.Kill();$process.WaitForExit()}
+                } catch {
+                    if(Test-DxUiConsumerFatalException $_.Exception){throw}
+                    Write-Warning 'Test child observation cleanup also failed; preserving its primary error.' -WarningAction Continue
+                } finally {
+                    try {
+                        $process.Dispose()
+                        if($null -ne (Get-Variable record -Scope Local -ErrorAction SilentlyContinue)){$record.ObservationDisposed=$true}
+                    } catch {
+                        if(Test-DxUiConsumerFatalException $_.Exception){throw}
+                        Write-Warning 'Test child observation disposal also failed; preserving its primary error.' -WarningAction Continue
+                    }
+                }
+                throw $primary
+            }
             return $process
         }
         Set-Item Function:script:Write-DxUiConsumerProcessLine {
             param([string] $Line, [bool] $IsError)
             [void]$script:TestLines.Add([pscustomobject]@{ Line = $Line; IsError = $IsError })
             if ($script:LiveAck -and $Line -ceq 'live-ready') {
-                if ($script:TestStarts[-1].Process.HasExited) { throw 'Live delivery happened after child exit.' }
+                $exited=& $script:ReadProcessHasExited $script:TestStarts[-1].Process
+                if ($exited -isnot [bool] -or $exited) { throw 'Live delivery happened after child exit or without verified exit metadata.' }
                 [IO.File]::WriteAllText($script:LiveAck, 'observed before child exit')
             }
             if ($script:FailLine -and $Line -ceq $script:FailLine) { throw [IO.IOException]::new('Synthetic primary callback failure.') }
             & $script:OriginalLine -Line $Line -IsError $IsError
         }
-    } $root
+    } $root $isWindowsHost
 
+    $script:SetupPhase='source-head.pre-start'
     $sourceHead = Invoke-Capture $git.Source @('-C',$repository,'rev-parse','HEAD')
     if ($sourceHead.ExitCode -ne 0 -or $sourceHead.StandardOutput.Trim() -cnotmatch '^[0-9a-f]{40}$') { throw 'Cannot bind control source HEAD.' }
     $script:ObservedSourceHead = $sourceHead.StandardOutput.Trim()
+    $script:SetupPhase='cases'
 
     Invoke-TestCase 'standalone module preserves the sole four-parameter public API' {
         Assert-Equal 'Get-DxUiConsumerBuildIdentity' (($module.ExportedFunctions.Keys | Sort-Object) -join ',') 'only the supported export'
@@ -330,7 +423,90 @@ try {
                 try { & $script:OriginalStart -StartInfo $start } catch { $message = $_.Exception.Message }
                 if (-not $message.Contains('captured no-window process flags')) { throw "Missing intrinsic $flag refusal." }
             }
+            $savedStart=$script:OriginalStart; $savedMetadata=$script:ReadStartMetadata
+            $savedStarts=$script:TestStarts; $savedWindows=$script:FixtureWindows; $savedStage=$script:StartStage
+            $savedTime=$script:ReadProcessStartTime; $savedHandle=$script:ReadProcessSafeHandle; $savedExited=$script:ReadProcessHasExited
+            try {
+                $start.UseShellExecute=$false; $start.CreateNoWindow=$true
+                $start.RedirectStandardOutput=$true; $start.RedirectStandardError=$true
+                # Deterministic metadata/ownership checks, not real starts and
+                # never included in the recorded native-start observations.
+                $script:FixtureWindows=$false
+                $script:MetadataHandle=[pscustomobject]@{IsInvalid=$false;IsClosed=$false}
+                $script:MetadataTime=[DateTime]::UtcNow; $script:MetadataFailure=$null; $script:MetadataExited=$true
+                $script:ReadProcessStartTime={param($Process) if($null -ne $script:MetadataFailure){throw $script:MetadataFailure}; $script:MetadataTime}
+                $script:ReadProcessSafeHandle={param($Process) $script:MetadataHandle}
+                $script:ReadProcessHasExited={param($Process) $script:MetadataExited}
+                $checkMetadata={
+                    param([bool]$Accept,[bool]$Unavailable,[Type]$FailureType)
+                    $row=[pscustomobject]@{Handle=$null;HandleKind='pending';StartedTicks=$null;StartTimeState='pending'}
+                    $failure=$null
+                    try {& $savedMetadata ([pscustomobject]@{}) $row} catch {$failure=$_.Exception.GetBaseException()}
+                    if($Accept) {
+                        if($null -ne $failure){throw $failure}
+                        if($Unavailable) {
+                            if($row.StartTimeState -cne 'exited-before-observation' -or $null -ne $row.StartedTicks -or $row.HandleKind -cne 'unix-wait'){throw 'Unix unavailable creation facts were fabricated.'}
+                        } elseif($row.StartTimeState -cne 'observed' -or $row.StartedTicks -le 0){throw 'Positive creation metadata was lost.'}
+                    } elseif($null -eq $failure -or -not $FailureType.IsInstanceOfType($failure)){throw 'Metadata refusal lost its exact underlying cause.'}
+                }
+                & $checkMetadata $true $false $null
+                $script:FixtureWindows=$true
+                & $checkMetadata $true $false $null
+                $script:FixtureWindows=$false
+                foreach($badTime in @($null,'not a DateTime',[DateTime]::MinValue)) {
+                    $script:MetadataTime=$badTime
+                    & $checkMetadata $false $false ([IO.InvalidDataException])
+                }
+                $script:MetadataTime=[DateTime]::UtcNow
+                foreach($known in @([InvalidOperationException]::new('Synthetic exited creation.'),[ComponentModel.Win32Exception]::new(2))) {
+                    $script:MetadataFailure=[Reflection.TargetInvocationException]::new($known)
+                    $script:FixtureWindows=$false; $script:MetadataExited=$true
+                    & $checkMetadata $true $true $null
+                    $script:MetadataExited=$false
+                    & $checkMetadata $false $false ($known.GetType())
+                    $script:MetadataExited=$null
+                    & $checkMetadata $false $false ($known.GetType())
+                    $script:MetadataExited=$true; $script:FixtureWindows=$true
+                    & $checkMetadata $false $false ($known.GetType())
+                }
+                $script:FixtureWindows=$false
+                foreach($unexpected in @([IO.IOException]::new('Synthetic unrelated creation.'),[OutOfMemoryException]::new('Synthetic fatal only; no allocation failure.'))) {
+                    foreach($failure in @($unexpected,[Reflection.TargetInvocationException]::new($unexpected))) {
+                        $script:MetadataFailure=$failure
+                        & $checkMetadata $false $false ($unexpected.GetType())
+                    }
+                }
+                $script:MetadataFailure=$null; $script:MetadataHandle=$null
+                & $checkMetadata $false $false ([IO.InvalidDataException])
+                foreach($badHandle in @([pscustomobject]@{IsInvalid=$true;IsClosed=$false},[pscustomobject]@{IsInvalid=$false;IsClosed=$true})) {
+                    $script:MetadataHandle=$badHandle
+                    & $checkMetadata $false $false ([IO.InvalidDataException])
+                }
+                foreach($alreadyExited in @($false,$true)) {
+                    $script:TestStarts=[Collections.Generic.List[object]]::new()
+                    $script:FakeStarted=[pscustomobject]@{Id=4242;HasExited=$alreadyExited;Killed=$false;Waited=$false;Disposed=$false}
+                    $script:FakeStarted|Add-Member ScriptMethod Kill {$this.Killed=$true;$this.HasExited=$true}
+                    $script:FakeStarted|Add-Member ScriptMethod WaitForExit {$this.Waited=$true}
+                    $script:FakeStarted|Add-Member ScriptMethod Dispose {$this.Disposed=$true}
+                    $script:OriginalStart={param($StartInfo) $script:FakeStarted}
+                    $script:ReadStartMetadata={param($Process,$Record) throw [IO.IOException]::new('Synthetic primary post-start metadata failure.')}
+                    $script:ReadProcessHasExited={param($Process) $Process.HasExited}
+                    $failure=$null
+                    try {Start-DxUiConsumerQueryProcess -StartInfo $start|Out-Null} catch {$failure=$_.Exception}
+                    if($null -eq $failure -or -not $failure.Message.Contains('Synthetic primary post-start metadata failure.')) {throw 'Post-start primary metadata failure was lost.'}
+                    if($script:TestStarts.Count -ne 1 -or -not [object]::ReferenceEquals($script:TestStarts[0].Process,$script:FakeStarted) -or
+                        -not $script:TestStarts[0].ObservationDisposed -or -not $script:FakeStarted.Disposed) {throw 'The exact successfully started object was not retained and disposed.'}
+                    if($script:FakeStarted.Killed -ne (-not $alreadyExited) -or $script:FakeStarted.Waited -ne (-not $alreadyExited)) {throw 'Observation cleanup did not distinguish the live owned child from an exited one.'}
+                }
+            } finally {
+                $script:OriginalStart=$savedStart; $script:ReadStartMetadata=$savedMetadata
+                $script:ReadProcessStartTime=$savedTime; $script:ReadProcessSafeHandle=$savedHandle; $script:ReadProcessHasExited=$savedExited
+                $script:TestStarts=$savedStarts; $script:FixtureWindows=$savedWindows; $script:StartStage=$savedStage
+                Remove-Variable FakeStarted -Scope Script -ErrorAction SilentlyContinue
+                Remove-Variable MetadataHandle,MetadataTime,MetadataFailure,MetadataExited -Scope Script -ErrorAction SilentlyContinue
+            }
         }
+        [void]$observations.Add([pscustomobject]@{Kind='StartMetadataCounterfactuals';Mode='Pure reader seams; not native starts';ExitedTimeUnavailable=$true;NullRejected=$true;LiveAndWindowsRefused=$true;FatalPropagated=$true;ExactOwnerCleanup=$true})
     }
 
     Invoke-TestCase 'native Git preserves literal empty, quoted, Unicode and metacharacter arguments' {
@@ -454,7 +630,9 @@ exit 17
         catch { $message=$_.Exception.Message }
         finally { & $module { $script:FailLine='' } }
         Assert-True $message.Contains('Synthetic primary callback failure') 'original callback error retained'
-        $owned = & $module { $script:TestStarts[-1] | Select-Object Pid,StartedTicks,Handle }
+        $owned = & $module { $script:TestStarts[-1] | Select-Object Pid,StartedTicks,StartTimeState,Handle,HandleKind }
+        Assert-True ($owned.StartTimeState -ceq 'observed' -and $owned.StartedTicks -gt 0) 'the controlled long-lived child has actual positive creation evidence'
+        Assert-Equal $(if($isWindowsHost){'windows-process'}else{'unix-wait'}) $owned.HandleKind 'the retained handle semantics match the actual platform'
         $remaining = Get-Process -Id $owned.Pid -ErrorAction SilentlyContinue
         Assert-True ($null -eq $remaining -or $remaining.StartTime.ToUniversalTime().Ticks -ne $owned.StartedTicks) 'the same owned process is no longer running'
         Assert-True $owned.Handle.IsClosed 'the owned process handle was disposed'
@@ -691,13 +869,17 @@ $answer=& $m {Test-DxUiConsumerInteractiveConsole}
         }
         $projection=New-ControlPublicProjection @([pscustomobject]@{Error='synthetic private failure';Name='not published'}) $true ('a'*64) ('b'*64)
         Assert-ControlPublicProjection $projection
-        foreach($mode in @('field','scalar','case','host-owner')) {
+        foreach($mode in @('field','scalar','case','host-owner','setup-field','setup-phase','setup-type','setup-code')) {
             $bad=$projection|ConvertTo-Json -Depth 8|ConvertFrom-Json
             switch($mode) {
                 field {$bad|Add-Member NoteProperty fixture_path 'C:\synthetic-private'}
                 scalar {$bad.host_version='C:\synthetic-private'}
                 case {$bad.cases[0]|Add-Member NoteProperty raw_error 'C:\synthetic-private'}
                 host-owner {$bad.host_utility|Add-Member NoteProperty raw_path 'C:\synthetic-private'}
+                setup-field {$bad.setup|Add-Member NoteProperty raw_message 'C:\synthetic-private'}
+                setup-phase {$bad.setup.phase='C:\synthetic-private'}
+                setup-type {$bad.setup.type='System.Private.UnreviewedType'}
+                setup-code {$bad.setup.code='C:\synthetic-private'}
             }
             $rejected=$false
             try {Assert-ControlPublicProjection $bad} catch {$rejected=$true}
@@ -713,14 +895,27 @@ $answer=& $m {Test-DxUiConsumerInteractiveConsole}
     }
 
     Complete-TestRun 'ConsumerBuild'
+    $script:SetupPhase='completed'
 } catch {
     $primaryFailure = $true
     $primaryErrorHash = Get-ControlTextHash $_.Exception.ToString()
+    if($script:SetupPhase.StartsWith('source-head.')) {
+        $script:SetupPhase='source-head.'+(& $module {$script:StartStage})
+    }
+    $cause=$_.Exception.GetBaseException()
+    $type=$cause.GetType().Name
+    $script:SetupErrorType=if($type -cin @('InvalidOperationException','Win32Exception','IOException','PlatformNotSupportedException','CommandNotFoundException','RuntimeException')){$type}else{'OTHER'}
+    $script:SetupErrorCode=[int]$cause.HResult
+    $primaryErrorRecord=[pscustomobject]@{phase=$script:SetupPhase;exception_type=$cause.GetType().FullName;hresult=[int]$cause.HResult;
+        fully_qualified_error_id=$_.FullyQualifiedErrorId;exception=$_.Exception.ToString();script_stack=$_.ScriptStackTrace}
     throw
 } finally {
     try {
+        if($null -ne $primaryErrorRecord) {
+            [IO.File]::WriteAllText((Join-Path $root 'control-error.json'),($primaryErrorRecord|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+        }
         $starts = & $module {
-            @($script:TestStarts | Select-Object Pid, StartedTicks, FileName, Arguments, WorkingDirectory, NoWindow, RedirectOutput, RedirectError)
+            @($script:TestStarts | Select-Object Pid, StartedTicks, StartTimeState, HandleKind, ObservationDisposed, FileName, Arguments, WorkingDirectory, NoWindow, RedirectOutput, RedirectError)
         }
         [void]$observations.Add([pscustomobject]@{ Kind = 'Starts'; Values = @($starts) })
         [void]$observations.Add([pscustomobject]@{Kind='Cases';Values=@(& $support { $script:Results.ToArray() })})
@@ -737,6 +932,7 @@ $answer=& $m {Test-DxUiConsumerInteractiveConsole}
             host_bootstrap_sha256=(Get-FileHash -LiteralPath (Join-Path $root 'host-bootstrap.json') -Algorithm SHA256).Hash;
             actual_msbuild_requested=[bool]$MSBuildPath;actual_identity_observations=@($observations|Where-Object {$_.Kind -ceq 'ActualIdentity' -and $_.PSObject.Properties['Identity']}).Count;
             native_starts=@($starts).Count;observations_sha256=(Get-FileHash $observationPath -Algorithm SHA256).Hash;
+            setup=[ordered]@{phase=$script:SetupPhase;type=$script:SetupErrorType;code=$script:SetupErrorCode};
             fixture=$root;product_compilation=$false;foreground_input=$false;completed_utc=[DateTime]::UtcNow.ToString('o')}
         [IO.File]::WriteAllText((Join-Path $root 'summary.json'), ($summary|ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
         $public=Join-Path $root 'public'
