@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Record exact H8 API4 producer acceptance, its retained complete normal-Gate study and control limitations, while keeping maintenance delivery and separately owned consumer/desktop milestones explicit; retain the version6 no-authority-transfer boundary.
 - Align the pull-request paired study with the existing manual outer budgets (210-minute measurement, 240-minute job), retaining the full 144-report workload, per-sample deadlines, unchanged policy and reporting headroom. Preserve the H7 partial-study timeout as failed; complete exact-source qualification remains pending.
 - Restore the inline Menu material driver declaration with its existing first cleanup guard, preserving activation, assertions and capture deadline; validate the actual watchdog source case alongside formatting before fresh native qualification.
 - Apply the existing owner-foreground precondition once before material-menu capture and retain bounded popup lifetime/show-return diagnostics on failure, preserving the 5000 ms deadline, three materials and original assertions; fresh exact-head native qualification remains required.

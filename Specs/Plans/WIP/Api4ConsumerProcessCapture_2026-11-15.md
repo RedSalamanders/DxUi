@@ -1,6 +1,6 @@
 # API 4 consumer background-process capture
 
-Status: **ACTIVE**. This is a tooling maintenance backport with a bounded test-only qualification follow-up, not API 5 adoption or completed qualification.
+Status: **ACTIVE — maintenance delivery and separate consumer closeout**. Exact H8 producer qualification is complete under the configured normal Gate. The documentation successor and maintenance PR delivery require their own current-head checks. RedSalamander adopted the exact H8/API4 source pin and passed current-source x64 Debug/Release scoped noninteractive PrePush; ARM64 and product/desktop qualification remain separately owned and pending. This is not API5 adoption or version6 qualification.
 
 ## Scope and protected source
 
@@ -31,11 +31,14 @@ is a separate implementation/qualification checklist; it does not mark that port
 - [x] Execute focused safe controls under Windows PowerShell 5.1 and PowerShell 7, including literal
       arguments, separate full pipes, live delivery, exits, cleanup, batch metacharacter CWD, unchanged
       identity semantics and selected evaluation-only MSBuild metadata. Retain first failures honestly.
-- [ ] Run owning validators, focused tooling suite and canonical scoped Explain; record actual selected
-      scope without treating unmatched consumer-module changes as Tooling-only coverage.
+- [x] Complete H8 owning validators and focused/full tooling controls in the successful automatic cohort.
+- [x] Record current documentation-tail validators and actual canonical affected/PrePush Explain; keep
+      selected scope and dirty-tree delegation separate from native execution.
 - [x] Fold only this change's fragment using the canonical producer command before PrePush/final handoff.
-- [ ] Complete reviewed producer qualification and maintenance branch/PR delivery with exact-source evidence.
-      Tooling checks do not replace the six native producer/relocated-consumer profiles.
+- [x] Complete exact H8 producer qualification: six native profiles, eight relocated-consumer configurations,
+      compiler-free validators/tooling, formatting and the complete normal paired Gate.
+- [ ] Complete the documentation successor's actual configured checks and merge PR256 into the existing
+      API4 maintenance branch with exact-source delivery evidence.
 - [ ] Adopt the qualified exact commit in the separate RedSalamander PR and rebuild/re-attest/qualify
       its affected workflows and product. No consumer pin changes occur implicitly from this producer work.
 - [x] Complete the checked-in version 6 carry-forward guide without changing that line's implementation,
@@ -399,3 +402,60 @@ workflow/source controls and final diff/identity checks must accompany the commi
 no native rerun, complete paired result or consumer pin adoption is claimed here.
 Normal publication and fresh exact-head native, consumer and complete paired CI
 remain required. H7's135/144 timeout remains failed, with no completed verdict.
+
+## H8 producer qualification complete; maintenance and consumer closeout pending (2026-11-16)
+
+Exact [H8 `7fb2ab71852087d93b3a3e5b3ba504c37f56267c`](https://github.com/RedSalamanders/DxUi/commit/7fb2ab71852087d93b3a3e5b3ba504c37f56267c)
+completed [validation run 43769081609](https://github.com/RedSalamanders/DxUi/actions/runs/43769081609)
+and [format run 43769081636](https://github.com/RedSalamanders/DxUi/actions/runs/43769081636).
+Actual test merge T8 `b6fb7ef0355e413baee217ac5df015f74f1fbfb6` has parents P/H8 and the H8 tree;
+measured P is `c07dc7ccbc142a3af78a7ca3926cf48f92614a22`. All six native profiles passed with
+zero build warnings/errors and required interactive coverage; all eight relocated-consumer configurations
+passed, including the two annotations-disabled ASan cases. H8's automatic compiler-free/tooling,
+formatting and ci-gate checks passed.
+
+The complete normal A/B study retained 144 verified v2 receipts across Default, MultilineGrid and
+MultilineGridDistinct (twelve blocks and 48 reports per scenario, A24/B24 each), with actual log order
+and summary receipt hashes bound to the scheduled slots. Trusted P policy, LibraryUnchanged=true,
+26 judged slots per scenario and zero established regressions/improvements produced the configured
+normal-Gate pass. All 24 exact-budget slots held, including run-median and raw-maximum bounds.
+All twenty full-harness inputs bind
+`7249D6FCCF538E722FAC8E615CB1656BD516F9224828BBB7CDFBB64FB82C0E56`.
+StrictControls=false; 66/72 control comparisons remain unstable (22/24, 24/24, 20/24 by scenario).
+This does not establish StrictControls acceptance, dedicated-host quality, runner-noise approval or a
+performance improvement. Numeric policy, judge, assignment and per-sample/native deadlines remain unchanged.
+
+Official ZIP hashes matched service digests. The paired artifact retains actual baseline/candidate EXE
+and library bodies, independently rehashed against all 144 receipt EXE identities. Canonical offline replay
+reproduced the published verdict and rejected a wrong-candidate control. Complete v2 attestation identities
+were not independently reconstructed from every underlying source/dependency/compiler/SDK preimage.
+Native ZIPs retain receipts/logs rather than actual image/render/expanded-attestation bodies; their image
+hashes are not claimed as independently rehashed native binaries. Earlier H2 A/A diagnostics and H5/H6/H7
+failures remain source-bound; neither partial acceptance nor a historical failure cause is inferred.
+
+Separate RedSalamander source `70fad2b84101f35552f4615e0d03217b8b9a9f59` adopts exact H8/API4 Source.
+Its x64 Debug and Release scoped noninteractive PrePush each promoted 14 selected entries with zero failures
+(Debug 1738/0/28 declared skips; Release 1736/0/30). Commands, FileOperations, ViewerPETests.Interactive and
+ViewerSqliteTests.Interactive, and native ARM64 qualification remain separately owned and pending at this
+checkpoint. The repository verdict is NOT_EVALUATED; these consumer results are not Full acceptance and
+are not a producer merge gate. No consumer pin changes implicitly from this documentation tail.
+
+The current maintenance delivery milestone remains open until PR 256's actual successor checks and normal
+merge complete. Although this tail edits prose only, the same PR's cumulative P-to-successor diff still
+contains code: fresh six-profile/eight-consumer native and complete paired 144 CI remain required by its
+unchanged configuration. Old H8 receipts are not relabelled as the new head. The exact qualified H8 consumer
+pin remains unchanged. The existing version6 guide remains a separate carry-forward contract: API4 policy
+state, owner authority and native/paired acceptance do not qualify cooking API5/version6. No port is applied.
+The plan stays ACTIVE for real maintenance delivery and external consumer closeout; historical checkpoint
+paragraphs above retain their original source/time scope.
+
+### Actual local documentation-tail planning and validators (2026-11-16)
+
+The canonical affected Explain against the actual maintenance comparison ref selected all twenty scopes,
+including the conservative full fallback for the PR's ConsumerBuild/tooling inputs, and reported Menu as
+INTERACTIVE_NOT_RUN. The actual x64 Debug PrePush Explain selected the same twenty scopes and separately
+reported Menu, MenuResources, MenuResourceScaling and NativeTextInput as INTERACTIVE_NOT_RUN. No CI
+coverage delegation was reported from the dirty documentation worktree. Both explanation commands exited
+zero without building or running native tests; they are plans, not successor qualification. Owning spec/skill
+validators and canonical changelog validation/fold checks passed. Fresh exact-successor automatic checks,
+maintenance merge and the separate consumer gates above remain pending.

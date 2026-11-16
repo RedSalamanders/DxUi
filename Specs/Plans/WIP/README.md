@@ -1,6 +1,6 @@
 # Active plans
 
-- **ACTIVE**: [API 4 consumer background-process capture](Api4ConsumerProcessCapture_2026-11-15.md). Independent API4 policy approval/local seed P and staged P-into-H5 integration are recorded. The reviewed bounded material-menu owner precondition/diagnostics are applied locally after H5 ARM64 Debug failure; source-bound H5 evidence and fresh exact-H6 native/consumer/paired qualification remain separate and pending. No remote/pin advancement or version6 authority transfer is claimed.
+- **ACTIVE**: [API 4 consumer background-process capture](Api4ConsumerProcessCapture_2026-11-15.md). Exact H8 passed six native profiles, eight relocated-consumer configurations and the complete 144-report normal paired Gate. Maintenance delivery and current documentation-head checks remain pending. RedSalamander's exact H8/API4 Source pin has current x64 Debug/Release scoped noninteractive passes; its ARM64 and product/desktop gates remain separate. The version6 guide transfers no API4 policy or owner authority.
 
 - **ACTIVE**: [Native build policy, terminal results and short DxUi paths](NativeBuildPolicyCoherence_2026-10-28.md). Shared /Wall without /WX, zero-warning validation, Debug/ASan symbols, Release-only ICF, terminal results and verified short dependency folders.
 
