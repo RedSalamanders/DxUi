@@ -396,7 +396,20 @@ requires the guard first in every driver. Keep each driver declaration in the ex
 A Menu driver-fixture refactor must execute that actual source-contract case with its existing assertion helpers, alongside
 formatting, before native qualification. Isolate the existing source-only case for compiler-free preflight rather than mirroring
 its check or running its native watchdog fixtures. This proves source validation only; native watchdog, interactive lease and
-runtime acceptance remain separate requirements. A UI Automation client thread a Menu or Accessibility test joins is waited for,
+runtime acceptance remain separate requirements.
+
+The stationary-mouse keyboard-root-switch fixture retains the existing bounded `MenuHoverTraceForTest`
+pointer/keyboard, root-callback and popup-lifetime observations in memory, and prints rows only on driver
+failure after its join. Record the logical root/phase, already observed popup state, owned-window liveness
+and modal `Show` return. New phase/owned-window rows use logical indices and relation flags rather than
+raw handles; existing pointer/keyboard rows retain their existing diagnostic fields. Preserve its two 120 ms lifetime
+predicates, all original failure assertions, one initial activation, one session and first driver cleanup
+guard. These diagnostics neither retry input nor park/reacquire the pointer/focus. A destroyed popup alone
+does not prove a root-switch, activation, backend or timing cause; retain the actual failure until route
+and dismissal evidence supports attribution. The source-only watchdog contract checks these boundaries;
+its pass is separate from fresh native and interactive acceptance.
+
+A UI Automation client thread a Menu or Accessibility test joins is waited for,
 pumping, for as long as its setup was allowed (20 s) and then fails the test, since its teardown may need the pumping thread and
 a join does not pump.
 The sent modal-cancellation fixture first places its owner onscreen and verifies that the owner holds the

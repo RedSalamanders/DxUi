@@ -186,4 +186,23 @@ Invoke-TestCase 'every driver thread of the Menu suite starts with the guard tha
     $unguarded = @($drivers | Where-Object { $_.Groups['first'].Value -notmatch '\bDismissMenusIfDriverFails\b' })
     Assert-Equal 0 $unguarded.Count "drivers starting with anything else: $(@($unguarded | ForEach-Object { $_.Groups['first'].Value.Trim() }) -join ' | ')"
 }
+Invoke-TestCase 'stationary root-switch failure diagnostics keep the original lifetime contract' {
+    $source = [IO.File]::ReadAllText((Join-Path $repo 'Tests/Controls/DxUi.Tests.Menu.cpp'))
+    $start = $source.IndexOf('void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()')
+    $end = $source.IndexOf('void TestMenuPointerOverSiblingRootSwitchesOpenMenu()', $start)
+    Assert-True ($start -ge 0 -and $end -gt $start) 'the stationary-root case has explicit source boundaries'
+    $case = $source.Substring($start, $end - $start)
+    Assert-True ($case.Contains('MenuHoverTraceForTest trace(true, true, ownerWindow.Hwnd());')) 'reuse the bounded existing pointer/keyboard and owner trace'
+    foreach ($phase in @('stationary.root.direction.before','stationary.root.direction.after','stationary.root.pointer.callback',
+            'stationary.root.pointer.hit','stationary.root.pointer.accepted','stationary.a.before-post','stationary.a.destroyed',
+            'stationary.c.before-post','stationary.c.destroyed','stationary.show.begin','stationary.show.returned')) {
+        Assert-True ($case.Contains($phase)) "the bounded trace retains $phase"
+    }
+    Assert-True ($case -match 'if\s*\(\s*!\s*driverFailure\.empty\(\)\s*\)\s*trace\.Dump\(true\);') 'trace rows print only after a driver failure'
+    Assert-Equal 2 ([regex]::Matches($case, 'WaitForWindowDestroyed\([^;{}]*std::chrono::milliseconds\(120\)\)').Count) 'both original stationary-popup observations retain 120 ms'
+    Assert-Equal 1 ([regex]::Matches($case, 'TryActivateDxUiTestWindow\(').Count) 'the one original activation is retained'
+    Assert-Equal 1 ([regex]::Matches($case, 'ContextMenu::Show\(').Count) 'the fixture opens one modal session'
+    Assert-True ($case -match 'IsWindow\(aPopupAfterSecondLeftHwnd\)' -and $case -match 'IsWindowVisible\(aPopupAfterSecondLeftHwnd\)') 'failure facts describe the existing owned popup without publishing its handle'
+    Assert-True ($case -notmatch 'SetCursorPos|ScopedMenuPointerFixture|Reacquire|reacquire') 'diagnostics add no pointer parking or focus reacquisition'
+}
 Complete-TestRun 'Test watchdog'

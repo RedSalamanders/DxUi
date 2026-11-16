@@ -1,6 +1,6 @@
 # API 4 consumer background-process capture
 
-Status: **ACTIVE — maintenance delivery and separate consumer closeout**. Exact H8 producer qualification is complete under the configured normal Gate. The documentation successor and maintenance PR delivery require their own current-head checks. RedSalamander adopted the exact H8/API4 source pin and passed current-source x64 Debug/Release scoped noninteractive PrePush; ARM64 and product/desktop qualification remain separately owned and pending. This is not API5 adoption or version6 qualification.
+Status: **ACTIVE — maintenance delivery and separate consumer closeout**. Exact H8 producer qualification is complete under the configured normal Gate. Documentation successor H9 failed required ARM64 Debug Menu qualification; a bounded test-only diagnostic follow-up is applied locally, with fresh qualification pending. Maintenance delivery remains open. RedSalamander adopted the exact H8/API4 source pin and passed current-source x64 Debug/Release scoped noninteractive PrePush; ARM64 and product/desktop qualification remain separately owned and pending. This is not API5 adoption or version6 qualification.
 
 ## Scope and protected source
 
@@ -459,3 +459,35 @@ coverage delegation was reported from the dirty documentation worktree. Both exp
 zero without building or running native tests; they are plans, not successor qualification. Owning spec/skill
 validators and canonical changelog validation/fold checks passed. Fresh exact-successor automatic checks,
 maintenance merge and the separate consumer gates above remain pending.
+
+## H9 first failure retained; stationary-root diagnostics applied locally (2026-11-16)
+
+Documentation successor H9 `8b216aa5a6915a9b9aa8eefc6ca9054a46275bad`, actual merge T9
+`d0d801c1a900ab9584d5ab2da00c7078bd8e6b2c` with parents P/H9, failed the required
+[ARM64 Debug job](https://github.com/RedSalamanders/DxUi/actions/runs/43835370848/job/133190670122).
+Build completed with zero warnings/errors. The first failed step was Full native qualification:
+`TestStationaryMouseDoesNotOverrideKeyboardRootSwitch` reported
+"a stationary mouse over B does not pull keyboard navigation back from A" and Menu exited 1 with no skips.
+The relocated consumer separately passed with T9/API4, ten negative and twelve native-module checks.
+The raw official log and native artifact 14213772887 were retained before interpretation; its ZIP SHA256
+`e058861ca0db788cba74eaed034cc6d6347c62962252a9243f9d6e3da790c42a` matches the service digest.
+The 111-member map contains no dump/stack bodies. Other H9 jobs remain source-bound and are not cancelled,
+rerun or relabelled by this local follow-up.
+
+Frozen source locates the failed predicate at the final `WaitForWindowDestroyed` 120 ms observation after
+the posted stationary B move succeeded and prior A/B/C keyboard/root-state guards passed. This case's
+log retained no route, logical-root or dismissal state at failure. Its existing owner activation passed;
+there is no validated missing-focus precondition. The actual popup lifetime failure remains unproved
+beyond that predicate; neither H8's pass nor H9's unchanged production bytes establishes regression,
+flakiness or a foreign-focus cause. Lease restoration retained foreground restored, focus none and
+pointer restored, with full restoration unverified; those observations are not a causal explanation.
+
+The local follow-up reuses the existing bounded in-memory `MenuHoverTraceForTest` for UI callback/root
+phases, existing driver popup state/liveness and `Show` return, dumping rows only after driver failure.
+Both 120 ms predicates, every original assertion/workload, one initial activation/session and first
+driver cleanup guard remain. No pointer parking, focus reacquisition, new wait/retry, timing waiver or
+production-library/header/API change is applied. The twenty benchmark-harness inputs, policy, owner
+record, numeric bands/budgets and exact H8 consumer pin remain unchanged. Static/source/format checks
+can establish only source readiness; fresh native/consumer/complete paired qualification and independent
+review remain required before maintenance merge. The version6 guide is unchanged and transfers no API4
+approval authority. No runtime repair or acceptance is claimed by this diagnostic addition.

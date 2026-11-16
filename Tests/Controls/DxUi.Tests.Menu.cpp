@@ -3293,6 +3293,7 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
     };
     const std::array<POINT, 3> rootPopupPoints = {POINT{170, 180}, POINT{250, 180}, POINT{330, 180}};
 
+    MenuHoverTraceForTest trace(true, true, ownerWindow.Hwnd());
     size_t activeRootIndex  = 0u;
     const auto buildRequest = [&](size_t rootIndex) -> ContextMenuRootSwitchRequest
     {
@@ -3305,11 +3306,14 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
     ContextMenuSessionCallbacks sessionCallbacks{};
     sessionCallbacks.switchRootFromDirection = [&](bool forward) -> std::optional<ContextMenuRootSwitchRequest>
     {
+        trace.Ui("stationary.root.direction.before", activeRootIndex, forward ? 1u : 0u);
         activeRootIndex = forward ? ((activeRootIndex + 1u) % rootMenus.size()) : ((activeRootIndex + rootMenus.size() - 1u) % rootMenus.size());
+        trace.Ui("stationary.root.direction.after", activeRootIndex);
         return buildRequest(activeRootIndex);
     };
     sessionCallbacks.switchRootFromPointer = [&](POINT screenPoint) -> std::optional<ContextMenuRootSwitchRequest>
     {
+        trace.Ui("stationary.root.pointer.callback", activeRootIndex);
         POINT clientPoint = screenPoint;
         if (ScreenToClient(ownerWindow.Hwnd(), &clientPoint) == FALSE)
         {
@@ -3334,12 +3338,14 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
             hitIndex = 2u;
         }
 
+        trace.Ui("stationary.root.pointer.hit", hitIndex, activeRootIndex);
         if (hitIndex >= rootMenus.size() || hitIndex == activeRootIndex)
         {
             return std::nullopt;
         }
 
         activeRootIndex = hitIndex;
+        trace.Ui("stationary.root.pointer.accepted", activeRootIndex);
         return buildRequest(activeRootIndex);
     };
 
@@ -3349,6 +3355,7 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
     std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+        trace.Driver("stationary.driver.begin");
         const HWND aPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"A1");
         if (! aPopupHwnd)
         {
@@ -3371,6 +3378,7 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
             return;
         }
 
+        trace.Driver("stationary.b.discovered", IsWindow(bPopupHwnd) != FALSE, GetWindow(bPopupHwnd, GW_OWNER) == ownerWindow.Hwnd());
         ContextMenuPopupDebugState popupState{};
         if (! WaitForContextMenuPopupState(
                 bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept { return state.rootPointerSwitchCount == 1u; }, popupState))
@@ -3412,6 +3420,7 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
             return;
         }
 
+        trace.Driver("stationary.c.before-post", popupState.rootPointerSwitchCount, popupState.keyboardIndex.value_or(rootMenus[2].size()));
         if (PostMessageW(ownerWindow.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(160, 16)) == FALSE)
         {
             driverFailure = "posting the stationary B hover after switching to C succeeds";
@@ -3419,10 +3428,12 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
         }
         if (WaitForWindowDestroyed(cPopupHwnd, std::chrono::milliseconds(120)))
         {
+            trace.Driver("stationary.c.destroyed", IsWindow(cPopupHwnd) != FALSE, IsWindowVisible(cPopupHwnd) != FALSE);
             driverFailure = "a stationary mouse over B does not pull keyboard navigation back from C";
             return;
         }
 
+        trace.Driver("stationary.c.survived", IsWindow(cPopupHwnd) != FALSE, IsWindowVisible(cPopupHwnd) != FALSE);
         if (! SendMenuKeyForMenuSuite(cPopupHwnd, VK_LEFT))
         {
             driverFailure = "Left arrow key is delivered before stationary-mouse previous-root validation";
@@ -3455,6 +3466,7 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
             return;
         }
 
+        trace.Driver("stationary.a.before-post", popupState.rootPointerSwitchCount, popupState.keyboardIndex.value_or(rootMenus[0].size()));
         if (PostMessageW(ownerWindow.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(160, 16)) == FALSE)
         {
             driverFailure = "posting the stationary B hover after switching to A succeeds";
@@ -3462,14 +3474,19 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
         }
         if (WaitForWindowDestroyed(aPopupAfterSecondLeftHwnd, std::chrono::milliseconds(120)))
         {
+            trace.Driver("stationary.a.destroyed", IsWindow(aPopupAfterSecondLeftHwnd) != FALSE, IsWindowVisible(aPopupAfterSecondLeftHwnd) != FALSE);
             driverFailure = "a stationary mouse over B does not pull keyboard navigation back from A";
         }
     });
 
+    trace.Ui("stationary.show.begin", activeRootIndex);
     const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result =
         ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[activeRootIndex], rootMenus[activeRootIndex], theme, sessionCallbacks);
+    trace.Ui("stationary.show.returned", result.has_value() ? 1u : 0u, activeRootIndex);
     driver.join();
+    if (! driverFailure.empty())
+        trace.Dump(true);
 
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the stationary-mouse keyboard switching validation popup with Escape returns no invoked command");
