@@ -90,6 +90,8 @@ Read a focused repository-local skill under `.agents/skills/` for the affected w
 embedded-rendering, win32-host, input-accessibility, or consumer-integration (their referenced files must exist).
 Cross-repository C++/WIL, performance, and specification skills live in the sibling `RedHome` repository.
 
+Shared skill index: `../RedHome/AGENTS.md`; packages: `../RedHome/.agents/skills/`. If `../RedHome` is missing, clone https://github.com/RedSalamanders/RedHome.git to that path. This repository's guidance and domain specs own product behavior and validation.
+
 Application documentation screenshots use the consumer test harness. Explicitly authorized brief focus
 for hover/keyboard captures uses its existing warning and interactive desktop lease, with cursor/focus
 restoration; static captures remain non-activating. Never substitute desktop screenshots.
