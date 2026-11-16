@@ -54,7 +54,7 @@ jobs:
   checks:
     needs: resolve
     if: always() && (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && needs.resolve.result == 'success'))
-    uses: RedSalamanders/.github/.github/workflows/pr.yml@766fd7e01aeef2e77ba18df83b9928516155014e
+    uses: RedSalamanders/.github/.github/workflows/pr.yml@a094b2ea66fc6fd7a8933488a71dacda262903a4
     with:
       engine_ref: 766fd7e01aeef2e77ba18df83b9928516155014e
       head: ${{ github.event.pull_request.head.sha || needs.resolve.outputs.head }}
