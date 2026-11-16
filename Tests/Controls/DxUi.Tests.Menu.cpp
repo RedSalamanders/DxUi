@@ -1297,20 +1297,23 @@ public:
                 if (message.find(marker) != std::wstring_view::npos)
                 {
                     _active->Ui(phase);
+                    if ((std::wstring_view(marker) == L"menu.dismiss-cause-activation" || std::wstring_view(marker) == L"menu.loop-dismiss-activation") &&
+                        _active->_owner)
+                    {
+                        // Keep closed message kinds and current owner relations, never diagnostic text or native identities.
+                        const size_t kind = message.find(L"msg=WM_ACTIVATEAPP ") != std::wstring_view::npos  ? 1u
+                                            : message.find(L"msg=WM_ACTIVATE ") != std::wstring_view::npos   ? 2u
+                                            : message.find(L"msg=WM_NCACTIVATE ") != std::wstring_view::npos ? 3u
+                                                                                                             : 0u;
+                        _active->Ui("dismiss.activation-kind", kind, InSendMessageEx(nullptr));
+                        _active->Ui("dismiss.activation-context", _active->OwnerRelationFlags());
+                    }
                     if (std::wstring_view(marker) == L"menu.dismiss-cause-cancel" && _active->_owner)
                     {
                         // Observe before Dismiss changes the chain. Bits describe the
                         // current test owner, never publish native window/process IDs:
                         // foreground exists/owner/same process; capture owner/popup.
-                        const HWND foreground = GetForegroundWindow();
-                        DWORD foregroundProcess{};
-                        if (foreground)
-                            static_cast<void>(GetWindowThreadProcessId(foreground, &foregroundProcess));
-                        const HWND capture = GetCapture();
-                        const size_t flags = (foreground ? 1u : 0u) | (foreground == _active->_owner ? 2u : 0u) |
-                                             (foregroundProcess == GetCurrentProcessId() ? 4u : 0u) | (capture == _active->_owner ? 8u : 0u) |
-                                             (capture && GetWindow(capture, GW_OWNER) == _active->_owner ? 16u : 0u);
-                        _active->Ui("dismiss.cancel-context", flags, InSendMessageEx(nullptr));
+                        _active->Ui("dismiss.cancel-context", _active->OwnerRelationFlags() & 31u, InSendMessageEx(nullptr));
                     }
                     break;
                 }
@@ -1330,6 +1333,11 @@ public:
     void Ui(const char* phase, size_t value0 = 0u, size_t value1 = 0u) noexcept
     {
         Add(_ui, phase, value0, value1);
+    }
+    // UI-thread observations only; the owner counters are never read by the driver.
+    void OwnerSnapshot(const char* phase, uint32_t foregroundLosses) noexcept
+    {
+        Ui(phase, OwnerRelationFlags(), foregroundLosses);
     }
     void Driver(const char* phase, size_t value0 = 0u, size_t value1 = 0u) noexcept
     {
@@ -1378,6 +1386,20 @@ public:
     }
 
 private:
+    [[nodiscard]] size_t OwnerRelationFlags() const noexcept
+    {
+        const HWND foreground = GetForegroundWindow();
+        DWORD foregroundProcess{};
+        if (foreground)
+            static_cast<void>(GetWindowThreadProcessId(foreground, &foregroundProcess));
+        const HWND capture = GetCapture();
+        // Low bits preserve cancellation semantics; menu popups are directly owned by this test owner.
+        // Added bits describe only current foreground: directly owned window, known foreign process, unknown process.
+        return (foreground ? 1u : 0u) | (foreground == _owner ? 2u : 0u) | (foregroundProcess == GetCurrentProcessId() ? 4u : 0u) |
+               (capture == _owner ? 8u : 0u) | (capture && GetWindow(capture, GW_OWNER) == _owner ? 16u : 0u) |
+               (foreground && GetWindow(foreground, GW_OWNER) == _owner ? 32u : 0u) |
+               (foregroundProcess != 0u && foregroundProcess != GetCurrentProcessId() ? 64u : 0u) | (foreground && foregroundProcess == 0u ? 128u : 0u);
+    }
     struct Entry
     {
         int64_t elapsedUs = 0;
@@ -2741,14 +2763,31 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
                                  : theme.overlayMaterial == OverlayMaterial::Acrylic ? "Acrylic"
                                                                                      : "Solid";
     std::atomic<bool> showReturned{false};
-    const auto started   = std::chrono::steady_clock::now();
-    const auto elapsedMs = [started] { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count(); };
+    std::chrono::steady_clock::time_point started{};
+    const auto elapsedMs = [&started] { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count(); };
+    MenuHoverTraceForTest trace(false, false, ownerWindow.Hwnd());
+    const uint32_t foregroundLossesBefore = ownerWindow.ForegroundLossCount();
+    trace.OwnerSnapshot("owner.before-activation", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
+    const char* activationStage = "not-started";
+    DxUiActivationObservation activationObservation{};
+    const bool activated = TryActivateDxUiTestWindow(ownerWindow.Hwnd(), 800u, &activationStage, &activationObservation);
+    trace.OwnerSnapshot("owner.after-activation", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
+    if (! activated)
+    {
+        PrintDxUiActivationObservation(activationObservation, "menu-material-capture-setup", 1u);
+        std::cerr << "    [MENU MATERIAL SETUP] stage=" << activationStage << '\n';
+        trace.Dump(true);
+    }
+    Require(activated, "material-capture modal menu owner establishes foreground before its popup opens");
+    // Preserve the original driver's observation clock; activation is not charged to capture readiness.
+    started = std::chrono::steady_clock::now();
     std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
         const HWND popupHwnd = WaitForOwnedContextMenuPopupWindow(ownerWindow.Hwnd());
         if (! popupHwnd)
         {
+            trace.Driver("capture.popup-missing", static_cast<size_t>(elapsedMs()), showReturned.load() ? 1u : 0u);
             driverFailure = std::format("menu popup window appears for material capture validation ({}: no popup after {} ms, and ContextMenu::Show {})",
                                         material,
                                         elapsedMs(),
@@ -2756,6 +2795,16 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
             return;
         }
         const long long appearedMs = elapsedMs();
+        // Driver-local observations of this one popup: alive, visible, exact owner and same process.
+        // Native identities never enter the bounded trace or failure text.
+        const auto popupRelationFlags = [&]() noexcept
+        {
+            DWORD process{};
+            static_cast<void>(GetWindowThreadProcessId(popupHwnd, &process));
+            return (IsWindow(popupHwnd) != FALSE ? 1u : 0u) | (IsWindowVisible(popupHwnd) != FALSE ? 2u : 0u) |
+                   (GetWindow(popupHwnd, GW_OWNER) == ownerWindow.Hwnd() ? 4u : 0u) | (process == GetCurrentProcessId() ? 8u : 0u);
+        };
+        trace.Driver("capture.popup-ready", popupRelationFlags(), showReturned.load() ? 1u : 0u);
 
         const auto dismissPopup = wil::scope_exit([&]() noexcept
         {
@@ -2767,18 +2816,33 @@ DxUi::WindowHostBitmapCapture CaptureMenuPopupBitmapForTheme(const DxUi::ThemePa
 
         if (! WaitForContextMenuPopupBitmapCapture(popupHwnd, capture))
         {
-            driverFailure = std::format(
-                "menu popup bitmap capture succeeds for material validation ({}: popup after {} ms, no capture by {} ms)", material, appearedMs, elapsedMs());
+            const unsigned relations = popupRelationFlags();
+            const bool returned      = showReturned.load();
+            trace.Driver("capture.bitmap-failed", relations, returned ? 1u : 0u);
+            driverFailure = std::format("menu popup bitmap capture succeeds for material validation ({}: popup after {} ms, no capture by {} ms, "
+                                        "showReturned={} alive={} visible={} ownerMatches={} sameProcess={})",
+                                        material,
+                                        appearedMs,
+                                        elapsedMs(),
+                                        returned,
+                                        (relations & 1u) != 0u,
+                                        (relations & 2u) != 0u,
+                                        (relations & 4u) != 0u,
+                                        (relations & 8u) != 0u);
             return;
         }
+        trace.Driver("capture.bitmap-ready", capture.widthPx, capture.heightPx);
         std::cerr << "    [TRACE] material capture " << material << ": popup after " << appearedMs << " ms, captured after " << elapsedMs() << " ms\n"
                   << std::flush;
     });
-
+    trace.OwnerSnapshot("owner.before-show", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     showReturned.store(true);
+    trace.OwnerSnapshot("owner.after-show", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
     driver.join();
 
+    trace.OwnerSnapshot("owner.after-driver", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
+    trace.Dump(! driverFailure.empty() || result.has_value());
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the material-capture menu with Escape returns no invoked command");
     return capture;
@@ -3229,6 +3293,7 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
     };
     const std::array<POINT, 3> rootPopupPoints = {POINT{170, 180}, POINT{250, 180}, POINT{330, 180}};
 
+    MenuHoverTraceForTest trace(true, true, ownerWindow.Hwnd());
     size_t activeRootIndex  = 0u;
     const auto buildRequest = [&](size_t rootIndex) -> ContextMenuRootSwitchRequest
     {
@@ -3241,11 +3306,14 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
     ContextMenuSessionCallbacks sessionCallbacks{};
     sessionCallbacks.switchRootFromDirection = [&](bool forward) -> std::optional<ContextMenuRootSwitchRequest>
     {
+        trace.Ui("stationary.root.direction.before", activeRootIndex, forward ? 1u : 0u);
         activeRootIndex = forward ? ((activeRootIndex + 1u) % rootMenus.size()) : ((activeRootIndex + rootMenus.size() - 1u) % rootMenus.size());
+        trace.Ui("stationary.root.direction.after", activeRootIndex);
         return buildRequest(activeRootIndex);
     };
     sessionCallbacks.switchRootFromPointer = [&](POINT screenPoint) -> std::optional<ContextMenuRootSwitchRequest>
     {
+        trace.Ui("stationary.root.pointer.callback", activeRootIndex);
         POINT clientPoint = screenPoint;
         if (ScreenToClient(ownerWindow.Hwnd(), &clientPoint) == FALSE)
         {
@@ -3270,12 +3338,14 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
             hitIndex = 2u;
         }
 
+        trace.Ui("stationary.root.pointer.hit", hitIndex, activeRootIndex);
         if (hitIndex >= rootMenus.size() || hitIndex == activeRootIndex)
         {
             return std::nullopt;
         }
 
         activeRootIndex = hitIndex;
+        trace.Ui("stationary.root.pointer.accepted", activeRootIndex);
         return buildRequest(activeRootIndex);
     };
 
@@ -3285,6 +3355,7 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
     std::thread driver([&]
     {
         const DismissMenusIfDriverFails dismissOnFailure(ownerWindow.Hwnd(), driverFailure);
+        trace.Driver("stationary.driver.begin");
         const HWND aPopupHwnd = WaitForOwnedContextMenuPopupWindowByFirstItemText(ownerWindow.Hwnd(), L"A1");
         if (! aPopupHwnd)
         {
@@ -3307,6 +3378,7 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
             return;
         }
 
+        trace.Driver("stationary.b.discovered", IsWindow(bPopupHwnd) != FALSE, GetWindow(bPopupHwnd, GW_OWNER) == ownerWindow.Hwnd());
         ContextMenuPopupDebugState popupState{};
         if (! WaitForContextMenuPopupState(
                 bPopupHwnd, [](const ContextMenuPopupDebugState& state) noexcept { return state.rootPointerSwitchCount == 1u; }, popupState))
@@ -3348,6 +3420,7 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
             return;
         }
 
+        trace.Driver("stationary.c.before-post", popupState.rootPointerSwitchCount, popupState.keyboardIndex.value_or(rootMenus[2].size()));
         if (PostMessageW(ownerWindow.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(160, 16)) == FALSE)
         {
             driverFailure = "posting the stationary B hover after switching to C succeeds";
@@ -3355,10 +3428,12 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
         }
         if (WaitForWindowDestroyed(cPopupHwnd, std::chrono::milliseconds(120)))
         {
+            trace.Driver("stationary.c.destroyed", IsWindow(cPopupHwnd) != FALSE, IsWindowVisible(cPopupHwnd) != FALSE);
             driverFailure = "a stationary mouse over B does not pull keyboard navigation back from C";
             return;
         }
 
+        trace.Driver("stationary.c.survived", IsWindow(cPopupHwnd) != FALSE, IsWindowVisible(cPopupHwnd) != FALSE);
         if (! SendMenuKeyForMenuSuite(cPopupHwnd, VK_LEFT))
         {
             driverFailure = "Left arrow key is delivered before stationary-mouse previous-root validation";
@@ -3391,6 +3466,7 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
             return;
         }
 
+        trace.Driver("stationary.a.before-post", popupState.rootPointerSwitchCount, popupState.keyboardIndex.value_or(rootMenus[0].size()));
         if (PostMessageW(ownerWindow.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(160, 16)) == FALSE)
         {
             driverFailure = "posting the stationary B hover after switching to A succeeds";
@@ -3398,14 +3474,19 @@ void TestStationaryMouseDoesNotOverrideKeyboardRootSwitch()
         }
         if (WaitForWindowDestroyed(aPopupAfterSecondLeftHwnd, std::chrono::milliseconds(120)))
         {
+            trace.Driver("stationary.a.destroyed", IsWindow(aPopupAfterSecondLeftHwnd) != FALSE, IsWindowVisible(aPopupAfterSecondLeftHwnd) != FALSE);
             driverFailure = "a stationary mouse over B does not pull keyboard navigation back from A";
         }
     });
 
+    trace.Ui("stationary.show.begin", activeRootIndex);
     const ThemePalette theme = MakeAnimatedTestThemePalette(true);
     const std::optional<int> result =
         ContextMenu::Show(ownerWindow.Hwnd(), rootPopupPoints[activeRootIndex], rootMenus[activeRootIndex], theme, sessionCallbacks);
+    trace.Ui("stationary.show.returned", result.has_value() ? 1u : 0u, activeRootIndex);
     driver.join();
+    if (! driverFailure.empty())
+        trace.Dump(true);
 
     Require(driverFailure.empty(), driverFailure.c_str());
     Require(! result.has_value(), "closing the stationary-mouse keyboard switching validation popup with Escape returns no invoked command");
@@ -4456,7 +4537,8 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
         {.text = L"B2", .commandId = 3682},
     };
 
-    MenuHoverTraceForTest trace(true);
+    MenuHoverTraceForTest trace(true, false, ownerWindow.Hwnd());
+    const uint32_t foregroundLossesBefore = ownerWindow.ForegroundLossCount();
     ScopedMenuPointerFixture pointerFixture(ownerWindow.Hwnd());
     POINT originalCursor{};
     Require(GetPhysicalCursorPos(&originalCursor) != FALSE && pointerFixture.AlignCursor(originalCursor),
@@ -4507,9 +4589,11 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
         }
     });
 
-    const ThemePalette theme                   = MakeAnimatedTestThemePalette(true);
+    const ThemePalette theme = MakeAnimatedTestThemePalette(true);
+    trace.OwnerSnapshot("owner.before-calibration", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
     const std::optional<int> calibrationResult = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     calibrationDriver.join();
+    trace.OwnerSnapshot("owner.after-calibration", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
     if (! calibrationFailure.empty() || calibrationResult.has_value() || ! cursorAtB1Ready)
     {
         trace.Dump(true);
@@ -4523,6 +4607,7 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
         return;
     }
     DrainPendingMouseMessagesForMenuSuite();
+    trace.OwnerSnapshot("owner.after-alignment", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
 
     std::string driverFailure;
     std::thread driver([&]
@@ -4699,6 +4784,7 @@ void TestMenuHoveringSiblingClosesOpenSubmenuAfterDelay()
         }
     });
 
+    trace.OwnerSnapshot("owner.before-reopen", ownerWindow.ForegroundLossCount() - foregroundLossesBefore);
     const std::optional<int> result = ContextMenu::Show(ownerWindow.Hwnd(), POINT{180, 180}, items, theme);
     driver.join();
 
@@ -10833,6 +10919,16 @@ void TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside()
     const HCURSOR resize     = LoadCursorW(nullptr, IDC_SIZEWE);
     const std::vector<MenuFlyoutItem> items{{.text = L"Ouvrir", .commandId = 9301}, {.text = L"Fermer", .commandId = 9302}};
     const POINT anchor = ClientScreenPointForTest(owner.Hwnd(), 20, 20, "cursor menu anchor maps to screen");
+    // Establish the ordinary foreground cursor-interaction fixture after all window preparation.
+    const char* activationStage = "not-started";
+    DxUiActivationObservation activationObservation{};
+    const bool activated = TryActivateDxUiTestWindow(owner.Hwnd(), 800u, &activationStage, &activationObservation);
+    if (! activated)
+    {
+        PrintDxUiActivationObservation(activationObservation, "menu-pointer-cursor-setup", 1u);
+        std::cerr << "    [MENU CURSOR SETUP] stage=" << activationStage << '\n';
+    }
+    Require(activated, "the cursor menu owner establishes foreground before asynchronous cursor interaction");
     Require(ContextMenu::ShowAsync(owner.Hwnd(), anchor, items, owner.Host().GetTheme(), [](std::optional<int>) noexcept {}), "cursor menu opens");
     const auto dismiss = wil::scope_exit([&]() noexcept { DismissOwnedContextMenuPopupChain(owner.Hwnd()); });
     const HWND popup   = WaitForOwnedContextMenuPopupWindowByFirstItemText(owner.Hwnd(), L"Ouvrir");

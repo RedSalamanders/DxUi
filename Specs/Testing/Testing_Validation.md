@@ -392,7 +392,24 @@ driver succeeded and otherwise keeps closing the popups of its owner for up to e
 closed are gone; `TestMenuDriverThatFailsBeforeItsPopupComesUpStillClosesTheMenu` (in the described-menu group) has a driver
 that fails at once, before its popup exists, and requires the guard to close the
 menu that then comes up and the owner thread's `Show` to return, and a source scan in `Tools/tests/Test-TestWatchdog.ps1`
-requires the guard first in every driver. A UI Automation client thread a Menu or Accessibility test joins is waited for,
+requires the guard first in every driver. Keep each driver declaration in the existing inline lambda form recognized by that scan.
+A Menu driver-fixture refactor must execute that actual source-contract case with its existing assertion helpers, alongside
+formatting, before native qualification. Isolate the existing source-only case for compiler-free preflight rather than mirroring
+its check or running its native watchdog fixtures. This proves source validation only; native watchdog, interactive lease and
+runtime acceptance remain separate requirements.
+
+The stationary-mouse keyboard-root-switch fixture retains the existing bounded `MenuHoverTraceForTest`
+pointer/keyboard, root-callback and popup-lifetime observations in memory, and prints rows only on driver
+failure after its join. Record the logical root/phase, already observed popup state, owned-window liveness
+and modal `Show` return. New phase/owned-window rows use logical indices and relation flags rather than
+raw handles; existing pointer/keyboard rows retain their existing diagnostic fields. Preserve its two 120 ms lifetime
+predicates, all original failure assertions, one initial activation, one session and first driver cleanup
+guard. These diagnostics neither retry input nor park/reacquire the pointer/focus. A destroyed popup alone
+does not prove a root-switch, activation, backend or timing cause; retain the actual failure until route
+and dismissal evidence supports attribution. The source-only watchdog contract checks these boundaries;
+its pass is separate from fresh native and interactive acceptance.
+
+A UI Automation client thread a Menu or Accessibility test joins is waited for,
 pumping, for as long as its setup was allowed (20 s) and then fails the test, since its teardown may need the pumping thread and
 a join does not pump.
 The sent modal-cancellation fixture first places its owner onscreen and verifies that the owner holds the
@@ -575,6 +592,16 @@ noninteractive WindowHost regression covers that case. Modal context-menu fixtur
 before opening. Desktop availability alone establishes no foreground grant, and failure to acquire it still fails
 qualification. Production deactivation/dismissal behavior, skip rules and local desktop consent remain unchanged.
 
+The modal menu-material capture fixture applies that same owner-foreground precondition once for each owned
+fixture, after preparation and before its single driver and `ContextMenu::Show` start. Refusal fails the case.
+Its Mica, Mica Alt and Acrylic captures retain one discovered popup identity, the existing 5000 ms bitmap-readiness
+bound, and all geometry and material-difference assertions. Bounded test-local traces distinguish UI-thread owner
+and dismissal observations from driver observations; full rows print only on failure. Capture failure records
+whether `Show` returned and scalar popup lifetime, visibility, exact-owner and same-process observations. It does
+not publish native identities, retry or reacquire a popup, excuse a same-process activation defect, or infer an
+unavailable graphics HRESULT or external actor. Establishing the existing precondition does not prove the cause
+of an earlier capture failure; fresh exact-source native qualification remains required.
+
 `DxUi.ControlTests.exe --foreground-thief[=<minMs>,<maxMs>]` (default 30,95) reproduces the desktop application: a worker
 thread takes the foreground for its own window that long after a window of the process became the foreground window. It
 reports how often it did, and says so when no window of the process ever held the foreground (Windows keeps it with the
@@ -648,6 +675,22 @@ state, item rectangles, paint, text and layout, its backdrop, and a bitmap captu
   Cancellation context contains only flags for foreground existence/owner/process and capture owner/popup,
   plus `InSendMessageEx` flags. These observations do not attribute an untraced cancellation or authorize retrying
   a held behavioral failure. The same readiness, hover, timer and elapsed assertions and deadlines still apply.
+  The delayed sibling-submenu-close fixture additionally retains the closed activation message kind
+  (`WM_ACTIVATEAPP`, `WM_ACTIVATE`, `WM_NCACTIVATE`, or unknown), current foreground/capture relation flags
+  and `InSendMessageEx` flags at dismissal. UI-thread snapshots surround calibration, cursor alignment
+  and reopening, with owner loss-count deltas. The existing 64-row bounds, drop accounting and failure-only
+  trace dump remain. These are current observations, not historical sender/creator attribution; same-process
+  transitions and unknown relations are not evidence of external interference or permission to retry or skip.
+- **Asynchronous cursor fixture setup.** `TestMenuPointerCursorIsArrowOverPopupsAndTheWindowsOwnOutside`
+  establishes its owner's actual desktop foreground once, after preparing both windows and immediately
+  before `ShowAsync`, through the existing governed activation helper. This is an explicit ordinary cursor-
+  interaction fixture precondition; the modal-owner rule above did not already require asynchronous activation.
+  Failure to establish it is a setup failure with bounded existing activation observations. The text-cursor
+  fixture remains nonactivating/topmost for its existing outside-menu purpose. No foreign window is modified.
+  The actual `WindowFromPoint` checks and all three cursor assertions remain mandatory and unchanged.
+  Subsequent occlusion still prevents execution and a required interactive skip still blocks qualification.
+  No post-failure reacquisition, retry, timeout growth, coordinate search, popup topmost promotion or skip
+  acceptance is introduced. This setup does not prove the historical covering console's creator or cause.
 
 The native disclosure automation client subscribes from its own MTA thread while the owner thread pumps.
 Cold client setup (COM, `ElementFromHandle` and property-event subscription) has a separate 20-second

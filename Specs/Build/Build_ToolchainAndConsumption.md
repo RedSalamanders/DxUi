@@ -119,6 +119,16 @@ can import both modules from the pinned checkout, as it does `Tools/ConsumerBuil
 takes any triplet file as its source, such as a sanitizer overlay (one that names a file beside itself with
 `CMAKE_CURRENT_LIST_DIR` needs that file beside the generated copy).
 
+Producer-owned background restore children do not request a secondary console window or default-terminal UI.
+The installer captures Git, bootstrap and vcpkg stdout/stderr separately and forwards live lines on its caller
+thread while awaiting pipe tasks, without an idle polling timer. Native exit codes still decide each restore
+step. Only an interactive host with unredirected input, output and error plus usable RawUI inherits an ordinary
+console; inherited terminal environment markers alone cannot select that route. This execution predicate is
+deliberately narrower than `build.ps1`'s terminal-link rendering predicate. The ordinary interactive build route
+is unchanged. Background batch bootstrap uses the selected system cmd.exe with `/d /v:off /s /c`, the fixed
+`bootstrap-vcpkg.bat -disableMetrics` command and a separately supplied working directory; paths never enter
+shell command text. This policy governs these producer launch sites, not every subprocess a vendor tool may start.
+
 External consumers import `Build/DxUi.Consumer.props` after Microsoft.Cpp.props and `.targets` after
 Microsoft.Cpp.targets. Set DxUiRoot, DxUiConsumerLockFile and DxUiConsumerOutputRoot before those imports.
 Compile with Unicode, stdcpplatest, v145 and the matching /MDd or /MD runtime. The public example's source includes
@@ -203,6 +213,86 @@ DLL-CRT family and STL annotation policy. Configuration remains a separate outpu
 Consumers record the identity beside their restored props and supply the expected toolset/compiler/SDK/host
 properties; mismatches fail before compilation. A different compiler installation or ASAN container policy
 cannot reuse the same writable archive output directory. Pin validation remains a separate clean-source check.
+
+The standalone `ConsumerBuild.psm1` keeps its existing four-parameter public function and sole public export,
+and remains usable in Windows PowerShell 5.1 and PowerShell 7 without another module or consumer repository.
+Its private native boundary uses literal Windows-quoted arguments, the selected executable and inherited child
+environment, captured no-window flags and concurrent independent pipe drains. Queries return actual exit,
+stdout and stderr separately, with no advisory timeout or installer progress on the success pipeline. The
+identity fields, JSON serialization and hash algorithm are unchanged; adopting another producer commit naturally
+changes the source identity. Co-versioned VisualStudio discovery, installer and pin validator reuse this private
+boundary through the retained module object; it is not an additional consumer API. Failure cleanup owns only
+the process instance it started, waits for that instance and disposes it, preserving a prior query/pipe error
+over a secondary nonfatal cleanup error. An enclosing operation must provide any required descendant containment.
+
+`Tools/tests/Test-ConsumerBuild.ps1` requires an explicit existing caller-owned non-reparse fixture parent,
+creates a unique retained child and runs only guarded captured children. It does not use the tooling suite's
+default fixture root or delete its caller's parent. Its standalone copied-module, separate-stream, literal
+argument, exit, live-output, cleanup and evaluation-only identity controls run under both supported Windows
+PowerShell hosts. Actual selected-MSBuild evaluation must be reported separately when unavailable. Focused
+tooling evidence does not replace the six native producer/consumer profile qualifications or consumer-product
+qualification after a reviewed pin update.
+
+The control host imports the running host's own trusted `PSHOME` Utility manifest before TestSupport or
+producer modules. Native function authority requires the surfaced command's verified top manifest,
+the exported nonnull ScriptBlock identity and the exact trusted nested definition; cmdlets require actual
+exported ImplementingType identity. A legitimate manifest/nested-export module-wrapper difference is
+not a failure. Bootstrap and callable-binding records are private, hash-bound diagnostic evidence.
+CI publishes only the closed summary/manifest pair: the manifest excludes itself and binds the summary's
+exact name, length and digest. Raw captures, command lines, environment, paths and identity queries are
+not publication inputs. The public control summary uses
+`dxui.consumer-process-controls-public.v2`; its additional `setup` object contains only a closed
+phase, closed exception-type category and signed 32-bit HResult code. The allowed phases are
+`initializing`, `source-head.pre-start`, `source-head.post-start`,
+`source-head.ownership-recorded`, `source-head.metadata`, `source-head.returned`, `cases` and
+`completed`. Type categories are `NONE`, `InvalidOperationException`, `Win32Exception`, `IOException`,
+`PlatformNotSupportedException`, `CommandNotFoundException`, `RuntimeException` and `OTHER`.
+Raw exception messages, fully qualified error identifiers and stacks stay in private
+`control-error.json`; they must not enter the public projection.
+
+Record an actual process start and PID immediately after process creation, before optional or
+platform-specific process metadata can throw. Zero recorded starts do not prove that no child was
+created. Windows controls retain positive creation identity and the native process handle. Unix
+controls use supported process/wait ownership and explicitly distinguish a fast child that exited
+before observation. A long-lived callback/cleanup control still requires actual positive start-time
+evidence; synthetic metadata-error controls are not counted as actual native starts.
+
+The fixture observes `StartTime`, `SafeHandle` and `HasExited` through their exact
+`System.Diagnostics.Process` getter MethodInfos on the held process object. Preserve the getter's
+base exception rather than treating an adapted null property result as valid metadata. Null results,
+Windows creation failures, live-child failures and unrelated errors remain failures; only the known
+Unix already-exited observation may use its explicit unavailable-time outcome. Direct and wrapped
+fatal exceptions still propagate. Pure reader seams model these cases without claiming actual starts;
+a throwing PowerShell ScriptProperty is not an equivalent cross-host CLR getter model.
+
+`Tools/ConsumerBuild.psm1` is a measured build/restore input and a Full harness-identity input because
+VisualStudio discovery and dependency installation invoke its private boundary. Both closures must
+include it even when no public consumer-identity function is called directly. Omitting it must fail
+the existing dependency-walk and harness file-selection controls rather than permit stale evidence.
+
+Paired qualification must overlay the same common build harness onto both isolated revisions.
+The existing `performance-paired.ps1` common BUILD list includes `vcpkg-install.ps1`,
+`Tools/VisualStudio.psm1` and `Tools/ConsumerBuild.psm1` alongside `build.ps1` and
+`Tools/ScopedTesting.psm1`, because the Full harness identity includes their behavioral closure.
+Keep these build helpers out of the benchmark-workload input selector; this does not change the
+`benchmarkSha256` algorithm. Preserve each revision's C++ source, headers, library project and actual
+workload, and retain strict Full harness, toolchain, pin and judge equality. A preflight mismatch is
+an invalid paired comparison, not a regression or a measurement result.
+
+The native-scope workflow guard admits only the exact pinned, public-projection-only, failure-retention
+upload step already owned by this workflow. This exception does not admit conditional jobs, conditional
+required validation steps, `continue-on-error`, changed host/MSBuild selection, duplicate uploads or
+broader artifact paths. Keeping public failure evidence available must not bypass a required check.
+
+The dated component checkpoint and remaining gates are tracked in the
+[active API 4 backport plan](../Plans/WIP/Api4ConsumerProcessCapture_2026-11-15.md).
+Local component passes from an uncommitted snapshot do not qualify a later producer commit, native
+profiles or consumer adoption.
+
+For the separately maintained version 6 development line, use the
+[consumer-process capture integration guide](Build_ConsumerProcessCapture_Version6_Integration.md).
+It describes a reviewed semantic port with its own unchecked qualification gates, not a request to replace
+that line's runtime, API, consumer contract or unified CI with this API 4 maintenance branch.
 
 ASAN outputs stage the selected MSVC toolset's architecture-matching runtime beside the executable.
 `Build/DxUi.AddressSanitizer.targets` supplies ARM64 staging omitted by MSBuild's built-in x86/x64

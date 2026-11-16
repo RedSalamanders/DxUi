@@ -357,7 +357,35 @@ function Assert-WindowsToolingBudget([string]$Job) {
     foreach($required in @('uses: ./.github/actions/setup-msvc','run: ./validate.ps1','run: ./Tools/tests/Test-AsanRuntime.ps1')) {
         Assert-Equal 1 ([regex]::Matches($Job,[regex]::Escape($required))).Count 'compiler preparation, complete tooling and ASan runtime checks remain exactly once'
     }
-    Assert-True (-not ($Job-cmatch '(?m)^        (if|continue-on-error):')) 'tooling failures cannot bypass required checks'
+    Assert-True (-not ($Job-cmatch '(?m)^    (if|continue-on-error):')) 'the required tooling job cannot be conditional or tolerate failure'
+    $expectedUpload=@'
+      - name: Retain consumer process controls
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: consumer-build-capture-windows
+          path: .build/test-artifacts/consumer-build-capture/consumer-*/public/*.json
+          if-no-files-found: warn
+          retention-days: 14
+'@
+    $uploadCount=0
+    foreach($step in [regex]::Matches($Job,'(?ms)^      - .*?(?=^      - |\z)')) {
+        $text=$step.Value.Replace("`r`n","`n").TrimEnd()
+        if($text -ceq $expectedUpload.Replace("`r`n","`n").TrimEnd()) { $uploadCount++; continue }
+        Assert-True (-not ($text-cmatch '(?m)^        (if|continue-on-error):')) 'execution steps cannot skip or tolerate required failures'
+        Assert-True (-not ($text.Contains('actions/upload-artifact@'))) 'only the exact public-only retained upload is admitted'
+    }
+    Assert-Equal 1 $uploadCount 'one exact pinned failure-preserving public upload'
+    foreach($hostCase in @(
+        @('Consumer process controls in PowerShell 7 with selected MSBuild','pwsh','pwsh-private.log'),
+        @('Consumer process controls in Windows PowerShell 5.1','powershell','powershell-private.log'))) {
+        $hostSteps=@([regex]::Matches($Job,'(?ms)^      - .*?(?=^      - |\z)')|Where-Object {$_.Value.StartsWith('      - name: '+$hostCase[0]+"`n") -or $_.Value.StartsWith('      - name: '+$hostCase[0]+"`r`n")})
+        Assert-Equal 1 $hostSteps.Count 'one actual focused step for each supported host'
+        Assert-True ($hostSteps[0].Value-cmatch ('(?m)^        shell: '+$hostCase[1]+'\r?$')) 'the actual requested host is preserved'
+        $invocation='./Tools/tests/Test-ConsumerBuild.ps1 -FixtureParent $parent -MSBuildPath $msbuild *> (Join-Path $parent '''+$hostCase[2]+''')'
+        Assert-Equal 1 ([regex]::Matches($hostSteps[0].Value,[regex]::Escape($invocation))).Count 'each host evaluates the selected real MSBuild and privately retains raw output'
+    }
+    Assert-Equal 2 ([regex]::Matches($Job,[regex]::Escape('./Tools/tests/Test-ConsumerBuild.ps1 -FixtureParent $parent -MSBuildPath $msbuild'))).Count 'both hosts evaluate the selected real MSBuild'
 }
 Invoke-TestCase 'only Windows tooling gains the measured real-project metadata allowance' {
     $job=Get-WorkflowJob 'windows-tooling'
@@ -369,6 +397,21 @@ Invoke-TestCase 'only Windows tooling gains the measured real-project metadata a
     }
     foreach($required in @('uses: ./.github/actions/setup-msvc','run: ./validate.ps1','run: ./Tools/tests/Test-AsanRuntime.ps1')) {
         Assert-Throws {Assert-WindowsToolingBudget ($job.Replace($required,''))} 'a larger window cannot remove required validation'
+    }
+    foreach($mutation in @(
+        $job.Replace('if: always()','if: success()'),
+        $job.Replace('if: always()','continue-on-error: true'),
+        $job.Replace('ea165f8d65b6e75b540449e92b4886f43607fa02','0000000000000000000000000000000000000000'),
+        $job.Replace('consumer-*/public/*.json','consumer-*/**'),
+        $job.Replace('retention-days: 14','retention-days: 90'),
+        $job.Replace('run: ./validate.ps1',"if: false`n        run: ./validate.ps1"),
+        $job.Replace('run: ./Tools/tests/Test-AsanRuntime.ps1',"continue-on-error: true`n        run: ./Tools/tests/Test-AsanRuntime.ps1"),
+        $job.Replace('- name: Consumer process controls in Windows PowerShell 5.1',"- name: Consumer process controls in Windows PowerShell 5.1`n        if: always()"),
+        $job.Replace('-MSBuildPath $msbuild',''),
+        $job.Replace('shell: powershell','shell: pwsh'),
+        ($job+"`n      - name: Extra upload`n        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02`n        if: always()"))) {
+        Assert-True ($mutation -cne $job) 'each bypass or publication mutation changes the job'
+        Assert-Throws {Assert-WindowsToolingBudget $mutation} 'required execution and the precise retained public boundary remain strict'
     }
     Assert-True ((Get-WorkflowJob 'format')-cmatch '(?m)^    timeout-minutes: 15\r?$') 'format retains fifteen minutes'
     Assert-True ((Get-WorkflowJob 'validation')-cmatch '(?m)^    timeout-minutes: 20\r?$') 'Ubuntu validation retains twenty minutes'

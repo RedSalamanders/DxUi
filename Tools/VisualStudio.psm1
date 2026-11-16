@@ -2,6 +2,7 @@
 # with it: build.ps1 and test-consumer.ps1 locate MSBuild through it, and vcpkg-install.ps1 pins vcpkg to the same installation
 # and toolset (Tools/VcpkgTriplet.psm1). Nothing here installs or writes anything, or names a developer's installation.
 Set-StrictMode -Version Latest
+$consumerBuildModule = Import-Module (Join-Path $PSScriptRoot 'ConsumerBuild.psm1') -PassThru -Scope Local -ErrorAction Stop
 
 function Get-DxUiVisualStudioInstallation {
     <# The installation path of the newest Visual Studio, prereleases included, that has MSBuild. #>
@@ -11,7 +12,12 @@ function Get-DxUiVisualStudioInstallation {
             ForEach-Object { Join-Path $_ 'Microsoft Visual Studio/Installer/vswhere.exe' })
     $vswhere = $vswhereCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
     if (-not $vswhere) { throw 'Visual Studio Installer/vswhere.exe was not found.' }
-    $installation = @(& $vswhere -latest -prerelease -products '*' -requires Microsoft.Component.MSBuild -property installationPath) |
+    $query = & $consumerBuildModule {
+        param($executable)
+        Invoke-DxUiConsumerNativeQuery -FilePath $executable -Arguments @('-latest', '-prerelease', '-products', '*', '-requires', 'Microsoft.Component.MSBuild', '-property', 'installationPath')
+    } $vswhere
+    if ($query.ExitCode -ne 0) { throw 'Visual Studio Installer/vswhere.exe failed.' }
+    $installation = @($query.StandardOutput -split '\r?\n') |
         Where-Object { $_ } | Select-Object -First 1
     if (-not $installation) { throw 'Visual Studio with MSBuild was not found; install VS 2026 C++ tools.' }
     return [string]$installation

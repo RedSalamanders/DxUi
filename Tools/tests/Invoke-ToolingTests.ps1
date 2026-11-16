@@ -3,6 +3,14 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $failed = [Collections.Generic.List[string]]::new()
+Write-Host '== Test-ConsumerBuild.ps1'
+try {
+    # This aggregate retains its repository-workspace defaults. Local governed
+    # callers run the standalone control with their own explicit existing parent.
+    $consumerParent = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../.build/test-artifacts/consumer-build-capture'))
+    [void][IO.Directory]::CreateDirectory($consumerParent)
+    & (Join-Path $PSScriptRoot 'Test-ConsumerBuild.ps1') -FixtureParent $consumerParent *> (Join-Path $consumerParent 'aggregate-private.log')
+} catch { $failed.Add('Test-ConsumerBuild.ps1'); Write-Host 'Consumer process controls failed; raw details remain in the private workspace log.' }
 Write-Host '== Test-PairedProjectProfiles.ps1'
 try { & (Join-Path $PSScriptRoot 'Test-PairedProjectProfiles.ps1') } catch { $failed.Add('Test-PairedProjectProfiles.ps1'); Write-Host $_.Exception.Message }
 Write-Host '== Test-ConsumerQualification.ps1'

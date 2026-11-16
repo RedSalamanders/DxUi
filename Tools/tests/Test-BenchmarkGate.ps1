@@ -40,7 +40,7 @@ Invoke-TestCase 'every library, build, benchmark and measurement path is measure
         'Tests/Embedded/Embedded.Tests.Embedded.cpp' = 'benchmark executable'; 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' = 'benchmark executable'; 'Tests/Support/Support.Tests.TestWatchdog.h' = 'benchmark executable'
         'Samples/EmbeddedControls/EmbeddedScene.h' = 'fixture or sample compiled into it'
         'DxUi.sln' = 'build or restore'; 'build.ps1' = 'build or restore'; 'vcpkg-install.ps1' = 'build or restore'; 'vcpkg-configuration.json' = 'build or restore'
-        'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'
+        'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/ConsumerBuild.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'
         'Tools/Validation.psm1' = 'build or restore'; 'Tools/Changelog.psm1' = 'build or restore'; 'Tools/Modules/Documentation/Changelog.psm1' = 'build or restore'
         'Tools/PairedRun.psm1' = 'benchmark harness'; 'Tools/BenchmarkGate.psm1' = 'benchmark harness'
         'Tools/PerformancePolicy.psm1' = 'benchmark harness'; 'Tools/PerformanceAcceptancePolicy.v1.json' = 'paired measurement or gate'
@@ -158,6 +158,36 @@ Invoke-TestCase 'every module the build and measurement scripts import is measur
     }
     Assert-True ($seen.Contains('Tools/PerformanceComparison.psm1') -and $seen.Contains('Tools/PairedRun.psm1') -and $seen.Contains('Tools/VcpkgTriplet.psm1')) 'the walk reaches the comparator, the schedule and the restore'
     Assert-True ($seen.Contains('Tools/Validation.psm1') -and $seen.Contains('Tools/Changelog.psm1')) 'the solution attestation helper closure is measured too'
+    Assert-True ($seen.Contains('Tools/ConsumerBuild.psm1')) 'VisualStudio and restore reach the captured consumer process backend'
+
+    # Execute the actual Full identity file-selection expression with an in-memory
+    # hash delegate. No toolchain discovery or source-local fixture is required.
+    $tokens=$null; $errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'Tools/PerformancePolicy.psm1'),[ref]$tokens,[ref]$errors)
+    Assert-Equal 0 @($errors).Count 'the owning receipt implementation parses'
+    $selections=@($ast.FindAll({param($node)
+        $node -is [Management.Automation.Language.AssignmentStatementAst] -and
+        $node.Left.Extent.Text -ceq '$harness' -and $node.Right.Extent.Text.Contains('& $hashFiles -Paths @(')
+    },$true))
+    Assert-Equal 1 $selections.Count 'one real Full harness identity selection'
+    $selection=$selections[0].Extent.Text
+    $evaluate=[scriptblock]::Create($selection+'; $harness')
+    $contents=@{'Tools/ConsumerBuild.psm1'='before'}
+    $hashFiles={param([string[]]$Paths)
+        $rows=@(foreach($path in $Paths){$value=if($contents.ContainsKey($path)){$contents[$path]}else{'unchanged'}; $path+' '+$value})
+        Get-Sha256Hex ([Text.Encoding]::UTF8.GetBytes(($rows -join "`n")))
+    }
+    $before=& $evaluate
+    $contents['Tools/ConsumerBuild.psm1']='after'
+    $after=& $evaluate
+    Assert-True ($before -cne $after) 'a consumer backend mutation invalidates actual Full harness identity'
+    $omitted=$selection.Replace("'Tools/ConsumerBuild.psm1',",'')
+    Assert-True ($omitted -cne $selection) 'the omission counterfactual changes the actual selector'
+    $without=[scriptblock]::Create($omitted+'; $harness')
+    $withoutBefore=& $without
+    $contents['Tools/ConsumerBuild.psm1']='third'
+    Assert-Equal $withoutBefore (& $without) 'the omitted-dependency counterfactual loses mutation detection'
+    Assert-True ($withoutBefore -cne (& $evaluate)) 'the real selector preserves the required dependency binding'
 }
 
 Invoke-FixtureCase 'the baseline is the merge commit''s first parent, so only this pull request is compared' {
@@ -1701,18 +1731,37 @@ Invoke-TestCase 'the workflow cancels what a push supersedes, bounds its runtime
     # The twelve-block qualification study takes more observations; its hard limits leave time to publish the verdict and receipts.
     $limit = "\`$\{\{ github\.event_name == 'pull_request' && (\d+) \|\| (\d+) \}\}"
     $job = Get-WorkflowJob 'paired-benchmark'
-    $jobLimit = [regex]::Match($job, "(?m)^    timeout-minutes: $limit\s*`$")
-    Assert-True $jobLimit.Success 'the benchmark job has a timeout for each trigger'
-    Assert-True ([int]$jobLimit.Groups[1].Value -le 180) "a pull request's run is bounded to 180 minutes: $($jobLimit.Groups[1].Value)"
-    Assert-Equal 240 ([int]$jobLimit.Groups[2].Value) 'manual diagnostic scenarios have a bounded longer run'
-    $steps = @([regex]::Matches($job, "(?m)^        timeout-minutes: $limit\s*`$"))
-    $fixed = @([regex]::Matches($job, '(?m)^        timeout-minutes: (\d+)\s*$') | ForEach-Object { [int]$_.Groups[1].Value })
-    Assert-True ($steps.Count -ge 2) 'the restore and the measurement have step limits shorter than the job, so the verdict and artifacts still run'
-    Assert-True ($fixed.Count -ge 1) 'and so has the scope step'
-    foreach ($column in @(1, 2)) {
-        $sum = ($steps | ForEach-Object { [int]$_.Groups[$column].Value } | Measure-Object -Sum).Sum + ($fixed | Measure-Object -Sum).Sum
-        Assert-True ($sum -lt [int]$jobLimit.Groups[$column].Value) "the step limits together leave the job time to report (column $column)"
+    $assertBudget = {
+        param([string] $CandidateJob)
+        $jobLimit = [regex]::Match($CandidateJob, '(?m)^    timeout-minutes: (\d+)\s*$')
+        Assert-True $jobLimit.Success 'the enclosing paired job has an explicit fixed deadline'
+        Assert-Equal 240 ([int]$jobLimit.Groups[1].Value) 'PR and manual jobs share the existing 240-minute diagnostic bound'
+        $measure = [regex]::Match($CandidateJob, '(?ms)^      - id: measure\r?\n.*?^        timeout-minutes: (\d+)\s*$')
+        Assert-True $measure.Success 'measurement has an explicit fixed step deadline'
+        Assert-Equal 210 ([int]$measure.Groups[1].Value) 'PR and manual measurement share the existing 210-minute diagnostic bound'
+        $restore = [regex]::Match($CandidateJob, "(?m)^        timeout-minutes: $limit\s*`$")
+        Assert-True $restore.Success 'restore keeps its per-trigger deadline'
+        Assert-Equal 10 ([int]$restore.Groups[1].Value) 'PR restore remains ten minutes'
+        Assert-Equal 15 ([int]$restore.Groups[2].Value) 'manual restore remains fifteen minutes'
+        $fixed = @([regex]::Matches($CandidateJob, '(?m)^        timeout-minutes: (\d+)\s*$') | ForEach-Object { [int]$_.Groups[1].Value })
+        Assert-True ($fixed -contains 3) 'scope retains its three-minute deadline'
+        foreach ($column in @(1, 2)) {
+            $sum = [int]$restore.Groups[$column].Value + ($fixed | Measure-Object -Sum).Sum
+            Assert-True ($sum -lt [int]$jobLimit.Groups[1].Value) "step ceilings leave time for the verdict and artifacts (column $column)"
+        }
+        Assert-True ($CandidateJob -cmatch '(?m)^            Blocks = 12\s*$') 'the full twelve-block workload is unchanged'
+        Assert-True $CandidateJob.Contains("inputs.benchmark_scenarios || 'Default,MultilineGrid,MultilineGridDistinct'") 'all three PR scenarios remain required'
     }
+    & $assertBudget $job
+    foreach ($counterfactual in @(
+        $job.Replace('    timeout-minutes: 240', '    timeout-minutes: 180'),
+        $job.Replace('        timeout-minutes: 210', '        timeout-minutes: 150'),
+        $job.Replace('            Blocks = 12', '            Blocks = 6'),
+        $job.Replace('Default,MultilineGrid,MultilineGridDistinct', 'Default,MultilineGrid')
+    )) {
+        Assert-Throws { & $assertBudget $counterfactual } 'undersized outer limits or reduced workload are refused'
+    }
+
     Assert-True ($workflow -cmatch '(?m)^permissions:\r?\n  contents: read\s*$') 'the token is read-only'
     Assert-True (-not ($workflow -cmatch '(?m)^\s+\w+:\s*write\s*$')) 'nothing in the workflow writes: the summary and the artifacts need no permission'
     $uses = @([regex]::Matches($workflow, '(?m)^\s*-?\s*uses:\s*(\S+)'))

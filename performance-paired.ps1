@@ -59,7 +59,9 @@ $harnessRoot = $PSScriptRoot
 # The measurement driver with its comparator, and every input performance.ps1 hashes into benchmarkSha256. Both trees
 # use this checkout's copies, so a comparison between them rejects any fixture difference, and a revision older than
 # the PowerShell comparator still has one.
-$harness = @(Get-PairedHarness) + @('build.ps1','Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1',
+# Build discovery, restore and their private captured process backend also come
+# from this common harness; each side keeps its own library source/project.
+$harness = @(Get-PairedHarness) + @('build.ps1','vcpkg-install.ps1','Tools/VisualStudio.psm1','Tools/ConsumerBuild.psm1','Tools/ScopedTesting.psm1','Tools/Validation.psm1','Tools/Changelog.psm1','Tools/Modules/Documentation/Changelog.psm1',
     'Tests/Embedded/DxUi.EmbeddedTests.vcxproj')
 
 function Get-PairedBuildChanges([object[]] $Records) {

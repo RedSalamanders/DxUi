@@ -1,5 +1,7 @@
 # Active plans
 
+- **ACTIVE**: [API 4 consumer background-process capture](Api4ConsumerProcessCapture_2026-11-15.md). Exact H8 passed six native profiles, eight relocated-consumer configurations and the complete 144-report normal paired Gate. H9 failed required ARM64 Debug Menu stationary-root qualification; bounded test-only observability is applied locally, with fresh native/paired acceptance and maintenance delivery pending. RedSalamander's exact H8/API4 Source pin and separately owned consumer gates remain distinct. The version6 guide transfers no API4 policy or owner authority.
+
 - **ACTIVE**: [Native build policy, terminal results and short DxUi paths](NativeBuildPolicyCoherence_2026-10-28.md). Shared /Wall without /WX, zero-warning validation, Debug/ASan symbols, Release-only ICF, terminal results and verified short dependency folders.
 
 One entry per plan, separated by blank lines, so that changes to different plans merge without conflicts.

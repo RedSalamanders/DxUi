@@ -195,7 +195,7 @@ Invoke-TestCase 'vcpkg-install.ps1 keeps its interface, fails early and passes t
     $script = [IO.File]::ReadAllText($path)
     $toolsetAt = $script.IndexOf('Get-DxUiDefaultToolset', [StringComparison]::Ordinal)
     Assert-True ($toolsetAt -ge 0) 'the default toolset is read'
-    foreach ($later in @('git.exe clone', 'bootstrap-vcpkg.bat', '& $vcpkg @arguments')) {
+    foreach ($later in @('& $git.Source clone', 'bootstrap-vcpkg.bat', '& $vcpkg @arguments')) {
         $at = $script.IndexOf($later, [StringComparison]::Ordinal)
         Assert-True ($at -gt $toolsetAt) "the toolset is read before '$later', so a broken installation fails before anything is cloned or run"
     }
@@ -213,7 +213,7 @@ Invoke-TestCase 'build.ps1 and vcpkg-install.ps1 share one Visual Studio discove
 }
 
 Invoke-TestCase 'the installer and its modules stay ASCII and parse in Windows PowerShell 5.1, which RedSalamander runs the pinned installer with' {
-    $paths = @('vcpkg-install.ps1', 'Tools/VisualStudio.psm1', 'Tools/VcpkgTriplet.psm1') | ForEach-Object { Join-Path $repository $_ }
+    $paths = @('vcpkg-install.ps1', 'Tools/VisualStudio.psm1', 'Tools/VcpkgTriplet.psm1', 'Tools/ConsumerBuild.psm1', 'Tools/validate_consumer.ps1') | ForEach-Object { Join-Path $repository $_ }
     foreach ($path in $paths) {
         # 5.1 reads a file without a byte-order mark as ANSI, so anything beyond ASCII would be read differently there.
         Assert-Equal 0 @([IO.File]::ReadAllBytes($path) | Where-Object { $_ -gt 127 }).Count "$([IO.Path]::GetFileName($path)) is ASCII"

@@ -6,6 +6,7 @@ function Invoke-ScopedGit {
     param([string] $Root, [string[]] $Arguments)
     $start = [Diagnostics.ProcessStartInfo]::new('git')
     $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
     $start.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)

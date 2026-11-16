@@ -45,6 +45,14 @@ jobs:
       # five validators and the tooling tests and reports every failure before it fails.
       - shell: pwsh
         run: ./validate.ps1
+      - name: Retain consumer process controls
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: consumer-build-capture-linux
+          path: .build/test-artifacts/consumer-build-capture/consumer-*/public/*.json
+          if-no-files-found: warn
+          retention-days: 14
   # Windows discovery/path/process branches need their own host qualification, once rather than once per native profile.
   windows-tooling:
     runs-on: windows-2025-vs2026
@@ -62,6 +70,36 @@ jobs:
         run: ./validate.ps1
       - shell: pwsh
         run: ./Tools/tests/Test-AsanRuntime.ps1
+      - name: Consumer process controls in PowerShell 7 with selected MSBuild
+        shell: pwsh
+        run: |
+          $parent = Join-Path $PWD '.build/test-artifacts/consumer-build-capture'
+          [void][IO.Directory]::CreateDirectory($parent)
+          try {
+            Import-Module ./Tools/VisualStudio.psm1 -Force
+            $msbuild = Join-Path (Get-DxUiVisualStudioInstallation) 'MSBuild/Current/Bin/MSBuild.exe'
+            if (-not [IO.File]::Exists($msbuild)) { throw 'Selected MSBuild is unavailable.' }
+            ./Tools/tests/Test-ConsumerBuild.ps1 -FixtureParent $parent -MSBuildPath $msbuild *> (Join-Path $parent 'pwsh-private.log')
+          } catch { throw 'Consumer process controls failed; raw details remain in the private workspace log.' }
+      - name: Consumer process controls in Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $parent = Join-Path $PWD '.build/test-artifacts/consumer-build-capture'
+          [void][IO.Directory]::CreateDirectory($parent)
+          try {
+            Import-Module ./Tools/VisualStudio.psm1 -Force
+            $msbuild = Join-Path (Get-DxUiVisualStudioInstallation) 'MSBuild/Current/Bin/MSBuild.exe'
+            if (-not [IO.File]::Exists($msbuild)) { throw 'Selected MSBuild is unavailable.' }
+            ./Tools/tests/Test-ConsumerBuild.ps1 -FixtureParent $parent -MSBuildPath $msbuild *> (Join-Path $parent 'powershell-private.log')
+          } catch { throw 'Consumer process controls failed; raw details remain in the private workspace log.' }
+      - name: Retain consumer process controls
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: consumer-build-capture-windows
+          path: .build/test-artifacts/consumer-build-capture/consumer-*/public/*.json
+          if-no-files-found: warn
+          retention-days: 14
   format:
     runs-on: windows-2025-vs2026
     timeout-minutes: 15
@@ -206,7 +244,7 @@ jobs:
       relevant: ${{ steps.scope.outputs.relevant }}
     runs-on: windows-2025-vs2026
     # Twelve blocks across three gating scenarios mean 144 benchmark receipts, plus both builds; retain time to publish on timeout.
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 180 || 240 }}
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -231,7 +269,7 @@ jobs:
       - id: measure
         if: ${{ github.event_name == 'workflow_dispatch' || steps.scope.outputs.relevant == 'true' }}
         shell: pwsh
-        timeout-minutes: ${{ github.event_name == 'pull_request' && 150 || 210 }}
+        timeout-minutes: 210
         env:
           BENCHMARK_BASELINE: ${{ inputs.benchmark_baseline || steps.scope.outputs.baseline }}
           BENCHMARK_CANDIDATE: ${{ inputs.benchmark_candidate }}
