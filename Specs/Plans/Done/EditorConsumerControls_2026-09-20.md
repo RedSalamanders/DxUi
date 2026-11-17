@@ -60,7 +60,7 @@ coordinate; do not dual-edit `DxUi.cpp` / catalog without a single owner.
 
 Read [control-development](../../../.agents/skills/control-development/SKILL.md),
 [consumer-integration](../../../.agents/skills/consumer-integration/SKILL.md),
-[modern-cpp-wil](../../../.agents/skills/modern-cpp-wil/SKILL.md),
+`modern-cpp-wil`,
 and [AGENTS.md](../../../AGENTS.md) before any edit.
 
 Quoted non-negotiables:

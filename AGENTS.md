@@ -86,9 +86,11 @@ of an unrelated checkout. Do not change repository visibility without explicit u
 
 ## Skills
 
-Read a focused skill under `.agents/skills/` for the affected work: build-dxui, control-development,
-embedded-rendering, win32-host, input-accessibility, performance-resources, modern-cpp-wil,
-spec-workflow, or consumer-integration. These are repository-local skills and their referenced files must exist.
+Read a focused repository-local skill under `.agents/skills/` for the affected work: build-dxui, control-development,
+embedded-rendering, win32-host, input-accessibility, or consumer-integration (their referenced files must exist).
+Cross-repository C++/WIL, performance, and specification skills live in the sibling `RedHome` repository.
+
+Shared skill index: `../RedHome/AGENTS.md`; packages: `../RedHome/.agents/skills/`. If `../RedHome` is missing, clone https://github.com/RedSalamanders/RedHome.git to that path. This repository's guidance and domain specs own product behavior and validation.
 
 Application documentation screenshots use the consumer test harness. Explicitly authorized brief focus
 for hover/keyboard captures uses its existing warning and interactive desktop lease, with cursor/focus
