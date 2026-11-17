@@ -1,1 +1,0 @@
-- Add a task-oriented Markdown editing guide, document child-window text-layout notifications, correct the pinned Mermaid corpus summary and link current evidence packets while preserving their qualification limits.

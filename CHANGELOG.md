@@ -4,6 +4,112 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Reconciled the common workflow callers with the existing shared engine pin in `.ci/project.json` through
+  the pinned engine's canonical generator, removing partial dependency-update drift without selecting a new
+  engine version. Compiler-free CI configuration, workflow, scoped-planner and affected tooling checks cover
+  the repair; native, interactive and platform qualification remain separate.
+- Consolidated the shared `modern-cpp-wil`, `performance-resources`, and `spec-workflow` agent skills into the
+  organization `RedHome` repository, retaining the six DxUi-specific skills under `.agents/skills/` and validating
+  with `validate.ps1` and `Tools/Test-Changelog.ps1` (documentation/tooling only; native qualification unchanged).
+  Shared-skill discovery names `../RedHome/AGENTS.md`, the package directory, and the clone URL while preserving
+  local product authority.
+  Skill/spec/dependency/port/build-matrix validators pass; the affected tooling gate remains blocked by existing
+  workflow engine pins on `main` that diverge from `.ci/project.json`.
+- Replaced three overlapping documents with one plan, `Specs/Plans/WIP/PerformanceAndMotion_2026-11-13.md`: what DxUi
+  will do for better speed, higher frame rate, lower memory use and animation of every interactive change, with
+  budgets `G1`–`G15`, assumptions `A1`–`A16`, 45 verified facts about today's cost, fixtures `FX1`–`FX14` and 92 items
+  in waves `W0`–`W10`, each stating why, the change, its assumption, a measurable gate, its dependencies and its size;
+  the one new control is `Expander` (`W5.15`). It carries only work that survived review; an appendix maps archived
+  item IDs to the new items. The runtime efficiency study was first challenge-reviewed
+  (`Specs/Plans/Done/RuntimeEfficiencyReview_2026-11-12.md`: every evidence-ledger row `E1`–`E84` re-read against
+  source, 156 of 269 sub-claims holding as written; 123 of about 230 external citations fetched at their pinned
+  commits, 85 confirmed; the asymmetric `Present1` design shown unnecessary against Microsoft's flip-model
+  documentation) and corrected for fact; the study, the review and the frontier plan then moved to `Specs/Plans/Done/`
+  as superseded records, and the smart features of the frontier plan are no longer scheduled anywhere.
+  `Specs/Build/Build_ToolchainAndConsumption.md` and `docs/getting-started.md` now state the runtime minimum as
+  Windows 11 version 25H2 (build 10.0.26200), replacing the Windows 10 baseline, and the contract records that hosted
+  x64 qualification runs one build label lower, on Windows Server 2025 (build 10.0.26100), where unconditional imports
+  must also resolve. Documentation only: no code changed and nothing was built or measured; the default presentation
+  mode and every native gate remain open.
+- Restore an absent historical paired-study engine by fetching only its exact pin when the hosted common reader has shallow history. Keep existing wrong/dirty engines fail-closed and both reader identities frozen; exercise the real shallow acquisition without compiling or benchmarking.
+- Compare actual first-strong header text fragments before and after unequal table mirroring as well as outer cell rectangles, so an incorrect text budget cannot hide behind correct cell bounds.
+- Prepare and retain the sample crash reporter's system PSAPI dependency before installing fatal hooks. This avoids first loading it while the reporter is suspending its own process for module enumeration; the original fatal-child exit, dump, and originating-stack checks remain required.
+- Add shared session admission before explicit foreground batches so canonical Root and DxUi tests coordinate while the existing native lease retains consent, warnings, watchdogs and exact restoration checks. Ordinary noninteractive work remains outside that session lease; routing controls execute no foreground input.
+- Re-audited the runtime efficiency and rendering quality WIP specification (`Specs/Plans/WIP/RuntimeEfficiency_2026-11-07.md`)
+  from the ground up against `DxUi` (`4acabe0e`) and 15 external reference codebases (`longbridge/gpui-fast` `af019de`,
+  `anomalyco/rune` `0ea75abe`, `makepad/makepad` `506ec051`, `microsoft/terminal` `5f7dc283`, `chromium/chromium`
+  `301a3f2f`, `AccessKit/accesskit` `dea43841`, `microsoft/vscode` `75436fa4`, `xi-editor/xi-editor` `a2dea305`,
+  `linebender/parley` `36f82852`, `rive-app/rive-runtime` `66a4fbf3`, `thorvg/thorvg` `22c20d62`, `DioxusLabs/taffy`
+  `d0345bac`, `nicbarker/clay` `e6cc3694`, `ocornut/imgui` `abaca051` and clean-room `ppmpreetham/BUI` `ae284781`),
+  expanding the verified evidence ledger to `E1`–`E84`, scenarios to `S1`–`S20`, and phases `P0`–`P8`, `V1`–`V8` and
+  `B1`–`B6` across controls, host/DirectComposition/waitable-swap-chain & asymmetric `Present1` safety, typography,
+  monotonicity-aware `MeasureCache`, piece-tree/split-CRLF/semantic documents/math/diagrams, bitmask-slab UI Automation,
+  re-entrant TSF IME/clipboard and inline struct memory; validated with `validate.ps1`, `format.ps1 -Check`,
+  `Tools/Test-Changelog.ps1 -Base origin/main` and `Test-Changes.ps1 -Explain`, with owner confirmation of `D3` and
+  `D5`–`D12` and all native implementation/counter/parity gates remaining open.
+- Align scoped validation guidance with the existing hosted Release adapter, which already selects two ordinary workers. Keep local defaults, preflight, performance and foreground serialization explicit; actual native campaign acceptance and paired performance evidence remain separate.
+- Preserve historical engine pins in paired diagnostics while binding both the actual side and common reader inputs, refusing changed or incompatible evidence and retaining default qualification and production gates.
+- Use the pinned shared CI engine's private per-child compiler metadata services for hosted native execution.
+- Seeded and restored the owned physical pointer for each fresh modal state-probe menu attempt, preserving readiness and foreground-retry assertions and their existing deadlines.
+- Add explicit local Release SDK snapshot capture with exact built dirty-source/library provenance, complete input barriers, immutable shared storage and producer lease release before consumer handoff. Share existing SDK byte staging without changing its integration props or qualification gates. Candidate application linking and native qualification remain pending; synthetic tooling controls grant no product or SDK acceptance.
+- Aligned local SDK snapshot ABI capture with ordinary packaging's native MSBuild host selection, preserving original library provenance and strict consumer toolchain matching.
+- Added an explicit local-only Release library build role for dirty separate DxUi sources, preserving pinned SDK refusal, source/API compatibility checks and native input ownership.
+- Read historical SDK source engines through the current tooling's authenticated reader when the old
+  engine predates that module, binding both exact engine identities without changing source pins.
+- Add the frontier WIP plan (`Specs/Plans/WIP/Frontier_2026-11-11.md`): a challenge review of the runtime efficiency
+  plan, its reference libraries and `DxUi` at `0fe99c4a`, with budgets `B1`–`B12`, moves `F0`–`F8` (work truth,
+  retained Direct2D command-list scene, regions, frame clock, compositor layers and pointer input, properties,
+  semantics platform, scale and a conditional owned GPU backend), smart features `K1`–`K12`, a triage of every
+  `P`/`V`/`B` item and decisions `FD1`–`FD10` (all confirmed except `FD4`, composition by default, which waits for
+  the `F0.9` presentation-mode comparison). Under `FD8`, remove the `BUI` review and every `BUI` file, line and
+  commit citation from the runtime efficiency plan; each `B` item now names its independent permissive or Microsoft
+  source. Plan only; no code or contract change.
+- Bind local build and test reuse to the actual pinned CI engine inputs, refusing missing, modified or mismatched engine checkouts while preserving the existing local and main gates.
+- Service synchronous setup callbacks while accessibility workers publish readiness, retaining the original
+  500 ms startup, 50 ms pending and two-second dispatch assertions. Retire the RangeFromPoint worker before
+  reporting its captured observations, and cover withheld readiness with the real provider operation.
+- Coordinate pinned vcpkg checkout/bootstrap changes and platform installs so concurrent
+  architecture restores cannot clone or replace shared tooling under an active installer;
+  retain parallel platform-private installs and never terminate another owner.
+- Add the explicit versioned SDK producer-reference option through the reviewed shared controller. Preserve legacy production, every native SDK gate, exact application pins and independent consumer admission.
+- Use the reviewed shared SDK controller that selects native MSBuild and explicitly
+  preserves the producer compiler host during final ABI metadata acquisition;
+  keep original dependency pins, qualification gates and disabled qualified transport.
+  Isolate direct OLE fixtures from inherited worker-thread modifiers and retain an
+  explicit Alt-refusal control without taking focus or changing product input rules.
+  Preserve descendant-launch failure details in private-desktop launcher self-tests
+  without changing timeout bounds, containment rules or acceptance assertions.
+- Add the optional isolated native shadow caller and exact shared-engine admission tooling while retaining current required checks, local coverage and production qualification.
+- Retain independently passed scoped tooling before a later native failure, so an
+  identical continuation does not repeat completed validators. Keep complete input
+  checks, failed-run revocation, instrumentation isolation and native/foreground
+  obligations; no failed native batch becomes a pass.
+- Align CI callers with the reviewed qualified SDK distribution controller while retaining same-run library reuse, native tests, SDK smoke checks and immutable historical producer identities.
+- Added the indexed WIP handoff plan (`Specs/Plans/WIP/ExplicitStateMachines_2026-11-10.md`) cataloging internal explicit state-machine refactors and interaction/lifetime bug fixes across `src/` and `Tools/` with zero public ABI changes.
+  Validation: `validate.ps1`, `Tools/Test-Changelog.ps1 -Base origin/main`, and `Tools/Invoke-ProjectCi.ps1 -Phase Static`.
+- Add an explicit main-only SDK-input producer for the three unchanged application source pins, with independent native x64/ARM64 selection, canonical byte checks and every existing extracted-SDK gate; application consumption and native acceptance remain separate.
+- Build the selected native target union for affected and explicit suite runs, including the benchmark, sanitizer detector and desktop helper dependencies. Validate evaluated references and required outputs, bind receipts to actual target coverage, retain full-build obligations and revoke prior proof after failed builds. Default full solution and production roles remain available.
+- Reuse exact Release SDK library/PDB inputs from the successful hosted regression attempt after verifying complete source, dependency and evaluated-toolchain provenance; rebuild when absent or incompatible, revoke failed records, and retain all extracted-SDK checks and both architecture gates. Library-only inputs grant no native test or Full result.
+- Publish native-checked SDK inputs into the shared immutable byte store and retain reader leases with complete before/after input and payload verification, without reusing product test results.
+- Acquire complete pinned SDK input identities independently of checkout-derived build/test receipt metadata, preserving all native profile, source/dependency/toolchain and mutation checks.
+- Expose bounded parallel suites through affected testing, retain serial performance/foreground execution and bind the scheduling option into reusable native evidence; hosted concurrency remains unchanged pending native comparison.
+- Adopt owned-prose exclusions and run compiler-free planner controls in PR checks. Isolate simulated local child environments while proving hosted CI refuses local iteration baselines; preserve native gates and historical artifact identity.
+- Build and package reviewed immutable DxUi sources with current governed tooling, exact historical API/license recipes and source/tooling/library provenance; retain isolated output ownership and all native SDK gates without changing consumer pins or granting test results from cached inputs.
+- Reuse exact successful local filter/watchdog verification for up to 24 hours, with source, binary, dependency, host and environment checks; keep Full and hosted preflights fresh and revoke reusable success on failure or mutation.
+- Acquire the complete native build-property set in one evaluation using an owned response file, preserving every property and profile check while reducing repeated build-engine startup during validation.
+- Reuse a successful local affected iteration for subsequent edits in the same profile, with byte-verified source/index, dependency, compiler/SDK and output boundaries. Keep cumulative Full, PrePush and foreground obligations, force fresh Full harness verification, revoke old state before reruns and refuse competing test operations in the same profile. Treat runtime Markdown fixtures as native inputs and retain the canonical preflight's build/desktop ordering checks.
+- Keep DirectWrite's internally handled overhang-formatting exceptions inside the existing native-call boundary, preserving HRESULT refusal and observation of subsequent SDK work; the maximum-document geometry regression remains required.
+- Adopt the shared ABI-indexed vcpkg fallback cache and manual native dependency caching while preserving compiler-free PRs, exact dependency pins and native qualification gates.
+- Run the complete hosted Release regression with two independent non-foreground suite workers, preserving per-suite evidence, serial foreground/preflight/performance and every existing gate; native architecture acceptance remains campaign-specific.
+- Strengthen native rich-text scrolling coverage by checking the published visible source range before caller refresh; live bounding rectangles alone cannot detect a stale accessibility snapshot. Retain the earlier passing mutation experiments separately from negative evidence.
+- Clarify the exact-pin diagnostic API boundary and retain the capability-based script/color-glyph fallback.
+  Existing diagnostic declarations and runtime behavior are unchanged; source-specific platform qualification
+  and each application's adoption remain separate.
+- Add a task-oriented Markdown editing guide, document child-window text-layout notifications, correct the pinned Mermaid corpus summary and link current evidence packets while preserving their qualification limits.
+- Record a private all-ref/worktree-head history scan and evidence-bound metadata-candidate review without changing public history, visibility or scanner rules.
+- Correct stale rich-text implementation and active-plan references, distinguish immutable task syntax from
+  checkbox editing, and document selection-transforming quote/code insertion in the design guideline.
+  These documentation changes preserve existing rendering and gallery pixels.
 - Record the runtime efficiency and rendering quality plan in `Specs/Plans/WIP/RuntimeEfficiency_2026-11-07.md`:
   the 7 November `longbridge/gpui-fast`/`anomalyco/rune` study, red-team reviewed on 8 November 2026 against
   `a7f276c` and `fb8cf94`. A 45-row evidence ledger removes draft items that were already closed (`EDIT-01`,

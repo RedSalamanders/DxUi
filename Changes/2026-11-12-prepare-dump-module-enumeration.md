@@ -1,1 +1,0 @@
-- Prepare and retain the sample crash reporter's system PSAPI dependency before installing fatal hooks. This avoids first loading it while the reporter is suspending its own process for module enumeration; the original fatal-child exit, dump, and originating-stack checks remain required.

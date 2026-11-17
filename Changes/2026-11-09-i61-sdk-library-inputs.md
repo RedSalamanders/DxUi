@@ -1,1 +1,0 @@
-- Reuse exact Release SDK library/PDB inputs from the successful hosted regression attempt after verifying complete source, dependency and evaluated-toolchain provenance; rebuild when absent or incompatible, revoke failed records, and retain all extracted-SDK checks and both architecture gates. Library-only inputs grant no native test or Full result.
