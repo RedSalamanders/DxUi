@@ -1,1 +1,0 @@
-- Adopt the shared ABI-indexed vcpkg fallback cache and manual native dependency caching while preserving compiler-free PRs, exact dependency pins and native qualification gates.

@@ -1,1 +1,0 @@
-- Add the explicit versioned SDK producer-reference option through the reviewed shared controller. Preserve legacy production, every native SDK gate, exact application pins and independent consumer admission.

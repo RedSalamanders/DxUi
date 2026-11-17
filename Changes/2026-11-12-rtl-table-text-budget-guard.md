@@ -1,1 +1,0 @@
-- Compare actual first-strong header text fragments before and after unequal table mirroring as well as outer cell rectangles, so an incorrect text budget cannot hide behind correct cell bounds.
