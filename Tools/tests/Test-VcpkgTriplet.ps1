@@ -204,6 +204,24 @@ Invoke-TestCase 'vcpkg-install.ps1 keeps its interface, fails early and passes t
     Assert-True $script.Contains('"vcpkg-triplets\$platformScope"') 'under the build output, one directory per platform'
 }
 
+Invoke-TestCase 'vcpkg-install.ps1 keeps the vcpkg checkout complete, because vcpkg reads ports with Git that cannot fetch' {
+    $script = [IO.File]::ReadAllText((Join-Path $repository 'vcpkg-install.ps1'))
+    $clones = @($script -split "`n" | Where-Object { $_ -match '^\s*&\s*git\.exe\s+clone\s' })
+    Assert-Equal 1 $clones.Count 'one clone'
+    Assert-True (-not $clones[0].Contains('--filter')) "the clone fetches every object: $($clones[0].Trim())"
+    Assert-True (-not ($script -match '\bfetch\s+--depth\b')) 'the pinned commit is never fetched shallow'
+    Assert-True $script.Contains('rev-parse --verify --quiet "$commit^{commit}"') 'the pinned commit is fetched only when it is missing'
+    $isCurrent = $script.IndexOf('$isToolCurrent=', [StringComparison]::Ordinal)
+    $initialize = $script.IndexOf('$initializeTool=', [StringComparison]::Ordinal)
+    $partial = 'config --get remote.origin.partialclonefilter'
+    $currentCheck = $script.IndexOf($partial, $isCurrent, [StringComparison]::Ordinal)
+    Assert-True ($currentCheck -gt $isCurrent -and $currentCheck -lt $initialize) 'a partial clone is never current'
+    $completion = $script.IndexOf($partial, $initialize, [StringComparison]::Ordinal)
+    $refetch = $script.IndexOf('fetch --refetch --no-filter origin', [StringComparison]::Ordinal)
+    $unset = $script.IndexOf('config --unset-all remote.origin.partialclonefilter', [StringComparison]::Ordinal)
+    Assert-True ($completion -gt $initialize -and $refetch -gt $completion -and $unset -gt $refetch) 'initialization completes a partial clone and drops its filter only afterwards'
+}
+
 Invoke-TestCase 'build.ps1 and vcpkg-install.ps1 share one Visual Studio discovery' {
     foreach ($name in @('build.ps1', 'vcpkg-install.ps1', 'test-consumer.ps1', 'Tools/tests/Test-AsanRuntime.ps1')) {
         $script = [IO.File]::ReadAllText((Join-Path $repository $name))
