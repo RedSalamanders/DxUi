@@ -5,6 +5,10 @@ x64 Debug/Release adoption. ARM64/ASan qualification and release handoff remain 
 This file is the repository-wide instruction source. Start with [Specs/README.md](Specs/README.md) and the owning
 domain contract before changing behavior. Read [README.md](README.md) for actual supported capabilities.
 The repository is public and its default branch is `main`. Use focused feature branches for later changes.
+`maintenance/api4` is the one maintenance branch: the API 4 line for consumers that have not moved to API 5. A
+ruleset forbids deleting or force-pushing any `maintenance/*` branch. Never delete it while a consumer's
+`Dependencies/DxUi.lock.json` pins a commit only it holds (`RedSalamander` does today). Land fixes on `main` first
+and cherry-pick them unless they apply only to API 4, and never open a pull request from it into `main`.
 
 ## Boundaries
 
