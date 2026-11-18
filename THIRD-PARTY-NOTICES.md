@@ -28,7 +28,7 @@ records the retained input and license identities.
 DxUi also links Windows SDK/system libraries, using the consumer's matching MSVC runtime. Those components are
 supplied under their respective Microsoft terms, not relicensed by this project's MIT license. System fonts are
 selected at runtime; DxUi ships no fonts or icon fonts. Generated gallery images illustrate the library's own
-palettes and controls. The pinned clang-format that `Tools/Install-ClangFormat.ps1` fetches for formatting is a
+palettes and controls. The pinned clang-format that `format.ps1` installs through the shared CI engine is a
 development tool, not a linked or packaged library dependency.
 
 The former RedSalamander application dependency list (archive/image/network/viewer libraries and external theme
