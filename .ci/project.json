@@ -4,7 +4,7 @@
   "repository": "RedSalamanders/DxUi",
   "engine": {
     "repository": "RedSalamanders/.github",
-    "ref": "766fd7e01aeef2e77ba18df83b9928516155014e"
+    "ref": "a094b2ea66fc6fd7a8933488a71dacda262903a4"
   },
   "kind": "sdk",
   "adapter": "Tools/Invoke-ProjectCi.ps1",
