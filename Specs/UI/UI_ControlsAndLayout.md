@@ -2347,7 +2347,9 @@ pairs MUST NOT be reduced to a sum/xor that can alias. Invalid admission leaves
 pending work intact. Failed preparation discards staging and keeps the previous
 publication; callers may explicitly retry. Drawing is raster preparation on a
 compatible caller-owned target, with supplied brushes and BeginDraw/EndDraw. It
-MUST restore the caller transform and create no C++/SDK resources. Edge labels
+MUST restore the caller transform and create no C++/SDK resources. A native
+diagram draws on the surrounding canvas or export surface without a graph-wide
+fill or an inline-code chip. Edge labels
 paint last with a two-DIP padded opaque backing supplied by the caller, so crossing
 routes cannot obscure their ink. Padding fits within the geometry's eight-DIP
 outer margins. The fill brush MUST be opaque. CPU geometry

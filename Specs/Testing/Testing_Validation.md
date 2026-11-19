@@ -260,7 +260,8 @@ geometry publication. It preserves every preceding assertion; consumer pin adopt
 Every supported capability has executable evidence and a truthful status in `capabilities.json`.
 
 Prepared diagram-label backgrounds have two independent native EditorControls regressions.
-`TestNativeDiagramLabelBackdrops` compares actual raster pixels and contrast with independently derived
+`TestNativeDiagramOmitsCodeBackdrop` checks a real diagram raster against a distinct inline-code brush
+and uses ordinary inline code as the positive control. `TestNativeDiagramLabelBackdrops` compares actual raster pixels and contrast with independently derived
 expectations across diagram families, group/note containment, custom themes and DPI. It also checks that
 repeated paint creates no text layouts or semantic preparations. `TestNativeDiagramLabelBrushRetirement`
 retains and poisons an old brush after bounded host-cache eviction and a source revision, then requires a

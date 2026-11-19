@@ -11,7 +11,8 @@ The [implementation record](../Specs/Plans/Done/FailurePolicy_2026-11-02.md) and
 remaining performance/platform limits. Historical source `5fc4d4c` used exception recovery and does not qualify
 the current fatal-stack/dump contract.
 
-Native diagram arrow labels blend into the diagram background when text contrast is sufficient. Otherwise
+Native diagrams draw directly on the document canvas or export surface. Arrow labels blend into that
+surface when text contrast is sufficient. Otherwise
 the editor adds a subtle light or dark backing for readability. Label backgrounds stay opaque to mask
 crossing lines; labels within notes or filled groups retain that container's surface. This presentation
 does not alter Mermaid source, diagram placement, selection or history.

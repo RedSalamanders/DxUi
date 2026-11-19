@@ -1,0 +1,1 @@
+- Draw native Mermaid diagrams directly on the editor or export surface. Keep inline-code chips on code and retain local diagram shapes and label backing.
