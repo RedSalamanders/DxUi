@@ -4,6 +4,9 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Keep the API 4 vcpkg tool checkout complete so a clean DxUi restore can extract older port trees offline.
+  Repair an existing managed partial or shallow checkout in place while preserving background process capture
+  and Windows PowerShell 5.1 compatibility.
 - Retain bounded stationary-menu root, callback, owned-popup and modal-return observations only on driver failure, preserving all original predicates, 120 ms observations and activation/cleanup boundaries; keep the actual H9 ARM64 Debug failure and its unproved cause separate from fresh qualification.
 - Record exact H8 API4 producer acceptance, its retained complete normal-Gate study and control limitations, while keeping maintenance delivery and separately owned consumer/desktop milestones explicit; retain the version6 no-authority-transfer boundary.
 - Align the pull-request paired study with the existing manual outer budgets (210-minute measurement, 240-minute job), retaining the full 144-report workload, per-sample deadlines, unchanged policy and reporting headroom. Preserve the H7 partial-study timeout as failed; complete exact-source qualification remains pending.

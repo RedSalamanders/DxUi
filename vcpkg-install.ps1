@@ -3,8 +3,9 @@
 Installs the DxUi vcpkg manifest dependencies for x64, ARM64, or both.
 
 .DESCRIPTION
-Uses the repository and commit pinned by vcpkg-tool.json. The managed vcpkg checkout, downloads, build trees,
-packages, and installed trees all live beneath .build. Each platform receives a private install root so one
+Uses a complete checkout of the repository and commit pinned by vcpkg-tool.json. vcpkg reads versioned ports
+with Git commands that cannot fetch missing objects. A clean partial or shallow checkout is completed in place.
+The managed vcpkg checkout, downloads, build trees, packages, and installed trees all live beneath .build. Each platform receives a private install root so one
 manifest install cannot purge the other platform's package metadata.
 Background restores capture both native streams without creating a secondary console window.
 An actual interactive console keeps ordinary native console inheritance and output.
@@ -73,6 +74,32 @@ if ($toolset.MajorMinor -cne $requiredTools) {
 Write-Host "Visual Studio: $installation" -ForegroundColor Cyan
 Write-Host "MSVC toolset:  $($toolset.Version), the default MSBuild compiles with; vcpkg is pinned to $($toolset.MajorMinor)" -ForegroundColor Cyan
 
+function Invoke-VcpkgGitQuery {
+    param([string[]] $Arguments)
+
+    & $consumerBuildModule {
+        param($executable, $root, $values)
+        Invoke-DxUiConsumerNativeQuery -FilePath $executable -Arguments (@('-C', $root) + $values)
+    } $git.Source $toolRoot $Arguments
+}
+
+function Invoke-VcpkgGitChange {
+    param([string[]] $Arguments, [string] $Failure)
+
+    if ($interactiveConsole) {
+        & $git.Source @Arguments
+        $exitCode = $LASTEXITCODE
+    } else {
+        $exitCode = & $consumerBuildModule {
+            param($executable, $values)
+            Invoke-DxUiConsumerNativeQuery -FilePath $executable -Arguments $values -Stream
+        } $git.Source $Arguments
+    }
+    if ($exitCode -ne 0) {
+        throw "$Failure (git exit code $exitCode)."
+    }
+}
+
 New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
 if (-not (Test-Path -LiteralPath (Join-Path $toolRoot '.git') -PathType Container)) {
     if (Test-Path -LiteralPath $toolRoot) {
@@ -80,61 +107,57 @@ if (-not (Test-Path -LiteralPath (Join-Path $toolRoot '.git') -PathType Containe
     }
 
     Write-Host "Cloning pinned vcpkg tooling into $toolRoot" -ForegroundColor Cyan
-    # Set only this managed checkout: relocated consumers may exceed traditional Win32 path limits.
-    if ($interactiveConsole) { & $git.Source clone -c core.longpaths=true --filter=blob:none $repository $toolRoot }
-    else {
-        $global:LASTEXITCODE = & $consumerBuildModule {
-            param($executable, $url, $root)
-            Invoke-DxUiConsumerNativeQuery -FilePath $executable -Arguments @('clone', '-c', 'core.longpaths=true', '--filter=blob:none', $url, $root) -Stream
-        } $git.Source $repository $toolRoot
-    }
-    if ($LASTEXITCODE -ne 0) {
-        throw "git clone failed with exit code $LASTEXITCODE."
-    }
+    # vcpkg reads older port trees in a Git process that cannot fetch missing objects.
+    # Set long paths only in the managed checkout for consumers with relocated output roots.
+    Invoke-VcpkgGitChange -Arguments @('clone', '-c', 'core.longpaths=true', $repository, $toolRoot) -Failure 'Unable to clone vcpkg'
 }
 
-$originResult = & $consumerBuildModule { param($executable, $root) Invoke-DxUiConsumerNativeQuery -FilePath $executable -Arguments @('-C', $root, 'remote', 'get-url', 'origin') } $git.Source $toolRoot
-$origin = $originResult.StandardOutput.TrimEnd([char]13, [char]10)
-$global:LASTEXITCODE = $originResult.ExitCode
-if ($LASTEXITCODE -ne 0 -or $origin.TrimEnd('/') -ne $repository.TrimEnd('/')) {
+$origin = Invoke-VcpkgGitQuery @('remote', 'get-url', 'origin')
+if ($origin.ExitCode -ne 0 -or $origin.StandardOutput.TrimEnd([char]13, [char]10).TrimEnd('/') -ne $repository.TrimEnd('/')) {
     throw "The managed vcpkg checkout does not use the pinned repository: $repository"
 }
 
-$dirtyResult = & $consumerBuildModule { param($executable, $root) Invoke-DxUiConsumerNativeQuery -FilePath $executable -Arguments @('-C', $root, 'status', '--porcelain') } $git.Source $toolRoot
-$dirty = $dirtyResult.StandardOutput
-$global:LASTEXITCODE = $dirtyResult.ExitCode
-if ($LASTEXITCODE -ne 0) {
+$dirty = Invoke-VcpkgGitQuery @('status', '--porcelain')
+if ($dirty.ExitCode -ne 0) {
     throw 'Unable to inspect the managed vcpkg checkout.'
 }
-if ($dirty) {
+if ($dirty.StandardOutput) {
     throw "The managed vcpkg checkout contains local changes: $toolRoot"
 }
 
-$headResult = & $consumerBuildModule { param($executable, $root) Invoke-DxUiConsumerNativeQuery -FilePath $executable -Arguments @('-C', $root, 'rev-parse', 'HEAD') } $git.Source $toolRoot
-$head = $headResult.StandardOutput.TrimEnd([char]13, [char]10)
-$global:LASTEXITCODE = $headResult.ExitCode
-if ($LASTEXITCODE -ne 0 -or $head -ne $commit) {
+$partialSettings = @(foreach ($key in @('remote.origin.partialclonefilter', 'remote.origin.promisor')) {
+    $setting = Invoke-VcpkgGitQuery @('config', '--local', '--get', $key)
+    if ($setting.ExitCode -eq 0) {
+        $key
+    } elseif ($setting.ExitCode -ne 1) {
+        throw "Unable to inspect $key in the managed vcpkg checkout (git exit code $($setting.ExitCode))."
+    }
+})
+$shallow = Invoke-VcpkgGitQuery @('rev-parse', '--is-shallow-repository')
+if ($shallow.ExitCode -ne 0) {
+    throw 'Unable to inspect the history of the managed vcpkg checkout.'
+}
+if ($shallow.StandardOutput.Trim() -eq 'true') {
+    Write-Host "Expanding the shallow vcpkg history in $toolRoot" -ForegroundColor Cyan
+    Invoke-VcpkgGitChange -Arguments @('-C', $toolRoot, 'fetch', '--unshallow', 'origin') -Failure 'Unable to unshallow the managed vcpkg checkout'
+}
+if ($partialSettings.Count -gt 0) {
+    Write-Host "Completing the partial vcpkg checkout in $toolRoot" -ForegroundColor Cyan
+    Invoke-VcpkgGitChange -Arguments @('-C', $toolRoot, 'fetch', '--refetch', '--no-filter', 'origin') -Failure 'Unable to complete the managed vcpkg checkout'
+    # Leave the partial markers until the fetch succeeds so an interrupted restore can retry.
+    foreach ($key in $partialSettings) {
+        Invoke-VcpkgGitChange -Arguments @('-C', $toolRoot, 'config', '--local', '--unset-all', $key) -Failure "Unable to clear $key"
+    }
+}
+
+$head = Invoke-VcpkgGitQuery @('rev-parse', 'HEAD')
+if ($head.ExitCode -ne 0 -or $head.StandardOutput.Trim() -ne $commit) {
     Write-Host "Selecting pinned vcpkg commit $commit" -ForegroundColor Cyan
-    if ($interactiveConsole) { & $git.Source -C $toolRoot fetch --depth 1 origin $commit }
-    else {
-        $global:LASTEXITCODE = & $consumerBuildModule {
-            param($executable, $root, $revision)
-            Invoke-DxUiConsumerNativeQuery -FilePath $executable -Arguments @('-C', $root, 'fetch', '--depth', '1', 'origin', $revision) -Stream
-        } $git.Source $toolRoot $commit
+    $pinned = Invoke-VcpkgGitQuery @('rev-parse', '--verify', '--quiet', "$commit^{commit}")
+    if ($pinned.ExitCode -ne 0) {
+        Invoke-VcpkgGitChange -Arguments @('-C', $toolRoot, 'fetch', 'origin', $commit) -Failure "Unable to fetch pinned vcpkg commit $commit"
     }
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unable to fetch pinned vcpkg commit $commit."
-    }
-    if ($interactiveConsole) { & $git.Source -C $toolRoot checkout --detach $commit }
-    else {
-        $global:LASTEXITCODE = & $consumerBuildModule {
-            param($executable, $root, $revision)
-            Invoke-DxUiConsumerNativeQuery -FilePath $executable -Arguments @('-C', $root, 'checkout', '--detach', $revision) -Stream
-        } $git.Source $toolRoot $commit
-    }
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unable to check out pinned vcpkg commit $commit."
-    }
+    Invoke-VcpkgGitChange -Arguments @('-C', $toolRoot, 'checkout', '--detach', $commit) -Failure "Unable to check out pinned vcpkg commit $commit"
 }
 
 $vcpkg = Join-Path $toolRoot 'vcpkg.exe'
