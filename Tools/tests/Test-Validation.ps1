@@ -10,11 +10,11 @@ function Set-DependencyFixture([string] $Root) {
     Set-FixtureJson $Root 'vcpkg.json' @{ 'builtin-baseline' = $revision }
     Set-FixtureJson $Root 'vcpkg-tool.json' @{ commit = $revision }
     Set-FixtureFile $Root 'src/Controls/Control.cpp' "original`n"
-    Set-FixtureJson $Root 'Specs/Done/SourceImport/source-origin.json' @{ schemaVersion = 2; commit = $revision; files = @(@{
+    Set-FixtureJson $Root 'Specs/SourceImport/source-origin.json' @{ schemaVersion = 2; commit = $revision; files = @(@{
                 source = 'Common/DxUi/Control.cpp'; currentPath = 'src/Controls/Control.cpp'; disposition = 'owned'
                 originalSha256 = Get-Sha256Hex ([Text.Encoding]::UTF8.GetBytes("original`n")); originalBytes = 9
             }) }
-    Set-FixtureJson $Root 'Specs/Done/SourceImport/pending-dependencies.json' @{ schemaVersion = 1; files = @() }
+    Set-FixtureJson $Root 'Specs/SourceImport/pending-dependencies.json' @{ schemaVersion = 1; files = @() }
     # A consumer interface of one of each kind of entry.
     Set-FixtureJson $Root 'capabilities.json' @{ apiRevision = 4; consumerInterface = @{
             scripts = @{ 'install.ps1' = @('Platform', 'OutputRoot') }
@@ -32,9 +32,9 @@ function Set-DependencyFixture([string] $Root) {
 function Get-DependencyFailures([string] $Root) { return , [string[]]@((Test-DxUiDependencies $Root).Failures) }
 
 function Set-Origin([string] $Root, [hashtable] $Changes) {
-    $manifest = Get-FixtureJson $Root 'Specs/Done/SourceImport/source-origin.json'
+    $manifest = Get-FixtureJson $Root 'Specs/SourceImport/source-origin.json'
     foreach ($key in $Changes.Keys) { $manifest['files'][0][$key] = $Changes[$key] }
-    Set-FixtureJson $Root 'Specs/Done/SourceImport/source-origin.json' $manifest
+    Set-FixtureJson $Root 'Specs/SourceImport/source-origin.json' $manifest
 }
 
 function Get-DependencyFailureCount([string] $Root) { return (Test-DxUiDependencies $Root).Failures.Count }
@@ -153,7 +153,7 @@ Invoke-FixtureCase 'application debt cannot be reintroduced' {
     Set-DependencyFixture $root
     Set-FixtureFile $root 'src/Controls/Control.cpp' "#include `"Helpers.h`"`n"
     Assert-True (Get-DependencyFailureCount $root) 'an application include fails'
-    Set-FixtureJson $root 'Specs/Done/SourceImport/pending-dependencies.json' @{ schemaVersion = 1; files = @(@{ path = 'src/Controls/Control.cpp'; includes = @('Helpers.h') }) }
+    Set-FixtureJson $root 'Specs/SourceImport/pending-dependencies.json' @{ schemaVersion = 1; files = @(@{ path = 'src/Controls/Control.cpp'; includes = @('Helpers.h') }) }
     Assert-True (Get-DependencyFailureCount $root) 'recording the include does not waive it'
     Set-FixtureFile $root 'src/Controls/Control.cpp' "#include <cstdint>`n"
     Assert-True (Get-DependencyFailureCount $root) 'a stale pending record fails'
@@ -163,7 +163,7 @@ Invoke-FixtureCase 'supported source cannot waive an application dependency' {
     param($root)
     Set-DependencyFixture $root
     Set-FixtureFile $root 'src/Foundation/one.cpp' "#include `"Helpers.h`"`n"
-    Set-FixtureJson $root 'Specs/Done/SourceImport/pending-dependencies.json' @{ schemaVersion = 1; files = @(@{ path = 'src/Foundation/one.cpp'; includes = @('Helpers.h') }) }
+    Set-FixtureJson $root 'Specs/SourceImport/pending-dependencies.json' @{ schemaVersion = 1; files = @(@{ path = 'src/Foundation/one.cpp'; includes = @('Helpers.h') }) }
     Assert-True (Get-DependencyFailureCount $root) 'a waived application include fails'
 }
 

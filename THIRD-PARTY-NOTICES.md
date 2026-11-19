@@ -2,7 +2,7 @@
 
 The imported DxUi source and tests originate in RedSalamander, copyright (c) 2026 RedSalamander,
 under the MIT license retained in [LICENSE.txt](LICENSE.txt). See the historical per-file hashes in
-[source origin](Specs/Done/SourceImport/source-origin.json). Copied reference images are test baselines, not shipping assets.
+[source origin](Specs/SourceImport/source-origin.json). Copied reference images are test baselines, not shipping assets.
 
 DxUi uses WIL (Windows Implementation Libraries), Microsoft Corporation, MIT.
 The exact restored version is governed by [vcpkg.json](vcpkg.json) and its pinned baseline; the current dependency

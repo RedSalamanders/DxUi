@@ -772,7 +772,7 @@ Performance receipts name source/configuration/hardware and include all preparat
 
 ### Inherited coverage and new evidence
 
-`Specs/Done/SourceImport/test-port.json` accounts for all 941 inherited named test cases: 853 reusable runtime cases retained and
+`Specs/SourceImport/test-port.json` accounts for all 941 inherited named test cases: 853 reusable runtime cases retained and
 88 excluded with individual reasons. Exclusions are application/test-infrastructure utilities not used by DxUi or
 source-text assertions; original cases remain available at the recorded source commit. No failed runtime case may
 be reclassified merely to obtain a green build. The posted-payload stress case now fills the library's 128-entry

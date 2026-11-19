@@ -22,7 +22,7 @@ from the last section.
 
 Make a focused branch, describe the observable change and tests, and keep active plans current.
 DxUi is the canonical home of the shared library. Edit its source and tests here; consumer-specific changes land
-in that consumer. Record any required backport in [the migration ledger](Specs/Done/SourceImport/migration-ledger.md).
+in that consumer. Record any required backport in [the migration ledger](Specs/SourceImport/migration-ledger.md).
 The historical source hashes document origin; they are not hashes of the current editable files.
 
 Dependency updates require source and build fingerprints, all required configurations, relevant regression tests
