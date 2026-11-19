@@ -139,6 +139,32 @@ static int RunOne(DXGI_SWAP_EFFECT swapEffect, const char* effect)
     Pump(200);
     Measure(swapChain, context, rtv, "restored", effect);
 
+    // A visible child window that covers the whole client area of the swap chain's window.
+    HWND child = CreateWindowExW(0, L"STATIC", nullptr, WS_CHILD | WS_VISIBLE, 0, 0, 64, 64, hwnd, nullptr, wc.hInstance, nullptr);
+    Pump(200);
+    Measure(swapChain, context, rtv, "child-covered", effect);
+    DestroyWindow(child);
+    Pump(100);
+
+    // Another top-level window of this process, non-activating and topmost, exactly over the swap chain's window.
+    HWND cover = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+                                 L"STATIC",
+                                 nullptr,
+                                 WS_POPUP,
+                                 work.right - 64,
+                                 work.bottom - 64,
+                                 64,
+                                 64,
+                                 nullptr,
+                                 nullptr,
+                                 wc.hInstance,
+                                 nullptr);
+    ShowWindow(cover, SW_SHOWNOACTIVATE);
+    Pump(200);
+    Measure(swapChain, context, rtv, "window-covered", effect);
+    DestroyWindow(cover);
+    Pump(100);
+
     BOOL cloak = TRUE;
     DwmSetWindowAttribute(hwnd, DWMWA_CLOAK, &cloak, sizeof(cloak));
     Pump(200);
