@@ -89,6 +89,10 @@ standalone EmbeddedControls executable all consume it. The test-only `DxUi.Inter
 `["DxUi"]`, API revision 4.
 
 Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
+The managed tool checkout keeps full history and objects so vcpkg can extract older port trees without Git
+fetching objects during extraction. The installer completes a clean partial or shallow checkout in place after
+verifying the origin. It leaves the partial-clone configuration in place until the full fetch succeeds, so a
+failed repair can be retried. The installer fetches the pinned commit only if it is missing locally.
 `-OutputRoot` isolates restore and build work in a consumer-owned directory. The same absolute directory, including
 its trailing separator, becomes `DxUiConsumerOutputRoot`; props locate its public WIL headers and the project
 reference passes it as `DxUiOutputRoot`. No application checkout is needed. Missing restore and mismatched/dirty pins

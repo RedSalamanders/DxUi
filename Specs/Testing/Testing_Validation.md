@@ -150,6 +150,8 @@ ordering before measurements. On Windows, metadata-only installed-MSBuild regres
 coverage MUST evaluate both real catalog projects from identical synthetic layouts with
 opposing project/import timestamps. Benchmark-only staging MUST expose the library
 profile mismatch; complete catalog staging MUST yield exact full-profile equality.
+A property query with one name remaining in its final batch MUST retain the full
+property set, including an empty value for that last property.
 A changed effective compiler option with fixed timestamps MUST still fail strict
 preflight. Retain the evaluated inputs, staging manifest and exact byte/timestamp
 restoration results; no native compilation or desktop input is required.

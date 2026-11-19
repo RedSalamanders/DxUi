@@ -195,13 +195,26 @@ Invoke-TestCase 'vcpkg-install.ps1 keeps its interface, fails early and passes t
     $script = [IO.File]::ReadAllText($path)
     $toolsetAt = $script.IndexOf('Get-DxUiDefaultToolset', [StringComparison]::Ordinal)
     Assert-True ($toolsetAt -ge 0) 'the default toolset is read'
-    foreach ($later in @('& $git.Source clone', 'bootstrap-vcpkg.bat', '& $vcpkg @arguments')) {
+    foreach ($later in @("Invoke-VcpkgGitChange -Arguments @('clone'", 'bootstrap-vcpkg.bat', '& $vcpkg @arguments')) {
         $at = $script.IndexOf($later, [StringComparison]::Ordinal)
         Assert-True ($at -gt $toolsetAt) "the toolset is read before '$later', so a broken installation fails before anything is cloned or run"
     }
     Assert-True $script.Contains('"--overlay-triplets=$($overlay.Directory)"') 'vcpkg takes the overlay directory'
     Assert-True $script.Contains('-StockTripletPath (Join-Path $toolRoot "triplets/$triplet.cmake")') 'copied from the pinned checkout, not restated'
     Assert-True $script.Contains('"vcpkg-triplets\$platformScope"') 'under the build output, one directory per platform'
+}
+
+Invoke-TestCase 'vcpkg-install.ps1 keeps older port trees available for offline extraction' {
+    $script = [IO.File]::ReadAllText((Join-Path $repository 'vcpkg-install.ps1'))
+    Assert-True $script.Contains('@(''clone'', ''-c'', ''core.longpaths=true'', $repository, $toolRoot)') 'the initial clone is complete'
+    Assert-True (-not $script.Contains("'--depth'")) 'the installer never creates shallow history'
+    Assert-True $script.Contains('''rev-parse'', ''--verify'', ''--quiet'', "$commit^{commit}"') 'the pin is fetched only when missing'
+    $dirtyCheck = $script.IndexOf('if ($dirty.StandardOutput)', [StringComparison]::Ordinal)
+    $unshallow = $script.IndexOf("'fetch', '--unshallow'", [StringComparison]::Ordinal)
+    $refetch = $script.IndexOf("'fetch', '--refetch', '--no-filter'", [StringComparison]::Ordinal)
+    $unset = $script.IndexOf("'--unset-all'", [StringComparison]::Ordinal)
+    Assert-True ($dirtyCheck -ge 0 -and $dirtyCheck -lt $unshallow -and $unshallow -lt $refetch -and $refetch -lt $unset) 'verify clean before completing and keep the markers until fetch succeeds'
+    Assert-True $script.Contains('Invoke-DxUiConsumerNativeQuery -FilePath $executable -Arguments $values -Stream') 'background Git changes keep streamed process capture'
 }
 
 Invoke-TestCase 'build.ps1 and vcpkg-install.ps1 share one Visual Studio discovery' {
