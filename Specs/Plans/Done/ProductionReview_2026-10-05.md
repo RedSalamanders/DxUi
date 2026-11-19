@@ -449,7 +449,7 @@ section. This changes the library alone, with no implicit consumer adoption.
 - [x] Compare the same retained benchmark fixture, review affected docs/gallery, run all validators and formatting.
 
 Focus-taking suites require agreement to the time under `AGENTS.md` and
-[build-dxui](../../../.agents/skills/build-dxui/SKILL.md): "only when the person at the desktop has agreed to the time".
+`build-dxui` (folded into `RedHome`'s `native-build` on 2026-11-19): "only when the person at the desktop has agreed to the time".
 The archived 8 October run had no desktop authorization. The 9 October authorization and subsequent results belong
 to the current iteration ledger; no noninteractive result closes that gate.
 
