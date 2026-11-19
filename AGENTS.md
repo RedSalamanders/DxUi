@@ -90,8 +90,10 @@ of an unrelated checkout. Do not change repository visibility without explicit u
 
 ## Skills
 
-Read a focused repository-local skill under `.agents/skills/` for the affected work: build-dxui, control-development,
+Read a focused repository-local skill under `.agents/skills/` for the affected work: control-development,
 embedded-rendering, win32-host, input-accessibility, or consumer-integration (their referenced files must exist).
+Building, restoring and toolchain failures are the shared `native-build` skill in `RedHome` (formerly build-dxui
+here), with DxUi's commands, restore and interactive-suite rules in its `references/repository-facts.md`.
 Cross-repository C++/WIL, performance, and specification skills live in the sibling `RedHome` repository.
 
 Shared skill index: `../RedHome/AGENTS.md`; packages: `../RedHome/.agents/skills/`. If `../RedHome` is missing, clone https://github.com/RedSalamanders/RedHome.git to that path. This repository's guidance and domain specs own product behavior and validation.
