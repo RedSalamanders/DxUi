@@ -1,7 +1,9 @@
 # DxUi development guidance
 
-DxUi is an independent Windows C++ library. RedXe consumes it; RedSalamander's I19 consumer branch has completed local
-x64 Debug/Release adoption. ARM64/ASan qualification and release handoff remain explicitly separate. A library change never implicitly updates either consumer.
+DxUi is an independent Windows C++ library. Five applications consume it through an exact `Dependencies/DxUi.lock.json`
+pin: RedTilde at API 5, and RedSalamander, RedXe, RedPrism and RedMonitor at API 4 (RedSalamander on the
+`maintenance/api4` line). Each consumer's adoption, ARM64/ASan qualification and release handoff remain its own. A
+library change never implicitly updates a consumer.
 This file is the repository-wide instruction source. Start with [Specs/README.md](Specs/README.md) and the owning
 domain contract before changing behavior. Read [README.md](README.md) for actual supported capabilities.
 The repository is public and its default branch is `main`. Use focused feature branches for later changes.
@@ -60,15 +62,15 @@ and cherry-pick them unless they apply only to API 4, and never open a pull requ
 ## Drive-root output policy
 
 Do not create scratch, caches, evidence, copied checkouts, or other output directories directly at a drive root.
-Use repository-local generated-output directories or an existing approved workspace. The only permitted new
-drive-root output name is `<Project>.Perf` (for example `RedSalamander.Perf`, `RedPrism.Perf`, or `DxUi.Perf`),
-and the user must explicitly authorize the exact path before its first creation or initialization. A matching
-name, environment variable, low disk space, or authorization for another drive/project is not authorization.
-Keep project outputs beneath their approved root; do not invent sibling root folders. Existing sandbox
-markers and runner-specific authorization remain required. Before relocating or removing historical output,
-inventory it, preserve useful evidence and recovery data, check process use, repair live junction/worktree
-references, and verify preservation. Never traverse junctions during cleanup or retain compatibility junctions
-at the forbidden old drive-root paths.
+Use repository-local generated outputs or an existing approved workspace. The only permitted new drive-root
+output name is `<Project>.Perf`, named after the owning project (for example `RedSalamander.Perf` or
+`RedPrism.Perf`), and the user must explicitly authorize the exact path before its first creation or
+initialization. A matching name, environment variable, low disk space, or authorization for another drive or
+project is not authorization. Keep outputs beneath the approved root; do not invent sibling root folders. Preserve
+runner-specific ownership markers and authorization. Historical cleanup inventories and preserves useful evidence
+and recovery data, checks process use, repairs live junction and worktree references, and verifies preservation
+before removal. Never follow junctions during cleanup or leave compatibility junctions at forbidden old drive-root
+paths.
 
 ## Workflow and validation
 
@@ -88,16 +90,6 @@ Never edit or commit `.build` products. Build and test tools validate output pat
 never kill independently launched applications. Git actions use the user's authorization; no force push or reset
 of an unrelated checkout. Do not change repository visibility without explicit user instruction.
 
-## Skills
-
-Read a focused repository-local skill under `.agents/skills/` for the affected work: control-development,
-embedded-rendering, win32-host, input-accessibility, or consumer-integration (their referenced files must exist).
-Building, restoring and toolchain failures are the shared `native-build` skill in `RedHome` (formerly build-dxui
-here), with DxUi's commands, restore and interactive-suite rules in its `references/repository-facts.md`.
-Cross-repository C++/WIL, performance, and specification skills live in the sibling `RedHome` repository.
-
-Shared skill index: `../RedHome/AGENTS.md`; packages: `../RedHome/.agents/skills/`. If `../RedHome` is missing, clone https://github.com/RedSalamanders/RedHome.git to that path. This repository's guidance and domain specs own product behavior and validation.
-
 Application documentation screenshots use the consumer test harness. Explicitly authorized brief focus
 for hover/keyboard captures uses its existing warning and interactive desktop lease, with cursor/focus
 restoration; static captures remain non-activating. Never substitute desktop screenshots.
@@ -110,18 +102,46 @@ Explicit agreement to automatic start also permits `test.ps1 -Interactive -Inter
 30-second countdown defaults to Start unless cancelled. It retains desktop checks, warning and verified restoration.
 Ordinary `-Interactive` still asks first and defaults to Cancel. Silence supplies no automatic-start authorization.
 
-## Scoped testing policy (2026-10-05)
+DxUi has no publication workflow; qualified SDK ZIPs remain internal artifacts. An explicit release-only change may use
+`Tools/Release-Changelog.ps1` after all fragments are folded.
 
-The user's accepted workflow replaces unconditional full-test iteration. Use `Test-Changes.ps1 -Explain` and the affected default while editing; use `-Mode PrePush` to account for full local/PR coverage without duplicate identical obligations. A forthcoming enabled CI gate is pending acceptance, never an already passed result. Explicit Full remains available. Active native test files use `<Component>.Tests.Something.h/.cpp` (for example `Controls.Tests.RichSemanticDocument.cpp` or `Support.Tests.MathCorpus.h`) and the native file inventory; `Scope` is a placeholder, never a literal component. Follow [Specs/Testing/Testing_Validation.md](Specs/Testing/Testing_Validation.md) and [the test guide](Tests/README.md). Focus-taking work requires agreement to the time; no scoped pass closes that gate. Build/runtime/platform qualification still applies to changed behavior, with exact prior evidence reusable only under the owning contract.
+## Skills
+
+Shared skill index: `../RedHome/AGENTS.md`; packages: `../RedHome/.agents/skills/`. If `../RedHome` is missing, clone https://github.com/RedSalamanders/RedHome.git to that path. This repository's guidance and domain specs own product behavior and validation.
+
+Read a focused repository-local skill under `.agents/skills/` for the affected work: control-development,
+embedded-rendering, win32-host, input-accessibility, or consumer-integration (their referenced files must exist).
+Building, restoring and toolchain failures are the shared `native-build` skill in `RedHome` (formerly build-dxui
+here), with DxUi's commands, restore and interactive-suite rules in its `references/repository-facts.md`.
+Cross-repository C++/WIL, performance, and specification skills live in the sibling `RedHome` repository.
+
+## Interactive desktop tests
+
+A test that takes real foreground focus, the cursor or the clipboard runs only after the person at the desktop has
+agreed to the time; silence never authorizes one. It warns before and while it runs, targets only windows the test
+owns, and restores the foreground window, keyboard focus and pointer however it ends. Use the repository's
+interactive entry point and desktop lease where it has one. Every other test and every harness capture stays hidden
+and non-activating, and no scoped, CI or partial pass closes a focus-taking gate.
+
+## Scoped testing policy
+
+The user's accepted workflow replaces unconditional full-test iteration. While editing, run `Test-Changes.ps1 -Explain`
+and then the affected default; use `-Mode PrePush` to account for the remaining local and pull-request obligations
+without repeating identical ones, and explicit Full where qualification requires it. A pending CI check is never a
+passed result. Reuse only exact successful evidence for the same source, pin, toolchain, binary and scenario. Native
+test files use contextual `<Component>.Tests.<Subject>.h/.cpp` names, listed in the native file inventory where the
+repository keeps one. Focus-taking work requires agreement to the time, and no scoped pass closes that gate. Build,
+runtime and platform qualification still applies to changed behavior. [Specs/Testing/Testing_Validation.md](Specs/Testing/Testing_Validation.md) and [the test guide](Tests/README.md) own the details.
 
 ## Changes workflow
 
 Record each change as one dated Markdown fragment under `Changes/`; follow [Changes/README.md](Changes/README.md)
 and [Specs/Core/Core_Changes.md](Specs/Core/Core_Changes.md). Do not hand-edit generated `CHANGELOG.md` entries.
-Keep the fragment in the change: never fold it or edit `CHANGELOG.md` in a feature change. An explicit release-only change may use `Tools/Release-Changelog.ps1` after all fragments are folded. Fragments are
+Keep the fragment in the change: never fold it in a feature change and never edit `CHANGELOG.md`. Fragments are
 folded on `main` after merge by `Tools/Submit-ChangelogFold.ps1`, which opens a fold pull request of its own. Run
 `Tools/Test-Changelog.ps1` while editing; PrePush and CI run it with `-Base`, which refuses any `CHANGELOG.md` change
-that is neither an exact fold of fragments already on `main` nor the exact generated release transition. Validation is read-only.
+that is not an exact fold of fragments already on `main` or, where the repository releases through
+`Tools/Release-Changelog.ps1`, the exact generated release transition. Validation is read-only.
 
 ## Shared native build policy (2026-10-28)
 
@@ -134,4 +154,4 @@ terminal launch links and short dependency folders with full identity checking.
 
 ## Unified CI policy
 
-Use [Specs/Build/Build_UnifiedCI.md](Specs/Build/Build_UnifiedCI.md) for hosted CI. PRs run compiler-free checks and formatting feedback. Main native qualification starts after five continuous quiet minutes; both native Release test branches must pass before either production Release/ZIP branch starts. Scheduled dependency/security/status checks remain compiler-free. Formatting commits and extended qualification are explicit manual actions. DxUi has no publication workflow; qualified SDK ZIPs remain internal artifacts. PR checks do not satisfy native acceptance or waive applicable local scoped tests. Shared-engine pins in .ci/project.json and workflow callers must agree. Preserve dependency pins, native toolchain, evidence and desktop ownership contracts.
+Use [Specs/Build/Build_UnifiedCI.md](Specs/Build/Build_UnifiedCI.md) for hosted CI. PRs run compiler-free checks and formatting feedback. Main native qualification starts after five continuous quiet minutes; both native Release test branches must pass before either production Release/ZIP branch starts. Scheduled dependency/security/status checks remain compiler-free. Formatting commits, extended qualification and any ZIP or winget publication are explicit manual actions. PR checks do not satisfy native acceptance or waive applicable local scoped tests. Shared-engine pins in .ci/project.json and workflow callers must agree. Preserve dependency pins, native toolchain, evidence and desktop ownership contracts.
