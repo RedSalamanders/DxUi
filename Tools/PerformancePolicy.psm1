@@ -435,6 +435,31 @@ function Get-PerformanceProjectEvaluationCore {
         solutionIdentity=$metadata.solutionIdentity; projectSha256=$metadata.projectSha256 }
 }
 
+function Get-PerformancePropertyValues {
+    param([string] $MSBuildPath, [string[]] $Arguments, [string[]] $Names, [string] $Role)
+
+    $properties = [ordered]@{}
+    # The installed target closure references more than a thousand properties. Bound command-line size on Windows.
+    for ($offset = 0; $offset -lt $names.Count; $offset += 200) {
+        $batch = $names[$offset..([Math]::Min($offset + 199, $names.Count - 1))]
+        # MSBuild emits a scalar for a single property. Query an earlier property again to keep the
+        # final batch in JSON form, while recording only the newly requested values below.
+        $requested = if ($batch.Count -eq 1) { @($Names[0], $batch[0]) } else { $batch }
+        $json = @(& $MSBuildPath @Arguments "-getProperty:$($requested -join ',')" 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw "MSBuild could not evaluate $Role toolchain properties. $($json -join ' ')" }
+        $result = $json -join "`n" | ConvertFrom-Json -AsHashtable
+        if ($result -isnot [Collections.IDictionary] -or $result['Properties'] -isnot [Collections.IDictionary]) {
+            throw "MSBuild did not return a property map for the $Role profile."
+        }
+        $values = $result['Properties']
+        foreach ($name in $batch) {
+            if (-not $values.Contains($name)) { throw "MSBuild omitted the requested $name property." }
+            $properties[$name] = $values[$name]
+        }
+    }
+    return $properties
+}
+
 function Get-PerformanceProjectMetadataCore {
     # Evaluation only: no targets, compiler, native-input hashing or build attestation. Kept separate so the
     # installed-MSBuild regression can inspect the exact same complete profile as the production evaluator.
@@ -444,18 +469,7 @@ function Get-PerformanceProjectMetadataCore {
     [xml]$project = $expanded['text']
     $names = Get-PerformanceToolPropertyNames $project
     $arguments = @($ProjectPath, '/nologo', "/p:Configuration=$Configuration", "/p:Platform=$Platform", "/p:DxUiOutputRoot=$OutputRoot") + @(ConvertTo-PerformanceMSBuildProperties $solution.properties)
-    $properties = [ordered]@{}
-    # The installed target closure references more than a thousand properties. Bound command-line size on Windows.
-    for ($offset = 0; $offset -lt $names.Count; $offset += 200) {
-        $batch = $names[$offset..([Math]::Min($offset + 199, $names.Count - 1))]
-        $json = @(& $MSBuildPath @arguments "-getProperty:$($batch -join ',')" 2>&1)
-        if ($LASTEXITCODE -ne 0) { throw "MSBuild could not evaluate $Role toolchain properties. $($json -join ' ')" }
-        $values = ($json -join "`n" | ConvertFrom-Json -AsHashtable)['Properties']
-        foreach ($name in $batch) {
-            if (-not $values.Contains($name)) { throw "MSBuild omitted the requested $name property." }
-            $properties[$name] = $values[$name]
-        }
-    }
+    $properties = Get-PerformancePropertyValues -MSBuildPath $MSBuildPath -Arguments $arguments -Names $names -Role $Role
     if ($properties['ForceImportAfterCppTargets']) { throw 'A real ForceImportAfterCppTargets override cannot be replaced by a performance metadata probe.' }
     $originalKinds = @('ClCompile','FxCompile','ProjectReference','CustomBuild','ResourceCompile','Midl','MASM','ARMASM','BuildMacro')
     $json = @(& $MSBuildPath @arguments "-getItem:$($originalKinds -join ',')" 2>&1)

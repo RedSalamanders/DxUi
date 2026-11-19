@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Keep API 4 benchmark metadata queries in MSBuild's JSON form when a single property remains in the final batch.
 - Keep the API 4 vcpkg tool checkout complete so a clean DxUi restore can extract older port trees offline.
   Repair an existing managed partial or shallow checkout in place while preserving background process capture
   and Windows PowerShell 5.1 compatibility.

@@ -40,6 +40,21 @@ function Read-ActualProfile([string]$Root,[Collections.IDictionary]$Project,[str
         } finally {Pop-Location}
     } $Root $Project $Label $msbuild $scratch
 }
+Invoke-TestCase 'an empty final property is retained after a full MSBuild batch' {
+    $fixture = Join-Path $scratch 'property-batch.proj'
+    [IO.File]::WriteAllText($fixture, '<Project><PropertyGroup><Probe001>first</Probe001></PropertyGroup></Project>')
+    $propertyNames = @(1..200 | ForEach-Object { 'Probe{0:000}' -f $_ }) + 'ProbeTail'
+    $properties = & $policy {
+        param($Executable, $Project, $Names)
+        Get-PerformancePropertyValues -MSBuildPath $Executable -Arguments @($Project, '/nologo') -Names $Names -Role 'fixture'
+    } $msbuild $fixture $propertyNames
+
+    Assert-Equal 201 $properties.Count 'the complete set is retained'
+    Assert-Equal 'first' $properties['Probe001'] 'the first batch is read'
+    Assert-True $properties.Contains('ProbeTail') 'an undefined property is present as an empty value'
+    Assert-Equal '' $properties['ProbeTail'] 'the final empty property is retained'
+}
+
 Invoke-TestCase 'real library and benchmark profiles expose the benchmark-only omission and match after complete catalog staging' {
     $projects=@(Get-PerformanceProjectCatalog)
     $roots=@((Join-Path $scratch 'candidate'),(Join-Path $scratch 'nested/baseline'))
