@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "apiRevision": 5,
   "library": "DxUi",
+  "product": "DxUi",
+  "status": "x64-qualified",
   "consumerInterface": {
     "scripts": {
       "vcpkg-install.ps1": ["Platform", "OutputRoot"],
