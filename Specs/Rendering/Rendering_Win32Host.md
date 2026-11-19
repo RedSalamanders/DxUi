@@ -86,6 +86,15 @@ Default attachments inherit that pool's policy, including native peers/menus. A 
 an attached/default-created pool fails with `ERROR_INVALID_STATE`; it never replaces peers' resources. Matching
 repeated attachments are idempotent. Device loss retains the selected policy; the final attachment releases it.
 This additive option supports deterministic native validation and leaves the default hardware/fallback path intact.
+
+The owner thread's graphics pool creates its device on the default adapter, then WARP; it does not pick the adapter
+of each window's monitor, as the RedXe and RedPrism renderers do. This difference is by design. Every host attached
+on one thread shares that device with its Direct2D device, factories and native peers and menus, and a window may
+move between monitors of different adapters at any time. A monitor-matched device would split the pool into one
+device per adapter and move a window's device-dependent resources each time it crosses adapters. A window host
+presents only invalidated frames, so the cross-adapter copy Windows makes for a window on another adapter's monitor
+costs one copy per presented frame, not per display refresh. A real-time host that owns its device and presents from
+the idle side of its loop chooses the monitor's adapter instead.
 `CreateD3D11DeviceWithWarpFallback` places each `D3D11CreateDevice` attempt inside the
 audited synchronous native-call boundary. A C++ exception handled within the native
 implementation may return its original HRESULT; an escaping exception remains fatal.
