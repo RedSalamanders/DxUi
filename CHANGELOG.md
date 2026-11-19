@@ -4,6 +4,113 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Moved the vcpkg tool pin in `vcpkg-tool.json` from `9e593bb1` to `aeb162b7`, the same commit as the baseline and
+  as RedSalamander's pin (RedHome CV-4-07, register C-07). The managed checkout's scripts and triplets now come from
+  that commit and its bootstrap downloads vcpkg-tool 2026-09-26 instead of 2026-07-27; package ABI hashes change, so
+  the first restore rebuilds the dependencies. Consumers are unaffected until their DxUi pins move. Compiler-free
+  checks pass; native qualification runs on `main` after merge.
+- Moved the vcpkg `builtin-baseline` in `vcpkg.json` from `9eec002d` to `aeb162b7` (microsoft/vcpkg, 2026-10-22),
+  RedSalamander's baseline, so every repository resolves ports from one baseline (RedHome CV-4-07, register C-06).
+  Between the two baselines only `7zip` and `sqlite3` change, and this repository uses neither, so no dependency
+  version changes. Compiler-free checks pass; native qualification runs on `main` after merge.
+- Gave `Specs/Build/Build_UnifiedCI.md` the skeleton every RedSalamanders repository now shares (convergence
+  CV-6-03, B-08): the same headings in the same order, one common text above `## Project adapter` built from the
+  paragraphs the six files already shared, five stale statements corrected to the engine's `Specs/CI.md`, and every
+  DxUi-specific sentence, the SDK producer facts included, moved unchanged into the fixed adapter subsections. Prose
+  only; no CI behavior changed. Validated with `validate-specs.ps1` and `Tools/Test-Changelog.ps1`.
+- Gave the specifications the same shape as every RedSalamanders repository (convergence CV-6-03): the common
+  `Specs/README.md` structure and WIP and Done index headers, the four common plan statuses (the performance and
+  motion plan moves from `SPEC READY` to `ACTIVE`, still not started), the common CODEOWNERS file, which owns the
+  same paths, and the common `Measurements/` archive rule in `Testing_RunEvidence.md`. No behavior, build input or
+  test changed. Validated with `validate-specs.ps1`, `Tools/tests/Test-CodeOwners.ps1` and
+  `Tools/Test-Changelog.ps1`.
+- Retired the repository-local `build-dxui` agent skill, now folded into the shared `native-build` skill in `RedHome`
+  (convergence CV-2-12). Every rule and code line of it is in the shared skill, with DxUi's commands, the toolset
+  pinned restore, the single-test filter and watchdog, and the interactive-suite rules in its
+  `references/repository-facts.md`. Claude Code (the `redhome` plugin), Codex, and Copilot list the shared skills
+  from this repository. `AGENTS.md` points at it. No build, test or product input changes.
+- Agent guidance now matches the other RedSalamanders repositories (`RedHome` convergence step CV-6-02). There is
+  one identical `.github/copilot-instructions.md` pointer to `AGENTS.md`, and the shared-skill pointer sits directly
+  under `## Skills`. The drive-root, scoped-testing, Changes, native build and Unified CI sections use the text every
+  repository shares. A new shared "Interactive desktop tests" section states the focus rule, while DxUi's own
+  `test.ps1 -Interactive` and release facts move into "Workflow and validation". The introduction names all five
+  consumers and their API revisions, and `consumer-integration` no longer says API revision 5 only. The common
+  `.gitignore` block ignores `.claude/settings.local.json` and `.claude/scheduled_tasks.lock`, and `capabilities.json`
+  gains `product` and `status`. The consumer interface is unchanged, and nothing compiles differently.
+- The window-hosting contract now records why `ControlHost`'s per-thread graphics pool creates its device on the
+  default adapter instead of the adapter of each window's monitor: every host on the thread shares that device, a
+  window can cross adapters at any time, and a message-driven host presents only invalidated frames. This is the
+  by-design outcome that RedHome register row H-17 (CV-6-08) allows for DxUi. Documentation only; behavior unchanged.
+- Converged the remaining root files with every RedSalamanders repository (convergence CV-6-03, B-12 default):
+  `CONTRIBUTING.md` is the common text with all of its DxUi rules kept in a repository section, and the common pull
+  request template and `.vsconfig` are added. CODEOWNERS names the workflows and Dependabot on their own lines, as
+  every repository's does; no path changes owner. Validated with `Tools/tests/Test-CodeOwners.ps1`,
+  `validate-specs.ps1` and `Tools/Test-Changelog.ps1`.
+- Draw native Mermaid diagrams directly on the editor or export surface. Keep inline-code chips on code and retain local diagram shapes and label backing.
+- Measured what a flip-model `Present` returns on the Windows 11 baseline (RedHome register H-20, CV-6-08): on 25H2,
+  flip-sequential and flip-discard swap chains returned `S_OK` while their window was shown, minimized, cloaked or
+  hidden, and a blt-model control returned `DXGI_STATUS_OCCLUDED`. The window-hosting contract's statement that
+  Windows does not return that status for flip-model swap chains now cites the record in
+  `Measurements/FlipModelOcclusion_2026-11-19/`. Documentation and evidence only; behavior unchanged.
+- Corrected the flip-model occlusion record (RedHome register H-20, CV-6-08). A second probe run adds a window
+  covered by a visible child and by another topmost window: a flip-model `Present` still returned `S_OK` in every
+  state. RedXe's renderer records `DXGI_STATUS_OCCLUDED` arriving when one of its own native child windows covered
+  its swap chain, which this probe did not reproduce. The contract now says the status is not a usable occlusion
+  signal for flip-model swap chains, instead of saying Windows never returns it. Documentation and evidence only.
+- Moved the shared CI engine pin from `a094b2e` to `f965c79`, engine `main` today, with `Update-ProjectPin.ps1`:
+  `.ci/project.json` and the workflow callers name the same full commit. This is this repository's step of the
+  `RedHome` convergence wave (CV-4-04, CV-4-05) that puts every repository on one engine commit. Between the two
+  commits the engine adds the shared changelog commands with their product shim templates (CV-5-01, CV-5-02) and the
+  harness exclusions, and changes no workflow template. The pin also adds the agent harness paths `.codex/**`,
+  `.github/agents/**`, `.github/copilot-instructions.md` to the prose exclusions, so editing them no longer changes
+  native inputs (CV-6-01). Compiler-free checks pass; native qualification runs on `main` after merge.
+- Planned the code-convention rows of the RedHome convergence register (CV-6-08) that move DxUi as section D-CV1
+  of the remaining-work plan: device-loss results (H-19), Alt+Enter on HWND swap chains (H-18), `ControlHost`'s COM
+  pointers (H-03), adapter selection (H-17), flip-model occlusion (H-20) and keyboard state under hidden self-tests
+  (H-23), one pull request each. Plan only; no code changes.
+- `vcpkg-install.ps1` keeps a complete clone of the pinned vcpkg checkout instead of a `--filter=blob:none`
+  partial clone. vcpkg 2026-07-27 extracts each versioned port with `git read-tree` and `git checkout-index` in an
+  environment that holds only `GIT_INDEX_FILE`; without `SystemRoot` that Git resolves no host, so a blob that the
+  partial clone left on the server failed with "Could not resolve host: github.com". It started on 2026-11-18,
+  when upstream `master` stopped carrying the `vcpkg-cmake` tree the baseline selects, and stopped every fresh
+  restore on x64 and ARM64. The pinned commit is now fetched only when the default branch lacks it, without
+  `--depth`, and a partial checkout left by an earlier version is completed in place once. The tooling test pins
+  the clone, the fetch and the completion order.
+- Every local skill description now says what the skill does and then when to use it ("Use when ..."), the form
+  the shared `RedHome` skills already use, because an agent picks a skill from its description alone (`RedHome`
+  convergence step CV-2-13). `consumer-integration`, `control-development`, `embedded-rendering`,
+  `input-accessibility` and `win32-host` gain the clause, taken from each skill's own body; `build-dxui` already
+  had one. Only the five front-matter descriptions change. `validate.ps1` passes; no build, test or product input changes.
+- `format.ps1` now formats with the formatter CI uses and over the files CI formats. It takes clang-format from
+  `Install-CiFormatter` in the pinned `.ci-engine` (22.1.3 today, under `.build/shared-format`) and selects the
+  eight C and C++ extensions under the `formatRoots` of `.ci/project.json`, minus `formatExclude`. `-Check`
+  still verifies without writing, and now lists every file that needs formatting.
+  `Tools/Install-ClangFormat.ps1`, the second copy of the version pin, `-FormatterPath`, `DXUI_CLANG_FORMAT`,
+  and the `PATH` and Visual Studio lookups are removed. `Tools` was outside the old local scope, and
+  `Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp`, its one unformatted file, is formatted: whitespace only.
+  The build contract, contributing guide, getting-started page, tools index, and notices describe the new
+  command. This is step CV-6-05 of the `RedHome` convergence plan (register D-02, D-05, D-06).
+- Moved the shared CI engine pin from `766fd7e` to `a094b2e`, engine `main` today, with `Update-ProjectPin.ps1`:
+  `.ci/project.json` and the eight workflow callers name the same full commit, and nothing else changes in them.
+  This is the first step of the `RedHome` convergence wave that puts every repository on one engine commit.
+  Between the two commits the engine adds local SDK build and binding guards and changes no workflow template.
+  Compiler-free checks pass; native qualification of the new pin runs on `main` after merge.
+- `.gitattributes` and `.gitignore` start with the common blocks that every RedSalamanders repository now
+  shares, and `.editorconfig` is the shared file. The `.gitattributes` block stores text with LF and checks out
+  C and C++ sources, PowerShell, and Visual Studio files with CRLF and Markdown, JSON, and YAML with LF; the
+  repository's own lines follow it unchanged and still take precedence. No tracked file needs renormalizing:
+  every file with CRLF or mixed line endings in the index is already `-text`.
+  This is step CV-6-05 of the `RedHome` convergence plan (register D-03, D-04, and the `.editorconfig` part of B-12).
+- Named the API 4 maintenance branch in `AGENTS.md`. The branch formerly called `ej/api4-maintenance-4cdf1ce5` is now
+  `maintenance/api4` on GitHub, and a ruleset forbids deleting or force-pushing any `maintenance/*` branch. It stays
+  for consumers that still lock API 4; `RedSalamander`'s `DxUi` lock pins a commit that only this branch holds.
+  Consumers clone the whole repository and check out the locked commit, so the rename changes no restore, build or
+  test input.
+- Aligned agent guidance and dependency automation with the other RedSalamanders repositories (convergence step 1,
+  planned in `RedHome`): `CLAUDE.md` is the same thin pointer to `AGENTS.md` in every repository,
+  `.claude/settings.json` enables the shared `redhome` Claude Code skill plugin from the `RedHome` marketplace, and
+  Dependabot now ignores `RedSalamanders/.github/*` so it stops opening one notice per shared-workflow caller; engine
+  pins keep moving through `Update-ProjectPin.ps1` only. No build, test or product input changes.
 - Reconciled the common workflow callers with the existing shared engine pin in `.ci/project.json` through
   the pinned engine's canonical generator, removing partial dependency-update drift without selecting a new
   engine version. Compiler-free CI configuration, workflow, scoped-planner and affected tooling checks cover
