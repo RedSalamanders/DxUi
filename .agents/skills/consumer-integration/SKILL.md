@@ -1,6 +1,6 @@
 ---
 name: consumer-integration
-description: Add or update a pinned DxUi dependency, MSBuild imports and application adapters in a consumer.
+description: Add or update a pinned DxUi dependency, MSBuild imports and application adapters in a consumer. Use when a consumer adopts DxUi or moves its exact revision lock, changes how it restores, imports or links DxUi.lib, or wires the application-owned failure host and adapters before using DxUi controls.
 ---
 
 # Consumer integration

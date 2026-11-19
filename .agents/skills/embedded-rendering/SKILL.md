@@ -1,6 +1,6 @@
 ---
 name: embedded-rendering
-description: Implement or inspect host-owned D3D11 integration, content preparation, cached surfaces and composition; not Win32 window presentation.
+description: Implement or inspect host-owned D3D11 integration, content preparation, cached surfaces and composition; not Win32 window presentation. Use when changing how DxUi draws with a host's borrowed device and context, separating preparation from allocation-free composition, or testing dirty, hidden, alpha or device-loss behavior with WARP.
 ---
 
 # Embedded rendering
