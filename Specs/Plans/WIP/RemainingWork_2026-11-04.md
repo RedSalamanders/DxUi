@@ -458,7 +458,7 @@ No consumer lock moves.
   chain. A composition swap chain has no window association to change.
 - [ ] **H-03 COM smart pointer.** `ControlHost` (`src/Controls/DxUi.WindowHost.cpp`) holds its shared device,
   factories and surfaces in `wil::com_ptr<T>` inside `noexcept` functions. Target: `wil::com_ptr_nothrow<T>` there.
-- [ ] **H-17 adapter selection.** `ControlHost` creates one device per owner thread on the default adapter, then
+- [x] **H-17 adapter selection.** `ControlHost` creates one device per owner thread on the default adapter, then
   WARP; RedXe and RedPrism pick the adapter of the window's monitor. Target: the monitor-matched adapter, unless the
   [window-hosting contract](../../Rendering/Rendering_Win32Host.md) records why the shared device stays on the
   default adapter; the register then lists the row as different by design.
