@@ -350,7 +350,7 @@ try {
     Run-Case 'tooling identities include documentation, skills and source-origin mappings' {
         $compiled=Get-ScopedSourceIdentity $fixture -CompiledOnly
         $native=Get-ScopedRunIdentity $fixture x64 Debug Example
-        foreach($path in @('README.md','.agents/skills/example/SKILL.md','Specs/Done/SourceImport/test-port.json')) {
+        foreach($path in @('README.md','.agents/skills/example/SKILL.md','Specs/SourceImport/test-port.json')) {
             $before=Get-ScopedSourceIdentity $fixture
             Write-Fixture (Join-Path $fixture $path) 'changed validator input'
             Assert-Scope ((Get-ScopedSourceIdentity $fixture) -cne $before) "Validator input omitted: $path"

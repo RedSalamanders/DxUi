@@ -489,7 +489,7 @@ function Test-DxUiDependencies([Parameter(Mandatory)][string] $Root) {
     if (-not (Test-FullMatch $toolCommit '[0-9a-f]{40}') -or $toolCommit -ceq ('0' * 40)) {
         $failures.Add('vcpkg tool requires a nonzero full 40-character revision')
     }
-    $provenance = Read-JsonFile (Join-Path $Root 'Specs/Done/SourceImport/source-origin.json')
+    $provenance = Read-JsonFile (Join-Path $Root 'Specs/SourceImport/source-origin.json')
     if (-not (Test-SameValue (Get-JsonValue $provenance 'schemaVersion') 2) -or -not (Test-FullMatch (Get-RequiredJsonValue $provenance 'commit') '[0-9a-f]{40}')) {
         $failures.Add('Source origin needs schema 2 and an exact historical commit')
     }
@@ -524,7 +524,7 @@ function Test-DxUiDependencies([Parameter(Mandatory)][string] $Root) {
     if (Test-PathExists (Join-Path $Root 'upstream')) { $failures.Add('DxUi owns its source; remove the duplicate upstream tree') }
 
     # No roots are pending any longer; an inventory entry is always invalid, and supported source may not rely on one.
-    $debt = Read-JsonFile (Join-Path $Root 'Specs/Done/SourceImport/pending-dependencies.json')
+    $debt = Read-JsonFile (Join-Path $Root 'Specs/SourceImport/pending-dependencies.json')
     $allowed = [ordered]@{}
     if (-not (Test-SameValue (Get-JsonValue $debt 'schemaVersion') 1)) { $failures.Add('Pending dependency inventory needs schema 1') }
     $debtFiles = Get-RequiredJsonValue $debt 'files'
@@ -815,7 +815,7 @@ function Test-SourcePolicyDispositions([string] $Root, [object[]] $Cases) {
 
 function Test-DxUiTestPort([Parameter(Mandatory)][string] $Root) {
     $Root = Get-FullPath $Root
-    $data = Read-JsonFile (Join-Path $Root 'Specs/Done/SourceImport/test-port.json')
+    $data = Read-JsonFile (Join-Path $Root 'Specs/SourceImport/test-port.json')
     $errors = [Collections.Generic.List[string]]::new()
     $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $tests = Get-RequiredJsonValue $data 'tests'

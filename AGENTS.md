@@ -18,8 +18,8 @@ and cherry-pick them unless they apply only to API 4, and never open a pull requ
   settings, AV devices, viewer interfaces, messages and themes stay in consumer adapters.
 - This repository is the canonical home of DxUi. Controls and host implementation live in `src/Controls`, their
   tests and baselines in `Tests/Controls`, and supported public headers in `include/DxUi`. Edit shared code here.
-  Historical origin belongs in `Specs/Done/SourceImport/source-origin.json` and Git history, never a second source tree.
-- The archived `Specs/Done/SourceImport/pending-dependencies.json` is the empty final extraction inventory.
+  Historical origin belongs in `Specs/SourceImport/source-origin.json` and Git history, never a second source tree.
+- The archived `Specs/SourceImport/pending-dependencies.json` is the empty final extraction inventory.
   Do not freeze editable source or reintroduce unresolved application dependencies into supported targets.
 - Consumers link the single pinned DxUi.lib target. They must not enumerate this repository's `.cpp` files or pass DxUi C++
   ownership through a plugin ABI. No consumer project is changed implicitly by a library edit.

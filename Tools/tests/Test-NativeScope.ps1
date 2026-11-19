@@ -59,7 +59,7 @@ Invoke-FixtureCase 'scope invocation restores an absent GitHub event variable' {
 Invoke-TestCase 'documentation alone leaves the native jobs out, whichever kind it is' {
     $paths = @('README.md', 'AGENTS.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'LICENSE', 'Changes/2026-10-04-ci-run-scope.md', 'docs/controls.md',
         'docs/gallery/theme-controls-light.png', 'docs/gallery/generation.json', 'Specs/Testing/Testing_Validation.md',
-        'Specs/DesignSystem/components/Tree/preview.html', 'Specs/Done/SourceImport/source-origin.json', 'Specs/Plans/WIP/README.md',
+        'Specs/DesignSystem/components/Tree/preview.html', 'Specs/SourceImport/source-origin.json', 'Specs/Plans/WIP/README.md',
         'Measurements/GridSelection/2026-10-01/summary.receipt.txt', 'Measurements/PlainMenuUia/2026-10-02/harness/DxUiTests.MenuUiaCost.h',
         '.agents/skills/build-dxui/SKILL.md', '.github/workflows/format.yml', '.github/workflows/gallery.yml',
         # Markdown is documentation wherever it is.

@@ -12,7 +12,7 @@ function New-TestPortManifest {
 
 function Set-TestPortFixture([string] $Root, [Collections.IDictionary] $Manifest) {
     Set-FixtureFile $Root 'Tests/Controls/Example.cpp' "void TestToggle() {}`n"
-    Set-FixtureJson $Root 'Specs/Done/SourceImport/test-port.json' $Manifest
+    Set-FixtureJson $Root 'Specs/SourceImport/test-port.json' $Manifest
 }
 
 function New-SourcePolicy {

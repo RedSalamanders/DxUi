@@ -28,10 +28,10 @@ with matching headers/library and source-bound tests, but product behavior must 
 result. There is no cross-pin source or binary compatibility promise for these hooks. Consolidating or removing
 them requires its own reviewed migration; a documentation change must not silently remove shipped hooks.
 
-Historical source commit, original hashes and current ownership mappings live in `Specs/Done/SourceImport/source-origin.json`.
+Historical source commit, original hashes and current ownership mappings live in `Specs/SourceImport/source-origin.json`.
 Git history retains earlier bytes. No duplicate original source tree is retained or periodically synchronized.
-`Specs/Done/SourceImport/pending-dependencies.json` preserves the empty final inventory; validators reject new
-application dependencies. The [archive explanation](../Done/SourceImport/README.md) describes why these records remain.
+`Specs/SourceImport/pending-dependencies.json` preserves the empty final inventory; validators reject new
+application dependencies. The [archive explanation](../SourceImport/README.md) describes why these records remain.
 The frame runtime has one implementation under Foundation; obsolete application-bound project files are retired.
 
 The bounded Unicode rich-text model, Markdown projection and prepared DirectWrite
