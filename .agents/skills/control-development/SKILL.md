@@ -1,6 +1,6 @@
 ---
 name: control-development
-description: Implement or revise shared retained controls, their state and layout; not application-specific AV or file-manager behavior.
+description: Implement or revise shared retained controls, their state and layout; not application-specific AV or file-manager behavior. Use when adding or changing a control in src/Controls, its preview, commit, cancel or disabled state, its interaction tests, or its catalog, gallery, docs/controls.md and design-system entries.
 ---
 
 # Control development

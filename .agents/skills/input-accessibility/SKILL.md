@@ -1,6 +1,6 @@
 ---
 name: input-accessibility
-description: Implement or verify pointer capture, keyboard, text/IME and UI Automation across DxUi hosts.
+description: Implement or verify pointer capture, keyboard, text/IME and UI Automation across DxUi hosts. Use when changing capture or gesture cancellation, keyboard focus, text composition or a UI Automation provider, or when writing a test that holds real focus or checks what a UI Automation client sees.
 ---
 
 # Input accessibility

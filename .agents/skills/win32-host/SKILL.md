@@ -1,6 +1,6 @@
 ---
 name: win32-host
-description: Extract or revise the standalone HWND host, message handling, presentation and teardown; not the embedded RedXe renderer.
+description: Extract or revise the standalone HWND host, message handling, presentation and teardown; not the embedded RedXe renderer. Use when changing the window adapter that owns presentation and OS messages, its DPI, occlusion, focus or device-loss handling, or the lifetime of its callbacks while the window tears down.
 ---
 
 # Win32 host

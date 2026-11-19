@@ -21,13 +21,13 @@ formatting and request fresh checks. Generate changed gallery documentation loca
 it in an ordinary PR. DxUi has no hosted publication workflow. `.github/CODEOWNERS` names the owner
 of the workflows, `Tools`, the performance scripts and the agent instructions.
 
-Formatting requires clang-format 22.1.3. To use the same checksum-pinned Windows x64 tool as CI from the repository root:
+Format with the formatter CI uses, from the repository root:
 
 ```powershell
-./Tools/Install-ClangFormat.ps1
-./format.ps1 -Check
+./format.ps1 -Check   # verify without writing
+./format.ps1          # format
 ```
 
-The installer downloads the pinned wheel, checks its SHA-256 and extracts only `clang-format.exe` under `.build/format`,
-where `format.ps1` looks first. Omit `-Check` to apply formatting. `-FormatterPath` or `DXUI_CLANG_FORMAT` can name
-another clang-format 22.1.3. The formatter is development tooling only; library consumers do not restore it.
+`format.ps1` takes clang-format from the pinned `.ci-engine`, which installs the checksum-pinned Windows x64 build
+(22.1.3 today) under `.build/shared-format`, and covers the files CI formats. There is no other formatter lookup. The
+formatter is development tooling only; library consumers do not restore it.

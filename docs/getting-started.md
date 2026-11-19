@@ -1,13 +1,13 @@
 # Getting started
 
-Install Visual Studio 2026 with the Desktop development with C++ workload, v145, Windows SDK 10.0.26100,
-and the Clang tools for formatting. Use Windows 11 version 25H2 (build 10.0.26200) or later, Unicode, `stdcpplatest`,
+Install Visual Studio 2026 with the Desktop development with C++ workload, v145, and Windows SDK 10.0.26100.
+Use Windows 11 version 25H2 (build 10.0.26200) or later, Unicode, `stdcpplatest`,
 and a matching x64 or ARM64 target.
 Git restores the repository-pinned vcpkg/WIL dependency, and vcpkg builds it with the Visual Studio installation and
 default MSVC toolset that MSBuild uses (not the newest toolset it finds); the first restore after a change of either
 rebuilds it. The build, test and validation tools are
-[PowerShell 7 scripts](../Tools/README.md) with no other runtime. Formatting needs clang-format 22.1.3: when Visual
-Studio's is another version, `Tools/Install-ClangFormat.ps1` fetches the checksum-pinned one.
+[PowerShell 7 scripts](../Tools/README.md) with no other runtime. `format.ps1` installs the checksum-pinned
+clang-format that CI uses from the pinned `.ci-engine`; Visual Studio's is not used.
 
 ```powershell
 .\vcpkg-install.ps1 -Platform x64
