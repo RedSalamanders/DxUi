@@ -1,0 +1,177 @@
+// Measures what IDXGISwapChain::Present returns for a flip-model swap chain whose window is visible, minimized,
+// hidden or cloaked (RedHome register H-20). Never activates or focuses a window: every show uses a NOACTIVATE
+// command, the window is WS_EX_NOACTIVATE, tiny and in the work area's corner, and the run lasts a few seconds.
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <d3d11.h>
+#include <dwmapi.h>
+#include <dxgi1_2.h>
+#include <cstdio>
+
+#pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "user32.lib")
+
+static const char* Name(HRESULT hr)
+{
+    switch (hr)
+    {
+        case S_OK: return "S_OK";
+        case DXGI_STATUS_OCCLUDED: return "DXGI_STATUS_OCCLUDED";
+        case DXGI_ERROR_DEVICE_REMOVED: return "DXGI_ERROR_DEVICE_REMOVED";
+        case DXGI_ERROR_INVALID_CALL: return "DXGI_ERROR_INVALID_CALL";
+        default: return "other";
+    }
+}
+
+static void Pump(DWORD ms)
+{
+    const ULONGLONG end = GetTickCount64() + ms;
+    while (GetTickCount64() < end)
+    {
+        MSG msg;
+        while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE))
+        {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+        Sleep(10);
+    }
+}
+
+static void Measure(IDXGISwapChain1* swapChain, ID3D11DeviceContext* context, ID3D11RenderTargetView* rtv, const char* state, const char* effect)
+{
+    HRESULT last = S_OK;
+    int occluded = 0;
+    for (int i = 0; i < 30; ++i)
+    {
+        const float color[4] = {0.1f, 0.2f, 0.3f, 1.0f};
+        context->OMSetRenderTargets(1, &rtv, nullptr);
+        context->ClearRenderTargetView(rtv, color);
+        last = swapChain->Present(1, 0);
+        if (last == DXGI_STATUS_OCCLUDED)
+            ++occluded;
+        Pump(16);
+    }
+    const HRESULT test = swapChain->Present(0, DXGI_PRESENT_TEST);
+    HWND hwndOf = nullptr;
+    swapChain->GetHwnd(&hwndOf);
+    BOOL cloaked = FALSE;
+    DwmGetWindowAttribute(hwndOf, DWMWA_CLOAKED, &cloaked, sizeof(cloaked));
+    std::printf("[iconic=%d visible=%d cloaked=%d] ", IsIconic(hwndOf) ? 1 : 0, IsWindowVisible(hwndOf) ? 1 : 0, cloaked ? 1 : 0);
+    std::printf("%-18s %-16s present(1,0) last=%s (0x%08lX) occluded=%d/30 present(TEST)=%s (0x%08lX)\n",
+                effect,
+                state,
+                Name(last),
+                static_cast<unsigned long>(last),
+                occluded,
+                Name(test),
+                static_cast<unsigned long>(test));
+}
+
+static int RunOne(DXGI_SWAP_EFFECT swapEffect, const char* effect)
+{
+    WNDCLASSEXW wc{sizeof(wc)};
+    wc.lpfnWndProc   = DefWindowProcW;
+    wc.hInstance     = GetModuleHandleW(nullptr);
+    wc.lpszClassName = L"RedHomeOcclusionProbe";
+    RegisterClassExW(&wc);
+    RECT work{};
+    SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
+    HWND hwnd = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
+                                wc.lpszClassName,
+                                L"occlusion probe",
+                                WS_POPUP,
+                                work.right - 64,
+                                work.bottom - 64,
+                                64,
+                                64,
+                                nullptr,
+                                nullptr,
+                                wc.hInstance,
+                                nullptr);
+    if (! hwnd)
+        return 1;
+
+    ID3D11Device* device           = nullptr;
+    ID3D11DeviceContext* context   = nullptr;
+    const D3D_FEATURE_LEVEL levels[] = {D3D_FEATURE_LEVEL_11_0};
+    HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 1, D3D11_SDK_VERSION, &device, nullptr, &context);
+    if (FAILED(hr))
+        return 2;
+    IDXGIDevice* dxgiDevice = nullptr;
+    device->QueryInterface(IID_PPV_ARGS(&dxgiDevice));
+    IDXGIAdapter* adapter = nullptr;
+    dxgiDevice->GetAdapter(&adapter);
+    IDXGIFactory2* factory = nullptr;
+    adapter->GetParent(IID_PPV_ARGS(&factory));
+
+    DXGI_SWAP_CHAIN_DESC1 desc{};
+    desc.Width            = 64;
+    desc.Height           = 64;
+    desc.Format           = DXGI_FORMAT_B8G8R8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.BufferUsage      = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    desc.BufferCount      = swapEffect == DXGI_SWAP_EFFECT_DISCARD ? 1 : 2;
+    desc.SwapEffect       = swapEffect;
+    IDXGISwapChain1* swapChain = nullptr;
+    hr = factory->CreateSwapChainForHwnd(device, hwnd, &desc, nullptr, nullptr, &swapChain);
+    if (FAILED(hr))
+        return 3;
+    factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER);
+    ID3D11Texture2D* back = nullptr;
+    swapChain->GetBuffer(0, IID_PPV_ARGS(&back));
+    ID3D11RenderTargetView* rtv = nullptr;
+    device->CreateRenderTargetView(back, nullptr, &rtv);
+
+    ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+    Pump(200);
+    Measure(swapChain, context, rtv, "visible", effect);
+
+    ShowWindow(hwnd, SW_SHOWMINNOACTIVE);
+    Pump(300);
+    Measure(swapChain, context, rtv, "minimized", effect);
+
+    ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+    SetWindowPos(hwnd, nullptr, work.right - 64, work.bottom - 64, 64, 64, SWP_NOZORDER | SWP_NOACTIVATE);
+    Pump(200);
+    Measure(swapChain, context, rtv, "restored", effect);
+
+    BOOL cloak = TRUE;
+    DwmSetWindowAttribute(hwnd, DWMWA_CLOAK, &cloak, sizeof(cloak));
+    Pump(200);
+    Measure(swapChain, context, rtv, "cloaked", effect);
+    cloak = FALSE;
+    DwmSetWindowAttribute(hwnd, DWMWA_CLOAK, &cloak, sizeof(cloak));
+
+    ShowWindow(hwnd, SW_HIDE);
+    Pump(200);
+    Measure(swapChain, context, rtv, "hidden", effect);
+
+    rtv->Release();
+    back->Release();
+    swapChain->Release();
+    factory->Release();
+    adapter->Release();
+    dxgiDevice->Release();
+    context->Release();
+    device->Release();
+    DestroyWindow(hwnd);
+    UnregisterClassW(wc.lpszClassName, wc.hInstance);
+    return 0;
+}
+
+int main()
+{
+    OSVERSIONINFOEXW os{sizeof(os)};
+    using RtlGetVersionFn = LONG(WINAPI*)(OSVERSIONINFOEXW*);
+    if (auto fn = reinterpret_cast<RtlGetVersionFn>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion")))
+        fn(&os);
+    std::printf("Windows %lu.%lu.%lu\n", os.dwMajorVersion, os.dwMinorVersion, os.dwBuildNumber);
+    int rc = RunOne(DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, "FLIP_SEQUENTIAL");
+    rc |= RunOne(DXGI_SWAP_EFFECT_FLIP_DISCARD, "FLIP_DISCARD");
+    rc |= RunOne(DXGI_SWAP_EFFECT_DISCARD, "BLT_DISCARD(ctrl)");
+    return rc;
+}

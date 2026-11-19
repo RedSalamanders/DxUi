@@ -1,5 +1,7 @@
 # Independent DxUi measurements
 
+- [Flip-model occlusion status, 19 November](FlipModelOcclusion_2026-11-19/README.md): a flip-model swap chain on Windows 11 25H2 returned `S_OK` from `Present` and `DXGI_PRESENT_TEST` while its window was shown, minimized, cloaked or hidden; a blt-model control returned `DXGI_STATUS_OCCLUDED`. One machine and adapter.
+
 - [Directed native guard evidence, 12 November](NativeGuardCloseout_2026-11-12/README.md): eleven declared interventions with paired positives and original assertion failures, preserved exploratory survivors and corrected oracle refusals. Current normal profile qualification remains a separate record.
 
 - [Earlier control guards and native refusal causes](EarlierControlsAndNativeRefusalCauses_2026-11-08/README.md): API-5 typed capacity/unsupported diagnostics, six zero-warning builds, 66 ordinary x64 suites and source-bound native-input reconciliation. The packet states the current counterfactual and foreground limits.
