@@ -462,7 +462,7 @@ No consumer lock moves.
   WARP; RedXe and RedPrism pick the adapter of the window's monitor. Target: the monitor-matched adapter, unless the
   [window-hosting contract](../../Rendering/Rendering_Win32Host.md) records why the shared device stays on the
   default adapter; the register then lists the row as different by design.
-- [ ] **H-20 flip-model occlusion.** The window-hosting contract states that Windows does not return
+- [x] **H-20 flip-model occlusion.** The window-hosting contract states that Windows does not return
   `DXGI_STATUS_OCCLUDED` for flip-model swap chains; RedXe and RedPrism act on it. Target: one statement, settled by
   a measured flip-model `Present` on the supported Windows 11 baseline; whichever text is wrong is corrected.
 - [ ] **H-23 keyboard state under hidden self-tests.** `ControlHost` already tracks modifiers from its own key

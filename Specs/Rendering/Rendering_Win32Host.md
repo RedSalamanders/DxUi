@@ -24,6 +24,11 @@ modes use flip-model swap chains, for which Windows does not return
 DXGI_STATUS_OCCLUDED. The historical proposal to infer arbitrary window coverage
 from Present or DXGI occlusion notifications is not this contract; see
 [Microsoft's status documentation](https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/dxgi-status).
+This is measured on the Windows 11 baseline: on 25H2, flip-sequential and flip-discard swap chains returned `S_OK`
+from `Present` and from `DXGI_PRESENT_TEST` while their window was shown, minimized, cloaked or hidden, while a
+blt-model control returned `DXGI_STATUS_OCCLUDED`
+([flip-model occlusion record](../../Measurements/FlipModelOcclusion_2026-11-19/README.md)). The statement holds for
+every Direct3D host in the RedSalamanders applications, not only for DxUi.
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
