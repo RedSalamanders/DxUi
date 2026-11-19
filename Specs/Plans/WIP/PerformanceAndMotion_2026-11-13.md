@@ -1,6 +1,6 @@
 # Performance and motion plan: speed, frame rate, memory and animation, 13 November 2026
 
-Status: SPEC READY — plan only; no code has been implemented. This is the single plan for making DxUi faster, raising
+Status: ACTIVE — plan only; no code has been implemented. This is the single plan for making DxUi faster, raising
 its frame rate, lowering its memory use and animating every interactive change. It replaces three documents, now
 archived as records: the [runtime efficiency study](../Done/RuntimeEfficiency_2026-11-07.md), its
 [challenge review](../Done/RuntimeEfficiencyReview_2026-11-12.md) and the
