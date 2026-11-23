@@ -2,7 +2,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $script:performance=Import-Module (Join-Path $PSScriptRoot 'PerformancePolicy.psm1') -PassThru
-$script:scoped=Import-Module (Join-Path $PSScriptRoot 'ScopedTesting.psm1') -PassThru
+$script:scoped=Import-Module (Join-Path $PSScriptRoot 'DxUiBuildEvidence.psm1') -PassThru
 Import-Module (Join-Path $PSScriptRoot 'SdkSourceProfiles.psm1')
 Import-Module (Join-Path $PSScriptRoot 'SdkLibraryInputs.psm1')
 

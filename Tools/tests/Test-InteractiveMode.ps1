@@ -79,9 +79,12 @@ function New-RefusalFixture([string] $Root) {
     # artifacts. An isolated output tree distinguishes its writes from the parent log
     # and unrelated builds that legitimately continue during this check.
     Set-FixtureFile $Root 'test.ps1' ([IO.File]::ReadAllText($testScript))
-    foreach ($module in @('SuiteFailure.psm1', 'InteractiveRun.psm1', 'ScopedTesting.psm1', 'CapabilitySkipPolicy.psm1')) {
+    foreach ($module in @('SuiteFailure.psm1', 'InteractiveRun.psm1', 'ScopedTesting.psm1', 'DxUiBuildEvidence.psm1', 'CapabilitySkipPolicy.psm1')) {
         Set-FixtureFile $Root "Tools/$module" ([IO.File]::ReadAllText((Join-Path $repository "Tools/$module")))
     }
+    Set-FixtureFile $Root '.ci/project.json' ([IO.File]::ReadAllText((Join-Path $repository '.ci/project.json')))
+    $clone = & git -c core.longpaths=true clone --quiet --no-local --depth=1 (Join-Path $repository '.ci-engine') (Join-Path $Root '.ci-engine') 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "Could not stage the pinned engine for the refusal fixture: $clone" }
     Set-FixtureFile $Root 'Tests/test-scopes.json' ([IO.File]::ReadAllText((Join-Path $repository 'Tests/test-scopes.json')))
     Set-FixtureFile $Root '.build/logs/existing.log' 'existing log'
     Set-FixtureFile $Root '.build/reports/existing.json' '{}'

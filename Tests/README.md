@@ -3,16 +3,23 @@
 ```powershell
 ./Test-Changes.ps1 -Explain
 ./Test-Changes.ps1 -Configuration Debug
-./Test-PrePush.ps1 -Explain
+./Test-Changes.ps1 -Mode PrePush -Explain
 # After reviewing the six-profile plan:
-./Test-PrePush.ps1
+./Test-Changes.ps1 -Mode PrePush
 ./Test-Changes.ps1 -Mode Full -Configuration Debug
 ```
 
-The default uses changes since the last successful local affected iteration in this profile (up to 24 hours), falling back to local merge-base changes plus staged, unstaged and untracked work. Native baselines recheck dependency, compiler/SDK and output bytes. Full, PrePush, Force, explicit scopes and explicit BaseRef keep their cumulative/explicit obligations. A failed rerun revokes the old baseline; foreground debt remains visible. Read the explanation before a large run. Unknown code/build inputs widen coverage. Selected work is partial evidence. PR delegation is pending CI work, and only an enabled workflow with matching reviewed candidate bytes/profile can justify it.
-An empty plan reports `NO_WORK; repository NOT_EVALUATED`; a fully delegated plan reports `NO_LOCAL_WORK; CI_PENDING`.
-Capability skips are reported explicitly and prevent native-suite receipt reuse. `FULL_SCOPES_PASSED` covers the scope
-manifest, while foreground, consumer, gallery and native-platform qualification remain separate obligations.
+The default uses the last successful local affected iteration for the selected profile for up to
+24 hours and otherwise compares with the local merge base, including staged, unstaged and untracked
+work. Changed profile outputs widen the plan. Full, PrePush, Force, explicit scopes and an explicit
+base keep their stated obligations. Selected native work builds the whole profile and runs the
+affected suites. A failed rerun revokes the prior baseline. The plan lists any interactive work
+for separate execution.
+
+An empty plan reports `NOTHING_SELECTED`. `FULL_PASSED` covers every applicable scope of the plan.
+Both end with `repository NOT_EVALUATED`. Capability skips prevent native-suite receipt reuse.
+PrePush builds all six profiles and runs the three x64 profiles. Main qualification separately
+accounts for native ARM64, hosted foreground, the relocated consumer and the Gallery.
 
 Final observations that can be checked after fixture teardown may use `CheckDxUiTestResult`.
 It records a failed run and returns normally, allowing retained UIA STA/module state to drain;

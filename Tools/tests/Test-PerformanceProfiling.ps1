@@ -431,7 +431,7 @@ function New-ProfilingRunnerFixture([string] $Root, [string] $Mode = 'valid', [b
     foreach ($name in @('Tests/Embedded/Embedded.Tests.ComplexUiProfiling.h','Tests/Embedded/Embedded.Tests.ComplexUiBoundaries.h','Tests/Embedded/Embedded.Tests.Embedded.cpp',
             'Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h',
             'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h','Tests/Support/Support.Tests.HeapDiagnostic.h',
-            'Samples/ComplexUi/ComplexUiScene.h','Samples/EmbeddedControls/GraphicsFixture.h','Tools/ScopedTesting.psm1',
+            'Samples/ComplexUi/ComplexUiScene.h','Samples/EmbeddedControls/GraphicsFixture.h','Tools/DxUiBuildEvidence.psm1',
             'src/native.cpp','deps/header.h','.build/x64/Release/DxUi.EmbeddedTests.exe')) { Set-FixtureFile $Root $name "synthetic $name" }
     Set-FixtureFile $Root 'mode.txt' $Mode
     Set-FixtureFile $Root 'native.json' ((ConvertTo-Json -InputObject (New-ProfilingReport $Heap) -Depth 32 -Compress) + "`r`n  ")

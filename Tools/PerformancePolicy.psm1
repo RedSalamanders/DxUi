@@ -1,6 +1,6 @@
 # Trust checks for the migrated benchmark gate. A policy introduced by a candidate is never its own trust anchor.
 Set-StrictMode -Version Latest
-$script:scopedTestingModule = Import-Module (Join-Path $PSScriptRoot 'ScopedTesting.psm1') -PassThru -ErrorAction Stop
+$script:scopedTestingModule = Import-Module (Join-Path $PSScriptRoot 'DxUiBuildEvidence.psm1') -PassThru -ErrorAction Stop
 Import-Module (Join-Path $PSScriptRoot 'PerformanceComparison.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Validation.psm1')
 
@@ -847,7 +847,7 @@ function Get-PerformanceToolIdentities {
         if ($IdentityScope -eq 'Full') {
             $harness = & $hashFiles -Paths @('performance.ps1','performance-paired.ps1','build.ps1','vcpkg-install.ps1',
                 'Tools/Compare-Performance.ps1','Tools/PerformanceComparison.psm1','Tools/PairedRun.psm1','Tools/BenchmarkGate.psm1','Tools/PerformancePolicy.psm1','Tools/PerformanceAcceptancePolicy.v1.json',
-                'Tools/VisualStudio.psm1','Tools/VcpkgTriplet.psm1','Tools/VcpkgRestore.psm1','Tools/ScopedTesting.psm1','Tools/Validation.psm1','Build/BuildConsole.psm1','vcpkg.json','vcpkg-tool.json')
+                'Tools/VisualStudio.psm1','Tools/VcpkgTriplet.psm1','Tools/VcpkgRestore.psm1','Tools/DxUiBuildEvidence.psm1','Tools/Validation.psm1','Build/BuildConsole.psm1','vcpkg.json','vcpkg-tool.json')
         }
         Import-Module (Join-Path $rootPath 'Tools/VisualStudio.psm1') -Force
         $installation = Get-DxUiVisualStudioInstallation

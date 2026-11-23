@@ -1,7 +1,7 @@
 # DxUi remaining correctness and qualification
 
 Status: ACTIVE
-Updated: 19 November 2026
+Updated: 23 November 2026
 Owner: DxUi maintainers; consumer policy and adoption remain with each application.
 
 This is the **only active DxUi plan**. The [consolidation record](../Done/WipConsolidation_2026-11-04.md)
@@ -12,6 +12,23 @@ specifications and `capabilities.json` remain authoritative.
 The owner's **7 November 2026** delivery scope requires x64 Debug, Release and ASan Debug runtime tests and
 ARM64 compilation in those three profiles. Native ARM64 runtime work is explicitly set aside for this delivery;
 compilation does not establish runtime support, and the normal two-architecture production release gate is unchanged.
+
+## CV-5-04 scoped testing adoption
+
+Adopt the shared planner and runner on product baseline `57f4fcd5`. Engine `39251c1d` carries the original
+profile failure output and its executable/PDB provenance. The version 2 manifest draft preserved suite selection
+on 77 paths, defines all six PrePush profiles and passed the 263-file inventory. The 58 existing evidence controls
+passed against both modules. [Shared engine prerequisite](https://github.com/RedSalamanders/.github/pull/102)
+
+- Bind the root runner and evidence module to the pinned templates. Move scope selection and reuse to the engine.
+- Keep the product's selected-build coverage, installed-dependency and toolchain identity, SDK roles, benchmark
+  inputs and paired diagnostic reader. Keep a distinct product build receipt for the direct test gate.
+- Retain current suite reports, hosted foreground admission and the interactive lease. Verify failure preservation,
+  explicit and affected suite routing, compatibility with older paired sides, and all six native builds. Record
+  deferred tests and the open benchmark review in the RedHome ledger.
+
+The owning contracts are [validation](../../Testing/Testing_Validation.md), [test evidence](../../Testing/Testing_RunEvidence.md)
+and [toolchain and consumption](../../Build/Build_ToolchainAndConsumption.md).
 
 ## Verified starting point
 

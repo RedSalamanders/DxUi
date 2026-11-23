@@ -30,7 +30,7 @@ Case 'library-only inputs bind complete v2 state and never create native test or
     $actual=Assert-DxUiSdkLibraryBuild $fixture x64 -BuildState $state -RequireClean
     Require ($actual.role -ceq 'ReleaseLibraryBuildInputs' -and $actual.files.Count -eq 2) 'Wrong SDK input role or files.'
     Require (-not $actual.Contains('passed') -and -not $actual.Contains('executed')) 'Library inputs granted a test result.'
-    Require (-not(Test-Path (Join-Path $fixture '.build/reports/scoped-tests/x64-Release/build.json'))) 'Library-only inputs fabricated Full build evidence.'
+    Require (-not(Test-Path (Join-Path $fixture '.build/reports/scoped-tests/x64-Release/native-build.json'))) 'Library-only inputs fabricated Full build evidence.'
 }
 Case 'changed source/dependency/profile/toolchain identities refuse without timestamp shortcuts' {
     foreach($name in @('resolvedBuildIdentity','buildInputIdentity','toolchainIdentity')){
@@ -89,13 +89,13 @@ Case 'authenticated-run transfer restores only exact library inputs and revokes 
     } $state
     $script:transfer=Export-DxUiSdkLibraryInputs $fixture x64 -RunId 123 -RunAttempt 1
     Put '.build/x64/Release/DxUi.lib' 'old output must be replaced'
-    Put '.build/reports/scoped-tests/x64-Release/build.json' 'sentinel Full receipt'
+    Put '.build/reports/scoped-tests/x64-Release/native-build.json' 'sentinel Full receipt'
     Put '.build/reports/performance-build/x64-Release/build.json' 'sentinel performance receipt'
     Put '.build/reports/performance-build/x64-Release/incremental.json' 'sentinel intermediate receipt'
     $result=Import-DxUiSdkLibraryInputs $fixture x64 -Directory $transfer -RunId 123 -RunAttempt 1
     Require $result.hit 'Matching SDK transfer did not reuse the original library.'
     Assert-DxUiSdkLibraryBuild $fixture x64 -BuildState $state -RequireClean|Out-Null
-    foreach($path in @('.build/reports/scoped-tests/x64-Release/build.json','.build/reports/performance-build/x64-Release/build.json','.build/reports/performance-build/x64-Release/incremental.json')){
+    foreach($path in @('.build/reports/scoped-tests/x64-Release/native-build.json','.build/reports/performance-build/x64-Release/build.json','.build/reports/performance-build/x64-Release/incremental.json')){
         Require (-not(Test-Path (Join-Path $fixture $path))) "Library input transfer retained unrelated proof: $path"
     }
 }

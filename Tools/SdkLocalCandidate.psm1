@@ -1,7 +1,7 @@
 # Explicit local Release candidate capture. No qualification or package/publication receipt is produced.
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-$script:scoped=Import-Module (Join-Path $PSScriptRoot 'ScopedTesting.psm1') -PassThru
+$script:scoped=Import-Module (Join-Path $PSScriptRoot 'DxUiBuildEvidence.psm1') -PassThru
 $script:cacheInputs=Import-Module (Join-Path $PSScriptRoot 'SdkCacheInputs.psm1') -PassThru
 Import-Module (Join-Path $PSScriptRoot 'SdkLibraryInputs.psm1')
 $script:inputStore=Import-Module (Join-Path $PSScriptRoot 'SdkInputStore.psm1') -PassThru

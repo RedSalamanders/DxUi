@@ -21,7 +21,7 @@ Use only after the person at the desktop explicitly agrees to automatic start an
 dialog defaults to Start and starts after 30 seconds if nobody clicks; Cancel, Esc, closing the dialog and Ctrl+C stop the run.
 All desktop checks, the warning, suite accounting and verified restoration still apply. Ordinary -Interactive retains its Cancel default.
 .PARAMETER SkipBuild
-Requires both the canonical current v2 build attestation and the complete native test-source/artifact receipt before any native desktop probe, filter/watchdog self-check or suite.
+Requires both the canonical DxUi v2 performance build attestation and the matching native test-source/artifact receipt before any native desktop probe, filter/watchdog self-check or suite.
 Missing, old or stale source/dependency/toolchain/output identity fails closed; build.ps1 creates the attestation.
 The bounded SkipBuildGate phase reports UTC/elapsed diagnostics without changing receipt or native assertions.
 .PARAMETER SkipTooling
@@ -59,12 +59,14 @@ if (-not $Full -and -not $PSBoundParameters.ContainsKey('Suites') -and
 }
 Import-Module (Join-Path $PSScriptRoot 'Tools/SuiteFailure.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/InteractiveRun.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
-$profileLease=Enter-ScopedProfileLease $PSScriptRoot $Platform $Configuration
+Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Scope Local
+Import-Module (Join-Path $PSScriptRoot 'Tools/DxUiBuildEvidence.psm1') -Scope Local
+$profileLease = ScopedTesting\Enter-ScopedProfileLease -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
 try {
 # Every direct attempt invalidates earlier affected no-work state, including failures
 # before a suite report exists. Only the affected owner may republish its completed lane.
-Remove-ScopedIteration -Root $PSScriptRoot -Path (Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/iteration.json")
+$scopedReports = Get-ScopedReportRoot -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
+ScopedTesting\Remove-ScopedIteration -Root $PSScriptRoot -Path (Join-Path $scopedReports 'iteration.json')
 Import-Module (Join-Path $PSScriptRoot 'Tools/CapabilitySkipPolicy.psm1') -Force
 $instrumentation = @(Get-ScopedInstrumentation)
 # A comma-separated single value is accepted like an array, so -Tests 'A,B' and -Tests A,B are the same request.
@@ -78,8 +80,12 @@ $verifiedHostedRunner = Test-DxUiVerifiedGitHubHostedRunner
 if ($Full -and -not $PSBoundParameters.ContainsKey('Suites') -and $verifiedHostedRunner) {
     $Suites += @('Menu', 'NativeTextInput')
 }
-$knownSuites = @((Read-ScopedTestManifest $PSScriptRoot).scopes.name | Where-Object { $_ -ne 'Tooling' }) + @('Menu','NativeTextInput','MenuResources','MenuResourceScaling','MenuTextLayoutResources','Gallery','ButtonContrast')
+$manifest = Read-ScopedTestManifest -Root $PSScriptRoot -SkipProjectRules
+$knownSuites = @($manifest.scopes | Where-Object native | ForEach-Object name) + @('Menu','NativeTextInput','MenuResources','MenuResourceScaling','MenuTextLayoutResources','Gallery','ButtonContrast')
 foreach ($suite in $Suites) { if ($suite -notin $knownSuites) { throw "Unknown test suite '$suite'." } }
+foreach ($suite in $manifest.scopes | Where-Object { $_.native -and $_.name -in $Suites }) {
+    ScopedTesting\Remove-ScopedIteration -Root $PSScriptRoot -Path (Join-Path $scopedReports ($suite.name + '.json'))
+}
 if (-not $Interactive -and -not $verifiedHostedRunner -and @($Suites | Where-Object { Test-DxUiInteractiveSuite $_ }).Count) {
     throw 'Local foreground suites require -Interactive and agreement to the time.'
 }
@@ -97,8 +103,8 @@ if (-not $SkipTooling) {
     & (Join-Path $PSScriptRoot 'Tools/tests/Invoke-ToolingTests.ps1')
     & (Join-Path $PSScriptRoot 'Tools/tests/Test-AsanRuntime.ps1')
 }
-$nativeArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-if (($Platform -eq 'ARM64') -and ($nativeArchitecture -ne 'Arm64')) { throw 'ARM64 runtime tests require an ARM64 host; use build.ps1 for cross-compilation.' }
+Assert-ScopedRuntimePlatform -Platform $Platform
+$nativeArchitecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 $buildProjects=@(Get-ScopedRequiredBuildProjects -Suites $Suites -Configuration $Configuration -Full:$Full)
 if (-not $SkipBuild) {
     if ($Full) { & (Join-Path $PSScriptRoot 'build.ps1') -Configuration $Configuration -Platform $Platform }
@@ -108,10 +114,8 @@ else {
     Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
     Invoke-DxUiBuildPhase -Phase SkipBuildGate -Body {
         Assert-PerformanceBuildAttestation -Root $PSScriptRoot -Platform $Platform -Configuration $Configuration
-        Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
         $inputIdentity = Get-ScopedBuildInputIdentity $PSScriptRoot $Platform
-        $artifactIdentity = Get-ScopedArtifactIdentity $PSScriptRoot $Platform $Configuration
-        $receipt = Join-Path $PSScriptRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
+        $artifactIdentity = DxUiBuildEvidence\Get-ScopedArtifactIdentity $PSScriptRoot $Platform $Configuration
         if (-not (Test-ScopedBuildCoverage $PSScriptRoot $Platform $Configuration $buildProjects $inputIdentity $artifactIdentity -Full:$Full)) {
             throw 'SkipBuild refused: native test sources, dependencies or artifacts changed, or no complete native test receipt exists. Run build.ps1 or test.ps1 without -SkipBuild.'
         }
@@ -144,7 +148,6 @@ try {
 # against the executable this run is about to use; an interactive run needs the second most, since the watchdog is what bounds a
 # hung test while the suites hold the person's desktop.
 if (@($Suites | Where-Object { $_ -notin @('Foundation','Embedded') }).Count) {
-    Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
     Invoke-ScopedHarnessPreflight -Root $PSScriptRoot -Configuration $Configuration -Platform $Platform -Force:$Full
 }
 # The lease's Windows services (its children, its confirmation and its warning, on a private desktop) are proved with the suite that
@@ -357,4 +360,4 @@ $runPassed = $true
 # Nested native probes can leave a failing child exit code even when every requested suite passed.
 # Reset only after successful evidence finalization so callers observe the runner's final result.
 $global:LASTEXITCODE = 0
-} finally { Exit-ScopedProfileLease $profileLease }
+} finally { ScopedTesting\Exit-ScopedProfileLease $profileLease }

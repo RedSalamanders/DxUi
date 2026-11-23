@@ -30,7 +30,7 @@ function New-Side([string] $Kind, [string] $Commit, [string] $Root = '', [string
 
 Invoke-FixtureCase 'historical sides keep their pin while the independently verified common engine reader remains frozen' {
     param($root)
-    Import-Module (Join-Path $repository 'Tools/ScopedTesting.psm1')
+    Import-Module (Join-Path $repository 'Tools/DxUiBuildEvidence.psm1')
     Import-Module (Join-Path $repository '.ci-engine/Tools/Modules/Ci.Policy.psm1')
     $source=Join-Path $root 'reader-owner';$target=Join-Path $root 'historical-side'
     foreach($directory in @($source,$target)){
@@ -567,7 +567,8 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
         $node.Left -is [Management.Automation.Language.VariableExpressionAst] -and $node.Left.VariablePath.UserPath -ceq 'harness' }, $true)
     $harness = @(& ([scriptblock]::Create($assignment.Right.Extent.Text)))
     Assert-Contains $harness 'build.ps1' 'the measured build driver is shared'
-    Assert-Contains $harness 'Tools/ScopedTesting.psm1' 'old baselines receive the current attestation helper'
+    Assert-True ('Tools/ScopedTesting.psm1' -cnotin $harness) 'each side retains its scoped engine shim'
+    Assert-Contains $harness 'Tools/DxUiBuildEvidence.psm1' 'old baselines receive the current attestation helper'
     Assert-Contains $harness 'Tools/Validation.psm1' 'the exact solution-mapping validator is shared'
     Assert-True ('Tools/Changelog.psm1' -cnotin $harness) 'the benchmark leaves historical changelog tooling in place'
     Assert-True ('Tools/Modules/Documentation/Changelog.psm1' -cnotin $harness) 'the benchmark has no local changelog implementation dependency'
@@ -578,7 +579,7 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Set-FixtureFile $target 'src/Control.cpp' 'original baseline library source'
     Set-FixtureFile $target 'src/DxUi.vcxproj' 'original baseline project'
     Set-FixtureFile $target 'build.ps1' 'original baseline build driver'
-    Set-FixtureFile $target 'Tools/ScopedTesting.psm1' 'original baseline scoped helper'
+    Set-FixtureFile $target 'Tools/DxUiBuildEvidence.psm1' 'original baseline scoped helper'
     Set-FixtureFile $target 'Tools/Validation.psm1' 'original baseline solution validator'
     Set-FixtureFile $target 'Tools/Changelog.psm1' 'original baseline validator dependency'
     Set-FixtureFile $target 'Tools/Modules/Documentation/Changelog.psm1' 'original shared changelog implementation'
@@ -597,7 +598,7 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Assert-Equal ([IO.File]::ReadAllText((Join-Path $repository 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) ([IO.File]::ReadAllText((Join-Path $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) 'the benchmark uses the same actual project options on both sides'
     Restore-HarnessOverlay -Target $target -Records $records -BackupDirectory $backup
     Assert-Equal 'original baseline build driver' ([IO.File]::ReadAllText((Join-Path $target 'build.ps1'))) 'the baseline build driver was restored'
-    Assert-Equal 'original baseline scoped helper' ([IO.File]::ReadAllText((Join-Path $target 'Tools/ScopedTesting.psm1'))) 'the baseline scoped helper was restored'
+    Assert-Equal 'original baseline scoped helper' ([IO.File]::ReadAllText((Join-Path $target 'Tools/DxUiBuildEvidence.psm1'))) 'the baseline scoped helper was restored'
     Assert-Equal 'original baseline solution validator' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Validation.psm1'))) 'the baseline validator was restored'
     Assert-Equal 'original baseline validator dependency' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Changelog.psm1'))) 'the legacy changelog import path remains intact'
     Assert-Equal 'original shared changelog implementation' ([IO.File]::ReadAllText((Join-Path $target 'Tools/Modules/Documentation/Changelog.psm1'))) 'the baseline changelog implementation remains intact'
