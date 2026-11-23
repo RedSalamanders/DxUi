@@ -185,8 +185,10 @@ if ($volume.FileSystem -eq 'NTFS') {
         $alias = Join-Path $run.Path 'shared.bin'
         [void](New-Item -ItemType HardLink -Path $alias -Target $shared)
         [IO.File]::SetAttributes($shared, [IO.FileAttributes]::ReadOnly)
-        $handle = [TestRunEvidenceV2.Native]::Pin($shared, $false)
-        try { $identity = [TestRunEvidenceV2.Native]::Identity($handle) } finally { $handle.Dispose() }
+        $native = 'TestRunEvidenceV3.Native' -as [type]
+        if (-not $native) { $native = 'TestRunEvidenceV2.Native' -as [type] }
+        $handle = $native::Pin($shared, $false)
+        try { $identity = $native::Identity($handle) } finally { $handle.Dispose() }
         Complete-TestRunEvidence $run $true
         $sharedManifest = Get-Content (Join-Path $run.Directory 'completed.json') -Raw | ConvertFrom-Json
         Assert-Evidence ($sharedManifest.payload[0].identity -ceq $identity -and
