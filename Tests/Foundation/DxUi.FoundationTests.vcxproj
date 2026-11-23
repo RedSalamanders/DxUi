@@ -6,6 +6,6 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ItemDefinitionGroup><Link><SubSystem>Console</SubSystem><AdditionalDependencies>DbgHelp.lib;%(AdditionalDependencies)</AdditionalDependencies></Link></ItemDefinitionGroup>
   <ItemGroup><ClCompile Include="Foundation.Tests.Foundation.cpp" /><ClCompile Include="Foundation.Tests.PublicHelpers.cpp" /><ClCompile Include="Foundation.Tests.TsfFocus.cpp" /></ItemGroup><ItemGroup><ProjectReference Include="../../src/DxUi.vcxproj"><Project>{F6272096-E42A-56E7-9CCB-A8E08093E2BC}</Project></ProjectReference></ItemGroup>
-  <ItemGroup><ClCompile Include="Foundation.Tests.Failure.cpp" /><ClCompile Include="Foundation.Tests.ControlFactory.cpp" /><ClCompile Include="..\..\Samples\Shared\FailureHost.cpp" /></ItemGroup>
+  <ItemGroup><ClCompile Include="Foundation.Tests.Failure.cpp" /><ClCompile Include="Foundation.Tests.ControlAllocation.cpp" /><ClCompile Include="Foundation.Tests.ControlFactory.cpp" /><ClCompile Include="..\..\Samples\Shared\FailureHost.cpp" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

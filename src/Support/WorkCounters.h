@@ -152,8 +152,9 @@
     X(accessibility, snapshotNodes)    /* Control records those snapshots hold. */                                                                             \
     X(accessibility, wordUnitsVisited) /* UTF-16 units text-range word movement stepped over, the enclosing-word scan from offset 0 included. */
 
-// Memory. Reserved for counted memory work; byte metrics live in receipts, not here.
-#define DXUI_WORK_COUNTERS_MEMORY(X)
+// Memory: counted memory work; byte metrics live in receipts, not here.
+#define DXUI_WORK_COUNTERS_MEMORY(X)                                                                                                                           \
+    X(memory, controlHeapSizeReads) /* HeapSize calls control object allocation made, one per block allocated while an allocation sink was set. */
 
 // Intrinsic layout: Control::Measure and its measure cache.
 #define DXUI_WORK_COUNTERS_LAYOUT(X)                                                                                                                           \

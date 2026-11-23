@@ -244,7 +244,7 @@ the record; its cost is an increment, with no allocation, lock, I/O, worker or t
 frames keep their contracts. A reading is per thread: work another thread does is in that thread's record. Counters only
 grow; a test measures an action as the difference of two readings (`WorkCounterScope::Delta`). Counters are grouped by
 subsystem, each group a list kept in alphabetical order: frame, wakes, resources, text, popups, lists, rich,
-accessibility and layout, and a reserved memory group. A new counter is one line in its group's list and is then present in every
+accessibility, layout and memory. A new counter is one line in its group's list and is then present in every
 snapshot, delta and receipt.
 
 - **Frame and walks.** `paintExecutions` counts each control whose `Paint` a host, `Panel` or `PageHost` dispatched;
@@ -351,6 +351,9 @@ snapshot, delta and receipt.
   disagreements (a hit whose re-run measurement differed), which reveal a control that skipped `InvalidateMeasure`.
   `arrangedChildren` counts each child `SetBounds` an intrinsic owner's arrangement (`FlexPanel`, `FormPanel`,
   `FormField`) makes.
+- **Memory.** `controlHeapSizeReads` counts the `HeapSize` calls control object allocation makes, one for each block
+  allocated while an allocation sink is set and none otherwise
+  ([control object allocation](#control-object-allocation)).
 
 Destruction is observed only by a test-owned `ResourceLifetimeTracker`, in storage the test supplies: while installed on
 a thread it holds one extra reference to each resource the helpers create there, and `Sweep` counts and releases those
@@ -1646,6 +1649,28 @@ never judged. A counted line over its budget MUST be a recorded exception that n
 well, so the item that closes a line deletes its exception and the gate then enforces the budget. The FX5 receipt and the
 Embedded suite apply this gate; the current exceptions and measurements are in
 [the W9.1 receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W9.1/README.md).
+
+#### Control object allocation
+
+`Control::operator new` and `operator delete` (`src/Foundation/ControlAllocation.cpp`) take every control object's storage
+from the process heap. A block belongs to the overload pair that allocated it, so `delete` needs no tag:
+
+- Default alignment (`new` and `new (std::nothrow)`): one `HeapAlloc` of the object size plus a 16-byte prefix
+  `{requested, accounted}` immediately below the returned pointer. `HeapAlloc` returns blocks aligned to
+  `MEMORY_ALLOCATION_ALIGNMENT` (16 bytes on x64 and ARM64), so the object keeps `__STDCPP_DEFAULT_NEW_ALIGNMENT__` with no
+  back-pointer and no alignment slack; both are checked at compile time, and a Debug build stops on a misaligned block. The
+  per-allocation overhead is 16 bytes. Sized, array and other `operator delete` forms are not declared: a control is
+  never deleted through them.
+- Over-aligned (`new (std::align_val_t)` and its `nothrow` form, used for any control type with a larger alignment): the
+  24-byte header `{storage, requested, accounted}` below an address rounded up inside a block with the alignment's slack.
+  Its `delete (void*, std::align_val_t)` forms read that header.
+- `HeapSize` is read only when `Diagnostics::nativeAllocationSink` is set on the allocating thread: `accounted` is then the
+  heap's block size, which includes the prefix, and the sink receives `{allocating, requested, accounted}`. With no sink the
+  prefix records `accounted` as 0: the block was not reported. `delete` reports a block (the same `requested` and
+  `accounted`, `allocating` false) only when `accounted` is not 0 and a sink is set on the freeing thread, so a block
+  allocated before the sink was installed and freed after is never reported as a free without its allocation, and the totals
+  a sink keeps (live bytes and live count) stay exact whenever the sink is installed at both ends of a block's life. The
+  counter `memory.controlHeapSizeReads` counts the `HeapSize` calls.
 
 #### Single-line text history
 

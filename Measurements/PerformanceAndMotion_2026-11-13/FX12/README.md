@@ -132,11 +132,11 @@ Video memory: software adapter: rendering uses system memory, which privateBytes
 
 ### [fx12-form-10k-embedded-warp-x64-release.json](fx12-form-10k-embedded-warp-x64-release.json)
 
-- Host `embedded`, variant `form-10k` (1920x1080 at 96 DPI), renderer WARP, x64 Release (compiler 195237025)
-- Source `352943dde6c2a34b59e521b59b86464b97f2e6af`, uncommitted changes: True; command: `performance-fixtures.ps1 -Fixture FX12 -Variant form-10k -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64`
-- Adapter: Microsoft Basic Render Driver, driver 10.0.26100.9711; WARP 10.0.26100.9711 (WinBuild.160101.0800)
-- OS Microsoft Windows 10.0.26300 (build 26300.9711); displays: AMD Radeon(TM) Graphics 60 Hz, NVIDIA GeForce RTX 5080 120 Hz; power plan: Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)
-- Host idle record: 54.6% busy over 3 s before the run (recorded, not required); recorded 2026-11-15T16:27:56.8930087Z
+- Host `embedded`, variant `form-10k` (1920x1080 at 96 DPI), renderer WARP, x64 Release (compiler 195237032)
+- Source `9d14a1f8b3341e0f31db5de57abb5498712b7aa6`, uncommitted changes: False; command: `performance-fixtures.ps1 -Fixture FX12 -Variant form-10k -Adapter Warp -FixtureHost embedded -Configuration 'Release' -Platform x64`
+- Adapter: Microsoft Basic Render Driver, driver 10.0.26100.9818; WARP 10.0.26100.9818 (WinBuild.160101.0800)
+- OS Microsoft Windows 10.0.26300 (build 26300.9974); displays: AMD Radeon(TM) Graphics 60 Hz, NVIDIA GeForce RTX 5080 120 Hz; power plan: Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)
+- Host idle record: 7.2% busy over 3 s before the run (recorded, not required); recorded 2026-11-24T09:50:24.6346843Z
 - Timing: not measured
 
 | Phase | Steps | `Paint` executions per step | Preparations | Resources created | Churn | C++ allocations per step |
@@ -149,14 +149,14 @@ Video memory: software adapter: rendering uses system memory, which privateBytes
 | `size` (measured) | 4 | 0 | 0 total | 0 total | 0 total | 0 |
 | `width` (measured) | 4 | 0 | 0 total | 0 total | 0 total | 0 |
 
-Tracked live C++ bytes: built 9,230,261; phase warm 9,630,284; phase full 9,630,284; phase hover 9,630,284; phase value 9,630,284; phase scroll 9,630,284; phase size 9,630,284; phase width 9,630,284; hidden 9,390,997.
+Tracked live C++ bytes: built 9,000,263; phase warm 9,400,286; phase full 9,400,286; phase hover 9,400,286; phase value 9,400,286; phase scroll 9,400,286; phase size 9,400,286; phase width 9,400,286; hidden 9,160,999.
 Video memory: software adapter: rendering uses system memory, which privateBytes counts. Every counter per step is in the receipt's `series`.
 
 | `G13` line | Budget | Measured bytes | Status |
 | --- | --- | --- | --- |
-| `idle-private` | idle native window <= 8 MB private above process entry at 1080p | 128,651,264 | advisory |
+| `idle-private` | idle native window <= 8 MB private above process entry at 1080p | 123,117,568 | advisory |
 | `minimized-video` | <= 8 MiB video memory when minimized | not measured | not measured: software adapter: rendering uses system memory, which private bytes count |
-| `per-control` | <= 256 B per simple control all-in | 922 | exceeded |
+| `per-control` | <= 256 B per simple control all-in | 899 | exceeded |
 | `per-grid-cell` | <= 1 KB per visible single-line Grid cell | not measured | not measured: the fixture keeps no Grid cell layout |
 | `text-history` | <= 4 MiB text history per editor | 0 | met |
 

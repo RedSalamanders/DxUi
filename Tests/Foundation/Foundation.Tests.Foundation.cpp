@@ -12,6 +12,7 @@ bool TestPublicHelpers();
 bool TestFontAvailabilityInvalidation();
 bool TestTsfFocusAssociationRestorationControls();
 bool TestCheckedControlFactory();
+bool TestControlAllocation();
 
 namespace
 {
@@ -72,6 +73,7 @@ int main(int argc, char** argv)
         return 1;
     const auto failureHost = wil::scope_exit([] { static_cast<void>(DxUiFailureTests::UninstallFailureHost()); });
     Check(TestCheckedControlFactory(), "checked control construction and allocation policy");
+    Check(TestControlAllocation(), "control object storage keeps a 16-byte prefix and exact accounting");
     Check(TestPublicHelpers(), "public consumer helpers compile, link and retain their policies");
     Check(TestFontAvailabilityInvalidation(), "font availability invalidation refreshes one factory or all factories without stale negative answers");
     Check(TestTsfFocusAssociationRestorationControls(), "TSF association restoration preserves independent focus and respects newer owners");
