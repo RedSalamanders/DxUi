@@ -4,7 +4,7 @@ Status: ACTIVE
 Updated: 23 November 2026
 Owner: DxUi maintainers; consumer policy and adoption remain with each application.
 
-This is the **only active DxUi plan**. The [consolidation record](../Done/WipConsolidation_2026-11-04.md)
+This plan owns DxUi's remaining correctness and qualification work. The [consolidation record](../Done/WipConsolidation_2026-11-04.md)
 maps every unchecked item from the four former queues to a current owner or explicit disposition. Archived
 reviews/proposals retain detail and source identities without becoming parallel execution plans. Domain
 specifications and `capabilities.json` remain authoritative.
