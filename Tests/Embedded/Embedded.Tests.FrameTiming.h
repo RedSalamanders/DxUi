@@ -807,9 +807,10 @@ inline int TopologyCommand(int argc, wchar_t** argv)
 inline std::atomic<bool> busyLoadStop{false};
 inline DWORD WINAPI BusyLoadThread(void*) noexcept
 {
-    volatile uint64_t counter = 0u;
+    // An atomic, not `volatile`: the same load, add and store on x64, and no ARM64 /volatile dependence (C4746).
+    std::atomic<uint64_t> counter{0u};
     while (! busyLoadStop.load(std::memory_order_relaxed))
-        counter = counter + 1u;
+        counter.store(counter.load(std::memory_order_relaxed) + 1u, std::memory_order_relaxed);
     return 0u;
 }
 
