@@ -1,0 +1,1 @@
+- Use the pinned shared scoped test planner and run-evidence engine while retaining DxUi's native build, SDK and benchmark attestations.

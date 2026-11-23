@@ -1,7 +1,41 @@
 {
-  "version": 1,
-  "repository": "RedSalamanders/DxUi",
+  "version": 2,
   "defaultBranch": "main",
+  "buildNumber": "none",
+  "nativeInventory": {
+    "path": "Tests/native-test-files.json",
+    "exclude": [
+      "Specs/**",
+      "Measurements/**",
+      "legacy/**",
+      "External/**"
+    ],
+    "testFolders": [
+      "Tests/**",
+      "Tools/ConsumerApi/**",
+      "**/SelfTest/**"
+    ]
+  },
+  "runtimeFiles": [],
+  "prose": [
+    ".agents/**/*.md",
+    ".github/ISSUE_TEMPLATE/**/*.md",
+    ".github/PULL_REQUEST_TEMPLATE/**/*.md",
+    ".github/skills/**/*.md",
+    "*.md",
+    "Changes/**",
+    "docs/**",
+    "legacy/**/*.md",
+    "Measurements/**",
+    "Specs/**/*.md",
+    "Samples/ComplexUi/README.md",
+    "Samples/EmbeddedControls/README.md",
+    "Tests/README.md",
+    "ThirdParty/**/README.md",
+    "Tools/README.md",
+    "Tools/tests/fixtures/**/README.md"
+  ],
+  "unscoped": [],
   "scopes": [
     {
       "name": "Foundation",
@@ -101,7 +135,30 @@
     {
       "name": "Tooling",
       "native": false,
-      "reuse": true
+      "reuse": true,
+      "commands": [
+        {
+          "path": "validate.ps1",
+          "arguments": []
+        },
+        {
+          "path": "Tools/tests/Test-AsanRuntime.ps1",
+          "arguments": []
+        }
+      ]
+    },
+    {
+      "name": "Format",
+      "native": false,
+      "reuse": true,
+      "commands": [
+        {
+          "path": "format.ps1",
+          "arguments": [
+            "-Check"
+          ]
+        }
+      ]
     }
   ],
   "rules": [
@@ -672,11 +729,47 @@
         "Animation"
       ],
       "reason": "Reviewed direct scenario callers plus retained-host/rendering/accessibility integration; foreground and gallery acceptance remain separate."
+    },
+    {
+      "pattern": "docs/**",
+      "scopes": [
+        "Tooling",
+        "Format"
+      ],
+      "reason": "independent documentation and measurement validation"
+    },
+    {
+      "pattern": "Measurements/**",
+      "scopes": [
+        "Tooling",
+        "Format"
+      ],
+      "reason": "independent documentation and measurement validation"
+    },
+    {
+      "pattern": "Changes/**",
+      "scopes": [
+        "Tooling",
+        "Format"
+      ],
+      "reason": "independent documentation and measurement validation"
+    },
+    {
+      "pattern": "**/*.cpp",
+      "scopes": [
+        "Format"
+      ],
+      "additive": true,
+      "reason": "native source formatting"
+    },
+    {
+      "pattern": "**/*.h",
+      "scopes": [
+        "Format"
+      ],
+      "additive": true,
+      "reason": "native source formatting"
     }
-  ],
-  "toolingCommands": [
-    "validate.ps1",
-    "Tools/tests/Test-AsanRuntime.ps1"
   ],
   "interactiveObligations": [
     {
@@ -760,18 +853,58 @@
       "reason": "menu popups and native text input publish UI Automation elements and events from the providers"
     }
   ],
-  "prCoverage": [],
-  "prContractClosure": true,
-  "prContractFiles": [
-    ".ci/project.json",
-    ".github/workflows/ci.yml",
-    ".github/workflows/qualify.yml",
-    ".github/workflows/qualification.yml",
-    ".github/workflows/format.yml",
-    ".github/workflows/security.yml",
-    "Tools/Invoke-ProjectCi.ps1",
-    "Tools/ScopedTesting.psm1"
+  "watchedProcesses": [
+    "DxUi.ControlTests.exe",
+    "DxUi.EmbeddedTests.exe",
+    "DxUi.FoundationTests.exe",
+    "DxUi.InteractiveLease.exe"
   ],
-  "prNativeScopeModule": "Tools/NativeScope.psm1",
-  "prWorkflowDigest": "7fc4f3f49b271b2925477f79d2a055c83d296578e936968d978485a9898f6c6e"
+  "prePushProfiles": [
+    {
+      "platform": "x64",
+      "configuration": "Debug",
+      "buildOnly": false
+    },
+    {
+      "platform": "x64",
+      "configuration": "Release",
+      "buildOnly": false
+    },
+    {
+      "platform": "x64",
+      "configuration": "ASan Debug",
+      "buildOnly": false
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Debug",
+      "buildOnly": true
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "Release",
+      "buildOnly": true
+    },
+    {
+      "platform": "ARM64",
+      "configuration": "ASan Debug",
+      "buildOnly": true
+    }
+  ],
+  "instrumentationVariables": [
+    "DXUI_GRAPH_PERF",
+    "DXUI_PERF_JSONL_PATH",
+    "DXUI_MUTANT",
+    "DXUI_ONLY_FRENCH"
+  ],
+  "systemFiles": [
+    "d3d10warp.dll",
+    "d3d11.dll",
+    "dwrite.dll"
+  ],
+  "profileFailureImages": [
+    "DxUi.ControlTests.exe",
+    "DxUi.FoundationTests.exe",
+    "DxUi.EmbeddedTests.exe"
+  ]
 }

@@ -3,15 +3,18 @@
 # It never substitutes for the final ExternalConsumer receipt.
 Set-StrictMode -Version Latest
 
-if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT -and -not ('TestRunEvidenceV2.Native' -as [type])) {
-    $script:evidenceModule = Import-Module -Name (Join-Path $PSScriptRoot 'TestRunEvidence.psm1') -PassThru -Verbose:$false
-    & $script:evidenceModule { Initialize-TestRunEvidenceNative }
+if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT -and -not ('TestRunEvidenceV3.Native' -as [type])) {
+    $projectRoot = Split-Path -Parent $PSScriptRoot
+    Import-Module (Join-Path $projectRoot '.ci-engine/Tools/Modules/Ci.EngineBinding.psm1') -Scope Local
+    $evidencePath = Resolve-CiPinnedEngineModule -ProjectRoot $projectRoot -Name 'TestRunEvidence.psm1'
+    $evidenceModule = Import-Module $evidencePath -Scope Local -PassThru
+    & $evidenceModule { Initialize-TestRunEvidenceNative }
 }
 
 function Get-ConsumerProgressFileSnapshot([string] $Path) {
-    $handle = [TestRunEvidenceV2.Native]::Pin($Path, $false)
+    $handle = [TestRunEvidenceV3.Native]::Pin($Path, $false)
     try {
-        $identity = [TestRunEvidenceV2.Native]::Identity($handle)
+        $identity = [TestRunEvidenceV3.Native]::Identity($handle)
         $stream = [IO.FileStream]::new($handle, [IO.FileAccess]::Read, 4096, $false)
         try {
             $sha = [Security.Cryptography.SHA256]::Create()

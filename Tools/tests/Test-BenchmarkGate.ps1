@@ -41,7 +41,7 @@ Invoke-TestCase 'every library, build, benchmark and measurement path is measure
         'Tests/Embedded/Embedded.Tests.Embedded.cpp' = 'benchmark executable'; 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' = 'benchmark executable'; 'Tests/Support/Support.Tests.TestWatchdog.h' = 'benchmark executable'
         'Samples/EmbeddedControls/EmbeddedScene.h' = 'fixture or sample compiled into it'
         'DxUi.sln' = 'build or restore'; 'build.ps1' = 'build or restore'; 'vcpkg-install.ps1' = 'build or restore'; 'vcpkg-configuration.json' = 'build or restore'
-        'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/VcpkgRestore.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'; 'Tools/SdkLibraryInputs.psm1' = 'build or restore'; 'Tools/SdkSourceProfiles.psm1' = 'build or restore'; 'Tools/ProcessInspection.psm1' = 'build or restore'
+        'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/VcpkgRestore.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'; 'Tools/DxUiBuildEvidence.psm1' = 'build or restore'; 'Tools/SdkLibraryInputs.psm1' = 'build or restore'; 'Tools/SdkSourceProfiles.psm1' = 'build or restore'; 'Tools/ProcessInspection.psm1' = 'build or restore'
         'Tools/Validation.psm1' = 'build or restore'; 'Tools/Changelog.psm1' = 'build or restore'
         'Tools/PairedRun.psm1' = 'benchmark harness'; 'Tools/BenchmarkGate.psm1' = 'benchmark harness'
         'Tools/PerformancePolicy.psm1' = 'benchmark harness'; 'Tools/PerformanceAcceptancePolicy.v1.json' = 'paired measurement or gate'
@@ -169,6 +169,15 @@ Invoke-TestCase 'every module the build and measurement scripts import is measur
             $name = $match.Groups[1].Value
             $beside = [IO.Path]::GetRelativePath($repository, [IO.Path]::GetFullPath((Join-Path (Split-Path -Parent (Join-Path $repository $file)) $name))).Replace('\', '/')
             $import = if (Test-Path -LiteralPath (Join-Path $repository $beside) -PathType Leaf) { $beside } else { $name }
+            if ($import -match '^Tools/Modules/Ci\.[^/]+\.psm1$' -and
+                -not (Test-Path -LiteralPath (Join-Path $repository $import) -PathType Leaf)) {
+                # Paired runs bind the shared reader's complete pinned checkout as an input.
+                $pinnedImport = ".ci-engine/$import"
+                Assert-True (Test-Path -LiteralPath (Join-Path $repository $pinnedImport) -PathType Leaf) "$file imports $pinnedImport"
+                Assert-True (Get-BenchmarkScope -ChangedPaths @($pinnedImport)).Relevant "$pinnedImport is measured through the pinned engine"
+                Assert-True (Get-BenchmarkScope -ChangedPaths @('.ci/project.json')).Relevant 'The engine pin is measured'
+                continue
+            }
             Assert-True (Test-Path -LiteralPath (Join-Path $repository $import) -PathType Leaf) "$file imports $name"
             if ($seen.Add($import)) { $pending.Enqueue($import) }
         }

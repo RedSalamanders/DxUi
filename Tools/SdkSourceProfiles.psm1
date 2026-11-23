@@ -1,7 +1,7 @@
 # Source-owned SDK assets and reviewed compatibility recipes; no build or qualification occurs on import.
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-$script:scoped=Import-Module (Join-Path $PSScriptRoot 'ScopedTesting.psm1') -PassThru
+$script:scoped=Import-Module (Join-Path $PSScriptRoot 'DxUiBuildEvidence.psm1') -PassThru
 
 function Get-DxUiSdkToolingProvenance {
     [CmdletBinding()]

@@ -179,7 +179,9 @@ Import-Module (Join-Path $engine 'Tools/Modules/Ci.Project.psm1')
 Invoke-TestCase 'the current caller is pinned and PR delegation has no native profiles' {
     $project=Read-CiProject $repository
     Test-CiProjectConfiguration @{root=$repository;engineRoot=$engine;project=$project;development=$false}
-    Assert-Equal 0 @((Get-Content (Join-Path $repository 'Tests/test-scopes.json') -Raw|ConvertFrom-Json).prCoverage).Count 'native PR delegation is empty'
+    $manifest=Get-Content (Join-Path $repository 'Tests/test-scopes.json') -Raw | ConvertFrom-Json -AsHashtable
+    Assert-Equal 2 ([int]$manifest.version) 'the project uses the shared scope contract'
+    Assert-True (-not $manifest.ContainsKey('prCoverage') -and -not $manifest.ContainsKey('prWorkflowDigest')) 'the scope manifest cannot delegate native tests to a PR'
     $pr=[IO.File]::ReadAllText((Join-Path $engine '.github/workflows/pr.yml'))
     Assert-True ($pr.Contains("CI_NATIVE_BUILDS_DISABLED: 'true'")) 'PR tooling cannot enter native builds'
     Assert-True (-not ($pr -match 'setup-msvc|build.ps1|test-consumer.ps1')) 'PRs do not execute native producer or compiler fixtures'

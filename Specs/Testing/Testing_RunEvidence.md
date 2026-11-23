@@ -33,6 +33,9 @@ ancestors and payload links are refused without traversing or deleting their tar
 checked; sharing flags alone do not prevent all ReFS directory renames. Files still open for writing fail verification.
 Unique evidence stays in place; no archive payload copy, attribute normalization or read-only clearing occurs.
 Shared build/dependency/qualification files remain outside the writable run, and their existing read-only rules apply.
+`Tools/TestRunEvidence.psm1` binds the shared implementation at the exact engine pin. The manifest
+lists the control, foundation and embedded test images. The run preserves their current EXE/PDB pairs
+and the current profile's failure images alongside the primary test failure.
 
 The record establishes retention and the outcome of the selected invocation only. It does not replace exact source,
 binary/dependency/profile/scenario attestation, qualify omitted tests, or turn a capability skip, pending CI check,

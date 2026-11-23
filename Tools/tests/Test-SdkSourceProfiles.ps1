@@ -110,7 +110,7 @@ Invoke-FixtureCase 'historical reader selection binds both subjects and preserve
     param($fixture)
     # Execute the original selector at a recording boundary. The shared engine's real byte/pin
     # controls remain separate; these cases verify which reader and subjects it actually invokes.
-    $scoped=Join-Path $root 'Tools/ScopedTesting.psm1'
+    $scoped=Join-Path $root 'Tools/DxUiBuildEvidence.psm1'
     $tokens=$null;$errors=$null
     $ast=[Management.Automation.Language.Parser]::ParseFile($scoped,[ref]$tokens,[ref]$errors)
     $definitions=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Get-ScopedSourceIdentity'},$true))

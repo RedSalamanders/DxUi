@@ -278,11 +278,11 @@ if($IsWindows){Invoke-FixtureCase 'retry is bounded, verified, and never repeats
                     try{
                         $pending=Get-ChildItem -LiteralPath (Split-Path -Parent $state.ProgressPath) -File -Filter ((Split-Path -Leaf $state.ProgressPath)+'.pending-*')|Select-Object -First 1
                         if($null -eq $pending){throw 'Expected pending file was absent at first retry wait.'}
-                        $handle=[TestRunEvidenceV2.Native]::Pin($pending.FullName,$false)
-                        try{$state.PendingIdentityBefore=[TestRunEvidenceV2.Native]::Identity($handle)}finally{$handle.Dispose()}
+                        $handle=[TestRunEvidenceV3.Native]::Pin($pending.FullName,$false)
+                        try{$state.PendingIdentityBefore=[TestRunEvidenceV3.Native]::Identity($handle)}finally{$handle.Dispose()}
                         $bytes=[IO.File]::ReadAllBytes($pending.FullName);$bytes[0]=[byte][char]'[';[IO.File]::WriteAllBytes($pending.FullName,$bytes)
-                        $handle=[TestRunEvidenceV2.Native]::Pin($pending.FullName,$false)
-                        try{$state.PendingIdentityAfter=[TestRunEvidenceV2.Native]::Identity($handle)}finally{$handle.Dispose()}
+                        $handle=[TestRunEvidenceV3.Native]::Pin($pending.FullName,$false)
+                        try{$state.PendingIdentityAfter=[TestRunEvidenceV3.Native]::Identity($handle)}finally{$handle.Dispose()}
                     }catch{$state.HookFailure=$_.Exception.ToString();throw}
                 }
                 $state.Handle.Dispose();$state.Released=$true

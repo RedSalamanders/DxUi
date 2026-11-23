@@ -43,13 +43,32 @@ if($SourceRoot){
     if($sourceDirty -and -not $LocalUnpinnedSource){throw 'SourceRoot requires clean committed source.'}
     if($LocalUnpinnedSource -and -not $sourceDirty){throw 'LocalUnpinnedSource requires actual dirty source; use the ordinary clean SourceRoot route otherwise.'}
 }
-Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
+$buildEvidencePath = Join-Path $PSScriptRoot 'Tools/DxUiBuildEvidence.psm1'
+if ($ToolingEngineRoot) {
+    $readerRoot = [IO.Path]::GetFullPath($ToolingEngineRoot).TrimEnd('\','/')
+    Import-Module (Join-Path $readerRoot 'Tools/Modules/Ci.EngineBinding.psm1') -Scope Local -ErrorAction Stop
+    $scopedPath = Resolve-CiPinnedEngineModule -ProjectRoot (Split-Path $readerRoot -Parent) -Name 'ScopedTesting.psm1'
+} elseif (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.ci/project.json')) {
+    $scopedPath = Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1'
+} else {
+    # A paired overlay on a pre-CI source tree retains the standalone profile lease.
+    $scopedPath = $buildEvidencePath
+}
+$profileScope = Import-Module $scopedPath -Scope Local -PassThru -ErrorAction Stop
+Import-Module $buildEvidencePath -Scope Local -ErrorAction Stop
 $defaultBuildOutput=-not $OutputRoot -or [string]::Equals([IO.Path]::GetFullPath($OutputRoot).TrimEnd('\','/'),[IO.Path]::GetFullPath((Join-Path $buildRoot '.build')).TrimEnd('\','/'),[StringComparison]::OrdinalIgnoreCase)
-$profileLease=Enter-ScopedProfileLease $buildRoot $Platform $Configuration -OutputRoot $OutputRoot
+$profileLease = & $profileScope {
+    param($Root, $Architecture, $Profile, $Output)
+    Enter-ScopedProfileLease -Root $Root -Platform $Architecture -Configuration $Profile -OutputRoot $Output
+} $buildRoot $Platform $Configuration $OutputRoot
 $buildCompleted=$false
 $sdkModuleLoaded=$false
 try {
-if ($defaultBuildOutput) { Remove-ScopedIteration -Root $buildRoot -Path (Join-Path $buildRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/iteration.json") }
+if ($defaultBuildOutput) {
+    $scopedReports = Join-Path $buildRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')"
+    Remove-ScopedIteration -Root $buildRoot -Path (Join-Path $scopedReports 'iteration.json')
+    Remove-ScopedIteration -Root $buildRoot -Path (Join-Path $scopedReports 'build.json')
+}
 $attestSdkLibrary=$defaultBuildOutput -and $Configuration -eq 'Release'
 if($attestSdkLibrary){
     Import-Module (Join-Path $PSScriptRoot 'Tools/SdkLibraryInputs.psm1') -Force
@@ -201,7 +220,6 @@ $defaultOutput = [IO.Path]::GetFullPath((Join-Path $buildRoot '.build')).TrimEnd
 $selectedProjects=@()
 $partialBuild=$false
 if ($Projects.Count) {
-    Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
     $selectedProjects=@(Resolve-ScopedBuildProjects $Projects)
     $partialBuild=$selectedProjects.Count -lt (Get-ScopedBuildProjectCatalog).Count
     Assert-ScopedSelectedBuildGraph -Root $buildRoot -MSBuildPath $msbuild -Platform $Platform -Configuration $Configuration -OutputRoot $output -Projects $selectedProjects
@@ -215,9 +233,8 @@ if ($attestPerformanceBuild) {
     $performanceBuildBefore = Invoke-DxUiBuildPhase -Phase PreBuildAttestation -Body {
         Start-PerformanceBuildAttestation -Root $buildRoot -Platform $Platform -Configuration $Configuration @engineArguments
     }
-    Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
     $scopedBuildBefore = Get-ScopedBuildInputIdentity $buildRoot $Platform @engineArguments
-    $scopedBuildReceipt = Join-Path $buildRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
+    $scopedBuildReceipt = Get-DxUiNativeBuildReceiptPath $buildRoot $Platform $Configuration
     $scopedReuse = $false
     try {
         $scopedArtifact = Get-ScopedArtifactIdentity $buildRoot $Platform $Configuration
@@ -238,7 +255,7 @@ if ($attestPerformanceBuild) {
 }
 if ($partialBuild) {
     # Never leave a full-solution pass behind a selected or failed build attempt.
-    $fullReceipt=Join-Path $buildRoot ".build/reports/scoped-tests/$Platform-$($Configuration -replace ' ','')/build.json"
+    $fullReceipt=Get-DxUiNativeBuildReceiptPath $buildRoot $Platform $Configuration
     if (Test-Path -LiteralPath $fullReceipt) { Remove-Item -LiteralPath $fullReceipt }
 }
 if ([string]::Equals($output,$defaultOutput,[StringComparison]::OrdinalIgnoreCase)) { Remove-ScopedBuildReceipts $buildRoot $Platform $Configuration }
@@ -296,7 +313,6 @@ if ($attestPerformanceBuild) {
     $performanceBuildAfter=Invoke-DxUiBuildPhase -Phase PostBuildAttestation -Body {
         Complete-PerformanceBuildAttestation -Root $buildRoot -Platform $Platform -Configuration $Configuration -Before $performanceBuildBefore @engineArguments -PassThru
     }
-    Import-Module (Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1') -Force
     if ((Get-ScopedBuildInputIdentity $buildRoot $Platform @engineArguments) -cne $scopedBuildBefore) {
         throw 'Compiled source or installed dependencies changed during the build; no native test receipt was published.'
     }
@@ -333,5 +349,7 @@ $buildCompleted=$true
     try {
         if ($defaultBuildOutput -and -not $buildCompleted) { Remove-ScopedBuildReceipts $buildRoot $Platform $Configuration }
         if($sdkModuleLoaded -and -not $buildCompleted){Remove-DxUiSdkLibraryReceipt -Root $buildRoot -Platform $Platform}
-    } finally { Exit-ScopedProfileLease $profileLease }
+    } finally {
+        & $profileScope { param($Lease) Exit-ScopedProfileLease $Lease } $profileLease
+    }
 }
