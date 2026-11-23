@@ -169,6 +169,15 @@ Invoke-TestCase 'every module the build and measurement scripts import is measur
             $name = $match.Groups[1].Value
             $beside = [IO.Path]::GetRelativePath($repository, [IO.Path]::GetFullPath((Join-Path (Split-Path -Parent (Join-Path $repository $file)) $name))).Replace('\', '/')
             $import = if (Test-Path -LiteralPath (Join-Path $repository $beside) -PathType Leaf) { $beside } else { $name }
+            if ($import -match '^Tools/Modules/Ci\.[^/]+\.psm1$' -and
+                -not (Test-Path -LiteralPath (Join-Path $repository $import) -PathType Leaf)) {
+                # Paired runs bind the shared reader's complete pinned checkout as an input.
+                $pinnedImport = ".ci-engine/$import"
+                Assert-True (Test-Path -LiteralPath (Join-Path $repository $pinnedImport) -PathType Leaf) "$file imports $pinnedImport"
+                Assert-True (Get-BenchmarkScope -ChangedPaths @($pinnedImport)).Relevant "$pinnedImport is measured through the pinned engine"
+                Assert-True (Get-BenchmarkScope -ChangedPaths @('.ci/project.json')).Relevant 'The engine pin is measured'
+                continue
+            }
             Assert-True (Test-Path -LiteralPath (Join-Path $repository $import) -PathType Leaf) "$file imports $name"
             if ($seen.Add($import)) { $pending.Enqueue($import) }
         }
