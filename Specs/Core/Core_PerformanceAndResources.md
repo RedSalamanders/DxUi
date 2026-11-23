@@ -65,15 +65,17 @@ that need neither relationship slots nor compact fan routing avoid that allocati
 sizing remain bounded by existing node/edge/extent limits. Clean/hidden
 frames, warm drawing and code-chrome foreground selection add no workers, timers, allocation or measurement.
 
-Bulk Grid and Tree selection builds a staged visible-order list with hash membership and a fixed-width radix-sorted
-membership copy. Its expected work is linear in visible and requested IDs, including reverse-ordered IDs; allocation
-failure preserves the previously published selection. Repeated IDs occur only once in first-visible order; the final
-requested visible ID remains focus and anchor. Hash membership is expected linear, not an adversarial worst-case bound.
+Bulk Grid and Tree selection builds a staged visible-order list with membership in an ascending copy of the requested
+IDs behind a table of bits (`SelectedIdFilter`, one load rules out most visible IDs) and a fixed-width radix-sorted
+membership copy. Its work is linear in visible IDs plus a sort of the requested IDs, including reverse-ordered IDs;
+allocation failure preserves the previously published selection. Repeated IDs occur only once in first-visible order;
+the final requested visible ID remains focus and anchor. No heap node is allocated per ID.
 Tree pointer hit testing computes the expander lane without shaping badge text or changing the badge measurement cache;
 paint and input share the same lane geometry, including reserved-space and right-to-left layouts.
 Repeated hover on the same unchanged Tree row reuses its tooltip geometry; explicit tooltip text bypasses badge and
 overflow measurement. Model presentation, host, typography, resource or interaction changes invalidate that reuse.
-Icon-only button preparation validates tree membership at entry. Later reentrant boundaries check the owner and root
+Icon-only button preparation is reached only from the host's preparation pass and checks at entry that it is attached
+to that host (no tree-membership search). Later reentrant boundaries check the owner and root
 lifetimes, host, root identity and interaction revision before accessing or publishing control state.
 Button shortcut width is prepared and cached by host, typography, resources and reading direction; painting uses the
 prepared scalar and performs no shortcut measurement. A text change invalidates it, and detachment retires its host key.
@@ -111,8 +113,18 @@ units), one staged result and one published result per parser. Advance has an
 operation budget; source validation/copy/comparison and allocator work are not
 hard wall-clock bounds. Block transitions inspect one bounded physical line;
 reference finalization, block-tree compaction, construct lookahead, emphasis resolution and sorting are
-indivisible bounded work. Each revision reparses block/inline dependencies before identity reconciliation; this is not
-incremental block reuse. Lexical reference recognition examines at most
+indivisible bounded work. An incremental revision (plan item W7.2, rules in [controls and
+layout](../UI/UI_ControlsAndLayout.md)) scans block lines, lexemes and inline leaves only from the enclosing top-level
+block to the next stable cut, imports unchanged top-level subtrees and their inline forests, and validates front matter
+only when its envelope may have changed. Imports are copies with shifted absolute ranges, so node, inline, lexeme,
+root and identity passes still visit every published record once per revision, and the owned source is one complete
+copy (prefix and suffix from the previous publication, the edit window from the piece tree). Work counters
+`rich.markdownBlockUnitsScanned`, `rich.markdownLexicalUnitsScanned`, `rich.markdownInlineUnitsScanned`,
+`rich.markdownFrontMatterValidations`, `rich.markdownRootTriviaUnitsScanned` (trivia lines of the root partition;
+unchanged ones are copied), `rich.markdownReferenceUnitsRead` and their copy counterparts record it; on `FX8` each of
+these source reads of a one-character insert stays within the enclosing block plus the next. Link reference
+definitions are the remaining whole-document source read: a top-level block holding one is scanned, and every
+definition is collected, on every edit. Lexical reference recognition examines at most
 33 source units per candidate and uses a fixed sorted standard-data table.
 Native tests bound scanner/root/index/reconciliation steps by
 16 * (current source units + previous source units) + 32. M3 adds global-reference,
@@ -220,6 +232,240 @@ can authorize its own pass. Historical receipts remain readable under their orig
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
+
+## Work counters
+
+Status: implemented (performance and motion plan item W0.1: counters 13 November 2026, counting wrappers and draw calls
+14 November 2026). Private; nothing here is public API.
+
+Deterministic work is counted by `Detail::WorkCounters` (`src/Support/WorkCounters.h`): one thread-local record of
+plain `uint64_t` increments, present in every configuration, Release included. Counting is dormant until a test reads
+the record; its cost is an increment, with no allocation, lock, I/O, worker or timer, so composition and clean or hidden
+frames keep their contracts. A reading is per thread: work another thread does is in that thread's record. Counters only
+grow; a test measures an action as the difference of two readings (`WorkCounterScope::Delta`). Counters are grouped by
+subsystem, each group a list kept in alphabetical order: frame, wakes, resources, text, popups, lists, rich,
+accessibility and layout, and a reserved memory group. A new counter is one line in its group's list and is then present in every
+snapshot, delta and receipt.
+
+- **Frame and walks.** `paintExecutions` counts each control whose `Paint` a host, `Panel` or `PageHost` dispatched;
+  `treeVisitsPaint`, `treeVisitsTick`, `treeVisitsHitTest` and `treeVisitsStatistics` (the retained-resource walk of
+  `EmbeddedHost::GetStatistics`) count each control such a walk examined, visible or not. `hitTests` counts host hit
+  tests that walked the tree and `hitTestReuses` those answered from the pointer event's hit result
+  ([pointer hit result](../UI/UI_InputAndAccessibility.md#pointer-hit-result)). `preparationMembershipSearches` counts
+  `IsControlInTree` searches started during a host preparation pass and `plainLabelPreparations` the visual preparations
+  of a `Label` with neither a mnemonic nor a typography override; both are 0 since W2.9.
+  `preparations` and `composites` count embedded preparations that painted and compositions; `renders` and `presents`
+  count native render passes and swap-chain presents; `pixelsPainted` adds the device pixels a preparation or render
+  cleared and repainted (the dirty rectangle of a partial native frame). `drawCalls` counts Direct2D draw calls (every
+  `Draw…`, `Fill…`, `Clear` and `BlendImage` call DxUi makes on a device context). Only the counting wrappers below
+  increment it, so it is populated only where a test executable installs them and is 0 everywhere else, shipping builds
+  included. `shadowPasses` counts shadow effect passes drawn for elevated surfaces (popups, cards, dialogs).
+  `fullVisualPreparations` counts preparation passes that prepared every visible control's visual content rather than
+  the pending ones (a resource or typography generation change); `brushEvictions` counts keyed solid brushes a host
+  released above its bound and `brushColorReuses` each transition brush served again by `SetColor` instead of created
+  ([format and brush caches](#format-and-brush-caches)). A thread's
+  shared native device stack counts `d2dDevices` and `compositionDevices` it creates, and native hosts count the
+  `swapChains` they create; with `resources.d3d11Device` and `resources.deviceContext` these give the device creations of
+  one menu session (`FX4`, `G10`).
+- **Frame schedule** ([window hosting](../Rendering/Rendering_Win32Host.md#frame-schedule)). `tickRequesters` counts the
+  due requests a host found at its wakes and `tickCalls` the `Tick` calls it made for them (they differ only by requests
+  dropped for a destroyed, departed or hidden control); `tickLegacyTreeWalks` counts whole-tree ticks an anonymous
+  `RequestAnimation()` asked for, which the library's own controls never make, and `tickDiscoveryWalks` those an embedded
+  root installation asked for; `tickHeldWhileHidden` counts requests that came due while their native host was hidden
+  and fired once on its show; `tooltipTargetValidations` counts the wakes that resolved a tooltip's target again (a
+  hit-test walk and a title lookup, not a `Tick`).
+- **Wakes by source.** `animationTimer` (the animation dispatcher's periodic `WM_TIMER`), `deadlineTimer` (its one-shot
+  wake for the earliest deadline), `menuHoverTimer`, `paintMessage`
+  (`WM_PAINT`) and `embeddedAdvance` (each `EmbeddedHost::AdvanceAnimation` the application made while animation was
+  requested).
+- **Text.** `setTextRenderingParams` counts each `SetTextRenderingParams` call a host makes to bind or clear rendering
+  parameters ([theme and typography](../UI/UI_ThemeAndTypography.md#text-antialiasing-and-rendering-parameters)).
+- **Resources.** Library code creates text layouts and formats, DirectWrite rendering parameters, geometries, stroke styles, brushes, gradient stop
+  collections, bitmaps, effects, command lists, layers, Direct2D device contexts and D3D11 devices only through the
+  counted helpers of `src/Support/CountedCreation.h` (available through `DxUi.Internal.h`), and draws `DrawText` only
+  through `CountedDrawText`. Each helper forwards to the method unchanged and counts the object it returns; a refused
+  creation is not counted. D3D11 devices are counted where `Detail::CreateD3D11DeviceWithWarpFallback` receives one from
+  its creator. `DrawText` lays out its whole string on every call, so each call counts one implicit text layout created
+  and destroyed. GDI backdrop captures count `popups.backdropCaptures` and their pixels, and each blur drawn over such a
+  capture counts `popups.backdropBlurPasses`; each filter of an editable `ComboBox`'s popup items counts
+  `popups.comboBoxPopupRebuilds`, each popup text width a `ComboBox` measures counts `popups.comboBoxItemWidthMeasurements`
+  (one per item when its retained widths are stale, the no-matches text once) and each popup placement it computes because
+  an input changed counts `popups.comboBoxPopupLayouts`. Each `MenuPopup` content paint counts `popups.menuPopupPaints` and adds the rows it drew
+  to `popups.menuRowsPainted`.
+- **Text.** `text.formatEvictions` counts the configured text formats `ControlHost::TrimCaches` evicted above the key
+  bound, `text.formatCacheTrims` each trim that evicted one, and `text.formatCacheOverBound` each trim that left the
+  map above its bound because every remaining entry was in use. No eviction prepares any control again
+  ([format and brush caches](#format-and-brush-caches)). The host's [retained text layouts](#retained-text-layouts) count each string drawn from a
+  retained layout (`text.textLayoutCacheHits`), each layout the table created and kept (`text.textLayoutCacheMisses`; also
+  a `resources.textLayout` creation), each string drawn through `DrawText` because the table could not serve it
+  (`text.textLayoutCacheBypasses`) and each one drawn through `DrawText` at the table's bound
+  (`text.textLayoutCacheOverflows`). `text.lineMetricsHeapFallbacks` counts text measurements with more lines than the
+  16-line stack buffer of line metrics.
+- **Lists.** A `Tree` counts each model row it reads outside `Paint` (`treeItemReads`; `ITreeModel`'s default
+  `FindVisibleItemById` scan counts its reads too), each `FindVisibleItemById` it asks of its model (`treeModelLookups`),
+  each build of its [id index](../UI/UI_ControlsAndLayout.md#tree-item-lookup-and-model-notifications)
+  (`treeIdIndexBuilds`), and per expand or collapse animation the whole row records it keeps (`treeExpansionRecords`) and
+  those it copied (`treeExpansionRecordCopies`). On `FX9` each of the 24 navigation keys of its `tree-keys` phase reads one
+  row, the one that takes the focus, and builds no index (its model answers lookups itself); on `FX11` every expand keeps
+  no record and every collapse the six rows it removes, and none copies a record (`Embedded.Tests.TreeDataPaths.h`;
+  receipt `Measurements/PerformanceAndMotion_2026-11-13/W2.6`).
+- **Rich documents.** `hoveredTitleCalls` counts each `RichTextEditor::HoveredTitle` resolution (the hover title under a
+  point, asked for by the host's supplemental tooltip), and `hoverScanElements` each semantic element a pointer-hover
+  lookup tests one by one. Hover lookups go through the prepared hover index, so the latter stays 0.
+  `documentBytesCopied` counts the bytes of a `RichTextEditor`'s own document copied into a string (source slices and
+  flattens, a flattened prepared display, a word window, a public text-input copy), and `documentFlattens` each copy of
+  its whole non-empty source or display. The editor marks its `Document` (and every lineage that document later takes,
+  through a reset, an adopted snapshot or an exchanged document), so copies out of any other `RichText::Document` count
+  apart, as `otherDocumentBytesCopied` and `otherDocumentFlattens`: the small documents preparation builds for labels,
+  such as each line number of a numbered code fence in the Subtle presentation (one whole-document copy of a few units per
+  numbered line, per preparation of that fence; plan item `W7.6`). With no UI Automation client listening (with one, the
+  accessibility event and snapshot still copy the document; see "Rich text-input snapshots" in the input contract), per
+  input event in a 64 Ki-unit `RichTextEditor` (the event itself and both text-input synchronizations, not the
+  preparation that follows), a one-character insert and an arrow key copy at most 1 KiB and no gated event (insert,
+  arrow, Backspace, Ctrl+arrow, Ctrl+Backspace, Enter, double-click) flattens the document. The preparation after an edit
+  in Markdown rendering still copies the source once for the Markdown parse (plan item `W7.2`)
+  (`Embedded.Tests.RichTextInputCopies.h`; receipt `Measurements/PerformanceAndMotion_2026-11-13/W7.4`).
+  A semantic build counts each element it creates (`elementsBuilt`) and each display unit it emits from syntax
+  (`displayUnitsWritten`); units copied from reused blocks are not written. Semantic geometry counts each native diagram paint
+  object it begins rather than carries (`diagramPreparations`), each prepared formula (`mathPreparations`, beside the
+  `testRichMathPreparations` seam), each rasterized SVG strip (`svgRasterizations`, beside `testRichSvgRasterizations`) and
+  the pixel bytes it uploads into image bitmaps, at creation with pixels or by `CopyFromMemory` (`imageUploadBytes`).
+  Document layout counts each text chunk it lays out rather than reuses (`chunksLaid`) and each whole-document layout it builds (`wholeLayoutsLaid`). Each owner turn of a
+  `RichTextEditor`'s cooperative content preparation counts `preparationTurns`.
+  A semantic build also counts the top-level blocks it reuses (`semanticBlocksReused`) and what it copies from the
+  previous publication for them: elements (`semanticElementsCopied`), display units (`semanticDisplayUnitsCopied`) and
+  all bytes copied, strings, spans, runs, records and source formats included (`semanticBytesCopied`). A build that reused blocks counts
+  `semanticIncrementalBuilds`; every other build counts exactly one cause: `semanticFullBuildNoPrevious`, `Presentation`,
+  `Footnotes`, `References`, `FrontMatter`, `Abbreviations`, `Capacity` or `Structure`. `identityMapNodes` counts nodes or
+  boxes inserted into an identity map to pair one revision with the next: the parser's old-node map (until incremental
+  parse reuse replaces it); semantic projection and semantic geometry pair by block range and order and add none.
+- **UI Automation.** Each whole-window snapshot build counts `snapshotBuilds`, its control records (`snapshotNodes`) and
+  the bytes its per-control record arrays reserve (`snapshotBytes`, owned strings excluded). It counts the same builds as
+  the diagnostic `DebugGetAccessibilitySnapshotBuildCountForTest`, which remains. Text-range movement by word counts the
+  UTF-16 units it steps over (`wordUnitsVisited`), the enclosing-word search's walk from offset 0 included.
+- **Layout.** Each `Control::Measure` with valid input counts a `measureCacheHits` (answered from the control's
+  [measure cache](../UI/UI_ControlsAndLayout.md#measure-cache)) or a `measureCacheMisses`; each miss counts one
+  `measureOverrideExecutions`. `measureCacheEvictions` counts misses that displaced a slot still valid for the control's
+  current revision and context: while it stays 0, every miss is a key the control had not been asked before in that
+  revision, so no `MeasureOverride` ran for an unchanged key. `measureCacheVerifyMismatches` counts Debug verification
+  disagreements (a hit whose re-run measurement differed), which reveal a control that skipped `InvalidateMeasure`.
+  `arrangedChildren` counts each child `SetBounds` an intrinsic owner's arrangement (`FlexPanel`, `FormPanel`,
+  `FormField`) makes.
+
+Destruction is observed only by a test-owned `ResourceLifetimeTracker`, in storage the test supplies: while installed on
+a thread it holds one extra reference to each resource the helpers create there, and `Sweep` counts and releases those
+whose owners released them. Destruction therefore happens at the sweep instead of at the owner's release; nothing else
+changes. Objects beyond the storage are counted as overflow. Per-interval churn is `min(created, destroyed)` per resource
+kind, summed over kinds, and is meaningful only under a tracker.
+
+Enforcement: `Tools/tests/Test-CountedCreation.ps1` (run by the tooling tests) fails on any occurrence under `src` of a
+counted method name, whatever the receiver (`->`, `.`, `::`, a call split across lines, a member-function pointer or a
+function pointer such as `&::D3D11CreateDevice`), outside the helper header and the creator type in
+`src/Support/NativeRendering.h`. Comments and literals are ignored.
+
+The matcher sees only DxUi's source. Counting COM wrappers in test executables observe what actually reaches Direct2D and
+DirectWrite (`Tests/Support/Support.Tests.CountingDirect2D.h`, with `Support.Tests.CountingWriteFactory.h` for
+DirectWrite). The hosts create their Direct2D and DirectWrite factories through the private seam
+`Detail::CreateHostD2DFactory` and `Detail::CreateHostWriteFactory` (`src/Support/NativeRendering.h`); a test installs a
+`Detail::FactoryInterposer` on its thread to receive each new factory and return a wrapper. Without one, which is always
+the case outside test executables, the seam returns the system factory unchanged; nothing is added to `include/DxUi`.
+
+- **What is wrapped.** The factory as `ID2D1Factory1`, the device as `ID2D1Device`, each device context up to
+  `ID2D1DeviceContext7` and the DirectWrite factory as `IDWriteFactory`: the highest version DxUi requests of each.
+  Everything they create is the real object, so no wrapper is ever passed to Direct2D, DirectWrite, DirectComposition, an
+  effect, a command list, `IDWriteTextLayout::Draw` or a bitmap made from a DXGI surface. A context reports the wrapped
+  device and factory from `GetDevice` and `GetFactory`, and a device the wrapped factory, so resources DxUi creates
+  through them are seen too. DirectComposition receives the DXGI device, never the Direct2D device.
+- **Identity and lifetime.** `QueryInterface` answers a wrapped version with the wrapper itself, one COM identity, and
+  only when the real object implements that version. Any other interface is answered by the real object and counted as
+  escaped, since calls through it are no longer seen. Each wrapper holds one reference to its real object and releases
+  it when it is destroyed, so real lifetimes are unchanged; a test requires every wrapper released after its host is.
+- **What is counted.** Each successful creation by resource kind (the helpers' kinds; D3D11 devices are created outside
+  Direct2D and are not seen), each object of another kind (a mesh, an ink, a render target, which is returned unwrapped),
+  and each draw call in `frame.drawCalls`. A `DrawText` call is also one implicit text layout, as `CountedDrawText`
+  counts it.
+- **The cross-check.** On the ComplexUi fixture the wrappers see, frame by frame and kind by kind, exactly the creations
+  the helpers count on every dirty frame, and both see none on every clean frame; no frame creates another kind and no
+  interface escapes. A test-only control that creates a brush directly on the host's device context is reported as the
+  one mismatch (helpers 0, wrappers 1).
+  The comparison also holds over setup (attachment, first layout and the warm-up frames).
+- **Where they run.** Only in dedicated tests: the cross-check, the pixel-identity comparison and the seeded mismatch in
+  the Embedded suite, and the `--test-counting-wrappers` receipt. Ordinary suites test the shipping path with real
+  objects. Every composited pixel of all 80 measured ComplexUi frames is identical with and without the wrappers. The
+  native host creates its shared factories through the same seam, but no test installs wrappers there yet: its shared
+  resources outlive a single test, and the cross-check is established on the embedded fixture.
+
+Baseline on the ComplexUi fixture (FX5 of the [performance fixtures](../Testing/Testing_Validation.md#performance-fixtures):
+83 controls, 1280×720, 96 DPI, WARP, reduced motion; `DxUi.EmbeddedTests.exe --test-work-counters <receipt>`, also run by
+the Embedded suite; the fixture framework's FX5 run must report the same counts): a dirty frame prepares and composites once, paints
+every visible control once (83 `Paint` executions and 83 paint visits), repaints 921,600 pixels and, in a Release build,
+makes 2 C++ allocations (54 at the W0.1 baseline; the Grid column-description cache removed 52); a clean frame composites
+once and reports 0 allocations, 0 created resources, 0 churn and no paint. The baseline receipt is retained under
+[Measurements/PerformanceAndMotion_2026-11-13/W0.1](../../Measurements/PerformanceAndMotion_2026-11-13/W0.1/README.md), the
+current one under [W2.5/WorkCounters](../../Measurements/PerformanceAndMotion_2026-11-13/W2.5/WorkCounters/README.md).
+Under the counting wrappers (`--test-counting-wrappers <receipt> <comparison>`) a dirty frame makes 399 Direct2D draw
+calls and a clean frame 0, identically in consecutive runs; the wrappers' creations equal the helpers' (49 implicit
+`DrawText` layouts and 7 text layouts per dirty frame, nothing per clean frame) and no pixel changes
+([receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W0.1/CountingWrappers/README.md)). These are counts, not timing; a change to them is a measured change with its own receipt, never a silent rebaseline.
+
+IME copy gate (`DxUi.EmbeddedTests.exe --test-ime-copies <receipt>`, also run by the Embedded suite): a composition of
+ten syllables and its commit, driven through the production TSF store on a headless native host at about 64 Ki units,
+makes at most one document-sized C++ allocation (at least one document's bytes, counted by the test allocator) in any lock
+of a `TextField`, and an editable `ComboBox` counts no popup rebuild before the commit. The receipts are retained under
+[Measurements/PerformanceAndMotion_2026-11-13/W8.5](../../Measurements/PerformanceAndMotion_2026-11-13/W8.5/README.md).
+
+ComboBox popup gate (`FX2`, `DxUi.EmbeddedTests.exe --test-combobox-popup-layout`, also run by the Embedded suite): a
+first open measures each item once (one single-line measuring layout per item), and every open hover frame, every
+character typed with the popup open or closed, every repaint of the 100-row popup and a second open of unchanged items
+create no measuring layout ([controls and layout](../UI/UI_ControlsAndLayout.md#combobox-popup-layout)). The receipt is
+retained under
+[Measurements/PerformanceAndMotion_2026-11-13/W2.2](../../Measurements/PerformanceAndMotion_2026-11-13/W2.2/README.md).
+
+Retained text layout gate (`FX5`, `DxUi.EmbeddedTests.exe --test-retained-text-layouts`, also run by the Embedded suite;
+[retained text layouts](#retained-text-layouts)): every frame of the fixture's hover phase creates 0 text layouts,
+explicit or inside `DrawText` (`G11`); after every step the host's table holds no more entries than the strings its last
+paint drew; the first frame creates its layouts in preparation while its composition creates nothing and makes no C++
+allocation; and each of FX5's labels measures with 0 C++ allocations. The receipt is retained under
+[Measurements/PerformanceAndMotion_2026-11-13/W2.1](../../Measurements/PerformanceAndMotion_2026-11-13/W2.1/README.md).
+
+## Trace provider
+
+Status: implemented (performance and motion plan item W0.8, 14 November 2026). The provider name, GUID, keywords, events
+and fields are a consumer-facing diagnostic interface, documented in [performance](../../docs/performance.md#trace-provider);
+a change to them is a documented change. The C++ code behind it (`src/Support/Trace.h`, `src/Foundation/Trace.cpp`) is
+private.
+
+- **One provider.** DxUi registers one TraceLogging provider, `DxUi` `{89b12dac-c17b-5934-baa0-35b9f94990e6}` (the
+  EventSource name hash), once for the life of the process. Registration starts no thread, timer or window; ETW's enable
+  callback only updates the listener flag.
+- **Dormant.** While no session has the provider enabled and no test sink is installed, every event site costs one
+  relaxed load and one predictable branch, with no allocation, formatting, lock or I/O; per-host correlation numbers do not
+  advance. With a listener, an event is a fixed record written on the thread doing the work, still without heap work, so
+  composition keeps its contract and clean or hidden frames add nothing but the events of work they already do. All event
+  writes go through one internal function, which writes the TraceLogging event while a session listens and hands the
+  same record to the test sink while one is installed.
+- **Events.** Input received (a `WindowHost` mouse, wheel, key or character message; an `EmbeddedHost` pointer, key or
+  character dispatch), frame requested with its reason (the first request after each preparation begins), prepare begin
+  and end (a native render pass; an embedded preparation that paints), present (a native swap-chain present) or composite
+  (an embedded composition), wake by source, and hit reuse off (a host stops reusing pointer hit results because a control
+  whose hit testing it cannot see attached). Each event site sits beside the work counter of the same moment where one
+  exists: renders and preparations, presents, composites and every wake source.
+- **Correlation and clock.** Every event carries a process-unique host number and a `QueryPerformanceCounter` timestamp.
+  Each host numbers its inputs and its preparations; a preparation records the newest input received before it began, and
+  its end, present or composite carry that number, so input-to-present for input *N* is the first present (composite) on
+  the same host whose input number is at least *N*.
+- **Content.** Events carry identifiers, counts, sizes, reasons, results and times only, never text, control names, paths
+  or document content.
+
+Gate (WARP): with nothing listening, a dirty ComplexUi frame makes exactly the allocations of the work-counter baseline
+(2 in Release), and with a test sink listening it makes the same number while writing one prepare begin, prepare end and
+composite per frame (`TraceProviderComplexUi`, Embedded suite). On a 2,048-row `Grid` scrolled in a `WindowHost` by 100
+wheel notches with pointer moves and keys between them, every input yields exactly one input-received event, every
+present exactly one present event (equal to the present counter), and each notch's input-to-present is computed from its
+frame request and present (`TestTraceProviderPairsEveryGridScrollInputWithItsPresent`, Rendering suite). Where the desktop
+session may start a real-time ETW session, the same scenario's events read back through ETW equal the sink's records
+field for field (`TestTraceProviderEventsReadBackThroughEtw`); where it may not, that test records a capability skip.
+Input-to-present timing on hardware against `G8` is a separate, hardware-gated measurement.
 
 ## Mandatory performance policy
 
@@ -338,9 +584,10 @@ returning. This preserves exact-format identity through bounded host-cache evict
 replacement. A matching key skips the DirectWrite factory lookup and text-layout creation. This is a narrow owner-pass
 work reduction, not evidence of lower process memory or a measured performance gain.
 
-Evicting the bounded configured text-format cache marks visual preparation for the next owner update. Embedded
-hosts trim before that update's visual-preparation traversal, allowing retained layouts to rebind to the new exact
-format identity before painting. Cache trimming is not performed on clean composition frames.
+Evicting configured text formats prepares nothing: a format a frame draws with is never evicted, and a retained key
+holds its format by `com_ptr`, so an evicted format keeps its identity for that key until the key changes
+([format and brush caches](#format-and-brush-caches)). Embedded hosts trim before an update's visual-preparation
+traversal. Cache trimming is not performed on clean composition frames.
 
 Before changing implementation, measure the existing code with the same workload that will measure the candidate.
 Retain the original baseline and measure again after the change. Record exact source/content and executable/fixture
@@ -475,6 +722,140 @@ separate required checks for this rendering change.
 - `advice-required` remains a measured finding, not permission to merge or rebaseline. The retained summary records the
   block schedule, seed, receipt identities, the legacy and migrated decisions, the correction family and every metric.
   Historic Mann-Whitney summaries stay readable, but the migrated gate treats them as read-only and never as qualified passes.
+
+### Frame timing method
+
+Timing budgets and architecture decisions that need a measured speed-up use the frame timing method
+(`performance-timing.ps1`, `Tools/FrameTiming.psm1`, native `DxUi.EmbeddedTests.exe --timing-method`). It is an input
+to the timing policy owned by D-P1 in the remaining-work plan. It changes neither the canonical five-round receipt, the
+paired sets above, their judges, bands and exact budgets, nor the ComplexUi benchmark inputs copied onto baseline trees.
+
+- **Fixture.** A run measures one registered fixture (`FrameTiming::MakeFixture`) in one phase: clean (no
+  application change) or dirty (the fixture's per-frame update). The method is fixture-agnostic; `FX5` is the ComplexUi
+  scene. Each run is a fresh process with 60 warm-up frames. Every timed dirty frame is a step the fixture declares:
+  unless the fixture declares that its timed phase repeats (`Definition::timedPhaseRepeats`, FX5), the phase's declared
+  steps are played in a cycle, and before each new cycle the scene is rebuilt and the phases before it replayed outside
+  the timed frames. A judged dirty run requires every timed frame to prepare work (`Prepare` returns `S_OK`).
+- **Run length.** A judged run holds at least 1,000 measured frames and lasts at least 2 s, ending when both hold.
+- **CPU.** `QueryThreadCycleTime` of the measuring UI thread is taken around `Prepare` and around target binding plus
+  `Composite`, separately, every frame. Submission wall time (update, preparation and composition) is recorded too.
+- **GPU.** In test fixtures only, each frame is bracketed by a D3D11 disjoint query holding three timestamps (begin,
+  after preparation, after composition). A frame's results are read one frame late, after the next frame has been
+  submitted; the blocking wait maps that frame's own one-pixel staging copy, never the frame just submitted. A disjoint
+  frame is excluded and counted; a judged run needs at least 95% valid frames. The library's shipping paths issue no
+  timestamp query, staging copy or pinning.
+- **Judged metrics and margins.** Six: median preparation cycles, median composition cycles, p95 UI-thread cycles
+  (preparation plus composition), median submission time, all with a 3% margin; median and p95 GPU frame time
+  (preparation plus composition timestamps), with a 5% margin. Percentiles are nearest-rank.
+- **Schedule.** A session runs A, B, B, A as four processes; a session's effect per metric is the mean log of its B runs
+  minus the mean log of its A runs, which cancels drift linear in log time.
+- **Equivalence.** Two one-sided exact sign-flip tests over the session effects against the declared margin, at
+  alpha 0.05; five sessions are the minimum that can establish equivalence (2^-5 < 0.05). A difference is the paired
+  judge's two-sided exact sign-flip test, which needs at least six sessions. Every result reports the minimum
+  detectable effect, (t(0.975, n-1) + t(0.80, n-1)) x sd / sqrt(n) of the session effects, as a percentage.
+- **Noise floor.** A calibration measures one attested executable in all four slots of every session. A metric's noise
+  floor is its largest same-binary pair deviation |B/A - 1| over the sessions. Its resolution is the largest clock step
+  of any run relative to that run's statistic: the UI-thread cycle clock advances in steps (about 427 cycles on the
+  reference machine), submission time in 0.1 us, GPU time in one timestamp tick. A metric is judged when its noise floor
+  stays below its margin and its resolution is at most a tenth of the margin; otherwise it is advisory, recorded with
+  its noise floor and the reason, and a comparison reports it without a verdict. A 0.00% floor is judged only under that
+  resolution rule: a constant statistic has no observable step and is advisory. With a calibration, a faster or slower
+  verdict must also exceed the metric's noise floor.
+- **Admission.** Calibration and comparison require a hardware adapter, the Release configuration, judged run length,
+  five sessions (six for a comparison), a required idle preflight and the High Performance power scheme; WARP stays for
+  counters and pixels. Anything weaker is a smoke run, labelled as such, with no calibration, noise floor or verdict.
+- **Machine state.** The runner activates the existing High Performance scheme with `powercfg` and restores the
+  original scheme however the study ends, verifying the restoration. It never creates a scheme and never elevates; an
+  absent or refused scheme stops the study. `auto` samples every logical processor's busy share for 500 ms and pins the
+  measuring UI thread to the lowest-numbered logical processor of the quietest physical core of the highest efficiency
+  class, never processor 0's core when another exists; the run records the core, its siblings, the last-level cache and
+  the sample. Each session starts `Tools/Watch-BenchmarkHost.ps1` for the idle preflight and keeps observing until the
+  session ends. Other people's processes are never stopped.
+- **Core isolation.** With `-CoreIsolation On` (default), the measured process keeps its other threads (Direct2D,
+  DirectWrite, WARP and driver workers) off the measuring core, without elevation: its default CPU set
+  (`SetProcessDefaultCpuSets`) is every logical processor of group 0 except the measuring core's, and the measuring thread
+  selects its own processor's set. A thread on the measuring core's sibling shares its execution resources: one busy
+  sibling thread made FX5 frames about 50% slower. A process that is multi-threaded by design is measured this way: its
+  other threads run on the other cores, where their processor time is the process's own use (recorded, never judged as
+  interference); the rule judges only what reaches the measuring core, whoever's work it is. The run records whether
+  isolation was applied; `-CoreIsolation Off` reproduces earlier runs.
+- **Interference records.** Every run records, for its timed loop, without elevation: each frame's running share (the
+  measuring thread's cycles over time-stamp-counter ticks during preparation and composition, x64 only); every logical
+  processor's busy share (`NtQuerySystemInformation`); this process's own processor use; hence the busiest sibling of
+  the measuring processor, other work on the measuring processor itself, and other processes' load in logical
+  processors. Per-processor busy shares are not attributed to processes: without isolation the sibling's figure also
+  holds this process's own helper threads. Around each session the runner reads the `GPU Engine` running-time counters
+  and records the busiest engine of the measured adapter (by LUID) occupied by other processes, from per-instance deltas.
+- **Admission rule.** Receipts name the rule they were admitted under. `interference-interim-v2` (default, provisional):
+  the preflight refuses a session when other processes keep more than a quarter of the logical processors busy (at least
+  one; 8 on the 32-thread reference machine), leaving out the study's own processes (observer, runner, load children);
+  a run is rejected when the measuring thread's running share is below 0.99 at the median or 0.97 at the 5th
+  percentile, its sibling is more than 10% busy, other work keeps its own processor more than 10% busy, other processes
+  keep more logical processors busy than the cap, or other processes keep the measured GPU's busiest engine more than 15%
+  busy; a session is rejected when its four runs' other-process load differs by more than 2 logical processors. A
+  calibration or comparison repeats a rejected session up to three times and records every rejection; a load-sensitivity
+  study judges only its quiet runs. A refused preflight waits (30 s by default) and retries (10 times); every admitted
+  session is checkpointed, and the same command resumes an interrupted study (`-Restart` discards the checkpoint). A run
+  without these records (an older executable, or ARM64, which has no time-stamp counter read) is not admitted.
+  `interference-interim-v1` (15 November: own processor at most 5%, no steadiness clause) and `host-busy-10pct-v1`
+  (the original whole-host 10% preflight; receipts without an admission field were taken under it) stay selectable
+  with `-Admission InterimV1` and `-Admission Legacy10`; receipts taken under them stay valid.
+- **Evidence for the rule.** A partial load-sensitivity study on the reference machine (23 November, FX5 dirty, 26 of
+  30 sessions; the study stopped on a desktop burst of 9.4 busy logical processors in the next preflight) gives, for
+  the loaded runs against quiet runs of the same sessions (mean change of the three judged metrics): 0 extra busy
+  logical processors, +0.04 to +0.11% (equivalent); 2, +1.6% (equivalent within the 3% and 5% margins); 4, +3.2 to
+  +3.4%; 8, +4.2 to +4.5%; 12, +5.7% (GPU +7.4%); one busy thread on the sibling, +46 to +52%. Load elsewhere slows the
+  measuring thread without preempting it (its running share stayed at 0.99 at every level), so the total-load cap and
+  the session steadiness clause, not the running share, guard against it: two extra busy logical processors are within
+  margin, four are not. The busy sibling justifies the strict sibling limit and core isolation. Whole-host load alone
+  did not predict differences in the earlier data (attribution passes at 9% or more of the host differed by at most
+  0.74%; calibration deviations correlate with host load by at most 0.34), while the running share did: the largest
+  attribution difference (7.3%) came from a pass at 0.976 cycles per tick, and the three FX5 calibration runs whose
+  5th-percentile cycle rate fell about 6% carried the three largest GPU p95 deviations (+13 to +18%). Quiet runs read
+  0.00 to 0.06 of other work on the measuring processor; FX5 comparisons were rejected at 0.050 and 0.058 under the 5%
+  limit, so v2 allows 10%. The 15% GPU limit has no evidence yet.
+- **Load sensitivity.** `-Purpose LoadSensitivity` measures one executable on FX5 dirty frames with the measuring thread
+  pinned to the quietest core, in arms of five A/B/B/A sessions run round-robin: A runs quiet, B runs under a synthetic
+  load of busy logical processors placed away from the measuring core (one per other core, farthest first, then second
+  hardware threads), and optionally one arm with one busy thread on the measuring processor's sibling. The load is
+  `DxUi.EmbeddedTests.exe --busy-load`, the runner's own child, started before and ended (and waited for) after each B
+  run. Per arm, every judged metric of the given calibration is tested for equivalence within its margin; the admissible
+  level is the largest level at which it and every lower level are equivalent. That level sets the total-load cap and
+  the session steadiness limit.
+- **Receipt.** The committed receipt is the retained form: per-run summaries (statistics, clock steps, resolution,
+  frame counts), each raw run report's path, SHA-256 and size, the judged statistics, the host preflight records, the
+  power scheme record, the pinning, adapter identity and driver version, the executables' hashes and this tree's v2
+  build identity (checked before and after the study under the measured power scheme). The raw reports, the full
+  receipt and the host logs stay in the build tree. `Tools/Convert-FrameTimingReceipt.ps1` derives the retained form
+  from a full receipt and refuses if a summary, floor, minimum detectable effect, equivalence test or status changes.
+
+Calibration on the reference machine (15 November 2026, source `9574105be`, x64 Release, NVIDIA GeForce RTX 5080 driver
+32.0.16.1714, five sessions, idle preflight 5.7 to 8.6% busy; receipt in
+`Measurements/PerformanceAndMotion_2026-11-13/W0.2/`). Comparisons on this machine judge only the judged metrics.
+
+FX5 dirty (ComplexUi, 1280x720, 96 DPI):
+
+| Metric | Margin | Noise floor | Minimum detectable effect | Status |
+| --- | --- | --- | --- | --- |
+| Median preparation cycles | 3% | 0.55% | 0.35% | judged |
+| Median composition cycles | 3% | 7.69% | 3.42% | advisory (one clock step, 7.65% of the statistic) |
+| p95 UI-thread cycles | 3% | 4.81% | 2.09% | advisory |
+| Median submission time | 3% | 0.55% | 0.39% | judged |
+| Median GPU frame time | 5% | 1.24% | 0.63% | judged |
+| p95 GPU frame time | 5% | 15.14% | 4.95% | advisory |
+
+FX3 dirty (2,048-row Grid, one wheel notch per frame, 800x600, 96 DPI; source `19e970047`, idle preflight 7.7 to 9.9%
+busy). Each run replays the 100 declared notches about 57 times from a rebuilt scene. A first calibration that timed
+frames past the end of the list is not retained.
+
+| Metric | Margin | Noise floor | Minimum detectable effect | Status |
+| --- | --- | --- | --- | --- |
+| Median preparation cycles | 3% | 1.85% | 0.87% | judged |
+| Median composition cycles | 3% | 0.00% | 0.00% | advisory (one clock step is 9.95% of the statistic) |
+| p95 UI-thread cycles | 3% | 15.04% | 11.89% | advisory |
+| Median submission time | 3% | 1.69% | 0.83% | judged |
+| Median GPU frame time | 5% | 5.64% | 2.66% | advisory |
+| p95 GPU frame time | 5% | 9.05% | 6.90% | advisory |
 
 ### Native accessibility scheduling and synchronization
 
@@ -696,6 +1077,97 @@ another model, it keeps none. Layouts beyond the cells of the last paint, any la
 painting, and any rise in the painting path's allocations remain regressions that need developer advice. The
 accepted retention is bounded by the cells on screen, not by the model's size.
 
+### Retained text layouts
+
+Plain text that a control draws through its host (`DrawCenteredText` and the host-aware replacements of `DrawText`:
+`Button`'s selector chrome, `ThroughputGraph`'s labels, a `Tree` row with a typography override and a single-line field
+without its own layout) is drawn with a layout the host retains, not through `DrawText`, which lays its string out on
+every call (plan item `W2.1`). The public `DrawButtonChrome`, which has no host, still draws through `DrawText`. The host
+keeps one table (`ControlHost::_textLayoutCache`, a registered retained cache) in the set-associative form of the Grid's
+cell tables above (32 ways a set; 32 entries growing to 2,048, `kTextLayoutCacheMaxEntries`). An entry is keyed by the whole string (hashed to choose
+its set, compared in full on a hit, which allocates nothing), its text format (held by the entry, so a released format's
+address can never match) and the exact width and height of the box. Its layout is created with that format at that size
+and drawn at the box's origin with the caller's draw options; that draws exactly what `DrawText` draws. A host text
+format is immutable once created: the key holds a format by identity and hashes only its size, weight, style, stretch,
+alignments, wrapping and reading direction, so a format changed afterwards would be drawn with layouts made before the
+change. Debug builds compare, on every hit, the format's trimming, line spacing, flow direction, tab stop, locale and
+family with those its layout was made with and report a difference.
+
+Each host paint (a native render, an embedded preparation) is one generation. When it ends, every entry it did not draw
+releases its layout and format and keeps only its string storage for later keys, so the table holds the strings of the
+last paint and never more. A paint that meets a full set at the bound draws the string through `DrawText` rather than
+evict a layout the same paint drew (`text.textLayoutCacheOverflows`), so no paint creates a layout twice. Not retained,
+and drawn through `DrawText` as before (`text.textLayoutCacheBypasses`): a draw outside a host paint, a box whose width or
+height is not positive and finite, and a string over 4,096 UTF-16 units; an empty string draws nothing. A single-line
+field that could not create its own layout draws its text through `DrawText` and never through the table, because a
+released entry keeps its string for reuse without wiping it and that text may be a revealed password. After a change of
+draw order, the first frame at the bound can lay out up to a set's worth of strings again before it settles, and a table
+that halves can drop entries when two merged sets hold more than 32 current entries; either costs only a miss.
+
+The whole table is released:
+
+- by an embedded view when it releases its surface: hidden, prepared at zero extent, device replaced or detached;
+- by a native host when `SetNativePresentationVisible(false)`, `WM_SHOWWINDOW` false, `WM_SIZE` minimized or a client
+  area of zero width or height reaches it, on device loss or replacement and on detach;
+- by a native host whose window or an ancestor stopped showing it without a message (a minimized top-level, a hidden
+  parent, `SWP_HIDEWINDOW`) at its next schedule wake, which finds the window not visible. A host with nothing scheduled
+  has no such wake and keeps its table until a message or a paint reaches it.
+
+A parent's `WM_SETREDRAW` false sends `WM_SHOWWINDOW` false, so a redraw block releases the table too and the next
+paint lays every string out again. A new typography revision (a new DirectWrite factory) releases it at the next paint;
+a DPI change keeps it, since layouts are in DIPs. On an embedded view a string new to the table is laid out during
+preparation; composition only composites the surface.
+
+The equivalence oracle (`TestRetainedTextLayoutsDrawWhatDrawTextDraws`) draws 1,782 cases through `DrawText` (the
+`DebugSetTextLayoutCacheEnabledForTest` seam) and through the table, on the frame that creates the layouts and on the
+next, and requires identical BGRA on WARP at 96, 120, 144, 168 and 192 DPI on an embedded view and at the system DPI on a
+native window: 12 strings (among them an empty one, tabs, ampersands, colour emoji, CJK, combining marks, Arabic and hard
+line breaks), 8 boxes (whole and fractional origins and sizes, boxes narrower and shorter than their text, zero and
+negative sizes, and boxes sharing only their width or only their height with another box drawn in the same frame with
+the same string and format), every alignment and paragraph alignment, wrapping, both reading directions, `DrawCenteredText`,
+clip-only options and a rotated transform. The FX5 frames of the HWND, composition and embedded hosts are byte-identical
+with and without the table in both themes.
+
+A retained layout is resident memory that `DrawText` freed after each call: one DirectWrite layout per distinct string
+of the last paint: about 18 KB of live heap for a short string (17.8 KB to 18.0 KB per layout returned when FX12's table is
+released), about 27 KB of private bytes with the heap's own retention. The registry row reports only the table's entries
+and its own bytes (the entries and their key strings, about 147 KB for 1,014 entries); the layouts' storage is
+DirectWrite's, about 18 MB of heap for those entries, which the
+[W2.1 receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W2.1/README.md) measures.
+
+That cost sets the bound, chosen from the receipt's balance of memory against layout work within the developer's
+envelope (2,048 entries at about 50 MB accepted). It is the smallest table that keeps every string of the densest
+fixtures that fit a real screen, so an unchanged frame lays nothing out: FX12's 1080p and 4K dense screens draw 1,014
+distinct strings, which a 1,024-entry table (32 sets of 32 ways) holds only about 950 of, laying 67 out again every frame;
+2,048 entries hold all of them. A host therefore keeps at most about 37 MB of heap (about 55 MB private) for its retained
+layouts; the Grid's ceiling of 16,384 would allow about 290 MB. A screen beyond the bound draws its overflow through
+`DrawText` each frame (the 10,000-row form, `form-layout-10k`, lays out 374 of its 9,000 strings per frame at 2,048
+entries, against 9,000 without the table). The table holds only what the last paint drew, so a sparse screen holds little:
+FX13 21 layouts (about 0.4 MB), FX5 34 (about 0.65 MB), FX1 none. Releasing it when a visible host goes idle is
+planned with `W9.2`. Text measurement reads the first line's metrics into a 16-line stack buffer, so a `Label`
+measure makes no C++ allocation; text with more lines reads them into a heap buffer (`text.lineMetricsHeapFallbacks`).
+
+### Retained drawing
+
+Hosts do not retain a control's drawing as an `ID2D1CommandList`: every visible control a frame paints runs its `Paint`.
+The developer decided this on 23 November 2026 from the `W4.0` spike
+([receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W4.0/README.md)), which met three of its four go criteria
+and failed the one that matters. Replaying a recorded list with `DrawImage` cost 0.85 to 1.07 of painting the control on
+hardware (`Label`, `Button`, `CardPanel`, 800 controls at 4K), because Direct2D keeps nothing rasterized for a command
+list and submits every recorded primitive again; FX5 frames were not faster with the item's kinds retained and 7 to 8%
+slower with every leaf kind retained. On the opaque window-host target `DrawImage` of a list also draws ClearType text
+grayscale; streaming the list's commands back into the context (`ID2D1CommandList::Stream`) keeps ClearType exactly but
+costs 1.07 to 1.19 of painting. What does remove the Direct2D cost of an unchanged control is not drawing it (0.04 to 0.09
+of painting) or drawing a bitmap tile of it (0.24 to 0.53 of painting, about 36 KB per 90×24 DIP control at 192 DPI). The
+replacement, plan item `W4.10`, is not implemented yet: region invalidation with overhang each control declares per state,
+culling of children outside the paint clip, and raster tiles for effect-heavy content only, under the surface budgets
+this contract states.
+
+Facts the spike established for any later design: a command list keeps brushes by value (a brush changed after
+recording does not change the list), and it holds text as glyph runs, not as the `IDWriteTextLayout` that drew them, so a
+recorded list replays identically after the layout is released; a list translated by whole device pixels draws text at
+exactly the positions `DrawTextLayout` draws at the translated origin.
+
 ### I19 accepted resource trade-off
 
 On 2026-09-13 the user accepted the measured static-library adoption trade-off and
@@ -715,6 +1187,12 @@ still require their own evidence. Consumer measurements and their accepted costs
 in the corresponding product repositories.
 
 ### Ongoing validation and resource budgets
+
+Every retained cache (state derived from model, theme, DPI, typography or device state and rebuilt on demand) MUST be a row
+of the retained-cache registry (`src/Controls/DxUi.RetainedCaches.cpp`) with an entries count and a drop, or an exemption
+with its reason, and a change that adds retention, partial frames or skipped paint MUST pass the incremental-versus-fresh
+oracle of the [validation contract](../Testing/Testing_Validation.md#incremental-versus-fresh-oracle). Counters cannot see
+a stale pixel; the oracle is the evidence that a cache is correct, not only that it is cheap.
 
 Canonical benchmark output keeps its fully qualified logical path for evidence ownership,
 receipt reads, comparisons and diagnostics. Only the Windows native benchmark argument uses
@@ -959,6 +1437,190 @@ unpaced and must not replace ordinary unpaced performance/resource acceptance. D
 includes sampling overhead. [The grid investigation](../../Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md)
 records the implemented opt-in diagnostics and their unresolved conclusions.
 
+### Format and brush caches
+
+Each host keeps a map of configured text formats (role, size, weight, alignment, wrapping and reading direction) and a
+map of solid brushes keyed by exact color. Every entry carries the host frame that last asked for it. A frame is one
+`TrimCaches` call: one native render pass (`Render`, which also serves `DebugCaptureBitmap`) or one embedded preparation
+that paints; a host that paints twice in one message has two frames, and a hidden host, which neither renders nor
+prepares, has none, so its stamps stand still and nothing is trimmed until it paints again. A request between frames
+(measurement, hit testing) counts as a use by the latest frame. At the start of a frame a map above its bound (256
+formats, 256 brushes) releases only the entries neither of the last two frames used, as `FindTextLayoutEntry` treats
+text layouts. The bound is soft for entries in use: they stay, so a working set above the bound creates nothing after
+its first frame and never thrashes; such a trim counts `text.formatCacheOverBound`. Evictions count
+`text.formatEvictions` (with `text.formatCacheTrims` per trim that evicted) and `frame.brushEvictions`.
+
+Eviction never forces visual re-preparation. Every key a control retains beyond the call that obtained a format holds
+the format by `com_ptr` (single-line text layouts of `TextField` and `ComboBox`, the `MenuBar` layout, `Tree` badge
+widths and tooltip overflow, `Button` icon layouts, `TabControl` title widths, `Grid` cell layouts), so an evicted
+format stays alive for its holder and its address cannot be reused by another format; a holder whose key no longer
+matches the map's current format prepares once again. A retained layout keyed without a format (a `Label` typography
+layout) stays valid because a configured format is a pure function of its key and the host's typography revision.
+Raw format and brush pointers are borrowed only within the call that obtained them.
+
+A color transition in progress (a `Tree` row's fade, a `Button`, `Toggle`, `Checkbox` or `RadioButton` hover or focus
+blend) paints under a `TransitionBrushScope`: a color the keyed map does not hold is then drawn through the host's
+transition brushes instead of becoming a keyed entry. Each such request in a frame takes a brush no earlier request of
+that frame took and sets its color with `SetColor`; the next frame reuses the same brushes (`frame.brushColorReuses`),
+so a running transition creates no brush after its first frame and the keyed map stops growing by one brush per
+animated color. Brushes are keyed by color quantized to 8 bits per channel, and a key draws the exact color it was
+first asked for with, whoever asks for it later; a key only transitions drew keeps that color without a brush (evicted
+by last use like any entry), so a transition and a steady paint of one key draw identical pixels. Because no transition brush is set twice within a frame, a brush that a deferred Direct2D path records
+(the shadow mask command list, a layer, a text layout drawing effect) keeps its color until the frame ends. A keyed
+brush is never given another color; code that sets its own colors before each draw (`DrawButtonChrome`) takes a
+transition brush. Nothing may retain a transition brush beyond the frame; drawing retained across frames (a command
+list kept between frames) uses keyed brushes, which a control that keeps one holds by `com_ptr` (as the rich editor's
+callout, properties and diagram label brushes are). At most 64 transition brushes exist per host; beyond them requests
+use the keyed map.
+
+Both maps are dropped exactly where they were before: a detached host keeps neither; a device loss, a shared device
+generation change, a theme change and an embedded device replacement release every brush (keyed and transition); DPI
+and text rendering parameter changes keep both, because formats are device-independent and brushes do not depend on
+DPI. The incremental-versus-fresh oracle drops both maps.
+
+### Text field layouts
+
+A multiline `TextField` lays out its display text once per change of that text, its text rectangle's width (and height,
+above the 32,768-DIP layout height), its font role or its configured format (a typography revision), and keeps that one
+layout with its line metrics. Paint (text, selection and caret), caret and range geometry for text input and UI
+Automation, hit-testing (clicks, drags, double-clicks, text-input points), wheel scrolling, the arrow, Home, End, PageUp
+and PageDown keys, bounds changes, read-only imports and keeping the caret in view all read that layout. The key is the
+identity of the display buffer (observed, never owned, so an edit in place is not forced to copy), its length, the exact
+width and height, the role and the held format. The key cannot see an edit in place that keeps the buffer and its length:
+undo and redo apply their stored span to the buffer in place (`W9.3`), so undoing or redoing a replacement of equal length
+keeps both, as does any edit by the buffer's sole owner. Every edit therefore also marks the layout dirty
+(`NotifyChanged`, imports, `RestoreEditHistoryState`, `SetText`), and freshness rests on that flag together with the key,
+not on the key alone; font role, padding, density, DPI, multiline, masking and reveal
+changes mark it dirty too. A move that keeps the text rectangle's width and layout height keeps the layout. A composition preview is imported into the field's text, so the layout holds the composed
+text and the composition underlines are drawn over it. A masked field's mask is one retained buffer per dot count, so its layout is reused too; the
+navigation keys of a masked multiline field lay out the field's own text without retaining it, as before. The fallback
+line height (the height of "Ag") is measured only when no layout can be made, once per held format. With unchanged text and
+width a focused paint, a wheel step that does not complete a notch and a PageDown create no text layout (`FX1`, `W2.7`).
+
+A single-line `TextField` (and `ComboBox`) layout that is reused neither clears nor copies its key text. Its copy of the
+display text is wiped (zeroed, then cleared) when a masked field drops or replaces it, including the first drop after the
+field is unmasked or its password hidden, and on destruction; an unmasked field clears it without the wipe. The multiline
+layout keeps no copy of the text: the single-line key is the only copy of a field's text a layout cache keeps, and a
+concealed masked field's key holds its dots, never its plaintext. DirectWrite keeps its own copy inside a layout object,
+which DxUi cannot wipe; a field releases its layouts (single-line and multiline) the moment it is masked or its revealed
+password is hidden again, so a layout of the plaintext does not outlive the reveal. A paint reads the native text-input
+state only while a composition is active, once for both underlines.
+
+Outside this rule, and not wiped: the text-input state copies of a whole document into a plain string, made by
+`ControlHost::TryReadNativeTextInputState` (a paint while composing, UI Automation, `DebugGetSingleLinePaintState`),
+`TextField::ExportTextInputState` and the IMM composition path; and the embedded `ApplyTextInput` preview, which accepts a
+masked field, so a composing masked field's paint copies its plaintext that way.
+
+### Memory metrics
+
+Every [performance fixture](../Testing/Testing_Validation.md#performance-fixtures) receipt (`fixture`
+`dxui-performance-fixture-v1`) carries these memory fields under `memory`; the FX5 receipt is what later memory budgets
+are judged with. It is written by the fixture framework, not by the timed benchmark, whose inputs a paired run compiles
+against older libraries: every Embedded run writes the WARP receipt of each built fixture to
+`.build/test-artifacts/performance-fixtures/`, `performance-fixtures.ps1` writes retained receipts, and
+`DxUi.EmbeddedTests.exe --memory-receipt <report.json>` or `--memory-receipt-hardware <report.json>` writes the FX5 receipt
+on demand, the latter on the default hardware adapter. Samples are untimed, each after an immediate-context flush: device,
+built, after each phase (for FX5: 20 warm, 40 clean, 40 dirty and 20 hover frames) and hidden; the last phase sample is the shown
+state. (The first FX5 receipt, `dxui-complex-ui-memory-v1` under W0.3, sampled 200 scrolling frames instead.)
+Counted fields are exact and deterministic on one build; private bytes and working set remain advisory bands and never
+become pass/fail gates.
+
+- `trackedLiveBytes`: the bytes the counting `operator new` and the checked control heap hold, from the built model
+  onwards, at each sample. Aligned `operator new` forms are not tracked.
+- `retained` per phase: the view's `EmbeddedStatistics` surface and cache fields, including the retained text layouts,
+  the UTF-16 units they shape, and retained bitmaps with their pixel bytes. DirectWrite and Direct2D keep object
+  storage privately, so per-layout, per-brush and per-format native bytes are not observable; the shaped units are
+  their size driver, and the hidden residency delta attributes what hiding returns.
+- Video memory: on a hardware adapter, each phase's `IDXGIAdapter3::QueryVideoMemoryInfo` local and non-local usage
+  and budget for the process. On a software adapter (WARP) `videoMemory.applicable` is false: rendering uses system
+  memory, which private bytes already count.
+- `hiddenResidencyDelta`: hidden minus shown surface bytes, retained layouts and bitmap bytes, private bytes, working set
+  and, on hardware, local and non-local video memory. An embedded view is minimized by hiding it, so
+  `minimizedResidency` is the hidden residency; native-window minimized residency belongs to the native fixtures.
+- `controlBytes`: `sizeof` of `Control`, `Label`, `Button`, `Toggle`, `Checkbox`, `RadioButton` and
+  `ThroughputGraphSample`. Compile-time probes hold each at or below its measured size, separately for Debug STL and
+  Release layouts (x64 and ARM64 measure the same): the public types in `Tests/Embedded/Embedded.Tests.MemoryMetrics.h`,
+  the UI Automation record `AccessibilityControlNavigationSnapshot` beside its private definition in
+  `src/Controls/DxUi.Accessibility.cpp`. A probe is a ratchet against growth, not a budget: a growth fails the build
+  until memory is recovered or the probe is re-measured with its reason; each names the `G13` line it serves and the
+  item that lowers it.
+- `retainedCaches`: every row of the retained-cache registry (`src/Controls/DxUi.RetainedCaches.cpp`) after the last
+  phase, with its live entries and resident bytes; `EmbeddedStatistics::retainedCacheEntries` and `retainedCacheBytes`
+  are their totals, the surface excluded. Resident bytes are the heap storage DxUi holds for a cache: container element
+  storage by capacity (an unordered map by the MSVC node layout), heap strings and bitmap pixels. A row without a byte
+  count (a `RichTextEditor`'s prepared layout) reports `null`; DirectWrite and Direct2D object storage is never included.
+  `largestTextHistoryBytes` is the undo and redo storage of the editor that holds the most, with the text buffers its
+  entries keep beyond the current text.
+
+#### G13 budget lines
+
+Every fixture receipt reports each line of the memory budget `G13` under `budgetLines.G13`: the counter, the measured
+bytes, the limit and a status of `met`, `recorded exception`, `advisory` or `not measured` with its reason. The lines
+and their counters:
+
+| Line | Budget | Counter |
+| --- | --- | --- |
+| `idle-private` | idle native window 8 MB private above process entry at 1080p | private bytes after the last phase minus at process entry; advisory |
+| `minimized-video` | 8 MiB video memory when minimized | the process's local video usage, hidden (hardware only) |
+| `per-control` | 256 B per simple control all-in | tracked live bytes after the build per control of the built tree |
+| `per-grid-cell` | 1 KB per visible single-line `Grid` cell | live heap bytes that rebuilding the cell layouts adds after hiding every `Grid` released them, per layout |
+| `text-history` | 4 MiB text history per editor | `largestTextHistoryBytes` after the last phase (TextField and ComboBox; a fixture whose only editors are RichTextEditors reports "not measured", their piece-shared history having no byte count yet) |
+
+The cell line is measured by the receipt's Grid cell probe: the busy blocks of every process heap before and after
+hiding each visible `Grid`, and again after showing and rendering it, which rebuilds the cell layouts. The rebuild is
+the counter, the one line that includes DirectWrite's own layout storage; hiding returns far less (both are recorded
+under `gridCellRelease`), because the released storage stays busy in the process heaps. The line is judged on hardware
+receipts only: on a software adapter (WARP) the rasterizer's threads allocate in the same heaps while the cells are
+rebuilt, so the line reports "not measured" there, as it does when the process heaps do not grow (AddressSanitizer). Private bytes and working set stay advisory, compared as paired bands (same-binary drift is about 0.3 MB),
+never judged. A counted line over its budget MUST be a recorded exception that names the item closing it
+(`kG13Exceptions` in `Tests/Embedded/Embedded.Tests.PerformanceFixture.h`); an exception on a line within budget fails as
+well, so the item that closes a line deletes its exception and the gate then enforces the budget. The FX5 receipt and the
+Embedded suite apply this gate; the current exceptions and measurements are in
+[the W9.1 receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W9.1/README.md).
+
+#### Single-line text history
+
+A `TextField` and an editable `ComboBox` keep undo and redo by bytes, like the rich document's history above
+(`src/Controls/DxUi.TextEditHistory.h`). What one undo step is does not change: a typing run, a Backspace run and a
+Delete run of a `TextField` are each one step until the caret moves or another kind of edit starts; every other edit (a
+paste, a cut, a word deletion, a replacement, an IME commit) is one step, and an editable `ComboBox` makes each typed
+character one step; a selection change, a composition preview or its cancellation records none, and `SetText` clears
+both histories. Undo restores the text, caret, selection and scroll position the step started from, and redo the state
+its undo started from, with the same text-change, selection and accessibility notifications as before.
+
+- Entry: the caret, selection and scroll position to restore and the text in one of two forms. The newest undo step,
+  while its edit is in progress (a typing run), is open: it shares the whole text the step started from, which costs no
+  copy when it is recorded. The next history operation seals it against the text then current: it keeps only the units between the two
+  texts' common prefix and suffix (position, units replaced, units put back), so the restored text is identical unit for
+  unit wherever a span edge falls (inside a surrogate pair or a grapheme cluster included). A sealed typed character or
+  paste keeps no text (an insertion puts nothing back); a deletion, a cut or a replacement keeps the units it removed; a
+  replace-all keeps the old text once. Undo and redo apply a step in place and push its inverse, which keeps the text the
+  step replaced (undoing a 64 Ki-unit paste keeps the pasted 64 Ki units for redo). A text change that records no history
+  (a composition preview left in place, an item an editable `ComboBox` commits) first reopens the newest sealed step of
+  each history against the text before it, so undo still restores exactly the text it restored before the change.
+- Budget: at most 64 steps each way (the count cap is unchanged) and at most 4 MiB per editor across undo and redo
+  together: the stacks' element storage, every sealed entry's span and every open step's whole earlier text. When an
+  edit, undo, redo or reopening exceeds it, the oldest sealed steps are dropped first, the undo side before the redo side,
+  until the sealed spans and storage fit 4 MiB less the open texts. The step the operation just added and an open step
+  are never dropped, so an edit larger than the budget is still applied and stays undoable while it is the newest step;
+  the next step drops it with everything older. When a single open step's text alone exceeds 4 MiB (a text of more than
+  2 Mi UTF-16 units), that step stays, as the newest, and every older step is dropped: the history then holds that one
+  text and exceeds the budget by it until the next history operation seals it.
+- Counter: `EmbeddedStatistics::largestTextHistoryBytes` (G13's `text-history` line) counts the same bytes (an open
+  step's earlier text only once the current text no longer shares it), read without allocating, so it never exceeds
+  4 MiB except in the single-oversized-step cases above. The gate: the FX7 `TextField` and
+  FX2 editable `ComboBox` "history" variants (64 Ki units, 128 edits each, every edit its own step) MUST keep at most
+  4 MiB after the edits and after every undo and redo, and every undo and redo MUST restore the expected text, caret and
+  selection; a scripted edit sequence MUST record the same text, caret and selection after every operation, undo and redo
+  as the full-text snapshot history it replaced (`Controls.Tests.TextHistory.cpp`). Measurements:
+  [the W9.3 receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W9.3/README.md).
+
+Teardown accounting: after one FX5 lifetime (scene build, 20 warm and 20 changing frames, hide, destruction) has
+created the process's first-use state, a second lifetime MUST return every tracked C++ byte (0 live tracked bytes) in
+every configuration, and in Debug on a D3D11 debug-layer WARP device MUST leave the debug layer's live-object report
+equal to the fixture's own objects (0 DxUi-created live device objects). Without the SDK layers the device report is
+skipped and says so; the tracked-byte check still runs.
+
 The opt-in `--benchmark-clean-prepare-floor <fresh-report.json> <seed>` diagnostic is dispatched outside the
 canonical six-input complex-UI benchmark. It measures the already prepared default scene on WARP with one QPC
 bracket per batch of 1, 8, 64 or 512 no-op Prepare calls. Retain the seeded size ordering, balanced group positions,
@@ -1034,9 +1696,9 @@ using tile/raised views admits their summed surface cost. Composite is a single 
 derived from SV_VertexID and needs no per-view vertex/index/dynamic constant buffer. Hidden state performs no timer
 subscription; native WindowHost alone uses the event-driven animation dispatcher. Animation ticks add no raster work
 by themselves: `AdvanceAnimation` never marks the view dirty, and every `Tick` that changes visual state invalidates.
-Per-host caches are bounded to 256 solid brushes and 96 configured text formats; a cache beyond its bound is cleared
-at the start of the next embedded preparation or native paint, never mid-paint, so steady-state residency stays
-proportional to the painted working set. Diagnostics are borrowed and optional; composition does not emit them.
+Per-host caches are bounded to 256 solid brushes and 256 configured text formats by last use (see
+[format and brush caches](#format-and-brush-caches)); nothing is released mid-paint, so steady-state residency stays
+proportional to the painted working set of the last two frames. Diagnostics are borrowed and optional; composition does not emit them.
 The private window-message payload registry is bounded to 128 windows and 128 queued payloads; saturation fails
 immediately and releases transferred ownership. Teardown invalidates queued tokens and drains outside its lock.
 
@@ -1048,7 +1710,8 @@ one it cannot, from 1,500 to 1,000,000 ids, where the scan cost up to 94 us). Th
 branches cannot be predicted, as the ids of the rows on screen cannot be against a selection of hashed ids, costs what a
 scan costs at about 500 to 650 ids: below the limit the search can lose to the scan (4.5 times at 32 ids), above it never
 does, so the model is never slower than that scan at any size in either order. The ascending copy is the budget: 8 bytes per
-selected row beyond the ordered ids' 8 (the model itself grows from 40 to 64 bytes), and never a heap node per row. Both
+selected row beyond the ordered ids' 8 (the model itself grows from 40 to 64 bytes, and to 72 with the epoch that moves
+whenever its ordered ids change, which a Grid compares instead of copying the selection), and never a heap node per row. Both
 copies give their room back when a selection that needed room for more than 4,096 ids (32 KiB) is replaced by one that needs
 half of it or less (`Clear`, `SetSingle`, `SetRange` and a `PreserveOrdered` that drops ids; `Toggle` leaves its room):
 after Ctrl+A over 200,000 ids a model holds 0 bytes after `Clear` and 16 after a click, not 3.2 MB, for 0.1 to 0.2 ms to
@@ -1098,6 +1761,12 @@ The 1,024-line/512-edit source/history/geometry fixture is bounded by 8 MiB reta
 and 16 MiB replacement-peak C++ storage. Maximum-source geometry fixtures are
 bounded by 24 MiB and 128 layouts. All tracked deltas must release to zero; these
 limits exclude SDK-private heaps and do not establish whole-process acceptance.
+One raster image decode holds no duplicate encoded buffer and at most the encoded
+plus decoded size of tracked C++ storage, plus one decoded-size buffer only for a
+transposing orientation of a non-square image and at most 2 KiB of bookkeeping
+(the [rich image contract](../UI/UI_ControlsAndLayout.md); Embedded
+`TestRichImageDecodeMemory`, also `--test-rich-image-decode-memory`). WIC's own
+heaps are outside this bound.
 The [guarded geometry record](../../Measurements/RichText/README.md)
 retains all failure schedules, geometry/pixel oracles and original negative runs.
 The [positioned-line record](../../Measurements/RichText/README.md)
@@ -1134,10 +1803,19 @@ semantic events (default 4,096), SDK layout calls (4) and geometry metadata even
 (4,096). Its graph is bounded by 4,096 native layouts (markers, bodies, cells and caret boxes) and 32,768
 elements, plus the source/display/map bounds. One SDK layout, leaf tokenization
 or final map construction remains indivisible. It retains at most a published
-and staged native geometry graph; source edits currently rebuild semantic leaves
-rather than claiming v0 chunk reuse. Immutable CPU syntax/document ownership can
+and staged native geometry graph. A source edit builds only the top-level semantic
+blocks between the unchanged leading and trailing blocks, which it copies from the
+previous publication in one indivisible event each (block-incremental projection in
+[controls and layout](../UI/UI_ControlsAndLayout.md#block-incremental-semantic-projection));
+this is not v0 chunk reuse. The copy itself remains proportional to the document. Immutable CPU syntax/document ownership can
 outlive native geometry when clients hold it. Raster preparation may allocate;
 composition must not call the builder/layout backend or allocate.
+Prepared formulas, diagrams, SVG rasters and image bitmaps carry from the published generation into the next by exact
+content keys ([prepared objects across edits](../UI/UI_ControlsAndLayout.md#prepared-objects-across-edits)): on `FX8`
+an edit, arrow key or width step outside every object prepares no formula, SVG raster or diagram and uploads no image
+byte, and a device replacement prepares them all again. The carry adds no cache: an object lives only while a
+publication or the one staged preparation holds it, and an unclaimed one is released when the next generation is
+published.
 
 Geometry preparation indexes source line units and bounds cooperatively before
 publication; cancelling or clearing owns no new heap work. Hidden/retired controls

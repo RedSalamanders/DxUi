@@ -29,6 +29,9 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #pragma warning(push)
@@ -602,6 +605,15 @@ enum class PasswordRevealMode : uint8_t
     Hidden,
 };
 
+// The kind of text a TextField expects, reported to text services (TSF input scope) so a touch keyboard or IME can
+// choose a matching layout. A masked field always reports a password scope.
+enum class TextInputScope : uint8_t
+{
+    Default,
+    Number,
+    Url,
+};
+
 enum class PasswordRevealState : uint8_t
 {
     Hidden,
@@ -697,6 +709,10 @@ struct TextFieldDebugMultilineState
     bool layoutDirty            = true;
     float cachedLayoutWidthDip  = 0.0f;
     float cachedLayoutHeightDip = 0.0f;
+    // Selection paint geometry: the width the painted text and selection wrap at,
+    // and the selection's hit-test rectangles in that layout's own coordinates.
+    float selectionLayoutWidthDip = 0.0f;
+    std::vector<D2D1_RECT_F> selectionRects;
 };
 
 struct TextFieldDebugSingleLinePaintState
@@ -715,7 +731,8 @@ struct SingleLineTextLayoutCache
 {
     wil::com_ptr<IDWriteTextLayout> layout;
     std::wstring text;
-    IDWriteTextFormat* textFormat             = nullptr;
+    // Held, not borrowed: an evicted host format stays alive for this key, so its address is never another format's (W2.8).
+    wil::com_ptr<IDWriteTextFormat> textFormat;
     FontRole role                             = FontRole::Body;
     DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
     float measuredTextWidthDip                = 0.0f;
@@ -1510,6 +1527,14 @@ struct GridSelectionBufferDebugState
 class GridSelectionModel final
 {
 public:
+    GridSelectionModel()                                     = default;
+    GridSelectionModel(const GridSelectionModel&)            = default;
+    GridSelectionModel& operator=(const GridSelectionModel&) = default;
+    // A moved-from model is empty and has no anchor; its epoch reads 0.
+    GridSelectionModel(GridSelectionModel&& other) noexcept;
+    GridSelectionModel& operator=(GridSelectionModel&& other) noexcept;
+    ~GridSelectionModel() = default;
+
     void Clear() noexcept;
     void SetSingle(uint64_t rowId) noexcept;
     void Toggle(uint64_t rowId) noexcept;
@@ -1524,15 +1549,22 @@ public:
     void SetAnchor(std::optional<uint64_t> rowId) noexcept;
     [[nodiscard]] size_t GetCount() const noexcept;
     [[nodiscard]] std::span<const uint64_t> GetOrderedSelection() const noexcept;
+    // Moves whenever the ids GetOrderedSelection returns change (members or their order), never when a mutator leaves them as
+    // they were, and reads 0 while the selection is empty; SetAnchor leaves it. Each change takes a value no model of the process
+    // took before, so equal epochs mean equal selections, including across copies. A Grid compares epochs instead of copying the
+    // selection to learn whether a gesture changed it.
+    [[nodiscard]] uint64_t GetEpoch() const noexcept;
 
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] GridSelectionBufferDebugState DebugGetBuffers() const noexcept;
 #endif
 
 private:
+    friend class Grid;
     std::vector<uint64_t> _selectedRowIds;
     std::vector<uint64_t> _sortedRowIds;
     std::optional<uint64_t> _anchorRowId;
+    uint64_t _epoch = 0u;
 };
 
 class ControlHost;
@@ -1629,6 +1661,88 @@ struct MeasureContext
 [[nodiscard]] bool AreValidLayoutConstraints(const LayoutConstraints& constraints) noexcept;
 inline constexpr size_t kMaxIntrinsicTextUnits = 65'536u;
 
+// The equality of Control::Assign (UI_ControlsAndLayout.md, "Assigning a property"): a value is unchanged when storing it
+// would leave the field as it is. Floating point compares exactly, except that every NaN equals every NaN (a NaN assigned
+// again is no change) and -0 equals +0 (the field keeps the zero it holds). Strings compare by content, a string with a view
+// included; raw and smart pointers by identity; colours, rectangles, sizes and points member by member; optionals, tuples
+// (std::tie of several fields) and other ranges element by element. A type with none of these and no operator== supplies
+// SameAssignedValue(a, b), found by argument-dependent lookup, rather than comparing bytes (padding). A callable has no
+// equality: a setter that stores one does not use Assign.
+// Public for a control outside the library: Same (what Assign compares) and the SameAssignedValue extension point. The
+// templates are in this header only because Assign instantiates them; AssignEquality::Detail is not API and may change.
+namespace AssignEquality
+{
+void SameAssignedValue() = delete; // Unqualified lookup finds this; argument-dependent lookup adds a type's own.
+
+template <typename A, typename B> [[nodiscard]] constexpr bool Same(const A& a, const B& b) noexcept;
+
+namespace Detail
+{
+template <typename T> inline constexpr bool kIsOptional                   = false;
+template <typename T> inline constexpr bool kIsOptional<std::optional<T>> = true;
+template <typename T> inline constexpr bool kIsTuple                      = false;
+template <typename... T> inline constexpr bool kIsTuple<std::tuple<T...>> = true;
+
+template <typename A, typename B, size_t... Index> [[nodiscard]] constexpr bool SameTuple(const A& a, const B& b, std::index_sequence<Index...>) noexcept
+{
+    return (AssignEquality::Same(std::get<Index>(a), std::get<Index>(b)) && ...);
+}
+
+template <typename A, typename B> [[nodiscard]] constexpr bool SameRange(const A& a, const B& b) noexcept
+{
+    auto left  = a.begin();
+    auto right = b.begin();
+    for (; left != a.end() && right != b.end(); ++left, ++right)
+        if (! AssignEquality::Same(*left, *right))
+            return false;
+    return left == a.end() && right == b.end();
+}
+
+// Stores a changed value: by assignment, or for a container given a range of another type (a vector from a span) by
+// assigning its elements, which keeps the container's storage.
+template <typename Field, typename Value> constexpr void Store(Field& field, Value&& value)
+{
+    if constexpr (std::is_assignable_v<Field&, Value&&>)
+        field = std::forward<Value>(value);
+    else
+        field.assign(value.begin(), value.end());
+}
+} // namespace Detail
+
+template <typename A, typename B> constexpr bool Same(const A& a, const B& b) noexcept
+{
+    if constexpr (requires { SameAssignedValue(a, b); })
+        return SameAssignedValue(a, b);
+    else if constexpr (std::is_floating_point_v<A> && std::is_floating_point_v<B>)
+        return a == b || (a != a && b != b);
+    else if constexpr (std::is_base_of_v<D3DCOLORVALUE, A> && std::is_base_of_v<D3DCOLORVALUE, B>) // D2D1::ColorF included
+        return Same(a.r, b.r) && Same(a.g, b.g) && Same(a.b, b.b) && Same(a.a, b.a);
+    else if constexpr (std::is_same_v<A, D2D_RECT_F> && std::is_same_v<B, D2D_RECT_F>)
+        return Same(a.left, b.left) && Same(a.top, b.top) && Same(a.right, b.right) && Same(a.bottom, b.bottom);
+    else if constexpr (std::is_same_v<A, D2D_SIZE_F> && std::is_same_v<B, D2D_SIZE_F>)
+        return Same(a.width, b.width) && Same(a.height, b.height);
+    else if constexpr (std::is_same_v<A, D2D_POINT_2F> && std::is_same_v<B, D2D_POINT_2F>)
+        return Same(a.x, b.x) && Same(a.y, b.y);
+    else if constexpr (Detail::kIsOptional<A> && Detail::kIsOptional<B>)
+        return a.has_value() == b.has_value() && (! a.has_value() || Same(*a, *b));
+    else if constexpr (Detail::kIsOptional<A>)
+        return a.has_value() && Same(*a, b);
+    else if constexpr (Detail::kIsTuple<A> && Detail::kIsTuple<B>)
+        return Detail::SameTuple(a, b, std::make_index_sequence<std::tuple_size_v<A>>{});
+    else if constexpr (std::is_convertible_v<const A&, std::wstring_view> && std::is_convertible_v<const B&, std::wstring_view>)
+        return std::wstring_view(a) == std::wstring_view(b);
+    else if constexpr (requires {
+                           a.begin();
+                           a.end();
+                           b.begin();
+                           b.end();
+                       })
+        return Detail::SameRange(a, b);
+    else
+        return a == b;
+}
+} // namespace AssignEquality
+
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -1637,7 +1751,9 @@ class Control
 {
 public:
     Control() noexcept;
-    virtual ~Control() = default;
+    // A control destroyed while still attached (only possible through the legacy GetChildren() span) leaves its host's
+    // hit-reporting count as it found it.
+    virtual ~Control();
     // Object storage is checked independently from member construction. The
     // factory can report its null result; unreportable member failures are fatal.
     [[nodiscard]] static void* operator new(size_t bytes);
@@ -1664,6 +1780,37 @@ public:
     void SetBounds(const D2D1_RECT_F& bounds) noexcept;
     [[nodiscard]] D2D1_RECT_F GetBounds() const noexcept;
     [[nodiscard]] virtual D2D1_RECT_F GetHitBounds() const noexcept;
+    // A host answers the cursor query, hover and dispatch of one pointer event from one hit result while its hit revision
+    // holds (UI_InputAndAccessibility.md, "Pointer hit result"). Bounds, visibility, enabled state and tree membership move
+    // that revision by themselves. A control whose HitTest, HitTestOverlay or GetHitBounds answer changes for any other
+    // reason calls InvalidateHitTest when it changes; a control outside the library must also declare its hit test
+    // reported (DeclareHitTestReported) before a host reuses results while it is attached.
+    void InvalidateHitTest() noexcept;
+    // What a property's value reaches, which Assign routes when the value changes (UI_ControlsAndLayout.md, "Assigning a
+    // property"): Paint invalidates the host, Layout calls InvalidateMeasure, Hit calls InvalidateHitTest, and the three
+    // semantic aspects raise one accessibility mutation (SemanticState one that can change patterns or focus).
+    enum class Affects : uint8_t
+    {
+        None          = 0u,
+        Paint         = 1u << 0u,
+        Layout        = 1u << 1u,
+        Hit           = 1u << 2u,
+        SemanticName  = 1u << 3u,
+        SemanticValue = 1u << 4u,
+        SemanticState = 1u << 5u,
+    };
+    [[nodiscard]] friend constexpr Affects operator|(Affects left, Affects right) noexcept
+    {
+        return static_cast<Affects>(static_cast<uint8_t>(left) | static_cast<uint8_t>(right));
+    }
+    [[nodiscard]] friend constexpr bool HasAffects(Affects set, Affects flags) noexcept
+    {
+        return (static_cast<uint8_t>(set) & static_cast<uint8_t>(flags)) != 0u;
+    }
+#if DXUI_ENABLE_DIAGNOSTICS
+    [[nodiscard]] bool DebugIsHitTestReported() const noexcept;
+    [[nodiscard]] bool DebugVisualPreparationEnabled() const noexcept;
+#endif
     [[nodiscard]] std::optional<D2D1_RECT_F> TryGetTextInputViewportRect() const noexcept;
     [[nodiscard]] std::optional<D2D1_RECT_F> TryGetTextInputCaretRect(const ControlHost& host, size_t controlTextIndex) const noexcept;
     [[nodiscard]] std::optional<std::vector<D2D1_RECT_F>> TryGetTextInputRangeRects(const ControlHost& host,
@@ -1692,6 +1839,8 @@ public:
     virtual bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
     virtual bool OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
     virtual bool OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT modifiers);
+    // The middle button's release reaches the captured control, or else the control under the pointer. The default declines.
+    virtual bool OnMouseMiddleUp(ControlHost& host, D2D1_POINT_2F point, UINT modifiers);
     virtual bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers);
     virtual bool OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT modifiers);
     virtual bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers);
@@ -1746,12 +1895,16 @@ public:
 
 protected:
     friend class Panel;
+    friend class Label;
     friend struct ControlModelQueryAccess;
+    friend struct AssignAccess; // library-internal: Assign at a named hit-revision site (DxUi.Internal.h); not API
     friend class PageHost;
     friend class ScrollPanel;
     friend class ControlHost;
     friend class NativeTextStoreTarget;
     friend class EmbeddedHost;
+    friend struct RetainedCacheAccess;
+    friend struct SharedTextInputAccess;
     friend std::weak_ptr<int> GetControlLifetimeToken(const Control& control) noexcept;
 
     [[nodiscard]] virtual Control* HitTest(D2D1_POINT_2F point);
@@ -1761,6 +1914,12 @@ protected:
     virtual bool DismissOverlayOnPointerDown(ControlHost& host, D2D1_POINT_2F point);
     [[nodiscard]] virtual POINT ResolveContextMenuAnchor(ControlHost& host, bool keyboardInvocation, D2D1_POINT_2F pointDip) const noexcept;
     [[nodiscard]] virtual WindowHostCursorKind ResolveCursorKind(ControlHost& host, D2D1_POINT_2F pointDip) const noexcept;
+    // Declares, from the constructor of a control class outside the library, that its HitTest, HitTestOverlay and
+    // GetHitBounds answers depend only on its bounds, visibility, enabled state, children and state whose every change
+    // it reports with InvalidateHitTest. The declaration covers exactly the class whose constructor makes it: a subclass
+    // declares for itself. A host never reuses a hit result while an undeclared control outside the library (a subclass
+    // of a library control or of a declaring class included) is attached.
+    void DeclareHitTestReported() noexcept;
 
     [[nodiscard]] ControlHost* GetHost() const noexcept;
     void Invalidate(ControlHost& host) const;
@@ -1786,7 +1945,47 @@ protected:
     virtual void OnHostDpiChanged(ControlHost& host) noexcept;
     // Existing custom controls remain valid: the default hook returns E_NOTIMPL, requiring an explicit owner-supplied extent.
     [[nodiscard]] virtual HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const;
+    // Measure caches each result keyed by the measure revision, constraints and the host context (typography revision, DPI,
+    // flow, density). A control whose MeasureOverride reads anything else must call InvalidateMeasure when it changes.
+    // Returning false declares that the result does not depend on the maximum constraints (only its overflow flag does):
+    // Measure then reuses one result across maxima. Default true; return false only for a measure that never wraps.
+    [[nodiscard]] virtual bool MeasureDependsOnMaximum() const noexcept;
     void InvalidateMeasure() noexcept;
+    // One way to assign a property (UI_ControlsAndLayout.md, "Assigning a property"). An equal value (AssignEquality) is no
+    // change: Assign returns false and does nothing else. A changed value is stored, then `onStored` runs (the setter's own
+    // bookkeeping: retiring a cache, clamping a dependent field), then `affects` is routed once unless onStored destroyed the
+    // control, in this order: Hit, Layout, Paint, then one accessibility mutation for the semantic aspects. Assign returns true.
+    // Routing can run the application's code (an embedded host's invalidation callback, an accessibility event), which may
+    // destroy this control: a setter returns after a true Assign, or holds GetLifetimeToken() to touch the control again.
+    // onStored is checked only after it returns: a step in it that can run the application's code (a part's setter, an
+    // invalidation, a text-input sync, an animation request) is its last step or is followed at once by a lifetime check.
+    // A control outside the library assigns its properties the same way. Field may be a std::tie of several fields, given a
+    // std::tuple of their values.
+    // Extension points: incremental accessibility publication marks only this control's record dirty for the semantic aspects
+    // RouteAffects receives; animated assignment compares with the same AssignEquality, retargets toward a changed value and
+    // routes Affects::Paint on each frame through RouteAffects.
+    template <typename Field, typename Value> bool Assign(Field&& field, Value&& value, Affects affects)
+    {
+        if (AssignEquality::Same(field, value))
+            return false;
+        AssignEquality::Detail::Store(field, std::forward<Value>(value));
+        RouteAffects(affects);
+        return true;
+    }
+    template <typename Field, typename Value, typename OnStored> bool Assign(Field&& field, Value&& value, Affects affects, OnStored&& onStored)
+    {
+        if (AssignEquality::Same(field, value))
+            return false;
+        AssignEquality::Detail::Store(field, std::forward<Value>(value));
+        const std::weak_ptr<int> lifetime = _lifetimeToken;
+        std::forward<OnStored>(onStored)();
+        if (! lifetime.expired())
+            RouteAffects(affects);
+        return true;
+    }
+    // Routes `affects` as a changed assignment does. For a value Assign cannot store (an element of a keyed list), call it
+    // only after the value changed.
+    void RouteAffects(Affects affects) noexcept;
     void EnableIntrinsicLayout() noexcept;
     void RequestIntrinsicLayout() noexcept;
     [[nodiscard]] virtual HRESULT PrepareIntrinsicLayout(const MeasureContext& context) noexcept;
@@ -1819,6 +2018,8 @@ protected:
 private:
     // A host snapshots these before reset callbacks can retire the old parent chain.
     void ReparentWithPreviousInheritance(Control* parent, ControlHost* host, FlowDirection previousFlowDirection, Density previousDensity) noexcept;
+    // RouteAffects with the library's named hit-revision site for Affects::Hit (0: the assignment site).
+    void RouteAffectsAt(Affects affects, uint8_t hitRevisionSite) noexcept;
     Control* _parent    = nullptr;
     ControlHost* _host  = nullptr;
     D2D1_RECT_F _bounds = D2D1::RectF();
@@ -1827,7 +2028,9 @@ private:
     bool _focusable     = false;
     bool _hasFocus      = false;
     bool _hovered       = false;
-    wchar_t _mnemonic   = L'\0';
+    // Left a host while it held a frame-schedule request: the host it joins next ticks it once, so it lands or resumes.
+    bool _tickRequestPending = false;
+    wchar_t _mnemonic        = L'\0';
     std::optional<FlowDirection> _explicitFlowDirection;
     std::optional<Density> _explicitDensity;
     std::optional<FlowDirection> _detachedFlowDirection;
@@ -1851,11 +2054,23 @@ private:
     std::shared_ptr<const std::function<HRESULT(ControlHost&)>> _onAccessibleInvoke;
     std::shared_ptr<const std::function<void(POINT screenPoint, bool keyboardInvocation)>> _onContextMenu;
     std::shared_ptr<int> _lifetimeToken = std::make_shared<int>(0);
-    uint64_t _measureRevision           = 0u;
-    bool _intrinsicLayoutEnabled        = false;
-    bool _intrinsicLayoutPending        = false;
-    bool _intrinsicAllocationRetryUsed  = false;
-    bool _contentPreparationEnabled     = false;
+    // The measure cache (Specs/UI/UI_ControlsAndLayout.md, "Measure cache"): out of line, allocated by the first successful
+    // measurement, so a control that is never measured pays one pointer.
+    struct MeasureCache;
+    struct MeasureCacheDeleter // not final: an empty deleter keeps the pointer at 8 bytes
+    {
+        void operator()(MeasureCache* cache) const noexcept;
+    };
+    HRESULT MeasureCounted(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result, bool* executed) const noexcept;
+    [[nodiscard]] size_t GetMeasureCacheEntries() const noexcept;
+    [[nodiscard]] size_t GetMeasureCacheBytes() const noexcept;
+    void DropMeasureCache() const noexcept;
+    mutable std::unique_ptr<MeasureCache, MeasureCacheDeleter> _measureCache;
+    uint64_t _measureRevision          = 0u;
+    bool _intrinsicLayoutEnabled       = false;
+    bool _intrinsicLayoutPending       = false;
+    bool _intrinsicAllocationRetryUsed = false;
+    bool _contentPreparationEnabled    = false;
     enum class ContentPreparationState : uint8_t
     {
         Ready,
@@ -1866,6 +2081,13 @@ private:
     mutable ContentPreparationState _contentPreparationState = ContentPreparationState::Ready;
     bool _visualPreparationEnabled                           = false;
     mutable bool _visualPreparationPending                   = false;
+    // kHitTestCounted: _host counts this control as unreported (its hit testing the host cannot see).
+    static constexpr uint8_t kHitTestCounted = 1u;
+    uint8_t _hitTestReporting                = 0u;
+    [[nodiscard]] bool IsHitTestReported() const noexcept;
+    // A plain Label (no mnemonic, no typography override, exactly class Label) has no visual preparation; anything else
+    // derived from Label keeps it. Called when a mnemonic or override changes and when the control attaches.
+    void RefreshLabelVisualPreparation() noexcept;
 };
 #pragma warning(pop)
 
@@ -2043,6 +2265,7 @@ private:
 
     std::unique_ptr<Control> _currentPage;
     std::unique_ptr<Control> _outgoingPage;
+    friend struct RetainedCacheAccess;
     bool _childBoundsPending = false;
     TransitionState _transition;
 };
@@ -2104,6 +2327,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
     void PrepareVisualContent(ControlHost& host) noexcept override;
     void CancelVisualContentPreparation() noexcept override;
     void OnBoundsChanged() noexcept override;
@@ -2112,6 +2336,7 @@ protected:
     void OnHostDpiChanged(ControlHost& host) noexcept override;
 
 private:
+    friend struct RetainedResourceAccess;
     void InvalidateTypographyPreparation() noexcept;
     std::wstring _text;
     FontRole _fontRole               = FontRole::Body;
@@ -2119,6 +2344,7 @@ private:
     bool _multiline                  = false;
     std::optional<D2D1_COLOR_F> _textColor;
     std::optional<LabelTypography> _typographyOverride;
+    friend struct RetainedCacheAccess;
     mutable wil::com_ptr<IDWriteTextLayout> _typographyLayout;
     mutable D2D1_SIZE_F _typographyLayoutSize{};
     mutable uint64_t _typographyLayoutGeneration = 0u;
@@ -2253,6 +2479,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
     [[nodiscard]] bool IsPressed() const noexcept;
     void SetPressed(bool pressed) noexcept;
     void PrepareVisualContent(ControlHost& host) noexcept override;
@@ -2295,6 +2522,7 @@ private:
     [[nodiscard]] bool IsDropDownInvocationPoint(D2D1_POINT_2F point) const noexcept;
     [[nodiscard]] bool InvokeDropDown(ControlHost& host);
     [[nodiscard]] IDWriteTextFormat* ResolveContentTextFormat(const ControlHost& host, FontRole role, bool wrap = false) const noexcept;
+    friend struct RetainedResourceAccess;
     void RetirePreparedIconTextLayout() noexcept;
     [[nodiscard]] bool HasCurrentPreparedIconTextLayout(const ControlHost& host, const D2D1_RECT_F& bounds, FlowDirection flowDirection) const noexcept;
 
@@ -2317,6 +2545,7 @@ private:
     std::optional<bool> _toggleState;
     std::optional<ButtonThemePreview> _themePreview;
     std::optional<float> _contentFontSizeDip;
+    friend struct RetainedCacheAccess;
     wil::com_ptr<IDWriteTextFormat> _preparedIconTextFormat;
     wil::com_ptr<IDWriteTextLayout> _preparedIconTextLayout;
     ControlHost* _preparedIconTextHost   = nullptr;
@@ -2383,6 +2612,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
 
 private:
     void ApplyCheckedState(ControlHost& host, bool checked, bool notify);
@@ -2413,6 +2643,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
 
 private:
     bool _indeterminate = false;
@@ -2443,6 +2674,7 @@ public:
 protected:
     // The circle and its gaps, not a push button's chrome, beside the label.
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
 
 private:
     friend class RadioButtons;
@@ -2801,6 +3033,7 @@ private:
 
     [[nodiscard]] double ClampValue(double value) const noexcept;
     [[nodiscard]] double GetDisplayedNormalizedValue() const noexcept;
+    [[nodiscard]] bool IsSameValueTarget(double clamped) const noexcept;
     void SetValueInternal(ControlHost* host, double value, bool notifyChanged, bool animatePosition) noexcept;
     void SnapDisplayedValue() noexcept;
     void PublishRangeState() noexcept;
@@ -2923,13 +3156,13 @@ private:
         const ControlHost* host = nullptr;
         D2D1_RECT_F bounds{};
         DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-        IDWriteTextFormat* textFormat             = nullptr;
-        FontRole fontRole                         = FontRole::Body;
-        float menuBarHeightDip                    = 0.0f;
-        float insetDip                            = 0.0f;
-        float itemGapDip                          = 0.0f;
-        float itemPaddingXDip                     = 0.0f;
-        float measureHeightDip                    = 0.0f;
+        wil::com_ptr<IDWriteTextFormat> textFormat; // held: see SingleLineTextLayoutCache::textFormat
+        FontRole fontRole      = FontRole::Body;
+        float menuBarHeightDip = 0.0f;
+        float insetDip         = 0.0f;
+        float itemGapDip       = 0.0f;
+        float itemPaddingXDip  = 0.0f;
+        float measureHeightDip = 0.0f;
         std::vector<float> itemWidthsDip;
         std::vector<D2D1_RECT_F> itemRects;
     };
@@ -2950,6 +3183,7 @@ private:
     std::optional<size_t> _pressedIndex;
     bool _retainSelectedIndexOnFocusLost = false;
     mutable MenuBarLayoutCache _menuBarLayoutCache;
+    friend struct RetainedCacheAccess;
 };
 #pragma warning(pop)
 
@@ -3108,7 +3342,8 @@ private:
     };
 
     friend struct ControlModelQueryAccess;
-    [[nodiscard]] bool SyncLayout() noexcept;
+    // route false leaves the repaint and the accessibility publication to the caller (a setter's Control::Assign).
+    [[nodiscard]] bool SyncLayout(bool route = true) noexcept;
     [[nodiscard]] bool UpdateVisiblePageBounds() noexcept;
     [[nodiscard]] std::optional<size_t> FindTabIndex(const Control* page, const std::weak_ptr<int>& pageLifetime) const noexcept;
     [[nodiscard]] bool RemoveTabByIdentity(Control* page,
@@ -3158,6 +3393,7 @@ private:
     float _headerScrollOffsetDip  = 0.0f;
     bool _tabReorderingEnabled    = true;
     bool _dragReordering          = false;
+    friend struct RetainedCacheAccess;
     mutable TabHeaderLayoutCache _tabHeaderLayoutCache;
     PreparedAttachedGeometry _selectedHeaderGeometry;
     PreparedAttachedGeometry _hoveredHeaderGeometry;
@@ -3389,6 +3625,7 @@ struct RichTextEditorDebugState
     size_t preparedDecorationRectangles = 0;
     bool overlayGeometryPending         = false;
     bool codeInkPreparationPending = false, sourceGuidesPreparationPending = false;
+    size_t codeInkRangeCount             = 0u; // Published code-token ink ranges.
     RichTextPreparationStage activeStage = RichTextPreparationStage::Idle;
     size_t lastAdvanceUploadBytes        = 0u;
     // Image candidates actually visited in the last owner preparation turn (0..4).
@@ -3399,6 +3636,7 @@ struct RichTextEditorDebugState
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
 #pragma warning(disable : 4625 4626)
+struct SharedTextInputState;
 class RichTextEditor : public Control
 {
 public:
@@ -3744,6 +3982,10 @@ protected:
     [[nodiscard]] std::optional<size_t> HitTestTextInputPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept override;
     bool ExportTextInputState(TextInputState& state) const override;
     bool ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange) override;
+    // True when this class does not override ExportTextInputState or ImportTextInputState, so text input may read the
+    // document's immutable source revision instead of a flattened copy through those virtuals (Rich text-input snapshots).
+    // The default is true only for the exact class; a derived class that keeps both virtuals may override it to return true.
+    [[nodiscard]] virtual bool KeepsDefaultTextInputState() const noexcept;
     void PropagateHost(ControlHost* host) noexcept override;
     void OnBoundsChanged() noexcept override;
     void OnHostDpiChanged(ControlHost& host) noexcept override;
@@ -3756,6 +3998,15 @@ protected:
 
 private:
     friend struct EmbeddedAccessibilityAccess;
+    friend struct SharedTextInputAccess;
+    // Text-input snapshots (W7.4): the export of the source revision, the contiguous copy of a revision kept for text input,
+    // and an import that reads a shared buffer in place and keeps it as that copy.
+    void ExportTextInputSource(SharedTextInputState& state) const;
+    [[nodiscard]] std::shared_ptr<const std::wstring> TextInputText(const RichText::SourceSnapshot& source) const;
+    [[nodiscard]] bool ShowsTextInputText(const std::shared_ptr<const std::wstring>& text) const noexcept;
+    [[nodiscard]] bool ImportTextInputText(ControlHost& host, std::shared_ptr<const std::wstring> text, const TextInputState& fields, bool notifyChange);
+    [[nodiscard]] bool ImportTextInputView(
+        ControlHost& host, std::wstring_view text, const TextInputState& fields, bool notifyChange, const std::shared_ptr<const std::wstring>* buffer);
     [[nodiscard]] HRESULT DrawPreparedPageResult(ControlHost& host, D2D1_RECT_F destination, float sourceTopDip, const RichText::ExportDrawing& drawing) const;
     [[nodiscard]] std::optional<std::vector<std::pair<size_t, size_t>>> SourceVisualLineRangesFallible(const ControlHost& host) const;
     friend class ControlHost;
@@ -3773,6 +4024,7 @@ private:
     void RequireCurrentLayout(const ControlHost& host) const;
     HRESULT UpdateCaretScroll() const;
     void RetireLayout(bool retainGeometry = false) const noexcept;
+    friend struct RetainedCacheAccess;
     void ResetDocumentBinding();
     void UpdateSemanticSourceRegion() noexcept;
     void SourcePresentationChanged(ControlHost& host, bool revealCaret = true);
@@ -3814,6 +4066,16 @@ private:
     HRESULT PrepareCodeInk(const std::shared_ptr<const RichText::SemanticDocument>& document);
     [[nodiscard]] std::optional<RichText::MarkdownRange> HoveredLinkDisplayRange(ControlHost& host, D2D1_POINT_2F point) const;
     [[nodiscard]] std::wstring_view HoveredTitle(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) const;
+    // Everything HoveredTitle reads besides the point and modifiers. A host that remembers a resolved title resolves
+    // again only when this key, the point or the modifiers change.
+    struct HoveredTitleKey
+    {
+        uint64_t geometryGeneration{};
+        float viewportLeft{}, viewportTop{}, viewportRight{}, viewportBottom{}, horizontalTranslation{}, scrollDip{};
+        bool geometryReady{}, layoutCurrent{}, enabled{}, visible{}, editable{};
+        bool operator==(const HoveredTitleKey&) const = default;
+    };
+    [[nodiscard]] HoveredTitleKey GetHoveredTitleKey(const ControlHost& host) const noexcept;
     [[nodiscard]] std::optional<RichText::MarkdownRange> ActiveParagraphDisplayRange() const;
     [[nodiscard]] bool Editable() const noexcept;
 };
@@ -3841,6 +4103,9 @@ public:
     void ReplaceSelectionAndNotify(std::wstring_view replacement);
     void SetMasked(bool masked) noexcept;
     [[nodiscard]] bool IsMasked() const noexcept;
+    // Text services read the scope when they query the focused field; Default is the default.
+    void SetInputScope(TextInputScope scope) noexcept;
+    [[nodiscard]] TextInputScope GetInputScope() const noexcept;
     void SetPasswordRevealMode(PasswordRevealMode mode) noexcept;
     [[nodiscard]] PasswordRevealMode GetPasswordRevealMode() const noexcept;
     void SetPasswordRevealState(PasswordRevealState state) noexcept;
@@ -3890,6 +4155,7 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
     void OnBoundsChanged() noexcept override;
     void OnFocusChanged(ControlHost& host, bool focused) override;
     void OnEnabledChanged(bool enabled) noexcept override;
@@ -3906,12 +4172,21 @@ protected:
     [[nodiscard]] std::optional<size_t> HitTestTextInputPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept override;
     bool ExportTextInputState(TextInputState& outState) const override;
     bool ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange) override;
+    // True when this class does not override ExportTextInputState or ImportTextInputState, so text input may share the
+    // document with it instead of copying it through those virtuals (Shared input text). The default is true only for the
+    // exact class; a derived class that keeps both virtuals may override it to return true and keep sharing.
+    [[nodiscard]] virtual bool KeepsDefaultTextInputState() const noexcept;
 
 private:
+    // One undo or redo step (src/Controls/DxUi.TextEditHistory.h). Open: `text` is the whole text the step restores, shared
+    // with the text it was captured from. Sealed: applying the step replaces `replacedLength` units at `position` with `text`.
     struct EditHistoryState
     {
-        std::wstring text;
-        size_t caretIndex = 0u;
+        std::shared_ptr<const std::wstring> text;
+        size_t position       = 0u;
+        size_t replacedLength = 0u;
+        bool sealed           = false;
+        size_t caretIndex     = 0u;
         std::optional<size_t> selectionAnchorIndex;
         size_t firstVisibleLine = 0u;
     };
@@ -3924,7 +4199,14 @@ private:
         DeleteRun,
     };
 
-    [[nodiscard]] std::wstring GetDisplayText() const;
+    // The field's own buffer unless masked; the caller's pointer keeps the text valid while it lays out or measures it.
+    [[nodiscard]] std::shared_ptr<const std::wstring> GetDisplayText() const;
+    [[nodiscard]] const std::wstring& Text() const noexcept;
+    // Writable text for one edit that leaves it at most requiredUnits long (see MutableSharedText); valid until the field's text is next
+    // replaced or shared.
+    [[nodiscard]] std::wstring& MutableText(size_t requiredUnits);
+    // Imports `state` with `text` as the document, adopting the buffer; state.text is not read.
+    [[nodiscard]] bool ImportTextInputText(ControlHost& host, std::shared_ptr<const std::wstring> text, const TextInputState& state, bool notifyChange);
     [[nodiscard]] bool UsesMaskedDisplayText() const noexcept;
     [[nodiscard]] const std::vector<size_t>& GetMaskedSourceTextElementBoundaries() const noexcept;
     [[nodiscard]] size_t ControlTextIndexToDisplayTextIndex(size_t controlTextIndex) const noexcept;
@@ -3936,12 +4218,17 @@ private:
     [[nodiscard]] D2D1_RECT_F GetClearButtonRect() const noexcept;
     [[nodiscard]] bool IsPasswordRevealButtonVisible() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetPasswordRevealButtonRect() const noexcept;
+    // The multiline layout of `displayText` (GetDisplayText) wrapped at the text rectangle's width, retained with its line
+    // metrics (_cachedMultilineLineMetrics) while the buffer, width, height, font role and format stay (W2.7). Null when no
+    // layout can be made; the metrics are then empty.
     [[nodiscard]] wil::com_ptr<IDWriteTextLayout> GetOrCreateMultilineLayout(const ControlHost* host,
-                                                                             std::wstring_view text,
-                                                                             float widthDip,
-                                                                             float heightDip) const noexcept;
+                                                                             const std::shared_ptr<const std::wstring>& displayText,
+                                                                             const D2D1_RECT_F& textRect) const noexcept;
+    // The height of "Ag" in the multiline format, for a field whose layout could not be made; kept per held format.
+    [[nodiscard]] float GetMultilineFallbackLineHeightDip(const ControlHost* host) const noexcept;
     [[nodiscard]] wil::com_ptr<IDWriteTextLayout> GetOrCreateSingleLineLayout(
         const ControlHost* host, std::wstring_view text, float minimumWidthDip, float heightDip, DWRITE_READING_DIRECTION readingDirection) const noexcept;
+    friend struct RetainedResourceAccess;
     void InvalidateSingleLineLayoutCache() const noexcept;
     void InvalidateMultilineLayoutCache() const noexcept;
     void EnsureCaretVisible(const ControlHost* host, float availableWidthDip) const noexcept;
@@ -3951,7 +4238,8 @@ private:
     [[nodiscard]] bool HasSelection() const noexcept;
     [[nodiscard]] bool DeleteSelection() noexcept;
     [[nodiscard]] EditHistoryState CaptureEditHistoryState() const;
-    void RestoreEditHistoryState(const EditHistoryState& state) noexcept;
+    // Restores the caret, selection and scroll state of `state`; the history has already put its text in place.
+    void RestoreEditHistoryState(const EditHistoryState& state, bool textChanged) noexcept;
     void SecureClearStorage() noexcept;
     void RefreshAccessibilitySnapshot() const noexcept;
     void BeginEditTransactionMetric(const wchar_t* detail) noexcept;
@@ -3967,8 +4255,12 @@ private:
     void SelectWordAt(size_t hitIndex) noexcept;
     [[nodiscard]] bool NotifyChanged();
 
+    friend struct SharedTextInputAccess;
+
     wchar_t _pendingLeadSurrogate = 0;
-    std::wstring _text;
+    // Never null. Shared with the host's text-input cache, the TSF store and undo history; replaced, never written, while
+    // shared.
+    std::shared_ptr<const std::wstring> _text;
     std::wstring _placeholder;
     FontRole _fontRole = FontRole::Body;
     std::shared_ptr<const std::function<void(std::wstring_view)>> _onTextChanged;
@@ -3978,21 +4270,32 @@ private:
     size_t _caretIndex = 0;
     std::optional<size_t> _selectionAnchorIndex;
     std::optional<float> _preferredMultilineXOffsetDip;
-    std::optional<uint64_t> _caretBlinkAnchorTickMs;
-    bool _caretVisible                 = true;
     mutable float _horizontalScrollDip = 0.0f;
+    friend struct RetainedCacheAccess;
     mutable SingleLineTextLayoutCache _singleLineLayoutCache;
+    // True once the single-line cache took text while the field was masked: its next drop wipes it even if unmasked since.
+    mutable bool _singleLineLayoutCacheSecret = false;
+    // A masked field's display text (its dots), kept per dot count so a paint reads it without building it again.
+    mutable std::shared_ptr<const std::wstring> _maskedDisplayText;
     mutable std::vector<size_t> _maskedSourceTextElementBoundaries;
     mutable wil::com_ptr<IDWriteTextLayout> _cachedMultilineLayout;
-    mutable std::wstring _cachedLayoutText;
-    mutable D2D1_SIZE_F _cachedLayoutSize           = D2D1::SizeF(0.0f, 0.0f);
-    mutable FontRole _cachedLayoutRole              = FontRole::Body;
-    mutable bool _multilineLayoutDirty              = true;
+    // The display buffer the layout was made from, observed without owning it: holding it would make an edit copy the text.
+    mutable std::weak_ptr<const std::wstring> _cachedLayoutText;
+    mutable size_t _cachedLayoutTextLength = 0u;
+    // Held, not borrowed (as SingleLineTextLayoutCache::textFormat): a new typography revision is a new format.
+    mutable wil::com_ptr<IDWriteTextFormat> _cachedLayoutFormat;
+    mutable std::vector<DWRITE_LINE_METRICS> _cachedMultilineLineMetrics;
+    mutable D2D1_SIZE_F _cachedLayoutSize = D2D1::SizeF(0.0f, 0.0f);
+    mutable FontRole _cachedLayoutRole    = FontRole::Body;
+    mutable bool _multilineLayoutDirty    = true;
+    mutable wil::com_ptr<IDWriteTextFormat> _cachedFallbackLineHeightFormat;
+    mutable float _cachedFallbackLineHeightDip      = 20.0f;
     size_t _multilineFirstVisibleLine               = 0u;
     float _multilineWheelDeltaRemainder             = 0.0f;
     bool _multiline                                 = false;
     bool _readOnly                                  = false;
     bool _masked                                    = false;
+    TextInputScope _inputScope                      = TextInputScope::Default;
     PasswordRevealMode _passwordRevealMode          = PasswordRevealMode::Peek;
     PasswordRevealState _passwordRevealState        = PasswordRevealState::Hidden;
     PasswordMaskLengthPolicy _maskLengthPolicy      = PasswordMaskLengthPolicy::Exact;
@@ -4106,7 +4409,9 @@ public:
 
 protected:
     [[nodiscard]] HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const override;
+    [[nodiscard]] bool MeasureDependsOnMaximum() const noexcept override;
     void OnFocusChanged(ControlHost& host, bool focused) override;
+    void OnEnabledChanged(bool enabled) noexcept override;
     void OnBoundsChanged() noexcept override;
     [[nodiscard]] Control* HitTestOverlay(D2D1_POINT_2F point) override;
     [[nodiscard]] const Control* HitTestOverlay(D2D1_POINT_2F point) const override;
@@ -4120,20 +4425,39 @@ protected:
     [[nodiscard]] std::optional<size_t> HitTestTextInputPoint(const ControlHost& host, D2D1_POINT_2F point) const noexcept override;
     bool ExportTextInputState(TextInputState& outState) const override;
     bool ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange) override;
+    // True when this class does not override ExportTextInputState or ImportTextInputState, so text input may share the
+    // document with it instead of copying it through those virtuals (Shared input text). The default is true only for the
+    // exact class; a derived class that keeps both virtuals may override it to return true and keep sharing.
+    [[nodiscard]] virtual bool KeepsDefaultTextInputState() const noexcept;
 
 private:
+    // One undo or redo step, as TextField's (src/Controls/DxUi.TextEditHistory.h).
     struct EditHistoryState
     {
-        std::wstring text;
-        size_t caretIndex = 0u;
+        std::shared_ptr<const std::wstring> text;
+        size_t position       = 0u;
+        size_t replacedLength = 0u;
+        bool sealed           = false;
+        size_t caretIndex     = 0u;
         std::optional<size_t> selectionAnchorIndex;
         float horizontalScrollDip = 0.0f;
     };
 
+    [[nodiscard]] const std::wstring& Text() const noexcept;
+    // Writable text for one edit that leaves it at most requiredUnits long (see MutableSharedText); valid until the text is next
+    // replaced or shared.
+    [[nodiscard]] std::wstring& MutableText(size_t requiredUnits);
+    // Imports `state` with `text` as the document, adopting the buffer; state.text is not read.
+    [[nodiscard]] bool ImportTextInputText(ControlHost& host, std::shared_ptr<const std::wstring> text, const TextInputState& state, bool notifyChange);
+    // The text the popup filters by and the selection matches: the committed text while a composition preview shows.
+    [[nodiscard]] const std::wstring& FilterText() const noexcept;
+    // Takes the shown text as committed when a composition ended without restoring its preview.
+    void SettlePreview(const ControlHost* host) noexcept;
     [[nodiscard]] std::optional<size_t> GetHighlightedPopupIndex() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetEditableTextRect() const noexcept;
     [[nodiscard]] wil::com_ptr<IDWriteTextLayout> GetOrCreateSingleLineLayout(
         const ControlHost* host, std::wstring_view text, float minimumWidthDip, float heightDip, DWRITE_READING_DIRECTION readingDirection) const noexcept;
+    friend struct RetainedResourceAccess;
     void InvalidateSingleLineLayoutCache() const noexcept;
     float EnsureEditableCaretVisible(const ControlHost* host, float availableWidthDip) const noexcept;
     void ResetEditableCaretBlink(ControlHost& host) noexcept;
@@ -4161,8 +4485,14 @@ private:
     void EnsurePopupSelectionVisible(const ControlHost* host = nullptr) noexcept;
     void ScrollPopupBy(int deltaItems, const ControlHost* host = nullptr) noexcept;
     void ResetPopupLayout() noexcept;
+    // Places the popup (_popupBounds, _popupVisibleItemCount) from its inputs; an unchanged set of inputs keeps the last
+    // placement. Paint, hit testing and input handlers call it once; the row getters below only read its result.
     void UpdatePopupLayout(const ControlHost* host = nullptr) const noexcept;
-    [[nodiscard]] float ComputePopupWidthDip(const ControlHost* host = nullptr) const noexcept;
+    // The popup width before a scrollbar is added: the field width, each filtered item's measured width with its padding
+    // and insets, or the no-matches text. Reads the retained widths; measures only when they are stale.
+    [[nodiscard]] float ComputePopupContentWidthDip(const ControlHost* host) const noexcept;
+    // Drops the retained item widths and the popup placement (the retained-cache registry's ComboBox rows).
+    void InvalidatePopupLayoutCaches() const noexcept;
     [[nodiscard]] bool HasPopupScrollbar() const noexcept;
     [[nodiscard]] size_t GetPopupItemCount() const noexcept;
     [[nodiscard]] size_t GetPopupVisibleItemCount() const noexcept;
@@ -4181,8 +4511,14 @@ private:
     void DragPopupScrollbarThumb(D2D1_POINT_2F point) noexcept;
 
     std::vector<Item> _items;
+    friend struct SharedTextInputAccess;
+
     std::vector<size_t> _popupItemIndices;
-    std::wstring _text;
+    // Never null. Shared with the host's text-input cache, the TSF store and undo history; replaced, never written, while
+    // shared.
+    std::shared_ptr<const std::wstring> _text;
+    // The committed text while a non-notifying (composition preview) import shows other text; null otherwise.
+    std::shared_ptr<const std::wstring> _committedText;
     std::wstring _placeholder;
     std::wstring _noMatchesText;
     std::shared_ptr<const std::function<void(std::wstring_view)>> _onTextChanged;
@@ -4198,14 +4534,41 @@ private:
     std::optional<size_t> _hoveredPopupIndex;
     size_t _caretIndex = 0u;
     std::optional<size_t> _selectionAnchorIndex;
-    size_t _popupScrollIndex = 0u;
-    std::optional<uint64_t> _caretBlinkAnchorTickMs;
+    size_t _popupScrollIndex                   = 0u;
     uint64_t _lastTypeaheadTickMs              = 0u;
-    bool _caretVisible                         = true;
     mutable float _editableHorizontalScrollDip = 0.0f;
+    friend struct RetainedCacheAccess;
     mutable SingleLineTextLayoutCache _singleLineLayoutCache;
     mutable D2D1_RECT_F _popupBounds      = D2D1::RectF();
     mutable size_t _popupVisibleItemCount = 0u;
+    // The width of every item's display text (Body role, the single-line measure), measured once per items change and
+    // per host typography revision; the maximum over the filtered items once per filter; the no-matches text once.
+    struct PopupItemWidthCache
+    {
+        bool valid                  = false;
+        const ControlHost* host     = nullptr;
+        uint64_t typographyRevision = 0u;
+        std::vector<float> itemWidthsDip;
+        bool filteredValid = false;
+        std::optional<float> filteredMaximum; // empty when no item passes the filter
+        bool noMatchesValid     = false;
+        float noMatchesWidthDip = 0.0f;
+    };
+    mutable PopupItemWidthCache _popupItemWidthCache;
+    // Every input of the last placement UpdatePopupLayout computed; an equal set leaves the placement as it is.
+    struct PopupLayoutCache
+    {
+        bool valid              = false;
+        const ControlHost* host = nullptr;
+        bool open               = false;
+        size_t renderRowCount   = 0u;
+        size_t popupItemCount   = 0u;
+        size_t maximumRows      = 0u;
+        // Field bounds, client bounds (scroll-adjusted), gap, row height and content width.
+        std::array<float, 11u> geometry{};
+        [[nodiscard]] bool operator==(const PopupLayoutCache&) const noexcept = default;
+    };
+    mutable PopupLayoutCache _popupLayoutCache;
     mutable WindowHostBitmapCapture _popupBackdropCapture{};
     mutable wil::com_ptr<ID2D1Bitmap1> _popupBackdropBitmap;
     mutable wil::com_ptr<ID2D1Device> _popupBackdropDevice;
@@ -4512,16 +4875,6 @@ private:
     [[nodiscard]] Label* LabelPart() const noexcept;
     [[nodiscard]] Label* DescriptionPart() const noexcept;
     [[nodiscard]] Label* ValidationPart() const noexcept;
-    struct PartMeasure
-    {
-        const Control* control = nullptr;
-        std::weak_ptr<int> lifetime;
-        uint64_t revision       = 0;
-        uint64_t typography     = 0;
-        const ControlHost* host = nullptr;
-        float width             = -1.0f;
-        DesiredSize desired;
-    };
     struct PartColumns
     {
         float labelLeft   = 0.0f;
@@ -4531,7 +4884,7 @@ private:
     };
     static HRESULT ResolvePartColumns(
         const D2D1_RECT_F& bounds, LabelPlacement placement, float labelWidthDip, bool rtl, float minimumEditorWidthDip, PartColumns& columns) noexcept;
-    HRESULT MeasurePart(const Control* control, const MeasureContext& context, float widthDip, PartMeasure& cache, DesiredSize& desired) const noexcept;
+    HRESULT MeasurePart(const Control* control, const MeasureContext& context, float widthDip, DesiredSize& desired) const noexcept;
     HRESULT MeasureSharedLabel(const MeasureContext& context, float widthDip, DesiredSize& desired) const noexcept;
     HRESULT MeasureParts(const MeasureContext& context,
                          const D2D1_RECT_F& bounds,
@@ -4557,11 +4910,11 @@ private:
                         std::array<PartLayout, 4>& staged) const noexcept;
     bool ArePartsCurrent(const std::array<PartLayout, 4>& parts, size_t completed) const noexcept;
     HRESULT ApplyLayoutFor(const ControlHost& host, LabelPlacement placement, float labelWidthDip, const std::array<PartLayout, 4>* staged = nullptr) noexcept;
-    mutable std::array<PartMeasure, 4> _measureCache;
-    mutable PartMeasure _sharedLabelCache;
-    mutable uint64_t _measureCount = 0;
-    mutable bool _measuring        = false;
-    uint64_t _layoutRevision       = 0;
+    // The editor's last measured width (before the preferred size applies), which FormPanel reads to bound a shared label.
+    mutable float _editorMeasuredWidthDip = 0.0f;
+    mutable uint64_t _measureCount        = 0;
+    mutable bool _measuring               = false;
+    uint64_t _layoutRevision              = 0;
     std::wstring _fieldId;
     Label* _label       = nullptr;
     Label* _description = nullptr;
@@ -4698,16 +5051,9 @@ private:
         const Control* child = nullptr;
         std::weak_ptr<int> lifetime;
         FlexChildOptions options;
-        LayoutConstraints measuredConstraints;
+        // The child's desired size in the current pass; the child's own measure cache keeps it between passes.
         DesiredSize measured;
-        const ControlHost* measuredHost = nullptr;
-        uint64_t measuredRevision       = 0u;
-        uint64_t typographyRevision     = 0u;
-        float dpi                       = 0.0f;
-        FlowDirection flow              = FlowDirection::LeftToRight;
-        Density density                 = Density::Standard;
-        bool measuredValid              = false;
-        bool visible                    = false;
+        bool visible = false;
         D2D1_RECT_F bounds{};
         D2D1_RECT_F entryBounds{};
         size_t line        = 0u;
@@ -4813,6 +5159,7 @@ public:
     bool OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override;
+    bool OnMouseMiddleUp(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override;
     bool OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) override;
     bool OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers) override;
     bool OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT modifiers) override;
@@ -4820,6 +5167,8 @@ public:
     void OnCaptureLost(ControlHost& host) override;
 
 protected:
+    // A viewport resize re-clamps the scroll offset (and reports a moved offset) whoever sets the content height afterwards.
+    void OnBoundsChanged() noexcept override;
     // End the forwarded gesture before refusal checks and hover after committed removal.
     void OnDescendantDetaching(Control& subtree) noexcept override;
     void OnDescendantDetached(Control& subtree) noexcept override;
@@ -4919,6 +5268,17 @@ private:
         bool valid                  = false;
     };
 
+    friend struct RetainedResourceAccess;
+    // Deadlines (W3.3; Specs/Rendering/Rendering_Win32Host.md, "Tooltip deadlines"). The layer waits for at most one
+    // deadline at a time: the show of a pending tooltip or the hide of a shown one. The host that owns the layer reads it
+    // from here; it is never stored anywhere else, so a deadline whose waiting mode has ended no longer exists.
+    friend class ControlHost;
+    struct PendingDeadline final
+    {
+        bool show          = false; // the show of a pending tooltip; false: the hide of a shown one
+        uint64_t dueTickMs = 0u;
+    };
+    [[nodiscard]] std::optional<PendingDeadline> GetPendingDeadline() const noexcept;
     void InvalidateLayoutCache() noexcept;
     [[nodiscard]] bool EnsureLayoutCache(const ControlHost& host) const noexcept;
     [[nodiscard]] D2D1_RECT_F ComputeBoundsDip(const ControlHost& host) const noexcept;
@@ -4927,6 +5287,7 @@ private:
     std::wstring _pendingText       = std::wstring(0u, L' ');
     D2D1_POINT_2F _originDip        = D2D1::Point2F();
     D2D1_POINT_2F _pendingOriginDip = D2D1::Point2F();
+    friend struct RetainedCacheAccess;
     mutable LayoutCache _layoutCache{};
     mutable float _scrollOffsetDip = 0.0f;
     bool _inspecting               = false;
@@ -4940,6 +5301,26 @@ private:
     uint64_t _hideTickMs           = 0u;
 };
 #pragma warning(pop)
+
+#if DXUI_ENABLE_DIAGNOSTICS
+// Replaces the user's lines-per-notch setting (SPI_GETWHEELSCROLLLINES) that Grid, Tree and TextField read, so a test
+// never changes the real setting. It takes effect when a window host next receives WM_SETTINGCHANGE or an embedded host
+// next dispatches a wheel event, as a real change does; nullopt reads the system setting again.
+void DebugSetWheelScrollLinesForTest(std::optional<UINT> lines) noexcept;
+
+// The user's font-smoothing setting as a test replaces it (SPI_GETFONTSMOOTHING off, or on with SPI_GETFONTSMOOTHINGTYPE
+// Standard or ClearType), so a test never changes the real setting.
+enum class FontSmoothingForTest : uint8_t
+{
+    Off,
+    Standard,
+    ClearType,
+};
+// Replaces the font-smoothing setting the hosts read; nullopt reads the system setting again. The process value changes at
+// once and each host applies it to its next frame; a window host repaints when it next receives WM_SETTINGCHANGE, as on
+// a real change.
+void DebugSetFontSmoothingForTest(std::optional<FontSmoothingForTest> smoothing) noexcept;
+#endif
 
 struct TreeAppearance final
 {
@@ -5065,6 +5446,26 @@ public:
     // chevron its item's state.
     [[nodiscard]] float DebugGetExpansionProgress(uint64_t nowTickMs) const noexcept;
     [[nodiscard]] float DebugGetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept;
+    // The whole row records the running expansion or collapse keeps (a collapse's removed rows); empty at rest.
+    [[nodiscard]] std::span<const TreeItemData> DebugGetExpansionRecords() const noexcept;
+    // How every tree on any thread resolves an item id for a model that keeps ITreeModel's default lookup
+    // (Specs/UI/UI_ControlsAndLayout.md, "Tree item lookup and model notifications"). Index (the default) answers from the
+    // tree's id index; Verified also asks the model, returns the model's answer and counts each difference; Model asks only
+    // the model, as before the index existed. A model that overrides FindVisibleItemById is always asked.
+    enum class DebugIdLookup : uint8_t
+    {
+        Index,
+        Verified,
+        Model,
+    };
+    static void DebugSetIdLookup(DebugIdLookup mode) noexcept;
+    [[nodiscard]] static DebugIdLookup DebugGetIdLookup() noexcept;
+    [[nodiscard]] static size_t DebugGetIdLookupMismatchCount() noexcept;
+    // Distinct ids the id index holds (0 when the model answers lookups itself or no index is built).
+    [[nodiscard]] size_t DebugGetIdIndexRowCount() const noexcept
+    {
+        return _visibleIdIndexCache.ids.size();
+    }
 #endif
 
     void Paint(ControlHost& host) const override;
@@ -5114,8 +5515,8 @@ private:
     struct TreeBadgeWidthCacheEntry
     {
         std::wstring text;
-        IDWriteTextFormat* textFormat = nullptr;
-        float widthDip                = 0.0f;
+        wil::com_ptr<IDWriteTextFormat> textFormat; // held: see SingleLineTextLayoutCache::textFormat
+        float widthDip = 0.0f;
     };
 
     struct TreeTooltipOverflowCache
@@ -5125,8 +5526,8 @@ private:
         uint64_t itemId     = 0u;
         std::wstring text;
         std::wstring tooltipText;
-        IDWriteTextFormat* textFormat = nullptr;
-        float availableWidthDip       = 0.0f;
+        wil::com_ptr<IDWriteTextFormat> textFormat; // held: see SingleLineTextLayoutCache::textFormat
+        float availableWidthDip = 0.0f;
         std::wstring resolvedTooltipText;
         const ControlHost* host = nullptr;
         uint64_t interactionRevision{}, typographyRevision{}, resourceGeneration{};
@@ -5157,6 +5558,16 @@ private:
     void ClampScrollOffset() noexcept;
     void UpdateScrollbarHotState(const HitInfo& hit) noexcept;
     void SyncScrollbarAnimation(ControlHost& host) noexcept;
+    // The visible row of an item id: the tree's id index for a model that keeps ITreeModel's default lookup, else the model's
+    // own FindVisibleItemById (Specs/UI/UI_ControlsAndLayout.md, "Tree item lookup and model notifications").
+    [[nodiscard]] std::optional<size_t> LookupVisibleIndex(uint64_t itemId) const noexcept;
+    // Makes the id index answer for the model's current rows, reading every row when it does not; false when it cannot.
+    [[nodiscard]] bool EnsureVisibleIdIndex() const;
+    // Replaces the id index with the ids of the visible rows in order (no model read).
+    void BuildVisibleIdIndex(std::span<const uint64_t> orderedIds) const;
+    // Drops the id index if it was built for `revision`: an application callback may have changed rows without publishing.
+    void ForgetVisibleIdIndexBuiltAt(uint64_t revision) const noexcept;
+    void ReleaseVisibleIdIndex() const noexcept;
     [[nodiscard]] std::optional<size_t> FindFocusedVisibleIndex() const noexcept;
     void EnsureVisibleIndex(size_t visibleIndex) noexcept;
     [[nodiscard]] bool SelectVisibleIndex(size_t visibleIndex, bool notifyDelegate);
@@ -5178,11 +5589,19 @@ private:
     void StartExpanderAnimation(uint64_t itemId, bool fromExpanded, bool toExpanded) noexcept;
     [[nodiscard]] std::optional<size_t> FindNextTypeaheadMatch(std::wstring_view prefix) const noexcept;
     [[nodiscard]] float GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept;
-    [[nodiscard]] bool CaptureVisibleItems(std::vector<TreeItemData>& items) const;
-    void BeginTreeExpansionAnimation(uint64_t itemId,
-                                     bool toExpanded,
-                                     std::vector<TreeItemData>&& beforeItems,
-                                     std::vector<TreeItemData>&& afterItems) noexcept;
+    // One side of an expansion or collapse: the ids of the visible rows in order, the first row of the toggled item and, for a
+    // collapse, the whole records of that item's descendants, each read from the model into its record.
+    struct ExpansionRows final
+    {
+        ExpansionRows() : ids(0u), descendants(0u)
+        {
+        }
+        std::vector<uint64_t> ids;
+        std::vector<TreeItemData> descendants;
+        std::optional<size_t> itemRow;
+    };
+    [[nodiscard]] bool CaptureExpansionRows(uint64_t itemId, bool keepDescendants, ExpansionRows& rows) const;
+    void BeginTreeExpansionAnimation(uint64_t itemId, bool toExpanded, ExpansionRows& before, const ExpansionRows& after) noexcept;
     void ClearTreeExpansionAnimation() noexcept;
     [[nodiscard]] bool HasActiveTreeExpansionAnimation() const noexcept;
     [[nodiscard]] float GetTreeExpansionProgress(uint64_t nowTickMs) const noexcept;
@@ -5212,6 +5631,7 @@ private:
     std::optional<uint64_t> _singleClickInvokeItemId;
     bool _singleClickCaptureArmed = false;
     std::optional<size_t> _hoveredVisibleIndex;
+    D2D1_POINT_2F _hoveredRowTooltipOriginDip{};
     float _rowHeightBaseDip    = 28.0f;
     float _rowHeightDip        = 28.0f;
     float _indentDip           = 16.0f;
@@ -5232,27 +5652,51 @@ private:
         uint64_t startTickMs = 0u;
         bool active          = false;
     };
+    // Built in place (emplace, then swap of its record vector) and never copied or moved.
     struct TreeExpansionAnimationState final
     {
-        TreeExpansionAnimationState() : beforeItems(0u), afterItems(0u), beforeIndex(0u), afterIndex(0u)
+        TreeExpansionAnimationState() : removedItems(0u), beforeIndex(0u), afterIndex(0u)
         {
         }
-        TreeExpansionAnimationState(const TreeExpansionAnimationState&)            = default;
-        TreeExpansionAnimationState& operator=(const TreeExpansionAnimationState&) = default;
+        TreeExpansionAnimationState(const TreeExpansionAnimationState&)            = delete;
+        TreeExpansionAnimationState& operator=(const TreeExpansionAnimationState&) = delete;
         uint64_t itemId                                                            = 0u;
         bool toExpanded                                                            = false;
         bool active                                                                = false;
         uint64_t startTickMs                                                       = 0u;
-        std::vector<TreeItemData> beforeItems;
-        std::vector<TreeItemData> afterItems;
+        // A collapse's removed rows: the toggled item's descendants before it, whole records. Every other row is an id.
+        std::vector<TreeItemData> removedItems;
+        size_t afterCount = 0u;
         std::vector<std::pair<uint64_t, size_t>> beforeIndex, afterIndex;
         std::optional<size_t> beforeParent, afterParent;
-        size_t beforeDescendants{};
     };
     std::vector<ExpanderAnimationState> _expanderAnimations{};
     std::optional<TreeExpansionAnimationState> _treeExpansionAnimation;
+    friend struct RetainedCacheAccess;
     mutable std::vector<TreeBadgeWidthCacheEntry> _badgeWidthCache;
     mutable TreeTooltipOverflowCache _tooltipOverflowCache;
+    // The id index for a model that keeps ITreeModel's default lookup: each distinct visible id, ascending, with the first
+    // row that carries it. Valid for one model revision and row count; 12 bytes per entry.
+    struct VisibleIdIndex final
+    {
+        VisibleIdIndex() : ids(0u), rows(0u)
+        {
+        }
+        std::vector<uint64_t> ids;
+        std::vector<uint32_t> rows;
+        uint64_t revision = 0u;
+        size_t rowCount   = 0u;
+        bool valid        = false;
+    };
+    mutable VisibleIdIndex _visibleIdIndexCache;
+    // Which lookup the model uses, learned on the first lookup after SetModel.
+    enum class ModelLookupKind : uint8_t
+    {
+        Unknown,
+        Default,
+        Own,
+    };
+    mutable ModelLookupKind _modelLookupKind = ModelLookupKind::Unknown;
 #if DXUI_ENABLE_DIAGNOSTICS
     size_t _debugTooltipGeometryCount{};
     mutable size_t _debugExpansionCaptureCount{};
@@ -5442,6 +5886,21 @@ public:
     // cells reach it; 0 restores the default. Tables already larger than the new ceiling keep their size until they halve.
     void DebugSetTextLayoutEntryLimit(size_t maxEntries) noexcept;
     [[nodiscard]] size_t DebugGetTextLayoutEntryLimit() const noexcept;
+    // Data-path verification for this thread's grids (plan W2.5; Specs/UI/UI_ControlsAndLayout.md, "Grid data caches"). Off by
+    // default. Otherwise every cached group layout and column description a grid reads, and every row position, keyboard target,
+    // Shift range, membership answer and selection change it derives from them, is computed again the uncached way and compared:
+    // a model that changed its groups or columns without NotifyDataChanged is caught here instead of painting stale rows. A
+    // mismatch is counted and logged; Fatal also ends the process through the failure policy. The Grid suite runs Fatal.
+    enum class DataPathVerification : uint8_t
+    {
+        Off,
+        Count,
+        Fatal,
+    };
+    static void DebugSetDataPathVerification(DataPathVerification mode) noexcept;
+    [[nodiscard]] static DataPathVerification DebugGetDataPathVerification() noexcept;
+    // Mismatches this thread's grids found since the thread started.
+    [[nodiscard]] static uint64_t DebugGetDataPathMismatches() noexcept;
 #endif
     bool RequestSelectRow(size_t rowIndex, UINT modifiers);
     bool RequestAddRowSelection(size_t rowIndex);
@@ -5529,12 +5988,22 @@ private:
     [[nodiscard]] bool SelectRow(size_t rowIndex, UINT modifiers);
     // The delegate's menu for the row at the anchor (control DIPs). False without a delegate.
     bool OpenRowContextMenu(ControlHost& host, size_t rowIndex, D2D1_POINT_2F anchorDip);
-    // Reports a committed change: the selection delegate when membership differs from `previousSelection`, then the focus
-    // delegate when the focused row differs from `previousFocus`. False when a callback threw, or retired this grid or
-    // replaced its model or delegate; the caller then stops. Otherwise its own guard resumes after the callbacks.
-    [[nodiscard]] bool NotifySelectionAndFocusChanges(std::span<const uint64_t> previousSelection, std::optional<uint64_t> previousFocus);
-    // The row the keys start from: the focused row while it is visible, else the last selected row while it is visible.
-    [[nodiscard]] std::optional<size_t> FindKeyboardStartRow(std::span<const size_t> visibleRows) const;
+    // The selection before a gesture: its epoch, and under data-path verification a copy of its ids to check the epoch against.
+    struct SelectionSnapshot
+    {
+        uint64_t epoch = 0u;
+        bool copied    = false;
+        std::vector<uint64_t> ids;
+    };
+    [[nodiscard]] SelectionSnapshot CaptureSelection() const;
+    // Reports a committed change: the selection delegate when the ordered selection differs from `previousSelection` (its
+    // epoch moved), then the focus delegate when the focused row differs from `previousFocus`. False when a callback threw, or
+    // retired this grid or replaced its model or delegate; the caller then stops. Otherwise its own guard resumes after the
+    // callbacks.
+    [[nodiscard]] bool NotifySelectionAndFocusChanges(const SelectionSnapshot& previousSelection, std::optional<uint64_t> previousFocus);
+    // The row the keys start from: the focused row while it is visible, else the last selected row while it is visible. `groups`
+    // is the group layout ResolveOrderedGroups returned.
+    [[nodiscard]] std::optional<size_t> FindKeyboardStartRow(std::span<const GridGroupDesc> groups) const;
     // The focused cell (row, column) while its row is visible; the column is the current one or the first displayed.
     [[nodiscard]] std::optional<std::pair<size_t, size_t>> FindFocusedCell() const;
     // Scrolls the column horizontally into view; false when a callback retired the grid or its model.
@@ -5626,6 +6095,8 @@ private:
     // Returns every retained layout, its string storage and the tables themselves, for a grid that stops painting (hidden,
     // detached from its host or given another model): the next paint, if any, rebuilds what it shows.
     void ReleaseCellTextResources() noexcept;
+    friend struct RetainedResourceAccess;
+    friend struct RetainedCacheAccess;
     mutable std::vector<CellTextLayoutCache> _cellTextLayouts;
     mutable std::vector<CellDisplayLayoutCache> _cellDisplayLayouts;
     mutable std::wstring _cellVisibleText; // Scratch for an omitted tail's visible text.
@@ -5656,7 +6127,43 @@ private:
     mutable std::vector<float> _columnWidths;
     mutable std::vector<size_t> _columnDisplayOrder;
     mutable std::vector<size_t> _columnDisplayIndexByModel;
-    mutable std::vector<GridGroupDesc> _cachedGroups;
+    // The model's data as the grid reads it (plan W2.5; Specs/UI/UI_ControlsAndLayout.md, "Grid data caches"). The groups,
+    // sorted and sanitized, with the rows of collapsed groups before each (rows have one height, so a row's top is a binary
+    // search), and the column descriptions by model index. Each is filled once per data revision: SetModel, SetDelegate and
+    // NotifyDataChanged move it, a group toggle refills the groups (a delegate need not publish it), ApplyColumnLayout refills the
+    // columns, and a changed row, group or column count refills them too. O(groups) and O(columns), never O(rows).
+    struct GroupLayoutCache
+    {
+        std::vector<GridGroupDesc> groups;
+        std::vector<size_t> collapsedRowsBefore; // [g]: rows of the collapsed groups before group g; [groups.size()]: all of them.
+        size_t rowCount        = 0u;
+        size_t modelGroupCount = 0u;
+        uint64_t revision      = 0u;
+        bool valid             = false;
+    };
+    struct ColumnDescCache
+    {
+        std::vector<GridColumnDesc> columns;
+        uint64_t revision = 0u;
+        bool valid        = false;
+    };
+    // The model's groups from the cache, refilled first when stale; empty without a model or when a model getter retired the
+    // query (the caller's guard then reads stale). The span stays valid until the data revision moves or a toggle refills it.
+    [[nodiscard]] std::span<const GridGroupDesc> ResolveOrderedGroups() const;
+    // The model's description of a column from the cache, refilled first when stale; nullptr for a column the model does not
+    // have or when a model getter retired the query.
+    [[nodiscard]] const GridColumnDesc* ResolveColumnDesc(size_t columnIndex) const;
+    // Whether `groups` is the cached group layout (so its collapsed-row prefix applies).
+    [[nodiscard]] bool IsCachedGroupLayout(std::span<const GridGroupDesc> groups) const noexcept;
+    void InvalidateGroupLayout() noexcept;
+    // Returns both caches' storage, for a new model and the retained-cache drop.
+    void ReleaseDataCaches() noexcept;
+    // Calls visit(const VisibleBodyItem&) for the group headers and rows the body rectangle shows, in order, until it returns
+    // false; BuildVisibleBodyItems collects them, hit testing stops at the first under the point and allocates nothing.
+    template <typename Visit>
+    void VisitVisibleBodyItems(std::span<const GridGroupDesc> groups, const D2D1_RECT_F& bodyRect, size_t rowCount, Visit&& visit) const;
+    mutable GroupLayoutCache _groupLayoutCache;
+    mutable ColumnDescCache _columnDescCache;
     GridSelectionModel _selectionModel;
     // The last selected row in visible/model order is not necessarily the row a Shift range reached.
     std::optional<uint64_t> _currentRowId;
@@ -5673,6 +6180,10 @@ private:
     float _headerHeightDip          = 32.0f;
     float _verticalScrollDip        = 0.0f;
     float _horizontalScrollDip      = 0.0f;
+    // Where the wheel's deltas lead, unrounded; the grid draws the row boundary nearest to it. It holds while the offset is
+    // the one the wheel last drew (_wheelDrawnScrollDip): any other scroll restarts the wheel from the offset.
+    std::optional<float> _wheelTargetScrollDip;
+    float _wheelDrawnScrollDip = 0.0f;
     std::optional<float> _effectiveRowHeightDip;
     FontRole _cellTextFontRole = FontRole::Body;
     float _iconSizeDip         = 18.0f;
@@ -6188,6 +6699,7 @@ private:
     // recreates them. The retained device reference keeps a recreated device from aliasing the cached one. They
     // belong to the host being painted for, so a host change releases them (PropagateHost). The arrangement follows
     // the flow direction through OnFlowDirectionChanged, which a move announces (Control::Reparent).
+    friend struct RetainedCacheAccess;
     mutable wil::com_ptr<ID2D1Device> _brushDevice;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _saturationBrush;
     mutable wil::com_ptr<ID2D1LinearGradientBrush> _valueBrush;
@@ -6249,6 +6761,13 @@ public:
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] std::wstring_view DebugGetPendingTooltipText() const noexcept;
     [[nodiscard]] bool DebugAdvanceTooltipDelayForTest() noexcept;
+    // Tests only. Replaces the mouse hover time this host reads, as SPI_GETMOUSEHOVERTIME reports it (the host still clamps
+    // it), so a test never changes the user's setting; nullopt reads the system setting again. It takes effect as a real
+    // change does: at the host's next RefreshUserSettings (a window host's WM_SETTINGCHANGE), or when the host first
+    // schedules a tooltip.
+    void DebugSetTooltipHoverTimeForTest(std::optional<UINT> hoverTimeMs) noexcept;
+    // Tests only. The show delay the host's next scheduled tooltip waits for.
+    [[nodiscard]] uint64_t DebugGetTooltipShowDelayMsForTest() noexcept;
 #endif
 
     void SetSmokeOverlayVisible(bool visible) noexcept;
@@ -6274,6 +6793,32 @@ public:
     [[nodiscard]] bool IsNativePresentationVisible() const noexcept;
     [[nodiscard]] bool PrimeForShow() noexcept;
     [[nodiscard]] bool RenderInitialFrameForShow() noexcept;
+    // Frame schedule. A control asks for its own ticks: the host ticks only the controls holding a due request, never
+    // the tree. RequestAnimation(control) ticks it on the next frame and on every frame while its Tick returns true;
+    // RequestAnimationAt(control, dueTickMs) ticks it once when the animation clock reaches dueTickMs (a caret blink, a
+    // delay), and nothing wakes before; CancelAnimation(control) withdraws its request. One request per control: every
+    // frame wins over a deadline, and a new deadline replaces the previous one. Whatever a scheduled Tick returns, true asks for the next frame. Requests of a
+    // control that leaves the host, is destroyed or is hidden are dropped; requests of a hidden or minimized host wait for its show.
+    void RequestAnimation(const Control& control) noexcept;
+    void RequestAnimationAt(const Control& control, uint64_t dueTickMs) noexcept;
+    void CancelAnimation(const Control& control) noexcept;
+    // Re-reads every user setting the host keeps (Specs/Rendering/Rendering_Win32Host.md, "User settings"), never changing
+    // them: the caret blink time and caret timeout (GetCaretBlinkTime, SPI_GETCARETTIMEOUT; a focused caret restarts its
+    // blink when either changed) and the mouse hover time that delays tooltips (SPI_GETMOUSEHOVERTIME; the next tooltip
+    // waits for it). A window host calls it itself on WM_SETTINGCHANGE. An embedded host has no window: its application
+    // calls it when its own window receives WM_SETTINGCHANGE. Reduced motion comes from the theme (SetTheme), embedded text
+    // rendering parameters from EmbeddedHost::SetTextRenderingMonitor. UI thread only.
+    void RefreshUserSettings() noexcept;
+    // Tests only (DebugSetCaretBlinkSettingsForTest): the two settings as GetCaretBlinkTime and SPI_GETCARETTIMEOUT report
+    // them. blinkTimeMs is one phase, INFINITE a steady caret; timeoutMs 0 or INFINITE never stops blinking.
+    struct CaretBlinkSettingsForTest final
+    {
+        UINT blinkTimeMs = 530u;
+        UINT timeoutMs   = 5000u;
+    };
+    // Compatibility: a request that names no control ticks the whole visible tree once on the next frame, and every
+    // control whose Tick returns true then keeps a request of its own. A derived control should call
+    // RequestAnimation(*this) instead; the library's own controls never use this form.
     void RequestAnimation() noexcept;
     // The animation clock, in milliseconds: a transition stamps its start with it and Tick receives it. Natively it is
     // the UI thread's dispatcher timeline. Embedded, it is a timeline that the application's AdvanceAnimation ticks
@@ -6359,10 +6904,11 @@ public:
                                                    DWRITE_READING_DIRECTION readingDirection = DWRITE_READING_DIRECTION_LEFT_TO_RIGHT) const noexcept;
     [[nodiscard]] bool HasFluentIconFont() const noexcept;
     [[nodiscard]] ID2D1SolidColorBrush* GetSolidBrush(const D2D1_COLOR_F& color) const;
-    // Bounds of the per-host solid-brush and configured-text-format caches. A cache beyond its bound is
-    // cleared at the start of the next paint/preparation, never while a borrowed pointer is in use.
+    // Bounds of the per-host solid-brush and configured-text-format caches. At the start of a paint or preparation a cache
+    // beyond its bound releases the entries neither of the last two frames used; entries in use stay (the bound is soft for
+    // them). Nothing is released while a borrowed pointer is in use.
     static constexpr size_t kSolidBrushCacheLimit           = 256;
-    static constexpr size_t kConfiguredTextFormatCacheLimit = 96;
+    static constexpr size_t kConfiguredTextFormatCacheLimit = 256;
 
     [[nodiscard]] bool CopyTextToClipboard(std::wstring_view text) const noexcept;
     [[nodiscard]] std::optional<std::wstring> ReadTextFromClipboard() const noexcept;
@@ -6421,15 +6967,57 @@ public:
     }
     // Directly drives the native renderer with a partial invalidation for lifecycle regression tests.
     void DebugRenderDirtyRectForTest(const RECT& dirtyRectPx) noexcept;
+    // The same partial render, also reading the back buffer after drawing and before Present. Outside the dirty rectangle
+    // that buffer holds an older frame: only the presented image (Present1 with the rectangle) is current there.
+    [[nodiscard]] bool DebugRenderDirtyRectForTest(const RECT& dirtyRectPx, WindowHostBitmapCapture& prePresentBackBuffer) noexcept;
+    // Tests only. Drops every registered retained cache of this host and its controls (DxUi.RetainedCaches.h) and asks for a
+    // full preparation, so the next frame is drawn as a freshly built host would draw it (incremental-versus-fresh oracle).
+    void DebugDropRetainedStateForTest() noexcept;
+    // Tests only (W2.1). Off: host-drawn plain text is drawn through DrawText as before the host's layout table, the
+    // equivalence oracle's reference. The ceiling of the table (0 restores 2,048), its live layouts and its entries.
+    void DebugSetTextLayoutCacheEnabledForTest(bool enabled) noexcept;
+    void DebugSetTextLayoutCacheLimitForTest(size_t maxEntries) noexcept;
+    [[nodiscard]] size_t DebugGetTextLayoutCacheEntries() const noexcept;
+    [[nodiscard]] size_t DebugGetTextLayoutCacheCapacity() const noexcept;
+    // Of the live layouts, those a captured glyph run could replace (plan item W6.5): one line, no trimming, and only
+    // basic-plane text (no colour glyph from a supplementary-plane emoji).
+    [[nodiscard]] size_t DebugCountGlyphRunEligibleTextLayouts() const noexcept;
     [[nodiscard]] bool DebugHasActiveAnimationSubscription() const noexcept;
+    // Tests only. Runs one frame-schedule wake at nowTickMs as the dispatcher would; true while the schedule still waits
+    // for something (and the host is not hidden).
     [[nodiscard]] bool DebugAnimationTickForTest(uint64_t nowTickMs) noexcept;
+    // Tests only. The host's next wake as its schedule computes it (kind 0 none, 1 every frame, 2 deadline), the number
+    // of requests it holds, and whether any request or wake snapshot still names an address.
+    struct DebugFrameScheduleWake final
+    {
+        uint8_t kind       = 0u;
+        uint64_t dueTickMs = 0u;
+    };
+    [[nodiscard]] DebugFrameScheduleWake DebugGetFrameScheduleWakeForTest() const noexcept;
+    // Tests only. Replaces the caret blink time and caret timeout this host reads, so a test never changes the user's
+    // settings (CaretBlinkSettingsForTest; nullopt reads the system settings again). It takes effect as a real change does:
+    // at the host's next RefreshUserSettings (a window host's WM_SETTINGCHANGE), or when a caret next starts.
+    void DebugSetCaretBlinkSettingsForTest(std::optional<CaretBlinkSettingsForTest> settings) noexcept;
+    // Tests only. Whether the host's caret clock shows the caret now (true when no caret blinks).
+    [[nodiscard]] bool DebugIsCaretClockVisibleForTest() const noexcept;
+    [[nodiscard]] size_t DebugGetTickRequestCountForTest() const noexcept;
+    [[nodiscard]] bool DebugScheduleHoldsControlForTest(const void* controlAddress) const noexcept;
     // Tests only. A native host's animation clock reads nowTickMs until reset with nullopt, while ticks still carry the time a
     // test passes; an embedded host's clock jumps to nowTickMs and its next ticks continue from there.
     void DebugSetAnimationClockForTest(std::optional<uint64_t> nowTickMs) noexcept;
     [[nodiscard]] IRawElementProviderFragmentRoot* DebugCreateAccessibilityProvider() const noexcept;
     void DebugSimulateDeviceLoss() noexcept;
-    // Stage 1 = swap-chain creation, 2 = back buffer, 3 = target bitmap, 4 = ResizeBuffers.
+    // Stage 1 = swap-chain creation, 2 = back buffer, 3 = target bitmap, 4 = ResizeBuffers. An embedded host applies stage 3
+    // to the target bitmap of its surface.
     void DebugSetNextSizeResourceFailureForTest(unsigned stage, HRESULT failure) noexcept;
+    // Tests only. While set, a native host's recovery retry is armed against this clock instead of a timer on its window;
+    // DebugAdvanceRecoveryRetryClockForTest moves the clock and fires a retry that has come due. Reset with nullopt.
+    void DebugSetRecoveryRetryClockForTest(std::optional<uint64_t> nowTickMs) noexcept;
+    void DebugAdvanceRecoveryRetryClockForTest(uint64_t elapsedMs) noexcept;
+    // The delay of the armed recovery retry in milliseconds, 0 when none is armed.
+    [[nodiscard]] uint32_t DebugGetArmedRecoveryRetryDelayMs() const noexcept;
+    // Solid-color brushes this host has created, its fallback brush included.
+    [[nodiscard]] uint64_t DebugGetSolidBrushCreateCount() const noexcept;
     [[nodiscard]] size_t DebugGetBrushCacheSize() const noexcept;
     [[nodiscard]] bool DebugHasFallbackBrush() const noexcept;
     [[nodiscard]] bool DebugHasD2DContext() const noexcept;
@@ -6443,8 +7031,19 @@ public:
     void DebugSetNativeTextInputImePayloadForTest(NativeTextInputImePayload payload);
     void DebugDetachForProcessExit() noexcept;
     void DebugSetForceNullSolidBrushes(bool force) noexcept;
+    // The uncached hit test: a tree walk that neither reads nor fills the pointer event's hit result.
     [[nodiscard]] const Control* DebugHitTestControl(D2D1_POINT_2F pointDip) noexcept;
+    // What WM_SETCURSOR runs: opens a pointer event and answers the cursor query; the next mouse message reuses its hit result.
     [[nodiscard]] WindowHostCursorKind DebugResolveCursorKindForPoint(D2D1_POINT_2F pointDip) noexcept;
+    // Off: every hit test walks the tree (the W2.9 differential's uncached baseline).
+    void DebugSetPointerHitResultEnabled(bool enabled) noexcept;
+    [[nodiscard]] bool DebugHasPointerHitResult() const noexcept;
+    [[nodiscard]] Control* DebugGetHoveredControl() const noexcept;
+    [[nodiscard]] uint64_t DebugGetHitRevision() const noexcept;
+    // Why a host reuses no hit result: how many attached controls it cannot see hit testing of, and the type name of the
+    // first one in tree order (nullptr when none).
+    [[nodiscard]] uint32_t DebugGetUnreportedHitControlCount() const noexcept;
+    [[nodiscard]] const char* DebugGetFirstUnreportedHitControlType() const noexcept;
     [[nodiscard]] UINT DebugGetWidthPx() const noexcept
     {
         return _widthPx;
@@ -6486,6 +7085,8 @@ private:
     friend class FormPanel;
     friend class NativeTextStoreTarget;
     friend struct EmbeddedAccessibilityAccess;
+    friend struct RetainedCacheAccess;
+    friend class TransitionBrushScope;
     struct InitialRootChildBatchFrame final
     {
         Panel* root                  = nullptr;
@@ -6552,7 +7153,6 @@ private:
     bool _pendingIntrinsicLayout                            = false;
     mutable bool _pendingContentPreparation                 = false;
     bool _pendingVisualPreparation                          = false;
-    bool _forceAllVisualPreparation                         = false;
     bool _contentPreparationContinues                       = false;
     HRESULT _contentPreparationFailure                      = S_OK;
     bool _contentGeometryChanged                            = false;
@@ -6577,7 +7177,6 @@ private:
     void CancelPreparedContent() noexcept;
     void CancelPreparedVisualContent(Control* subtree = nullptr) noexcept;
     bool _embedded                              = false;
-    bool _embeddedAnimationRequested            = false;
     void* _embeddedContext                      = nullptr;
     void (*_embeddedInvalidate)(void*) noexcept = nullptr;
     friend void ShutdownAllWindowHostsForProcessExit() noexcept;
@@ -6593,12 +7192,43 @@ private:
     void DiscardDeviceResources() noexcept;
     void RecreateBrushCache() const;
     void TrimCaches() noexcept;
+    // The next transition brush of this frame set to color (see _transitionBrushes); nullptr when none can be made, or with
+    // orFallback the fallback brush set to color.
+    [[nodiscard]] ID2D1SolidColorBrush* GetTransitionBrush(const D2D1_COLOR_F& color, bool orFallback) const;
+    // Releases every keyed and transition brush and the fallback brush's warnings record (device or theme replacement).
+    void ReleaseBrushes() const noexcept;
     void Render(const RECT* dirtyRectPx = nullptr, bool allowHidden = false) noexcept;
+    // Invalidate, naming why the frame is requested for the trace provider (src/Support/Trace.h, FrameReason).
+    void InvalidateFor(uint8_t traceFrameReason) const noexcept;
+    // Trace provider correlation (src/Support/Trace.h): read and written only while a trace session or test sink listens.
+    struct TraceCorrelation final
+    {
+        uint32_t hostId             = 0u;
+        bool frameRequested         = false;
+        uint64_t inputSequence      = 0u;
+        uint64_t frameSequence      = 0u;
+        uint64_t frameInputSequence = 0u;
+    };
+    mutable TraceCorrelation _trace{};
+    // A failed recreation or a device loss arms one retry on this host's window, backing off on repeated failure;
+    // a successful Present resets the backoff and disarms it (Win32 host contract).
+    void ScheduleRecoveryRetry() noexcept;
+    void CancelRecoveryRetry() noexcept;
+    void OnRecoveryRetryDue() noexcept;
+    static void CALLBACK RecoveryRetryTimerProc(HWND hwnd, UINT message, UINT_PTR timerId, DWORD tickMs) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     void Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden = false) noexcept;
     [[nodiscard]] bool CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcept;
 #endif
     void OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect) noexcept;
+    // Text antialiasing and rendering parameters (theme and typography contract): applied to the device context before a
+    // frame draws, only when the font-smoothing setting, the monitor or the context changed since the last application;
+    // returns whether it changed anything.
+    bool ApplyTextRendering() noexcept;
+    void ResetTextRenderingBinding() noexcept;
+    // Window host: WM_SETTINGCHANGE re-reads the setting; WM_MOVE and the DPI messages re-resolve the window's monitor.
+    void RefreshTextRenderingSetting(WPARAM action) noexcept;
+    void NoteTextRenderingMonitorMayHaveChanged(bool dpiChanged) noexcept;
     void OnSize(UINT widthPx, UINT heightPx) noexcept;
     void OnSetFocus() noexcept;
     void BeginFocusGainTurn() noexcept;
@@ -6624,9 +7254,34 @@ private:
                                                           std::optional<size_t> start,
                                                           std::optional<size_t> end,
                                                           std::optional<size_t> cursor) noexcept;
+    [[nodiscard]] bool SetNativeTextInputCompositionAttributes(Control* control,
+                                                               std::optional<size_t> targetStart,
+                                                               std::optional<size_t> targetEnd,
+                                                               const std::vector<size_t>& clauseBoundaries) noexcept;
     void DestroyNativeTextInputCaret() noexcept;
     void RaiseNativeTextInputAccessibilityEvent(TextInputAutomationEventKind kind) noexcept;
-    void RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState) noexcept;
+    // previousText and previousSource are the cache document that previousState went with (the cache keeps it in
+    // _nativeTextInputCacheText and _nativeTextInputCacheSource).
+    void RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState,
+                                                 const std::shared_ptr<const std::wstring>& previousText,
+                                                 const std::optional<RichText::SourceSnapshot>& previousSource) noexcept;
+    // The cached document, shared with the session control; empty without a valid cache. A rich editor's revision is
+    // materialized on first use and kept with the cache.
+    [[nodiscard]] std::wstring_view GetNativeTextInputCacheText() const noexcept;
+    // The cached document as shared text, materialized as GetNativeTextInputCacheText does; null without a valid cache.
+    [[nodiscard]] const std::shared_ptr<const std::wstring>& MaterializeNativeTextInputCacheText() const noexcept;
+    // The cached state without its document (outState.text stays empty), for readers of selection and composition only.
+    [[nodiscard]] bool TryReadNativeTextInputStateWithoutText(const Control* control, NativeTextInputState& outState) const noexcept;
+    // Whether the cached document is exactly `source`'s text; compares in place, the same revision without reading.
+    [[nodiscard]] bool NativeTextInputCacheShowsSource(const RichText::SourceSnapshot& source) const noexcept;
+    // After an input event's dispatch: whether the control synchronized itself during it (the synchronization count moved
+    // past synchronizationsBefore) and still exports exactly the cached state, so the host's own synchronization would
+    // change nothing. Only for a control whose state is shared; any doubt answers false.
+    [[nodiscard]] bool NativeTextInputSyncedUnchanged(Control* control, uint64_t synchronizationsBefore) const noexcept;
+    // The host's synchronization after an input event's dispatch: a full synchronization, or, when
+    // NativeTextInputSyncedUnchanged holds, only the refreshes that depend on more than the cached state (caret geometry,
+    // the text store's comparison).
+    void SyncNativeTextInputAfterDispatch(Control* control, uint64_t synchronizationsBefore) noexcept;
     [[nodiscard]] bool TryGetNativeTextInputCaretRects(D2D1_RECT_F& outRectDip, RECT& outClientRectPx, RECT& outScreenRectPx) const noexcept;
     // Drops interaction state on controls that left the tree or became inert; a dropped focus is published.
     void PruneStaleInteractionState(MessagePrunePass* pass = nullptr) noexcept;
@@ -6648,7 +7303,16 @@ private:
     void EmitPendingNativeTextInputPaintMetric(HRESULT hr) noexcept;
     [[nodiscard]] bool HandleNativeTextInputEditMessage(UINT msg, WPARAM wp, LPARAM lp, LRESULT& outResult) noexcept;
     [[nodiscard]] bool HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp) noexcept;
+    // The control under a point for a pointer event: the event's hit result when it is current, else a tree walk
+    // (HitTestControlUncached) whose result the open event keeps. Callers that must see the tree as it is now (file drop
+    // revalidation, diagnostics) call HitTestControlUncached.
     [[nodiscard]] Control* HitTestControl(D2D1_POINT_2F pointDip) noexcept;
+    [[nodiscard]] Control* HitTestControlUncached(D2D1_POINT_2F pointDip) noexcept;
+    // The one internal entry that moves the hit revision (Control::InvalidateHitTest calls it; W2.10's Affects::Hit routes here).
+    void AdvanceHitRevision() noexcept;
+    // Opens a pointer event: `fresh` first drops any result an earlier event left. EndPointerHitEvent drops the result.
+    void BeginPointerHitEvent(bool fresh) noexcept;
+    void EndPointerHitEvent() noexcept;
     [[nodiscard]] WindowHostCursorKind ResolveCursorKindForPoint(D2D1_POINT_2F pointDip) noexcept;
     [[nodiscard]] HCURSOR ResolveCursorHandle(WindowHostCursorKind cursorKind) const noexcept;
     void UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept;
@@ -6662,8 +7326,144 @@ private:
     void SetPointerDevice(PointerDevice device) noexcept;
     [[nodiscard]] D2D1_POINT_2F PointFromLParam(LPARAM lp) const noexcept;
     [[nodiscard]] UINT GetModifierState() const noexcept;
-    static bool AnimationTickThunk(void* context, uint64_t nowTickMs) noexcept;
-    bool OnAnimationTick(uint64_t nowTickMs) noexcept;
+    // Frame schedule (W3.1; Specs/Rendering/Rendering_Win32Host.md, "Frame schedule").
+    //
+    // Ownership rule: the schedule owns no control and never dereferences an address it holds unless the control's own
+    // lifetime token is alive and the control still names this host. Each request keeps the control's address, compared
+    // only, beside that token. ForgetControl removes a control's request when it leaves this host (detach, move, root
+    // replacement) and blanks it in the snapshot of a wake in progress (CancelAnimation blanks it too); the control then
+    // asks the host it joins for one tick. A hidden control keeps its request, which neither wakes nor ticks until the
+    // control is shown. Detach drops the whole schedule. A wake works on a snapshot of the due requests and rechecks token and host before every Tick, so
+    // a Tick that removes itself, a sibling or the root, re-arms, hides the host or destroys it is safe; a host destroyed
+    // or detached during a wake is detected through the wake's stack frame and is not touched again.
+    enum class TickRequestKind : uint8_t
+    {
+        Continuous, // every frame while Tick returns true
+        Once,       // the next frame
+        Deadline,   // when the clock reaches dueTickMs
+    };
+    struct TickRequest final
+    {
+        Control* control = nullptr;
+        std::weak_ptr<int> lifetime;
+        uint64_t dueTickMs   = 0u;
+        TickRequestKind kind = TickRequestKind::Deadline;
+    };
+    struct TickWakeFrame final
+    {
+        TickWakeFrame* previous = nullptr;
+        bool abandoned          = false;
+    };
+    // The next wake the schedule needs, as the dispatcher and W3.5's embedded request see it.
+    struct FrameScheduleWake final
+    {
+        enum class Kind : uint8_t
+        {
+            None,
+            Continuous,
+            Deadline,
+        };
+        Kind kind          = Kind::None;
+        uint64_t dueTickMs = 0u;
+    };
+    void AddTickRequest(const Control& control, TickRequestKind kind, uint64_t dueTickMs) noexcept;
+    // One tick on the next frame (the rich editor restarting its caret blink).
+    void RequestAnimationOnce(const Control& control) noexcept;
+    // Removes the control's request; true when it held one (a request or an entry of the wake in progress).
+    bool ForgetControl(const Control& control) noexcept;
+    void BlankDueControl(const Control& control) noexcept;
+    [[nodiscard]] bool IsScheduleCallerOnOwnerThread() const noexcept;
+    void ReleaseHiddenLatch() noexcept;
+    void CountHeldDeadlines() noexcept;
+    // How often a host hidden only through an ancestor looks whether it is visible again while it holds requests.
+    static constexpr uint64_t kHiddenAncestorProbeMs = 1'000u;
+    // Tooltip deadlines (W3.3; Specs/Rendering/Rendering_Win32Host.md, "Tooltip deadlines"). The host-owned tooltip layer is
+    // not a request of the control schedule: its one deadline (show or hide) is read from the layer itself whenever the
+    // schedule is computed, so no copy can outlive the waiting mode that armed it; a wake re-reads it after every control's
+    // Tick and ticks the layer only when it is still due. Detach clears the layer after leaving the dispatcher, so nothing
+    // fires after detach. A supplemental-tooltip resolve (Ctrl pressed over a rich title) is due at the next wake.
+    [[nodiscard]] std::optional<uint64_t> GetTooltipWakeDueTickMs() const noexcept;
+    // Tells the dispatcher the tooltip's deadline changed; a request from another thread or a detaching host changes nothing.
+    void OnTooltipScheduleChanged() noexcept;
+    // A change that can retire or alter the tooltip's target (a control's visibility, enabled state, host or parent, tooltip
+    // text, or a model owner's data and geometry: a Grid's or Tree's rows) while a tooltip is pending or shown under a
+    // hovered control or a supplemental target marks it stale: the next wake, due at once, resolves the hover again at the
+    // resting pointer as a pointer move there would. Returns whether it marked, so the caller calls OnTooltipScheduleChanged
+    // once it may run callbacks. Constant time; with no tooltip pending or shown it does nothing.
+    [[nodiscard]] bool MarkTooltipTargetStale() noexcept;
+    // A host that is hidden (presentation, window, minimized or an embedded view) drops a tooltip still waiting to show: the
+    // pointer that asked for it is no longer known when the host returns. A shown tooltip's hide stays held and fires on show.
+    void DropPendingTooltipShowWhileHidden() noexcept;
+    [[nodiscard]] uint64_t GetTooltipShowDelayMs() noexcept;
+    [[nodiscard]] FrameScheduleWake GetFrameScheduleWake() const noexcept;
+    [[nodiscard]] bool HasScheduledTicks() const noexcept;
+    [[nodiscard]] bool IsScheduleSuspended() const noexcept;
+    // Runs the due requests; false when the host was destroyed or detached during the wake.
+    [[nodiscard]] bool RunScheduledTicks(uint64_t nowTickMs) noexcept;
+    [[nodiscard]] bool TickTreeForSchedule(Control& control, uint64_t nowTickMs, const TickWakeFrame& frame, uint64_t presentationRevision) noexcept;
+    [[nodiscard]] bool IsControlTickable(const Control& control) const noexcept;
+    void OnFrameScheduleChanged() noexcept;
+    void SyncDispatcherSubscription(FrameScheduleWake wake) noexcept;
+    void ResumeScheduleAfterShow() noexcept;
+    friend struct FrameScheduleAccess;
+    [[nodiscard]] FrameScheduleWake OnScheduledWake(uint64_t nowTickMs, bool* hostGone = nullptr) noexcept;
+    std::vector<TickRequest> _tickRequests;
+    std::vector<TickRequest> _tickDue; // the snapshot one wake runs; reused, never resized during a wake
+    TickWakeFrame* _tickWakeFrame               = nullptr;
+    bool _tickTreeRequested                     = false;
+    bool _tickTreeDiscovery                     = false;
+    FrameScheduleWake::Kind _dispatcherWakeKind = FrameScheduleWake::Kind::None;
+    // Embedded (W3.5): the wake the application was last told of: what GetAnimationRequest or AdvanceAnimation last reported,
+    // or the wake that a schedule change needing an earlier one announced through the preparation callback. Mutable because a
+    // const read of the request records what it reported.
+    mutable FrameScheduleWake _embeddedPublishedWake;
+    // Whether `wake` needs the application sooner than `published`: something after nothing, every frame after a deadline, an
+    // earlier deadline.
+    [[nodiscard]] static bool IsEarlierWake(FrameScheduleWake wake, FrameScheduleWake published) noexcept;
+    // The user's mouse hover time, read once and refreshed by RefreshTooltipHoverTime (from RefreshUserSettings); clamped
+    // when the delay is used.
+    void RefreshTooltipHoverTime() noexcept;
+    UINT _tooltipHoverTimeMs        = 0u;
+    bool _tooltipHoverTimeRead      = false;
+    bool _tooltipHoverTimeForTestOn = false;
+    UINT _tooltipHoverTimeForTestMs = 0u;
+
+    // Caret clock (W3.2; Specs/Rendering/Rendering_Win32Host.md, "Caret clock"). One per host: it owns the blink phase of
+    // the one focused caret (TextField, editable ComboBox, RichTextEditor) and arms that control's deadline for each phase
+    // flip. The owner's address is compared only, beside its lifetime token, like a schedule request.
+    struct CaretClock final
+    {
+        const Control* owner = nullptr;
+        std::weak_ptr<int> ownerLifetime;
+        uint64_t anchorTickMs = 0u;
+        UINT blinkTimeMs      = 530u;
+        UINT timeoutMs        = 5000u;
+        bool settingsRead     = false;
+        bool editable         = false;
+        bool visible          = true;
+        std::optional<CaretBlinkSettingsForTest> settingsForTest;
+    };
+    friend struct CaretClockAccess;
+    // Focus gain and input: the caret shows now and, when it blinks, its first flip is one period later.
+    void RestartCaret(const Control& owner, bool editable) noexcept;
+    // Blur: the clock forgets the owner and withdraws its deadline.
+    void StopCaret(const Control& owner) noexcept;
+    // The owner's scheduled Tick: true when the caret's visibility changed (the owner invalidates).
+    [[nodiscard]] bool TickCaret(const Control& owner, uint64_t nowTickMs) noexcept;
+    [[nodiscard]] bool IsCaretShown(const Control& control) const noexcept;
+    [[nodiscard]] bool IsCaretOwner(const Control& control) const noexcept;
+    [[nodiscard]] bool CaretBlinks() const noexcept;
+    // Restarts a focused owner's phase after a settings or theme change, or when a hidden host is shown.
+    void RearmCaret() noexcept;
+    void ArmCaret(const Control& owner) noexcept;
+    void ReadCaretBlinkSettings() noexcept;
+    // A caret owner that gained or lost its area (Control::SetBounds): a focused owner restarts, steady while it has none.
+    void OnCaretOwnerAreaChanged(const Control& control) noexcept;
+    // Re-reads the blink time and timeout (from RefreshUserSettings) and restarts a focused caret when either changed.
+    void RefreshCaretBlinkSettings() noexcept;
+    // Withdraws a control's deadline only, so a caret never cancels the same control's every-frame request.
+    void CancelAnimationDeadline(const Control& control) noexcept;
+    CaretClock _caretClock;
 
     struct NativeSystemCaret final
     {
@@ -6718,8 +7518,33 @@ private:
     mutable wil::com_ptr<IDWriteTextFormat> _heroIconTextFormat;
     mutable wil::com_ptr<IDWriteTextFormat> _iconLargeTextFormat;
     mutable wil::com_ptr<IDWriteTextFormat> _monoTextFormat;
-    mutable std::unordered_map<uint64_t, wil::com_ptr<IDWriteTextFormat>> _configuredTextFormats =
-        std::unordered_map<uint64_t, wil::com_ptr<IDWriteTextFormat>>(0u);
+    // A configured text format and the frame that last asked for it (TrimCaches evicts by last use, W2.8).
+    struct ConfiguredTextFormatEntry final
+    {
+        wil::com_ptr<IDWriteTextFormat> format;
+        uint64_t lastUse = 0u;
+    };
+    mutable std::unordered_map<uint64_t, ConfiguredTextFormatEntry> _configuredTextFormats = std::unordered_map<uint64_t, ConfiguredTextFormatEntry>(0u);
+    // Retained layouts of the plain text this host's controls draw (DrawCenteredText and the other host-aware DrawText
+    // replacements, plan item W2.1): one entry per string, format and box the last paint drew, in the set-associative table
+    // the Grid's cell layouts use (DxUi.Internal.h). A key holds its format, so a freed format's address never matches.
+    struct RetainedTextLayout final
+    {
+        std::wstring text;
+        wil::com_ptr<IDWriteTextFormat> format;
+        wil::com_ptr<IDWriteTextLayout> layout;
+        uint64_t keyHash = 0u;
+        uint64_t lastUse = 0u; // the paint generation that last drew the entry
+        float width      = 0.0f;
+        float height     = 0.0f;
+    };
+    friend struct TextLayoutCacheAccess;
+    mutable std::vector<RetainedTextLayout> _textLayoutCache;
+    uint64_t _textLayoutPaintGeneration             = 1u;
+    uint64_t _textLayoutCacheTypography             = 0u; // the typography revision the table's layouts were made under
+    uint32_t _textLayoutPaintDepth                  = 0u; // host paints in progress; the table serves only inside one
+    size_t _debugTextLayoutCacheLimit               = 0u; // 0: the bound of DxUi.Internal.h
+    bool _debugTextLayoutCacheDisabled              = false;
     mutable bool _fluentIconFontAvailabilityChecked = false;
     mutable bool _fluentIconFontAvailable           = false;
 
@@ -6728,6 +7553,15 @@ private:
     wil::com_ptr<ID2D1Factory1> _d2dFactory;
     wil::com_ptr<ID2D1Device> _d2dDevice;
     wil::com_ptr<ID2D1DeviceContext> _d2dContext;
+    // The rendering parameters for _textRenderingMonitor (window host: its window's monitor; embedded: the application's,
+    // or none), what is bound to _d2dContext, and the font smoothing and antialias mode last applied to it.
+    wil::com_ptr<IDWriteRenderingParams> _textRenderingParams;
+    IDWriteRenderingParams* _textRenderingParamsBound  = nullptr;
+    HMONITOR _textRenderingMonitor                     = nullptr;
+    D2D1_TEXT_ANTIALIAS_MODE _textAntialiasModeApplied = D2D1_TEXT_ANTIALIAS_MODE_DEFAULT;
+    uint8_t _textRenderingSmoothingApplied             = 0u;
+    bool _textRenderingApplied                         = false;
+    bool _textRenderingParamsStale                     = true;
     wil::com_ptr<IDXGISwapChain1> _swapChain;
     wil::com_ptr<IDCompositionDesktopDevice> _dcompDevice;
     wil::com_ptr<IDCompositionTarget> _dcompTarget;
@@ -6742,8 +7576,30 @@ private:
     uint64_t _resourceGeneration           = 1u;
     bool _forceFullPresentAfterBufferReset = false;
     bool _initialRootChildBatchPending     = false;
+    // The delay of the next recovery retry (0 = the first, one frame) and whether one is armed.
+    uint32_t _recoveryRetryNextDelayMs  = 0u;
+    uint32_t _recoveryRetryArmedDelayMs = 0u;
 
-    mutable std::unordered_map<uint32_t, wil::com_ptr<ID2D1SolidColorBrush>> _brushCache = std::unordered_map<uint32_t, wil::com_ptr<ID2D1SolidColorBrush>>(0u);
+    // A color key (8 bits per channel), the exact color it was first asked for with, which every later request of the key
+    // draws, its keyed brush (none while only transitions drew the color) and the frame that last asked for it. A keyed
+    // brush keeps its color for its whole life.
+    struct SolidBrushEntry final
+    {
+        wil::com_ptr<ID2D1SolidColorBrush> brush;
+        D2D1_COLOR_F color{};
+        uint64_t lastUse = 0u;
+    };
+    mutable std::unordered_map<uint32_t, SolidBrushEntry> _brushCache = std::unordered_map<uint32_t, SolidBrushEntry>(0u);
+    // Brushes for the colors of a transition in progress (TransitionBrushScope, DxUi.Internal.h): the n-th such request of a
+    // frame takes the n-th brush and sets its color, so none is given two colors within one frame; at most
+    // kTransitionBrushLimit, released with the keyed brushes.
+    static constexpr size_t kTransitionBrushLimit                              = 64;
+    mutable std::vector<wil::com_ptr<ID2D1SolidColorBrush>> _transitionBrushes = std::vector<wil::com_ptr<ID2D1SolidColorBrush>>(0u);
+    mutable size_t _transitionBrushesUsed                                      = 0u;
+    mutable uint32_t _transitionBrushScopes                                    = 0u;
+    // The host's frame: one per TrimCaches call (a native render pass or an embedded preparation that paints). Format and
+    // brush entries record the frame that last used them.
+    uint64_t _paintFrame = 1u;
     mutable wil::com_ptr<ID2D1SolidColorBrush> _fallbackBrush;
     mutable std::vector<uint32_t> _brushFailureLogKeys = std::vector<uint32_t>(0u);
     // Keep test-only storage unconditional so ControlHost layout stays stable
@@ -6754,7 +7610,14 @@ private:
     uint64_t _nativeTextInputFocusId         = 0;
     uint64_t _nativeTextInputSessionRevision = 0u;
     std::weak_ptr<int> _nativeTextInputControlLifetime;
+    // The cache keeps its document in _nativeTextInputCacheText, shared with the control and the TSF store; its own text
+    // member stays empty. Readers that hand the state out copy the shared text into it.
     NativeTextInputState _nativeTextInputStateCache;
+    // Filled lazily for a rich editor's revision (MaterializeNativeTextInputCacheText), hence mutable.
+    mutable std::shared_ptr<const std::wstring> _nativeTextInputCacheText;
+    // A rich editor's cached document as its immutable source revision (W7.4); _nativeTextInputCacheText, when set, has
+    // exactly its content. Empty for every other control.
+    std::optional<RichText::SourceSnapshot> _nativeTextInputCacheSource;
     bool _nativeTextInputStateCacheValid = false;
     NativeTextInputEventCounters _nativeTextInputEventCounters;
     wil::com_ptr_nothrow<IUnknown> _nativeTextInputTsfThreadMgr;
@@ -6811,6 +7674,9 @@ private:
     mutable uint64_t _debugResizeCount                          = 0u;
     unsigned _debugSizeResourceFailureStage                     = 0u;
     HRESULT _debugSizeResourceFailure                           = S_OK;
+    std::optional<uint64_t> _debugRecoveryRetryClockMs          = std::nullopt;
+    uint64_t _debugRecoveryRetryDueMs                           = 0u;
+    mutable uint64_t _debugSolidBrushCreateCount                = 0u;
     mutable uint64_t _debugResizeFailureCount                   = 0u;
     mutable uint64_t _debugSwapChainPrepareD2DFlushFailureCount = 0u;
     mutable uint64_t _debugPresentFailureCount                  = 0u;
@@ -6833,6 +7699,27 @@ private:
         bool doubleClick = false;
     };
 
+    // The hit result of the current pointer event (UI_InputAndAccessibility.md, "Pointer hit result"): the control a hit
+    // test found at one client point, kept for the cursor query, hover and dispatch of that event while the root, the
+    // interaction revision and the hit revision hold. A native WM_SETCURSOR opens the event and the mouse message it
+    // announces ends it; an embedded DispatchPointer is one event. Never kept while an unreported control is attached.
+    struct PointerHitCache
+    {
+        Control* root   = nullptr;
+        Control* target = nullptr;
+        std::weak_ptr<int> targetLifetime;
+        D2D1_POINT_2F pointDip       = D2D1::Point2F();
+        uint64_t interactionRevision = 0u;
+        uint64_t hitRevision         = 0u;
+        bool valid                   = false;
+    };
+    PointerHitCache _pointerHitCache;
+    uint64_t _hitRevision           = 0u; // moves on hit-relevant changes the interaction revision does not cover
+    uint32_t _unreportedHitControls = 0u; // attached controls whose hit testing the host cannot see
+    POINT _nonClientHitPoint{};           // screen point of the last WM_NCHITTEST, for the WM_SETCURSOR of the same delivery
+    bool _nonClientHitPointValid         = false;
+    bool _pointerHitEventOpen            = false;
+    bool _pointerHitResultEnabled        = true; // false only in tests: the uncached hit test for the differential
     Control* _hoveredControl             = nullptr;
     Control* _capturedControl            = nullptr;
     uint64_t _captureRequestRevision     = 0u;
@@ -6845,6 +7732,21 @@ private:
     D2D1_POINT_2F _supplementalTooltipPointDip = D2D1::Point2F();
     UINT _supplementalTooltipModifiers         = 0u;
     bool _supplementalTooltipIsRichTitle = false, _supplementalTooltipNeedsResolve = false;
+    // Set by MarkTooltipTargetStale: the next wake resolves the hover again at the resting pointer.
+    bool _tooltipTargetStale = false;
+    // The last rich title SupplementalTooltipText resolved, with the editor, point, modifiers and the editor's hover key
+    // it was resolved for. An unmoved pointer reuses it until one of them changes.
+    struct RichTitleHover
+    {
+        const RichTextEditor* editor = nullptr;
+        std::weak_ptr<int> lifetime;
+        D2D1_POINT_2F pointDip = D2D1::Point2F();
+        UINT modifiers         = 0u;
+        RichTextEditor::HoveredTitleKey key{};
+        std::wstring title = std::wstring(0u, L' ');
+        bool valid         = false;
+    };
+    RichTitleHover _richTitleHoverCache;
     Button* _defaultButton = nullptr;
     Button* _cancelButton  = nullptr;
     PointerDoubleClickCandidate _pendingPointerDoubleClick;
@@ -6861,13 +7763,22 @@ private:
     DWORD _attachmentOwnerThreadId    = 0u;
     uint64_t _animationSubscriptionId = 0;
     // The embedded animation clock: AdvanceAnimation adds the difference between consecutive supplied ticks, except that the
-    // first tick after a pause in ticking (idle, hidden, zero-sized, a new attachment) only sets the baseline.
-    uint64_t _animationTimelineMs         = 0;
-    uint64_t _lastSuppliedAnimationTickMs = 0;
-    bool _animationTimelineRebase         = true;
+    // first tick after a pause in ticking (idle, hidden, zero-sized, a new attachment) only sets the baseline. Between
+    // advances a stamp reads the application's clock (_embeddedNowTickMs) and moves the timeline forward the same way, never
+    // back and never across a pending baseline (W3.5 review F1); mutable because GetAnimationTickMs is const.
+    mutable uint64_t _animationTimelineMs          = 0;
+    mutable uint64_t _lastSuppliedAnimationTickMs  = 0;
+    bool _animationTimelineRebase                  = true;
+    uint64_t (*_embeddedNowTickMs)(void*) noexcept = nullptr;
+    void* _embeddedClockContext                    = nullptr;
+    // Moves the embedded timeline to the application's current time, as an advance at that tick would, ticking nothing.
+    void FollowEmbeddedApplicationClock() const noexcept;
     std::optional<uint64_t> _animationClockForTest;
     bool _animationSuspendedWhileHidden = false;
-    bool _nativePresentationVisible = true, _nativePresentationResumeAnimation = false;
+    // Seen hidden only through an ancestor at a wake (W3.2 review): the first wake that finds the window visible again resumes
+    // as a show does (the caret restarts, held deadlines are counted).
+    bool _hiddenThroughAncestor     = false;
+    bool _nativePresentationVisible = true;
     uint64_t _nativePresentationRevision{};
     // Logical input ownership, unlike a focus-request revision, survives idempotent focus refreshes.
     uint64_t _keyboardOwnerEpoch                = 0u;

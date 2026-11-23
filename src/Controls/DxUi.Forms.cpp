@@ -239,23 +239,19 @@ HRESULT FormField::SetValidation(ValidationState state, std::wstring explanation
 }
 HRESULT FormField::SetRequired(bool required) noexcept
 {
-    if (_required == required)
+    // Presented on the editor part, which publishes its own form properties.
+    if (! Assign(_required, required, Affects::None))
         return S_FALSE;
-    _required = required;
     return SyncAccessibility();
 }
 HRESULT FormField::SetEditorPreferredSize(D2D1_SIZE_F sizeDip) noexcept
 {
     if (! ValidExtent(sizeDip.width) || ! ValidExtent(sizeDip.height) || sizeDip.width < kMinimumEditorWidthDip || sizeDip.height <= 0)
         return E_INVALIDARG;
-    if (_editorPreferredSize.width == sizeDip.width && _editorPreferredSize.height == sizeDip.height)
-        return S_FALSE;
-    _editorPreferredSize = sizeDip;
-    InvalidateMeasure();
-    return S_OK;
+    return Assign(_editorPreferredSize, sizeDip, Affects::Layout) ? S_OK : S_FALSE;
 }
 
-HRESULT FormField::MeasurePart(const Control* control, const MeasureContext& context, float widthDip, PartMeasure& cache, DesiredSize& desired) const noexcept
+HRESULT FormField::MeasurePart(const Control* control, const MeasureContext& context, float widthDip, DesiredSize& desired) const noexcept
 {
     const Failure::Scope outerFailureScope;
     if (! control || ! control->IsVisible())
@@ -263,34 +259,31 @@ HRESULT FormField::MeasurePart(const Control* control, const MeasureContext& con
         desired = {};
         return S_OK;
     }
-    // A fresh native host initializes its shared formats on first use. Cache the resulting typography epoch,
+    // A fresh native host initializes its shared formats on first use. Read the resulting typography epoch,
     // rather than rejecting that legitimate initialization as a callback-induced replacement.
     static_cast<void>(context.host.GetWriteFactory());
     const auto ownerLifetime = GetLifetimeToken();
     const auto lifetime      = GetControlLifetimeToken(*control);
-    const auto revision      = control->GetMeasureRevision();
     const auto ownerRevision = GetMeasureRevision();
     const auto typography    = context.host.GetTypographyRevision();
-    if (cache.control == control && ! cache.lifetime.expired() && cache.revision == revision && cache.typography == typography && cache.host == &context.host &&
-        cache.width == widthDip)
-    {
-        desired = cache.desired;
-        return S_OK;
-    }
+    // The part's own measure cache answers an unchanged key (Control::Measure); only an actual measurement counts.
     DesiredSize staged;
-    const HRESULT result = MeasureControl(*control, context, LayoutConstraints::AtMost(widthDip, std::nullopt), staged);
+    bool executed        = false;
+    const HRESULT result = ControlModelQueryAccess::MeasureCounted(*control, context, LayoutConstraints::AtMost(widthDip, std::nullopt), staged, executed);
     if (ownerLifetime.expired() || lifetime.expired())
         return E_ABORT;
     if (GetMeasureRevision() != ownerRevision || ! Owns(*this, control, lifetime) || context.host.GetTypographyRevision() != typography)
         return E_ABORT;
     // An editor without intrinsic measurement measures nothing of its own: MeasureParts applies the preferred size on
-    // every pass, so the cache never holds an older preference (one that shrank would otherwise keep the larger size).
+    // every pass, so no older preference is ever reused (one that shrank would otherwise keep the larger size).
     if (result == E_NOTIMPL && control == GetEditor())
         staged.sizeDip = D2D1::SizeF(0.0f, 0.0f);
     else if (FAILED(result))
         return result;
-    ++_measureCount;
-    cache   = {control, lifetime, revision, typography, &context.host, widthDip, staged};
+    if (executed)
+        ++_measureCount;
+    if (control == GetEditor())
+        _editorMeasuredWidthDip = staged.sizeDip.width;
     desired = staged;
     return S_OK;
 }
@@ -303,7 +296,7 @@ HRESULT FormField::MeasureSharedLabel(const MeasureContext& context, float width
         desired = {};
         return S_OK;
     }
-    return MeasurePart(label, context, widthDip, _sharedLabelCache, desired);
+    return MeasurePart(label, context, widthDip, desired);
 }
 HRESULT FormField::ResolvePartColumns(
     const D2D1_RECT_F& bounds, LabelPlacement placement, float labelWidthDip, bool rtl, float minimumEditorWidthDip, PartColumns& columns) noexcept
@@ -379,7 +372,7 @@ HRESULT FormField::MeasureParts(const MeasureContext& context,
             continue;
         }
         const float partWidth = index == 0 ? stagedColumns.labelRight - stagedColumns.labelLeft : stagedColumns.editorRight - stagedColumns.editorLeft;
-        result                = MeasurePart(controls[index], boundedContext, partWidth, _measureCache[index], parts[index]);
+        result                = MeasurePart(controls[index], boundedContext, partWidth, parts[index]);
         if (lifetime.expired())
             return E_ABORT;
         if (_layoutRevision != pass || GetMeasureRevision() != revision || context.host._focusRequestRevision != focus || ! SameRect(GetBounds(), bounds) ||
@@ -536,6 +529,7 @@ HRESULT FormField::ApplyLayoutFor(const ControlHost& host, LabelPlacement placem
         const auto accepted                 = mutableHost._intrinsicArrangeBoundsRevision;
         const auto interaction              = host.GetInteractionRevision();
         mutableHost._intrinsicArrangeBranch = control;
+        ++Detail::Work().layout.arrangedChildren;
         control->SetBounds(part.bounds);
         mutableHost._intrinsicArrangeBranch = previous;
         if (lifetime.expired() || part.lifetime.expired())
@@ -657,12 +651,7 @@ HRESULT FormPanel::SetColumns(size_t columns) noexcept
 {
     if (columns != 1 && columns != 2)
         return E_INVALIDARG;
-    if (_columns == columns)
-        return S_FALSE;
-    _columns = columns;
-    ++_layoutRevision;
-    InvalidateMeasure();
-    return S_OK;
+    return Assign(_columns, columns, Affects::Layout, [this]() noexcept { ++_layoutRevision; }) ? S_OK : S_FALSE;
 }
 size_t FormPanel::GetColumns() const noexcept
 {
@@ -672,35 +661,24 @@ HRESULT FormPanel::SetLabelPlacement(LabelPlacement placement) noexcept
 {
     if (placement != LabelPlacement::Above && placement != LabelPlacement::Beside)
         return E_INVALIDARG;
-    if (_labelPlacement == placement)
-        return S_FALSE;
-    _labelPlacement = placement;
-    ++_layoutRevision;
-    InvalidateMeasure();
-    return S_OK;
+    return Assign(_labelPlacement, placement, Affects::Layout, [this]() noexcept { ++_layoutRevision; }) ? S_OK : S_FALSE;
 }
 HRESULT FormPanel::SetGap(float horizontalDip, float verticalDip) noexcept
 {
     if (! ValidExtent(horizontalDip) || ! ValidExtent(verticalDip))
         return E_INVALIDARG;
-    if (_horizontalGapDip == horizontalDip && _verticalGapDip == verticalDip)
-        return S_FALSE;
-    _horizontalGapDip = horizontalDip;
-    _verticalGapDip   = verticalDip;
-    ++_layoutRevision;
-    InvalidateMeasure();
-    return S_OK;
+    return Assign(std::tie(_horizontalGapDip, _verticalGapDip),
+                  std::tuple<float, float>(horizontalDip, verticalDip),
+                  Affects::Layout,
+                  [this]() noexcept { ++_layoutRevision; })
+               ? S_OK
+               : S_FALSE;
 }
 HRESULT FormPanel::SetPadding(float paddingDip) noexcept
 {
     if (! ValidExtent(paddingDip))
         return E_INVALIDARG;
-    if (_paddingDip == paddingDip)
-        return S_FALSE;
-    _paddingDip = paddingDip;
-    ++_layoutRevision;
-    InvalidateMeasure();
-    return S_OK;
+    return Assign(_paddingDip, paddingDip, Affects::Layout, [this]() noexcept { ++_layoutRevision; }) ? S_OK : S_FALSE;
 }
 D2D1_SIZE_F FormPanel::GetContentSize() const noexcept
 {
@@ -853,7 +831,7 @@ HRESULT FormPanel::BuildLayout(
                     if (_labelPlacement == LabelPlacement::Beside && labelWidth > 0)
                     {
                         // Bound the shared-label cap after expansion so its new width cannot consume the editor minimum.
-                        const double editorMinimum = static_cast<double>(field->_measureCache[1].desired.sizeDip.width);
+                        const double editorMinimum = static_cast<double>(field->_editorMeasuredWidthDip);
                         requiredColumnWidth        = (std::max)(requiredColumnWidth, static_cast<float>((editorMinimum + kLabelGapDip) / 0.55));
                     }
                 }
@@ -979,6 +957,7 @@ HRESULT FormPanel::ApplyLayout(const ControlHost& host) noexcept
         const auto accepted                 = mutableHost._intrinsicArrangeBoundsRevision;
         const auto interaction              = host.GetInteractionRevision();
         mutableHost._intrinsicArrangeBranch = record.field;
+        ++Detail::Work().layout.arrangedChildren;
         record.field->SetBounds(record.bounds);
         mutableHost._intrinsicArrangeBranch = previous;
         if (! current(index, index + 1))

@@ -25,7 +25,7 @@ inline int RunRichPreparationBenchmark()
     if (FAILED(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics)))
         return 3;
     DxUi::EmbeddedHost view;
-    if (FAILED(view.Attach(graphics)))
+    if (FAILED(view.Attach(graphics, StoppedTestClock())))
         return 4;
     std::wstring source;
     for (unsigned i = 0u; i < 1000u; ++i)

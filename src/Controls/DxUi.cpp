@@ -3,16 +3,19 @@
 #include "DxUi.Internal.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cwctype>
 #include <exception>
 #include <limits>
+#include <typeinfo>
 #include <utility>
 
 #include <UIAutomation.h>
 #include <d2d1effects.h>
 
 #include "Support/Diagnostics.h"
+#include "Support/Trace.h"
 
 namespace DxUi
 {
@@ -136,8 +139,8 @@ namespace
         D2D1_BITMAP_OPTIONS_NONE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), host.GetDpi(), host.GetDpi());
     wil::com_ptr<ID2D1Bitmap1> bitmap;
     const UINT32 pitch = backdrop.capture.widthPx * 4u;
-    const HRESULT hr   = dc->CreateBitmap(
-        D2D1::SizeU(backdrop.capture.widthPx, backdrop.capture.heightPx), backdrop.capture.bgraPixels.data(), pitch, &bitmapProperties, bitmap.put());
+    const HRESULT hr   = CountedCreateBitmap(
+        dc, D2D1::SizeU(backdrop.capture.widthPx, backdrop.capture.heightPx), backdrop.capture.bgraPixels.data(), pitch, &bitmapProperties, bitmap.put());
     if (FAILED(hr) || ! bitmap)
     {
         Debug::Warning(L"DxUi::PaintTransientSurface: failed to create backdrop bitmap: 0x{:08X}", hr);
@@ -169,14 +172,15 @@ void PaintTransientSurfaceBackdrop(ControlHost& host, const D2D1_RECT_F& surface
     wil::com_ptr<ID2D1Factory> factory;
     dc->GetFactory(factory.put());
     wil::com_ptr<ID2D1RoundedRectangleGeometry> roundedGeometry;
-    if (! factory || FAILED(factory->CreateRoundedRectangleGeometry(D2D1::RoundedRect(surfaceRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
+    if (! factory ||
+        FAILED(CountedCreateRoundedRectangleGeometry(factory, D2D1::RoundedRect(surfaceRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
         ! roundedGeometry)
     {
         return;
     }
 
     wil::com_ptr<ID2D1Effect> blurEffect;
-    if (FAILED(dc->CreateEffect(kTransientSurfaceGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
+    if (FAILED(CountedCreateEffect(dc, kTransientSurfaceGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
     {
         return;
     }
@@ -197,6 +201,7 @@ void PaintTransientSurfaceBackdrop(ControlHost& host, const D2D1_RECT_F& surface
     const D2D1_POINT_2F targetOffset             = D2D1::Point2F(surfaceRect.left, surfaceRect.top);
     dc->PushLayer(layerParameters, nullptr);
     dc->DrawImage(blurEffect.get(), &targetOffset, &sourceRect, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+    ++Detail::Work().popups.backdropBlurPasses;
     dc->PopLayer();
 }
 } // namespace
@@ -324,7 +329,7 @@ bool CaptureBackdropScreenRegion(const RECT& screenRect, WindowHostBitmapCapture
     }
 
     [[maybe_unused]] const auto oldBitmap = wil::SelectObject(memoryDc.get(), bitmap.get());
-    if (BitBlt(memoryDc.get(), 0, 0, widthPx, heightPx, screenDc.get(), screenRect.left, screenRect.top, SRCCOPY | CAPTUREBLT) == FALSE)
+    if (CountedBitBlt(memoryDc.get(), 0, 0, widthPx, heightPx, screenDc.get(), screenRect.left, screenRect.top, SRCCOPY | CAPTUREBLT) == FALSE)
     {
         Debug::Warning(L"DxUi::{}: BitBlt failed for popup backdrop capture (lastError={})", componentName, GetLastError());
         return false;
@@ -380,11 +385,19 @@ void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
                     ++_host->_intrinsicArrangeBoundsRevision;
             }
         }
+        const bool hadArea                = _bounds.right > _bounds.left && _bounds.bottom > _bounds.top;
         _bounds                           = bounds;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         OnBoundsChanged();
         if (lifetime.expired())
             return;
+        // A caret owner that gains or loses its area starts or stops blinking (W3.2): with no area it draws nothing.
+        if (ControlHost* const host = GetHost(); host && hadArea != (bounds.right > bounds.left && bounds.bottom > bounds.top))
+        {
+            host->OnCaretOwnerAreaChanged(*this);
+            if (lifetime.expired() || GetHost() != host)
+                return;
+        }
         if (ControlHost* const host = GetHost())
         {
             host->NotifyTextInputLayoutChanged(this);
@@ -433,7 +446,12 @@ void Control::SetVisible(bool visible) noexcept
     if (_visible != visible)
     {
         if (_host)
+        {
             ++_host->_interactionRevision;
+            // A pending or shown supplemental tooltip re-resolves its target at the next wake (this one, or an ancestor of it,
+            // may be it); the OnFrameScheduleChanged calls below tell the dispatcher.
+            static_cast<void>(_host->MarkTooltipTargetStale());
+        }
         _visible = visible;
         if (_host)
         {
@@ -458,6 +476,11 @@ void Control::SetVisible(bool visible) noexcept
             }
             if (ControlHost* const host = GetHost())
             {
+                // A hidden control (and everything below it) keeps its frame-schedule request without being ticked or
+                // waking anything; the request leaves the wake computation here.
+                host->OnFrameScheduleChanged();
+                if (lifetime.expired())
+                    return;
                 host->CancelPreparedVisualContent(this);
                 if (lifetime.expired())
                     return;
@@ -470,6 +493,14 @@ void Control::SetVisible(bool visible) noexcept
         }
         if (ControlHost* const host = GetHost())
         {
+            // Shown: the requests this control and its descendants held while hidden are ticked again from the next wake,
+            // so a transition left part-way lands or resumes with no further input.
+            if (visible)
+            {
+                host->OnFrameScheduleChanged();
+                if (lifetime.expired() || GetHost() != host)
+                    return;
+            }
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
     }
@@ -485,8 +516,13 @@ void Control::SetEnabled(bool enabled) noexcept
     const Failure::Scope outerFailureScope;
     if (_enabled != enabled)
     {
+        bool tooltipTargetStale = false;
         if (_host)
+        {
             ++_host->_interactionRevision;
+            // A disabled control (or one below it) is no supplemental-tooltip target.
+            tooltipTargetStale = _host->MarkTooltipTargetStale();
+        }
         _enabled                          = enabled;
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         OnEnabledChanged(enabled);
@@ -501,6 +537,12 @@ void Control::SetEnabled(bool enabled) noexcept
         }
         if (ControlHost* const host = GetHost())
         {
+            if (tooltipTargetStale)
+            {
+                host->OnTooltipScheduleChanged();
+                if (lifetime.expired() || GetHost() != host)
+                    return;
+            }
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
         }
     }
@@ -514,14 +556,7 @@ bool Control::IsEnabled() const noexcept
 void Control::SetFocusable(bool focusable) noexcept
 {
     const Failure::Scope outerFailureScope;
-    if (_focusable != focusable)
-    {
-        _focusable = focusable;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-    }
+    Assign(_focusable, focusable, Affects::SemanticState);
 }
 
 bool Control::IsFocusable() const noexcept
@@ -541,7 +576,16 @@ bool Control::IsHovered() const noexcept
 
 void Control::SetTooltipText(std::wstring tooltipText)
 {
-    _tooltipText = std::move(tooltipText);
+    // Read when the pointer next rests on the control (OnMouseMove): nothing paints, measures, hit-tests or publishes it. A
+    // pending or shown supplemental tooltip shows the new text, or none, from the next wake.
+    Assign(_tooltipText,
+           std::move(tooltipText),
+           Affects::None,
+           [this]() noexcept
+    {
+        if (_host && _host->MarkTooltipTargetStale())
+            _host->OnTooltipScheduleChanged();
+    });
 }
 
 std::wstring_view Control::GetTooltipText() const noexcept
@@ -592,6 +636,11 @@ bool Control::OnMouseTripleClick(ControlHost& host, D2D1_POINT_2F point, bool ri
 }
 
 bool Control::OnMouseMiddleDown(ControlHost&, D2D1_POINT_2F, UINT)
+{
+    return false;
+}
+
+bool Control::OnMouseMiddleUp(ControlHost&, D2D1_POINT_2F, UINT)
 {
     return false;
 }
@@ -698,12 +747,15 @@ ControlHost* Control::GetHost() const noexcept
 
 void Control::SetMnemonic(wchar_t mnemonic) noexcept
 {
-    const auto normalized = NormalizeMnemonicChar(mnemonic);
-    if (_mnemonic == normalized)
-        return;
-    _mnemonic = normalized;
-    RequestVisualContentPreparation(false);
-    RequestInvalidate(); // Scheduling may synchronously retire this control.
+    // A plain Label is not prepared: a mnemonic makes it one that is, and clearing it makes it plain again (Label::Label).
+    Assign(_mnemonic,
+           NormalizeMnemonicChar(mnemonic),
+           Affects::Paint,
+           [this]() noexcept
+    {
+        RefreshLabelVisualPreparation();
+        RequestVisualContentPreparation(false);
+    });
 }
 
 wchar_t Control::GetMnemonic() const noexcept
@@ -808,11 +860,8 @@ bool Control::IsCompactDensity() const noexcept
 
 void Control::SetConnectedAnimationKey(std::wstring key)
 {
-    if (_connectedAnimationKey != key)
-    {
-        _connectedAnimationKey = std::move(key);
-        RequestInvalidate();
-    }
+    // Read when a PageHost starts a transition, never painted.
+    Assign(_connectedAnimationKey, std::move(key), Affects::None);
 }
 
 std::wstring_view Control::GetConnectedAnimationKey() const noexcept
@@ -823,18 +872,7 @@ std::wstring_view Control::GetConnectedAnimationKey() const noexcept
 void Control::SetAccessibleName(std::wstring name)
 {
     const Failure::Scope outerFailureScope;
-    if (_accessibleName != name)
-    {
-        _accessibleName     = std::move(name);
-        const auto lifetime = GetLifetimeToken();
-        RequestInvalidate();
-        if (lifetime.expired())
-            return;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-    }
+    Assign(_accessibleName, std::move(name), Affects::SemanticName);
 }
 
 std::wstring_view Control::GetAccessibleName() const noexcept
@@ -845,18 +883,7 @@ std::wstring_view Control::GetAccessibleName() const noexcept
 void Control::SetAccessibleHelpText(std::wstring helpText)
 {
     const Failure::Scope outerFailureScope;
-    if (_accessibleHelpText != helpText)
-    {
-        _accessibleHelpText = std::move(helpText);
-        const auto lifetime = GetLifetimeToken();
-        RequestInvalidate();
-        if (lifetime.expired())
-            return;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-    }
+    Assign(_accessibleHelpText, std::move(helpText), Affects::SemanticName);
 }
 
 std::wstring_view Control::GetAccessibleHelpText() const noexcept
@@ -886,12 +913,9 @@ HRESULT Control::SetAccessibleFormProperties(Control* label, bool required, bool
             properties->itemStatus = std::move(itemStatus);
         }
         _accessibleFormProperties.swap(properties);
-        const auto lifetime = GetLifetimeToken();
-        RequestInvalidate();
-        if (lifetime.expired())
-            return S_OK;
-        if (ControlHost* const host = GetHost())
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+        // Presentation metadata UI Automation reads (labelled-by, required, valid, item status); nothing paints it. Routed as
+        // Control::Assign routes a semantic change, so an embedded view still prepares and republishes.
+        RouteAffects(Affects::SemanticState);
         return S_OK;
     }
     catch (const std::bad_alloc&)
@@ -923,14 +947,7 @@ std::wstring_view Control::GetAccessibleItemStatus() const noexcept
 void Control::SetAccessibleAutomationId(std::wstring automationId)
 {
     const Failure::Scope outerFailureScope;
-    if (_accessibleAutomationId != automationId)
-    {
-        _accessibleAutomationId = std::move(automationId);
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-    }
+    Assign(_accessibleAutomationId, std::move(automationId), Affects::SemanticName);
 }
 
 std::wstring_view Control::GetAccessibleAutomationId() const noexcept
@@ -941,18 +958,8 @@ std::wstring_view Control::GetAccessibleAutomationId() const noexcept
 void Control::SetAccessibilityRole(AccessibilityRole role) noexcept
 {
     const Failure::Scope outerFailureScope;
-    if (_accessibilityRole != role)
-    {
-        _accessibilityRole  = role;
-        const auto lifetime = GetLifetimeToken();
-        RequestInvalidate();
-        if (lifetime.expired())
-            return;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-    }
+    // The control type and patterns UI Automation reports: a state, never painted.
+    Assign(_accessibilityRole, role, Affects::SemanticState);
 }
 
 AccessibilityRole Control::GetAccessibilityRole() const noexcept
@@ -1023,6 +1030,159 @@ void Control::SetOnContextMenu(std::function<void(POINT screenPoint, bool keyboa
 {
     ReplaceControlCallback(_onContextMenu, std::move(onContextMenu));
 }
+
+void Control::InvalidateHitTest() noexcept
+{
+    if (_host)
+        _host->AdvanceHitRevision();
+}
+
+void Control::RouteAffects(Affects affects) noexcept
+{
+    RouteAffectsAt(affects, static_cast<uint8_t>(HitRevisionSite::Assign));
+}
+
+// The routing of a changed assignment (UI_ControlsAndLayout.md, "Assigning a property"). Each step can run the application's
+// code (an embedded invalidation callback, an accessibility event) that destroys this control, so each later step first
+// checks that it is still alive.
+void Control::RouteAffectsAt(Affects affects, uint8_t hitRevisionSite) noexcept
+{
+    if (affects == Affects::None)
+        return;
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    if (HasAffects(affects, Affects::Hit))
+        NoteHitTestChange(*this, static_cast<HitRevisionSite>(hitRevisionSite));
+    if (HasAffects(affects, Affects::Layout))
+    {
+        InvalidateMeasure();
+        if (lifetime.expired())
+            return;
+    }
+    if (HasAffects(affects, Affects::Paint))
+    {
+        RequestInvalidate();
+        if (lifetime.expired())
+            return;
+    }
+    // One mutation for every semantic aspect: the snapshot is rebuilt whole today. A state can change patterns and focus
+    // (General); a name or value cannot (ContentOnly), so an already posted flush publishes it. An embedded view publishes
+    // at the application's UpdateAccessibility after a preparation, so a change it has not repainted asks for one.
+    if (HasAffects(affects, Affects::SemanticName | Affects::SemanticValue | Affects::SemanticState))
+    {
+        if (ControlHost* const host = GetHost())
+        {
+            if (host->IsEmbedded() && ! HasAffects(affects, Affects::Paint))
+            {
+                RequestInvalidate();
+                if (lifetime.expired() || GetHost() != host)
+                    return;
+            }
+            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(),
+                                                   host,
+                                                   HasAffects(affects, Affects::SemanticState) ? AccessibilityMutationKind::General
+                                                                                               : AccessibilityMutationKind::ContentOnly);
+        }
+    }
+}
+
+namespace
+{
+// Classes outside the library that declared their hit test reported, each by the exact type whose constructor declared it.
+// Bounded and allocation-free: a declaration that does not fit leaves its class unreported, which only turns reuse off.
+constexpr size_t kMaxDeclaredHitTypes = 256u;
+std::array<const std::type_info*, kMaxDeclaredHitTypes> g_declaredHitTypes{};
+size_t g_declaredHitTypeCount  = 0u;
+SRWLOCK g_declaredHitTypesLock = SRWLOCK_INIT;
+
+[[nodiscard]] bool IsDeclaredHitType(const std::type_info& type) noexcept
+{
+    AcquireSRWLockShared(&g_declaredHitTypesLock);
+    const auto release = wil::scope_exit([]() noexcept { ReleaseSRWLockShared(&g_declaredHitTypesLock); });
+    for (size_t index = 0u; index < g_declaredHitTypeCount; ++index)
+        if (*g_declaredHitTypes[index] == type)
+            return true;
+    return false;
+}
+} // namespace
+
+void Control::DeclareHitTestReported() noexcept
+{
+    // In a constructor typeid(*this) is the class being constructed, so the declaration covers exactly that class.
+    const std::type_info& type = typeid(*this);
+    if (! IsDeclaredHitType(type))
+    {
+        AcquireSRWLockExclusive(&g_declaredHitTypesLock);
+        const auto release = wil::scope_exit([]() noexcept { ReleaseSRWLockExclusive(&g_declaredHitTypesLock); });
+        bool present       = false;
+        for (size_t index = 0u; index < g_declaredHitTypeCount && ! present; ++index)
+            present = *g_declaredHitTypes[index] == type;
+        if (! present && g_declaredHitTypeCount < g_declaredHitTypes.size())
+            g_declaredHitTypes[g_declaredHitTypeCount++] = &type;
+    }
+    // Declared while attached (not from a constructor): the host stops counting it once its exact type is declared.
+    if (_host && (_hitTestReporting & kHitTestCounted) != 0u && IsHitTestReported())
+    {
+        --_host->_unreportedHitControls;
+        _hitTestReporting = static_cast<uint8_t>(_hitTestReporting & ~kHitTestCounted);
+    }
+}
+
+// The library's own control classes report every change their hit testing reads: bounds, visibility, enabled state and
+// tree membership move the interaction revision, anything else calls InvalidateHitTest (UI_InputAndAccessibility.md,
+// "Pointer hit result"). Only the exact class counts: a subclass defined elsewhere may override hit testing with state the
+// host cannot see, so it is reported only when its own constructor declares so. A new library control class is added here.
+bool Control::IsHitTestReported() const noexcept
+{
+    static const std::array<const std::type_info*, 35u> kLibraryTypes{
+        &typeid(Panel),       &typeid(PageHost),      &typeid(CardPanel),       &typeid(Label),          &typeid(Separator),
+        &typeid(Button),      &typeid(Toggle),        &typeid(Checkbox),        &typeid(RadioButton),    &typeid(RadioButtons),
+        &typeid(ProgressBar), &typeid(PageIndicator), &typeid(ThroughputGraph), &typeid(Slider),         &typeid(Toolbar),
+        &typeid(MenuBar),     &typeid(TabControl),    &typeid(ColorSwatch),     &typeid(RichTextEditor), &typeid(TextField),
+        &typeid(ComboBox),    &typeid(TagPicker),     &typeid(StatusStrip),     &typeid(PopupLayer),     &typeid(StackPanel),
+        &typeid(FormField),   &typeid(FormPanel),     &typeid(FlexPanel),       &typeid(ScrollPanel),    &typeid(TooltipLayer),
+        &typeid(Tree),        &typeid(Grid),          &typeid(Splitter),        &typeid(NumericStepper), &typeid(ColorPicker),
+    };
+    const std::type_info& type = typeid(*this);
+    return std::ranges::any_of(kLibraryTypes, [&type](const std::type_info* library) noexcept { return *library == type; }) || IsDeclaredHitType(type);
+}
+
+Control::~Control()
+{
+    // Normally a control leaves its host (PropagateHost(nullptr)) before it is destroyed; one destroyed while attached must
+    // not leave the host counting it, which would turn hit-result reuse off for the host's life.
+    if (_host && (_hitTestReporting & kHitTestCounted) != 0u)
+        --_host->_unreportedHitControls;
+}
+
+void Control::RefreshLabelVisualPreparation() noexcept
+{
+    const auto* const label = dynamic_cast<const Label*>(this);
+    if (! label)
+        return;
+    const bool plain = ! label->GetTypographyOverride() && GetMnemonic() == L'\0' && typeid(*this) == typeid(Label);
+    if (plain == ! _visualPreparationEnabled)
+        return;
+    if (! plain)
+    {
+        EnableVisualContentPreparation();
+        return;
+    }
+    // Plain again: nothing to prepare, and a stale prepared layout is released.
+    _visualPreparationEnabled = false;
+    _visualPreparationPending = false;
+    CancelVisualContentPreparation();
+}
+#if DXUI_ENABLE_DIAGNOSTICS
+bool Control::DebugIsHitTestReported() const noexcept
+{
+    return IsHitTestReported();
+}
+
+bool Control::DebugVisualPreparationEnabled() const noexcept
+{
+    return _visualPreparationEnabled;
+}
+#endif
 
 Control* Control::HitTest(D2D1_POINT_2F point)
 {
@@ -1132,6 +1292,7 @@ void Control::RequestInvalidate() const noexcept
 
 void Control::InvalidateMeasure() noexcept
 {
+    ++Detail::Work().layout.measureInvalidations;
     bool hasLayoutOwner = false;
     for (Control* control = this; control; control = control->_parent)
     {
@@ -1236,6 +1397,8 @@ void Control::PropagateHost(ControlHost* host) noexcept
     if (_host == host)
         return;
 
+    // Measurements belong to the host that made them: none survive a move, even to a later host at the same address.
+    _measureCache.reset();
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     ControlHost* const previousHost   = _host;
     if (previousHost && _visualPreparationEnabled)
@@ -1247,10 +1410,21 @@ void Control::PropagateHost(ControlHost* host) noexcept
     }
     if (previousHost)
     {
+        // The departing host forgets this control's frame-schedule request before anything can call back; the host it
+        // joins next ticks it once instead, so a transition in flight lands or resumes there.
+        if (previousHost->ForgetControl(*this))
+            _tickRequestPending = true;
         previousHost->InvalidateRichTitleTooltip(this);
         if (lifetime.expired() || _host != previousHost)
             return;
         ++previousHost->_interactionRevision;
+        // A control leaving the host may be (or contain) the supplemental tooltip's target.
+        if (previousHost->MarkTooltipTargetStale())
+        {
+            previousHost->OnTooltipScheduleChanged();
+            if (lifetime.expired() || _host != previousHost)
+                return;
+        }
         previousHost->Invalidate();
         if (lifetime.expired() || _host != previousHost)
             return;
@@ -1258,11 +1432,35 @@ void Control::PropagateHost(ControlHost* host) noexcept
     if (host)
     {
         ++host->_interactionRevision;
+        // A control joining the host may cover the supplemental tooltip's target.
+        if (host->MarkTooltipTargetStale())
+        {
+            host->OnTooltipScheduleChanged();
+            if (lifetime.expired() || _host != previousHost)
+                return;
+        }
         host->Invalidate();
         if (lifetime.expired() || _host != previousHost)
             return;
     }
+    // A host reuses no hit result while it holds a control whose hit testing it cannot see.
+    if (previousHost && (_hitTestReporting & kHitTestCounted) != 0u)
+    {
+        --previousHost->_unreportedHitControls;
+        _hitTestReporting = static_cast<uint8_t>(_hitTestReporting & ~kHitTestCounted);
+    }
     _host = host;
+    if (host && std::exchange(_tickRequestPending, false))
+        host->RequestAnimationOnce(*this);
+    if (host && ! IsHitTestReported())
+    {
+        if (host->_unreportedHitControls++ == 0u && Detail::Trace::Listening()) [[unlikely]]
+            Detail::Trace::HitReuseOff(host->_trace);
+        _hitTestReporting = static_cast<uint8_t>(_hitTestReporting | kHitTestCounted);
+    }
+    // A Label subclass keeps the visual preparation a plain Label does without (its dynamic type is known only now).
+    if (host)
+        RefreshLabelVisualPreparation();
     RequestContentPreparation(false);
     RequestVisualContentPreparation(false);
     InvalidateMeasure();

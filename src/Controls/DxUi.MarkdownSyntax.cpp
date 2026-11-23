@@ -5,6 +5,7 @@
 #include "DxUi.MarkdownMetadata.h"
 #include "DxUi.MarkdownSourceCorrelation.h"
 #include "DxUi.TextElements.h"
+#include "Support/WorkCounters.h"
 #include <DxUi/Failure.h>
 #include <DxUi/MarkdownSyntax.h>
 #include <atomic>
@@ -121,6 +122,71 @@ bool CharacterReference(std::wstring_view source, std::size_t first, MarkdownLex
             break;
     }
     return false;
+}
+
+// Incremental parse reuse (plan item W7.2). What a publication carries for its parser's next parse travels in the
+// deleter of the publication's own shared_ptr control block, so the public type keeps its layout: the effective link
+// reference definitions, the inline staging of each leaf, the physical line count and the fresh top-level starts. A
+// publication without it (an adopted parse) is never a reuse source.
+struct ReuseState
+{
+    ReuseState() : references(0u), leafStaging(0u), freshRoots(0u)
+    {
+    }
+    std::vector<Detail::MarkdownReferenceValue> references;
+    std::vector<std::uint32_t> leafStaging;
+    // Sorted source starts of the top-level blocks whose first line the block recognizer began with no document-level
+    // leaf or table row open (containers that line closed do not matter). Only these can be imported: a block born from a paragraph's tail (a table header, the
+    // leftover of reference-definition extraction) or from a container's leftover depended on what was open before it.
+    std::vector<std::size_t> freshRoots;
+    std::size_t physicalLines{};
+};
+struct SyntaxDeleter
+{
+    std::shared_ptr<ReuseState> state;
+    void operator()(MarkdownSyntax* syntax) const noexcept
+    {
+        delete syntax;
+    }
+};
+const ReuseState* ReuseOf(const std::shared_ptr<const MarkdownSyntax>& syntax) noexcept
+{
+    const auto* deleter = syntax ? std::get_deleter<SyntaxDeleter>(syntax) : nullptr;
+    return deleter ? deleter->state.get() : nullptr;
+}
+// Line breaks counted at their last unit (LF, or CR not followed by LF) in [first, last): with the unit before a window
+// included, the counts of an unchanged prefix and suffix are equal in both revisions.
+std::size_t LineBreaks(std::wstring_view text, std::size_t first, std::size_t last) noexcept
+{
+    std::size_t count{};
+    for (auto at = first; at < last; ++at)
+        if (text[at] == L'\n' || (text[at] == L'\r' && (at + 1u == text.size() || text[at + 1u] != L'\n')))
+            ++count;
+    return count;
+}
+// The new revision's flat source from the previous publication's source and the tracked edit window: only the window
+// is read out of the piece tree. False when the metadata does not fit the previous source.
+bool ComposeSource(const SourceSnapshot& source,
+                   const std::shared_ptr<const MarkdownSyntax>& published,
+                   const std::optional<SourceChangeRange>& change,
+                   std::wstring& result)
+{
+    if (! published || ! change || change->kind != SourceChangeKind::TrackedEdits)
+        return false;
+    const auto previous = published->Source();
+    const auto length   = source.Length();
+    if (change->begin > change->previousEnd || change->previousEnd > previous.size() || change->begin > change->currentEnd || change->currentEnd > length ||
+        previous.size() - change->previousEnd != length - change->currentEnd)
+        return false;
+    std::wstring window(0u, L' ');
+    if (source.TrySlice(change->begin, change->currentEnd, window) != SourceResult::Success)
+        return false;
+    result.reserve(length);
+    result.append(previous.substr(0u, change->begin));
+    result.append(window);
+    result.append(previous.substr(change->previousEnd));
+    ::DxUi::Detail::Work().rich.markdownSourceUnitsMaterialized += window.size();
+    return true;
 }
 
 } // namespace
@@ -327,11 +393,68 @@ struct MarkdownParser::Preparation
                          std::uint64_t revision,
                          MarkdownProfile profile,
                          MarkdownExtensions extensions,
-                         std::optional<MarkdownSourceRegion> sourceRegion)
-        // The private constructor prevents exposing unparsed mutable shells.
-        // shared_ptr owns immediately and deletes on control-block failure too.
-        : syntax(std::shared_ptr<MarkdownSyntax>(new MarkdownSyntax(source, revision, profile, extensions, sourceRegion)))
+                         std::optional<MarkdownSourceRegion> sourceRegion,
+                         std::wstring* owned)
+        : syntax(Create(source, revision, profile, extensions, sourceRegion, owned))
     {
+    }
+    // The private constructor prevents exposing unparsed mutable shells. shared_ptr owns immediately and deletes on
+    // control-block failure too; its deleter carries the reuse state (W7.2). An owned (composed) source is moved in
+    // before any later member views it, so the source is copied once.
+    static std::shared_ptr<MarkdownSyntax> Create(std::wstring_view source,
+                                                  std::uint64_t revision,
+                                                  MarkdownProfile profile,
+                                                  MarkdownExtensions extensions,
+                                                  std::optional<MarkdownSourceRegion> sourceRegion,
+                                                  std::wstring* owned)
+    {
+        auto state = std::make_shared<ReuseState>();
+        std::shared_ptr<MarkdownSyntax> created(new MarkdownSyntax(owned ? std::wstring_view{} : source, revision, profile, extensions, sourceRegion),
+                                                SyntaxDeleter{std::move(state)});
+        if (owned)
+            created->source_.swap(*owned);
+        return created;
+    }
+    // MarkdownParser::BeginSource, with an optional owned copy of source to adopt instead of copying it.
+    static void Begin(MarkdownParser& parser,
+                      std::wstring_view source,
+                      std::uint64_t revision,
+                      MarkdownProfile profile,
+                      MarkdownExtensions extensions,
+                      std::optional<SourceChangeRange> change,
+                      std::optional<MarkdownSourceRegion> sourceRegion,
+                      std::wstring* owned)
+    {
+        const auto same = [&](const auto& syntax)
+        {
+            return syntax && syntax->Revision() == revision && syntax->Profile() == profile && syntax->Extensions() == extensions &&
+                   syntax->Source() == source && syntax->sourceRegionRequest_ == sourceRegion;
+        };
+        const auto sameChange = [](const auto& a, const auto& b)
+        {
+            return (! a && ! b) || (a && b && a->kind == b->kind && a->begin == b->begin && a->previousEnd == b->previousEnd && a->currentEnd == b->currentEnd);
+        };
+        if (parser.preparation_ && same(parser.preparation_->syntax) && sameChange(parser.preparation_->change, change))
+            return;
+        if (same(parser.published_) && (! change || change->kind == SourceChangeKind::Unchanged))
+        {
+            parser.Cancel();
+            return;
+        }
+        const auto borrowed     = parser.published_ && parser.published_->parsedDataOwner_;
+        const auto document     = borrowed                   ? nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed)
+                                  : parser.documentIdentity_ ? parser.documentIdentity_
+                                                             : nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed);
+        const auto nextIdentity = borrowed ? 1u : parser.nextNodeIdentity_;
+        const auto units        = source.size();
+        auto staged             = std::make_unique<Preparation>(source, revision, profile, extensions, sourceRegion, owned);
+        ++::DxUi::Detail::Work().rich.markdownParses;
+        ::DxUi::Detail::Work().rich.markdownSourceUnitsCopied += units;
+        staged->change = change;
+        staged->SetPrevious(borrowed ? std::shared_ptr<const MarkdownSyntax>{} : parser.published_, document, nextIdentity);
+        parser.preparation_      = std::move(staged);
+        parser.documentIdentity_ = document;
+        parser.nextNodeIdentity_ = nextIdentity;
     }
     static std::optional<std::wstring> BlockSource(const MarkdownSyntax& syntax)
     {
@@ -372,49 +495,157 @@ struct MarkdownParser::Preparation
     std::uint64_t nextIdentity = 1u;
     bool identitiesComplete{};
     bool discardOldIdentities{};
+    // Incremental reuse (plan item W7.2): admitted for a compatible previous publication that carries reuse state. The
+    // reuse window is the correlation envelope with its unchanged edge units trimmed, so a conservative tracked range
+    // does not widen the reparse; identity reconciliation keeps the trusted envelope.
+    bool reuse{};
+    const ReuseState* previousState{};
+    std::size_t reuseFirst{}, reuseOldEnd{}, reuseNewEnd{}, sourceLines{};
+    std::vector<Detail::MarkdownImportedSubtree> importedSubtrees = std::vector<Detail::MarkdownImportedSubtree>(0u);
+    std::size_t importedRootCursor{}, identitySubtree{}, oldSkip{};
+    // Line starts this parse reached with no document-level leaf or table row open, then the top-level starts among them (W7.2).
+    std::vector<std::size_t> freshLines = std::vector<std::size_t>(0u);
+    std::vector<std::size_t> freshRoots = std::vector<std::size_t>(0u);
+    std::size_t freshCursor{};
+    bool FreshInPrevious(std::size_t start) const noexcept
+    {
+        return std::binary_search(previousState->freshRoots.begin(), previousState->freshRoots.end(), start);
+    }
+    // After an imported block the new parse continues with nothing open. That matches the previous parse only if it too
+    // had nothing open at the next top-level block: separated by document-level blank lines alone, the next block began
+    // fresh, or the block reached the end. A paragraph whose last line became a table header, for example, was still
+    // open at the next line.
+    bool EndsAtFreshStart(std::size_t start) const noexcept
+    {
+        const auto& roots = previous->Blocks();
+        const auto blanks = previous->EmptyLines();
+        auto at           = std::lower_bound(roots.begin(), roots.end(), start, [](const auto& block, auto position) { return block.source.first < position; });
+        if (at == roots.end() || at->source.first != start)
+            return false;
+        for (++at; at != roots.end() && at->kind == MarkdownBlockKind::BlankLine; ++at)
+        {
+            const auto blank =
+                std::lower_bound(blanks.begin(), blanks.end(), at->source.first, [](const auto& line, auto position) { return line.source.first < position; });
+            if (blank == blanks.end() || blank->source.first != at->source.first || blank->owner != 0u)
+                return false;
+        }
+        return at == roots.end() || FreshInPrevious(at->source.first);
+    }
     void SetPrevious(std::shared_ptr<const MarkdownSyntax> old, std::uint64_t document, std::uint64_t next)
     {
         syntax->documentIdentity_ = document;
         previous                  = std::move(old);
         nextIdentity              = next;
-        if (! previous || previous->Profile() != syntax->Profile())
-        {
+        if (previous && previous->Profile() != syntax->Profile())
             previous.reset();
+        const auto b = syntax->Source();
+        if (! previous)
+        {
+            ReserveLines(LineBreaks(b, 0u, b.size()) + 1u);
             return;
         }
-        const auto a = previous->Source(), b = syntax->Source();
+        const auto a           = previous->Source();
         const auto correlation = Detail::CorrelateMarkdownSource(
             a.size(), b.size(), change, [&](std::size_t at) noexcept { return a[at]; }, [&](std::size_t at) noexcept { return b[at]; });
         commonFirst          = correlation.first;
         commonOldEnd         = correlation.previousEnd;
         commonNewEnd         = correlation.currentEnd;
         discardOldIdentities = correlation.discardPrevious;
-        if (change && change->kind == SourceChangeKind::TrackedEdits && ! discardOldIdentities)
+        reuseFirst           = commonFirst;
+        reuseOldEnd          = commonOldEnd;
+        reuseNewEnd          = commonNewEnd;
+        const bool envelope  = ! discardOldIdentities && (! change || change->kind == SourceChangeKind::TrackedEdits);
+        if (envelope)
+        {
+            // A tracked range may include unchanged units; trimming reads only the window.
+            while (reuseFirst < reuseOldEnd && reuseFirst < reuseNewEnd && a[reuseFirst] == b[reuseFirst])
+                ++reuseFirst;
+            while (reuseOldEnd > reuseFirst && reuseNewEnd > reuseFirst && a[reuseOldEnd - 1u] == b[reuseNewEnd - 1u])
+            {
+                --reuseOldEnd;
+                --reuseNewEnd;
+            }
+        }
+        previousState = ReuseOf(previous);
+        reuse =
+            envelope && previousState && previous->Extensions() == syntax->Extensions() && ! previous->sourceRegionRequest_ && ! syntax->sourceRegionRequest_;
+        if (reuse)
+        {
+            // Physical lines of the unchanged prefix and suffix are the previous publication's; count the window only.
+            const auto from = reuseFirst ? reuseFirst - 1u : 0u;
+            ReserveLines(previousState->physicalLines - LineBreaks(a, from, reuseOldEnd) + LineBreaks(b, from, reuseNewEnd));
+        }
+        else
+            ReserveLines(LineBreaks(b, 0u, b.size()) + 1u);
+        if (envelope)
         {
             // Lexical constructs have a maximum 33-unit named reference (or a
             // two-unit escape/CRLF). Keep a safety margin on both edit edges.
+            // No lexeme crosses a line break (a CR can still join a following
+            // LF), so the margins also stop at the edit's own line (W7.2).
             constexpr std::size_t margin = 34u;
-            lexicalPrefixLimit           = commonFirst > margin ? commonFirst - margin : 0u;
-            const auto oldSafe           = commonOldEnd + std::min(margin, a.size() - commonOldEnd);
-            const auto& lexemes          = previous->Lexemes();
-            auto suffix = std::lower_bound(lexemes.begin(), lexemes.end(), oldSafe, [](const auto& token, auto at) { return token.source.first < at; });
+            lexicalPrefixLimit           = reuseFirst > margin ? reuseFirst - margin : 0u;
+            for (auto at = reuseFirst; at > lexicalPrefixLimit; --at)
+                if (a[at - 1u] == L'\n' || a[at - 1u] == L'\r')
+                {
+                    lexicalPrefixLimit = a[at - 1u] == L'\n' ? at : at - 1u;
+                    break;
+                }
+            auto oldSafe = reuseOldEnd + std::min(margin, a.size() - reuseOldEnd);
+            for (auto at = reuseOldEnd; at < oldSafe; ++at)
+                if (a[at] == L'\n' || a[at] == L'\r')
+                {
+                    oldSafe = at;
+                    break;
+                }
+            const auto& lexemes = previous->Lexemes();
+            auto suffix         = std::lower_bound(lexemes.begin(), lexemes.end(), oldSafe, [](const auto& token, auto at) { return token.source.first < at; });
             while (suffix != lexemes.end() && suffix->kind == MarkdownLexemeKind::Text)
                 ++suffix;
             if (suffix != lexemes.end())
             {
                 lexicalSuffixIndex = static_cast<std::size_t>(suffix - lexemes.begin());
-                lexicalSuffixStart = commonNewEnd + (suffix->source.first - commonOldEnd);
+                lexicalSuffixStart = reuseNewEnd + (suffix->source.first - reuseOldEnd);
             }
         }
+    }
+    // The exact physical line count of this source, carried to the next parse; the block recognizer reserves its
+    // empty-line vector for the lines of its (possibly region-masked) block source, which has the same line breaks
+    // except under a source-region request.
+    void ReserveLines(std::size_t lines)
+    {
+        sourceLines = lines;
+        blocks.ReserveEmptyLines(blockSourceStorage ? LineBreaks(blockSource, 0u, blockSource.size()) + 1u : lines);
+    }
+    // An unchanged closed envelope imported from the previous parse: its validation result is the previous one (W7.2).
+    void CarryFrontMatterResult(const MarkdownNode& node, std::size_t nodeIndex, std::size_t oldIndex)
+    {
+        const auto content     = previous->Nodes()[oldIndex].block.content;
+        const auto diagnostics = previous->Diagnostics();
+        auto found = std::lower_bound(diagnostics.begin(), diagnostics.end(), content.first, [](const auto& item, auto at) { return item.source.first < at; });
+        for (; found != diagnostics.end() && found->source.first == content.first; ++found)
+            if (found->node == oldIndex && found->code != MarkdownDiagnosticCode::UnclosedFrontMatter &&
+                found->code != MarkdownDiagnosticCode::DuplicateFootnoteDefinition && found->code != MarkdownDiagnosticCode::UndefinedFootnote)
+                syntax->diagnostics_.push_back({found->code, node.block.content, nodeIndex});
+        ++::DxUi::Detail::Work().rich.markdownFrontMatterValidationsReused;
     }
     void IdentityUnit()
     {
         if (previous && ! discardOldIdentities && oldIndexCursor < previous->Nodes().size())
         {
+            // Imported subtrees keep their identities directly (W7.2); only the other old nodes are indexed.
+            while (oldSkip < importedSubtrees.size() && importedSubtrees[oldSkip].oldFirst + importedSubtrees[oldSkip].count <= oldIndexCursor)
+                ++oldSkip;
+            if (oldSkip < importedSubtrees.size() && importedSubtrees[oldSkip].oldFirst <= oldIndexCursor)
+            {
+                oldIndexCursor = importedSubtrees[oldSkip].oldFirst + importedSubtrees[oldSkip].count;
+                return;
+            }
             const auto& oldNode = previous->Nodes()[oldIndexCursor];
             const auto& block   = oldNode.block;
             const auto parent   = oldNode.parent == MarkdownNoNode ? 0u : previous->Nodes()[oldNode.parent].identity;
             oldNodes.emplace(NodeKey{parent, block.source.first, block.source.last, block.kind}, oldIndexCursor++);
+            ++::DxUi::Detail::Work().rich.identityMapNodes;
             return;
         }
         if (identityCursor == syntax->nodes_.size())
@@ -427,14 +658,23 @@ struct MarkdownParser::Preparation
         }
         const auto nodeIndex = identityCursor++;
         auto& node           = syntax->nodes_[nodeIndex];
+        // The old node an imported subtree copied this node from (W7.2).
+        auto carried = MarkdownNoNode;
+        while (identitySubtree < importedSubtrees.size() && importedSubtrees[identitySubtree].first + importedSubtrees[identitySubtree].count <= nodeIndex)
+            ++identitySubtree;
+        if (identitySubtree < importedSubtrees.size() && importedSubtrees[identitySubtree].first <= nodeIndex)
+            carried = importedSubtrees[identitySubtree].oldFirst + (nodeIndex - importedSubtrees[identitySubtree].first);
         if (node.block.kind == MarkdownBlockKind::SourceEditor)
             syntax->sourceRegionNode_ = nodeIndex;
         // Reuse the existing resumable final-node pass; never rescan all nodes
         // on a host input/read path just to discover incomplete envelopes.
         if (node.block.kind == MarkdownBlockKind::FrontMatter && ! node.block.closed)
             syntax->diagnostics_.push_back({MarkdownDiagnosticCode::UnclosedFrontMatter, node.block.info, nodeIndex});
+        else if (node.block.kind == MarkdownBlockKind::FrontMatter && carried != MarkdownNoNode)
+            CarryFrontMatterResult(node, nodeIndex, carried);
         else if (node.block.kind == MarkdownBlockKind::FrontMatter && node.frontMatterKind == MarkdownFrontMatterKind::Toml)
         {
+            ++::DxUi::Detail::Work().rich.markdownFrontMatterValidations;
             const auto issue =
                 Detail::ValidateTomlMetadata(syntax->Source().substr(node.block.content.first, node.block.content.last - node.block.content.first));
             if (issue != Detail::MetadataIssue::None)
@@ -445,6 +685,7 @@ struct MarkdownParser::Preparation
         }
         else if (node.block.kind == MarkdownBlockKind::FrontMatter && node.frontMatterKind == MarkdownFrontMatterKind::Yaml)
         {
+            ++::DxUi::Detail::Work().rich.markdownFrontMatterValidations;
             const auto issue =
                 Detail::ValidateYamlMetadata(syntax->Source().substr(node.block.content.first, node.block.content.last - node.block.content.first));
             if (issue != Detail::MetadataIssue::None)
@@ -459,6 +700,11 @@ struct MarkdownParser::Preparation
         if (identityCursor == 1u && previous)
         {
             node.identity = previous->Nodes()[0].identity;
+            return;
+        }
+        if (carried != MarkdownNoNode)
+        {
+            node.identity = previous->Nodes()[carried].identity;
             return;
         }
         auto first = node.block.source.first, last = node.block.source.last;
@@ -516,7 +762,8 @@ struct MarkdownParser::Preparation
         syntax->emptyLines_,
         syntax->extensions_,
         syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Block ? syntax->sourceRegionRequest_ : std::nullopt,
-        syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Inline && syntax->source_.empty()};
+        syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Inline && syntax->source_.empty(),
+        false};
     Detail::MarkdownInlines inlines{syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Inline &&
                                             syntax->sourceRegionRequest_->source.first == syntax->sourceRegionRequest_->source.last
                                         ? std::wstring_view(syntax->source_)
@@ -591,7 +838,13 @@ struct MarkdownParser::Preparation
                     (node.block.kind == MarkdownBlockKind::SourceEditor || node.block.kind == MarkdownBlockKind::ReferenceDefinition) ||
                     (node.block.source.first < oldFirst || node.block.source.first > node.block.source.last || node.block.source.last > oldLast) ||
                     (node.block.content.first < oldFirst || node.block.content.first > node.block.content.last || node.block.content.last > oldLast) ||
-                    ! validRange(node.block.info) || ! validRange(node.label) || ! validRange(node.destination) || ! validRange(node.title))
+                    ! validRange(node.block.info) || ! validRange(node.label) || ! validRange(node.destination) || ! validRange(node.title) ||
+                    // A code, HTML or envelope leaf whose content reaches the end of the source can still be the open
+                    // leaf when a full parse finishes, which then records no final insertion line; the previous parse
+                    // shows that by a source ending in a line break without that line. Parse it again instead.
+                    ((node.block.kind == MarkdownBlockKind::FencedCode || node.block.kind == MarkdownBlockKind::IndentedCode ||
+                      node.block.kind == MarkdownBlockKind::HtmlBlock || node.block.kind == MarkdownBlockKind::FrontMatter) &&
+                     node.block.content.last == previous->Source().size() && PreviousEndedInLeaf()))
                 {
                     fail();
                     return;
@@ -659,6 +912,7 @@ struct MarkdownParser::Preparation
             const auto imported = blocks.ImportClosedNode(node, parent, oldFirst, work.newFirst);
             if (imported == MarkdownNoNode)
                 return;
+            ++::DxUi::Detail::Work().rich.markdownNodesCopied;
             work.remap.push_back(imported);
             work.line  = 0u;
             work.phase = ClosedRootReuse::Phase::CopyLines;
@@ -686,7 +940,21 @@ struct MarkdownParser::Preparation
         lineFirst = cursor;
         blocks.FinishClosedRoot(cursor);
         reusableRootIndex = work.end;
+        importedSubtrees.push_back({MarkdownNoNode, work.end - work.root, work.root, oldFirst, work.newFirst});
         closedRoot.reset();
+    }
+    // The unchanged prefix line that ends at `last` is terminated there, before the edit: text typed at the edit cannot
+    // continue it (an EOF line without a line ending would continue; an LF typed after a CR would join its CRLF).
+    bool PreviousEndedInLeaf() const noexcept
+    {
+        const auto source = previous->Source();
+        const auto blanks = previous->EmptyLines();
+        return ! source.empty() && (source.back() == L'\n' || source.back() == L'\r') && (blanks.empty() || blanks.back().source.first != source.size());
+    }
+    bool LineEndsBefore(std::size_t last) const noexcept
+    {
+        const auto source = previous->Source();
+        return last > 0u && last <= reuseFirst && (source[last - 1u] == L'\n' || (source[last - 1u] == L'\r' && last < reuseFirst));
     }
     void ScanBlockUnit()
     {
@@ -697,15 +965,16 @@ struct MarkdownParser::Preparation
         }
         if (blocks.AdvanceTableCell())
             return;
+        if (cursor == lineFirst && blocks.StartsFresh() && (freshLines.empty() || freshLines.back() != cursor))
+            freshLines.push_back(cursor);
         const auto& source = blockSource;
-        if (previous && change && change->kind == SourceChangeKind::TrackedEdits && previous->Extensions() == syntax->Extensions() &&
-            ! previous->sourceRegionRequest_ && ! syntax->sourceRegionRequest_ && cursor == lineFirst && blocks.CanImportClosedRoot())
+        if (reuse && cursor == lineFirst && blocks.CanImportClosedRoot())
         {
-            const bool prefix = cursor < commonFirst;
-            const bool suffix = cursor >= commonNewEnd;
+            const bool prefix = cursor < reuseFirst;
+            const bool suffix = cursor >= reuseNewEnd;
             if (prefix || suffix)
             {
-                const auto oldPosition    = prefix ? cursor : commonOldEnd + (cursor - commonNewEnd);
+                const auto oldPosition    = prefix ? cursor : reuseOldEnd + (cursor - reuseNewEnd);
                 const auto& previousNodes = previous->Nodes();
                 if (reusableRootIndex < previousNodes.size())
                 {
@@ -722,14 +991,24 @@ struct MarkdownParser::Preparation
                         const auto blank   = std::lower_bound(
                             blanks.begin(), blanks.end(), old.block.source.last, [](const auto& line, auto position) { return line.source.first < position; });
                         const bool followingBlank = blank != blanks.end() && blank->owner == 0u && blank->source.first == old.block.source.last &&
-                                                    blank->source.last > blank->source.first && (! prefix || blank->source.last <= commonFirst);
+                                                    blank->source.last > blank->source.first &&
+                                                    (! prefix || (blank->source.last <= reuseFirst && LineEndsBefore(blank->source.last)));
+                        // A closed front-matter envelope ends at its closing line: nothing after it can extend it. Its
+                        // line ending must precede the edit, or an LF typed after a CR would join that line.
+                        const auto envelopeLast = old.block.source.last;
+                        const bool closedEnvelope =
+                            prefix && old.block.kind == MarkdownBlockKind::FrontMatter && envelopeLast <= reuseFirst && LineEndsBefore(envelopeLast);
                         // Front matter depends on absolute document start. A
                         // suffix crossing that boundary must be recognized again
                         // in either direction, even when its bytes are unchanged.
                         const bool sameStartContext = (cursor == 0u) == (oldPosition == 0u);
                         // Other suffix closure remains valid through EOF; prefix
                         // roots require an unchanged document-owned separator.
-                        if (sameStartContext && (followingBlank || suffix) && old.block.closed && old.block.source.last > old.block.source.first)
+                        // The old block must also have begun with nothing open: then it parses the same from this
+                        // state, which is the state the new parse has here (nothing open but the document).
+                        if (sameStartContext && (followingBlank || suffix || closedEnvelope) && old.block.closed &&
+                            old.block.source.last > old.block.source.first && FreshInPrevious(old.block.source.first) &&
+                            (! suffix || followingBlank || EndsAtFreshStart(old.block.source.first)))
                         {
                             closedRoot.emplace();
                             closedRoot->root = closedRoot->scan = reusableRootIndex - 1u;
@@ -737,6 +1016,19 @@ struct MarkdownParser::Preparation
                             return;
                         }
                     }
+                }
+                // A document-level blank line between unchanged blocks is copied too (W7.2): with nothing open, Line
+                // records any whitespace-only line the same way, so no unit of it needs scanning.
+                const auto& blanks = previous->EmptyLines();
+                const auto blank =
+                    std::lower_bound(blanks.begin(), blanks.end(), oldPosition, [](const auto& line, auto position) { return line.source.first < position; });
+                if (blank != blanks.end() && blank->source.first == oldPosition && blank->owner == 0u && blank->source.last > blank->source.first &&
+                    (suffix || (blank->source.last <= reuseFirst && LineEndsBefore(blank->source.last))))
+                {
+                    blocks.ImportDocumentBlankLine(*blank, oldPosition, cursor);
+                    cursor    = cursor + (blank->source.last - blank->source.first);
+                    lineFirst = cursor;
+                    return;
                 }
             }
         }
@@ -755,11 +1047,15 @@ struct MarkdownParser::Preparation
             return;
         }
         const auto character = source[cursor++];
+        ++::DxUi::Detail::Work().rich.markdownBlockUnitsScanned;
         if (character == L'\r' || character == L'\n')
         {
             const auto bodyEnd = cursor - 1u;
             if (character == L'\r' && cursor < source.size() && source[cursor] == L'\n')
+            {
                 ++cursor;
+                ++::DxUi::Detail::Work().rich.markdownBlockUnitsScanned;
+            }
             blocks.Line(lineFirst, bodyEnd, cursor);
             lineFirst = cursor;
         }
@@ -769,6 +1065,18 @@ struct MarkdownParser::Preparation
         auto& roots = syntax->blocks_;
         if (rootNode != MarkdownNoNode && rootCursor == syntax->nodes_[rootNode].block.source.first)
         {
+            // Locate each imported subtree in the compacted tree (W7.2): imports and roots are both in source order.
+            const auto& root = syntax->nodes_[rootNode];
+            while (importedRootCursor < importedSubtrees.size() && importedSubtrees[importedRootCursor].newSource < root.block.source.first)
+                ++importedRootCursor;
+            if (importedRootCursor < importedSubtrees.size() && importedSubtrees[importedRootCursor].newSource == root.block.source.first &&
+                previous->Nodes()[importedSubtrees[importedRootCursor].oldFirst].block.kind == root.block.kind &&
+                rootNode + importedSubtrees[importedRootCursor].count <= syntax->nodes_.size())
+                importedSubtrees[importedRootCursor++].first = rootNode;
+            while (freshCursor < freshLines.size() && freshLines[freshCursor] < root.block.source.first)
+                ++freshCursor;
+            if (freshCursor < freshLines.size() && freshLines[freshCursor] == root.block.source.first)
+                freshRoots.push_back(root.block.source.first);
             roots.push_back(syntax->nodes_[rootNode].block);
             rootCursor = roots.back().source.last;
             rootNode   = syntax->nodes_[rootNode].nextSibling;
@@ -776,6 +1084,22 @@ struct MarkdownParser::Preparation
         else if (rootCursor < syntax->source_.size())
         {
             const auto first = rootCursor;
+            // An unchanged trivia line keeps its previous partition entry, shifted (W7.2): no unit of it is read.
+            if (reuse && (first < reuseFirst || first >= reuseNewEnd))
+            {
+                const auto oldFirst  = first < reuseFirst ? first : reuseOldEnd + (first - reuseNewEnd);
+                const auto& oldRoots = previous->Blocks();
+                const auto old       = std::lower_bound(
+                    oldRoots.begin(), oldRoots.end(), oldFirst, [](const auto& block, auto position) { return block.source.first < position; });
+                if (old != oldRoots.end() && old->kind == MarkdownBlockKind::BlankLine && old->source.first == oldFirst && old->source.last > oldFirst &&
+                    (first >= reuseNewEnd || LineEndsBefore(old->source.last)) &&
+                    (rootNode == MarkdownNoNode || first + (old->source.last - oldFirst) <= syntax->nodes_[rootNode].block.source.first))
+                {
+                    rootCursor = first + (old->source.last - oldFirst);
+                    roots.push_back({MarkdownBlockKind::BlankLine, {first, rootCursor}, {first, first + (old->content.last - oldFirst)}});
+                    return;
+                }
+            }
             do
             {
                 ++rootCursor;
@@ -785,10 +1109,16 @@ struct MarkdownParser::Preparation
             auto bodyEnd = rootCursor;
             while (bodyEnd > first && (syntax->source_[bodyEnd - 1u] == L'\r' || syntax->source_[bodyEnd - 1u] == L'\n'))
                 --bodyEnd;
+            ::DxUi::Detail::Work().rich.markdownRootTriviaUnitsScanned += rootCursor - first;
             roots.push_back({MarkdownBlockKind::BlankLine, {first, rootCursor}, {first, bodyEnd}});
         }
         else
+        {
+            std::erase_if(importedSubtrees, [](const auto& subtree) { return subtree.first == MarkdownNoNode; });
+            if (reuse && ! importedSubtrees.empty())
+                inlines.EnableReuse({&previous->Nodes(), &previous->Inlines(), &previousState->references, &previousState->leafStaging, &importedSubtrees});
             rootsComplete = true;
+        }
     }
     void FlushLiteral(std::size_t end)
     {
@@ -857,8 +1187,10 @@ struct MarkdownParser::Preparation
         else
         {
             lexicalCursor = StepToNextCodePoint(source, first);
+            ::DxUi::Detail::Work().rich.markdownLexicalUnitsScanned += lexicalCursor - first;
             return;
         }
+        ::DxUi::Detail::Work().rich.markdownLexicalUnitsScanned += lexicalCursor - first;
         FlushLiteral(first);
         syntax->lexemes_.push_back(token);
         literalFirst = lexicalCursor;
@@ -987,8 +1319,13 @@ MarkdownResult MarkdownParser::TryBegin(const SourceSnapshot& source,
         publishedSource_ = source;
         return MarkdownResult::Success;
     }
-    const auto flat = source.Text();
-    BeginSource(flat, revision, profile, enabled, change);
+    std::wstring flat(0u, L' ');
+    if (! ComposeSource(source, published_, change, flat))
+    {
+        flat = source.Text();
+        ::DxUi::Detail::Work().rich.markdownSourceUnitsMaterialized += flat.size();
+    }
+    Preparation::Begin(*this, flat, revision, profile, enabled, change, std::nullopt, &flat);
     if (preparation_)
         preparation_->snapshot = source;
     else
@@ -1017,8 +1354,13 @@ MarkdownResult MarkdownParser::TryBeginSourceRegion(
     if (! TryResolveExtensions(profile, extensions, enabled))
         return MarkdownResult::InvalidProfile;
     const auto change = publishedSource_ ? std::optional(source.ChangedRangeFrom(*publishedSource_)) : std::nullopt;
-    const auto flat   = source.Text();
-    BeginSource(flat, revision, profile, enabled, change, region);
+    std::wstring flat(0u, L' ');
+    if (! ComposeSource(source, published_, change, flat))
+    {
+        flat = source.Text();
+        ::DxUi::Detail::Work().rich.markdownSourceUnitsMaterialized += flat.size();
+    }
+    Preparation::Begin(*this, flat, revision, profile, enabled, change, region, &flat);
     if (preparation_)
         preparation_->snapshot = source;
     else
@@ -1032,31 +1374,7 @@ void MarkdownParser::BeginSource(std::wstring_view source,
                                  std::optional<SourceChangeRange> change,
                                  std::optional<MarkdownSourceRegion> sourceRegion)
 {
-    const auto same = [&](const auto& syntax)
-    {
-        return syntax && syntax->Revision() == revision && syntax->Profile() == profile && syntax->Extensions() == extensions && syntax->Source() == source &&
-               syntax->sourceRegionRequest_ == sourceRegion;
-    };
-    const auto sameChange = [](const auto& a, const auto& b)
-    { return (! a && ! b) || (a && b && a->kind == b->kind && a->begin == b->begin && a->previousEnd == b->previousEnd && a->currentEnd == b->currentEnd); };
-    if (preparation_ && same(preparation_->syntax) && sameChange(preparation_->change, change))
-        return;
-    if (same(published_) && (! change || change->kind == SourceChangeKind::Unchanged))
-    {
-        Cancel();
-        return;
-    }
-    const auto borrowed     = published_ && published_->parsedDataOwner_;
-    const auto document     = borrowed            ? nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed)
-                              : documentIdentity_ ? documentIdentity_
-                                                  : nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed);
-    const auto nextIdentity = borrowed ? 1u : nextNodeIdentity_;
-    auto staged             = std::make_unique<Preparation>(source, revision, profile, extensions, sourceRegion);
-    staged->change          = change;
-    staged->SetPrevious(borrowed ? std::shared_ptr<const MarkdownSyntax>{} : published_, document, nextIdentity);
-    preparation_      = std::move(staged);
-    documentIdentity_ = document;
-    nextNodeIdentity_ = nextIdentity;
+    Preparation::Begin(*this, source, revision, profile, extensions, change, sourceRegion, nullptr);
 }
 MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
 {
@@ -1085,6 +1403,13 @@ MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
             pending.IdentityUnit();
         else
         {
+            // What the next parse may reuse travels with this publication (W7.2).
+            if (const auto* deleter = std::get_deleter<SyntaxDeleter>(pending.syntax); deleter && deleter->state)
+            {
+                pending.inlines.TakeReuseState(deleter->state->references, deleter->state->leafStaging);
+                deleter->state->physicalLines = pending.sourceLines;
+                deleter->state->freshRoots.swap(pending.freshRoots);
+            }
             nextNodeIdentity_ = pending.nextIdentity;
             publishedSource_  = std::move(pending.snapshot);
             published_        = std::move(pending.syntax);

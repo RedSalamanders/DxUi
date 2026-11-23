@@ -48,6 +48,10 @@ This follows the [device-context model](https://learn.microsoft.com/en-us/window
 and [DXGI interoperability](https://learn.microsoft.com/en-us/windows/win32/direct2d/direct2d-and-direct3d-interoperation-overview).
 No CPU readback/upload round trip is permitted in production rendering. Test premultiplied alpha, target format,
 text antialiasing and D2D/D3D ordering. End preparation before composition and rebind the application's pipeline state.
+Embedded text is grayscale on the premultiplied surface whatever the font-smoothing setting. The view binds no DirectWrite
+rendering parameters unless the application supplies its monitor through `SetTextRenderingMonitor`; then the next
+preparation binds that monitor's parameters and repaints, and steady preparations bind nothing
+([theme and typography](../UI/UI_ThemeAndTypography.md#text-antialiasing-and-rendering-parameters)).
 Preparing a changed surface mutates the borrowed immediate context, including clearing PS shader-resource slot 0
 and output-merger render targets before D2D work. Preparation does not preserve application bindings; pipeline
 mutation is not limited to Composite. The application rebinds its state before its next draw.
@@ -81,6 +85,17 @@ and return their native HRESULT through the checked preparation result.
    Clean views do not repaint merely because other content animates. Hidden/occluded work waits for visibility.
 4. A preparation failure must suppress stale interaction and follow the documented unavailable/retry contract;
    it must not start an automatic retry loop.
+5. The prepared surface is a retained cache of the view. `DebugDropRetainedStateForTest` (diagnostics, tests only) drops it
+   with every registered cache of the view and its controls, keeps the view's size, marks it dirty and suspends input until
+   the next `Prepare`; `DebugReadSurfaceForTest` copies the surface's premultiplied BGRA pixels through a staging texture for
+   the incremental-versus-fresh oracle ([validation](../Testing/Testing_Validation.md#incremental-versus-fresh-oracle)).
+   Neither is used by preparation or composition.
+6. The [trace provider](../Core/Core_PerformanceAndResources.md#trace-provider) writes its events on the calling
+   thread inside these calls and adds no thread, timer, window or callback: one input-received event per
+   `DispatchPointer`, `DispatchKey` or `DispatchCharacter` call, a frame-requested event (invalidate, visibility,
+   recovery, continuation or input wake) before the first `requestPreparation` call after each preparation begins,
+   prepare begin and end around a painting `Prepare`, one composite event per drawing `Composite`, and a wake per
+   `AdvanceAnimation` the view asked for. Composite's event is a fixed record with no heap work.
 
 Different simultaneous layouts use independent views with a shared pool. Presentation transforms do not require
 rerasterizing unchanged content. Consumers map input to the displayed view and account for every raster extent.
@@ -147,7 +162,7 @@ direct setters retain immediate notification. Detach discards obsolete attachmen
 attachment's requests still wait for any older input on that owning host to finish. Direct control setters
 outside these input entries retain synchronous notification and must stop after a lifetime token expires.
 Dirty requests coalesce; requests raised during painting
-remain pending after preparation. The caller advances animation only when NeedsAnimation is true. Hidden views
+remain pending after preparation. The caller advances animation when the view's animation request asks for it. Hidden views
 request no periodic work; zero-sized targets disable interaction. Prepare returns S_FALSE for a clean or suspended
 view. Failed preparation suppresses composition/input until a successful prepare. An unchanged content failure returns its HRESULT (E_ABORT is normalized to E_FAIL), and schedules no automatic retry; a caller may retry under its own bounded policy. E_ABORT remains reserved for superseded work.
 The callback must not re-enter EmbeddedHost preparation, composition, input, device replacement or lifecycle methods.
@@ -176,7 +191,10 @@ marks a notification as sent without delivering one, so a later real invalidatio
 An embedded view keeps one animation clock, `ControlHost::GetAnimationTickMs`. AdvanceAnimation adds the difference
 between its application milliseconds and the previous tick's; the first tick after a pause in ticking (no animation
 requested, hidden, zero-sized, a new attachment) only sets the baseline, a tick that goes back adds nothing, and the
-clock saturates rather than wrapping. Every control stamps its transitions, caret phase, sort glyph, Tree expansion and
+clock saturates rather than wrapping. Between advances the clock follows the application's: a stamp taken outside an
+advance reads `EmbeddedCallbacks::nowTickMs` (required at `Attach`, on the clock passed to `AdvanceAnimation`) and moves
+the clock forward as an advance at that tick would, without ticking; it never moves it back and never crosses a baseline
+a pause left for the next advance, and inside an advance every `Tick` sees the advance's own time. Every control stamps its transitions, caret phase, sort glyph, Tree expansion and
 tooltip deadlines with that clock, and Tick receives it, so no control mixes system uptime with application time and no
 application epoch changes a transition. A new attachment continues from the clock the host read before it, so the clock
 never goes back. Native hosting uses the UI thread's dispatcher timeline as the same clock. Hiding/zero-sizing still
@@ -201,16 +219,74 @@ AdvanceAnimation marks the view dirty only through control invalidation. Every `
 invalidates its host: an indeterminate progress bar on every tick, a caret only when its blink phase flips, a
 transition on every tick including the one that settles it, tooltip show/hide, and grid/tree/menu animation. An
 idle tick therefore leaves a clean prepared view clean and causes no raster work. Hosts check NeedsPreparation after
-ticking; an unconditional Prepare of a clean view still returns S_FALSE. `RequestAnimation` wakes the application
-through the preparation callback only when animation becomes requested; a request raised while painting (an
-indeterminate progress bar, a busy grid) does not re-dirty the view inside the preparation that painted it.
+ticking; an unconditional Prepare of a clean view still returns S_FALSE.
+
+**Animation request.** API revision 6 publishes the host's [frame schedule](Rendering_Win32Host.md#frame-schedule) as
+`EmbeddedAnimationRequest GetAnimationRequest() const noexcept` and `EmbeddedAnimationRequest AdvanceAnimation(uint64_t
+nowTickMs) noexcept`. A request is `None`, `Continuous` (advance every presented frame) or `Deadline` with `dueTickMs`.
+The view owns no timer or worker; the application decides when to call. Rules:
+
+1. `GetAnimationRequest` reads the application's clock, the schedule's held requests and the tooltip layer's one
+   deadline; it ticks nothing, walks no tree and allocates nothing. It is `None` while the view is detached, hidden or
+   zero-sized, nothing is scheduled, or the only deadline lies beyond the end of the application's clock (a clock at
+   the end of its range must not make a correct loop advance with a zero sleep forever).
+2. `dueTickMs` is on the application's clock, the one it passes to `AdvanceAnimation`: the last supplied tick plus what
+   the view's timeline still lacks of the earliest deadline. A deadline the timeline has
+   reached is reported at the last supplied tick (due at once). While the next tick would only take the baseline (the
+   first request after a pause: nothing requested, hidden, zero-sized, a new attachment) the request is a `Deadline`
+   of 0, due at once, since the application's clock is not known until that tick.
+3. The clock rules above are unchanged: the baseline after a pause, no going back, saturation. A deadline armed before a
+   pause keeps its place on the view's timeline, so after the pause it is due the time it still lacked after the
+   baseline advance; a clock that jumps forward ticks each due request once and re-arms it from the new time, so a caret
+   ticks once and keeps its phase and a tooltip shows once with its hide 5 s later.
+4. `AdvanceAnimation` with nothing requested does nothing and returns `None`. Otherwise it advances the timeline, ticks
+   only the due requests (an advance before the earliest deadline ticks no control and returns the same deadline) and
+   returns the next request, read after the ticks.
+5. The view records the request it reports (from `GetAnimationRequest` and `AdvanceAnimation`) and tells a sleeping
+   application when the schedule needs it sooner than that record (something
+   after nothing, `Continuous` after a deadline, an earlier deadline) through the existing `requestPreparation`
+   callback, the one owner wake of the view (`WakeSchedule` of the
+   [explicit state machines](../Plans/WIP/ExplicitStateMachines_2026-11-10.md) catalog `1.1`): the change marks the view
+   dirty, and that wake coalesces like any other until the next `Prepare`. A request raised inside a wake is returned by
+   that `AdvanceAnimation` instead; a request raised while painting (an indeterminate progress bar, a busy grid) does not
+   re-dirty the view inside the preparation that painted it, because it is no sooner than the one already reported.
+   An application that sleeps until the last request it read is therefore never left asleep; it reads the request after
+   the callback. A callback raised inside an advance sees the due requests being ticked and uses the request that
+   advance returns.
+
+A new root gets one `Continuous` request for its discovery tick of the whole visible tree. A hidden view holds its
+requests and its timeline does not count the hidden time; a held deadline therefore keeps its remaining time across a
+hidden period, where a native host, whose dispatcher timeline keeps running, fires a deadline that passed meanwhile once
+on show. Both drop a tooltip still waiting to show and restart a focused caret on show.
+The caret follows the host's [caret clock](Rendering_Win32Host.md#caret-clock): a blinking caret holds one deadline per
+phase flip, a steady one (read-only, `INFINITE` blink time, reduced motion, after the caret timeout) holds none, so the
+request turns `None`; showing the view shows a focused caret at once and restarts its phase. The view owns no
+window and receives no `WM_SETTINGCHANGE`: the application calls `Controls().RefreshUserSettings()` when its own
+window receives one ([user settings](Rendering_Win32Host.md#user-settings)), as it calls `SetTheme` for reduced motion
+and `SetTextRenderingMonitor` for ClearType changes. DxUi never polls the settings.
+
+The tooltip shows and hides at two [deadlines](Rendering_Win32Host.md#tooltip-deadlines) and is ticked at nothing
+else; `SetVisible(false)` drops a tooltip still waiting to show, and a change to its target makes the schedule due at once. Its
+show delay is the user's mouse hover time, read once and again at each `RefreshUserSettings`. DxUi never polls the
+setting.
 
 Prepare receives width/height in pixels and DPI (48..768), checks D3D dimension limits and a 64 MiB surface ceiling,
 then performs changed layout/raster work. A resize allocates the replacement surface before releasing the previous
 one, so the single-surface cap bounds the transactional replacement peak to 128 MiB per view by construction;
-`replacementPeakBytes` reports the observed peak. Graphics resources are shared at the pool; surface bytes,
+`replacementPeakBytes` reports the observed peak. A surface that fails to be created returns its HRESULT from Prepare:
+the view stays dirty, requests no preparation of its own and owns no timer, and the application's next Prepare creates
+it again (the native host's own retry schedule is in the [Win32 host contract](Rendering_Win32Host.md)). Graphics resources are shared at the pool; surface bytes,
 replacement peak, allocation/preparation/composition counts and the per-view cache sizes (`cachedBrushes`,
-`cachedTextFormats`) are queryable. Solid brushes are bounded to 256 entries and configured text formats to 96
+`cachedTextFormats`) are queryable. `GetStatistics` also counts, by a read-only walk of the tree that allocates
+nothing and never runs inside Composite, the text layouts the view's controls and tooltip keep between preparations
+(`retainedTextLayouts`, with the UTF-16 units they shape in `retainedTextLayoutUnits`) and their retained bitmaps and
+decoded images other than the surface (`retainedBitmaps`, `retainedBitmapBytes`). It covers Label, Button and its
+derived controls, TextField, ComboBox, Grid (an omitted tail shared by several cells counts once), RichTextEditor
+images and the tooltip; RichTextEditor text layouts are not yet counted. In the same walk, which visits each control
+once, it sums every registered retained cache of the view, its controls and its tooltip (`retainedCacheEntries`, and
+`retainedCacheBytes`: the heap storage DxUi holds for them, never DirectWrite or Direct2D object storage and nothing for
+a RichTextEditor's prepared layout) and reports the undo and redo storage of the TextField or ComboBox that holds the
+most (`largestTextHistoryBytes`); `DXUI_HAS_RETAINED_CACHE_STATISTICS` marks headers with these fields. Solid brushes are bounded to 256 entries and configured text formats to 96
 (`ControlHost::kSolidBrushCacheLimit`, `kConfiguredTextFormatCacheLimit`); a cache beyond its bound is cleared at the
 start of the next preparation, never mid-paint. Consumers must additionally admit the combined cost of every
 simultaneous view.
@@ -220,11 +296,22 @@ Evicting configured text formats forces visual-only preparation in that same pas
 rebuild against current format identities before Paint. Trimming never occurs on a clean Composite and does not
 change geometry or input-readiness state.
 
+The view's host retains a text layout for each string of plain text its last preparation drew
+([retained text layouts](../Core/Core_PerformanceAndResources.md#retained-text-layouts)). A string new to that table is
+laid out in preparation, never in Composite, which creates no layout and makes no allocation. Releasing the surface
+(hidden, zero extent, device replacement, detach) releases the table too. Its entries and bytes are reported by
+`retainedCacheEntries` and `retainedCacheBytes` (registry row `ControlHost._textLayoutCache`), not by
+`retainedTextLayouts`, which counts what controls and the tooltip keep.
+
 Composite requires the same device's immediate context and a host-bound render target. It issues one premultiplied
 alpha triangle, sets the viewport and every other state it depends on (including disabled scissor/depth/predication
 and unused shader stages), then unbinds its SRV. It does not preserve the caller's pipeline state. Negative origins
 are allowed for page transitions; non-finite or invalid dimensions/depth ranges fail. It never allocates, shapes
 text, rerasterizes, reads back, presents or calls user diagnostics. Consumers bind their state before subsequent work.
+The application submits the immediate context at least once per frame it composites or prepares (its Present does,
+or `Flush` when it composes without presenting); the view never flushes the borrowed context. Until it is submitted, a
+driver keeps the queued work and resources the view released (a replaced surface, retired targets); a software adapter
+such as WARP keeps them in process memory, so a frame loop that never submits grows private bytes with every frame.
 
 ReplaceDevice cancels capture and drops old surface resources while preserving the logical tree/model; a successful
 prepare is required before interaction resumes. Recovery never reapplies application commands. EmbeddedTests checks an actual
@@ -241,7 +328,12 @@ on the next preparation. The check resolves the capture through the live tree be
 control is only released. Moving the captured control itself, hiding or disabling it or an ancestor, removing it, and
 any change of the view's size or DPI, cancels capture and disables input until prepare succeeds. A second Down on the
 same control within the system double-click interval and a 16 DIP slop is
-`OnMouseDoubleClick`. Ordinary dispatch refuses an unacknowledged bounds revision. Keyboard continuation uses the
+`OnMouseDoubleClick`. A capture that a handled Down began follows a button mask: a MiddleDown that the captured control
+accepts joins the gesture, an Up while that middle button is still down keeps the capture, and the MiddleUp that leaves
+no button down releases it (unless a callback already chose a newer capture). A declined MiddleDown does not join, and
+a middle gesture the control captured by itself (rich-text auto-scroll) is not released by its MiddleUp. MiddleUp reaches
+the captured control, or else the control under the pointer, through `Control::OnMouseMiddleUp`; it reports handled
+when that control does or a capture is held. The view has no secondary-button action. Ordinary dispatch refuses an unacknowledged bounds revision. Keyboard continuation uses the
 same prepared interaction revision. After interaction geometry changes, a consumer calls Prepare before the next
 independent hit-tested gesture, or finishes arranging every live control bound and calls PrepareInteraction at the
 last successfully painted width, height and DPI. PrepareInteraction only acknowledges that layout; it does no

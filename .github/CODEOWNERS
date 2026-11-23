@@ -13,6 +13,14 @@
 /*.ps1                     @eric-jesover
 /Directory.Build.*         @eric-jesover
 
+
+# The performance scripts outside Tools/.
+/performance.ps1           @eric-jesover
+/performance-paired.ps1    @eric-jesover
+/performance-forms.ps1     @eric-jesover
+/performance-profile.ps1   @eric-jesover
+/performance-timing.ps1    @eric-jesover
+
 # Agent instructions.
 /.agents/                  @eric-jesover
 /.claude/                  @eric-jesover

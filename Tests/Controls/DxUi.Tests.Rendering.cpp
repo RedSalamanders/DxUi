@@ -1,6 +1,14 @@
+#include "Controls.Tests.AssignSetters.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
 #include "Controls.Tests.HostControlRegressions.h"
+#include "Controls.Tests.IncrementalParity.h"
+#include "Controls.Tests.PerformanceFixtures.h"
+#include "Controls.Tests.PointerHit.h"
+#include "Controls.Tests.RetainedTextLayouts.h"
+#include "Controls.Tests.TextRenderingParams.h"
+#include "Controls.Tests.TraceProvider.h"
+#include "Controls.Tests.WorkCounters.h"
 
 #include <DxUi/FrameRuntime.h>
 #include <array>
@@ -3239,6 +3247,43 @@ void TestAttachedHostRecoversAfterSimulatedDeviceLoss()
 
 void RunRenderingTests()
 {
+    DXUI_RUN_TEST(TestWorkCounterScopeReportsExactDeltasAndChurn);
+    DXUI_RUN_TEST(TestCountedCreationHelpersCountEveryResourceKind);
+    DXUI_RUN_TEST(TestResourceLifetimeTrackerCountsDestructionAtSweep);
+    DXUI_RUN_TEST(TestWorkCountersCountNativeFramesWalksAndWakes);
+    DXUI_RUN_TEST(TestWorkCountersCountAccessibilitySnapshotBuilds);
+    DXUI_RUN_TEST(TestTraceProviderIsDormantUntilSomethingListens);
+    DXUI_RUN_TEST(TestTraceProviderPairsEveryGridScrollInputWithItsPresent);
+    DXUI_RUN_TEST(TestTraceProviderEventsReadBackThroughEtw);
+    DXUI_RUN_TEST(TestPerformanceFixtureFrameworkOnWindowHost);
+    DXUI_RUN_TEST(TestPerformanceFixturesAreDeterministicOnWindowHost);
+    DXUI_RUN_TEST(TestAssignEqualityOnControlSuite);
+    DXUI_RUN_TEST(TestAssignSettersOnWindowHost);
+    DXUI_RUN_TEST(TestScrollPanelResizeReclampsItsOffset);
+    DXUI_RUN_TEST(TestFrameScheduleGatesOnWindowFixtures);
+    DXUI_RUN_TEST(TestPointerHitFx14WindowHitTestsOncePerMove);
+    DXUI_RUN_TEST(TestPointerHitFx10WindowPreparesNoPlainLabelAndSearchesNoTree);
+    DXUI_RUN_TEST(TestPointerHitWindowDifferentialMatchesTheUncachedHitTest);
+    DXUI_RUN_TEST(TestPointerHitWindowResultNeverOutlivesItsControl);
+    DXUI_RUN_TEST(TestPointerHitWindowUnreportedControlIsNeverReused);
+    DXUI_RUN_TEST(TestPointerHitPlainLabelsAreNotPrepared);
+    DXUI_RUN_TEST(TestPointerHitWindowCursorQueryUsesTheDeliveredPoint);
+    DXUI_RUN_TEST(TestPointerHitWindowReportsWhyReuseIsOff);
+    DXUI_RUN_TEST(TestPointerHitLabelSubclassAndReplainedLabel);
+    DXUI_RUN_TEST(TestFormatBrushCacheGatesOnWindowFixtures);
+    DXUI_RUN_TEST(TestFormatBrushCachesAcrossDeviceLossAndDpiOnWindowHost);
+    DXUI_RUN_TEST(TestTooltipDeadlineGatesOnWindowFx14);
+    DXUI_RUN_TEST(TestTextAntialiasDefaultsFollowTheTargetAlphaMode);
+    DXUI_RUN_TEST(TestTextRenderingParamsCompatibilityWithAntialiasModes);
+    DXUI_RUN_TEST(TestTextRenderingComplexUiCapturesForEachHost);
+    DXUI_RUN_TEST(TestTextRenderingWindowHostFollowsFontSmoothingOnComplexUi);
+    DXUI_RUN_TEST(TestTextRenderingDefaultSettingKeepsTodaysPixels);
+    DXUI_RUN_TEST(TestTextRenderingEmbeddedComplexUiUnderEachSetting);
+    DXUI_RUN_TEST(TestTextRenderingWindowHostRebindsOnDpiMonitorAndSettingChanges);
+    DXUI_RUN_TEST(TestTextRenderingRetainedLayoutsKeepComplexUiPixels);
+    DXUI_RUN_TEST(TestRetainedTextLayoutsDrawWhatDrawTextDraws);
+    DXUI_RUN_TEST(TestRetainedTextLayoutsKeyBoundAndLifetime);
+    DXUI_RUN_TEST(TestRetainedTextLayoutsReleasedWhenAChildHostCannotPaint);
     DXUI_RUN_TEST(TestEmbeddedGraphicsRetirementPreservesApplicationBindings);
     DXUI_RUN_TEST(TestGridMultilineClampPreservesCompleteModelText);
     DXUI_RUN_TEST(TestGridMultilineShortRowsPaintClippedFirstLine);
@@ -3298,4 +3343,5 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestAttachedHostNestedCaptureAbortsTheActiveInitialBatch);
     DXUI_RUN_TEST(TestAttachedHostResizeDoesNotFlushD2DInWrongState);
     DXUI_RUN_TEST(TestAttachedHostRecoversAfterSimulatedDeviceLoss);
+    RunIncrementalParityTests();
 }

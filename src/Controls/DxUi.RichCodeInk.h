@@ -23,14 +23,11 @@ inline bool TokenizeCode(std::wstring_view language, std::wstring_view text, std
         output.clear();
         return false;
     }
-    bool overflow     = false;
+    // Past the bound the first MaximumCodeTokens tokens stay coloured and the rest of the text stays plain.
     const auto append = [&](std::size_t first, std::size_t last, CodeTokenRole role)
     {
         if (staged.size() == MaximumCodeTokens)
-        {
-            overflow = true;
             return false;
-        }
         staged.push_back({{first, last}, role});
         return true;
     };
@@ -99,11 +96,6 @@ inline bool TokenizeCode(std::wstring_view language, std::wstring_view text, std
             continue;
         }
         ++i;
-    }
-    if (overflow)
-    {
-        output.clear();
-        return false;
     }
     output.swap(staged);
     return true;

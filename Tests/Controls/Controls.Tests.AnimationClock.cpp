@@ -53,22 +53,22 @@ void StartClockView(DxUi::EmbeddedHost& view,
                     UINT width,
                     UINT height)
 {
-    RequireSucceeded(view.Attach(pool), "attach an application-clock view");
+    RequireSucceeded(view.Attach(pool, StoppedTestClock()), "attach an application-clock view");
     view.Controls().DebugSetAnimationClockForTest(viewClockMs);
     view.Controls().SetTheme(MakeAnimatedTestThemePalette(false));
     view.Controls().SetRoot(std::move(root));
     RequireSucceeded(view.Prepare(width, height), "prepare the application-clock view");
     static_cast<void>(view.AdvanceAnimation(epoch));
-    Require(! view.NeedsAnimation(), "the resting root releases animation after its discovery tick");
+    Require(! AnimationRequested(view.GetAnimationRequest()), "the resting root releases animation after its discovery tick");
 }
 
 // After its last tick a view is at rest: nothing moves and, once prepared, nothing waits to be painted.
 void RequireIdleView(DxUi::EmbeddedHost& view, UINT width, UINT height, const char* message)
 {
-    Require(SUCCEEDED(view.Prepare(width, height)) && ! view.NeedsAnimation() && ! view.NeedsPreparation(), message);
+    Require(SUCCEEDED(view.Prepare(width, height)) && ! AnimationRequested(view.GetAnimationRequest()) && ! view.NeedsPreparation(), message);
 }
 
-// The host's show delay (ResolveTooltipShowDelayMs in DxUi.WindowHost.cpp): the system hover time, within 100 to 2,500 ms.
+// The host's show delay (ClampTooltipShowDelayMs in DxUi.WindowHost.cpp): the system hover time, within 100 to 2,500 ms.
 [[nodiscard]] uint64_t ExpectedTooltipShowDelayMs() noexcept
 {
     UINT hoverTimeMs = 0u;
@@ -292,10 +292,10 @@ void TestEmbeddedButtonHoverTransitionAtAnyEpoch()
         auto& host = view.Controls();
 
         button->OnHoverChanged(host, true);
-        Require(view.NeedsAnimation(), "hovering a button asks for ticks");
-        Require(view.AdvanceAnimation(epoch + 1'000u), "the first tick keeps the hover running");
+        Require(AnimationRequested(view.GetAnimationRequest()), "hovering a button asks for ticks");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'000u)), "the first tick keeps the hover running");
         RequireFloatNear(button->DebugGetHoverAnimationProgress(), 0.0f, 0.0001f, "and shows where it starts, whatever the application's epoch");
-        Require(view.AdvanceAnimation(epoch + 1'070u), "the hover runs on application time");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'070u)), "the hover runs on application time");
         RequireFloatNear(button->DebugGetHoverAnimationProgress(), 0.5f, 0.0001f, "half its duration later, it is half way");
         static_cast<void>(view.AdvanceAnimation(epoch + 1'300u));
         static_cast<void>(view.AdvanceAnimation(epoch + 1'301u));
@@ -321,9 +321,9 @@ void TestEmbeddedSliderVisualTransitionsAtAnyEpoch()
         auto& host = view.Controls();
 
         slider->OnHoverChanged(host, true);
-        Require(view.AdvanceAnimation(epoch + 1'000u), "the first tick keeps the slider's hover running");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'000u)), "the first tick keeps the slider's hover running");
         RequireFloatNear(slider->DebugGetHoverAnimationProgress(), 0.0f, 0.0001f, "and shows where it starts, whatever the application's epoch");
-        Require(view.AdvanceAnimation(epoch + 1'040u), "the hover runs on application time");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'040u)), "the hover runs on application time");
         Require(slider->DebugGetHoverAnimationProgress() > 0.0f && slider->DebugGetHoverAnimationProgress() < 1.0f, "the hover is in flight");
         static_cast<void>(view.AdvanceAnimation(epoch + 1'200u));
         RequireFloatNear(slider->DebugGetHoverAnimationProgress(), 1.0f, 0.0001f, "the hover settles");
@@ -331,7 +331,7 @@ void TestEmbeddedSliderVisualTransitionsAtAnyEpoch()
         const D2D1_RECT_F thumb    = slider->DebugGetThumbRect();
         const D2D1_POINT_2F center = D2D1::Point2F((thumb.left + thumb.right) * 0.5f, (thumb.top + thumb.bottom) * 0.5f);
         Require(slider->OnMouseDown(host, center, false, 0), "a press on the thumb starts a drag");
-        Require(view.AdvanceAnimation(epoch + 1'216u), "the press runs from the hover's last tick");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'216u)), "the press runs from the hover's last tick");
         Require(slider->DebugGetPressAnimationProgress() > 0.0f && slider->DebugGetPressAnimationProgress() < 1.0f, "the press is in flight");
         static_cast<void>(view.AdvanceAnimation(epoch + 1'400u));
         RequireFloatNear(slider->DebugGetPressAnimationProgress(), 1.0f, 0.0001f, "the press settles");
@@ -348,7 +348,7 @@ void TestEmbeddedSliderVisualTransitionsAtAnyEpoch()
 void TestEmbeddedCaretRestartsVisibleAndBlinksAtAnyEpoch()
 {
     using namespace DxUi;
-    constexpr uint64_t kCaretBlinkPeriodMs = 530u; // kCaretBlinkPeriodMs in DxUi.TextInput.cpp and DxUi.ComboBox.cpp
+    constexpr UINT kCaretBlinkPeriodMs = 530u; // Windows' default blink time, pinned on each view below
     GraphicsFixture gpu;
     const auto pool = MakeClockPool(gpu);
     for (const ClockCase& clock : kClockCases)
@@ -379,15 +379,18 @@ void TestEmbeddedCaretRestartsVisibleAndBlinksAtAnyEpoch()
                 owned                 = std::move(field);
             }
             StartClockView(view, pool, std::move(owned), epoch, clock.viewClockMs, 240u, 40u);
+            // The blink time is the user's setting: pinned through the test seam, with no caret timeout.
+            view.Controls().DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{kCaretBlinkPeriodMs, 0u});
 
             view.Controls().SetFocusControl(editor);
-            Require(view.NeedsAnimation(), "a focused caret asks for ticks");
-            Require(view.AdvanceAnimation(epoch + 1'000u) && caretVisible(), "the caret starts visible, whatever the application's epoch");
-            Require(view.AdvanceAnimation(epoch + 1'000u + kCaretBlinkPeriodMs + 10u) && ! caretVisible(), "and blinks off after one period");
+            Require(AnimationRequested(view.GetAnimationRequest()), "a focused caret asks for ticks");
+            Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'000u)) && caretVisible(), "the caret starts visible, whatever the application's epoch");
+            Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'000u + kCaretBlinkPeriodMs + 10u)) && ! caretVisible(),
+                    "and blinks off after one period");
             Require(view.DispatchCharacter(L'x') && caretVisible(), "typing shows the caret");
-            Require(view.AdvanceAnimation(epoch + 1'000u + kCaretBlinkPeriodMs + 26u) && caretVisible(),
+            Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'000u + kCaretBlinkPeriodMs + 26u)) && caretVisible(),
                     "and the next tick keeps it shown: typing restarted the blink");
-            Require(view.AdvanceAnimation(epoch + 1'000u + 2u * kCaretBlinkPeriodMs + 40u) && ! caretVisible(),
+            Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'000u + 2u * kCaretBlinkPeriodMs + 40u)) && ! caretVisible(),
                     "the restarted blink turns the caret off one period after the typing");
         }
     }
@@ -444,11 +447,11 @@ void TestEmbeddedTreeExpansionAnimatesAndCompletesAtAnyEpoch()
 
         // UI Automation's Expand reaches the tree through no input handler; the expansion still asks for its ticks.
         Require(tree->RequestExpandedState(0u, true), "an Expand the application publishes succeeds");
-        Require(view.NeedsAnimation(), "the expansion asks for ticks itself");
-        Require(view.AdvanceAnimation(epoch + 1'000u), "the first tick keeps the expansion running");
+        Require(AnimationRequested(view.GetAnimationRequest()), "the expansion asks for ticks itself");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'000u)), "the first tick keeps the expansion running");
         Require(tree->DebugGetExpansionAnimationItemId() == std::optional<uint64_t>{1u}, "the folder's rows slide open");
         RequireFloatNear(tree->DebugGetExpansionProgress(host.GetAnimationTickMs()), 0.0f, 0.0001f, "from where they start, whatever the application's epoch");
-        Require(view.AdvanceAnimation(epoch + 1'160u), "the expansion runs on application time");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'160u)), "the expansion runs on application time");
         const float rows    = tree->DebugGetExpansionProgress(host.GetAnimationTickMs());
         const float chevron = tree->DebugGetExpanderProgress(1u, true, host.GetAnimationTickMs());
         Require(rows > 0.0f && rows < 1.0f && chevron > 0.0f && chevron < 1.0f, "half way, the rows and the chevron are in flight");
@@ -483,10 +486,10 @@ void TestEmbeddedGridSortGlyphSettlesAtAnyEpoch()
         grid->SetSortSpec({0u, SortDirection::Ascending});
         view.MarkDirty();
         RequireSucceeded(view.Prepare(320u, 180u), "paint the sort glyph's first frame");
-        Require(view.NeedsAnimation(), "the glyph's cross-fade asks for ticks");
-        Require(view.AdvanceAnimation(epoch + 1'000u), "the first tick keeps the cross-fade running");
+        Require(AnimationRequested(view.GetAnimationRequest()), "the glyph's cross-fade asks for ticks");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'000u)), "the first tick keeps the cross-fade running");
         Require(grid->DebugGetSortGlyphVisualState(host.GetTheme(), 0u, host.GetAnimationTickMs()).animating, "the glyph starts its cross-fade");
-        Require(view.AdvanceAnimation(epoch + 1'070u), "the cross-fade runs on application time");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'070u)), "the cross-fade runs on application time");
         const GridSortGlyphVisualState midway = grid->DebugGetSortGlyphVisualState(host.GetTheme(), 0u, host.GetAnimationTickMs());
         Require(midway.animating && midway.currentAlpha > 0.0f && midway.currentAlpha < 1.0f, "half way, the glyph fades in");
         static_cast<void>(view.AdvanceAnimation(epoch + 1'300u));
@@ -512,8 +515,9 @@ void TestEmbeddedFirstTooltipHonorsItsDelayAtAnyEpoch()
         auto& host = view.Controls();
 
         Require(host.SetTooltipDelayed(L"Help", D2D1::Point2F(8.0f, 8.0f)), "the view's first tooltip is scheduled");
-        Require(view.AdvanceAnimation(epoch + 1'000u) && ! host.HasTooltip(), "the first tick waits for the delay, whatever the application's epoch");
-        Require(view.AdvanceAnimation(epoch + 1'000u + delayMs - 10u) && ! host.HasTooltip(), "the tooltip waits for its whole delay");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'000u)) && ! host.HasTooltip(),
+                "the first tick waits for the delay, whatever the application's epoch");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 1'000u + delayMs - 10u)) && ! host.HasTooltip(), "the tooltip waits for its whole delay");
         static_cast<void>(view.AdvanceAnimation(epoch + 1'000u + delayMs + 10u));
         Require(host.HasTooltip(), "and shows once the delay passed");
     }
@@ -540,7 +544,7 @@ void TestEmbeddedAnimationClockSkipsPausesInTicking()
         const auto progress = [button] { return button->DebugGetHoverAnimationProgress(); };
 
         button->OnHoverChanged(view.Controls(), true);
-        Require(view.AdvanceAnimation(epoch + kMinuteMs), "a hover after an idle minute ticks");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + kMinuteMs)), "a hover after an idle minute ticks");
         RequireFloatNear(progress(), 0.0f, 0.0001f, "the idle minute does not count");
         static_cast<void>(view.AdvanceAnimation(epoch + kMinuteMs + 35u));
         RequireFloatNear(progress(), 0.25f, 0.0001f, "a quarter of the hover's duration later, it is a quarter of the way");
@@ -548,14 +552,14 @@ void TestEmbeddedAnimationClockSkipsPausesInTicking()
         view.SetVisible(false);
         view.SetVisible(true);
         RequireSucceeded(view.Prepare(160u, 48u), "prepare the shown view");
-        Require(view.AdvanceAnimation(epoch + 2u * kMinuteMs + 35u), "the shown view ticks");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 2u * kMinuteMs + 35u)), "the shown view ticks");
         RequireFloatNear(progress(), 0.25f, 0.0001f, "a hidden minute does not count");
         static_cast<void>(view.AdvanceAnimation(epoch + 2u * kMinuteMs + 70u));
         RequireFloatNear(progress(), 0.5f, 0.0001f, "the hover goes on from where it was");
 
-        Require(view.Prepare(0u, 0u) == S_FALSE && ! view.NeedsAnimation(), "a zero-sized view is not ticked");
+        Require(view.Prepare(0u, 0u) == S_FALSE && ! AnimationRequested(view.GetAnimationRequest()), "a zero-sized view is not ticked");
         RequireSucceeded(view.Prepare(160u, 48u), "prepare the sized view");
-        Require(view.AdvanceAnimation(epoch + 3u * kMinuteMs + 70u), "the sized view ticks");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 3u * kMinuteMs + 70u)), "the sized view ticks");
         RequireFloatNear(progress(), 0.5f, 0.0001f, "a zero-sized minute does not count");
 
         static_cast<void>(view.AdvanceAnimation(epoch + 100u));
@@ -591,7 +595,7 @@ void TestEmbeddedAnimationClockContinuesAcrossAttachments()
     StartClockView(view, pool, std::move(second), kSecondEpoch, std::nullopt, 160u, 48u);
     Require(view.Controls().GetAnimationTickMs() >= firstClockMs, "the animation clock never goes back across attachments");
     button->OnHoverChanged(view.Controls(), true);
-    Require(view.AdvanceAnimation(kSecondEpoch + 1'000u), "the second attachment's hover ticks");
+    Require(AnimationRequested(view.AdvanceAnimation(kSecondEpoch + 1'000u)), "the second attachment's hover ticks");
     RequireFloatNear(button->DebugGetHoverAnimationProgress(), 0.0f, 0.0001f, "and starts from rest rather than jumping by the clocks' difference");
     static_cast<void>(view.AdvanceAnimation(kSecondEpoch + 1'070u));
     RequireFloatNear(button->DebugGetHoverAnimationProgress(), 0.5f, 0.0001f, "half its duration later, it is half way");
@@ -648,4 +652,37 @@ void TestNativeTransitionStartsOnTheDispatcherTimelineAfterAStall()
     Require(slider->OnKeyDown(window.Host(), VK_RIGHT, 0) && slider->DebugGetDisplayedValue() == beforeValue, "a keyboard step starts a value animation");
     Require(ticks.WaitForTick(), "the dispatcher ticks once more");
     Require(slider->DebugGetDisplayedValue() > beforeValue, "the next tick moves the thumb: the start and the ticks share one clock");
+}
+
+// The test tick ends a settled host's dispatcher subscription exactly as a dispatcher tick does: a dispatcher callback that
+// returns false is removed, so DebugAnimationTickForTest must remove it too. It used to clear only the host's id, leaving an
+// entry its destructor could no longer remove (a dangling callback the process then failed on at exit).
+void TestNativeTestTickSettlesWithoutLeavingADispatcherEntry()
+{
+    using namespace DxUi;
+    auto& dispatcher    = Ui::AnimationDispatcher::GetInstance();
+    const size_t before = dispatcher.DebugGetActiveSubscriptionCountForTest();
+    {
+        AttachedHostWindow window;
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        EnableMotionForTest(window.Host());
+        window.Host().DebugSetAnimationClockForTest(1'000u);
+        auto root    = std::make_unique<Panel>();
+        auto* slider = root->AddChild<Slider>();
+        slider->SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 48.0f));
+        slider->SetValue(20.0);
+        window.Host().SetRoot(std::move(root));
+        Require(slider->RequestValue(window.Host(), 80.0) && window.Host().DebugHasActiveAnimationSubscription() &&
+                    dispatcher.DebugGetActiveSubscriptionCountForTest() == before + 1u,
+                "a value animation subscribes the host to the dispatcher once");
+        bool ticking = true;
+        for (uint64_t frame = 1u; ticking && frame <= 100u; ++frame)
+        {
+            window.Host().DebugSetAnimationClockForTest(1'000u + 16u * frame);
+            ticking = window.Host().DebugAnimationTickForTest(1'000u + 16u * frame);
+        }
+        Require(! ticking && ! window.Host().DebugHasActiveAnimationSubscription(), "the animation settles through the test tick");
+        Require(dispatcher.DebugGetActiveSubscriptionCountForTest() == before, "settling removes the host's dispatcher entry");
+    }
+    Require(dispatcher.DebugGetActiveSubscriptionCountForTest() == before, "a destroyed host leaves no dispatcher entry");
 }

@@ -1,13 +1,19 @@
 #include <DxUi/Failure.h>
 
 #include "DxUi.Internal.h"
+#include "Support/MeasureCache.Tests.Hooks.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstddef>
 #include <dwrite_1.h>
 #include <exception>
 #include <limits>
 #include <new>
+#include <span>
+#include <type_traits>
+#include <utility>
 
 namespace DxUi
 {
@@ -23,18 +29,40 @@ namespace
     return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom;
 }
 
-[[nodiscard]] bool SameConstraints(const LayoutConstraints& a, const LayoutConstraints& b) noexcept
-{
-    return a.minimumDip.width == b.minimumDip.width && a.minimumDip.height == b.minimumDip.height && a.maximumWidthDip == b.maximumWidthDip &&
-           a.maximumHeightDip == b.maximumHeightDip;
-}
-
 void ApplyMinimum(const LayoutConstraints& constraints, DesiredSize& result) noexcept
 {
     result.sizeDip.width  = (std::max)(result.sizeDip.width, constraints.minimumDip.width);
     result.sizeDip.height = (std::max)(result.sizeDip.height, constraints.minimumDip.height);
     result.overflow       = result.overflow || (constraints.maximumWidthDip && result.sizeDip.width > *constraints.maximumWidthDip) ||
                             (constraints.maximumHeightDip && result.sizeDip.height > *constraints.maximumHeightDip);
+}
+
+// The first line's metrics (its baseline is the measured baseline), with no heap allocation for up to kStackLineMetrics
+// lines; a layout with more lines reads them into a heap buffer, counted as text.lineMetricsHeapFallbacks.
+inline constexpr UINT32 kStackLineMetrics = 16u;
+[[nodiscard]] HRESULT ReadFirstLineMetrics(IDWriteTextLayout& layout, DWRITE_LINE_METRICS& first)
+{
+    std::array<DWRITE_LINE_METRICS, kStackLineMetrics> lines{};
+    UINT32 lineCount = 0u;
+    HRESULT hr       = layout.GetLineMetrics(lines.data(), kStackLineMetrics, &lineCount);
+    if (SUCCEEDED(hr))
+    {
+        if (lineCount == 0u)
+            return E_FAIL;
+        first = lines.front();
+        return S_OK;
+    }
+    if (hr != E_NOT_SUFFICIENT_BUFFER)
+        return hr;
+    if (lineCount == 0u || lineCount > kMaxIntrinsicTextUnits + 1u)
+        return E_FAIL;
+    ++Detail::Work().text.lineMetricsHeapFallbacks;
+    std::vector<DWRITE_LINE_METRICS> heap(lineCount);
+    hr = layout.GetLineMetrics(heap.data(), lineCount, &lineCount);
+    if (FAILED(hr))
+        return hr;
+    first = heap.front();
+    return S_OK;
 }
 
 // Measurement uses the same host formats as paint, but retains only numbers in its owning container. A missing
@@ -71,7 +99,8 @@ void ApplyMinimum(const LayoutConstraints& constraints, DesiredSize& result) noe
     const float width =
         wrap && constraints.maximumWidthDip ? (std::max)(0.0f, *constraints.maximumWidthDip - horizontalChrome) : (std::numeric_limits<float>::max)();
     wil::com_ptr<IDWriteTextLayout> layout;
-    HRESULT hr = factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, (std::numeric_limits<float>::max)(), layout.put());
+    HRESULT hr =
+        CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format, width, (std::numeric_limits<float>::max)(), layout.put());
     if (FAILED(hr) || ! layout)
         return FAILED(hr) ? hr : E_FAIL;
     hr = layout->SetWordWrapping(wrap && ! empty ? DWRITE_WORD_WRAPPING_WRAP : DWRITE_WORD_WRAPPING_NO_WRAP);
@@ -90,21 +119,15 @@ void ApplyMinimum(const LayoutConstraints& constraints, DesiredSize& result) noe
     hr = layout->GetMetrics(&metrics);
     if (FAILED(hr))
         return hr;
-    UINT32 lineCount = 0u;
-    hr               = layout->GetLineMetrics(nullptr, 0u, &lineCount);
-    if (FAILED(hr) && hr != E_NOT_SUFFICIENT_BUFFER)
-        return hr;
-    if (lineCount == 0u || lineCount > kMaxIntrinsicTextUnits + 1u)
-        return E_FAIL;
-    std::vector<DWRITE_LINE_METRICS> lines(lineCount);
-    hr = layout->GetLineMetrics(lines.data(), lineCount, &lineCount);
+    DWRITE_LINE_METRICS firstLine{};
+    hr = ReadFirstLineMetrics(*layout, firstLine);
     if (FAILED(hr))
         return hr;
     // A wrapped line's trailing space hangs past the width it wrapped to, so wrapped text is as wide as its ink; one line
     // keeps its trailing space, which separates it from what follows.
     const float textWidth = wrap ? metrics.width : metrics.widthIncludingTrailingWhitespace;
     result.sizeDip        = D2D1::SizeF((empty ? 0.0f : textWidth) + horizontalChrome, (std::max)(minimumHeight, metrics.height + verticalChrome));
-    result.baselineDip    = baselineInset + lines.front().baseline;
+    result.baselineDip    = baselineInset + firstLine.baseline;
     ApplyMinimum(constraints, result);
     return S_OK;
 }
@@ -169,7 +192,200 @@ HRESULT AdvanceLayoutEdge(float anchor,
     edge = staged;
     return S_OK;
 }
+
+#if defined(_DEBUG)
+// Debug verification of measure-cache hits (Detail::SetMeasureCacheVerificationForTest): off unless a test enables it.
+thread_local bool g_verifyMeasureCacheHits = false;
+
+[[nodiscard]] bool SameDesired(const DesiredSize& a, const DesiredSize& b) noexcept
+{
+    return a.sizeDip.width == b.sizeDip.width && a.sizeDip.height == b.sizeDip.height && a.baselineDip == b.baselineDip && a.overflow == b.overflow;
+}
+#endif
+
+thread_local Detail::MeasureProbeObserver g_measureProbeObserver = nullptr;
+thread_local void* g_measureProbeContext                         = nullptr;
 } // namespace
+
+namespace Detail
+{
+MeasureProbeObserver SetMeasureProbeObserverForTest(MeasureProbeObserver observer, void* context, void** previousContext) noexcept
+{
+    const MeasureProbeObserver previous = g_measureProbeObserver;
+    if (previousContext)
+        *previousContext = g_measureProbeContext;
+    g_measureProbeObserver = observer;
+    g_measureProbeContext  = context;
+    return previous;
+}
+
+bool SetMeasureCacheVerificationForTest(bool enabled) noexcept
+{
+#if defined(_DEBUG)
+    g_verifyMeasureCacheHits = enabled;
+    return true;
+#else
+    static_cast<void>(enabled);
+    return false;
+#endif
+}
+} // namespace Detail
+
+// The measure cache of one control (Specs/UI/UI_ControlsAndLayout.md, "Measure cache"). It holds results for one
+// context, the control's measure revision with the host, its typography revision, DPI and the control's resolved flow and
+// density; a context change empties every slot, so the slots key only the constraints. Slots are kept most recently used
+// first. A slot filled while the control declared MeasureDependsOnMaximum() == false matches any maximum and recomputes
+// only its overflow flag. The slots follow the 32-byte context in one allocation: two for a control whose size does not
+// depend on the maximum (its keys differ only by minimum), four for any other, which a container asks once while it is
+// measured and once while it is arranged, at each of two widths when a width returns (receipt W6.2).
+struct Control::MeasureCache final
+{
+    static constexpr uint8_t kMaximumIndependentSlots = 2u;
+    static constexpr uint8_t kMaximumDependentSlots   = 4u;
+    static constexpr uint8_t kValid                   = 1u;
+    static constexpr uint8_t kOverflow                = 2u;
+    static constexpr uint8_t kMaximumIndependent      = 4u;
+    static constexpr uint8_t kNotImplemented          = 8u;
+    struct Slot final
+    {
+        float minimumWidth  = 0.0f;
+        float minimumHeight = 0.0f;
+        float maximumWidth  = -1.0f; // -1: unbounded (valid maxima are nonnegative)
+        float maximumHeight = -1.0f;
+        float width         = 0.0f;
+        float height        = 0.0f;
+        float baseline      = -1.0f; // -1: none
+        uint8_t flags       = 0u;
+    };
+    const ControlHost* host = nullptr;
+    uint64_t revision       = 0u;
+    uint64_t typography     = 0u;
+    float dpi               = 0.0f;
+    FlowDirection flow      = FlowDirection::LeftToRight;
+    Density density         = Density::Standard;
+    uint8_t capacity        = 0u;
+
+    // One allocation: the context, then `slots` value-initialized slots. Throws std::bad_alloc like operator new.
+    [[nodiscard]] static MeasureCache* Create(uint8_t slots)
+    {
+        void* const storage = ::operator new(Bytes(slots));
+        auto* const cache   = new (storage) MeasureCache();
+        cache->capacity     = slots;
+        for (uint8_t index = 0u; index < slots; ++index)
+            new (static_cast<std::byte*>(storage) + sizeof(MeasureCache) + index * sizeof(Slot)) Slot();
+        return cache;
+    }
+    [[nodiscard]] static constexpr size_t Bytes(uint8_t slots) noexcept
+    {
+        return sizeof(MeasureCache) + slots * sizeof(Slot);
+    }
+    [[nodiscard]] std::span<Slot> Slots() noexcept
+    {
+        return {std::launder(reinterpret_cast<Slot*>(reinterpret_cast<std::byte*>(this) + sizeof(MeasureCache))), capacity};
+    }
+    [[nodiscard]] std::span<const Slot> Slots() const noexcept
+    {
+        return {std::launder(reinterpret_cast<const Slot*>(reinterpret_cast<const std::byte*>(this) + sizeof(MeasureCache))), capacity};
+    }
+    [[nodiscard]] static float Maximum(const std::optional<float>& maximum) noexcept
+    {
+        return maximum ? *maximum : -1.0f;
+    }
+    [[nodiscard]] bool Holds(const ControlHost* h, uint64_t r, uint64_t t, float d, FlowDirection f, Density n) const noexcept
+    {
+        return host == h && revision == r && typography == t && dpi == d && flow == f && density == n;
+    }
+    void Reset(const ControlHost* h, uint64_t r, uint64_t t, float d, FlowDirection f, Density n) noexcept
+    {
+        host       = h;
+        revision   = r;
+        typography = t;
+        dpi        = d;
+        flow       = f;
+        density    = n;
+        std::ranges::fill(Slots(), Slot{});
+    }
+    // The slot answering these constraints, moved to the front; nullptr when none does.
+    [[nodiscard]] const Slot* Find(const LayoutConstraints& constraints, bool maximumIndependent) noexcept
+    {
+        const std::span<Slot> slots = Slots();
+        for (size_t index = 0u; index < slots.size(); ++index)
+        {
+            const Slot& slot = slots[index];
+            if ((slot.flags & kValid) == 0u || slot.minimumWidth != constraints.minimumDip.width || slot.minimumHeight != constraints.minimumDip.height)
+                continue;
+            const bool anyMaximum = maximumIndependent && (slot.flags & kMaximumIndependent) != 0u;
+            if (! anyMaximum && (slot.maximumWidth != Maximum(constraints.maximumWidthDip) || slot.maximumHeight != Maximum(constraints.maximumHeightDip)))
+                continue;
+            std::rotate(slots.begin(), slots.begin() + static_cast<std::ptrdiff_t>(index), slots.begin() + static_cast<std::ptrdiff_t>(index) + 1);
+            return &slots.front();
+        }
+        return nullptr;
+    }
+    // Stores a result in front; returns whether it displaced a valid slot.
+    bool Store(const LayoutConstraints& constraints, const DesiredSize* result, bool maximumIndependent) noexcept
+    {
+        const std::span<Slot> slots = Slots();
+        const bool evicted          = (slots.back().flags & kValid) != 0u;
+        std::rotate(slots.begin(), slots.end() - 1, slots.end());
+        Slot& slot         = slots.front();
+        slot.minimumWidth  = constraints.minimumDip.width;
+        slot.minimumHeight = constraints.minimumDip.height;
+        slot.maximumWidth  = Maximum(constraints.maximumWidthDip);
+        slot.maximumHeight = Maximum(constraints.maximumHeightDip);
+        slot.width         = result ? result->sizeDip.width : 0.0f;
+        slot.height        = result ? result->sizeDip.height : 0.0f;
+        slot.baseline      = result && result->baselineDip ? *result->baselineDip : -1.0f;
+        slot.flags =
+            static_cast<uint8_t>(kValid | (result ? (result->overflow ? kOverflow : 0u) : kNotImplemented) | (maximumIndependent ? kMaximumIndependent : 0u));
+        return evicted;
+    }
+    [[nodiscard]] static DesiredSize Result(const Slot& slot, const LayoutConstraints& constraints) noexcept
+    {
+        DesiredSize result{.sizeDip = D2D1::SizeF(slot.width, slot.height)};
+        if (slot.baseline >= 0.0f)
+            result.baselineDip = slot.baseline;
+        // A maximum-independent result exceeds the maximum exactly when its size does; any other slot was filled at these
+        // very constraints.
+        result.overflow = (slot.flags & kMaximumIndependent) != 0u ? (constraints.maximumWidthDip && slot.width > *constraints.maximumWidthDip) ||
+                                                                         (constraints.maximumHeightDip && slot.height > *constraints.maximumHeightDip)
+                                                                   : (slot.flags & kOverflow) != 0u;
+        return result;
+    }
+};
+
+void Control::MeasureCacheDeleter::operator()(MeasureCache* cache) const noexcept
+{
+    // Context and slots are trivially destructible: the storage Create took is released as one block.
+    ::operator delete(static_cast<void*>(cache));
+}
+
+size_t Control::GetMeasureCacheEntries() const noexcept
+{
+    if (! _measureCache)
+        return 0u;
+    return static_cast<size_t>(std::ranges::count_if(std::as_const(*_measureCache).Slots(),
+                                                     [](const MeasureCache::Slot& slot) noexcept { return (slot.flags & MeasureCache::kValid) != 0u; }));
+}
+
+size_t Control::GetMeasureCacheBytes() const noexcept
+{
+    return _measureCache ? MeasureCache::Bytes(_measureCache->capacity) : 0u;
+}
+
+void Control::DropMeasureCache() const noexcept
+{
+    static_assert(sizeof(_measureCache) == sizeof(void*), "the empty deleter must add nothing to every control");
+    static_assert(std::is_trivially_destructible_v<MeasureCache> && std::is_trivially_destructible_v<MeasureCache::Slot> &&
+                  alignof(MeasureCache::Slot) <= alignof(MeasureCache) && sizeof(MeasureCache) % alignof(MeasureCache::Slot) == 0u);
+    static_assert(MeasureCache::Bytes(MeasureCache::kMaximumIndependentSlots) == 96u && MeasureCache::Bytes(MeasureCache::kMaximumDependentSlots) == 160u,
+                  "a measured control's cache: a 32-byte context and two or four 32-byte slots (W6.2 receipt)");
+    _measureCache.reset();
+}
+bool Control::MeasureDependsOnMaximum() const noexcept
+{
+    return true;
+}
 
 bool AreValidLayoutConstraints(const LayoutConstraints& constraints) noexcept
 {
@@ -180,7 +396,14 @@ bool AreValidLayoutConstraints(const LayoutConstraints& constraints) noexcept
 
 HRESULT Control::Measure(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const noexcept
 {
+    return MeasureCounted(context, constraints, result, nullptr);
+}
+
+HRESULT Control::MeasureCounted(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result, bool* executed) const noexcept
+{
     const Failure::Scope outerFailureScope;
+    if (executed)
+        *executed = false;
     if (! AreValidLayoutConstraints(constraints))
         return E_INVALIDARG;
     if (IsRenderStageActiveForDebug())
@@ -201,10 +424,66 @@ HRESULT Control::Measure(const MeasureContext& context, const LayoutConstraints&
     const auto focus         = context.host._focusRequestRevision;
     const auto typography    = context.host.GetTypographyRevision();
     const auto bounds        = GetBounds();
+    // The cache context: everything a library measurement reads besides the control's own revisioned inputs.
+    const float dpi               = context.host.GetDpi();
+    const FlowDirection flow      = GetFlowDirection();
+    const Density density         = GetDensity();
+    const bool maximumIndependent = ! MeasureDependsOnMaximum();
+    auto& work                    = Detail::Work().layout;
+    const auto observe            = [&](bool ran) noexcept
+    {
+        if (const Detail::MeasureProbeObserver observer = g_measureProbeObserver)
+            observer({this, &context.host, revision, typography, dpi, flow, density, constraints, ran}, g_measureProbeContext);
+    };
+    if (MeasureCache* const cache = _measureCache.get(); cache && cache->Holds(&context.host, revision, typography, dpi, flow, density))
+    {
+        if (const MeasureCache::Slot* const slot = cache->Find(constraints, maximumIndependent))
+        {
+            ++work.measureCacheHits;
+            observe(false);
+            const bool notImplemented = (slot->flags & MeasureCache::kNotImplemented) != 0u;
+            const DesiredSize cached  = MeasureCache::Result(*slot, constraints);
+#if defined(_DEBUG)
+            if (g_verifyMeasureCacheHits)
+            {
+                // The rule (InvalidateMeasure on every input change) checked: an unbudgeted re-run must agree with the hit.
+                DesiredSize fresh;
+                HRESULT verified = E_FAIL;
+                try
+                {
+                    verified = MeasureOverride(MeasureContext{context.host}, constraints, fresh);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    Failure::FailAllocation();
+                }
+                catch (const std::exception&)
+                {
+                    Failure::FailUnexpected();
+                }
+                if (lifetime.expired())
+                    return E_ABORT;
+                if (SUCCEEDED(verified))
+                    ApplyMinimum(constraints, fresh);
+                if (notImplemented ? verified != E_NOTIMPL : (FAILED(verified) || ! SameDesired(fresh, cached)))
+                    ++work.measureCacheVerifyMismatches;
+            }
+#endif
+            if (notImplemented)
+                return E_NOTIMPL;
+            result = cached;
+            return S_OK;
+        }
+    }
+    ++work.measureCacheMisses;
+    observe(true);
     DesiredSize staged;
     HRESULT hr = E_FAIL;
     try
     {
+        ++work.measureOverrideExecutions;
+        if (executed)
+            *executed = true;
         hr = MeasureOverride(context, constraints, staged);
     }
     catch (const std::bad_alloc&)
@@ -220,12 +499,32 @@ HRESULT Control::Measure(const MeasureContext& context, const LayoutConstraints&
     if (_parent != parent || _host != host || _measureRevision != revision || context.host.GetInteractionRevision() != geometry ||
         context.host._focusRequestRevision != focus || context.host.GetTypographyRevision() != typography || ! SameRect(GetBounds(), bounds))
         return E_ABORT;
+    if (FAILED(hr) && hr != E_NOTIMPL)
+        return hr;
+    if (SUCCEEDED(hr))
+    {
+        if (! IsExtent(staged.sizeDip.width) || ! IsExtent(staged.sizeDip.height) ||
+            (staged.baselineDip && (! IsExtent(*staged.baselineDip) || *staged.baselineDip > staged.sizeDip.height)))
+            return E_INVALIDARG;
+        ApplyMinimum(constraints, staged);
+    }
+    // Only a result whose context and revision held through the measurement reaches here: store it.
+    try
+    {
+        const uint8_t capacity = maximumIndependent ? MeasureCache::kMaximumIndependentSlots : MeasureCache::kMaximumDependentSlots;
+        if (! _measureCache || _measureCache->capacity < capacity)
+            _measureCache.reset(MeasureCache::Create(capacity));
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    if (! _measureCache->Holds(&context.host, revision, typography, dpi, flow, density))
+        _measureCache->Reset(&context.host, revision, typography, dpi, flow, density);
+    if (_measureCache->Store(constraints, SUCCEEDED(hr) ? &staged : nullptr, maximumIndependent))
+        ++work.measureCacheEvictions;
     if (FAILED(hr))
         return hr;
-    if (! IsExtent(staged.sizeDip.width) || ! IsExtent(staged.sizeDip.height) ||
-        (staged.baselineDip && (! IsExtent(*staged.baselineDip) || *staged.baselineDip > staged.sizeDip.height)))
-        return E_INVALIDARG;
-    ApplyMinimum(constraints, staged);
     result = staged;
     return hr;
 }
@@ -263,7 +562,8 @@ HRESULT Label::MeasureOverride(const MeasureContext& context, const LayoutConstr
         const std::wstring_view text = _text.empty() ? std::wstring_view(L"Ag") : std::wstring_view(_text);
         const float width            = _multiline && constraints.maximumWidthDip ? *constraints.maximumWidthDip : (std::numeric_limits<float>::max)();
         wil::com_ptr<IDWriteTextLayout> layout;
-        HRESULT hr = factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, (std::numeric_limits<float>::max)(), layout.put());
+        HRESULT hr =
+            CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format, width, (std::numeric_limits<float>::max)(), layout.put());
         if (FAILED(hr) || ! layout)
             return FAILED(hr) ? hr : E_FAIL;
         const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(text.size())};
@@ -282,22 +582,52 @@ HRESULT Label::MeasureOverride(const MeasureContext& context, const LayoutConstr
         hr = layout->GetMetrics(&metrics);
         if (FAILED(hr))
             return hr;
-        UINT32 lineCount{};
-        hr = layout->GetLineMetrics(nullptr, 0u, &lineCount);
-        if (FAILED(hr) && hr != E_NOT_SUFFICIENT_BUFFER)
-            return hr;
-        if (! lineCount || lineCount > kMaxIntrinsicTextUnits + 1u)
-            return E_FAIL;
-        std::vector<DWRITE_LINE_METRICS> lines(lineCount);
-        hr = layout->GetLineMetrics(lines.data(), lineCount, &lineCount);
+        DWRITE_LINE_METRICS firstLine{};
+        hr = ReadFirstLineMetrics(*layout, firstLine);
         if (FAILED(hr))
             return hr;
         result.sizeDip     = D2D1::SizeF((_text.empty() ? 0.0f : (_multiline ? metrics.width : metrics.widthIncludingTrailingWhitespace)), metrics.height);
-        result.baselineDip = lines.front().baseline;
+        result.baselineDip = firstLine.baseline;
         ApplyMinimum(constraints, result);
         return S_OK;
     }
     return MeasureText(context, constraints, _text, _fontRole, GetFlowDirection(), _multiline, 0.0f, 0.0f, 0.0f, 0.0f, result);
+}
+
+// Single-line text lays out at an unbounded width: only the overflow flag reads the maximum.
+bool Label::MeasureDependsOnMaximum() const noexcept
+{
+    return _multiline;
+}
+
+bool Button::MeasureDependsOnMaximum() const noexcept
+{
+    return IsMultiline() && GetVariant() == ButtonVariant::Standard;
+}
+
+bool Toggle::MeasureDependsOnMaximum() const noexcept
+{
+    return false;
+}
+
+bool Checkbox::MeasureDependsOnMaximum() const noexcept
+{
+    return IsMultiline();
+}
+
+bool RadioButton::MeasureDependsOnMaximum() const noexcept
+{
+    return false;
+}
+
+bool TextField::MeasureDependsOnMaximum() const noexcept
+{
+    return _multiline;
+}
+
+bool ComboBox::MeasureDependsOnMaximum() const noexcept
+{
+    return false;
 }
 
 HRESULT Button::MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& result) const
@@ -404,14 +734,14 @@ HRESULT TextField::MeasureOverride(const MeasureContext& context, const LayoutCo
     // Reserve the potential trailing action even while it is hidden, so editing/focus cannot resize the field.
     const bool action = ! _multiline && (_clearButtonEnabled || (_masked && _passwordRevealMode == PasswordRevealMode::Peek));
     const float right = action ? (std::max)(38.0f, _textPaddingRightDip) : _textPaddingRightDip;
-    std::wstring display;
+    std::shared_ptr<const std::wstring> display;
     if (_multiline && UsesMaskedDisplayText())
     {
-        if (_text.size() > kMaxIntrinsicTextUnits)
+        if (_text->size() > kMaxIntrinsicTextUnits)
             return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
         display = GetDisplayText();
     }
-    const std::wstring_view text = _multiline ? (UsesMaskedDisplayText() ? std::wstring_view(display) : GetText()) : std::wstring_view{};
+    const std::wstring_view text = _multiline ? (display ? std::wstring_view(*display) : GetText()) : std::wstring_view{};
     return MeasureText(context,
                        constraints,
                        text,
@@ -467,12 +797,7 @@ HRESULT FlexPanel::SetOrientation(StackOrientation orientation) noexcept
 {
     if (orientation != StackOrientation::Horizontal && orientation != StackOrientation::Vertical)
         return E_INVALIDARG;
-    if (_orientation != orientation)
-    {
-        _orientation = orientation;
-        ++_layoutRevision;
-        InvalidateMeasure();
-    }
+    Assign(_orientation, orientation, Affects::Layout, [this]() noexcept { ++_layoutRevision; });
     return S_OK;
 }
 
@@ -485,12 +810,7 @@ HRESULT FlexPanel::SetGap(float gapDip) noexcept
 {
     if (! IsExtent(gapDip))
         return E_INVALIDARG;
-    if (_gapDip != gapDip)
-    {
-        _gapDip = gapDip;
-        ++_layoutRevision;
-        InvalidateMeasure();
-    }
+    Assign(_gapDip, gapDip, Affects::Layout, [this]() noexcept { ++_layoutRevision; });
     return S_OK;
 }
 
@@ -504,24 +824,13 @@ HRESULT FlexPanel::SetPadding(float leftDip, float topDip, float rightDip, float
     if (! IsExtent(leftDip) || ! IsExtent(topDip) || ! IsExtent(rightDip) || ! IsExtent(bottomDip) || ! IsExtent(leftDip + rightDip) ||
         ! IsExtent(topDip + bottomDip))
         return E_INVALIDARG;
-    const D2D1_RECT_F padding = D2D1::RectF(leftDip, topDip, rightDip, bottomDip);
-    if (! SameRect(_padding, padding))
-    {
-        _padding = padding;
-        ++_layoutRevision;
-        InvalidateMeasure();
-    }
+    Assign(_padding, D2D1::RectF(leftDip, topDip, rightDip, bottomDip), Affects::Layout, [this]() noexcept { ++_layoutRevision; });
     return S_OK;
 }
 
 HRESULT FlexPanel::SetWrap(bool wrap) noexcept
 {
-    if (_wrap != wrap)
-    {
-        _wrap = wrap;
-        ++_layoutRevision;
-        InvalidateMeasure();
-    }
+    Assign(_wrap, wrap, Affects::Layout, [this]() noexcept { ++_layoutRevision; });
     return S_OK;
 }
 
@@ -606,10 +915,7 @@ HRESULT FlexPanel::SetChildOptions(const Control* child, const FlexChildOptions&
     {
         if (record.child == child)
         {
-            record.options       = options;
-            record.measuredValid = false;
-            ++_layoutRevision;
-            InvalidateMeasure();
+            Assign(record.options, options, Affects::Layout, [this]() noexcept { ++_layoutRevision; });
             return S_OK;
         }
     }
@@ -696,51 +1002,38 @@ HRESULT FlexPanel::BuildLayout(const MeasureContext& context,
         };
         boundAxis(childConstraints.maximumWidthDip, childConstraints.minimumDip.width, widthMaximum);
         boundAxis(childConstraints.maximumHeightDip, childConstraints.minimumDip.height, heightMaximum);
-        const auto childRevision = child->GetMeasureRevision();
-        const auto flow          = child->GetFlowDirection();
-        const auto density       = child->GetDensity();
-        const auto typography    = context.host.GetTypographyRevision();
-        const auto dpi           = context.host.GetDpi();
-        const bool cached        = _records[index].measuredValid && _records[index].measuredHost == &context.host &&
-                                   _records[index].measuredRevision == childRevision && _records[index].typographyRevision == typography &&
-                                   _records[index].dpi == dpi && _records[index].flow == flow && _records[index].density == density &&
-                                   SameConstraints(_records[index].measuredConstraints, childConstraints);
         DesiredSize measured;
-        if (cached)
-            measured = _records[index].measured;
-        else if (options.explicitSizeDip)
+        if (options.explicitSizeDip)
         {
             measured.sizeDip = *options.explicitSizeDip;
             ApplyMinimum(childConstraints, measured);
         }
         else
         {
-            ++_measureCount;
-            hr = child->Measure(boundedContext, childConstraints, measured);
-            if (lifetime.expired())
-                return E_ABORT;
-            if (GetMeasureRevision() != revision || _layoutRevision != layoutRevision || _scratchRevision != scratchRevision || GetHost() != attachedHost ||
-                context.host.GetInteractionRevision() != geometry || context.host._focusRequestRevision != focus || childLifetime.expired() ||
-                GetChildren().size() != count || GetChildren()[index].get() != child || ! child->IsVisible())
-                return E_ABORT;
-            if (! childrenUnchanged())
-                return E_ABORT;
+            // The child's own measure cache answers an unchanged key; only an actual measurement runs callbacks.
+            bool executed = false;
+            hr            = ControlModelQueryAccess::MeasureCounted(*child, boundedContext, childConstraints, measured, executed);
+            if (executed)
+            {
+                // The measurement can run callbacks that retire this panel: nothing of it is touched before the check.
+                if (lifetime.expired())
+                    return E_ABORT;
+                ++_measureCount;
+                if (GetMeasureRevision() != revision || _layoutRevision != layoutRevision || _scratchRevision != scratchRevision || GetHost() != attachedHost ||
+                    context.host.GetInteractionRevision() != geometry || context.host._focusRequestRevision != focus || childLifetime.expired() ||
+                    GetChildren().size() != count || GetChildren()[index].get() != child || ! child->IsVisible())
+                    return E_ABORT;
+                if (! childrenUnchanged())
+                    return E_ABORT;
+            }
             if (FAILED(hr))
                 return hr;
         }
-        auto& record               = _records[index];
-        record.measured            = measured;
-        record.measuredConstraints = childConstraints;
-        record.measuredRevision    = childRevision;
-        record.typographyRevision  = context.host.GetTypographyRevision();
-        record.measuredHost        = &context.host;
-        record.dpi                 = dpi;
-        record.flow                = flow;
-        record.density             = density;
-        record.measuredValid       = true;
-        overflow                   = overflow || measured.overflow;
-        const float main           = horizontal ? measured.sizeDip.width : measured.sizeDip.height;
-        const float cross          = horizontal ? measured.sizeDip.height : measured.sizeDip.width;
+        auto& record      = _records[index];
+        record.measured   = measured;
+        overflow          = overflow || measured.overflow;
+        const float main  = horizontal ? measured.sizeDip.width : measured.sizeDip.height;
+        const float cross = horizontal ? measured.sizeDip.height : measured.sizeDip.width;
         if (lineCount == 0u)
             lineCount = 1u;
         auto* line        = &_lines[lineCount - 1u];
@@ -1039,6 +1332,7 @@ HRESULT FlexPanel::ApplyLayout(const ControlHost& host) noexcept
         const auto geometry                 = mutableHost._interactionRevision;
         const auto acceptedBounds           = mutableHost._intrinsicArrangeBoundsRevision;
         mutableHost._intrinsicArrangeBranch = child;
+        ++Detail::Work().layout.arrangedChildren;
         child->SetBounds(childBounds);
         mutableHost._intrinsicArrangeBranch = previousBranch;
         if (lifetime.expired())
@@ -1103,8 +1397,10 @@ void FlexPanel::OnBoundsChanged() noexcept
 
 void FlexPanel::OnHidden() noexcept
 {
-    for (auto& record : _records)
-        record.measuredValid = false;
+    // A hidden container retires its children's numeric measurements; showing it measures them once more.
+    for (const auto& child : GetChildren())
+        if (child)
+            ControlModelQueryAccess::DropMeasureCache(*child);
     RequestIntrinsicLayout();
     Panel::OnHidden();
 }

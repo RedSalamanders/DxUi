@@ -84,7 +84,7 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
             input.wokeInside = input.inside;
             input.controls->SetRoot(nullptr);
         }};
-        Hr(view.Attach(graphics, callbacks), "attach input wake fixture");
+        Hr(view.Attach(graphics, StoppedTestClock(callbacks)), "attach input wake fixture");
         auto field        = std::make_unique<Probe>(state);
         auto* const probe = field.get();
         probe->SetBounds(D2D1::RectF(0, 0, 240, 100));
@@ -98,7 +98,7 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
             state.duringKey = [&]
             {
                 view.Detach();
-                Hr(view.Attach(graphics, callbacks), "reattach during an outer input callback");
+                Hr(view.Attach(graphics, StoppedTestClock(callbacks)), "reattach during an outer input callback");
                 auto replacement = std::make_unique<Probe>(state);
                 auto* successor  = replacement.get();
                 successor->SetBounds(D2D1::RectF(0, 0, 240, 100));
@@ -111,15 +111,15 @@ static void TestEmbeddedPreparationWakeWaitsForInput(GraphicsFixture& gpu)
         {
             state.otherControls = &otherView.Controls();
             Hr(otherView.Attach(graphics,
-                                {.context = &state,
-                                 .requestPreparation =
-                                     [](void* context) noexcept
+                                StoppedTestClock({.context = &state,
+                                                  .requestPreparation =
+                                                      [](void* context) noexcept
             {
                 auto& input = *static_cast<InputState*>(context);
                 ++input.otherWakes;
                 input.otherWokeInside = input.inside;
                 input.otherControls->SetRoot(nullptr);
-            }}),
+            }})),
                "attach independently scheduled view");
             auto otherField = std::make_unique<TextField>(L"Other notebook");
             auto* other     = otherField.get();
@@ -192,7 +192,7 @@ static void TestTextFieldDirectPreparationRetirement(GraphicsFixture& gpu)
                             current.controls->SetRoot(nullptr);
                     }
                 }};
-                Hr(view.Attach(graphics, callbacks), "attach direct TextField retirement fixture");
+                Hr(view.Attach(graphics, StoppedTestClock(callbacks)), "attach direct TextField retirement fixture");
                 auto root   = std::make_unique<FlexPanel>();
                 auto* field = root->AddChild<Field>(L"Notebook");
                 field->SetMultiline(action != 4u);
@@ -311,9 +311,9 @@ static void TestComboBoxDirectPreparationRetirement(GraphicsFixture& gpu)
             wake.controls = &view.Controls();
             wake.retire   = retire;
             Hr(view.Attach(graphics,
-                           {.context = &wake,
-                            .requestPreparation =
-                                [](void* context) noexcept
+                           StoppedTestClock({.context = &wake,
+                                             .requestPreparation =
+                                                 [](void* context) noexcept
             {
                 auto& current = *static_cast<Wake*>(context);
                 if (std::exchange(current.armed, false))
@@ -322,7 +322,7 @@ static void TestComboBoxDirectPreparationRetirement(GraphicsFixture& gpu)
                     if (current.retire)
                         current.controls->SetRoot(nullptr);
                 }
-            }}),
+            }})),
                "attach ComboBox retirement fixture");
             auto root   = std::make_unique<FlexPanel>();
             auto* combo = root->AddChild<Combo>();
@@ -365,9 +365,9 @@ static void TestFormClearPreparationRetirement(GraphicsFixture& gpu)
         wake.controls = &view.Controls();
         wake.retire   = retire;
         Hr(view.Attach(graphics,
-                       {.context = &wake,
-                        .requestPreparation =
-                            [](void* context) noexcept
+                       StoppedTestClock({.context = &wake,
+                                         .requestPreparation =
+                                             [](void* context) noexcept
         {
             auto& current = *static_cast<Wake*>(context);
             if (std::exchange(current.armed, false))
@@ -376,7 +376,7 @@ static void TestFormClearPreparationRetirement(GraphicsFixture& gpu)
                 if (current.retire)
                     current.controls->SetRoot(nullptr);
             }
-        }}),
+        }})),
            "attach form clear retirement fixture");
         auto root   = std::make_unique<FlexPanel>();
         auto* field = root->AddChild<FormField>(L"title", L"Title");
@@ -412,9 +412,9 @@ static void TestRichDocumentBindingPreparationRetirement(GraphicsFixture& gpu)
             wake.controls = &view.Controls();
             wake.retire   = retire;
             Hr(view.Attach(graphics,
-                           {.context = &wake,
-                            .requestPreparation =
-                                [](void* context) noexcept
+                           StoppedTestClock({.context = &wake,
+                                             .requestPreparation =
+                                                 [](void* context) noexcept
             {
                 auto& current = *static_cast<Wake*>(context);
                 if (std::exchange(current.armed, false))
@@ -423,7 +423,7 @@ static void TestRichDocumentBindingPreparationRetirement(GraphicsFixture& gpu)
                     if (current.retire)
                         current.controls->SetRoot(nullptr);
                 }
-            }}),
+            }})),
                "attach document binding retirement fixture");
             auto owned   = std::make_unique<RichTextEditor>(L"first");
             auto* editor = owned.get();
@@ -455,7 +455,7 @@ static void TestMultilineCaretViewport(GraphicsFixture& gpu)
             DxUi::EmbeddedHost view;
             std::shared_ptr<DxUi::GraphicsDevice> pool;
             Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "caret fixture pool");
-            Hr(view.Attach(pool), "caret fixture attach");
+            Hr(view.Attach(pool, StoppedTestClock()), "caret fixture attach");
             auto root   = std::make_unique<DxUi::Panel>();
             auto* field = root->AddChild<DxUi::TextField>(L"alpha\nbravo\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel\nindia");
             field->SetMultiline(true);
@@ -533,6 +533,99 @@ static void TestMultilineCaretViewport(GraphicsFixture& gpu)
     Hr(gpu.Resize(480, 240), "restore shared graphics fixture size");
 }
 
+// An embedded host receives no WM_SETTINGCHANGE, so each wheel event it dispatches reads the user's lines per notch again:
+// with the setting changed between two wheel events and no window message at all, the second event scrolls a Grid and a
+// multiline TextField by the new count. The setting is replaced through the test seam, never the user's own.
+static void TestEmbeddedWheelReadsTheCurrentLinesPerNotch(GraphicsFixture& gpu)
+{
+    class Rows final : public DxUi::IGridModel
+    {
+    public:
+        [[nodiscard]] size_t GetRowCount() const noexcept override
+        {
+            return 80u;
+        }
+        [[nodiscard]] size_t GetColumnCount() const noexcept override
+        {
+            return 1u;
+        }
+        [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t /*columnIndex*/) const override
+        {
+            DxUi::GridColumnDesc column;
+            column.id       = L"name";
+            column.title    = L"Name";
+            column.widthDip = 200.0f;
+            return column;
+        }
+        void GetCellData(size_t rowIndex, size_t /*columnIndex*/, DxUi::GridCellData& cell) const override
+        {
+            cell.kind = DxUi::GridCellKind::Text;
+            cell.text = L"Row " + std::to_wstring(rowIndex);
+        }
+        [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
+        {
+            return rowId < 80u ? std::optional<size_t>(static_cast<size_t>(rowId)) : std::nullopt;
+        }
+    };
+
+    DxUi::EmbeddedHost view;
+    std::shared_ptr<DxUi::GraphicsDevice> pool;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "wheel lines fixture pool");
+    Hr(view.Attach(pool, StoppedTestClock()), "wheel lines fixture attach");
+    Rows model;
+    std::wstring text;
+    for (int line = 0; line < 40; ++line)
+        text += L"line " + std::to_wstring(line) + L"\n";
+    auto root   = std::make_unique<DxUi::Panel>();
+    auto* grid  = root->AddChild<DxUi::Grid>();
+    auto* field = root->AddChild<DxUi::TextField>(text);
+    grid->SetBounds(D2D1::RectF(0, 0, 320, 272));
+    grid->SetRowHeightDip(24.0f);
+    grid->SetHeaderHeightDip(32.0f);
+    grid->SetModel(&model);
+    field->SetMultiline(true);
+    field->SetVerticalTextPadding(0, 0);
+    field->SetBounds(D2D1::RectF(340, 0, 460, 60));
+    view.Controls().SetRoot(std::move(root));
+    Hr(view.Prepare(480, 280, 96.0f), "prepare wheel lines fixture");
+
+    const auto topRow = [&] { return grid->FindRowAtPoint(DxUi::MakePointDip(20.0f, 32.0f + 12.0f)).value_or(std::numeric_limits<size_t>::max()); };
+    const auto notch  = [&](float x, float y)
+    {
+        DxUi::PointerEvent wheel{DxUi::PointerAction::Wheel, x, y};
+        wheel.wheelDelta = -static_cast<float>(WHEEL_DELTA);
+        return view.DispatchPointer(wheel);
+    };
+
+    DxUi::DebugSetWheelScrollLinesForTest(2u);
+    Check(notch(100.0f, 150.0f) && topRow() == 2u, "the first wheel event over the grid scrolls the 2 rows the setting names");
+    DxUi::DebugSetWheelScrollLinesForTest(5u);
+    Check(notch(100.0f, 150.0f) && topRow() == 7u, "with no window message, the next wheel event over the grid scrolls the new 5 rows");
+
+    view.Controls().SetFocusControl(field);
+    field->SetSelectionRange(0, 0);
+    Check(field->OnKeyDown(view.Controls(), VK_HOME, MK_CONTROL), "the field's caret and viewport return to its start");
+    const auto firstLine = [&]
+    {
+        Hr(view.Prepare(480, 280, 96.0f), "prepare the wheel lines fixture after the field scrolled");
+        DxUi::EmbeddedTextInputSnapshot snapshot;
+        Check(view.ReadTextInput(snapshot) == S_OK, "the focused field has a text input snapshot");
+        return snapshot.state.firstVisibleLine;
+    };
+    Check(firstLine() == 0u, "the field starts at its first line");
+    DxUi::DebugSetWheelScrollLinesForTest(2u);
+    static_cast<void>(notch(400.0f, 30.0f));
+    Check(firstLine() == 2u, "a wheel event over the field scrolls the 2 lines the setting names");
+    DxUi::DebugSetWheelScrollLinesForTest(4u);
+    static_cast<void>(notch(400.0f, 30.0f));
+    Check(firstLine() == 6u, "with no window message, the next wheel event over the field scrolls the new 4 lines");
+
+    DxUi::DebugSetWheelScrollLinesForTest(std::nullopt);
+    DxUi::RefreshWheelScrollLines();
+    view.Controls().SetRoot({});
+    view.Detach();
+}
+
 // Application-side composition transport; no HWND, TSF context or real IME is created by this fixture.
 [[noreturn]] __declspec(noinline) static void EmbeddedInputAllocationThrowOrigin()
 {
@@ -577,7 +670,7 @@ static void TestEmbeddedInputCallbackAllocationBoundary(GraphicsFixture& gpu, un
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create embedded input failure graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "attach embedded input failure host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "attach embedded input failure host");
     auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<ThrowingField>();
     field->SetBounds(D2D1::RectF(0, 0, 240, 40));
@@ -632,7 +725,7 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu, bool fatalChild = false)
     DxUi::EmbeddedHost view;
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "text pool");
-    Hr(view.Attach(pool), "text attach");
+    Hr(view.Attach(pool, StoppedTestClock()), "text attach");
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -909,7 +1002,7 @@ static void TestEmbeddedTextInput(GraphicsFixture& gpu, bool fatalChild = false)
     state                   = read();
     const auto beforeDetach = snapshot.revision;
     view.Detach();
-    Hr(view.Attach(pool), "text reattach");
+    Hr(view.Attach(pool, StoppedTestClock()), "text reattach");
     Hr(view.Prepare(480, 240), "text reattach prepare");
     // A new attachment owns a new tree; old service tokens cannot address it.
     auto owned = std::make_unique<DxUi::TextField>();
@@ -955,7 +1048,7 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu, bool 
     const auto makeView = [&]()
     {
         auto view = std::make_unique<DxUi::EmbeddedHost>();
-        Hr(view->Attach(pool), "key correlation attach");
+        Hr(view->Attach(pool, StoppedTestClock()), "key correlation attach");
         return view;
     };
     const auto makeInputTree = [](DxUi::EmbeddedHost& view, std::wstring value, DxUi::TextField*& field, DxUi::Button*& button)
@@ -1108,7 +1201,7 @@ static void TestEmbeddedTranslatedCharacterOwnership(GraphicsFixture& gpu, bool 
         DxUi::EmbeddedKeyDispatchReceipt receipt;
         Check(! view->DispatchKey(VK_SPACE, true, 0u, receipt), "pre-detach keydown records receipt");
         view->Detach();
-        Hr(view->Attach(pool), "key receipt reattach");
+        Hr(view->Attach(pool, StoppedTestClock()), "key receipt reattach");
         auto successor = std::make_unique<DxUi::TextField>(L"new attachment");
         auto* newField = successor.get();
         view->Controls().SetRoot(std::move(successor));

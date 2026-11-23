@@ -10,6 +10,7 @@ namespace Detail
 {
 struct SemanticExtensions;
 struct SemanticExtensionAccess;
+struct SemanticProjectionIndex;
 struct NativeSourceFallback;
 struct DisclosureOverride
 {
@@ -215,6 +216,9 @@ private:
     // Optional document-level state keeps native graphs out of ordinary inline
     // values and unrelated controls. No SDK/host resource belongs to semantics.
     std::shared_ptr<Detail::SemanticExtensions> extensions_;
+    // Where each top-level block's output starts, so the next revision can
+    // reuse unchanged blocks. Library-private; never part of the published values.
+    std::shared_ptr<const Detail::SemanticProjectionIndex> projection_;
     std::size_t sourceBlock_ = MarkdownNoNode;
     friend class SemanticBuilder;
     friend struct Detail::SemanticExtensionAccess;

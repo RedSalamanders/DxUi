@@ -93,7 +93,7 @@ static void TestRichMetadataOnlyComposition(GraphicsFixture& gpu)
     for (const auto mode : {RichText::ViewMode::Rich, RichText::ViewMode::Source})
     {
         EmbeddedHost view;
-        Hr(view.Attach(graphics), "metadata-only embedded owner");
+        Hr(view.Attach(graphics, StoppedTestClock()), "metadata-only embedded owner");
         auto owned   = std::make_unique<RichTextEditor>(L"word");
         auto* editor = owned.get();
         editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
@@ -166,7 +166,7 @@ static void TestRichViewportPreservation(GraphicsFixture& gpu, bool disclosure)
         if (disclosure && mode == ViewMode::Source)
             continue;
         EmbeddedHost view;
-        Hr(view.Attach(graphics), "viewport embedded owner");
+        Hr(view.Attach(graphics, StoppedTestClock()), "viewport embedded owner");
         auto owned   = std::make_unique<RichTextEditor>(source);
         auto* editor = owned.get();
         editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -257,7 +257,7 @@ static void TestRichPreparedPageRaster(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create prepared-page graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "attach prepared-page host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "attach prepared-page host");
     auto owned      = std::make_unique<RichTextEditor>(L"# First heading\n\nFirst paragraph.\n\nSecond paragraph.\n\nThird paragraph.\n\nFourth paragraph.\n");
     auto* editor    = owned.get();
     auto appearance = editor->GetAppearance();
@@ -351,7 +351,7 @@ static void TestRichPageAuthoredColors(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create colored-page graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "attach colored-page host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "attach colored-page host");
     // The authored fill must also contrast with the effective stroke: a black
     // fallback stroke on black fill intentionally causes palette rejection.
     auto owned            = std::make_unique<RichTextEditor>(L"```mermaid\nflowchart TD\nA[Alpha]-->B[Beta]\nstyle A fill:#000,stroke:#fff,color:#fff\n```\n");
@@ -443,7 +443,7 @@ static void TestRichLabelWakeupAndRetirement(GraphicsFixture& gpu)
             current.retired = true;
         }
     };
-    Hr(view.Attach(graphics, callbacks), "attach label wakeup host");
+    Hr(view.Attach(graphics, StoppedTestClock(callbacks)), "attach label wakeup host");
     auto root    = std::make_unique<RichTextEditor>(L"text");
     auto* editor = root.get();
     view.Controls().SetRoot(std::move(root));
@@ -504,7 +504,7 @@ static void TestRichTooltipReentrantTransitions(GraphicsFixture& gpu)
             current.failed = true;
         }
     };
-    Hr(view.Attach(graphics, callbacks), "attach tooltip transition host");
+    Hr(view.Attach(graphics, StoppedTestClock(callbacks)), "attach tooltip transition host");
     for (const unsigned action : {1u, 2u, 3u})
     {
         auto root    = std::make_unique<RichTextEditor>(L"[link](https://example.test \"Link title\")");
@@ -574,7 +574,7 @@ static void TestRichSourceDragGesture(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create source-drag graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "attach source-drag host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "attach source-drag host");
     auto root    = std::make_unique<RichTextEditor>(L"one two three");
     auto* editor = root.get();
     view.Controls().SetRoot(std::move(root));
@@ -617,7 +617,7 @@ static void TestRichMiddleAutoScroll(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create auto-scroll graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "attach auto-scroll host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "attach auto-scroll host");
     std::wstring source(0u, L' ');
     for (unsigned i = 0u; i != 100u; ++i)
         source.append(L"a long source line\n");
@@ -631,8 +631,8 @@ static void TestRichMiddleAutoScroll(GraphicsFixture& gpu)
     Check(view.DispatchPointer({PointerAction::MiddleUp, 40.0f, 40.0f}), "middle release retains the auto-scroll gesture");
     Check(view.DispatchPointer({PointerAction::Move, 40.0f, 90.0f}), "pointer displacement requests animation");
     for (uint64_t tick = 100u; tick != 180u; tick += 16u)
-        if (view.NeedsAnimation())
-            view.AdvanceAnimation(tick);
+        if (AnimationRequested(view.GetAnimationRequest()))
+            static_cast<void>(view.AdvanceAnimation(tick));
     const auto after = editor->GetScrollInfo();
     Check(after && after->offsetDip > initial->offsetDip && editor->GetText() == source && ! editor->CanUndo(),
           "ticks scroll without changing source or history");
@@ -704,7 +704,7 @@ static void TestRichTripleClickParagraph(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create triple-click graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "attach triple-click host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "attach triple-click host");
     auto root    = std::make_unique<RichTextEditor>(L"alpha beta\n\nsecond line");
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
@@ -741,7 +741,7 @@ static void TestRichPreparedWordFailureAtomicity(GraphicsFixture& gpu, unsigned 
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create graphics for caret-word fault tests");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "attach caret-word fault host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "attach caret-word fault host");
     auto root    = std::make_unique<RichTextEditor>(L"**word**");
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
@@ -959,7 +959,7 @@ static void TestPreparedCommandStateAllocationFailures(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "prepared command state fixture graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "attach prepared command state fixture");
+    Hr(view.Attach(graphics, StoppedTestClock()), "attach prepared command state fixture");
     auto owned   = std::make_unique<RichTextEditor>(L"word");
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -1033,7 +1033,7 @@ static void TestPreparedCommandStateComplexAllocationFailures(GraphicsFixture& g
     const auto sweep = [&](std::wstring_view spelling, std::wstring_view selected, MarkdownCommand command)
     {
         EmbeddedHost view;
-        Hr(view.Attach(graphics), "attach complex prepared state fixture");
+        Hr(view.Attach(graphics, StoppedTestClock()), "attach complex prepared state fixture");
         auto owned   = std::make_unique<RichTextEditor>(std::wstring(spelling));
         auto* editor = owned.get();
         editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -1099,7 +1099,7 @@ static void TestTableCommandPreparationAllocationFailures(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "table command failure fixture graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "attach table command failure fixture");
+    Hr(view.Attach(graphics, StoppedTestClock()), "attach table command failure fixture");
     const std::wstring source(L"| a | b |\n| :- | -: |\n| x | y |\n| m | n |\n");
     auto owned   = std::make_unique<RichTextEditor>(source);
     auto* editor = owned.get();
@@ -1210,7 +1210,7 @@ static void TestRichFileDropTransactionAllocationFailures(GraphicsFixture& gpu, 
     const auto exercise      = [&]
     {
         EmbeddedHost view;
-        Hr(view.Attach(graphics), "attach file-drop fault fixture");
+        Hr(view.Attach(graphics, StoppedTestClock()), "attach file-drop fault fixture");
         auto owned   = std::make_unique<RichTextEditor>(L"alpha");
         auto* editor = owned.get();
         editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -1509,7 +1509,7 @@ static void TestRichEditorSteadyLinkHoverAllocatesNothing(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "link hover shared WARP resources");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "link hover embedded host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "link hover embedded host");
     const std::wstring source = L"before [linked **label**](local) after";
     auto owned                = std::make_unique<HoverEditor>(source);
     auto* editor              = owned.get();
@@ -1644,6 +1644,170 @@ static void TestRichImageDecoderAllocationFailures(unsigned fatalScenario = 0u)
     Check(image && image->Width() == extent && image->Height() == extent && image->Pixels().size() == opaque.size() &&
               std::memcmp(image->Pixels().data(), opaque.data(), opaque.size()) == 0,
           "identity PNG preserves every opaque source pixel");
+}
+// Image decode memory (performance and motion plan W7.8). One decode per scenario under the counting operator new:
+// the peak of live tracked bytes, and the plain blocks of encoded size and of decoded size it requested.
+namespace RichImageDecodeMemory
+{
+struct Observation
+{
+    HRESULT result{};
+    ptrdiff_t peak{};
+    size_t calls{}, requested{}, encodedBuffers{}, decodedBuffers{}, otherBytes{};
+};
+static thread_local size_t encodedSize{}, decodedSize{}, frameSize{};
+static thread_local Observation* observing{};
+// The standard allocator requests a block of 4 KiB or more with alignment padding (under 64 bytes) beside the buffer.
+static bool Sized(size_t bytes, size_t buffer) noexcept
+{
+    return bytes >= buffer && bytes - buffer < 64u;
+}
+static void Observe(size_t bytes) noexcept
+{
+    if (Sized(bytes, encodedSize))
+        ++observing->encodedBuffers;
+    else if (Sized(bytes, decodedSize) || Sized(bytes, frameSize))
+        ++observing->decodedBuffers;
+    else
+        observing->otherBytes += bytes;
+}
+template <typename Operation> static Observation Measure(const RichImageTests::DecodeScenario& scenario, Operation&& operation)
+{
+    Observation observation;
+    const bool oldCounting = countAllocations, oldLive = countLiveBytes;
+    const auto oldCalls = allocations, oldBytes = allocationBytes;
+    const auto oldLiveBytes = liveBytes;
+    auto* const oldPeak     = liveBytesPeak;
+    auto* const oldObserver = liveBlockObserver;
+    const auto restore      = wil::scope_exit([=] noexcept
+    {
+        countAllocations  = oldCounting;
+        countLiveBytes    = oldLive;
+        allocations       = oldCalls;
+        allocationBytes   = oldBytes;
+        liveBytes         = oldLiveBytes;
+        liveBytesPeak     = oldPeak;
+        liveBlockObserver = oldObserver;
+        observing         = nullptr;
+    });
+    encodedSize             = scenario.encoded.size();
+    decodedSize             = scenario.expected.size();
+    frameSize               = scenario.frameBytes;
+    observing               = &observation;
+    allocations = allocationBytes = 0u;
+    liveBytes                     = 0;
+    liveBytesPeak                 = &observation.peak;
+    liveBlockObserver             = &Observe;
+    countAllocations = countLiveBytes = true;
+    observation.result                = operation();
+    countAllocations = countLiveBytes = false;
+    observation.calls                 = allocations;
+    observation.requested             = allocationBytes;
+    return observation;
+}
+inline uint64_t Fnv1a(std::span<const std::byte> bytes) noexcept
+{
+    uint64_t hash = 14695981039346656037ull;
+    for (const auto byte : bytes)
+        hash = (hash ^ std::to_integer<uint64_t>(byte)) * 1099511628211ull;
+    return hash;
+}
+} // namespace RichImageDecodeMemory
+static void TestRichImageDecodeMemory()
+{
+    using DxUi::RichText::RichImage;
+    using namespace RichImageDecodeMemory;
+    const auto initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    Check(SUCCEEDED(initialized) || initialized == RPC_E_CHANGED_MODE, "image decode memory fixture initializes or borrows COM");
+    const auto apartment = wil::scope_exit([&] noexcept
+    {
+        if (SUCCEEDED(initialized))
+            CoUninitialize();
+    });
+    wil::com_ptr<IWICImagingFactory> factory;
+    Hr(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(factory.put())), "image decode memory factory");
+    auto scenarios = RichImageTests::DecodeScenarios(factory.get());
+    scenarios.push_back(RichImageTests::EncodedCapScenario(factory.get()));
+    // The encoded-cap image is also loaded from a file, whose read buffer is then the one encoded buffer.
+    std::array<wchar_t, MAX_PATH> temp{};
+    const auto count = GetTempPathW(static_cast<DWORD>(temp.size()), temp.data());
+    Check(count && count < temp.size(), "image decode memory has a bounded temporary directory");
+    GUID id{};
+    Hr(CoCreateGuid(&id), "image decode memory file identity");
+    std::array<wchar_t, 40u> guid{};
+    Check(StringFromGUID2(id, guid.data(), static_cast<int>(guid.size())) > 0, "image decode memory file name");
+    const std::wstring path = std::wstring(temp.data(), count).append(L"DxUi-decode-memory-").append(guid.data()).append(L".png");
+    bool created{};
+    const auto cleanup = wil::scope_exit([&] noexcept
+    {
+        if (created)
+            DeleteFileW(path.c_str());
+    });
+    {
+        const auto& cap = scenarios.back();
+        wil::unique_hfile file(CreateFileW(path.c_str(), GENERIC_WRITE, 0u, nullptr, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY, nullptr));
+        Check(static_cast<bool>(file), "image decode memory creates its own file");
+        created = true;
+        DWORD written{};
+        Check(WriteFile(file.get(), cap.encoded.data(), static_cast<DWORD>(cap.encoded.size()), &written, nullptr) && written == cap.encoded.size(),
+              "image decode memory writes the encoded-cap image");
+    }
+    // Process first-use state (codec registration, metadata handlers) is created before measuring.
+    for (const auto& scenario : scenarios)
+    {
+        std::shared_ptr<const RichImage> warm;
+        Hr(RichImage::Decode(factory.get(), std::as_bytes(std::span(scenario.encoded)), warm), "warm image decoder");
+    }
+    {
+        std::shared_ptr<const RichImage> warm;
+        Hr(RichImage::LoadFile(factory.get(), path, warm), "warm image file loading");
+    }
+    // At most this many tracked bytes beside the encoded and decoded buffers: the RichImage object, its shared
+    // control block and, for a file, the normalized and extended path strings.
+    constexpr size_t kBookkeepingBytes = 2048u;
+    struct Measured
+    {
+        const RichImageTests::DecodeScenario* scenario;
+        bool fromFile;
+        Observation observation;
+        std::shared_ptr<const RichImage> image;
+    };
+    std::vector<Measured> measured;
+    const auto measure = [&](const RichImageTests::DecodeScenario& scenario, bool fromFile)
+    {
+        std::shared_ptr<const RichImage> image;
+        const auto observation = Measure(scenario, [&] {
+            return fromFile ? RichImage::LoadFile(factory.get(), path, image)
+                            : RichImage::Decode(factory.get(), std::as_bytes(std::span(scenario.encoded)), image);
+        });
+        const auto pixels      = image ? image->Pixels() : std::span<const std::byte>{};
+        std::cout << "image decode memory " << scenario.name << (fromFile ? " (LoadFile)" : " (Decode)") << ": encoded " << scenario.encoded.size()
+                  << ", decoded " << scenario.expected.size() << ", peak tracked " << observation.peak << ", calls " << observation.calls << ", requested "
+                  << observation.requested << ", encoded-size buffers " << observation.encodedBuffers << ", decoded-size buffers " << observation.decodedBuffers
+                  << ", other bytes " << observation.otherBytes << ", pixels fnv1a " << std::hex << Fnv1a(pixels) << std::dec << '\n';
+        measured.push_back({&scenario, fromFile, observation, std::move(image)});
+    };
+    for (const auto& scenario : scenarios)
+        measure(scenario, false);
+    measure(scenarios.back(), true);
+    // Every scenario is reported before the first verdict.
+    for (const auto& [pointer, fromFile, observation, image] : measured)
+    {
+        const auto& scenario = *pointer;
+        const auto pixels    = image ? image->Pixels() : std::span<const std::byte>{};
+        Hr(observation.result, "measured image decode");
+        Check(image && image->Width() == scenario.width && image->Height() == scenario.height && pixels.size() == scenario.expected.size() &&
+                  std::equal(pixels.begin(), pixels.end(), scenario.expected.begin(), [](std::byte a, BYTE b) { return a == std::byte(b); }),
+              "decoded pixels equal the scenario oracle byte for byte");
+        const size_t extra = scenario.extraDecoded ? 1u : 0u;
+        Check(observation.encodedBuffers == (fromFile ? 1u : 0u), "a decode holds no duplicate encoded buffer");
+        Check(observation.decodedBuffers <= 1u + extra, "a decode allocates one decoded-size buffer, two only for an orientation it cannot apply in place");
+        Check(observation.otherBytes <= kBookkeepingBytes, "beside its pixel and encoded buffers a decode requests only bookkeeping");
+        // The caller's encoded span counts once: Decode borrows it, LoadFile owns it.
+        const auto held = fromFile ? 0u : scenario.encoded.size();
+        Check(held + static_cast<size_t>(observation.peak) <= scenario.encoded.size() + scenario.expected.size() * (1u + extra) + kBookkeepingBytes,
+              "peak tracked bytes per decode stay within encoded plus decoded size");
+    }
 }
 __declspec(noinline) static void RichImagePathFaultOrigin(unsigned scenario, std::span<const std::byte> bytes)
 {
@@ -2826,7 +2990,7 @@ static void TestEmbeddedFootnoteBlockSourceEdits(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "footnote borrowed WARP resources");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "footnote embedded host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "footnote embedded host");
     auto owned   = std::make_unique<RichTextEditor>();
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -2862,7 +3026,7 @@ static void TestEmbeddedFootnoteResolutionAndSourceEdits(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "footnote binding borrowed WARP resources");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "footnote binding embedded host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "footnote binding embedded host");
     auto owned   = std::make_unique<RichTextEditor>();
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -2905,7 +3069,7 @@ static void TestParserCapacityMemoryFailureIsRetryable(GraphicsFixture& gpu, boo
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "capacity memory probe borrowed device");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "capacity memory probe host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "capacity memory probe host");
     auto owned   = std::make_unique<PreparationProbe>(L"old");
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);
@@ -2936,7 +3100,7 @@ static void TestEmbeddedParserCapacitySourceFallback(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "capacity fallback borrowed device");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "capacity fallback embedded host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "capacity fallback embedded host");
     auto owned   = std::make_unique<RichTextEditor>();
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::Gfm029);
@@ -2952,7 +3116,7 @@ static void TestEmbeddedLocalizedRecordedServiceCommit(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "recorded service shared borrowed device");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "recorded service embedded owner");
+    Hr(view.Attach(graphics, StoppedTestClock()), "recorded service embedded owner");
     auto owned   = std::make_unique<RichTextStateReplacementTests::ServiceEditor>();
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));
@@ -2965,7 +3129,7 @@ static void TestEmbeddedImageResources(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "image resource shared device");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "image resource embedded owner");
+    Hr(view.Attach(graphics, StoppedTestClock()), "image resource embedded owner");
     auto owned   = std::make_unique<RichTextEditor>();
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));
@@ -3118,7 +3282,7 @@ static void TestEmbeddedImagePathPaste(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "image-paste shared device");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "image-paste embedded owner");
+    Hr(view.Attach(graphics, StoppedTestClock()), "image-paste embedded owner");
     auto owned   = std::make_unique<RichTextEditor>();
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));
@@ -3155,7 +3319,7 @@ static void TestEmbeddedFileReferencePaste(GraphicsFixture& gpu, unsigned fatalS
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "file reference shared device");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "file reference embedded host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "file reference embedded host");
     auto owned   = std::make_unique<RichTextEditor>();
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));
@@ -3275,7 +3439,7 @@ static void TestEmbeddedRetainedObjectSourceEditing(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "source editing borrowed device");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "source editing embedded owner");
+    Hr(view.Attach(graphics, StoppedTestClock()), "source editing embedded owner");
     auto owned   = std::make_unique<SemanticSourceBlockTests::SourceEditingEditor>();
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));
@@ -3289,7 +3453,7 @@ static void TestEmbeddedDiagramSelectionRaster(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "native selection borrowed device");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "native selection embedded host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "native selection embedded host");
     view.Controls().SetTheme(SemanticDiagramTests::SelectionPalette());
     auto owned   = std::make_unique<RichTextEditor>(std::wstring(SemanticDiagramTests::SelectionSource));
     auto* editor = owned.get();
@@ -3313,7 +3477,7 @@ static void TestEmbeddedFlowchartRenderingAndFallbacks(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "diagram borrowed WARP resources");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "diagram embedded host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "diagram embedded host");
     auto owned   = std::make_unique<RichTextEditor>();
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -3346,7 +3510,7 @@ static void TestEmbeddedDiagramViewCapacityRecovery(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "native diagram recovery resources");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "native diagram recovery embedding");
+    Hr(view.Attach(graphics, StoppedTestClock()), "native diagram recovery embedding");
     auto owned   = std::make_unique<RichTextEditor>();
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));
@@ -3361,7 +3525,7 @@ static void TestEmbeddedFrontMatterFencesAndSourceEdits(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "metadata borrowed WARP resources");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "metadata embedded host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "metadata embedded host");
     auto owned   = std::make_unique<RichTextEditor>();
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -3408,8 +3572,8 @@ static void TestEmbeddedLosslessMarkdownPreparation(GraphicsFixture& gpu)
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "Markdown shared WARP pool");
     EmbeddedHost view, other;
     size_t requests = 0u;
-    Hr(view.Attach(graphics, {&requests, [](void* context) noexcept { ++*static_cast<size_t*>(context); }}), "Markdown embedded view");
-    Hr(other.Attach(graphics), "Markdown independent embedded view");
+    Hr(view.Attach(graphics, StoppedTestClock({&requests, [](void* context) noexcept { ++*static_cast<size_t*>(context); }})), "Markdown embedded view");
+    Hr(other.Attach(graphics, StoppedTestClock()), "Markdown independent embedded view");
     const std::wstring source = L"# Unicode \U0001f600\r\n\n~~~lang\r\n# kept &NotEqualTilde;\n~~~\n[^unknown]: $x$\n";
     auto owned                = std::make_unique<RichTextEditor>(source);
     auto* editor              = owned.get();
@@ -3657,8 +3821,8 @@ static void TestRichTextCooperativeSchedulingAndTextInput(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "cooperative shared graphics");
     Hr(view.Attach(graphics,
-                   {&requests,
-                    [](void* context) noexcept
+                   StoppedTestClock({&requests,
+                                     [](void* context) noexcept
     {
         auto& request = *static_cast<Requests*>(context);
         ++request.count;
@@ -3679,9 +3843,9 @@ static void TestRichTextCooperativeSchedulingAndTextInput(GraphicsFixture& gpu)
                 Check(false, "replacement scheduling callback completes");
             }
         }
-    }}),
+    }})),
        "cooperative embedded host");
-    Hr(other.Attach(graphics), "cooperative independent view");
+    Hr(other.Attach(graphics, StoppedTestClock()), "cooperative independent view");
     auto independent  = std::make_unique<RichTextEditor>(L"independent **source**");
     auto* otherEditor = independent.get();
     other.Controls().SetRoot(std::move(independent));
@@ -3800,7 +3964,7 @@ static void TestRichTextCooperativeFailureDoesNotRetryAutomatically(GraphicsFixt
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "failing cooperative graphics");
     size_t requests = 0u;
-    Hr(view.Attach(graphics, {&requests, [](void* context) noexcept { ++*static_cast<size_t*>(context); }}), "failing cooperative host");
+    Hr(view.Attach(graphics, StoppedTestClock({&requests, [](void* context) noexcept { ++*static_cast<size_t*>(context); }})), "failing cooperative host");
     auto owned   = std::make_unique<FailingPreparation>();
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));
@@ -3866,7 +4030,7 @@ static void TestEmbeddedContinuationCallbackCannotReenterOrUseDetachedState(Grap
     Requests reentrant;
     EmbeddedHost reentrantView;
     reentrant.view = &reentrantView;
-    Hr(reentrantView.Attach(graphics, {&reentrant, request}), "continuation reentry host");
+    Hr(reentrantView.Attach(graphics, StoppedTestClock({&reentrant, request})), "continuation reentry host");
     auto reentrantEditor     = std::make_unique<OneDeferredPreparation>();
     auto* reentrantEditorRaw = reentrantEditor.get();
     reentrantView.Controls().SetRoot(std::move(reentrantEditor));
@@ -3881,7 +4045,7 @@ static void TestEmbeddedContinuationCallbackCannotReenterOrUseDetachedState(Grap
     Requests detached;
     EmbeddedHost detachedView;
     detached.view = &detachedView;
-    Hr(detachedView.Attach(graphics, {&detached, request}), "continuation detach host");
+    Hr(detachedView.Attach(graphics, StoppedTestClock({&detached, request})), "continuation detach host");
     auto detachedEditor = std::make_unique<OneDeferredPreparation>();
     detachedView.Controls().SetRoot(std::move(detachedEditor));
     const size_t beforeDetach = detached.count;
@@ -3891,7 +4055,7 @@ static void TestEmbeddedContinuationCallbackCannotReenterOrUseDetachedState(Grap
     Check(detachedView.Prepare(480u, 240u) == E_UNEXPECTED, "detached continuation cleanup does not reuse retired host state");
 
     EmbeddedHost gestureView;
-    Hr(gestureView.Attach(graphics), "attach pending-sibling gesture fixture");
+    Hr(gestureView.Attach(graphics, StoppedTestClock()), "attach pending-sibling gesture fixture");
     auto panel          = std::make_unique<Panel>();
     auto* pendingEditor = panel->AddChild<OneDeferredPreparation>();
     pendingEditor->SetBounds(D2D1::RectF(0.f, 0.f, 480.f, 64.f));
@@ -4063,7 +4227,7 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu, u
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "rich UIA allocation pool");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "rich UIA allocation view");
+    Hr(view.Attach(graphics, StoppedTestClock()), "rich UIA allocation view");
     auto root    = std::make_unique<RichTextEditor>(L"initial");
     auto* editor = root.get();
     view.Controls().SetRoot(std::move(root));
@@ -4179,6 +4343,13 @@ static void TestRetainedRichTextUiaRangeAllocationBudget(GraphicsFixture& gpu, u
         countAllocations              = false;
         const size_t observed         = allocations;
         Hr(result, "observe successful direct UIA range operation");
+        // CompareEndpoints and GetText read the snapshot's text through a pinned view (W8.4): they allocate nothing, so no
+        // allocation failure can reach them and they have no fault child.
+        if (operation == 0u || operation == 3u)
+        {
+            Check(observed == 0u, "direct UIA CompareEndpoints and GetText read the pinned snapshot text without allocating");
+            continue;
+        }
         Check(observed > 0u && observed < 256u, "direct UIA range command has a bounded observed allocation schedule");
         auto range = makeRange();
         if (fatalScenario != 0u)
@@ -4210,7 +4381,7 @@ static void TestRichTaskPlanAllocationFailureKeepsPointerSelection(GraphicsFixtu
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "task allocation fixture device");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "task allocation fixture host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "task allocation fixture host");
     auto root    = std::make_unique<RichTextEditor>(L"- [ ] task\n");
     auto* editor = root.get();
     editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
@@ -4238,7 +4409,7 @@ static void TestRetainedRichTextDefaultFontChunkReuse(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "positioned rich-text shared device");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "positioned rich-text embedded view");
+    Hr(view.Attach(graphics, StoppedTestClock()), "positioned rich-text embedded view");
     std::wstring seed;
     for (size_t line = 0u; line < 1024u; ++line)
         seed += L"line **bold** a\u0301 \U0001f600 text\r\n";
@@ -4275,8 +4446,8 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu, bo
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "rich-text shared WARP pool");
     EmbeddedHost first, second;
     size_t requests = 0;
-    Hr(first.Attach(graphics, {&requests, [](void* context) noexcept { ++*static_cast<size_t*>(context); }}), "rich-text first view");
-    Hr(second.Attach(graphics), "rich-text second view");
+    Hr(first.Attach(graphics, StoppedTestClock({&requests, [](void* context) noexcept { ++*static_cast<size_t*>(context); }})), "rich-text first view");
+    Hr(second.Attach(graphics, StoppedTestClock()), "rich-text second view");
     std::wstring source = L"# Owned Unicode\r\n**bold** \u03b2 \U0001f600 a\u0301\n\u05d0\u05d1\u05d2\nlast";
     if (semanticRendering)
         source = L"9. [link](local)\n10. <b>native</b>\n\n<p><a href='#x'>HTML</a><br/>&fjlig;</p>\n\n" + source +
@@ -4380,7 +4551,8 @@ static void TestRetainedRichTextSharedViewsAndResources(GraphicsFixture& gpu, bo
     const auto retainedSelection = editor->GetSelection();
     const bool canUndo           = editor->CanUndo();
     first.SetVisible(false);
-    Check(first.GetStatistics().surfaceBytes == 0 && ! editor->DebugGetState().layoutReady && ! first.NeedsPreparation() && ! first.NeedsAnimation(),
+    Check(first.GetStatistics().surfaceBytes == 0 && ! editor->DebugGetState().layoutReady && ! first.NeedsPreparation() &&
+              ! AnimationRequested(first.GetAnimationRequest()),
           "hidden view releases pixels and layout without periodic work");
     Check(! first.DispatchCharacter(L'x') && PrepareRichEmbeddedContent(first, 480, 240) == S_FALSE, "hidden view rejects input and preparation");
     first.SetVisible(true);
@@ -4416,13 +4588,13 @@ static void TestRetainedRichTextSchedulingCanRetireOwner(GraphicsFixture& gpu)
     EmbeddedHost view;
     callback.view = &view;
     Hr(view.Attach(graphics,
-                   {&callback,
-                    [](void* context) noexcept
+                   StoppedTestClock({&callback,
+                                     [](void* context) noexcept
     {
         auto& state = *static_cast<CallbackState*>(context);
         if (std::exchange(state.retire, false))
             state.view->Controls().SetRoot(nullptr);
-    }}),
+    }})),
        "retiring rich-text view");
     auto control   = std::make_unique<RichTextEditor>();
     auto* editor   = control.get();
@@ -4468,7 +4640,7 @@ static void TestRetainedRichTextFailedPreparation(GraphicsFixture& gpu, bool fat
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "failed rich-text preparation pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(graphics), "failed rich-text preparation host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "failed rich-text preparation host");
     auto owned   = std::make_unique<FailingEditor>();
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));

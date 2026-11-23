@@ -366,7 +366,7 @@ press, a primary press, Escape, loss of capture or focus, disabling, hiding or
 detaching the editor ends the gesture. Ticks use the host animation clock and
 bounded elapsed time; there is no control-owned timer. Embedded applications
 forward middle-button events, retain native capture while requested, and drive
-`AdvanceAnimation` while `NeedsAnimation` is true.
+`AdvanceAnimation` when the view's animation request asks for it.
 
 `BeginSourceMove` creates a source/selection/binding-guarded token for a
 nonempty editable selection. `MoveSelectedSource` accepts a source-coordinate
@@ -408,8 +408,23 @@ records functional tests separately from the open performance and real AT gates.
 
 Shared text-element segmentation uses a pure allocation-free forward walker,
 with pinned generated property data and all original Unicode 17 GraphemeBreakTest
-vectors, without exclusions. Arbitrary-caret wrappers recover context from the
-beginning; callers already walking established boundaries use the forward service
+vectors, without exclusions. Arbitrary-caret wrappers (next, previous and nearest
+snapping) recover context from an anchor rather than from the beginning: they search
+backward from the caret's code point to the nearest pair that UAX #29 breaks under
+every possible preceding context, then walk forward. Such a pair breaks by GB4/GB5
+(Control, CR or LF on either side, except CR LF under GB3), or by GB999 when the pair
+alone excludes GB6-GB8 (Hangul L/V/T/LV/LVT joins), GB9/GB9a/GB9b (right Extend, ZWJ
+or SpacingMark; left Prepend), GB9c (right InCB=Consonant after InCB Extend or
+Linker), GB11 (ZWJ before Extended_Pictographic) and GB12/GB13 (two regional
+indicators). Offset 0 and the end are boundaries (GB1/GB2). A caret between
+surrogate halves starts from the lead; unpaired halves remain single code points.
+The result equals the walk from 0, so a step costs its element span; only
+regional-indicator runs, pictographic ZWJ chains and Indic linker chains, whose
+pairs depend on earlier context, extend the backward search across several
+elements. ASCII neighbours keep their direct boundary. On 65,536 units of CJK and
+emoji, a step, a snap, a `TextField` arrow key and a UIA character expansion or
+single move each read at most 64 code units. Callers already walking
+established boundaries use the forward service
 instead of rescanning each prefix. Password masking and source/display mapping
 follow these same elements. Legacy malformed UTF-16 still makes bounded progress;
 the rich model rejects malformed source. See the [data provenance and generator](../../ThirdParty/Unicode/README.md).
@@ -495,6 +510,24 @@ also checks its attached root lifetime and preparation's interaction revision. A
 field stops the old event batch too, even while a snapshot and provider keep their own storage alive. Read-only
 embedded properties still use the last published snapshot until the application's next coherent publication;
 actions already return `UIA_E_ELEMENTNOTAVAILABLE` for an unavailable editor and never change its retained draft.
+
+An editable control's `Name` comes from its explicit accessible name or its associated label, or stays empty. A
+`TextField` (masked or not) or a `ComboBox` without either has an empty `Name`; its content is exposed only as
+`Value` and `Text`, so typing changes `Value` and raises no `Name` change. A `Button` with a toggle state exposes
+Toggle and not Invoke, since a button supports one of them but not both
+([Button control type](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-supportbuttoncontroltype));
+clearing the state restores Invoke. Text-edit events follow
+[UiaRaiseTextEditTextChangedEvent](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcoreapi/nf-uiautomationcoreapi-uiaraisetextedittextchangedevent):
+while a composition is active, a published change of its string raises `TextEditChangeType_Composition` with only the
+part that changed, and no event when only its offsets moved; the publication in which composition ends raises one
+`TextEditChangeType_CompositionFinalized` with the committed string, empty when the composition was cancelled. A
+window host compares `WM_GETOBJECT`'s object id as a `DWORD`, as
+[WM_GETOBJECT](https://learn.microsoft.com/en-us/windows/win32/winauto/wm-getobject) requires on 64-bit Windows, so a
+zero-extended `UiaRootObjectId` returns the root provider. A window host's accessibility target is found through its
+window property and, when that property is gone (the window was destroyed before its host detached), through the
+targets the process registered, so `Detach` still releases the target and disconnects its root provider. The empty
+snapshot published after a detach or a root swap is made once, when the window registers, so those `noexcept` paths
+allocate nothing.
 
 Opt-in layout prepares matching visible, hit and provider bounds before publishing. Reflow preserves editor
 identity, focus, draft, selection and composition; it does not take HWND focus. A captured press whose control
@@ -669,8 +702,31 @@ and captures focus-event attribution at that publication. Detaching retires the 
 attachment identity so an old queued flush cannot publish into a later host on the same HWND. Without
 a requested provider or UIA listener, mutations remain dirty without loading a snapshot, resolving focus paths
 or posting a new flush. Existing queued publication is preserved; a later owner query resolves the latest revision.
-An internal diagnostics override is scoped to the owning thread, HWND and attachment cookie and changes only the
-mutation-interest decision, never provider-query freshness, other hosts or global listener state. These
+The client gate, one rule for window hosts and embedded views: a host builds its accessibility snapshot on a mutation (or
+an embedded update) if and only if a client requested its provider during this attachment, or the system reports a
+listening client (`UiaClientsAreListening`). A window host is requested by any `WM_GETOBJECT` it answers or root acquisition;
+an embedded view by the first provider call that reaches it. Once requested, a host stays so for the attachment, whether
+that client still exists or not; a client that only queries, in this process or another, therefore keeps the host building
+from then on (`TestAccessibilityClientGateOutOfProcessQueryOnlyClientLatchesTheWindow`). The cost is stated plainly: a host
+any client has ever asked keeps building for that attachment, and on a desktop where some process listens every host
+builds at every mutation, as before the gate. The saving is for hosts nobody has asked while nobody listens: a window host
+then marks its state dirty, as described above, and an embedded view records its update (see Embedded accessibility).
+The gate does not count UI Automation's advise calls (`IRawElementProviderAdviseEvents`), because UI Automation does not
+advise every subscription. Measured with an in-process client on Windows 11 build 26300 (window host; an embedded root,
+which hangs below the application's window element, was advised of nothing):
+
+| Subscription | Advised to the window's root |
+|---|---|
+| Automation, property-changed, structure-changed, TextEdit, notification, active-text-position events and event-handler groups scoped to the window or one of its elements (element, children, descendants or subtree) | Yes, with the event id and property ids; removal advised too, also when the client process is terminated |
+| Any subscription scoped to the desktop root (how a screen reader subscribes), also for a window discovered later | No |
+| `AddFocusChangedEventHandler` | No |
+
+Two diagnostics overrides exist; `DXUI_ENABLE_DIAGNOSTICS` is set in every configuration, Release included, so both are
+compiled into shipping builds and reached only through the internal `Debug...ForTest` functions. The mutation-interest
+override is scoped to the owning thread, HWND and attachment cookie and changes only that host's mutation-interest decision,
+never provider-query freshness or other hosts. The system-listener override is process-wide: it stands for the answer of
+`UiaClientsAreListening` in the build gate of every host of the process (events are still raised on the system's own
+answer); nothing else sets it. These
 native scheduling rules do not change embedded hosting: the application still calls
 `UpdateAccessibility` after coherent preparation, placement or focus changes. A
 focus-changed callback that removes the control it was told about leaves no control focused. A control disabled, hidden
@@ -824,6 +880,12 @@ editing shortcut and types its character. Alt alone types nothing in an editor; 
 mnemonics and leaves one that names none to `DefWindowProc`, so Alt+Space opens the window menu and a menu bar takes its
 access keys, as over a Win32 edit control.
 
+Wheel scrolling honours the user's lines per notch, `WHEEL_PAGESCROLL` included, in Grid, Tree and a multiline
+TextField through one shared reading. A window host refreshes it on `WM_SETTINGCHANGE`, which it leaves to the
+application's window procedure as well; an embedded host refreshes it before each wheel event it dispatches. Grid sums fractional precision-touchpad deltas without losing or rounding them up (see
+[controls and layout](UI_ControlsAndLayout.md)). Tests replace the setting through `DebugSetWheelScrollLinesForTest`,
+never by changing the user's setting.
+
 EmbeddedHost dispatches pointer Down/Move/Up/Wheel/Leave/Cancel, keyboard down/up and character events to its retained
 tree, with stale-focus/capture pruning. A second Down on the same control within the system double-click interval and a
 16 DIP slop calls `OnMouseDoubleClick` (word selection, row activation) instead of `OnMouseDown`. Pointer Down/Move/Up/Wheel switch the host to pointer modality so keyboard-only
@@ -850,7 +912,12 @@ tree-membership checks still reject retired pointers before dereferencing them.
 Embedded preparation and coherent pointer-input admission MUST apply this same gesture-owner availability rule.
 A press during a captured gesture goes to the captured control, and the release of that second button keeps the
 capture: only a release that leaves neither the primary nor the secondary button down ends it, so a right-click while a
-slider's thumb is held neither ends the drag nor strands it. A ScrollPanel retains the forwarded gesture owner through its own-button release callback; after that callback it clears only the unchanged forwarded gesture. A release handler MUST NOT release a newer capture selected by a callback. An unhandled press clears the focus only when it continued
+slider's thumb is held neither ends the drag nor strands it. EmbeddedHost, which has no secondary-button action, applies
+the same rule to a middle press the captured control accepts; the
+[embedded contract](../Rendering/Rendering_EmbeddedD3D11.md) states its button mask. Both hosts deliver the middle
+button's release to the captured control, or else to the control under the pointer, through `Control::OnMouseMiddleUp`
+(the default declines); a held capture consumes that release either way. A ScrollPanel forwards it to its child as it
+forwards the press ([controls and layout](UI_ControlsAndLayout.md)). A ScrollPanel retains the forwarded gesture owner through its own-button release callback; after that callback it clears only the unchanged forwarded gesture. A release handler MUST NOT release a newer capture selected by a callback. An unhandled press clears the focus only when it continued
 no captured gesture and moved no focus itself, so a container that forwards presses (ScrollPanel) does not blur a child
 that focused itself on a press it then declined. A control with no meaning of its own for a double-click treats it as a
 press: a second right-click within the double-click time opens a Grid's, Tree's or ComboBox's context menu again, and a
@@ -887,6 +954,59 @@ SetValue updates from externally acknowledged state without firing an input call
 animation when the acknowledged value equals its accepted target. Existing
 SetOnValueChanged remains the legacy live-value observer; AV uses SetOnChange and calls the OS setter only on Commit.
 Callback-driven root replacement is supported and covered by a regression test.
+
+### Pointer hit result
+
+A host finds the control under a pointer once per pointer event and answers the event's cursor query, hover and dispatch
+from that one hit result (plan item W2.9). The result is the control the host hit test returns (an overlay, else the
+deepest interactive control); a control's own sub-hit (a `Grid` column edge, a `ComboBox` popup row, a `ScrollPanel`
+child) stays inside that control and is not cached.
+
+- **One event.** A window host opens the event at a client-area `WM_SETCURSOR` for its own window (not one a child window
+  forwards), which Windows sends while it delivers a mouse message. Its point is the screen point of the `WM_NCHITTEST`
+  of the same delivery (`GetMessagePos` describes the last message retrieved, which may be the previous one), converted
+  exactly as the mouse message's client point is. The event ends when the next message the host handles returns: the
+  client mouse message (move, left, right and middle press and release, double-click) reuses the cursor query's result;
+  any other message the host handles drops it. Work that reaches the host without a message of its own (a `TIMERPROC`
+  such as the recovery retry, a message to another window of the thread, a non-client `WM_SETCURSOR`, which returns
+  before touching the event) does not end it; that is safe only because every change a hit test reads moves the
+  interaction or hit revision, which the key compares. A mouse message without a cursor query before it (a captured
+  pointer, a synthesized move) is an event of its own. `WM_MOUSEWHEEL` and the file-drop and diagnostic hit tests always
+  walk the tree. An `EmbeddedHost::DispatchPointer` call is one event: the hover update and the dispatch share its result.
+  No result survives its event.
+- **One key.** The result is reused only for the same client point (in DIPs, exactly), the same root, the same interaction
+  revision and the same hit revision, and only while its control is alive and attached to the host. The interaction
+  revision moves on bounds, visibility, enabled state, attach and detach (adding, removing and re-parenting a control,
+  page and root replacement), model geometry and density. The hit revision moves on everything else a library hit test
+  reads: a `ComboBox` popup opening, closing, refiltering its rows or changing its layout inputs (maximum visible items,
+  minimum row height, no-matches text, bounds; `ComboBox::UpdatePopupLayout` moves it wherever a recomputed placement differs from the previous one, whatever input changed it); a `ScrollPanel` offset change; a `PageHost`
+  transition starting or ending; `PageIndicator` page count; `Slider` orientation; `Splitter` orientation, thickness,
+  minimum panes and position (setters, drag, keys and cancel); an overlay dismissed by a press; a native size or DPI
+  change; any theme change (theme typography and metrics size popups and headers); device loss, detach, root replacement
+  and an embedded view hidden or its surface lost. Hover, focus, capture and tooltips do not change which control a point
+  hits, and capture bypasses the hit test. Each site is named (`HitRevisionSite`), and a test suppresses each one alone
+  and shows a press then reaches a stale control.
+- **Controls outside the library.** A control class the library defines reports every change its hit testing reads. A
+  class defined elsewhere (a subclass of a library control included) may override `HitTest`, `HitTestOverlay` or
+  `GetHitBounds` with state the host cannot see, so while such a control is attached the host reuses no hit result:
+  every hit test walks the tree as before. A class opts in by calling `Control::DeclareHitTestReported()` from its
+  constructor, which promises that its answers depend only on its bounds, visibility, enabled state, children and state
+  whose every change it reports with `Control::InvalidateHitTest()`. The declaration covers exactly the class whose
+  constructor makes it (its `typeid`), so a subclass declares for itself. A destroyed control leaves the count. A host
+  says why it reuses nothing: `ControlHost::DebugGetUnreportedHitControlCount` and
+  `DebugGetFirstUnreportedHitControlType`, and one `HitReuseOff` trace event when it stops reusing. The check uses RTTI
+  (`typeid`), which the library already requires (`dynamic_cast`). `InvalidateHitTest` is the one way to move the hit
+  revision; library setters that change hit-testing state call it, and it reaches the one internal entry,
+  `ControlHost::AdvanceHitRevision`.
+- **Unchanged semantics.** Hover enter and leave order, capture, cursor shape, tooltip targeting (the supplemental tooltip
+  walk is separate and unchanged), wheel, click, middle-button and recovery targets are what a fresh hit test gives. A
+  seeded differential replays pointer scripts (moves, clicks, middle presses, wheel, tree edits, popups, scrolls, page
+  switches, hides, edits between a cursor query and its move and edits from inside hover callbacks) on a host that reuses
+  results and one that walks for every hit test (`ControlHost::DebugSetPointerHitResultEnabled(false)`), on both hosts,
+  and requires equal callbacks and state.
+
+`frame.hitTests` counts host hit tests that walked the tree and `frame.hitTestReuses` the ones answered from the event's
+result. On `FX14` (both hosts) and `FX2` each pointer move walks the tree once.
 
 ### Embedded text-state transport
 
@@ -956,10 +1076,102 @@ The defensive text-store adapter returns `S_OK` with `TS_SD_READONLY` for a mask
 through `ITfInputScope`, without granting a read/write lock or exporting secret text. Plain controls report their
 actual read-only policy; an unavailable target remains disconnected. Application-bridged stores use the same metadata
 contract and securely clear temporary masked snapshots. Logical policy changes never transfer native keyboard focus.
+
+The shared ACP store follows the documented TSF query semantics. `GetACPFromPoint` ([ITextStoreACP::GetACPFromPoint](https://learn.microsoft.com/en-us/windows/win32/api/textstor/nf-textstor-itextstoreacp-getacpfrompoint))
+returns, by default, the start of the character whose bounding box contains the point and `TS_E_INVALIDPOINT` for a
+point outside every visible character box, including any point outside the text view. `GXFPF_ROUND_NEAREST` returns
+the nearer edge of the containing box; `GXFPF_NEAREST` returns the closest position for a point outside every box;
+the flags combine. That page's prose and its per-point list disagree on `GXFPF_ROUND_NEAREST` outside a box; the
+store follows the flag table and the per-point list, so rounding alone never resolves such a point. Without a layout
+every flag returns `TS_E_NOLAYOUT`, and a refused query clears its output. A surrogate pair and a CRLF pair are one
+character box; no result falls between their units. The store supports one attribute, `GUID_PROP_INPUTSCOPE`:
+`RequestSupportedAttrs`, `RequestAttrsAtPosition` and `RetrieveRequestedAttrs` return the store's own `ITfInputScope`
+as `VT_UNKNOWN` (`VT_EMPTY` for a support query without `TS_ATTR_FIND_WANT_VALUE`), and it never transitions inside the
+document. `TextField::SetInputScope` selects `Default`, `Number` (`IS_NUMBER`) or `Url` (`IS_URL`); a NumericStepper
+field reports `Number`, and a masked field always reports `IS_PASSWORD`. An external text change notifies
+`TS_TEXTCHANGE` with the common prefix and suffix excluded, so only the changed middle re-anchors text-service ranges;
+neither edge splits a surrogate pair or a CRLF pair in the old or new text. After each TSF edit session the native
+store reads the composition's `GUID_PROP_ATTRIBUTE` ranges and their `TF_DISPLAYATTRIBUTE::bAttr`; a pure mapping
+publishes the first contiguous run of `TF_ATTR_TARGET_CONVERTED`/`TF_ATTR_TARGET_NOTCONVERTED` ranges as the conversion
+target and the range edges, clipped to the composition, as clause boundaries in the IMM convention (composition start,
+interior edges, composition end; at most 256). A later range update keeps that metadata while it lies inside the new
+range. Masked fields keep TSF deactivated, so they publish no attributes. Application-bridged stores report the same
+point and input-scope semantics; they do not yet read display attributes. A real Japanese IME composition remains the
+acceptance check for the attribute path; the automated suites cover the mapping and the store queries.
 Its UI Automation Text pattern is unavailable,
 and its accessible name/value/text never contains the password. Host `WM_GETTEXT`, `WM_GETTEXTLENGTH` and
 `WM_SETTEXT` remain window-caption messages while an editor has focus; editor state is exposed by the supported
 control and UI Automation APIs.
+
+Shared input text. A `TextField` and an editable `ComboBox` keep their document in one immutable shared buffer, which the
+native host's text-input cache, the TSF store (its lock-entry base, staged edit, composition base, expected preview and
+observed state) and the control's undo history hold without copying. A TSF read, selection change, extent or end query,
+bounds check, synchronization and caret move share it; only an edit makes a new buffer, built once at its final size and
+adopted by the control on import. One TSF lock in a `TextField` therefore makes at most one document-sized allocation
+(the counted gate of `Embedded.Tests.ImeCopies.h`, a ten-syllable composition at about 64 Ki units). A buffer is never
+written while another holder shares it; a view into it stays valid only while a holder pins it, so code that can
+re-enter user callbacks, TSF or `SetText` keeps its own reference while it reads. The last holder's release zeroes the
+buffer's whole allocation, up to its capacity, before freeing it, and an edit never lets a shared-text buffer reallocate
+in place: a growing edit copies to a large enough buffer first and the old one is released the same way. Text that
+shrinks in place keeps stale units beyond its end only until that release. This covers the shared buffers only; copies a
+caller takes into its own string (the public `TextInputState` and snapshots, layout caches) keep their own wiping rules.
+A control without text holds a shared empty buffer, so it reads empty text even while it is being destroyed. The
+shared path applies only to a control that keeps the default `ExportTextInputState` and `ImportTextInputState`
+(`KeepsDefaultTextInputState`, a protected virtual that is true for exactly `TextField` and `ComboBox`): a derived class
+that overrides either virtual is always called through it, under TSF as under IMM and the embedded path, at the cost of a
+copy per call; a derived class that keeps both may return true to share. The library derives no class from either. An
+editable `ComboBox` filters and selects its popup items by its committed text: a composition preview (a non-notifying
+import that changes the text) neither rebuilds the open popup's items nor changes the selection, and the commit filters by
+the result. When a composition ends without its preview being restored or committed (focus loss, store teardown, a
+refused restore), the shown text becomes the committed text and the popup and selection follow it.
+
+Rich text-input snapshots. A `RichTextEditor` exports its document to text input as its immutable source revision (the
+piece-tree `SourceSnapshot`), not as a flattened string. The native host's cache keeps that revision as its previous
+state; synchronization, the UI Automation text-changed check and the TSF store's change notification compare two
+revisions by identity, or only across their tracked changed range, and the store computes the `TS_TEXTCHANGE` common
+prefix and suffix in place, with the same result as on the whole texts. With no UI Automation client listening, the input event itself (its handler and both synchronizations, not the preparation that follows) for a one-character insert, an arrow key, Backspace,
+Ctrl+arrow, Ctrl+Backspace, Enter and a double-click copies no whole document and at most 1 KiB of it (word boundaries read
+a window around the caret that grows only when a word reaches its edge; the first line ending comes from the line
+summaries). With a client listening, the text-input automation event and the window's accessibility snapshot still copy the whole document per change or caret move; removing those copies belongs to the accessibility text provider (performance plan `W8.3`, `W8.4`). Contiguous text is materialized only for a reader that needs it (a TSF lock, IMM, a public
+`TextInputState`/`NativeTextInputState`) and at most once per revision: the host cache and the editor keep that copy,
+keyed by the revision's identity, and the editor updates it in place by the changed range while nothing else holds it. A
+TSF import reads the store's buffer in place, applies only its changed range and keeps the buffer as the copy of the
+revision it produced, so a TSF lock in a `RichTextEditor` makes at most one document-sized allocation, as in a
+`TextField`; a commit stays one undo step. The editor keeps its copy only while it has focus: it releases it on focus
+loss, and a read or import while it is unfocused (a store restoring a composition after focus left) gets a one-off copy
+that the editor does not keep. The copy is wiped when released, like the shared buffers; the rich document's own storage
+(its piece-tree buffers) and the bounded slices read out of it are not. A native host synchronizes once per input event:
+after a key or character, the host skips its own synchronization when the control already synchronized during dispatch
+and the cache already holds exactly what a synchronization would store (the same buffer or revision, and every other
+cached field re-derived from the control and compared, password reveal state included), outside any composition. The
+skip still refreshes what depends on more than the cache: the caret geometry and system caret (which follow scrolling)
+and the text store's change comparison. Overrides follow the shared-text rule: the snapshot path applies to exactly `RichTextEditor`, or to a derived
+class that keeps both state virtuals and returns true from the protected `KeepsDefaultTextInputState`; any other derived
+class is called through `ExportTextInputState` and `ImportTextInputState` on the TSF, IMM and embedded paths, at the cost
+of a copy per call.
+
+Text-range reads. A UI Automation text range reads its control's text in the published accessibility snapshot through a
+view, never a copy: each call holds the snapshot it resolved for as long as it reads, on whichever thread UI Automation
+calls it, so the owner thread may publish newer snapshots, and the window may detach, while a worker still reads the one it
+resolved. A line request dispatched to the window's thread carries that pinned snapshot in the request itself, which lives
+as long as the window's thread may run it, also after the waiting worker has timed out. A composition or conversion-target
+range (`GetActiveComposition`, `GetConversionTarget`) reads the field's text as it was when the range was created: it
+copies that one text once at creation and its clones share the copy, so a held range retains one field's text, never a
+snapshot (every record and every other control's text), however long a client holds it, and reads it without a copy per
+call. On a window host no range pins a snapshot beyond the call that reads it; an embedded range keeps its existing
+creation-snapshot ownership. The rule is stated at
+`PinnedRangeText` in `DxUi.Accessibility.cpp` and proved under ASan by a range that reads after the owner published two
+newer snapshots (`Embedded.Tests.UiaTextProvider.h`). `ExpandToEnclosingUnit(Word)` finds the unit around the
+position locally: it walks back to the nearest unit start (offset 0, or a code point that is not whitespace and whose
+class, path separator, word character or other, differs from the code point before it, unless only whitespace precedes
+it) and takes one `FindNextWordBoundary` for its end. It returns the same span as the scan from offset 0 it replaced at
+every offset; the cost is the enclosing unit and the whitespace before it, never the offset (at most about twice the
+unit for one long run of a single class), and the `FX6` word walk over 64 Ki units
+copies no document and visits at most twice the document's units. Character expansion walks forward once from the
+nearest established grapheme boundary instead of snapping, stepping back and stepping forward over the same units. A
+native caret event (`ActiveTextPositionChanged`) records the caret from the host's text-input cache alone, without
+copying the document; which events are queued and raised is unchanged. Window-thread line requests still compare the live
+control text, which they copy (performance plan `W8.3`).
 
 Native TSF activation stages its document, context and store before publishing the session. It revalidates the
 focused control and transition generation after each callback-capable TSF operation, including context push and
@@ -1195,7 +1407,26 @@ proxies marshal actions to the owning STA. Raw foreign-thread actions fail inste
 Windows [provider threading contract](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcore/ne-uiautomationcore-provideroptions).
 
 Call UpdateAccessibility after changed preparation, placement or OS focus. Unchanged updates reuse the snapshot
-without allocation. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
+without allocation. Until a provider call first reaches the view during this attachment, and while the system reports no
+listening client, a changed update after the first (attaching) one only records its preparation and placement and returns
+`S_OK`: it builds nothing, however often the application calls it. Handing out the root (GetAccessibilityProvider) is not a
+request, since an application's bridge does that at attachment; a call of one of its methods is. The first request builds
+the recorded update when the view's geometry is still that of its last preparation at the recorded size (a paint-only
+change since is read as it is now, as Grid row materialization reads it). That snapshot becomes the event baseline: with no
+listener silently, since nobody had asked or listened. With a listener the request leaves the baseline in place and the next
+UpdateAccessibility, even an otherwise unchanged one, first raises once the delta from the baseline to the snapshot the
+request published (a change recorded unheard is raised too, redundantly), then, from that snapshot, its own changes, so a
+client that read a state and then sees it changed back hears both: an embedded view raises events only from UpdateAccessibility, never on the stack of a provider call. Elements
+the view creates for its own events while UpdateAccessibility raises them are not a request. A first request that finds the
+tree or bounds changed since, or the view resized and not yet updated, cannot build the recorded update, because there is no
+prepared geometry at the recorded placement: it serves the snapshot last built, which can be the one built at attachment and
+so much older than the previous frame that an update built before the gate, until the next accepted update builds the
+current tree and raises the delta. GetItem materialization refuses meanwhile. Detaching and attaching again starts
+unrequested; dropping the retained snapshot (memory pressure) does not reset the request, so a client that asked keeps the
+view building, and the next update builds a tree again. From the first request on, every changed update builds and raises exactly
+as before the gate. No query path cancels a pointer gesture: the first-request build, GetItem materialization (which
+refuses while an update is still recorded) and GetAccessibilityProvider use a check without side effects; only the
+application's own UpdateAccessibility, Prepare and input calls apply the cancelling one. No snapshot work occurs in Composite, and consumers that never attach accessibility pay no
 snapshot allocation or UIA wake-up cost. Prepared snapshots expose confirmed Toggle, RangeValue, text/value and
 focus state. Changed active snapshots raise applicable property, text, focus, structure and (for a Tree or a Grid)
 [selection](#selection-events) events only while UIA clients listen. Hidden controls leave navigation; background modal views must be disconnected by the application.
@@ -1690,6 +1921,22 @@ deletable token. M4e semantic typing/commands materialize the focused padded
 cell without virtual ACPs; raw imports retain exact source replacement. Synthetic
 composition transport and in-process UIA clients complement the separate physical
 IME/assistive-technology qualification gates.
+
+Soft-wrap caret affinity is visual state beside the source selection. At an offset that ends one visual line and
+starts the next without a hard break, `PreparedLayout`/`PreparedDocumentLayout::Caret(position)` and
+`CaretAffinity::Downstream` draw the caret at the next line's start; `CaretAffinity::Upstream` draws it at the
+preceding line's end. Everywhere else the affinities give identical geometry. In the editor's ordinary (non-semantic)
+layout, `End` and `Shift+End`, a pointer hit on a cluster's trailing edge and a vertical move landing on one choose
+`Upstream`; `Home`, Left/Right, word and document movement choose `Downstream`. `Home`, `End` and vertical movement start
+from the line the caret is drawn on. The choice holds only while the selection epoch, source revision and document binding
+it was made for are current, and it survives reflow and preparation; any other selection change (programmatic, text
+service, UI Automation, find), an edit, IME commit, undo/redo or rebinding returns to `Downstream`. Painting, caret
+reveal and the text-service caret bounds use it; source selection, TSF/UIA ACPs, ranges and undo records never contain
+it. Semantic Rich geometry keeps its own source-site affinity.
+
+Double-click word selection in TextField, editable ComboBox and RichTextEditor classes complete Unicode scalars: a
+supplementary-plane letter or digit (for example U+20000 U+20001) is one word character and a surrogate pair is never
+split or classed as punctuation.
 
 The control that called a native publish treats it as a reentrancy boundary too: before touching itself again or
 calling a pending delegate, it checks that its lifetime survived the publish. Tree and Grid selection helpers that

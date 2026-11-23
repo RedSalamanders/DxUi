@@ -3,6 +3,7 @@
 #include "DxUi.MarkdownUnicodeData.h"
 #include "DxUi.MarkdownWork.h"
 #include "DxUi.TextElements.h"
+#include "Support/WorkCounters.h"
 #include <DxUi/Configuration.h>
 #include <DxUi/Failure.h>
 #include <DxUi/MarkdownSyntax.h>
@@ -18,6 +19,32 @@ namespace DxUi::RichText::Detail
 #if DXUI_ENABLE_DIAGNOSTICS
 inline thread_local std::size_t testMathOwnershipProbeWork{};
 #endif
+// Incremental parse reuse (plan item W7.2). A link reference definition as resolution sees it: the first definition of
+// each normalized label, in label order. Two parses resolve every link alike exactly when these lists are equal.
+struct MarkdownReferenceValue
+{
+    MarkdownReferenceValue() : label(0u, L' '), destination(0u, L' '), title(0u, L' ')
+    {
+    }
+    std::wstring label, destination, title;
+    bool operator==(const MarkdownReferenceValue&) const = default;
+};
+// A closed top-level subtree the block pass imported from the previous parse: new node indices [first, first + count)
+// are old indices [oldFirst, oldFirst + count), and its source moved from oldSource to newSource.
+struct MarkdownImportedSubtree
+{
+    std::size_t first = MarkdownNoNode, count{}, oldFirst{}, oldSource{}, newSource{};
+};
+// What an incremental inline pass may copy from: the previous parse's nodes and inlines, its effective definitions and
+// the inline staging of each of its leaves, and the imported subtrees in node order.
+struct MarkdownInlineReuse
+{
+    const std::vector<MarkdownNode>* oldBlocks{};
+    const std::vector<MarkdownInline>* oldInlines{};
+    const std::vector<MarkdownReferenceValue>* oldReferences{};
+    const std::vector<std::uint32_t>* oldLeafStaging{};
+    const std::vector<MarkdownImportedSubtree>* subtrees{};
+};
 // Owned Unicode inline recognizer. The block pass must finish before global
 // references are collected. No decoding is applied inside code or raw HTML.
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -99,6 +126,14 @@ class MarkdownInlines
     std::vector<std::array<std::uint32_t, 9u>> htmlNext_;
     std::array<std::size_t, 4u> htmlLast_{};
     std::wstring text_;
+    // Incremental reuse (W7.2): this parse's effective definitions and per-leaf staging (both carried to the next
+    // parse), the subtree walk of a copied leaf, and the staging copied leaves stand for beyond the nodes they copy.
+    std::vector<MarkdownReferenceValue> effectiveReferences_;
+    std::vector<std::uint32_t> leafStaging_;
+    std::vector<std::size_t> copyStack_;
+    std::optional<MarkdownInlineReuse> reuse_;
+    std::size_t reuseCursor_{}, virtualStaging_{}, leafStart_{};
+    bool reuseActive_{};
     std::size_t blockCursor_{}, referenceCursor_{}, cursor_{}, root_ = MarkdownNoNode, tail_ = MarkdownNoNode;
     std::size_t delimiterTail_ = MarkdownNoNode, delimiterHead_ = MarkdownNoNode;
     std::size_t lastLiteral_ = MarkdownNoNode, compactCursor_{}, compactCount_{};
@@ -219,6 +254,9 @@ class MarkdownInlines
     void CollectReference()
     {
         const auto& block = blocks_[referenceCursor_++];
+        if (block.block.kind == MarkdownBlockKind::ReferenceDefinition || block.block.kind == MarkdownBlockKind::FootnoteDefinition)
+            ::DxUi::Detail::Work().rich.markdownReferenceUnitsRead +=
+                (block.label.last - block.label.first) + (block.destination.last - block.destination.first) + (block.title.last - block.title.first);
         if (block.block.kind == MarkdownBlockKind::FootnoteDefinition)
         {
             footnotes_.emplace_back();
@@ -261,6 +299,111 @@ class MarkdownInlines
                                                           : 1u)
                              : offsets_[first]};
     }
+    // Staging records for node-capacity admission: the nodes staged so far plus, for each copied leaf, the shells its
+    // parse would have staged beyond the nodes it published, so a copy admits exactly what a full parse admits.
+    std::size_t Staged() const noexcept
+    {
+        return nodes_.size() + virtualStaging_;
+    }
+    void FinishLeafStaging(std::size_t staging) noexcept
+    {
+        if (blockCursor_ < leafStaging_.size())
+            leafStaging_[blockCursor_] = static_cast<std::uint32_t>(staging);
+    }
+    // W7.2: once the definitions are known, copying is admitted when they resolve every label as the previous parse did.
+    void DecideReuse()
+    {
+        leafStaging_.assign(blocks_.size(), 0u);
+        for (const auto& reference : references_)
+            if (effectiveReferences_.empty() || effectiveReferences_.back().label != reference.label)
+            {
+                effectiveReferences_.emplace_back();
+                effectiveReferences_.back().label       = reference.label;
+                effectiveReferences_.back().destination = reference.destination;
+                effectiveReferences_.back().title       = reference.title;
+            }
+        if (! reuse_ || reuse_->subtrees->empty())
+            return;
+        reuseActive_ = *reuse_->oldReferences == effectiveReferences_;
+        if (! reuseActive_)
+            ++::DxUi::Detail::Work().rich.markdownInlineFullReparses;
+    }
+    // W7.2: the current block lies in an imported subtree whose old leaf can be copied: returns its old node index.
+    std::size_t ImportedOldBlock() noexcept
+    {
+        if (! reuseActive_)
+            return MarkdownNoNode;
+        const auto& subtrees = *reuse_->subtrees;
+        while (reuseCursor_ < subtrees.size() && subtrees[reuseCursor_].first + subtrees[reuseCursor_].count <= blockCursor_)
+            ++reuseCursor_;
+        if (reuseCursor_ == subtrees.size() || subtrees[reuseCursor_].first > blockCursor_)
+            return MarkdownNoNode;
+        return subtrees[reuseCursor_].oldFirst + (blockCursor_ - subtrees[reuseCursor_].first);
+    }
+    // W7.2: copies the unchanged leaf's inline forest from the previous parse, shifted, instead of scanning its text.
+    // Refuses (the leaf is parsed) for a forest with a footnote reference or source editor, or one that is not a single
+    // contiguous index range of the old dense forest. Indivisible, proportional to the leaf's nodes.
+    bool CopyLeaf(std::size_t oldIndex)
+    {
+        const auto& oldBlocks  = *reuse_->oldBlocks;
+        const auto& oldInlines = *reuse_->oldInlines;
+        if (oldIndex >= oldBlocks.size() || oldBlocks[oldIndex].block.kind != blocks_[blockCursor_].block.kind || oldIndex >= reuse_->oldLeafStaging->size())
+            return false;
+        const auto& subtree = (*reuse_->subtrees)[reuseCursor_];
+        const auto root     = oldBlocks[oldIndex].firstInline;
+        std::size_t low = root, high = root, count = 0u;
+        copyStack_.clear();
+        if (root != MarkdownNoNode)
+            copyStack_.push_back(root);
+        while (! copyStack_.empty())
+        {
+            const auto index = copyStack_.back();
+            copyStack_.pop_back();
+            if (index >= oldInlines.size() || count == oldInlines.size())
+                return false;
+            const auto& node = oldInlines[index];
+            if (node.kind == Kind::FootnoteReference || node.kind == Kind::SourceEditor)
+                return false;
+            ++count;
+            low  = (std::min)(low, index);
+            high = (std::max)(high, index);
+            if (node.firstChild != MarkdownNoNode)
+                copyStack_.push_back(node.firstChild);
+            if (node.nextSibling != MarkdownNoNode)
+                copyStack_.push_back(node.nextSibling);
+        }
+        if (count && high - low + 1u != count)
+            return false;
+        const std::size_t staging = (std::max)(static_cast<std::size_t>((*reuse_->oldLeafStaging)[oldIndex]), count);
+        // A full parse of this leaf stages `staging` records; it fails exactly when they do not all fit.
+        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() + staging > MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+        {
+            capacityExceeded_ = true;
+            return true;
+        }
+        const auto base  = nodes_.size();
+        const auto shift = [&](std::size_t at) noexcept { return subtree.newSource + (at - subtree.oldSource); };
+        for (std::size_t index = low; count && index <= high; ++index)
+        {
+            nodes_.push_back(oldInlines[index]);
+            previous_.push_back(MarkdownNoNode);
+            auto& node        = nodes_.back();
+            node.source.first = shift(node.source.first);
+            node.source.last  = shift(node.source.last);
+            if (node.firstChild != MarkdownNoNode)
+                node.firstChild = base + (node.firstChild - low);
+            if (node.nextSibling != MarkdownNoNode)
+                node.nextSibling = base + (node.nextSibling - low);
+        }
+        virtualStaging_ += staging - count;
+        FinishLeafStaging(staging);
+        blocks_[blockCursor_].firstInline = count ? base + (root - low) : MarkdownNoNode;
+        ++blockCursor_;
+        auto& work = ::DxUi::Detail::Work().rich;
+        ++work.markdownInlineLeavesCopied;
+        work.markdownNodesCopied += count;
+        return true;
+    }
     std::size_t Append(Kind kind, std::size_t first, std::size_t last, std::wstring_view value = {}, bool mergeText = true)
     {
         const auto range = Range(first, last);
@@ -270,7 +413,7 @@ class MarkdownInlines
             nodes_[tail_].source.last = range.last;
             return tail_;
         }
-        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || nodes_.size() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
         {
             capacityExceeded_ = true;
             return MarkdownNoNode;
@@ -333,7 +476,7 @@ class MarkdownInlines
     }
     void OpaqueHtmlBlock()
     {
-        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || nodes_.size() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
         {
             capacityExceeded_ = true;
             return;
@@ -341,13 +484,16 @@ class MarkdownInlines
         const auto index = nodes_.size();
         nodes_.emplace_back();
         previous_.push_back(MarkdownNoNode);
+        FinishLeafStaging(1u);
         auto& block       = blocks_[blockCursor_++];
         block.firstInline = index;
         auto& node        = nodes_[index];
         node.kind         = Kind::Html;
         node.source       = block.block.source;
+        ++::DxUi::Detail::Work().rich.markdownInlineLeavesParsed;
         for (const auto& line : block.lines)
         {
+            ::DxUi::Detail::Work().rich.markdownInlineUnitsScanned += line.source.last - line.source.first;
             node.value.append(line.leadingSpaces, L' ');
             for (auto i = line.source.first; i < line.source.last; ++i)
             {
@@ -533,7 +679,7 @@ class MarkdownInlines
             const auto openNode = open.node, closeNode = close.node;
             const auto first = nodes_[openNode].nextSibling, last = previous_[closeNode];
             const auto wrapper = nodes_.size();
-            if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || wrapper >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+            if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
             {
                 capacityExceeded_ = true;
                 return;
@@ -606,8 +752,11 @@ class MarkdownInlines
         brackets_.clear();
         cursor_ = 0u;
         root_ = tail_ = delimiterTail_ = delimiterHead_ = lastLiteral_ = MarkdownNoNode;
+        leafStart_                                                     = Staged();
+        ++::DxUi::Detail::Work().rich.markdownInlineLeavesParsed;
         for (const auto& line : block.lines)
         {
+            ::DxUi::Detail::Work().rich.markdownInlineUnitsScanned += line.source.last - line.source.first;
             for (unsigned space = 0; space < line.leadingSpaces; ++space)
             {
                 text_.push_back(L' ');
@@ -1060,7 +1209,7 @@ class MarkdownInlines
             return true;
         nodes_[link].destination = email ? std::wstring(L"mailto:") + std::wstring(content) : std::wstring(content);
         const auto child         = nodes_.size();
-        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || child >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
         {
             capacityExceeded_ = true;
             return true;
@@ -1332,7 +1481,7 @@ class MarkdownInlines
                                    : scheme == 4u ? std::wstring(L"http://") + std::wstring(rest.substr(0u, length))
                                                   : std::wstring(rest.substr(0u, length));
         const auto child         = nodes_.size();
-        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || child >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
         {
             capacityExceeded_ = true;
             return true;
@@ -1973,8 +2122,22 @@ public:
           offsets_(0u),
           backtickNext_(0u),
           htmlNext_(0u),
-          text_(0u, L' ')
+          text_(0u, L' '),
+          effectiveReferences_(0u),
+          leafStaging_(0u),
+          copyStack_(0u)
     {
+    }
+    // W7.2: the previous parse this one may copy unchanged leaves from. Call before the first Step.
+    void EnableReuse(const MarkdownInlineReuse& reuse) noexcept
+    {
+        reuse_ = reuse;
+    }
+    // Carried to the next parse with the publication (swapped out; the parser holds no further use for them).
+    void TakeReuseState(std::vector<MarkdownReferenceValue>& references, std::vector<std::uint32_t>& leafStaging) noexcept
+    {
+        references.swap(effectiveReferences_);
+        leafStaging.swap(leafStaging_);
     }
     [[nodiscard]] std::size_t AutolinkInspectionUnits() const noexcept
     {
@@ -2026,6 +2189,7 @@ public:
             else
             {
                 footnotes_.resize(footnoteUniqueCount_);
+                DecideReuse();
                 referencesComplete_ = true;
             }
             return false;
@@ -2069,6 +2233,7 @@ public:
                             tail_ = nodes_[tail_].nextSibling;
                     Emphasis(MarkdownNoNode);
                     blocks_[blockCursor_].firstInline = root_;
+                    FinishLeafStaging(Staged() - leafStart_);
                     ++blockCursor_;
                     leafActive_ = autolinksActive_ = false;
                 }
@@ -2114,6 +2279,7 @@ public:
                 {
                     Emphasis(MarkdownNoNode);
                     blocks_[blockCursor_].firstInline = root_;
+                    FinishLeafStaging(Staged() - leafStart_);
                     ++blockCursor_;
                     leafActive_ = false;
                 }
@@ -2130,6 +2296,10 @@ public:
             return ResolveFootnoteStep();
         }
         const auto kind = blocks_[blockCursor_].block.kind;
+        if (kind == MarkdownBlockKind::HtmlBlock || kind == MarkdownBlockKind::Paragraph || kind == MarkdownBlockKind::AtxHeading ||
+            kind == MarkdownBlockKind::SetextHeading || kind == MarkdownBlockKind::TableCell)
+            if (const auto old = ImportedOldBlock(); old != MarkdownNoNode && CopyLeaf(old))
+                return false;
         if (kind == MarkdownBlockKind::HtmlBlock)
         {
             OpaqueHtmlBlock();

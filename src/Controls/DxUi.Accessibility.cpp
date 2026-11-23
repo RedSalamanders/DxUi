@@ -2,6 +2,7 @@
 
 #include "DxUi.AccessibilityTextUnits.h"
 #include "DxUi.Internal.h"
+#include "DxUi.RetainedCaches.h"
 #include "DxUi.RichAccessibilityEpoch.h"
 #include "DxUi.RichEditorAccessibilityAccess.h"
 #include "DxUi.RichSemanticGeometry.h"
@@ -58,11 +59,18 @@ struct EmbeddedAccessibilityAccess
     {
         return host._embeddedAccessibilityTarget;
     }
-    [[nodiscard]] static bool Coherent(EmbeddedHost& host) noexcept
+    [[nodiscard]] static bool Coherent(const EmbeddedHost& host) noexcept
     {
         // Grid materialization reads prepared geometry, not cached surface pixels.
-        // A paint-only selection change must not hide its still-coherent geometry.
-        return host.InputIsCoherent(true);
+        // A paint-only selection change must not hide its still-coherent geometry. A pure check: a query never cancels a gesture.
+        return host.PreparedGeometryIsCurrent();
+    }
+    // Whether the view's geometry is still that of its last preparation, at the size placement reports: a recorded update a
+    // first request may build. A pure check, like Coherent.
+    [[nodiscard]] static bool GeometryIsPreparedAt(const EmbeddedHost& host, const EmbeddedAccessibilityPlacement& placement) noexcept
+    {
+        return host.PreparedGeometryIsCurrent() && std::abs(placement.viewport.width - host._host._widthPx) <= 0.01 &&
+               std::abs(placement.viewport.height - host._host._heightPx) <= 0.01;
     }
 
     // Who reports the focus move a window host just published; focusResolutions is how many calls of the fragment
@@ -130,6 +138,18 @@ struct EmbeddedAccessibilityAccess
     {
         ++host._debugReactivationAnnouncementCount;
     }
+
+    // `control`'s native text-input caret as TryReadNativeTextInputState reports it (clamped to the document), read in
+    // place without copying or materializing the document; nullopt when the host's text-input cache is not that control's.
+    // The length comes from the shared text, or from a rich editor's source revision when its text is not materialized.
+    [[nodiscard]] static std::optional<size_t> NativeTextInputCaret(const ControlHost& host, const Control* control) noexcept
+    {
+        if (! control || control != host._nativeTextInputControl || ! host._nativeTextInputStateCacheValid)
+            return std::nullopt;
+        const size_t length = host._nativeTextInputCacheText || ! host._nativeTextInputCacheSource ? SharedTextView(host._nativeTextInputCacheText).size()
+                                                                                                   : host._nativeTextInputCacheSource->Length();
+        return (std::min)(host._nativeTextInputStateCache.caretIndex, length);
+    }
 };
 
 namespace
@@ -187,6 +207,24 @@ enum class AccessibilityUiActionKind : uint8_t
     ScrollIntoView,
 };
 
+// The characters one text-range call reads, and what keeps them alive (AccessibilityTextRangeProvider::ResolveText).
+// Ownership rule, which every reader of `text` relies on:
+// - `text` points into the controlAccessibleText of a record of the snapshot `owner` holds, or into the one copy of a field's
+//   text a composition or conversion-target range made at creation (CopyRangeTextOverride), which `owner` then holds; either
+//   way `owner` keeps the characters alive on whatever thread holds it. An empty view may have no owner.
+// - A view is read only while the PinnedRangeText it came from is alive: a local of the provider call that resolved it; the
+//   request of a call dispatched to the window's thread, which owns its copy for as long as that thread may run it, also
+//   after the waiting caller has given up; or a range's text override, a member that owns its own text copy for the
+//   range's life. A view is never stored or returned without its owner, and no range member pins a whole snapshot of a
+//   window host (an embedded range already pins its creation snapshot, unchanged).
+// - So the owner thread may publish a new snapshot, and the window may detach, while a UI Automation worker reads: the
+//   published pointer moves on, and the old snapshot's characters stay valid until the last such reader lets go.
+struct PinnedRangeText final
+{
+    std::shared_ptr<const void> owner;
+    std::wstring_view text;
+};
+
 struct AccessibilityUiActionRequest
 {
     AccessibilityProvider* provider                   = nullptr;
@@ -205,6 +243,8 @@ struct AccessibilityUiActionRequest
     size_t textRangeResultStart = 0u;
     size_t textRangeResultEnd   = 0u;
     size_t textRangeTextLength  = 0u;
+    // A dispatched line request's expected text, pinned by the request itself (see PinnedRangeText).
+    PinnedRangeText textRangeExpectedText{};
     std::vector<D2D1_RECT_F> textRangeBoundsDip;
     float textRangeDipToPixelScale = 1.0f;
     ControlPath gridControlPath{};
@@ -304,6 +344,8 @@ struct AccessibilityMutationInterestOverrideForTest
     std::optional<bool> interested;
 };
 thread_local AccessibilityMutationInterestOverrideForTest g_accessibilityMutationInterestOverride;
+// -1 asks UiaClientsAreListening; 0 or 1 stands for its answer in the build gate (SystemClientsAreListening) only.
+std::atomic<int> g_accessibilitySystemListenersOverride{-1};
 
 // The window whose GetFocus calls a test holds, and the events it uses. The window is stored last when arming and first
 // when clearing, so a call never meets events the test has not armed; the holders are the calls that met the gate.
@@ -341,6 +383,14 @@ void NotifyAccessibilityPropertyRegistrationForTest(ControlHost* host, unsigned 
         g_accessibilityPropertyRegistrationHook = {};
         state.hook(state.context);
     }
+}
+
+// Test-only: while set, queued notifications are not handed to the thread-pool work item; the owner completes them with
+// DebugCompletePendingAccessibilityNotificationsForTest at a point of its choosing (see the declaration).
+std::atomic<bool> g_accessibilityNotificationDeliveryManualForTest{false};
+[[nodiscard]] bool SubmitsAccessibilityNotificationWork() noexcept
+{
+    return ! g_accessibilityNotificationDeliveryManualForTest.load(std::memory_order_acquire);
 }
 
 void HoldAccessibilityPropertyDeliveryForTest(ControlHost* host, bool afterScope = false) noexcept
@@ -515,6 +565,10 @@ constexpr void HoldAccessibilityPropertyDeliveryForTest(ControlHost*, bool = fal
 }
 constexpr void NotifyAccessibilityPropertyRegistrationForTest(ControlHost*, unsigned) noexcept
 {
+}
+constexpr bool SubmitsAccessibilityNotificationWork() noexcept
+{
+    return true;
 }
 #endif
 
@@ -796,6 +850,13 @@ struct AccessibilityControlNavigationSnapshot
     std::vector<AccessibilityTabItemSnapshotRecord> tabItems;
     uint64_t selectedTabId = 0u;
 };
+// Size probe (W9.1): the record measured on 2026-11-14, equal on x64 and ARM64; Debug STL containers add their proxies.
+// A ratchet against growth for the G13 memory budget (plan section 1): W9.7 splits it into a hot core and side tables.
+#if _ITERATOR_DEBUG_LEVEL != 0
+static_assert(sizeof(AccessibilityControlNavigationSnapshot) <= 1088u, "the UI Automation record grew: lower memory first, or re-measure with the reason");
+#else
+static_assert(sizeof(AccessibilityControlNavigationSnapshot) <= 936u, "the UI Automation record grew: lower memory first, or re-measure with the reason");
+#endif
 
 // The display position of a model column, and the model column at a display position (the identity without an order).
 [[nodiscard]] std::optional<size_t> GridDisplayIndexOfColumn(const AccessibilityControlNavigationSnapshot& record, size_t columnIndex) noexcept
@@ -1117,7 +1178,22 @@ struct WindowHostAccessibilityTarget final
 
     explicit WindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept : hwnd(hwnd), host(host)
     {
+#if DXUI_ENABLE_DIAGNOSTICS
+        liveCount.fetch_add(1u, std::memory_order_relaxed);
+#endif
     }
+
+    ~WindowHostAccessibilityTarget()
+    {
+#if DXUI_ENABLE_DIAGNOSTICS
+        liveCount.fetch_sub(1u, std::memory_order_relaxed);
+#endif
+    }
+
+#if DXUI_ENABLE_DIAGNOSTICS
+    // Targets alive in this process: a window destroyed before its host detaches must not leave one behind.
+    static inline std::atomic<size_t> liveCount{0u};
+#endif
 
     WindowHostAccessibilityTarget(const WindowHostAccessibilityTarget&)            = delete;
     WindowHostAccessibilityTarget& operator=(const WindowHostAccessibilityTarget&) = delete;
@@ -1185,6 +1261,9 @@ struct WindowHostAccessibilityTarget final
     EmbeddedAccessibilityPlacement placement{};
     std::atomic<ControlHost*> host{nullptr};
     std::atomic<std::shared_ptr<const AccessibilitySnapshot>> snapshot;
+    // A window host's immutable stand-in for a detached or swapped root, made at registration so that publishing it from
+    // the noexcept retirement paths allocates nothing.
+    std::shared_ptr<const AccessibilitySnapshot> emptySnapshot;
     // Native revisions and event baselines are confined to the owner thread. Worker queries read only snapshots.
     uint64_t dirtyRevision     = 1u;
     uint64_t publishedRevision = 0u;
@@ -1192,6 +1271,19 @@ struct WindowHostAccessibilityTarget final
     bool flushPosted           = false;
     bool publishing            = false;
     std::atomic<bool> providerRequested{false};
+    // An embedded view (owner thread): no provider call has reached it during this attachment yet, and its last changed
+    // UpdateAccessibility only recorded its preparation and placement (deferredPlacement), since no client had asked and
+    // none listened. The first provider call latches embeddedRequested and builds the recorded update; see
+    // RequestEmbeddedAccessibility.
+    bool embeddedRequested           = false;
+    bool embeddedPublicationDeferred = false;
+    // A first request built a recorded update while a client listened: the next UpdateAccessibility raises the delta from
+    // the event baseline, which the request left in place, even when that update is otherwise unchanged. Events are raised
+    // only from UpdateAccessibility, never on the stack of a provider call.
+    bool embeddedRaisePending = false;
+    // UpdateAccessibility is raising: the elements its events create are not a client's request.
+    bool embeddedRaising = false;
+    EmbeddedAccessibilityPlacement deferredPlacement{};
     std::shared_ptr<const AccessibilitySnapshot> eventBaseline;
     std::optional<EmbeddedAccessibilityAccess::FocusMoveReporter> pendingFocusReporter;
     struct PendingTextEvents
@@ -1326,11 +1418,19 @@ void DrainNativeAccessibilityPublication(WindowHostAccessibilityTarget& target) 
     return targets;
 }
 
-// Call with the target mutex held.
+// Call with the target mutex held. A window destroyed before its host detached has lost its property list: the target
+// registered for it is then found among the registered targets, so its retirement still releases and disconnects it.
 [[nodiscard]] WindowHostAccessibilityTarget* FindRegisteredAccessibilityTarget(HWND hwnd) noexcept
 {
-    auto* const target = static_cast<WindowHostAccessibilityTarget*>(GetPropW(hwnd, kWindowHostPropName));
-    if (! target || ! GetRegisteredAccessibilityTargets().contains(target) || target->hwnd != hwnd)
+    const auto& registered = GetRegisteredAccessibilityTargets();
+    auto* const target     = static_cast<WindowHostAccessibilityTarget*>(GetPropW(hwnd, kWindowHostPropName));
+    if (! target)
+    {
+        const auto found =
+            std::ranges::find_if(registered, [hwnd](const WindowHostAccessibilityTarget* candidate) noexcept { return candidate->hwnd == hwnd; });
+        return found != registered.end() ? const_cast<WindowHostAccessibilityTarget*>(*found) : nullptr;
+    }
+    if (! registered.contains(target) || target->hwnd != hwnd)
         return nullptr;
     return target;
 }
@@ -1354,7 +1454,7 @@ void PublishAccessibilitySnapshot(WindowHostAccessibilityTarget& target, std::sh
 
 void PublishEmptyAccessibilitySnapshot(WindowHostAccessibilityTarget& target) noexcept
 {
-    PublishAccessibilitySnapshot(target, MakeEmptyAccessibilitySnapshot(target.hwnd));
+    PublishAccessibilitySnapshot(target, target.emptySnapshot);
 }
 
 // How a publish changed the selection of a Tree or a Grid, for the UI Automation selection events. A tree's items are its
@@ -1440,6 +1540,7 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
 #if DXUI_ENABLE_DIAGNOSTICS
     g_accessibilitySnapshotBuildCount.fetch_add(1u, std::memory_order_relaxed);
 #endif
+    ++Detail::Work().accessibility.snapshotBuilds;
     auto snapshot              = std::make_shared<AccessibilitySnapshot>();
     snapshot->hwnd             = target.hwnd;
     snapshot->buildThreadId    = GetCurrentThreadId();
@@ -1477,6 +1578,11 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     if (! AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *snapshot, build))
         return {};
     IndexAccessibilitySnapshot(*snapshot);
+    auto& accessibilityWork = Detail::Work().accessibility;
+    accessibilityWork.snapshotNodes += snapshot->controlNavigationRecords.size();
+    accessibilityWork.snapshotBytes += snapshot->controlNavigationRecords.capacity() * sizeof(AccessibilityControlNavigationSnapshot) +
+                                       snapshot->semanticControlOrder.capacity() * sizeof(ControlPath) +
+                                       snapshot->controlsByAddress.capacity() * sizeof(AccessibilityControlAddress);
 
     // The host prunes a focused control that left the tree only at its next message, so find it by pointer before
     // touching it: one removed with its panel's children in the meantime is gone, not focused. The records are the
@@ -1558,12 +1664,6 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     if (target.embedded && previous && previous->alive && previous->hasRetainedRoot && InvokeNativeUia(UiaClientsAreListening))
     {
         changes.focusMoved = ! SameFocusedElement(*previous, *snapshot);
-        if (! target.embedded)
-        {
-            changes.structureChanged = ! SameSemanticControls(*previous, *snapshot);
-            changes.previous         = previous;
-            changes.current          = snapshot;
-        }
         changes.selections = CollectSelectionChanges(*previous, *snapshot);
     }
     PublishAccessibilitySnapshot(target, std::move(snapshot));
@@ -1576,14 +1676,79 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     return changes;
 }
 
-[[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> CaptureAccessibilitySnapshot(WindowHostAccessibilityTarget* target, HWND hwnd)
+// The build gate's system half: whether any UI Automation client of the desktop listens for events. A host builds a snapshot
+// on a mutation (or an embedded update) when a client requested its provider during this attachment, or when this answers
+// true. Not an advise count: UI Automation advises a window's root of no focus-changed handler and no subscription at the
+// desktop, which is how a screen reader subscribes.
+[[nodiscard]] bool SystemClientsAreListening() noexcept
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (const int systemOverride = g_accessibilitySystemListenersOverride.load(std::memory_order_acquire); systemOverride >= 0)
+        return systemOverride != 0;
+#endif
+    return InvokeNativeUia(UiaClientsAreListening) != FALSE;
+}
+
+// An embedded view's first provider call latches it as requested for the attachment, and builds the update its last changed
+// UpdateAccessibility only recorded, when the view's geometry is still prepared at that update's placement (a pure check: a
+// query never cancels a gesture). Without a listener that snapshot becomes the event baseline silently: nobody had asked or
+// listened, so no event of it is owed; with one the baseline stays and the next update raises the delta. A view whose
+// geometry changed since keeps the last built snapshot, which `placement` describes; the next update builds, since the view
+// is now requested. Element creation while UpdateAccessibility raises is not a request.
+void RequestEmbeddedAccessibility(WindowHostAccessibilityTarget& target) noexcept
+{
+    if (! target.embedded || target.threadId != GetCurrentThreadId() || ! target.embeddedOwner || target.embeddedRaising)
+        return;
+    target.embeddedRequested = true;
+    if (! target.embeddedPublicationDeferred || target.publishing ||
+        ! EmbeddedAccessibilityAccess::GeometryIsPreparedAt(*target.embeddedOwner, target.deferredPlacement))
+        return;
+    ControlHost* const host = target.ResolveHost();
+    if (! host)
+        return;
+    target.publishing = true;
+    const auto finish = wil::scope_exit([&] { target.publishing = false; });
+    try
+    {
+        const auto before    = target.snapshot.load(std::memory_order_acquire);
+        const auto published = target.placement;
+        target.placement     = target.deferredPlacement;
+        const auto changes   = PublishWindowHostAccessibilitySnapshot(target, *host);
+        const auto current   = target.snapshot.load(std::memory_order_acquire);
+        if (FAILED(changes.result) || current == before)
+        {
+            target.placement = published; // Still the placement of the snapshot that stays published.
+            return;
+        }
+        target.embeddedPublicationDeferred = false;
+        // The build reads the controls as they are now, which may include a change made after a client began to listen: with
+        // a listener, the baseline stays and the next UpdateAccessibility raises the delta (what was recorded unheard is raised
+        // too, redundantly), not this provider call; without one, nothing is owed and the baseline moves silently.
+        if (SystemClientsAreListening())
+            target.embeddedRaisePending = true;
+        else
+            target.eventBaseline = current;
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    catch (const std::exception&)
+    {
+        Failure::FailUnexpected();
+    }
+}
+
+[[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> CaptureAccessibilitySnapshot(WindowHostAccessibilityTarget* target, HWND hwnd) noexcept
 {
     if (! target || (target->embedded && (! target->host.load(std::memory_order_acquire) || target->rootLifetime.expired())))
     {
         return nullptr;
     }
 
-    if (! target->embedded && target->threadId == GetCurrentThreadId())
+    if (target->embedded)
+        RequestEmbeddedAccessibility(*target);
+    else if (target->threadId == GetCurrentThreadId())
         FlushNativeAccessibilitySnapshot(*target);
 
     // Sequentially consistent, for a GetFocus that counted itself just before: see PublishAccessibilitySnapshot.
@@ -1592,7 +1757,16 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
         return snapshot;
     }
 
-    return MakeEmptyAccessibilitySnapshot(hwnd);
+    // After a detach published no snapshot. Its callers are noexcept provider paths: an allocation failure takes the fatal
+    // path with its context, as the registration that makes the same stand-in does.
+    try
+    {
+        return MakeEmptyAccessibilitySnapshot(hwnd);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation(sizeof(AccessibilitySnapshot));
+    }
 }
 
 [[nodiscard]] WindowHostAccessibilityTarget* AcquireWindowHostAccessibilityTarget(HWND hwnd) noexcept
@@ -4153,26 +4327,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
     {
         return label->GetText();
     }
-    if (const auto* textField = dynamic_cast<const TextField*>(control))
-    {
-        if (const std::wstring_view labelText = FindAssociatedLabelText(root, textField); ! labelText.empty())
-        {
-            return labelText;
-        }
-        if (textField->IsMasked())
-        {
-            return {};
-        }
-        return textField->GetText();
-    }
-    if (const auto* comboBox = dynamic_cast<const ComboBox*>(control))
-    {
-        if (const std::wstring_view labelText = FindAssociatedLabelText(root, comboBox); ! labelText.empty())
-        {
-            return labelText;
-        }
-        return comboBox->GetDisplayedText();
-    }
+    // A TextField or ComboBox is named by its label or stays unnamed: its content is its Value and Text, never its Name.
     if (const auto* slider = dynamic_cast<const Slider*>(control))
     {
         if (const std::wstring_view labelText = FindAssociatedLabelText(root, slider); ! labelText.empty())
@@ -4530,6 +4685,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
         }
     }
 
+    Detail::Work().accessibility.wordUnitsVisited += cursor > clampedPosition ? cursor - clampedPosition : clampedPosition - cursor;
     return TextRangeUnitMoveResult{cursor, moved};
 }
 
@@ -4588,19 +4744,50 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
         return {};
     }
 
-    size_t start = (std::min)(position, text.size());
-    if (start == text.size())
+    const size_t clampedPosition = (std::min)(position, text.size());
+    if (clampedPosition == text.size())
     {
-        start = StepToPreviousTextElement(text, start);
+        return TextRangeSpan{StepToPreviousTextElement(text, clampedPosition), text.size()};
     }
-    else
+    // The element holding the position, the one the walk from 0 finds: one backward search to an established boundary,
+    // then one forward walk, instead of a snap, a step back and a step forward that each read the same units again.
+    for (size_t cursor = FindTextElementSearchAnchor(text, clampedPosition); cursor < text.size();)
     {
-        const size_t snapped = SnapCaretIndexToTextElementBoundary(text, start);
-        start                = snapped > start ? StepToPreviousTextElement(text, snapped) : snapped;
+        const size_t next = FindNextTextElementBoundary(text, cursor);
+        if (next <= cursor)
+            break;
+        if (clampedPosition < next)
+            return TextRangeSpan{cursor, next};
+        cursor = next;
     }
-    return TextRangeSpan{start, StepToNextTextElement(text, start)};
+    return TextRangeSpan{StepToPreviousTextElement(text, text.size()), text.size()};
 }
 
+// How FindNextWordBoundary classes a code point: it skips whitespace, then takes one run of path separators, of word
+// characters, or of anything else, then skips whitespace again.
+enum class TextRangeWordClass : uint8_t
+{
+    Whitespace,
+    PathSeparator,
+    WordCharacter,
+    Other,
+};
+
+[[nodiscard]] TextRangeWordClass ClassifyTextRangeWordCodePoint(std::wstring_view text, size_t index) noexcept
+{
+    if (IsAccessibilityTextRangeWhitespace(text[index]))
+        return TextRangeWordClass::Whitespace;
+    if (IsPathSeparator(text[index]))
+        return TextRangeWordClass::PathSeparator;
+    return IsWordCharacter(ReadCodePointAt(text, index).value) ? TextRangeWordClass::WordCharacter : TextRangeWordClass::Other;
+}
+
+// The word units are the spans between successive FindNextWordBoundary results from offset 0, each without its trailing
+// whitespace. Those results are 0, the end, and every code point that is not whitespace and whose class differs from the
+// code point before it, except the first one when only whitespace precedes it (the first step from 0 skips leading
+// whitespace). The unit holding a position is therefore found locally: walk back to the nearest such start, then one
+// FindNextWordBoundary gives its end. The work is the unit and the whitespace before it, never the offset, and the span
+// equals the scan from 0 at every position (Tests/Embedded/Embedded.Tests.UiaTextProvider.h).
 [[nodiscard]] TextRangeSpan GetEnclosingTextRangeWordSpan(std::wstring_view text, size_t position) noexcept
 {
     if (text.empty())
@@ -4609,24 +4796,49 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
     }
 
     const size_t clampedPosition = (std::min)(position, text.size());
-    size_t unitStart             = 0u;
-    while (unitStart < text.size())
+    if (clampedPosition == text.size())
     {
-        const TextRangeUnitMoveResult next = MoveTextRangePositionByUnit(text, unitStart, TextUnit_Word, 1);
-        if (next.position <= unitStart)
-        {
-            return GetEnclosingTextRangeCharacterSpan(text, clampedPosition);
-        }
-        if (clampedPosition < next.position || clampedPosition == unitStart)
-        {
-            const size_t unitEnd = TrimTrailingTextRangeWhitespace(text, unitStart, next.position);
-            return TextRangeSpan{unitStart, (std::max)(unitStart, unitEnd)};
-        }
-        unitStart = next.position;
+        const size_t lastUnitStart = FindPreviousWordBoundary(text, text.size());
+        Detail::Work().accessibility.wordUnitsVisited += text.size() - lastUnitStart;
+        return TextRangeSpan{lastUnitStart, TrimTrailingTextRangeWhitespace(text, lastUnitStart, text.size())};
     }
 
-    const size_t lastUnitStart = FindPreviousWordBoundary(text, text.size());
-    return TextRangeSpan{lastUnitStart, TrimTrailingTextRangeWhitespace(text, lastUnitStart, text.size())};
+    // Code-point pairing is local: a position between surrogate halves belongs to the code point its lead starts.
+    size_t unitStart = clampedPosition;
+    if (unitStart > 0u && IsUtf16TrailSurrogate(text[unitStart]) && IsUtf16LeadSurrogate(text[unitStart - 1u]))
+        --unitStart;
+    size_t visited = clampedPosition - unitStart;
+    while (unitStart > 0u)
+    {
+        const TextRangeWordClass current = ClassifyTextRangeWordCodePoint(text, unitStart);
+        const size_t previous            = StepToPreviousCodePoint(text, unitStart);
+        const TextRangeWordClass before  = ClassifyTextRangeWordCodePoint(text, previous);
+        if (current != TextRangeWordClass::Whitespace && before != current)
+        {
+            if (before != TextRangeWordClass::Whitespace)
+                break;
+            // Whitespace before: a unit starts here unless that whitespace reaches offset 0.
+            size_t cursor = previous;
+            while (cursor > 0u && IsAccessibilityTextRangeWhitespace(text[StepToPreviousCodePoint(text, cursor)]))
+                cursor = StepToPreviousCodePoint(text, cursor);
+            visited += unitStart - cursor;
+            if (cursor == 0u)
+                unitStart = 0u;
+            break;
+        }
+        visited += unitStart - previous;
+        unitStart = previous;
+    }
+
+    const size_t next = FindNextWordBoundary(text, unitStart);
+    visited += next > unitStart ? next - unitStart : 0u;
+    Detail::Work().accessibility.wordUnitsVisited += visited;
+    if (next <= unitStart)
+    {
+        return GetEnclosingTextRangeCharacterSpan(text, clampedPosition);
+    }
+    const size_t unitEnd = TrimTrailingTextRangeWhitespace(text, unitStart, next);
+    return TextRangeSpan{unitStart, (std::max)(unitStart, unitEnd)};
 }
 
 struct TextRangeSpanMoveResult
@@ -5269,7 +5481,10 @@ struct TextRangeSpanMoveResult
 
 [[nodiscard]] bool SupportsInvokePattern(const Control* control) noexcept
 {
-    // A radio button is selected, not invoked (UI Automation's RadioButton control type): SelectionItem stands for it.
+    // A radio button is selected, not invoked (UI Automation's RadioButton control type): SelectionItem stands for it. A
+    // button with a toggle state is toggled: a button supports Invoke or Toggle but not both (Button control type).
+    if (const auto* button = dynamic_cast<const Button*>(control); button && button->GetToggleState().has_value())
+        return false;
     return (control && control->SupportsAccessibleInvoke()) ||
            (dynamic_cast<const Button*>(control) != nullptr && dynamic_cast<const Toggle*>(control) == nullptr &&
             dynamic_cast<const RadioButton*>(control) == nullptr);
@@ -5864,7 +6079,7 @@ public:
     }
 
     AccessibilityTextRangeProvider(
-        WindowHostAccessibilityTarget* target, HWND hwnd, const ControlPath& path, size_t start, size_t end, std::wstring textOverride) noexcept
+        WindowHostAccessibilityTarget* target, HWND hwnd, const ControlPath& path, size_t start, size_t end, PinnedRangeText textOverride) noexcept
         : _target(target),
           _hwnd(hwnd),
           _snapshot(CaptureProviderCreationSnapshot(target, hwnd)),
@@ -5964,9 +6179,9 @@ private:
     [[nodiscard]] bool IsCurrentThreadWindowThread() const noexcept;
     HRESULT ChangeSelection(AccessibilityUiActionKind kind) noexcept;
     HRESULT DispatchActionToWindowThread(AccessibilityUiActionRequest& request) const noexcept;
-    HRESULT DispatchVisualLineExpansionToWindowThread(size_t start, size_t end, size_t& outStart, size_t& outEnd, std::wstring& expectedText) noexcept;
+    HRESULT DispatchVisualLineExpansionToWindowThread(size_t start, size_t end, size_t& outStart, size_t& outEnd, const PinnedRangeText& expectedText) noexcept;
     HRESULT DispatchLineMovementToWindowThread(
-        size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved, std::wstring& expectedText) noexcept;
+        size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved, const PinnedRangeText& expectedText) noexcept;
     HRESULT DispatchEndpointLineMovementToWindowThread(size_t start,
                                                        size_t end,
                                                        TextPatternRangeEndpoint endpoint,
@@ -5974,13 +6189,18 @@ private:
                                                        size_t& outStart,
                                                        size_t& outEnd,
                                                        int& outMoved,
-                                                       std::wstring& expectedText) noexcept;
+                                                       const PinnedRangeText& expectedText) noexcept;
     HRESULT DispatchBoundingRectanglesToWindowThread(size_t start, size_t end, std::vector<D2D1_RECT_F>& outBoundsDip, float& outDipToPixelScale) noexcept;
     [[nodiscard]] std::shared_ptr<const AccessibilitySnapshot> CaptureSnapshot() const noexcept;
     [[nodiscard]] ControlHost* ResolveHost() const noexcept;
     [[nodiscard]] const Control* ResolveControl() const noexcept;
     [[nodiscard]] Control* ResolveMutableControl() const noexcept;
-    [[nodiscard]] std::wstring ResolveText() const;
+    // The range's text in its current snapshot, without a copy; read it only while the result is alive (PinnedRangeText).
+    [[nodiscard]] PinnedRangeText ResolveText() const noexcept;
+    [[nodiscard]] bool HasTextOverride() const noexcept
+    {
+        return _textOverride.owner != nullptr;
+    }
     [[nodiscard]] std::wstring ResolveControlText(const Control* control) const;
     [[nodiscard]] TextRangeSpan ClampCurrentRange(size_t textLength) const noexcept;
     [[nodiscard]] size_t SemanticEnclosing(const AccessibilityControlNavigationSnapshot& record, TextRangeSpan range) const noexcept;
@@ -5991,7 +6211,10 @@ private:
     WindowHostAccessibilityTarget* _target = nullptr;
     HWND _hwnd                             = nullptr;
     std::shared_ptr<const AccessibilitySnapshot> _snapshot;
-    std::optional<std::wstring> _textOverride;
+    // A composition or conversion-target range reads the field's text as it was when the range was created: one copy made then
+    // (CopyRangeTextOverride), which this member owns for the range's life, never the snapshot it came from. Immutable once
+    // constructed and shared by clones; a null owner means no override.
+    PinnedRangeText _textOverride{};
     std::optional<std::vector<D2D1_RECT_F>> _boundsOverrideDip;
     std::weak_ptr<const RichText::SemanticDocument> _semanticDocument;
     size_t _semanticElement = RichText::MarkdownNoNode;
@@ -6328,7 +6551,7 @@ private:
                                                               std::vector<D2D1_RECT_F> boundsOverrideDip,
                                                               const AccessibilityControlIdentity& expectedIdentity) noexcept;
     [[nodiscard]] ITextRangeProvider* CreateTextRangeProvider(
-        const ControlPath& path, size_t start, size_t end, std::wstring textOverride, const AccessibilityControlIdentity& expectedIdentity) noexcept;
+        const ControlPath& path, size_t start, size_t end, PinnedRangeText textOverride, const AccessibilityControlIdentity& expectedIdentity) noexcept;
     [[nodiscard]] ITextRangeProvider* CreateTextDocumentRangeProvider(const AccessibilityControlNavigationSnapshot& record) noexcept;
     [[nodiscard]] WindowHostAccessibilityTarget* AddRefTarget() const noexcept;
     [[nodiscard]] bool IsCurrentThreadWindowThread() const noexcept;
@@ -6623,9 +6846,9 @@ try
         return UIA_E_ELEMENTNOTAVAILABLE;
 
     const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
-    const std::wstring text        = ResolveText();
-    const TextRangeSpan range      = ClampCurrentRange(text.size());
-    const TextRangeSpan otherRange = other->ClampCurrentRange(text.size());
+    const size_t textLength        = ResolveText().text.size();
+    const TextRangeSpan range      = ClampCurrentRange(textLength);
+    const TextRangeSpan otherRange = other->ClampCurrentRange(textLength);
     const size_t position          = GetTextRangeEndpointPosition(range, endpoint);
     const size_t targetPosition    = GetTextRangeEndpointPosition(otherRange, targetEndpoint);
 
@@ -6775,16 +6998,16 @@ try
         size_t rangeStart    = 0u;
         size_t rangeEnd      = 0u;
         size_t textLength    = 0u;
-        std::wstring expectedText(0u, L' ');
+        PinnedRangeText expectedText{};
         {
             const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
             expectedText              = ResolveText();
-            const TextRangeSpan range = ClampCurrentRange(expectedText.size());
+            const TextRangeSpan range = ClampCurrentRange(expectedText.text.size());
             expectedStart             = _rangeStart;
             expectedEnd               = _rangeEnd;
             rangeStart                = range.start;
             rangeEnd                  = range.end;
-            textLength                = expectedText.size();
+            textLength                = expectedText.text.size();
         }
 
         size_t resultStart = rangeStart;
@@ -6792,7 +7015,7 @@ try
         HRESULT hr         = DispatchVisualLineExpansionToWindowThread(rangeStart, rangeEnd, resultStart, resultEnd, expectedText);
         if (SUCCEEDED(hr))
         {
-            hr = CommitDispatchedRange(expectedStart, expectedEnd, resultStart, resultEnd, expectedText);
+            hr = CommitDispatchedRange(expectedStart, expectedEnd, resultStart, resultEnd, expectedText.text);
         }
         Debug::Perf::Emit(L"dxui.uia.text_range_us",
                           L"expand-line-dispatch",
@@ -6804,7 +7027,8 @@ try
     }
 
     const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
-    const std::wstring text = ResolveText();
+    const PinnedRangeText pinned = ResolveText();
+    const std::wstring_view text = pinned.text;
     TextRangeSpan expandedRange{};
     if (supportedUnit == TextUnit_Document)
     {
@@ -6986,10 +7210,11 @@ HRESULT AccessibilityTextRangeProvider::FindText(BSTR text, BOOL backward, BOOL 
     // A semantic snapshot is optional (Source/v0/pending views have none).
     if (! record->controlSupportsText2 && ! RichText::IsValidUtf16(needle))
         return E_INVALIDARG;
-    const std::wstring_view source = _textOverride && ! record->controlSupportsText2 ? *_textOverride : record->controlAccessibleText;
-    const auto range               = ClampCurrentRange(source.size());
-    size_t first                   = range.start;
-    size_t last                    = range.end;
+    const std::wstring_view source =
+        HasTextOverride() && ! record->controlSupportsText2 ? _textOverride.text : std::wstring_view(record->controlAccessibleText);
+    const auto range = ClampCurrentRange(source.size());
+    size_t first     = range.start;
+    size_t last      = range.end;
     // Ordinal Unicode comparison is independent of the user's current locale.
     // Search exact source (including hidden syntax), without returning a match
     // that bisects a supplementary scalar or an original CRLF pair.
@@ -7089,9 +7314,8 @@ try
     size_t textLength = 0u;
     {
         const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
-        const std::wstring text = ResolveText();
-        textLength              = text.size();
-        range                   = ClampCurrentRange(textLength);
+        textLength = ResolveText().text.size();
+        range      = ClampCurrentRange(textLength);
         if (_boundsOverrideDip && ! _boundsOverrideDip->empty())
         {
             boundsOverrideDip = _boundsOverrideDip.value();
@@ -7249,8 +7473,9 @@ try
     *outText = nullptr;
     if (maxLength < -1)
         return E_INVALIDARG;
-    const std::wstring text   = ResolveText();
-    const TextRangeSpan range = ClampCurrentRange(text.size());
+    const PinnedRangeText pinned = ResolveText();
+    const std::wstring_view text = pinned.text;
+    const TextRangeSpan range    = ClampCurrentRange(text.size());
     std::wstring_view value(text.data() + range.start, range.end - range.start);
     if (maxLength >= 0)
     {
@@ -7321,8 +7546,8 @@ try
     if (count == 0)
     {
         const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
-        const std::wstring text = ResolveText();
-        Debug::Perf::Emit(L"dxui.uia.text_range_us", L"move-unsupported", Debug::Perf::ElapsedUs(startedAt), 0u, text.size(), S_OK);
+        const size_t textLength = ResolveText().text.size();
+        Debug::Perf::Emit(L"dxui.uia.text_range_us", L"move-unsupported", Debug::Perf::ElapsedUs(startedAt), 0u, textLength, S_OK);
         return S_OK;
     }
 
@@ -7333,16 +7558,16 @@ try
         size_t rangeStart    = 0u;
         size_t rangeEnd      = 0u;
         size_t textLength    = 0u;
-        std::wstring expectedText(0u, L' ');
+        PinnedRangeText expectedText{};
         {
             const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
             expectedText              = ResolveText();
-            const TextRangeSpan range = ClampCurrentRange(expectedText.size());
+            const TextRangeSpan range = ClampCurrentRange(expectedText.text.size());
             expectedStart             = _rangeStart;
             expectedEnd               = _rangeEnd;
             rangeStart                = range.start;
             rangeEnd                  = range.end;
-            textLength                = expectedText.size();
+            textLength                = expectedText.text.size();
         }
 
         size_t resultStart = rangeStart;
@@ -7351,7 +7576,7 @@ try
         HRESULT hr         = DispatchLineMovementToWindowThread(rangeStart, rangeEnd, count, resultStart, resultEnd, moved, expectedText);
         if (SUCCEEDED(hr))
         {
-            hr = CommitDispatchedRange(expectedStart, expectedEnd, resultStart, resultEnd, expectedText);
+            hr = CommitDispatchedRange(expectedStart, expectedEnd, resultStart, resultEnd, expectedText.text);
             if (SUCCEEDED(hr))
                 *outMoved = moved;
         }
@@ -7361,8 +7586,9 @@ try
     }
 
     const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
-    const std::wstring text   = ResolveText();
-    const TextRangeSpan range = ClampCurrentRange(text.size());
+    const PinnedRangeText pinned = ResolveText();
+    const std::wstring_view text = pinned.text;
+    const TextRangeSpan range    = ClampCurrentRange(text.size());
     if (unit == TextUnit_Line)
     {
         ControlHost* const host      = ResolveHost();
@@ -7483,8 +7709,8 @@ try
     if (count == 0)
     {
         const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
-        const std::wstring text = ResolveText();
-        Debug::Perf::Emit(L"dxui.uia.text_range_us", L"move-endpoint-unsupported", Debug::Perf::ElapsedUs(startedAt), 0u, text.size(), S_OK);
+        const size_t textLength = ResolveText().text.size();
+        Debug::Perf::Emit(L"dxui.uia.text_range_us", L"move-endpoint-unsupported", Debug::Perf::ElapsedUs(startedAt), 0u, textLength, S_OK);
         return S_OK;
     }
 
@@ -7495,16 +7721,16 @@ try
         size_t rangeStart    = 0u;
         size_t rangeEnd      = 0u;
         size_t textLength    = 0u;
-        std::wstring expectedText(0u, L' ');
+        PinnedRangeText expectedText{};
         {
             const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
             expectedText              = ResolveText();
-            const TextRangeSpan range = ClampCurrentRange(expectedText.size());
+            const TextRangeSpan range = ClampCurrentRange(expectedText.text.size());
             expectedStart             = _rangeStart;
             expectedEnd               = _rangeEnd;
             rangeStart                = range.start;
             rangeEnd                  = range.end;
-            textLength                = expectedText.size();
+            textLength                = expectedText.text.size();
         }
 
         size_t resultStart = rangeStart;
@@ -7513,7 +7739,7 @@ try
         HRESULT hr         = DispatchEndpointLineMovementToWindowThread(rangeStart, rangeEnd, endpoint, count, resultStart, resultEnd, moved, expectedText);
         if (SUCCEEDED(hr))
         {
-            hr = CommitDispatchedRange(expectedStart, expectedEnd, resultStart, resultEnd, expectedText);
+            hr = CommitDispatchedRange(expectedStart, expectedEnd, resultStart, resultEnd, expectedText.text);
             if (SUCCEEDED(hr))
                 *outMoved = moved;
         }
@@ -7527,7 +7753,8 @@ try
     }
 
     const std::scoped_lock accessibilityLock(AccessibilitySnapshotMutex(_target));
-    const std::wstring text       = ResolveText();
+    const PinnedRangeText pinned  = ResolveText();
+    const std::wstring_view text  = pinned.text;
     const TextRangeSpan range     = ClampCurrentRange(text.size());
     const size_t endpointPosition = GetTextRangeEndpointPosition(range, endpoint);
     TextRangeUnitMoveResult moveResult{};
@@ -7586,7 +7813,7 @@ HRESULT AccessibilityTextRangeProvider::MoveEndpointByRange(TextPatternRangeEndp
     const std::scoped_lock lock(AccessibilitySnapshotMutex(_target));
     const auto* record = FindControlNavigationRecord(*snapshot, _path);
     const size_t textLength =
-        _textOverride && (! record || ! record->controlSupportsText2) ? _textOverride->size() : (record ? record->controlAccessibleText.size() : 0);
+        HasTextOverride() && (! record || ! record->controlSupportsText2) ? _textOverride.text.size() : (record ? record->controlAccessibleText.size() : 0);
     const auto current  = ClampCurrentRange(textLength);
     const auto position = GetTextRangeEndpointPosition(other->ClampCurrentRange(textLength), targetEndpoint);
     _boundsOverrideDip.reset();
@@ -7642,7 +7869,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteUiThreadAction(AccessibilityUiAct
         case AccessibilityUiActionKind::ScrollTextRangeIntoView: return ExecuteScrollIntoViewOnWindowThread(request.textRangeAlignToTop);
         case AccessibilityUiActionKind::ExpandTextRangeToVisualLine:
             return ExecuteExpandToVisualLineOnWindowThread(
-                request.textRangeStart, request.textRangeEnd, request.textRangeResultStart, request.textRangeResultEnd, request.stringValue);
+                request.textRangeStart, request.textRangeEnd, request.textRangeResultStart, request.textRangeResultEnd, request.textRangeExpectedText.text);
         case AccessibilityUiActionKind::MoveTextRangeByVisualLine:
             return ExecuteMoveByVisualLineOnWindowThread(request.textRangeStart,
                                                          request.textRangeEnd,
@@ -7650,7 +7877,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteUiThreadAction(AccessibilityUiAct
                                                          request.textRangeResultStart,
                                                          request.textRangeResultEnd,
                                                          request.textRangeMoved,
-                                                         request.stringValue);
+                                                         request.textRangeExpectedText.text);
         case AccessibilityUiActionKind::MoveTextRangeEndpointByVisualLine:
             return ExecuteMoveEndpointByVisualLineOnWindowThread(request.textRangeStart,
                                                                  request.textRangeEnd,
@@ -7659,7 +7886,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteUiThreadAction(AccessibilityUiAct
                                                                  request.textRangeResultStart,
                                                                  request.textRangeResultEnd,
                                                                  request.textRangeMoved,
-                                                                 request.stringValue);
+                                                                 request.textRangeExpectedText.text);
         case AccessibilityUiActionKind::ResolveTextRangeBounds:
             return ExecuteResolveBoundsOnWindowThread(
                 request.textRangeStart, request.textRangeEnd, request.textRangeBoundsDip, request.textRangeDipToPixelScale);
@@ -7789,7 +8016,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteExpandToVisualLineOnWindowThread(
         return UIA_E_ELEMENTNOTAVAILABLE;
     ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
-    const std::wstring text      = control ? (ResolveControlText(control)) : ResolveText();
+    const std::wstring text      = control ? ResolveControlText(control) : std::wstring(ResolveText().text);
     if (text != expectedText)
         return UIA_E_INVALIDOPERATION;
     const TextRangeSpan range = ClampTextRangeSpan(start, end, text.size());
@@ -7811,7 +8038,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteMoveByVisualLineOnWindowThread(
         return UIA_E_ELEMENTNOTAVAILABLE;
     ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
-    const std::wstring text      = control ? (ResolveControlText(control)) : ResolveText();
+    const std::wstring text      = control ? ResolveControlText(control) : std::wstring(ResolveText().text);
     if (text != expectedText)
         return UIA_E_INVALIDOPERATION;
     const TextRangeSpan range = ClampTextRangeSpan(start, end, text.size());
@@ -7833,7 +8060,7 @@ HRESULT AccessibilityTextRangeProvider::ExecuteMoveEndpointByVisualLineOnWindowT
         return UIA_E_ELEMENTNOTAVAILABLE;
     ControlHost* const host      = ResolveHost();
     const Control* const control = ResolveControl();
-    const std::wstring text      = control ? (ResolveControlText(control)) : ResolveText();
+    const std::wstring text      = control ? ResolveControlText(control) : std::wstring(ResolveText().text);
     if (text != expectedText)
         return UIA_E_INVALIDOPERATION;
     const TextRangeSpan range     = ClampTextRangeSpan(start, end, text.size());
@@ -8122,46 +8349,44 @@ HRESULT AccessibilityTextRangeProvider::DispatchActionToWindowThread(Accessibili
 }
 
 HRESULT AccessibilityTextRangeProvider::DispatchVisualLineExpansionToWindowThread(
-    size_t start, size_t end, size_t& outStart, size_t& outEnd, std::wstring& expectedText) noexcept
+    size_t start, size_t end, size_t& outStart, size_t& outEnd, const PinnedRangeText& expectedText) noexcept
 {
     const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
-    request.textRangeProvider    = this;
-    request.kind                 = AccessibilityUiActionKind::ExpandTextRangeToVisualLine;
-    request.stringValue          = std::move(expectedText);
-    request.textRangeStart       = start;
-    request.textRangeEnd         = end;
-    request.textRangeResultStart = start;
-    request.textRangeResultEnd   = end;
+    request.textRangeProvider     = this;
+    request.kind                  = AccessibilityUiActionKind::ExpandTextRangeToVisualLine;
+    request.textRangeExpectedText = expectedText;
+    request.textRangeStart        = start;
+    request.textRangeEnd          = end;
+    request.textRangeResultStart  = start;
+    request.textRangeResultEnd    = end;
 
     const HRESULT hr = DispatchActionToWindowThread(request);
-    expectedText     = std::move(request.stringValue);
     outStart         = request.textRangeResultStart;
     outEnd           = request.textRangeResultEnd;
     return hr;
 }
 
 HRESULT AccessibilityTextRangeProvider::DispatchLineMovementToWindowThread(
-    size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved, std::wstring& expectedText) noexcept
+    size_t start, size_t end, int count, size_t& outStart, size_t& outEnd, int& outMoved, const PinnedRangeText& expectedText) noexcept
 {
     const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
-    request.textRangeProvider    = this;
-    request.kind                 = AccessibilityUiActionKind::MoveTextRangeByVisualLine;
-    request.stringValue          = std::move(expectedText);
-    request.textRangeStart       = start;
-    request.textRangeEnd         = end;
-    request.textRangeMoveCount   = count;
-    request.textRangeMoved       = 0;
-    request.textRangeResultStart = start;
-    request.textRangeResultEnd   = end;
+    request.textRangeProvider     = this;
+    request.kind                  = AccessibilityUiActionKind::MoveTextRangeByVisualLine;
+    request.textRangeExpectedText = expectedText;
+    request.textRangeStart        = start;
+    request.textRangeEnd          = end;
+    request.textRangeMoveCount    = count;
+    request.textRangeMoved        = 0;
+    request.textRangeResultStart  = start;
+    request.textRangeResultEnd    = end;
 
     const HRESULT hr = DispatchActionToWindowThread(request);
-    expectedText     = std::move(request.stringValue);
     outStart         = request.textRangeResultStart;
     outEnd           = request.textRangeResultEnd;
     outMoved         = request.textRangeMoved;
@@ -8175,25 +8400,24 @@ HRESULT AccessibilityTextRangeProvider::DispatchEndpointLineMovementToWindowThre
                                                                                    size_t& outStart,
                                                                                    size_t& outEnd,
                                                                                    int& outMoved,
-                                                                                   std::wstring& expectedText) noexcept
+                                                                                   const PinnedRangeText& expectedText) noexcept
 {
     const Failure::Scope outerFailureScope;
     if (! CaptureSnapshot())
         return UIA_E_ELEMENTNOTAVAILABLE;
     AccessibilityUiActionRequest request{};
-    request.textRangeProvider    = this;
-    request.kind                 = AccessibilityUiActionKind::MoveTextRangeEndpointByVisualLine;
-    request.stringValue          = std::move(expectedText);
-    request.textRangeStart       = start;
-    request.textRangeEnd         = end;
-    request.textRangeEndpoint    = endpoint;
-    request.textRangeMoveCount   = count;
-    request.textRangeMoved       = 0;
-    request.textRangeResultStart = start;
-    request.textRangeResultEnd   = end;
+    request.textRangeProvider     = this;
+    request.kind                  = AccessibilityUiActionKind::MoveTextRangeEndpointByVisualLine;
+    request.textRangeExpectedText = expectedText;
+    request.textRangeStart        = start;
+    request.textRangeEnd          = end;
+    request.textRangeEndpoint     = endpoint;
+    request.textRangeMoveCount    = count;
+    request.textRangeMoved        = 0;
+    request.textRangeResultStart  = start;
+    request.textRangeResultEnd    = end;
 
     const HRESULT hr = DispatchActionToWindowThread(request);
-    expectedText     = std::move(request.stringValue);
     outStart         = request.textRangeResultStart;
     outEnd           = request.textRangeResultEnd;
     outMoved         = request.textRangeMoved;
@@ -8329,29 +8553,29 @@ Control* AccessibilityTextRangeProvider::ResolveMutableControl() const noexcept
     return ResolveIdentifiedControlAtPath(host->GetRoot(), _path, _identity);
 }
 
-std::wstring AccessibilityTextRangeProvider::ResolveText() const
+PinnedRangeText AccessibilityTextRangeProvider::ResolveText() const noexcept
 {
-    const auto snapshot = CaptureSnapshot();
+    auto snapshot = CaptureSnapshot();
     const AccessibilityControlNavigationSnapshot* record =
         (snapshot && snapshot->alive && snapshot->hasRetainedRoot) ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
+    PinnedRangeText pinned{};
     // Rich source ranges retain bounded offsets in the current published
-    // document. Never combine an old text copy with a new projection's pixels.
-    if (record && record->controlSupportsText2)
-        return record->controlAccessibleText;
-    if (_textOverride)
-        return _textOverride.value();
-    if (! record || ! record->controlSupportsText)
-    {
-        return {};
-    }
-
-    return record->controlAccessibleText;
+    // document. Never combine an old text view with a new projection's pixels.
+    if (record && (record->controlSupportsText2 || (! HasTextOverride() && record->controlSupportsText)))
+        pinned = PinnedRangeText{std::move(snapshot), record->controlAccessibleText};
+    else if (HasTextOverride())
+        pinned = _textOverride;
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (Detail::textRangeResolvedObserver)
+        Detail::textRangeResolvedObserver(pinned.owner, pinned.text);
+#endif
+    return pinned;
 }
 std::wstring AccessibilityTextRangeProvider::ResolveControlText(const Control* control) const
 {
     if (Detail::RichEditorAccessibilityAccess::As(control))
         return GetControlAccessibleTextRangeText(control);
-    return _textOverride ? *_textOverride : GetControlAccessibleTextRangeText(control);
+    return HasTextOverride() ? std::wstring(_textOverride.text) : GetControlAccessibleTextRangeText(control);
 }
 
 HRESULT AccessibilityTextRangeProvider::CommitDispatchedRange(
@@ -8366,8 +8590,7 @@ HRESULT AccessibilityTextRangeProvider::CommitDispatchedRange(
     if (! record || ! record->controlSupportsText)
         return UIA_E_ELEMENTNOTAVAILABLE;
     // Dispatch must not hold the range lock while waiting for its owner. A concurrent range mutation wins.
-    const std::wstring_view text =
-        _textOverride && ! record->controlSupportsText2 ? std::wstring_view(*_textOverride) : std::wstring_view(record->controlAccessibleText);
+    const std::wstring_view text = HasTextOverride() && ! record->controlSupportsText2 ? _textOverride.text : std::wstring_view(record->controlAccessibleText);
     if (_rangeStart != expectedStart || _rangeEnd != expectedEnd || text != expectedText)
         return UIA_E_INVALIDOPERATION;
     const auto range = ClampTextRangeSpan(resultStart, resultEnd, text.size());
@@ -8408,9 +8631,9 @@ ITextRangeProvider* AccessibilityTextRangeProvider::CreateRange(size_t start, si
     }
 
     AccessibilityTextRangeProvider* provider = nullptr;
-    if (_textOverride)
+    if (HasTextOverride())
     {
-        provider = new (std::nothrow) AccessibilityTextRangeProvider(target, _hwnd, _path, start, end, _textOverride.value());
+        provider = new (std::nothrow) AccessibilityTextRangeProvider(target, _hwnd, _path, start, end, _textOverride);
     }
     else if (_boundsOverrideDip && start == _rangeStart && end == _rangeEnd)
     {
@@ -10068,6 +10291,23 @@ HRESULT AccessibilityProvider::get_SupportedTextSelection(SupportedTextSelection
     return S_OK;
 }
 
+// The text a composition or conversion-target range keeps: one copy of the field's text, made once when the range is
+// created and shared by its clones. A held range therefore retains that text, never the snapshot it was read from, however
+// long a client holds it; reading it costs no copy per call.
+[[nodiscard]] PinnedRangeText CopyRangeTextOverride(std::wstring_view text) noexcept
+{
+    try
+    {
+        auto copy = std::make_shared<const std::wstring>(text);
+        const std::wstring_view view(*copy);
+        return PinnedRangeText{std::move(copy), view};
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation(text.size() * sizeof(wchar_t));
+    }
+}
+
 HRESULT AccessibilityProvider::GetActiveComposition(ITextRangeProvider** outRange) noexcept
 {
     const Failure::Scope outerFailureScope;
@@ -10101,7 +10341,8 @@ HRESULT AccessibilityProvider::GetActiveComposition(ITextRangeProvider** outRang
         ClampTextRangeSpan(record->controlTextCompositionStart.value(), record->controlTextCompositionEnd.value(), record->controlAccessibleText.size());
     *outRange        = record->controlSupportsText2
                            ? CreateTextRangeProvider(record->path, range.start, range.end, CaptureControlIdentity(*record))
-                           : CreateTextRangeProvider(record->path, range.start, range.end, record->controlAccessibleText, CaptureControlIdentity(*record));
+                           : CreateTextRangeProvider(
+                                 record->path, range.start, range.end, CopyRangeTextOverride(record->controlAccessibleText), CaptureControlIdentity(*record));
     const HRESULT hr = *outRange ? S_OK : E_OUTOFMEMORY;
     Debug::Perf::Emit(
         L"dxui.uia.text_range_us", L"active-composition", Debug::Perf::ElapsedUs(startedAt), range.end - range.start, record->controlAccessibleText.size(), hr);
@@ -10141,7 +10382,8 @@ HRESULT AccessibilityProvider::GetConversionTarget(ITextRangeProvider** outRange
         record->controlTextConversionTargetStart.value(), record->controlTextConversionTargetEnd.value(), record->controlAccessibleText.size());
     *outRange        = record->controlSupportsText2
                            ? CreateTextRangeProvider(record->path, range.start, range.end, CaptureControlIdentity(*record))
-                           : CreateTextRangeProvider(record->path, range.start, range.end, record->controlAccessibleText, CaptureControlIdentity(*record));
+                           : CreateTextRangeProvider(
+                                 record->path, range.start, range.end, CopyRangeTextOverride(record->controlAccessibleText), CaptureControlIdentity(*record));
     const HRESULT hr = *outRange ? S_OK : E_OUTOFMEMORY;
     Debug::Perf::Emit(
         L"dxui.uia.text_range_us", L"conversion-target", Debug::Perf::ElapsedUs(startedAt), range.end - range.start, record->controlAccessibleText.size(), hr);
@@ -11667,7 +11909,11 @@ HRESULT AccessibilityProvider::ExecuteGetGridItemOnWindowThread(AccessibilityUiA
         if (_target->embedded)
         {
             // Embedded providers already require owner-thread access for uncached materialization. Publish the requested
-            // row into the same bounded immutable snapshot without changing focus or selection.
+            // row into the same bounded immutable snapshot without changing focus or selection. An update still recorded
+            // here could not be built at its placement (the request that reached this call tried): building now would pair
+            // the current tree with the old placement, so the row waits for the next update.
+            if (_target->embeddedPublicationDeferred)
+                return UIA_E_ELEMENTNOTAVAILABLE;
             static_cast<void>(PublishWindowHostAccessibilitySnapshot(*_target, *host));
         }
         else
@@ -12849,9 +13095,10 @@ HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded)
             }
         }
     }
-    if (stateChanged && ! host->GetTheme().reducedMotion)
+    // The expansion animates in the Tree that changed: it asks for its own ticks.
+    if (stateChanged && ! host->GetTheme().reducedMotion && ! lifetime.expired())
     {
-        host->RequestAnimation();
+        host->RequestAnimation(*tree);
     }
     if (lifetime.expired())
         return UIA_E_ELEMENTNOTAVAILABLE;
@@ -13009,7 +13256,7 @@ ITextRangeProvider* AccessibilityProvider::CreateTextRangeProvider(const Control
 }
 
 ITextRangeProvider* AccessibilityProvider::CreateTextRangeProvider(
-    const ControlPath& path, size_t start, size_t end, std::wstring textOverride, const AccessibilityControlIdentity& expectedIdentity) noexcept
+    const ControlPath& path, size_t start, size_t end, PinnedRangeText textOverride, const AccessibilityControlIdentity& expectedIdentity) noexcept
 {
     return MakeIdentifiedProvider<ITextRangeProvider, AccessibilityTextRangeProvider>(expectedIdentity, _hwnd, path, start, end, std::move(textOverride));
 }
@@ -13654,15 +13901,11 @@ bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, 
         pending.path     = path;
         pending.lifetime = lifetime;
         pending.kinds |= 1u << static_cast<unsigned>(kind);
-        try
+        // The caret alone: copying the text-input state to read it copied the whole document at every caret move.
+        if (kind == TextInputAutomationEventKind::ActiveTextPositionChanged)
         {
-            NativeTextInputState state{};
-            if (kind == TextInputAutomationEventKind::ActiveTextPositionChanged && host->TryReadNativeTextInputState(control, state))
-                pending.caret = std::min(state.caretIndex, state.text.size());
-        }
-        catch (const std::bad_alloc&)
-        {
-            Failure::FailAllocation();
+            if (const std::optional<size_t> caret = EmbeddedAccessibilityAccess::NativeTextInputCaret(*host, control))
+                pending.caret = *caret;
         }
     }
     RefreshWindowHostAccessibilitySnapshot(hwnd, host);
@@ -13689,6 +13932,7 @@ void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcep
         }
         try
         {
+            target->emptySnapshot = MakeEmptyAccessibilitySnapshot(hwnd);
             GetRegisteredAccessibilityTargets().insert(target);
         }
         catch (const std::bad_alloc&)
@@ -13740,11 +13984,12 @@ void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexc
             const std::scoped_lock cacheLock(target->providerMutex);
             providerToDisconnect.attach(target->rootProvider.detach());
         }
+        // The registration owns one reference, which the window property names while the window lives; a destroyed
+        // window's property is already gone, and the reference is released all the same.
         GetRegisteredAccessibilityTargets().erase(target);
-        if (RemovePropW(hwnd, kWindowHostPropName) == target)
-        {
-            static_cast<void>(target->Release());
-        }
+        if (GetPropW(hwnd, kWindowHostPropName) == target)
+            static_cast<void>(RemovePropW(hwnd, kWindowHostPropName));
+        static_cast<void>(target->Release());
     }
 
     // Disconnect the exact provider identity returned for this host before retiring the HWND map.
@@ -13770,6 +14015,7 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, Access
 {
     if (! host)
         return;
+    ++Detail::Work().accessibility.mutations;
     if (! hwnd)
         return; // EmbeddedHost::UpdateAccessibility publishes after coherent preparation.
 
@@ -13782,7 +14028,7 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, Access
     // The already-posted flush will publish content changes. Focus-capable mutations keep the general path below.
     if (mutation == AccessibilityMutationKind::ContentOnly && target->flushPosted)
         return;
-    bool interested = target->providerRequested.load(std::memory_order_acquire) || InvokeNativeUia(UiaClientsAreListening);
+    bool interested = target->providerRequested.load(std::memory_order_acquire) || SystemClientsAreListening();
 #if DXUI_ENABLE_DIAGNOSTICS
     // Tests override only this attachment's owner-thread mutation decision, never global UIA interest.
     const auto& interestOverride = g_accessibilityMutationInterestOverride;
@@ -13912,6 +14158,63 @@ void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) n
         target->diffBaseline = std::move(live);
     PublishEmptyAccessibilitySnapshot(*target);
 }
+void DropRetainedAccessibilitySnapshot(ControlHost& host) noexcept
+{
+    if (HWND const hwnd = host.GetHwnd())
+    {
+        const std::scoped_lock lock(GetAccessibilityTargetMutex());
+        auto* const target = FindRegisteredAccessibilityTarget(hwnd);
+        if (! target || target->host.load(std::memory_order_acquire) != &host)
+            return;
+        // Nothing stands in for the dropped snapshot; the next provider query flushes the dirty publication from the tree.
+        PublishEmptyAccessibilitySnapshot(*target);
+        ++target->dirtyRevision;
+        return;
+    }
+    auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(host));
+    // UpdateAccessibility builds a snapshot again whenever none is published.
+    if (target && target->threadId == GetCurrentThreadId())
+        PublishAccessibilitySnapshot(*target, nullptr);
+}
+
+size_t CountRetainedAccessibilitySnapshotRecords(const ControlHost& host) noexcept
+{
+    std::shared_ptr<const AccessibilitySnapshot> snapshot;
+    if (HWND const hwnd = host.GetHwnd())
+    {
+        const std::scoped_lock lock(GetAccessibilityTargetMutex());
+        if (auto* const target = FindRegisteredAccessibilityTarget(hwnd); target && target->host.load(std::memory_order_acquire) == &host)
+            snapshot = target->snapshot.load(std::memory_order_acquire);
+    }
+    else if (auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(const_cast<ControlHost&>(host))))
+        snapshot = target->snapshot.load(std::memory_order_acquire);
+    return snapshot ? snapshot->controlNavigationRecords.size() + snapshot->pointHitRecords.size() : 0u;
+}
+
+uint64_t RetainedAccessibilitySnapshotBytes(const ControlHost& host) noexcept
+{
+    std::shared_ptr<const AccessibilitySnapshot> snapshot;
+    if (HWND const hwnd = host.GetHwnd())
+    {
+        const std::scoped_lock lock(GetAccessibilityTargetMutex());
+        if (auto* const target = FindRegisteredAccessibilityTarget(hwnd); target && target->host.load(std::memory_order_acquire) == &host)
+            snapshot = target->snapshot.load(std::memory_order_acquire);
+    }
+    else if (auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(const_cast<ControlHost&>(host))))
+        snapshot = target->snapshot.load(std::memory_order_acquire);
+    if (! snapshot)
+        return 0u;
+    // MSVC keeps up to 7 UTF-16 units inside a std::wstring; a longer one owns capacity() + 1 units on the heap.
+    const auto text = [](const std::wstring& value) noexcept { return value.capacity() > 7u ? uint64_t(value.capacity() + 1u) * sizeof(wchar_t) : 0u; };
+    uint64_t bytes  = uint64_t(snapshot->controlNavigationRecords.capacity()) * sizeof(AccessibilityControlNavigationSnapshot) +
+                      uint64_t(snapshot->pointHitRecords.capacity()) * sizeof(AccessibilityPointHitSnapshot) +
+                      uint64_t(snapshot->semanticControlOrder.capacity()) * sizeof(ControlPath);
+    for (const AccessibilityControlNavigationSnapshot& record : snapshot->controlNavigationRecords)
+        bytes += text(record.controlAccessibleName) + text(record.controlAccessibleHelpText) + text(record.controlAccessibleItemStatus) +
+                 text(record.controlAutomationId) + text(record.controlAccessibleValue) + text(record.controlAccessibleText) +
+                 text(record.passwordRevealButtonAccessibleName);
+    return bytes;
+}
 
 LRESULT ReturnWindowHostAccessibilityProvider(HWND hwnd, WPARAM wp, LPARAM lp) noexcept
 {
@@ -13951,7 +14254,8 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
     }
     if (msg == WM_GETOBJECT)
     {
-        if (lp != static_cast<LPARAM>(UiaRootObjectId))
+        // The object id is the low DWORD of lParam: on 64-bit Windows its sign extension depends on the sender.
+        if (static_cast<DWORD>(lp) != static_cast<DWORD>(UiaRootObjectId))
         {
             return false;
         }
@@ -14202,7 +14506,8 @@ void QueueStructureInvalidation(WindowHostAccessibilityTarget& target) noexcept
     {
         target.structureNotificationScheduled = true;
         static_cast<void>(target.AddRef());
-        SubmitThreadpoolWork(target.structureNotificationWork.get());
+        if (SubmitsAccessibilityNotificationWork())
+            SubmitThreadpoolWork(target.structureNotificationWork.get());
     }
 }
 void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
@@ -14333,7 +14638,8 @@ void QueueEmbeddedPropertyChange(WindowHostAccessibilityTarget& target,
                 {
                     target.structureNotificationScheduled = true;
                     static_cast<void>(target.AddRef());
-                    SubmitThreadpoolWork(target.structureNotificationWork.get());
+                    if (SubmitsAccessibilityNotificationWork())
+                        SubmitThreadpoolWork(target.structureNotificationWork.get());
                 }
             }
         }
@@ -14508,6 +14814,31 @@ void PruneEmbeddedPropertyChanges(WindowHostAccessibilityTarget& target, const A
     }
 }
 
+// The composition string a record publishes while its control composes.
+[[nodiscard]] std::optional<std::wstring_view> CompositionText(const AccessibilityControlNavigationSnapshot& record) noexcept
+{
+    if (! record.controlTextCompositionStart || ! record.controlTextCompositionEnd)
+        return std::nullopt;
+    const std::wstring_view text = record.controlAccessibleText;
+    const size_t start           = (std::min)(record.controlTextCompositionStart.value(), text.size());
+    const size_t end             = std::clamp(record.controlTextCompositionEnd.value(), start, text.size());
+    return text.substr(start, end - start);
+}
+
+// What a composition committed: the text that stands where the composition stood, the commit leaving the rest unchanged.
+[[nodiscard]] std::wstring_view CommittedCompositionText(const AccessibilityControlNavigationSnapshot& composing,
+                                                         const AccessibilityControlNavigationSnapshot& committed) noexcept
+{
+    const std::wstring_view before = composing.controlAccessibleText;
+    const std::wstring_view after  = committed.controlAccessibleText;
+    const size_t start             = (std::min)(composing.controlTextCompositionStart.value_or(0u), before.size());
+    const size_t end               = std::clamp(composing.controlTextCompositionEnd.value_or(start), start, before.size());
+    const size_t outside           = before.size() - (end - start);
+    if (after.size() < outside || start > after.size())
+        return {};
+    return after.substr(start, after.size() - outside);
+}
+
 // `selections` is the selection diff of the publish. The caller makes it, where running out of memory is reported,
 // because this function raises events and never throws.
 void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
@@ -14621,10 +14952,12 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
         const bool valueChanged  = before->controlAccessibleValue != record.controlAccessibleValue;
         const bool selectionChanged =
             before->controlTextSelectionStart != record.controlTextSelectionStart || before->controlTextSelectionEnd != record.controlTextSelectionEnd;
-        const bool compositionChanged =
-            before->controlTextCompositionStart != record.controlTextCompositionStart || before->controlTextCompositionEnd != record.controlTextCompositionEnd;
-        const auto rangeProperties = GetRangePropertyChanges(*before, record);
-        const bool rangeChanged    = record.controlSupportsRangeValue && std::ranges::any_of(rangeProperties, [](const RangePropertyChange& property) noexcept {
+        // A conversion can replace the composition string in place, leaving its offsets unchanged.
+        const bool compositionChanged = before->controlTextCompositionStart != record.controlTextCompositionStart ||
+                                        before->controlTextCompositionEnd != record.controlTextCompositionEnd ||
+                                        CompositionText(*before) != CompositionText(record);
+        const auto rangeProperties    = GetRangePropertyChanges(*before, record);
+        const bool rangeChanged = record.controlSupportsRangeValue && std::ranges::any_of(rangeProperties, [](const RangePropertyChange& property) noexcept {
             return property.previous != property.current;
         });
         if (! nameChanged && ! helpChanged && ! formChanged && ! textChanged && ! valueChanged && ! selectionChanged && ! compositionChanged &&
@@ -14732,9 +15065,40 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
             static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, provider.get(), UIA_Text_TextSelectionChangedEventId));
         if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && compositionChanged)
         {
-            unique_safearray changed(SafeArrayCreateVector(VT_BSTR, 0, 0));
-            if (changed)
-                static_cast<void>(InvokeNativeUia(UiaRaiseTextEditTextChangedEvent, provider.get(), TextEditChangeType_Composition, changed.get()));
+            // UiaRaiseTextEditTextChangedEvent: Composition carries the part of the composition string that changed,
+            // CompositionFinalized the committed string (empty for a cancelled composition).
+            TextEditChangeType change = TextEditChangeType_None;
+            std::wstring_view changedText;
+            if (const auto now = CompositionText(record))
+            {
+                const std::wstring_view was = CompositionText(*before).value_or(std::wstring_view{});
+                size_t prefix               = 0u;
+                while (prefix < now->size() && prefix < was.size() && (*now)[prefix] == was[prefix])
+                    ++prefix;
+                size_t suffix = 0u;
+                while (suffix < now->size() - prefix && suffix < was.size() - prefix && (*now)[now->size() - 1u - suffix] == was[was.size() - 1u - suffix])
+                    ++suffix;
+                if (*now != was)
+                {
+                    change      = TextEditChangeType_Composition;
+                    changedText = now->substr(prefix, now->size() - prefix - suffix);
+                }
+            }
+            else if (CompositionText(*before))
+            {
+                change      = TextEditChangeType_CompositionFinalized;
+                changedText = CommittedCompositionText(*before, record);
+            }
+            if (record.controlIsPassword)
+                changedText = {};
+            if (change != TextEditChangeType_None)
+            {
+                unique_safearray changed(SafeArrayCreateVector(VT_BSTR, 0, 1));
+                wil::unique_bstr text(SysAllocStringLen(changedText.data(), static_cast<UINT>(changedText.size())));
+                LONG index = 0;
+                if (changed && text && SUCCEEDED(SafeArrayPutElement(changed.get(), &index, text.get())))
+                    static_cast<void>(InvokeNativeUia(UiaRaiseTextEditTextChangedEvent, provider.get(), change, changed.get()));
+            }
         }
     }
     if (connected() && structureChanged)
@@ -14910,13 +15274,61 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
         return S_FALSE;
     if (std::abs(box.width - _host._widthPx) > 0.01 || std::abs(box.height - _host._heightPx) > 0.01)
         return E_INVALIDARG;
-    const auto preparation  = GetStatistics().preparations;
-    const auto& previousBox = target->placement.viewport;
-    if (target->snapshot.load(std::memory_order_acquire) && target->preparation == preparation && previousBox.left == box.left && previousBox.top == box.top &&
-        previousBox.width == box.width && previousBox.height == box.height && target->placement.hasKeyboardFocus == placement.hasKeyboardFocus)
-        return S_FALSE;
+    const auto preparation = PreparationCount(); // Not GetStatistics(): it walks the whole tree.
+    // Raises the events of target's snapshot against `previous` with the changes the publish computed. A client callback during
+    // the raise may disconnect the target: the reference kept here lets the caller read whether it is still this view's.
+    const auto raise = [this](WindowHostAccessibilityTarget& raised,
+                              const std::shared_ptr<const AccessibilitySnapshot>& previous,
+                              const WindowHostSnapshotChanges& changes) noexcept
+    {
+        static_cast<void>(raised.AddRef());
+        raised.embeddedRaising = true;
+        RaiseAccessibilitySnapshotChanges(raised, previous, changes);
+        raised.embeddedRaising = false;
+        const bool attached    = EmbeddedAccessibilityAccess::Target(_host) == &raised;
+        static_cast<void>(raised.Release());
+        return attached;
+    };
     try
     {
+        // A first request built a recorded update while a client listened and raised nothing on its provider call's stack:
+        // the events it owes, from the event baseline to the snapshot it published, are raised here, before anything else.
+        bool raisedOwed = false;
+        if (std::exchange(target->embeddedRaisePending, false))
+        {
+            const auto published = target->snapshot.load(std::memory_order_acquire);
+            const auto baseline  = target->eventBaseline;
+            if (published && published->alive && baseline && baseline->alive && published != baseline)
+            {
+                WindowHostSnapshotChanges owed{};
+                if (baseline->hasRetainedRoot && InvokeNativeUia(UiaClientsAreListening))
+                {
+                    owed.focusMoved = ! SameFocusedElement(*baseline, *published);
+                    owed.selections = CollectSelectionChanges(*baseline, *published);
+                }
+                target->eventBaseline = published;
+                raisedOwed            = true;
+                if (! raise(*target, baseline, owed))
+                    return S_OK;
+            }
+        }
+        const auto& latest      = target->embeddedPublicationDeferred ? target->deferredPlacement : target->placement;
+        const auto& previousBox = latest.viewport;
+        if (target->snapshot.load(std::memory_order_acquire) && target->preparation == preparation && previousBox.left == box.left &&
+            previousBox.top == box.top && previousBox.width == box.width && previousBox.height == box.height &&
+            latest.hasKeyboardFocus == placement.hasKeyboardFocus)
+            return raisedOwed ? S_OK : S_FALSE;
+        // Until a client requests a provider of this view, and while no client of the desktop listens, a changed update only
+        // records its preparation and placement: no snapshot is built. The first update (attachment) builds, and so does an
+        // update after a dropped snapshot, so a query never meets an empty tree.
+        if (target->snapshot.load(std::memory_order_acquire) && ! target->embeddedRequested && ! SystemClientsAreListening())
+        {
+            target->deferredPlacement           = placement;
+            target->preparation                 = preparation;
+            target->embeddedPublicationDeferred = true;
+            return S_OK;
+        }
+        target->embeddedPublicationDeferred = false;
         // The events raised here cover everything since the last update, including what a publication between the two
         // (an uncached GetItem row) already showed: it diffs against the event baseline, not the latest snapshot.
         const auto previous = target->eventBaseline ? target->eventBaseline : target->snapshot.load(std::memory_order_acquire);
@@ -14928,7 +15340,7 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
         target->preparation = preparation;
         // Before raising: a client callback during the raise may disconnect and destroy the target.
         target->eventBaseline = target->snapshot.load(std::memory_order_acquire);
-        RaiseAccessibilitySnapshotChanges(*target, previous, changes);
+        static_cast<void>(raise(*target, previous, changes));
         return S_OK;
     }
     catch (const std::bad_alloc&)
@@ -14951,7 +15363,8 @@ HRESULT EmbeddedHost::GetAccessibilityProvider(IRawElementProviderFragmentRoot**
         return S_FALSE;
     if (target->threadId != GetCurrentThreadId())
         return RPC_E_WRONG_THREAD;
-    if (! target->ResolveHost() || ! InputIsCoherent(false))
+    // A pure check: handing out the root never cancels a gesture, and a paint-only change does not withhold it.
+    if (! target->ResolveHost() || ! PreparedGeometryIsCurrent())
         return S_FALSE;
     auto root = AcquireCanonicalRootProvider(target);
     if (! root)
@@ -15141,6 +15554,17 @@ bool DebugSetAccessibilityMutationInterestForTest(HWND hwnd, std::optional<bool>
     return true;
 }
 
+void DebugSetAccessibilitySystemListenersForTest(std::optional<bool> listening) noexcept
+{
+    g_accessibilitySystemListenersOverride.store(listening ? (*listening ? 1 : 0) : -1, std::memory_order_release);
+}
+
+std::optional<bool> DebugGetAccessibilitySystemListenersForTest() noexcept
+{
+    const int value = g_accessibilitySystemListenersOverride.load(std::memory_order_acquire);
+    return value < 0 ? std::nullopt : std::optional<bool>(value != 0);
+}
+
 uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept
 {
     return g_accessibilitySnapshotBuildCount.load(std::memory_order_relaxed);
@@ -15163,6 +15587,11 @@ uint64_t DebugGetAccessibilityFocusResolutionCountForTest(HWND hwnd) noexcept
     const std::scoped_lock lock(GetAccessibilityTargetMutex());
     const auto* target = FindRegisteredAccessibilityTarget(hwnd);
     return target ? target->focusResolutions.load(std::memory_order_seq_cst) : (std::numeric_limits<uint64_t>::max)();
+}
+
+size_t DebugGetLiveAccessibilityTargetCountForTest() noexcept
+{
+    return WindowHostAccessibilityTarget::liveCount.load(std::memory_order_relaxed);
 }
 
 void DebugSetAccessibilityFocusResolutionGateForTest(HWND hwnd, HANDLE enteredEvent, HANDLE releaseEvent, bool afterSnapshot) noexcept
@@ -15233,6 +15662,43 @@ void DebugSetAccessibilityPropertyRegistrationHookForTest(ControlHost* host,
                                                           void* context) noexcept
 {
     g_accessibilityPropertyRegistrationHook = {host, stage, hook, context};
+}
+
+void DebugSetAccessibilityNotificationDeliveryManualForTest(bool manual) noexcept
+{
+    g_accessibilityNotificationDeliveryManualForTest.store(manual, std::memory_order_release);
+}
+
+void DebugCompletePendingAccessibilityNotificationsForTest(ControlHost& host) noexcept
+{
+    auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(host));
+    if (! target)
+        return;
+    // What DeliverAccessibilityNotifications takes and gives back, without raising anything: the batch leaves the queue,
+    // its registrations and proxies are released, and its capacity returns to an empty queue.
+    wil::com_ptr_nothrow<IRawElementProviderSimple> root;
+    std::shared_ptr<const AccessibilitySnapshot> snapshot;
+    std::vector<AccessibilityPendingProperty> properties;
+    bool scheduled = false;
+    {
+        const std::scoped_lock lock(target->structureNotificationMutex);
+        target->structureNotificationPending = false;
+        root                                 = std::move(target->structureNotificationProvider);
+        snapshot                             = std::move(target->structureNotificationSnapshot);
+        properties                           = std::move(target->pendingProperties);
+        target->structureInvalidationPending = false;
+        scheduled                            = std::exchange(target->structureNotificationScheduled, false);
+    }
+    root.reset();
+    snapshot.reset();
+    properties.clear();
+    {
+        const std::scoped_lock lock(target->structureNotificationMutex);
+        if (target->pendingProperties.empty())
+            target->pendingProperties.swap(properties);
+    }
+    if (scheduled)
+        static_cast<void>(target->Release()); // The reference the unsubmitted work item would have released.
 }
 
 size_t DebugCountPendingTreeItemPropertiesForTest(ControlHost& host, int property) noexcept

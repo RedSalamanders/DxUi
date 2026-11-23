@@ -1,8 +1,11 @@
 #include <DxUi/Failure.h>
 
 #include "Controls/DxUi.Internal.h"
+#include "Controls/DxUi.RetainedCaches.h"
+#include "Controls/DxUi.TextEditHistory.h"
 #include "Support/Diagnostics.h"
 #include "Support/NativeRendering.h"
+#include "Support/Trace.h"
 #include <DxUi/Embedded.h>
 #include <DxUi/FrameRuntime.h>
 #include <DxUi/TextInputServices.h>
@@ -90,11 +93,11 @@ HRESULT GraphicsDevice::Create(ID3D11Device* device, std::shared_ptr<GraphicsDev
         auto& s  = *created->_state;
         s.device = device;
         D2D1_FACTORY_OPTIONS options{};
-        RETURN_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory1), &options, s.factory.put_void()));
+        RETURN_IF_FAILED(Detail::CreateHostD2DFactory(options, s.factory.put()));
         wil::com_ptr_nothrow<IDXGIDevice> dxgi;
         RETURN_IF_FAILED(device->QueryInterface(IID_PPV_ARGS(dxgi.put())));
         RETURN_IF_FAILED(s.factory->CreateDevice(dxgi.get(), s.d2d.put()));
-        RETURN_IF_FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), s.write.put_unknown()));
+        RETURN_IF_FAILED(Detail::CreateHostWriteFactory(s.write.put()));
         RETURN_IF_FAILED(device->CreateVertexShader(g_DxUiCompositeVS, sizeof(g_DxUiCompositeVS), nullptr, s.vs.put()));
         RETURN_IF_FAILED(device->CreatePixelShader(g_DxUiCompositePS, sizeof(g_DxUiCompositePS), nullptr, s.ps.put()));
         D3D11_BLEND_DESC blend{};
@@ -130,6 +133,29 @@ HRESULT GraphicsDevice::Create(ID3D11Device* device, std::shared_ptr<GraphicsDev
         Failure::FailAllocation();
     }
 }
+namespace
+{
+constexpr uint8_t kCapturePrimaryButton = 1u;
+constexpr uint8_t kCaptureMiddleButton  = 2u;
+
+// The trace provider's input kind of one dispatched pointer action.
+[[nodiscard]] Detail::Trace::InputKind TracePointerInputKind(PointerAction action) noexcept
+{
+    using Detail::Trace::InputKind;
+    switch (action)
+    {
+        case PointerAction::Down:
+        case PointerAction::MiddleDown: return InputKind::PointerDown;
+        case PointerAction::Up:
+        case PointerAction::MiddleUp: return InputKind::PointerUp;
+        case PointerAction::Wheel: return InputKind::Wheel;
+        case PointerAction::Leave: return InputKind::PointerLeave;
+        case PointerAction::Cancel: return InputKind::PointerCancel;
+        case PointerAction::Move:
+        default: return InputKind::PointerMove;
+    }
+}
+} // namespace
 struct EmbeddedHost::State
 {
     std::shared_ptr<GraphicsDevice> graphics;
@@ -142,13 +168,13 @@ struct EmbeddedHost::State
     bool visible = true, dirty = true, coherent = false;
     bool interactionLayoutAvailable      = false;
     bool zeroSized                       = false;
-    bool animationSuspended              = false;
     bool preparationRequested            = true; // Initial dirty state already requires the caller's first Prepare.
     bool inputWakePending                = false;
     bool recoveryWakePending             = false;
     bool preparing                       = false;
     bool prepareCallActive               = false;
     bool contentPending                  = false;
+    uint8_t captureButtons               = 0u; // Buttons held in the captured gesture a primary press began.
     uint64_t contentInteractionRevision  = 0u;
     uint64_t revision                    = 0;
     uint64_t preparedInteractionRevision = 0;
@@ -168,7 +194,7 @@ public:
     {
         _current = _previous;
         if (! Active(_owner) && _owner._state && std::exchange(_owner._state->inputWakePending, false))
-            _owner.RequestPreparation();
+            _owner.RequestPreparation(static_cast<uint8_t>(Detail::Trace::FrameReason::InputWake));
     }
     InputScope(const InputScope&)            = delete;
     InputScope& operator=(const InputScope&) = delete;
@@ -196,7 +222,8 @@ EmbeddedHost::~EmbeddedHost()
 HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedCallbacks callbacks) noexcept
 {
     const Failure::Scope failureScope;
-    if (_detaching || ! graphics || graphics->_state->thread != GetCurrentThreadId())
+    // The application's clock is required (API revision 6): without it, stamps taken between advances would be stale.
+    if (_detaching || ! graphics || graphics->_state->thread != GetCurrentThreadId() || ! callbacks.nowTickMs)
         return E_INVALIDARG;
     if (_state)
         return HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED);
@@ -217,6 +244,8 @@ HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedC
     _host._embedded                = true;
     _host._embeddedContext         = this;
     _host._embeddedInvalidate      = &InvalidateThunk;
+    _host._embeddedNowTickMs       = callbacks.nowTickMs;
+    _host._embeddedClockContext    = callbacks.context;
     _host._attachmentOwnerThreadId = GetCurrentThreadId();
     const auto hr                  = ReplaceDevice(std::move(graphics));
     if (FAILED(hr))
@@ -242,8 +271,10 @@ void EmbeddedHost::Detach() noexcept
     _host._embeddedInvalidate = nullptr;
     _host._embeddedContext    = nullptr;
     _host.Detach();
-    _host._embedded                   = false;
-    _host._embeddedAnimationRequested = false;
+    _host._embedded              = false;
+    _host._embeddedPublishedWake = {};
+    _host._embeddedNowTickMs     = nullptr;
+    _host._embeddedClockContext  = nullptr;
     _textInputRevision += attachedState->revision + 1;
     _state.reset();
 }
@@ -278,7 +309,8 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
     if (_host._root)
         ControlModelQueryAccess::RequestIntrinsicLayoutOfTree(*_host._root);
     g.device->GetImmediateContext(_host._d3dContext.put());
-    RETURN_IF_FAILED(g.d2d->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _host._d2dContext.put()));
+    RETURN_IF_FAILED(CountedCreateDeviceContext(g.d2d, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _host._d2dContext.put()));
+    _host.ResetTextRenderingBinding();
     _host._d2dContext->SetUnitMode(D2D1_UNIT_MODE_DIPS);
     _host._d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
     if (! _host.EnsureDeviceIndependentResources())
@@ -309,9 +341,21 @@ void EmbeddedHost::MarkDirty() noexcept
     auto& s = *_state;
     s.dirty = true;
     ++s.revision;
-    RequestPreparation();
+    RequestPreparation(static_cast<uint8_t>(Detail::Trace::FrameReason::Invalidate));
 }
-void EmbeddedHost::RequestPreparation() noexcept
+HRESULT EmbeddedHost::SetTextRenderingMonitor(HMONITOR monitor) noexcept
+{
+    if (_detaching || _replacingDevice)
+        return E_UNEXPECTED;
+    if (_state && _state->graphics && _state->graphics->_state->thread != GetCurrentThreadId())
+        return RPC_E_WRONG_THREAD;
+    // The parameters are read again at the next preparation, which repaints with them.
+    _host._textRenderingMonitor     = monitor;
+    _host._textRenderingParamsStale = true;
+    MarkDirty();
+    return S_OK;
+}
+void EmbeddedHost::RequestPreparation(uint8_t traceFrameReason) noexcept
 {
     if (! _state || _detaching || ! _state->visible || _state->zeroSized || _state->preparing || _state->preparationRequested ||
         ! _state->callbacks.requestPreparation)
@@ -324,6 +368,8 @@ void EmbeddedHost::RequestPreparation() noexcept
     // Dirty pixels and an outstanding notification are different states. A
     // cooperative turn can consume a wakeup while the surface remains dirty.
     _state->preparationRequested = true;
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::FrameRequested(_host._trace, static_cast<Detail::Trace::FrameReason>(traceFrameReason));
     _state->callbacks.requestPreparation(_state->callbacks.context);
 }
 void EmbeddedHost::ReleaseSurface() noexcept
@@ -335,6 +381,10 @@ void EmbeddedHost::ReleaseSurface() noexcept
     const uint64_t operationRevision  = _operationRevision;
     const auto operationIsCurrent     = [&]() noexcept
     { return _state.get() == attachedState && _attachmentRevision == attachmentRevision && _operationRevision == operationRevision && ! _detaching; };
+    // Hiding and surface loss end any pointer event: no hit result outlives the surface it was found on.
+    _host.EndPointerHitEvent();
+    if (HitRevisionSiteLive(HitRevisionSite::SurfaceLoss))
+        _host.AdvanceHitRevision();
     DisconnectAccessibility();
     if (! operationIsCurrent())
         return;
@@ -361,6 +411,8 @@ void EmbeddedHost::ReleaseSurface() noexcept
     s.contentPending             = false;
     s.preparationRequested       = false;
     s.dirty                      = true;
+    // A view without a surface paints nothing, so it keeps no retained text layout either.
+    TextLayoutCacheAccess::Release(_host);
     // This is deliberately the final operation: visual cancellation can invoke
     // arbitrary control callbacks, including detaching this EmbeddedHost.
     _host.CancelPreparedVisualContent();
@@ -385,36 +437,92 @@ void EmbeddedHost::SetVisible(bool visible) noexcept
         // Nothing paints while the view is hidden, so its controls return what painting rebuilds (a Grid's text layouts).
         if (_host._root)
             _host._root->OnHidden();
+        // The schedule is held while hidden: the request is None, and nothing is ticked. A tooltip still waiting to
+        // show is dropped (its pointer is not known when the view returns); a shown tooltip's hide waits on the timeline.
         if (! operationIsCurrent())
             return;
-        _state->animationSuspended        = _host._embeddedAnimationRequested;
-        _host._embeddedAnimationRequested = false;
+        _host.DropPendingTooltipShowWhileHidden();
     }
     else
     {
-        _host._embeddedAnimationRequested = _host._embeddedAnimationRequested || _state->animationSuspended;
-        _state->animationSuspended        = false;
-        _host._animationTimelineRebase    = true;
-        _state->dirty                     = true;
+        // The timeline does not count the hidden time: the next tick sets its baseline, so held deadlines keep their
+        // place on it and fire when it reaches them.
+        // A focused caret is shown at once and restarts its blink when the view returns.
+        // The visibility wake below tells the application of the held schedule.
+        _host.RearmCaret();
+        _host._embeddedPublishedWake   = _host.GetFrameScheduleWake();
+        _host._animationTimelineRebase = true;
+        _state->dirty                  = true;
         if (_state->prepareCallActive)
             _state->recoveryWakePending = true;
         else
-            RequestPreparation();
+            RequestPreparation(static_cast<uint8_t>(Detail::Trace::FrameReason::Visibility));
     }
 }
 bool EmbeddedHost::NeedsPreparation() const noexcept
 {
     return _state && _state->visible && ! _state->zeroSized && (_state->dirty || _host._pendingVisualPreparation);
 }
-bool EmbeddedHost::NeedsAnimation() const noexcept
+EmbeddedAnimationRequest EmbeddedHost::RequestFromSchedule(ControlHost::FrameScheduleWake& reported) const noexcept
 {
-    return _state && _state->visible && ! _state->zeroSized && _host._embeddedAnimationRequested;
+    using Kind = EmbeddedAnimationRequest::Kind;
+    reported   = {};
+    if (! _state || ! _state->visible || _state->zeroSized)
+        return {};
+    // The schedule's next wake, read from the held requests (no tree walk), is on the view's timeline; the application's
+    // clock runs beside it from the last supplied tick, so a deadline is that tick plus what the timeline still lacks.
+    const ControlHost::FrameScheduleWake wake = _host.GetFrameScheduleWake();
+    switch (wake.kind)
+    {
+        case ControlHost::FrameScheduleWake::Kind::None: return {};
+        case ControlHost::FrameScheduleWake::Kind::Continuous: reported = wake; return {Kind::Continuous, 0u};
+        case ControlHost::FrameScheduleWake::Kind::Deadline: break;
+    }
+    // After a pause the next tick only sets the baseline, and the application's clock is not known until it does: due now.
+    if (_host._animationTimelineRebase)
+    {
+        reported = wake;
+        return {Kind::Deadline, 0u};
+    }
+    const uint64_t timelineMs = _host._animationTimelineMs;
+    const uint64_t suppliedMs = _host._lastSuppliedAnimationTickMs;
+    if (wake.dueTickMs <= timelineMs)
+    {
+        reported = wake;
+        return {Kind::Deadline, suppliedMs};
+    }
+    // A deadline the application's clock cannot reach (it would pass the end of the clock's range) is never due: reporting it
+    // at UINT64_MAX would make a correct loop at the top of the clock advance with a zero sleep forever. It is None, and a
+    // sooner need still calls requestPreparation.
+    const uint64_t aheadMs = wake.dueTickMs - timelineMs;
+    if (aheadMs >= UINT64_MAX - suppliedMs)
+        return {};
+    reported = wake;
+    return {Kind::Deadline, suppliedMs + aheadMs};
 }
-bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
+EmbeddedAnimationRequest EmbeddedHost::GetAnimationRequest() const noexcept
+{
+    // Between advances the view's timeline follows the application's clock, so the deadline it reports is measured from now.
+    // Inside an advance (a callback that advance raised) the due requests are being ticked: nothing is recorded, and the
+    // advance's return value is the request to use.
+    if (_host._tickWakeFrame)
+    {
+        ControlHost::FrameScheduleWake ignored;
+        return RequestFromSchedule(ignored);
+    }
+    if (_state && _state->visible && ! _state->zeroSized)
+        _host.FollowEmbeddedApplicationClock();
+    ControlHost::FrameScheduleWake reported;
+    const EmbeddedAnimationRequest request = RequestFromSchedule(reported);
+    // The application now sleeps on this request: a later need sooner than it calls requestPreparation (review F2).
+    _host._embeddedPublishedWake = reported;
+    return request;
+}
+EmbeddedAnimationRequest EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
 {
     const Failure::Scope failureScope;
-    if (! NeedsAnimation())
-        return false;
+    if (ControlHost::FrameScheduleWake ignored; RequestFromSchedule(ignored).kind == EmbeddedAnimationRequest::Kind::None)
+        return {};
     // The timeline counts the time between ticks the view asked for: the first tick after a pause sets the baseline,
     // and a tick that goes back adds nothing.
     if (! _host._animationTimelineRebase && tick > _host._lastSuppliedAnimationTickMs)
@@ -426,19 +534,30 @@ bool EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
     _host._lastSuppliedAnimationTickMs = tick;
     _host._animationTimelineRebase     = false;
     const uint64_t nowTickMs           = _host._animationTimelineMs;
-    try
+    // The request this advance returns is the one the application now sleeps on (review F2).
+    const auto ReportRequest = [this]() noexcept
     {
-        _host.ValidateSupplementalTooltipTarget();
-        // Ticks dirty the view only through control invalidation; an idle tick leaves a clean surface clean.
-        const bool rootTicking            = _host._root && _host._root->Tick(_host, nowTickMs);
-        const bool tooltipTicking         = _host._tooltipLayer.Tick(_host, nowTickMs);
-        _host._embeddedAnimationRequested = rootTicking || tooltipTicking;
-        return _host._embeddedAnimationRequested;
-    }
-    catch (const std::exception&)
+        ControlHost::FrameScheduleWake reported;
+        const EmbeddedAnimationRequest request = RequestFromSchedule(reported);
+        _host._embeddedPublishedWake           = reported;
+        return request;
+    };
+    ++Detail::Work().wakes.embeddedAdvance;
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::Wake(Detail::Trace::WakeSource::EmbeddedAdvance, Detail::Trace::HostIdOf(_host._trace));
+    // An advance before the earliest deadline has nothing due: it runs no wake at all (no Tick, no supplemental-tooltip
+    // target walk) and returns the same deadline.
+    if (const ControlHost::FrameScheduleWake wake = _host.GetFrameScheduleWake();
+        wake.kind == ControlHost::FrameScheduleWake::Kind::Deadline && wake.dueTickMs > nowTickMs)
     {
-        Failure::FailUnexpected();
+        return ReportRequest();
     }
+    // Ticks dirty the view only through control invalidation; an idle tick leaves a clean surface clean. Only the due
+    // requests are ticked.
+    if (! _host.RunScheduledTicks(nowTickMs))
+        return {};
+    // A Tick may have hidden, detached or destroyed this view's tree: the request is read again from what is left.
+    return ReportRequest();
 }
 HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
 {
@@ -486,7 +605,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         const bool request =
             currentVisibleOperation && (recoveryWake || (preparationIsCurrent() && (requestAfterPreparation || s.revision != observedRevision)));
         if (request)
-            RequestPreparation();
+            RequestPreparation(static_cast<uint8_t>(recoveryWake ? Detail::Trace::FrameReason::Recovery : Detail::Trace::FrameReason::Continuation));
     });
     s.preparationRequested       = false;
     s.contentPending             = false;
@@ -561,7 +680,18 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
             RETURN_IF_FAILED(texture->QueryInterface(IID_PPV_ARGS(surface.put())));
             auto properties = D2D1::BitmapProperties1(
                 D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1::PixelFormat(desc.Format, D2D1_ALPHA_MODE_PREMULTIPLIED), dpi, dpi);
-            RETURN_IF_FAILED(_host._d2dContext->CreateBitmapFromDxgiSurface(surface.get(), &properties, bitmap.put()));
+            HRESULT hrBitmap = CountedCreateBitmapFromDxgiSurface(_host._d2dContext, surface.get(), &properties, bitmap.put());
+#if DXUI_ENABLE_DIAGNOSTICS
+            if (_host._debugSizeResourceFailureStage == 3u)
+            {
+                _host._debugSizeResourceFailureStage = 0u;
+                hrBitmap                             = _host._debugSizeResourceFailure;
+                bitmap.reset();
+            }
+#endif
+            // A failed surface is reported to the caller, which owns the schedule: the view keeps no timer and retries
+            // nothing by itself, and stays dirty for the caller's next Prepare.
+            RETURN_IF_FAILED(hrBitmap);
             _host._d2dContext->SetTarget(nullptr);
             s.stats.replacementPeakBytes = std::max(s.stats.replacementPeakBytes, s.stats.surfaceBytes + bytes);
             s.texture                    = std::move(texture);
@@ -625,6 +755,21 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         if (! dc)
             return E_UNEXPECTED;
         FrameStageScope renderStage(preparationStage, FrameStage::Render);
+        // Every return from here on writes the matching prepare-end event, even if a session starts or stops in between.
+        const bool tracedPrepare = Detail::Trace::Listening();
+        HRESULT tracedResult     = E_ABORT;
+        if (tracedPrepare) [[unlikely]]
+            Detail::Trace::PrepareBegin(_host._trace);
+        const auto tracePrepareEnd = wil::scope_exit([&]() noexcept
+        {
+            if (tracedPrepare) [[unlikely]]
+                Detail::Trace::PrepareEnd(_host._trace, tracedResult, SUCCEEDED(tracedResult) ? uint64_t(width) * height : 0u);
+        });
+        // Grayscale always; the application's monitor parameters only when it supplied a monitor.
+        static_cast<void>(_host.ApplyTextRendering());
+        // One generation of the host's retained text layouts: a string new to them is laid out here, in preparation, never
+        // in composition, which only composites the surface.
+        const TextLayoutPaintScope textLayoutPaint(_host);
         dc->BeginDraw();
         auto finish = wil::scope_exit([&] { (void)Detail::EndDrawNative(dc); });
         dc->SetTransform(D2D1::Matrix3x2F::Identity());
@@ -638,6 +783,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         };
         if (_host._root)
         {
+            Detail::NotePaintDispatch();
             _host._root->Paint(_host);
             if (! treeStillCurrent())
                 return E_ABORT;
@@ -652,7 +798,8 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
                 return E_ABORT;
         }
         finish.release();
-        RETURN_IF_FAILED(Detail::EndDrawNative(dc));
+        tracedResult = Detail::EndDrawNative(dc);
+        RETURN_IF_FAILED(tracedResult);
         if (! preparationIsCurrent())
             return E_ABORT;
         s.preparedInteractionRevision = interactionRevision;
@@ -660,6 +807,8 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         s.interactionLayoutAvailable  = true;
         s.dirty                       = s.revision != revision;
         ++s.stats.preparations;
+        ++Detail::Work().frame.preparations;
+        Detail::Work().frame.pixelsPainted += uint64_t(width) * height;
         _host.PublishPreparedContent();
         if (auto* focused = _host.GetFocusControl(); focused && focused != _host._nativeTextInputControl)
         {
@@ -781,6 +930,9 @@ HRESULT EmbeddedHost::Composite(ID3D11DeviceContext* context, const D3D11_VIEWPO
     view = nullptr;
     context->PSSetShaderResources(0, 1, &view);
     ++s.stats.composites;
+    ++Detail::Work().frame.composites;
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::Presented(_host._trace, Detail::Trace::Event::Composite, false, S_OK);
     return S_OK;
 }
 bool EmbeddedHost::CapturedDragContinues() const noexcept
@@ -805,6 +957,8 @@ void EmbeddedHost::CancelPointer(bool clearPendingDoubleClick) noexcept
     const Failure::Scope failureScope;
     auto* captured         = _host._capturedControl;
     _host._capturedControl = nullptr;
+    if (_state)
+        _state->captureButtons = 0u;
     try
     {
         // Hidden/disabled controls still need their draft canceled before ordinary interaction pruning. Tree
@@ -838,6 +992,10 @@ bool EmbeddedHost::InputIsCoherent(bool allowDirty) noexcept
     // (bounds, tree, visibility, enabled) invalidates geometry. Pixel snapshots pass
     // allowDirty=false so they do not publish a stale surface.
     return allowDirty || ! _state->dirty;
+}
+bool EmbeddedHost::PreparedGeometryIsCurrent() const noexcept
+{
+    return _state && _state->visible && _state->coherent && _state->preparedInteractionRevision == _host._interactionRevision;
 }
 bool EmbeddedHost::PreviewFileDrop(D2D1_POINT_2F point) noexcept
 {
@@ -891,11 +1049,17 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
 {
     const Failure::Scope failureScope;
     const InputScope input(*this);
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::InputReceived(_host._trace, TracePointerInputKind(event.action));
     // Pointer hit-testing is valid on a paint-dirty view. Requiring a clean surface
     // here dropped the Down that followed a hover/focus Invalidate, so a touch looked
     // like "first contact focuses, second contact activates."
     if (! InputIsCoherent(true))
         return false;
+    // One pointer event: hover and dispatch share one hit result (UI_InputAndAccessibility.md, "Pointer hit result"); none
+    // survives the event.
+    _host.BeginPointerHitEvent(true);
+    const auto endPointerHitEvent = wil::scope_exit([this]() noexcept { _host.EndPointerHitEvent(); });
     try
     {
         _host.PruneStaleInteractionState();
@@ -948,10 +1112,35 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
         auto* target = _host._capturedControl ? _host._capturedControl : _host.HitTestControl(point);
         if (! InputIsCoherent(true) || ! target)
             return false;
+        // A capture that ended another way (a control's own release, a cancellation) holds no buttons.
+        auto& captureButtons = _state->captureButtons;
+        if (! _host._capturedControl)
+            captureButtons = 0u;
         switch (event.action)
         {
-            case PointerAction::MiddleDown: return target->OnMouseMiddleDown(_host, point, event.modifiers);
-            case PointerAction::MiddleUp: return _host.GetCapturedControl() != nullptr;
+            case PointerAction::MiddleDown:
+            {
+                // A middle press the gesture's control accepts joins its primary gesture, which then lasts until both
+                // buttons are up. A declined press leaves the gesture to its primary release.
+                const bool inGesture = captureButtons != 0u;
+                const bool handled   = target->OnMouseMiddleDown(_host, point, event.modifiers);
+                if (inGesture && handled && _state && _host._capturedControl)
+                    _state->captureButtons |= kCaptureMiddleButton;
+                return handled;
+            }
+            case PointerAction::MiddleUp:
+            {
+                const bool chorded                   = (captureButtons & kCaptureMiddleButton) != 0u;
+                const bool captured                  = _host._capturedControl != nullptr;
+                const uint64_t captureBeforeDispatch = _host._captureRequestRevision;
+                captureButtons                       = static_cast<uint8_t>(captureButtons & ~kCaptureMiddleButton);
+                const bool lastButtonUp              = chorded && captureButtons == 0u;
+                const bool handled                   = target->OnMouseMiddleUp(_host, point, event.modifiers);
+                // The last button of a chord ends the gesture, unless a callback has already chosen a newer capture.
+                if (lastButtonUp && _host._captureRequestRevision == captureBeforeDispatch)
+                    _host.ReleaseMouseCapture();
+                return handled || captured;
+            }
             case PointerAction::Down:
             {
                 const auto lifetime          = target->GetLifetimeToken();
@@ -966,6 +1155,8 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
                 if (handled && live && ! _host.IsTooltipInspectionActive())
                 {
                     _host.CaptureMouse(live);
+                    if (_state && _host._capturedControl)
+                        _state->captureButtons |= kCapturePrimaryButton;
                     if (tripleClick)
                     {
                         _host.ClearPendingPointerDoubleClick();
@@ -986,10 +1177,20 @@ bool EmbeddedHost::DispatchPointer(const PointerEvent& event) noexcept
             case PointerAction::Move: return target->OnMouseMove(_host, point, event.modifiers);
             case PointerAction::Up:
             {
-                auto release = wil::scope_exit([&] { _host.ReleaseMouseCapture(); });
+                // The gesture ends with its last button: a middle button still held keeps the capture for its release.
+                const bool middleHeld = (captureButtons & kCaptureMiddleButton) != 0u;
+                captureButtons        = static_cast<uint8_t>(captureButtons & ~kCapturePrimaryButton);
+                auto release          = wil::scope_exit([&]
+                {
+                    if (! middleHeld)
+                        _host.ReleaseMouseCapture();
+                });
                 return target->OnMouseUp(_host, point, false, event.modifiers);
             }
-            case PointerAction::Wheel: return target->OnMouseWheel(_host, point, event.wheelDelta, event.modifiers);
+            case PointerAction::Wheel:
+                // An embedded host receives no WM_SETTINGCHANGE: each wheel event reads the user's lines per notch again.
+                RefreshWheelScrollLines();
+                return target->OnMouseWheel(_host, point, event.wheelDelta, event.modifiers);
             case ::DxUi::PointerAction::Cancel:
             case ::DxUi::PointerAction::Leave:
             default: return false;
@@ -1015,6 +1216,8 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
 {
     const Failure::Scope failureScope;
     const InputScope input(*this);
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::InputReceived(_host._trace, down ? Detail::Trace::InputKind::KeyDown : Detail::Trace::InputKind::KeyUp);
     uint64_t issuedReceiptSequence = 0u;
     // Overlapping use of the same out-object cannot identify which caller's raw key should translate.
     // Invalidate it on every outer exit, including a callback failure; independent receipts stay valid.
@@ -1056,7 +1259,7 @@ bool EmbeddedHost::DispatchKeyImpl(UINT key, bool down, UINT modifiers, Embedded
     {
         _host._supplementalTooltipModifiers    = down ? modifiers | MK_CONTROL : modifiers & ~MK_CONTROL;
         _host._supplementalTooltipNeedsResolve = true;
-        _host.RequestAnimation();
+        _host.OnTooltipScheduleChanged();
     }
     if (! KeyboardInputIsAvailable())
         return false;
@@ -1121,6 +1324,8 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers) noexcept
 {
     const Failure::Scope failureScope;
     const InputScope input(*this);
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::InputReceived(_host._trace, Detail::Trace::InputKind::Character);
     if (! KeyboardInputIsAvailable())
         return false;
     bool enteredControlCallback = false;
@@ -1165,6 +1370,8 @@ bool EmbeddedHost::DispatchCharacter(wchar_t character, UINT modifiers, Embedded
 {
     const Failure::Scope failureScope;
     const InputScope input(*this);
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::InputReceived(_host._trace, Detail::Trace::InputKind::Character);
     if (! receipt._valid)
         return false;
 
@@ -1273,7 +1480,7 @@ HRESULT EmbeddedHost::ReadTextInput(EmbeddedTextInputSnapshot& snapshot) noexcep
         TextInputState actual;
         if (! _host.TryReadTextInputState(control, actual))
             return S_FALSE;
-        if (_host._nativeTextInputImeComposing && actual.text != _host._nativeTextInputStateCache.text)
+        if (_host._nativeTextInputImeComposing && actual.text != _host.GetNativeTextInputCacheText())
             _host.ClearNativeTextInputCompositionState();
         _host.SyncNativeTextInputSession(control);
         if (! _host.TryReadNativeTextInputState(control, snapshot.state))
@@ -1463,9 +1670,11 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
             return E_INVALIDARG;
         if (action != EmbeddedTextInputAction::Cancel && actual.readOnly && (action == EmbeddedTextInputAction::Preview || actual.text != state.text))
             return E_ACCESSDENIED;
-        if (_host._nativeTextInputImeComposing && actual.text != _host._nativeTextInputStateCache.text)
+        if (_host._nativeTextInputImeComposing && actual.text != _host.GetNativeTextInputCacheText())
             _host.ClearNativeTextInputCompositionState();
-        const auto previous = _host._nativeTextInputStateCache;
+        const auto previous       = _host._nativeTextInputStateCache;
+        const auto previousText   = _host._nativeTextInputCacheText;
+        const auto previousSource = _host._nativeTextInputCacheSource;
         if (action == EmbeddedTextInputAction::Cancel)
         {
             if (! _host._nativeTextInputImeComposing)
@@ -1520,7 +1729,7 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
         if (stillLive())
         {
             _host.SyncNativeTextInputSession(control);
-            _host.RaiseNativeTextInputAccessibilityEvents(previous);
+            _host.RaiseNativeTextInputAccessibilityEvents(previous, previousText, previousSource);
         }
         return S_OK;
     }
@@ -1640,13 +1849,177 @@ void EmbeddedHost::CancelTextInput() noexcept
     _host.DeactivateTextInput();
     _host.SetFocusControl(nullptr);
 }
+// Counts what controls keep between preparations, for GetStatistics only: a read-only walk of the logical tree that
+// allocates nothing, so a query never changes the work or memory it reports.
+struct RetainedResourceAccess final
+{
+    static void AddLayout(EmbeddedStatistics& stats, const IDWriteTextLayout* layout, size_t units) noexcept
+    {
+        if (layout)
+        {
+            ++stats.retainedTextLayouts;
+            stats.retainedTextLayoutUnits += units;
+        }
+    }
+    static void AddBitmap(EmbeddedStatistics& stats, ID2D1Bitmap1* bitmap) noexcept
+    {
+        if (! bitmap)
+            return;
+        const D2D1_SIZE_U size = bitmap->GetPixelSize();
+        ++stats.retainedBitmaps;
+        stats.retainedBitmapBytes += uint64_t(size.width) * size.height * 4u; // DxUi bitmaps are 32-bit BGRA.
+    }
+    static void AddGrid(EmbeddedStatistics& stats, const Grid& grid) noexcept
+    {
+        // An omitted multiline tail is one layout shared by the value entries showing the same visible text: count it
+        // once, through the tail table, and skip the value entries that hold it.
+        const auto sharedTail = [&](const IDWriteTextLayout* layout) noexcept
+        {
+            for (const auto& tail : grid._cellDisplayLayouts)
+                if (tail.layout.get() == layout)
+                    return true;
+            return false;
+        };
+        for (const auto& tail : grid._cellDisplayLayouts)
+            AddLayout(stats, tail.layout.get(), tail.text.size());
+        for (const auto& entry : grid._cellTextLayouts)
+            if (entry.layout && ! (entry.truncated && sharedTail(entry.layout.get())))
+                AddLayout(stats, entry.layout.get(), entry.text.size());
+    }
+    // An editor's undo and redo entries, their spans and the earlier text an open entry keeps beyond the current text: the
+    // count the history's byte budget uses (TextEditHistory::Bytes).
+    template <typename History> static uint64_t HistoryBytes(const History& undo, const History& redo, const std::wstring* current) noexcept
+    {
+        return TextEditHistory::Bytes(undo, redo, current);
+    }
+    static void AddHistory(EmbeddedStatistics& stats, uint64_t bytes) noexcept
+    {
+        stats.largestTextHistoryBytes = (std::max)(stats.largestTextHistoryBytes, bytes);
+    }
+    static void Add(EmbeddedStatistics& stats, const Control& control) noexcept
+    {
+        ++Detail::Work().frame.treeVisitsStatistics;
+        RetainedCacheTotals caches{stats.retainedCacheEntries, stats.retainedCacheBytes};
+        RetainedCacheAccess::AddControlTotals(control, caches);
+        stats.retainedCacheEntries = caches.entries;
+        stats.retainedCacheBytes   = caches.bytes;
+        if (const auto* field = dynamic_cast<const TextField*>(&control))
+            AddHistory(stats, HistoryBytes(field->_undoHistory, field->_redoHistory, field->_text.get()));
+        else if (const auto* combo = dynamic_cast<const ComboBox*>(&control))
+            AddHistory(stats, HistoryBytes(combo->_undoHistory, combo->_redoHistory, combo->_text.get()));
+        if (const auto* label = dynamic_cast<const Label*>(&control))
+            AddLayout(stats, label->_typographyLayout.get(), label->_text.size());
+        else if (const auto* button = dynamic_cast<const Button*>(&control))
+            AddLayout(stats, button->_preparedIconTextLayout.get(), button->_preparedIconTextLength);
+        else if (const auto* field = dynamic_cast<const TextField*>(&control))
+        {
+            AddLayout(stats, field->_singleLineLayoutCache.layout.get(), field->_singleLineLayoutCache.text.size());
+            AddLayout(stats, field->_cachedMultilineLayout.get(), field->_cachedLayoutTextLength);
+        }
+        else if (const auto* combo = dynamic_cast<const ComboBox*>(&control))
+        {
+            AddLayout(stats, combo->_singleLineLayoutCache.layout.get(), combo->_singleLineLayoutCache.text.size());
+            AddBitmap(stats, combo->_popupBackdropBitmap.get());
+        }
+        else if (const auto* grid = dynamic_cast<const Grid*>(&control))
+            AddGrid(stats, *grid);
+        else if (const auto* editor = dynamic_cast<const RichTextEditor*>(&control))
+        {
+            const RichText::RichImageResourceStatistics images = editor->GetImageResourceStatistics();
+            stats.retainedBitmaps += images.readySources;
+            stats.retainedBitmapBytes += images.decodedBytes;
+        }
+        for (size_t index = 0u, count = control.GetLogicalChildCount(); index < count; ++index)
+            if (const Control* child = control.GetLogicalChild(index))
+                Add(stats, *child);
+    }
+    static void AddTooltip(EmbeddedStatistics& stats, const TooltipLayer& tooltip) noexcept
+    {
+        AddLayout(stats, tooltip._layoutCache.layout.get(), tooltip._text.size());
+    }
+};
+uint64_t EmbeddedHost::PreparationCount() const noexcept
+{
+    return _state ? _state->stats.preparations : 0u;
+}
 EmbeddedStatistics EmbeddedHost::GetStatistics() const noexcept
 {
     if (! _state)
         return {};
-    auto stats              = _state->stats;
-    stats.cachedBrushes     = _host._brushCache.size();
+    auto stats = _state->stats;
+    // Brush objects: the keyed ones (a key only transitions drew holds a color, not a brush) and the transition brushes.
+    stats.cachedBrushes =
+        _host._transitionBrushes.size() +
+        static_cast<uint64_t>(std::ranges::count_if(_host._brushCache, [](const auto& entry) noexcept { return entry.second.brush != nullptr; }));
     stats.cachedTextFormats = _host._configuredTextFormats.size();
+    if (_host._root)
+        RetainedResourceAccess::Add(stats, *_host._root);
+    RetainedResourceAccess::AddTooltip(stats, _host._tooltipLayer);
+    RetainedCacheTotals hostCaches{stats.retainedCacheEntries, stats.retainedCacheBytes};
+    RetainedCacheAccess::AddHostTotals(_host, hostCaches);
+    stats.retainedCacheEntries = hostCaches.entries;
+    stats.retainedCacheBytes   = hostCaches.bytes;
     return stats;
 }
+void RetainedCacheAccess::Drop(EmbeddedHost& host) noexcept
+{
+    if (! host._state || host._state->preparing || host._detaching || host._replacingDevice)
+        return;
+    auto& s = *host._state;
+    // The surface persists between preparations while its size is unchanged; a fresh view has none. The size is kept, so
+    // the next Prepare allocates a replacement without treating the frame as a resize (which would cancel a capture).
+    if (host._host._d2dContext)
+        host._host._d2dContext->SetTarget(nullptr);
+    s.bitmap.reset();
+    s.view.reset();
+    s.texture.reset();
+    s.stats.surfaceBytes         = 0u;
+    s.coherent                   = false;
+    s.interactionLayoutAvailable = false;
+    Drop(host._host);
+    host.MarkDirty();
+}
+void RetainedCacheAccess::Count(EmbeddedHost& host, std::vector<RetainedCacheCount>& out)
+{
+    Count(host._host, out);
+    out.push_back({"EmbeddedHost.State.texture", host._state && host._state->texture ? 1u : 0u, true, host._state ? host._state->stats.surfaceBytes : 0u});
+}
+#if DXUI_ENABLE_DIAGNOSTICS
+void EmbeddedHost::DebugDropRetainedStateForTest() noexcept
+{
+    RetainedCacheAccess::Drop(*this);
+}
+HRESULT EmbeddedHost::DebugReadSurfaceForTest(WindowHostBitmapCapture& out) noexcept
+{
+    const Failure::Scope failureScope;
+    out = {};
+    if (! _state || ! _state->texture || ! _state->graphics)
+        return S_FALSE;
+    auto& g = *_state->graphics->_state;
+    if (g.thread != GetCurrentThreadId())
+        return RPC_E_WRONG_THREAD;
+    D3D11_TEXTURE2D_DESC desc{};
+    _state->texture->GetDesc(&desc);
+    desc.BindFlags      = 0u;
+    desc.MiscFlags      = 0u;
+    desc.Usage          = D3D11_USAGE_STAGING;
+    desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    wil::com_ptr_nothrow<ID3D11Texture2D> staging;
+    RETURN_IF_FAILED(g.device->CreateTexture2D(&desc, nullptr, staging.put()));
+    wil::com_ptr_nothrow<ID3D11DeviceContext> context;
+    g.device->GetImmediateContext(context.put());
+    context->CopyResource(staging.get(), _state->texture.get());
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    RETURN_IF_FAILED(context->Map(staging.get(), 0u, D3D11_MAP_READ, 0u, &mapped));
+    const auto unmap = wil::scope_exit([&]() noexcept { context->Unmap(staging.get(), 0u); });
+    out.widthPx      = desc.Width;
+    out.heightPx     = desc.Height;
+    out.bgraPixels.resize(static_cast<size_t>(desc.Width) * desc.Height * 4u);
+    for (UINT row = 0u; row < desc.Height; ++row)
+        std::copy_n(static_cast<const uint8_t*>(mapped.pData) + static_cast<size_t>(mapped.RowPitch) * row,
+                    static_cast<size_t>(desc.Width) * 4u,
+                    out.bgraPixels.data() + static_cast<size_t>(row) * desc.Width * 4u);
+    return S_OK;
+}
+#endif
 } // namespace DxUi

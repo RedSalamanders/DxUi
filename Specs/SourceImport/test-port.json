@@ -659,15 +659,17 @@
       "file": "Tests/Controls/DxUiTests.Animation.cpp",
       "currentFile": "Tests/Controls/DxUi.Tests.Animation.cpp",
       "test": "TestTextFieldCaretTickIgnoresReducedMotion",
+      "currentTest": "TestTextFieldCaretIsSteadyUnderReducedMotion",
       "status": "ported",
-      "reason": "Runtime control contract retained."
+      "reason": "Runtime control contract retained; W3.2 made the caret steady under reduced motion, so the case now asserts that."
     },
     {
       "file": "Tests/Controls/DxUiTests.Animation.cpp",
       "currentFile": "Tests/Controls/DxUi.Tests.Animation.cpp",
       "test": "TestEditableComboBoxCaretTickIgnoresReducedMotion",
+      "currentTest": "TestEditableComboBoxCaretIsSteadyUnderReducedMotion",
       "status": "ported",
-      "reason": "Runtime control contract retained."
+      "reason": "Runtime control contract retained; W3.2 made the caret steady under reduced motion, so the case now asserts that."
     },
     {
       "file": "Tests/Controls/DxUiTests.Animation.cpp",
@@ -5811,6 +5813,7 @@
       "file": "Tests/Controls/DxUiTests.Tooltip.cpp",
       "currentFile": "Tests/Controls/DxUi.Tests.Tooltip.cpp",
       "test": "TestTreeTooltipTracksPointerWithinSameRow",
+      "currentTest": "TestTreeTooltipStaysAtRowEntryOriginWithinSameRow",
       "status": "ported",
       "reason": "Runtime control contract retained."
     },

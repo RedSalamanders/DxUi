@@ -1,0 +1,9 @@
+FAIL: a decode holds no duplicate encoded buffer
+image decode memory png-64x48 (Decode): encoded 221, decoded 12288, peak tracked 12700, calls 7, requested 12700, encoded-size buffers 1, decoded-size buffers 1, other bytes 144, pixels fnv1a 5efdac898b180325
+image decode memory jpeg-96x64-orientation-6 (Decode): encoded 2915, decoded 24576, peak tracked 52433, calls 12, requested 52433, encoded-size buffers 1, decoded-size buffers 2, other bytes 272, pixels fnv1a 58ad02994043eb6b
+image decode memory jpeg-96x64-orientation-3 (Decode): encoded 2915, decoded 24576, peak tracked 52433, calls 12, requested 52433, encoded-size buffers 1, decoded-size buffers 2, other bytes 272, pixels fnv1a eb8d79302b56c9b7
+image decode memory jpeg-64x64-orientation-8 (Decode): encoded 2165, decoded 16384, peak tracked 35299, calls 12, requested 35299, encoded-size buffers 1, decoded-size buffers 2, other bytes 272, pixels fnv1a 346478ec978d47cf
+image decode memory gif-64x48-two-frames (Decode): encoded 2772, decoded 12288, peak tracked 15251, calls 7, requested 15251, encoded-size buffers 1, decoded-size buffers 1, other bytes 144, pixels fnv1a 5efdac898b180325
+image decode memory gif-80x60-canvas-two-frames (Decode): encoded 2772, decoded 19200, peak tracked 34514, calls 9, requested 34514, encoded-size buffers 1, decoded-size buffers 2, other bytes 160, pixels fnv1a 3a5f30a767a9f25
+image decode memory png-2000x2000-at-encoded-cap (Decode): encoded 16777216, decoded 16000000, peak tracked 32777454, calls 7, requested 32777454, encoded-size buffers 1, decoded-size buffers 1, other bytes 144, pixels fnv1a e4c2442d9b996cf
+image decode memory png-2000x2000-at-encoded-cap (LoadFile): encoded 16777216, decoded 16000000, peak tracked 49555165, calls 27, requested 49556019, encoded-size buffers 2, decoded-size buffers 1, other bytes 1446, pixels fnv1a e4c2442d9b996cf

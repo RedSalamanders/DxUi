@@ -2,6 +2,7 @@
 #include "DxUi.RichTextScriptRenderer.h"
 #include "DxUi.RichTextSourceInkRenderer.h"
 #include "DxUi.TextElements.h"
+#include "Support/CountedCreation.h"
 #include <DxUi/Failure.h>
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
@@ -287,14 +288,15 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     }
     // Create the retained text format through the supplied DirectWrite factory.
     wil::com_ptr<IDWriteTextFormat> format;
-    RETURN_IF_FAILED(factory->CreateTextFormat(options.fontFamily.c_str(),
-                                               nullptr,
-                                               DWRITE_FONT_WEIGHT_NORMAL,
-                                               DWRITE_FONT_STYLE_NORMAL,
-                                               DWRITE_FONT_STRETCH_NORMAL,
-                                               fontSize,
-                                               options.locale.c_str(),
-                                               format.put()));
+    RETURN_IF_FAILED(CountedCreateTextFormat(factory,
+                                             options.fontFamily.c_str(),
+                                             nullptr,
+                                             DWRITE_FONT_WEIGHT_NORMAL,
+                                             DWRITE_FONT_STYLE_NORMAL,
+                                             DWRITE_FONT_STRETCH_NORMAL,
+                                             fontSize,
+                                             options.locale.c_str(),
+                                             format.put()));
     RETURN_IF_FAILED(format->SetWordWrapping(marker || object || ! options.wrap ? DWRITE_WORD_WRAPPING_NO_WRAP : DWRITE_WORD_WRAPPING_WRAP));
     RETURN_IF_FAILED(format->SetReadingDirection(options.readingDirection));
     RETURN_IF_FAILED(format->SetTextAlignment(options.textAlignment));
@@ -325,7 +327,7 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             std::fill_n(positionedText.begin() + inlineObject.first + textOffset, inlineObject.length, L'\ufffc');
     }
     const auto text = textOffset || ! objects.empty() ? std::wstring_view(positionedText) : std::wstring_view(projection.text);
-    RETURN_IF_FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format.get(), width, 1000000.0f, layout.put()));
+    RETURN_IF_FAILED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format.get(), width, 1000000.0f, layout.put()));
     wil::com_ptr<IDWriteInlineObject> positioning;
     if (textOffset)
     {
@@ -613,16 +615,29 @@ Hit PreparedLayout::HitTest(float x, float y) const
 }
 HRESULT PreparedLayout::TryCaret(std::size_t position, CaretGeometry& output) const
 {
-    if (! state_ || position > Content().text.size())
+    return TryCaret(position, CaretAffinity::Downstream, output);
+}
+HRESULT PreparedLayout::TryCaret(std::size_t position, CaretAffinity affinity, CaretGeometry& output) const
+{
+    if (! state_ || position > Content().text.size() || (affinity != CaretAffinity::Downstream && affinity != CaretAffinity::Upstream))
         return E_INVALIDARG;
+    // Upstream differs only at a soft wrap: an interior visual line start whose
+    // preceding unit is no hard break. It is drawn at the trailing edge of the
+    // cluster that ends the upper line.
+    const auto& text     = Content().text;
+    const auto hardBreak = [](wchar_t unit) noexcept
+    { return unit == L'\n' || unit == L'\r' || unit == L'\v' || unit == L'\f' || unit == L'\u0085' || unit == L'\u2028' || unit == L'\u2029'; };
+    const bool upstream = affinity == CaretAffinity::Upstream && position > 0u && position < text.size() && ! hardBreak(text[position - 1u]) &&
+                          std::binary_search(state_->lines.begin(), state_->lines.end(), position);
+    const auto anchor   = upstream ? position - 1u : position;
     float x = 0, y = 0;
     DWRITE_HIT_TEST_METRICS metrics{};
-    const auto hr = state_->layout->HitTestTextPosition(static_cast<UINT32>(position) + state_->textOffset, FALSE, &x, &y, &metrics);
+    const auto hr = state_->layout->HitTestTextPosition(static_cast<UINT32>(anchor) + state_->textOffset, upstream ? TRUE : FALSE, &x, &y, &metrics);
     if (FAILED(hr))
         return hr;
     if (! state_->scripts.uniformSourceLines.empty())
     {
-        const auto& line = Detail::UniformLineAt(state_->scripts.uniformSourceLines, position);
+        const auto& line = Detail::UniformLineAt(state_->scripts.uniformSourceLines, anchor);
         y                = line.documentBaseline - (line.localBaseline - y);
     }
     else
@@ -634,6 +649,14 @@ CaretGeometry PreparedLayout::Caret(std::size_t position) const
 {
     CaretGeometry output{};
     const auto hr = TryCaret(position, output);
+    if (FAILED(hr))
+        Failure::FailContract(hr);
+    return output;
+}
+CaretGeometry PreparedLayout::Caret(std::size_t position, CaretAffinity affinity) const
+{
+    CaretGeometry output{};
+    const auto hr = TryCaret(position, affinity, output);
     if (FAILED(hr))
         Failure::FailContract(hr);
     return output;

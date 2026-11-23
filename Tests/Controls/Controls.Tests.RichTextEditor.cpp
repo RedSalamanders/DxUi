@@ -1083,17 +1083,28 @@ void TestRichTextEditorScrollAndHostClock()
     Require(detachedText != nullptr && ControlModelQueryAccess::Host(*detachedText) == nullptr &&
                 ! detachedText->ScrollSourceRangeIntoView(detachedHost, 0u, 4u, true),
             "detached editor rejects a stale host scroll request");
-    window.Host().SetFocusControl(raw, false);
     auto theme          = window.Host().GetTheme();
     theme.reducedMotion = false;
     window.Host().SetTheme(theme);
-    Require(raw->Tick(window.Host(), 0), "host epoch can begin at zero");
+    // W3.2: the host's caret clock owns the phase, at the system blink time (pinned here through the test seam) from the
+    // focus on the host's clock, starting at zero; each Tick asks for a deadline at the next flip instead of every frame.
+    window.Host().DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{500u, 0u});
+    window.Host().DebugSetAnimationClockForTest(0u);
+    window.Host().SetFocusControl(raw, false);
+    const auto sleepsUntil = [&](uint64_t flipTickMs)
+    {
+        const auto wake = window.Host().DebugGetFrameScheduleWakeForTest();
+        return wake.kind == 2u && wake.dueTickMs == flipTickMs;
+    };
+    Require(! raw->Tick(window.Host(), 0) && sleepsUntil(500u), "host epoch can begin at zero");
     const auto invalidations = window.Host().DebugGetInvalidateCount();
-    Require(raw->Tick(window.Host(), 100) && window.Host().DebugGetInvalidateCount() == invalidations, "same caret phase does not dirty pixels");
-    Require(raw->Tick(window.Host(), 500) && window.Host().DebugGetInvalidateCount() > invalidations, "phase flip invalidates");
-    Require(raw->Tick(window.Host(), 10), "backwards host timestamp resets epoch safely");
+    Require(! raw->Tick(window.Host(), 100) && sleepsUntil(500u) && window.Host().DebugGetInvalidateCount() == invalidations,
+            "same caret phase does not dirty pixels");
+    Require(! raw->Tick(window.Host(), 500) && sleepsUntil(1000u) && window.Host().DebugGetInvalidateCount() > invalidations, "phase flip invalidates");
+    Require(! raw->Tick(window.Host(), 10) && sleepsUntil(500u), "backwards host timestamp resets epoch safely");
     raw->SetReadOnly(true);
-    Require(! raw->Tick(window.Host(), 1000), "read-only caret requests no periodic work");
+    Require(! raw->Tick(window.Host(), 1000) && window.Host().DebugGetFrameScheduleWakeForTest().kind == 0u, "read-only caret requests no periodic work");
+    window.Host().DebugSetAnimationClockForTest(std::nullopt);
 }
 
 void TestRichTextEditorCatalogAndRebinding()
@@ -2428,11 +2439,85 @@ void TestRichTextEditorRemoteImagePolicy()
                                 L"http://example.invalid/a\r\nCookie: secret"})
         Require(! ResolveRemoteImageSource(invalid), "credentialed, ambiguous and unsupported sources are never remote image requests");
 }
+void TestRichTextEditorEndKeepsCaretAtSoftWrapEnd()
+{
+    AttachedHostWindow window;
+    const std::wstring text = L"alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra";
+    auto owned              = std::make_unique<RichTextEditor>(text);
+    auto* editor            = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    RenderEditor(window);
+    window.Host().SetFocusControl(editor, false); // Logical focus only: no desktop takeover.
+    editor->SetSelection({0u, 0u});
+    const auto caretAt = [&](size_t source)
+    {
+        const auto rectangle = editor->TryGetTextInputCaretRect(window.Host(), source);
+        Require(rectangle.has_value(), "prepared wrapped caret geometry");
+        return rectangle.value();
+    };
+    const auto start = caretAt(0u);
+    Require(editor->OnKeyDown(window.Host(), VK_END, 0u), "End on a wrapped line");
+    const auto wrap = editor->GetSelection().caret;
+    Require(wrap > 0u && wrap < text.size() && editor->GetSelection() == Selection{wrap, wrap}, "End stops at the soft wrap of the first visual line");
+    const auto upper = caretAt(wrap);
+    Require(upper.top == start.top && upper.left > start.left + 40.0f, "End puts the caret at the end of the upper line, not the start of the next");
+    Require(editor->OnKeyDown(window.Host(), VK_END, 0u) && editor->GetSelection().caret == wrap && caretAt(wrap).top == start.top,
+            "a repeated End stays at the end of the same visual line");
+    Require(editor->OnKeyDown(window.Host(), VK_HOME, 0u) && editor->GetSelection().caret == 0u, "Home from the upper line end returns to its start");
+    Require(editor->OnKeyDown(window.Host(), VK_END, 0u) && editor->OnKeyDown(window.Host(), VK_DOWN, 0u) &&
+                caretAt(editor->GetSelection().caret).top > upper.top &&
+                caretAt(editor->GetSelection().caret).top < upper.top + 2.5f * (upper.bottom - upper.top),
+            "Down from the upper line end moves exactly one visual line");
+    editor->SetSelection({wrap, wrap});
+    Require(caretAt(wrap).top > start.top, "a programmatic caret at the same offset keeps the downstream line start");
+    editor->SetSelection({0u, 0u});
+    Require(editor->OnKeyDown(window.Host(), VK_END, MK_SHIFT) && editor->GetSelection() == Selection{0u, wrap} && caretAt(wrap).top == start.top,
+            "Shift+End extends to the upper line end with the same affinity");
+    editor->SetSelection({0u, 0u});
+    Require(editor->OnKeyDown(window.Host(), VK_END, 0u) && editor->OnKeyDown(window.Host(), VK_RIGHT, 0u) && editor->OnKeyDown(window.Host(), VK_LEFT, 0u) &&
+                editor->GetSelection().caret == wrap && caretAt(wrap).top > start.top,
+            "arrow movement back to the wrap offset does not reuse the earlier upstream affinity");
+    Require(editor->OnKeyDown(window.Host(), VK_END, 0u) && editor->GetText() == text && ! editor->CanUndo(),
+            "caret affinity never changes the source model or its history");
+}
+void TestRichTextEditorCodeFenceColorsFirstTokenBudget()
+{
+    std::wstring code;
+    for (unsigned token = 0u; token < 5000u; ++token)
+        code += L"int ";
+    std::vector<CodeToken> tokens;
+    Require(TokenizeBuiltinCode(L"cpp", code, tokens) && tokens.size() == MaximumCodeTokens, "a 5,000-token fence keeps its first 4,096 tokens");
+    Require(tokens.front().text.first == 0u && tokens.front().text.last == 3u && tokens.back().text.first == 4u * 4095u &&
+                tokens.back().text.last == 4u * 4095u + 3u && tokens.back().role == CodeTokenRole::Keyword,
+            "the retained tokens are the leading tokens in source order");
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>();
+    auto* editor = owned.get();
+    editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+    editor->SetMarkdownRenderingEnabled(true);
+    editor->SetCodeTokenizer([](std::wstring_view language, std::wstring_view text, std::vector<CodeToken>& output)
+    { return TokenizeBuiltinCode(language, text, output); });
+    window.Host().SetRoot(std::move(owned));
+    editor->SetText(L"```cpp\n" + code + L"\n```\n");
+    // Code ink is optional visual preparation; drain it as pixel assertions do.
+    for (unsigned turn = 0u; turn < 1024u; ++turn)
+    {
+        RenderEditor(window);
+        window.PumpMessages();
+        if (! editor->DebugGetState().codeInkPreparationPending)
+            break;
+    }
+    const auto debug = editor->DebugGetState();
+    Require(! debug.codeInkPreparationPending && debug.codeInkRangeCount == MaximumCodeTokens,
+            "the editor colors the first 4,096 tokens of an oversized fence");
+}
 } // namespace
 
 void RunRichTextEditorTests()
 {
     ScopedNonActivatingTestWindows nonActivating;
+    DXUI_RUN_TEST(TestRichTextEditorEndKeepsCaretAtSoftWrapEnd);
+    DXUI_RUN_TEST(TestRichTextEditorCodeFenceColorsFirstTokenBudget);
     DXUI_RUN_TEST(TestRichTextEditorTransactionsAndValidation);
     DXUI_RUN_TEST(TestRichTextEditorDocumentExchangeRetainsIndependentHistory);
     DXUI_RUN_TEST(TestRichTextEditorBlockInsertWrapsExactSelection);

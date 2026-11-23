@@ -1,0 +1,5 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] EditorControls
+  [START] TestMarkdownParseReuseOracleFuzz
+  parse reuse fuzz seed 0x72020001 edit 1064 at [865, 865) inserting 12 units: tracked: root block count 29 vs 28 
+FAILED: an incremental parse publishes the tree a full parse publishes (tracked snapshots)

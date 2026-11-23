@@ -6,6 +6,7 @@
 
 #include "Support/Diagnostics.h"
 #include "Support/WindowMessages.h"
+#include "Support/WorkCounters.h"
 
 #include <algorithm>
 #include <chrono>
@@ -110,10 +111,21 @@ void ShutdownNativeTextInputThreadManagerState(NativeTextInputThreadManagerState
     return true;
 }
 
-[[nodiscard]] NativeTextInputState ToNativeTextInputState(const Control& control, TextInputState& controlState)
+// A rich editor exports its revision, with text only when it holds a copy of it. When the cache already holds a copy of that
+// same revision, the new cache entry keeps it, so a synchronization never discards a materialization still current.
+void KeepCachedTextOfSameRevision(SharedTextInputState& state,
+                                  bool cacheValid,
+                                  const SharedText& cacheText,
+                                  const std::optional<RichText::SourceSnapshot>& cacheSource) noexcept
+{
+    if (! state.text && state.source && cacheValid && cacheText && cacheSource && cacheSource->IsSameRevision(*state.source))
+        state.text = cacheText;
+}
+
+// The cache entry for a control state. Its text stays empty: the cache keeps the document in _nativeTextInputCacheText.
+[[nodiscard]] NativeTextInputState ToNativeTextInputState(const Control& control, const SharedTextInputState& controlState)
 {
     NativeTextInputState state;
-    state.text.swap(controlState.text);
     state.selectionAnchorIndex = controlState.selectionAnchorIndex;
     state.caretIndex           = controlState.caretIndex;
     state.firstVisibleLine     = controlState.firstVisibleLine;
@@ -130,6 +142,64 @@ void ShutdownNativeTextInputThreadManagerState(NativeTextInputThreadManagerState
         state.secretVisibleDotCount = textField->GetSecretVisibleDotCount();
     }
     return state;
+}
+
+// Whether two cache entries hold the same values in every field except `text`, which a cache entry never uses (the document
+// is compared by identity beside it). The structured bindings name every member of NativeTextInputState: a member added to
+// the struct stops this from compiling until it is compared here too, so the post-dispatch skip can never ignore one.
+// Fields and why each is compared:
+// - selectionAnchorIndex, caretIndex, firstVisibleLine, readOnly, masked, multiline: exported by the control.
+// - flowDirection, readingDirection, passwordRevealMode, passwordRevealState, maskLengthPolicy, secretVisibleDotCount: read
+//   from the control by ToNativeTextInputState; a control may change them without synchronizing (SetPasswordRevealState).
+// - The composition range, conversion target, cursor and clause boundaries: owned by the host, empty in both when no
+//   composition is active (the skip's precondition); compared so a stale one is never kept.
+[[nodiscard]] bool SameCachedNativeTextInputFields(const NativeTextInputState& left, const NativeTextInputState& right) noexcept
+{
+    const auto& [leftText,
+                 leftAnchor,
+                 leftCaret,
+                 leftFirstLine,
+                 leftReadOnly,
+                 leftMasked,
+                 leftMultiline,
+                 leftCompositionStart,
+                 leftCompositionEnd,
+                 leftTargetStart,
+                 leftTargetEnd,
+                 leftCursor,
+                 leftClauses,
+                 leftFlow,
+                 leftReading,
+                 leftRevealMode,
+                 leftRevealState,
+                 leftMaskPolicy,
+                 leftDots]  = left;
+    const auto& [rightText,
+                 rightAnchor,
+                 rightCaret,
+                 rightFirstLine,
+                 rightReadOnly,
+                 rightMasked,
+                 rightMultiline,
+                 rightCompositionStart,
+                 rightCompositionEnd,
+                 rightTargetStart,
+                 rightTargetEnd,
+                 rightCursor,
+                 rightClauses,
+                 rightFlow,
+                 rightReading,
+                 rightRevealMode,
+                 rightRevealState,
+                 rightMaskPolicy,
+                 rightDots] = right;
+    static_cast<void>(leftText);
+    static_cast<void>(rightText);
+    return leftAnchor == rightAnchor && leftCaret == rightCaret && leftFirstLine == rightFirstLine && leftReadOnly == rightReadOnly &&
+           leftMasked == rightMasked && leftMultiline == rightMultiline && leftCompositionStart == rightCompositionStart &&
+           leftCompositionEnd == rightCompositionEnd && leftTargetStart == rightTargetStart && leftTargetEnd == rightTargetEnd && leftCursor == rightCursor &&
+           leftClauses == rightClauses && leftFlow == rightFlow && leftReading == rightReading && leftRevealMode == rightRevealMode &&
+           leftRevealState == rightRevealState && leftMaskPolicy == rightMaskPolicy && leftDots == rightDots;
 }
 
 [[nodiscard]] RECT NormalizeCaretRectPx(const RECT& rect) noexcept
@@ -567,19 +637,11 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
         return;
     }
 
-    std::optional<TextInputState> controlStateStorage;
+    // Shares the control's document; the state pins it across the re-entrant calls below.
+    SharedTextInputState controlState{};
     try
     {
-        controlStateStorage.emplace();
-    }
-    catch (const std::bad_alloc&)
-    {
-        Failure::FailAllocation();
-    }
-    auto& controlState = controlStateStorage.value();
-    try
-    {
-        if (! control->ExportTextInputState(controlState))
+        if (! SharedTextInputAccess::Export(*control, controlState))
         {
             DeactivateNativeTextInputSession();
             return;
@@ -612,7 +674,7 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
             return;
         try
         {
-            if (! control->ExportTextInputState(controlState))
+            if (! SharedTextInputAccess::Export(*control, controlState))
                 return;
         }
         catch (const std::bad_alloc&)
@@ -624,7 +686,10 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
     _nativeTextInputControlLifetime = control->GetLifetimeToken();
     try
     {
+        KeepCachedTextOfSameRevision(controlState, _nativeTextInputStateCacheValid, _nativeTextInputCacheText, _nativeTextInputCacheSource);
         _nativeTextInputStateCache      = ToNativeTextInputState(*control, controlState);
+        _nativeTextInputCacheText       = controlState.text;
+        _nativeTextInputCacheSource     = controlState.source;
         _nativeTextInputStateCacheValid = true;
         ApplyNativeTextInputCompositionStateToCache();
     }
@@ -709,6 +774,9 @@ void ControlHost::ActivateNativeTextInputSession(Control* control, bool transfer
 void ControlHost::SecureClearNativeTextInputStateCache() noexcept
 {
     SecureWipe::SecureClear(_nativeTextInputStateCache.text);
+    // The shared document is wiped when its last owner releases it; the session control may still hold it.
+    _nativeTextInputCacheText.reset();
+    _nativeTextInputCacheSource.reset();
     auto& state = _nativeTextInputStateCache;
     state.selectionAnchorIndex.reset();
     state.caretIndex = state.firstVisibleLine = 0u;
@@ -910,6 +978,9 @@ bool ControlHost::ActivateNativeTextInputTsf(Control* control) noexcept
     {
         return failActivation();
     }
+    // Composition target and clauses come from GUID_PROP_ATTRIBUTE after each edit session. Without the sink the
+    // composition still works, without that metadata.
+    static_cast<void>(AdviseTextStoreEditSink(context.get(), textStore.get()));
 
     hr     = documentMgr->Push(context.get());
     pushed = SUCCEEDED(hr);
@@ -1009,6 +1080,12 @@ void ControlHost::DeactivateNativeTextInputTsf() noexcept
         }
     }
 
+    if (contextUnknown)
+    {
+        wil::com_ptr_nothrow<ITfContext> context;
+        if (SUCCEEDED(contextUnknown.query_to(context.put())))
+            UnadviseTextStoreEditSink(context.get(), textStoreToDisconnect.get());
+    }
     if (documentMgr)
     {
         static_cast<void>(documentMgr->Pop(TF_POPF_ALL));
@@ -1048,19 +1125,13 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
                IsControlInTree(_root.get(), control);
     };
 
-    std::optional<TextInputState> controlStateStorage;
+    // Synchronization shares the control's document: no copy for a caret move, and none for an edit beyond the edit's own
+    // buffer; a rich editor's document travels as its immutable revision and is not flattened at all. controlState,
+    // previousText and previousSource pin their buffers and revisions across the re-entrant calls below.
+    SharedTextInputState controlState{};
     try
     {
-        controlStateStorage.emplace();
-    }
-    catch (const std::bad_alloc&)
-    {
-        Failure::FailAllocation();
-    }
-    auto& controlState = controlStateStorage.value();
-    try
-    {
-        if (! control->ExportTextInputState(controlState))
+        if (! SharedTextInputAccess::Export(*control, controlState))
             return;
     }
     catch (const std::bad_alloc&)
@@ -1071,25 +1142,31 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
     if (! isCurrent())
         return;
     std::optional<NativeTextInputState> previousState;
+    SharedText previousText;
+    std::optional<RichText::SourceSnapshot> previousSource;
     try
     {
         if (_nativeTextInputStateCacheValid)
-            previousState = _nativeTextInputStateCache;
+        {
+            previousState  = _nativeTextInputStateCache;
+            previousText   = _nativeTextInputCacheText;
+            previousSource = _nativeTextInputCacheSource;
+        }
     }
     catch (const std::bad_alloc&)
     {
         Failure::FailAllocation();
     }
 
-    if (_nativeTextInputImeComposing &&
-        (controlState.masked || controlState.readOnly || (_nativeTextInputImePreviewText && controlState.text != _nativeTextInputImePreviewText.value())))
+    if (_nativeTextInputImeComposing && (controlState.masked || controlState.readOnly ||
+                                         (_nativeTextInputImePreviewText && ! TextInputContentEquals(controlState, _nativeTextInputImePreviewText.value()))))
     {
         CancelNativeTextInputImeComposition();
         if (! isCurrent())
             return;
         try
         {
-            if (! control->ExportTextInputState(controlState))
+            if (! SharedTextInputAccess::Export(*control, controlState))
                 return;
         }
         catch (const std::bad_alloc&)
@@ -1111,8 +1188,11 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
         SetNativeWindowImeSuppressed(this, controlState.masked);
         if (! isCurrent())
             return;
+        KeepCachedTextOfSameRevision(controlState, _nativeTextInputStateCacheValid, _nativeTextInputCacheText, _nativeTextInputCacheSource);
         NativeTextInputState nextState  = ToNativeTextInputState(*control, controlState);
         _nativeTextInputStateCache      = std::move(nextState);
+        _nativeTextInputCacheText       = controlState.text;
+        _nativeTextInputCacheSource     = controlState.source;
         _nativeTextInputStateCacheValid = true;
         ApplyNativeTextInputCompositionStateToCache();
     }
@@ -1123,7 +1203,7 @@ void ControlHost::SyncNativeTextInputSession(Control* control) noexcept
     ++_nativeTextInputEventCounters.synchronizationCount;
     if (previousState.has_value())
     {
-        RaiseNativeTextInputAccessibilityEvents(previousState.value());
+        RaiseNativeTextInputAccessibilityEvents(previousState.value(), previousText, previousSource);
     }
     if (! isCurrent())
         return;
@@ -1200,7 +1280,111 @@ void ControlHost::RaiseNativeTextInputAccessibilityEvent(TextInputAutomationEven
     }
 }
 
-void ControlHost::RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState) noexcept
+std::wstring_view ControlHost::GetNativeTextInputCacheText() const noexcept
+{
+    return _nativeTextInputStateCacheValid ? SharedTextView(MaterializeNativeTextInputCacheText()) : std::wstring_view();
+}
+
+const SharedText& ControlHost::MaterializeNativeTextInputCacheText() const noexcept
+{
+    const Failure::Scope failureScope;
+    if (_nativeTextInputStateCacheValid && ! _nativeTextInputCacheText && _nativeTextInputCacheSource)
+    {
+        try
+        {
+            // The one materialization of this revision for contiguous readers. The cache keeps it with the revision (the
+            // invariant of SharedTextInputState: text, when set, is exactly source's content), shared with the editor's
+            // own copy when the editor still shows this revision.
+            SharedTextInputState state{};
+            state.source = _nativeTextInputCacheSource;
+            const Control* const control =
+                _nativeTextInputControl && ! _nativeTextInputControlLifetime.expired() && IsControlInTree(_root.get(), _nativeTextInputControl)
+                    ? _nativeTextInputControl
+                    : nullptr;
+            SharedTextInputAccess::Materialize(control, state);
+            _nativeTextInputCacheText = std::move(state.text);
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
+    }
+    return _nativeTextInputCacheText;
+}
+
+bool ControlHost::TryReadNativeTextInputStateWithoutText(const Control* control, NativeTextInputState& outState) const noexcept
+{
+    const Failure::Scope failureScope;
+    if (! control || control != _nativeTextInputControl || ! _nativeTextInputStateCacheValid)
+        return false;
+    try
+    {
+        // The cache entry's own text member is empty (the document lives in _nativeTextInputCacheText): nothing is copied.
+        outState = _nativeTextInputStateCache;
+        return true;
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+}
+
+bool ControlHost::NativeTextInputCacheShowsSource(const RichText::SourceSnapshot& source) const noexcept
+{
+    if (! _nativeTextInputStateCacheValid)
+        return false;
+    return SameTextInputContent(_nativeTextInputCacheText, _nativeTextInputCacheSource, SharedText(), std::optional<RichText::SourceSnapshot>(source));
+}
+
+bool ControlHost::NativeTextInputSyncedUnchanged(Control* control, uint64_t synchronizationsBefore) const noexcept
+{
+    const Failure::Scope failureScope;
+    if (! control || control != _nativeTextInputControl || ! _nativeTextInputStateCacheValid ||
+        _nativeTextInputEventCounters.synchronizationCount == synchronizationsBefore || _nativeTextInputImeComposing || _nativeTextInputTsfComposing ||
+        _nativeTextInputControlLifetime.expired() || ! IsControlInTree(_root.get(), control) || ! SharedTextInputAccess::Shares(*control))
+        return false;
+    try
+    {
+        SharedTextInputState exported{};
+        if (! SharedTextInputAccess::Export(*control, exported))
+            return false;
+        // Identity only: the same buffer or the same revision. Equal content in a different buffer still synchronizes.
+        const bool sameDocument = exported.source ? (_nativeTextInputCacheSource && _nativeTextInputCacheSource->IsSameRevision(*exported.source))
+                                                  : (exported.text && exported.text == _nativeTextInputCacheText && ! _nativeTextInputCacheSource);
+        // Every other cached field is re-derived exactly as a synchronization would store it (ToNativeTextInputState, which
+        // also reads what a control changes without synchronizing: flow direction and the password reveal state, mode, mask
+        // policy and dot count) and compared field by field, so a skipped synchronization could not have changed the cache.
+        return sameDocument && SameCachedNativeTextInputFields(ToNativeTextInputState(*control, exported), _nativeTextInputStateCache);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+}
+
+void ControlHost::SyncNativeTextInputAfterDispatch(Control* control, uint64_t synchronizationsBefore) noexcept
+{
+    if (! NativeTextInputSyncedUnchanged(control, synchronizationsBefore))
+    {
+        SyncNativeTextInputSession(control);
+        return;
+    }
+    // The cache already holds exactly this state, so a synchronization would change nothing it stores. What depends on more
+    // than the cached state is still refreshed, as a synchronization would: the caret geometry (it follows scrolling, which
+    // the cache does not hold; this also places the system caret) and the text store's own comparison (its viewport). Both
+    // copy nothing.
+    UpdateNativeTextInputCaret();
+    if (control == _nativeTextInputControl && _nativeTextInputTsfTextStore)
+    {
+        wil::com_ptr_nothrow<ITextStoreACP> textStore;
+        if (SUCCEEDED(_nativeTextInputTsfTextStore.query_to(textStore.put())) && textStore)
+            NotifyTextStoreChanged(textStore.get());
+    }
+}
+
+void ControlHost::RaiseNativeTextInputAccessibilityEvents(const NativeTextInputState& previousState,
+                                                          const SharedText& previousText,
+                                                          const std::optional<RichText::SourceSnapshot>& previousSource) noexcept
 {
     Control* const control            = _nativeTextInputControl;
     const std::weak_ptr<int> lifetime = _nativeTextInputControlLifetime;
@@ -1212,7 +1396,7 @@ void ControlHost::RaiseNativeTextInputAccessibilityEvents(const NativeTextInputS
     }
 
     const NativeTextInputState& currentState = _nativeTextInputStateCache;
-    const bool textChanged                   = previousState.text != currentState.text;
+    const bool textChanged                   = ! SameTextInputContent(previousText, previousSource, _nativeTextInputCacheText, _nativeTextInputCacheSource);
     const bool selectionChanged              = NativeTextInputSelectionChanged(previousState, currentState);
     const bool activeTextPositionChanged     = NativeTextInputActiveTextPositionChanged(previousState, currentState);
     const bool compositionChanged            = NativeTextInputCompositionChanged(previousState, currentState);
@@ -1304,6 +1488,9 @@ bool ControlHost::SetNativeTextInputCompositionRange(Control* control,
     }
 
     NativeTextInputState previousState;
+    // Shares the document: a composition range change copies no text.
+    const SharedText previousText                                = _nativeTextInputCacheText;
+    const std::optional<RichText::SourceSnapshot> previousSource = _nativeTextInputCacheSource;
     try
     {
         previousState = _nativeTextInputStateCache;
@@ -1317,17 +1504,72 @@ bool ControlHost::SetNativeTextInputCompositionRange(Control* control,
     _nativeTextInputCompositionStartIndex  = start;
     _nativeTextInputCompositionEndIndex    = end;
     _nativeTextInputCompositionCursorIndex = cursor;
-    _nativeTextInputConversionTargetStartIndex.reset();
-    _nativeTextInputConversionTargetEndIndex.reset();
-    _nativeTextInputCompositionClauseBoundaries.clear();
+    // GUID_PROP_ATTRIBUTE metadata arrives after the edit session that moved the range. Keep the published target and
+    // clauses while they still lie inside the new range; the next attribute read replaces them.
+    const auto insideRange  = [&start, &end](size_t index) noexcept { return start && end && index >= *start && index <= *end; };
+    const bool targetInside = _nativeTextInputConversionTargetStartIndex && _nativeTextInputConversionTargetEndIndex &&
+                              insideRange(*_nativeTextInputConversionTargetStartIndex) && insideRange(*_nativeTextInputConversionTargetEndIndex);
+    if (! targetInside)
+    {
+        _nativeTextInputConversionTargetStartIndex.reset();
+        _nativeTextInputConversionTargetEndIndex.reset();
+    }
+    if (! _nativeTextInputTsfComposing ||
+        ! std::all_of(_nativeTextInputCompositionClauseBoundaries.begin(), _nativeTextInputCompositionClauseBoundaries.end(), insideRange))
+        _nativeTextInputCompositionClauseBoundaries.clear();
     ApplyNativeTextInputCompositionStateToCache();
-    RaiseNativeTextInputAccessibilityEvents(previousState);
+    RaiseNativeTextInputAccessibilityEvents(previousState, previousText, previousSource);
 
     if (_nativeTextInputControlLifetime.expired() || control != _nativeTextInputControl || ! IsControlInTree(_root.get(), control))
     {
         return false;
     }
     UpdateNativeTextInputCaret();
+    return ! _nativeTextInputControlLifetime.expired() && control == _nativeTextInputControl && IsControlInTree(_root.get(), control);
+}
+
+bool ControlHost::SetNativeTextInputCompositionAttributes(Control* control,
+                                                          std::optional<size_t> targetStart,
+                                                          std::optional<size_t> targetEnd,
+                                                          const std::vector<size_t>& clauseBoundaries) noexcept
+{
+    const Failure::Scope failureScope;
+    if (! control || control != _nativeTextInputControl || _nativeTextInputControlLifetime.expired() || ! IsControlInTree(_root.get(), control) ||
+        ! _nativeTextInputStateCacheValid || ! _nativeTextInputTsfComposing || ! _nativeTextInputCompositionStartIndex || ! _nativeTextInputCompositionEndIndex)
+    {
+        return false;
+    }
+    const size_t first   = *_nativeTextInputCompositionStartIndex;
+    const size_t last    = *_nativeTextInputCompositionEndIndex;
+    const auto inside    = [first, last](size_t index) noexcept { return index >= first && index <= last; };
+    const bool hasTarget = targetStart && targetEnd;
+    if (targetStart.has_value() != targetEnd.has_value() || (hasTarget && (*targetEnd < *targetStart || ! inside(*targetStart) || ! inside(*targetEnd))) ||
+        ! std::is_sorted(clauseBoundaries.begin(), clauseBoundaries.end()) || ! std::all_of(clauseBoundaries.begin(), clauseBoundaries.end(), inside))
+    {
+        return false;
+    }
+    if (_nativeTextInputConversionTargetStartIndex == targetStart && _nativeTextInputConversionTargetEndIndex == targetEnd &&
+        _nativeTextInputCompositionClauseBoundaries == clauseBoundaries)
+    {
+        return true;
+    }
+
+    NativeTextInputState previousState;
+    const SharedText previousText                                = _nativeTextInputCacheText;
+    const std::optional<RichText::SourceSnapshot> previousSource = _nativeTextInputCacheSource;
+    try
+    {
+        previousState                               = _nativeTextInputStateCache;
+        _nativeTextInputCompositionClauseBoundaries = clauseBoundaries;
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    _nativeTextInputConversionTargetStartIndex = targetStart;
+    _nativeTextInputConversionTargetEndIndex   = targetEnd;
+    ApplyNativeTextInputCompositionStateToCache();
+    RaiseNativeTextInputAccessibilityEvents(previousState, previousText, previousSource);
     return ! _nativeTextInputControlLifetime.expired() && control == _nativeTextInputControl && IsControlInTree(_root.get(), control);
 }
 
@@ -1357,7 +1599,7 @@ void ControlHost::CancelNativeTextInputImeComposition() noexcept
     {
         TextInputState live;
         if (! control->ExportTextInputState(live) || ! cancellationIsCurrent() || live.text != preview || ! _nativeTextInputStateCacheValid ||
-            _nativeTextInputStateCache.text != preview)
+            GetNativeTextInputCacheText() != preview)
             return;
         // Restore only the preview we own. Application text and current field policy win cancellation.
         base.masked   = live.masked;
@@ -1749,8 +1991,10 @@ bool ControlHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp
             return false;
         }
         beginImeOperation();
-        _nativeTextInputImeCancelledUntilStart   = false;
-        const NativeTextInputState previousState = _nativeTextInputStateCache;
+        _nativeTextInputImeCancelledUntilStart                       = false;
+        const NativeTextInputState previousState                     = _nativeTextInputStateCache;
+        const SharedText previousText                                = _nativeTextInputCacheText;
+        const std::optional<RichText::SourceSnapshot> previousSource = _nativeTextInputCacheSource;
         TextInputState baseState;
         const bool exported = editTarget->ExportTextInputState(baseState);
         if (! imeOperationIsCurrent())
@@ -1759,16 +2003,25 @@ bool ControlHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp
         {
             _nativeTextInputImeBaseState   = baseState;
             _nativeTextInputImePreviewText = baseState.text;
+            // The IMM path keeps its base and preview as strings: for a rich editor, two more whole-document copies beyond
+            // the export's own flatten (which the document counts).
+            if (_nativeTextInputCacheSource)
+            {
+                NoteRichDocumentCopy(baseState.text.size());
+                NoteRichDocumentCopy(baseState.text.size());
+            }
         }
         else
         {
             _nativeTextInputImeBaseState.reset();
+            if (_nativeTextInputCacheSource)
+                NoteRichDocumentCopy(GetNativeTextInputCacheText().size()); // The range state below copies the cached document.
         }
 
         const TextInputState& rangeState                        = _nativeTextInputImeBaseState.has_value()
                                                                       ? _nativeTextInputImeBaseState.value()
                                                                       : TextInputState{
-                                                                            .text                 = _nativeTextInputStateCache.text,
+                                                                            .text                 = std::wstring(GetNativeTextInputCacheText()),
                                                                             .selectionAnchorIndex = _nativeTextInputStateCache.selectionAnchorIndex,
                                                                             .caretIndex           = _nativeTextInputStateCache.caretIndex,
                                                                             .firstVisibleLine     = _nativeTextInputStateCache.firstVisibleLine,
@@ -1786,7 +2039,7 @@ bool ControlHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp
         _nativeTextInputCompositionCursorIndex.reset();
         _nativeTextInputCompositionClauseBoundaries.clear();
         ApplyNativeTextInputCompositionStateToCache();
-        RaiseNativeTextInputAccessibilityEvents(previousState);
+        RaiseNativeTextInputAccessibilityEvents(previousState, previousText, previousSource);
         return imeOperationIsCurrent();
     };
 
@@ -1876,17 +2129,19 @@ bool ControlHost::HandleNativeTextInputImeMessage(UINT msg, WPARAM wp, LPARAM lp
         {
             return false;
         }
-        const NativeTextInputState previousState = _nativeTextInputStateCache;
-        _nativeTextInputImeComposing             = true;
-        _nativeTextInputCompositionStartIndex    = compositionStartIndex;
-        _nativeTextInputCompositionEndIndex      = compositionStartIndex + payload.compositionString.size();
+        const NativeTextInputState previousState                     = _nativeTextInputStateCache;
+        const SharedText previousText                                = _nativeTextInputCacheText;
+        const std::optional<RichText::SourceSnapshot> previousSource = _nativeTextInputCacheSource;
+        _nativeTextInputImeComposing                                 = true;
+        _nativeTextInputCompositionStartIndex                        = compositionStartIndex;
+        _nativeTextInputCompositionEndIndex                          = compositionStartIndex + payload.compositionString.size();
         updateConversionTargetFromAttributes(compositionStartIndex, payload.compositionString.size(), payload);
         _nativeTextInputCompositionCursorIndex =
             payload.hasCursorPosition ? std::optional<size_t>{compositionStartIndex + std::min(payload.cursorPosition, payload.compositionString.size())}
                                       : std::nullopt;
         _nativeTextInputCompositionClauseBoundaries = ResolveImeClauseBoundaries(compositionStartIndex, payload.compositionString.size(), payload);
         ApplyNativeTextInputCompositionStateToCache();
-        RaiseNativeTextInputAccessibilityEvents(previousState);
+        RaiseNativeTextInputAccessibilityEvents(previousState, previousText, previousSource);
         if (! imeOperationIsCurrent())
         {
             return false;
@@ -2091,7 +2346,12 @@ bool ControlHost::TryReadNativeTextInputState(const Control* control, NativeText
 
     try
     {
+        // The public state carries its own copy of the shared document (a rich editor's revision is materialized once for it).
+        ++Detail::Work().text.nativeTextInputStateCopies;
         outState = _nativeTextInputStateCache;
+        outState.text.assign(GetNativeTextInputCacheText());
+        if (_nativeTextInputCacheSource)
+            NoteRichDocumentCopy(outState.text.size());
         return true;
     }
     catch (const std::bad_alloc&)
@@ -2195,6 +2455,9 @@ bool ControlHost::DebugGetNativeTextInputState(NativeTextInputState& outState) c
     }
 
     outState = _nativeTextInputStateCache;
+    outState.text.assign(GetNativeTextInputCacheText());
+    if (_nativeTextInputCacheSource)
+        NoteRichDocumentCopy(outState.text.size());
     return true;
 }
 

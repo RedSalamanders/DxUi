@@ -292,7 +292,13 @@ Receipts record completed offscreen WARP FPS, p50/p95 total frame milliseconds, 
 times, C++ allocation counts with the gated dirty per-frame ceiling (`dirtyAllocationCeilingPerFrame`: 64 in
 Release, 320 in Debug where the debug STL allocates container proxies; clean rounds must allocate nothing), exact
 surface payload and replacement peak, process private bytes and working set
-with sampled peaks and private-byte growth. Source commit/content fingerprint, executable/fixture hashes, compiler,
+with sampled peaks and private-byte growth. A separate FX5 [performance fixture](#performance-fixtures) receipt (written by every Embedded run to
+`.build/test-artifacts/performance-fixtures/`; `DxUi.EmbeddedTests.exe --memory-receipt <report.json>` or
+`--memory-receipt-hardware <report.json>` on demand) records live tracked C++ bytes, the view's retained text layouts
+and bitmaps, the hidden residency delta, control object sizes and, on a hardware adapter, local and non-local video
+memory per phase; it also lists every retained cache with its entries and resident bytes and reports each line of the
+`G13` memory budget as a counter beside its limit, a line over budget naming the plan item that closes it; see
+[memory metrics](../Specs/Core/Core_PerformanceAndResources.md#memory-metrics). Source commit/content fingerprint, executable/fixture hashes, compiler,
 machine, CPU, OS, WARP binary version, active power policy, native architecture and configuration make the comparison
 auditable. The fixture fingerprint covers the minimal benchmark entry (`Embedded.Tests.BenchmarkMain.h`), benchmark, shared
 sample scene and graphics helper; receipts declare `workloadOwner: DxUi`. Functional tests run in a separate
@@ -316,6 +322,230 @@ target refresh rate, 96/144/192 DPI, large lists, text entry, animations, multip
 Record GPU/driver, power policy, resolution, controls/data size, texture/cache totals, p50/p95/p99 frame/input latency,
 CPU time, allocations and bytes, handles, threads, wake-ups and long-run retained memory. Hidden/idle work must stay
 zero. WARP numbers cannot stand in for native graphics hardware, physical input or screen-reader checks.
+
+## Work counters
+
+Timing varies from run to run; work counts do not. The library counts, per thread and in every configuration, the work
+behind a frame: `Paint` executions, controls visited by paint, tick and hit-test walks, preparations, renders, presents
+and pixels repainted, wakes by source, every text layout, text format, geometry, brush, bitmap, effect, layer, command
+list, device context and D3D11 device it creates (and each implicit `DrawText` layout), GDI backdrop captures, UI
+Automation snapshot builds with their records and bytes, and rich-text hover title resolutions with any semantic elements
+a hover lookup scans. The counters are private test instruments, not public API; the
+[performance and resources contract](../Specs/Core/Core_PerformanceAndResources.md#work-counters) defines each one.
+
+A library test measures an action with `Detail::WorkCounterScope` and asserts exact counts, for example that a clean
+frame creates nothing or that an action paints exactly the controls it changed. To count destructions and churn, it installs a
+`Detail::ResourceLifetimeTracker` over storage it allocates beforehand. New library code creates those resources only
+through the counted helpers (`CountedCreateTextLayout(factory, …)` instead of `factory->CreateTextLayout(…)`);
+`Tools/tests/Test-CountedCreation.ps1` fails on a raw call, whatever its receiver.
+
+Plain text a control draws through its host goes through `DrawHostText` (which `DrawCenteredText` uses), not
+`DrawText`: the host keeps one layout per string of its last paint, so an unchanged string is laid out once, not on every
+frame. A hover frame of the ComplexUi fixture (`FX5`) creates no text layout. The
+[contract](../Specs/Core/Core_PerformanceAndResources.md#retained-text-layouts) states the key, the bound, what releases
+the layouts and the oracle that proves they draw exactly what `DrawText` draws; `--test-retained-text-layouts` runs the gate.
+
+```powershell
+# The ComplexUi work receipt: per-frame counters for 40 clean and 40 dirty frames, with the C++ allocation sink.
+.\.build\x64\Release\DxUi.EmbeddedTests.exe --test-work-counters .build\work-counters.json
+```
+
+Today a dirty ComplexUi frame paints all 83 controls and makes 2 C++ allocations in Release (54 at the
+[baseline](../Measurements/PerformanceAndMotion_2026-11-13/W0.1/README.md)); a clean frame makes none and creates nothing
+([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W2.5/WorkCounters/README.md)).
+
+The source matcher proves only that DxUi's source names no raw creation call. Counting COM wrappers, which exist only in
+test executables, check what actually reaches Direct2D and DirectWrite: a test constructs
+`NativeWorkTests::CountingWrappers` (`Tests/Support/Support.Tests.CountingDirect2D.h`) before it creates its
+`GraphicsDevice`, and every Direct2D factory, device and device context and every DirectWrite factory the
+host then creates is a wrapper around the real object. The wrappers count each creation by kind, to compare with the
+helpers' counts (`CompareCreations`), and each Direct2D draw call in `frame.drawCalls`, which stays 0 wherever no wrapper is
+installed. They pass every call through unchanged and change no pixel; they run in dedicated tests, not whole suites.
+
+```powershell
+# The ComplexUi receipt under the counting wrappers, then pixel identity and cost with and without them.
+.\.build\x64\Release\DxUi.EmbeddedTests.exe --test-counting-wrappers .build\wrapped.json .build\wrapper-comparison.json
+```
+
+On that fixture the wrappers see exactly the helpers' creations on every frame, and a dirty frame makes 399 Direct2D draw
+calls, a clean frame none ([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W0.1/CountingWrappers/README.md)).
+
+## Performance fixtures
+
+The performance and motion plan measures fourteen fixtures, `FX1`-`FX14`: idle carets, a `ComboBox` popup, `Grid`
+scrolling, menus, the 83-control ComplexUi scene (`FX5`), accessibility, IME, rich typing, large lists, live resize,
+motion, dense screens, the whole application and a tooltip path. Each is defined once and every measurement runs that one
+definition: work counters and memory per step, timing on hardware, the incremental-versus-fresh pixel oracle and the gates
+of later items. Two runs of a fixture on WARP must record equal counters; the test suites check it.
+
+```powershell
+# Counts and memory of FX5 at 1280x720, 96 DPI, WARP, with provenance; written under Measurements/PerformanceAndMotion_2026-11-13/FX5.
+./performance-fixtures.ps1 -Fixture FX5
+# The 3840x2160, 192 DPI variant on the hardware adapter.
+./performance-fixtures.ps1 -Fixture FX5 -Variant uhd-192dpi -Adapter Hardware
+```
+
+A receipt records every counter per step and phase, the memory fields above, and the source commit, build, compiler, OS,
+adapter and driver, display refresh rate, power plan and how busy the machine was; it changes nothing on the machine.
+Timing stays "not measured" unless it comes from `performance-timing.ps1` on a hardware adapter. Built today: `FX1` (idle carets),
+`FX2` (`ComboBox`), `FX3` (`Grid`), `FX5` and `FX14` (tooltip path). `FX4` (menus: a 4,096-row menu stepped
+100 times with the keyboard, an open/close cycle and ten menu sessions in an embedded-only application) is built but
+interactive only, because a menu takes the foreground: ordinary runs print `FX4: interactive, not run`, and it runs only
+with the person's agreement, under the desktop lease (`test.ps1 -Interactive -Suites Menu -Tests
+TestPerformanceFixtureFx4IsDeterministic`, `performance-fixtures.ps1 -Fixture FX4 -Interactive`). It has not run yet; see
+its [run sheet](../Measurements/PerformanceAndMotion_2026-11-13/FX4/README.md). See the receipts of
+[FX1](../Measurements/PerformanceAndMotion_2026-11-13/FX1/README.md), [FX2](../Measurements/PerformanceAndMotion_2026-11-13/FX2/README.md),
+[FX3](../Measurements/PerformanceAndMotion_2026-11-13/FX3/README.md), [FX5](../Measurements/PerformanceAndMotion_2026-11-13/FX5/README.md) and
+[FX14](../Measurements/PerformanceAndMotion_2026-11-13/FX14/README.md), the
+[contract](../Specs/Testing/Testing_Validation.md#performance-fixtures) and the
+[fixture-author guide](../Tests/README.md#performance-fixtures).
+
+`FX6` (accessibility), `FX7` (IME) and `FX13` (whole application) run on the embedded host. `FX6` counts snapshot
+builds, records and bytes per mutation with no UI Automation client and with one, per `Slider` step and per pixel of a
+`Splitter` drag, and the units a word walk over a 64 Ki-unit document visits; its "client" is the client gate's test
+switch, so no count depends on when events arrive. It also counts copies of its document (`cppLargeAllocations`): since
+the text-provider change (`W8.4`) a word step copies none and the 64-step walk visits about 1,600 units, where every step
+used to rescan the document from its start (2.1 million units). `FX7` composes and commits ten syllables through the production text
+store in a 64 Ki-unit `TextField` and `RichTextEditor`, one TSF lock per step, and counts the copies of the document
+(`cppLargeAllocations`). `FX13` idles an application for 60 simulated seconds with nothing armed and with a focused
+caret, then hides it; its cold start to the first presented frame is a separate real-time receipt. See the
+[FX6](../Measurements/PerformanceAndMotion_2026-11-13/FX6/README.md),
+[FX7](../Measurements/PerformanceAndMotion_2026-11-13/FX7/README.md) and
+[FX13](../Measurements/PerformanceAndMotion_2026-11-13/FX13/README.md) receipts.
+
+## Frame timing on hardware
+
+The five-round receipt above cannot confirm a small speed-up: a clean round lasts about 15 ms and every frame waits
+for its own readback. `performance-timing.ps1` is the method for timing budgets and design decisions
+([contract](../Specs/Core/Core_PerformanceAndResources.md#frame-timing-method)). Each run is a fresh process of at least
+1,000 frames and 2 s that records, per frame, the UI thread's preparation and composition cycles separately and the
+GPU time from D3D11 timestamps read one frame late. Runs are interleaved A/B/B/A in sessions, six metrics are judged
+against a 3% (CPU) or 5% (GPU) equivalence margin, and every result states its minimum detectable effect.
+
+A calibration measures one executable in every slot and records each metric's same-binary noise floor; a metric whose
+floor is not below its margin becomes advisory. It needs a quiet machine with a hardware GPU and takes about three
+minutes for five sessions of FX5 dirty frames, plus the build:
+
+```powershell
+./performance-timing.ps1 -Purpose Calibration -Fixture FX5 -Phase Dirty -OutputDirectory Measurements/PerformanceAndMotion_2026-11-13/W0.2/calibration-FX5-dirty
+# Compare a baseline executable (A) with this tree (B); six sessions are the minimum for a difference:
+./performance-timing.ps1 -Purpose Comparison -Sessions 6 -BaselineExecutable <baseline>/DxUi.EmbeddedTests.exe -CalibrationPath <calibration>/receipt.json
+# Exercise the method without a verdict, for example under load, on WARP or without changing the power scheme:
+./performance-timing.ps1 -Purpose Smoke -Sessions 1 -PowerPlan Keep -IdlePreflight Record
+```
+
+The study switches to the existing High Performance power scheme and restores the original however it ends; it
+never creates a scheme or asks for elevation, so use `-PowerPlan Keep` (smoke only) where the scheme is absent. Only
+the measuring UI thread is pinned, by default to the quietest physical core. A run is admitted on what disturbs the
+measurement, not on total load: every run records whether the measuring thread kept its processor for the whole frame,
+how busy its core's sibling and its own processor were, and how many logical processors other processes kept busy;
+each session also records how busy other processes kept the measured GPU. The measured process keeps its own helper
+threads (Direct2D, DirectWrite, driver workers) off the measuring core through CPU sets (`-CoreIsolation On`, the
+default): a busy sibling makes frames about 50% slower. Under the default provisional rule a session starts when other
+processes keep at most a quarter of the logical processors busy (8 of 32), its four runs' other load may differ by at
+most 2 logical processors (two extra busy ones cost FX5 about 1.6%, four about 3.2%), and a calibration or comparison
+repeats a session whose runs were disturbed, up to three times. A refused preflight waits and retries, and an
+interrupted study resumes from its checkpoint when the same command runs again. `-Admission Legacy10` restores the
+original 10%-of-the-host preflight. Wait for a quiet window rather than stopping other work. A calibration or comparison
+refuses WARP, Debug, short runs and fewer sessions.
+
+The limits come from a load-sensitivity study that measures FX5 quiet against busy logical processors placed away from
+the measuring core (and, optionally, one on its sibling). A partial study (26 of 30 sessions) found two extra busy
+logical processors within the margin and four outside it; the next one brackets that boundary (about nine minutes on a
+quiet machine, resumable):
+
+```powershell
+./performance-timing.ps1 -Purpose LoadSensitivity -Fixture FX5 -Phase Dirty -PreflightSeconds 1 -LoadLevels 0,1,2,3,4 -NoSiblingArm -CalibrationPath Measurements/PerformanceAndMotion_2026-11-13/W0.2/calibration-FX5-dirty/receipt.json -OutputDirectory Measurements/PerformanceAndMotion_2026-11-13/W0.2/load-sensitivity-FX5-dirty
+```
+New fixtures plug in through `FrameTiming::MakeFixture` in `Tests/Embedded/Embedded.Tests.FrameTiming.h`.
+
+A timed dirty frame is always a step the fixture declares. A fixture whose timed phase cannot continue past its last
+step (FX3's wheel reaches the end of the list) has its scene rebuilt, untimed, before the phase starts again; set
+`timedPhaseRepeats` in its definition only when every step past the last does the same work (FX5). A judged dirty run
+refuses frames that prepare nothing, and a metric measured with a clock too coarse for its margin (the UI-thread cycle
+clock moves in steps of about 427 cycles) is advisory, so a 0.00% floor from a constant statistic is never judged.
+
+On the reference machine (RTX 5080, 15 November 2026), FX5 dirty frames judge median preparation cycles (noise floor
+0.55%, minimum detectable effect 0.35%), median submission time (0.55%, 0.39%) and median GPU frame time (1.24%,
+0.63%); median composition cycles, p95 UI-thread cycles and p95 GPU frame time are advisory
+([receipt and table](../Measurements/PerformanceAndMotion_2026-11-13/W0.2/README.md)). FX3 dirty frames (Grid wheel) judge
+median preparation cycles (1.85%, 0.87%) and median submission time (1.69%, 0.83%); its GPU median is advisory there,
+with a 5.64% floor above the 5% margin, as are its composition cycles (a constant ten clock steps) and both p95 values.
+The committed receipt is the retained form, about 43 KB per calibration; the full receipt with every per-frame sample
+stays under `.build/reports/frame-timing/raw/`, and `Tools/Convert-FrameTimingReceipt.ps1` converts an existing full
+receipt, refusing if any judged value would change.
+
+## Trace provider
+
+DxUi writes a [TraceLogging](https://learn.microsoft.com/en-us/windows/win32/tracelogging/trace-logging-about) provider
+that shows, on your own machine and without a debugger, when input arrived, when a frame was requested and why, how long
+preparation took and when the frame was presented. It is the way to measure input-to-present latency and to diagnose a
+stall in the field.
+
+| | |
+| --- | --- |
+| Provider name | `DxUi` |
+| Provider GUID | `{89b12dac-c17b-5934-baa0-35b9f94990e6}` (the EventSource name hash of `DxUi`, so tools that accept `*DxUi` find it) |
+| Level | 4 (information), every event |
+| Keywords | `0x1` input, `0x2` frame, `0x4` wake |
+
+The provider is registered for the life of the process and is dormant until a session enables it. While no session
+listens, each event site is one branch: nothing is allocated, formatted or locked, and the ComplexUi dirty frame still
+makes exactly its 2 Release allocations. With a session listening, events are written on the thread doing the work and
+still allocate nothing ([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W0.8/README.md)). An `EmbeddedHost`
+gains no thread, timer or window. Events carry identifiers, counts, sizes,
+reasons, results and times only: never text, control names, file paths or document content.
+
+### Capture a trace
+
+From an elevated prompt (or as a member of Performance Log Users, the right ETW sessions need):
+
+```powershell
+.\Tools\Capture-DxUiTrace.ps1 -Start     # file-backed session; .build\traces\DxUiTrace.etl unless -OutputPath says otherwise
+# ... run the application and reproduce the stall ...
+.\Tools\Capture-DxUiTrace.ps1 -Stop      # stops the session and decodes the events to DxUiTrace.xml beside the .etl
+```
+
+The tool uses only the inbox `logman` and `tracerpt`; the `.etl` also opens in Windows Performance Analyzer. Without the
+tool: `logman start DxUiTrace -ets -p {89b12dac-c17b-5934-baa0-35b9f94990e6} 0x7 0x4 -o dxui.etl -ct perf`, then
+`logman stop DxUiTrace -ets`.
+
+### Event schema
+
+Every event has `HostId` (UInt32: a process-unique host number, 1-based, assigned on a host's first traced event; 0 for a
+wake that belongs to no single host) and `Qpc` (UInt64: `QueryPerformanceCounter` ticks, the one clock of every event).
+The ETW header adds the process, thread and session time. Fields are written in the order listed.
+
+| Event | Keyword | Fields after `HostId` | Written when |
+| --- | --- | --- | --- |
+| `InputReceived` | input | `Input` (UInt64), `Kind` (UInt8), `Qpc` | A `WindowHost` receives a mouse move, button down or up, wheel, key down or up, or character message; an `EmbeddedHost` receives a `DispatchPointer`, `DispatchKey` or `DispatchCharacter` call. |
+| `FrameRequested` | frame | `Frame` (UInt64), `Input` (UInt64), `Reason` (UInt8), `Qpc` | A `WindowHost` invalidates its window, or an `EmbeddedHost` calls the application's `requestPreparation`; only the first request for each frame. |
+| `PrepareBegin` | frame | `Frame`, `Input`, `Qpc` | A `WindowHost` render pass or an `EmbeddedHost::Prepare` begins painting. |
+| `PrepareEnd` | frame | `Frame`, `Input`, `Result` (HRESULT), `Pixels` (UInt64), `Qpc` | That painting ends; `Pixels` are the device pixels cleared and repainted. |
+| `Present` | frame | `Frame`, `Input`, `Partial` (Boolean), `Result` (HRESULT), `Qpc` | A `WindowHost` `Present` or `Present1` call returns. |
+| `Composite` | frame | `Frame`, `Input`, `Qpc` | An `EmbeddedHost::Composite` draws the prepared surface. |
+| `Wake` | wake | `Source` (UInt8), `Qpc` | DxUi takes a turn on the owner thread because something woke it. |
+| `HitReuseOff` | input | `Qpc` | A host stops reusing pointer hit results: the first control whose hit testing it cannot see attached (`ControlHost::DebugGetFirstUnreportedHitControlType` names it). |
+
+`Kind`: 1 pointer move, 2 pointer down (any button, double clicks included), 3 pointer up, 4 wheel, 5 key down, 6 key up,
+7 character, 8 pointer leave and 9 pointer cancel (embedded dispatch only). `Reason`: 1 invalidate (a control or the host
+changed what the view shows), 2 visibility (shown again), 3 recovery (a device or resource retry), 4 continuation
+(content preparation continues, or the view changed during its own preparation), 5 input wake (embedded: the request an
+input dispatch deferred until it returned). `Source`: 1 animation timer, 2 `EmbeddedHost::AdvanceAnimation`, 3 menu
+submenu-hover timer, 4 `WM_PAINT`.
+
+### Input to present
+
+Numbers are per host. `Input` on `InputReceived` counts that host's inputs; `Frame` counts its preparations. A
+preparation records the newest input the host had received when it began, and its `PrepareEnd`, `Present` and
+`Composite` carry that number. So the present that first shows input *N* is the first `Present` (or `Composite`) on the
+same host whose `Input` is at least *N*, and input-to-present is the difference of their `Qpc` values divided by the
+`QueryPerformanceFrequency`. `FrameRequested.Frame` names the frame that will satisfy the request.
+
+Numbers advance only while something listens, so a second session in the same process continues where the first one
+stopped; compare numbers within one host and one session. An embedded
+application presents on its own schedule: `Composite` is when DxUi drew into the application's target, and the
+application's own present follows it.
 
 ## Dedicated library evidence
 
@@ -439,6 +669,23 @@ and identify ARM64 Menu desktop-capability skips. These functional receipts do n
 close the candidate's separately measured resource regression. A
 [hosted paired benchmark](../Measurements/GridTextOverflow/2026-09-27/paired-hosted/README.md) of the
 merged grid stays within the accepted V11 memory envelope.
+
+## Incremental-versus-fresh oracle
+
+A change that retains more between frames (a layout cache, a retained drawing, a partial frame, skipped paint) proves its
+pixels with the incremental-versus-fresh oracle: two identical scenes run a seeded mutation script, and after every step
+the second drops every retained cache (`DebugDropRetainedStateForTest()` on `ControlHost` or `EmbeddedHost`) before it
+draws. Pixels (exact BGRA on WARP), control bounds and the UI Automation tree must match. Run it natively with
+`./test.ps1 -Configuration Debug -Platform x64 -Suites Rendering -Tests TestNativeIncrementalParityLayout` (or
+`...Interaction`, `...Rich`, `...RichObjects`); the embedded scripts run in the Embedded suite and alone with
+`DxUi.EmbeddedTests.exe --test-incremental-parity`. `richObjects` edits around and inside every prepared rich object
+kind and completes the same decoded pictures in both scenes, so it proves objects carried across edits (W2.3) against a
+fresh preparation of every object. A failure prints the script, seed, step, pixel and control; set
+`DXUI_PARITY_SEED` to that seed to replay it alone. A new cache adds its row to `src/Controls/DxUi.RetainedCaches.cpp`
+(an entries count and a drop) or an exemption with its reason; a new script is one build and one step function beside
+the others in `Tests/Support/Support.Tests.IncrementalParity.h`. Native frames are read from the back buffer of a full
+frame, so native partial frames wait for the presented-image reader; see the
+[validation contract](../Specs/Testing/Testing_Validation.md#incremental-versus-fresh-oracle).
 
 ## Other checks and formatting
 

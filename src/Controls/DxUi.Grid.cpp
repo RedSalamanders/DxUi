@@ -8,6 +8,7 @@
 #include "Support/Diagnostics.h"
 
 #include <algorithm>
+#include <atomic>
 #include <bit>
 #include <chrono>
 #include <cmath>
@@ -494,6 +495,54 @@ enum class CellTextDirection : uint8_t
     return D2D1::RectF(left, trackRect.top, std::min(trackRect.right, left + bandWidthDip), trackRect.bottom);
 }
 
+// Data-path verification (Grid::DebugSetDataPathVerification): the thread's mode and the mismatches it found.
+#if DXUI_ENABLE_DIAGNOSTICS
+thread_local Grid::DataPathVerification g_dataPathVerification = Grid::DataPathVerification::Off;
+thread_local uint64_t g_dataPathMismatches                     = 0u;
+#endif
+
+[[nodiscard]] bool VerifyingDataPaths() noexcept
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    return g_dataPathVerification != Grid::DataPathVerification::Off;
+#else
+    return false;
+#endif
+}
+
+// A cached answer differed from the uncached computation it replaces: a model changed its data without NotifyDataChanged, or the
+// cache is wrong. Counted and logged; Fatal ends the process through the failure policy.
+void ReportDataPathMismatch([[maybe_unused]] std::wstring_view what) noexcept
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++g_dataPathMismatches;
+    Debug::Error(L"Grid data-path verification: {}", what);
+    if (g_dataPathVerification == Grid::DataPathVerification::Fatal)
+    {
+        Failure::FailContract(E_UNEXPECTED);
+    }
+#endif
+}
+
+// Every IGridModel::GetColumn call of the grid goes through here, so the work counters see it.
+[[nodiscard]] GridColumnDesc QueryColumn(const IGridModel& model, size_t columnIndex)
+{
+    ++Detail::Work().lists.gridGetColumnCalls;
+    return model.GetColumn(columnIndex);
+}
+
+[[nodiscard]] bool EqualColumnDesc(const GridColumnDesc& lhs, const GridColumnDesc& rhs) noexcept
+{
+    return lhs.id == rhs.id && lhs.title == rhs.title && lhs.widthDip == rhs.widthDip && lhs.minWidthDip == rhs.minWidthDip && lhs.kind == rhs.kind &&
+           lhs.sortable == rhs.sortable && lhs.multiline == rhs.multiline && lhs.textAlignment == rhs.textAlignment;
+}
+
+[[nodiscard]] bool EqualGroupDesc(const GridGroupDesc& lhs, const GridGroupDesc& rhs) noexcept
+{
+    return lhs.stableId == rhs.stableId && lhs.title == rhs.title && lhs.startRowIndex == rhs.startRowIndex && lhs.rowCount == rhs.rowCount &&
+           lhs.collapsed == rhs.collapsed;
+}
+
 [[nodiscard]] std::vector<GridGroupDesc> CollectOrderedGroups(const IGridModel* model, const GridModelQueryGuard* guard = nullptr)
 {
     std::vector<GridGroupDesc> groups;
@@ -501,6 +550,7 @@ enum class CellTextDirection : uint8_t
     {
         return groups;
     }
+    ++Detail::Work().lists.gridCollectOrderedGroups;
 
     const size_t rowCount = model->GetRowCount();
     if (guard && ! guard->IsCurrent())
@@ -685,6 +735,141 @@ enum class CellTextDirection : uint8_t
     }
 
     return true;
+}
+
+// The visible rows of a group layout answered from its collapsed-row prefix, without listing them. Groups are sanitized
+// (CollectOrderedGroups): ascending, disjoint, nonempty, inside the rows. A row's visible ordinal is its index less the rows
+// of collapsed groups before it; ordinals map back to rows by a binary search over the groups. Each answer equals the one
+// the listed visible rows (CollectVisibleRowIndices) give.
+struct GroupLayoutView
+{
+    std::span<const GridGroupDesc> groups;
+    std::span<const size_t> collapsedBefore; // groups.size() + 1 entries
+    size_t rowCount = 0u;
+
+    // Groups that start at or before the row: the group headers above it.
+    [[nodiscard]] size_t GroupsAtOrBefore(size_t row) const noexcept
+    {
+        return static_cast<size_t>(std::ranges::upper_bound(groups, row, {}, &GridGroupDesc::startRowIndex) - groups.begin());
+    }
+    // Rows of collapsed groups before the row (CountCollapsedRowsBeforeRow).
+    [[nodiscard]] size_t CollapsedBefore(size_t row) const noexcept
+    {
+        const size_t count = GroupsAtOrBefore(row);
+        if (count == 0u)
+        {
+            return 0u;
+        }
+        const GridGroupDesc& group = groups[count - 1u];
+        return collapsedBefore[count - 1u] + (group.collapsed ? (std::min)(group.rowCount, row - group.startRowIndex) : 0u);
+    }
+    // IsRowVisibleByGroupLayout.
+    [[nodiscard]] bool IsVisible(size_t row) const noexcept
+    {
+        const size_t count = GroupsAtOrBefore(row);
+        if (count == 0u)
+        {
+            return true;
+        }
+        const GridGroupDesc& group = groups[count - 1u];
+        return row >= group.startRowIndex + group.rowCount || ! group.collapsed;
+    }
+    [[nodiscard]] bool IsVisibleRow(size_t row) const noexcept
+    {
+        return row < rowCount && IsVisible(row);
+    }
+    [[nodiscard]] size_t VisibleCount() const noexcept
+    {
+        return rowCount - collapsedBefore.back();
+    }
+    // Visible rows before the row: the ordinal of a visible row, and of the first visible row at or after a hidden one.
+    [[nodiscard]] size_t VisibleBefore(size_t row) const noexcept
+    {
+        return row - CollapsedBefore(row);
+    }
+    // The visible row at an ordinal below VisibleCount().
+    [[nodiscard]] size_t RowAtOrdinal(size_t ordinal) const noexcept
+    {
+        // Groups whose first row would have an ordinal at or below this one (those ordinals never decrease).
+        size_t low  = 0u;
+        size_t high = groups.size();
+        while (low < high)
+        {
+            const size_t middle = low + ((high - low) / 2u);
+            if (groups[middle].startRowIndex - collapsedBefore[middle] <= ordinal)
+            {
+                low = middle + 1u;
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+        if (low == 0u)
+        {
+            return ordinal;
+        }
+        const GridGroupDesc& group = groups[low - 1u];
+        const size_t groupOrdinal  = group.startRowIndex - collapsedBefore[low - 1u];
+        if (! group.collapsed && ordinal < groupOrdinal + group.rowCount)
+        {
+            return group.startRowIndex + (ordinal - groupOrdinal);
+        }
+        return ordinal + collapsedBefore[low - 1u] + (group.collapsed ? group.rowCount : 0u);
+    }
+    // The first visible row at or after the row, else the last visible row (FindNearestVisibleRow); nothing when no row is visible.
+    [[nodiscard]] std::optional<size_t> NearestVisibleRow(size_t row) const noexcept
+    {
+        const size_t count = VisibleCount();
+        if (count == 0u)
+        {
+            return std::nullopt;
+        }
+        const size_t ordinal = row < rowCount ? VisibleBefore(row) : count;
+        return RowAtOrdinal((std::min)(ordinal, count - 1u));
+    }
+};
+
+// std::lower_bound and std::upper_bound as the standard library performs them, over the visible ordinals [0, count) by each
+// one's top: the probes and the answer are those of the same search over the listed visible rows, whatever the floats do.
+template <typename TopOf> [[nodiscard]] size_t LowerBoundOrdinal(size_t count, float value, const TopOf& topOf) noexcept
+{
+    size_t first = 0u;
+    while (count > 0u)
+    {
+        const size_t half   = count / 2u;
+        const size_t middle = first + half;
+        if (topOf(middle) < value)
+        {
+            first = middle + 1u;
+            count -= half + 1u;
+        }
+        else
+        {
+            count = half;
+        }
+    }
+    return first;
+}
+
+template <typename TopOf> [[nodiscard]] size_t UpperBoundOrdinal(size_t count, float value, const TopOf& topOf) noexcept
+{
+    size_t first = 0u;
+    while (count > 0u)
+    {
+        const size_t half   = count / 2u;
+        const size_t middle = first + half;
+        if (value < topOf(middle))
+        {
+            count = half;
+        }
+        else
+        {
+            first = middle + 1u;
+            count -= half + 1u;
+        }
+    }
+    return first;
 }
 
 [[nodiscard]] bool EqualRowSelection(std::span<const uint64_t> lhs, std::span<const uint64_t> rhs) noexcept
@@ -908,10 +1093,49 @@ private:
     std::vector<uint64_t> _words;
     unsigned _shift;
 };
+
+// GridSelectionModel epochs: every change of any model's selection takes the next value, so two models with one epoch hold one
+// selection. 0 is the empty selection's.
+constinit std::atomic<uint64_t> g_lastSelectionEpoch{0u};
+
+[[nodiscard]] uint64_t NextSelectionEpoch() noexcept
+{
+    return g_lastSelectionEpoch.fetch_add(1u, std::memory_order_relaxed) + 1u;
+}
 } // namespace
 
+GridSelectionModel::GridSelectionModel(GridSelectionModel&& other) noexcept
+    : _selectedRowIds(std::move(other._selectedRowIds)),
+      _sortedRowIds(std::move(other._sortedRowIds)),
+      _anchorRowId(std::exchange(other._anchorRowId, std::nullopt)),
+      _epoch(std::exchange(other._epoch, 0u))
+{
+    other._selectedRowIds.clear();
+    other._sortedRowIds.clear();
+}
+
+GridSelectionModel& GridSelectionModel::operator=(GridSelectionModel&& other) noexcept
+{
+    if (this != &other)
+    {
+        _selectedRowIds = std::move(other._selectedRowIds);
+        _sortedRowIds   = std::move(other._sortedRowIds);
+        _anchorRowId    = std::exchange(other._anchorRowId, std::nullopt);
+        _epoch          = std::exchange(other._epoch, 0u);
+        other._selectedRowIds.clear();
+        other._sortedRowIds.clear();
+    }
+    return *this;
+}
+
+uint64_t GridSelectionModel::GetEpoch() const noexcept
+{
+    return _epoch;
+}
+
 // Every mutator below leaves _sortedRowIds holding exactly the ids of _selectedRowIds, ascending (and as many times as
-// _selectedRowIds holds each), because IsSelected reads only the sorted copy of a selection above kScanIds ids.
+// _selectedRowIds holds each), because IsSelected reads only the sorted copy of a selection above kScanIds ids. Each also leaves
+// _epoch at 0 for an empty selection, as it was when the ordered ids did not change, and at NextSelectionEpoch() otherwise.
 void GridSelectionModel::Clear() noexcept
 {
     _selectedRowIds.clear();
@@ -919,10 +1143,12 @@ void GridSelectionModel::Clear() noexcept
     GiveBackWastedRoom(_selectedRowIds, 0u);
     GiveBackWastedRoom(_sortedRowIds, 0u);
     _anchorRowId.reset();
+    _epoch = 0u;
 }
 
 void GridSelectionModel::SetSingle(uint64_t rowId) noexcept
 {
+    const uint64_t epoch   = _selectedRowIds.size() == 1u && _selectedRowIds.front() == rowId ? _epoch : NextSelectionEpoch();
     const bool replaceBoth = IsRoomWasted(_selectedRowIds, 1u) || IsRoomWasted(_sortedRowIds, 1u);
     if (! replaceBoth && _selectedRowIds.capacity() >= 1u && _sortedRowIds.capacity() >= 1u)
     {
@@ -930,6 +1156,7 @@ void GridSelectionModel::SetSingle(uint64_t rowId) noexcept
         _selectedRowIds.assign(1u, rowId);
         _sortedRowIds.assign(1u, rowId);
         _anchorRowId = rowId;
+        _epoch       = epoch;
         return;
     }
 
@@ -975,6 +1202,7 @@ void GridSelectionModel::SetSingle(uint64_t rowId) noexcept
         _sortedRowIds.assign(1u, rowId);
     }
     _anchorRowId = rowId;
+    _epoch       = epoch;
 }
 
 void GridSelectionModel::SetAnchor(std::optional<uint64_t> rowId) noexcept
@@ -992,6 +1220,7 @@ void GridSelectionModel::Toggle(uint64_t rowId) noexcept
         _sortedRowIds.erase(sortedIt);
         // The anchor records the last row touched, including a row this toggle removes.
         _anchorRowId = rowId;
+        _epoch       = _selectedRowIds.empty() ? 0u : NextSelectionEpoch();
         return;
     }
 
@@ -1036,6 +1265,7 @@ void GridSelectionModel::Toggle(uint64_t rowId) noexcept
     _selectedRowIds.push_back(rowId);
     _sortedRowIds.insert(insertion, rowId);
     _anchorRowId = rowId;
+    _epoch       = NextSelectionEpoch();
 }
 
 void GridSelectionModel::SetRange(const std::vector<uint64_t>& orderedRowIds, uint64_t anchorRowId, uint64_t currentRowId)
@@ -1050,6 +1280,7 @@ void GridSelectionModel::SetRange(const std::vector<uint64_t>& orderedRowIds, ui
 
     const auto [first, last] = std::minmax(anchorIt, currentIt);
     const size_t count       = static_cast<size_t>(last - first) + 1u;
+    const uint64_t epoch     = std::equal(first, last + 1, _selectedRowIds.begin(), _selectedRowIds.end()) ? _epoch : NextSelectionEpoch();
     if (IsRoomWasted(_selectedRowIds, count) || IsRoomWasted(_sortedRowIds, count))
     {
         // A selection much smaller than the one that left its room behind gets room of its own. Both copies are made beside the
@@ -1061,6 +1292,7 @@ void GridSelectionModel::SetRange(const std::vector<uint64_t>& orderedRowIds, ui
         _selectedRowIds.swap(ordered);
         _sortedRowIds.swap(sorted);
         _anchorRowId = anchorRowId;
+        _epoch       = epoch;
         return;
     }
 
@@ -1071,18 +1303,50 @@ void GridSelectionModel::SetRange(const std::vector<uint64_t>& orderedRowIds, ui
     _sortedRowIds.assign(first, last + 1);
     SortRowIds(_sortedRowIds);
     _anchorRowId = anchorRowId;
+    _epoch       = epoch;
 }
 
 void GridSelectionModel::AssignInOrder(std::span<const uint64_t> visibleRowIds, std::span<const uint64_t> requestedRowIds, std::optional<uint64_t> anchor)
 {
-    // Stage both membership representations before publication. Hash membership and fixed-width radix sorting avoid
-    // inserting each requested ID into the middle of the sorted vector on a large reverse-order selection.
-    std::unordered_set<uint64_t> requested(requestedRowIds.begin(), requestedRowIds.end());
+    // Stage both membership representations before publication. The requested ids ascending, each taken at most once, behind a
+    // table of bits that rules out most visible ids with one load (SelectedIdFilter), answer membership as a hash set did without
+    // a node per id; fixed-width radix sorting avoids inserting each requested id into the middle of the sorted vector on a
+    // large reverse-order selection.
+    std::vector<uint64_t> requested(requestedRowIds.begin(), requestedRowIds.end());
+    SortRowIds(requested);
+    requested.erase(std::ranges::unique(requested).begin(), requested.end());
+    std::vector<uint8_t> taken(requested.size(), uint8_t{0u});
+    const SelectedIdFilter filter(requested);
     std::vector<uint64_t> ordered;
     ordered.reserve((std::min)(visibleRowIds.size(), requestedRowIds.size()));
     for (const uint64_t id : visibleRowIds)
-        if (requested.erase(id) != 0u)
+    {
+        if (! filter.MayContain(id))
+            continue;
+        const auto found = std::ranges::lower_bound(requested, id);
+        if (found == requested.end() || *found != id)
+            continue;
+        uint8_t& once = taken[static_cast<size_t>(found - requested.begin())];
+        if (once == 0u)
+        {
+            once = 1u;
             ordered.push_back(id);
+        }
+    }
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (VerifyingDataPaths())
+    {
+        // The hash-set membership this replaced.
+        std::unordered_set<uint64_t> legacyRequested(requestedRowIds.begin(), requestedRowIds.end());
+        std::vector<uint64_t> legacy;
+        for (const uint64_t id : visibleRowIds)
+            if (legacyRequested.erase(id) != 0u)
+                legacy.push_back(id);
+        if (legacy != ordered)
+            ReportDataPathMismatch(L"AssignInOrder membership differs from the hash set's");
+    }
+#endif
+    const uint64_t epoch = ordered.empty() ? 0u : (ordered == _selectedRowIds ? _epoch : NextSelectionEpoch());
     std::vector<uint64_t> sorted(ordered);
     if (! std::ranges::is_sorted(sorted))
     {
@@ -1107,6 +1371,7 @@ void GridSelectionModel::AssignInOrder(std::span<const uint64_t> visibleRowIds, 
     _selectedRowIds.swap(ordered);
     _sortedRowIds.swap(sorted);
     _anchorRowId = anchor;
+    _epoch       = epoch;
 }
 
 void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRowIds)
@@ -1159,6 +1424,7 @@ void GridSelectionModel::PreserveOrdered(const std::vector<uint64_t>& orderedRow
     }
     _selectedRowIds = std::move(kept);
     _sortedRowIds   = std::move(keptSorted);
+    _epoch          = _selectedRowIds.empty() ? 0u : NextSelectionEpoch();
 }
 
 bool GridSelectionModel::IsSelected(uint64_t rowId) const noexcept
@@ -1212,12 +1478,13 @@ void Grid::SetModel(IGridModel* model) noexcept
     // The assignment is unconditional: the caller may retire the previous borrowed model as soon as this returns.
     _model                            = model;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    std::optional<std::vector<uint64_t>> previousSelection;
+    ReleaseDataCaches(); // The old model's groups and columns.
+    std::optional<SelectionSnapshot> previousSelection;
     bool selectionSnapshotAvailable = true;
     try
     {
         Failure::Scope failureScope;
-        previousSelection.emplace(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        previousSelection.emplace(CaptureSelection());
     }
     catch (const std::bad_alloc&)
     {
@@ -1255,7 +1522,7 @@ void Grid::SetModel(IGridModel* model) noexcept
         Failure::Scope failureScope;
         if (_model)
         {
-            const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+            const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
             if (! guard.IsCurrent())
             {
                 return;
@@ -1305,6 +1572,132 @@ void Grid::SetModel(IGridModel* model) noexcept
     RefreshAccessibilitySnapshot();
 }
 
+std::span<const GridGroupDesc> Grid::ResolveOrderedGroups() const
+{
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return {};
+    }
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), model);
+    const size_t rowCount = model->GetRowCount();
+    if (! guard.IsCurrent())
+    {
+        return {};
+    }
+    const size_t groupCount = model->GetGroupCount();
+    if (! guard.IsCurrent())
+    {
+        return {};
+    }
+    GroupLayoutCache& cache = _groupLayoutCache;
+    if (cache.valid && cache.revision == _modelRevision && cache.rowCount == rowCount && cache.modelGroupCount == groupCount)
+    {
+        if (VerifyingDataPaths())
+        {
+            const std::vector<GridGroupDesc> fresh = CollectOrderedGroups(model, &guard);
+            if (! guard.IsCurrent())
+            {
+                return {};
+            }
+            if (! std::ranges::equal(fresh, cache.groups, EqualGroupDesc))
+            {
+                ReportDataPathMismatch(L"the model's groups changed without NotifyDataChanged");
+            }
+        }
+        return cache.groups;
+    }
+
+    ++Detail::Work().lists.gridGroupLayoutRebuilds;
+    cache.valid                       = false;
+    std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    if (! guard.IsCurrent())
+    {
+        return {};
+    }
+    std::vector<size_t> collapsedRowsBefore;
+    collapsedRowsBefore.reserve(groups.size() + 1u);
+    size_t collapsedRows = 0u;
+    for (const GridGroupDesc& group : groups)
+    {
+        collapsedRowsBefore.push_back(collapsedRows);
+        collapsedRows += group.collapsed ? group.rowCount : 0u;
+    }
+    collapsedRowsBefore.push_back(collapsedRows);
+    cache.groups.swap(groups);
+    cache.collapsedRowsBefore.swap(collapsedRowsBefore);
+    cache.rowCount        = rowCount;
+    cache.modelGroupCount = groupCount;
+    cache.revision        = _modelRevision;
+    cache.valid           = true;
+    return cache.groups;
+}
+
+const GridColumnDesc* Grid::ResolveColumnDesc(size_t columnIndex) const
+{
+    const IGridModel* const model = _model;
+    if (! model)
+    {
+        return nullptr;
+    }
+    const GridModelQueryGuard guard(*this, GetLifetimeToken(), model);
+    const size_t columnCount = model->GetColumnCount();
+    if (! guard.IsCurrent() || columnIndex >= columnCount)
+    {
+        return nullptr;
+    }
+    ColumnDescCache& cache = _columnDescCache;
+    if (cache.valid && cache.revision == _modelRevision && cache.columns.size() == columnCount)
+    {
+        if (VerifyingDataPaths())
+        {
+            const GridColumnDesc fresh = QueryColumn(*model, columnIndex);
+            if (! guard.IsCurrent())
+            {
+                return nullptr;
+            }
+            if (! EqualColumnDesc(fresh, cache.columns[columnIndex]))
+            {
+                ReportDataPathMismatch(L"the model's column description changed without NotifyDataChanged");
+            }
+        }
+        return &cache.columns[columnIndex];
+    }
+
+    ++Detail::Work().lists.gridColumnDescRebuilds;
+    cache.valid = false;
+    std::vector<GridColumnDesc> columns;
+    columns.reserve(columnCount);
+    for (size_t index = 0u; index < columnCount; ++index)
+    {
+        columns.push_back(QueryColumn(*model, index));
+        if (! guard.IsCurrent())
+        {
+            return nullptr;
+        }
+    }
+    cache.columns.swap(columns);
+    cache.revision = _modelRevision;
+    cache.valid    = true;
+    return &cache.columns[columnIndex];
+}
+
+bool Grid::IsCachedGroupLayout(std::span<const GridGroupDesc> groups) const noexcept
+{
+    return _groupLayoutCache.valid && ! groups.empty() && groups.data() == _groupLayoutCache.groups.data() && groups.size() == _groupLayoutCache.groups.size();
+}
+
+void Grid::InvalidateGroupLayout() noexcept
+{
+    _groupLayoutCache.valid = false;
+}
+
+void Grid::ReleaseDataCaches() noexcept
+{
+    _groupLayoutCache = {};
+    _columnDescCache  = {};
+}
+
 void Grid::ReleaseCellTextResources() noexcept
 {
     std::vector<CellTextLayoutCache>().swap(_cellTextLayouts);
@@ -1348,11 +1741,11 @@ void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     IGridModel* const model           = _model;
     GridModelQueryGuard guard(*this, lifetime, model);
-    std::optional<std::vector<uint64_t>> previousSelection;
+    std::optional<SelectionSnapshot> previousSelection;
     try
     {
         Failure::Scope failureScope;
-        previousSelection.emplace(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        previousSelection.emplace(CaptureSelection());
     }
     catch (const std::bad_alloc&)
     {
@@ -1387,16 +1780,7 @@ void Grid::SetSelectionMode(GridSelectionMode mode) noexcept
 
 void Grid::SetVisualMode(GridVisualMode mode) noexcept
 {
-    if (_visualMode == mode)
-    {
-        return;
-    }
-
-    _visualMode = mode;
-    if (ControlHost* host = GetHost())
-    {
-        Invalidate(*host);
-    }
+    Assign(_visualMode, mode, Affects::Paint);
 }
 
 void Grid::SetRowHeightDip(float rowHeightDip) noexcept
@@ -1432,35 +1816,23 @@ void Grid::SetHeaderHeightDip(float headerHeightDip) noexcept
 
 void Grid::SetCellTextFontRole(FontRole fontRole) noexcept
 {
-    if (_cellTextFontRole == fontRole)
-    {
-        return;
-    }
-
-    _cellTextFontRole = fontRole;
-    RequestInvalidate();
+    Assign(_cellTextFontRole, fontRole, Affects::Paint);
 }
 
 void Grid::SetIconSizeDip(float iconSizeDip) noexcept
 {
     const float normalized = std::clamp(iconSizeDip, 1.0f, 64.0f);
+    // Sizes within a hundredth of a DIP draw the same icon: such a size is no change.
     if (std::abs(_iconSizeDip - normalized) <= 0.01f)
     {
         return;
     }
-
-    _iconSizeDip = normalized;
-    RequestInvalidate();
+    Assign(_iconSizeDip, normalized, Affects::Paint);
 }
 
 void Grid::SetLineClamp(uint32_t lineClamp) noexcept
 {
-    const auto normalized = std::max(1u, lineClamp);
-    if (_lineClamp != normalized)
-    {
-        _lineClamp = normalized;
-        RequestInvalidate();
-    }
+    Assign(_lineClamp, std::max(1u, lineClamp), Affects::Paint);
 }
 
 void Grid::OnDensityChanged() noexcept
@@ -1474,8 +1846,7 @@ void Grid::OnDensityChanged() noexcept
 
 void Grid::SetEmptyStateText(std::wstring text)
 {
-    _emptyStateText = std::move(text);
-    RequestInvalidate();
+    Assign(_emptyStateText, std::move(text), Affects::Paint);
 }
 
 std::wstring_view Grid::GetEmptyStateText() const noexcept
@@ -1485,48 +1856,34 @@ std::wstring_view Grid::GetEmptyStateText() const noexcept
 
 void Grid::SetHeaderBusy(bool busy) noexcept
 {
-    if (_headerBusy == busy)
-        return;
-    _headerBusy = busy;
-    RequestInvalidate();
+    Assign(_headerBusy, busy, Affects::Paint);
 }
 
 void Grid::SetHeaderBusyColumn(std::optional<size_t> columnIndex) noexcept
 {
-    if (_headerBusyColumn == columnIndex)
-        return;
-    _headerBusyColumn = columnIndex;
-    RequestInvalidate();
+    Assign(_headerBusyColumn, columnIndex, Affects::Paint);
 }
 
 void Grid::SetSortSpec(const GridSortSpec& sortSpec) noexcept
 {
-    const bool changed = _sortSpec.columnIndex != sortSpec.columnIndex || _sortSpec.direction != sortSpec.direction;
-    if (! changed)
-    {
-        return;
-    }
-
     const GridSortSpec previousSortSpec = _sortSpec;
-    _sortSpec                           = sortSpec;
-    if (previousSortSpec.direction == SortDirection::None && sortSpec.direction == SortDirection::None)
-    {
-        _sortGlyphTransition = {};
-        return;
-    }
-
     // The glyph cross-fades on its host's animation clock; with no host nothing ticks it, so it moves at once.
-    const ControlHost* const host = GetHost();
-    if (! host)
+    Assign(_sortSpec,
+           sortSpec,
+           Affects::Paint,
+           [this, previousSortSpec, sortSpec]() noexcept
     {
-        _sortGlyphTransition = {};
-        return;
-    }
-    _sortGlyphTransition.from        = previousSortSpec;
-    _sortGlyphTransition.to          = sortSpec;
-    _sortGlyphTransition.startTickMs = host->GetAnimationTickMs();
-    _sortGlyphTransition.active      = true;
-    RequestInvalidate();
+        const ControlHost* const host = GetHost();
+        if ((previousSortSpec.direction == SortDirection::None && sortSpec.direction == SortDirection::None) || ! host)
+        {
+            _sortGlyphTransition = {};
+            return;
+        }
+        _sortGlyphTransition.from        = previousSortSpec;
+        _sortGlyphTransition.to          = sortSpec;
+        _sortGlyphTransition.startTickMs = host->GetAnimationTickMs();
+        _sortGlyphTransition.active      = true;
+    });
 }
 
 GridSortSpec Grid::GetSortSpec() const noexcept
@@ -1554,13 +1911,15 @@ void Grid::ApplyColumnLayout(std::span<const GridColumnLayoutEntry> layout) noex
             return;
         }
 
+        // A column layout change reads the model's columns again.
+        _columnDescCache.valid = false;
         std::unordered_map<std::wstring, size_t> modelIndexById;
         modelIndexById.reserve(columnCount);
         std::vector<GridColumnDesc> columns;
         columns.reserve(columnCount);
         for (size_t modelIndex = 0; modelIndex < columnCount; ++modelIndex)
         {
-            GridColumnDesc column = model->GetColumn(modelIndex);
+            GridColumnDesc column = QueryColumn(*model, modelIndex);
             if (! guard.IsCurrent())
             {
                 return;
@@ -1661,7 +2020,7 @@ std::vector<GridColumnLayoutEntry> Grid::CaptureColumnLayout() const
     for (size_t displayIndex = 0; displayIndex < _columnDisplayOrder.size(); ++displayIndex)
     {
         const size_t modelIndex     = _columnDisplayOrder[displayIndex];
-        const GridColumnDesc column = model->GetColumn(modelIndex);
+        const GridColumnDesc column = QueryColumn(*model, modelIndex);
         if (! guard.IsCurrent())
         {
             return {};
@@ -1707,10 +2066,10 @@ void Grid::ApplyGroupLayout(std::span<const GridGroupLayoutEntry> layout) noexce
             return;
         }
 
-        std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        SelectionSnapshot previousSelection   = CaptureSelection();
         std::optional<uint64_t> previousFocus = _currentRowId;
         std::vector<uint64_t> groupIds;
-        const std::vector<GridGroupDesc> initialGroups = CollectOrderedGroups(model, &guard);
+        const std::span<const GridGroupDesc> initialGroups = ResolveOrderedGroups();
         if (! guard.IsCurrent())
         {
             return;
@@ -1733,7 +2092,7 @@ void Grid::ApplyGroupLayout(std::span<const GridGroupLayoutEntry> layout) noexce
             {
                 continue;
             }
-            const std::vector<GridGroupDesc> currentGroups = CollectOrderedGroups(model, &guard);
+            const std::span<const GridGroupDesc> currentGroups = ResolveOrderedGroups();
             if (! guard.IsCurrent())
             {
                 return;
@@ -1757,21 +2116,22 @@ void Grid::ApplyGroupLayout(std::span<const GridGroupLayoutEntry> layout) noexce
                 Failure::FailUnexpected();
             }
             // A delegate usually publishes each toggle with NotifyDataChanged, which also reports the selection it
-            // changed. The next group is found again in the published model.
+            // changed. The next group is found again in the published model, read afresh in case it did not publish.
             if (! guard.ResumeAfterCallback())
             {
                 return;
             }
-            previousSelection.assign(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-            previousFocus = _currentRowId;
-            changed       = true;
+            InvalidateGroupLayout();
+            previousSelection = CaptureSelection();
+            previousFocus     = _currentRowId;
+            changed           = true;
         }
 
         if (! changed)
         {
             return;
         }
-        const std::vector<GridGroupDesc> updatedGroups = CollectOrderedGroups(model, &guard);
+        const std::span<const GridGroupDesc> updatedGroups = ResolveOrderedGroups();
         if (! guard.IsCurrent())
         {
             return;
@@ -1819,7 +2179,7 @@ std::vector<GridGroupLayoutEntry> Grid::CaptureGroupLayout() const
         return layout;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
     if (! guard.IsCurrent())
     {
         return {};
@@ -1853,11 +2213,11 @@ void Grid::NotifyDataChanged()
         {
             return;
         }
-        const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        const SelectionSnapshot previousSelection   = CaptureSelection();
         const std::optional<uint64_t> previousFocus = _currentRowId;
         if (hasGroups)
         {
-            const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+            const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
             if (! guard.IsCurrent())
             {
                 return;
@@ -1881,7 +2241,7 @@ void Grid::NotifyDataChanged()
             bool changed = count != _columnIds.size();
             for (size_t index = 0u; ! changed && index < count; ++index)
             {
-                const auto column = model->GetColumn(index);
+                const auto column = QueryColumn(*model, index);
                 if (! guard.IsCurrent())
                     return;
                 changed = column.id != _columnIds[index];
@@ -1987,7 +2347,7 @@ GridVisibleWorkMetrics Grid::GetVisibleWorkMetrics() const
         return metrics;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
     if (! guard.IsCurrent())
     {
         return metrics;
@@ -2094,7 +2454,7 @@ GridCellLayoutMetrics Grid::GetCellLayoutMetrics(const ControlHost& host, size_t
         return metrics;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
     if (! guard.IsCurrent())
     {
         return metrics;
@@ -2104,13 +2464,15 @@ GridCellLayoutMetrics Grid::GetCellLayoutMetrics(const ControlHost& host, size_t
     {
         return metrics;
     }
-    const float rowTopDip           = bodyRect.top + GetRowTopDip(groups, rowIndex) - _verticalScrollDip;
-    const D2D1_RECT_F cellRect      = D2D1::RectF(cellLeft, rowTopDip, cellLeft + _columnWidths[columnIndex], rowTopDip + _rowHeightDip);
-    const GridColumnDesc columnDesc = model->GetColumn(columnIndex);
-    if (! guard.IsCurrent())
+    const float rowTopDip                    = bodyRect.top + GetRowTopDip(groups, rowIndex) - _verticalScrollDip;
+    const D2D1_RECT_F cellRect               = D2D1::RectF(cellLeft, rowTopDip, cellLeft + _columnWidths[columnIndex], rowTopDip + _rowHeightDip);
+    const GridColumnDesc* const cachedColumn = ResolveColumnDesc(columnIndex);
+    if (! guard.IsCurrent() || ! cachedColumn)
     {
         return metrics;
     }
+    // The cache keeps its storage until a refill, which nothing below performs.
+    const GridColumnDesc& columnDesc = *cachedColumn;
     GridCellData cellData;
     ResetGridCellData(cellData);
     model->GetCellData(rowIndex, columnIndex, cellData);
@@ -2136,7 +2498,7 @@ size_t Grid::GetVisibleRowCount() const
         return 0u;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
     if (! guard.IsCurrent())
     {
         return 0u;
@@ -2172,7 +2534,7 @@ std::optional<size_t> Grid::GetVisibleRowAt(size_t visibleRowIndex) const
         return std::nullopt;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
     if (! guard.IsCurrent())
     {
         return std::nullopt;
@@ -2219,7 +2581,7 @@ std::optional<size_t> Grid::FindVisibleRowOrdinal(size_t rowIndex) const
     {
         return std::nullopt;
     }
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
     if (! guard.IsCurrent())
     {
         return std::nullopt;
@@ -2274,7 +2636,7 @@ void Grid::EnsureRowVisible(size_t rowIndex) noexcept
             return;
         }
 
-        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
         if (! guard.IsCurrent())
         {
             return;
@@ -2629,7 +2991,7 @@ std::optional<D2D1_RECT_F> Grid::GetVisibleRowRect(size_t rowIndex) const
         return std::nullopt;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
     if (! guard.IsCurrent())
     {
         return std::nullopt;
@@ -2700,7 +3062,7 @@ std::optional<D2D1_RECT_F> Grid::GetVisibleCellRect(size_t rowIndex, size_t colu
         return std::nullopt;
     }
 
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
     if (! guard.IsCurrent())
     {
         return std::nullopt;
@@ -3062,7 +3424,7 @@ bool Grid::RequestAddRowSelection(size_t rowIndex)
     {
         return false;
     }
-    const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+    const SelectionSnapshot previousSelection = CaptureSelection();
     if (_selectionMode == GridSelectionMode::Single)
     {
         if (_selectionModel.GetCount() != 0u && ! _selectionModel.IsSelected(rowId))
@@ -3135,8 +3497,8 @@ bool Grid::RequestRemoveRowSelection(size_t rowIndex)
         return true;
     }
 
-    const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-    const auto previousAnchor = _selectionModel.GetAnchor();
+    const SelectionSnapshot previousSelection = CaptureSelection();
+    const auto previousAnchor                 = _selectionModel.GetAnchor();
     if (_selectionMode == GridSelectionMode::Single || _selectionModel.GetCount() <= 1u)
     {
         _selectionModel.Clear();
@@ -3239,7 +3601,7 @@ bool Grid::RequestFocusCell(size_t rowIndex, size_t columnIndex)
         return false;
     }
     std::wstring columnId;
-    if (! TryControlCallback([&] { columnId = model->GetColumn(columnIndex).id; }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { columnId = QueryColumn(*model, columnIndex).id; }) || ! guard.IsCurrent())
     {
         return false;
     }
@@ -3258,7 +3620,7 @@ bool Grid::RequestFocusCell(size_t rowIndex, size_t columnIndex)
         return false;
     }
     std::wstring currentColumnId;
-    if (! TryControlCallback([&] { currentColumnId = model->GetColumn(columnIndex).id; }) || ! guard.IsCurrent() || currentColumnId != columnId)
+    if (! TryControlCallback([&] { currentColumnId = QueryColumn(*model, columnIndex).id; }) || ! guard.IsCurrent() || currentColumnId != columnId)
     {
         return false;
     }
@@ -3340,19 +3702,20 @@ bool Grid::RevealColumn(size_t columnIndex)
     return true;
 }
 
-std::optional<size_t> Grid::FindKeyboardStartRow(std::span<const size_t> visibleRows) const
+std::optional<size_t> Grid::FindKeyboardStartRow(std::span<const GridGroupDesc> groups) const
 {
     const Failure::Scope outerFailureScope;
     const IGridModel* const model = _model;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), model);
-    if (! model)
+    if (! model || (! groups.empty() && ! IsCachedGroupLayout(groups)))
     {
         return std::nullopt;
     }
+    const GroupLayoutView layout{groups, _groupLayoutCache.collapsedRowsBefore, _groupLayoutCache.rowCount};
     const auto visibleRowOf = [&](uint64_t rowId) -> std::optional<size_t>
     {
         const std::optional<size_t> row = model->FindRowByStableId(rowId);
-        if (! guard.IsCurrent() || ! row || std::ranges::find(visibleRows, *row) == visibleRows.end())
+        if (! guard.IsCurrent() || ! row || ! layout.IsVisibleRow(*row))
         {
             return std::nullopt;
         }
@@ -3608,7 +3971,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
         measured.reset();
         ++_debugTextLayoutCreations;
         _debugTextLayoutShapedUnits += measuredLength;
-        if (FAILED(factory->CreateTextLayout(content.data(), static_cast<UINT32>(measuredLength), format, width, height, measured.put())) ||
+        if (FAILED(CountedCreateTextLayout(factory, content.data(), static_cast<UINT32>(measuredLength), format, width, height, measured.put())) ||
             FAILED(measured->GetMetrics(&metrics)))
             return nullptr;
         if (measuredLength < paragraphsEnd)
@@ -3753,7 +4116,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareCellTextLayout(
     {
         ++_debugTextLayoutCreations;
         _debugTextLayoutShapedUnits += text.size();
-        return SUCCEEDED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, cache.paintHeight, layout.put())) &&
+        return SUCCEEDED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format, width, cache.paintHeight, layout.put())) &&
                SUCCEEDED(layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP)) && trim(*layout.get());
     };
     if (visibleText.size() > kMaxRetainedCellTextUnits)
@@ -3862,7 +4225,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareSingleLineCellLayout(const Control
             DWRITE_TEXT_METRICS metrics{};
             ++_debugTextLayoutCreations;
             _debugTextLayoutShapedUnits += measured;
-            if (FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(measured), format, width, height, layout.put())) ||
+            if (FAILED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(measured), format, width, height, layout.put())) ||
                 FAILED(layout->GetMetrics(&metrics)))
                 return nullptr;
             if (metrics.width > width)
@@ -3878,7 +4241,7 @@ const Grid::CellTextLayoutCache* Grid::PrepareSingleLineCellLayout(const Control
     {
         ++_debugTextLayoutCreations;
         _debugTextLayoutShapedUnits += text.size();
-        if (FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.put())))
+        if (FAILED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.put())))
             return nullptr;
     }
 
@@ -4088,12 +4451,12 @@ void Grid::Paint(ControlHost& host) const
             return;
         }
 
-        _cachedGroups = CollectOrderedGroups(paintModel, &guard);
+        const std::span<const GridGroupDesc> paintGroups = ResolveOrderedGroups();
         if (! guard.IsCurrent())
         {
             return;
         }
-        const D2D1_RECT_F bodyRect   = GetContentRect(_cachedGroups);
+        const D2D1_RECT_F bodyRect   = GetContentRect(paintGroups);
         const D2D1_RECT_F headerRect = D2D1::RectF(bodyRect.left, bounds.top, bodyRect.right, bounds.top + _headerHeightDip);
         if (auto* brush = host.GetSolidBrush(surfaceStyle.headerFill))
         {
@@ -4108,7 +4471,7 @@ void Grid::Paint(ControlHost& host) const
         bool needsAnimation                                 = false;
         const std::optional<size_t> busyHeaderColumn        = ResolveHeaderBusyColumn();
         const VisibleColumnSpan visibleColumns              = ComputeVisibleColumnSpan(bodyRect.right);
-        const std::vector<VisibleBodyItem> visibleBodyItems = BuildVisibleBodyItems(_cachedGroups, bodyRect);
+        const std::vector<VisibleBodyItem> visibleBodyItems = BuildVisibleBodyItems(paintGroups, bodyRect);
         if (! guard.IsCurrent())
         {
             return;
@@ -4152,11 +4515,16 @@ void Grid::Paint(ControlHost& host) const
                 }
             }
 
-            const GridColumnDesc column = paintModel->GetColumn(columnIndex);
+            const GridColumnDesc* const columnDesc = ResolveColumnDesc(columnIndex);
             if (! guard.IsCurrent())
             {
                 return;
             }
+            if (! columnDesc)
+            {
+                continue;
+            }
+            const GridColumnDesc& column = *columnDesc;
             const GridSortGlyphVisualState sortGlyphState =
                 ResolveSortGlyphVisualState(theme, columnIndex, reducedMotion ? _sortGlyphTransition.startTickMs : animationTickMs);
             const bool drawBusyGlyph = busyHeaderColumn && busyHeaderColumn.value() == columnIndex;
@@ -4237,7 +4605,7 @@ void Grid::Paint(ControlHost& host) const
 
             if (item.kind == VisibleBodyItem::Kind::GroupHeader)
             {
-                const GridGroupDesc& group = _cachedGroups[item.groupIndex];
+                const GridGroupDesc& group = paintGroups[item.groupIndex];
                 if (auto* brush = host.GetSolidBrush(headerStyle.groupFill))
                 {
                     dc->FillRectangle(visibleItemRect, brush);
@@ -4432,12 +4800,16 @@ void Grid::Paint(ControlHost& host) const
                 }
                 else
                 {
-                    const GridColumnDesc columnDesc = paintModel->GetColumn(columnIndex);
+                    const GridColumnDesc* const columnDesc = ResolveColumnDesc(columnIndex);
                     if (! guard.IsCurrent())
                     {
                         return;
                     }
-                    const GridCellLayoutMetrics layout = ComputeCellLayoutMetrics(host, cellRect, columnDesc, cellData);
+                    if (! columnDesc)
+                    {
+                        continue;
+                    }
+                    const GridCellLayoutMetrics layout = ComputeCellLayoutMetrics(host, cellRect, *columnDesc, cellData);
                     GridResolvedCellVisuals cellVisuals{};
                     if (layout.hasCheckbox || layout.hasSwatch || layout.hasBadge)
                     {
@@ -4562,7 +4934,7 @@ void Grid::Paint(ControlHost& host) const
 
         if (needsAnimation)
         {
-            host.RequestAnimation();
+            host.RequestAnimation(*this);
         }
 
         const D2D1_RECT_F verticalScrollbar = GetVerticalScrollbarRect();
@@ -4653,6 +5025,21 @@ size_t Grid::DebugGetTextLayoutEntryLimit() const noexcept
     return ResolveCellTextLayoutEntryLimit(_debugTextLayoutEntryLimit);
 }
 
+void Grid::DebugSetDataPathVerification(DataPathVerification mode) noexcept
+{
+    g_dataPathVerification = mode;
+}
+
+Grid::DataPathVerification Grid::DebugGetDataPathVerification() noexcept
+{
+    return g_dataPathVerification;
+}
+
+uint64_t Grid::DebugGetDataPathMismatches() noexcept
+{
+    return g_dataPathMismatches;
+}
+
 void Grid::DebugSetScrollOffsets(float verticalScrollDip, float horizontalScrollDip) noexcept
 {
     _verticalScrollDip   = verticalScrollDip;
@@ -4734,7 +5121,7 @@ bool Grid::HasAnimatedVisibleCells() const
             return false;
         }
 
-        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
         if (! guard.IsCurrent())
         {
             return false;
@@ -4881,11 +5268,13 @@ bool Grid::UpdateScrollbarHotState(const HitInfo& hit) noexcept
 void Grid::SyncScrollbarAnimation(ControlHost& host) noexcept
 {
     UpdateScrollbarAnimation(host,
+                             *this,
                              _verticalScrollbarAnimation,
                              _verticalScrollbarHotPart == ScrollbarHotPart::Track,
                              _verticalScrollbarHotPart == ScrollbarHotPart::Thumb,
                              _dragVerticalThumb);
     UpdateScrollbarAnimation(host,
+                             *this,
                              _horizontalScrollbarAnimation,
                              _horizontalScrollbarHotPart == ScrollbarHotPart::Track,
                              _horizontalScrollbarHotPart == ScrollbarHotPart::Thumb,
@@ -5033,13 +5422,13 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         {
             return true;
         }
-        const float delta = (IsRightToLeft() ? -1.0f : 1.0f) * (point.x - _resizeOriginXDip);
-        GridColumnDesc column{};
-        if (! TryControlCallback([&] { column = model->GetColumn(_resizeColumn.value()); }) || ! guard.IsCurrent())
+        const float delta            = (IsRightToLeft() ? -1.0f : 1.0f) * (point.x - _resizeOriginXDip);
+        const GridColumnDesc* column = nullptr;
+        if (! TryControlCallback([&] { column = ResolveColumnDesc(_resizeColumn.value()); }) || ! guard.IsCurrent() || ! column)
         {
             return true;
         }
-        _columnWidths[_resizeColumn.value()] = std::max(_resizeInitialWidthDip + delta, column.minWidthDip);
+        _columnWidths[_resizeColumn.value()] = std::max(_resizeInitialWidthDip + delta, column->minWidthDip);
         ++_debugResizeMoveCount;
         _debugLastResizeDeltaDip = delta;
         _debugLastResizeWidthDip = _columnWidths[_resizeColumn.value()];
@@ -5158,13 +5547,14 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         _hoveredRow    = hit.rowIndex;
         _hoveredColumn = hit.columnIndex;
         GridCellData cellData{};
-        GridColumnDesc columnDesc{};
+        const GridColumnDesc* cachedColumn = nullptr;
         if (! model || ! TryControlCallback([&] { model->GetCellData(hit.rowIndex, hit.columnIndex, cellData); }) || ! guard.IsCurrent() ||
-            ! TryControlCallback([&] { columnDesc = model->GetColumn(hit.columnIndex); }) || ! guard.IsCurrent())
+            ! TryControlCallback([&] { cachedColumn = ResolveColumnDesc(hit.columnIndex); }) || ! guard.IsCurrent() || ! cachedColumn)
         {
             return false;
         }
-        const D2D1_RECT_F contentRect = GetContentRect();
+        const GridColumnDesc& columnDesc = *cachedColumn;
+        const D2D1_RECT_F contentRect    = GetContentRect();
         if (! guard.IsCurrent())
         {
             return false;
@@ -5200,12 +5590,13 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
     }
     else if (hit.zone == HitZone::Header)
     {
-        _hoveredColumn = hit.columnIndex;
-        GridColumnDesc column{};
-        if (! model || ! TryControlCallback([&] { column = model->GetColumn(hit.columnIndex); }) || ! guard.IsCurrent())
+        _hoveredColumn                     = hit.columnIndex;
+        const GridColumnDesc* cachedColumn = nullptr;
+        if (! model || ! TryControlCallback([&] { cachedColumn = ResolveColumnDesc(hit.columnIndex); }) || ! guard.IsCurrent() || ! cachedColumn)
         {
             return false;
         }
+        const GridColumnDesc& column  = *cachedColumn;
         const D2D1_RECT_F contentRect = GetContentRect();
         if (! guard.IsCurrent())
         {
@@ -5330,23 +5721,26 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         case HitZone::GroupHeader:
             if (! rightButton && _delegate)
             {
-                std::vector<GridGroupDesc> groups;
-                if (! TryControlCallback([&] { groups = CollectOrderedGroups(model, &guard); }) || ! guard.IsCurrent())
+                std::span<const GridGroupDesc> groups;
+                if (! TryControlCallback([&] { groups = ResolveOrderedGroups(); }) || ! guard.IsCurrent())
                 {
                     return true;
                 }
                 if (hit.groupIndex < groups.size())
                 {
-                    // The delegate usually publishes the toggle with NotifyDataChanged before it returns.
-                    const GridGroupDesc& group = groups[hit.groupIndex];
-                    if (! TryControlCallback([&] { _delegate->OnGridGroupToggled(*this, group.stableId, ! group.collapsed); }) || ! guard.ResumeAfterCallback())
+                    // The delegate usually publishes the toggle with NotifyDataChanged before it returns; one that does not
+                    // has its toggle read afresh all the same.
+                    const uint64_t groupId = groups[hit.groupIndex].stableId;
+                    const bool collapse    = ! groups[hit.groupIndex].collapsed;
+                    if (! TryControlCallback([&] { _delegate->OnGridGroupToggled(*this, groupId, collapse); }) || ! guard.ResumeAfterCallback())
                     {
                         return true;
                     }
-                    const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+                    InvalidateGroupLayout();
+                    const SelectionSnapshot previousSelection   = CaptureSelection();
                     const std::optional<uint64_t> previousFocus = _currentRowId;
-                    std::vector<GridGroupDesc> updatedGroups;
-                    if (! TryControlCallback([&] { updatedGroups = CollectOrderedGroups(model, &guard); }) || ! guard.IsCurrent())
+                    std::span<const GridGroupDesc> updatedGroups;
+                    if (! TryControlCallback([&] { updatedGroups = ResolveOrderedGroups(); }) || ! guard.IsCurrent())
                     {
                         return true;
                     }
@@ -5409,7 +5803,7 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
                     }
                     clickedCheckbox = layoutMetrics.hasCheckbox && PointInRect(layoutMetrics.checkboxRect, point);
                     if (clickedCheckbox &&
-                        (! TryControlCallback([&] { clickedCheckboxColumnId = modelBeforeSelect->GetColumn(hit.columnIndex).id; }) || ! guard.IsCurrent()))
+                        (! TryControlCallback([&] { clickedCheckboxColumnId = QueryColumn(*modelBeforeSelect, hit.columnIndex).id; }) || ! guard.IsCurrent()))
                     {
                         return true;
                     }
@@ -5439,7 +5833,7 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
                         [&]
                 {
                     if (hit.columnIndex < modelBeforeSelect->GetColumnCount())
-                        columnId = modelBeforeSelect->GetColumn(hit.columnIndex).id;
+                        columnId = QueryColumn(*modelBeforeSelect, hit.columnIndex).id;
                 }) ||
                     ! guard.IsCurrent())
                 {
@@ -5636,7 +6030,7 @@ bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         return true;
     }
     GridColumnDesc clickedColumn{};
-    if (! TryControlCallback([&] { clickedColumn = modelBeforeSelect->GetColumn(hit.columnIndex); }) || ! guard.IsCurrent())
+    if (! TryControlCallback([&] { clickedColumn = QueryColumn(*modelBeforeSelect, hit.columnIndex); }) || ! guard.IsCurrent())
     {
         return true;
     }
@@ -5654,7 +6048,7 @@ bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
             size_t count = 0u;
             GridColumnDesc column{};
             if (! TryControlCallback([&] { count = modelBeforeSelect->GetColumnCount(); }) || ! guard.IsCurrent() || hit.columnIndex >= count ||
-                ! TryControlCallback([&] { column = modelBeforeSelect->GetColumn(hit.columnIndex); }) || ! guard.IsCurrent())
+                ! TryControlCallback([&] { column = QueryColumn(*modelBeforeSelect, hit.columnIndex); }) || ! guard.IsCurrent())
             {
                 return std::nullopt;
             }
@@ -5668,7 +6062,7 @@ bool Grid::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
         for (size_t columnIndex = 0u; columnIndex < count; ++columnIndex)
         {
             GridColumnDesc column{};
-            if (! TryControlCallback([&] { column = modelBeforeSelect->GetColumn(columnIndex); }) || ! guard.IsCurrent())
+            if (! TryControlCallback([&] { column = QueryColumn(*modelBeforeSelect, columnIndex); }) || ! guard.IsCurrent())
             {
                 return std::nullopt;
             }
@@ -5887,15 +6281,38 @@ bool Grid::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelD
         return false;
     }
 
-    const float beforeScrollDip = _verticalScrollDip;
-    _verticalScrollDip -= (wheelDelta / WHEEL_DELTA) * (_rowHeightDip * 3.0f);
-    ClampScrollOffsets();
-    if (std::fabs(_verticalScrollDip - beforeScrollDip) <= kVisibleBoundaryEpsilonDip)
+    const D2D1_RECT_F viewport = GetContentRect();
+    if (! guard.IsCurrent())
     {
         return false;
     }
+    const float rowHeightDip = std::max(1.0f, _rowHeightDip);
+    const size_t pageRows    = std::max<size_t>(1u, static_cast<size_t>(std::floor(std::max(0.0f, viewport.bottom - viewport.top) / rowHeightDip)));
+    const float lines        = static_cast<float>(ResolveWheelScrollLineCount(pageRows));
 
-    Invalidate(host);
+    // An offset the wheel did not draw (keys, the scrollbar, a reveal, a model or size change) restarts the wheel from it.
+    if (! _wheelTargetScrollDip || _verticalScrollDip != _wheelDrawnScrollDip)
+    {
+        _wheelTargetScrollDip = _verticalScrollDip;
+    }
+    const float target = std::clamp(*_wheelTargetScrollDip - (wheelDelta / WHEEL_DELTA) * (rowHeightDip * lines), 0.0f, extent);
+    if (std::fabs(target - *_wheelTargetScrollDip) <= kVisibleBoundaryEpsilonDip)
+    {
+        // At either end, or a setting of no lines: an enclosing scroller may take the wheel.
+        return false;
+    }
+    _wheelTargetScrollDip = target;
+
+    // The row boundary nearest to the target is drawn: the normalization floors, so start half a row further.
+    // W5.7 replaces this row snapping with pixel scrolling.
+    const float beforeScrollDip = _verticalScrollDip;
+    _verticalScrollDip          = target + (rowHeightDip * 0.5f);
+    ClampScrollOffsets();
+    _wheelDrawnScrollDip = _verticalScrollDip;
+    if (std::fabs(_verticalScrollDip - beforeScrollDip) > kVisibleBoundaryEpsilonDip)
+    {
+        Invalidate(host);
+    }
     return true;
 }
 
@@ -5929,37 +6346,41 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 
     if (command)
         return virtualKey == 'A' ? OnSelectAll(host) : OnCopy(host);
-    std::vector<GridGroupDesc> groups;
-    if (! TryControlCallback([&] { groups = CollectOrderedGroups(model, &guard); }) || ! guard.IsCurrent())
+    // The visible rows are answered from the cached group layout (GroupLayoutView), never listed: a key allocates nothing.
+    std::span<const GridGroupDesc> groups;
+    if (! TryControlCallback([&] { groups = ResolveOrderedGroups(); }) || ! guard.IsCurrent())
     {
         return false;
     }
-    const std::vector<size_t> visibleRows = CollectVisibleRowIndices(rowCount, groups);
-    const auto toggleGroupFromKeyboard    = [&](size_t groupIndex, bool collapsed)
+    const GroupLayoutView layout{groups, _groupLayoutCache.collapsedRowsBefore, _groupLayoutCache.rowCount};
+    const size_t visibleCount          = layout.VisibleCount();
+    const auto toggleGroupFromKeyboard = [&](size_t groupIndex, bool collapsed)
     {
         if (! _delegate || groupIndex >= groups.size())
         {
             return false;
         }
 
-        const GridGroupDesc& group = groups[groupIndex];
-        if (group.collapsed == collapsed)
+        if (groups[groupIndex].collapsed == collapsed)
         {
             return true;
         }
 
-        // The delegate usually publishes the toggle with NotifyDataChanged before it returns.
-        if (! TryControlCallback([&] { _delegate->OnGridGroupToggled(*this, group.stableId, collapsed); }) || ! guard.ResumeAfterCallback())
+        // The delegate usually publishes the toggle with NotifyDataChanged before it returns; one that does not has its toggle
+        // read afresh all the same.
+        const uint64_t groupId = groups[groupIndex].stableId;
+        if (! TryControlCallback([&] { _delegate->OnGridGroupToggled(*this, groupId, collapsed); }) || ! guard.ResumeAfterCallback())
         {
             return true;
         }
 
-        std::vector<GridGroupDesc> updatedGroups;
-        if (! TryControlCallback([&] { updatedGroups = CollectOrderedGroups(model, &guard); }) || ! guard.IsCurrent())
+        InvalidateGroupLayout();
+        std::span<const GridGroupDesc> updatedGroups;
+        if (! TryControlCallback([&] { updatedGroups = ResolveOrderedGroups(); }) || ! guard.IsCurrent())
         {
             return true;
         }
-        const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        const SelectionSnapshot previousSelection   = CaptureSelection();
         const std::optional<uint64_t> previousFocus = _currentRowId;
         ReconcileSelectionForVisibleRows(updatedGroups);
         if (! guard.IsCurrent())
@@ -6018,7 +6439,7 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         return true;
     };
 
-    if (visibleRows.empty())
+    if (visibleCount == 0u)
     {
         if (groups.empty() || ModifiersContainAlt(modifiers) || ModifiersContainCtrl(modifiers) || ModifiersContainShift(modifiers))
         {
@@ -6061,12 +6482,12 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
     }
 
     // The keys start from the focused row, else from the last selected row, else from the first row.
-    const std::optional<size_t> startRow = FindKeyboardStartRow(visibleRows);
+    const std::optional<size_t> startRow = FindKeyboardStartRow(groups);
     if (! guard.IsCurrent())
     {
         return false;
     }
-    size_t currentRow = startRow.value_or(visibleRows.front());
+    size_t currentRow = startRow.value_or(layout.RowAtOrdinal(0u));
 
     const auto findOwningExpandedGroup = [&]() noexcept -> std::optional<size_t>
     {
@@ -6151,9 +6572,11 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
     }
 
-    const auto currentVisibleIt      = std::ranges::find(visibleRows, currentRow);
-    const size_t currentVisibleIndex = currentVisibleIt == visibleRows.end() ? 0u : static_cast<size_t>(std::distance(visibleRows.begin(), currentVisibleIt));
+    // Ordinals among the visible rows, which the offsets answer in O(log groups); Page Up and Page Down search them by top as the
+    // standard library searched the listed rows.
+    const size_t currentVisibleIndex = layout.IsVisibleRow(currentRow) ? layout.VisibleBefore(currentRow) : 0u;
     size_t nextVisibleIndex          = currentVisibleIndex;
+    const auto topOfOrdinal          = [&](size_t ordinal) noexcept { return GetRowTopDip(groups, layout.RowAtOrdinal(ordinal)); };
     if (virtualKey == VK_PRIOR || virtualKey == VK_NEXT)
     {
         const auto viewport = GetContentRect(groups);
@@ -6164,28 +6587,25 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         if (virtualKey == VK_PRIOR)
         {
             const float target = currentTop - page;
-            const auto found =
-                std::lower_bound(visibleRows.begin(), visibleRows.end(), target, [&](size_t row, float y) { return GetRowTopDip(groups, row) < y; });
-            nextVisibleIndex = static_cast<size_t>(found - visibleRows.begin());
+            nextVisibleIndex   = LowerBoundOrdinal(visibleCount, target, topOfOrdinal);
             if (nextVisibleIndex >= currentVisibleIndex && currentVisibleIndex)
                 nextVisibleIndex = currentVisibleIndex - 1u;
         }
         else
         {
             const float target = currentTop + page;
-            const auto found =
-                std::upper_bound(visibleRows.begin(), visibleRows.end(), target, [&](float y, size_t row) { return y < GetRowTopDip(groups, row); });
-            nextVisibleIndex = found == visibleRows.begin() ? 0u : static_cast<size_t>(found - visibleRows.begin() - 1);
-            if (nextVisibleIndex <= currentVisibleIndex && currentVisibleIndex + 1u < visibleRows.size())
+            const size_t found = UpperBoundOrdinal(visibleCount, target, topOfOrdinal);
+            nextVisibleIndex   = found == 0u ? 0u : found - 1u;
+            if (nextVisibleIndex <= currentVisibleIndex && currentVisibleIndex + 1u < visibleCount)
                 nextVisibleIndex = currentVisibleIndex + 1u;
         }
     }
     switch (virtualKey)
     {
         case VK_UP: nextVisibleIndex = currentVisibleIndex == 0u ? 0u : currentVisibleIndex - 1u; break;
-        case VK_DOWN: nextVisibleIndex = std::min(currentVisibleIndex + 1u, visibleRows.size() - 1u); break;
+        case VK_DOWN: nextVisibleIndex = std::min(currentVisibleIndex + 1u, visibleCount - 1u); break;
         case VK_HOME: nextVisibleIndex = 0u; break;
-        case VK_END: nextVisibleIndex = visibleRows.size() - 1u; break;
+        case VK_END: nextVisibleIndex = visibleCount - 1u; break;
         case VK_PRIOR:
         case VK_NEXT: break;
         case VK_RETURN:
@@ -6199,7 +6619,48 @@ bool Grid::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
 
     // As in Tree: Ctrl with any movement key moves the focus alone (Ctrl+Space then toggles the row it reached), Shift
     // extends the range from the anchor, and a plain key selects the row it lands on.
-    const size_t nextRow = visibleRows[nextVisibleIndex];
+    const size_t nextRow = layout.RowAtOrdinal(nextVisibleIndex);
+    if (VerifyingDataPaths())
+    {
+        // The listed visible rows this replaced, searched as before.
+        const std::vector<size_t> visibleRows = CollectVisibleRowIndices(rowCount, groups);
+        const auto legacyCurrent              = std::ranges::find(visibleRows, currentRow);
+        size_t legacyIndex                    = legacyCurrent == visibleRows.end() ? 0u : static_cast<size_t>(legacyCurrent - visibleRows.begin());
+        const size_t legacyStart              = legacyIndex;
+        const float page                      = std::max(_rowHeightDip, GetContentRect(groups).bottom - GetContentRect(groups).top);
+        switch (virtualKey)
+        {
+            case VK_UP: legacyIndex = legacyStart == 0u ? 0u : legacyStart - 1u; break;
+            case VK_DOWN: legacyIndex = std::min(legacyStart + 1u, visibleRows.size() - 1u); break;
+            case VK_HOME: legacyIndex = 0u; break;
+            case VK_END: legacyIndex = visibleRows.size() - 1u; break;
+            case VK_PRIOR:
+            {
+                const float target = GetRowTopDip(groups, currentRow) - page;
+                legacyIndex        = static_cast<size_t>(std::lower_bound(visibleRows.begin(), visibleRows.end(), target, [&](size_t row, float y) {
+                    return GetRowTopDip(groups, row) < y;
+                }) - visibleRows.begin());
+                if (legacyIndex >= legacyStart && legacyStart)
+                    legacyIndex = legacyStart - 1u;
+                break;
+            }
+            default:
+            {
+                const float target = GetRowTopDip(groups, currentRow) + page;
+                const auto found =
+                    std::upper_bound(visibleRows.begin(), visibleRows.end(), target, [&](float y, size_t row) { return y < GetRowTopDip(groups, row); });
+                legacyIndex = found == visibleRows.begin() ? 0u : static_cast<size_t>(found - visibleRows.begin() - 1);
+                if (legacyIndex <= legacyStart && legacyStart + 1u < visibleRows.size())
+                    legacyIndex = legacyStart + 1u;
+                break;
+            }
+        }
+        if (visibleRows.size() != visibleCount || legacyStart != currentVisibleIndex || visibleRows[legacyIndex] != nextRow ||
+            (startRow && std::ranges::find(visibleRows, *startRow) == visibleRows.end()))
+        {
+            ReportDataPathMismatch(L"a key reached another row than the listed visible rows give");
+        }
+    }
     if (ModifiersContainCtrl(modifiers) && ! ModifiersContainShift(modifiers))
     {
         static_cast<void>(RequestFocusRow(nextRow));
@@ -6247,24 +6708,24 @@ bool Grid::OnContextMenu(ControlHost& host, bool keyboardInvocation, D2D1_POINT_
     D2D1_POINT_2F anchorDip = pointDip;
     if (keyboardInvocation)
     {
-        std::vector<GridGroupDesc> groups;
-        if (! TryControlCallback([&] { groups = CollectOrderedGroups(model, &guard); }) || ! guard.IsCurrent())
+        std::span<const GridGroupDesc> groups;
+        if (! TryControlCallback([&] { groups = ResolveOrderedGroups(); }) || ! guard.IsCurrent())
         {
             return false;
         }
-        const std::vector<size_t> visibleRows = CollectVisibleRowIndices(rowCount, groups);
-        if (visibleRows.empty())
+        const GroupLayoutView layout{groups, _groupLayoutCache.collapsedRowsBefore, _groupLayoutCache.rowCount};
+        if (layout.VisibleCount() == 0u)
         {
             return false;
         }
 
         // The menu opens for the row the keys would act on.
-        const std::optional<size_t> startRow = FindKeyboardStartRow(visibleRows);
+        const std::optional<size_t> startRow = FindKeyboardStartRow(groups);
         if (! guard.IsCurrent())
         {
             return false;
         }
-        rowIndex = startRow.value_or(visibleRows.front());
+        rowIndex = startRow.value_or(layout.RowAtOrdinal(0u));
 
         const D2D1_RECT_F contentRect = GetContentRect();
         if (! guard.IsCurrent())
@@ -6329,8 +6790,8 @@ bool Grid::OnSelectAll(ControlHost& host)
             return false;
         }
 
-        const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        const SelectionSnapshot previousSelection   = CaptureSelection();
+        const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
         if (! guard.IsCurrent())
         {
             return false;
@@ -6489,21 +6950,26 @@ Grid::HitInfo Grid::HitTestPoint(PointDip pointDip) const noexcept
             return hit;
         }
 
-        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
         if (! guard.IsCurrent())
         {
             return hit;
         }
-        const std::vector<VisibleBodyItem> visibleBodyItems = BuildVisibleBodyItems(groups);
+        const D2D1_RECT_F bodyRect = GetContentRect(groups);
         if (! guard.IsCurrent())
         {
             return hit;
         }
-        for (const VisibleBodyItem& item : visibleBodyItems)
+        // The body items under the point, visited in BuildVisibleBodyItems's order without collecting them.
+        bool stale = false;
+        VisitVisibleBodyItems(groups,
+                              bodyRect,
+                              rowCount,
+                              [&](const VisibleBodyItem& item)
         {
             if (! PointInRect(item.rectDip, point))
             {
-                continue;
+                return true;
             }
 
             if (item.kind == VisibleBodyItem::Kind::GroupHeader)
@@ -6512,7 +6978,7 @@ Grid::HitInfo Grid::HitTestPoint(PointDip pointDip) const noexcept
                 hit.groupIndex = item.groupIndex;
                 hit.stableId   = item.groupIndex < groups.size() ? groups[item.groupIndex].stableId : 0u;
                 hit.rectDip    = item.rectDip;
-                return hit;
+                return false;
             }
 
             for (size_t displayIndex = 0; displayIndex < _columnDisplayOrder.size(); ++displayIndex)
@@ -6522,7 +6988,8 @@ Grid::HitInfo Grid::HitTestPoint(PointDip pointDip) const noexcept
                 const float cellLeft     = GetColumnLeftDip(columnIndex);
                 if (! guard.IsCurrent())
                 {
-                    return {};
+                    stale = true;
+                    return false;
                 }
                 const D2D1_RECT_F cellRect = D2D1::RectF(cellLeft, item.rectDip.top, cellLeft + width, item.rectDip.bottom);
                 if (! PointInRect(cellRect, point))
@@ -6535,14 +7002,12 @@ Grid::HitInfo Grid::HitTestPoint(PointDip pointDip) const noexcept
                 hit.columnIndex = columnIndex;
                 hit.stableId    = model->GetStableRowId(item.rowIndex);
                 hit.rectDip     = cellRect;
-                if (! guard.IsCurrent())
-                {
-                    return {};
-                }
-                return hit;
+                stale           = ! guard.IsCurrent();
+                return false;
             }
-        }
-        return hit;
+            return true;
+        });
+        return stale ? HitInfo{} : hit;
     }
     catch (const std::bad_alloc&)
     {
@@ -6605,7 +7070,7 @@ void Grid::ClampScrollOffsets(const bool normalizeVertical) noexcept
             return;
         }
 
-        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
         if (! guard.IsCurrent())
         {
             return;
@@ -6671,7 +7136,7 @@ void Grid::EnsureColumnWidths() const
         columnWidths.reserve(columnCount);
         for (size_t columnIndex = 0; columnIndex < columnCount; ++columnIndex)
         {
-            const GridColumnDesc column = model->GetColumn(columnIndex);
+            const GridColumnDesc column = QueryColumn(*model, columnIndex);
             if (! guard.IsCurrent())
             {
                 return;
@@ -6725,12 +7190,29 @@ bool Grid::SelectRow(size_t rowIndex, UINT modifiers)
         return true;
     }
 
-    const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+    const SelectionSnapshot previousSelection   = CaptureSelection();
     const std::optional<uint64_t> previousFocus = _currentRowId;
     const uint64_t rowId                        = model->GetStableRowId(rowIndex);
     if (! guard.IsCurrent())
     {
         return false;
+    }
+    // A range walks the visible rows between the anchor and the row through the cached group offsets, so it touches the rows
+    // it selects and no others. Stable ids name one row each: the anchor's row is the model's row for its id.
+    const auto visibleOrdinalOf = [&](std::span<const GridGroupDesc> groups, uint64_t id, std::optional<size_t> knownRow) -> std::optional<size_t>
+    {
+        const GroupLayoutView layout{groups, _groupLayoutCache.collapsedRowsBefore, _groupLayoutCache.rowCount};
+        const std::optional<size_t> row = knownRow ? knownRow : model->FindRowByStableId(id);
+        if (! row || ! guard.IsCurrent() || ! layout.IsVisibleRow(*row) || (! knownRow && model->GetStableRowId(*row) != id))
+        {
+            return std::nullopt;
+        }
+        return layout.VisibleBefore(*row);
+    };
+    std::optional<GridSelectionModel> verifiedBefore;
+    if (VerifyingDataPaths() && ModifiersContainShift(modifiers) && _selectionMode != GridSelectionMode::Single && _selectionModel.GetAnchor())
+    {
+        verifiedBefore.emplace(_selectionModel);
     }
     if (_selectionMode == GridSelectionMode::Single)
     {
@@ -6746,21 +7228,139 @@ bool Grid::SelectRow(size_t rowIndex, UINT modifiers)
         _currentRowId    = rowId;
         _focusedRowIndex = rowIndex;
     }
-    else if (ModifiersContainShift(modifiers) && _selectionModel.GetAnchor())
+    else if (ModifiersContainShift(modifiers) && ModifiersContainCtrl(modifiers) && _selectionModel.GetAnchor())
     {
-        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        // The Windows list convention: Ctrl+Shift adds the visible rows from the anchor to the row to the selection and
+        // keeps the anchor. The rows that join follow the selected ones, from the anchor toward the row, which ends primary.
+        const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
         if (! guard.IsCurrent())
         {
             return false;
         }
-        const std::vector<uint64_t> visibleRows = CollectVisibleOrderedRowIds(model, groups, &guard);
+        const uint64_t anchorId                   = _selectionModel.GetAnchor().value();
+        const std::optional<size_t> anchorOrdinal = visibleOrdinalOf(groups, anchorId, std::nullopt);
+        const std::optional<size_t> rowOrdinal    = anchorOrdinal ? visibleOrdinalOf(groups, rowId, rowIndex) : std::nullopt;
         if (! guard.IsCurrent())
         {
             return false;
         }
-        _selectionModel.SetRange(visibleRows, _selectionModel.GetAnchor().value(), rowId);
+        ++Detail::Work().lists.gridSelectionCopies;
+        std::vector<uint64_t> combined(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        std::optional<uint64_t> anchor = anchorId;
+        if (! anchorOrdinal || ! rowOrdinal)
+        {
+            // An anchor that is no longer a visible row: the row joins alone and anchors the next range.
+            if (! _selectionModel.IsSelected(rowId))
+            {
+                combined.push_back(rowId);
+            }
+            anchor = rowId;
+        }
+        else
+        {
+            const GroupLayoutView layout{groups, _groupLayoutCache.collapsedRowsBefore, _groupLayoutCache.rowCount};
+            const bool forward = *anchorOrdinal <= *rowOrdinal;
+            for (size_t ordinal = *anchorOrdinal;; ordinal = forward ? ordinal + 1u : ordinal - 1u)
+            {
+                const uint64_t id = model->GetStableRowId(layout.RowAtOrdinal(ordinal));
+                if (! guard.IsCurrent())
+                {
+                    return false;
+                }
+                if (! _selectionModel.IsSelected(id))
+                {
+                    combined.push_back(id);
+                }
+                if (ordinal == *rowOrdinal)
+                {
+                    break;
+                }
+            }
+        }
+        // The combined ids are already in the order to keep, so they are both the order and the request.
+        _selectionModel.AssignInOrder(combined, combined, anchor);
         _currentRowId    = rowId;
         _focusedRowIndex = rowIndex;
+        if (verifiedBefore)
+        {
+            // The walk over the listed visible ids this replaced.
+            const std::vector<uint64_t> visibleRows = CollectVisibleOrderedRowIds(model, groups, &guard);
+            const auto anchorIt                     = std::ranges::find(visibleRows, anchorId);
+            const auto rowIt                        = std::ranges::find(visibleRows, rowId);
+            std::vector<uint64_t> legacy(verifiedBefore->GetOrderedSelection().begin(), verifiedBefore->GetOrderedSelection().end());
+            std::optional<uint64_t> legacyAnchor = anchorId;
+            if (anchorIt == visibleRows.end() || rowIt == visibleRows.end())
+            {
+                if (! verifiedBefore->IsSelected(rowId))
+                    legacy.push_back(rowId);
+                legacyAnchor = rowId;
+            }
+            else
+            {
+                const ptrdiff_t step = anchorIt <= rowIt ? 1 : -1;
+                for (auto it = anchorIt;; it += step)
+                {
+                    if (! verifiedBefore->IsSelected(*it))
+                        legacy.push_back(*it);
+                    if (it == rowIt)
+                        break;
+                }
+            }
+            verifiedBefore->AssignInOrder(legacy, legacy, legacyAnchor);
+            if (! std::ranges::equal(verifiedBefore->GetOrderedSelection(), _selectionModel.GetOrderedSelection()) ||
+                verifiedBefore->GetAnchor() != _selectionModel.GetAnchor())
+            {
+                ReportDataPathMismatch(L"a Ctrl+Shift range differs from the walk over the listed visible ids");
+            }
+        }
+    }
+    else if (ModifiersContainShift(modifiers) && _selectionModel.GetAnchor())
+    {
+        const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        const uint64_t anchorId                   = _selectionModel.GetAnchor().value();
+        const std::optional<size_t> anchorOrdinal = visibleOrdinalOf(groups, anchorId, std::nullopt);
+        const std::optional<size_t> rowOrdinal    = anchorOrdinal ? visibleOrdinalOf(groups, rowId, rowIndex) : std::nullopt;
+        if (! guard.IsCurrent())
+        {
+            return false;
+        }
+        if (! anchorOrdinal || ! rowOrdinal)
+        {
+            // SetRange over the visible ids would not find both ends either: the row alone.
+            _selectionModel.SetSingle(rowId);
+        }
+        else
+        {
+            // Only the range is listed: the ids from the first end to the second, in visible order.
+            const GroupLayoutView layout{groups, _groupLayoutCache.collapsedRowsBefore, _groupLayoutCache.rowCount};
+            const auto [first, last] = std::minmax(*anchorOrdinal, *rowOrdinal);
+            std::vector<uint64_t> range;
+            range.reserve(last - first + 1u);
+            for (size_t ordinal = first; ordinal <= last; ++ordinal)
+            {
+                range.push_back(model->GetStableRowId(layout.RowAtOrdinal(ordinal)));
+                if (! guard.IsCurrent())
+                {
+                    return false;
+                }
+            }
+            _selectionModel.SetRange(range, anchorId, rowId);
+        }
+        _currentRowId    = rowId;
+        _focusedRowIndex = rowIndex;
+        if (verifiedBefore)
+        {
+            verifiedBefore->SetRange(CollectVisibleOrderedRowIds(model, groups, &guard), anchorId, rowId);
+            if (! std::ranges::equal(verifiedBefore->GetOrderedSelection(), _selectionModel.GetOrderedSelection()) ||
+                verifiedBefore->GetAnchor() != _selectionModel.GetAnchor())
+            {
+                ReportDataPathMismatch(L"a Shift range differs from SetRange over the listed visible ids");
+            }
+        }
     }
     else if (ModifiersContainCtrl(modifiers))
     {
@@ -6784,14 +7384,32 @@ bool Grid::SelectRow(size_t rowIndex, UINT modifiers)
     return guard.IsBindingCurrent();
 }
 
-bool Grid::NotifySelectionAndFocusChanges(std::span<const uint64_t> previousSelection, std::optional<uint64_t> previousFocus)
+Grid::SelectionSnapshot Grid::CaptureSelection() const
+{
+    SelectionSnapshot snapshot;
+    snapshot.epoch = _selectionModel.GetEpoch();
+    if (VerifyingDataPaths())
+    {
+        ++Detail::Work().lists.gridSelectionCopies;
+        snapshot.ids.assign(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
+        snapshot.copied = true;
+    }
+    return snapshot;
+}
+
+bool Grid::NotifySelectionAndFocusChanges(const SelectionSnapshot& previousSelection, std::optional<uint64_t> previousFocus)
 {
     const Failure::Scope outerFailureScope;
     // The delegate may rebuild the controls and destroy this grid, refresh the model or change other controls. Each report
     // reads the state current at that moment; only losing this grid, its model or its delegate ends the sequence.
     GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
-    if (_delegate && ! EqualRowSelection(previousSelection, _selectionModel.GetOrderedSelection()) &&
-        (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.ResumeAfterCallback()))
+    // The epoch moves exactly when the ordered selection changes, which a copy taken before the gesture used to decide.
+    const bool selectionChanged = previousSelection.epoch != _selectionModel.GetEpoch();
+    if (previousSelection.copied && selectionChanged == EqualRowSelection(previousSelection.ids, _selectionModel.GetOrderedSelection()))
+    {
+        ReportDataPathMismatch(L"the selection epoch disagrees with the copy of the selection");
+    }
+    if (_delegate && selectionChanged && (! TryControlCallback([&] { _delegate->OnGridSelectionChanged(*this); }) || ! guard.ResumeAfterCallback()))
     {
         return false;
     }
@@ -6815,8 +7433,9 @@ std::wstring Grid::BuildSelectionTsv() const
     }
 
     std::wstring text;
+    ++Detail::Work().lists.gridSelectionCopies;
     const std::vector<uint64_t> selection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
     if (! guard.IsCurrent())
     {
         return {};
@@ -6904,21 +7523,61 @@ std::optional<size_t> Grid::FindNearestVisibleRow(std::span<const GridGroupDesc>
     {
         return std::nullopt;
     }
-    const std::vector<size_t> visibleRows = CollectVisibleRowIndices(rowCount, groups);
-    if (visibleRows.empty())
+    // The first visible row at or after the preferred one, else the last visible row: answered from the cached offsets (or, for
+    // an ungrouped model, from the row count) when it can be; the walk over the listed rows otherwise, and to verify.
+    static constexpr std::array<size_t, 1u> kNoCollapsedRows{0u};
+    const bool cached = IsCachedGroupLayout(groups) && _groupLayoutCache.rowCount == rowCount;
+    if (cached || groups.empty())
     {
-        return std::nullopt;
-    }
-
-    for (const size_t rowIndex : visibleRows)
-    {
-        if (rowIndex >= preferredRowIndex)
+        const GroupLayoutView layout{
+            groups, cached ? std::span<const size_t>(_groupLayoutCache.collapsedRowsBefore) : std::span<const size_t>(kNoCollapsedRows), rowCount};
+        const std::optional<size_t> nearest = layout.NearestVisibleRow(preferredRowIndex);
+        if (! VerifyingDataPaths())
         {
-            return rowIndex;
+            return nearest;
         }
+        try
+        {
+            const Failure::Scope failureScope;
+            const std::vector<size_t> visibleRows = CollectVisibleRowIndices(rowCount, groups);
+            const auto legacy                     = std::ranges::find_if(visibleRows, [&](size_t row) { return row >= preferredRowIndex; });
+            const std::optional<size_t> expected =
+                visibleRows.empty() ? std::nullopt : std::optional<size_t>(legacy == visibleRows.end() ? visibleRows.back() : *legacy);
+            if (expected != nearest)
+            {
+                ReportDataPathMismatch(L"the nearest visible row differs from the walk over the listed rows");
+            }
+        }
+        catch (const std::bad_alloc&)
+        {
+            Failure::FailAllocation();
+        }
+        return nearest;
     }
 
-    return visibleRows.back();
+    try
+    {
+        const Failure::Scope failureScope;
+        const std::vector<size_t> visibleRows = CollectVisibleRowIndices(rowCount, groups);
+        if (visibleRows.empty())
+        {
+            return std::nullopt;
+        }
+
+        for (const size_t rowIndex : visibleRows)
+        {
+            if (rowIndex >= preferredRowIndex)
+            {
+                return rowIndex;
+            }
+        }
+
+        return visibleRows.back();
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
 }
 
 void Grid::ReconcileSelectionForVisibleRows(std::span<const GridGroupDesc> groups)
@@ -6944,8 +7603,9 @@ void Grid::ReconcileSelectionForVisibleRows(std::span<const GridGroupDesc> group
             return;
         }
     }
-    const std::vector<uint64_t> previousSelection(_selectionModel.GetOrderedSelection().begin(), _selectionModel.GetOrderedSelection().end());
-    const std::optional<size_t> selectedRowIndex = previousSelection.empty() ? std::nullopt : model->FindRowByStableId(previousSelection.back());
+    const std::span<const uint64_t> previousSelection = _selectionModel.GetOrderedSelection();
+    const std::optional<uint64_t> lastSelectedId      = previousSelection.empty() ? std::nullopt : std::optional<uint64_t>(previousSelection.back());
+    const std::optional<size_t> selectedRowIndex      = lastSelectedId ? model->FindRowByStableId(*lastSelectedId) : std::nullopt;
     if (! guard.IsCurrent())
     {
         return;
@@ -7014,7 +7674,7 @@ try
     {
         return;
     }
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+    const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
     if (! guard.IsCurrent())
     {
         return;
@@ -7024,14 +7684,35 @@ try
     {
         return;
     }
-    const std::unordered_set<uint64_t> visible(visibleRowIds.begin(), visibleRowIds.end());
+    // Membership in the visible ids: an ascending copy behind a table of bits (SelectedIdFilter), which answers as the hash set
+    // it replaced did, for repeated ids and ids no row has, without a node per row.
+    std::vector<uint64_t> visibleSorted(visibleRowIds);
+    SortRowIds(visibleSorted);
+    const SelectedIdFilter visible(visibleSorted);
+    const auto isVisible = [&](uint64_t id) { return visible.MayContain(id) && std::ranges::binary_search(visibleSorted, id); };
     // The last listed id that is a visible row becomes the focus and the range anchor.
     std::optional<uint64_t> last;
     for (auto it = rowIds.rbegin(); it != rowIds.rend() && ! last; ++it)
     {
-        if (visible.contains(*it))
+        if (isVisible(*it))
         {
             last = *it;
+        }
+    }
+    if (VerifyingDataPaths())
+    {
+        const std::unordered_set<uint64_t> legacyVisible(visibleRowIds.begin(), visibleRowIds.end());
+        std::optional<uint64_t> legacyLast;
+        for (auto it = rowIds.rbegin(); it != rowIds.rend() && ! legacyLast; ++it)
+        {
+            if (legacyVisible.contains(*it))
+            {
+                legacyLast = *it;
+            }
+        }
+        if (legacyLast != last)
+        {
+            ReportDataPathMismatch(L"SetSelectedRowIds chose another last visible id than the hash set");
         }
     }
 
@@ -7052,7 +7733,14 @@ try
     {
         return;
     }
-    _selectionModel  = std::move(nextSelection);
+    // The same ordered selection keeps its epoch, as a mutator that leaves it so does.
+    const bool sameSelection = std::ranges::equal(nextSelection.GetOrderedSelection(), _selectionModel.GetOrderedSelection());
+    const uint64_t epoch     = _selectionModel.GetEpoch();
+    _selectionModel          = std::move(nextSelection);
+    if (sameSelection)
+    {
+        _selectionModel._epoch = epoch;
+    }
     _currentRowId    = last;
     _focusedRowIndex = lastRow;
     if (lastRow)
@@ -7109,8 +7797,27 @@ size_t Grid::CountCollapsedRowsBeforeRow(std::span<const GridGroupDesc> groups, 
 
 float Grid::GetRowTopDip(std::span<const GridGroupDesc> groups, size_t rowIndex) const noexcept
 {
-    const size_t visibleRowIndex = rowIndex - CountCollapsedRowsBeforeRow(groups, rowIndex);
-    return (static_cast<float>(visibleRowIndex) * _rowHeightDip) + (static_cast<float>(CountGroupHeadersBeforeRow(groups, rowIndex)) * _groupHeaderHeightDip);
+    // Rows have one height, so a row's top is the rows and group headers above it: a binary search of the cached layout's
+    // offsets, or a walk over any other list of groups (the uncached computation, kept for that and for verification).
+    size_t collapsedRows = 0u;
+    size_t headers       = 0u;
+    if (IsCachedGroupLayout(groups))
+    {
+        const GroupLayoutView layout{groups, _groupLayoutCache.collapsedRowsBefore, _groupLayoutCache.rowCount};
+        collapsedRows = layout.CollapsedBefore(rowIndex);
+        headers       = layout.GroupsAtOrBefore(rowIndex);
+        if (VerifyingDataPaths() && (collapsedRows != CountCollapsedRowsBeforeRow(groups, rowIndex) || headers != CountGroupHeadersBeforeRow(groups, rowIndex)))
+        {
+            ReportDataPathMismatch(L"a row's offsets differ from the walk over its groups");
+        }
+    }
+    else
+    {
+        collapsedRows = CountCollapsedRowsBeforeRow(groups, rowIndex);
+        headers       = CountGroupHeadersBeforeRow(groups, rowIndex);
+    }
+    const size_t visibleRowIndex = rowIndex - collapsedRows;
+    return (static_cast<float>(visibleRowIndex) * _rowHeightDip) + (static_cast<float>(headers) * _groupHeaderHeightDip);
 }
 
 float Grid::GetBodyContentHeight(std::span<const GridGroupDesc> groups) const noexcept
@@ -7129,11 +7836,18 @@ float Grid::GetBodyContentHeight(std::span<const GridGroupDesc> groups) const no
     }
 
     size_t collapsedRowCount = 0u;
-    for (const GridGroupDesc& group : groups)
+    if (IsCachedGroupLayout(groups))
     {
-        if (group.collapsed)
+        collapsedRowCount = _groupLayoutCache.collapsedRowsBefore.back();
+    }
+    else
+    {
+        for (const GridGroupDesc& group : groups)
         {
-            collapsedRowCount += group.rowCount;
+            if (group.collapsed)
+            {
+                collapsedRowCount += group.rowCount;
+            }
         }
     }
 
@@ -7153,7 +7867,7 @@ float Grid::NormalizeVerticalScrollOffset(float offsetDip) const noexcept
         {
             return 0.0f;
         }
-        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
         if (! guard.IsCurrent())
         {
             return 0.0f;
@@ -7377,24 +8091,44 @@ std::vector<Grid::VisibleBodyItem> Grid::BuildVisibleBodyItems(std::span<const G
         return visibleItems;
     }
 
+    const float rowHeightDip    = std::max(_rowHeightDip, 1.0f);
+    const size_t visibleRowHint = static_cast<size_t>(std::ceil(viewportHeightDip / rowHeightDip)) + 2u;
+    visibleItems.reserve(std::min(rowCount, visibleRowHint) + std::min(groups.size(), visibleRowHint));
+    VisitVisibleBodyItems(groups,
+                          bodyRect,
+                          rowCount,
+                          [&](const VisibleBodyItem& item)
+    {
+        visibleItems.push_back(item);
+        return true;
+    });
+    return visibleItems;
+}
+
+template <typename Visit>
+void Grid::VisitVisibleBodyItems(std::span<const GridGroupDesc> groups, const D2D1_RECT_F& bodyRect, size_t rowCount, Visit&& visit) const
+{
+    const float viewportHeightDip = std::max(0.0f, bodyRect.bottom - bodyRect.top);
+    if (viewportHeightDip <= 0.0f || rowCount == 0u)
+    {
+        return;
+    }
+
     const float viewportTopDip    = _verticalScrollDip;
     const float viewportBottomDip = viewportTopDip + viewportHeightDip;
-    const float rowHeightDip      = std::max(_rowHeightDip, 1.0f);
-    const size_t visibleRowHint   = static_cast<size_t>(std::ceil(viewportHeightDip / rowHeightDip)) + 2u;
-    visibleItems.reserve(std::min(rowCount, visibleRowHint) + std::min(groups.size(), visibleRowHint));
-
-    const auto appendRows = [this, &bodyRect, viewportTopDip, viewportBottomDip, groups, &visibleItems](size_t startRowIndex, size_t sectionRowCount)
+    // Returns false once the visitor stops.
+    const auto visitRows = [this, &bodyRect, viewportTopDip, viewportBottomDip, groups, &visit](size_t startRowIndex, size_t sectionRowCount)
     {
         if (sectionRowCount == 0u)
         {
-            return;
+            return true;
         }
 
         const float sectionTopDip    = GetRowTopDip(groups, startRowIndex);
         const float sectionBottomDip = sectionTopDip + (static_cast<float>(sectionRowCount) * _rowHeightDip);
         if (sectionBottomDip <= viewportTopDip || sectionTopDip >= viewportBottomDip)
         {
-            return;
+            return true;
         }
 
         const float visibleTopDip    = std::max(sectionTopDip, viewportTopDip);
@@ -7405,20 +8139,24 @@ std::vector<Grid::VisibleBodyItem> Grid::BuildVisibleBodyItems(std::span<const G
         {
             const size_t rowIndex = startRowIndex + rowOffset;
             const float rowTopDip = bodyRect.top + sectionTopDip + (static_cast<float>(rowOffset) * _rowHeightDip) - _verticalScrollDip;
-            visibleItems.push_back(VisibleBodyItem{.kind       = VisibleBodyItem::Kind::Row,
-                                                   .rowIndex   = rowIndex,
-                                                   .groupIndex = 0u,
-                                                   .rectDip    = D2D1::RectF(GetBounds().left, rowTopDip, bodyRect.right, rowTopDip + _rowHeightDip)});
+            if (! visit(VisibleBodyItem{.kind       = VisibleBodyItem::Kind::Row,
+                                        .rowIndex   = rowIndex,
+                                        .groupIndex = 0u,
+                                        .rectDip    = D2D1::RectF(GetBounds().left, rowTopDip, bodyRect.right, rowTopDip + _rowHeightDip)}))
+            {
+                return false;
+            }
         }
+        return true;
     };
 
     size_t nextUngroupedRow = 0u;
     for (size_t groupIndex = 0u; groupIndex < groups.size(); ++groupIndex)
     {
         const GridGroupDesc& group = groups[groupIndex];
-        if (group.startRowIndex >= nextUngroupedRow)
+        if (group.startRowIndex >= nextUngroupedRow && ! visitRows(nextUngroupedRow, group.startRowIndex - nextUngroupedRow))
         {
-            appendRows(nextUngroupedRow, group.startRowIndex - nextUngroupedRow);
+            return;
         }
 
         const float headerTopDip    = GetRowTopDip(groups, group.startRowIndex) - _groupHeaderHeightDip;
@@ -7426,31 +8164,33 @@ std::vector<Grid::VisibleBodyItem> Grid::BuildVisibleBodyItems(std::span<const G
         if (headerBottomDip > viewportTopDip && headerTopDip < viewportBottomDip)
         {
             const float top = bodyRect.top + headerTopDip - _verticalScrollDip;
-            visibleItems.push_back(VisibleBodyItem{.kind       = VisibleBodyItem::Kind::GroupHeader,
-                                                   .rowIndex   = group.startRowIndex,
-                                                   .groupIndex = groupIndex,
-                                                   .rectDip    = D2D1::RectF(GetBounds().left, top, bodyRect.right, top + _groupHeaderHeightDip)});
+            if (! visit(VisibleBodyItem{.kind       = VisibleBodyItem::Kind::GroupHeader,
+                                        .rowIndex   = group.startRowIndex,
+                                        .groupIndex = groupIndex,
+                                        .rectDip    = D2D1::RectF(GetBounds().left, top, bodyRect.right, top + _groupHeaderHeightDip)}))
+            {
+                return;
+            }
         }
 
-        if (! group.collapsed)
+        if (! group.collapsed && ! visitRows(group.startRowIndex, group.rowCount))
         {
-            appendRows(group.startRowIndex, group.rowCount);
+            return;
         }
         nextUngroupedRow = group.startRowIndex + group.rowCount;
     }
 
     if (rowCount >= nextUngroupedRow)
     {
-        appendRows(nextUngroupedRow, rowCount - nextUngroupedRow);
+        static_cast<void>(visitRows(nextUngroupedRow, rowCount - nextUngroupedRow));
     }
-    return visibleItems;
 }
 
 float Grid::GetVerticalScrollableExtent() const
 {
     const Failure::Scope outerFailureScope;
     const GridModelQueryGuard guard(*this, GetLifetimeToken(), _model);
-    const std::vector<GridGroupDesc> groups = CollectOrderedGroups(_model, &guard);
+    const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
     if (! guard.IsCurrent())
     {
         return 0.0f;
@@ -7512,7 +8252,7 @@ D2D1_RECT_F Grid::GetContentRect() const noexcept
             return GetContentRect(std::span<const GridGroupDesc>{});
         }
 
-        const std::vector<GridGroupDesc> groups = CollectOrderedGroups(model, &guard);
+        const std::span<const GridGroupDesc> groups = ResolveOrderedGroups();
         if (! guard.IsCurrent())
         {
             return D2D1_RECT_F{};

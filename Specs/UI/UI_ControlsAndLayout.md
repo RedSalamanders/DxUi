@@ -101,7 +101,13 @@ Label mnemonic changes invalidate the owner only when the normalized mnemonic
 changes. Labels with a mnemonic or typography override prepare their DirectWrite
 layout before paint, keyed by text, mnemonic, typography, flow, bounds and host
 resource/typography identity. Repeated paints reuse that layout; labels with no
-mnemonic and no typography override retain their ordinary text draw path.
+mnemonic and no typography override retain their ordinary text draw path and are not prepared at all: a plain label
+never enters visual preparation, however often its bounds change (multiline, alignment, font role and text color keep it
+plain). A mnemonic (`SetMnemonic`) or typography override enables preparation and clearing the last of them disables it
+again. A class derived from `Label` keeps visual preparation whatever its state, so an overridden `PrepareVisualContent`
+is still called. Visual preparation is reached
+only through the host's preparation pass from its root, so `Label` and `Button` preparation run no tree-membership
+search; a control asked to prepare for a host it is not attached to is refused by its host check.
 
 `TreeAppearance` may suppress background/border or decorative expanders and may reserve the expander lane on
 leaf rows. Hit testing follows the visible lane; keyboard expansion, hierarchy, selection and UI Automation retain
@@ -110,7 +116,8 @@ may omit decorative editor focus chrome for a document surface, without retiring
 the caret remains independent and high contrast always forces the focus indicator.
 
 Tree row painting, hit testing, tooltip and accessibility geometry use one canonical row calculation, including
-hidden/reserved expanders. Neutral decorations opt into subdued unselected icons and count badges; a dot badge
+hidden/reserved expanders. A Tree row's tooltip is anchored at the pointer position where the pointer entered that
+row: moves within the row neither move the tooltip nor invalidate, and entering another row invalidates the host once. Neutral decorations opt into subdued unselected icons and count badges; a dot badge
 retains its textual accessible description as the TreeItem's UI Automation `ItemStatus`; `Name` remains the row text.
 For a legacy mutable model, `NotifyItemPresentationChanged(itemId)` publishes a badge text/tone/dot-only update for
 an existing visible row after the caller updates its data. IDs, order, row text, depth, child/expanded state and visible
@@ -135,6 +142,12 @@ RadioButton's optional group is a lifetime-checked observer of its direct owning
 reparented choice selects independently until added/configured in its new group; it cannot change or dereference
 its former group. ScrollPanel forwards primary and secondary child presses/releases in content coordinates,
 including nonzero scroll offsets and captured release; its scrollbar responds only to the primary button.
+It forwards middle presses and releases the same way. A middle press becomes a forwarded gesture only when the child
+captured the pointer itself, because a host takes no capture for a middle press. A middle release reaches the child
+owning a forwarded gesture but does not end that gesture.
+A wheel that a ScrollPanel's children decline scrolls the panel; when its offset cannot move (it already sits at the
+bound the wheel points to, or has no extent), the panel invalidates nothing and reports the wheel unhandled, so an
+enclosing ScrollPanel, or the application, scrolls instead.
 Pointer and keyboard context anchors map back through every ancestor ScrollPanel before screen conversion,
 including ancestors separated by PageHost. Tree/Grid delegate anchors use that same mapping.
 
@@ -151,6 +164,57 @@ after extensible child callbacks and stops if the container was retired.
 StackPanel layout reacquires owned child storage after each bounds callback and stops an outer pass after owner/child
 retirement or a nested change to layout inputs. It allocates no traversal snapshot. Call ApplyLayout after changing
 children, bounds or layout settings; a nested completed reflow is not overwritten by stale outer geometry.
+
+## Assigning a property
+
+A public setter stores its property through `Control::Assign(field, value, affects[, onStored])`. An equal value is no
+change: `Assign` returns `false` and invalidates, measures, moves the hit revision and publishes nothing. Equality is
+`AssignEquality::Same`: floating point exactly, every NaN equal to every NaN and -0 equal to +0; strings by content (a
+string with a view included); pointers and smart pointers by identity; colours, rectangles, sizes and points member by
+member; optionals, tuples (`std::tie` of several fields) and ranges element by element; other types by `operator==` or a
+`SameAssignedValue(a, b)` found by argument-dependent lookup, never by bytes. A callable has no equality, so a setter that
+registers a callback does not use `Assign`. A setter normalizes first (clamping, validation), so values that normalize to
+the stored one are no change.
+
+A changed value is stored, then the setter's own bookkeeping runs (`onStored`: a cache retired, a dependent field clamped,
+a transition started), then `affects` is routed once, in this order: `Hit` moves the pointer hit revision
+(`InvalidateHitTest`; a library setter with a named hit-revision site moves it there), `Layout` calls `InvalidateMeasure`,
+`Paint` invalidates the host, and `SemanticName`, `SemanticValue` and `SemanticState` together raise one accessibility
+mutation through the host's mutation entry point, so the client gate still decides whether a snapshot is built
+([UI_InputAndAccessibility.md](UI_InputAndAccessibility.md)): a state as a mutation that can change patterns or focus, a
+name or value as a content-only one. An embedded view publishes only at the application's `UpdateAccessibility` after a
+preparation, so on an embedded host a semantic change that is not also painted invalidates the view. Each step can run application code that destroys the control, and none runs after
+that. `Assign` checks the control's lifetime after `onStored` returns, not inside it: a step of `onStored` that can run
+application code (a part's setter, an invalidation, a text-input sync, an animation request) is its last step or is followed
+at once by a lifetime check, and work that must follow the routing (arranging parts, naming a part) comes after `Assign`,
+behind `GetLifetimeToken()`. The tooling test rejects any other `onStored`. A property's `Affects` is what reads it: `Paint` when a paint path does, `Layout` when a `MeasureOverride` or an
+arrange does, `Hit` when `HitTest`, `HitTestOverlay`, `GetHitBounds` or interactivity does, and the semantic aspect the
+accessibility snapshot reads it as (its name, value or state). Geometry the snapshot reads (the bounding rectangles of the
+control, its children, its items or its text ranges) has no aspect: a window host republishes rectangles on its geometry
+path (an intrinsic layout pass, a structural change) and an embedded view at its next `UpdateAccessibility`, never through
+`Affects`. A setter that moves such rectangles without a semantic aspect leaves a window host's rectangles stale until the
+next publication; these are, until incremental publication publishes bounds (performance and motion plan W8.2),
+`ScrollPanel::SetScrollOffset`, `SetContentHeight` and `SetInternalScrollbarEnabled`, `Slider::SetOrientation`,
+`TextField::SetHorizontalTextPadding`, `SetVerticalTextPadding` and `SetClearButtonEnabled`, `Tree::SetAppearance`, the
+open popup's `ComboBox::SetMaxVisibleItems`, `SetMinimumPopupItemHeight` and `SetNoMatchesText`, and the `StackPanel` and
+`FlexPanel` layout setters until the next arrangement. A setter whose value other state can change without it (a viewport
+size, a part edited directly) leaves that state to its own path: `ScrollPanel` re-clamps its offset when its bounds change,
+whoever sets the content height afterwards, so an unchanged `SetContentHeight` stays no change. A composite whose property
+lives on a part forwards to the part's setter, which routes.
+
+Every public `Set*` of a public control class under `src/Controls` uses `Assign`, registers a callback, or is on the
+reviewed allow list of `Tools/AssignSetters.psm1` with its reason (tree state and geometry the host tracks through the
+interaction revision, model bindings that reload on every call, editing state that a programmatic set resets on every
+call, scheduled transitions and deadlines, and the rich text editor's document options). The tooling test
+`Tools/tests/Test-AssignSetters.ps1` fails any other setter and any stale entry; a setter that calls `Assign` but also writes
+a member itself outside it (unless a reviewed side-write entry says why) and a function-like macro at class scope are
+findings too. It requires each setter that uses `Assign` to be a row of the native gate
+(`Tests/Support/Support.Tests.AssignSetterRows.h`), run on FX5's embedded host and on a window host, where repainting and
+publishing are separate: it proves that an unchanged value routes nothing and a changed one routes what its `Affects`
+declares and nothing else, except where a row names the parts of a composite that route their own changes. A control
+outside the library assigns its properties the same way: `Assign`, `RouteAffects` and `Affects` are available to every
+subclass and add no storage, and `AssignEquality::Same` with the `SameAssignedValue` extension point is the public
+equality; `AssignEquality::Detail` and `AssignAccess` are the library's own and not API.
 
 ## Opt-in intrinsic measurement and flow
 
@@ -174,15 +238,51 @@ per container pass across cache misses and nested measures. `MeasureContext::rem
 an existing pass budget; nested containers preserve it and cached results consume no units. Excess input fails
 before text-layout allocation. No character-count width approximation is a measurement fallback.
 
-`FlexPanel` owns bounded, reusable numeric measurement and arrangement records for at most 1,024 live child
+#### Measure cache
+
+Status: implemented (performance and motion plan item W6.2, 14 November 2026).
+
+`Control::Measure` keeps every control's results in one cache shared by every parent; no container keeps a second
+copy. The cache holds one context: the control's measure revision, the measuring host, that host's typography revision,
+its DPI and the control's resolved flow direction and density. A change of any of them empties it. Within that context
+results are kept most recently used first, each keyed by the exact constraints (minimum and maximum of each axis; an
+absent maximum is its own value): two for a control whose size does not depend on the maximum (below), whose keys differ
+only by minimum, and four for any other. A container asks a child once while it is measured and once while it is arranged,
+so a width that returns to its previous value (a resize dragged back) asks a container four keys; the W0.1 probe ledger on
+`FX10` and `FX12` form-layout shows no repeated key measured twice with these counts (receipt
+`Measurements/PerformanceAndMotion_2026-11-13/W6.2`). The cache is 96 or 160 bytes. A hit returns the stored result
+without calling `MeasureOverride` and consumes no shaping budget; it returns `S_OK`. `E_NOTIMPL` is cached like a result;
+other failures, refused input and a measurement that a callback superseded are never stored. The cache lives out of
+line: a control that is never measured pays one pointer, and its storage is allocated by the first successful
+measurement. It is released when the control moves to another host (or none), when a `FlexPanel` that contains it is
+hidden (showing the panel measures its children once more) and by the retained-cache drop of the incremental oracle.
+
+The contract for every control, the library's and a consumer's: a `MeasureOverride` reads only the constraints, the
+host's typography, DPI and the control's flow direction and density through the context, and inputs whose every change
+calls `InvalidateMeasure` (which also advances every ancestor's revision, so a parent's cached result never outlives a
+child's change). A control that changes its measured size without `InvalidateMeasure` was already measured stale by
+`FlexPanel` and `FormField`, which cached by the child's revision; it is now measured stale by every parent. Debug builds
+can verify the rule: while `Detail::SetMeasureCacheVerificationForTest` is on (off by default, on in the library's layout
+tests), every hit re-runs `MeasureOverride` and counts a different answer in `layout.measureCacheVerifyMismatches`.
+
+A type may declare `MeasureDependsOnMaximum() == false` (default `true`) when its size does not depend on the maximum
+constraints, only its overflow flag does. Its result is then reused across maxima with the overflow flag recomputed from
+the stored size, which is exact for a measurement whose size only grows after the maximum is compared. Declared by
+`Label`, `Button`, `Checkbox` and `TextField` while they do not wrap, and by `Toggle`, `RadioButton` and `ComboBox`.
+`NumericStepper` (its field's maximum is derived by subtraction, so overflow is not a comparison of its own size),
+`FlexPanel` (lines grow to the maximum), `FormField` (its width is at least the maximum) and `FormPanel` keep the
+default. Each declaring type matches an uncached measurement across a 1/64 DIP sweep of the maximum around its natural
+width, maxima of zero and infinity and both flow directions (`TestMeasureCacheWidthSweepEqualsUncachedMeasure`).
+
+`FlexPanel` owns bounded, reusable arrangement records (options and the current pass's sizes) for at most 1,024 live child
 controls (a slot `TakeChild` emptied does not count). It supports horizontal or vertical order, explicit wrapping, padding, gaps, child minimum/maximum
 constraints, cross-axis alignment and positive growth. A child maximum caps growth; remaining growth is
 redistributed among eligible siblings. Hidden children occupy no flow space. RTL mirrors physical rectangles
-while preserving logical ownership and focus/accessibility order. Measurement cache identity includes the
-child's measurement revision, constraints, host typography revision, DPI, flow and density. Content, font,
-wrapping, chrome, availability, ownership and inherited settings invalidate the relevant records. Color,
-checked state, hover and position-only changes reuse shape results. Containers retain no DirectWrite layout
-per leaf, and hidden containers retire their numeric entries for one fresh preparation when shown again. Showing a
+while preserving logical ownership and focus/accessibility order. Children's measurements come from their own
+[measure cache](#measure-cache), keyed by the child's measurement revision, constraints, host typography revision, DPI,
+flow and density. Content, font, wrapping, chrome, availability, ownership and inherited settings invalidate the
+relevant results. Color, checked state, hover and position-only changes reuse shape results. Containers retain no DirectWrite layout
+per leaf, and hidden containers retire their children's measurements for one fresh preparation when shown again. Showing a
 control asks the host for that preparation even when no layout owner sits on its own ancestor chain, so an owner
 below a plain container that was hidden (an unselected tab page) is laid out when the container is shown.
 
@@ -206,7 +306,9 @@ layout owner stages all numeric geometry before the first
 extensible bounds callback and leaves child bounds unchanged on validation, allocation, measurement or arithmetic
 failure. After custom measurement or bounds callbacks it rechecks lifetime, ownership, host, geometry and input
 revisions. A callback that retires, reparents or replaces the owner/child, changes sibling geometry, or starts a
-newer layout aborts the stale pass. Geometry authored by such a callback remains authoritative; already completed
+newer layout aborts the stale pass. Geometry a child changes about itself while it is being arranged (a `Grid` clamping
+its scroll to the bounds it was just given) is its own and does not abort the pass; before W6.2 it did, and every later
+sibling stayed unarranged until another change (the `FX10` body row's `RichTextEditor`). Geometry authored by such a callback remains authoritative; already completed
 callbacks are not rolled back, and the incomplete outer pass does not publish its content extent or frame.
 
 Flex arrangement stages absolute endpoints in logical line order. Positive intrinsic extents, gaps and padding that collapse at a
@@ -247,8 +349,8 @@ that keeps growing with each offered width fails with `HRESULT_FROM_WIN32(ERROR_
 The settled width is cached by input revision, typography, host, available width and horizontal origin, so unchanged
 overflowing forms do not repeatedly rediscover their minima.
 
-Measurement uses the same aggregate text budget as `FlexPanel`, numeric per-part caches and current host
-typography. A form's shared-label measurement is pure: it does not mutate a field's layout inputs or revisions
+Measurement uses the same aggregate text budget as `FlexPanel`, each part's own [measure cache](#measure-cache) and
+current host typography. A form's shared-label measurement is pure: it does not mutate a field's layout inputs or revisions
 while measuring. Unchanged preparation performs no new shaping. Complete numeric geometry is validated before
 any bounds callback, using each part's final represented endpoint width as its cache key. The commit half performs no
 measurement or allocation from translation rounding. Reentrant measurement/arrangement stops the older pass and preserves a newer completed
@@ -469,7 +571,8 @@ host format, flow direction and exact DIP extent. Prepare it through the visual-
 never lazily in `Paint`; this channel does not mark content geometry changed, publish text-input/UIA state or delay
 input readiness. An owner preparation pass resolves the effective format and compares its exact COM identity with
 the retained key before taking the warm return; only a changed key looks up the DirectWrite factory and creates a
-replacement layout. Thus clearing the bounded host format map cannot reuse a layout with a different format pointer.
+replacement layout. The key holds the format by `com_ptr`, so an evicted host format keeps its identity and its address
+cannot be reused by another format; the layout is never reused for a different format.
 Paint the retained layout at the current origin with the current foreground brush and the same
 DirectWrite draw options as the ordinary text path, so state/color changes do not rebuild it. The key retains the
 effective format identity and host/resource/typography generation; text, format, size, flow, host detach, hide and
@@ -479,17 +582,25 @@ malformed UTF-16 content, and any failed optional preparation, continue through 
 Never change the caller's text or geometry to make the cache eligible. Exact-pixel tests cover supported glyph/fallback, flow, DPI, bounds, rendering
 state and text-antialias cases against the original path; any unsupported case remains on that path.
 
-When the bounded configured-format cache is evicted, the host marks visual preparation for the next owner update.
-Embedded hosting trims that cache before its control preparation pass, so an IconOnly Button resolves the new exact
-format identity and replaces its layout before painting the same frame. Eviction does not change geometry or input
-readiness; a clean composition does not trim caches or schedule preparation.
+The bounded configured-format cache evicts only formats neither of the last two frames used, and eviction marks no
+visual preparation ([format and brush caches](../Core/Core_PerformanceAndResources.md#format-and-brush-caches)): a
+format an IconOnly Button paints with stays in the map, and a key that no longer matches the map's format prepares one
+replacement at its next owner pass. Eviction does not change geometry or input readiness; a clean composition does not
+trim caches or schedule preparation.
 
 Control callbacks that synchronously transfer native mouse capture use the same rule. Before transfer, publish state
 needed by the ensuing capture notification and capture the requesting control's weak lifetime. The previous HWND's
 `WM_CAPTURECHANGED` callback may replace the requesting host's root before capture returns; afterward the requester
 MUST verify that its lifetime and current host ownership still match before reading members or continuing input.
+A focused `TextField`, editable `ComboBox` or `RichTextEditor` blinks its caret at the user's caret blink time until the
+caret timeout, through the host's [caret clock](../Rendering/Rendering_Win32Host.md#caret-clock); a read-only field draws
+the same caret steady (shown in every frame, never blinking), as it does under reduced motion or an `INFINITE` blink time.
 A multiline `TextField` draws its caret only inside its text viewport, at every DPI and editable or read-only: a caret on a
-partly visible line is cut at the viewport's edge, and one the wheel scrolled out of view is not drawn.
+partly visible line is cut at the viewport's edge, and one the wheel scrolled out of view is not drawn. Its painted text
+and selection wrap at the text viewport's own unsnapped width, the width its caret, hit-testing and line metrics use, so
+at 125% and 150% every selection rectangle equals that text layout's hit-test range for the selection.
+A `StatusStrip` section with `leadingEllipsis` measures the dots and its text in one layout and starts the kept tail at
+the widest-fitting cut that is both a layout cluster boundary and a grapheme boundary.
 Checkbox honors the inherited multiline option with the indicator/text geometry above. Disclosure
 uses acknowledged state and exposes the ExpandCollapse contract in the input/accessibility domain.
 Native x64/ARM64 Debug, Release and ASan suites, WARP scenes and reviewed five-theme gallery sheets
@@ -670,6 +781,26 @@ hit testing, wheel/scroll geometry and keyboard visibility. Changing an open pop
 ends thumb dragging and keeps the selected item visible. No change event or selection is generated by changing density.
 Consumers provide sufficient viewport space or a larger selector view; DxUi never shrinks rows to conceal overflow.
 
+### ComboBox popup layout
+
+The popup is as wide as the widest of the field, each item that passes the filter (its display text in the Body role,
+measured as one left-to-right line, plus the popup padding and row insets) and, when nothing passes, the no-matches text;
+a scrollbar adds its thickness. Each item's width is measured once and retained: again only after `SetItems` or after the
+host's typography revision moves (a new DirectWrite factory, as a device replacement brings). The measured width is in
+DIPs and depends on nothing else, so DPI, density, flow direction, the filter, scrolling and hover never measure an item.
+The no-matches width is measured once per string. A filter change recomputes only the maximum over the filtered items.
+
+The first measurement of a popup costs one text layout per item and happens when the popup is first placed open: at open,
+or for items replaced while it is open at its next placement (input, hit testing or paint, which an embedded host runs in
+preparation, never in composition). A closed popup is not placed, so typing into a closed field measures nothing.
+
+The placement (the popup bounds and its visible row count) is computed once per change of its inputs: the field bounds, the
+host's client bounds and the containing scroll panel's visible bounds and offset, the theme density and row height (with
+`SetMinimumPopupItemHeight`), `SetMaxVisibleItems`, whether the popup is open, its filtered and rendered row counts and its
+content width. Equal inputs keep the placement; paint, hit testing and input handlers ask for it once each. Row and row-text
+rectangles are then derived arithmetically from the placement and the scroll index: they measure, allocate and change
+nothing, however often paint and hit testing ask.
+
 ### High-contrast primary buttons
 
 Primary buttons preserve the opaque selection-fill/selection-text color pair in high contrast across idle, hover,
@@ -690,6 +821,16 @@ the inset, so an insertion line on the edge keeps its full 2 DIP.
 
 Tree expansion and collapse retain their model, selection, focus, delegate and accessibility semantics at any model size. Row and chevron transitions are optional: if either visible-row snapshot would exceed 4096 rows, or animation preparation cannot allocate, the accepted change appears immediately. Admitted transitions prepare stable-ID indexes once and reuse them during painting. Reduced-motion settings also apply the change immediately.
 
+An admitted transition reads every visible row once before the change and once after it. It keeps the ids of those rows
+(the sorted id-to-row indexes above) and whole row records only for the rows a collapse takes away: the collapsed item's
+descendants before the change, each read from the model directly into its record and never copied or moved. The
+collapse draws those rows from their records while they slide into their parent and fade, at whatever scroll offset or
+size the tree has during the transition, so all of them are kept, not only those in the viewport when it starts. An
+expansion keeps no row record; its new rows come from the model as it paints. The records hold no pointer or view into
+model storage and are released when the transition ends, is replaced by another toggle or the model changes. The rows
+read after the change also become the [id index](#tree-item-lookup-and-model-notifications) of a model that uses the
+default lookup, so the toggled item is found again without another read.
+
 ### TextField supplementary character input
 
 Character input buffers a UTF-16 lead surrogate privately until its matching trail arrives, then inserts and publishes the complete pair as one edit. An orphan trail is consumed without changing text. Caret or selection commands, pointer input, focus changes, text replacement, text-store imports and read-only transitions cancel a pending lead; no change callback or accessibility publication exposes it alone.
@@ -703,8 +844,20 @@ Page Up and Page Down use the body viewport height and prepared row/group geomet
 
 Growing a Grid or Tree clamps its retained scroll to the new viewport. When all rows fit, the offset is zero and
 the first body hit identifies the first authored row. Changed Grid header busy/sort state and Tree selection
-setters request repaint from their attached host. Pending content in an unrelated sibling does not retire another
+setters request repaint from their attached host, and so does a CardPanel corner radius set to a new value (once; the
+same value requests nothing). Pending content in an unrelated sibling does not retire another
 control's capture or preview.
+
+A wheel notch scrolls Grid, Tree and a multiline TextField by the lines the user chose in the mouse settings
+(`SPI_GETWHEELSCROLLLINES`, 3 when it cannot be read). A window host reads it at first use and again whenever it
+receives `WM_SETTINGCHANGE`; an embedded host, which receives no window messages, reads it again before each wheel event
+it dispatches, so its controls always use the current setting and it still owns no timer, thread or window. "One screen at
+a time" (`WHEEL_PAGESCROLL`) scrolls one page: the rows (lines) the viewport shows, as Page Down moves. A setting of 0
+scrolls nothing and leaves the wheel unhandled. Grid accumulates partial deltas exactly: it keeps the unrounded offset
+the wheel's deltas lead to and draws the row boundary nearest to it, so four 30-unit precision-touchpad deltas scroll
+what one 120-unit notch scrolls and four opposite ones return to the starting row. A delta that moves only that target
+is handled without a repaint; one that cannot move it (at either end) is unhandled. Any other change of the offset
+(keys, scrollbar, reveal, a model or size change) restarts the target from the new offset. Tree steps whole notches.
 
 Grid borrows its model. After a normal SetModel return the caller may destroy the previous model; subsequent
 geometry and input use the replacement. Unexpected C++ allocation/callback failures use the
@@ -712,6 +865,45 @@ geometry and input use the replacement. Unexpected C++ allocation/callback failu
 ### Tree refresh and input routing
 
 A model refresh reconciles identities and clamps the scroll offset without moving the viewport to an unchanged focus. Typeahead cycles after the current row on a fresh one-character search and retains the current match as the prefix grows. A first keyboard action that selects the first row reports that selection; movement reports its final landing once. Ctrl and Shift row-selection gestures do not trigger single-click invocation. A wheel event directed outward at a scroll extent bubbles to an enclosing scroller, including partial detents.
+
+### Tree item lookup and model notifications
+
+A tree finds the visible row of an item id (the focused item on each key, the selected and focused items after a model
+refresh, a toggled item, the dragged row, a parent for Left) in one of two ways, and never both for one model:
+
+- **The model's own lookup.** A model that overrides `ITreeModel::FindVisibleItemById` is asked every time. Its answer is
+  authoritative and the tree keeps nothing per row, so the tree's memory stays independent of the row count.
+- **The tree's id index.** A model that keeps `ITreeModel`'s default lookup (a scan that reads each row up to the match) is
+  answered from an index the tree owns: every distinct visible id in ascending order with the first row that carries it,
+  12 bytes per distinct visible id (an 8-byte id, a 4-byte row) in two arrays of exactly that size. A duplicated id
+  therefore resolves to its first row, as the default scan does, and an id that is not a visible row to none. The index is
+  built by reading every visible row once, on the first lookup after a change, and lookups then read no row. It holds
+  no pointer or view into model storage. `SetModel` and the retained-cache drop release it; it is not built for more
+  than 2^32 - 1 rows, where the model's lookup is used.
+
+The tree tells the two apart on its first lookup after `SetModel`: a lookup that reaches the default implementation marks
+the model as using it, also when an override delegates to it for that id. The index is rebuilt on the next lookup after
+any of these:
+
+| Change of the visible rows | What the tree sees |
+| --- | --- |
+| `NotifyDataChanged`: new data, order, filter or sort, an expand or collapse the model or the application made, rows added or removed | the model revision moves |
+| `SetModel`, `SetDelegate` | the model revision moves; `SetModel` also forgets which lookup the model uses |
+| An expand or collapse the tree asked for (pointer, keys, double-click, UI Automation, `RequestExpandedState`) | when `OnTreeToggleExpanded` returns, the tree drops an index built before the callback, whether or not the delegate published the change; an animated toggle adopts the rows it read after the change as the new index |
+| A drop (`OnTreeReorder`) | when the callback returns, the tree drops an index built before it |
+| The model's visible row count differs from the index | the index is rebuilt |
+| `NotifyItemPresentationChanged` | nothing: by its contract ids, order and membership are unchanged |
+
+Every other change of the visible rows must be published with `NotifyDataChanged` before the tree next receives input
+or a request, which selection, focus, scroll and accessibility reconciliation already require. Between a silent change and
+its publication the index answers for the rows as they were, so a key may start from the row the focused item had. The
+diagnostic verified mode (`Tree::DebugSetIdLookup(Tree::DebugIdLookup::Verified)`) compares every index answer with the
+model's own default lookup, uses the model's answer and counts each difference (`Tree::DebugGetIdLookupMismatchCount`);
+the `Tree` suite runs in it and requires none. `Tree::DebugIdLookup::Model` restores the model-only lookup for comparisons.
+
+Up, Down, Home, End, Page Up and Page Down read from the model only the row that takes the focus; Left, Right, Enter and
+Space also read the focused row, and Right the row after it. None reads another row when the model answers lookups
+itself or the index is current. `SetFocusedItemId` looks its item up once.
 ### Tree row drag
 
 `Tree::SetReorderEnabled` arms a pointer drag on a row (not the expander or the scrollbar). After the pointer moves
@@ -836,7 +1028,11 @@ of these alters selection or anchor. `GetFocusedRowId` names the focused row. A 
 cleared and publication raises no focused-row callback; `SetSelectedRowIds` silently selects the listed visible rows and
 makes the last one the focused row and the anchor. The keys start from the focused row, else from the last selected row,
 else from the first row. A normal row gesture replaces membership and moves the anchor to that row; Shift extends from the anchor;
-Ctrl toggles the touched row and moves the anchor there, even when it toggles the row off. Ctrl+Space toggles the focused
+Ctrl toggles the touched row and moves the anchor there, even when it toggles the row off. Ctrl+Shift, with a click or a
+movement key, follows the Windows list convention: it adds the visible rows from the anchor to the row (the rows of
+collapsed groups are not visible and are skipped) to the selection, focuses that row and keeps the anchor; an anchor
+that is no longer a visible row adds the row alone and anchors there, and with no anchor it toggles as Ctrl does. Only
+the rows that joined raise `ElementAddedToSelection`. Ctrl+Space toggles the focused
 row. Ctrl+A selects all visible rows and focuses the final row in visible order. A single-selection Grid permits an
 empty selection through Ctrl+Space or UIA removal. UIA AddToSelection is idempotent for an already selected row and
 preserves the current anchor; in single-selection mode it refuses to add another row while one is selected.
@@ -869,6 +1065,43 @@ Unnamed columns retain their ordinal contract. Group collapse reports
 any replacement focus through the focused-row callback and stops when that callback retires the Grid.
 RTL mirrors column geometry, adornments, keyboard left/right behavior and horizontal
 scrollbar direction; offscreen cell focus reveals the cell using the same logical scroll offset.
+
+### Grid data caches
+
+A Grid reads its model's groups and column descriptions once per data revision and answers painting, geometry, hit
+testing and keyboard navigation from those copies. The model rule is the one the Grid has always stated: the application
+calls `NotifyDataChanged` after it changes the model. Which notification makes the Grid read what again:
+
+| Change | Notification | Read again |
+| --- | --- | --- |
+| Rows (count, order, stable ids), groups (count, ranges, order, titles, collapsed state), column descriptions (ids, titles, widths, kinds, alignment), a sort or a filter the application applied | `NotifyDataChanged` | groups and columns, at their next use |
+| Another model, or the same one again | `SetModel` (the old model's copies are released at once) | groups and columns |
+| Another delegate | `SetDelegate` | groups and columns |
+| A group toggle the Grid asked for: a header click, the collapse or expand key, `ApplyGroupLayout` | none: after each `OnGridGroupToggled` the Grid reads the groups again, whether or not the delegate published the toggle | groups |
+| A column layout | `ApplyColumnLayout` | columns |
+| A row, group or column count that differs from the copy | none: a safety net, not a substitute for the notification | the copy of that count's data |
+| Cell values and row styles | none: never copied, every paint asks the model | nothing |
+| DPI, typography, density, flow direction, bounds, scroll, sort glyph (`SetSortSpec`) | none: the copies hold model data and integer offsets; geometry is computed from them at use | nothing |
+
+A change to groups or columns that is not published shows the previous ones until the next notification. Diagnostics
+builds verify the rule: under `Grid::DebugSetDataPathVerification` every cached group layout and column description,
+and every row top, hit row, keyboard target, Shift range, membership answer and selection report derived from them, is
+computed again the uncached way and compared; a mismatch is counted and logged, and `Fatal` ends the process through the
+[failure policy](../Core/Core_FailureHandling.md). The Grid suite runs `Fatal`, so a model or a cache that breaks the rule
+fails a test instead of painting stale rows.
+
+Rows have one height, so a row's top is its index less the rows of collapsed groups before it, times the row height,
+plus the group headers above it: the copy keeps the collapsed rows before each group, and a top, a visible ordinal and
+the row at an ordinal are binary searches over the groups. Arrow keys, Home, End, Page Up and Page Down, the nearest
+visible row after a collapse and hit testing list no rows and allocate nothing; a Shift range lists only the rows it
+selects, Ctrl+Shift the rows it adds. Stable ids name one row each: a range ends at the model's row for the anchor's id.
+The copies are O(groups) and O(columns), never O(rows). `GridSelectionModel::GetEpoch` moves exactly when the ordered
+selection changes, so a gesture reports a selection change by comparing epochs instead of copying the selection;
+`AssignInOrder` and `SetSelectedRowIds` answer membership through an ascending copy behind a table of bits, as a hash set
+did (repeated ids once, ids no visible row has never). A steady frame collects no groups and asks the model for no column
+description; after a select-all a Down key or a click allocates nothing, except the two one-id buffers the selection's
+give-back rule ([performance and resources](../Core/Core_PerformanceAndResources.md)) takes for the gesture that
+replaces it. The retained-cache registry drops both copies, so the incremental-versus-fresh oracle covers them.
 
 ### Localized built-in text
 
@@ -1018,6 +1251,12 @@ not call it from composition. No HWND/device/thread/timer/worker belongs to the
 core. The caller supplies scheduling and stale-result/lifetime checks until the
 retained/shared preparation integration is implemented.
 
+While a delayed tooltip waits for its show delay, a request for the same text at a
+different origin only stores that origin: it reports no change, neither invalidates
+nor wakes the native or embedded host and keeps the deadline, and the tooltip shows
+at the last requested pointer origin. A shown delayed tooltip with the same text
+still follows a moved origin.
+
 Rich view exposes an authored link or image title through the host's delayed
 supplemental tooltip when its visible content is hovered. Editable editors require
 Ctrl; read-only editors do not. A nested image title takes precedence over its
@@ -1030,6 +1269,23 @@ After clearing visible tooltip content, the host resolves the hovered target and
 text again before publication. This also applies when a generic consumer tooltip
 was visible: its invalidation callback may replace the candidate rich document.
 An expanded inline source owner's edit help is not an authored hover title.
+
+Hover lookup cost (performance and motion plan W7.9). Semantic geometry indexes
+its hover spans when a preparation publishes, with the geometry generation: the
+titled link, image and abbreviation spans (an expanded source owner excluded) and
+the link, footnote reference and backlink spans that hover underlining uses, by
+display range. Where titled spans nest or overlap, the hover title is the
+smallest span containing the hit and, on equal length, the later element; the
+underlined link is the first containing span in element order. A pointer lookup
+is one binary search and scans no semantic element, however many the document
+has. The host remembers the last resolved title with its editor, pointer point,
+modifiers and the editor's hover key (geometry generation, text viewport,
+horizontal translation, vertical scroll, whether the layout is current, enabled,
+visible and editable) and resolves again only when one of them changes, so an
+animation tick with an unchanged pointer resolves nothing. A document edit,
+scroll, zoom, width change, density change or re-preparation changes the key; a
+colour-only theme change leaves every input of the title unchanged. The
+remembered title is a registered retained cache.
 
 ## Retained RichTextEditor v0 preview (D2c)
 
@@ -1190,6 +1446,19 @@ Shared immutable pixel objects MUST be counted/uploaded once. Other source/forma
 capacity contracts are unchanged; process/driver and transient staging overhead
 require separate measurement.
 
+`RichImage::Decode` MUST read the caller's encoded span in place, borrowed for
+the call only: no WIC object or lazy source may outlive the call, and every
+published pixel is copied out before it returns. `LoadFile` decodes from its own
+read buffer, so one decode holds at most one encoded-size buffer. A GIF first
+frame is copied into its logical canvas at its offset and composed in place, and
+EXIF orientation is applied in place for every square image and for the
+non-transposing orientations; only a transposing orientation of a non-square
+image may hold one additional decoded-size buffer. Peak tracked C++ storage per
+decode is therefore at most the encoded plus the decoded size, plus that one
+buffer, plus bookkeeping of at most 2 KiB (the image object and, for a file,
+its path strings). Cancellation points, size and dimension caps, results and
+decoded pixels are unchanged.
+
 Local destination resolution MUST use explicit document metadata, strict UTF-8
 URI decoding and bounded lexical Windows paths. Encoded separators/NUL, device
 names, ambiguous extended/trailing-component spellings and malformed/unrecognized URI
@@ -1272,7 +1541,7 @@ In the opt-in Subtle Markdown style, fenced and indented code blocks have a neut
 
 An application may register a localized accessible name and code-copy intent callback. In Subtle style the prepared header then exposes a pointer action and a distinct UIA Invoke child; Ctrl+Shift+C invokes the block containing the source caret. The callback receives a borrowed counted rendered-code view with the block's normalized line endings, including any NUL; the application owns clipboard format policy. The existing code-element Invoke remains source editing. Stale, canceled, detached, or retired gestures and peers cannot invoke a replacement owner, and the action never changes source, selection or history.
 Source presentation may disable wrapping and opt into physical line numbers and space, tab and line-ending guides. The line-number lane grows with source length and zoom, clamped to preserve at least half the available text viewport. The gutter and guide coordinates are staged cooperatively from the exact counted source and current geometry; they do not add source units, selection, or text-service content. CRLF is one physical ending, and the trailing empty line remains addressable. Published guides use the current viewport and font, support high contrast, and Paint reads cached layouts/coordinates. Horizontal extent and offset apply to unwrapped Source and opt-in overflowing Rich tables; scrolling changes neither source nor history, translates painting, hit testing, TSF and UIA geometry together, clamps to the available extent, and notifies the registered owner callback. Shift+wheel may scroll horizontally; edge input bubbles. Source right-to-left scrolling follows the opposite visual direction.
-An optional code tokenizer receives borrowed language and rendered code views on the owner preparation thread. Built-in JSON, C-like, PowerShell and diff tokenizers supply bounded comment, keyword and literal spans. Application results must contain at most 4096 sorted, disjoint, nonempty UTF-16 ranges within the code body, without splitting surrogate pairs; a declined result or invalid returned ranges use ordinary ink. Unexpected exceptions escaping the tokenizer enter host fatal diagnostics. The editor stages all ranges until the current semantic publication is complete, validates owner, binding and source after every callback, and invokes at most one code tokenizer per preparation turn. Paint uses the cached ranges; selected text and high contrast take precedence. Changing the tokenizer requests a fresh owner preparation without editing source or history.
+An optional code tokenizer receives borrowed language and rendered code views on the owner preparation thread. Built-in JSON, C-like, PowerShell and diff tokenizers supply bounded comment, keyword and literal spans; a block with more than 4096 spans keeps its first 4096 in source order and leaves the rest of its code in ordinary ink. Application results must contain at most 4096 sorted, disjoint, nonempty UTF-16 ranges within the code body, without splitting surrogate pairs; a declined result or invalid returned ranges use ordinary ink. Unexpected exceptions escaping the tokenizer enter host fatal diagnostics. The editor stages all ranges until the current semantic publication is complete, validates owner, binding and source after every callback, and invokes at most one code tokenizer per preparation turn. Paint uses the cached ranges; selected text and high contrast take precedence. Changing the tokenizer requests a fresh owner preparation without editing source or history.
 Image requests MUST execute in caller-owned scheduling, with callback-free
 cancellation and source/base/binding/visibility validation at owner completion.
 The caller authorizes file access, including any UNC policy. Source replacement,
@@ -1380,9 +1649,71 @@ the named work, not complete parser CPU or a latency guarantee.
 
 DocumentIdentity scopes nonzero node identities to one parser lifetime until
 Clear; move transfers that scope, and reuse of the moved-from parser creates a
-new one. Revisions retain immutable old trees. Reparse the entire bounded block
-source before reconciling identities; the older projection's line-local widening
-is unsafe for fences/containers/references. Prefer Begin(SourceSnapshot, ...):
+new one. Revisions retain immutable old trees. The older projection's line-local
+widening is unsafe for fences/containers/references; an incremental parse instead
+reuses only what the stable-cut rules below prove unchanged, and its publication
+MUST equal a fresh parse of the same text in every published field (blocks, nodes,
+lines, empty lines, lexemes, inlines with their resolution, diagnostics, footnotes
+and capacity refusal); only node identities differ by lineage.
+
+Incremental parse reuse (plan item W7.2). A parse with a compatible previous
+publication (same profile and extensions, no source-region request on either,
+an unchanged-prefix/suffix correlation that does not discard identities) scans
+from the start of the top-level block enclosing the edit to the next stable cut.
+A stable cut is the start of a top-level block where, in the new parse, only the
+document is open (no open container, leaf or table row), the position lies wholly
+before the edit with an unchanged document-owned blank line after the old block,
+or wholly after it at the shifted start of an old closed non-empty top-level
+block, and the document-start context is unchanged. The old block must also have
+begun fresh: the recognizer records, per publication, the top-level starts whose
+first line it processed with no document-level leaf or table row open (containers
+that line closed do not matter: a line that starts a top-level block matched none
+of them), and only those are imported. A block born from the tail of a paragraph (a table whose header was
+the paragraph's last line), from reference-definition extraction (the leftover of
+a definition followed by a lone `-`) or from a container's leftover depended on
+what was open before it and is parsed again, whatever its kind. A block that began
+with nothing open parses identically from that state, which is the state the new
+parse has at its shifted start. After an imported block the new parse continues
+with nothing open, so a block after the edit is imported only if the previous
+parse also began the line after it fresh: an unchanged document-owned blank line
+follows it, or only document-owned blank lines separate it from a next block that
+began fresh, or it reaches the end (a paragraph whose last line became a table
+header was still open at that line). That block's whole subtree is
+then imported: its nodes, lines and owned empty lines are copied with their
+source ranges shifted by the edit delta; a document-level blank line at such a
+position is copied the same way. A line before the edit counts as unchanged only
+when its line ending also precedes the edit (a final line without one, or a CR an
+LF could join, is parsed again). A subtree whose code, HTML or envelope leaf
+reaches the end of a source that ends in a line break is not imported when the
+previous parse finished with that leaf open. The edit window is the trusted
+correlation envelope with unchanged edge units trimmed, and the lexical margins
+stop at a line break. Lazy continuation, setext underlines,
+lists and block quotes that absorb the next line, open fences, unterminated HTML
+blocks and table rows all keep a container or leaf open, so they widen the window
+to the next cut; a top-level block containing a link reference definition is
+never imported. A closed front-matter envelope before the edit is a cut without a
+following blank line when its closing line, line ending included, precedes the
+edit. Each imported leaf (paragraph, heading, table cell) and opaque HTML block
+copies its inline forest, shifted, unless the document's effective link
+reference definitions (first definition per normalized label) differ from the
+previous parse, in which case every leaf is parsed again and counted, or the old
+forest holds a footnote reference. Imported nodes keep their previous identities;
+only nodes outside the imported subtrees enter identity reconciliation. A closed
+front-matter envelope imported unchanged carries its previous validation result
+and is not validated again; creating, editing, unclosing or destroying the
+envelope validates it. Node-capacity admission counts a copied leaf's previous
+staging, so the incremental and fresh parses refuse the same documents. The owned
+source copy takes the unchanged prefix and suffix from the previous publication
+and reads only the edit window from the snapshot's piece tree. Unchanged trivia
+lines between top-level blocks keep their previous root-partition entries,
+shifted. A top-level block holding a link reference definition is never imported,
+so it is scanned on every edit, and definition collection reads every definition's
+label, destination and title on every edit: a document's definitions are a
+whole-document cost per edit, counted (`rich.markdownReferenceUnitsRead`). Reused
+nodes are copied, not shared: each publication still holds dense absolute-range
+vectors.
+
+Prefer Begin(SourceSnapshot, ...):
 tracked source ancestry distinguishes equal paragraphs and pending sibling edits.
 Trusted unchanged/tracked/full-replacement snapshot metadata MUST be honored
 before reading source units for common-prefix/suffix correlation. A full
@@ -1675,6 +2006,82 @@ breaks. Changing this policy retires the semantic publication without changing
 source or history. Generic source fragments
 do not by themselves implement grammar-aware line joining or empty-format cleanup.
 
+#### Block-incremental semantic projection
+
+A `SemanticBuilder` with a current publication prepares the next syntax from it. The two sources' common prefix and
+suffix form the edit envelope. Top-level blocks are paired by range: leading blocks with the same kind and source range
+inside the prefix, and trailing blocks with the same kind and range shifted by the length change inside the suffix.
+Paired blocks copy their elements, geometry paragraphs, display text, spans, runs, headings and native object records
+from the previous publication, shifted by the source and display deltas; only the blocks between them are built from
+syntax. Building is therefore proportional to the edited blocks, but copying is still proportional to the document:
+every unchanged element (with its name, destination and title strings), paragraph, span, run, heading and display
+unit is copied on each edit, because the published values are absolute and contiguous. Removing that copy (storage
+relative to its block, element names as display ranges) changes public types and is remaining work for API revision 6;
+the copy is counted (`semanticElementsCopied`, `semanticDisplayUnitsCopied`, `semanticBytesCopied`). Each copied element and paragraph is checked against the new syntax (kind, shifted range and block identity),
+and the trailing range is copied only when the state where it starts (last display unit, pending native HTML insertion)
+matches; otherwise that block is rebuilt and the next one is tried. Copied spans and runs are clipped at block edges and
+merged with the same rule as emitted ones. A reused-range copy is one indivisible event. Heading slugs are kept when
+the rebuilt blocks hold the same heading bases as before and are otherwise replayed in document order.
+
+The result must equal a fresh build of the same syntax: every element, paragraph, heading, navigation target,
+diagnostic, run, source format unit and native object record, and the map in both directions at every offset. Element
+indices, syntax node indices and block identities are those a fresh build assigns. Constructs with document-wide effect
+build the whole document and count the cause: footnotes or footnote references in either revision; a link reference
+definition, front matter or (with the extension) an abbreviation definition in an edited block; a refused object, record
+or diagram admission, or an admission or definition-list capacity margin a copy could change; a scoped source block,
+source region, native fallback or changed disclosure override; and a reused block whose syntax node or identity does not
+pair. A different profile, extension set, label set or soft-break policy has no compatible publication. Previous
+publications stay immutable: reused values are copies, except immutable formula trees, which are shared; a copied
+diagram model carries the new syntax revision, as a fresh build's does. The publication records one block cut per
+top-level block (where its output starts, and which old block it was copied from) as the old-to-new pairing later
+preparation stages follow instead of an identity map of all nodes. Pairing assumes that every node of a reused top-level
+subtree moves by the same index offset as its top-level node: an incremental parse must keep that numbering or replace
+the pairing, or every edit becomes a full build counted as `Structure`. Every publication, copied or built, is checked
+against the public map admission rules in every configuration before it is published, and a refusal is a fatal
+contract failure ([failure handling](../Core/Core_FailureHandling.md)).
+
+`SourceDisplayMap` stores no per-unit anchors. A semantic publication's map borrows the immutable syntax source, which
+it keeps alive, and owns its display text and spans; source-to-display lookups binary-search the primary spans, which
+are already in source order unless the projection reorders them (a footnote footer) or more than 16 non-primary spans
+follow one another, in which case the map also keeps their source order; a lookup visits O(log n + 16) spans. A map from the public `TryBuild` owns a copy of its source. Results equal the former dense anchors.
+Semantic geometry pairs previous boxes with new paragraphs by order within a bounded window (64 candidates of the kind,
+256 boxes in all), or through the block pairing when alignment is lost, and compares a candidate layout's input with the document's display text and runs in
+place before building any input copy.
+
+#### Prepared objects across edits
+
+Semantic geometry carries prepared native objects from its published generation into the next one, whatever document
+that generation holds, so an edit outside an object prepares and uploads nothing for it. A carried object must be the
+object a fresh preparation of the new document would build, so each kind carries only under a key that covers every input
+its preparation reads:
+
+| Kind | Inputs its preparation reads | Carry key | Rebuilt by |
+| --- | --- | --- | --- |
+| Raster image bitmap | decoded pixels (orientation and premultiplied BGRA applied at decode), the raster target | the same immutable `RichImage`, the same target, resource and typography epochs, factory and options apart from width | a new decode, another target or device, any option other than width (conservatively DPI too, although the bitmap is DPI-independent) |
+| SVG raster | the SVG bytes and nominal size, the raster size in pixels (from width, DPI and authored size), the target's device | the same `RichImage` and raster width and height, plus the raster image key | a raster size change (a width below the image's size, DPI, authored size), another device |
+| Formula | expression source, display or inline mode, font size at its position (body, code or heading), DPI, math, body and code font families, locale, absolute-unit scale, the DirectWrite factory; explicit colors bind brushes on the target | the exact source string the expression was parsed from, the mode and the font size, plus the raster image key | an edit inside it, a move that changes its font size (into a heading or code), any of those options, another target or epoch |
+| Diagram | graph source, body font family and size, locale, reading direction and automatic direction, label width, absolute-unit scale, both factories, epochs; authored colors bind brushes on the target | the exact graph source with those options; the authored-color palette also needs the same target | an edit inside it, any of those options or epochs; the palette also by another target |
+
+The keys rely on two purity rules that must stay true: a formula's expression is a function of its source alone
+(`ParseMath` reads no macro, label, counter or other document-wide state; equation tags are explicit in the source), and
+a diagram model is a function of its body alone (`NativeFlowchartParser` reads only the body). Diagram preparation reads no
+DPI. Theme colors, text rendering parameters and the window's monitor are bound at paint, not at preparation, so they are no
+key. A diagram model's `revision` names the syntax revision that parsed it and is not part of its content: a model is a
+function of its source, so a diagram carries across revisions by source. Each previous object carries to at most one new
+one, in document order: equal formulas or diagrams keep one prepared object each, as a fresh preparation gives them,
+while equal images share one bitmap as they always do. Hit-testing, selection, hover titles and accessibility read the
+new document and the new placements, never the carried object's previous element.
+
+The carry reads only the published generation: never an abandoned preparation and never an older generation. A
+preparation holds a shared reference to each object it claims; what it does not claim stays owned by the published
+generation until the new one is published, when that generation and every unclaimed object are released. So deleting a
+formula, diagram or image releases its prepared object at publication, not before, and the objects held never exceed
+what the previous publication held plus what the new document adds. A superseded preparation (a further edit before
+publication) releases only what it built; the next one carries from the publication again. Destroying the geometry
+releases a pending preparation before the publication it reads. Only finished objects carry, so a published generation
+never shares an object that another preparation still advances. The incremental-versus-fresh oracle's fresh scene
+carries nothing (`SetFreshPreparationForTest`).
+
 The role graph retains headings, quotes, lists/items, code, tables/rows/cells,
 links, images, task objects and rules. Cells retain header/alignment/row/column
 metadata. Source task markers and image alternatives are atomic source objects;
@@ -1846,7 +2253,9 @@ view shows an icon, bold title and theme-accent bar, using text ink in high
 contrast. Foldable titles use the same mouse, keyboard and UIA disclosure action
 and bounded per-view state as HTML details. The original marker, quote prefixes,
 body, selection and history remain authoritative. CommonMark/GFM profiles do not
-apply this extension.
+apply this extension. The header line is projected once, as the title: when the
+rest of the first paragraph is shown as a literal leaf (unsupported inline HTML),
+that literal starts after the header line, exactly where its ordinary text would.
 
 One leaf permits at most 4,096 tags and 32 simultaneous opening tags. Unknown
 tags, declarations, attributes (including class/style/events), malformed,

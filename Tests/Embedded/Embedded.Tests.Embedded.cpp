@@ -6,6 +6,7 @@
 #include "Controls/DxUi.TextElements.h"
 #include "EmbeddedScene.h"
 #include "GraphicsFixture.h"
+#include "Support.Tests.EmbeddedClock.h"
 #include "Support.Tests.FailureHost.h"
 #include "Support.Tests.FailureReports.h"
 #include "Support.Tests.MarkdownSourceCorrelation.h"
@@ -63,6 +64,13 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
     }
     return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
 }
+// Whether the view's animation request (API revision 6) asks for anything: what NeedsAnimation() and AdvanceAnimation's
+// bool answered before it.
+[[nodiscard]] static bool AnimationRequested(const DxUi::EmbeddedAnimationRequest& request) noexcept
+{
+    return request.kind != DxUi::EmbeddedAnimationRequest::Kind::None;
+}
+#include "Embedded.Tests.AnimationRequest.h"
 #include "Embedded.Tests.CleanPrepareTimerDiagnostic.h"
 #include "Embedded.Tests.ComplexUiBenchmark.h"
 #include "Embedded.Tests.ComplexUiBoundaries.h"
@@ -70,28 +78,81 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.EmbeddedAccessibility.h"
 #include "Embedded.Tests.EmbeddedTextInput.h"
 #include "Embedded.Tests.EmbeddedUia.h"
+#include "Embedded.Tests.FrameTiming.h"
 #include "Embedded.Tests.GridSelectionBenchmark.h"
+#include "Embedded.Tests.ImeCopies.h"
+#include "Embedded.Tests.IncrementalParity.h"
 #include "Embedded.Tests.InteractionLayout.h"
 #include "Embedded.Tests.LocalizedLayout.h"
+#include "Embedded.Tests.MarkdownParseReuse.h"
+#include "Embedded.Tests.MemoryMetrics.h"
+#include "Embedded.Tests.PerformanceFixtures.h"
+#include "Embedded.Tests.PerformanceGridDataPaths.h"
+// After the performance fixtures: the W2.2 gate drives FX2.
+#include "Embedded.Tests.AssignSetters.h"
+#include "Embedded.Tests.ComboBoxPopupLayout.h"
+#include "Embedded.Tests.PointerHit.h"
+// After the performance fixtures: the W2.1 gate drives FX5.
+#include "Embedded.Tests.RetainedTextLayouts.h"
 #include "Embedded.Tests.RichDocumentStorageResources.h"
 #include "Embedded.Tests.RichGeometryResources.h"
 #include "Embedded.Tests.RichImageCapture.h"
 #include "Embedded.Tests.RichImageFailures.h"
 #include "Embedded.Tests.RichProjectionResources.h"
+#include "Embedded.Tests.RichReuseAcrossEdits.h"
 #include "Embedded.Tests.RichSemanticDocumentResources.h"
 #include "Embedded.Tests.RichSemanticGeometryResources.h"
 #include "Embedded.Tests.RichSemanticResources.h"
+#include "Embedded.Tests.RichTextInputCopies.h"
 #include "Embedded.Tests.RichTextResources.h"
+#include "Embedded.Tests.SemanticProjection.h"
+#include "Embedded.Tests.TextFieldPaint.h"
+#include "Embedded.Tests.TextHistory.h"
+#include "Embedded.Tests.TraceProvider.h"
+#include "Embedded.Tests.TreeDataPaths.h"
+#include "Embedded.Tests.UiaTextProvider.h"
+#include "Embedded.Tests.WorkCounters.h"
+#include "Support.Tests.RichHoverIndex.h"
 #include "Support.Tests.RichSemantic.h"
 #include "Support.Tests.RichSemanticEditor.h"
 #include "Support.Tests.RichSemanticGeometry.h"
 #if defined(DXUI_HAS_INTRINSIC_LAYOUT)
 #include "Embedded.Tests.FormLayoutBenchmark.h"
 #endif
+#include "Embedded.Tests.FormatBrushCaches.h"
 #include "Embedded.Tests.PreparedTreeAccessibilityBenchmark.h"
 #include "Embedded.Tests.PreparedTreeAccessibilitySemantics.h"
 #include "Embedded.Tests.PreparedTreeEvents.h"
 #include "Embedded.Tests.PreparedTreeRootLifetime.h"
+
+// W7.9 on the embedded host: the hover scenario's pointer paths through DispatchPointer and its unchanged-pointer ticks
+// through AdvanceAnimation, the path that revalidates the supplemental tooltip.
+static void TestEmbeddedRichHoverIndex(GraphicsFixture& gpu)
+{
+    DxUi::EmbeddedHost view;
+    std::shared_ptr<DxUi::GraphicsDevice> graphics;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "hover index borrowed graphics");
+    Hr(view.Attach(graphics, StoppedTestClock()), "hover index embedded view");
+    uint64_t tick      = 1'000u;
+    const auto prepare = [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare the embedded hover scenario"); };
+    const auto move    = [&](D2D1_POINT_2F point, UINT modifiers)
+    {
+        const auto scale = static_cast<float>(view.Controls().GetDpi()) / 96.f;
+        static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Move, point.x * scale, point.y * scale, modifiers}));
+        if (! view.NeedsPreparation())
+            return false;
+        prepare();
+        return true;
+    };
+    const auto advance = [&]
+    {
+        const bool requested = AnimationRequested(view.GetAnimationRequest());
+        static_cast<void>(view.AdvanceAnimation(++tick));
+        return requested;
+    };
+    RichSemanticTests::Run([&] { RichHoverIndexTests::HoverGate(view.Controls(), "embedded", prepare, move, advance); });
+    RichSemanticTests::Run([&] { RichHoverIndexTests::HoverStaleness(view.Controls(), prepare, move, advance); });
+}
 
 // Hidden and zero-extent views hold no surface; the next visible sized preparation reallocates exactly one and
 // reproduces the previous pixels. Device replacement while hidden keeps working without a surface.
@@ -112,7 +173,7 @@ __declspec(noinline) static void TestSurfaceLifetime(GraphicsFixture& gpu)
     scene.view.SetVisible(false);
     const auto hidden = scene.view.GetStatistics();
     Check(hidden.surfaceBytes == 0 && hidden.surfaceAllocations == visible.surfaceAllocations, "hiding releases the surface without allocating");
-    Check(! scene.view.NeedsPreparation() && ! scene.view.NeedsAnimation() && requests == requestsBeforeHide,
+    Check(! scene.view.NeedsPreparation() && ! AnimationRequested(scene.view.GetAnimationRequest()) && requests == requestsBeforeHide,
           "hidden view requests no preparation or animation");
     Check(scene.view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE, "hidden view composites nothing");
     Check(scene.view.Prepare(480, 240) == S_FALSE && scene.view.GetStatistics().surfaceBytes == 0, "hidden preparation allocates no surface");
@@ -133,7 +194,8 @@ __declspec(noinline) static void TestSurfaceLifetime(GraphicsFixture& gpu)
     Check(scene.view.Prepare(0, 0) == S_FALSE, "zero extent suspends");
     Check(scene.view.GetStatistics().surfaceBytes == 0 && scene.view.GetStatistics().surfaceAllocations == restored.surfaceAllocations,
           "zero extent releases the surface");
-    Check(! scene.view.NeedsPreparation() && ! scene.view.NeedsAnimation() && scene.view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE,
+    Check(! scene.view.NeedsPreparation() && ! AnimationRequested(scene.view.GetAnimationRequest()) &&
+              scene.view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE,
           "zero extent requests no work and composites nothing");
     Hr(scene.view.Prepare(480, 240), "prepare after zero extent");
     Check(scene.view.GetStatistics().surfaceBytes == visible.surfaceBytes && scene.view.GetStatistics().surfaceAllocations == restored.surfaceAllocations + 1,
@@ -250,7 +312,7 @@ struct FrenchGridScene
     {
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
-        RETURN_IF_FAILED(view.Attach(std::move(graphics)));
+        RETURN_IF_FAILED(view.Attach(std::move(graphics), StoppedTestClock()));
         auto theme          = DxUi::MakeDefaultThemePalette(false);
         theme.reducedMotion = true;
         view.Controls().SetTheme(theme);
@@ -462,12 +524,148 @@ __declspec(noinline) static void TestEmbeddedTouchDragShowsTheSliderTouchHalo(Gr
     static_cast<void>(scene.view.DispatchPointer({DxUi::PointerAction::Up, x, y}));
 }
 
+// A surface recreation that fails is reported to the application, which owns the schedule: the view requests no
+// preparation of its own and keeps no timer, stays dirty, and its next Prepare presents the full frame again.
+__declspec(noinline) static void TestEmbeddedFailedSurfaceRecreationIsReportedAndRecovers(GraphicsFixture& gpu)
+{
+    EmbeddedScene scene;
+    size_t requests = 0;
+    Hr(scene.Initialize(gpu.device.get(), {&requests, [](void* p) noexcept { ++*static_cast<size_t*>(p); }}), "failed recreation scene");
+    Hr(scene.view.Prepare(480, 240), "prepare failed recreation scene");
+    gpu.Bind();
+    Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "composite before the failure");
+    std::vector<uint8_t> shown;
+    Hr(gpu.Read(shown), "read pixels before the failure");
+    scene.view.SetVisible(false);
+    scene.view.SetVisible(true);
+    const size_t requestsBeforeFailure = requests;
+    scene.view.Controls().DebugSetNextSizeResourceFailureForTest(3u, E_FAIL);
+    Check(scene.view.Prepare(480, 240) == E_FAIL, "the failed surface recreation is reported");
+    Check(requests == requestsBeforeFailure, "the view retries nothing by itself");
+    Check(scene.view.NeedsPreparation(), "and stays dirty for the application's next preparation");
+    Hr(scene.view.Prepare(480, 240), "the application's next preparation recreates the surface");
+    gpu.Bind();
+    Hr(scene.view.Composite(gpu.context.get(), gpu.Viewport()), "composite after the fault clears");
+    std::vector<uint8_t> recovered;
+    Hr(gpu.Read(recovered), "read pixels after the fault clears");
+    Check(recovered == shown, "the full frame presents again");
+}
+
+// Existing identity/RAII/reference traits intentionally delete these implicit operations.
+// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
+#pragma warning(push)
+#pragma warning(disable : 4625 4626 5026 5027)
+// Takes the primary press, so the view captures it, accepts middle presses and counts the middle button's releases.
+class EmbeddedPointerButtonProbe final : public DxUi::Control
+{
+public:
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+    bool OnMouseDown(DxUi::ControlHost&, D2D1_POINT_2F, bool, UINT) override
+    {
+        return true;
+    }
+    bool OnMouseUp(DxUi::ControlHost&, D2D1_POINT_2F, bool, UINT) override
+    {
+        return true;
+    }
+    bool OnMouseMiddleDown(DxUi::ControlHost&, D2D1_POINT_2F, UINT) override
+    {
+        ++middleDowns;
+        return true;
+    }
+    bool OnMouseMiddleUp(DxUi::ControlHost&, D2D1_POINT_2F point, UINT) override
+    {
+        ++middleUps;
+        lastMiddleUp = point;
+        return true;
+    }
+    unsigned middleDowns = 0u;
+    unsigned middleUps   = 0u;
+    D2D1_POINT_2F lastMiddleUp{};
+};
+#pragma warning(pop)
+
+// Embedded capture follows the buttons its gesture holds: a primary gesture joined by a middle press keeps the capture
+// through the primary release and ends with the middle release. The middle release reaches the control in either case.
+__declspec(noinline) static void TestEmbeddedCaptureEndsWithTheLastButtonUp(GraphicsFixture& gpu)
+{
+    using DxUi::PointerAction;
+    std::shared_ptr<DxUi::GraphicsDevice> pool;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "chord device pool");
+    DxUi::EmbeddedHost view;
+    Hr(view.Attach(pool, StoppedTestClock()), "chord embedded host");
+    auto root   = std::make_unique<DxUi::Panel>();
+    auto* probe = root->AddChild<EmbeddedPointerButtonProbe>();
+    probe->SetBounds(D2D1::RectF(20.0f, 20.0f, 220.0f, 120.0f));
+    view.Controls().SetRoot(std::move(root));
+    Hr(view.Prepare(320u, 180u), "prepare chord host");
+
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 60.0f, 60.0f}) && probe->middleDowns == 1u, "a middle press reaches the control");
+    Check(view.DispatchPointer({PointerAction::MiddleUp, 62.0f, 61.0f}) && probe->middleUps == 1u, "a middle release reaches the control");
+    Check(probe->lastMiddleUp.x == 62.0f && probe->lastMiddleUp.y == 61.0f, "at the release's own point");
+
+    Check(view.DispatchPointer({PointerAction::Down, 60.0f, 60.0f}) && view.Controls().GetCapturedControl() == probe, "a primary press captures");
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 60.0f, 60.0f}) && probe->middleDowns == 2u, "a middle press joins the gesture");
+    Check(view.DispatchPointer({PointerAction::Up, 60.0f, 60.0f}), "the primary release reaches the control");
+    Check(view.Controls().GetCapturedControl() == probe, "Primary down, Middle down, Primary up keeps the capture");
+    Check(view.DispatchPointer({PointerAction::MiddleUp, 300.0f, 170.0f}) && probe->middleUps == 2u,
+          "the middle release outside the control reaches the control holding the capture");
+    Check(view.Controls().GetCapturedControl() == nullptr, "and the last button's release ends the capture");
+
+    Check(view.DispatchPointer({PointerAction::Down, 60.0f, 60.0f}) && view.Controls().GetCapturedControl() == probe, "a later primary press captures");
+    Check(view.DispatchPointer({PointerAction::Up, 60.0f, 60.0f}) && view.Controls().GetCapturedControl() == nullptr,
+          "and its own release ends that capture: the earlier chord left nothing held");
+}
+
+// Inside a ScrollPanel the middle release reaches the child as its press does, in content coordinates, and a chord of a
+// forwarded primary gesture still ends with the last button up.
+__declspec(noinline) static void TestEmbeddedScrollPanelForwardsTheMiddleRelease(GraphicsFixture& gpu)
+{
+    using DxUi::PointerAction;
+    std::shared_ptr<DxUi::GraphicsDevice> pool;
+    Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "scrolled middle device pool");
+    DxUi::EmbeddedHost view;
+    Hr(view.Attach(pool, StoppedTestClock()), "scrolled middle embedded host");
+    auto root    = std::make_unique<DxUi::Panel>();
+    auto* scroll = root->AddChild<DxUi::ScrollPanel>();
+    scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 170.0f));
+    scroll->SetContentHeight(400.0f);
+    auto* probe = scroll->AddChild<EmbeddedPointerButtonProbe>();
+    probe->SetBounds(D2D1::RectF(10.0f, 60.0f, 110.0f, 110.0f));
+    view.Controls().SetRoot(std::move(root));
+    scroll->SetScrollOffset(20.0f);
+    Hr(view.Prepare(320u, 180u), "prepare scrolled middle host");
+    Check(scroll->GetScrollOffset() == 20.0f, "the panel is scrolled");
+
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 40.0f, 60.0f}) && probe->middleDowns == 1u, "a middle press reaches the scrolled child");
+    Check(view.Controls().GetCapturedControl() == nullptr, "and takes no capture the child did not take");
+    Check(view.DispatchPointer({PointerAction::MiddleUp, 42.0f, 61.0f}) && probe->middleUps == 1u, "the middle release reaches the scrolled child");
+    Check(probe->lastMiddleUp.x == 42.0f && probe->lastMiddleUp.y == 81.0f, "in content coordinates");
+
+    Check(view.DispatchPointer({PointerAction::Down, 40.0f, 60.0f}) && view.Controls().GetCapturedControl() == scroll,
+          "a primary press is a forwarded gesture");
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 40.0f, 60.0f}) && probe->middleDowns == 2u, "a middle press joins it at the child");
+    Check(view.DispatchPointer({PointerAction::MiddleUp, 300.0f, 170.0f}) && probe->middleUps == 2u,
+          "a middle release outside the child reaches the child that owns the gesture");
+    Check(view.Controls().GetCapturedControl() == scroll, "and leaves the gesture to its primary release");
+    Check(view.DispatchPointer({PointerAction::Up, 40.0f, 60.0f}) && view.Controls().GetCapturedControl() == nullptr, "which ends it");
+
+    Check(view.DispatchPointer({PointerAction::Down, 40.0f, 60.0f}) && view.Controls().GetCapturedControl() == scroll, "a second forwarded gesture");
+    Check(view.DispatchPointer({PointerAction::MiddleDown, 40.0f, 60.0f}) && probe->middleDowns == 3u, "joined by a middle press");
+    Check(view.DispatchPointer({PointerAction::Up, 40.0f, 60.0f}) && view.Controls().GetCapturedControl() == scroll,
+          "keeps the capture through the primary release");
+    Check(view.DispatchPointer({PointerAction::MiddleUp, 42.0f, 61.0f}) && probe->middleUps == 3u, "the middle release over the child reaches it");
+    Check(view.Controls().GetCapturedControl() == nullptr, "and the last button up ends the capture");
+}
+
 __declspec(noinline) static void TestTooltipInspectionDismissalConsumesEmbeddedGesture(GraphicsFixture& gpu)
 {
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "tooltip gesture device pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(pool), "tooltip gesture embedded host");
+    Hr(view.Attach(pool, StoppedTestClock()), "tooltip gesture embedded host");
     auto root    = std::make_unique<DxUi::Panel>();
     auto* button = root->AddChild<DxUi::Button>(L"Underlying action");
     button->SetBounds(D2D1::RectF(200.0f, 100.0f, 310.0f, 150.0f));
@@ -504,21 +702,21 @@ __declspec(noinline) static void TestTickDirtying(GraphicsFixture& gpu)
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "tick pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(pool), "tick view");
+    Hr(view.Attach(pool, StoppedTestClock()), "tick view");
     auto root = std::make_unique<DxUi::Panel>();
     root->AddChild<DxUi::Label>(L"Static content")->SetBounds(D2D1::RectF(8, 8, 300, 40));
     view.Controls().SetRoot(std::move(root));
     Hr(view.Prepare(320, 160), "prepare static root");
     const auto idle = view.GetStatistics();
-    Check(view.NeedsAnimation() && ! view.NeedsPreparation(), "a new root schedules one discovery tick on a clean prepared view");
-    Check(! view.AdvanceAnimation(GetTickCount64()), "static root stops ticking after discovery");
-    Check(! view.NeedsAnimation() && ! view.NeedsPreparation(), "the discovery tick does not dirty a static view");
+    Check(AnimationRequested(view.GetAnimationRequest()) && ! view.NeedsPreparation(), "a new root schedules one discovery tick on a clean prepared view");
+    Check(! AnimationRequested(view.AdvanceAnimation(GetTickCount64())), "static root stops ticking after discovery");
+    Check(! AnimationRequested(view.GetAnimationRequest()) && ! view.NeedsPreparation(), "the discovery tick does not dirty a static view");
     Check(view.Prepare(320, 160) == S_FALSE && view.GetStatistics().preparations == idle.preparations, "the discovery tick causes no preparation");
     view.Controls().RequestAnimation();
     Hr(view.Prepare(320, 160), "prepare after an explicit animation request");
     const auto requested = view.GetStatistics();
-    Check(view.NeedsAnimation() && ! view.NeedsPreparation(), "an explicit animation request leaves a clean prepared view");
-    Check(! view.AdvanceAnimation(GetTickCount64() + 1) && ! view.NeedsPreparation(), "a requested idle tick does not dirty the view");
+    Check(AnimationRequested(view.GetAnimationRequest()) && ! view.NeedsPreparation(), "an explicit animation request leaves a clean prepared view");
+    Check(! AnimationRequested(view.AdvanceAnimation(GetTickCount64() + 1)) && ! view.NeedsPreparation(), "a requested idle tick does not dirty the view");
     Check(view.Prepare(320, 160) == S_FALSE && view.GetStatistics().preparations == requested.preparations, "a requested idle tick causes no preparation");
 
     auto field     = std::make_unique<DxUi::TextField>();
@@ -526,32 +724,38 @@ __declspec(noinline) static void TestTickDirtying(GraphicsFixture& gpu)
     fieldPtr->SetText(L"Caret");
     fieldPtr->SetBounds(D2D1::RectF(8, 8, 300, 48));
     view.Controls().SetRoot(std::move(field));
+    // The caret blinks only with motion on, at the user's blink time: both pinned, never read from this desktop.
+    auto motion          = view.Controls().GetTheme();
+    motion.reducedMotion = false;
+    view.Controls().SetTheme(motion);
+    view.Controls().DebugSetCaretBlinkSettingsForTest(DxUi::ControlHost::CaretBlinkSettingsForTest{530u, 0u});
     Hr(view.Prepare(320, 160), "prepare text field root");
     view.Controls().SetFocusControl(fieldPtr);
     const uint64_t focusTick = GetTickCount64();
-    Check(fieldPtr->HasFocus() && view.NeedsAnimation(), "focused text field requests caret ticks");
+    Check(fieldPtr->HasFocus() && AnimationRequested(view.GetAnimationRequest()), "focused text field requests caret ticks");
     Hr(view.Prepare(320, 160), "prepare focused text field");
     const auto focused = view.GetStatistics();
     Check(! view.NeedsPreparation(), "focused text field is clean after preparation");
-    Check(view.AdvanceAnimation(focusTick + 10), "caret keeps ticking");
+    Check(AnimationRequested(view.AdvanceAnimation(focusTick + 10)), "caret keeps ticking");
     Check(! view.NeedsPreparation(), "a tick inside the blink phase does not dirty");
-    Check(view.AdvanceAnimation(focusTick + 20), "caret keeps ticking within the phase");
+    Check(AnimationRequested(view.AdvanceAnimation(focusTick + 20)), "caret keeps ticking within the phase");
     Check(! view.NeedsPreparation() && view.Prepare(320, 160) == S_FALSE && view.GetStatistics().preparations == focused.preparations,
           "ticks within the blink period cause no preparation");
-    constexpr uint64_t kCaretBlinkPeriodMs = 530u; // kCaretBlinkPeriodMs in DxUi.TextInput.cpp
-    Check(view.AdvanceAnimation(focusTick + 20 + kCaretBlinkPeriodMs), "caret keeps ticking across the blink");
+    constexpr uint64_t kCaretBlinkPeriodMs = 530u; // the blink time pinned above
+    Check(AnimationRequested(view.AdvanceAnimation(focusTick + 20 + kCaretBlinkPeriodMs)), "caret keeps ticking across the blink");
     Check(view.NeedsPreparation(), "a blink-phase flip dirties the view");
     Check(view.Prepare(320, 160) == S_OK && view.GetStatistics().preparations == focused.preparations + 1, "a blink-phase flip prepares exactly once");
 }
 
-// Per-view brush and configured text-format caches stay within their bounds: an over-bound cache is cleared at
-// the next preparation start, never while a paint borrows its entries, and refills with the painted working set.
+// Per-view brush and configured text-format caches stay within their bounds: at a preparation start an over-bound cache
+// releases the entries neither of the last two preparations used (W2.8), never while a paint borrows them, and keeps the
+// painted working set.
 __declspec(noinline) static void TestCacheBounds(GraphicsFixture& gpu)
 {
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "cache pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(pool), "cache view");
+    Hr(view.Attach(pool, StoppedTestClock()), "cache view");
     auto root = std::make_unique<DxUi::Panel>();
     root->AddChild<DxUi::Label>(L"Bounded caches")->SetBounds(D2D1::RectF(8, 8, 300, 40));
     root->AddChild<DxUi::Toggle>(L"Toggle")->SetBounds(D2D1::RectF(8, 48, 300, 88));
@@ -564,29 +768,36 @@ __declspec(noinline) static void TestCacheBounds(GraphicsFixture& gpu)
     for (size_t i = 0; i <= DxUi::ControlHost::kSolidBrushCacheLimit; ++i)
         Check(controls.GetSolidBrush(D2D1::ColorF(float(i % 256) / 255.0f, float(i / 256) / 255.0f, 0.5f)) != nullptr, "distinct solid brush");
     Check(view.GetStatistics().cachedBrushes > DxUi::ControlHost::kSolidBrushCacheLimit, "distinct colors can exceed the brush bound between paints");
-    for (int role = 0; role <= int(DxUi::FontRole::Small) && view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit;
-         ++role)
-        for (auto alignment : {DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_JUSTIFIED})
-            for (auto paragraph : {DWRITE_PARAGRAPH_ALIGNMENT_NEAR, DWRITE_PARAGRAPH_ALIGNMENT_FAR, DWRITE_PARAGRAPH_ALIGNMENT_CENTER})
-                for (bool wrap : {false, true})
-                    Check(controls.GetTextFormat(DxUi::FontRole(role), alignment, paragraph, wrap) != nullptr, "distinct configured text format");
+    for (size_t key = 0u; view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit; ++key)
+        Check(controls.GetTextFormat(DxUi::FontRole::Body,
+                                     6.0f + static_cast<float>(key % 160u) * 0.5f,
+                                     static_cast<DWRITE_FONT_WEIGHT>(key < 160u ? 400u : 700u),
+                                     DWRITE_TEXT_ALIGNMENT_LEADING,
+                                     DWRITE_PARAGRAPH_ALIGNMENT_NEAR,
+                                     false) != nullptr,
+              "distinct configured text format");
     Check(view.GetStatistics().cachedTextFormats > DxUi::ControlHost::kConfiguredTextFormatCacheLimit,
           "distinct configurations can exceed the text-format bound between paints");
-    view.MarkDirty();
-    Hr(view.Prepare(320, 160), "prepare trims the caches");
+    // What was asked for between preparations counts as used by the latest one: the third preparation trims it.
+    for (int frame = 0; frame < 3; ++frame)
+    {
+        view.MarkDirty();
+        Hr(view.Prepare(320, 160), "prepare trims the caches");
+    }
     const auto trimmed = view.GetStatistics();
     Check(trimmed.cachedBrushes > 0 && trimmed.cachedBrushes <= DxUi::ControlHost::kSolidBrushCacheLimit, "preparation trims the brush cache to its bound");
     Check(trimmed.cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit, "preparation trims the text-format cache to its bound");
     Check(trimmed.cachedBrushes == painted.cachedBrushes, "the trimmed brush cache holds exactly the painted working set");
 }
 
-// Evicting configured formats must invalidate visual-only retained layouts before this frame prepares its controls.
+// A format in use is never evicted (W2.8): with the configured-format map over its bound, the icon's retained layout keeps
+// its held format, is not rebuilt and draws the same pixels; the unused formats leave.
 __declspec(noinline) static void TestEmbeddedIconLayoutRebuildsAfterFormatCacheEviction(GraphicsFixture& gpu)
 {
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "format-eviction pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(pool), "format-eviction view");
+    Hr(view.Attach(pool, StoppedTestClock()), "format-eviction view");
     auto root    = std::make_unique<DxUi::Panel>();
     auto* button = root->AddChild<DxUi::Button>(L"\uE8DD");
     button->SetVariant(DxUi::ButtonVariant::IconOnly);
@@ -608,36 +819,31 @@ __declspec(noinline) static void TestEmbeddedIconLayoutRebuildsAfterFormatCacheE
           "the embedded icon prepares and paints one retained layout before eviction");
 
     auto& controls = view.Controls();
-    for (int role = 0;
-         role <= static_cast<int>(DxUi::FontRole::Small) && view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit;
-         ++role)
-    {
-        for (const auto alignment :
-             {DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_TEXT_ALIGNMENT_JUSTIFIED})
-        {
-            for (const auto paragraph : {DWRITE_PARAGRAPH_ALIGNMENT_NEAR, DWRITE_PARAGRAPH_ALIGNMENT_FAR, DWRITE_PARAGRAPH_ALIGNMENT_CENTER})
-            {
-                for (const bool wrap : {false, true})
-                {
-                    Check(controls.GetTextFormat(DxUi::FontRole(role), alignment, paragraph, wrap) != nullptr,
-                          "populate distinct formats before embedded eviction");
-                }
-            }
-        }
-    }
+    for (size_t key = 0u; view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit; ++key)
+        Check(controls.GetTextFormat(DxUi::FontRole::Body,
+                                     6.0f + static_cast<float>(key % 160u) * 0.5f,
+                                     static_cast<DWRITE_FONT_WEIGHT>(key < 160u ? 400u : 700u),
+                                     DWRITE_TEXT_ALIGNMENT_LEADING,
+                                     DWRITE_PARAGRAPH_ALIGNMENT_NEAR,
+                                     false) != nullptr,
+              "populate distinct formats before embedded eviction");
     Check(view.GetStatistics().cachedTextFormats > DxUi::ControlHost::kConfiguredTextFormatCacheLimit,
           "the embedded fixture overflows the bounded configured-format cache");
 
     const uint64_t buildsBeforeEviction  = button->DebugGetPreparedIconTextLayoutBuildCount();
     const uint64_t lookupsBeforeEviction = button->DebugGetPreparedIconTextLayoutFactoryLookupCount();
     const uint64_t paintsBeforeEviction  = button->DebugGetPreparedIconTextLayoutPaintCount();
-    view.MarkDirty();
-    const auto evictedPixels = capture();
+    std::vector<uint8_t> evictedPixels;
+    for (int frame = 0; frame < 3; ++frame)
+    {
+        view.MarkDirty();
+        evictedPixels = capture();
+    }
     Check(view.GetStatistics().cachedTextFormats <= DxUi::ControlHost::kConfiguredTextFormatCacheLimit,
-          "the next embedded update trims the configured-format cache before painting");
-    Check(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeEviction + 1u &&
-              button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == lookupsBeforeEviction + 1u,
-          "format eviction prepares exactly one replacement layout through the factory");
+          "the third embedded update after them evicts the unused configured formats");
+    Check(button->DebugGetPreparedIconTextLayoutBuildCount() == buildsBeforeEviction &&
+              button->DebugGetPreparedIconTextLayoutFactoryLookupCount() == lookupsBeforeEviction,
+          "W2.8: eviction keeps the format in use, so the icon layout is neither rebuilt nor looked up again");
     Check(button->DebugGetPreparedIconTextLayoutPaintCount() > paintsBeforeEviction, "the post-eviction embedded frame paints the prepared layout");
     Check(firstPixels == evictedPixels, "format eviction preserves every embedded BGRA pixel");
 
@@ -804,7 +1010,7 @@ __declspec(noinline) static void TestPointerDoesNotRetargetAfterHoverOrHitGeomet
         Model model(state);
         Delegate delegate(state);
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "attach pointer reentrancy test view");
+        Hr(view.Attach(graphics, StoppedTestClock()), "attach pointer reentrancy test view");
         auto root             = std::make_unique<DxUi::Panel>();
         DxUi::Control* target = nullptr;
         if (mutationSource == 0u)
@@ -927,7 +1133,7 @@ __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsF
             DxUi::EmbeddedCallbacks callbacks{};
             callbacks.context            = &preparationRequests;
             callbacks.requestPreparation = [](void* context) noexcept { ++*static_cast<size_t*>(context); };
-            Hr(view.Attach(graphics, callbacks), "attach preparation retirement host");
+            Hr(view.Attach(graphics, StoppedTestClock(callbacks)), "attach preparation retirement host");
             view.Controls().SetRoot(std::make_unique<CallbackRoot>(state));
             auto& callback              = duringOverlay ? state.overlay : state.paint;
             callback                    = [&] { view.Controls().SetRoot(replaceRoot ? std::make_unique<DxUi::Panel>() : nullptr); };
@@ -947,7 +1153,7 @@ __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsF
     {
         State state;
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "attach DPI retirement host");
+        Hr(view.Attach(graphics, StoppedTestClock()), "attach DPI retirement host");
         view.Controls().SetRoot(std::make_unique<CallbackRoot>(state));
         state.dpi = [&] { view.Controls().SetRoot(replaceRoot ? std::make_unique<DxUi::Panel>() : nullptr); };
         Hr(view.Prepare(320, 160, 144.0f), "DPI notification may replace or clear the root before layout");
@@ -956,7 +1162,7 @@ __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsF
     {
         State state;
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "attach failing preparation host");
+        Hr(view.Attach(graphics, StoppedTestClock()), "attach failing preparation host");
         view.Controls().SetRoot(std::make_unique<CallbackRoot>(state));
         if (fatalChild)
         {
@@ -1013,7 +1219,7 @@ __declspec(noinline) static void TestPageReplacementDuringPaintDefersBoundsUntil
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "graphics for deferred page bounds");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(graphics), "attach deferred page bounds host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "attach deferred page bounds host");
     auto pageHost  = std::make_unique<DxUi::PageHost>();
     state.pageHost = pageHost.get();
     pageHost->SetPage(std::make_unique<ReplacingPage>(state));
@@ -1088,7 +1294,7 @@ __declspec(noinline) static void TestGridModelMutationDuringCellPaintAbortsPrepa
         Model replacementModel(queryState, 5u);
         DxUi::IGridDelegate replacementDelegate;
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "attach Grid model query host");
+        Hr(view.Attach(graphics, StoppedTestClock()), "attach Grid model query host");
         auto root  = std::make_unique<DxUi::Panel>();
         auto* grid = root->AddChild<DxUi::Grid>();
         grid->SetBounds(D2D1::RectF(0, 0, 320, 160));
@@ -1225,7 +1431,7 @@ __declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture
             state.view->Controls().SetRoot(nullptr);
         }
     };
-    Hr(view.Attach(graphics, callbacks), "attach Tree reorder retirement host");
+    Hr(view.Attach(graphics, StoppedTestClock(callbacks)), "attach Tree reorder retirement host");
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0, 0, 220, 160));
@@ -1250,7 +1456,7 @@ __declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture
         EmbeddedHost nextView;
         Wake nextWake{.view = &nextView};
         callbacks.context = &nextWake;
-        Hr(nextView.Attach(graphics, callbacks), "attach Tree cancellation retirement host");
+        Hr(nextView.Attach(graphics, StoppedTestClock(callbacks)), "attach Tree cancellation retirement host");
         auto nextRoot  = std::make_unique<Panel>();
         auto* nextTree = nextRoot->AddChild<Tree>();
         nextTree->SetBounds(D2D1::RectF(0, 0, 220, 160));
@@ -1318,7 +1524,7 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
         Model model(state);
         DxUi::ITreeDelegate replacementDelegate;
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "attach Tree delegate query host");
+        Hr(view.Attach(graphics, StoppedTestClock()), "attach Tree delegate query host");
         auto root  = std::make_unique<DxUi::Panel>();
         auto* tree = root->AddChild<DxUi::Tree>();
         tree->SetBounds(D2D1::RectF(0, 0, 320, 160));
@@ -1366,6 +1572,27 @@ __declspec(noinline) static int RunFunctionalTests()
             TestFormClearPreparationRetirement(gpu);
         return 0;
     }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-incremental-parity")
+    {
+        // Replays the oracle alone; DXUI_PARITY_SEED selects one seed.
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "incremental parity WARP fixture");
+        EmbeddedParity::TestEmbeddedIncrementalParity(gpu);
+        return 0;
+    }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-reuse-across-edits")
+    {
+        // W2.3 alone: the FX8 gate, the device replacement between two edits and the richObjects oracle script.
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "reuse across edits WARP fixture");
+        RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
+        RichReuseAcrossEditsEmbedded::TestEmbeddedCarryAcrossDeviceReplacement(gpu);
+        const auto make = [&] { return std::make_unique<EmbeddedParity::EmbeddedParityScene>(gpu.device.get()); };
+        IncrementalParity::RunParityScript(
+            IncrementalParity::RichObjectsScript<EmbeddedParity::EmbeddedParityScene>(), make, "embedded", EmbeddedParity::kReplay);
+        RichReuseAcrossEditsEmbedded::TestRichObjectsOracleCatchesAWrongCarry(gpu);
+        return 0;
+    }
     if (__argc == 4 && std::wstring_view(__wargv[1]) == L"--capture-rich-images")
     {
         const std::wstring_view theme(__wargv[3]);
@@ -1377,9 +1604,10 @@ __declspec(noinline) static int RunFunctionalTests()
         (std::wstring_view(__wargv[1]) == L"--test-rich-projection-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-snapshot-slice-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-layout-clear" || std::wstring_view(__wargv[1]) == L"--test-rich-flowchart-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-image-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-image-decode-failures" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-image-resource-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-file-reference-paste" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" ||
-         std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-image-decode-memory" || std::wstring_view(__wargv[1]) == L"--test-rich-image-resource-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-file-reference-paste" || std::wstring_view(__wargv[1]) == L"--test-rich-geometry-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-flat-projection" || std::wstring_view(__wargv[1]) == L"--test-rich-markdown-failures" ||
+         std::wstring_view(__wargv[1]) == L"--test-rich-semantic-geometry-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-document-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-semantic-uia-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-semantic-query-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-command-failures" ||
          std::wstring_view(__wargv[1]) == L"--test-rich-command-host-failures" || std::wstring_view(__wargv[1]) == L"--test-rich-footnote-failures" ||
@@ -1457,6 +1685,8 @@ __declspec(noinline) static int RunFunctionalTests()
         }
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-decode-failures")
             TestRichImageDecoderAllocationFailures();
+        else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-decode-memory")
+            TestRichImageDecodeMemory();
         else if (std::wstring_view(__wargv[1]) == L"--test-rich-image-resource-failures")
         {
             TestRichImageResourceAllocationFailures();
@@ -1542,6 +1772,52 @@ __declspec(noinline) static int RunFunctionalTests()
         ComplexUiBoundaries::Run(__wargv[2], timers == L"On", mode);
         return 0;
     }
+    // The work-counter gate on the ComplexUi fixture, alone, writing its receipt (Measurements/PerformanceAndMotion_2026-11-13/W0.1).
+    if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--test-work-counters")
+    {
+        WorkCountersComplexUi::Run(__wargv[2]);
+        return 0;
+    }
+    // The same fixture under the counting COM wrappers: their receipt, then the pixel identity and cost comparison with and
+    // without them (Measurements/PerformanceAndMotion_2026-11-13/W0.1/CountingWrappers).
+    if (__argc == 4 && std::wstring_view(__wargv[1]) == L"--test-counting-wrappers")
+    {
+        WorkCountersComplexUi::RunWrapperComparison(__wargv[2], __wargv[3]);
+        return 0;
+    }
+    // The IME copy gate, alone, writing its receipt (Measurements/PerformanceAndMotion_2026-11-13/W8.5).
+    if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--test-ime-copies")
+    {
+        ImeCopies::Run(__wargv[2]);
+        GraphicsFixture gpu;
+        Hr(gpu.Create(), "IME copies WARP device");
+        ImeCopies::TestImportOverrideRunsOnEveryInputPath(gpu);
+        ImeCopies::TestComboBoxSettlesAPreviewLeftByTeardown();
+        return 0;
+    }
+    // The rich text-input copy gate, alone, writing its receipt (Measurements/PerformanceAndMotion_2026-11-13/W7.4).
+    if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--test-rich-text-input-copies")
+    {
+        GraphicsFixture copiesGpu;
+        Hr(copiesGpu.Create(), "rich text-input copies WARP device");
+        RichTextInputCopies::Run(copiesGpu, __wargv[2]);
+        RichTextInputCopies::RunBehaviour(copiesGpu);
+        return 0;
+    }
+    // The UI Automation text provider tests alone (W8.4); the Embedded suite also runs them.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-accessibility-text-provider")
+    {
+        AccessibilityTextProvider::Run();
+        return 0;
+    }
+    // The hover and hit index gate alone (W7.9); the Embedded suite also runs it.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-hover-index")
+    {
+        GraphicsFixture hoverGpu;
+        Hr(hoverGpu.Create(), "hover index WARP device");
+        TestEmbeddedRichHoverIndex(hoverGpu);
+        return 0;
+    }
     // Opt-in diagnostics stay outside the canonical benchmark dispatcher/closure.
     if (__argc == 5 && std::wstring_view(__wargv[1]) == L"--benchmark-complex-ui-profile")
     {
@@ -1614,6 +1890,19 @@ __declspec(noinline) static int RunFunctionalTests()
         GridSelectionBenchmark::Run(__wargv[2], __argc == 4 ? std::wstring_view(__wargv[3]) : std::wstring_view());
         return 0;
     }
+    // The fixture-agnostic frame timing method (performance-timing.ps1); also outside the fingerprinted benchmark entry.
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--timing-method")
+        return FrameTiming::RunCommand(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--processor-topology")
+        return FrameTiming::TopologyCommand(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--busy-load")
+        return FrameTiming::BusyLoadCommand(__argc, __wargv);
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-frame-timing")
+    {
+        FrameTiming::SelfTest();
+        std::cout << "PASS frame timing method mechanics\n";
+        return 0;
+    }
 #if DXUI_ENABLE_DIAGNOSTICS
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-property-registration-retirement")
     {
@@ -1637,6 +1926,104 @@ __declspec(noinline) static int RunFunctionalTests()
 #endif
         return 0;
     }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-memory-metrics")
+    {
+        MemoryMetricsTests::TestRetainedResourceStatistics();
+        MemoryMetricsTests::TestTextHistoryAndCacheStatistics();
+        MemoryMetricsTests::TestComplexUiTeardownReturnsTrackedMemory();
+        PerformanceFixtures::TestFx5G13Budgets();
+        PerformanceFixtures::TestFx13G13Budgets();
+        return 0;
+    }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-text-history")
+    {
+        TextHistoryTests::TestTextHistoryEntryCosts();
+        TextHistoryTests::TestTextHistoryBudgetEvictsOldestFirst();
+        TextHistoryTests::TestImeCommitIsOneUndoStep();
+        TextHistoryTests::TestFx7AndFx2TextHistoryGate();
+        return 0;
+    }
+    // The FX5 receipt of the performance fixture framework, which carries the W0.3 memory fields (WARP or hardware).
+    if (__argc == 3 && (std::wstring_view(__wargv[1]) == L"--memory-receipt" || std::wstring_view(__wargv[1]) == L"--memory-receipt-hardware"))
+    {
+        PerformanceFixtures::WriteReceipt(PerformanceFixtures::Fx5::kDefinition,
+                                          PerformanceFixtures::Fx5::kVariants[0],
+                                          std::wstring_view(__wargv[1]) == L"--memory-receipt-hardware",
+                                          __wargv[2]);
+        return 0;
+    }
+    // Performance fixtures (Tests/README.md, "Performance fixtures"): a receipt, the catalog, and the framework's own tests.
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fixture-receipt")
+        return PerformanceFixtures::RunReceiptCommand(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fixture-catalog")
+        return PerformanceFixtures::RunCatalogCommand(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--measure-text-layout-bound")
+        return RetainedTextLayoutTests::RunBoundMeasurement(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fx3-frame-hashes")
+        return GridDataPathTests::RunFrameHashCommand(__argc, __wargv);
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--fixture-frame-hashes")
+        return FormatBrushCacheTests::RunFrameHashCommand(__argc, __wargv);
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-format-brush-caches")
+        return FormatBrushCacheTests::RunTestCommand();
+    if (__argc >= 2 && std::wstring_view(__wargv[1]) == L"--test-grid-data-paths")
+        return GridDataPathTests::RunGateCommand(__argc, __wargv);
+    // W2.6: the Tree data path gates alone, and the frame hashes its receipt compares before and after the change.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-tree-data-paths")
+    {
+        TreeDataPathTests::Run();
+        return 0;
+    }
+    if (__argc == 3 && std::wstring_view(__wargv[1]) == L"--tree-motion-frames")
+        return TreeDataPathTests::WriteMotionFrames(__wargv[2]);
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-performance-fixtures")
+    {
+        PerformanceFixtures::TestFrameworkSelfTest();
+        PerformanceFixtures::TestCatalogIsDeterministic(L".build/test-artifacts/performance-fixtures");
+        PerformanceFixtures::TestFx5MatchesWorkCounterReceipt();
+        PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
+        PerformanceFixtures::TestCaretClockGatesOnFx1();
+        SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
+        PerformanceFixtures::TestTooltipDeadlineGatesOnFx14();
+        RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
+        MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
+        PerformanceFixtures::TestApplicationWakeGatesOnFixtures();
+        return 0;
+    }
+    // W3.5 alone: the embedded animation request (API revision 6) and its application-wake gates on FX1, FX13 and FX14.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-animation-request")
+    {
+        EmbeddedAnimationRequestTests::Run();
+        PerformanceFixtures::TestApplicationWakeGatesOnFixtures();
+        return 0;
+    }
+    // Plan W2.9 alone: the pointer hit result gates, differential and lifetime on WARP.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-pointer-hit")
+    {
+        GraphicsFixture gpu;
+        Hr(gpu.Create(true), "pointer-hit WARP device");
+        EmbeddedPointerHit::TestPointerHitFx14AndFx2HitTestOncePerMove();
+        EmbeddedPointerHit::TestPointerHitFx10PreparesNoPlainLabelAndSearchesNoTree();
+        EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);
+        EmbeddedPointerHit::TestPointerHitEmbeddedResultNeverOutlivesItsControl(gpu);
+        EmbeddedPointerHit::TestPointerHitEmbeddedEverySiteMovesTheRevision(gpu);
+        return 0;
+    }
+    // Plan W7.2 alone: the FX8 parse gates (parser per insert kind, then the fixture through the editor).
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-parse-reuse")
+    {
+        MarkdownParseReuseFx8::TestFx8ParserInsertKinds();
+        MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
+        return 0;
+    }
+    // Plan W2.10 alone: every public setter twice to the same value on FX5, and Assign's equality.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-assign-setters")
+    {
+        GraphicsFixture gpu;
+        Hr(gpu.Create(true), "assignment gate WARP device");
+        AssignSetterGate::TestAssignEqualityOnEmbeddedSuite();
+        AssignSetterGate::TestFx5EverySetterAssignsOnce(gpu);
+        return 0;
+    }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-markdown-closed-roots")
     {
         MarkdownSourceCorrelationTests::ClosedRootDifferential(Check);
@@ -1655,8 +2042,25 @@ __declspec(noinline) static int RunFunctionalTests()
     DxUi::Diagnostics::sink = nullptr;
     Check(! DxUi::IsContextMenuDiagnosticsEnabled(), "clearing sink disables native diagnostics");
     CleanPrepareTimerDiagnostic::RunOracle();
+    FrameTiming::SelfTest();
     GraphicsFixture gpu;
     Hr(gpu.Create(), "supplied WARP device");
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-combobox-popup-layout")
+    {
+        ComboBoxPopupLayoutTests::Run(gpu);
+        return 0;
+    }
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-text-field-paint")
+    {
+        TextFieldPaintTests::Run(gpu);
+        return 0;
+    }
+    // Plan W2.1 alone: the retained text layout gate on FX5 and the allocation-free label measure.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-retained-text-layouts")
+    {
+        RetainedTextLayoutTests::Run(gpu);
+        return 0;
+    }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")
     {
         MarkdownSourceCorrelationTests::LexicalEdits(Check);
@@ -1678,7 +2082,7 @@ __declspec(noinline) static int RunFunctionalTests()
         DxUi::EmbeddedHost view;
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "incremental borrowed graphics");
-        Hr(view.Attach(graphics), "incremental embedded view");
+        Hr(view.Attach(graphics, StoppedTestClock()), "incremental embedded view");
         RichSemanticTests::Run([&]
         {
             RichSemanticEditorTests::TransientPreviewRetainsChunks(
@@ -1796,11 +2200,13 @@ __declspec(noinline) static int RunFunctionalTests()
     TestFormClearPreparationRetirement(gpu);
     TestRichDocumentBindingPreparationRetirement(gpu);
     TestMultilineCaretViewport(gpu);
+    TestEmbeddedWheelReadsTheCurrentLinesPerNotch(gpu);
     TestEmbeddedTextInput(gpu);
     TestEmbeddedTabHeaderPreparationAvoidsPaintWork(gpu);
     TestEmbeddedInputCallbackAllocationBoundary(gpu);
     TestEmbeddedTranslatedCharacterOwnership(gpu);
     TestEmbeddedAccessibility(gpu);
+    TestWindowHostAccessibilityRetirementAllocatesNothing();
     TestPreparedTreeAccessibilitySemantics(gpu);
 #if DXUI_ENABLE_DIAGNOSTICS
     TestPreparedTreeUnfocusedExpansionAction(gpu);
@@ -1819,6 +2225,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestGridModelMutationDuringCellPaintAbortsPreparation(gpu);
     TestTreeDelegateMutationDuringItemPaintAbortsPreparation(gpu);
     TestTreeReorderWakeRetiresOwner(gpu);
+    TreeDataPathTests::Run();
     TestPointerDoesNotRetargetAfterHoverOrHitGeometryMutation(gpu);
     TestPageReplacementDuringPaintDefersBoundsUntilPreparation(gpu);
     TestLocalizedShortViewport(gpu,
@@ -1836,6 +2243,42 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRightToLeftCheckboxCaptionHugsIndicator(gpu);
     TestRightToLeftTabTitleStartsAtTheRight(gpu);
     TestSurfaceLifetime(gpu);
+    MemoryMetricsTests::TestRetainedResourceStatistics();
+    MemoryMetricsTests::TestTextHistoryAndCacheStatistics();
+    MemoryMetricsTests::TestComplexUiTeardownReturnsTrackedMemory();
+    EmbeddedParity::TestEmbeddedIncrementalParity(gpu);
+    PerformanceFixtures::TestFrameworkSelfTest();
+    PerformanceFixtures::TestCatalogIsDeterministic(L".build/test-artifacts/performance-fixtures");
+    PerformanceFixtures::TestFx5MatchesWorkCounterReceipt();
+    PerformanceFixtures::TestFx5G13Budgets();
+    PerformanceFixtures::TestFx13G13Budgets();
+    TextHistoryTests::TestTextHistoryEntryCosts();
+    TextHistoryTests::TestTextHistoryBudgetEvictsOldestFirst();
+    TextHistoryTests::TestImeCommitIsOneUndoStep();
+    TextHistoryTests::TestFx7AndFx2TextHistoryGate();
+    PerformanceFixtures::TestFrameScheduleGatesOnFixtures();
+    PerformanceFixtures::TestTooltipDeadlineGatesOnFx14();
+    GridDataPathTests::TestFx3GridDataPathGate(gpu);
+    PerformanceFixtures::TestCaretClockGatesOnFx1();
+    EmbeddedAnimationRequestTests::Run();
+    PerformanceFixtures::TestApplicationWakeGatesOnFixtures();
+    SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
+    RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
+    RichReuseAcrossEditsEmbedded::TestEmbeddedCarryAcrossDeviceReplacement(gpu);
+    RichReuseAcrossEditsEmbedded::TestRichObjectsOracleCatchesAWrongCarry(gpu);
+    MarkdownParseReuseFx8::TestFx8ParserInsertKinds();
+    MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
+    ComboBoxPopupLayoutTests::Run(gpu);
+    TextFieldPaintTests::Run(gpu);
+    RetainedTextLayoutTests::Run(gpu);
+    EmbeddedPointerHit::TestPointerHitFx14AndFx2HitTestOncePerMove();
+    EmbeddedPointerHit::TestPointerHitFx10PreparesNoPlainLabelAndSearchesNoTree();
+    EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);
+    EmbeddedPointerHit::TestPointerHitEmbeddedResultNeverOutlivesItsControl(gpu);
+    EmbeddedPointerHit::TestPointerHitEmbeddedEverySiteMovesTheRevision(gpu);
+    FormatBrushCacheTests::RunAll(gpu);
+    AssignSetterGate::TestAssignEqualityOnEmbeddedSuite();
+    AssignSetterGate::TestFx5EverySetterAssignsOnce(gpu);
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();
     TestRichTextUtf8RejectionAllocationBudget();
@@ -1859,6 +2302,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichFileDropTransportAllocationFailures();
     TestRichFileDropTransactionAllocationFailures(gpu);
     TestRichImageDecoderAllocationFailures();
+    TestRichImageDecodeMemory();
     TestRichEditorSteadyLinkHoverAllocatesNothing(gpu);
     TestRichImageResourceAllocationFailures();
     TestRichImageGeometryAllocationFailures();
@@ -1889,6 +2333,16 @@ __declspec(noinline) static int RunFunctionalTests()
     TestRichProjectionMappingAndUnchangedAllocationBudget();
     TestRichSnapshotSliceAllocationFailureAtomicity();
     ComplexUiBoundaries::TestDevicePolicies();
+    WorkCountersComplexUi::Run(nullptr);
+    WorkCountersComplexUi::RunWrapperComparison(nullptr, nullptr);
+    WorkCountersComplexUi::TestCountingWrappersReportUncountedCreation();
+    TraceProviderComplexUi::Run();
+    ImeCopies::Run(nullptr);
+    ImeCopies::TestImportOverrideRunsOnEveryInputPath(gpu);
+    ImeCopies::TestComboBoxSettlesAPreviewLeftByTeardown();
+    RichTextInputCopies::Run(gpu, nullptr);
+    RichTextInputCopies::RunBehaviour(gpu);
+    AccessibilityTextProvider::Run();
     TestRichFlatProjectionFailureAtomicity();
     TestRichProjectionPreparationAllocationFailureAtomicity();
     TestRichProjectionRetainedStorageBudget();
@@ -1997,11 +2451,12 @@ __declspec(noinline) static int RunFunctionalTests()
     RichSemanticTests::Run([] { TestRichSemanticGeometryFailureBudgets(false, false, false, false, true); });
     TestFootnoteBlockAllocationFailures();
     RichSemanticTests::Run([&] { TestRichSemanticEditorQueryFailureBudgets(gpu); });
+    TestEmbeddedRichHoverIndex(gpu);
     {
         DxUi::EmbeddedHost transactionView;
         std::shared_ptr<DxUi::GraphicsDevice> transactionGraphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), transactionGraphics), "transaction borrowed graphics");
-        Hr(transactionView.Attach(transactionGraphics), "transaction embedded view");
+        Hr(transactionView.Attach(transactionGraphics, StoppedTestClock()), "transaction embedded view");
         RichSemanticTests::Run([&]
         {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -2130,6 +2585,9 @@ __declspec(noinline) static int RunFunctionalTests()
     TestEmbeddedMultilineGridFrenchCells(gpu);
     TestPointerGesturesOnPaintDirtyView(gpu);
     TestEmbeddedTouchDragShowsTheSliderTouchHalo(gpu);
+    TestEmbeddedFailedSurfaceRecreationIsReportedAndRecovers(gpu);
+    TestEmbeddedCaptureEndsWithTheLastButtonUp(gpu);
+    TestEmbeddedScrollPanelForwardsTheMiddleRelease(gpu);
     TestTooltipInspectionDismissalConsumesEmbeddedGesture(gpu);
     TestTickDirtying(gpu);
     TestCacheBounds(gpu);
@@ -2237,7 +2695,7 @@ __declspec(noinline) static int RunFunctionalTests()
     Check(scene.view.Composite(gpu.context.get(), invalid) == E_INVALIDARG, "reject NaN viewport");
     const auto shownStats = scene.view.GetStatistics();
     scene.view.SetVisible(false);
-    Check(! scene.view.NeedsAnimation() && ! scene.view.NeedsPreparation(), "hidden has no scheduled work");
+    Check(! AnimationRequested(scene.view.GetAnimationRequest()) && ! scene.view.NeedsPreparation(), "hidden has no scheduled work");
     Check(scene.view.GetStatistics().surfaceBytes == 0, "hidden view holds no surface");
     Check(scene.view.Composite(gpu.context.get(), gpu.Viewport()) == S_FALSE && ! scene.view.DispatchPointer({DxUi::PointerAction::Down, 45, 84}),
           "hidden ignores render/input");
@@ -2248,7 +2706,7 @@ __declspec(noinline) static int RunFunctionalTests()
           "resume reallocates exactly one surface");
     Check(scene.view.Prepare(0, 0) == S_FALSE, "zero target suspends");
     Check(scene.view.GetStatistics().surfaceBytes == 0, "zero target holds no surface");
-    Check(! scene.view.NeedsPreparation() && ! scene.view.NeedsAnimation(), "zero target schedules no work");
+    Check(! scene.view.NeedsPreparation() && ! AnimationRequested(scene.view.GetAnimationRequest()), "zero target schedules no work");
     Check(! scene.view.DispatchPointer({DxUi::PointerAction::Down, 45, 84}), "zero target ignores input");
     Hr(scene.view.Prepare(960, 480, 192), "DPI and resize");
     // The surface released by the zero target is replaced by exactly one allocation at the new physical extent.
@@ -2388,8 +2846,8 @@ __declspec(noinline) static int RunFunctionalTests()
     std::shared_ptr<DxUi::GraphicsDevice> shared;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), shared), "shared supplied device pool");
     DxUi::EmbeddedHost a, b;
-    Hr(a.Attach(shared), "first shared view");
-    Hr(b.Attach(shared), "second shared view");
+    Hr(a.Attach(shared, StoppedTestClock()), "first shared view");
+    Hr(b.Attach(shared, StoppedTestClock()), "second shared view");
     for (const auto& item : DxUi::GetControlCatalog())
     {
         std::unique_ptr<DxUi::Control> control;
@@ -2413,30 +2871,31 @@ __declspec(noinline) static int RunFunctionalTests()
     auto* progressPtr = progress.get();
     progressPtr->SetIndeterminate(true);
     b.Controls().SetRoot(std::move(progress));
-    Check(b.NeedsAnimation(), "attaching an indeterminate control schedules initial discovery");
+    Check(AnimationRequested(b.GetAnimationRequest()), "attaching an indeterminate control schedules initial discovery");
     Hr(b.Prepare(320, 160, 144), "prepare indeterminate progress");
     Check(! b.NeedsPreparation(), "prepared indeterminate progress is clean until it ticks");
     const auto tick = GetTickCount64();
-    Check(b.AdvanceAnimation(tick), "indeterminate progress requests another host tick");
+    Check(AnimationRequested(b.AdvanceAnimation(tick)), "indeterminate progress requests another host tick");
     Check(b.NeedsPreparation(), "indeterminate progress dirties every tick");
     Check(b.Prepare(0, 0) == S_FALSE, "zero-sized animation suspends");
     Check(b.GetStatistics().surfaceBytes == 0, "zero-sized view releases its surface");
-    Check(! b.NeedsAnimation() && ! b.NeedsPreparation() && ! b.AdvanceAnimation(tick + 8), "zero-sized view has no ticking or preparation");
+    Check(! AnimationRequested(b.GetAnimationRequest()) && ! b.NeedsPreparation() && ! AnimationRequested(b.AdvanceAnimation(tick + 8)),
+          "zero-sized view has no ticking or preparation");
     b.MarkDirty();
     Check(! b.NeedsPreparation(), "zero-sized invalidation remains deferred");
     Hr(b.Prepare(320, 160, 144), "resume sized animation");
-    Check(b.NeedsAnimation(), "sizing restores pending animation");
+    Check(AnimationRequested(b.GetAnimationRequest()), "sizing restores pending animation");
     b.SetVisible(false);
-    Check(! b.NeedsAnimation(), "hidden animation suspends");
+    Check(! AnimationRequested(b.GetAnimationRequest()), "hidden animation suspends");
     b.SetVisible(true);
-    Check(b.NeedsAnimation(), "shown animation resumes");
+    Check(AnimationRequested(b.GetAnimationRequest()), "shown animation resumes");
     progressPtr->SetIndeterminate(false);
-    Check(! b.AdvanceAnimation(tick + 16), "stopped animation goes idle");
+    Check(! AnimationRequested(b.AdvanceAnimation(tick + 16)), "stopped animation goes idle");
     b.Controls().SetTheme(desktopTheme);
     Check(b.Controls().SetTooltipDelayed(L"Help", D2D1::Point2F(8, 8)), "schedule embedded tooltip");
     // The first tick after animation is requested again starts the view's clock; the next one passes the show delay.
-    b.AdvanceAnimation(tick + 2000);
-    b.AdvanceAnimation(tick + 4000);
+    static_cast<void>(b.AdvanceAnimation(tick + 2000));
+    static_cast<void>(b.AdvanceAnimation(tick + 4000));
     Check(b.Controls().HasTooltip(), "host ticks advance tooltip deadlines");
     Hr(scene.view.Prepare(480, 240), "prepare before resize cancellation");
     const double resizeInitial = scene.slider->GetValue();
@@ -2983,7 +3442,7 @@ template <unsigned Stage> static void EmbeddedPreparationFailureChild()
     if (FAILED(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics)))
         return;
     DxUi::EmbeddedHost view;
-    if (FAILED(view.Attach(graphics)))
+    if (FAILED(view.Attach(graphics, StoppedTestClock())))
         return;
     auto editor = std::make_unique<DxUi::RichTextEditor>(L"**retained** and $x$\n");
     editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);

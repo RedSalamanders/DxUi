@@ -3,6 +3,8 @@
 #include "Controls/DxUi.SemanticExtensions.h"
 #include "Support.Tests.FatalChildren.h"
 #include "Support.Tests.PreparedFlowchart.h"
+#include "Support.Tests.RichHoverIndex.h"
+#include "Support.Tests.RichReuseAcrossEdits.h"
 #include "Support.Tests.RichSemanticEditor.h"
 #include "Support.Tests.RichSemanticGeometry.h"
 #include "Support/Utilities.h"
@@ -167,7 +169,71 @@ void TestRichSemanticNativeTitleTooltips()
                                                       [&](bool down) { SendMessageW(window.Hwnd(), down ? WM_KEYDOWN : WM_KEYUP, VK_CONTROL, 0); });
     });
 }
+// W7.9: a pointer over a link resolves through the prepared hover index, an unmoved pointer reuses the host's remembered
+// title, and plain-text moves invalidate nothing.
+void TestRichHoverIndexNativeGate()
+{
+    AttachedHostWindow window;
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    auto& host = window.Host();
+    RichSemanticTests::Run([&]
+    {
+        RichHoverIndexTests::HoverGate(host,
+                                       "native",
+                                       [&] { Require(PrepareNativeContentForTests(host), "prepare the native hover scenario"); },
+                                       [&](D2D1_POINT_2F point, UINT modifiers)
+        {
+            const auto scale  = static_cast<float>(host.GetDpi()) / 96.f;
+            const auto before = host.DebugGetInvalidateCount();
+            SendMessageW(window.Hwnd(),
+                         WM_MOUSEMOVE,
+                         modifiers,
+                         MAKELPARAM(static_cast<int>(std::lround(point.x * scale)), static_cast<int>(std::lround(point.y * scale))));
+            return host.DebugGetInvalidateCount() != before;
+        },
+                                       [&]
+        {
+            static_cast<void>(host.DebugAnimationTickForTest(host.GetAnimationTickMs() + 1u));
+            return true;
+        });
+    });
+}
+// W7.9: a document edit, scroll, zoom, width, theme or re-preparation under an unmoved pointer never leaves the host's
+// remembered title stale.
+void TestRichHoverIndexNativeStaleness()
+{
+    AttachedHostWindow window;
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    auto& host = window.Host();
+    RichSemanticTests::Run([&]
+    {
+        RichHoverIndexTests::HoverStaleness(host,
+                                            [&] { Require(PrepareNativeContentForTests(host), "prepare the native staleness scenario"); },
+                                            [&](D2D1_POINT_2F point, UINT modifiers)
+        {
+            const auto scale = static_cast<float>(host.GetDpi()) / 96.f;
+            SendMessageW(window.Hwnd(),
+                         WM_MOUSEMOVE,
+                         modifiers,
+                         MAKELPARAM(static_cast<int>(std::lround(point.x * scale)), static_cast<int>(std::lround(point.y * scale))));
+            return true;
+        },
+                                            [&] { return host.DebugAnimationTickForTest(host.GetAnimationTickMs() + 1u); });
+    });
+}
 #endif
+// W7.9: the prepared hover index resolves every display offset exactly as the full element scans did, over seeded
+// documents, and the index alone matches a brute-force answer over random overlapping spans.
+void TestRichHoverIndexMatchesFullScan()
+{
+    RichSemanticTests::Run([]
+    {
+        RichHoverIndexTests::HoverSpanIndexMatchesBruteForce();
+        wil::com_ptr<IDWriteFactory> factory;
+        THROW_IF_FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(factory.put())));
+        RichHoverIndexTests::HoverIndexMatchesFullScan(factory.get());
+    });
+}
 void TestRichSemanticNativeMathCaretMetrics()
 {
     using namespace DxUi;
@@ -575,6 +641,15 @@ void TestNativeDiagramLabelBrushRetirement()
     for (std::size_t index = 0u; index <= ControlHost::kSolidBrushCacheLimit; ++index)
         Require(host.GetSolidBrush(D2D1::ColorF(static_cast<float>(index % 256u) / 255.f, static_cast<float>(index / 256u) / 255.f, .25f)) != nullptr,
                 "overfill the bounded brush cache before the next preparation boundary");
+    // Brushes are evicted by last use (W2.8): the editor stops drawing for three frames, so its label brush, unused by the
+    // last two, leaves the over-bound map at the third.
+    editor->SetVisible(false);
+    for (int frame = 0; frame < 3; ++frame)
+    {
+        WindowHostBitmapCapture hidden;
+        Require(host.DebugCaptureBitmap(hidden, true), "render a frame without the editor");
+    }
+    editor->SetVisible(true);
     editor->SetText(source + L"\n");
     retired->SetColor(D2D1::ColorF(D2D1::ColorF::Magenta));
     Require(PrepareNativeContentForTests(host), "replacement source completes after retiring its prior diagram layout");
@@ -919,6 +994,77 @@ void TestRichSemanticGeometryLinkRasterOracle()
     RichSemanticTests::Run(RichSemanticGeometryTests::MathWidthReflowAndTargetReplacement);
 #endif
 }
+#if DXUI_ENABLE_DIAGNOSTICS
+// W2.3: prepared formulas, diagrams, SVG rasters and image uploads carry across edits by content, equal a fresh preparation
+// and are released at publication.
+void TestRichSemanticGeometryReuseAcrossEdits()
+{
+    RichSemanticTests::Run(RichReuseAcrossEditsTests::CarryAcrossEdits);
+}
+// W2.3 on the native window host: a device loss between two edits carries no GPU-bound object (the resource generation
+// changes), and the next edit carries every object again. This is not the negative control of the epoch guard: the new
+// device context has a different address, so the target check alone would also refuse the carry. That control is the
+// "resource generation" row of RichReuseAcrossEditsTests::CarryAcrossEdits, which changes only the epoch.
+void TestRichSemanticNativeCarryAcrossDeviceLoss()
+{
+    using namespace DxUi::RichText;
+    RichSemanticTests::Run([]
+    {
+        const RichReuseAcrossEditsTests::Pictures pictures;
+        AttachedHostWindow window;
+        auto owned   = std::make_unique<DxUi::RichTextEditor>(RichReuseAcrossEditsTests::Source());
+        auto* editor = owned.get();
+        editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
+        editor->SetMarkdownRenderingEnabled(true);
+        editor->SetDocumentFilePath(L"C:\\fixture\\objects.md"); // resolves relative image sources; never opened
+        editor->SetSvgImagesEnabled(true);
+        window.Host().SetRoot(std::move(owned));
+        const auto scale = window.Host().GetDpi() / 96.f;
+        Require(
+            SetWindowPos(
+                window.Hwnd(), nullptr, 0, 0, static_cast<int>(640.f * scale), static_cast<int>(900.f * scale), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) !=
+                FALSE,
+            "native carry fixture has a stable DIP viewport");
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        window.PumpMessages();
+        const auto prepare = [&]
+        {
+            Require(PrepareNativeContentForTests(window.Host()), "prepare the native carry fixture");
+            std::vector<RichImageRequest> requests;
+            editor->TakePendingImageRequests(requests);
+            for (const auto& request : requests)
+                static_cast<void>(editor->CompleteImageRequest(request, request.Source().ends_with(L".svg") ? pictures.vector : pictures.raster));
+            if (! requests.empty())
+                Require(PrepareNativeContentForTests(window.Host()), "prepare the native carry fixture with completed images");
+        };
+        const auto edit = [&]
+        {
+            const DxUi::Detail::WorkCounterScope scope;
+            const auto text = editor->GetText();
+            const auto at   = text.find(L"Intro paragraph") + 15u;
+            editor->SetSelection({at, at});
+            Require(editor->ReplaceSelection(L"x"), "native carry fixture prose edit");
+            prepare();
+            return RichReuseAcrossEditsTests::Measure(scope);
+        };
+        prepare();
+        prepare();
+        auto work = edit();
+        Require(work.None(), "a prose edit carries every prepared object on the native host");
+        window.Host().DebugSimulateDeviceLoss();
+        work = edit();
+        std::cout << "  native edit after device loss: maths " << work.maths << ", diagrams " << work.diagrams << ", SVG rasterizations " << work.svgs
+                  << ", upload bytes " << work.uploadBytes << '\n';
+        Require(work.maths == 3u && work.diagrams == 1u && work.svgs >= 1u && work.uploadBytes > 0u,
+                "after a device loss every formula, diagram, SVG raster and image is prepared again on the new device");
+        std::vector<RichImageRequest> requests;
+        editor->TakePendingImageRequests(requests);
+        Require(requests.empty(), "device recovery re-uploads held pixels without asking the application again");
+        work = edit();
+        Require(work.None(), "the next edit after device recovery carries every object again");
+    });
+}
+#endif
 void TestRichSemanticGeometryTaskCheckboxAlignment()
 {
     RichSemanticTests::Run(RichSemanticGeometryTests::TaskCheckboxAlignment);
@@ -958,6 +1104,99 @@ void TestRichSemanticNativeHangingMarkersLinksAndHtml()
             window.Host(), [&] { Require(PrepareNativeContentForTests(window.Host()), "prepare native hanging markers and HTML"); });
     });
 }
+// The callout whose body is unsupported inline HTML (W7.1 fuzz finding) renders in both presentations and both profiles
+// that parse it: native preparation settles, publishes the same semantic display a fresh build gives, and places a caret
+// in the literal body.
+void TestRichSemanticCalloutLiteralHtmlRenders()
+{
+    using namespace DxUi::RichText;
+    AttachedHostWindow window;
+    RichSemanticTests::Run([&]
+    {
+        for (const std::wstring_view source : {L">[!tip]\n<s>", L"> [!note] Title\n> <s>\n", L">[!tip]-\n<s>", L">[!tip]\r\n<b>\r\n"})
+            for (const auto profile : {MarkdownProfile::RichMarkdown, MarkdownProfile::Gfm029})
+                for (const auto presentation : {MarkdownPresentationStyle::Default, MarkdownPresentationStyle::Subtle})
+                {
+                    auto root    = std::make_unique<RichSemanticEditorTests::DirectPrepareRichTextEditor>(std::wstring(source));
+                    auto* editor = root.get();
+                    editor->SetBounds(D2D1::RectF(0.f, 0.f, 420.f, 200.f));
+                    editor->SetMarkdownAnalysisProfile(profile);
+                    editor->SetMarkdownRenderingEnabled(true);
+                    auto appearance                 = editor->GetAppearance();
+                    appearance.markdownPresentation = presentation;
+                    editor->SetAppearance(appearance);
+                    window.Host().SetRoot(std::move(root));
+                    Require(RichSemanticEditorTests::PrepareUntilSettled(*editor, window.Host()) == S_OK, "the callout literal body prepares natively");
+                    const auto document = editor->GetAcknowledgedSemanticDocument(window.Host());
+                    Require(document && editor->DebugGetState().layoutReady, "the callout literal body publishes semantic geometry");
+                    Require(document->Map().Display() == RichSemanticDocumentTests::Build(source, profile)->Map().Display(),
+                            "the rendered semantic display equals a fresh build");
+                    const auto body = source.find(L'<');
+                    Require(editor->TryGetTextInputCaretRect(window.Host(), body).has_value(), "the literal body has caret geometry");
+                    Require(PrepareNativeContentForTests(window.Host()), "the callout literal body paints");
+                }
+    });
+}
+// W7.1 review: semantic geometry pairs previous boxes without an identity map. More than 64 inserted or deleted boxes,
+// and a block moved far away, must still reuse the unchanged paragraphs' layouts (the block pairing realigns the cursor).
+void TestRichSemanticGeometryReuseAcrossLargeEdits()
+{
+    using namespace DxUi::RichText;
+    RichSemanticTests::Run([&]
+    {
+        const auto factory   = RichSemanticGeometryTests::Factory();
+        const auto paragraph = [](std::size_t index) { return std::format(L"Paragraph {} with plain text.\n\n", index); };
+        std::wstring base;
+        for (std::size_t index = 0u; index < 200u; ++index)
+            base += paragraph(index);
+        struct Edit
+        {
+            const char* name;
+            std::wstring text;
+            std::size_t minimumReused;
+        };
+        std::wstring inserted;
+        for (std::size_t index = 0u; index < 100u; ++index)
+            inserted += std::format(L"New {} paragraph.\n\n", index);
+        std::wstring moved = base;
+        const auto block   = paragraph(10u);
+        moved.erase(moved.find(block), block.size());
+        moved.insert(moved.find(paragraph(190u)) + paragraph(190u).size(), block);
+        std::wstring deleted = base;
+        deleted.erase(deleted.find(paragraph(50u)), deleted.find(paragraph(150u)) - deleted.find(paragraph(50u)));
+        const Edit edits[] = {
+            {"100 paragraphs inserted first", inserted + base, 200u},
+            {"100 paragraphs inserted in the middle", base.substr(0u, base.find(paragraph(100u))) + inserted + base.substr(base.find(paragraph(100u))), 200u},
+            {"100 paragraphs deleted", deleted, 99u}, // The paragraph after the cut starts inside the edit envelope.
+            // A move is one edit envelope from the old to the new position: the parser gives every paragraph inside it a new
+            // identity (as before W7.1), so only the 19 paragraphs outside the envelope can keep their layouts.
+            {"a paragraph moved 180 blocks later", moved, 19u}};
+        for (const auto& edit : edits)
+        {
+            MarkdownParser parser;
+            SemanticBuilder builder;
+            Detail::PreparedSemanticGeometry geometry;
+            LayoutOptions options;
+            options.widthDip       = 360.0f;
+            std::uint64_t revision = 1u;
+            const auto prepare     = [&](const std::wstring& text)
+            {
+                parser.Begin(text, revision++, MarkdownProfile::RichMarkdown);
+                while (parser.HasPendingPreparation())
+                    parser.Advance(1u << 20u);
+                builder.Begin(parser.Published());
+                while (builder.HasPendingPreparation())
+                    builder.Advance(1u << 20u);
+                geometry.Begin(factory.get(), builder.Published(), options);
+                RichSemanticGeometryTests::Complete(geometry);
+            };
+            prepare(base);
+            prepare(edit.text);
+            std::cout << "  geometry reuse, " << edit.name << ": " << geometry.ReusedBoxCount() << " of " << geometry.BoxCount() << " boxes reused\n";
+            Require(geometry.ReusedBoxCount() >= edit.minimumReused, "unchanged paragraphs keep their layouts across a large edit");
+        }
+    });
+}
 void TestRichSemanticNativeRetainedRendering()
 {
     AttachedHostWindow window;
@@ -994,7 +1233,10 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticImagePlaceholderParagraphDirection);
 #if DXUI_ENABLE_DIAGNOSTICS
     DXUI_RUN_TEST(TestRichSemanticNativeTitleTooltips);
+    DXUI_RUN_TEST(TestRichHoverIndexNativeGate);
+    DXUI_RUN_TEST(TestRichHoverIndexNativeStaleness);
 #endif
+    DXUI_RUN_TEST(TestRichHoverIndexMatchesFullScan);
     DXUI_RUN_TEST(TestRichSemanticNativeObjectFailureContainment);
     DXUI_RUN_TEST(TestRichSemanticNativeFallbackSyntaxOwnership);
     DXUI_RUN_TEST(TestRichSemanticScriptColorTargetCapability);
@@ -1021,6 +1263,12 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticNativeTaskCheckboxAlignment);
     DXUI_RUN_TEST(TestRichSemanticNativeSourceCaretSites);
     DXUI_RUN_TEST(TestRichSemanticNativeHangingMarkersLinksAndHtml);
+    DXUI_RUN_TEST(TestRichSemanticCalloutLiteralHtmlRenders);
+    DXUI_RUN_TEST(TestRichSemanticGeometryReuseAcrossLargeEdits);
+#if DXUI_ENABLE_DIAGNOSTICS
+    DXUI_RUN_TEST(TestRichSemanticGeometryReuseAcrossEdits);
+    DXUI_RUN_TEST(TestRichSemanticNativeCarryAcrossDeviceLoss);
+#endif
     DXUI_RUN_TEST(TestRichSemanticNativeRetainedRendering);
     DXUI_RUN_TEST(TestRichSemanticNativeRenderingAdmissionFallback);
 }

@@ -16,6 +16,9 @@ namespace
 {
 constexpr UINT RenderMessage     = WM_APP + 1;
 constexpr UINT ImageReadyMessage = WM_APP + 2;
+// The one window timer that drives the view's animation clock (ScheduleAnimation), and its period while every frame is wanted.
+constexpr UINT_PTR AnimationTimer = 1u;
+constexpr UINT AnimationFrameMs   = 16u;
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -129,6 +132,30 @@ struct App
     }
     bool queued = false;
     float dpi   = 96;
+    // The view's animation request drives one window timer: every frame while it is Continuous, once at its Deadline
+    // (GetTickCount64 is the clock this application passes to AdvanceAnimation), and none at all while it is None. Called
+    // after every frame and every advance, so a request that changed with input or a model change is picked up: the view
+    // also calls requestPreparation when it needs the application sooner than it asked before.
+    void ScheduleAnimation() noexcept
+    {
+        if (! window)
+            return;
+        const DxUi::EmbeddedAnimationRequest request = View().GetAnimationRequest();
+        UINT delayMs                                 = AnimationFrameMs;
+        switch (request.kind)
+        {
+            case DxUi::EmbeddedAnimationRequest::Kind::None: static_cast<void>(KillTimer(window.get(), AnimationTimer)); return;
+            case DxUi::EmbeddedAnimationRequest::Kind::Continuous: break;
+            case DxUi::EmbeddedAnimationRequest::Kind::Deadline:
+            {
+                // The deadline may already have passed: advance at the next timer message.
+                const uint64_t now = GetTickCount64();
+                delayMs            = request.dueTickMs > now ? UINT((std::min)(request.dueTickMs - now, uint64_t(USER_TIMER_MAXIMUM))) : 0u;
+                break;
+            }
+        }
+        static_cast<void>(SetTimer(window.get(), AnimationTimer, (std::max)(delayMs, UINT(USER_TIMER_MINIMUM)), nullptr));
+    }
     void Request() noexcept
     {
         if (window && ! queued)
@@ -238,6 +265,7 @@ struct App
                 case RenderMessage:
                     if (FAILED(app->Render()))
                         PostQuitMessage(1);
+                    app->ScheduleAnimation();
                     return 0;
                 case ImageReadyMessage:
                     if (wp == reinterpret_cast<WPARAM>(app))
@@ -288,22 +316,25 @@ struct App
                                                  DxUi::PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())});
                     if (app->View().Controls().GetCapturedControl())
                         app->RefreshText();
-                    if (app->View().NeedsAnimation())
-                        SetTimer(hwnd, 1u, 16u, nullptr);
+                    app->ScheduleAnimation();
                     return 0;
                 case WM_MOUSELEAVE:
                     app->trackingMouseLeave = false;
                     app->View().DispatchPointer({DxUi::PointerAction::Leave});
                     return 0;
                 case WM_TIMER:
-                    if (wp == 1u)
+                    if (wp == AnimationTimer)
                     {
-                        if (app->View().AdvanceAnimation(GetTickCount64()) && app->View().Controls().GetCapturedControl())
+                        const DxUi::EmbeddedAnimationRequest next = app->View().AdvanceAnimation(GetTickCount64());
+                        if (next.kind != DxUi::EmbeddedAnimationRequest::Kind::None && app->View().Controls().GetCapturedControl())
                             app->RefreshText();
-                        if (! app->View().NeedsAnimation())
-                            KillTimer(hwnd, 1u);
+                        app->ScheduleAnimation();
                         return 0;
                     }
+                    break;
+                case WM_SETTINGCHANGE:
+                    // The view has no window: it re-reads the caret blink time, caret timeout and hover time when told.
+                    app->View().Controls().RefreshUserSettings();
                     break;
                 case WM_MOUSEWHEEL:
                 {
@@ -466,7 +497,7 @@ struct App
         sample.quitOnDestroy = false; // This hidden proof owns no GetMessage loop or WM_QUIT.
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
-        RETURN_IF_FAILED(sample.View().Attach(std::move(graphics)));
+        RETURN_IF_FAILED(sample.View().Attach(std::move(graphics), DxUi::EmbeddedCallbacks{.nowTickMs = [](void*) noexcept { return GetTickCount64(); }}));
         {
             const DxUi::Failure::Scope construction;
             auto root     = std::make_unique<DxUi::Panel>();
@@ -788,7 +819,9 @@ int wmain(int argc, wchar_t** argv)
         }
         if (FAILED(app.gpu.Create()))
             return 1;
-        const DxUi::EmbeddedCallbacks callbacks{&app, [](void* context) noexcept { static_cast<App*>(context)->Request(); }};
+        // The application's clock is the one it passes to AdvanceAnimation: GetTickCount64.
+        const DxUi::EmbeddedCallbacks callbacks{
+            &app, [](void* context) noexcept { static_cast<App*>(context)->Request(); }, [](void*) noexcept { return GetTickCount64(); }};
         {
             const DxUi::Failure::Scope construction;
             if (FAILED(complex ? app.complex->Initialize(app.gpu.device.get(), callbacks)

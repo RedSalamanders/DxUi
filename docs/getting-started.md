@@ -26,7 +26,7 @@ Use `-Platform ARM64` to cross-build on x64; execute those binaries on a native 
 For an existing application, follow [Upgrade a consumer](upgrade.md) for the delivery pin, code/behavior changes,
 complete rebuild, product validation and rollback. The example below establishes a new integration.
 
-Pin a tested full Git commit, API revision **5** and target `["DxUi"]` in the consumer's
+Pin a tested full Git commit, API revision **6** and target `["DxUi"]` in the consumer's
 `Dependencies/DxUi.lock.json`. Follow the exact schema and fingerprint validation in
 [the consumption contract](../Specs/Build/Build_ToolchainAndConsumption.md) and
 [consumer validator](../Tools/validate_consumer.ps1); branch names are not release pins.
@@ -40,7 +40,7 @@ New-Item -ItemType Directory -Path Dependencies -Force | Out-Null
 @{
     repository = 'https://github.com/RedSalamanders/DxUi'
     commit = $revision
-    apiRevision = 5
+    apiRevision = 6
     targets = @('DxUi')
 } | ConvertTo-Json | Set-Content Dependencies/DxUi.lock.json -Encoding utf8
 ```
@@ -88,7 +88,7 @@ Do not enumerate library `.cpp` files or copy its source into your application.
 #include <DxUi/Embedded.h>
 #include <DxUi/Failure.h>
 
-// After successful view.Attach(graphics), on the UI thread:
+// After successful view.Attach(graphics, callbacks), on the UI thread:
 DxUi::Failure::Scope failureScope; // Host and this module's registration are already active.
 auto root = std::make_unique<DxUi::Panel>();
 auto* title = root->AddChild<DxUi::Label>(L"Settings");

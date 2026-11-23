@@ -79,6 +79,42 @@ Check lossless Markdown partitions/forest integrity, typed all-or-nothing refusa
 authored diagram endpoints and successful layout invariants. Require actual admitted and declined paths;
 deterministic structural checks do not establish semantic equivalence to a reference renderer or performance acceptance.
 
+## Incremental-versus-fresh oracle
+
+Retention, regions and culling can leave stale pixels that no counter sees, so every change that adds or extends a
+retained cache, a partial frame or a skipped paint MUST pass the incremental-versus-fresh oracle
+(`Tests/Support/Support.Tests.IncrementalParity.h`; native suite `Rendering`, `Controls.Tests.IncrementalParity.cpp`;
+embedded `Embedded.Tests.IncrementalParity.h`). Two identical scenes run one seeded mutation script. After every step
+the incremental scene draws with what it retained; the fresh scene first calls `DebugDropRetainedStateForTest()` (on
+`ControlHost` and `EmbeddedHost`), every registered cache MUST then report 0 entries, and it draws from scratch. Its
+build, steps and captures also run with the private fresh-preparation seam (`SetFreshPreparationForTest`), under which
+preparation never reuses a previous publication's values (the semantic builder's unchanged blocks). The
+two frames MUST agree exactly in premultiplied BGRA on WARP, in the bounds, visibility, enabled, focus and hover state of
+every control, and in the UI Automation tree (control type, name, automation id, state, value, toggle, expand, selection,
+range value, help text and bounding rectangle per element). A failure names the script, seed, step, first differing
+pixel and the deepest control under it, and how to replay that seed alone (`DXUI_PARITY_SEED`; natively
+`--suite=Rendering --test=<name>`, embedded `--test-incremental-parity`). Seeds are checked in beside each script.
+Scripts cover text, bounds, visibility, hover, focus, press, captured drags, typing, keys, wheel scrolling, theme, DPI 96,
+144 and 192, left-to-right and right-to-left flow, density, the `ComboBox` popup, the frozen animation clock (caret,
+tooltip delay), detaching a hovered control and rich-document edits. A per-pixel channel tolerance is allowed only where an
+item's gate declares one.
+
+Every retained cache registers with the drop hook as one row of `src/Controls/DxUi.RetainedCaches.cpp`: a name, an
+entries count and a drop from the same row, or an exemption with its reason. A test populates every row its scenes
+exercise and requires 0 entries after the drop; `Tools/tests/Test-RetainedCacheRegistry.ps1` refuses an underscore member
+whose name contains `cache` or `cached` that the registry does not name, so a retained cache SHOULD carry such a name.
+Time is the host's frozen animation clock (`DebugSetAnimationClockForTest` natively, `AdvanceAnimation` embedded). Oracle
+scenes pin `OverlayMaterial::Solid`, because a blurred popup backdrop is a screen capture that two scenes cannot share; other
+effects run at the library's own optimization mode in both scenes. The negative control injects a stale `Label` layout
+through a private test seam (`src/Support/RetainedCaches.Tests.Hooks.h`, declared in no public header) and MUST yield a
+nonzero BGRA difference at that label.
+
+The embedded oracle reads the view's surface texture (`EmbeddedHost::DebugReadSurfaceForTest`). The native oracle reads the
+back buffer of a full frame (`DebugCaptureBitmap`), which equals the presented frame only while every native frame is full.
+A partial native frame leaves older pixels outside its dirty rectangle in the back buffer until `Present1`, so partial-frame
+scripts MUST read the presented image of the presented-frame truth test (`W0.6`) through the reader seam in
+`Controls.Tests.IncrementalParity.cpp`; until it exists, the oracle does not qualify native partial frames.
+
 ## Earlier review regression contracts
 
 Retained R28 guards must exercise observable behavior rather than repair it from the fixture:
@@ -422,6 +458,23 @@ allowed affinity do not establish actual processor placement, context-switch del
 failed tracing preflights; unavailable kernel tracing is not evidence of a quiet machine. These diagnostics change
 neither the canonical 20-frame warm-up nor the judges, thresholds, exact budgets or required-CI qualification hold.
 
+`performance-timing.ps1` runs the frame timing method of the performance contract. `Tools/tests/Test-FrameTiming.ps1`
+covers its statistics (run validation, the six metrics, A/B/B/A session effects, equivalence, the minimum detectable
+effect, the noise-floor and clock-resolution classification, comparison verdicts, and the retained-form conversion with
+its refusal of any changed value, admission decisions on recorded samples (quiet, loaded elsewhere, loaded on the
+sibling, the thread preempted, another process busy on the measured GPU, the original 10% rule), GPU engine deltas,
+load placement and the load-sensitivity verdict, and the synthetic load's own child process) and runs the public
+runner in isolated children with
+a shimmed executable, `powercfg`, build, identity helpers and host observer. Those cases check that weaker
+calibration or comparison admissions are refused before any machine change, that the High Performance scheme is
+never created or activated through elevation, and that the original scheme is restored and the observer stopped
+after success, a failed run and a refused idle preflight. The ordinary `Embedded` suite and its isolated
+`--test-frame-timing` entry check the native mechanics on WARP: one sample per frame, separate preparation and
+composition cycles, every GPU result read after the next frame was submitted, the frames-and-duration stopping rule,
+FX3 replaying its 100 declared wheel notches from a rebuilt scene with every frame preparing work, the quietest-core
+choice, and the per-frame running share and interference records. None of these
+supplies a timing value or a calibration.
+
 Offline UIA investigation replay MUST check the declared process/test inventory, complete child failure and
 truncation flags, exact log bindings, quiet intervals and matching callback/provider snapshot cutoffs. Callback
 entry order may differ from completion order; late or in-flight callbacks MUST remain explicit observations.
@@ -683,6 +736,24 @@ itself can pass when run alone and fail under them, and a tooling test requires 
 enter a nested git checkout, a directory other than the scanned root that holds a `.git` file or directory (such as an
 agent's worktree under `.claude/worktrees`): another checkout's files are not this tree's, and a half-edited copy
 cannot fail it.
+Plan evidence anchors: `Tools/tests/Test-PlanAnchors.ps1` (rule in `Tools/tests/PlanAnchors.psm1`) resolves every source
+anchor in `Specs/Plans/WIP/*.md` against the checked-out tree and fails on any problem. An anchor is a backticked
+`path:12`, `path:12-30` or `path:12, 40-44`; a Markdown link to a file followed directly by a backticked `:12-30`; a
+backticked `:12-30` alone, which continues the nearest file named before it in the same list item or paragraph, or, in
+a table, the same row; or a bare backticked `40-44` chained by a comma (or ", and") after an anchor, which continues
+that anchor's file. A path with a `/` is relative to the repository root and a file name without one names a file
+under `src/Controls/`; any other file, `include/DxUi/DxUi.h` included, is written with its directory. Each anchor's
+file MUST exist and each line or range MUST lie within it (a reversed range or line 0 fails); a continuation with no
+earlier file is unresolved. A symbol is written with an anchor when its backticked span directly precedes the anchor
+group, separated only by whitespace or an opening parenthesis (`Name` (`file:12`), `Name` `:12`); it MUST occur, as a
+whole identifier and case-sensitively, in one file of that group, or the anchor is reported as drifted with file, line
+and symbol. A span is a symbol when it is an identifier, optionally `::`-qualified (its last component is searched)
+and optionally followed by `()`, that starts with an upper-case letter or an underscore or is qualified; names
+starting lower-case (prose words, Win32 parameter names), all-capital names (Win32 messages and constants, which name
+an event rather than the cited code), numbers, units, paths, expressions and plan ids such as `W2.1` or `FX5` are not.
+Anchors inside a ticked top-level item (`- [x]`, through its last indented line) describe code before that item
+landed and are skipped; fenced code is not read. Seeded fixtures prove failure for a missing file, an out-of-range
+line, a drifted symbol and an unresolved continuation, and test the symbol rule itself.
 Portable tooling fixtures MUST distinguish raw Windows project spelling from evaluated items on the current host:
 each native item identity and full path must resolve to the same existing owned file. Positive closure checks must
 complete before negative boundary checks, including mismatched identity/full-path pairs that each name an existing
@@ -1421,6 +1492,71 @@ Embedded tests cover missing/dirty/stale geometry, 144-DPI DIP output and cancel
 capture. Native text tests cover insertion flags, capacity prediction, staged NOLAYOUT, prepared notification,
 and sink callbacks releasing the final caller reference. The initial optional sample capture is visually reviewed.
 
+## Performance fixtures
+
+Performance evidence for the [performance and motion plan](../Plans/WIP/PerformanceAndMotion_2026-11-13.md) runs on
+the fixtures `FX1`-`FX14`. Each fixture MUST be defined exactly once, in its own header
+`Tests/Embedded/Embedded.Tests.PerformanceFixtureFx<N>.h`, as a `Definition` (id, title, scenario, budgets it proves,
+hosts, size and DPI variants, named phases of steps, timed phase, scene sources) and a `Scenario` (build and step), and
+listed once in `Embedded.Tests.PerformanceFixtureCatalog.h`. A fixture declared by the plan but not yet built carries no
+create function: runners skip it and the receipt command refuses it, so the catalog never claims a fixture it cannot run.
+The counter and memory receipt, the hardware timing harness (`performance-timing.ps1 -Fixture FX<N>[@variant]`), the
+determinism gate, the incremental-versus-fresh oracle and item gate tests MUST run that definition rather than a
+parallel copy of the scene. A fixture header compiles in both test executables and depends only on DxUi and the model.
+
+A step is one action followed by exactly one frame, except in a fixture that declares `settlePreparation`, whose
+embedded steps repeat the frame until the host needs no further cooperative preparation. An embedded frame ends with a
+flush of the immediate context, as an application's present does, so a software adapter does not hold every frame's
+queued work. Steps MUST be deterministic: no real clock (time comes from the
+fixture clock, `HostPort::AdvanceTime`), no sleep, no randomness and no dependence on other processes. Every W0.1 work
+counter is recorded per step and summarized per phase; the embedded runner adds the C++ allocation sink and the W0.3
+memory fields (live tracked bytes from the scene build, retained-resource statistics, process memory, video memory on
+hardware, hidden residency), the retained-cache rows and every `G13` memory budget line (W9.1; see
+[memory metrics](../Core/Core_PerformanceAndResources.md#g13-budget-lines)). Warm-up phases settle process first-use
+state; they are recorded but not compared.
+
+The determinism gate runs every built fixture twice on each of its hosts at every WARP variant (the embedded host in
+the Embedded suite, the window host in the Rendering suite) except a variant declared receipt-only: a full-size scene too
+heavy for the ordinary suites, which receipts and the timing harness run and whose consecutive receipt runs are compared
+when it is recorded. Every built fixture keeps at least its default variant in the gate and fails with the fixture, variant, host, phase, step and
+counter of the first difference. A nondeterministic counter is a defect of the fixture or of the library, never a
+reason to exclude the counter.
+
+A step's counters MUST NOT depend on load or on other processes. The window runner therefore drives time only through
+the fixture clock (no `WM_TIMER` is dispatched), drains only the messages the host posted to itself and paints with
+`UpdateWindow`; it answers every message another thread sends to the fixture window (UI Automation `WM_GETOBJECT`,
+setting and theme broadcasts) with `DefWindowProc` without the host, and pins the accessibility build gate to a listening
+client for the run, so a desktop client can neither publish a snapshot in the middle of a step nor change whether the
+host publishes. Library work that is asynchronous by design (a thread-pool delivery) is completed through a test seam at
+a fixed point of the step. When the gate fails it reports, for the differing step and the one before it, every differing
+counter and the window messages, ticks, snapshot builds and frame-schedule state present in one run and not the other.
+A difference is resolved at its source: a real-time or message-queue leak in the runner, a missing delivery seam, or a
+reported library defect when the same inputs produce different work. Retries, counter tolerances and skipped fixtures
+are not permitted. The same rule holds for gallery captures: two captures of one sheet in one process MUST be equal
+pixel for pixel, and a failure names the differing rectangle and tiles and retains both crops under `.build`.
+
+`performance-fixtures.ps1` writes a fixture's receipt under `Measurements/PerformanceAndMotion_2026-11-13/<FX>/` with
+provenance (source commit and dirty flag, build profile, compiler, OS build, adapter and driver or WARP version, display
+refresh rates, power plan, host-idle observation, executable and input hashes) and regenerates that directory's README.
+It records machine state and never changes it, and it never replaces an existing receipt without `-Replace`. Timing
+fields MUST say "not measured" unless they come from a `performance-timing.ps1` calibration or comparison on a hardware
+adapter in a quiet window; WARP receipts are counts and memory only. A plan measurement that is real time by nature, such
+as `FX13`'s cold start to the first presented frame, is a receipt-only command beside the definition: it reuses the
+fixture's scene, stays outside the determinism gate, and its receipt states that it is not a verdict. The fixture-author guide is in
+[the test guide](../../Tests/README.md#performance-fixtures).
+
+A fixture whose scene takes the foreground is declared `Definition::interactiveOnly`: only the interactive run executes
+it. `FX4` (menus) is one, by the developer's decision of 14 November 2026, because a menu session activates and focuses
+its popup, takes capture and blurs real screen pixels, and menu measurement needs real foreground interaction (see
+[interactive tests](#interactive-tests)). Such a fixture has no `Scenario`; its own runner in `DxUi.ControlTests.exe`
+records the same per-step counters and receipt. Both determinism gates, both executables' ordinary receipt commands,
+`performance-fixtures.ps1` without `-Interactive` and the timing harness MUST skip it with `<id>: interactive, not run`,
+never fail on it and never open its windows. Its determinism gate is a test of the `Menu` suite, so it runs only under
+`test.ps1 -Interactive`; its receipt is `performance-fixtures.ps1 -Fixture FX4 -Interactive`, one child of the interactive
+desktop lease with the lease's refusals (a CI job, no interactive window station, no lease executable, no desktop). The
+runner MUST fail without a receipt when activation was blocked (the application window does not take the foreground, or a
+popup is 1 by 1 pixels, differs from its layout rectangle or lacks the foreground, focus or capture) or when the person's
+input reached the menu, and it never moves the pointer.
 ## Scoped iteration and PR coverage
 
 Active native test sources, helpers, fixtures and seams MUST use `<Component>.Tests.Something.h/.cpp`, with the actual component context (`Controls`, `Support`, `Embedded`, etc.). Literal `Scope` is a rejected placeholder. `Tests/native-test-files.json` owns active membership. Historical archived harnesses and sealed reproduction inputs keep their original identity; they do not define new source naming. Rename project entries, includes, current inventories and callers together. DxUi historical source/test origins retain their original identities and map to current paths separately.

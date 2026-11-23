@@ -1,4 +1,8 @@
+#include "Controls.Tests.AccessibilityClientGate.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.FrameSchedule.h"
+#include "Controls.Tests.PerformanceFixtureColdStart.h"
+#include "Controls.Tests.PerformanceFixtures.h"
 #include "Controls/TextClipboard.h"
 #include "Support/AnimationDispatcher.h"
 
@@ -35,6 +39,13 @@ void RunEditorControlTests();
 void RunInteractiveLeaseTests();
 void RunGalleryGenerator(const std::filesystem::path& outputPath);
 void RunGalleryGeneratorPerTheme(const std::filesystem::path& outputDirectory);
+void RunGalleryTileCaptures(const std::filesystem::path& outputDirectory,
+                            const std::vector<UINT>& scalePercents,
+                            const std::vector<std::wstring>& tileFilters,
+                            const std::vector<std::wstring>& themeSlugs,
+                            bool forceWarp);
+[[nodiscard]] bool IsSupportedGalleryScalePercent(UINT percent) noexcept;
+void RunGalleryScaleTests();
 void RunButtonContrastAuditGenerator(const std::filesystem::path& outputPath);
 
 namespace
@@ -95,8 +106,18 @@ void RunWatchdogSelfTestProgress()
 int wmain(int argc, wchar_t** argv)
 {
     DxUiTestFailureReports::RouteAwayFromDialogs();
+    // Tests drive their windows with UpdateWindow and SendMessage and seldom run a message loop. After five seconds
+    // without one, Windows would mark such a window hung and ghost it, after which its invalidations leave no update
+    // region: a slow (ASan) run then failed paint assertions at whichever step crossed that wall-clock line. No test
+    // here wants the shell's stand-in for a hung window.
+    DisableProcessWindowsGhosting();
     if (const auto child = DxUiFailureTests::RunFailureChild(argc, argv); child >= 0)
         return child;
+    if (const int subscriber = RunAccessibilityClientGateQueryChild(argc, argv); subscriber >= 0)
+        return subscriber;
+    // Installs and removes its own failure host: the worker thread it watches ends after the host is gone.
+    if (const int threadExit = RunFrameScheduleThreadExitChild(argc, argv); threadExit >= 0)
+        return threadExit;
     if (argc == 2 && std::wstring_view(argv[1]) == L"--ci-assertion-probe")
     {
         try
@@ -135,6 +156,18 @@ int wmain(int argc, wchar_t** argv)
         if (FAILED(result))
             DxUi::Failure::FailContract(result);
     });
+
+    // A performance fixture's WARP receipt on the window host (Tests/README.md, "Performance fixtures").
+    if (argc >= 2 && std::wstring_view(argv[1]) == L"--fixture-receipt")
+        return RunWindowFixtureReceiptCommand(argc, argv);
+    // One hash of a full window-host frame per fixture step: the W2.8 pixel receipt before and after a change.
+    if (argc >= 2 && std::wstring_view(argv[1]) == L"--fixture-frame-hashes")
+        return RunWindowFixtureFrameHashCommand(argc, argv);
+    // FX13's receipt-only cold start: fresh child processes timed to their first presented frame.
+    if (const int coldStart = RunFx13ColdStartChild(argc, argv); coldStart >= 0)
+        return coldStart;
+    if (argc >= 2 && std::wstring_view(argv[1]) == L"--fx13-cold-start")
+        return RunFx13ColdStartCommand(argc, argv);
 
     class TestClipboard final : public DxUi::TextClipboard
     {
@@ -180,6 +213,12 @@ int wmain(int argc, wchar_t** argv)
     std::optional<std::filesystem::path> perfJsonlPath;
     std::optional<std::filesystem::path> galleryOutputPath;
     std::optional<std::filesystem::path> galleryOutputDirectory;
+    // Scaled tile captures (gallery.ps1 -Scale/-Tiles/-Theme/-Warp): any of these turns the per-theme sheets into tiles.
+    std::vector<UINT> galleryScalePercents;
+    std::vector<std::wstring> galleryTileFilters;
+    std::vector<std::wstring> galleryThemeSlugs;
+    bool galleryForceWarp     = false;
+    bool galleryTileRequested = false;
     std::optional<std::filesystem::path> buttonAuditOutputPath;
     std::optional<std::wstring> watchdogSelfTest;
     unsigned testTimeoutSeconds = DxUi::TestSupport::kDefaultTestTimeoutSeconds;
@@ -330,6 +369,69 @@ int wmain(int argc, wchar_t** argv)
             galleryOutputDirectory = std::filesystem::path(arg.substr(kGalleryDirectoryPrefix.size()));
             continue;
         }
+        constexpr std::wstring_view kGalleryScalePrefix  = L"--gallery-scale=";
+        constexpr std::wstring_view kGalleryTilesPrefix  = L"--gallery-tiles=";
+        constexpr std::wstring_view kGalleryThemesPrefix = L"--gallery-themes=";
+        // A comma-separated list of non-empty entries; repeating the option adds to the list.
+        const auto splitList = [](std::wstring_view list, std::vector<std::wstring>& entries) -> bool
+        {
+            for (bool more = true; more;)
+            {
+                const size_t comma = list.find(L',');
+                if (comma == 0u || list.empty())
+                    return false;
+                entries.emplace_back(list.substr(0, comma));
+                more = comma != std::wstring_view::npos;
+                if (more)
+                    list.remove_prefix(comma + 1u);
+            }
+            return true;
+        };
+        if (arg.rfind(kGalleryScalePrefix, 0) == 0)
+        {
+            std::vector<std::wstring> entries;
+            bool valid = splitList(arg.substr(kGalleryScalePrefix.size()), entries);
+            for (const std::wstring& entry : entries)
+            {
+                const std::optional<DWORD> percent = parseWholeNumber(entry, 3u);
+                valid                              = valid && percent.has_value() && IsSupportedGalleryScalePercent(percent.value());
+                if (valid)
+                    galleryScalePercents.push_back(percent.value());
+            }
+            if (! valid)
+            {
+                std::wcerr << L"Expected --gallery-scale=<percent>[,<percent>...] with percents from 100 to 300 in steps of 25.\n";
+                return 2;
+            }
+            galleryTileRequested = true;
+            continue;
+        }
+        if (arg.rfind(kGalleryTilesPrefix, 0) == 0)
+        {
+            if (! splitList(arg.substr(kGalleryTilesPrefix.size()), galleryTileFilters))
+            {
+                std::wcerr << L"Expected --gallery-tiles=<tile>[,<tile>...] naming controls, captions or tile file names.\n";
+                return 2;
+            }
+            galleryTileRequested = true;
+            continue;
+        }
+        if (arg.rfind(kGalleryThemesPrefix, 0) == 0)
+        {
+            if (! splitList(arg.substr(kGalleryThemesPrefix.size()), galleryThemeSlugs))
+            {
+                std::wcerr << L"Expected --gallery-themes=<theme>[,<theme>...] with light, dark, rainbow-light, rainbow-dark or high-contrast.\n";
+                return 2;
+            }
+            galleryTileRequested = true;
+            continue;
+        }
+        if (arg == L"--gallery-warp")
+        {
+            galleryForceWarp     = true;
+            galleryTileRequested = true;
+            continue;
+        }
         if (arg.rfind(kButtonAuditPrefix, 0) == 0)
         {
             if (arg.size() == kButtonAuditPrefix.size())
@@ -399,6 +501,11 @@ int wmain(int argc, wchar_t** argv)
     if (watchdogSelfTest.has_value() && (suiteFilter.has_value() || ! testNames.empty()))
     {
         std::wcerr << L"--watchdog-self-test cannot combine with --suite or --test.\n";
+        return 2;
+    }
+    if (galleryTileRequested && (! suiteFilter.has_value() || ! shouldRunSuite("Gallery") || ! galleryOutputDirectory.has_value()))
+    {
+        std::wcerr << L"--gallery-scale, --gallery-tiles, --gallery-themes and --gallery-warp need --suite=Gallery and --gallery-output-directory.\n";
         return 2;
     }
 
@@ -513,7 +620,13 @@ int wmain(int argc, wchar_t** argv)
         runSuite("Gallery",
                  [&]
         {
-            if (galleryOutputDirectory.has_value())
+            if (galleryTileRequested)
+            {
+                if (galleryScalePercents.empty())
+                    galleryScalePercents.push_back(100u);
+                RunGalleryTileCaptures(galleryOutputDirectory.value(), galleryScalePercents, galleryTileFilters, galleryThemeSlugs, galleryForceWarp);
+            }
+            else if (galleryOutputDirectory.has_value())
             {
                 RunGalleryGeneratorPerTheme(galleryOutputDirectory.value());
             }
@@ -607,7 +720,12 @@ int wmain(int argc, wchar_t** argv)
     }
     if (shouldRunSuite("Rendering"))
     {
-        runSuite("Rendering", RunRenderingTests);
+        runSuite("Rendering",
+                 []
+        {
+            RunRenderingTests();
+            RunGalleryScaleTests();
+        });
         ranAnySuite = true;
     }
     if (shouldRunSuite("Animation"))

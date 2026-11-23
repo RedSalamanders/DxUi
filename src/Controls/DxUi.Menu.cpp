@@ -21,6 +21,7 @@
 
 #include "Support/Diagnostics.h"
 #include "Support/LiveResourceCount.h"
+#include "Support/Trace.h"
 #include "Support/Utilities.h"
 #include "Support/WindowMessages.h"
 
@@ -513,8 +514,12 @@ struct MenuBackdropSnapshot
 
     wil::com_ptr<ID2D1Bitmap1> bitmap;
     const UINT32 pitch = static_cast<UINT32>(snapshot.capture.widthPx * 4u);
-    const HRESULT hr   = d2dContext->CreateBitmap(
-        D2D1::SizeU(snapshot.capture.widthPx, snapshot.capture.heightPx), snapshot.capture.bgraPixels.data(), pitch, &bitmapProperties, bitmap.put());
+    const HRESULT hr   = CountedCreateBitmap(d2dContext,
+                                             D2D1::SizeU(snapshot.capture.widthPx, snapshot.capture.heightPx),
+                                             snapshot.capture.bgraPixels.data(),
+                                             pitch,
+                                             &bitmapProperties,
+                                             bitmap.put());
     if (FAILED(hr) || ! bitmap)
     {
         Debug::Warning(L"DxUi::Menu: failed to create popup backdrop bitmap: 0x{:08X}", hr);
@@ -602,14 +607,16 @@ struct MenuBackdropSnapshot
     };
 
     wil::com_ptr<ID2D1GradientStopCollection> stopCollection;
-    if (FAILED(dc->CreateGradientStopCollection(stops, static_cast<UINT32>(std::size(stops)), stopCollection.put())))
+    if (FAILED(CountedCreateGradientStopCollection(dc, stops, static_cast<UINT32>(std::size(stops)), stopCollection.put())))
     {
         return {};
     }
 
     wil::com_ptr<ID2D1LinearGradientBrush> brush;
-    if (FAILED(dc->CreateLinearGradientBrush(
-            D2D1::LinearGradientBrushProperties(D2D1::Point2F(rect.left, rect.top), D2D1::Point2F(rect.left, rect.bottom)), stopCollection.get(), brush.put())))
+    if (FAILED(CountedCreateLinearGradientBrush(dc,
+                                                D2D1::LinearGradientBrushProperties(D2D1::Point2F(rect.left, rect.top), D2D1::Point2F(rect.left, rect.bottom)),
+                                                stopCollection.get(),
+                                                brush.put())))
     {
         const Failure::Scope outerFailureScope;
         return {};
@@ -707,14 +714,15 @@ void PaintMenuBackdropSurface(
     dc->GetFactory(factory.put());
 
     wil::com_ptr<ID2D1RoundedRectangleGeometry> roundedGeometry;
-    if (! factory || FAILED(factory->CreateRoundedRectangleGeometry(D2D1::RoundedRect(menuRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
+    if (! factory ||
+        FAILED(CountedCreateRoundedRectangleGeometry(factory, D2D1::RoundedRect(menuRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
         ! roundedGeometry)
     {
         return;
     }
 
     wil::com_ptr<ID2D1Effect> blurEffect;
-    if (FAILED(dc->CreateEffect(kMenuGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
+    if (FAILED(CountedCreateEffect(dc, kMenuGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
     {
         return;
     }
@@ -725,7 +733,7 @@ void PaintMenuBackdropSurface(
     blurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_BORDER_MODE_HARD);
 
     wil::com_ptr<ID2D1Layer> layer;
-    if (FAILED(dc->CreateLayer(layer.put())) || ! layer)
+    if (FAILED(CountedCreateLayer(dc, layer.put())) || ! layer)
     {
         return;
     }
@@ -743,6 +751,7 @@ void PaintMenuBackdropSurface(
     const D2D1_POINT_2F targetOffset             = D2D1::Point2F(menuRect.left, menuRect.top);
     dc->PushLayer(layerParameters, layer.get());
     dc->DrawImage(blurEffect.get(), &targetOffset, &sourceRect, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+    ++Detail::Work().popups.backdropBlurPasses;
     if (material.backdropDetailOpacity > 0.0f)
     {
         dc->DrawBitmap(bitmap, menuRect, (std::clamp)(material.backdropDetailOpacity, 0.0f, 1.0f), D2D1_INTERPOLATION_MODE_LINEAR);
@@ -875,7 +884,7 @@ void PaintMenuMaterialSurface(
         D2D1_BITMAP_OPTIONS_NONE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), host.GetDpi(), host.GetDpi());
 
     wil::com_ptr<ID2D1Bitmap1> bitmap;
-    hr = d2dContext->CreateBitmapFromWicBitmap(wicBitmap.get(), &bitmapProperties, bitmap.put());
+    hr = CountedCreateBitmapFromWicBitmap(d2dContext, wicBitmap.get(), &bitmapProperties, bitmap.put());
     if (FAILED(hr))
     {
         Debug::Warning(L"DxUi::Menu: Failed to create D2D bitmap for menu icon: 0x{:08X}", hr);
@@ -1671,9 +1680,10 @@ void SetSliderAnimationTarget(MenuPopup& popup, float targetPosition) noexcept
     {
         popup.sliderAnimatedPosition = clampedTarget;
     }
-    else
+    else if (Control* const content = popup.host.GetRoot())
     {
-        popup.host.RequestAnimation();
+        // The popup's content control ticks the slider.
+        popup.host.RequestAnimation(*content);
     }
     InvalidatePopup(popup);
 }
@@ -2456,12 +2466,13 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
                 if (auto* format = host.GetTextFormat(FontRole::Small))
                 {
                     wil::com_ptr<IDWriteTextLayout> layout;
-                    if (SUCCEEDED(factory->CreateTextLayout(item.secondaryText.data(),
-                                                            static_cast<UINT32>(item.secondaryText.size()),
-                                                            format,
-                                                            kTextMeasureWidthDip,
-                                                            kTextMeasureWidthDip,
-                                                            &layout)))
+                    if (SUCCEEDED(CountedCreateTextLayout(factory,
+                                                          item.secondaryText.data(),
+                                                          static_cast<UINT32>(item.secondaryText.size()),
+                                                          format,
+                                                          kTextMeasureWidthDip,
+                                                          kTextMeasureWidthDip,
+                                                          &layout)))
                     {
                         DWRITE_TEXT_METRICS metrics{};
                         if (SUCCEEDED(layout->GetMetrics(&metrics)))
@@ -2482,8 +2493,13 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
                     wil::com_ptr<IDWriteTextLayout> layout;
                     if (auto* factory = host.GetWriteFactory())
                     {
-                        if (SUCCEEDED(factory->CreateTextLayout(
-                                label.displayText.c_str(), static_cast<UINT32>(label.displayText.size()), fmt, kTextMeasureWidthDip, headerHeightDip, &layout)))
+                        if (SUCCEEDED(CountedCreateTextLayout(factory,
+                                                              label.displayText.c_str(),
+                                                              static_cast<UINT32>(label.displayText.size()),
+                                                              fmt,
+                                                              kTextMeasureWidthDip,
+                                                              headerHeightDip,
+                                                              &layout)))
                         {
                             DWRITE_TEXT_METRICS metrics{};
                             if (SUCCEEDED(layout->GetMetrics(&metrics)))
@@ -2504,8 +2520,13 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
                     wil::com_ptr<IDWriteTextLayout> layout;
                     if (auto* factory = host.GetWriteFactory())
                     {
-                        if (SUCCEEDED(factory->CreateTextLayout(
-                                label.displayText.c_str(), static_cast<UINT32>(label.displayText.size()), fmt, kTextMeasureWidthDip, itemHeightDip, &layout)))
+                        if (SUCCEEDED(CountedCreateTextLayout(factory,
+                                                              label.displayText.c_str(),
+                                                              static_cast<UINT32>(label.displayText.size()),
+                                                              fmt,
+                                                              kTextMeasureWidthDip,
+                                                              itemHeightDip,
+                                                              &layout)))
                         {
                             DWRITE_TEXT_METRICS metrics{};
                             if (SUCCEEDED(layout->GetMetrics(&metrics)))
@@ -2516,12 +2537,13 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
 
                         if (! decoded.acceleratorText.empty())
                         {
-                            if (SUCCEEDED(factory->CreateTextLayout(decoded.acceleratorText.data(),
-                                                                    static_cast<UINT32>(decoded.acceleratorText.size()),
-                                                                    fmt,
-                                                                    kTextMeasureWidthDip,
-                                                                    itemHeightDip,
-                                                                    &layout)))
+                            if (SUCCEEDED(CountedCreateTextLayout(factory,
+                                                                  decoded.acceleratorText.data(),
+                                                                  static_cast<UINT32>(decoded.acceleratorText.size()),
+                                                                  fmt,
+                                                                  kTextMeasureWidthDip,
+                                                                  itemHeightDip,
+                                                                  &layout)))
                             {
                                 DWRITE_TEXT_METRICS metrics{};
                                 if (SUCCEEDED(layout->GetMetrics(&metrics)))
@@ -2548,8 +2570,13 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
                     wil::com_ptr<IDWriteTextLayout> layout;
                     if (auto* factory = host.GetWriteFactory())
                     {
-                        if (SUCCEEDED(factory->CreateTextLayout(
-                                label.displayText.c_str(), static_cast<UINT32>(label.displayText.size()), fmt, kTextMeasureWidthDip, itemHeightDip, &layout)))
+                        if (SUCCEEDED(CountedCreateTextLayout(factory,
+                                                              label.displayText.c_str(),
+                                                              static_cast<UINT32>(label.displayText.size()),
+                                                              fmt,
+                                                              kTextMeasureWidthDip,
+                                                              itemHeightDip,
+                                                              &layout)))
                         {
                             DWRITE_TEXT_METRICS metrics{};
                             if (SUCCEEDED(layout->GetMetrics(&metrics)))
@@ -2560,12 +2587,13 @@ void EnsureMenuWindowClass(HINSTANCE hInstance)
                         // Measure accelerator text
                         if (! decoded.acceleratorText.empty())
                         {
-                            if (SUCCEEDED(factory->CreateTextLayout(decoded.acceleratorText.data(),
-                                                                    static_cast<UINT32>(decoded.acceleratorText.size()),
-                                                                    fmt,
-                                                                    kTextMeasureWidthDip,
-                                                                    itemHeightDip,
-                                                                    &layout)))
+                            if (SUCCEEDED(CountedCreateTextLayout(factory,
+                                                                  decoded.acceleratorText.data(),
+                                                                  static_cast<UINT32>(decoded.acceleratorText.size()),
+                                                                  fmt,
+                                                                  kTextMeasureWidthDip,
+                                                                  itemHeightDip,
+                                                                  &layout)))
                             {
                                 DWRITE_TEXT_METRICS metrics{};
                                 if (SUCCEEDED(layout->GetMetrics(&metrics)))
@@ -2704,7 +2732,7 @@ struct MenuDescriptionPreparation
 
     wil::com_ptr<IDWriteTextLayout> layout;
     const DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_NONE, 0, 0};
-    if (FAILED(factory.CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), &bodyFormat, textWidthDip, 1000000.0f, layout.put())) ||
+    if (FAILED(CountedCreateTextLayout(&factory, text.data(), static_cast<UINT32>(text.size()), &bodyFormat, textWidthDip, 1000000.0f, layout.put())) ||
         FAILED(layout->SetWordWrapping(DWRITE_WORD_WRAPPING_EMERGENCY_BREAK)) || FAILED(layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR)) ||
         FAILED(layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING)) || FAILED(layout->SetReadingDirection(ResolveReadingDirection(flowDirection))) ||
         FAILED(layout->SetTrimming(&trimming, nullptr)))
@@ -2834,12 +2862,13 @@ struct MenuDescriptionPreparation
                 // A failed optional description must not hide an otherwise valid command. Prove that its primary
                 // label can still be prepared before falling back to the ordinary row; UIA retains the description.
                 wil::com_ptr<IDWriteTextLayout> primary;
-                if (label.displayText.empty() || FAILED(factory->CreateTextLayout(label.displayText.data(),
-                                                                                  static_cast<UINT32>(label.displayText.size()),
-                                                                                  bodyFormat,
-                                                                                  textWidth,
-                                                                                  ResolveMenuItemHeightDip(popup.host.GetTheme()),
-                                                                                  &primary)))
+                if (label.displayText.empty() || FAILED(CountedCreateTextLayout(factory,
+                                                                                label.displayText.data(),
+                                                                                static_cast<UINT32>(label.displayText.size()),
+                                                                                bodyFormat,
+                                                                                textWidth,
+                                                                                ResolveMenuItemHeightDip(popup.host.GetTheme()),
+                                                                                &primary)))
                 {
                     Debug::Warning(L"DxUi::Menu: failed to prepare command identity for row {}", i);
                     return false;
@@ -3080,7 +3109,7 @@ struct MenuDescriptionPreparation
     if (! popup.descriptionBrush || popup.descriptionBrushDevice.get() != device.get())
     {
         wil::com_ptr<ID2D1SolidColorBrush> brush;
-        if (FAILED(dc.CreateSolidColorBrush(color, brush.put())) || ! brush)
+        if (FAILED(CountedCreateSolidColorBrush(&dc, color, brush.put())) || ! brush)
             return nullptr;
         popup.descriptionBrush       = std::move(brush);
         popup.descriptionBrushDevice = std::move(device);
@@ -3128,6 +3157,11 @@ struct MenuDescriptionPreparation
 class MenuContentControl final : public Panel
 {
 public:
+    // A library control outside the public header: it overrides no hit testing (rows are its own sub-hit).
+    MenuContentControl() noexcept
+    {
+        DeclareHitTestReported();
+    }
     MenuPopup* popup = nullptr;
 
     bool Tick(ControlHost& host, uint64_t nowTickMs) override
@@ -3152,6 +3186,7 @@ public:
         auto* dc = host.GetDeviceContext();
         if (! dc)
             return;
+        ++Detail::Work().popups.menuPopupPaints;
 
         const auto& style             = popup->controller->style;
         const auto& theme             = popup->controller->theme;
@@ -3485,6 +3520,7 @@ public:
         }
 
         popup->lastPaintedItemCount = paintedItemCount;
+        Detail::Work().popups.menuRowsPainted += paintedItemCount;
         if (Debug::Perf::IsCaptureEnabled())
         {
             const Failure::Scope outerFailureScope;
@@ -5883,6 +5919,9 @@ void TraceMenuKeyboardRoute(const MenuController& controller,
 
     if (msg == WM_TIMER && wp == kSubmenuHoverTimerId)
     {
+        ++Detail::Work().wakes.menuHoverTimer;
+        if (Detail::Trace::Listening()) [[unlikely]]
+            Detail::Trace::Wake(Detail::Trace::WakeSource::MenuHoverTimer);
         if (MenuPopup* popup = controller.FindPopupForHwnd(hwnd))
         {
             HandleSubmenuHoverTimer(controller, *popup);

@@ -1,5 +1,6 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Support.Tests.FatalChildren.h"
+#include "Support/WorkCounters.h"
 
 #include <atomic>
 #include <clocale>
@@ -7,7 +8,10 @@
 #include <fstream>
 #include <functional>
 #include <iterator>
+#include <span>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace
 {
@@ -994,6 +998,48 @@ void TestTreeAccumulatesPartialWheelDelta()
             "two half tree wheel deltas accumulate to the same row movement as one full step");
 }
 
+// A notch scrolls the lines the user chose in the mouse settings, read again when a window host receives WM_SETTINGCHANGE;
+// "one screen at a time" (WHEEL_PAGESCROLL) scrolls the page Page Down moves.
+void TestTreeWheelScrollsTheUsersLinesPerNotch()
+{
+    using namespace DxUi;
+
+    const auto populate = [](Tree& tree, MutableTreeModel& model)
+    {
+        std::vector<TreeItemData> items;
+        items.reserve(60u);
+        for (uint64_t id = 1u; id <= 60u; ++id)
+            items.push_back(TreeItemData{.id = id, .text = L"Item " + std::to_wstring(id)});
+        model.SetVisibleItems(std::move(items));
+        tree.SetBounds(D2D1::RectF(0.0f, 0.0f, 220.0f, 236.0f));
+        tree.SetModel(&model);
+    };
+    const auto notch = [](WindowHost& host, Tree& tree) { return tree.OnMouseWheel(host, D2D1::Point2F(40.0f, 16.0f), -static_cast<float>(WHEEL_DELTA), 0u); };
+
+    WindowHost host;
+    ApplyWheelScrollLinesForTest(host, 5u);
+    Tree lines;
+    MutableTreeModel linesModel;
+    populate(lines, linesModel);
+    Require(notch(host, lines), "a notch is handled");
+    Require(lines.GetFirstVisibleItemIndex() == 5u, "with the setting at 5 one notch moves 5 rows");
+
+    Tree keyed;
+    MutableTreeModel keyedModel;
+    populate(keyed, keyedModel);
+    Require(keyed.OnKeyDown(host, VK_NEXT, 0u) && keyed.GetFocusedItemId().has_value(), "Page Down moves the focus a page");
+    const size_t pageRows = static_cast<size_t>(keyed.GetFocusedItemId().value() - 1u);
+    Require(pageRows > 5u, "the tree's page is longer than five rows");
+
+    ApplyWheelScrollLinesForTest(host, WHEEL_PAGESCROLL);
+    Tree paged;
+    MutableTreeModel pagedModel;
+    populate(paged, pagedModel);
+    Require(notch(host, paged) && paged.GetFirstVisibleItemIndex() == pageRows, "with one screen at a time a notch moves the page Page Down moves");
+
+    ApplyWheelScrollLinesForTest(host, std::nullopt);
+}
+
 // Rows sit at whole-row positions offset by the scroll, so after a scrollbar drag the first and last visible rows straddle
 // the viewport's edges. Nothing such a row paints, nor the reorder marker on it, may reach past the tree's frame: outside
 // the frame the window looks as it does with an empty tree, while inside the viewport the rows' visible parts still paint.
@@ -1719,6 +1765,61 @@ void TestTreeHoveredClippedTextShowsFullTextTooltip()
     tree->NotifyDataChanged();
     Require(tree->OnMouseMove(host, hoverPoint, 0) && host.GetTooltipText() == L"Explicit help", "explicit tooltip survives a badge change");
     Require(tree->DebugGetTooltipGeometryCount() == geometryCount, "explicit tooltip needs neither badge nor overflow geometry");
+}
+
+// W1.6: a row's tooltip is anchored where the pointer entered the row, so moves within the row change no pixels and do
+// not invalidate; crossing to the next row invalidates exactly once.
+void TestTreeTooltipMovesWithinRowDoNotInvalidate()
+{
+    using namespace DxUi;
+
+    WindowHost host;
+    bool handled = false;
+    static_cast<void>(host.HandleMessage(nullptr, WM_SIZE, 0, MAKELPARAM(420, 140), handled));
+    Require(handled, "host size update handled for tree tooltip invalidation");
+    auto root  = std::make_unique<Panel>();
+    auto* tree = root->AddChild<Tree>();
+    tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 420.0f, 140.0f));
+    host.SetRoot(std::move(root));
+
+    MutableTreeModel model;
+    model.SetVisibleItems({
+        TreeItemData{.id = 1u, .text = L"Plugins", .tooltipText = L"First row help"},
+        TreeItemData{.id = 2u, .text = L"Viewers", .tooltipText = L"Second row help"},
+    });
+    tree->SetModel(&model);
+
+    const TreeItemLayoutMetrics first  = tree->GetItemLayoutMetrics(host, 0u);
+    const TreeItemLayoutMetrics second = tree->GetItemLayoutMetrics(host, 1u);
+    const float rowHeight              = first.rowRect.bottom - first.rowRect.top;
+    const auto pointInFirstRow         = [&](size_t move) noexcept
+    {
+        return D2D1::Point2F(first.textRect.left + 4.0f + 3.0f * static_cast<float>(move),
+                             first.rowRect.top + 1.0f + (rowHeight - 2.0f) * static_cast<float>(move) / 50.0f);
+    };
+
+    const D2D1_POINT_2F entry = pointInFirstRow(0u);
+    Require(tree->OnMouseMove(host, entry, 0) && host.GetTooltipText() == L"First row help", "entering the first row shows its tooltip");
+    const D2D1_RECT_F entryBounds = host.DebugGetTooltipBoundsDip();
+
+    const uint64_t beforeMoves = host.DebugGetInvalidateCount();
+    for (size_t move = 1u; move <= 50u; ++move)
+        Require(tree->OnMouseMove(host, pointInFirstRow(move), 0), "a move within the first row is handled");
+    const uint64_t withinRowInvalidations = host.DebugGetInvalidateCount() - beforeMoves;
+    std::cerr << "    [W1.6] tree moves within one row: 50, invalidations: " << withinRowInvalidations << '\n';
+    Require(withinRowInvalidations == 0u, "50 moves within one tree row cause 0 invalidations");
+    Require(host.GetTooltipText() == L"First row help", "the row keeps its tooltip text");
+    const D2D1_RECT_F afterMovesBounds = host.DebugGetTooltipBoundsDip();
+    Require(afterMovesBounds.left == entryBounds.left && afterMovesBounds.top == entryBounds.top, "the row tooltip stays at the row-entry origin");
+
+    const D2D1_POINT_2F nextRow   = D2D1::Point2F(second.textRect.left + 20.0f, (second.rowRect.top + second.rowRect.bottom) * 0.5f);
+    const uint64_t beforeCrossing = host.DebugGetInvalidateCount();
+    Require(tree->OnMouseMove(host, nextRow, 0), "crossing to the next row is handled");
+    const uint64_t crossingInvalidations = host.DebugGetInvalidateCount() - beforeCrossing;
+    std::cerr << "    [W1.6] tree crossing to the next row, invalidations: " << crossingInvalidations << '\n';
+    Require(crossingInvalidations == 1u, "crossing to the next tree row causes exactly 1 invalidation");
+    Require(host.GetTooltipText() == L"Second row help", "the next row shows its own tooltip");
+    Require(host.DebugGetTooltipBoundsDip().top > entryBounds.top, "the next row's tooltip is anchored where the pointer entered that row");
 }
 
 } // namespace
@@ -3782,10 +3883,16 @@ void TestTreeInitialActionReportsSelection()
     Require(fixture.delegate.selectionChangedCount == 1u && fixture.delegate.lastSelectedItemId == 1u,
             "the initial selection is reported once before invocation");
 }
+
+#include "Controls.Tests.TreeLookup.h"
 } // namespace
 
 void RunTreeTests()
 {
+    // W2.6: every Tree test runs with the id index verified against the model's own lookup and leaves no difference.
+    const ScopedTreeIdLookup verified(DxUi::Tree::DebugIdLookup::Verified);
+    const size_t mismatchesBefore = DxUi::Tree::DebugGetIdLookupMismatchCount();
+    RunTreeLookupTests();
     DXUI_RUN_TEST(TestTreeGrowingViewportClampsScrollAndSelectionSettersInvalidate);
     DXUI_RUN_TEST(TestTreeGesturesContinueWhenACallbackChangesAnotherControl);
     DXUI_RUN_TEST(TestTreeClickSurvivesAFocusHandlerThatChangesAnotherControl);
@@ -3826,6 +3933,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeScrollbarThumbGutterDragThroughWindowHost);
     DXUI_RUN_TEST(TestTreeLargeWheelDeltaUsesFullMagnitude);
     DXUI_RUN_TEST(TestTreeAccumulatesPartialWheelDelta);
+    DXUI_RUN_TEST(TestTreeWheelScrollsTheUsersLinesPerNotch);
     DXUI_RUN_TEST(TestTreeScrollbarFeedbackFollowsHoverAndDragState);
     DXUI_RUN_TEST(TestTreeDoubleClicksWithoutARowMeaningActAsPresses);
     DXUI_RUN_TEST(TestTreeRowsStraddlingTheViewportEdgesPaintOnlyInsideIt);
@@ -3839,6 +3947,7 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeRowMetricsClampToSegoeVariableBodyLineHeight);
     DXUI_RUN_TEST(TestTreeCompactDensityShrinksRowMetrics);
     DXUI_RUN_TEST(TestTreeHoveredClippedTextShowsFullTextTooltip);
+    DXUI_RUN_TEST(TestTreeTooltipMovesWithinRowDoNotInvalidate);
     DXUI_RUN_TEST(TestTreeMultiSelectIsOptInAndSingleSelectIsUnchanged);
     DXUI_RUN_TEST(TestTreeCtrlAndShiftClickBuildTheSelectionInVisibleOrder);
     DXUI_RUN_TEST(TestTreeCtrlAndShiftClickThroughTheHostMessages);
@@ -3861,4 +3970,6 @@ void RunTreeTests()
     DXUI_RUN_TEST(TestTreeTypographyOverrideValidatesAtomically);
     DXUI_RUN_TEST(TestTreeFramelessOutlinePreservesModelAndKeyboardExpansion);
     DXUI_RUN_TEST(TestTreeInactiveSelectionUsesNormalTextAndLegibleChrome);
+    Require(DxUi::Tree::DebugGetIdLookupMismatchCount() == mismatchesBefore + g_deliberateTreeLookupMismatches,
+            "no Tree test met a model whose id index answered differently from its own lookup");
 }

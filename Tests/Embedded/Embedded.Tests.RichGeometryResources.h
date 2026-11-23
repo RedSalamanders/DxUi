@@ -376,8 +376,8 @@ static void TestEmbeddedSemanticReusePixels(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "semantic reuse pixel graphics");
     EmbeddedHost reused, fresh;
-    Hr(reused.Attach(graphics), "attach reused pixel view");
-    Hr(fresh.Attach(graphics), "attach fresh pixel view");
+    Hr(reused.Attach(graphics, StoppedTestClock()), "attach reused pixel view");
+    Hr(fresh.Attach(graphics, StoppedTestClock()), "attach fresh pixel view");
     auto first         = std::make_unique<RichTextEditor>(source);
     auto second        = std::make_unique<RichTextEditor>(source);
     auto* firstEditor  = first.get();
@@ -665,7 +665,7 @@ static void TestEmbeddedCosmeticsDoNotWithholdContent(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "cosmetic admission graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "cosmetic admission view");
+    Hr(view.Attach(graphics, StoppedTestClock()), "cosmetic admission view");
     auto owned   = std::make_unique<RichTextEditor>(source);
     auto* editor = owned.get();
     editor->SetViewMode(RichText::ViewMode::Source);
@@ -746,7 +746,7 @@ static void TestEmbeddedSourceGuidesPixels(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "source guide graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "source guide view");
+    Hr(view.Attach(graphics, StoppedTestClock()), "source guide view");
     auto owned   = std::make_unique<RichTextEditor>(source);
     auto* editor = owned.get();
     editor->SetViewMode(RichText::ViewMode::Source);
@@ -803,7 +803,7 @@ static void TestEmbeddedCodeLineNumberPixels(GraphicsFixture& gpu, bool fatalChi
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "code gutter graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "code gutter view");
+    Hr(view.Attach(graphics, StoppedTestClock()), "code gutter view");
     auto owned   = std::make_unique<RichTextEditor>(source);
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
@@ -1001,8 +1001,8 @@ static void TestEmbeddedRichGeometryReuseAndRetirement(GraphicsFixture& gpu)
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "chunk reuse shared graphics");
     EmbeddedHost first, second;
-    Hr(first.Attach(graphics), "chunk reuse first view");
-    Hr(second.Attach(graphics), "chunk reuse second view");
+    Hr(first.Attach(graphics, StoppedTestClock()), "chunk reuse first view");
+    Hr(second.Attach(graphics, StoppedTestClock()), "chunk reuse second view");
     auto owned      = std::make_unique<RichTextEditor>(seed);
     auto otherOwned = std::make_unique<RichTextEditor>(seed);
     auto* editor    = owned.get();

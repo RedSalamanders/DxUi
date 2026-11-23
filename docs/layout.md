@@ -14,9 +14,12 @@ An old arranged rectangle is never a fallback intrinsic size.
 
 Labels, buttons, toggles, checkboxes, text fields, combo boxes and numeric steppers use actual DirectWrite
 metrics. Toggle state captions reserve their maximum extent, and single-line editors keep stable preferred
-width while their values change. Containers cache numeric results by control lifetime/revision, constraints,
-host and typography; color and hover changes do not invalidate shaping. Text, wrapping, font, DPI, density,
-flow direction and ownership changes invalidate their dependencies.
+width while their values change. `Control::Measure` caches each control's results (two or four, keyed by constraints)
+for its measure revision, host, typography, DPI, flow and density, and every parent shares them; color and hover changes
+do not invalidate shaping. Text, wrapping, font, DPI, density, flow direction and ownership changes invalidate their
+dependencies. A custom control must call `InvalidateMeasure` whenever anything its `MeasureOverride` reads changes;
+otherwise every parent reuses its earlier size. A control whose size never depends on the maximum constraints (text that
+does not wrap) may override `MeasureDependsOnMaximum` to return `false`, and is then measured once for every maximum.
 The first measurement initializes the host's typography resources before recording its cache identity.
 `DXUI_HAS_INTRINSIC_LAYOUT` identifies headers with these APIs; rebuild the library and consumer together when
 adopting a new pin because adding a virtual hook changes the C++ ABI.

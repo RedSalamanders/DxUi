@@ -117,7 +117,11 @@ struct BatchSample
 
 [[nodiscard]] inline ViewSnapshot CaptureSnapshot(const ComplexUiScene& scene) noexcept
 {
-    return {scene.view.GetStatistics(), scene.view.NeedsPreparation(), scene.view.NeedsAnimation(), HashSceneSource(scene.model), HashSceneState(scene)};
+    return {scene.view.GetStatistics(),
+            scene.view.NeedsPreparation(),
+            AnimationRequested(scene.view.GetAnimationRequest()),
+            HashSceneSource(scene.model),
+            HashSceneState(scene)};
 }
 
 [[nodiscard]] inline bool SamePreparedState(const ViewSnapshot& left, const ViewSnapshot& right) noexcept

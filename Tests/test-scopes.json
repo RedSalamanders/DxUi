@@ -410,6 +410,44 @@
       "reason": "owning suite source"
     },
     {
+      "pattern": "src/Controls/DxUi.RetainedCaches.*",
+      "scopes": [
+        "Rendering",
+        "Embedded"
+      ],
+      "reason": "retained-cache registry behind the incremental-versus-fresh oracle in both hosts"
+    },
+    {
+      "pattern": "src/Support/RetainedCaches.Tests.Hooks.h",
+      "scopes": [
+        "Rendering",
+        "Embedded"
+      ],
+      "reason": "stale-cache injection seam of the oracle negative control"
+    },
+    {
+      "pattern": "Tests/Controls/Controls.Tests.IncrementalParity.*",
+      "scopes": [
+        "Rendering"
+      ],
+      "reason": "native incremental-versus-fresh oracle in the Rendering suite"
+    },
+    {
+      "pattern": "Tests/Support/Support.Tests.IncrementalParity.h",
+      "scopes": [
+        "Rendering",
+        "Embedded"
+      ],
+      "reason": "shared oracle scripts and comparison for both hosts"
+    },
+    {
+      "pattern": "Tests/Controls/DxUi.Tests.Gallery.cpp",
+      "scopes": [
+        "Rendering"
+      ],
+      "reason": "the gallery's scaled tile tests run in the Rendering suite; the Gallery fixture itself runs through gallery.ps1"
+    },
+    {
       "pattern": "Tests/Controls/DxUi.Tests.Animation.cpp",
       "scopes": [
         "Animation"
@@ -431,11 +469,25 @@
       "reason": "native and embedded animation clock coverage in the Animation suite"
     },
     {
+      "pattern": "Tests/Controls/Controls.Tests.FrameSchedule.*",
+      "scopes": [
+        "Animation"
+      ],
+      "reason": "native and embedded frame schedule coverage in the Animation suite"
+    },
+    {
       "pattern": "Tests/Controls/Controls.Tests.FormAccessibility.cpp",
       "scopes": [
         "Accessibility"
       ],
       "reason": "active native and embedded form provider coverage"
+    },
+    {
+      "pattern": "Tests/Controls/Controls.Tests.Accessibility*",
+      "scopes": [
+        "Accessibility"
+      ],
+      "reason": "UI Automation client gate coverage in the Accessibility suite"
     },
     {
       "pattern": "Tests/Controls/Controls.Tests.GridUiaPattern.cpp",
@@ -478,6 +530,65 @@
         "Embedded"
       ],
       "reason": "embedded scenarios and benchmark"
+    },
+    {
+      "pattern": "Tests/Embedded/Embedded.Tests.PerformanceFixture*.h",
+      "scopes": [
+        "Embedded",
+        "Rendering"
+      ],
+      "reason": "performance fixtures run on the embedded host (Embedded) and the window host (Rendering)"
+    },
+    {
+      "pattern": "Tests/Controls/Controls.Tests.PerformanceFixtures.*",
+      "scopes": [
+        "Rendering"
+      ],
+      "reason": "window-host performance fixture runner in the Rendering suite"
+    },
+    {
+      "pattern": "Tests/Controls/Controls.Tests.PerformanceFixtureFx4.*",
+      "scopes": [
+        "Rendering"
+      ],
+      "reason": "FX4's interactive runner is reached from the window receipt command, whose Rendering suite proves it skips FX4; its gate runs in the interactive Menu suite"
+    },
+    {
+      "pattern": "Tests/Embedded/Embedded.Tests.TooltipHoverPath.h",
+      "scopes": [
+        "Tooltip",
+        "Embedded",
+        "Rendering"
+      ],
+      "reason": "tooltip hover path shared by the Tooltip suite and the FX14 fixture"
+    },
+    {
+      "pattern": "Tests/Embedded/Embedded.Tests.PerformanceGridModels.h",
+      "scopes": [
+        "Grid",
+        "Animation",
+        "Rendering",
+        "Embedded"
+      ],
+      "reason": "LargeGridModel shared by the Grid, Animation and Rendering suites and the FX3 fixture"
+    },
+    {
+      "pattern": "performance-fixtures.ps1",
+      "scopes": [
+        "Tooling",
+        "Embedded",
+        "Rendering"
+      ],
+      "reason": "performance fixture receipt writer: its tooling test and the receipt commands of both runners"
+    },
+    {
+      "pattern": "Tools/PerformanceFixtures.psm1",
+      "scopes": [
+        "Tooling",
+        "Embedded",
+        "Rendering"
+      ],
+      "reason": "performance fixture receipt provenance and README generation"
     },
     {
       "pattern": "Tools/tests/**",
@@ -574,6 +685,20 @@
         "Menu"
       ],
       "reason": "menu pointer, activation and capture scenarios require the person's interactive desktop"
+    },
+    {
+      "pattern": "Tests/Controls/Controls.Tests.PerformanceFixtureFx4.*",
+      "suites": [
+        "Menu"
+      ],
+      "reason": "the FX4 menu fixture takes the foreground; its determinism gate runs only in the interactive Menu suite"
+    },
+    {
+      "pattern": "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx4.h",
+      "suites": [
+        "Menu"
+      ],
+      "reason": "the FX4 menu fixture takes the foreground; its determinism gate runs only in the interactive Menu suite"
     },
     {
       "pattern": "Tests/Controls/DxUi.Tests.NewControls.cpp",

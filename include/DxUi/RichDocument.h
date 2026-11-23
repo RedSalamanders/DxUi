@@ -98,6 +98,13 @@ public:
     // Uses immutable line summaries and buffer indexes without allocating,
     // flattening, or scanning all preceding source units.
     std::optional<SourceLocation> LocationAt(std::size_t offset) const noexcept;
+    // One UTF-16 unit by tree lookup (logarithmic), U+0000 past the end. Reads
+    // nothing else and allocates nothing.
+    wchar_t UnitAt(std::size_t offset) const noexcept;
+    // The offset where zero-based logical line `line` starts (CRLF is one
+    // break), from the immutable line summaries without scanning or copying
+    // source; none past the last line or for an invalid revision.
+    std::optional<std::size_t> LineStart(std::size_t line) const noexcept;
     std::wstring Slice(std::size_t first, std::size_t last) const;
     [[nodiscard]] SourceResult TrySlice(std::size_t first, std::size_t last, std::wstring& result) const;
     // A conservative replacement interval, safe for Slice in both snapshots.
@@ -114,6 +121,8 @@ private:
     }
     wchar_t CharacterAt(std::size_t offset) const noexcept;
     const PieceTreeNode* RootNode() const noexcept;
+    // Work counters: attributes a copy to the editor's own document or to any other Document.
+    void NoteSliceCopy(std::size_t units, bool whole) const noexcept;
     friend class Document;
     // Marker admission compares existing delimiters without allocating.
     friend SourceResult TryToggleMarker(Document&, std::wstring_view, bool&);
@@ -192,6 +201,9 @@ private:
     Selection selection_{};
     std::uint64_t revision_{};
     std::uint64_t selectionEpoch_{}; // Detect selection moves even when a later move returns to the same ACP.
+    // Work counters only: a RichTextEditor marks its own document so copies of it count apart from other Documents'.
+    bool editorSource_{};
+    void CountAsEditorSource() noexcept;
     friend class ::DxUi::RichTextEditor;
     [[nodiscard]] bool AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selection selection) noexcept;
     struct HistoryRing

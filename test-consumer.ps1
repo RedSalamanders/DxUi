@@ -95,6 +95,7 @@ $sharedDirectory=Join-Path $consumer 'Samples/Shared'
 New-Item -ItemType Directory -Path $sharedDirectory -Force | Out-Null
 foreach($name in @('FailureHost.h','FailureHost.cpp')) { Copy-Item -LiteralPath (Join-Path $checkout "Samples/Shared/$name") -Destination $sharedDirectory }
 Copy-Item -LiteralPath (Join-Path $checkout 'Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp') -Destination (Join-Path $consumer 'ConsumerApi.Tests.Revision5.cpp')
+Copy-Item -LiteralPath (Join-Path $checkout 'Tools/ConsumerApi/ConsumerApi.Tests.Revision6.cpp') -Destination (Join-Path $consumer 'ConsumerApi.Tests.Revision6.cpp')
 $escape={param($value) [System.Security.SecurityElement]::Escape($value)}
 $rootXml=& $escape $checkout
 $outputXml=& $escape $output
@@ -128,7 +129,7 @@ $headerUnits = foreach ($header in @('DxUi','Failure','Typography','FocusRestore
 }
 # Compile the public native entrypoint without consumer diagnostic defines or private headers.
 Add-Content -LiteralPath (Join-Path $consumer 'DxUi.cpp') -Encoding utf8 -Value 'IRawElementProviderFragmentRoot* AcquirePublicNativeProvider(HWND hwnd) noexcept { return DxUi::CreateWindowHostAccessibilityProvider(hwnd); }'
-$project = $project.Replace('<ClCompile Include="Samples/EmbeddedControls/Main.cpp" />', '<ClCompile Include="Samples/EmbeddedControls/Main.cpp" /><ClCompile Include="Samples/Shared/FailureHost.cpp" /><ClCompile Include="ConsumerApi.Tests.Revision4.cpp" /><ClCompile Include="ConsumerApi.Tests.Revision5.cpp" />' + ($headerUnits -join ''))
+$project = $project.Replace('<ClCompile Include="Samples/EmbeddedControls/Main.cpp" />', '<ClCompile Include="Samples/EmbeddedControls/Main.cpp" /><ClCompile Include="Samples/Shared/FailureHost.cpp" /><ClCompile Include="ConsumerApi.Tests.Revision4.cpp" /><ClCompile Include="ConsumerApi.Tests.Revision5.cpp" /><ClCompile Include="ConsumerApi.Tests.Revision6.cpp" />' + ($headerUnits -join ''))
 $projectPath=Join-Path $consumer 'ExternalConsumer.vcxproj'
 $project | Set-Content -LiteralPath $projectPath -Encoding utf8
 $consumerBuildLog=Join-Path $diagnosticRoot ($diagnosticName+'-ExternalConsumer.build.log')

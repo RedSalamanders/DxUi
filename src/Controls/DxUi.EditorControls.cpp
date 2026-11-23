@@ -92,12 +92,12 @@ void StrokeLine(ControlHost& host, D2D1_POINT_2F from, D2D1_POINT_2F to, const D
     ID2D1DeviceContext* dc, D2D1_POINT_2F start, D2D1_POINT_2F end, const D2D1_GRADIENT_STOP* stops, UINT32 stopCount) noexcept
 {
     wil::com_ptr<ID2D1GradientStopCollection> collection;
-    if (! dc || FAILED(dc->CreateGradientStopCollection(stops, stopCount, collection.put())))
+    if (! dc || FAILED(CountedCreateGradientStopCollection(dc, stops, stopCount, collection.put())))
     {
         return {};
     }
     wil::com_ptr<ID2D1LinearGradientBrush> brush;
-    if (FAILED(dc->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(start, end), collection.get(), brush.put())))
+    if (FAILED(CountedCreateLinearGradientBrush(dc, D2D1::LinearGradientBrushProperties(start, end), collection.get(), brush.put())))
     {
         return {};
     }
@@ -316,13 +316,11 @@ Splitter::Splitter()
 
 void Splitter::SetOrientation(SplitterOrientation orientation) noexcept
 {
-    if (_orientation == orientation)
-    {
-        return;
-    }
-    _orientation = orientation;
-    _positionDip = ClampPosition(_positionDip);
-    RequestInvalidate();
+    // The separator's hit band moves (GetHitBounds), and the position's limits are along the other axis (RangeValue).
+    AssignAccess::Assign(
+        *this, HitRevisionSite::SplitterGeometry, _orientation, orientation, Affects::Paint | Affects::Hit | Affects::SemanticValue, [this]() noexcept {
+        _positionDip = ClampPosition(_positionDip);
+    });
 }
 
 SplitterOrientation Splitter::GetOrientation() const noexcept
@@ -336,9 +334,10 @@ void Splitter::SetThickness(float thicknessDip) noexcept
     {
         return;
     }
-    _thicknessDip = thicknessDip;
-    _positionDip  = ClampPosition(_positionDip);
-    RequestInvalidate();
+    AssignAccess::Assign(
+        *this, HitRevisionSite::SplitterGeometry, _thicknessDip, thicknessDip, Affects::Paint | Affects::Hit | Affects::SemanticValue, [this]() noexcept {
+        _positionDip = ClampPosition(_positionDip);
+    });
 }
 
 float Splitter::GetThickness() const noexcept
@@ -352,9 +351,10 @@ void Splitter::SetMinimumFirstPane(float minimumDip) noexcept
     {
         return;
     }
-    _minimumFirstDip = minimumDip;
-    _positionDip     = ClampPosition(_positionDip);
-    RequestInvalidate();
+    AssignAccess::Assign(
+        *this, HitRevisionSite::SplitterGeometry, _minimumFirstDip, minimumDip, Affects::Paint | Affects::Hit | Affects::SemanticValue, [this]() noexcept {
+        _positionDip = ClampPosition(_positionDip);
+    });
 }
 
 float Splitter::GetMinimumFirstPane() const noexcept
@@ -368,9 +368,10 @@ void Splitter::SetMinimumSecondPane(float minimumDip) noexcept
     {
         return;
     }
-    _minimumSecondDip = minimumDip;
-    _positionDip      = ClampPosition(_positionDip);
-    RequestInvalidate();
+    AssignAccess::Assign(
+        *this, HitRevisionSite::SplitterGeometry, _minimumSecondDip, minimumDip, Affects::Paint | Affects::Hit | Affects::SemanticValue, [this]() noexcept {
+        _positionDip = ClampPosition(_positionDip);
+    });
 }
 
 float Splitter::GetMinimumSecondPane() const noexcept
@@ -405,18 +406,12 @@ float Splitter::ClampPosition(float positionDip) const noexcept
 void Splitter::SetPosition(float positionDip) noexcept
 {
     const Failure::Scope outerFailureScope;
-    const float clamped = ClampPosition(positionDip);
-    if (clamped == _positionDip)
-    {
-        return;
-    }
-    _positionDip        = clamped;
-    const auto lifetime = GetLifetimeToken();
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
-    if (ControlHost* const host = GetHost())
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    AssignAccess::Assign(*this,
+                         HitRevisionSite::SplitterPosition,
+                         _positionDip,
+                         ClampPosition(positionDip),
+                         Affects::Paint | Affects::Hit | Affects::SemanticValue,
+                         []() noexcept {});
 }
 
 float Splitter::GetPosition() const noexcept
@@ -436,6 +431,7 @@ bool Splitter::RequestPosition(ControlHost& host, float positionDip) noexcept
         return true;
     }
     _positionDip = clamped;
+    NoteHitTestChange(*this, HitRevisionSite::SplitterPosition);
     Invalidate(host);
     NotifyChange(SplitterChangePhase::Commit);
     return true;
@@ -526,10 +522,7 @@ float Splitter::PointerAxis(D2D1_POINT_2F point) const noexcept
 
 void Splitter::SetSubtle(bool subtle) noexcept
 {
-    if (_subtle == subtle)
-        return;
-    _subtle = subtle;
-    RequestInvalidate();
+    Assign(_subtle, subtle, Affects::Paint);
 }
 
 bool Splitter::IsSubtle() const noexcept
@@ -730,6 +723,8 @@ WindowHostCursorKind Splitter::ResolveCursorKind(ControlHost& /*host*/, D2D1_POI
 void Splitter::NotifyChange(SplitterChangePhase phase) noexcept
 {
     const Failure::Scope outerFailureScope;
+    // Every drag, key and cancel that moved the separator announces it here: its hit band moved with it.
+    NoteHitTestChange(*this, HitRevisionSite::SplitterPosition);
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     try
     {
@@ -756,6 +751,7 @@ NumericStepper::NumericStepper()
     _field     = AddChild<TextField>();
     _increment = AddChild<Button>(std::wstring(1, kChevronUpGlyph));
     _decrement = AddChild<Button>(std::wstring(1, kChevronDownGlyph));
+    _field->SetInputScope(TextInputScope::Number);
     _increment->SetVariant(ButtonVariant::IconOnly);
     _decrement->SetVariant(ButtonVariant::IconOnly);
     _increment->SetFocusable(false);
@@ -855,18 +851,17 @@ void NumericStepper::SetStepButtonNames(std::wstring increaseName, std::wstring 
 
 void NumericStepper::SetLabel(std::wstring label, float widthDip)
 {
-    _label              = std::move(label);
-    _labelWidthDip      = std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f;
+    // The label names the field part, which publishes its own name. Naming the part and arranging the parts run their own
+    // routing (an embedded host's callbacks can retire this stepper), so they follow Assign, each behind a lifetime check.
     const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    if (lifetime.expired())
+    if (! Assign(std::tie(_label, _labelWidthDip),
+                 std::tuple<std::wstring, float>(std::move(label), std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f),
+                 Affects::Layout | Affects::Paint) ||
+        lifetime.expired())
         return;
     _field->SetAccessibleName(_label);
-    if (lifetime.expired())
-        return;
-    Arrange();
     if (! lifetime.expired())
-        RequestInvalidate();
+        Arrange();
 }
 
 std::wstring_view NumericStepper::GetLabel() const noexcept
@@ -876,15 +871,14 @@ std::wstring_view NumericStepper::GetLabel() const noexcept
 
 void NumericStepper::SetUnit(std::wstring unit, float widthDip)
 {
-    _unit               = std::move(unit);
-    _unitWidthDip       = std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f;
+    // Arranging moves the parts, whose bounds changes can run an embedded host's callbacks: it follows Assign's routing,
+    // behind a lifetime check, as before Assign.
     const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    if (lifetime.expired())
-        return;
-    Arrange();
-    if (! lifetime.expired())
-        RequestInvalidate();
+    if (Assign(std::tie(_unit, _unitWidthDip),
+               std::tuple<std::wstring, float>(std::move(unit), std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f),
+               Affects::Layout | Affects::Paint) &&
+        ! lifetime.expired())
+        Arrange();
 }
 
 std::wstring_view NumericStepper::GetUnit() const noexcept
@@ -898,9 +892,10 @@ void NumericStepper::SetMinimum(double minimum) noexcept
     {
         return;
     }
-    _minimum = minimum;
-    _maximum = (std::max)(_maximum, _minimum);
-    SetValue(_value);
+    // The value is clamped into the new range as SetValue does (which keeps an edit in progress, ExplicitStateMachines 1.15).
+    Assign(std::tie(_minimum, _maximum), std::tuple<double, double>(minimum, (std::max)(_maximum, minimum)), Affects::Paint, [this]() noexcept {
+        SetValue(_value);
+    });
 }
 
 double NumericStepper::GetMinimum() const noexcept
@@ -914,9 +909,9 @@ void NumericStepper::SetMaximum(double maximum) noexcept
     {
         return;
     }
-    _maximum = maximum;
-    _minimum = (std::min)(_minimum, _maximum);
-    SetValue(_value);
+    Assign(std::tie(_maximum, _minimum), std::tuple<double, double>(maximum, (std::min)(_minimum, maximum)), Affects::Paint, [this]() noexcept {
+        SetValue(_value);
+    });
 }
 
 double NumericStepper::GetMaximum() const noexcept
@@ -928,7 +923,8 @@ void NumericStepper::SetStep(double step) noexcept
 {
     if (std::isfinite(step) && step > 0.0)
     {
-        _step = step;
+        // Read by the next arrow key or wheel step.
+        Assign(_step, step, Affects::None);
     }
 }
 
@@ -941,7 +937,8 @@ void NumericStepper::SetLargeStep(double step) noexcept
 {
     if (std::isfinite(step) && step > 0.0)
     {
-        _largeStep = step;
+        // Read by the next page key.
+        Assign(_largeStep, step, Affects::None);
     }
 }
 
@@ -952,9 +949,8 @@ double NumericStepper::GetLargeStep() const noexcept
 
 void NumericStepper::SetDecimals(uint8_t decimals) noexcept
 {
-    _decimals = (std::min)(decimals, static_cast<uint8_t>(6));
     // The value is what the text shows: re-round it to the new precision, silently like SetValue.
-    SetValue(_value);
+    Assign(_decimals, (std::min)(decimals, static_cast<uint8_t>(6)), Affects::Paint, [this]() noexcept { SetValue(_value); });
 }
 
 uint8_t NumericStepper::GetDecimals() const noexcept
@@ -1520,12 +1516,13 @@ const ColorPicker::Labels& ColorPicker::GetLabels() const noexcept
 
 void ColorPicker::SetColor(uint32_t argb) noexcept
 {
+    // The colour and the hue, saturation and value it resolves to from the current ones (a gray keeps the hue): the same
+    // colour after a drag left another hue still re-derives it.
     const uint32_t opaque = argb | 0xFF000000u;
-    _argb                 = opaque;
-    _current              = opaque;
-    _hsv                  = HsvFromArgb(opaque, &_hsv);
-    SyncChildren();
-    RequestInvalidate();
+    Assign(std::tie(_argb, _current, _hsv),
+           std::tuple<uint32_t, uint32_t, HsvColor>(opaque, opaque, HsvFromArgb(opaque, &_hsv)),
+           Affects::Paint,
+           [this]() noexcept { SyncChildren(); });
 }
 
 uint32_t ColorPicker::GetColor() const noexcept
@@ -1535,8 +1532,7 @@ uint32_t ColorPicker::GetColor() const noexcept
 
 void ColorPicker::SetCurrentColor(uint32_t argb) noexcept
 {
-    _current = argb | 0xFF000000u;
-    RequestInvalidate();
+    Assign(_current, argb | 0xFF000000u, Affects::Paint);
 }
 
 uint32_t ColorPicker::GetCurrentColor() const noexcept

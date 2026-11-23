@@ -1,0 +1,138 @@
+{
+  "compiler": 195237025,
+  "fixture": "dxui-complex-ui-memory-v1",
+  "workloadOwner": "DxUi",
+  "renderer": "WARP",
+  "width": 1280,
+  "height": 720,
+  "dpi": 96,
+  "controls": 83,
+  "modelRows": 1000,
+  "warmFrames": 20,
+  "scrollFrames": 200,
+  "memory": {
+    "adapter": {
+      "description": "Microsoft Basic Render Driver",
+      "software": true,
+      "dedicatedVideoMemoryBytes": 0,
+      "sharedSystemMemoryBytes": 48975536128
+    },
+    "videoMemory": {
+      "applicable": false,
+      "reason": "software adapter: rendering uses system memory, which privateBytes counts"
+    },
+    "trackedLiveBytes": {
+      "scene": 53125,
+      "warm": 58149,
+      "scroll": 58149
+    },
+    "phases": [
+      {
+        "name": "device",
+        "privateBytes": 7200768,
+        "workingSetBytes": 17465344
+      },
+      {
+        "name": "scene",
+        "privateBytes": 8933376,
+        "workingSetBytes": 21159936,
+        "retained": {
+          "surfaceBytes": 0,
+          "cachedBrushes": 0,
+          "cachedTextFormats": 0,
+          "retainedTextLayouts": 0,
+          "retainedTextLayoutUnits": 0,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "name": "warm",
+        "privateBytes": 23691264,
+        "workingSetBytes": 39301120,
+        "retained": {
+          "surfaceBytes": 3686400,
+          "cachedBrushes": 20,
+          "cachedTextFormats": 2,
+          "retainedTextLayouts": 12,
+          "retainedTextLayoutUnits": 96,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "name": "scroll",
+        "privateBytes": 26628096,
+        "workingSetBytes": 42127360,
+        "retained": {
+          "surfaceBytes": 3686400,
+          "cachedBrushes": 20,
+          "cachedTextFormats": 2,
+          "retainedTextLayouts": 12,
+          "retainedTextLayoutUnits": 96,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "name": "shown",
+        "privateBytes": 26628096,
+        "workingSetBytes": 42127360,
+        "retained": {
+          "surfaceBytes": 3686400,
+          "cachedBrushes": 20,
+          "cachedTextFormats": 2,
+          "retainedTextLayouts": 12,
+          "retainedTextLayoutUnits": 96,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      },
+      {
+        "name": "hidden",
+        "privateBytes": 26628096,
+        "workingSetBytes": 42139648,
+        "retained": {
+          "surfaceBytes": 0,
+          "cachedBrushes": 20,
+          "cachedTextFormats": 2,
+          "retainedTextLayouts": 0,
+          "retainedTextLayoutUnits": 0,
+          "retainedBitmaps": 0,
+          "retainedBitmapBytes": 0
+        }
+      }
+    ],
+    "hiddenResidencyDelta": {
+      "surfaceBytes": -3686400,
+      "retainedTextLayouts": -12,
+      "retainedBitmapBytes": 0,
+      "privateBytes": 0,
+      "workingSetBytes": 12288
+    },
+    "minimizedResidency": "hidden",
+    "entryPrivateBytes": 2609152,
+    "controlBytes": {
+      "Control": 296,
+      "Label": 448,
+      "Button": 816,
+      "Toggle": 904,
+      "Checkbox": 912,
+      "RadioButton": 864
+    }
+  },
+  "platform": "x64",
+  "configuration": "Release",
+  "baseCommit": "fda11e04",
+  "executableSha256": "E72184940358F2E4DA7491B2288286F367F046170285DA1315A5EB5EEF8527D0",
+  "benchmarkInputs": {
+    "Tests/Embedded/Embedded.Tests.MemoryMetrics.h": "BFA47468D882A41A50D36FB90B9D29A9D7CF3CDD5CCE4DBD9388B6EB762FECCC",
+    "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "22AC34FCF88A81131D3E0F83FD5D9274F95FAD88978819102293A057C0CDE433",
+    "Samples/ComplexUi/ComplexUiScene.h": "CCF5DD667CDC92A4046B3B7FB88A1307F814AA92653D1BF7E8396B427A89F2E7",
+    "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D"
+  },
+  "machine": "SINON",
+  "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+  "os": "Microsoft Windows 11 Pro 10.0.26300.0",
+  "recordedUtc": "2026-11-14T00:36:24.5109136Z"
+}

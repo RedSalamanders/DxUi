@@ -30,8 +30,9 @@ function Get-DxUiSdkSourceProfile {
         if($api -ne 4){throw 'Legacy rich SDK recipe requires the reviewed API-4 source.'}
         $name='api4-source-owned-2026-11-02-v1'
     }else{
-        if($api -ne 5){throw 'No reviewed SDK packaging recipe exists for this source/API.'}
-        $name='api5-source-owned-v1'
+        # API 6 (W3.5) changed embedded animation only; the SDK smoke source and its failure host are unchanged.
+        if($api -notin @(5,6)){throw 'No reviewed SDK packaging recipe exists for this source/API.'}
+        $name="api$api-source-owned-v1"
         $shared=@('FailureHost.h','FailureHost.cpp'|ForEach-Object{Join-Path $Root ('Samples/Shared/'+$_)})
     }
     foreach($path in @($main)+$shared){

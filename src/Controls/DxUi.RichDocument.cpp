@@ -1,4 +1,5 @@
 #include "DxUi.TextElements.h"
+#include "Support/WorkCounters.h"
 #include <DxUi/Failure.h>
 #include <DxUi/RichDocument.h>
 #include <algorithm>
@@ -494,6 +495,10 @@ struct SnapshotEditPage
 struct SnapshotLineage
 {
     std::atomic<std::uint64_t> nextIdentity{1u};
+    // Counting only (Support/WorkCounters.h): whether this lineage is a RichTextEditor's own source document, so a copy of
+    // it counts as rich.documentFlattens and any other Document's (a code-fence line number, a label) as
+    // rich.otherDocumentFlattens. Set on the owner thread, read by any thread that slices a snapshot.
+    std::atomic<bool> editorSource{false};
     std::uint64_t AllocateIdentity()
     {
         auto value = nextIdentity.load(std::memory_order_relaxed);
@@ -614,6 +619,20 @@ std::optional<SourceLocation> SourceSnapshot::LocationAt(std::size_t offset) con
     const auto summary = PieceTreeNode::PrefixLines(RootNode(), offset);
     return SourceLocation{summary.breaks, summary.tail};
 }
+void SourceSnapshot::NoteSliceCopy(std::size_t units, bool whole) const noexcept
+{
+    auto& work = ::DxUi::Detail::Work().rich;
+    if (state_ && state_->lineage->editorSource.load(std::memory_order_relaxed))
+    {
+        work.documentBytesCopied += units * sizeof(wchar_t);
+        work.documentFlattens += whole ? 1u : 0u;
+    }
+    else
+    {
+        work.otherDocumentBytesCopied += units * sizeof(wchar_t);
+        work.otherDocumentFlattens += whole ? 1u : 0u;
+    }
+}
 SourceResult SourceSnapshot::TrySlice(std::size_t first, std::size_t last, std::wstring& output) const
 {
     Failure::Scope failureScope;
@@ -623,6 +642,7 @@ SourceResult SourceSnapshot::TrySlice(std::size_t first, std::size_t last, std::
     // the default constructor allocates that proxy inside a noexcept path.
     std::wstring result(0u, L'\0');
     result.reserve(last - first);
+    NoteSliceCopy(last - first, first == 0u && last == Length() && last != 0u);
     PieceTreeNode::VisitRange(RootNode(),
                               first,
                               last,
@@ -639,7 +659,36 @@ std::wstring SourceSnapshot::Slice(std::size_t first, std::size_t last) const
     Failure::Scope failureScope;
     std::wstring output(0u, L'\0');
     RequireSuccess(TrySlice(first, last, output));
+    NoteSliceCopy(output.size(), false);
     return std::wstring(output);
+}
+wchar_t SourceSnapshot::UnitAt(std::size_t offset) const noexcept
+{
+    return CharacterAt(offset);
+}
+std::optional<std::size_t> SourceSnapshot::LineStart(std::size_t line) const noexcept
+{
+    const auto* root = RootNode();
+    if (! state_)
+        return std::nullopt;
+    if (! line)
+        return 0u;
+    if (! root || root->lines.breaks < line)
+        return std::nullopt;
+    // Prefix break counts only grow with the offset. The smallest offset whose prefix holds `line` breaks ends with the
+    // line's break unit, or with the CR of a CRLF pair, whose LF then also belongs to the break.
+    std::size_t low = 1u, high = root->length;
+    while (low < high)
+    {
+        const auto middle = low + (high - low) / 2u;
+        if (PieceTreeNode::PrefixLines(root, middle).breaks >= line)
+            high = middle;
+        else
+            low = middle + 1u;
+    }
+    if (low < root->length && CharacterAt(low - 1u) == L'\r' && CharacterAt(low) == L'\n')
+        ++low;
+    return low;
 }
 SourceChangeRange SourceSnapshot::ChangedRangeFrom(const SourceSnapshot& previous) const noexcept
 {
@@ -733,6 +782,12 @@ Document::Document(std::wstring_view text)
 {
     Reset(text);
 }
+void Document::CountAsEditorSource() noexcept
+{
+    editorSource_ = true;
+    if (source_.state_)
+        source_.state_->lineage->editorSource.store(true, std::memory_order_relaxed);
+}
 bool Document::AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selection selection) noexcept
 {
     if (! source.state_ || ! source.IsBoundary(selection.anchor) || ! source.IsBoundary(selection.caret))
@@ -746,7 +801,9 @@ bool Document::AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selecti
     }
     if (revision_ == std::numeric_limits<std::uint64_t>::max())
         return false;
-    source_    = source;
+    source_ = source;
+    if (editorSource_)
+        source_.state_->lineage->editorSource.store(true, std::memory_order_relaxed);
     selection_ = selection;
     transientEntry_.reset();
     undo_.Clear();
@@ -768,7 +825,9 @@ SourceResult Document::TryReset(std::wstring_view text)
         root = SourceSnapshot::PieceTreeNode::BuildLeaves(std::span<const SourceSnapshot::PieceTreeNode::Fragment>(&fragment, 1u)).first;
     }
     SourceSnapshot next(std::make_shared<const SourceSnapshot::Revision>(std::move(root), nullptr, 0u, 0u, 0u));
-    source_    = std::move(next);
+    source_ = std::move(next);
+    if (editorSource_)
+        source_.state_->lineage->editorSource.store(true, std::memory_order_relaxed);
     selection_ = {};
     transientEntry_.reset();
     undo_.Clear();

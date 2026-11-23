@@ -25,6 +25,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <typeinfo>
 #include <wil/result.h>
 
 namespace DxUi
@@ -46,6 +47,16 @@ std::atomic<unsigned> diagnosticOriginMarker{};
     throw error;
 }
 #endif
+// Word movement and deletion over the prepared display without flattening it (W7.4): the semantic map's contiguous display
+// is read in place, the block-based v0 display through a window around the position. Results equal the whole-text rules.
+size_t DisplayWordBoundary(const RichText::Detail::RichEditorLayout& layout, size_t position, bool previous)
+{
+    if (const auto display = layout.ContiguousDisplayText())
+        return previous ? FindPreviousWordBoundary(*display, position) : FindNextWordBoundary(*display, position);
+    const auto unitAt = [&layout](size_t index) { return layout.DisplayUnit(index); };
+    return previous ? RichText::Detail::WindowedPreviousWordBoundary(layout.DisplayLength(), position, unitAt)
+                    : RichText::Detail::WindowedNextWordBoundary(layout.DisplayLength(), position, unitAt);
+}
 bool MarkdownCommandInputBlocked(const ControlHost* host, const Control* control) noexcept
 {
     if (! host || host->GetFocusControl() != control)
@@ -633,13 +644,43 @@ struct RichTextEditor::State
     std::optional<uint64_t> middleAutoScrollTick;
     bool scrollbarDragging = false;
     float scrollbarDragY = 0.0f, scrollbarDragOffset = 0.0f;
-    bool caretVisible            = true;
     wchar_t pendingLeadSurrogate = 0;
-    std::optional<uint64_t> blinkEpoch;
+    // Text-input copy (W7.4): at most one contiguous copy of one source revision, for text-input readers that need
+    // contiguous text (a TSF lock, IMM, a public snapshot). It is keyed by textInputSource's identity, so a copy of an older
+    // revision is never read as the current text; it is updated by the changed range only while nothing else holds it
+    // (MutableSharedText's sole-owner rule), and released on focus loss and destruction.
+    std::optional<RichText::SourceSnapshot> textInputSource;
+    SharedText textInputText;
     std::optional<float> preferredCaretX;
     // Native visual affinity only. Several padded cells share a real source ACP;
     // this identity never enters Document selection, TSF text or undo records.
     size_t sourceCaretSite = RichText::MarkdownNoNode;
+    // Soft-wrap visual affinity of the caret in the ordinary layout. Like
+    // sourceCaretSite it never enters Document selection, TSF text or undo
+    // records. A command or hit chooses it before changing the selection;
+    // SelectionChanged binds that choice to the new selection epoch, and it
+    // holds only while that epoch, the source revision and the binding are
+    // current, so any later selection change or edit returns to Downstream.
+    struct UpstreamCaret
+    {
+        uint64_t revision{}, selectionEpoch{}, binding{};
+        size_t caret{};
+        bool operator==(const UpstreamCaret&) const noexcept = default;
+    };
+    std::optional<UpstreamCaret> upstreamCaret, pendingUpstreamCaret;
+    RichText::CaretAffinity CaretAffinityAt(size_t source, uint64_t selectionEpoch) const noexcept
+    {
+        return upstreamCaret && *upstreamCaret == UpstreamCaret{document.Revision(), selectionEpoch, bindingRevision, source}
+                   ? RichText::CaretAffinity::Upstream
+                   : RichText::CaretAffinity::Downstream;
+    }
+    // Called with the selection epoch before the one selection change it is for.
+    void ChooseCaretAffinity(size_t source, RichText::CaretAffinity affinity, uint64_t selectionEpoch) noexcept
+    {
+        pendingUpstreamCaret.reset();
+        if (affinity == RichText::CaretAffinity::Upstream)
+            pendingUpstreamCaret = UpstreamCaret{document.Revision(), selectionEpoch + 1u, bindingRevision, source};
+    }
     std::shared_ptr<const RichText::MarkdownCommandPlan> taskPressPlan;
     D2D1_RECT_F taskPressRect{};
     std::shared_ptr<const RichText::SemanticDocument> codePressDocument;
@@ -651,6 +692,7 @@ struct RichTextEditor::State
 
 RichTextEditor::RichTextEditor(std::wstring text) : _state(std::make_unique<State>(std::move(text)))
 {
+    _state->document.CountAsEditorSource(); // Work counters: copies of this document are the editor's own (rich.documentFlattens).
     SetFocusable(true);
     EnableContentPreparation();
     EnableVisualContentPreparation();
@@ -684,6 +726,7 @@ bool RichTextEditor::ExchangeDocumentState(RichText::Document& document)
     swap(current.selection_, document.selection_);
     swap(current.revision_, document.revision_);
     swap(current.selectionEpoch_, document.selectionEpoch_);
+    current.CountAsEditorSource();
     const auto history = [&](auto& left, auto& right)
     {
         left.entries.swap(right.entries);
@@ -1415,6 +1458,7 @@ RichText::SourceResult RichTextEditor::TrySetSelection(RichText::Selection selec
     if (result != RichText::SourceResult::Success)
         return result;
     _state->sourceCaretSite = RichText::MarkdownNoNode;
+    _state->pendingUpstreamCaret.reset(); // A programmatic caret is Downstream.
     SelectionChanged();
     return RichText::SourceResult::Success;
 }
@@ -1927,10 +1971,7 @@ bool RichTextEditor::InvokeDefaultContextMenuCommand(ControlHost& host, int comm
 }
 void RichTextEditor::SetFocusModeEnabled(bool enabled) noexcept
 {
-    if (_state->focusMode == enabled)
-        return;
-    _state->focusMode = enabled;
-    RequestInvalidate();
+    Assign(_state->focusMode, enabled, Affects::Paint);
 }
 bool RichTextEditor::IsFocusModeEnabled() const noexcept
 {
@@ -2816,7 +2857,8 @@ RichText::SourceResult RichTextEditor::TrySetSearchQuery(std::wstring_view query
 }
 void RichTextEditor::SetSearchShortcutsEnabled(bool enabled) noexcept
 {
-    _state->searchShortcutsEnabled = enabled;
+    // Read by the next key.
+    Assign(_state->searchShortcutsEnabled, enabled, Affects::None);
 }
 void RichTextEditor::SetOnFindRequested(std::function<void()> callback)
 {
@@ -2826,13 +2868,15 @@ void RichTextEditor::SetOnFindRequested(std::function<void()> callback)
 }
 void RichTextEditor::SetMarkdownShortcutsEnabled(bool enabled) noexcept
 {
-    _state->markdownShortcutsEnabled = enabled;
+    // Read by the next key.
+    Assign(_state->markdownShortcutsEnabled, enabled, Affects::None);
 }
 void RichTextEditor::SetAutoPairEnabled(bool enabled) noexcept
 {
+    // Any call ends the pending typing run, as before; the flag is read by the next character.
     _state->autoFormatRun.reset();
     _state->smartTypingSite.reset();
-    _state->autoPairEnabled = enabled;
+    Assign(_state->autoPairEnabled, enabled, Affects::None);
 }
 bool RichTextEditor::IsAutoPairEnabled() const noexcept
 {
@@ -2840,8 +2884,9 @@ bool RichTextEditor::IsAutoPairEnabled() const noexcept
 }
 void RichTextEditor::SetSmartTypographyEnabled(bool enabled) noexcept
 {
+    // Any call ends the pending typing site, as before; the flag is read by the next character.
     _state->smartTypingSite.reset();
-    _state->smartTypographyEnabled = enabled;
+    Assign(_state->smartTypographyEnabled, enabled, Affects::None);
 }
 bool RichTextEditor::IsSmartTypographyEnabled() const noexcept
 {
@@ -2849,8 +2894,9 @@ bool RichTextEditor::IsSmartTypographyEnabled() const noexcept
 }
 void RichTextEditor::SetMarkdownAutoFormatEnabled(bool enabled) noexcept
 {
-    _state->markdownAutoFormatEnabled = enabled;
+    // Any call ends the pending auto-format run, as before; the flag is read by the next character.
     _state->autoFormatRun.reset();
+    Assign(_state->markdownAutoFormatEnabled, enabled, Affects::None);
 }
 bool RichTextEditor::IsMarkdownAutoFormatEnabled() const noexcept
 {
@@ -3624,6 +3670,11 @@ void RichTextEditor::Changed(bool sourceChanged, bool synchronizeTextInput)
 }
 void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePreferredCaretX, bool publishSelection, bool revealCaret)
 {
+    // Bind a caret affinity chosen for exactly this selection change; any other
+    // change leaves the bound affinity stale, which reads as Downstream.
+    if (const auto pending = std::exchange(_state->pendingUpstreamCaret, std::nullopt);
+        pending && *pending == State::UpstreamCaret{Revision(), _state->document.selectionEpoch_, _state->bindingRevision, GetSelection().caret})
+        _state->upstreamCaret = pending;
     _state->preparedCommand.reset();
     _state->keyboardNavigationDocument.reset();
     _state->keyboardNavigationElement = RichText::MarkdownNoNode;
@@ -3646,8 +3697,6 @@ void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePr
     _state->revealCaret = revealCaret;
     if (revealCaret)
         _state->viewportAnchor.reset();
-    _state->caretVisible = true;
-    _state->blinkEpoch.reset();
     UpdateCaretLinkDisplayRange();
     const auto lifetime = GetLifetimeToken();
     auto* host          = GetHost();
@@ -3661,8 +3710,9 @@ void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePr
     if (lifetime.expired() || GetHost() != host)
         return;
     RequestInvalidate();
-    if (! lifetime.expired() && GetHost() == host && host && HasFocus() && Editable() && ! host->GetTheme().reducedMotion)
-        host->RequestAnimation();
+    // The caret shows now and, while it blinks, sleeps until each flip; a read-only editor's caret is steady.
+    if (! lifetime.expired() && GetHost() == host && host && HasFocus())
+        CaretClockAccess::Restart(*host, *this, Editable());
     if (publishSelection && ! lifetime.expired() && GetHost() == host)
         PublishSelectionChanged();
 }
@@ -3785,7 +3835,7 @@ HRESULT RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
                 return E_UNEXPECTED;
             wil::com_ptr<ID2D1Factory> factory;
             context->GetFactory(factory.put());
-            RETURN_IF_FAILED(factory->CreatePathGeometry(mask.put()));
+            RETURN_IF_FAILED(CountedCreatePathGeometry(factory, mask.put()));
             wil::com_ptr<ID2D1GeometrySink> sink;
             RETURN_IF_FAILED(mask->Open(sink.put()));
             sink->SetFillMode(D2D1_FILL_MODE_WINDING);
@@ -3800,11 +3850,19 @@ HRESULT RichTextEditor::PrepareOverlayGeometry(ControlHost& host)
             RETURN_IF_FAILED(sink->Close());
             if (! layer || state.selectionLayerWidth != width || state.selectionLayerHeight != height ||
                 state.selectionLayerGeneration != host.GetResourceGeneration())
-                RETURN_IF_FAILED(context->CreateLayer(D2D1::SizeF(width, height), layer.put()));
+                RETURN_IF_FAILED(CountedCreateLayer(context, D2D1::SizeF(width, height), layer.put()));
         }
         std::vector<D2D1_RECT_F> composition(0u), conversion(0u);
         NativeTextInputState input{.text = std::wstring(0u, L' '), .compositionClauseBoundaries = std::vector<size_t>(0u)};
-        if (host.TryReadNativeTextInputState(this, input) && layout.SourceMatches(input.text) && input.compositionStartIndex && input.compositionEndIndex)
+        // The composition belongs to the cached document; draw it only over a layout of that same text. A layout of the
+        // current revision is compared by revision identity, never by copying the cached document.
+        const auto cacheMatchesLayout = [&]
+        {
+            if (layout.Revision() == Revision())
+                return host.NativeTextInputCacheShowsSource(Snapshot());
+            return layout.SourceMatches(host.GetNativeTextInputCacheText());
+        };
+        if (host.TryReadNativeTextInputStateWithoutText(this, input) && input.compositionStartIndex && input.compositionEndIndex && cacheMatchesLayout())
         {
             RETURN_IF_FAILED(layout.TrySourceRange(*input.compositionStartIndex, *input.compositionEndIndex, composition));
             if (input.conversionTargetStartIndex && input.conversionTargetEndIndex)
@@ -4018,6 +4076,7 @@ void RichTextEditor::PrepareVisualContent(ControlHost& host) noexcept
 HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
 {
     const Failure::Scope failureScope;
+    ++DxUi::Detail::Work().rich.preparationTurns;
     auto& state = *_state;
     if (state.codeCallbackActive)
         return LayoutIsCurrent(host) ? S_OK : S_FALSE;
@@ -4672,7 +4731,9 @@ HRESULT RichTextEditor::UpdateCaretScroll() const
     if (state.revealCaret)
     {
         RichText::CaretGeometry caret{};
-        RETURN_IF_FAILED(state.layout.TrySourceCaret(state.document.GetSelection().caret, state.sourceCaretSite, caret));
+        const auto caretSource = state.document.GetSelection().caret;
+        RETURN_IF_FAILED(
+            state.layout.TrySourceCaret(caretSource, state.sourceCaretSite, state.CaretAffinityAt(caretSource, state.document.selectionEpoch_), caret));
         if (caret.y < state.scrollDip)
             state.scrollDip = caret.y;
         if (caret.y + caret.height > state.scrollDip + height)
@@ -4732,6 +4793,7 @@ RichTextEditorDebugState RichTextEditor::DebugGetState() const noexcept
                                    _state->decorationRectangles.size(),
                                    _state->overlaySelectionDirty || _state->overlayHighlightsDirty};
     value.codeInkPreparationPending      = _state->codeInkDocument && ! _state->codeInkComplete;
+    value.codeInkRangeCount              = _state->codeInk.size();
     value.sourceGuidesPreparationPending = _state->sourceGuides.Pending();
     value.activeStage                    = value.markdownPreparationPending         ? RichTextPreparationStage::Markdown
                                            : value.semanticPreparationPending       ? RichTextPreparationStage::Semantic
@@ -4867,7 +4929,10 @@ bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceS
         if (sourceStart != sourceEnd && rectangles.empty())
             return true;
         RichText::CaretGeometry caret{};
-        if (FAILED(_state->layout.TrySourceCaret(sourceStart, sourceStart == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode, caret)))
+        if (FAILED(_state->layout.TrySourceCaret(sourceStart,
+                                                 sourceStart == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode,
+                                                 _state->CaretAffinityAt(sourceStart, _state->document.selectionEpoch_),
+                                                 caret)))
             return false;
         float top    = caret.y;
         float bottom = caret.y + caret.height;
@@ -4987,7 +5052,10 @@ std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputCaretRect(const ControlHo
         if (! LayoutIsCurrent(host))
             return std::nullopt;
         RichText::CaretGeometry caret{};
-        if (FAILED(_state->layout.TrySourceCaret(sourceIndex, sourceIndex == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode, caret)))
+        if (FAILED(_state->layout.TrySourceCaret(sourceIndex,
+                                                 sourceIndex == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode,
+                                                 _state->CaretAffinityAt(sourceIndex, _state->document.selectionEpoch_),
+                                                 caret)))
             return std::nullopt;
         const auto viewport = TextViewport();
         // Keep the un-clipped caret for TSF's clipped flag; painting and native
@@ -5069,7 +5137,87 @@ bool RichTextEditor::ExportTextInputState(TextInputState& state) const
     state.multiline = true;
     return true;
 }
+bool RichTextEditor::KeepsDefaultTextInputState() const noexcept
+{
+    return typeid(*this) == typeid(RichTextEditor);
+}
+void RichTextEditor::ExportTextInputSource(SharedTextInputState& state) const
+{
+    // The same fields as ExportTextInputState, with the document as its immutable revision: no flatten and no copy. The
+    // retained contiguous copy rides along only when it is of exactly this revision.
+    const auto source    = Snapshot();
+    const auto selection = GetSelection();
+    state                = {};
+    state.caretIndex     = selection.caret;
+    if (selection.anchor != selection.caret)
+        state.selectionAnchorIndex = selection.anchor;
+    state.readOnly  = ! Editable();
+    state.multiline = true;
+    if (_state->textInputSource && _state->textInputText && _state->textInputSource->IsSameRevision(source))
+        state.text = _state->textInputText;
+    state.source = source;
+}
+SharedText RichTextEditor::TextInputText(const RichText::SourceSnapshot& source) const
+{
+    auto& state = *_state;
+    if (state.textInputSource && state.textInputText && state.textInputSource->IsSameRevision(source))
+        return state.textInputText;
+    // Only the current revision is kept, and only while the editor has focus (text input reads only the focused control; a
+    // store restoring a composition after focus left reads an unfocused one): an older revision or an unfocused editor gets
+    // a one-off copy that the editor does not keep.
+    if (! source.IsSameRevision(Snapshot()) || ! HasFocus())
+        return MaterializeSharedText(source);
+    if (state.textInputSource && state.textInputText && state.textInputText.use_count() == 1)
+    {
+        const auto range = source.ChangedRangeFrom(*state.textInputSource);
+        if (range.kind == RichText::SourceChangeKind::TrackedEdits)
+        {
+            // Nothing else holds the copy (use_count is 1 and no weak reference exists), so MutableSharedText writes it in
+            // place when its capacity suffices: only the changed range is read out of the tree. Otherwise it copies first.
+            std::wstring replacement(0u, L'\0');
+            if (source.TrySlice(range.begin, range.currentEnd, replacement) == RichText::SourceResult::Success)
+            {
+                auto& text = MutableSharedText(state.textInputText, source.Length());
+                text.replace(range.begin, range.previousEnd - range.begin, replacement);
+                state.textInputSource = source;
+                return state.textInputText;
+            }
+        }
+    }
+    auto text             = MaterializeSharedText(source);
+    state.textInputText   = text;
+    state.textInputSource = source;
+    return text;
+}
+SharedText SharedTextInputAccess::RetainedRichTextInputCopy(const Control& control, std::optional<RichText::SourceSnapshot>* source) noexcept
+{
+    const auto* editor = dynamic_cast<const RichTextEditor*>(&control);
+    if (source)
+        *source = editor ? editor->_state->textInputSource : std::nullopt;
+    return editor ? editor->_state->textInputText : SharedText();
+}
+bool RichTextEditor::ShowsTextInputText(const SharedText& text) const noexcept
+{
+    if (! text)
+        return false;
+    const auto source = Snapshot();
+    if (_state->textInputText == text && _state->textInputSource && _state->textInputSource->IsSameRevision(source))
+        return true;
+    return source.MatchesText(*text);
+}
+bool RichTextEditor::ImportTextInputText(ControlHost& host, SharedText text, const TextInputState& fields, bool notifyChange)
+{
+    if (! text)
+        return false;
+    // `text` (a parameter, so a reference of its own) pins the buffer while the import reads it in place, across the
+    // notifications the import may re-enter, whatever the store, the host cache or this editor then hold.
+    return ImportTextInputView(host, *text, fields, notifyChange, &text);
+}
 bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange)
+{
+    return ImportTextInputView(host, state.text, state, notifyChange, nullptr);
+}
+bool RichTextEditor::ImportTextInputView(ControlHost& host, std::wstring_view text, const TextInputState& state, bool notifyChange, const SharedText* buffer)
 {
     if (GetHost() != &host || state.masked || ! state.multiline || (notifyChange && ! Editable()))
         return false;
@@ -5078,10 +5226,20 @@ bool RichTextEditor::ImportTextInputState(ControlHost& host, const TextInputStat
     // cancellation and selection-only imports preserve both undo and redo.
     const auto previousSelection = GetSelection();
     bool changed{};
-    const auto result = notifyChange ? _state->document.TryReplaceWholeText(state.text, selection, changed)
-                                     : _state->document.TryReplaceTransient(state.text, selection, changed);
+    const auto result =
+        notifyChange ? _state->document.TryReplaceWholeText(text, selection, changed) : _state->document.TryReplaceTransient(text, selection, changed);
     if (result != RichText::SourceResult::Success)
         return false;
+    if (buffer && *buffer && HasFocus())
+    {
+        // The document now shows exactly the buffer's text (the transaction validated and applied it whole). Keep the buffer
+        // as the text-input copy of this revision before any notification runs, so the synchronization and reads that
+        // follow share it instead of copying. A later edit (a callback's included) moves to a new revision and leaves this
+        // copy stale, never wrong: it is keyed by revision identity. An unfocused editor (a restore after focus left) keeps
+        // no copy, so it holds none after its focus loss.
+        _state->textInputText   = *buffer;
+        _state->textInputSource = Snapshot();
+    }
     // A silent, exact no-op import must not discard prepared command state. The
     // document transaction above has already validated and normalized the source
     // and selection. An active gesture still needs its normal cancellation path.
@@ -5429,10 +5587,11 @@ void RichTextEditor::Paint(ControlHost& host) const
             state.keyboardNavigationDocument.lock() == GetAcknowledgedSemanticDocument(host))
             if (const auto bounds = GetSemanticElementBounds(host, state.keyboardNavigationElement))
                 context->DrawRectangle(*bounds, host.GetSolidBrush(host.GetTheme().focusStroke), 1.0f);
-        if (HasFocus() && IsEnabled() && state.caretVisible && state.keyboardNavigationElement == RichText::MarkdownNoNode)
+        if (HasFocus() && IsEnabled() && CaretClockAccess::Shown(host, *this) && state.keyboardNavigationElement == RichText::MarkdownNoNode)
         {
-            const auto caret = state.layout.SourceCaret(selection.caret, state.sourceCaretSite);
-            const float x    = std::clamp(origin.x + caret.x, viewport.left, std::max(viewport.left, viewport.right - 1.0f));
+            const auto caret =
+                state.layout.SourceCaret(selection.caret, state.sourceCaretSite, state.CaretAffinityAt(selection.caret, state.document.selectionEpoch_));
+            const float x = std::clamp(origin.x + caret.x, viewport.left, std::max(viewport.left, viewport.right - 1.0f));
             context->DrawLine(D2D1::Point2F(x, origin.y + caret.y), D2D1::Point2F(x, origin.y + caret.y + caret.height), caretBrush, 1.0f);
         }
     }
@@ -5487,33 +5646,22 @@ bool RichTextEditor::Tick(ControlHost& host, uint64_t nowTickMs)
                 return true;
         }
     }
-    if (! HasFocus() || ! IsVisible() || ! Editable() || host.GetTheme().reducedMotion)
-    {
-        const bool changed = ! state.caretVisible;
-        state.caretVisible = true;
-        state.blinkEpoch.reset();
-        if (changed)
-            RequestInvalidate();
-        return false;
-    }
-    // The application supplies the embedded epoch, including zero. No uptime,
-    // private timer, or thread is introduced by this control.
-    if (! state.blinkEpoch || nowTickMs < *state.blinkEpoch)
-        state.blinkEpoch = nowTickMs;
-    const bool visible = ((nowTickMs - *state.blinkEpoch) / 500u) % 2u == 0;
-    if (visible != state.caretVisible)
-    {
-        state.caretVisible = visible;
+    // The host's caret clock flips the phase on the host's (or the application's) clock and arms the next flip. No uptime,
+    // private timer or thread is introduced by this control.
+    if (HasFocus() && IsVisible() && CaretClockAccess::Tick(host, *this, nowTickMs))
         RequestInvalidate();
-    }
-    return true;
+    return false;
 }
 size_t RichTextEditor::HitSource(ControlHost& host, D2D1_POINT_2F point) const
 {
     RequireCurrentLayout(host);
-    const auto viewport     = TextViewport();
-    const auto hit          = _state->layout.HitTestSource(point.x - viewport.left - HorizontalTranslation(), point.y - viewport.top + _state->scrollDip);
+    const auto viewport = TextViewport();
+    RichText::CaretAffinity affinity{};
+    const auto hit = _state->layout.HitTestSource(point.x - viewport.left - HorizontalTranslation(), point.y - viewport.top + _state->scrollDip, affinity);
     _state->sourceCaretSite = hit.site;
+    // A hit past a wrapped line's end keeps the caret on that line if the
+    // pointer gesture places the caret there next.
+    _state->ChooseCaretAffinity(hit.position, affinity, _state->document.selectionEpoch_);
     return hit.position;
 }
 void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord)
@@ -5603,8 +5751,7 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
         }
         else
         {
-            const auto display = byWord && key == VK_LEFT ? FindPreviousWordBoundary(projection.DisplayText(), position)
-                                                          : FindNextWordBoundary(projection.DisplayText(), position);
+            const auto display = DisplayWordBoundary(projection, position, byWord && key == VK_LEFT);
             const auto raw     = projection.ToSource(display);
             target             = {key == VK_LEFT ? std::min(raw, selection.caret) : std::max(raw, selection.caret)};
         }
@@ -5614,34 +5761,45 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
         SelectionChanged(true, true);
         return;
     }
+    // A caret drawn at the end of the upper line belongs to that line for
+    // Home, End and vertical movement; End and trailing-edge vertical hits
+    // keep it there, every other move uses the default Downstream side.
+    const auto affinity = state.CaretAffinityAt(selection.caret, state.document.selectionEpoch_);
+    const auto onLine   = affinity == RichText::CaretAffinity::Upstream && position > 0u ? state.layout.PreviousCluster(position) : position;
+    auto nextAffinity   = RichText::CaretAffinity::Downstream;
     switch (key)
     {
-        case VK_LEFT: next = byWord ? FindPreviousWordBoundary(projection.DisplayText(), position) : state.layout.PreviousCluster(position); break;
+        case VK_LEFT: next = byWord ? DisplayWordBoundary(projection, position, true) : state.layout.PreviousCluster(position); break;
         case VK_RIGHT:
-            next = byWord ? FindNextWordBoundary(projection.DisplayText(), position) : state.layout.NextCluster(position);
+            next = byWord ? DisplayWordBoundary(projection, position, false) : state.layout.NextCluster(position);
             // At a semantic boundary, leading affinity belongs to the next
             // content span. Trailing would select a generated separator's old
             // source anchor and leave Right stuck at the preceding paragraph.
             trailing = ! projection.Semantic();
             break;
-        case VK_HOME: next = byWord ? 0 : state.layout.LineBoundary(position, false); break;
+        case VK_HOME: next = byWord ? 0 : state.layout.LineBoundary(onLine, false); break;
         case VK_END:
-            next     = byWord ? projection.DisplayLength() : state.layout.LineBoundary(position, true);
+            next     = byWord ? projection.DisplayLength() : state.layout.LineBoundary(onLine, true);
             trailing = true;
+            if (! byWord)
+                nextAffinity = RichText::CaretAffinity::Upstream;
             break;
         default:
         {
-            const auto caret     = state.layout.Caret(position);
+            const auto caret     = state.layout.Caret(position, affinity);
             preferredX           = state.preferredCaretX.value_or(caret.x);
             const bool down      = key == VK_DOWN || key == VK_NEXT;
             const float distance = (key == VK_NEXT || key == VK_PRIOR) ? std::max(caret.height, TextViewport().bottom - TextViewport().top) : caret.height;
             const auto hit       = state.layout.HitTest(*preferredX, caret.y + caret.height * 0.5f + (down ? distance : -distance));
             next                 = hit.position;
             trailing             = hit.trailing;
+            if (hit.trailing)
+                nextAffinity = RichText::CaretAffinity::Upstream;
             break;
         }
     }
     const auto source = byWord && key == VK_HOME ? 0u : byWord && key == VK_END ? state.document.Length() : projection.ToSource(next, trailing);
+    state.ChooseCaretAffinity(source, nextAffinity, state.document.selectionEpoch_);
     state.document.SetSelection({extend ? selection.anchor : source, source});
     state.preferredCaretX = preferredX;
     SelectionChanged(true, true);
@@ -5660,21 +5818,15 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
         auto first = selection.Start(), last = selection.End();
         if (first == last)
         {
-            const auto text = source.Text();
-            if (byWord)
-            {
-                first = backwards ? FindPreviousWordBoundary(text, selection.caret) : selection.caret;
-                last  = backwards ? selection.caret : FindNextWordBoundary(text, selection.caret);
-                // The source interval is presentation ownership, not an edit
-                // cage. Word deletion crosses it just like grapheme deletion;
-                // change tracking then retires/reconciles the former scope.
-            }
-            else
-            {
-                const auto range = GetTextElementDeletionRange(text, selection.caret, backwards);
-                first            = range.first;
-                last             = range.last;
-            }
+            // A window around the caret gives the whole-text word and grapheme answers without flattening (W7.4). The
+            // source interval is presentation ownership, not an edit cage. Word deletion crosses it just like grapheme
+            // deletion; change tracking then retires/reconciles the former scope.
+            using Operation = RichText::Detail::SourceWindowOperation;
+            const auto operation =
+                byWord ? (backwards ? Operation::PreviousWord : Operation::NextWord) : (backwards ? Operation::DeleteBackward : Operation::DeleteForward);
+            const auto range = RichText::Detail::SourceWindowRange(source, selection.caret, operation);
+            first            = range.first;
+            last             = range.last;
         }
         bool changed{};
         if (_state->document.TryReplaceImpl(first, last, {}, {first, first}, true, coalesceHistory, changed) != RichText::SourceResult::Success)
@@ -5727,12 +5879,11 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
             // instead use exact raw graphemes, including indivisible CRLF.
             if (geometry->IsCellSourceSite(selection.caret, _state->sourceCaretSite))
                 return false;
-            const auto source = Snapshot();
-            const auto text   = source.Text();
-            const auto first =
-                backwards ? (byWord ? FindPreviousWordBoundary(text, selection.caret) : StepToPreviousTextElement(text, selection.caret)) : selection.caret;
-            const auto last =
-                backwards ? selection.caret : (byWord ? FindNextWordBoundary(text, selection.caret) : StepToNextTextElement(text, selection.caret));
+            using Operation      = RichText::Detail::SourceWindowOperation;
+            const auto operation = byWord ? (backwards ? Operation::PreviousWord : Operation::NextWord) : (backwards ? Operation::Previous : Operation::Next);
+            const auto range     = RichText::Detail::SourceWindowRange(Snapshot(), selection.caret, operation);
+            const auto first     = range.first;
+            const auto last      = range.last;
             bool changed{};
             if (_state->document.TryReplace(first, last, L"", {first, first}, changed) != RichText::SourceResult::Success)
                 return false;
@@ -5846,8 +5997,8 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
     auto& state              = *_state;
     const auto& projection   = state.layout;
     const auto position      = projection.ToDisplay(selection.caret);
-    const auto [first, last] = byWord ? (backwards ? std::pair{FindPreviousWordBoundary(projection.DisplayText(), position), position}
-                                                   : std::pair{position, FindNextWordBoundary(projection.DisplayText(), position)})
+    const auto [first, last] = byWord ? (backwards ? std::pair{DisplayWordBoundary(projection, position, true), position}
+                                                   : std::pair{position, DisplayWordBoundary(projection, position, false)})
                                       : state.layout.DeletionRange(position, backwards);
     if (first == last)
         return false;
@@ -5914,11 +6065,8 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                     if (ExecuteMarkdownCommand(request) != RichText::MarkdownCommandStatus::Unavailable)
                         return true;
                 }
-                const auto source = _state->document.Snapshot();
-                const auto view   = source.Text();
-                const auto ending = view.find_first_of(L"\r\n");
-                text = ending == view.npos ? L"\r\n"
-                                           : view.substr(ending, view[ending] == L'\r' && ending + 1u < view.size() && view[ending + 1u] == L'\n' ? 2u : 1u);
+                // The document's first line ending, from the line summaries (W7.4): no flatten.
+                text = RichText::Detail::FirstLineEnding(_state->document.Snapshot());
             }
             else if (character >= L' ' && character != L'\x7f')
                 text.assign(1, character);
@@ -6012,13 +6160,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                 auto caret = selection.caret + insertion.size();
                 if (match == AutoFormatMatch::Fence)
                 {
-                    const auto all              = source.Text();
-                    const auto newline          = all.find_first_of(L"\r\n");
-                    const std::wstring_view eol = newline == all.npos ? std::wstring_view(L"\r\n")
-                                                  : all[newline] == L'\r' && newline + 1u < all.size() && all[newline + 1u] == L'\n'
-                                                      ? std::wstring_view(L"\r\n")
-                                                  : all[newline] == L'\r' ? std::wstring_view(L"\r")
-                                                                          : std::wstring_view(L"\n");
+                    const std::wstring_view eol = RichText::Detail::FirstLineEnding(source);
                     insertion += eol;
                     caret += eol.size();
                     if (continuationPrefix)
@@ -6266,6 +6408,8 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     {
                         _state->keyboardNavigationDocument = document;
                         _state->keyboardNavigationElement  = element;
+                        // Element navigation draws no caret: it holds no deadline until the selection moves again.
+                        CaretClockAccess::Restart(host, *this, false);
                         break;
                     }
             }
@@ -6575,7 +6719,9 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                             return false;
                         _state->keyboardNavigationDocument = document;
                         _state->keyboardNavigationElement  = target;
-                        _state->caretLink                  = document->Elements()[target].display;
+                        // Element navigation draws no caret: it holds no deadline until the selection moves again.
+                        CaretClockAccess::Restart(host, *this, false);
+                        _state->caretLink = document->Elements()[target].display;
                         // Even a no-op scroll needs the new keyboard adornment painted.
                         const auto lifetime = GetLifetimeToken();
                         RequestInvalidate();
@@ -6890,7 +7036,10 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                         range                = {projected.first, projected.second};
                     }
                     else
-                        range = GetTextElementDeletionRange(source.Text(), selection.caret, backwards);
+                        range = RichText::Detail::SourceWindowRange(source,
+                                                                    selection.caret,
+                                                                    backwards ? RichText::Detail::SourceWindowOperation::DeleteBackward
+                                                                              : RichText::Detail::SourceWindowOperation::DeleteForward);
                     const auto units = range.last - range.first;
                     const bool word  = units <= 64u && IsHistoryWordElement(source.Slice(range.first, range.last));
                     if (word)
@@ -7331,7 +7480,12 @@ bool RichTextEditor::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, 
         }
         size_t caret = projection.ToDisplay(source);
         std::optional<size_t> anchor;
-        SelectSingleLineWordAt(projection.DisplayText(), caret, caret, anchor);
+        // The word under the hit, read in place (semantic) or through a window around it (v0); never a flattened display.
+        if (const auto display = projection.ContiguousDisplayText())
+            SelectSingleLineWordAt(*display, caret, caret, anchor);
+        else
+            RichText::Detail::WindowedSelectWordAt(
+                projection.DisplayLength(), caret, caret, anchor, [&projection](size_t index) { return projection.DisplayUnit(index); });
         _state->dragging = false;
         SetSelection({projection.ToSource(anchor.value_or(caret)), projection.ToSource(caret, true)});
         return true;
@@ -7362,15 +7516,13 @@ std::optional<RichText::MarkdownRange> RichTextEditor::HoveredLinkDisplayRange(C
     if (! hit.inside)
         return std::nullopt;
     const auto display = hit.trailing && hit.position > 0u ? hit.position - 1u : hit.position;
-    for (const auto& element : geometry->Document().Elements())
-        if ((element.role == RichText::SemanticRole::Link || element.role == RichText::SemanticRole::FootnoteReference ||
-             element.role == RichText::SemanticRole::FootnoteBacklink) &&
-            element.display.first <= display && display < element.display.last)
-            return element.display;
-    return std::nullopt;
+    // The prepared hover index answers with a binary search; no element is scanned.
+    const auto element = geometry->HoverLinkElement(display);
+    return element ? std::optional(geometry->Document().Elements()[*element].display) : std::nullopt;
 }
 std::wstring_view RichTextEditor::HoveredTitle(ControlHost& host, D2D1_POINT_2F point, UINT modifiers) const
 {
+    ++Detail::Work().rich.hoveredTitleCalls;
     if (! IsEnabled() || ! IsVisible() || (Editable() && ! ModifiersContainCtrl(modifiers)) || ! std::isfinite(point.x) || ! std::isfinite(point.y) ||
         ! LayoutIsCurrent(host))
         return {};
@@ -7385,19 +7537,27 @@ std::wstring_view RichTextEditor::HoveredTitle(ControlHost& host, D2D1_POINT_2F 
         return {};
     if (! hit.inside)
         return {};
-    const auto display  = hit.trailing && hit.position > 0u ? hit.position - 1u : hit.position;
-    const auto elements = geometry->Document().Elements();
-    const RichText::SemanticElement* best{};
-    for (std::size_t index = 0u; index < elements.size(); ++index)
-    {
-        const auto& element = elements[index];
-        if ((element.role == RichText::SemanticRole::Link || element.role == RichText::SemanticRole::Image ||
-             element.role == RichText::SemanticRole::Abbreviation) &&
-            ! element.title.empty() && ! geometry->Document().IsSourceEditingElement(index) && element.display.first <= display &&
-            display < element.display.last && (! best || element.display.last - element.display.first <= best->display.last - best->display.first))
-            best = &element;
-    }
-    return best ? std::wstring_view(best->title) : std::wstring_view{};
+    const auto display = hit.trailing && hit.position > 0u ? hit.position - 1u : hit.position;
+    // The smallest titled span containing the hit, resolved by the prepared hover index without scanning elements.
+    const auto element = geometry->HoverTitleElement(display);
+    return element ? std::wstring_view(geometry->Document().Elements()[*element].title) : std::wstring_view{};
+}
+RichTextEditor::HoveredTitleKey RichTextEditor::GetHoveredTitleKey(const ControlHost& host) const noexcept
+{
+    const auto* geometry = _state->layout.SemanticGeometry();
+    const auto viewport  = TextViewport();
+    return {geometry ? geometry->Generation() : 0u,
+            viewport.left,
+            viewport.top,
+            viewport.right,
+            viewport.bottom,
+            HorizontalTranslation(),
+            _state->scrollDip,
+            geometry != nullptr,
+            LayoutIsCurrent(host),
+            IsEnabled(),
+            IsVisible(),
+            Editable()};
 }
 bool RichTextEditor::CodeInkCoversViewport() const noexcept
 {
@@ -7617,7 +7777,7 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
             if (! std::isfinite(point.x) || ! std::isfinite(point.y))
                 return false;
             _state->middleAutoScrollPoint = point;
-            host.RequestAnimation();
+            host.RequestAnimation(*this);
             return true;
         }
         if (_state->sourceMovePress)
@@ -7891,7 +8051,6 @@ void RichTextEditor::PropagateHost(ControlHost* host) noexcept
         _state->middleAutoScroll     = false;
         _state->middleAutoScrollTick.reset();
         _state->scrollbarDragging = false;
-        _state->blinkEpoch.reset();
     }
     Control::PropagateHost(host);
 }
@@ -7942,7 +8101,9 @@ void RichTextEditor::OnEnabledChanged(bool) noexcept
     _state->middleAutoScroll     = false;
     _state->middleAutoScrollTick.reset();
     _state->scrollbarDragging = false;
-    _state->blinkEpoch.reset();
+    // A focused editor disabled draws no caret, so its caret holds no deadline; enabled again, it blinks from now.
+    if (tooltipHost && HasFocus())
+        CaretClockAccess::Restart(*tooltipHost, *this, Editable());
     if (wasMiddleAutoScroll && tooltipHost && ControlCaptureAccess::GestureOwner(*tooltipHost) == this)
         tooltipHost->ReleaseMouseCapture();
     if (! tooltipLifetime.expired() && GetHost() == tooltipHost && wasSelecting)
@@ -7966,7 +8127,6 @@ void RichTextEditor::OnHidden() noexcept
     _state->middleAutoScroll     = false;
     _state->middleAutoScrollTick.reset();
     _state->scrollbarDragging = false;
-    _state->blinkEpoch.reset();
     if (wasMiddleAutoScroll && tooltipHost && ControlCaptureAccess::GestureOwner(*tooltipHost) == this)
         tooltipHost->ReleaseMouseCapture();
     if (! tooltipLifetime.expired() && GetHost() == tooltipHost && wasSelecting)
@@ -7995,6 +8155,15 @@ void RichTextEditor::OnFocusChanged(ControlHost& host, bool focused)
     _state->taskPressPlan.reset();
     _state->codePressDocument.reset();
     _state->codePressGesture = false;
+    if (! focused)
+    {
+        // Text input reads only the focused control; the copy is rebuilt on demand if focus returns.
+        _state->textInputText.reset();
+        _state->textInputSource.reset();
+        // The caret and middle-button scrolling are the editor's only ticks, and both end with focus.
+        CaretClockAccess::Stop(host, *this);
+        host.CancelAnimation(*this);
+    }
     SelectionChanged();
 }
 void RichTextEditor::OnCaptureLost(ControlHost&)

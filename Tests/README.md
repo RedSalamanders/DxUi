@@ -40,7 +40,11 @@ or qualify the performance policy.
 
 `EditorControls` runs `TestUnicode17DefaultGraphemeCorpus`: all 766 pinned original
 vectors, every UTF-16 offset, next/previous movement, nearest snapping and counts.
-`TextField` adds Unicode 17 password-mask source geometry/hit/deletion cases;
+`TestTextElementAnchoredSteppingMatchesFromZero` compares the anchored wrappers with
+the from-zero segmentation on that corpus and on 4,096 seeded mixes (CJK, emoji,
+combining marks, regional indicators, Hangul jamo, Indic, controls, lone surrogates);
+`TestTextElementSteppingVisitsBoundedUnits` counts code units visited per step on
+65,536 units of CJK and emoji. `TextField` adds Unicode 17 password-mask source geometry/hit/deletion cases;
 `Accessibility` checks rich character range commands, arrows, deletion and undo
 in native and embedded hosts. `Embedded` measures a 49,152-unit mixed-script
 forward walk (16,384 elements, zero C++ allocation calls/bytes) and oversized
@@ -111,6 +115,11 @@ perturb execution, and omitting a command changes the workload; CPU call interva
 are not GPU duration or scheduler delay. Heap and MultilineGrid options cannot be
 combined with this diagnostic. Exact source/build/raw-byte and child-timeout guards
 still apply; no trace permission or non-regression acceptance is implied.
+`performance-timing.ps1` runs the hardware frame timing method (A/B/B/A sessions of at least 1,000 frames and 2 s,
+UI-thread cycles and late-read GPU timestamps, equivalence against 3%/5% margins); see [performance](../docs/performance.md#frame-timing-on-hardware).
+`DxUi.EmbeddedTests.exe --test-frame-timing` checks its native mechanics on WARP and runs in the ordinary `Embedded`
+suite; `Tools/tests/Test-FrameTiming.ps1` checks its statistics and machine-state restoration with fakes. Neither
+supplies a timing value or a calibration.
 UIA client regressions fail a quiet-wait timeout and retain client/provider timelines for the unchanged Grid selection
 case. A quiet interval and a passing repeat do not establish the cause of a previously delayed event.
 The shared UIA client's owner waits wake for incoming COM messages with a bounded message wait. Sender caching and
@@ -159,6 +168,10 @@ The activation helper services sent messages through `MsgWaitForMultipleObjectsE
 `PM_NOREMOVE`, retaining its 800 ms polling deadline and leaving queued input to the normal pump. Sent callbacks
 can outlast a polling interval; the native watchdog still bounds the test. Foreground checks, grants and retry
 limits remain unchanged.
+
+`DxUi.ControlTests` disables window ghosting for its process at startup. Its tests paint with `UpdateWindow` and seldom
+run a message loop, so after five seconds Windows would treat a test window as hung and ghost it; a ghosted window's
+invalidations leave no update region, which made paint assertions fail by wall-clock time on slow (ASan) runs.
 
 Verified GitHub-hosted Windows jobs run requested foreground suites through the same restoring lease with a parent
 anchor and a child-specific foreground grant. Both the PowerShell launcher and native `--run-hosted` mode check the
@@ -241,8 +254,14 @@ Isolated failure children retain the same ordinary Embedded assertions:
 ./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-failures
 ./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-decode-failures
 ./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-resource-failures
+./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-rich-image-decode-memory
 ./.build/x64/Debug/DxUi.EmbeddedTests.exe --capture-rich-images output.png Dark
 ```
+
+`--test-rich-image-decode-memory` runs `TestRichImageDecodeMemory` alone, so the decode memory gate can run in any
+configuration: one decode of each `RichImageTests::DecodeScenarios` image and of the 16 MiB encoded-cap PNG (also
+through `LoadFile`) under the counting allocator, reporting peak tracked bytes and encoded-size and decoded-size
+buffers, then checking exact pixels and the decode bound.
 
 The resource child sweeps observed allocation schedules for staging, dispatch,
 completion and loaded Unicode geometry, then checks actual upload coalescing,
@@ -278,6 +297,136 @@ their stage and HRESULT. See the [ASan setup packet](../Measurements/TextInput/2
 for retained diagnostic failures and current validation limits. No setup failure or passing repeat closes a
 remaining qualification gate.
 
+## Performance fixtures
+
+Plan item W0.4 defines fixtures `FX1`-`FX14` once each; every consumer runs that one definition: the counter and memory
+receipt, the hardware timing harness, the determinism gate, the incremental-versus-fresh oracle and item gate tests.
+Contract: [performance fixtures](../Specs/Testing/Testing_Validation.md#performance-fixtures).
+
+| File | Role | Edited to add a fixture? |
+| --- | --- | --- |
+| `Tests/Embedded/Embedded.Tests.PerformanceFixture.h` | Host-neutral model: `Definition`, `Variant`, `Phase`, `Scenario`, `HostPort`, records, comparator, receipt JSON | No |
+| `Tests/Embedded/Embedded.Tests.PerformanceFixtureFx<N>.h` | One fixture: its `Definition` and `Scenario` | Yes: only this file |
+| `Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h` | `kCatalog`, one line per fixture, already listing FX1-FX14 | No |
+| `Tests/Embedded/Embedded.Tests.PerformanceFixtures.h` | Embedded runner (`RunEmbedded`, `EmbeddedInstance`), receipts, determinism gate, `FrameTiming::MakeFixture` | No |
+| `Tests/Controls/Controls.Tests.PerformanceFixtures.cpp` | Window runner (`RunWindow`), its determinism gate and receipt command | No |
+| `Tests/Embedded/Embedded.Tests.PerformanceFixtureSelfTest.h` | The framework's own fixture (not in the catalog) | No |
+| `Tests/Controls/Controls.Tests.PerformanceFixtureFx4.cpp` | `FX4`'s own interactive runner, its determinism gate (Menu suite) and receipt | Only for `FX4` |
+
+**Interactive-only fixtures.** `Definition::interactiveOnly` means the fixture takes the foreground, so only the
+interactive run executes it. `FX4` (menus) is the one such fixture: a `MenuPopup` session activates and focuses its popup,
+takes mouse capture, is clamped onto a visible monitor and blurs real screen pixels, and no non-activating seam exists
+(the developer's decision of 14 November 2026). Such a fixture has no `Scenario` (`create` stays `nullptr`); its own runner
+in `DxUi.ControlTests.exe` runs it. Every ordinary path skips it, prints `FX4: interactive, not run` and never fails on it
+or opens a popup: both determinism gates, both executables' `--fixture-receipt`, `performance-fixtures.ps1` without
+`-Interactive`, `FrameTiming::MakeFixture` and `performance-timing.ps1`. The catalog JSON exposes `interactiveOnly`. Its two
+interactive entry points, both under the desktop lease and only after the person at the desktop agrees to the time:
+
+```powershell
+./test.ps1 -Configuration Release -Interactive -Suites Menu -Tests TestPerformanceFixtureFx4IsDeterministic   # two runs, equal counters
+./performance-fixtures.ps1 -Fixture FX4 -Interactive                                                          # the receipt, one lease child
+```
+
+The runner fails, and writes no receipt, when the activation was blocked (the application window cannot take the
+foreground; a popup that is 1 by 1 pixels, differs from its layout rectangle, or is not the foreground window with focus
+and capture) or when the person's input reached the menu (a hovered row, an unexpected keyboard row, a dismissed menu).
+It never moves the pointer. The run sheet is
+[`Measurements/PerformanceAndMotion_2026-11-13/FX4/README.md`](../Measurements/PerformanceAndMotion_2026-11-13/FX4/README.md).
+
+**Building a declared fixture.** Every fixture already has its header and catalog line, so fixtures built at the same
+time touch different files. In `Embedded.Tests.PerformanceFixtureFx<N>.h`:
+
+1. Write a `Scenario`. `Build(Context&)` builds the tree on `context.controls` (the host is attached and themed: the dark
+   default palette with `reducedMotion` from the definition). `Step(Context&, phase, step)` applies one action: change
+   controls directly, or send input through `context.port` (`Pointer`, `Key`, `Character` in device pixels of
+   `context.variant`; `AdvanceTime` for the frozen fixture clock; `Resize`). Never read the real clock, sleep, render or
+   use randomness: the runner renders exactly one frame after every step, and two runs must record equal counters.
+   Accept every step index, also beyond the declared count (the timing harness plays the timed phase indefinitely).
+   The scenario may own models its controls borrow; the runner destroys the host first.
+2. Fill the `Definition`: `hosts` (`kEmbedded`, `kWindow` or `kBothHosts`), `variants` (`variants[0]` is the default;
+   mark hardware-only sizes such as 3840x2160 at 192 DPI `hardwareOnly`, and full-size WARP scenes too heavy to run twice
+   in every suite, such as a million-row list or a 4K sweep, `receiptOnly`: receipts and timing run them, the suites'
+   determinism gate does not, so keep `variants[0]` small; a scenario may read `context.variant.name` to size its
+   scene), `phases` (a first `PhaseKind::Warmup` phase
+   settles first-use state and gives hit testing a prepared layout; measured phases are compared by the determinism gate),
+   `timedPhase`, `sources` (repository paths of scene files, hashed into the receipt) and `create`. A scene whose controls prepare cooperatively over several
+   owner turns sets `settlePreparation`: the embedded runner then repeats a step's frame until the host needs no further
+   preparation, so one step is one action with all its turns (FX8; embedded host only).
+3. A scene helper too large for the fixture header goes in a new `Tests/Embedded/Embedded.Tests.<Name>.h`, added to
+   `Tests/native-test-files.json`. Reuse existing scene helpers (`Controls.Tests.AccessibilityFx6.h`, the tooltip hover-path
+   helpers, `BuildCjkEmojiFieldText`) by moving them into such a header rather than copying them.
+
+A fixture that attaches UI Automation (`FX6`) sets `DebugSetAccessibilityNotificationDeliveryManualForTest` and completes
+the notification queue at a fixed point of each step (`DebugCompletePendingAccessibilityNotificationsForTest`): the
+thread-pool delivery would otherwise decide how much the owner allocates, and would raise events to whoever listens on
+the desktop.
+
+**What keeps a window step deterministic.** The window runner renders a step's frame from what the step queued: it
+pumps the messages the host posted to itself, leaves `WM_TIMER` and the system caret timer queued (time reaches the host
+only through the fixture clock) and paints with `UpdateWindow`. The desktop is kept out of the step: every message
+another thread sends to the fixture window (a UI Automation client's `WM_GETOBJECT` and `WM_GETTEXT`, setting and theme
+broadcasts) is answered by `DefWindowProc` without the host, and the accessibility build gate answers as if a client
+listens (`DebugSetAccessibilitySystemListenersForTest(true)`) whatever the desktop's clients do. Without that, a client's
+`WM_GETOBJECT` arriving between two paints of one step publishes the snapshot early and splits the step's one coalesced
+publication into two (`FX10` then copies its rich document twice). When the gate fails it prints, for the differing step
+and the one before it, every counter that differs and the events that reached the host in one run and not the other:
+window messages (marked when another thread sent them), messages dequeued, an invalid region painted by `UpdateWindow`,
+fixture ticks, snapshot builds, a change of `UiaClientsAreListening` and the frame schedule left waiting. A new
+difference names its event there: if it is a real-time or queue leak, fix the runner; if it is library work that is
+asynchronous by design, give it a delivery seam completed at a fixed point of the step; if the same inputs produce
+different work, report it as a library defect. Never retry, tolerate or skip.
+
+The fixture header compiles in both test executables: use only DxUi, the standard library and the model header, never
+`Check`, `Require`, `GraphicsFixture` or a test window. Nothing else changes: the determinism gate, receipts and
+`performance-timing.ps1 -Fixture FX<N>` find the fixture through the catalog.
+
+**Adding a step or a variant** to a built fixture: raise the phase's `steps` or add a `Phase` (its index is the `phase`
+argument of `Step`), or add a `Variant`. A change to the steps of a fixture with retained receipts changes their meaning:
+take new receipts with `-Replace` and say why in the change.
+
+**A gate assertion** for a plan item lives in that item's own test file and runs the definition:
+
+```cpp
+// Embedded suite (Check, Hr available): FX3 adds no layout per steady frame.
+const auto run = PerformanceFixtures::RunEmbedded(PerformanceFixtures::Fx3::kDefinition, PerformanceFixtures::Fx3::kVariants[0]);
+Check(PerformanceFixtures::Summarize(run.Phase("wheel"), "resources.textLayout.created").maximum == 0u, "FX3 wheel steps create no layout");
+```
+
+Counter names are `cppAllocations` (Embedded suite only), `created`, `churn` and each W0.1 counter as `<group>.<name>`
+(`frame.paintExecutions`, `resources.textLayout.created`). A definition that sets `largeAllocationBytes` also gets
+`cppLargeAllocations` (Embedded suite only): the step's C++ allocations of at least that many bytes, such as `FX7`'s
+copies of its 64 Ki-unit document. To measure an action of your own on the live scene, pass
+`RunOptions::afterPhases` (embedded) or drive an `EmbeddedInstance` yourself: `Instantiate`, `Create`, then `Step` and
+`Frame` around a `Detail::WorkCounterScope`. `RunOptions::countDrawCalls` installs the counting COM wrappers so
+that `frame.drawCalls` is counted (it is 0 otherwise). Every receipt reports the `G13` memory lines (`EvaluateG13`;
+`RunOptions::probeGridCells` adds the Grid cell probe, on for receipts); a fixture whose line is over budget adds a row
+to `kG13Exceptions` naming the item that closes it, and `G13Failures` is the gate. The oracle (`Support.Tests.IncrementalParity.h`) replays a fixture
+through `TotalSteps` and `StepAt`: its script's build function builds the scenario on the oracle scene's host and its step
+function applies `StepAt(definition, k - 1)` through a `HostPort` over that scene; no such adapter exists yet.
+
+**Running.**
+
+```powershell
+./.build/x64/Debug/DxUi.EmbeddedTests.exe --test-performance-fixtures   # self-test, determinism gate, FX5 work-counter gate
+./test.ps1 -Suites Rendering -Tests TestPerformanceFixtureFrameworkOnWindowHost,TestPerformanceFixturesAreDeterministicOnWindowHost
+./performance-fixtures.ps1 -Fixture FX5                                 # receipt under Measurements/PerformanceAndMotion_2026-11-13/FX5
+./performance-fixtures.ps1 -Fixture FX5 -Variant uhd-192dpi -Adapter Hardware -SkipBuild
+./performance-fixtures.ps1 -Fixture FX5 -CountDrawCalls -SkipBuild             # also frame.drawCalls, under the counting COM wrappers
+./performance-timing.ps1 -Purpose Smoke -Fixture FX5 -Adapter Warp -Sessions 1   # the same definition, timed
+./.build/x64/Release/DxUi.ControlTests.exe --fx13-cold-start Measurements/PerformanceAndMotion_2026-11-13/FX13/cold-start/cold-start-x64-release.json 5
+```
+
+`FX13`'s cold start to the first presented frame is wall-clock time of fresh processes, so it is receipt-only in the
+sense of a `receiptOnly` variant (its receipt command runs it, the determinism gate never does; its JSON says
+`"receiptOnly":true`), and it lives outside the definition (`Controls.Tests.PerformanceFixtureColdStart.cpp`): each child builds the
+`FX13` application on a WARP `WindowHost` shown without activation off every monitor, and stamps its entry and its first
+present from the trace provider's test sink; the presented image must show a drawn frame. Its numbers are never a verdict.
+
+The ordinary Embedded and Rendering suites run the self-tests and the determinism gate. The receipt script records
+provenance (source commit and dirty flag, build profile, compiler, OS build, adapter and driver or WARP version, display
+refresh rates, power plan and a host-idle observation), changes nothing on the machine, never overwrites a receipt
+without `-Replace`, and regenerates the fixture directory's README. Timing fields stay "not measured" unless
+`-TimingReceipt` names a hardware calibration or comparison from `performance-timing.ps1`.
 
 Generated output is retained per invocation under `.build/evidence/test-runs/<id>/payload`. Read the
 [retention contract](../Specs/Testing/Testing_RunEvidence.md) for failed/interrupted runs and verification.

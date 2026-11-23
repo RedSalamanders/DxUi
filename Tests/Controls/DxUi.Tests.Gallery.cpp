@@ -5,10 +5,15 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstring>
+#include <dxgi.h>
 #include <filesystem>
 #include <format>
+#include <fstream>
 #include <iostream>
 #include <limits>
+#include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -27,6 +32,41 @@ constexpr float kTileWidthDip = (kGalleryWidthDip - (kMarginDip * 2.0f) - (kGapD
 
 [[nodiscard]] UINT DipsToPixelsCeil(const WindowHost& host, float dips) noexcept;
 void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx);
+
+// The test process is not DPI aware, so every gallery window starts at 96 DPI. A scaled capture gives each host the
+// requested DPI the way the system would, through WM_DPICHANGED, before the window is sized; 96 DPI sends nothing, so an
+// unscaled capture is the gallery's original path.
+void ApplyGalleryDpi(AttachedHostWindow& window, UINT dpi)
+{
+    if (dpi == USER_DEFAULT_SCREEN_DPI)
+        return;
+    bool handled = false;
+    static_cast<void>(window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, MAKEWPARAM(dpi, dpi), 0, handled));
+    Require(handled && window.Host().GetDpi() == static_cast<float>(dpi), "gallery host adopts the requested capture DPI");
+}
+
+// A menu popup takes the requested DPI from the same message; its suggested rectangle keeps its place.
+[[nodiscard]] bool ApplyGalleryPopupDpi(HWND popupHwnd, UINT dpi)
+{
+    if (dpi == USER_DEFAULT_SCREEN_DPI)
+        return true;
+    ContextMenuPopupDebugState state{};
+    if (! DebugGetContextMenuPopupState(popupHwnd, state))
+        return false;
+    if (state.dpi == dpi)
+        return true;
+    RECT suggested    = state.windowRectPx;
+    DWORD_PTR ignored = 0u;
+    if (SendMessageTimeoutW(popupHwnd,
+                            WM_DPICHANGED,
+                            MAKEWPARAM(static_cast<WORD>(dpi), static_cast<WORD>(dpi)),
+                            reinterpret_cast<LPARAM>(&suggested),
+                            SMTO_NORMAL,
+                            2000u,
+                            &ignored) == 0)
+        return false;
+    return DebugGetContextMenuPopupState(popupHwnd, state) && state.dpi == dpi;
+}
 
 [[nodiscard]] float ClampUnit(float value) noexcept
 {
@@ -190,6 +230,18 @@ template <typename TPredicate>
         if (IsWindowVisible(popupHwnd) && DebugCaptureContextMenuPopupBitmap(popupHwnd, outCapture) && outCapture.widthPx > 1u && outCapture.heightPx > 1u &&
             HasPaintedPopupContent(outCapture))
         {
+            // Diagnostics: a menu popup is a real window on the desktop, so the person's pointer can hover a row of it.
+            ContextMenuPopupDebugState state{};
+            POINT cursor{};
+            if (DebugGetContextMenuPopupState(popupHwnd, state) && state.hoveredIndex && GetCursorPos(&cursor))
+                std::cerr << std::format("  [GALLERY] the captured menu popup has row {} hovered (pointer at {},{}; popup at {},{}-{},{})\n",
+                                         *state.hoveredIndex,
+                                         cursor.x,
+                                         cursor.y,
+                                         state.windowRectPx.left,
+                                         state.windowRectPx.top,
+                                         state.windowRectPx.right,
+                                         state.windowRectPx.bottom);
             return true;
         }
 
@@ -232,6 +284,7 @@ void CopyCaptureInto(WindowHostBitmapCapture& destination, const WindowHostBitma
 [[nodiscard]] WindowHostBitmapCapture CaptureMenuPopupBitmapForGallery(const ThemePalette& theme,
                                                                        const std::vector<MenuFlyoutItem>& items,
                                                                        std::wstring_view firstItemText,
+                                                                       UINT dpi,
                                                                        std::optional<size_t> submenuItemIndex = std::nullopt,
                                                                        std::wstring_view submenuFirstItemText = {})
 {
@@ -252,6 +305,20 @@ void CopyCaptureInto(WindowHostBitmapCapture& destination, const WindowHostBitma
         }
 
         const auto dismissPopup = wil::scope_exit([&]() noexcept { DismissGalleryPopupChain(ownerWindow.Hwnd()); });
+
+        if (dpi != USER_DEFAULT_SCREEN_DPI)
+        {
+            ContextMenuPopupDebugState shownState{};
+            if (! WaitForContextMenuPopupState(rootPopupHwnd,
+                                               [](const ContextMenuPopupDebugState& state) noexcept
+            { return state.visibleWidthDip > 0.0f && state.visibleHeightDip > 0.0f; },
+                                               shownState) ||
+                ! ApplyGalleryPopupDpi(rootPopupHwnd, dpi))
+            {
+                driverFailure = "gallery menu popup adopts the requested capture DPI";
+                return;
+            }
+        }
 
         if (submenuItemIndex.has_value())
         {
@@ -282,6 +349,11 @@ void CopyCaptureInto(WindowHostBitmapCapture& destination, const WindowHostBitma
             if (! submenuHwnd)
             {
                 driverFailure = "gallery submenu popup window appears";
+                return;
+            }
+            if (! ApplyGalleryPopupDpi(submenuHwnd, dpi))
+            {
+                driverFailure = "gallery submenu popup adopts the requested capture DPI";
                 return;
             }
 
@@ -351,9 +423,10 @@ void CopyCaptureInto(WindowHostBitmapCapture& destination, const WindowHostBitma
     };
 }
 
-[[nodiscard]] WindowHostBitmapCapture CaptureComboBoxOpenBitmapForGallery(const ThemePalette& theme, ComboBoxVariant variant, bool editable)
+[[nodiscard]] WindowHostBitmapCapture CaptureComboBoxOpenBitmapForGallery(const ThemePalette& theme, ComboBoxVariant variant, bool editable, UINT dpi)
 {
     AttachedHostWindow window;
+    ApplyGalleryDpi(window, dpi);
     ResizeClientArea(window, DipsToPixelsCeil(window.Host(), 190.0f), DipsToPixelsCeil(window.Host(), 174.0f));
     window.Host().SetTheme(theme);
 
@@ -396,6 +469,40 @@ void CopyCaptureInto(WindowHostBitmapCapture& destination, const WindowHostBitma
     return capture;
 }
 
+// A focused TextField in a host of its own (the sheet's one focus belongs to the rich editor), editable or read-only, with
+// a frozen caret phase: the caret clock's blink time is INFINITE through the host's test seam, so the caret is drawn in its
+// shown phase whenever the capture runs (W3.2). Logical focus only: no native focus transfer, no activation.
+// The width a one-column tile gives its content (GalleryFlow::Next insets it 12 DIP each side): the capture is drawn unscaled.
+constexpr float kGalleryFieldWidthDip = kTileWidthDip - 24.0f;
+[[nodiscard]] WindowHostBitmapCapture CaptureFocusedTextFieldBitmapForGallery(const ThemePalette& theme, bool readOnly, UINT dpi)
+{
+    AttachedHostWindow window;
+    ApplyGalleryDpi(window, dpi);
+    ResizeClientArea(window, DipsToPixelsCeil(window.Host(), kGalleryFieldWidthDip), DipsToPixelsCeil(window.Host(), 34.0f));
+    window.Host().SetTheme(theme);
+    window.Host().DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{INFINITE, 0u});
+
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(readOnly ? L"Read-only value" : L"Search text");
+    field->SetReadOnly(readOnly);
+    field->SetBounds(D2D1::RectF(0.0f, 1.0f, kGalleryFieldWidthDip, 33.0f));
+    window.Host().SetRoot(std::move(root));
+
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages(100u);
+    window.Host().SetFocusControl(field, false);
+    Require(field->HasFocus() && field->DebugIsCaretVisible() && window.Host().DebugGetFrameScheduleWakeForTest().kind == 0u,
+            "gallery focused field shows its steady caret with nothing scheduled");
+
+    RedrawWindow(window.Hwnd(), nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+    window.PumpMessages(100u);
+
+    WindowHostBitmapCapture capture;
+    Require(window.Host().DebugCaptureBitmap(capture), "gallery focused field bitmap capture succeeds");
+    Require(capture.widthPx > 0u && capture.heightPx > 0u && ! capture.bgraPixels.empty(), "gallery focused field capture is non-empty");
+    return capture;
+}
+
 struct GalleryMenuCaptures
 {
     WindowHostBitmapCapture buttonDropDown;
@@ -405,14 +512,16 @@ struct GalleryMenuCaptures
     WindowHostBitmapCapture comboWindowOpen;
     WindowHostBitmapCapture comboModernOpen;
     WindowHostBitmapCapture comboEditOpen;
+    WindowHostBitmapCapture textFieldFocused;
+    WindowHostBitmapCapture textFieldFocusedReadOnly;
 };
 
-[[nodiscard]] GalleryMenuCaptures CaptureGalleryMenus(const ThemePalette& theme)
+[[nodiscard]] GalleryMenuCaptures CaptureGalleryMenus(const ThemePalette& theme, UINT dpi)
 {
     GalleryMenuCaptures captures;
-    captures.buttonDropDown = CaptureMenuPopupBitmapForGallery(theme, BuildButtonDropDownMenuItems(), L"Open");
-    captures.buttonSplit    = CaptureMenuPopupBitmapForGallery(theme, BuildButtonSplitMenuItems(), L"Run normally");
-    captures.menuSubmenu    = CaptureMenuPopupBitmapForGallery(theme, BuildStatefulSubmenuItems(), L"Open With", 0u, L"Internal Viewer");
+    captures.buttonDropDown = CaptureMenuPopupBitmapForGallery(theme, BuildButtonDropDownMenuItems(), L"Open", dpi);
+    captures.buttonSplit    = CaptureMenuPopupBitmapForGallery(theme, BuildButtonSplitMenuItems(), L"Run normally", dpi);
+    captures.menuSubmenu    = CaptureMenuPopupBitmapForGallery(theme, BuildStatefulSubmenuItems(), L"Open With", dpi, 0u, L"Internal Viewer");
     const std::wstring leaf = L"Sélection définitive pour impression et archivage — photographies familiales";
     const std::vector<MenuFlyoutItem> describedItems{
         {.kind          = MenuItemKind::Radio,
@@ -424,10 +533,12 @@ struct GalleryMenuCaptures
          .text          = leaf,
          .commandId     = 802,
          .secondaryText = L"D:\\Sauvegardes\\Archives photographiques personnelles\\Collection permanente du musée"}};
-    captures.menuDescriptions = CaptureMenuPopupBitmapForGallery(theme, describedItems, leaf);
-    captures.comboWindowOpen  = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Window, false);
-    captures.comboModernOpen  = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Modern, false);
-    captures.comboEditOpen    = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Window, true);
+    captures.menuDescriptions         = CaptureMenuPopupBitmapForGallery(theme, describedItems, leaf, dpi);
+    captures.comboWindowOpen          = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Window, false, dpi);
+    captures.comboModernOpen          = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Modern, false, dpi);
+    captures.comboEditOpen            = CaptureComboBoxOpenBitmapForGallery(theme, ComboBoxVariant::Window, true, dpi);
+    captures.textFieldFocused         = CaptureFocusedTextFieldBitmapForGallery(theme, false, dpi);
+    captures.textFieldFocusedReadOnly = CaptureFocusedTextFieldBitmapForGallery(theme, true, dpi);
     return captures;
 }
 
@@ -519,11 +630,19 @@ struct Tile
     D2D1_RECT_F content = D2D1::RectF();
 };
 
+// A tile's caption and its frame on the sheet in DIPs. Scaled tile captures crop the sheet to these frames.
+struct GalleryTileRecord
+{
+    std::wstring label;
+    D2D1_RECT_F outerDip = D2D1::RectF();
+};
+
 struct GalleryFlow
 {
     float y         = 80.0f;
     size_t column   = 0u;
     float rowHeight = 0.0f;
+    std::vector<GalleryTileRecord> tiles;
 
     [[nodiscard]] Tile Next(Panel& root, std::wstring label, size_t span = 1u, float heightDip = 96.0f)
     {
@@ -536,7 +655,8 @@ struct GalleryFlow
         const float left        = kMarginDip + (static_cast<float>(column) * (kTileWidthDip + kGapDip));
         const float width       = (kTileWidthDip * static_cast<float>(clampedSpan)) + (kGapDip * static_cast<float>(clampedSpan - 1u));
         const D2D1_RECT_F outer = D2D1::RectF(left, y, left + width, y + heightDip);
-        auto* frame             = root.AddChild<CardPanel>();
+        tiles.push_back(GalleryTileRecord{.label = label, .outerDip = outer});
+        auto* frame = root.AddChild<CardPanel>();
         frame->SetBounds(outer);
 
         auto* caption = root.AddChild<Label>(std::move(label));
@@ -731,6 +851,7 @@ struct GalleryScene
     size_t presentationLinkOffset      = 0u;
     size_t presentationMatchOffset     = 0u;
     std::optional<D2D1_POINT_2F> tooltipOrigin;
+    std::vector<GalleryTileRecord> tiles;
     float heightDip = 1.0f;
 };
 
@@ -1433,11 +1554,24 @@ void AddComboItems(ComboBox& combo)
         auto* label = panel->AddChild<Label>(L"Absolute child layout");
         label->SetBounds(tile.content);
     }
+    {
+        // Focused TextFields, in a host of their own: the editable caret in its shown phase, and the read-only caret, which is
+        // steady (W3.2). Last on the sheet, so no earlier tile moves.
+        const Tile tile = flow.Next(*scene.root, L"TextField / Focused");
+        auto* preview   = scene.root->AddChild<GalleryBitmapPreview>(std::move(menuCaptures.textFieldFocused));
+        preview->SetBounds(CenterIn(tile.content, kGalleryFieldWidthDip, 34.0f));
+    }
+    {
+        const Tile tile = flow.Next(*scene.root, L"TextField / Focused read-only");
+        auto* preview   = scene.root->AddChild<GalleryBitmapPreview>(std::move(menuCaptures.textFieldFocusedReadOnly));
+        preview->SetBounds(CenterIn(tile.content, kGalleryFieldWidthDip, 34.0f));
+    }
     if (flow.rowHeight > 0.0f)
     {
         flow.NewRow();
     }
     scene.heightDip = std::max(1.0f, flow.y + kMarginDip);
+    scene.tiles     = std::move(flow.tiles);
     return scene;
 }
 
@@ -1462,12 +1596,17 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
             "gallery window resizes to requested client area");
 }
 
-[[nodiscard]] WindowHostBitmapCapture CaptureThemeSection(const GalleryTheme& theme)
+[[nodiscard]] WindowHostBitmapCapture CaptureThemeSection(const GalleryTheme& theme,
+                                                          UINT dpi                              = USER_DEFAULT_SCREEN_DPI,
+                                                          std::vector<GalleryTileRecord>* tiles = nullptr)
 {
-    GalleryScene scene = BuildGalleryScene(theme, CaptureGalleryMenus(theme.palette));
+    GalleryScene scene = BuildGalleryScene(theme, CaptureGalleryMenus(theme.palette, dpi));
+    if (tiles)
+        *tiles = scene.tiles;
     // Borrowed models must survive capture cancellation and accessibility publication during host teardown.
     AttachedHostWindow window;
 
+    ApplyGalleryDpi(window, dpi);
     ResizeClientArea(window, DipsToPixelsCeil(window.Host(), kGalleryWidthDip), DipsToPixelsCeil(window.Host(), scene.heightDip));
     window.Host().SetTheme(theme.palette);
     window.Host().SetRoot(std::move(scene.root));
@@ -1556,6 +1695,11 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
         Require(window.Host().HasTooltip() && window.Host().GetTooltipText() == L"Tooltip sample",
                 "gallery installs its exact synthetic tooltip after message settling and preparation");
     }
+    // Diagnostics: a sheet whose frame schedule still waits for something holds a control that changes with real time, so
+    // two captures of it can differ. Printed only when something is scheduled.
+    if (const auto wake = window.Host().DebugGetFrameScheduleWakeForTest(); wake.kind != 0u)
+        std::cerr << std::format(
+            "  [GALLERY] the sheet is captured with {} tick request(s) scheduled (wake kind {})\n", window.Host().DebugGetTickRequestCountForTest(), wake.kind);
     Require(window.Host().DebugCaptureBitmap(capture), "gallery section bitmap capture succeeds");
     Require(capture.widthPx > 0u && capture.heightPx > 0u && ! capture.bgraPixels.empty(), "gallery section capture is non-empty");
     return capture;
@@ -2089,6 +2233,381 @@ void RunGalleryGeneratorPerTheme(const std::filesystem::path& outputDirectory)
 
         std::wcout << L"Gallery theme image written: " << outputPath.wstring() << L'\n';
     }
+}
+
+bool IsSupportedGalleryScalePercent(UINT percent) noexcept
+{
+    // Whole-number DPIs only (96 x percent / 100), up to the 300% a full sheet still fits in one Direct3D texture.
+    return percent >= 100u && percent <= 300u && (percent * USER_DEFAULT_SCREEN_DPI) % 100u == 0u;
+}
+
+namespace
+{
+struct GalleryTileCapture
+{
+    std::wstring slug;
+    std::wstring label;
+    D2D1_RECT_F outerDip = D2D1::RectF();
+    RECT rectPx{};
+    WindowHostBitmapCapture pixels;
+};
+
+[[nodiscard]] UINT GalleryDpiForScalePercent(UINT percent) noexcept
+{
+    return (percent * USER_DEFAULT_SCREEN_DPI) / 100u;
+}
+
+// A tile's frame in device pixels at a DPI: each DIP edge rounded to the nearest pixel.
+[[nodiscard]] RECT GalleryTileRectPx(const D2D1_RECT_F& outerDip, UINT dpi) noexcept
+{
+    const double scale = static_cast<double>(dpi) / static_cast<double>(USER_DEFAULT_SCREEN_DPI);
+    return RECT{static_cast<LONG>(std::lround(static_cast<double>(outerDip.left) * scale)),
+                static_cast<LONG>(std::lround(static_cast<double>(outerDip.top) * scale)),
+                static_cast<LONG>(std::lround(static_cast<double>(outerDip.right) * scale)),
+                static_cast<LONG>(std::lround(static_cast<double>(outerDip.bottom) * scale))};
+}
+
+[[nodiscard]] WindowHostBitmapCapture CropGalleryCapture(const WindowHostBitmapCapture& sheet, const RECT& rectPx)
+{
+    Require(rectPx.left >= 0 && rectPx.top >= 0 && rectPx.right > rectPx.left && rectPx.bottom > rectPx.top &&
+                rectPx.right <= static_cast<LONG>(sheet.widthPx) && rectPx.bottom <= static_cast<LONG>(sheet.heightPx),
+            "gallery tile lies within its sheet");
+    WindowHostBitmapCapture tile;
+    tile.widthPx  = static_cast<UINT>(rectPx.right - rectPx.left);
+    tile.heightPx = static_cast<UINT>(rectPx.bottom - rectPx.top);
+    tile.bgraPixels.resize(static_cast<size_t>(tile.widthPx) * static_cast<size_t>(tile.heightPx) * 4u);
+    for (UINT row = 0u; row < tile.heightPx; ++row)
+    {
+        const size_t sourceOffset = ((static_cast<size_t>(rectPx.top) + row) * static_cast<size_t>(sheet.widthPx) + static_cast<size_t>(rectPx.left)) * 4u;
+        std::copy_n(sheet.bgraPixels.data() + sourceOffset,
+                    static_cast<size_t>(tile.widthPx) * 4u,
+                    tile.bgraPixels.data() + (static_cast<size_t>(row) * static_cast<size_t>(tile.widthPx) * 4u));
+    }
+    return tile;
+}
+
+// A filter names a tile by its control ("TextField"), its caption ("TextField / Multiline") or its file name
+// ("textfield-multiline"), compared as file slugs, so case, spaces and slashes do not matter.
+[[nodiscard]] bool GalleryTileMatches(std::wstring_view filterSlug, std::wstring_view label, std::wstring_view slug)
+{
+    if (filterSlug == slug)
+        return true;
+    const size_t separator = label.find(L" / ");
+    return MakeThemeGalleryFileSlug(label.substr(0, separator)) == filterSlug;
+}
+
+// Renders one theme's sheet at a DPI through the gallery's own capture and crops the tiles the filters name (every tile
+// when there are none). `filterMatched` records which filters named at least one tile.
+[[nodiscard]] std::vector<GalleryTileCapture> CaptureGalleryTiles(
+    const GalleryTheme& theme, UINT dpi, std::span<const std::wstring> filters, std::vector<bool>& filterMatched, WindowHostBitmapCapture* sheetOut = nullptr)
+{
+    std::vector<GalleryTileRecord> records;
+    WindowHostBitmapCapture sheet = CaptureThemeSection(theme, dpi, &records);
+    Require(! records.empty(), "gallery sheet records its tiles");
+    const double scale = static_cast<double>(dpi) / static_cast<double>(USER_DEFAULT_SCREEN_DPI);
+    Require(sheet.widthPx == static_cast<UINT>(std::ceil(static_cast<double>(kGalleryWidthDip) * scale)), "gallery sheet width follows the capture DPI");
+
+    std::vector<std::wstring> filterSlugs;
+    for (const std::wstring& filter : filters)
+        filterSlugs.push_back(MakeThemeGalleryFileSlug(filter));
+    filterMatched.assign(filters.size(), false);
+
+    std::unordered_map<std::wstring, size_t> slugCounts;
+    std::vector<GalleryTileCapture> tiles;
+    for (const GalleryTileRecord& record : records)
+    {
+        std::wstring slug  = MakeThemeGalleryFileSlug(record.label);
+        const size_t count = ++slugCounts[slug];
+        if (count > 1u)
+            slug += L"-" + std::to_wstring(count);
+
+        bool selected = filterSlugs.empty();
+        for (size_t index = 0u; index < filterSlugs.size(); ++index)
+        {
+            if (GalleryTileMatches(filterSlugs[index], record.label, slug))
+            {
+                filterMatched[index] = true;
+                selected             = true;
+            }
+        }
+        if (! selected)
+            continue;
+
+        const RECT rectPx = GalleryTileRectPx(record.outerDip, dpi);
+        tiles.push_back(GalleryTileCapture{
+            .slug = std::move(slug), .label = record.label, .outerDip = record.outerDip, .rectPx = rectPx, .pixels = CropGalleryCapture(sheet, rectPx)});
+    }
+    if (sheetOut)
+        *sheetOut = std::move(sheet);
+    return tiles;
+}
+
+[[nodiscard]] std::string GalleryJsonString(std::wstring_view text)
+{
+    std::string json = "\"";
+    for (const wchar_t ch : text)
+    {
+        if (ch == L'"' || ch == L'\\')
+        {
+            json.push_back('\\');
+            json.push_back(static_cast<char>(ch));
+        }
+        else if (ch >= 0x20 && ch < 0x7F)
+        {
+            json.push_back(static_cast<char>(ch));
+        }
+        else
+        {
+            json += std::format("\\u{:04x}", static_cast<unsigned>(ch));
+        }
+    }
+    json.push_back('"');
+    return json;
+}
+
+// The adapter the captures used: WARP when forced; otherwise the default adapter, which the host uses unless hardware
+// device creation fails and it falls back to WARP.
+[[nodiscard]] std::wstring DescribeGalleryAdapter(bool forceWarp)
+{
+    if (forceWarp)
+        return L"WARP (forced)";
+    wil::com_ptr_nothrow<IDXGIFactory1> factory;
+    wil::com_ptr_nothrow<IDXGIAdapter1> adapter;
+    DXGI_ADAPTER_DESC1 description{};
+    if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(factory.put()))) || FAILED(factory->EnumAdapters1(0u, adapter.put())) || FAILED(adapter->GetDesc1(&description)))
+        return L"default adapter (unidentified)";
+    return std::wstring(description.Description) + L" (default adapter)";
+}
+} // namespace
+
+void RunGalleryTileCaptures(const std::filesystem::path& outputDirectory,
+                            const std::vector<UINT>& scalePercents,
+                            const std::vector<std::wstring>& tileFilters,
+                            const std::vector<std::wstring>& themeSlugs,
+                            bool forceWarp)
+{
+    Require(! scalePercents.empty(), "gallery tile capture names at least one scale");
+    for (const UINT percent : scalePercents)
+        Require(IsSupportedGalleryScalePercent(percent), "gallery tile capture scale is supported");
+
+    std::vector<GalleryTheme> themes;
+    for (GalleryTheme& theme : BuildGalleryThemes())
+    {
+        if (themeSlugs.empty() || std::ranges::find(themeSlugs, theme.slug) != themeSlugs.end())
+            themes.push_back(std::move(theme));
+    }
+    for (const std::wstring& slug : themeSlugs)
+    {
+        if (std::ranges::none_of(themes, [&](const GalleryTheme& theme) { return theme.slug == slug; }))
+            std::wcerr << L"  [GALLERY] Unknown theme: " << slug << L'\n';
+    }
+    Require(! themes.empty() && themes.size() == (themeSlugs.empty() ? themes.size() : themeSlugs.size()), "every requested gallery theme exists");
+
+    std::error_code ec;
+    const std::filesystem::path root = std::filesystem::absolute(outputDirectory, ec);
+    Require(! ec, "gallery tile output directory resolves to an absolute path");
+    std::filesystem::create_directories(root, ec);
+    Require(! ec, "gallery tile output directory is created");
+
+    // Every host this thread attaches while the anchor lives shares its WARP device, menu popups included.
+    std::optional<AttachedHostWindow> warpAnchor;
+    if (forceWarp)
+        warpAnchor.emplace(WindowHost::PresentationMode::HwndSwapChain, true);
+
+    std::vector<std::wstring> labels;
+    std::vector<D2D1_RECT_F> frames;
+    std::vector<std::wstring> labelSlugs;
+    std::vector<bool> anyFilterMatched(tileFilters.size(), false);
+    for (const UINT percent : scalePercents)
+    {
+        const UINT dpi = GalleryDpiForScalePercent(percent);
+        for (const GalleryTheme& theme : themes)
+        {
+            std::wcerr << L"  [GALLERY] Rendering " << theme.name << L" at " << percent << L"%\n" << std::flush;
+            std::vector<bool> filterMatched;
+            const std::vector<GalleryTileCapture> tiles = CaptureGalleryTiles(theme, dpi, tileFilters, filterMatched);
+            for (size_t index = 0u; index < filterMatched.size(); ++index)
+                anyFilterMatched[index] = anyFilterMatched[index] || filterMatched[index];
+            const std::filesystem::path directory = root / std::to_wstring(percent) / theme.slug;
+            for (const GalleryTileCapture& tile : tiles)
+            {
+                const std::filesystem::path path = directory / (tile.slug + L".png");
+                ec.clear();
+                std::filesystem::remove(path, ec);
+                Require(SaveWindowHostBitmapCaptureAsPngForTest(path, tile.pixels), "gallery tile PNG is written");
+                if (std::ranges::find(labelSlugs, tile.slug) == labelSlugs.end())
+                {
+                    labelSlugs.push_back(tile.slug);
+                    labels.push_back(tile.label);
+                    frames.push_back(tile.outerDip);
+                }
+            }
+        }
+    }
+    for (size_t index = 0u; index < tileFilters.size(); ++index)
+    {
+        if (! anyFilterMatched[index])
+            std::wcerr << L"  [GALLERY] No tile matches: " << tileFilters[index] << L'\n';
+    }
+    Require(std::ranges::all_of(anyFilterMatched, [](bool matched) { return matched; }), "every gallery tile filter names at least one tile");
+
+    // The run's own description: what tooling cannot read from the PNGs (adapter, DPI, captions).
+    std::string json = "{\n  \"schemaVersion\": 1,\n  \"adapter\": " + GalleryJsonString(DescribeGalleryAdapter(forceWarp)) +
+                       ",\n  \"forceWarp\": " + (forceWarp ? "true" : "false") + ",\n  \"scales\": [";
+    for (size_t index = 0u; index < scalePercents.size(); ++index)
+        json +=
+            std::format("{}{{ \"percent\": {}, \"dpi\": {} }}", index == 0u ? "" : ", ", scalePercents[index], GalleryDpiForScalePercent(scalePercents[index]));
+    json += "],\n  \"themes\": [";
+    for (size_t index = 0u; index < themes.size(); ++index)
+        json += (index == 0u ? "" : ", ") + GalleryJsonString(themes[index].slug);
+    json += "],\n  \"tileFilters\": [";
+    for (size_t index = 0u; index < tileFilters.size(); ++index)
+        json += (index == 0u ? "" : ", ") + GalleryJsonString(tileFilters[index]);
+    json += "],\n  \"tiles\": [";
+    for (size_t index = 0u; index < labels.size(); ++index)
+        json += std::format("{}\n    {{ \"slug\": {}, \"label\": {}, \"frameDip\": [{}, {}, {}, {}] }}",
+                            index == 0u ? "" : ",",
+                            GalleryJsonString(labelSlugs[index]),
+                            GalleryJsonString(labels[index]),
+                            frames[index].left,
+                            frames[index].top,
+                            frames[index].right,
+                            frames[index].bottom);
+    json += "\n  ]\n}\n";
+    const std::filesystem::path capturePath = root / L"capture.json";
+    {
+        std::ofstream file(capturePath, std::ios::binary | std::ios::trunc);
+        file.write(json.data(), static_cast<std::streamsize>(json.size()));
+        Require(static_cast<bool>(file), "gallery capture description is written");
+    }
+    std::wcout << L"Gallery tiles written: " << root.wstring() << L'\n';
+}
+
+namespace
+{
+const GalleryTheme& LightGalleryTheme()
+{
+    static const std::vector<GalleryTheme> themes = BuildGalleryThemes();
+    return themes.front();
+}
+
+// When two captures of one sheet differ: the rectangle the differing pixels span, every tile they fall in with its count,
+// and both crops of that rectangle under .build/test-artifacts/gallery-determinism/<process>, so the next failure names its
+// source. Printed only when the captures differ.
+void ReportGallerySheetDifference(const WindowHostBitmapCapture& first, const WindowHostBitmapCapture& second, std::span<const GalleryTileRecord> records)
+{
+    if (first.widthPx != second.widthPx || first.heightPx != second.heightPx)
+        return;
+    RECT span{LONG_MAX, LONG_MAX, LONG_MIN, LONG_MIN};
+    std::vector<size_t> perTile(records.size(), 0u);
+    size_t outsideTiles = 0u;
+    for (UINT y = 0u; y < first.heightPx; ++y)
+        for (UINT x = 0u; x < first.widthPx; ++x)
+        {
+            const size_t offset = (static_cast<size_t>(y) * first.widthPx + x) * 4u;
+            if (std::memcmp(first.bgraPixels.data() + offset, second.bgraPixels.data() + offset, 4u) == 0)
+                continue;
+            span.left   = (std::min)(span.left, static_cast<LONG>(x));
+            span.top    = (std::min)(span.top, static_cast<LONG>(y));
+            span.right  = (std::max)(span.right, static_cast<LONG>(x) + 1);
+            span.bottom = (std::max)(span.bottom, static_cast<LONG>(y) + 1);
+            bool inTile = false;
+            for (size_t index = 0u; index < records.size(); ++index)
+            {
+                const RECT tile = GalleryTileRectPx(records[index].outerDip, USER_DEFAULT_SCREEN_DPI);
+                if (static_cast<LONG>(x) >= tile.left && static_cast<LONG>(x) < tile.right && static_cast<LONG>(y) >= tile.top &&
+                    static_cast<LONG>(y) < tile.bottom)
+                {
+                    ++perTile[index];
+                    inTile = true;
+                }
+            }
+            outsideTiles += inTile ? 0u : 1u;
+        }
+    if (span.left > span.right)
+        return;
+    std::cerr << std::format("  [GALLERY] the two captures differ in ({},{})-({},{})\n", span.left, span.top, span.right, span.bottom);
+    for (size_t index = 0u; index < records.size(); ++index)
+        if (perTile[index] != 0u)
+            std::wcerr << L"  [GALLERY]   " << perTile[index] << L" differing pixels in tile \"" << records[index].label << L"\"\n";
+    if (outsideTiles != 0u)
+        std::cerr << "  [GALLERY]   " << outsideTiles << " differing pixels outside every tile\n";
+    const std::filesystem::path directory =
+        FindRepoRootForDxUiTests() / L".build" / L"test-artifacts" / L"gallery-determinism" / std::to_wstring(GetCurrentProcessId());
+    std::error_code ec;
+    std::filesystem::create_directories(directory, ec);
+    if (SaveWindowHostBitmapCaptureAsPngForTest(directory / L"first-crop.png", CropGalleryCapture(first, span)) &&
+        SaveWindowHostBitmapCaptureAsPngForTest(directory / L"second-crop.png", CropGalleryCapture(second, span)) &&
+        SaveWindowHostBitmapCaptureAsPngForTest(directory / L"first-sheet.png", first) &&
+        SaveWindowHostBitmapCaptureAsPngForTest(directory / L"second-sheet.png", second))
+        std::cerr << "  [GALLERY]   crops and sheets written to " << directory.string() << '\n';
+}
+
+// A tile captured at 100% through the scale option is today's sheet, cropped: the option adds no second capture path.
+void TestGalleryTileCaptureAtOneHundredPercentMatchesTheSheet()
+{
+    const GalleryTheme& theme = LightGalleryTheme();
+    std::vector<GalleryTileRecord> records;
+    const WindowHostBitmapCapture today   = CaptureThemeSection(theme, USER_DEFAULT_SCREEN_DPI, &records);
+    const std::vector<std::wstring> named = {L"StatusStrip", L"TextField"};
+    std::vector<bool> matched;
+    WindowHostBitmapCapture optionSheet;
+    const std::vector<GalleryTileCapture> tiles = CaptureGalleryTiles(theme, USER_DEFAULT_SCREEN_DPI, named, matched, &optionSheet);
+
+    Require(matched.size() == 2u && matched[0] && matched[1], "both tile filters name gallery tiles");
+    Require(tiles.size() == 8u, "the filters select the StatusStrip tile and the seven TextField tiles (two focused, W3.2)");
+    Require(optionSheet.widthPx == today.widthPx && optionSheet.heightPx == today.heightPx, "a 100% sheet keeps today's size");
+    const BitmapComparisonStats sheetStats = CompareWindowHostBitmapCapturesForTest(optionSheet, today, 0u);
+    if (sheetStats.differingPixels != 0u)
+        ReportGallerySheetDifference(today, optionSheet, records);
+    Require(sheetStats.totalPixels > 0u && sheetStats.differingPixels == 0u, "a 100% sheet through the scale option is today's sheet pixel for pixel");
+    for (const GalleryTileCapture& tile : tiles)
+    {
+        const BitmapComparisonStats stats = CompareWindowHostBitmapCapturesForTest(tile.pixels, CropGalleryCapture(today, tile.rectPx), 0u);
+        Require(stats.totalPixels > 0u && stats.differingPixels == 0u, "a 100% tile is today's capture of that tile pixel for pixel");
+    }
+}
+
+// At 125% and 150% the same tiles are rendered, not resampled, at the scaled pixel size of their DIP frame.
+void TestGalleryTileCapturesAtScaleHaveScaledPixelSizes()
+{
+    const GalleryTheme& theme             = LightGalleryTheme();
+    const std::vector<std::wstring> named = {L"StatusStrip", L"TextField / Multiline"};
+    std::vector<bool> matched;
+    const std::vector<GalleryTileCapture> base = CaptureGalleryTiles(theme, USER_DEFAULT_SCREEN_DPI, named, matched);
+    Require(base.size() == 2u, "the filters select one StatusStrip tile and the multiline TextField tile");
+
+    for (const UINT percent : {125u, 150u})
+    {
+        const UINT dpi = GalleryDpiForScalePercent(percent);
+        WindowHostBitmapCapture sheet;
+        const std::vector<GalleryTileCapture> scaled = CaptureGalleryTiles(theme, dpi, named, matched, &sheet);
+        Require(scaled.size() == base.size(), "a scaled capture selects the same tiles");
+        const double factor = static_cast<double>(percent) / 100.0;
+        Require(sheet.widthPx == static_cast<UINT>(std::ceil(1600.0 * factor)), "the scaled sheet is 1600 DIPs wide in pixels");
+        for (size_t index = 0u; index < scaled.size(); ++index)
+        {
+            const GalleryTileCapture& tile = scaled[index];
+            Require(tile.slug == base[index].slug, "a scaled capture keeps the tiles' names");
+            const LONG expectedWidth  = tile.rectPx.right - tile.rectPx.left;
+            const LONG expectedHeight = tile.rectPx.bottom - tile.rectPx.top;
+            Require(static_cast<LONG>(tile.pixels.widthPx) == expectedWidth && static_cast<LONG>(tile.pixels.heightPx) == expectedHeight,
+                    "a scaled tile has its frame's pixel size");
+            // Each edge rounds to the nearest pixel, so a size is within one pixel of its DIP size times the scale.
+            const double widthDip  = static_cast<double>(base[index].outerDip.right - base[index].outerDip.left);
+            const double heightDip = static_cast<double>(base[index].outerDip.bottom - base[index].outerDip.top);
+            Require(std::abs(static_cast<double>(tile.pixels.widthPx) - widthDip * factor) <= 1.0 &&
+                        std::abs(static_cast<double>(tile.pixels.heightPx) - heightDip * factor) <= 1.0,
+                    "a scaled tile is its DIP frame's size times the scale, within one pixel");
+        }
+    }
+}
+} // namespace
+
+void RunGalleryScaleTests()
+{
+    DXUI_RUN_TEST(TestGalleryTileCaptureAtOneHundredPercentMatchesTheSheet);
+    DXUI_RUN_TEST(TestGalleryTileCapturesAtScaleHaveScaledPixelSizes);
 }
 
 void RunButtonContrastAuditGenerator(const std::filesystem::path& outputPath)

@@ -1,4 +1,5 @@
 #pragma once
+#include "Support/CountedCreation.h"
 #include <DxUi/Configuration.h>
 #include <DxUi/Failure.h>
 #include <algorithm>
@@ -70,7 +71,7 @@ public:
             if (FAILED(result_ = testNativeColorPaletteBrushFailure))
                 return nullptr;
 #endif
-            if (FAILED(result_ = target_->CreateSolidColorBrush(color, entry->brush.put())))
+            if (FAILED(result_ = CountedCreateSolidColorBrush(target_, color, entry->brush.put())))
                 return nullptr;
             ++created_;
         }

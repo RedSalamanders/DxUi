@@ -41,7 +41,7 @@ void CheckPagedUia(bool embedded)
     ControlHost* host = nullptr;
     if (embedded)
     {
-        RequireSucceeded(view.Attach(MakePool(gpu)), "attach paged embedded view");
+        RequireSucceeded(view.Attach(MakePool(gpu), StoppedTestClock()), "attach paged embedded view");
         host = &view.Controls();
     }
     else
@@ -199,7 +199,7 @@ void TestPageHostTabTraversalUsesCurrentLogicalChildren()
 
     GraphicsFixture gpu;
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(MakePool(gpu)), "attach paged keyboard view");
+    RequireSucceeded(view.Attach(MakePool(gpu), StoppedTestClock()), "attach paged keyboard view");
     auto embeddedRoot   = std::make_unique<Panel>();
     auto* embeddedPages = embeddedRoot->AddChild<PageHost>();
     embeddedPages->SetBounds(D2D1::RectF(0, 0, 220, 120));
@@ -222,7 +222,7 @@ void TestEmbeddedTransitionsUseApplicationClockIncludingZero()
     for (const uint64_t epoch : {0ull, 1000000000000ull})
     {
         EmbeddedHost view;
-        RequireSucceeded(view.Attach(pool), "attach application-clock view");
+        RequireSucceeded(view.Attach(pool, StoppedTestClock()), "attach application-clock view");
         auto& host = view.Controls();
         host.SetTheme(MakeAnimatedTestThemePalette(false));
         auto slider = std::make_unique<Slider>();
@@ -232,16 +232,17 @@ void TestEmbeddedTransitionsUseApplicationClockIncludingZero()
         RequireSucceeded(view.Prepare(220, 48), "prepare application-clock slider");
         host.SetFocusControl(live, false);
         Require(view.DispatchKey(VK_RIGHT, true), "embedded key starts animated seek");
-        Require(view.AdvanceAnimation(epoch), "first application tick anchors active slider animations");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch)), "first application tick anchors active slider animations");
         RequireFloatNear(static_cast<float>(live->DebugGetDisplayedValue()), 20, 0.001f, "first tick does not mix application and system epochs");
-        Require(view.AdvanceAnimation(epoch + 40), "application-clock slider advances");
+        Require(AnimationRequested(view.AdvanceAnimation(epoch + 40)), "application-clock slider advances");
         Require(live->DebugGetDisplayedValue() > 20 && live->DebugGetDisplayedValue() < live->GetValue(), "slider interpolates inside the application epoch");
         static_cast<void>(view.AdvanceAnimation(epoch + 1000));
         static_cast<void>(view.AdvanceAnimation(epoch + 1001));
-        Require(! view.NeedsAnimation() && live->DebugGetDisplayedValue() == live->GetValue(), "slider reaches its target and releases animation");
+        Require(! AnimationRequested(view.GetAnimationRequest()) && live->DebugGetDisplayedValue() == live->GetValue(),
+                "slider reaches its target and releases animation");
         // Each attachment has its own monotonic application timeline, with the same independently tested epoch.
         EmbeddedHost pageView;
-        RequireSucceeded(pageView.Attach(pool), "attach independent application-clock pages");
+        RequireSucceeded(pageView.Attach(pool, StoppedTestClock()), "attach independent application-clock pages");
         pageView.Controls().SetTheme(MakeAnimatedTestThemePalette(false));
         auto pages     = std::make_unique<PageHost>();
         auto* pageHost = pages.get();
@@ -249,15 +250,15 @@ void TestEmbeddedTransitionsUseApplicationClockIncludingZero()
         pageHost->SetPage(std::make_unique<Button>(L"First page"));
         pageHost->SetPage(std::make_unique<Button>(L"Second page"));
         RequireSucceeded(pageView.Prepare(220, 100), "prepare application-clock pages");
-        Require(pageView.AdvanceAnimation(epoch), "first page tick anchors its clock");
+        Require(AnimationRequested(pageView.AdvanceAnimation(epoch)), "first page tick anchors its clock");
         Require(pageHost->HasActiveTransition() && pageHost->DebugGetTransitionState(epoch).linearProgress == 0.0f,
                 "first page tick neither wraps nor fast-forwards");
-        Require(pageView.AdvanceAnimation(epoch + 125), "page progresses in application time");
+        Require(AnimationRequested(pageView.AdvanceAnimation(epoch + 125)), "page progresses in application time");
         const auto progress = pageHost->DebugGetTransitionState(epoch + 125).linearProgress;
         Require(progress > 0 && progress < 1, "page has intermediate application-clock progress");
         static_cast<void>(pageView.AdvanceAnimation(epoch + 1000));
         static_cast<void>(pageView.AdvanceAnimation(epoch + 1001));
-        Require(! pageHost->HasActiveTransition() && ! pageView.NeedsAnimation(), "page settles and releases animation");
+        Require(! pageHost->HasActiveTransition() && ! AnimationRequested(pageView.GetAnimationRequest()), "page settles and releases animation");
     }
 }
 
@@ -268,6 +269,9 @@ void TestNativeCaretTicksInvalidateOnlyWhenPixelsChange()
     auto field   = std::make_unique<TextField>(L"Caret");
     auto* editor = field.get();
     window.Host().SetRoot(std::move(field));
+    // The caret blinks only with motion on, at the user's blink time: both are pinned, never read from this desktop.
+    EnableMotionForTest(window.Host());
+    window.Host().DebugSetCaretBlinkSettingsForTest(ControlHost::CaretBlinkSettingsForTest{530u, 0u});
     ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
     window.Host().SetFocusControl(editor, false);
     const uint64_t tick = GetTickCount64();
@@ -620,7 +624,7 @@ void TestPacketSurrogatesThroughNativeAndEmbeddedHosts()
             ControlHost* host{};
             if (embedded)
             {
-                RequireSucceeded(view.Attach(MakePool(graphics)), "attach the supplied-device packet-input fixture");
+                RequireSucceeded(view.Attach(MakePool(graphics), StoppedTestClock()), "attach the supplied-device packet-input fixture");
                 host = &view.Controls();
             }
             else
@@ -807,7 +811,7 @@ void TestEmbeddedGraphicsRetirementPreservesApplicationBindings()
     auto oldPool = MakePool(first);
     auto newPool = MakePool(second);
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(oldPool), "attach borrowed-context view");
+    RequireSucceeded(view.Attach(oldPool, StoppedTestClock()), "attach borrowed-context view");
     view.Controls().SetRoot(std::make_unique<Button>(L"Device recovery"));
     RequireSucceeded(view.Prepare(220, 80), "prepare old-generation surface");
     const auto bind = [](GraphicsFixture& gpu)
@@ -831,4 +835,141 @@ void TestEmbeddedGraphicsRetirementPreservesApplicationBindings()
     bind(second);
     view.Detach();
     preserved(second);
+}
+
+// W1.3: composition events, heard by a client of an embedded view's application window.
+namespace
+{
+// The text-edit events a client subscribed to the application's window hears.
+[[nodiscard]] UiaTest::Subscription CompositionEventsSubscription()
+{
+    UiaTest::Subscription subscription;
+    subscription.textEditChanges = {TextEditChangeType_Composition, TextEditChangeType_CompositionFinalized};
+    return subscription;
+}
+
+[[nodiscard]] std::vector<UiaTest::HeardEvent> TextEditEventsSince(const UiaTest::Client& client, size_t mark, TextEditChangeType change)
+{
+    auto events = client.DistinctSince(mark);
+    std::erase_if(events, [change](const UiaTest::HeardEvent& event) { return event.kind != UiaTest::EventKind::TextEdit || event.id != change; });
+    return events;
+}
+
+void ExpectCompositionEventsCarryTheirText()
+{
+    using namespace DxUi;
+
+    GraphicsFixture gpu;
+    RequireSucceeded(gpu.Create(), "composition events WARP device");
+    std::shared_ptr<GraphicsDevice> graphics;
+    RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "composition events graphics");
+    EmbeddedHost view;
+    RequireSucceeded(view.Attach(graphics, StoppedTestClock()), "attach the composition view");
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<TextField>(L"ab");
+    field->SetBounds(D2D1::RectF(12.0f, 12.0f, 260.0f, 44.0f));
+    field->SetAccessibleName(L"Composition field");
+    root->AddChild<Button>(L"Send")->SetBounds(D2D1::RectF(12.0f, 60.0f, 132.0f, 92.0f));
+    view.Controls().SetRoot(std::move(root));
+    view.Controls().SetFocusControl(field, false);
+    RequireSucceeded(PrepareEmbeddedContentForTests(view, 320, 180), "prepare the composition view");
+    EmbeddedUiaTest::Bridge bridge(view, 320, 180);
+    Require(bridge.Attach(true) == S_OK, "attach the composition view's application UIA bridge");
+    const auto publish = [&]
+    {
+        RequireSucceeded(PrepareEmbeddedContentForTests(view, 320, 180), "prepare the composition step");
+        RequireSucceeded(bridge.Update(), "publish the composition step");
+        bridge.Pump();
+    };
+    publish();
+    UiaTest::Client client(bridge.Hwnd(), CompositionEventsSubscription(), [&] { bridge.Pump(); });
+
+    const auto preview = [&](std::wstring_view composed)
+    {
+        EmbeddedTextInputSnapshot snapshot;
+        Require(view.ReadTextInput(snapshot) == S_OK, "read the field before a composition preview");
+        auto state                  = snapshot.state;
+        state.text                  = L"ab" + std::wstring(composed);
+        state.caretIndex            = state.text.size();
+        state.selectionAnchorIndex  = std::nullopt;
+        state.compositionStartIndex = 2u;
+        state.compositionEndIndex   = state.text.size();
+        RequireSucceeded(view.ApplyTextInput(snapshot.revision, state, EmbeddedTextInputAction::Preview), "preview a composition");
+        publish();
+    };
+    const auto composing = [](const UiaTest::HeardEvent& event)
+    { return event.kind == UiaTest::EventKind::TextEdit && event.id == TextEditChangeType_Composition; };
+
+    // Composing raises Composition with the part of the composition string that changed.
+    Require(FindNamed(client, client.Root(), L"Composition field") != 0u, "the client reaches the composition field");
+    client.WaitOutTheStream();
+    size_t mark = client.Mark();
+    preview(L"\u5019\u88dc");
+    if (! client.WaitForEvent(composing))
+        client.PrintEvents();
+    Require(client.Count(composing) != 0u, "a client hears the composition begin");
+    client.WaitOutTheStream();
+    auto heard = TextEditEventsSince(client, mark, TextEditChangeType_Composition);
+    if (heard.size() != 1u || heard.front().value != L"\u5019\u88dc")
+        client.PrintEvents();
+    Require(heard.size() == 1u && heard.front().value == L"\u5019\u88dc", "the first Composition carries the whole new composition string");
+    mark = client.Mark();
+    preview(L"\u5019\u88dc\u65e5");
+    Require(
+        client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs, [&] { return ! TextEditEventsSince(client, mark, TextEditChangeType_Composition).empty(); }),
+        "a client hears the composition change");
+    client.WaitOutTheStream();
+    heard = TextEditEventsSince(client, mark, TextEditChangeType_Composition);
+    if (heard.size() != 1u || heard.front().value != L"\u65e5")
+        client.PrintEvents();
+    Require(heard.size() == 1u && heard.front().value == L"\u65e5", "a later Composition carries only the part of the composition that changed");
+    // A conversion that replaces a character in place leaves the composition's offsets unchanged and is still reported.
+    mark = client.Mark();
+    preview(L"\u5019\u88dc\u6642");
+    Require(
+        client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs, [&] { return ! TextEditEventsSince(client, mark, TextEditChangeType_Composition).empty(); }),
+        "a client hears the in-place conversion");
+    client.WaitOutTheStream();
+    heard = TextEditEventsSince(client, mark, TextEditChangeType_Composition);
+    if (heard.size() != 1u || heard.front().value != L"\u6642")
+        client.PrintEvents();
+    Require(heard.size() == 1u && heard.front().value == L"\u6642", "an in-place conversion raises Composition with the converted part");
+
+    // Committing raises one CompositionFinalized with the committed string, and no Composition.
+    mark = client.Mark();
+    EmbeddedTextInputSnapshot snapshot;
+    Require(view.ReadTextInput(snapshot) == S_OK, "read the field before the commit");
+    auto committed = snapshot.state;
+    committed.compositionStartIndex.reset();
+    committed.compositionEndIndex.reset();
+    committed.conversionTargetStartIndex.reset();
+    committed.conversionTargetEndIndex.reset();
+    committed.compositionCursorIndex.reset();
+    committed.compositionClauseBoundaries.clear();
+    RequireSucceeded(view.ApplyTextInput(snapshot.revision, committed, EmbeddedTextInputAction::Commit), "commit the composition");
+    publish();
+    Require(field->GetText() == L"ab\u5019\u88dc\u6642", "the field holds the committed text");
+    Require(client.WaitUntil(UiaTest::Client::kNotificationDeadlineMs,
+                             [&] { return ! TextEditEventsSince(client, mark, TextEditChangeType_CompositionFinalized).empty(); }),
+            "a client hears the composition finalized");
+    client.WaitOutTheStream();
+    const auto finalized = TextEditEventsSince(client, mark, TextEditChangeType_CompositionFinalized);
+    const auto late      = TextEditEventsSince(client, mark, TextEditChangeType_Composition);
+    if (finalized.size() != 1u || ! late.empty())
+        client.PrintEvents();
+    Require(finalized.size() == 1u && finalized.front().value == L"\u5019\u88dc\u6642", "a commit raises one CompositionFinalized carrying the committed text");
+    Require(late.empty(), "a commit raises no Composition, empty or not");
+}
+} // namespace
+
+void TestAccessibilityCompositionCommitRaisesCompositionFinalizedWithItsText()
+{
+    RequireSucceeded(DxUiFailureTests::RunRetainedAccessibilitySta(
+                         []
+    {
+        DxUi::TestSupport::ScopedWindowActivationBlocker activation;
+        Require(activation.Start(), "the composition application refuses activation");
+        ExpectCompositionEventsCarryTheirText();
+    }),
+                     "run the composition events in a retained application STA");
 }

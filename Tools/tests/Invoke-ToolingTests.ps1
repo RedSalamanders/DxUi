@@ -3,7 +3,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../ToolingTestRunner.psm1') -Force
-$names = @('Test-PairedProjectProfiles.ps1','Test-ConsumerQualification.ps1','Test-ToolingTestRunner.ps1') + @('Test-BuildConsole.ps1','Test-MsvcSetupEntrypoints.ps1','Test-ReleaseBuildPolicy.ps1','Test-RunEvidence.ps1','Test-Validation.ps1','Test-Docs.ps1','Test-TestPort.ps1','Test-BuildMatrix.ps1','Test-PerformanceComparison.ps1','Test-PairedRun.ps1','Test-PerformancePolicy.ps1','Test-PerformanceForms.ps1','Test-PerformanceProfiling.ps1','Test-BenchmarkGate.ps1','Test-BenchmarkHost.ps1','Test-CiGate.ps1','Test-CapabilitySkipPolicy.ps1','Test-NativeScope.ps1','Test-SuiteFailure.ps1','Test-ParallelSuites.ps1','Test-TestFilterOutput.ps1','Test-VcpkgTriplet.ps1','Test-InteractiveMode.ps1','Test-ConsumerUpdate.ps1','Test-ScopedTesting.ps1','Test-UnicodeGraphemeData.ps1','Test-MarkdownData.ps1','Test-CodeOwners.ps1')
+$names = @('Test-PairedProjectProfiles.ps1','Test-ConsumerQualification.ps1','Test-ToolingTestRunner.ps1') + @('Test-BuildConsole.ps1','Test-MsvcSetupEntrypoints.ps1','Test-ReleaseBuildPolicy.ps1','Test-RunEvidence.ps1','Test-Validation.ps1','Test-Docs.ps1','Test-TestPort.ps1','Test-BuildMatrix.ps1','Test-PerformanceComparison.ps1','Test-PairedRun.ps1','Test-PerformancePolicy.ps1','Test-PerformanceForms.ps1','Test-PerformanceProfiling.ps1','Test-FrameTiming.ps1','Test-BenchmarkGate.ps1','Test-BenchmarkHost.ps1','Test-CiGate.ps1','Test-CapabilitySkipPolicy.ps1','Test-NativeScope.ps1','Test-SuiteFailure.ps1','Test-ParallelSuites.ps1','Test-TestFilterOutput.ps1','Test-VcpkgTriplet.ps1','Test-InteractiveMode.ps1','Test-ConsumerUpdate.ps1','Test-ScopedTesting.ps1','Test-UnicodeGraphemeData.ps1','Test-MarkdownData.ps1','Test-CodeOwners.ps1')
 $names+=@('Test-SdkNotices.ps1')
 $names+=@('Test-SdkLibraryInputs.ps1')
 $names+=@('Test-MetadataQueries.ps1')
@@ -15,6 +15,13 @@ $names+=@('Test-SdkLocalCandidate.ps1')
 $names+=@('Test-SharedDesktopAdmission.ps1')
 $names+=@('Test-ProcessInspection.ps1')
 $names+=@('Test-VcpkgRestore.ps1')
+$names+=@('Test-PlanAnchors.ps1')
+$names+=@('Test-CountedCreation.ps1')
+$names+=@('Test-RetainedCacheRegistry.ps1')
+$names+=@('Test-AssignSetters.ps1')
+$names+=@('Test-GalleryCapture.ps1')
+$names+=@('Test-TraceCapture.ps1')
+$names+=@('Test-PerformanceFixtures.ps1')
 Invoke-DxUiToolingTestRoster -Scripts @($names | ForEach-Object { Join-Path $PSScriptRoot $_ })
 Write-Host 'All tooling tests passed.'
 exit 0

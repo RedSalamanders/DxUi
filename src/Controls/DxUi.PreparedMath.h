@@ -3,6 +3,7 @@
 #include "DxUi.NativeColor.h"
 #include "DxUi.NativeColorPalette.h"
 #include "DxUi.NativeMathDimension.h"
+#include "Support/CountedCreation.h"
 #include <DxUi/Configuration.h>
 #include <DxUi/Failure.h>
 #include <DxUi/RichDocument.h>
@@ -41,6 +42,7 @@ extern thread_local HRESULT testRichMathGlyphMetricsFailure;
 extern thread_local HRESULT testRichMathGlyphIndexFailure;
 extern thread_local std::size_t testRichMathConstantReads;
 extern thread_local std::size_t testRichMathPreparations;
+extern thread_local std::size_t testRichLiveMathPreparations; // PreparedMath objects alive on this thread.
 extern thread_local std::size_t testRichMathTextFormats;
 extern thread_local std::span<const std::uint8_t> testRichMathTableOverride;
 #endif
@@ -127,17 +129,18 @@ public:
             scriptVerified_ = true;
         }
         wil::com_ptr<IDWriteTextFormat> format;
-        RETURN_IF_FAILED(factory_->CreateTextFormat(textFamily == MathTextFamily::Sans        ? sansFamily_.c_str()
-                                                    : textFamily == MathTextFamily::Monospace ? monoFamily_.c_str()
-                                                    : textFamily == MathTextFamily::Script    ? scriptFamily_.c_str()
-                                                                                              : family_.c_str(),
-                                                    nullptr,
-                                                    bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
-                                                    italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
-                                                    DWRITE_FONT_STRETCH_NORMAL,
-                                                    size,
-                                                    locale_.c_str(),
-                                                    format.put()));
+        RETURN_IF_FAILED(CountedCreateTextFormat(factory_,
+                                                 textFamily == MathTextFamily::Sans        ? sansFamily_.c_str()
+                                                 : textFamily == MathTextFamily::Monospace ? monoFamily_.c_str()
+                                                 : textFamily == MathTextFamily::Script    ? scriptFamily_.c_str()
+                                                                                           : family_.c_str(),
+                                                 nullptr,
+                                                 bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,
+                                                 italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
+                                                 DWRITE_FONT_STRETCH_NORMAL,
+                                                 size,
+                                                 locale_.c_str(),
+                                                 format.put()));
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichMathTextFormats;
 #endif
@@ -544,6 +547,27 @@ class PreparedMath final
     Extent extent;
     bool displayStyle{}, finalized{}, capacityExceeded{};
     mutable HRESULT lastResult = S_OK;
+#if DXUI_ENABLE_DIAGNOSTICS
+    // Live prepared formulas on this thread, so tests observe when a generation releases one (W2.3).
+    struct LiveCount
+    {
+        LiveCount() noexcept
+        {
+            ++testRichLiveMathPreparations;
+        }
+        LiveCount(const LiveCount&) noexcept : LiveCount()
+        {
+        }
+        LiveCount& operator=(const LiveCount&) noexcept
+        {
+            return *this;
+        }
+        ~LiveCount()
+        {
+            --testRichLiveMathPreparations;
+        }
+    } liveCount;
+#endif
 
     static std::int16_t Signed16(const BYTE* bytes) noexcept
     {
@@ -2783,6 +2807,7 @@ public:
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testRichMathPreparations;
 #endif
+        ++DxUi::Detail::Work().rich.mathPreparations;
         const auto count = CountAndValidate(expression->root, displayStyle);
         if (! count)
             Failure::FailContract(E_INVALIDARG);
@@ -2852,7 +2877,8 @@ public:
             if (FAILED(lastResult))
                 return AdvanceResult::Failed;
             wil::com_ptr<IDWriteTextLayout> layout;
-            lastResult = factory->CreateTextLayout(leaf.node->text.data(), static_cast<UINT32>(leaf.node->text.size()), format, 65536.f, 65536.f, layout.put());
+            lastResult =
+                CountedCreateTextLayout(factory, leaf.node->text.data(), static_cast<UINT32>(leaf.node->text.size()), format, 65536.f, 65536.f, layout.put());
             if (FAILED(lastResult))
                 return AdvanceResult::Failed;
             DWRITE_TEXT_METRICS metrics{};

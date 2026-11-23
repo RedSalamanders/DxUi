@@ -1,4 +1,6 @@
 #pragma once
+#include "Support/WorkCounters.h"
+#include <DxUi/Configuration.h>
 #include <DxUi/Failure.h>
 #include <DxUi/RichSemanticDocument.h>
 #include <span>
@@ -6,6 +8,29 @@
 
 namespace DxUi::RichText::Detail
 {
+// Library-private construction of a semantic publication's map. The builder
+// moves its display text and spans in and lends the immutable syntax source,
+// which the map keeps alive through sourceOwner instead of copying it. Debug
+// builds run the complete public admission validation; every configuration
+// rejects ambiguous primary ownership.
+struct SourceDisplayMapAccess
+{
+    [[nodiscard]] static SourceResult TryBuildBorrowed(std::shared_ptr<const void> sourceOwner,
+                                                       std::wstring_view source,
+                                                       std::wstring&& display,
+                                                       std::vector<DisplaySpan>&& spans,
+                                                       std::shared_ptr<const SourceDisplayMap>& output);
+    // Bytes of the map's own storage: display text, spans, any source order and
+    // any owned source copy (by size, and by reserved capacity).
+    static std::size_t Bytes(const SourceDisplayMap& map) noexcept;
+    static std::size_t ReservedBytes(const SourceDisplayMap& map) noexcept;
+};
+#if DXUI_ENABLE_DIAGNOSTICS
+// Test seam: while nonzero on the calling thread, the semantic builder drops the
+// last display span before it publishes the map, a malformed publication that
+// map validation must refuse in every configuration (a fatal contract failure).
+extern thread_local unsigned testSemanticMapDefect;
+#endif
 struct SemanticValueUnit
 {
     MarkdownRange source;
@@ -217,10 +242,53 @@ public:
             spans.push_back({source, {first, last}, kind, ! generated});
         }
         text.append(value);
+        ::DxUi::Detail::Work().rich.displayUnitsWritten += value.size();
         if (! runs_.empty() && runs_.back().start + runs_.back().length == first && runs_.back().flags == flags && runs_.back().heading == heading)
             runs_.back().length += value.size();
         else
             runs_.push_back({first, value.size(), flags, heading});
+    }
+    // Reused-block copies. Text is appended first; then each clipped span and
+    // run of the copied display range is re-merged with Emit's exact rule, so a
+    // copy produces the same partition as emitting the same values again.
+    void AppendText(std::wstring_view value)
+    {
+        if (capacityExceeded)
+            return;
+        if (value.size() > SourceDisplayMap::MaximumDisplayUnits - text.size())
+        {
+            capacityExceeded = true;
+            return;
+        }
+        text.append(value);
+        ::DxUi::Detail::Work().rich.semanticDisplayUnitsCopied += value.size();
+    }
+    void AppendSpan(const DisplaySpan& span)
+    {
+        if (capacityExceeded)
+            return;
+        const bool sameSource = ! spans.empty() && spans.back().source == span.source;
+        const bool linearJoin = span.kind == DisplaySpanKind::Source && ! spans.empty() && spans.back().source.last == span.source.first;
+        if (! spans.empty() && spans.back().kind == span.kind && (linearJoin || (sameSource && span.kind != DisplaySpanKind::Source)))
+        {
+            spans.back().display.last = span.display.last;
+            if (linearJoin)
+                spans.back().source.last = span.source.last;
+            return;
+        }
+        if (spans.size() == SourceDisplayMap::MaximumSpans)
+        {
+            capacityExceeded = true;
+            return;
+        }
+        spans.push_back(span);
+    }
+    void AppendRun(const StyleRun& run)
+    {
+        if (! runs_.empty() && runs_.back().start + runs_.back().length == run.start && runs_.back().flags == run.flags && runs_.back().heading == run.heading)
+            runs_.back().length += run.length;
+        else
+            runs_.push_back(run);
     }
     void Value(const SemanticValue& value, unsigned flags, unsigned heading)
     {

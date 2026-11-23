@@ -12,6 +12,7 @@
 #include "Support.Tests.MarkdownCapacity.h"
 #include "Support.Tests.MarkdownHtml.h"
 #include "Support.Tests.MarkdownInlines.h"
+#include "Support.Tests.MarkdownParseReuse.h"
 #include "Support.Tests.MarkdownSourceCorrelation.h"
 #include <DxUi/MarkdownSyntax.h>
 #include <DxUi/RichMarkdown.h>
@@ -2046,12 +2047,305 @@ void TestLosslessMarkdownCorrelationSnapshotIdentity()
     MarkdownSourceCorrelationTests::ClosedRootDifferential(Require);
     MarkdownSourceCorrelationTests::ClosedRootCancellation(Require);
 }
+// W7.2: front-matter validation is skipped exactly when the edit lies past the closed fence and neither creates nor
+// destroys it; every other edit validates again. Each publication equals a fresh parse, diagnostics included.
+void TestMarkdownParseReuseFrontMatterValidation()
+{
+    struct Case
+    {
+        std::wstring_view source, find;
+        std::size_t offset, erase;
+        std::wstring_view insert;
+        std::uint64_t validations, reused;
+        const char* what;
+    };
+    const Case cases[] = {
+        {L"---\nkey: 1\nkey: 2\n---\n\nBody text\n\nMore\n", L"Body", 4u, 0u, L"x", 0u, 1u, "prose edit past an invalid YAML fence"},
+        {L"---\nkey: 1\n---\n\nBody text\n", L"---\n\nBody", 4u, 0u, L"Line\n", 0u, 1u, "insert at the start of the line after the closing fence"},
+        {L"---\ntitle: a\n---\n# Heading\n\nBody\n", L"Heading", 7u, 0u, L"s", 0u, 1u, "heading directly after the fence, no blank line"},
+        {L"+++\ntitle = \"a\"\nbad = \n+++\n\nBody\n", L"Body", 0u, 0u, L"x", 0u, 1u, "prose edit past an invalid TOML fence"},
+        {L"---\r\ntitle: a\r\n---\r\n\r\nBody\r\n", L"Body", 2u, 0u, L"x", 0u, 1u, "CRLF prose edit"},
+        {L"title: a\n---\n\nBody\n", L"title", 0u, 0u, L"---\n", 1u, 0u, "an opening fence typed at document start creates front matter"},
+        {L"---\ntitle: a\n\nBody\n", L"Body", 0u, 0u, L"---\n", 1u, 0u, "a closing fence typed after an unclosed envelope"},
+        {L"---\ntitle: a\n---\n\nBody\n", L"---\ntitle", 0u, 1u, L"", 0u, 0u, "deleting a unit of the opening fence destroys front matter"},
+        {L"---\ntitle: a\n---\n\nBody\n", L"---\n\nBody", 0u, 1u, L"", 0u, 0u, "deleting a unit of the closing fence unclosed the envelope"},
+        {L"---\ntitle: a\n---\n\nBody\n", L"title", 0u, 0u, L"x", 1u, 0u, "an edit inside the envelope validates again"},
+        {L"---\ntitle: a\n---", L"---", 16u, 0u, L"\n\nBody", 1u, 0u, "text appended to a closing fence at document end changes its line"},
+        {L"---\rtitle: a\r---\rBody", L"Body", 0u, 0u, L"\n", 1u, 0u, "LF after a CR-terminated closing fence joins its line ending"},
+        {L"---\ntitle: a\n---\n\nBody\n", L"---", 0u, 0u, L"x", 0u, 0u, "a unit typed before the fence destroys front matter"},
+        {L"---\ntitle: a\n---\n\n[r]: /a\n\nUse [r]\n", L"/a", 1u, 0u, L"b", 0u, 1u, "a reference definition edit keeps the front-matter result"},
+    };
+    for (const auto& item : cases)
+    {
+        Document document(item.source);
+        MarkdownParser tracked;
+        tracked.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+        static_cast<void>(MarkdownParseReuseTests::Complete(tracked, Require));
+        const auto at = std::wstring(item.source).find(item.find);
+        Require(at != std::wstring::npos, "front-matter case finds its edit site");
+        const auto position = at + item.offset;
+        document.Replace(position, position + item.erase, item.insert, {position + item.insert.size(), position + item.insert.size()});
+        DxUi::Detail::WorkCounterScope scope;
+        tracked.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+        const auto changed = MarkdownParseReuseTests::Complete(tracked, Require);
+        const auto work    = scope.Delta().rich;
+        MarkdownParser fresh;
+        fresh.Begin(document.Text(), document.Revision(), MarkdownProfile::RichMarkdown);
+        const auto expected   = MarkdownParseReuseTests::Complete(fresh, Require);
+        const auto difference = MarkdownParseReuseTests::FirstDifference(*changed, *expected);
+        if (! difference.empty() || work.markdownFrontMatterValidations != item.validations || work.markdownFrontMatterValidationsReused != item.reused)
+            std::cout << std::format("  front matter case '{}': difference '{}', validations {} (expected {}), reused {} (expected {})\n",
+                                     item.what,
+                                     difference,
+                                     work.markdownFrontMatterValidations,
+                                     item.validations,
+                                     work.markdownFrontMatterValidationsReused,
+                                     item.reused);
+        Require(difference.empty(), "a front-matter edit publishes the tree and diagnostics of a full parse");
+        Require(work.markdownFrontMatterValidations == item.validations, "front matter is validated exactly when its envelope may have changed");
+        Require(work.markdownFrontMatterValidationsReused == item.reused, "an unchanged closed envelope carries its previous result");
+    }
+}
+// W7.2: leaves outside the reparse window copy their inline forest while every link reference definition resolves as
+// before; an edit that changes the definitions reparses every leaf (counted), and both equal a full parse.
+void TestMarkdownParseReuseInlineReferences()
+{
+    struct Case
+    {
+        std::wstring_view find;
+        std::size_t offset, erase;
+        std::wstring_view insert;
+        bool fullReparse;
+        const char* what;
+    };
+    const std::wstring source = L"[ref]: /a \"T\"\n\nPara [ref] one *em*\n\nPara [two] two\n\n| a | b |\n| - | - |\n| [ref] | c |\n\n<div>\nraw\n</div>\n\n"
+                                L"Para three with [[Wiki]] and $x$\n\nLast [^n] note\n\n[^n]: The note\n";
+    const Case cases[]        = {
+        {L"three", 5u, 0u, L"!", false, "prose edit"},
+        {L"/a", 2u, 0u, L"b", true, "definition destination edited"},
+        {L"\n\nPara three", 0u, 0u, L"\n\n[two]: /t", true, "definition added"},
+        {L"[ref]: /a", 0u, 1u, L"", true, "definition destroyed"},
+        {L"*em*", 4u, 0u, L"\n\n[ref]: /shadowed", false, "a later duplicate label changes no resolution"},
+        {L"Last", 0u, 0u, L"x", false, "edit in a leaf with a footnote reference"},
+    };
+    for (const auto& item : cases)
+    {
+        Document document(source);
+        MarkdownParser tracked;
+        tracked.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+        static_cast<void>(MarkdownParseReuseTests::Complete(tracked, Require));
+        const auto position = source.find(item.find) + item.offset;
+        document.Replace(position, position + item.erase, item.insert, {position + item.insert.size(), position + item.insert.size()});
+        DxUi::Detail::WorkCounterScope scope;
+        tracked.Begin(document.Snapshot(), document.Revision(), MarkdownProfile::RichMarkdown);
+        const auto changed = MarkdownParseReuseTests::Complete(tracked, Require);
+        const auto work    = scope.Delta().rich;
+        MarkdownParser fresh;
+        fresh.Begin(document.Text(), document.Revision(), MarkdownProfile::RichMarkdown);
+        const auto expected   = MarkdownParseReuseTests::Complete(fresh, Require);
+        const auto difference = MarkdownParseReuseTests::FirstDifference(*changed, *expected);
+        std::cout << std::format("  inline reuse case '{}': leaves parsed {}, copied {}, full reparses {}{}\n",
+                                 item.what,
+                                 work.markdownInlineLeavesParsed,
+                                 work.markdownInlineLeavesCopied,
+                                 work.markdownInlineFullReparses,
+                                 difference.empty() ? "" : ", difference " + difference);
+        Require(difference.empty(), "an inline-reuse edit publishes the tree of a full parse");
+        Require((work.markdownInlineFullReparses == 1u) == item.fullReparse, "only a change of reference resolution reparses every leaf");
+        if (! item.fullReparse)
+            Require(work.markdownInlineLeavesCopied >= 4u && work.markdownInlineLeavesParsed <= 2u, "unchanged leaves copy their inline forest");
+    }
+}
+// W7.2 review F1: a top-level block whose first line did not begin with nothing open (a paragraph left over after
+// reference-definition extraction, a table whose header was a paragraph's last line) is never imported after the edit.
+// Each case is one edit from a fresh parse, on the tracked and on the string path, against a full parse.
+void TestMarkdownParseReuseDirectedCases()
+{
+    struct Case
+    {
+        std::wstring_view previous;
+        std::size_t first, last;
+        std::wstring_view insert;
+        MarkdownProfile profile;
+    };
+    const Case cases[] = {
+        {L"[a]: /u\n-\n", 0u, 7u, L"", MarkdownProfile::CommonMark0312},
+        {L"[SS]: /shadow\n-", 0u, 13u, L"", MarkdownProfile::RichMarkdown},
+        {L"[o]:-->\n-", 0u, 0u, L"<!--", MarkdownProfile::RichMarkdown},
+        {L"[a]: /u\n-\n\nnext\n", 0u, 7u, L"", MarkdownProfile::RichMarkdown},
+        {L"]\n[r]:n\n-|", 1u, 1u, L"\n", MarkdownProfile::Gfm029},
+        {L"[x]:&\n-", 5u, 5u, L"\n", MarkdownProfile::Gfm029},
+        {L"[r]:\"\n-", 5u, 5u, L"\n", MarkdownProfile::RichMarkdown},
+        {L"[\u1E9E]:p\r-", 5u, 5u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"[^x]: n\n-", 1u, 7u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"a\nb|c\n-|-\n", 0u, 2u, L"", MarkdownProfile::Gfm029},
+        {L"a\n[r]: /u\n-|-\n", 0u, 2u, L"", MarkdownProfile::Gfm029},
+        {L"[a]: /u\n2. x\n", 7u, 7u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"Text\n\n[a]: /u\n---\n\nAfter\n", 4u, 4u, L"!", MarkdownProfile::CommonMark0312},
+        {L"Text\n[a]: /u\n---\n\nAfter\n", 4u, 4u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"Intro\n[r]: /u\n-|-\n\nAfter\n", 5u, 5u, L"\n", MarkdownProfile::Gfm029},
+        {L"[a]: /u\n<span>\n", 7u, 7u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\n    code\n", 7u, 7u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\n-\n", 7u, 7u, L"\n", MarkdownProfile::CommonMark0312},
+        {L"Intro\n[a]: /u\n-|-\n\nnext\n", 5u, 5u, L"\n", MarkdownProfile::Gfm029},
+        {L"[a]: /u\nPara\n===\n\nnext\n", 0u, 0u, L"x", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\ntext\n\nnext [a]\n", 0u, 7u, L"[a]: /v", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\n- x\n", 0u, 7u, L"", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\n2. x\n", 0u, 7u, L"", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\n    code\n", 0u, 7u, L"", MarkdownProfile::CommonMark0312},
+        {L"[a]: /u\nb\n", 0u, 1u, L"", MarkdownProfile::CommonMark0312},
+        {L"x\n\n[a]: /u\n===\n", 0u, 1u, L"y", MarkdownProfile::CommonMark0312},
+        {L"intro\nhead | er\n--- | ---\ncell\n\nafter\n", 0u, 6u, L"", MarkdownProfile::Gfm029},
+        // A block that began fresh but was still open at the next line (its last line became a table header).
+        {L"```\n```\n\n\np\n    d\n-|", 8u, 8u, L"|", MarkdownProfile::RichMarkdown},
+        {L"x\n\np\nhead\n-|\n", 0u, 1u, L"y", MarkdownProfile::Gfm029},
+    };
+    for (const auto& item : cases)
+        for (const bool strings : {false, true})
+        {
+            Document document(item.previous);
+            MarkdownParser parser;
+            if (strings)
+                parser.Begin(document.Text(), document.Revision(), item.profile);
+            else
+                parser.Begin(document.Snapshot(), document.Revision(), item.profile);
+            static_cast<void>(MarkdownParseReuseTests::Complete(parser, Require));
+            bool changed{};
+            Require(document.TryReplace(item.first, item.last, item.insert, {item.first, item.first}, changed) == SourceResult::Success && changed,
+                    "a directed reuse case applies its edit");
+            if (strings)
+                parser.Begin(document.Text(), document.Revision(), item.profile);
+            else
+                parser.Begin(document.Snapshot(), document.Revision(), item.profile);
+            const auto changedSyntax = MarkdownParseReuseTests::Complete(parser, Require);
+            MarkdownParser fresh;
+            fresh.Begin(document.Text(), document.Revision(), item.profile);
+            const auto expected   = MarkdownParseReuseTests::Complete(fresh, Require);
+            const auto difference = MarkdownParseReuseTests::FirstDifference(*changedSyntax, *expected);
+            if (! difference.empty())
+                std::cout << std::format("  directed reuse case \"{}\" [{}, {}) \"{}\" ({}): {}\n",
+                                         MarkdownParseReuseTests::Escape(item.previous),
+                                         item.first,
+                                         item.last,
+                                         MarkdownParseReuseTests::Escape(item.insert),
+                                         strings ? "strings" : "tracked",
+                                         difference);
+            Require(difference.empty(), "a block not begun with nothing open is parsed again, never imported");
+        }
+}
+// W7.2 oracle: seeded edits (inserts, deletions, multi-line pastes, front matter pasted and broken, edits at document start
+// and end) against a fresh full parse after every edit. At least 20,000 compared edits in Release.
+void TestMarkdownParseReuseOracleFuzz()
+{
+#ifdef _DEBUG
+    std::size_t scale = 1u;
+#else
+    std::size_t scale = 10u;
+#endif
+    // A one-off long run multiplies the suite's bounded count (DXUI_MARKDOWN_REUSE_FUZZ_SCALE=N); the suite never sets it.
+    char multiplier[16]{};
+    std::size_t multiplierLength{};
+    if (getenv_s(&multiplierLength, multiplier, "DXUI_MARKDOWN_REUSE_FUZZ_SCALE") == 0 && multiplierLength > 1u)
+        scale *= (std::max)(std::size_t{1u}, static_cast<std::size_t>(std::strtoull(multiplier, nullptr, 10)));
+    // ... and DXUI_MARKDOWN_REUSE_FUZZ_SEED=<hex> offsets every seed, for a run on fresh documents.
+    std::uint64_t seedOffset = 0u;
+    if (getenv_s(&multiplierLength, multiplier, "DXUI_MARKDOWN_REUSE_FUZZ_SEED") == 0 && multiplierLength > 1u)
+        seedOffset = std::strtoull(multiplier, nullptr, 16);
+    struct Run
+    {
+        MarkdownProfile profile;
+        std::uint64_t seed;
+        std::size_t edits;
+    };
+    const Run runs[] = {
+        {MarkdownProfile::RichMarkdown, 0x7202'0001u, 250u * scale},
+        {MarkdownProfile::RichMarkdown, 0x7202'0002u, 250u * scale},
+        {MarkdownProfile::RichMarkdown, 0x7202'0003u, 250u * scale},
+        {MarkdownProfile::RichMarkdown, 0x7202'0004u, 250u * scale},
+        {MarkdownProfile::RichMarkdown, 0x7202'0005u, 250u * scale},
+        {MarkdownProfile::RichMarkdown, 0x7202'0006u, 250u * scale},
+        {MarkdownProfile::RichMarkdown, 0x7202'0007u, 250u * scale},
+        {MarkdownProfile::RichMarkdown, 0x7202'0008u, 250u * scale},
+        {MarkdownProfile::Gfm029, 0x7202'0101u, 100u * scale},
+        {MarkdownProfile::Gfm029, 0x7202'0102u, 100u * scale},
+        {MarkdownProfile::CommonMark0312, 0x7202'0201u, 100u * scale},
+    };
+    MarkdownParseReuseTests::FuzzResult total;
+    for (const auto& run : runs)
+    {
+        const auto result = MarkdownParseReuseTests::RunEditFuzz(run.seed + seedOffset, run.edits, run.profile, Require);
+        std::cout << std::format("  parse reuse fuzz seed 0x{:X} profile {}: {} edits compared ({} deletions, {} pastes, {} at start, {} at end); "
+                                 "leaves copied {}, parsed {}; full inline reparses {}; front matter validated {}, reused {}\n",
+                                 run.seed,
+                                 static_cast<unsigned>(run.profile),
+                                 result.compared,
+                                 result.deletions,
+                                 result.pastes,
+                                 result.atStart,
+                                 result.atEnd,
+                                 result.leavesCopied,
+                                 result.leavesParsed,
+                                 result.inlineFullReparses,
+                                 result.frontMatterValidated,
+                                 result.frontMatterReused);
+        total.compared += result.compared;
+        total.deletions += result.deletions;
+        total.pastes += result.pastes;
+        total.atStart += result.atStart;
+        total.atEnd += result.atEnd;
+        total.leavesCopied += result.leavesCopied;
+        total.inlineFullReparses += result.inlineFullReparses;
+        total.frontMatterReused += result.frontMatterReused;
+        total.frontMatterCreated += result.frontMatterCreated;
+        total.frontMatterRemoved += result.frontMatterRemoved;
+        total.fencesOpened += result.fencesOpened;
+        total.fencesClosed += result.fencesClosed;
+        total.referenceChanges += result.referenceChanges;
+        total.lazyDocuments += result.lazyDocuments;
+        total.setextChanges += result.setextChanges;
+    }
+    std::cout << std::format("  parse reuse fuzz total: {} edits equal to a full parse; front matter created {}, removed {}; fences opened {}, "
+                             "closed {}; reference resolution changes {}; edits on documents with lazy lines {}; setext changes {}\n",
+                             total.compared,
+                             total.frontMatterCreated,
+                             total.frontMatterRemoved,
+                             total.fencesOpened,
+                             total.fencesClosed,
+                             total.referenceChanges,
+                             total.lazyDocuments,
+                             total.setextChanges);
+    // The review's generator, a second and independent source of documents and edits (three profiles in turn).
+    std::size_t reviewCompared = 0u, reviewUndo = 0u, reviewOld = 0u;
+    const MarkdownProfile reviewProfiles[] = {MarkdownProfile::RichMarkdown, MarkdownProfile::Gfm029, MarkdownProfile::CommonMark0312};
+    for (std::uint64_t seed = 0u; seed < 12u; ++seed)
+    {
+        const auto result = MarkdownParseReuseTests::RunReviewFuzz(0x7202'A000u + seedOffset + seed, 100u * scale, reviewProfiles[seed % 3u], Require);
+        reviewCompared += result.compared;
+        reviewUndo += result.undoRedo;
+        reviewOld += result.mixedOld;
+    }
+    std::cout << std::format("  parse reuse review-generator fuzz: {} edits equal to a full parse (tracked, strings and mixed parsers; {} undo or redo, "
+                             "{} old-snapshot parses)\n",
+                             reviewCompared,
+                             reviewUndo,
+                             reviewOld);
+    Require(total.compared >= 2000u * scale, "the oracle compares at least 2,000 edits (20,000 in Release)");
+    Require(reviewCompared >= 1000u * scale, "the review generator compares at least 1,000 edits (10,000 in Release)");
+    Require(total.frontMatterCreated > 0u && total.frontMatterRemoved > 0u && total.fencesOpened > 0u && total.fencesClosed > 0u &&
+                total.referenceChanges > 0u && total.lazyDocuments > 0u && total.setextChanges > 0u && total.atStart > 0u && total.atEnd > 0u &&
+                total.deletions > 0u && total.pastes > 0u,
+            "the oracle's edits cover front matter created and removed, fences opened and closed, reference changes and lazy lines");
+}
 void RunRichMarkdownTests()
 {
     DXUI_RUN_TEST(TestRichMarkdownInlineExtensions);
     DXUI_RUN_TEST(TestRichMarkdownWikiLinks);
     DXUI_RUN_TEST(TestLosslessMarkdownCorrelationSourceReadBudget);
     DXUI_RUN_TEST(TestLosslessMarkdownCorrelationSnapshotIdentity);
+    DXUI_RUN_TEST(TestMarkdownParseReuseFrontMatterValidation);
+    DXUI_RUN_TEST(TestMarkdownParseReuseInlineReferences);
+    DXUI_RUN_TEST(TestMarkdownParseReuseDirectedCases);
+    DXUI_RUN_TEST(TestMarkdownParseReuseOracleFuzz);
     DXUI_RUN_TEST(TestRichMarkdownPrototypeContracts);
     DXUI_RUN_TEST(TestRichMarkdownSnapshotAndValidationContracts);
     DXUI_RUN_TEST(TestRichMarkdownV0StylesCommandsAndMalformedMappings);

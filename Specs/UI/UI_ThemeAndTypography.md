@@ -54,6 +54,51 @@ Prepare changed Unicode text/layout and glyph resources outside composition. Use
 control bounds without cutting essential ink. DPI changes rebuild appropriate resources; position-only movement
 does not. Transparent-target antialiasing, alpha blending, mixed scripts and narrow bounds require visual tests.
 
+### Text antialiasing and rendering parameters
+
+A new Direct2D device context starts at `D2D1_TEXT_ANTIALIAS_MODE_DEFAULT` with no rendering parameters bound. Direct2D
+documents that default as ClearType, downgraded to grayscale on a target with an alpha channel not set to
+`D2D1_ALPHA_MODE_IGNORE` ([antialias mode](https://learn.microsoft.com/en-us/windows/win32/api/d2d1/ne-d2d1-d2d1_text_antialias_mode),
+[pixel formats and alpha modes](https://learn.microsoft.com/en-us/windows/win32/direct2d/supported-pixel-formats-and-alpha-modes)),
+and forcing ClearType onto such a transparent target gives unpredictable results. Observed on WARP (2026-11-14,
+`TestTextAntialiasDefaultsFollowTheTargetAlphaMode`): the default draws byte-identically to explicit `CLEARTYPE` on an
+`IGNORE` target (the `HwndSwapChain` buffer) and to explicit `GRAYSCALE` on a `PREMULTIPLIED` target (the
+`CompositionSwapChain` buffer and the embedded surface). Neither documentation nor this observation shows the default
+reading the user's font-smoothing setting, so the hosts read it explicitly. The process reads `SPI_GETFONTSMOOTHING`
+(off) and `SPI_GETFONTSMOOTHINGTYPE` (Standard or ClearType; ClearType when unreadable) at first use and again on every
+`WM_SETTINGCHANGE` a window host receives; tests replace that value through `DebugSetFontSmoothingForTest` and never
+change the real setting.
+
+- `HwndSwapChain` keeps the default (ClearType) while the setting is ClearType and sets `GRAYSCALE` when the user turned
+  ClearType off, Standard or off alike. `CompositionSwapChain` keeps the default (grayscale). The embedded host keeps its
+  explicit `GRAYSCALE`. ClearType is never set on a premultiplied target.
+- A window host binds `IDWriteFactory::CreateMonitorRenderingParams` for the monitor of its window. It reads them again
+  after `WM_DPICHANGED`, `WM_DPICHANGED_AFTERPARENT`, a `WM_MOVE` that lands on another monitor and a font-smoothing
+  `WM_SETTINGCHANGE` (`SPI_SETFONTSMOOTHING`, `...TYPE`, `...CONTRAST`, `...ORIENTATION`); other settings keep them.
+- An embedded host owns no window: `EmbeddedHost::SetTextRenderingMonitor(monitor)` lets the application supply the
+  monitor, and each call reads its parameters again at the next preparation. Without a monitor (the default) it binds
+  no parameters, exactly as before that input existed; `nullptr` unbinds them.
+- Bound parameters must suit the antialias mode: otherwise text drawing fails and puts the target in an error state
+  ([`SetTextRenderingParams`](https://learn.microsoft.com/en-us/windows/win32/api/d2d1/nf-d2d1-id2d1rendertarget-settextrenderingparams)).
+  Measured on WARP (`TestTextRenderingParamsCompatibilityWithAntialiasModes`): `EndDraw` returns `E_INVALIDARG` for an
+  `ALIASED` rendering mode under `CLEARTYPE` or `GRAYSCALE`, for `OUTLINE` under `CLEARTYPE`, and for any mode other
+  than `DEFAULT`, `ALIASED` or `OUTLINE` under the `ALIASED` antialias mode; `DEFAULT` accepts every rendering mode. A
+  monitor parameter set the chosen mode rejects is replaced by a copy with the same gamma, contrast, ClearType level and
+  pixel geometry and `DWRITE_RENDERING_MODE_DEFAULT`.
+- The mode and parameters are applied before a frame draws and only when the setting, the monitor or the device context
+  changed: a steady frame makes no `SetTextRenderingParams` call (work counter `text.setTextRenderingParams`) and creates
+  no parameters (`resources.renderingParams`). A changed state repaints the whole native frame, never a dirty rectangle
+  alone. The parameter set belongs to the host, not to the thread's shared graphics pool.
+- With the user's setting unchanged and ClearType on, both presentation modes and the embedded host draw FX5 byte for byte
+  as without bound parameters (`TestTextRenderingDefaultSettingKeepsTodaysPixels`), and the gallery's text tiles at 96,
+  144 and 192 DPI equal the G1 gallery receipt; on the measured machine the primary
+  monitor's parameters equal DirectWrite's defaults ([receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W6.4/README.md)).
+Text shortened to fit never cuts inside a grapheme cluster: a leading ellipsis (`StatusStrip` sections with
+`leadingEllipsis`) chooses its cut from one layout of the dots and the text and that layout's cluster metrics, at a
+cluster boundary that is also a Unicode default grapheme boundary. Wrapped text draws its glyphs, selection, caret and
+hit tests from layouts of one width, the unsnapped text-box width; pixel snapping may move the drawing origin but
+never the wrap width, so every part breaks lines identically at fractional scales.
+
 RichTextEditor may override inherited body/code family and size, font-relative
 line height and heading scale through its public appearance value. These values
 are part of layout reuse identity and UIA font attributes. Opt-in accent links

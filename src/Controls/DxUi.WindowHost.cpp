@@ -19,6 +19,7 @@
 #include <random>
 #include <ranges>
 #include <string>
+#include <typeinfo>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -37,6 +38,7 @@
 #include "Support/AnimationDispatcher.h"
 #include "Support/Diagnostics.h"
 #include "Support/NativeRendering.h"
+#include "Support/Trace.h"
 #include "Support/WindowMessages.h"
 
 #pragma comment(lib, "d2d1.lib")
@@ -61,7 +63,8 @@ namespace DxUi
                                                         ID3D11DeviceContext** context,
                                                         D3D_DRIVER_TYPE* driverType) noexcept
 {
-    return Detail::CreateD3D11DeviceWithWarpFallback(creationFlags, featureLevels, forceWarp, device, featureLevel, context, driverType, &::D3D11CreateDevice);
+    return Detail::CreateD3D11DeviceWithWarpFallback(
+        creationFlags, featureLevels, forceWarp, device, featureLevel, context, driverType, Detail::SystemD3D11DeviceCreator());
 }
 
 [[nodiscard]] HRESULT Detail::CreateD3D11DeviceWithWarpFallback(UINT creationFlags,
@@ -103,17 +106,20 @@ namespace DxUi
 
         // Drivers may handle a C++ exception internally before returning an
         // HRESULT. Keep the allowance at the native ABI, including each retry.
-        return Failure::InvokeNative(creator,
-                                     nullptr,
-                                     requestedDriverType,
-                                     nullptr,
-                                     creationFlags,
-                                     featureLevels.data(),
-                                     static_cast<UINT>(featureLevels.size()),
-                                     static_cast<UINT>(D3D11_SDK_VERSION),
-                                     createdDevice.addressof(),
-                                     &createdFeatureLevel,
-                                     createdContext.addressof());
+        const HRESULT created = Failure::InvokeNative(creator,
+                                                      nullptr,
+                                                      requestedDriverType,
+                                                      nullptr,
+                                                      creationFlags,
+                                                      featureLevels.data(),
+                                                      static_cast<UINT>(featureLevels.size()),
+                                                      static_cast<UINT>(D3D11_SDK_VERSION),
+                                                      createdDevice.addressof(),
+                                                      &createdFeatureLevel,
+                                                      createdContext.addressof());
+        if (SUCCEEDED(created))
+            Detail::NoteResourceCreated(Detail::ResourceKind::d3d11Device, createdDevice.get());
+        return created;
     };
 
     D3D_DRIVER_TYPE createdDriverType = D3D_DRIVER_TYPE_WARP;
@@ -217,6 +223,38 @@ void EmitWindowHostFrameMetrics(
     EmitFrameMetric(L"dxui.frame.present_us", presentUs);
     Debug::Perf::EmitValue(L"dxui.frame.dirty_rect_count", dirtyMetrics.count);
     Debug::Perf::EmitValue(L"dxui.frame.dirty_rect_area_px", dirtyMetrics.areaPx);
+}
+
+// The trace provider's input-received event for one native input message; any other message writes nothing.
+template <typename Correlation> void TraceWindowHostInput(Correlation& correlation, UINT msg) noexcept
+{
+    using Detail::Trace::InputKind;
+    InputKind kind{};
+    switch (msg)
+    {
+        case WM_MOUSEMOVE: kind = InputKind::PointerMove; break;
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONDBLCLK:
+        case WM_RBUTTONDOWN:
+        case WM_RBUTTONDBLCLK:
+        case WM_MBUTTONDOWN:
+        case WM_MBUTTONDBLCLK:
+        case WM_XBUTTONDOWN:
+        case WM_XBUTTONDBLCLK: kind = InputKind::PointerDown; break;
+        case WM_LBUTTONUP:
+        case WM_RBUTTONUP:
+        case WM_MBUTTONUP:
+        case WM_XBUTTONUP: kind = InputKind::PointerUp; break;
+        case WM_MOUSEWHEEL:
+        case WM_MOUSEHWHEEL: kind = InputKind::Wheel; break;
+        case WM_KEYDOWN:
+        case WM_SYSKEYDOWN: kind = InputKind::KeyDown; break;
+        case WM_KEYUP:
+        case WM_SYSKEYUP: kind = InputKind::KeyUp; break;
+        case WM_CHAR: kind = InputKind::Character; break;
+        default: return;
+    }
+    Detail::Trace::InputReceived(correlation, kind);
 }
 
 [[nodiscard]] wchar_t NormalizeMnemonicChar(wchar_t ch) noexcept
@@ -496,15 +534,10 @@ template <typename... Args> void TraceWindowHostDiagnostics(std::wstring_view ev
     }
 }
 
-[[nodiscard]] uint64_t ResolveTooltipShowDelayMs() noexcept
+// The show delay for a mouse hover time as SPI_GETMOUSEHOVERTIME reports it (0: not read).
+[[nodiscard]] uint64_t ClampTooltipShowDelayMs(UINT hoverTimeMs) noexcept
 {
-    UINT hoverTimeMs = 0u;
-    if (SystemParametersInfoW(SPI_GETMOUSEHOVERTIME, 0u, &hoverTimeMs, 0u) != FALSE && hoverTimeMs > 0u)
-    {
-        return std::clamp<uint64_t>(hoverTimeMs, kTooltipMinShowDelayMs, kTooltipMaxShowDelayMs);
-    }
-
-    return kTooltipFallbackShowDelayMs;
+    return hoverTimeMs > 0u ? std::clamp<uint64_t>(hoverTimeMs, kTooltipMinShowDelayMs, kTooltipMaxShowDelayMs) : kTooltipFallbackShowDelayMs;
 }
 
 [[nodiscard]] bool IsWithinSystemDoubleClickBounds(POINT firstPointPx, POINT secondPointPx) noexcept
@@ -781,8 +814,7 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
     // unload hangs. Keep D2D diagnostics opt-in; D3D debug remains enabled.
     options.debugLevel = D2D1_DEBUG_LEVEL_NONE;
 #endif
-    const HRESULT hrD2dFactory =
-        D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory1), &options, reinterpret_cast<void**>(resources.d2dFactory.addressof()));
+    const HRESULT hrD2dFactory = Detail::CreateHostD2DFactory(options, resources.d2dFactory.addressof());
     if (FAILED(hrD2dFactory) || ! resources.d2dFactory)
     {
         Debug::Error(L"DxUi::ControlHost: shared D2D1CreateFactory failed: 0x{:08X}", hrD2dFactory);
@@ -797,9 +829,9 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
         ResetSharedWindowHostGraphicsResourcesLocked(resources);
         return false;
     }
+    ++Detail::Work().frame.d2dDevices;
 
-    const HRESULT hrWrite =
-        DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(resources.dwriteFactory.addressof()));
+    const HRESULT hrWrite = Detail::CreateHostWriteFactory(resources.dwriteFactory.addressof());
     if (FAILED(hrWrite) || ! resources.dwriteFactory)
     {
         Debug::Error(L"DxUi::ControlHost: shared DWriteCreateFactory failed: 0x{:08X}", hrWrite);
@@ -839,6 +871,7 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
         resources.dcompDevice.reset();
         return false;
     }
+    ++Detail::Work().frame.compositionDevices;
 
     return true;
 }
@@ -1220,9 +1253,9 @@ enum class MessagePruneObserverIndex : size_t
 
 } // namespace
 
-// The one membership walk, through logical children (a Panel's children and a PageHost's current page). It compares
-// addresses only, so a removed or destroyed `target` is never dereferenced.
-bool IsControlInTree(const Control* root, const Control* target) noexcept
+namespace
+{
+[[nodiscard]] bool IsControlInTreeWalk(const Control* root, const Control* target) noexcept
 {
     if (! root || ! target)
     {
@@ -1234,12 +1267,22 @@ bool IsControlInTree(const Control* root, const Control* target) noexcept
     }
     for (size_t childIndex = 0u; childIndex < root->GetLogicalChildCount(); ++childIndex)
     {
-        if (IsControlInTree(root->GetLogicalChild(childIndex), target))
+        if (IsControlInTreeWalk(root->GetLogicalChild(childIndex), target))
         {
             return true;
         }
     }
     return false;
+}
+} // namespace
+
+// The one membership walk, through logical children (a Panel's children and a PageHost's current page). It compares
+// addresses only, so a removed or destroyed `target` is never dereferenced.
+bool IsControlInTree(const Control* root, const Control* target) noexcept
+{
+    if (g_hostPreparationDepth != 0u)
+        ++Detail::Work().frame.preparationMembershipSearches;
+    return IsControlInTreeWalk(root, target);
 }
 
 bool IsControlEffectivelyInteractive(const Control* root, const Control* target) noexcept
@@ -1502,6 +1545,8 @@ bool ControlHost::Attach(HWND hwnd, const AttachOptions& options) noexcept
     GetClientRect(hwnd, &client);
     _widthPx  = static_cast<UINT>(std::max(0L, client.right - client.left));
     _heightPx = static_cast<UINT>(std::max(0L, client.bottom - client.top));
+    // Requests made before the host had a window (SetRoot, then a transition, then Attach) reach the dispatcher now.
+    OnFrameScheduleChanged();
     return true;
 }
 
@@ -1592,17 +1637,30 @@ void ControlHost::Detach(bool processExit) noexcept
         // message delivery cannot re-enter this host while its tree is partially cleared.
         UnregisterWindowHostAccessibilityTarget(attachedHwnd, this);
     }
-    _attachmentOwnerThreadId = 0u;
-    _hwnd                    = nullptr;
+    CancelRecoveryRetry();
+    _recoveryRetryNextDelayMs = 0u;
+    _attachmentOwnerThreadId  = 0u;
+    _hwnd                     = nullptr;
 
+    // The one place a host leaves the dispatcher. A wake in progress learns through its stack frame that this host is
+    // gone and does not touch it again; the schedule is dropped with the tree.
+    for (TickWakeFrame* frame = _tickWakeFrame; frame; frame = frame->previous)
+        frame->abandoned = true;
+    _tickWakeFrame = nullptr;
     if (_animationSubscriptionId != 0u)
     {
-        Ui::AnimationDispatcher::GetInstance().Unsubscribe(_animationSubscriptionId);
+        if (auto* const dispatcher = Ui::AnimationDispatcher::TryGetInstance())
+            dispatcher->Unsubscribe(_animationSubscriptionId);
         _animationSubscriptionId = 0u;
     }
-    _animationSuspendedWhileHidden     = false;
-    _nativePresentationVisible         = true;
-    _nativePresentationResumeAnimation = false;
+    _dispatcherWakeKind = FrameScheduleWake::Kind::None;
+    _tickRequests.clear();
+    _tickDue.clear();
+    _tickTreeRequested             = false;
+    _tickTreeDiscovery             = false;
+    _animationSuspendedWhileHidden = false;
+    _hiddenThroughAncestor         = false;
+    _nativePresentationVisible     = true;
 #if DXUI_ENABLE_DIAGNOSTICS
     _debugTextStoreLayoutObserver.reset();
 #endif
@@ -1631,26 +1689,51 @@ void ControlHost::Detach(bool processExit) noexcept
         {
             // DestroyWindow can reenter native dispatch; the registry locks have
             // already been released and all controls have relinquished subscriptions.
-            Ui::AnimationDispatcher::GetInstance().RetireIdleWindow();
+            if (auto* const dispatcher = Ui::AnimationDispatcher::TryGetInstance())
+                dispatcher->RetireIdleWindow();
         }
     }
 }
 
 void ControlHost::SetTheme(const ThemePalette& palette) noexcept
 {
-    const bool densityChanged = _palette.density != palette.density;
+    const bool densityChanged       = _palette.density != palette.density;
+    const bool reducedMotionChanged = _palette.reducedMotion != palette.reducedMotion;
     // Density changes hit geometry. A theme assigned while painting also invalidates that mixed-palette frame;
     // ordinary color-only changes keep paint-dirty pointer dispatch available until preparation.
     if (densityChanged || IsRenderStageActive())
         ++_interactionRevision;
     _palette = palette;
+    // Typography and metrics of the theme size popups and headers (a ComboBox popup, TabControl headers) without moving
+    // bounds; theme changes are rare, so every one moves the hit revision.
+    if (HitRevisionSiteLive(HitRevisionSite::HostTheme))
+        AdvanceHitRevision();
     RecreateBrushCache();
-    _forceAllVisualPreparation = true;
-    _pendingVisualPreparation  = true;
+    // Every control prepares its visual content again for the new palette: each one in the tree (an outgoing page's too) is
+    // marked, visible or not, so a control hidden now prepares when it is shown.
+    if (_root)
+    {
+        const auto mark = [](const auto& self, Control& control) noexcept -> void
+        {
+            if (control._visualPreparationEnabled)
+                control._visualPreparationPending = true;
+            const size_t count = control.GetLogicalChildCount();
+            for (size_t index = 0u; index < count; ++index)
+                if (Control* const child = control.GetLogicalChild(index))
+                    self(self, *child);
+            if (auto* const page = dynamic_cast<PageHost*>(&control); page && page->_outgoingPage && page->_outgoingPage != page->_currentPage)
+                self(self, *page->_outgoingPage);
+        };
+        mark(mark, *_root);
+    }
+    _pendingVisualPreparation = true;
     if (_root && densityChanged)
     {
         _root->OnDensityChanged();
     }
+    // Reduced motion makes a focused caret steady, and lifting it lets the caret blink again.
+    if (reducedMotionChanged)
+        RearmCaret();
     Invalidate();
 }
 
@@ -1706,8 +1789,14 @@ void ControlHost::SetRoot(std::unique_ptr<Control> root)
         previousRoot->PropagateHost(nullptr);
     }
     RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
-    if (_embedded && _root)
-        RequestAnimation();
+    // An embedded root gets one discovery tick: the whole tree is ticked once so a control that animates from the start
+    // (a derived control that only returns true from Tick) is found. The library's own controls request for themselves.
+    if (_embedded && _root && ! _detachInProgress.load(std::memory_order_acquire))
+    {
+        _tickTreeRequested = true;
+        _tickTreeDiscovery = true;
+        OnFrameScheduleChanged();
+    }
     Invalidate();
 }
 
@@ -1726,6 +1815,8 @@ bool ControlHost::SetTooltip(std::wstring text, const D2D1_POINT_2F& originDip)
     const bool changed = _tooltipLayer.SetTooltip(std::move(text), originDip);
     if (changed)
     {
+        // A tracking tooltip ends any pending show or hide.
+        OnTooltipScheduleChanged();
         Invalidate();
     }
     return changed;
@@ -1743,6 +1834,8 @@ bool ControlHost::InspectTooltip(std::wstring text, const D2D1_POINT_2F& originD
     }
     ClearPendingPointerDoubleClick();
     const bool active = _tooltipLayer.Inspect(std::move(text), originDip);
+    // An inspection waits for no deadline.
+    OnTooltipScheduleChanged();
     Invalidate();
     return active;
 }
@@ -1784,10 +1877,11 @@ bool ControlHost::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& orig
     // The host's animation clock: an idle native host reads the dispatcher's current time rather than its own stale
     // tick, and an embedded host its timeline, which its ticks advance.
     const uint64_t nowTickMs = GetAnimationTickMs();
-    const bool changed       = _tooltipLayer.SetTooltipDelayed(std::wstring(text), originDip, nowTickMs, ResolveTooltipShowDelayMs());
+    const bool changed       = _tooltipLayer.SetTooltipDelayed(std::wstring(text), originDip, nowTickMs, GetTooltipShowDelayMs());
     if (changed)
     {
-        RequestAnimation();
+        // Entering, replacing or ending a pending show: the dispatcher learns the one deadline that is left.
+        OnTooltipScheduleChanged();
         Invalidate();
     }
     return changed;
@@ -1801,7 +1895,7 @@ bool ControlHost::BeginTooltipHideDelay(uint64_t delayMs) noexcept
     const bool changed       = _tooltipLayer.BeginHideDelay(nowTickMs, delayMs);
     if (changed)
     {
-        RequestAnimation();
+        OnTooltipScheduleChanged();
     }
     return changed;
 }
@@ -1821,6 +1915,7 @@ bool ControlHost::ClearTooltip() noexcept
     }
     if (changed)
     {
+        OnTooltipScheduleChanged();
         Invalidate();
     }
     return changed;
@@ -1847,14 +1942,48 @@ bool ControlHost::DebugAdvanceTooltipDelayForTest() noexcept
     // The host's animation clock: an idle native host reads the dispatcher's current time rather than its own stale
     // tick, and an embedded host its timeline, which its ticks advance.
     const uint64_t nowTickMs = GetAnimationTickMs();
-    const bool changed       = _tooltipLayer.Tick(*this, nowTickMs + ResolveTooltipShowDelayMs() + 1u);
+    const bool wasShown      = _tooltipLayer.HasTooltip();
+    static_cast<void>(_tooltipLayer.Tick(*this, nowTickMs + GetTooltipShowDelayMs() + 1u));
+    OnTooltipScheduleChanged();
+    const bool changed = _tooltipLayer.HasTooltip() != wasShown;
     if (changed)
     {
         Invalidate();
     }
     return changed;
 }
+
+void ControlHost::DebugSetTooltipHoverTimeForTest(std::optional<UINT> hoverTimeMs) noexcept
+{
+    _tooltipHoverTimeForTestOn = hoverTimeMs.has_value();
+    _tooltipHoverTimeForTestMs = hoverTimeMs.value_or(0u);
+}
+
+uint64_t ControlHost::DebugGetTooltipShowDelayMsForTest() noexcept
+{
+    return GetTooltipShowDelayMs();
+}
 #endif
+
+void ControlHost::RefreshTooltipHoverTime() noexcept
+{
+    UINT hoverTimeMs = 0u;
+    if (_tooltipHoverTimeForTestOn)
+        hoverTimeMs = _tooltipHoverTimeForTestMs;
+    // Read, never written: the setting belongs to the user.
+    else if (SystemParametersInfoW(SPI_GETMOUSEHOVERTIME, 0u, &hoverTimeMs, 0u) == FALSE)
+        hoverTimeMs = 0u;
+    _tooltipHoverTimeMs   = hoverTimeMs;
+    _tooltipHoverTimeRead = true;
+}
+
+uint64_t ControlHost::GetTooltipShowDelayMs() noexcept
+{
+    // Read once per host, then only on a settings change (RefreshTooltipHoverTime).
+    if (! _tooltipHoverTimeRead)
+        RefreshTooltipHoverTime();
+    return ClampTooltipShowDelayMs(_tooltipHoverTimeMs);
+}
 
 void ControlHost::SetSmokeOverlayVisible(bool visible) noexcept
 {
@@ -1898,6 +2027,12 @@ bool ControlHost::DebugIsTooltipInspectionAtEnd() const noexcept
 
 void ControlHost::Invalidate() const noexcept
 {
+    InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Invalidate));
+}
+
+void ControlHost::InvalidateFor(uint8_t traceFrameReason) const noexcept
+{
+    ++Detail::Work().frame.invalidations;
     if (_embedded)
     {
         if (_embeddedInvalidate)
@@ -1910,6 +2045,8 @@ void ControlHost::Invalidate() const noexcept
     if (_hwnd && _nativePresentationVisible && IsHostWindowEffectivelyVisible(_hwnd))
     {
         InvalidateRect(_hwnd, nullptr, FALSE);
+        if (Detail::Trace::Listening()) [[unlikely]]
+            Detail::Trace::FrameRequested(_trace, static_cast<Detail::Trace::FrameReason>(traceFrameReason));
     }
 }
 
@@ -1931,19 +2068,17 @@ HRESULT ControlHost::SetNativePresentationVisible(bool visible) noexcept
     ++_nativePresentationRevision;
     if (! visible)
     {
-        _nativePresentationResumeAnimation = _animationSubscriptionId != 0u;
-        if (_animationSubscriptionId != 0u)
-        {
-            Ui::AnimationDispatcher::GetInstance().Unsubscribe(_animationSubscriptionId);
-            _animationSubscriptionId = 0u;
-        }
+        // The schedule is held, not dropped: the host stops waking until it is shown. A tooltip still waiting to show is
+        // dropped: its pointer is not known when the host returns. A hidden host paints nothing, so it keeps no retained
+        // text layout.
+        DropPendingTooltipShowWhileHidden();
+        TextLayoutCacheAccess::Release(*this);
+        OnFrameScheduleChanged();
     }
     else
     {
-        const bool resumeAnimation        = std::exchange(_nativePresentationResumeAnimation, false);
         _forceFullPresentAfterBufferReset = true;
-        if (resumeAnimation)
-            RequestAnimation();
+        ResumeScheduleAfterShow();
         Invalidate();
     }
     return S_OK;
@@ -1974,45 +2109,570 @@ bool ControlHost::RenderInitialFrameForShow() noexcept
     return _nativePresentationVisible && _nativePresentationRevision == presentationRevision;
 }
 
+bool ControlHost::IsScheduleCallerOnOwnerThread() const noexcept
+{
+    // The schedule and the dispatcher are the attachment owner thread's: a call from another thread is refused (nothing
+    // changes) with ERROR_INVALID_THREAD_ID, a checked refusal. A host not attached anywhere has no owner yet.
+    if (_attachmentOwnerThreadId == 0u || _attachmentOwnerThreadId == GetCurrentThreadId())
+        return true;
+    SetLastError(ERROR_INVALID_THREAD_ID);
+    return false;
+}
+
 void ControlHost::RequestAnimation() noexcept
+{
+    if (_detachInProgress.load(std::memory_order_acquire) || ! IsScheduleCallerOnOwnerThread())
+        return;
+    _tickTreeRequested = true;
+    OnFrameScheduleChanged();
+}
+
+void ControlHost::RequestAnimation(const Control& control) noexcept
+{
+    AddTickRequest(control, TickRequestKind::Continuous, 0u);
+}
+
+void ControlHost::RequestAnimationAt(const Control& control, uint64_t dueTickMs) noexcept
+{
+    // A deadline already passed is due at the next wake.
+    AddTickRequest(control, TickRequestKind::Deadline, dueTickMs);
+}
+
+void ControlHost::RequestAnimationOnce(const Control& control) noexcept
+{
+    AddTickRequest(control, TickRequestKind::Once, 0u);
+}
+
+void ControlHost::CancelAnimation(const Control& control) noexcept
+{
+    if (! IsScheduleCallerOnOwnerThread())
+        return;
+    // A wake in progress does not tick a control cancelled earlier in it.
+    BlankDueControl(control);
+    const size_t before = _tickRequests.size();
+    std::erase_if(_tickRequests, [&control](const TickRequest& request) noexcept { return request.control == &control; });
+    if (_tickRequests.size() != before)
+        OnFrameScheduleChanged();
+}
+
+void ControlHost::BlankDueControl(const Control& control) noexcept
+{
+    for (TickRequest& due : _tickDue)
+    {
+        if (due.control == &control)
+        {
+            due.control = nullptr;
+            due.lifetime.reset();
+        }
+    }
+}
+
+void ControlHost::AddTickRequest(const Control& control, TickRequestKind kind, uint64_t dueTickMs) noexcept
+{
+    // A detaching host and a control of another host take no requests: the schedule names only this host's controls.
+    if (_detachInProgress.load(std::memory_order_acquire) || control.GetHost() != this || ! IsScheduleCallerOnOwnerThread())
+        return;
+    const Failure::Scope failureScope;
+    for (TickRequest& request : _tickRequests)
+    {
+        if (request.control != &control)
+            continue;
+        // One request per control. Every frame wins over the next frame, which wins over a deadline; a new deadline
+        // replaces the control's previous one, since the control knows when it next needs to be ticked.
+        const auto rank = [](TickRequestKind value) noexcept { return value == TickRequestKind::Continuous ? 2 : value == TickRequestKind::Once ? 1 : 0; };
+        if (request.lifetime.expired())
+        {
+            // A destroyed control's request at a reused address: it belongs to the new control now, as a fresh request.
+            request.lifetime  = control.GetLifetimeToken();
+            request.kind      = TickRequestKind::Deadline;
+            request.dueTickMs = UINT64_MAX;
+        }
+        if (rank(kind) >= rank(request.kind))
+        {
+            request.kind      = kind;
+            request.dueTickMs = kind == TickRequestKind::Deadline ? dueTickMs : 0u;
+        }
+        OnFrameScheduleChanged();
+        return;
+    }
+    // The vector keeps its capacity: requests reuse it, bounded by the controls that animate at once.
+    _tickRequests.push_back(TickRequest{const_cast<Control*>(&control), control.GetLifetimeToken(), kind == TickRequestKind::Deadline ? dueTickMs : 0u, kind});
+    OnFrameScheduleChanged();
+}
+
+bool ControlHost::ForgetControl(const Control& control) noexcept
+{
+    const size_t before = _tickRequests.size();
+    std::erase_if(_tickRequests, [&control](const TickRequest& request) noexcept { return request.control == &control; });
+    // A caret whose deadline is dropped is shown steady until its owner restarts it.
+    if (_caretClock.owner == &control)
+    {
+        _caretClock.owner = nullptr;
+        _caretClock.ownerLifetime.reset();
+        _caretClock.visible = true;
+    }
+    // A wake in progress holds a snapshot: blank the control there too, so the wake never reaches it.
+    bool held = false;
+    for (const TickRequest& due : _tickDue)
+        held = held || due.control == &control;
+    BlankDueControl(control);
+    held = held || _tickRequests.size() != before;
+    if (_tickRequests.size() != before)
+        OnFrameScheduleChanged();
+    // The pointer event's hit result never names a forgotten control (W2.9). The one caller, Control::PropagateHost, moves
+    // the interaction revision right after (the result's key compares it), so the hit revision is not moved again here.
+    if (_pointerHitCache.target == &control)
+    {
+        _pointerHitCache.valid  = false;
+        _pointerHitCache.target = nullptr;
+        _pointerHitCache.targetLifetime.reset();
+    }
+    return held;
+}
+
+void ControlHost::ReleaseHiddenLatch() noexcept
+{
+    if (! _animationSuspendedWhileHidden)
+        return;
+    _animationSuspendedWhileHidden = false;
+    ResumeScheduleAfterShow();
+}
+
+std::optional<uint64_t> ControlHost::GetTooltipWakeDueTickMs() const noexcept
+{
+    // A Ctrl change over a rich title resolves the supplemental tooltip at the next wake.
+    if (_supplementalTooltipNeedsResolve || _tooltipTargetStale)
+        return 0u;
+    if (const auto deadline = _tooltipLayer.GetPendingDeadline())
+        return deadline->dueTickMs;
+    return std::nullopt;
+}
+
+void ControlHost::OnTooltipScheduleChanged() noexcept
+{
+    if (_detachInProgress.load(std::memory_order_acquire) || ! IsScheduleCallerOnOwnerThread())
+        return;
+    OnFrameScheduleChanged();
+}
+
+bool ControlHost::MarkTooltipTargetStale() noexcept
+{
+    if ((! _supplementalTooltipControl && ! _hoveredControl) || (! _tooltipLayer.GetPendingDeadline() && ! _tooltipLayer.HasTooltip()))
+        return false;
+    ++Detail::Work().frame.tooltipTargetMarks;
+    _tooltipTargetStale = true;
+    return true;
+}
+
+void ControlHost::DropPendingTooltipShowWhileHidden() noexcept
+{
+    const auto deadline = _tooltipLayer.GetPendingDeadline();
+    if (! deadline || ! deadline->show)
+        return;
+    // Ending the pending show is the layer's own ShowScheduled -> Hidden transition (the pointer leaving during the delay).
+    static_cast<void>(_tooltipLayer.BeginHideDelay(GetAnimationTickMs(), 0u));
+    ++Detail::Work().frame.tooltipShowsDropped;
+    OnTooltipScheduleChanged();
+}
+
+ControlHost::FrameScheduleWake ControlHost::GetFrameScheduleWake() const noexcept
+{
+    using Kind = FrameScheduleWake::Kind;
+    if (_tickTreeRequested)
+        return {Kind::Continuous, 0u};
+    // The tooltip waits for one deadline and never for every frame.
+    const std::optional<uint64_t> tooltipDue = GetTooltipWakeDueTickMs();
+    bool hasDeadline                         = tooltipDue.has_value();
+    uint64_t earliestDue                     = tooltipDue.value_or(0u);
+    for (const TickRequest& request : _tickRequests)
+    {
+        // A request of a hidden control (or one below a hidden control) is held and costs no wake until it is shown.
+        if (request.lifetime.expired() || request.control->GetHost() != this || ! IsControlTickable(*request.control))
+            continue;
+        if (request.kind == TickRequestKind::Continuous)
+            return {Kind::Continuous, 0u};
+        const uint64_t due = request.kind == TickRequestKind::Once ? 0u : request.dueTickMs;
+        if (! hasDeadline || due < earliestDue)
+        {
+            hasDeadline = true;
+            earliestDue = due;
+        }
+    }
+    return hasDeadline ? FrameScheduleWake{Kind::Deadline, earliestDue} : FrameScheduleWake{};
+}
+
+bool ControlHost::IsEarlierWake(FrameScheduleWake wake, FrameScheduleWake published) noexcept
+{
+    using Kind = FrameScheduleWake::Kind;
+    switch (wake.kind)
+    {
+        case Kind::None: return false;
+        case Kind::Continuous: return published.kind != Kind::Continuous;
+        case Kind::Deadline: return published.kind == Kind::None || (published.kind == Kind::Deadline && wake.dueTickMs < published.dueTickMs);
+    }
+    return false;
+}
+
+bool ControlHost::HasScheduledTicks() const noexcept
+{
+    return GetFrameScheduleWake().kind != FrameScheduleWake::Kind::None;
+}
+
+bool ControlHost::IsScheduleSuspended() const noexcept
+{
+    return ! _embedded && (! _nativePresentationVisible || _animationSuspendedWhileHidden);
+}
+
+bool ControlHost::IsControlTickable(const Control& control) const noexcept
+{
+    // A hidden control or a control below a hidden one is not ticked; the root is ticked whatever its own visibility.
+    for (const Control* node = &control; node && node->_parent; node = node->_parent)
+    {
+        if (! node->_visible)
+            return false;
+    }
+    return true;
+}
+
+// The dispatcher's view of a native host's schedule.
+struct FrameScheduleAccess final
+{
+    [[nodiscard]] static Ui::AnimationDispatcher::Wake ToDispatcher(ControlHost::FrameScheduleWake wake) noexcept
+    {
+        using DispatcherKind = Ui::AnimationDispatcher::WakeKind;
+        switch (wake.kind)
+        {
+            case ControlHost::FrameScheduleWake::Kind::None: return {};
+            case ControlHost::FrameScheduleWake::Kind::Continuous: return {DispatcherKind::Continuous, 0u};
+            case ControlHost::FrameScheduleWake::Kind::Deadline: return {DispatcherKind::Deadline, wake.dueTickMs};
+        }
+        return {};
+    }
+
+    static Ui::AnimationDispatcher::Wake Wake(void* context, uint64_t nowTickMs) noexcept
+    {
+        auto* const self = static_cast<ControlHost*>(context);
+        return (self && IsAttachedWindowHostRegistered(self)) ? ToDispatcher(self->OnScheduledWake(nowTickMs)) : Ui::AnimationDispatcher::Wake{};
+    }
+};
+
+void ControlHost::OnFrameScheduleChanged() noexcept
 {
     if (_embedded)
     {
-        // Wake the application only when animation becomes requested, so a control that requests it while
-        // painting (an indeterminate progress bar, a busy grid) does not re-dirty the view inside every preparation.
-        if (! _embeddedAnimationRequested)
+        // A wake in progress hands the application its next request when AdvanceAnimation returns.
+        if (_tickWakeFrame)
+            return;
+        // Wake the application only when the schedule needs it sooner than the request it last learned of (anything after
+        // nothing, every frame after a deadline, an earlier deadline), so an application that sleeps until its request is
+        // never left asleep, and a control that requests the same while painting (an indeterminate progress bar, a busy
+        // grid) does not re-dirty the view inside every preparation.
+        const FrameScheduleWake wake = GetFrameScheduleWake();
+        if (IsEarlierWake(wake, _embeddedPublishedWake))
         {
-            _embeddedAnimationRequested = true;
             // Nothing ticked the view while it was idle, so the next tick starts the clock again rather than counting the gap.
-            _animationTimelineRebase = true;
+            if (_embeddedPublishedWake.kind == FrameScheduleWake::Kind::None)
+                _animationTimelineRebase = true;
+            _embeddedPublishedWake = wake;
             Invalidate();
         }
+        else if (wake.kind == FrameScheduleWake::Kind::None)
+            // Emptied outside a wake (a cancel, a forgotten control): the next request is a new start that rebases the
+            // timeline and wakes the application.
+            _embeddedPublishedWake = {};
         return;
     }
-    if (_detachInProgress.load(std::memory_order_acquire))
+    // A wake in progress reports its outcome to the dispatcher when it ends.
+    if (_tickWakeFrame || ! _hwnd || _detachInProgress.load(std::memory_order_acquire))
         return;
-    if (! _nativePresentationVisible)
+    // A host latched hidden that is visible again resumes with any change to its schedule, whatever message it missed.
+    if (_animationSuspendedWhileHidden && IsHostWindowEffectivelyVisible(_hwnd))
     {
-        _nativePresentationResumeAnimation = true;
+        _animationSuspendedWhileHidden = false;
+        // A focused caret is shown at once and restarts its blink, replacing the flip it held.
+        RearmCaret();
+        CountHeldDeadlines();
+    }
+    SyncDispatcherSubscription(IsScheduleSuspended() ? FrameScheduleWake{} : GetFrameScheduleWake());
+}
+
+void ControlHost::SyncDispatcherSubscription(FrameScheduleWake wake) noexcept
+{
+    // The one place a host joins, reschedules or leaves the dispatcher (Detach also leaves it): subscribed exactly while
+    // its schedule waits for something. Safe during the dispatcher's own wake, which defers adds and removals. After the
+    // thread's dispatcher is destroyed (thread-local destruction) there is nothing to join or leave.
+    auto* const instance = Ui::AnimationDispatcher::TryGetInstance();
+    if (! instance)
+    {
+        _animationSubscriptionId = 0u;
+        _dispatcherWakeKind      = FrameScheduleWake::Kind::None;
+        return;
+    }
+    auto& dispatcher = *instance;
+    if (_animationSubscriptionId != 0u && ! dispatcher.IsSubscribed(_animationSubscriptionId))
+        _animationSubscriptionId = 0u;
+    if (wake.kind == FrameScheduleWake::Kind::None)
+    {
+        dispatcher.Unsubscribe(std::exchange(_animationSubscriptionId, 0u));
+        _dispatcherWakeKind = wake.kind;
         return;
     }
     if (_animationSubscriptionId == 0u)
+        _animationSubscriptionId = dispatcher.SubscribeSchedule(&FrameScheduleAccess::Wake, this, FrameScheduleAccess::ToDispatcher(wake));
+    else
+        dispatcher.Reschedule(_animationSubscriptionId, FrameScheduleAccess::ToDispatcher(wake));
+    _dispatcherWakeKind = _animationSubscriptionId != 0u ? wake.kind : FrameScheduleWake::Kind::None;
+}
+
+void ControlHost::ResumeScheduleAfterShow() noexcept
+{
+    // Requests that came due while the host was hidden fire once now, at the first wake after the show.
+    if (! IsScheduleSuspended())
     {
-        _animationSubscriptionId = Ui::AnimationDispatcher::GetInstance().Subscribe(&ControlHost::AnimationTickThunk, this);
+        // A focused caret is shown at once and restarts its blink, replacing the flip it held. A message announced this show,
+        // so the wake need not resume an ancestor's hide again.
+        _hiddenThroughAncestor = false;
+        RearmCaret();
+        CountHeldDeadlines();
     }
+    OnFrameScheduleChanged();
+}
+
+void ControlHost::CountHeldDeadlines() noexcept
+{
+    const uint64_t nowTickMs = GetAnimationTickMs();
+    for (const TickRequest& request : _tickRequests)
+    {
+        if (request.kind == TickRequestKind::Deadline && request.dueTickMs <= nowTickMs && ! request.lifetime.expired())
+            ++Detail::Work().frame.tickHeldWhileHidden;
+    }
+    // A shown tooltip's hide that came due meanwhile (a pending show was dropped when the host was seen hidden).
+    if (const auto deadline = _tooltipLayer.GetPendingDeadline(); deadline && ! deadline->show && deadline->dueTickMs <= nowTickMs)
+        ++Detail::Work().frame.tickHeldWhileHidden;
+}
+
+// Caret clock (W3.2; Specs/Rendering/Rendering_Win32Host.md, "Caret clock").
+namespace
+{
+constexpr UINT kDefaultCaretBlinkTimeMs = 530u;  // Windows' default when GetCaretBlinkTime fails
+constexpr UINT kDefaultCaretTimeoutMs   = 5000u; // Windows' default when SPI_GETCARETTIMEOUT cannot be read
+
+[[nodiscard]] constexpr bool CaretTimeoutApplies(UINT timeoutMs) noexcept
+{
+    return timeoutMs != 0u && timeoutMs != INFINITE;
+}
+
+[[nodiscard]] constexpr uint64_t SaturatingAddMs(uint64_t tickMs, uint64_t addMs) noexcept
+{
+    return addMs > UINT64_MAX - tickMs ? UINT64_MAX : tickMs + addMs;
+}
+} // namespace
+
+void ControlHost::ReadCaretBlinkSettings() noexcept
+{
+    CaretClock& clock = _caretClock;
+    if (clock.settingsForTest)
+    {
+        clock.blinkTimeMs = clock.settingsForTest->blinkTimeMs;
+        clock.timeoutMs   = clock.settingsForTest->timeoutMs;
+    }
+    else
+    {
+        // Read, never written: the user's settings belong to the user.
+        const UINT blinkTimeMs = GetCaretBlinkTime();
+        clock.blinkTimeMs      = blinkTimeMs == 0u ? kDefaultCaretBlinkTimeMs : blinkTimeMs;
+        DWORD timeoutMs        = 0u;
+        clock.timeoutMs = SystemParametersInfoW(SPI_GETCARETTIMEOUT, 0u, &timeoutMs, 0u) != FALSE ? static_cast<UINT>(timeoutMs) : kDefaultCaretTimeoutMs;
+    }
+    clock.settingsRead = true;
+}
+
+bool ControlHost::IsCaretOwner(const Control& control) const noexcept
+{
+    // A destroyed owner's token has expired, so a new control at a reused address is never taken for it.
+    return _caretClock.owner == &control && ! _caretClock.ownerLifetime.expired();
+}
+
+bool ControlHost::CaretBlinks() const noexcept
+{
+    const CaretClock& clock = _caretClock;
+    return clock.editable && clock.blinkTimeMs != 0u && clock.blinkTimeMs != INFINITE && ! _palette.reducedMotion;
+}
+
+namespace
+{
+// An owner with empty bounds draws no caret, so its caret holds no deadline.
+[[nodiscard]] bool CaretOwnerHasArea(const Control& owner) noexcept
+{
+    const D2D1_RECT_F bounds = owner.GetBounds();
+    return bounds.right > bounds.left && bounds.bottom > bounds.top;
+}
+} // namespace
+
+bool ControlHost::IsCaretShown(const Control& control) const noexcept
+{
+    return ! IsCaretOwner(control) || _caretClock.visible;
+}
+
+void ControlHost::CancelAnimationDeadline(const Control& control) noexcept
+{
+    const size_t before = _tickRequests.size();
+    std::erase_if(_tickRequests,
+                  [&control](const TickRequest& request) noexcept { return request.control == &control && request.kind == TickRequestKind::Deadline; });
+    if (_tickRequests.size() != before)
+        OnFrameScheduleChanged();
+}
+
+void ControlHost::ArmCaret(const Control& owner) noexcept
+{
+    // A blinking caret sleeps until its first flip; a steady one (read-only, disabled, INFINITE, reduced motion) or one whose
+    // owner has no area holds nothing.
+    const CaretClock& clock = _caretClock;
+    if (CaretBlinks() && CaretOwnerHasArea(owner))
+        RequestAnimationAt(owner, NextCaretBlinkFlipTickMs(clock.anchorTickMs, clock.anchorTickMs, clock.blinkTimeMs));
+    else
+        CancelAnimationDeadline(owner);
+}
+
+void ControlHost::RestartCaret(const Control& owner, bool editable) noexcept
+{
+    if (_detachInProgress.load(std::memory_order_acquire) || owner.GetHost() != this)
+        return;
+    CaretClock& clock = _caretClock;
+    if (! clock.settingsRead)
+        ReadCaretBlinkSettings();
+    // One caret per host. Focus that moves between two caret owners in one frame leaves the previous owner nothing armed,
+    // whichever of its blur and the new owner's gain comes first.
+    if (clock.owner && clock.owner != &owner && IsCaretOwner(*clock.owner) && clock.owner->GetHost() == this)
+        CancelAnimationDeadline(*clock.owner);
+    clock.owner         = &owner;
+    clock.ownerLifetime = owner.GetLifetimeToken();
+    clock.editable      = editable;
+    clock.visible       = true;
+    clock.anchorTickMs  = GetAnimationTickMs();
+    ArmCaret(owner);
+}
+
+void ControlHost::StopCaret(const Control& owner) noexcept
+{
+    if (_caretClock.owner != &owner)
+        return;
+    _caretClock.owner = nullptr;
+    _caretClock.ownerLifetime.reset();
+    _caretClock.visible = true;
+    CancelAnimationDeadline(owner);
+}
+
+bool ControlHost::TickCaret(const Control& owner, uint64_t nowTickMs) noexcept
+{
+    // A flip for a control that no longer owns the caret is not re-armed.
+    if (! IsCaretOwner(owner))
+        return false;
+    CaretClock& clock        = _caretClock;
+    const bool wasVisible    = clock.visible;
+    const uint64_t elapsedMs = ElapsedTickMs(clock.anchorTickMs, nowTickMs);
+    if (! CaretBlinks() || ! CaretOwnerHasArea(owner))
+        clock.visible = true;
+    else if (CaretTimeoutApplies(clock.timeoutMs) && elapsedMs >= clock.timeoutMs)
+    {
+        // The caret timeout: blinking stops with the caret shown, and nothing wakes until input restarts it.
+        clock.visible = true;
+    }
+    else
+    {
+        clock.visible                 = (elapsedMs / clock.blinkTimeMs) % 2u == 0u;
+        const uint64_t nextFlipTickMs = NextCaretBlinkFlipTickMs(clock.anchorTickMs, nowTickMs, clock.blinkTimeMs);
+        // The last flip before the timeout shows the caret; a caret already shown at that point simply stays.
+        const bool timedOut = CaretTimeoutApplies(clock.timeoutMs) && nextFlipTickMs >= SaturatingAddMs(clock.anchorTickMs, clock.timeoutMs);
+        if (! timedOut || ! clock.visible)
+            RequestAnimationAt(owner, nextFlipTickMs);
+    }
+    return clock.visible != wasVisible;
+}
+
+void ControlHost::RearmCaret() noexcept
+{
+    CaretClock& clock = _caretClock;
+    if (! clock.owner || ! IsCaretOwner(*clock.owner) || clock.owner->GetHost() != this || ! clock.owner->HasFocus())
+        return;
+    const bool wasVisible = clock.visible;
+    clock.visible         = true;
+    clock.anchorTickMs    = GetAnimationTickMs();
+    ArmCaret(*clock.owner);
+    if (! wasVisible)
+        Invalidate();
+}
+
+void ControlHost::OnCaretOwnerAreaChanged(const Control& control) noexcept
+{
+    if (IsCaretOwner(control))
+        RearmCaret();
+}
+
+void ControlHost::RefreshCaretBlinkSettings() noexcept
+{
+    const bool wasRead     = _caretClock.settingsRead;
+    const UINT blinkTimeMs = _caretClock.blinkTimeMs;
+    const UINT timeoutMs   = _caretClock.timeoutMs;
+    ReadCaretBlinkSettings();
+    if (! wasRead || blinkTimeMs != _caretClock.blinkTimeMs || timeoutMs != _caretClock.timeoutMs)
+        RearmCaret();
+}
+
+void ControlHost::RefreshUserSettings() noexcept
+{
+    // One entry point for WM_SETTINGCHANGE, a window host's and an embedded application's alike, so no setting the host
+    // keeps can be left stale by forwarding only some of them.
+    RefreshCaretBlinkSettings();
+    RefreshTooltipHoverTime();
+}
+
+#if DXUI_ENABLE_DIAGNOSTICS
+void ControlHost::DebugSetCaretBlinkSettingsForTest(std::optional<CaretBlinkSettingsForTest> settings) noexcept
+{
+    _caretClock.settingsForTest = settings;
+    // Read again at the next refresh or caret start, as a real change would be.
+    _caretClock.settingsRead = false;
+}
+
+bool ControlHost::DebugIsCaretClockVisibleForTest() const noexcept
+{
+    return _caretClock.visible;
+}
+#endif
+
+void ControlHost::FollowEmbeddedApplicationClock() const noexcept
+{
+    // The same arithmetic as AdvanceAnimation at that tick, without a Tick, with two differences that keep a read harmless: a
+    // pending baseline (after a hidden period, a zero size, a new attachment or a pause with nothing requested) is left for
+    // the next advance, and a value at or below the last one seen changes nothing, so a read never moves time back.
+    if (! _embeddedNowTickMs || _animationTimelineRebase)
+        return;
+    const uint64_t nowTickMs = _embeddedNowTickMs(_embeddedClockContext);
+    if (nowTickMs <= _lastSuppliedAnimationTickMs)
+        return;
+    const uint64_t deltaMs       = nowTickMs - _lastSuppliedAnimationTickMs;
+    const uint64_t remainingMs   = UINT64_MAX - _animationTimelineMs;
+    _animationTimelineMs         = deltaMs > remainingMs ? UINT64_MAX : _animationTimelineMs + deltaMs;
+    _lastSuppliedAnimationTickMs = nowTickMs;
 }
 
 uint64_t ControlHost::GetAnimationTickMs() const noexcept
 {
     if (_embedded)
     {
+        // A stamp taken outside an advance (input, a setter, a caret restart) is taken at the application's current time.
+        // Inside a wake every Tick sees the advance's own time.
+        if (! _tickWakeFrame)
+            FollowEmbeddedApplicationClock();
         return _animationTimelineMs;
     }
     if (_animationClockForTest.has_value())
     {
         return *_animationClockForTest;
     }
-    return Ui::AnimationDispatcher::GetInstance().GetCurrentTickMs();
+    const auto* const dispatcher = Ui::AnimationDispatcher::TryGetInstance();
+    return dispatcher ? dispatcher->GetCurrentTickMs() : GetTickCount64();
 }
 
 void ControlHost::SetDefaultButton(Button* button) noexcept
@@ -2323,7 +2983,8 @@ bool ControlHost::RouteFocusedCharInput(wchar_t ch, UINT modifiers, const wchar_
     const std::weak_ptr<int> charTargetLifetime = charTarget->GetLifetimeToken();
     const auto inputStartedAt                   = std::chrono::steady_clock::now();
     // A character whose handler throws is taken, as a failed message is: it does not reach DefWindowProc.
-    bool controlHandled = true;
+    bool controlHandled                   = true;
+    const uint64_t synchronizationsBefore = _nativeTextInputEventCounters.synchronizationCount;
     static_cast<void>(TryControlCallback([&] { controlHandled = charTarget->OnChar(*this, ch, modifiers); }));
     Control* const liveCharTarget = RevalidateInteractiveDispatchedControl(charTargetLifetime, _root.get(), charTarget);
     if (! liveCharTarget && charTarget == _focusedControl)
@@ -2332,7 +2993,8 @@ bool ControlHost::RouteFocusedCharInput(wchar_t ch, UINT modifiers, const wchar_
     }
     if (controlHandled && liveCharTarget && liveCharTarget == _focusedControl && liveCharTarget->SupportsTextInput())
     {
-        SyncNativeTextInputSession(liveCharTarget);
+        // Once per input event: a control that already synchronized the state it now shows is not synchronized again.
+        SyncNativeTextInputAfterDispatch(liveCharTarget, synchronizationsBefore);
         RecordNativeTextInputKeyToStateMetric(inputStartedAt, perfDetail, static_cast<uint64_t>(ch), modifiers);
     }
     return controlHandled;
@@ -2635,7 +3297,7 @@ try
     if (! std::isfinite(point.x) || ! std::isfinite(point.y) || point.x < bounds.left || point.x >= bounds.right || point.y < bounds.top ||
         point.y >= bounds.bottom)
         return false;
-    auto* editor = dynamic_cast<RichTextEditor*>(HitTestControl(point));
+    auto* editor = dynamic_cast<RichTextEditor*>(HitTestControlUncached(point));
     return editor && editor->FileDropCaret(*this, point).has_value();
 }
 catch (const std::exception&)
@@ -2662,7 +3324,7 @@ try
     if (! root)
         return false;
     const auto rootLifetime = root->GetLifetimeToken();
-    auto* editor            = dynamic_cast<RichTextEditor*>(HitTestControl(point));
+    auto* editor            = dynamic_cast<RichTextEditor*>(HitTestControlUncached(point));
     if (! editor)
         return false;
     const auto editorLifetime = editor->GetLifetimeToken();
@@ -2685,7 +3347,7 @@ try
     if (! state->live || rootLifetime.expired() || editorLifetime.expired() || _root.get() != root || _interactionRevision != interaction ||
         editor->GetHost() != this || editor->Revision() != revision || editor->GetSelection() != selection || editor->FileDropEpoch() != epoch)
         return false;
-    if (HitTestControl(point) != editor || ! state->live || rootLifetime.expired() || editorLifetime.expired() || _interactionRevision != interaction ||
+    if (HitTestControlUncached(point) != editor || ! state->live || rootLifetime.expired() || editorLifetime.expired() || _interactionRevision != interaction ||
         editor->FileDropEpoch() != epoch || editor->Revision() != revision)
         return false;
     const auto currentCaret = editor->FileDropCaret(*this, point);
@@ -2748,7 +3410,8 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
     const auto it      = _configuredTextFormats.find(key);
     if (it != _configuredTextFormats.end())
     {
-        return it->second.get();
+        it->second.lastUse = _paintFrame;
+        return it->second.format.get();
     }
 
     if ((role == FontRole::Icon || role == FontRole::HeroIcon || role == FontRole::IconLarge) && ! HasFluentIconFont())
@@ -2763,7 +3426,7 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
 
     const Typography::Spec spec = Typography::GetSpec(role);
     wil::com_ptr<IDWriteTextFormat> format;
-    const HRESULT hrCreate = Typography::CreateTextFormat(_dwriteFactory.get(), spec, format.addressof());
+    const HRESULT hrCreate = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, format.addressof());
     if (FAILED(hrCreate) || ! format)
     {
         Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for configured font role {}: 0x{:08X}", static_cast<uint32_t>(role), hrCreate);
@@ -2785,7 +3448,7 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
         return GetTextFormat(role);
     }
 
-    return _configuredTextFormats.emplace(key, std::move(format)).first->second.get();
+    return _configuredTextFormats.emplace(key, ConfiguredTextFormatEntry{std::move(format), _paintFrame}).first->second.format.get();
 }
 
 IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
@@ -2811,7 +3474,10 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
     {
         // Preserve existing custom-key hits before checking optional font availability.
         if (const auto it = _configuredTextFormats.find(customKey); it != _configuredTextFormats.end())
-            return it->second.get();
+        {
+            it->second.lastUse = _paintFrame;
+            return it->second.format.get();
+        }
         if (! _dwriteFactory && ! EnsureDeviceIndependentResources())
             return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
         // Only canonicalize icon defaults when the configured icon family exists. Otherwise the default path
@@ -2820,21 +3486,24 @@ IDWriteTextFormat* ControlHost::GetTextFormat(FontRole role,
     }
     const uint64_t key = useRoleDefaultKey ? PackTextFormatKey(role, alignment, paragraphAlignment, wrap, readingDirection) : customKey;
     if (const auto it = _configuredTextFormats.find(key); it != _configuredTextFormats.end())
-        return it->second.get();
+    {
+        it->second.lastUse = _paintFrame;
+        return it->second.format.get();
+    }
     if (! _dwriteFactory && ! EnsureDeviceIndependentResources())
         return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
     Typography::Spec spec = roleSpec;
     spec.sizeDip          = normalizedSize;
     spec.weight           = fontWeight;
     wil::com_ptr<IDWriteTextFormat> format;
-    const HRESULT hr = Typography::CreateTextFormat(_dwriteFactory.get(), spec, format.addressof());
+    const HRESULT hr = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, format.addressof());
     if (FAILED(hr) || ! format)
         return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
     if (FAILED(format->SetTextAlignment(alignment)) || FAILED(format->SetParagraphAlignment(paragraphAlignment)) ||
         FAILED(format->SetWordWrapping(wrap ? DWRITE_WORD_WRAPPING_WRAP : DWRITE_WORD_WRAPPING_NO_WRAP)) ||
         FAILED(format->SetReadingDirection(readingDirection)))
         return GetTextFormat(role, alignment, paragraphAlignment, wrap, readingDirection);
-    return _configuredTextFormats.emplace(key, std::move(format)).first->second.get();
+    return _configuredTextFormats.emplace(key, ConfiguredTextFormatEntry{std::move(format), _paintFrame}).first->second.format.get();
 }
 
 bool ControlHost::HasFluentIconFont() const noexcept
@@ -2863,15 +3532,30 @@ ID2D1SolidColorBrush* ControlHost::GetSolidBrush(const D2D1_COLOR_F& color) cons
     const auto it      = _brushCache.find(key);
     if (it != _brushCache.end())
     {
-        return it->second.get();
+        it->second.lastUse = _paintFrame;
+        if (it->second.brush)
+            return it->second.brush.get();
     }
     if (! _d2dContext)
     {
         return nullptr;
     }
+    // A key draws the exact color it was first asked for with, whoever asks for it later.
+    const D2D1_COLOR_F keyColor = it != _brushCache.end() ? it->second.color : color;
+    // A transition in progress draws a color no keyed brush holds through the frame's next transition brush, so no brush is
+    // created per animated color; the key keeps only its color (TransitionBrushScope).
+    if (_transitionBrushScopes != 0u)
+    {
+        if (ID2D1SolidColorBrush* const transition = GetTransitionBrush(keyColor, false))
+        {
+            if (it == _brushCache.end())
+                _brushCache.emplace(key, SolidBrushEntry{nullptr, keyColor, _paintFrame});
+            return transition;
+        }
+    }
 
     wil::com_ptr<ID2D1SolidColorBrush> brush;
-    const HRESULT hr = _d2dContext->CreateSolidColorBrush(color, brush.addressof());
+    const HRESULT hr = CountedCreateSolidColorBrush(_d2dContext, keyColor, brush.addressof());
     if (FAILED(hr) || ! brush)
     {
         if (std::ranges::find(_brushFailureLogKeys, key) == _brushFailureLogKeys.end())
@@ -2881,7 +3565,7 @@ ID2D1SolidColorBrush* ControlHost::GetSolidBrush(const D2D1_COLOR_F& color) cons
         }
         if (! _fallbackBrush && _d2dContext)
         {
-            static_cast<void>(_d2dContext->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f), _fallbackBrush.addressof()));
+            static_cast<void>(CountedCreateSolidColorBrush(_d2dContext, D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f), _fallbackBrush.addressof()));
         }
         if (_fallbackBrush)
         {
@@ -2890,8 +3574,52 @@ ID2D1SolidColorBrush* ControlHost::GetSolidBrush(const D2D1_COLOR_F& color) cons
         }
         return nullptr;
     }
-    _brushCache[key] = brush;
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++_debugSolidBrushCreateCount;
+#endif
+    _brushCache[key] = SolidBrushEntry{brush, keyColor, _paintFrame};
     return brush.get();
+}
+
+ID2D1SolidColorBrush* ControlHost::GetTransitionBrush(const D2D1_COLOR_F& color, bool orFallback) const
+{
+    if (! _d2dContext)
+        return nullptr;
+    if (_transitionBrushesUsed < _transitionBrushes.size())
+    {
+        // Used by no earlier request of this frame: its last color belongs to an earlier frame, already submitted.
+        ID2D1SolidColorBrush* const brush = _transitionBrushes[_transitionBrushesUsed++].get();
+        brush->SetColor(color);
+        ++Detail::Work().frame.brushColorReuses;
+        return brush;
+    }
+    if (_transitionBrushes.size() < kTransitionBrushLimit)
+    {
+        wil::com_ptr<ID2D1SolidColorBrush> brush;
+        if (SUCCEEDED(CountedCreateSolidColorBrush(_d2dContext, color, brush.addressof())) && brush)
+        {
+#if DXUI_ENABLE_DIAGNOSTICS
+            ++_debugSolidBrushCreateCount;
+#endif
+            _transitionBrushes.push_back(std::move(brush));
+            ++_transitionBrushesUsed;
+            return _transitionBrushes.back().get();
+        }
+    }
+    if (! orFallback)
+        return nullptr;
+    if (! _fallbackBrush)
+        static_cast<void>(CountedCreateSolidColorBrush(_d2dContext, color, _fallbackBrush.addressof()));
+    if (_fallbackBrush)
+        _fallbackBrush->SetColor(color);
+    return _fallbackBrush.get();
+}
+
+void ControlHost::ReleaseBrushes() const noexcept
+{
+    _brushCache.clear();
+    _transitionBrushes.clear();
+    _transitionBrushesUsed = 0u;
 }
 
 bool ControlHost::CopyTextToClipboard(std::wstring_view text) const noexcept
@@ -3051,14 +3779,65 @@ void ControlHost::DebugRenderDirtyRectForTest(const RECT& dirtyRectPx) noexcept
     }
 }
 
+bool ControlHost::DebugRenderDirtyRectForTest(const RECT& dirtyRectPx, WindowHostBitmapCapture& prePresentBackBuffer) noexcept
+{
+    prePresentBackBuffer = {};
+    if (! _hwnd)
+        return false;
+    Render(&dirtyRectPx, &prePresentBackBuffer);
+    return prePresentBackBuffer.widthPx > 0u && prePresentBackBuffer.heightPx > 0u && ! prePresentBackBuffer.bgraPixels.empty();
+}
+
 bool ControlHost::DebugHasActiveAnimationSubscription() const noexcept
 {
-    return _animationSubscriptionId != 0u;
+    // Whether the dispatcher will wake this host: it holds a subscription that waits for something. A host without a
+    // window has no dispatcher: whether its schedule waits for something.
+    if (! _hwnd)
+        return ! _embedded && ! IsScheduleSuspended() && HasScheduledTicks();
+    return _animationSubscriptionId != 0u && _dispatcherWakeKind != FrameScheduleWake::Kind::None;
 }
 
 bool ControlHost::DebugAnimationTickForTest(uint64_t nowTickMs) noexcept
 {
-    return OnAnimationTick(nowTickMs);
+    // The dispatcher's wake, driven by a test clock. It never touches the subscription: OnFrameScheduleChanged tells the
+    // dispatcher what the schedule needs afterwards, so the host and the dispatcher cannot disagree.
+    if (_embedded)
+    {
+        if (! RunScheduledTicks(nowTickMs))
+            return false;
+        _embeddedPublishedWake = GetFrameScheduleWake();
+        return _embeddedPublishedWake.kind != FrameScheduleWake::Kind::None;
+    }
+    bool hostGone                   = false;
+    const auto presentationRevision = _nativePresentationRevision;
+    static_cast<void>(OnScheduledWake(nowTickMs, &hostGone));
+    if (hostGone)
+        return false;
+    OnFrameScheduleChanged();
+    // A wake that a presentation change interrupted reports false; what it had not done waits in the schedule.
+    return _nativePresentationRevision == presentationRevision && ! IsScheduleSuspended() && HasScheduledTicks();
+}
+
+ControlHost::DebugFrameScheduleWake ControlHost::DebugGetFrameScheduleWakeForTest() const noexcept
+{
+    const FrameScheduleWake wake = IsScheduleSuspended() ? FrameScheduleWake{} : GetFrameScheduleWake();
+    return {static_cast<uint8_t>(wake.kind), wake.dueTickMs};
+}
+
+size_t ControlHost::DebugGetTickRequestCountForTest() const noexcept
+{
+    return _tickRequests.size() + (_tickTreeRequested ? 1u : 0u) + (GetTooltipWakeDueTickMs().has_value() ? 1u : 0u);
+}
+
+bool ControlHost::DebugScheduleHoldsControlForTest(const void* controlAddress) const noexcept
+{
+    for (const TickRequest& request : _tickRequests)
+        if (request.control == controlAddress)
+            return true;
+    for (const TickRequest& due : _tickDue)
+        if (due.control == controlAddress)
+            return true;
+    return false;
 }
 
 void ControlHost::DebugSetAnimationClockForTest(std::optional<uint64_t> nowTickMs) noexcept
@@ -3084,6 +3863,33 @@ void ControlHost::DebugSetNextSizeResourceFailureForTest(unsigned stage, HRESULT
 {
     _debugSizeResourceFailureStage = stage;
     _debugSizeResourceFailure      = failure;
+}
+
+void ControlHost::DebugSetRecoveryRetryClockForTest(std::optional<uint64_t> nowTickMs) noexcept
+{
+    // A retry armed on one clock is not carried to the other.
+    CancelRecoveryRetry();
+    _debugRecoveryRetryClockMs = nowTickMs;
+    _debugRecoveryRetryDueMs   = 0u;
+}
+
+void ControlHost::DebugAdvanceRecoveryRetryClockForTest(uint64_t elapsedMs) noexcept
+{
+    if (! _debugRecoveryRetryClockMs.has_value())
+        return;
+    *_debugRecoveryRetryClockMs += elapsedMs;
+    if (_recoveryRetryArmedDelayMs != 0u && *_debugRecoveryRetryClockMs >= _debugRecoveryRetryDueMs)
+        OnRecoveryRetryDue();
+}
+
+uint32_t ControlHost::DebugGetArmedRecoveryRetryDelayMs() const noexcept
+{
+    return _recoveryRetryArmedDelayMs;
+}
+
+uint64_t ControlHost::DebugGetSolidBrushCreateCount() const noexcept
+{
+    return _debugSolidBrushCreateCount;
 }
 void ControlHost::DebugSimulateDeviceLoss() noexcept
 {
@@ -3121,12 +3927,57 @@ void ControlHost::DebugSetForceNullSolidBrushes(const bool force) noexcept
 
 const Control* ControlHost::DebugHitTestControl(D2D1_POINT_2F pointDip) noexcept
 {
-    return HitTestControl(pointDip);
+    return HitTestControlUncached(pointDip);
 }
 
 WindowHostCursorKind ControlHost::DebugResolveCursorKindForPoint(D2D1_POINT_2F pointDip) noexcept
 {
+    BeginPointerHitEvent(true);
     return ResolveCursorKindForPoint(pointDip);
+}
+
+void ControlHost::DebugSetPointerHitResultEnabled(bool enabled) noexcept
+{
+    _pointerHitResultEnabled = enabled;
+    if (! enabled)
+        EndPointerHitEvent();
+}
+
+bool ControlHost::DebugHasPointerHitResult() const noexcept
+{
+    return _pointerHitCache.valid;
+}
+
+Control* ControlHost::DebugGetHoveredControl() const noexcept
+{
+    return _hoveredControl;
+}
+
+uint64_t ControlHost::DebugGetHitRevision() const noexcept
+{
+    return _hitRevision;
+}
+
+uint32_t ControlHost::DebugGetUnreportedHitControlCount() const noexcept
+{
+    return _unreportedHitControls;
+}
+
+const char* ControlHost::DebugGetFirstUnreportedHitControlType() const noexcept
+{
+    const auto find = [](const auto& self, const Control* control) noexcept -> const Control*
+    {
+        if (! control)
+            return nullptr;
+        if ((control->_hitTestReporting & Control::kHitTestCounted) != 0u)
+            return control;
+        for (size_t index = 0u; index < control->GetLogicalChildCount(); ++index)
+            if (const Control* const found = self(self, control->GetLogicalChild(index)))
+                return found;
+        return nullptr;
+    };
+    const Control* const first = find(find, _root.get());
+    return first ? typeid(*first).name() : nullptr;
 }
 
 bool ControlHost::DebugCaptureBitmap(WindowHostBitmapCapture& out) noexcept
@@ -3189,6 +4040,8 @@ void ControlHost::OnDpiChanged(HWND hwnd, UINT newDpi, const RECT* suggestedRect
     }
 
     _dpi = resolvedDpi;
+    if (HitRevisionSiteLive(HitRevisionSite::HostDpi))
+        AdvanceHitRevision(); // the same pixel is another DIP point; geometry may be arranged again
     if (_d2dContext)
     {
         _d2dContext->SetDpi(static_cast<float>(_dpi), static_cast<float>(_dpi));
@@ -3288,6 +4141,34 @@ try
     {
         return 0;
     }
+    if (Detail::Trace::Listening()) [[unlikely]]
+        TraceWindowHostInput(_trace, msg);
+
+    // A pointer event lasts from a client-area WM_SETCURSOR for this window to the end of the next message this host
+    // handles, which is the client mouse message Windows delivers with it: any other message this host handles, and that one
+    // when it returns, drops the hit result. Work that reaches the host without a message of its own (a TIMERPROC such as
+    // the recovery retry, a message to another window of the thread, a non-client WM_SETCURSOR) does not end the event;
+    // that is safe because every change a hit test reads moves the interaction or hit revision, which the key compares.
+    // A mouse message without a cursor query (captured, or synthesized) is an event of its own.
+    const bool pointerHitMessage = msg == WM_MOUSEMOVE || msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_LBUTTONDBLCLK ||
+                                   msg == WM_RBUTTONDBLCLK || msg == WM_LBUTTONUP || msg == WM_RBUTTONUP || msg == WM_MBUTTONDOWN || msg == WM_MBUTTONUP;
+    if (msg != WM_SETCURSOR)
+    {
+        if (pointerHitMessage)
+            BeginPointerHitEvent(false);
+        else
+            EndPointerHitEvent();
+        // The screen point of the input Windows is delivering: WM_NCHITTEST precedes the WM_SETCURSOR of the same delivery,
+        // and GetMessagePos still describes the previously retrieved message while the new one is being delivered.
+        _nonClientHitPointValid = msg == WM_NCHITTEST;
+        if (msg == WM_NCHITTEST)
+            _nonClientHitPoint = POINT{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+    }
+    const auto endPointerHitEvent = wil::scope_exit([this, pointerHitMessage]() noexcept
+    {
+        if (pointerHitMessage)
+            EndPointerHitEvent();
+    });
 
     if (WndMsg::WindowHostProcessExitDetach().Matches(msg))
     {
@@ -3389,7 +4270,7 @@ try
             haveMessageScreenPt = ClientToScreen(hwnd, &messageScreenPt) != FALSE;
             if (_root)
             {
-                messageHitControl = HitTestControl(PointFromLParam(lp));
+                messageHitControl = HitTestControlUncached(PointFromLParam(lp));
             }
         }
         const POINT hitScreenPt    = haveMessageScreenPt ? messageScreenPt : cursorScreenPt;
@@ -3440,8 +4321,24 @@ try
 
     switch (msg)
     {
+        case WM_WINDOWPOSCHANGED:
+            // Shown (also through SetWindowPos alone): a hidden-host latch is re-examined at the next wake.
+            if (const auto* position = reinterpret_cast<const WINDOWPOS*>(lp); position && (position->flags & SWP_SHOWWINDOW) != 0u)
+                ReleaseHiddenLatch();
+            break;
+        case WM_SETREDRAW:
+            // WM_SETREDRAW TRUE restores WS_VISIBLE without WM_SHOWWINDOW: release the latch, the next wake looks again.
+            if (wp != FALSE)
+                ReleaseHiddenLatch();
+            break;
         case WM_PAINT:
             handled = true;
+            // A window painting again is visible again, whatever message (or none) the host saw on the way.
+            if (_animationSuspendedWhileHidden && _hwnd && IsHostWindowEffectivelyVisible(_hwnd))
+                ReleaseHiddenLatch();
+            ++Detail::Work().wakes.paintMessage;
+            if (Detail::Trace::Listening()) [[unlikely]]
+                Detail::Trace::Wake(Detail::Trace::WakeSource::PaintMessage, Detail::Trace::HostIdOf(_trace));
             {
                 PAINTSTRUCT paint{};
                 wil::unique_hdc_paint paintHdc = wil::BeginPaint(hwnd, &paint);
@@ -3455,10 +4352,18 @@ try
         case WM_SIZE:
             handled = true;
             OnSize(static_cast<UINT>(LOWORD(lp)), static_cast<UINT>(HIWORD(lp)));
-            if ((wp == SIZE_RESTORED || wp == SIZE_MAXIMIZED) && _hwnd && IsHostWindowEffectivelyVisible(_hwnd) && _animationSuspendedWhileHidden)
+            if (wp == SIZE_MINIMIZED)
+                TextLayoutCacheAccess::Release(*this); // a minimized window paints nothing and keeps no retained text layout
+            if (wp == SIZE_MINIMIZED && ! _animationSuspendedWhileHidden)
             {
-                _animationSuspendedWhileHidden = false;
-                RequestAnimation();
+                // A minimized host holds its schedule and does not wake until it is restored.
+                _animationSuspendedWhileHidden = true;
+                DropPendingTooltipShowWhileHidden();
+                OnFrameScheduleChanged();
+            }
+            else if ((wp == SIZE_RESTORED || wp == SIZE_MAXIMIZED) && _hwnd && IsHostWindowEffectivelyVisible(_hwnd) && _animationSuspendedWhileHidden)
+            {
+                ReleaseHiddenLatch();
             }
             return 0;
         case WM_SHOWWINDOW:
@@ -3476,12 +4381,9 @@ try
                 {
                     ActivateNativeTextInputSession(_focusedControl);
                 }
-                if (_animationSuspendedWhileHidden)
-                {
-                    _animationSuspendedWhileHidden = false;
-                    RequestAnimation();
-                }
-                Invalidate();
+                if (! IsIconic(_hwnd))
+                    ReleaseHiddenLatch();
+                InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Visibility));
             }
             else
             {
@@ -3491,6 +4393,7 @@ try
                 CancelPreparedContent();
                 CancelPreparedVisualContent();
                 DeactivateNativeTextInputSession();
+                TextLayoutCacheAccess::Release(*this); // a hidden window keeps no retained text layout
             }
             handled = false;
             return 0;
@@ -3500,13 +4403,25 @@ try
             return 0;
         case WM_MOVE:
             NotifyTextInputLayoutChanged(_nativeTextInputControl);
+            NoteTextRenderingMonitorMayHaveChanged(false);
+            handled = false;
+            return 0;
+        case WM_SETTINGCHANGE:
+            // Lines per wheel notch (Grid, Tree, TextField) follow the user's setting; reading it is one system call.
+            RefreshWheelScrollLines();
+            // So does the text antialias mode on an opaque target, and the monitor's rendering parameters.
+            RefreshTextRenderingSetting(wp);
+            // And the settings the host keeps: the caret's blink time and timeout, the tooltip's show delay.
+            RefreshUserSettings();
             handled = false;
             return 0;
         case WM_DPICHANGED:
+            NoteTextRenderingMonitorMayHaveChanged(true);
             OnDpiChanged(hwnd, static_cast<UINT>(HIWORD(wp)), reinterpret_cast<const RECT*>(lp));
             handled = true;
             return 0;
         case WM_DPICHANGED_AFTERPARENT:
+            NoteTextRenderingMonitorMayHaveChanged(true);
             OnDpiChanged(hwnd, GetDpiForWindow(hwnd), nullptr);
             handled = true;
             return 0;
@@ -3575,9 +4490,21 @@ try
                 return 0;
             }
 
-            POINT pointPx = {GET_X_LPARAM(GetMessagePos()), GET_Y_LPARAM(GetMessagePos())};
+            // Windows sends WM_SETCURSOR while it delivers a mouse message, after the WM_NCHITTEST that carries the screen
+            // point of that same input; GetMessagePos describes the last message retrieved, which may be the previous one.
+            // Only a cursor query for this window itself opens a pointer event: the mouse message it announces reuses its
+            // hit test (HandleMessage keeps the event open across this message only). One forwarded from a child window
+            // answers the cursor from a fresh hit test, as before.
+            const bool ownCursorQuery = reinterpret_cast<HWND>(wp) == hwnd;
+            POINT pointPx =
+                ownCursorQuery && _nonClientHitPointValid ? _nonClientHitPoint : POINT{GET_X_LPARAM(GetMessagePos()), GET_Y_LPARAM(GetMessagePos())};
+            _nonClientHitPointValid = false;
             ScreenToClient(hwnd, &pointPx);
             const D2D1_POINT_2F pointDip = D2D1::Point2F(PixelsToDip(static_cast<float>(pointPx.x)), PixelsToDip(static_cast<float>(pointPx.y)));
+            if (ownCursorQuery)
+                BeginPointerHitEvent(true);
+            else
+                EndPointerHitEvent();
             SetCursor(ResolveCursorHandle(ResolveCursorKindForPoint(pointDip)));
             handled = true;
             return TRUE;
@@ -3611,6 +4538,7 @@ try
             _supplementalTooltipText.clear();
             _supplementalTooltipIsRichTitle  = false;
             _supplementalTooltipNeedsResolve = false;
+            _tooltipTargetStale              = false;
             ClearTooltip();
             Invalidate();
             return 0;
@@ -3626,10 +4554,16 @@ try
             break;
         }
         case WM_MBUTTONUP:
-            handled = _capturedControl != nullptr;
+        {
+            // The release reaches the control as its press did; a gesture holding the capture consumes it either way.
+            const auto point          = PointFromLParam(lp);
+            Control* const target     = _capturedControl ? _capturedControl : HitTestControl(point);
+            const bool controlHandled = target && target->OnMouseMiddleUp(*this, point, static_cast<UINT>(wp));
+            handled                   = controlHandled || _capturedControl != nullptr;
             if (handled)
                 return 0;
             break;
+        }
         case WM_LBUTTONDOWN:
         case WM_RBUTTONDOWN:
         case WM_LBUTTONDBLCLK:
@@ -3645,7 +4579,9 @@ try
             const UINT buttonDownMessage = PointerButtonDownMessageFor(msg);
             if (! target && _root)
             {
-                static_cast<void>(_root->DismissOverlayOnPointerDown(*this, point));
+                // A dismissed popup no longer covers the point: the cursor query's hit result is stale.
+                if (_root->DismissOverlayOnPointerDown(*this, point) && HitRevisionSiteLive(HitRevisionSite::OverlayDismissal))
+                    AdvanceHitRevision();
             }
             if (! target && IsPointerDoubleClickMessage(msg))
             {
@@ -3894,6 +4830,7 @@ try
                 const std::weak_ptr<int> keyTargetLifetime = keyTarget ? keyTarget->GetLifetimeToken() : std::weak_ptr<int>{};
                 const auto inputStartedAt                  = std::chrono::steady_clock::now();
                 const UINT modifiers                       = GetModifierState();
+                const uint64_t synchronizationsBefore      = _nativeTextInputEventCounters.synchronizationCount;
                 const bool controlHandled                  = keyTarget && keyTarget->OnKeyDown(*this, static_cast<UINT>(wp), modifiers);
                 Control* const liveKeyTarget               = RevalidateInteractiveDispatchedControl(keyTargetLifetime, _root.get(), keyTarget);
                 if (! liveKeyTarget && keyTarget == _focusedControl)
@@ -3905,7 +4842,7 @@ try
                     if (_textInputBackend == TextInputBackend::Native && liveKeyTarget && liveKeyTarget == _focusedControl &&
                         liveKeyTarget->SupportsTextInput())
                     {
-                        SyncNativeTextInputSession(liveKeyTarget);
+                        SyncNativeTextInputAfterDispatch(liveKeyTarget, synchronizationsBefore);
                         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-keydown", static_cast<uint64_t>(wp), modifiers);
                     }
                     if (liveKeyTarget)
@@ -3943,6 +4880,7 @@ try
                 Control* const keyTarget                   = _focusedControl;
                 const std::weak_ptr<int> keyTargetLifetime = keyTarget ? keyTarget->GetLifetimeToken() : std::weak_ptr<int>{};
                 const auto inputStartedAt                  = std::chrono::steady_clock::now();
+                const uint64_t synchronizationsBefore      = _nativeTextInputEventCounters.synchronizationCount;
                 const bool controlHandled                  = keyTarget && keyTarget->OnKeyDown(*this, static_cast<UINT>(wp), modifiers);
                 Control* const liveKeyTarget               = RevalidateInteractiveDispatchedControl(keyTargetLifetime, _root.get(), keyTarget);
                 if (! liveKeyTarget && keyTarget == _focusedControl)
@@ -3954,7 +4892,8 @@ try
                     if (_textInputBackend == TextInputBackend::Native && liveKeyTarget && liveKeyTarget == _focusedControl &&
                         liveKeyTarget->SupportsTextInput())
                     {
-                        SyncNativeTextInputSession(liveKeyTarget);
+                        // Once per input event: a control that already synchronized the state it now shows is not synchronized again.
+                        SyncNativeTextInputAfterDispatch(liveKeyTarget, synchronizationsBefore);
                         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-keydown", static_cast<uint64_t>(wp), modifiers);
                     }
                     // As after a handled pointer release: a key the control handled may have changed what it exposes to
@@ -4021,6 +4960,7 @@ try
                 Control* const keyTarget                   = _focusedControl;
                 const std::weak_ptr<int> keyTargetLifetime = keyTarget ? keyTarget->GetLifetimeToken() : std::weak_ptr<int>{};
                 const auto inputStartedAt                  = std::chrono::steady_clock::now();
+                const uint64_t synchronizationsBefore      = _nativeTextInputEventCounters.synchronizationCount;
                 const bool controlHandled                  = keyTarget && keyTarget->OnKeyUp(*this, static_cast<UINT>(wp), modifiers);
                 Control* const liveKeyTarget               = RevalidateInteractiveDispatchedControl(keyTargetLifetime, _root.get(), keyTarget);
                 if (! liveKeyTarget && keyTarget == _focusedControl)
@@ -4033,7 +4973,7 @@ try
                     if (_textInputBackend == TextInputBackend::Native && liveKeyTarget && liveKeyTarget == _focusedControl &&
                         liveKeyTarget->SupportsTextInput())
                     {
-                        SyncNativeTextInputSession(liveKeyTarget);
+                        SyncNativeTextInputAfterDispatch(liveKeyTarget, synchronizationsBefore);
                         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-keyup", static_cast<uint64_t>(wp), modifiers);
                     }
                     return 0;
@@ -4111,6 +5051,7 @@ try
             // This is internal cleanup caused by capture changing; it must not invalidate an
             // InspectTooltip transaction whose capture-cancel callback is still running.
             static_cast<void>(_tooltipLayer.Clear());
+            OnTooltipScheduleChanged();
             Invalidate();
             return 0;
         case WM_CANCELMODE:
@@ -4148,11 +5089,29 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
         return false;
     if (! _dwriteFactory)
     {
-        if (! EnsureSharedWindowHostGraphicsResources())
+        if (_hwnd)
         {
-            return false;
+            if (! EnsureSharedWindowHostGraphicsResources())
+            {
+                return false;
+            }
+            _dwriteFactory = GetSharedWindowHostGraphicsResources().dwriteFactory;
         }
-        _dwriteFactory = GetSharedWindowHostGraphicsResources().dwriteFactory;
+        else
+        {
+            // A host that is not attached only measures and lays out text. It borrows the
+            // process-shared DirectWrite factory, the same object the thread's graphics pool
+            // holds, and creates no pool: only the last attachment's detach releases a pool,
+            // so one created here would outlive this host and its default adapter policy
+            // would refuse every later forced-WARP attachment on this thread.
+            const HRESULT hr = Detail::CreateHostWriteFactory(_dwriteFactory.put());
+            if (FAILED(hr) || ! _dwriteFactory)
+            {
+                Debug::Error(L"DxUi::ControlHost: unattached DWriteCreateFactory failed: 0x{:08X}", hr);
+                _dwriteFactory.reset();
+                return false;
+            }
+        }
         ++_typographyRevision;
     }
     if (! _dwriteFactory)
@@ -4162,7 +5121,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _bodyTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Body);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _bodyTextFormat.addressof());
         if (FAILED(hr) || ! _bodyTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for body text: 0x{:08X}", hr);
@@ -4172,7 +5131,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _bodyStrongTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::BodyStrong);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyStrongTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _bodyStrongTextFormat.addressof());
         if (FAILED(hr) || ! _bodyStrongTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for body-strong text: 0x{:08X}", hr);
@@ -4182,7 +5141,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _bodyLargeTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::BodyLarge);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _bodyLargeTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _bodyLargeTextFormat.addressof());
         if (FAILED(hr) || ! _bodyLargeTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for body-large text: 0x{:08X}", hr);
@@ -4192,7 +5151,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _listItemTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::ListItem);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _listItemTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _listItemTextFormat.addressof());
         if (FAILED(hr) || ! _listItemTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for list-item text: 0x{:08X}", hr);
@@ -4202,7 +5161,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _titleTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Title);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _titleTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _titleTextFormat.addressof());
         if (FAILED(hr) || ! _titleTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for title text: 0x{:08X}", hr);
@@ -4212,7 +5171,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _subtitleTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Subtitle);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _subtitleTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _subtitleTextFormat.addressof());
         if (FAILED(hr) || ! _subtitleTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for subtitle text: 0x{:08X}", hr);
@@ -4222,7 +5181,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _titleLargeTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::TitleLarge);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _titleLargeTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _titleLargeTextFormat.addressof());
         if (FAILED(hr) || ! _titleLargeTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for title-large text: 0x{:08X}", hr);
@@ -4232,7 +5191,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _displayTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Display);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _displayTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _displayTextFormat.addressof());
         if (FAILED(hr) || ! _displayTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for display text: 0x{:08X}", hr);
@@ -4242,7 +5201,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _headerTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Header);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _headerTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _headerTextFormat.addressof());
         if (FAILED(hr) || ! _headerTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for header text: 0x{:08X}", hr);
@@ -4252,7 +5211,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _smallTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Small);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _smallTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _smallTextFormat.addressof());
         if (FAILED(hr) || ! _smallTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for small text: 0x{:08X}", hr);
@@ -4267,7 +5226,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (_fluentIconFontAvailable && ! _iconTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Icon);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _iconTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _iconTextFormat.addressof());
         if (FAILED(hr) || ! _iconTextFormat)
         {
             Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent icon text: 0x{:08X}", hr);
@@ -4278,7 +5237,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (_fluentIconFontAvailable && ! _heroIconTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::HeroIcon);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _heroIconTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _heroIconTextFormat.addressof());
         if (FAILED(hr) || ! _heroIconTextFormat)
         {
             Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent hero icon text: 0x{:08X}", hr);
@@ -4288,7 +5247,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (_fluentIconFontAvailable && ! _iconLargeTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::IconLarge);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _iconLargeTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _iconLargeTextFormat.addressof());
         if (FAILED(hr) || ! _iconLargeTextFormat)
         {
             Debug::Warning(L"DxUi::ControlHost: CreateTextFormat failed for fluent large icon text: 0x{:08X}", hr);
@@ -4298,7 +5257,7 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
     if (! _monoTextFormat)
     {
         const Typography::Spec spec = Typography::GetSpec(FontRole::Monospace);
-        const HRESULT hr            = Typography::CreateTextFormat(_dwriteFactory.get(), spec, _monoTextFormat.addressof());
+        const HRESULT hr            = CountedCreateTypographyTextFormat(_dwriteFactory.get(), spec, _monoTextFormat.addressof());
         if (FAILED(hr) || ! _monoTextFormat)
         {
             Debug::Error(L"DxUi::ControlHost: CreateTextFormat failed for monospace text: 0x{:08X}", hr);
@@ -4306,6 +5265,181 @@ bool ControlHost::EnsureDeviceIndependentResources() const noexcept
         }
     }
     return true;
+}
+
+namespace
+{
+// Not a FontSmoothing value: the setting has not been read yet.
+constexpr uint8_t kFontSmoothingUnread = 0xFFu;
+std::atomic<uint8_t> fontSmoothing{kFontSmoothingUnread};
+#if DXUI_ENABLE_DIAGNOSTICS
+std::atomic<bool> fontSmoothingOverridden{false};
+std::atomic<uint8_t> fontSmoothingOverride{static_cast<uint8_t>(FontSmoothing::ClearType)};
+#endif
+
+[[nodiscard]] FontSmoothing ReadFontSmoothingSetting() noexcept
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (fontSmoothingOverridden.load(std::memory_order_acquire))
+        return static_cast<FontSmoothing>(fontSmoothingOverride.load(std::memory_order_relaxed));
+#endif
+    BOOL enabled = TRUE;
+    if (SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0u, &enabled, 0u) != FALSE && enabled == FALSE)
+        return FontSmoothing::Off;
+    UINT type = FE_FONTSMOOTHINGCLEARTYPE;
+    if (SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0u, &type, 0u) != FALSE && type == FE_FONTSMOOTHINGSTANDARD)
+        return FontSmoothing::Standard;
+    return FontSmoothing::ClearType;
+}
+} // namespace
+
+FontSmoothing ResolveFontSmoothing() noexcept
+{
+    uint8_t value = fontSmoothing.load(std::memory_order_relaxed);
+    if (value == kFontSmoothingUnread)
+    {
+        value = static_cast<uint8_t>(ReadFontSmoothingSetting());
+        fontSmoothing.store(value, std::memory_order_relaxed);
+    }
+    return static_cast<FontSmoothing>(value);
+}
+
+bool RefreshFontSmoothing() noexcept
+{
+    const uint8_t value = static_cast<uint8_t>(ReadFontSmoothingSetting());
+    return fontSmoothing.exchange(value, std::memory_order_relaxed) != value;
+}
+
+#if DXUI_ENABLE_DIAGNOSTICS
+void DebugSetFontSmoothingForTest(std::optional<FontSmoothingForTest> smoothing) noexcept
+{
+    fontSmoothingOverride.store(static_cast<uint8_t>(smoothing.value_or(FontSmoothingForTest::ClearType)), std::memory_order_relaxed);
+    fontSmoothingOverridden.store(smoothing.has_value(), std::memory_order_release);
+    static_cast<void>(RefreshFontSmoothing());
+}
+#endif
+
+bool TextAntialiasModeAcceptsRenderingMode(D2D1_TEXT_ANTIALIAS_MODE antialias, DWRITE_RENDERING_MODE renderingMode) noexcept
+{
+    if (antialias == D2D1_TEXT_ANTIALIAS_MODE_DEFAULT)
+        return true;
+    if (renderingMode == DWRITE_RENDERING_MODE_ALIASED)
+        return antialias == D2D1_TEXT_ANTIALIAS_MODE_ALIASED;
+    if (renderingMode == DWRITE_RENDERING_MODE_OUTLINE)
+        return antialias != D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE;
+    if (antialias == D2D1_TEXT_ANTIALIAS_MODE_ALIASED)
+        return renderingMode == DWRITE_RENDERING_MODE_DEFAULT;
+    return true;
+}
+
+HRESULT MakeTextRenderingParamsFor(IDWriteFactory* factory,
+                                   IDWriteRenderingParams* source,
+                                   D2D1_TEXT_ANTIALIAS_MODE antialias,
+                                   IDWriteRenderingParams** result) noexcept
+{
+    if (! result)
+        return E_POINTER;
+    *result = nullptr;
+    if (! factory || ! source)
+        return E_INVALIDARG;
+    if (TextAntialiasModeAcceptsRenderingMode(antialias, source->GetRenderingMode()))
+    {
+        source->AddRef();
+        *result = source;
+        return S_OK;
+    }
+    return CountedCreateCustomRenderingParams(factory,
+                                              source->GetGamma(),
+                                              source->GetEnhancedContrast(),
+                                              source->GetClearTypeLevel(),
+                                              source->GetPixelGeometry(),
+                                              DWRITE_RENDERING_MODE_DEFAULT,
+                                              result);
+}
+
+void ControlHost::ResetTextRenderingBinding() noexcept
+{
+    // A new device context starts with the default antialias mode and no parameters.
+    _textRenderingParamsBound = nullptr;
+    _textAntialiasModeApplied = D2D1_TEXT_ANTIALIAS_MODE_DEFAULT;
+    _textRenderingApplied     = false;
+}
+
+bool ControlHost::ApplyTextRendering() noexcept
+{
+    if (! _d2dContext)
+        return false;
+    // An embedded surface is premultiplied and stays grayscale, so it does not read the setting.
+    const FontSmoothing smoothing = _embedded ? FontSmoothing::ClearType : ResolveFontSmoothing();
+    if (_textRenderingApplied && ! _textRenderingParamsStale && _textRenderingSmoothingApplied == static_cast<uint8_t>(smoothing))
+        return false;
+
+    // Direct2D's default already gives ClearType on the opaque (IGNORE) swap chain and grayscale on a premultiplied target;
+    // only an opaque target whose user turned ClearType off needs an explicit mode. Embedded keeps its explicit grayscale.
+    D2D1_TEXT_ANTIALIAS_MODE antialias = D2D1_TEXT_ANTIALIAS_MODE_DEFAULT;
+    if (_embedded)
+        antialias = D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE;
+    else if (_presentationMode == PresentationMode::HwndSwapChain && smoothing != FontSmoothing::ClearType)
+        antialias = D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE;
+
+    if (_textRenderingParamsStale || antialias != _textAntialiasModeApplied || ! _textRenderingApplied)
+    {
+        if (! _embedded)
+            _textRenderingMonitor = _hwnd ? MonitorFromWindow(_hwnd, MONITOR_DEFAULTTONEAREST) : nullptr;
+        wil::com_ptr<IDWriteRenderingParams> params;
+        if (_textRenderingMonitor && _dwriteFactory)
+        {
+            wil::com_ptr<IDWriteRenderingParams> monitorParams;
+            HRESULT hr = CountedCreateMonitorRenderingParams(_dwriteFactory, _textRenderingMonitor, monitorParams.put());
+            if (SUCCEEDED(hr))
+                hr = MakeTextRenderingParamsFor(_dwriteFactory.get(), monitorParams.get(), antialias, params.put());
+            if (FAILED(hr))
+            {
+                // Without parameters the context draws as it did before any were bound.
+                Debug::Warning(L"DxUi::ControlHost: monitor rendering parameters unavailable: 0x{:08X}", hr);
+                params.reset();
+            }
+        }
+        _textRenderingParams      = std::move(params);
+        _textRenderingParamsStale = false;
+    }
+
+    if (! _textRenderingApplied || antialias != _textAntialiasModeApplied)
+        _d2dContext->SetTextAntialiasMode(antialias);
+    if (_textRenderingParams.get() != _textRenderingParamsBound)
+    {
+        ++Detail::Work().text.setTextRenderingParams;
+        _d2dContext->SetTextRenderingParams(_textRenderingParams.get());
+        _textRenderingParamsBound = _textRenderingParams.get();
+    }
+    _textAntialiasModeApplied      = antialias;
+    _textRenderingSmoothingApplied = static_cast<uint8_t>(smoothing);
+    _textRenderingApplied          = true;
+    return true;
+}
+
+void ControlHost::RefreshTextRenderingSetting(WPARAM action) noexcept
+{
+    const bool changed = RefreshFontSmoothing();
+    // A font-smoothing change, including ClearType tuning (contrast, orientation), reads the monitor's parameters again.
+    const bool smoothingAction = action == SPI_SETFONTSMOOTHING || action == SPI_SETFONTSMOOTHINGTYPE || action == SPI_SETFONTSMOOTHINGCONTRAST ||
+                                 action == SPI_SETFONTSMOOTHINGORIENTATION;
+    if (changed || smoothingAction)
+        _textRenderingParamsStale = true;
+    if (_textRenderingApplied && (_textRenderingParamsStale || _textRenderingSmoothingApplied != static_cast<uint8_t>(ResolveFontSmoothing())))
+        Invalidate();
+}
+
+void ControlHost::NoteTextRenderingMonitorMayHaveChanged(bool dpiChanged) noexcept
+{
+    if (! _hwnd || _embedded)
+        return;
+    if (dpiChanged || MonitorFromWindow(_hwnd, MONITOR_DEFAULTTONEAREST) != _textRenderingMonitor)
+    {
+        _textRenderingParamsStale = true;
+        if (! dpiChanged && _textRenderingApplied)
+            Invalidate();
+    }
 }
 
 bool ControlHost::EnsureDeviceResources() noexcept
@@ -4319,6 +5453,9 @@ bool ControlHost::EnsureDeviceResources() noexcept
         CancelPreparedContent();
         CancelPreparedVisualContent();
         DiscardSizeDependentResources(L"shared-generation-change");
+        // A new device: the brushes of the old device context go with it.
+        ReleaseBrushes();
+        _fallbackBrush.reset();
         _dcompVisual.reset();
         _dcompTarget.reset();
         _dcompDevice.reset();
@@ -4363,7 +5500,7 @@ bool ControlHost::EnsureDeviceResources() noexcept
         }
     }
 
-    const HRESULT hrContext = _d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _d2dContext.addressof());
+    const HRESULT hrContext = CountedCreateDeviceContext(_d2dDevice, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, _d2dContext.addressof());
     if (FAILED(hrContext) || ! _d2dContext)
     {
         Debug::Error(L"DxUi::ControlHost: ID2D1Device::CreateDeviceContext failed: 0x{:08X}", hrContext);
@@ -4376,6 +5513,7 @@ bool ControlHost::EnsureDeviceResources() noexcept
 
     _sharedGraphicsGeneration = shared.generation;
     ++_resourceGeneration;
+    ResetTextRenderingBinding();
     _d2dContext->SetUnitMode(D2D1_UNIT_MODE_DIPS);
     _d2dContext->SetDpi(static_cast<float>(_dpi), static_cast<float>(_dpi));
     RecreateBrushCache();
@@ -4413,7 +5551,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         DiscardDeviceResources();
         ResetSharedWindowHostGraphicsResources();
         _forceFullPresentAfterBufferReset = true;
-        Invalidate();
+        ScheduleRecoveryRetry();
     };
     const auto injected = [&](unsigned stage, HRESULT actual) noexcept
     {
@@ -4508,6 +5646,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
             recoverDeviceLoss(hrSwapChain);
             return false;
         }
+        ++Detail::Work().frame.swapChains;
 
         _swapChainWidthPx  = desc.Width;
         _swapChainHeightPx = desc.Height;
@@ -4541,15 +5680,15 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
                               _presentationMode == PresentationMode::CompositionSwapChain ? D2D1_ALPHA_MODE_PREMULTIPLIED : D2D1_ALPHA_MODE_IGNORE),
             static_cast<float>(_dpi),
             static_cast<float>(_dpi));
-        const HRESULT hrBitmap = injected(3u, _d2dContext->CreateBitmapFromDxgiSurface(surface.get(), &props, _targetBitmap.addressof()));
+        const HRESULT hrBitmap = injected(3u, CountedCreateBitmapFromDxgiSurface(_d2dContext, surface.get(), &props, _targetBitmap.addressof()));
         if (FAILED(hrBitmap) || ! _targetBitmap)
         {
             Debug::Error(L"DxUi::ControlHost: CreateBitmapFromDxgiSurface failed: 0x{:08X}", hrBitmap);
             recoverDeviceLoss(hrBitmap);
             return false;
         }
+        // Brushes belong to the device context, not to its target: a new back buffer keeps them.
         _d2dContext->SetTarget(_targetBitmap.get());
-        RecreateBrushCache();
         return true;
     };
 
@@ -4581,7 +5720,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
                 DiscardDeviceResources();
                 ResetSharedWindowHostGraphicsResources();
                 _forceFullPresentAfterBufferReset = true;
-                Invalidate();
+                ScheduleRecoveryRetry();
             }
             return false;
         }
@@ -4609,7 +5748,7 @@ void ControlHost::PrepareForSwapChainResize() noexcept
         _d2dContext->SetTarget(nullptr);
     }
     _targetBitmap.reset();
-    _brushCache.clear();
+    // The brush cache survives: brushes are device-context resources, which DiscardDeviceResources clears.
     // Embedded hosts release only their own D2D targets/resources. The supplied immediate context can still
     // contain the application's bindings and queued work; native swap-chain retirement alone clears/flushes it.
     if (_d3dContext && ! _embedded)
@@ -4642,6 +5781,10 @@ void ControlHost::DiscardSizeDependentResources(const std::wstring_view reason) 
 
 void ControlHost::DiscardDeviceResources() noexcept
 {
+    // Device loss and detach end any pointer event; no hit result is kept across the recreation.
+    EndPointerHitEvent();
+    if (HitRevisionSiteLive(HitRevisionSite::DeviceLoss))
+        AdvanceHitRevision();
     CancelPreparedContent();
     CancelPreparedVisualContent();
     ++_resourceGeneration;
@@ -4650,7 +5793,9 @@ void ControlHost::DiscardDeviceResources() noexcept
     {
         PrepareForSwapChainResize();
     }
-    _brushCache.clear();
+    // Device loss, replacement and detach keep no retained text layout: the next paint lays its strings out again.
+    TextLayoutCacheAccess::Release(*this);
+    ReleaseBrushes();
     _brushFailureLogKeys.clear();
     _fallbackBrush.reset();
     _targetBitmap.reset();
@@ -4670,21 +5815,263 @@ void ControlHost::DiscardDeviceResources() noexcept
 
 void ControlHost::TrimCaches() noexcept
 {
-    // Called only at paint/preparation start, before any brush or format is borrowed for the frame.
+    // Called only at paint/preparation start, before any brush or format is borrowed for the frame. Each call is one frame
+    // (_paintFrame): entries used by the frame that just ended or the one before it stay; above its bound a map releases
+    // the others. Entries in use stay even above the bound, so a working set beyond it never thrashes. Nothing retains a
+    // raw pointer from either map across frames, so eviction needs no re-preparation: holders keep formats by com_ptr.
+    const uint64_t frame = _paintFrame;
+    const auto stale     = [frame](const auto& entry) noexcept { return entry.second.lastUse + 1u < frame; };
     if (_brushCache.size() > kSolidBrushCacheLimit)
-    {
-        _brushCache.clear();
-    }
+        Detail::Work().frame.brushEvictions += std::erase_if(_brushCache, stale);
     if (_configuredTextFormats.size() > kConfiguredTextFormatCacheLimit)
     {
-        _configuredTextFormats.clear();
-        _forceAllVisualPreparation = true;
+        const size_t evicted = std::erase_if(_configuredTextFormats, stale);
+        Detail::Work().text.formatEvictions += evicted;
+        if (evicted != 0u)
+            ++Detail::Work().text.formatCacheTrims;
+        if (_configuredTextFormats.size() > kConfiguredTextFormatCacheLimit)
+            ++Detail::Work().text.formatCacheOverBound;
+    }
+    ++_paintFrame;
+    _transitionBrushesUsed = 0u;
+}
+
+#if defined(_DEBUG)
+namespace
+{
+// Whether `format` still has the properties the retained `layout` was created with, those the key does not hash included.
+[[nodiscard]] bool RetainedLayoutMatchesFormat(IDWriteTextLayout& layout, IDWriteTextFormat& format) noexcept
+{
+    DWRITE_TRIMMING layoutTrimming{}, formatTrimming{};
+    wil::com_ptr<IDWriteInlineObject> layoutSign, formatSign;
+    DWRITE_LINE_SPACING_METHOD layoutMethod{}, formatMethod{};
+    float layoutSpacing = 0.0f, layoutBaseline = 0.0f, formatSpacing = 0.0f, formatBaseline = 0.0f;
+    std::array<wchar_t, 128> layoutName{}, formatName{};
+    if (FAILED(layout.GetTrimming(&layoutTrimming, layoutSign.put())) || FAILED(format.GetTrimming(&formatTrimming, formatSign.put())) ||
+        FAILED(layout.GetLineSpacing(&layoutMethod, &layoutSpacing, &layoutBaseline)) ||
+        FAILED(format.GetLineSpacing(&formatMethod, &formatSpacing, &formatBaseline)))
+        return true; // nothing to compare
+    if (layoutTrimming.granularity != formatTrimming.granularity || layoutTrimming.delimiter != formatTrimming.delimiter ||
+        layoutTrimming.delimiterCount != formatTrimming.delimiterCount || layoutSign.get() != formatSign.get() || layoutMethod != formatMethod ||
+        layoutSpacing != formatSpacing || layoutBaseline != formatBaseline || layout.GetFlowDirection() != format.GetFlowDirection() ||
+        layout.GetIncrementalTabStop() != format.GetIncrementalTabStop())
+        return false;
+    if (SUCCEEDED(layout.GetLocaleName(layoutName.data(), static_cast<UINT32>(layoutName.size()))) &&
+        SUCCEEDED(format.GetLocaleName(formatName.data(), static_cast<UINT32>(formatName.size()))) && std::wstring_view(layoutName.data()) != formatName.data())
+        return false;
+    if (SUCCEEDED(layout.GetFontFamilyName(layoutName.data(), static_cast<UINT32>(layoutName.size()))) &&
+        SUCCEEDED(format.GetFontFamilyName(formatName.data(), static_cast<UINT32>(formatName.size()))) &&
+        std::wstring_view(layoutName.data()) != formatName.data())
+        return false;
+    return true;
+}
+} // namespace
+#endif
+
+void TextLayoutCacheAccess::Draw(ControlHost& host,
+                                 ID2D1RenderTarget* target,
+                                 std::wstring_view text,
+                                 IDWriteTextFormat* format,
+                                 const D2D1_RECT_F& rect,
+                                 ID2D1Brush* brush,
+                                 D2D1_DRAW_TEXT_OPTIONS options) noexcept
+{
+    if (! target || ! format || ! brush)
+        return;
+    const auto drawText = [&]() noexcept
+    { CountedDrawText(target, text.data(), static_cast<UINT32>(text.size()), format, rect, brush, options, DWRITE_MEASURING_MODE_NATURAL); };
+    if (host._debugTextLayoutCacheDisabled)
+    {
+        ++Detail::Work().text.textLayoutCacheBypasses;
+        drawText();
+        return;
+    }
+    // DrawText of an empty string draws nothing (the equivalence oracle compares it).
+    if (text.empty())
+        return;
+    const float width             = rect.right - rect.left;
+    const float height            = rect.bottom - rect.top;
+    IDWriteFactory* const factory = host._dwriteFactory.get();
+    if (host._textLayoutPaintDepth == 0u || ! factory || text.size() > kMaxRetainedTextLayoutUnits || ! (width > 0.0f) || ! (height > 0.0f) ||
+        ! std::isfinite(width) || ! std::isfinite(height))
+    {
+        ++Detail::Work().text.textLayoutCacheBypasses;
+        drawText();
+        return;
+    }
+    try
+    {
+        const uint64_t generation = host._textLayoutPaintGeneration;
+        // The format enters the hash by what it lays out with, never by its address, so placement repeats from run to run;
+        // strings drawn in several formats at one box then spread over sets instead of overflowing one.
+        const uint64_t formatKey = (uint64_t(std::bit_cast<uint32_t>(format->GetFontSize())) << 32u) ^ (uint64_t(format->GetFontWeight()) << 16u) ^
+                                   (uint64_t(format->GetFontStyle()) << 12u) ^ (uint64_t(format->GetFontStretch()) << 8u) ^
+                                   (uint64_t(format->GetTextAlignment()) << 6u) ^ (uint64_t(format->GetParagraphAlignment()) << 4u) ^
+                                   (uint64_t(format->GetWordWrapping()) << 1u) ^ uint64_t(format->GetReadingDirection()) * 0x9E37u;
+        const uint64_t keyHash   = HashTextLayoutKey(text, width, height, formatKey);
+        bool hit                 = false;
+        auto& entry              = FindTextLayoutEntry(host._textLayoutCache,
+                                                       keyHash,
+                                                       generation,
+                                                       kTextLayoutCacheInitialEntries,
+                                                       host._debugTextLayoutCacheLimit != 0u ? host._debugTextLayoutCacheLimit : kTextLayoutCacheMaxEntries,
+                                                       [&](const ControlHost::RetainedTextLayout& candidate)
+        { return candidate.format.get() == format && candidate.width == width && candidate.height == height && candidate.text == text; },
+                                          hit);
+        if (hit)
+        {
+#if defined(_DEBUG)
+            // Host text formats are immutable once created: the key holds a format by identity and hashes only some of its
+            // properties. A layout keeps every property of the format it was made from, so a hit compares the rest.
+            if (! RetainedLayoutMatchesFormat(*entry.layout, *format))
+                Debug::Error(L"DxUi::ControlHost: a text format changed after a retained layout was made from it; host formats must not change.");
+#endif
+            ++Detail::Work().text.textLayoutCacheHits;
+            entry.lastUse = generation;
+            target->DrawTextLayout(D2D1::Point2F(rect.left, rect.top), entry.layout.get(), brush, options);
+            return;
+        }
+        // At the bound a full set offers the least recently used way; when this paint drew every way, evicting one would
+        // lay its string out again later in the paint, so the string is drawn without retention instead.
+        if (entry.layout && entry.lastUse == generation)
+        {
+            ++Detail::Work().text.textLayoutCacheOverflows;
+            drawText();
+            return;
+        }
+        wil::com_ptr<IDWriteTextLayout> layout;
+        if (FAILED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.put())) || ! layout)
+        {
+            ++Detail::Work().text.textLayoutCacheBypasses;
+            drawText();
+            return;
+        }
+        ReserveTextStorage(entry.text, text.size());
+        entry.text.assign(text);
+        entry.format  = format;
+        entry.layout  = std::move(layout);
+        entry.keyHash = keyHash;
+        entry.lastUse = generation;
+        entry.width   = width;
+        entry.height  = height;
+        ++Detail::Work().text.textLayoutCacheMisses;
+        target->DrawTextLayout(D2D1::Point2F(rect.left, rect.top), entry.layout.get(), brush, options);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    catch (const std::exception&)
+    {
+        Failure::FailUnexpected();
     }
 }
 
+void TextLayoutCacheAccess::BeginPaint(ControlHost& host) noexcept
+{
+    if (host._textLayoutPaintDepth++ != 0u)
+        return;
+    ++host._textLayoutPaintGeneration;
+    // A new typography revision (a new DirectWrite factory) retires every layout made under the old one.
+    if (host._textLayoutCacheTypography != host._typographyRevision)
+    {
+        Release(host);
+        host._textLayoutCacheTypography = host._typographyRevision;
+    }
+}
+
+void TextLayoutCacheAccess::EndPaint(ControlHost& host) noexcept
+{
+    if (host._textLayoutPaintDepth == 0u || --host._textLayoutPaintDepth != 0u)
+        return;
+    EndTextLayoutPaint(host._textLayoutCache,
+                       host._textLayoutPaintGeneration,
+                       kTextLayoutCacheInitialEntries,
+                       [](ControlHost::RetainedTextLayout& entry) noexcept
+    {
+        entry.layout.reset();
+        entry.format.reset();
+    });
+}
+
+void TextLayoutCacheAccess::Release(ControlHost& host) noexcept
+{
+    std::vector<ControlHost::RetainedTextLayout>().swap(host._textLayoutCache);
+}
+
+size_t TextLayoutCacheAccess::Entries(const ControlHost& host) noexcept
+{
+    return static_cast<size_t>(
+        std::ranges::count_if(host._textLayoutCache, [](const ControlHost::RetainedTextLayout& entry) { return entry.layout != nullptr; }));
+}
+
+uint64_t TextLayoutCacheAccess::ResidentBytes(const ControlHost& host) noexcept
+{
+    // The MSVC standard library keeps up to 7 UTF-16 units inside the string object. (Not HoldsTextStorage: an empty
+    // std::wstring allocates its debug iterator proxy, and a statistics query allocates nothing.)
+    constexpr size_t inlineCapacity = (16u / sizeof(wchar_t)) - 1u;
+    uint64_t bytes                  = uint64_t(host._textLayoutCache.capacity()) * sizeof(ControlHost::RetainedTextLayout);
+    for (const ControlHost::RetainedTextLayout& entry : host._textLayoutCache)
+        if (entry.text.capacity() > inlineCapacity)
+            bytes += uint64_t(entry.text.capacity() + 1u) * sizeof(wchar_t);
+    return bytes;
+}
+
+void DrawHostText(ControlHost& host,
+                  ID2D1RenderTarget* target,
+                  std::wstring_view text,
+                  IDWriteTextFormat* format,
+                  const D2D1_RECT_F& rect,
+                  ID2D1Brush* brush,
+                  D2D1_DRAW_TEXT_OPTIONS options) noexcept
+{
+    TextLayoutCacheAccess::Draw(host, target, text, format, rect, brush, options);
+}
+
+#if DXUI_ENABLE_DIAGNOSTICS
+void ControlHost::DebugSetTextLayoutCacheEnabledForTest(bool enabled) noexcept
+{
+    _debugTextLayoutCacheDisabled = ! enabled;
+}
+
+void ControlHost::DebugSetTextLayoutCacheLimitForTest(size_t maxEntries) noexcept
+{
+    // The table takes power-of-two sizes from 32 up.
+    _debugTextLayoutCacheLimit = maxEntries == 0u ? 0u : (std::max)(kTextLayoutCacheInitialEntries, std::bit_floor(maxEntries));
+}
+
+size_t ControlHost::DebugGetTextLayoutCacheEntries() const noexcept
+{
+    return TextLayoutCacheAccess::Entries(*this);
+}
+
+size_t ControlHost::DebugGetTextLayoutCacheCapacity() const noexcept
+{
+    return _textLayoutCache.size();
+}
+
+size_t ControlHost::DebugCountGlyphRunEligibleTextLayouts() const noexcept
+{
+    size_t eligible = 0u;
+    for (const RetainedTextLayout& entry : _textLayoutCache)
+    {
+        if (! entry.layout || ! entry.format || std::ranges::any_of(entry.text, [](wchar_t unit) { return IS_HIGH_SURROGATE(unit); }))
+            continue;
+        DWRITE_TRIMMING trimming{};
+        wil::com_ptr<IDWriteInlineObject> sign;
+        DWRITE_LINE_METRICS line{};
+        UINT32 lines = 0u;
+        if (SUCCEEDED(entry.format->GetTrimming(&trimming, sign.put())) && trimming.granularity == DWRITE_TRIMMING_GRANULARITY_NONE &&
+            SUCCEEDED(entry.layout->GetLineMetrics(&line, 1u, &lines)) && lines == 1u)
+            ++eligible;
+    }
+    return eligible;
+}
+#endif
+
 void ControlHost::RecreateBrushCache() const
 {
-    _brushCache.clear();
+    ReleaseBrushes();
     _brushFailureLogKeys.clear();
     _fallbackBrush.reset();
     if (! _d2dContext)
@@ -4692,268 +6079,116 @@ void ControlHost::RecreateBrushCache() const
         return;
     }
 
-    const HRESULT hr = _d2dContext->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f), _fallbackBrush.addressof());
+    const HRESULT hr = CountedCreateSolidColorBrush(_d2dContext, D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f), _fallbackBrush.addressof());
     if (FAILED(hr) || ! _fallbackBrush)
     {
         Debug::Warning(L"DxUi::ControlHost: failed to create fallback solid brush: 0x{:08X}", hr);
     }
+#if DXUI_ENABLE_DIAGNOSTICS
+    else
+    {
+        ++_debugSolidBrushCreateCount;
+    }
+#endif
 }
+
+// Diagnostics are fixed on (Configuration.h), so the capturing overload is the one render path.
+static_assert(DXUI_ENABLE_DIAGNOSTICS, "WindowHost renders through its capturing overload.");
+namespace
+{
+// The device pixels one native render pass clears and repaints: the dirty rectangle of a partial frame, else the window.
+[[nodiscard]] uint64_t WindowHostRenderPixels(const RECT* dirtyRectPx, UINT widthPx, UINT heightPx) noexcept
+{
+    if (dirtyRectPx)
+        return static_cast<uint64_t>((std::max)(dirtyRectPx->right - dirtyRectPx->left, 0L)) *
+               static_cast<uint64_t>((std::max)(dirtyRectPx->bottom - dirtyRectPx->top, 0L));
+    return static_cast<uint64_t>(widthPx) * heightPx;
+}
+
+// Work counters for one native render pass: the area it clears and repaints (the dirty rectangle of a partial frame).
+void CountWindowHostRender(const RECT* dirtyRectPx, UINT widthPx, UINT heightPx) noexcept
+{
+    auto& frame = Detail::Work().frame;
+    ++frame.renders;
+    frame.pixelsPainted += WindowHostRenderPixels(dirtyRectPx, widthPx, heightPx);
+}
+} // namespace
 
 void ControlHost::Render(const RECT* dirtyRectPx, bool allowHidden) noexcept
-try
 {
-    const Failure::Scope failureScope;
-    if (! _nativePresentationVisible)
-        return;
-#if DXUI_ENABLE_DIAGNOSTICS
     Render(dirtyRectPx, nullptr, allowHidden);
-#else
-    const auto presentationRevision = _nativePresentationRevision;
-    if (_initialRootChildBatchFrame)
-    {
-        // A nested render cannot safely begin another D2D frame while the opted-in root batch is active.
-        InitialRootChildBatchFrame* const frame = _initialRootChildBatchFrame;
-        if (SUCCEEDED(frame->firstFlushFailure))
-            frame->firstFlushFailure = E_ABORT;
-        frame->flushesRemaining = 0u;
-        return;
-    }
-    TrimCaches();
-    FrameClock frameClock;
-    FrameStage frameStage       = FrameStage::Idle;
-    const auto frameStartedAt   = frameClock.Now();
-    uint64_t updateUs           = 0u;
-    uint64_t renderUs           = 0u;
-    uint64_t presentUs          = 0u;
-    const auto dirtyRectMetrics = ResolveWindowHostDirtyRectMetrics(dirtyRectPx, _widthPx, _heightPx);
-    const auto emitFrameMetrics = wil::scope_exit([&]
-    { EmitWindowHostFrameMetrics(frameClock.ElapsedUs(frameStartedAt, frameClock.Now()), updateUs, renderUs, presentUs, dirtyRectMetrics); });
-
-    Debug::Perf::Scope paintPerf(L"DxUi::Paint");
-    paintPerf.SetValue0(_widthPx);
-    paintPerf.SetValue1(_heightPx);
-
-    {
-        FrameStageScope updateScope(frameStage, FrameStage::Update);
-        const auto updateStartedAt  = frameClock.Now();
-        const auto recordUpdateTime = wil::scope_exit([&]() noexcept { updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now()); });
-        if (! EnsureSizeDependentResources(allowHidden))
-        {
-            paintPerf.SetHr(E_FAIL);
-            EmitPendingNativeTextInputPaintMetric(E_FAIL);
-            return;
-        }
-        if (_root)
-        {
-            // A root installed by a paint callback receives its bounds in this update stage.
-            _root->SetBounds(GetClientBoundsDip());
-        }
-        if (! PreparePendingPageLayout() || ! _nativePresentationVisible || _nativePresentationRevision != presentationRevision)
-        {
-            if (_contentPreparationContinues)
-                Invalidate();
-            paintPerf.SetHr(E_ABORT);
-            EmitPendingNativeTextInputPaintMetric(E_ABORT);
-            return;
-        }
-    }
-
-    const bool forceFullPresentAfterBufferReset = _forceFullPresentAfterBufferReset;
-    const bool isPartialDirty                   = dirtyRectMetrics.isPartialDirty && ! forceFullPresentAfterBufferReset;
-    paintPerf.SetDetail(isPartialDirty ? L"partial" : L"full");
-
-    D2D1_RECT_F clipDip{};
-    if (isPartialDirty)
-    {
-        clipDip = D2D1::RectF(PixelsToDip(static_cast<float>(dirtyRectPx->left)),
-                              PixelsToDip(static_cast<float>(dirtyRectPx->top)),
-                              PixelsToDip(static_cast<float>(dirtyRectPx->right)),
-                              PixelsToDip(static_cast<float>(dirtyRectPx->bottom)));
-    }
-
-    HRESULT hrDraw       = S_OK;
-    HRESULT hrBatchFlush = S_OK;
-    {
-        FrameStageScope renderScope(frameStage, FrameStage::Render);
-        const auto renderStartedAt = frameClock.Now();
-        bool clipPushed            = false;
-        _d2dContext->BeginDraw();
-        auto endDrawGuard = wil::scope_exit([&]
-        {
-            if (clipPushed)
-            {
-                _d2dContext->PopAxisAlignedClip();
-            }
-            (void)Detail::EndDrawNative(_d2dContext.get());
-        });
-        _d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
-
-        if (isPartialDirty)
-        {
-            _d2dContext->PushAxisAlignedClip(clipDip, D2D1_ANTIALIAS_MODE_ALIASED);
-            clipPushed = true;
-        }
-
-        Control* const paintRoot           = _root.get();
-        const auto rootLifetime            = paintRoot ? paintRoot->GetLifetimeToken() : std::weak_ptr<int>{};
-        const uint64_t interactionRevision = _interactionRevision;
-        const auto treeStillCurrent        = [&]() noexcept
-        {
-            return _nativePresentationVisible && _nativePresentationRevision == presentationRevision && (! paintRoot || ! rootLifetime.expired()) &&
-                   _root.get() == paintRoot && _interactionRevision == interactionRevision;
-        };
-        InitialRootChildBatchFrame initialBatchFrame{};
-        const bool batchInitialFrame =
-            _initialRootChildBatchPending && ! isPartialDirty && _batchInitialRootChildren && ! _embedded && _swapChain && dynamic_cast<Panel*>(paintRoot);
-        if (batchInitialFrame)
-        {
-            initialBatchFrame.root                = static_cast<Panel*>(paintRoot);
-            initialBatchFrame.interactionRevision = interactionRevision;
-            initialBatchFrame.flushesRemaining    = 8u;
-            _initialRootChildBatchFrame           = &initialBatchFrame;
-        }
-        auto batchFrameGuard = wil::scope_exit([&]
-        {
-            if (_initialRootChildBatchFrame == &initialBatchFrame)
-                _initialRootChildBatchFrame = nullptr;
-        });
-        _d2dContext->Clear(_presentationMode == PresentationMode::CompositionSwapChain ? D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f) : _palette.windowBackground);
-        if (_root)
-        {
-            _root->Paint(*this);
-        }
-        if (_initialRootChildBatchFrame == &initialBatchFrame)
-        {
-            hrBatchFlush                = initialBatchFrame.firstFlushFailure;
-            _initialRootChildBatchFrame = nullptr;
-        }
-        if (! treeStillCurrent())
-        {
-            EmitPendingNativeTextInputPaintMetric(E_ABORT);
-            return;
-        }
-        if (_smokeOverlayVisible)
-        {
-            if (auto* brush = GetSolidBrush(_palette.smokeOverlay))
-            {
-                _d2dContext->FillRectangle(GetClientBoundsDip(), brush);
-            }
-        }
-        if (_root)
-        {
-            _root->PaintOverlay(*this);
-        }
-        if (! treeStillCurrent())
-        {
-            EmitPendingNativeTextInputPaintMetric(E_ABORT);
-            return;
-        }
-        if (_tooltipLayer.HasTooltip())
-        {
-            _tooltipLayer.Paint(*this);
-        }
-
-        if (clipPushed)
-        {
-            _d2dContext->PopAxisAlignedClip();
-            clipPushed = false;
-        }
-
-        endDrawGuard.release();
-        const HRESULT actualEndDrawResult = Detail::EndDrawNative(_d2dContext.get());
-        hrDraw                            = actualEndDrawResult;
-#if DXUI_ENABLE_DIAGNOSTICS
-        if (const HRESULT injectedEndDrawResult = std::exchange(_debugNextInitialRootChildBatchEndDrawResult, S_OK);
-            SUCCEEDED(actualEndDrawResult) && FAILED(injectedEndDrawResult))
-            hrDraw = injectedEndDrawResult;
-#endif
-        renderUs = frameClock.ElapsedUs(renderStartedAt, frameClock.Now());
-    }
-
-    // An occluded Present still follows a completed D2D draw. Do not repeat the
-    // initial submission boundaries on hidden warm frames while full presentation remains pending.
-    if (hrBatchFlush == S_OK && hrDraw == S_OK)
-        _initialRootChildBatchPending = false;
-
-    HRESULT hrPresent = S_OK;
-    {
-        FrameStageScope presentScope(frameStage, FrameStage::Present);
-        const auto presentStartedAt = frameClock.Now();
-        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
-        {
-            if (isPartialDirty)
-            {
-#if DXUI_ENABLE_DIAGNOSTICS
-                ++_debugPartialPresentAttemptCount;
-#endif
-                RECT dirtyRect = *dirtyRectPx;
-                DXGI_PRESENT_PARAMETERS params{};
-                params.DirtyRectsCount = 1;
-                params.pDirtyRects     = &dirtyRect;
-                hrPresent              = _swapChain->Present1(1u, 0u, &params);
-            }
-            else
-            {
-#if DXUI_ENABLE_DIAGNOSTICS
-                ++_debugFullPresentAttemptCount;
-#endif
-                hrPresent = _swapChain->Present(1u, 0u);
-            }
-        }
-#if DXUI_ENABLE_DIAGNOSTICS
-        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
-        {
-            _debugLastPresentResult = hrPresent;
-        }
-#endif
-        presentUs = frameClock.ElapsedUs(presentStartedAt, frameClock.Now());
-    }
-
-    if (IsDeviceLossHResult(hrBatchFlush) || IsDeviceLossHResult(hrDraw) || IsDeviceLossHResult(hrPresent))
-    {
-        const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : hrPresent);
-        paintPerf.SetHr(renderHr);
-        EmitPendingNativeTextInputPaintMetric(renderHr);
-        DiscardSizeDependentResources(L"render-device-lost");
-        DiscardDeviceResources();
-        ResetSharedWindowHostGraphicsResources();
-        _forceFullPresentAfterBufferReset = true;
-        Invalidate();
-        return;
-    }
-    if (forceFullPresentAfterBufferReset && hrBatchFlush == S_OK && hrDraw == S_OK && hrPresent == S_OK)
-    {
-        _forceFullPresentAfterBufferReset = false;
-    }
-    const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : hrPresent);
-    paintPerf.SetHr(renderHr);
-    EmitPendingNativeTextInputPaintMetric(renderHr);
-    if (FAILED(hrDraw))
-    {
-        Debug::Error(L"DxUi::ControlHost: EndDraw failed: 0x{:08X}", hrDraw);
-    }
-    if (FAILED(hrBatchFlush))
-    {
-        Debug::Error(L"DxUi::ControlHost: initial root-child D2D flush failed: 0x{:08X}", hrBatchFlush);
-    }
-    if (FAILED(hrPresent))
-    {
-#if DXUI_ENABLE_DIAGNOSTICS
-        ++_debugPresentFailureCount;
-#endif
-        Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
-    }
-    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
-    {
-        if (_pendingVisualPreparation)
-            Invalidate(); // Another cosmetic turn does not withhold this completed frame.
-        PublishPreparedContent();
-    }
-#endif
 }
-catch (const std::exception&)
+
+namespace
 {
-    Failure::FailUnexpected();
+// The first retry after a failed recreation or a device loss waits one frame; each further failure doubles the wait up
+// to one second, and a successful Present returns it to one frame (Win32 host contract).
+constexpr uint32_t kRecoveryRetryFirstDelayMs   = 16u;
+constexpr uint32_t kRecoveryRetryMaximumDelayMs = 1000u;
+// One timer on the host's own window; its procedure runs from that window's message loop, never from its window procedure.
+constexpr UINT_PTR kRecoveryRetryTimerId = 0x44785252u;
+} // namespace
+
+void ControlHost::ScheduleRecoveryRetry() noexcept
+{
+    if (_embedded || ! _hwnd || _recoveryRetryArmedDelayMs != 0u)
+        return;
+    const uint32_t delayMs    = _recoveryRetryNextDelayMs == 0u ? kRecoveryRetryFirstDelayMs : _recoveryRetryNextDelayMs;
+    _recoveryRetryNextDelayMs = std::min(delayMs * 2u, kRecoveryRetryMaximumDelayMs);
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (_debugRecoveryRetryClockMs.has_value())
+    {
+        _recoveryRetryArmedDelayMs = delayMs;
+        _debugRecoveryRetryDueMs   = *_debugRecoveryRetryClockMs + delayMs;
+        return;
+    }
+#endif
+    if (SetTimer(_hwnd, kRecoveryRetryTimerId, delayMs, &ControlHost::RecoveryRetryTimerProc) == 0u)
+    {
+        // Without the timer the window would stay blank until something else repaints it: retry on the next paint instead.
+        Debug::Error(L"DxUi::ControlHost: SetTimer for the recovery retry failed: {}", GetLastError());
+        InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Recovery));
+        return;
+    }
+    _recoveryRetryArmedDelayMs = delayMs;
+}
+
+void ControlHost::CancelRecoveryRetry() noexcept
+{
+    if (_recoveryRetryArmedDelayMs == 0u)
+        return;
+    _recoveryRetryArmedDelayMs = 0u;
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (_debugRecoveryRetryClockMs.has_value())
+        return;
+#endif
+    if (_hwnd)
+        static_cast<void>(KillTimer(_hwnd, kRecoveryRetryTimerId));
+}
+
+void ControlHost::OnRecoveryRetryDue() noexcept
+{
+    _recoveryRetryArmedDelayMs = 0u;
+    // The retry is an ordinary paint: a hidden window waits for its show, which paints anyway.
+    InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Recovery));
+}
+
+void CALLBACK ControlHost::RecoveryRetryTimerProc(HWND hwnd, UINT, UINT_PTR timerId, DWORD) noexcept
+{
+    if (timerId != kRecoveryRetryTimerId)
+        return;
+    static_cast<void>(KillTimer(hwnd, timerId));
+    ControlHost* host = nullptr;
+    {
+        const std::scoped_lock lock(GetAttachedWindowHostsMutex());
+        const auto& hosts = GetAttachedWindowHosts();
+        const auto found  = std::ranges::find(hosts, hwnd, &WindowHostAttachment::hwnd);
+        if (found != hosts.end() && found->ownerThreadId == GetCurrentThreadId())
+            host = found->host;
+    }
+    // Attachment changes are owner-thread-only, so the host found here stays attached while it handles the retry.
+    if (host)
+        host->OnRecoveryRetryDue();
 }
 
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -5042,8 +6277,12 @@ try
         FrameStageScope updateScope(frameStage, FrameStage::Update);
         const auto updateStartedAt  = frameClock.Now();
         const auto recordUpdateTime = wil::scope_exit([&]() noexcept { updateUs = frameClock.ElapsedUs(updateStartedAt, frameClock.Now()); });
+        // A window that can present but whose resources fail to recreate retries by itself: nothing else may repaint it.
+        const bool presentable = _hwnd && _widthPx != 0u && _heightPx != 0u && IsSwapChainActiveHostWindow(_hwnd, _widthPx, _heightPx);
         if (! EnsureSizeDependentResources(allowHidden))
         {
+            if (presentable)
+                ScheduleRecoveryRetry();
             paintPerf.SetHr(E_FAIL);
             EmitPendingNativeTextInputPaintMetric(E_FAIL);
             return;
@@ -5056,7 +6295,7 @@ try
         if (! PreparePendingPageLayout() || ! _nativePresentationVisible || _nativePresentationRevision != presentationRevision)
         {
             if (_contentPreparationContinues)
-                Invalidate();
+                InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Continuation));
             paintPerf.SetHr(E_ABORT);
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
@@ -5067,10 +6306,14 @@ try
     ++_debugRenderCount;
 #endif
 
+    // A changed text antialias mode or parameter set applies to the whole frame, never to a dirty rectangle alone.
+    if (ApplyTextRendering())
+        _forceFullPresentAfterBufferReset = true;
+
     // Determine whether rcPaint describes a partial dirty region.
-    // FLIP_SEQUENTIAL preserves back buffer content between frames, so
-    // clipping to the dirty rect and using Present1 with dirty-rect params
-    // is safe: non-dirty regions retain previously-presented content.
+    // A partial frame draws only the dirty rectangle into the back buffer. Present1 with that rectangle keeps the
+    // presented frame correct: the runtime copies the previous frame's updated areas into the buffer being presented.
+    // Only a reader of the back buffer before Present (a debug capture) can see older content outside the rectangle.
     const bool forceFullPresentAfterBufferReset = _forceFullPresentAfterBufferReset;
     const bool isPartialDirty                   = dirtyRectMetrics.isPartialDirty && ! forceFullPresentAfterBufferReset;
     paintPerf.SetDetail(isPartialDirty ? L"partial" : L"full");
@@ -5091,6 +6334,13 @@ try
         FrameStageScope renderScope(frameStage, FrameStage::Render);
         const auto renderStartedAt = frameClock.Now();
         bool clipPushed            = false;
+        CountWindowHostRender(isPartialDirty ? dirtyRectPx : nullptr, _widthPx, _heightPx);
+        // The prepare-end event pairs with this begin even if a session starts or stops in between.
+        const bool tracedPrepare = Detail::Trace::Listening();
+        if (tracedPrepare) [[unlikely]]
+            Detail::Trace::PrepareBegin(_trace);
+        // One generation of the retained text layouts; the strings this paint does not draw release theirs when it ends.
+        const TextLayoutPaintScope textLayoutPaint(*this);
         _d2dContext->BeginDraw();
         auto endDrawGuard = wil::scope_exit([&]
         {
@@ -5134,6 +6384,7 @@ try
         _d2dContext->Clear(_presentationMode == PresentationMode::CompositionSwapChain ? D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f) : _palette.windowBackground);
         if (_root)
         {
+            Detail::NotePaintDispatch();
             _root->Paint(*this);
         }
         if (_initialRootChildBatchFrame == &initialBatchFrame)
@@ -5143,6 +6394,8 @@ try
         }
         if (! treeStillCurrent())
         {
+            if (tracedPrepare) [[unlikely]]
+                Detail::Trace::PrepareEnd(_trace, E_ABORT, 0u);
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
         }
@@ -5159,6 +6412,8 @@ try
         }
         if (! treeStillCurrent())
         {
+            if (tracedPrepare) [[unlikely]]
+                Detail::Trace::PrepareEnd(_trace, E_ABORT, 0u);
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
         }
@@ -5181,6 +6436,8 @@ try
             SUCCEEDED(actualEndDrawResult) && FAILED(injectedEndDrawResult))
             hrDraw = injectedEndDrawResult;
 #endif
+        if (tracedPrepare) [[unlikely]]
+            Detail::Trace::PrepareEnd(_trace, hrDraw, WindowHostRenderPixels(isPartialDirty ? dirtyRectPx : nullptr, _widthPx, _heightPx));
 
         if (capture && FAILED(hrBatchFlush))
         {
@@ -5218,15 +6475,19 @@ try
                 DXGI_PRESENT_PARAMETERS params{};
                 params.DirtyRectsCount = 1;
                 params.pDirtyRects     = &dirtyRect;
-                hrPresent              = _swapChain->Present1(1u, 0u, &params);
+                ++Detail::Work().frame.presents;
+                hrPresent = _swapChain->Present1(1u, 0u, &params);
             }
             else
             {
 #if DXUI_ENABLE_DIAGNOSTICS
                 ++_debugFullPresentAttemptCount;
 #endif
+                ++Detail::Work().frame.presents;
                 hrPresent = _swapChain->Present(1u, 0u);
             }
+            if (Detail::Trace::Listening()) [[unlikely]]
+                Detail::Trace::Presented(_trace, Detail::Trace::Event::Present, isPartialDirty, hrPresent);
         }
 #if DXUI_ENABLE_DIAGNOSTICS
         if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
@@ -5246,8 +6507,14 @@ try
         DiscardDeviceResources();
         ResetSharedWindowHostGraphicsResources();
         _forceFullPresentAfterBufferReset = true;
-        Invalidate();
+        ScheduleRecoveryRetry();
         return;
+    }
+    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
+    {
+        // The window presents again: the next failure retries after one frame.
+        _recoveryRetryNextDelayMs = 0u;
+        CancelRecoveryRetry();
     }
     if (forceFullPresentAfterBufferReset && hrBatchFlush == S_OK && hrDraw == S_OK && hrPresent == S_OK)
     {
@@ -5292,12 +6559,15 @@ void ControlHost::OnSize(UINT widthPx, UINT heightPx) noexcept
 {
     _widthPx  = widthPx;
     _heightPx = heightPx;
+    if (HitRevisionSiteLive(HitRevisionSite::HostSize))
+        AdvanceHitRevision(); // a host resize can move what lies under a client point before arrangement runs
     // Height-only suspension may leave a rich editor's shaping width unchanged.
     // Cancel explicitly before publishing zero-sized text/UIA geometry.
     if (_widthPx == 0u || _heightPx == 0u)
     {
         CancelPreparedContent();
         CancelPreparedVisualContent();
+        TextLayoutCacheAccess::Release(*this); // a zero-sized host paints nothing and keeps no retained text layout
     }
     if (_root)
     {
@@ -5756,6 +7026,10 @@ void ControlHost::ResetRootInteractionState() noexcept
 {
     ++_keyboardOwnerEpoch;
     ++_focusRequestRevision;
+    // Root replacement and detach: no hit result survives the tree it was found in.
+    EndPointerHitEvent();
+    if (HitRevisionSiteLive(HitRevisionSite::RootReset))
+        AdvanceHitRevision();
     const bool wasResetting                   = std::exchange(_resettingInteractionState, true);
     const auto endResetting                   = wil::scope_exit([this, wasResetting]() noexcept { _resettingInteractionState = wasResetting; });
     Control* const captured                   = IsControlInTree(_root.get(), _capturedControl) ? _capturedControl : nullptr;
@@ -5776,6 +7050,7 @@ void ControlHost::ResetRootInteractionState() noexcept
     _supplementalTooltipText.clear();
     _supplementalTooltipIsRichTitle  = false;
     _supplementalTooltipNeedsResolve = false;
+    _tooltipTargetStale              = false;
     ClearTooltip();
     ReleaseMouseCapture();
     if (_nativeTextInputSessionRevision == sessionRevision)
@@ -5792,7 +7067,65 @@ void ControlHost::ResetRootInteractionState() noexcept
         NotifyControlFocusChanged(live, false);
 }
 
+void ControlHost::AdvanceHitRevision() noexcept
+{
+    ++Detail::Work().frame.hitRevisionMoves;
+    ++_hitRevision;
+}
+
+void ControlHost::BeginPointerHitEvent(bool fresh) noexcept
+{
+    if (fresh)
+        EndPointerHitEvent();
+    _pointerHitEventOpen = true;
+}
+
+void ControlHost::EndPointerHitEvent() noexcept
+{
+    _pointerHitEventOpen    = false;
+    _pointerHitCache.valid  = false;
+    _pointerHitCache.root   = nullptr;
+    _pointerHitCache.target = nullptr;
+    _pointerHitCache.targetLifetime.reset();
+}
+
+// One hit result per pointer event, client point and hit revision (UI_InputAndAccessibility.md, "Pointer hit result").
+// The key is the exact point, the root, the interaction revision (bounds, visibility, enabled state, tree membership,
+// root and density) and the hit revision (everything else a hit test reads: popups, scroll offsets, page transitions,
+// overlay dismissal, size, DPI, device loss and InvalidateHitTest). A result is kept only inside an open pointer event and
+// only while every attached control's hit testing is visible to the host.
 Control* ControlHost::HitTestControl(D2D1_POINT_2F pointDip) noexcept
+{
+    auto& cached = _pointerHitCache;
+    if (cached.valid && _pointerHitEventOpen && _pointerHitResultEnabled && _unreportedHitControls == 0u && cached.pointDip.x == pointDip.x &&
+        cached.pointDip.y == pointDip.y && cached.root == _root.get() && cached.interactionRevision == _interactionRevision &&
+        (cached.hitRevision == _hitRevision || ! HitRevisionSiteLive(HitRevisionSite::Key)) &&
+        (! cached.target || (! cached.targetLifetime.expired() && cached.target->GetHost() == this)))
+    {
+        ++Detail::Work().frame.hitTestReuses;
+        return cached.target;
+    }
+    cached.valid = false;
+    // Keyed by the revisions the walk started from: a walk that changed either (a control's HitTest callback) leaves a
+    // result no later lookup matches.
+    Control* const root            = _root.get();
+    const auto interactionRevision = _interactionRevision;
+    const auto hitRevision         = _hitRevision;
+    Control* const target          = HitTestControlUncached(pointDip);
+    if (_pointerHitEventOpen && _pointerHitResultEnabled && _unreportedHitControls == 0u && root && _root.get() == root)
+    {
+        cached.root                = root;
+        cached.target              = target;
+        cached.targetLifetime      = target ? target->GetLifetimeToken() : std::weak_ptr<int>{};
+        cached.pointDip            = pointDip;
+        cached.interactionRevision = interactionRevision;
+        cached.hitRevision         = hitRevision;
+        cached.valid               = true;
+    }
+    return target;
+}
+
+Control* ControlHost::HitTestControlUncached(D2D1_POINT_2F pointDip) noexcept
 try
 {
     const Failure::Scope failureScope;
@@ -5801,6 +7134,7 @@ try
         return nullptr;
     }
 
+    ++Detail::Work().frame.hitTests;
     Control* const root            = _root.get();
     const auto rootLifetime        = root->GetLifetimeToken();
     const auto interactionRevision = _interactionRevision;
@@ -5814,6 +7148,7 @@ try
         return overlayTarget;
     }
 
+    ++Detail::Work().frame.treeVisitsHitTest;
     Control* const target = root->HitTest(pointDip);
     return ! rootLifetime.expired() && _root.get() == root && _interactionRevision == interactionRevision && target &&
                    IsControlEffectivelyInteractive(root, target)
@@ -5858,7 +7193,9 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
 {
     _supplementalTooltipModifiers    = modifiers;
     _supplementalTooltipNeedsResolve = false;
-    const auto interactionRevision   = _interactionRevision;
+    // A pointer move resolves the hover itself.
+    _tooltipTargetStale            = false;
+    const auto interactionRevision = _interactionRevision;
     PruneStaleInteractionState();
     if (_interactionRevision != interactionRevision)
         return;
@@ -5925,12 +7262,29 @@ std::wstring_view ControlHost::SupplementalTooltipText(Control* target, D2D1_POI
     {
         try
         {
-            const auto title = editor->HoveredTitle(*this, pointDip, _supplementalTooltipModifiers);
-            if (! title.empty())
+            // Hover revalidation asks for the same target twice per animation tick. Resolve the title again only when
+            // the editor, point, modifiers or anything else the title depends on (the editor's hover key: geometry
+            // generation, viewport, scroll, enabled, visible, editable) changed since the remembered resolution.
+            auto& remembered  = _richTitleHoverCache;
+            const auto key    = editor->GetHoveredTitleKey(*this);
+            const bool reused = remembered.valid && remembered.editor == editor && ! remembered.lifetime.expired() && remembered.pointDip.x == pointDip.x &&
+                                remembered.pointDip.y == pointDip.y && remembered.modifiers == _supplementalTooltipModifiers && remembered.key == key;
+            if (! reused)
+            {
+                remembered.valid = false;
+                remembered.title.assign(editor->HoveredTitle(*this, pointDip, _supplementalTooltipModifiers));
+                remembered.editor    = editor;
+                remembered.lifetime  = editor->GetLifetimeToken();
+                remembered.pointDip  = pointDip;
+                remembered.modifiers = _supplementalTooltipModifiers;
+                remembered.key       = key;
+                remembered.valid     = true;
+            }
+            if (! remembered.title.empty())
             {
                 if (richTitle)
                     *richTitle = true;
-                return title;
+                return remembered.title;
             }
         }
         catch (const std::bad_alloc&)
@@ -6085,7 +7439,7 @@ void ControlHost::UpdateModifierStateForKey(UINT virtualKey, bool keyDown, bool 
     {
         _supplementalTooltipModifiers    = (_supplementalTooltipModifiers & ~MK_CONTROL) | (_modifierState & MK_CONTROL);
         _supplementalTooltipNeedsResolve = true;
-        RequestAnimation();
+        OnTooltipScheduleChanged();
     }
 }
 
@@ -6099,64 +7453,218 @@ UINT ControlHost::GetModifierState() const noexcept
     return _modifierState;
 }
 
-bool ControlHost::AnimationTickThunk(void* context, uint64_t nowTickMs) noexcept
+ControlHost::FrameScheduleWake ControlHost::OnScheduledWake(uint64_t nowTickMs, bool* hostGone) noexcept
 {
-    auto* self = static_cast<ControlHost*>(context);
-    return (self && IsAttachedWindowHostRegistered(self)) ? self->OnAnimationTick(nowTickMs) : false;
-}
-
-bool ControlHost::OnAnimationTick(uint64_t nowTickMs) noexcept
-{
+    // Held, not run: a hidden host keeps its requests and does not wake until it is shown (ResumeScheduleAfterShow).
     if (! _nativePresentationVisible)
     {
-        _nativePresentationResumeAnimation = true;
-        _animationSubscriptionId           = 0u;
-        return false;
+        DropPendingTooltipShowWhileHidden();
+        SyncDispatcherSubscription({});
+        return {};
     }
     if (_hwnd && ! IsHostWindowEffectivelyVisible(_hwnd))
     {
-        _animationSuspendedWhileHidden = true;
-        _animationSubscriptionId       = 0u;
-        return false;
-    }
-
-    const auto presentationRevision = _nativePresentationRevision;
-    const auto subscription         = _animationSubscriptionId;
-    const auto tickCurrent          = [&]() noexcept
-    { return _nativePresentationVisible && _nativePresentationRevision == presentationRevision && _animationSubscriptionId == subscription; };
-    ValidateSupplementalTooltipTarget();
-    if (! tickCurrent())
-        return false;
-    if (! _root)
-    {
-        const bool tooltipTicking = _tooltipLayer.Tick(*this, nowTickMs);
-        if (! tickCurrent())
-            return false;
-        if (! tooltipTicking)
+        // The host's own window hidden or minimized: its show (WM_SHOWWINDOW, WM_SIZE, WM_WINDOWPOSCHANGED, WM_SETREDRAW
+        // TRUE, WM_PAINT or the next change to the schedule) releases the latch, and nothing wakes meanwhile.
+        if (IsIconic(_hwnd) || (GetWindowLongPtrW(_hwnd, GWL_STYLE) & WS_VISIBLE) == 0)
         {
-            _animationSubscriptionId = 0u;
-            return false;
+            _animationSuspendedWhileHidden = true;
+            DropPendingTooltipShowWhileHidden();
+            TextLayoutCacheAccess::Release(*this); // hidden without WM_SHOWWINDOW (SWP_HIDEWINDOW) keeps no retained layout
+            SyncDispatcherSubscription({});
+            return {};
         }
-        Invalidate();
+        DropPendingTooltipShowWhileHidden();
+        // Hidden through an ancestor (a minimized top-level, a hidden parent, a parent's redraw block): no message reached
+        // this window, and it paints nothing until it shows again.
+        TextLayoutCacheAccess::Release(*this);
+        _hiddenThroughAncestor = true;
+        // Hidden only through an ancestor (a minimized top-level, a hidden parent, a parent's redraw block): this window
+        // receives no message when the ancestor shows again, so the held schedule looks once a second (no Tick runs).
+        const FrameScheduleWake probe =
+            HasScheduledTicks() ? FrameScheduleWake{FrameScheduleWake::Kind::Deadline, nowTickMs + kHiddenAncestorProbeMs} : FrameScheduleWake{};
+        SyncDispatcherSubscription(probe);
+        return probe;
+    }
+    // Visible again after a hide only an ancestor made: no message announced the show, so this wake resumes as a show does,
+    // before anything is ticked (a focused caret is shown and restarts; held deadlines are counted).
+    if (std::exchange(_hiddenThroughAncestor, false))
+    {
+        RearmCaret();
+        CountHeldDeadlines();
+    }
+    if (! RunScheduledTicks(nowTickMs))
+    {
+        if (hostGone)
+            *hostGone = true;
+        return {};
+    }
+    const FrameScheduleWake next = IsScheduleSuspended() ? FrameScheduleWake{} : GetFrameScheduleWake();
+    if (_hwnd)
+        SyncDispatcherSubscription(next);
+    return next;
+}
+
+bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
+{
+    // One wake at a time: a wake started from inside a Tick (a test seam, a nested message loop) runs nothing.
+    if (_tickWakeFrame)
         return true;
+    const Failure::Scope failureScope;
+    TickWakeFrame frame;
+    _tickWakeFrame = &frame;
+    // A host destroyed or detached during the wake abandons the frame and must not be touched again.
+    const auto endWake                  = wil::scope_exit([this, &frame]() noexcept
+    {
+        if (! frame.abandoned)
+            _tickWakeFrame = nullptr;
+    });
+    const uint64_t presentationRevision = _nativePresentationRevision;
+    const auto interrupted              = [&]() noexcept { return frame.abandoned || _nativePresentationRevision != presentationRevision; };
+
+    // A tooltip's target is resolved again only when a change marked it (MarkTooltipTargetStale), a Ctrl change asked for
+    // the supplemental one, or the supplemental tooltip's own deadline is due: a wake for anything else, or an embedded
+    // advance while the tooltip only waits, walks nothing for it. A marked target is resolved as a pointer move at the
+    // resting point would resolve it (hover pruning, the hovered control's OnMouseMove, the supplemental target), so a
+    // control that sets its own tooltip (Grid, Tree, TabControl) recomputes it too; under capture only the supplemental
+    // target is resolved, so nothing is sent to the captured control.
+    const bool tooltipTargetStale = std::exchange(_tooltipTargetStale, false);
+    if (tooltipTargetStale && ! _capturedControl)
+    {
+        ++Detail::Work().frame.tooltipTargetValidations;
+        UpdateHover(_supplementalTooltipPointDip, _supplementalTooltipModifiers);
+        if (frame.abandoned)
+            return false;
+    }
+    else if (const auto tooltipDeadline = _tooltipLayer.GetPendingDeadline();
+             tooltipTargetStale || _supplementalTooltipNeedsResolve ||
+             (_supplementalTooltipControl && tooltipDeadline && tooltipDeadline->dueTickMs <= nowTickMs))
+    {
+        ++Detail::Work().frame.tooltipTargetValidations;
+        ValidateSupplementalTooltipTarget();
+        if (frame.abandoned)
+            return false;
     }
 
-    // A tree whose Tick throws stops ticking until a control asks for animation again, rather than failing every frame.
-    bool rootTicking = false;
-    static_cast<void>(TryControlCallback([&] { rootTicking = _root->Tick(*this, nowTickMs); }));
-    if (! tickCurrent())
-        return false;
-    const bool tooltipTicking = _tooltipLayer.Tick(*this, nowTickMs);
-    if (! tickCurrent())
-        return false;
-    const bool keepTicking = rootTicking || tooltipTicking;
-    if (! keepTicking)
+    // Snapshot the due requests; a request made from now on (a Tick re-arming) lands in the schedule for a later wake.
+    _tickDue.clear();
+    std::erase_if(_tickRequests,
+                  [this, nowTickMs](const TickRequest& request) noexcept
     {
-        _animationSubscriptionId = 0u;
-        return false;
+        // The token is checked before the address is used: a destroyed control is dropped unread.
+        if (request.lifetime.expired() || request.control->GetHost() != this)
+            return true;
+        if (request.kind == TickRequestKind::Deadline && request.dueTickMs > nowTickMs)
+            return false;
+        // A hidden control keeps its request without being ticked; it is ticked when it is shown again.
+        if (! IsControlTickable(*request.control))
+            return false;
+        _tickDue.push_back(request);
+        return true;
+    });
+    Detail::Work().frame.tickRequesters += _tickDue.size();
+    const bool tree     = std::exchange(_tickTreeRequested, false);
+    const bool discover = std::exchange(_tickTreeDiscovery, false);
+
+    // Whatever this wake has not done when the host is hidden mid-wake waits, with the rest of the schedule, for its show.
+    // The tooltip's deadline lives in its layer, so it waits there by itself.
+    const auto holdRemaining = [&](size_t firstDue, bool treePending) noexcept
+    {
+        for (size_t index = firstDue; index < _tickDue.size(); ++index)
+        {
+            const TickRequest& held = _tickDue[index];
+            if (held.control && ! held.lifetime.expired() && held.control->GetHost() == this)
+                AddTickRequest(*held.control, held.kind, held.dueTickMs);
+        }
+        _tickTreeRequested = _tickTreeRequested || treePending;
+        _tickTreeDiscovery = _tickTreeDiscovery || (treePending && discover);
+        _tickDue.clear();
+    };
+
+    if (tree && _root)
+    {
+        ++(discover ? Detail::Work().frame.tickDiscoveryWalks : Detail::Work().frame.tickLegacyTreeWalks);
+        ++Detail::Work().frame.treeVisitsTick;
+        if (! TickTreeForSchedule(*_root, nowTickMs, frame, presentationRevision))
+        {
+            if (frame.abandoned)
+                return false;
+            holdRemaining(0u, true);
+            return true;
+        }
     }
-    // Tick's return value requests future ticks, not a repaint. Controls invalidate only when pixels change,
-    // including their settling tick, just as they do in embedded hosting.
+
+    for (size_t index = 0u; index < _tickDue.size(); ++index)
+    {
+        // Copy what the Tick needs: ForgetControl may blank this entry while the Tick runs.
+        Control* const control            = _tickDue[index].control;
+        const std::weak_ptr<int> lifetime = _tickDue[index].lifetime;
+        if (! control || lifetime.expired() || control->GetHost() != this)
+            continue;
+        if (! IsControlTickable(*control))
+        {
+            // Hidden by an earlier Tick of this wake: held like any hidden control's request.
+            AddTickRequest(*control, _tickDue[index].kind, _tickDue[index].dueTickMs);
+            continue;
+        }
+        ++Detail::Work().frame.tickCalls;
+        bool again = false;
+        static_cast<void>(TryControlCallback([&] { again = control->Tick(*this, nowTickMs); }));
+        if (frame.abandoned)
+            return false;
+        // Whatever the request was, true asks for the next frame, unless the control was cancelled, forgotten or moved
+        // during its own Tick (its snapshot entry is blanked then).
+        if (again && _tickDue[index].control == control && ! lifetime.expired() && control->GetHost() == this)
+            AddTickRequest(*control, TickRequestKind::Continuous, 0u);
+        if (interrupted())
+        {
+            holdRemaining(index + 1u, false);
+            return true;
+        }
+    }
+    _tickDue.clear();
+
+    // The tooltip's deadline, read now rather than at the start of the wake: a Tick above may have dismissed, replaced or
+    // re-armed it, and a deadline whose waiting mode has ended is gone with it. The layer is ticked only when it is due;
+    // between its deadlines it is never ticked.
+    if (const auto tooltipDeadline = _tooltipLayer.GetPendingDeadline(); tooltipDeadline && tooltipDeadline->dueTickMs <= nowTickMs)
+    {
+        ++Detail::Work().frame.tooltipDeadlineTicks;
+        static_cast<void>(TryControlCallback([&] { static_cast<void>(_tooltipLayer.Tick(*this, nowTickMs)); }));
+        if (frame.abandoned)
+            return false;
+    }
+    // Tick's return value requests future ticks, not a repaint. Controls invalidate only when pixels change, including
+    // their settling tick, just as they do in embedded hosting.
+    return true;
+}
+
+bool ControlHost::TickTreeForSchedule(Control& control, uint64_t nowTickMs, const TickWakeFrame& frame, uint64_t presentationRevision) noexcept
+{
+    // The compatibility walk: every visible control once, each whose Tick returns true keeping a request of its own.
+    // Panel and PageHost see the wake frame and leave their children to this walk.
+    const std::weak_ptr<int> lifetime = control.GetLifetimeToken();
+    bool again                        = false;
+    // One Tick per control per wake: the walk's Tick stands for a due request of the same control.
+    BlankDueControl(control);
+    static_cast<void>(TryControlCallback([&] { again = control.Tick(*this, nowTickMs); }));
+    if (frame.abandoned || _nativePresentationRevision != presentationRevision)
+        return false;
+    if (lifetime.expired() || control.GetHost() != this)
+        return true;
+    if (again)
+        AddTickRequest(control, TickRequestKind::Continuous, 0u);
+    for (size_t childIndex = 0u; childIndex < control.GetLogicalChildCount(); ++childIndex)
+    {
+        Control* const child = const_cast<Control*>(static_cast<const Control&>(control).GetLogicalChild(childIndex));
+        ++Detail::Work().frame.treeVisitsTick;
+        if (! child || ! child->IsVisible())
+            continue;
+        if (! TickTreeForSchedule(*child, nowTickMs, frame, presentationRevision))
+            return false;
+        if (lifetime.expired() || control.GetHost() != this)
+            return true;
+    }
     return true;
 }
 } // namespace DxUi

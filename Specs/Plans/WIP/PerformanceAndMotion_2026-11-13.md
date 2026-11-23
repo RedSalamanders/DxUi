@@ -1,6 +1,9 @@
 # Performance and motion plan: speed, frame rate, memory and animation, 13 November 2026
 
-Status: ACTIVE — plan only; no code has been implemented. This is the single plan for making DxUi faster, raising
+Status: ACTIVE — implementation started on 13 November 2026. A ticked item is implemented, with the commit whose
+subject carries its id; an unticked item is not. Line anchors in unticked items were read before implementation
+began and implemented items move the cited code, so locate it by symbol. An unticked item whose first line says
+it is closed will not be built as written. This is the single plan for making DxUi faster, raising
 its frame rate, lowering its memory use and animating every interactive change. It replaces three documents, now
 archived as records: the [runtime efficiency study](../Done/RuntimeEfficiency_2026-11-07.md), its
 [challenge review](../Done/RuntimeEfficiencyReview_2026-11-12.md) and the
@@ -22,7 +25,8 @@ unchanged since `4acabe0e`, the commit the evidence was read at.
   [performance and resources](../../Core/Core_PerformanceAndResources.md).
 - **Reading order**: [§1](#1-goals-and-budgets) says what "better" means in numbers;
   [§2](#2-assumptions) lists what the plan takes as given; [§3](#3-where-the-time-and-memory-go-today) is the evidence;
-  [§4](#4-order-of-work) is the order; the waves `W0`–`W10` are the work.
+  [§4](#4-order-of-work) is the order, and its [delivery section](#delivery-in-pull-requests) says which pull
+  request carries which wave; the waves `W0`–`W10` are the work.
 
 ## 1. Goals and budgets
 
@@ -46,7 +50,7 @@ source; "not measured" means exactly that.
 | `G6` | Missed frames, 100,000-row `Grid` scrolled for 10 s at 120 Hz | not measured | **0** | Presented-frame trace on `FX9` (`W0.8`, `W4.9`, `W5`) |
 | `G7` | UI-thread frames during a page slide or fling in composition mode | every frame | **0** after the first | Counter on `FX11` (`W5.11`) |
 | `G8` | Input to present | not measured | within one refresh interval at 60–240 Hz | Trace provider (`W0.8`, `W3.7`) |
-| `G9` | UI Automation work with no client | embedded builds on every application call | **0** | Build counter on `FX6` (`W8.1`) |
+| `G9` | UI Automation work with no client | embedded builds on every application call | **0** for a host whose provider no client has called, while no UI Automation client listens anywhere on the desktop; unchanged otherwise. Restated on 14 November 2026 under `A7`: `W8.1` measured that a provider is not told of a desktop-root or focus-changed subscription, and a lazier gate lost events in review | Build counter on `FX6` (`W8.1`) |
 | `G10` | Devices created per menu session, embedded-only application | 1 | **0** after the first | Counter on `FX4` (`W2.4`) |
 | `G11` | Text layouts created per steady repaint | one per `DrawCenteredText` call (61 call sites) | **0** | Counter on `FX5` (`W2.1`) |
 | `G12` | Per-keystroke work in a 64 Ki-unit rich document | every image re-uploaded (up to 64 MiB); whole-document semantic rebuild | **0** uploads; work proportional to the edited block | Counters on `FX8` (`W2.3`, `W7`) |
@@ -129,7 +133,7 @@ without a directory are under `src/Controls/`.
 | Memory | No video-memory budget or trim exists: `SetMaximumTextureMemory`, `ClearResources`, `Trim` and `QueryVideoMemoryInfo` are absent from `src`; hiding a view frees a 3.69 MB surface yet private bytes fall only 0.64 MB. | `Measurements/MenuDescriptions/2026-09-21/qualification/retention/candidate-9-raw.txt:1` | Medium, per window | `W0.3`, `W9.2` |
 | Memory | Text undo is capped by count, not bytes: 64 full-text snapshots each way, up to 16 MiB per 64 Ki-unit `TextField`. | `include/DxUi/DxUi.h:4025`, `DxUi.TextInput.cpp:3362-3366` | High, per editor | `W9.3` |
 | Memory | The heap keeps 5–15 MB free but committed, driven by text-layout churn; first-frame caches hold about 2.8 MB. | `Measurements/GridTextOverflow/2026-09-21/heap-attribution/README.md:18-22` | High, per process | `W9.5` |
-| Memory | A painting `Grid` retains one layout of about 20 KB per visible cell, 6–15 MB full-screen; a 200,000-row select-all holds 3.2 MB of row IDs. | `Specs/Core/Core_PerformanceAndResources.md:681, 692`, `include/DxUi/DxUi.h:1533-1534` | High, per visible screen | `W2.5`, `W9.4` |
+| Memory | A painting `Grid` retains one layout of about 20 KB per visible cell, 6–15 MB full-screen; a 200,000-row select-all holds 3.2 MB of row IDs. | `Specs/Core/Core_PerformanceAndResources.md:778, 789`, `include/DxUi/DxUi.h:1533-1534` | High, per visible screen | `W2.5`, `W9.4` |
 | Memory | With a client attached, each control's snapshot record is about 936 B by hand count, about 1–2 MB per 1,000 controls. | `DxUi.Accessibility.cpp:692-798` | Medium with a client attached, per control | `W9.7` |
 
 ## 4. Order of work
@@ -184,13 +188,32 @@ edits; `W2.2` `ComboBox` popup layout; `W1.6` tooltip repaint; `W3.1` with `W3.2
 `W4.7` embedded partial preparation; `W2.5` `Grid` data paths; `W7.1` block-incremental semantic projection; `W5.1`
 with `W5.4` (the motion system in every control); `W9.2` video memory.
 
+### Delivery in pull requests
+
+Decided by the developer on 23 November 2026. The plan stays one document; the work reaches `main` in three steps.
+
+1. **Intermediate pull request.** The items ticked at a stable point merge first. Stable means: no known defect
+   open against a ticked item, `main` merged in, and closeout step 3 green on the merged tree.
+2. **Remaining items of `W0`–`W4` and `W6`–`W9`.** They follow in the next pull request, in the order above.
+3. **`W5` Motion and `W10` Scale.** All 15 items of `W5` and all 4 items of `W10` move to a later pull request. No
+   item of this plan waits for them, so the order of the other waves does not change.
+
+What moves with step 3:
+
+- Budgets `G7`, `G14` and `G15` get their receipts in step 3, not before.
+- `W5.8` breaks source for pointer identity in embedded dispatch. It lands in the API revision that is open when
+  step 3 is built: revision 6 if it is still unreleased, the next revision otherwise. `A8` no longer promises one
+  source break for `W3.5` and `W5.8` together.
+- `W0.9` and `W0.10` stay in step 2. They are measurements, and step 3 reads their results for `W5.9`–`W5.12`.
+- Of the ten items listed above, `W5.1` with `W5.4` is delivered in step 3.
+
 ## W0 — Truth: measure before changing
 
 Purpose: make every later claim provable with deterministic counters, timing that can confirm an improvement on
 hardware, memory that is attributed, and two experiments that choose the architecture. Exit: a baseline receipt for
 `FX1`–`FX14`; the `W0.6` result recorded in the Win32 host contract; a `W0.7` receipt from a hardware adapter.
 
-- [ ] **W0.1 Work counters.**
+- [x] **W0.1 Work counters.**
   - **Why**: the only deterministic work measure is the C++ allocation sink of the ComplexUi benchmark
     ([Embedded.Tests.ComplexUiBenchmark.h](../../../Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h) `:157-197`);
     `Paint` executions, tree visits, wakes, layouts, formats and devices are not counted. A `->Create…(` source match
@@ -209,7 +232,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
     raw `CreateTextFormat` call. No percent-overhead gate.
   - **Needs**: nothing. **Size**: L.
 
-- [ ] **W0.2 Timing that can say yes (input to D-P1).**
+- [x] **W0.2 Timing that can say yes (input to D-P1).**
   - **Why**: today's runs are 5 rounds of 40 frames after 20 warm-up frames, "p95" is `frameMs[37]`, and every frame
     ends in a blocking one-pixel readback ([Embedded.Tests.ComplexUiBenchmark.h](../../../Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h)
     `:101-116`, `:151-200`); a clean round lasts about 15 ms, shorter than one scheduler quantum. A same-binary pair
@@ -227,7 +250,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
     same-binary spread stays below the declared margin, or the metric is recorded as advisory with its noise floor.
   - **Needs**: nothing. **Size**: M.
 
-- [ ] **W0.3 Memory metrics.**
+- [x] **W0.3 Memory metrics.**
   - **Why**: receipts record private bytes, working set, `surfaceBytes`, `replacementPeakBytes` and allocation counts
     only ([Embedded.Tests.ComplexUiBenchmark.h](../../../Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h) `:200-206`);
     same-binary private-bytes noise is about 315 KB, and on WARP video memory is folded into private bytes. No
@@ -242,7 +265,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
     `FX5` reports 0 live tracked bytes and 0 DxUi-created live device objects.
   - **Needs**: nothing. **Size**: M.
 
-- [ ] **W0.4 Fixtures and baseline receipt.**
+- [x] **W0.4 Fixtures and baseline receipt.**
   - **Why**: all retained performance evidence is one fixture: 83 controls at 1280×720, 96 DPI, WARP, offscreen,
     absolute layout, reduced motion (`Samples/ComplexUi/ComplexUiScene.h:69-116`); nothing scrolls a large list,
     resizes a window, runs at 4K, holds thousands of controls, takes text input or measures startup.
@@ -282,7 +305,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
   - **Gate**: the receipt exists with these fields for `FX1`–`FX14`; two consecutive WARP runs give equal counters.
   - **Needs**: `W0.1`, `W0.3`; `W0.2` for timing fields. **Size**: L.
 
-- [ ] **W0.5 Incremental-versus-fresh oracle.**
+- [x] **W0.5 Incremental-versus-fresh oracle.**
   - **Why**: retention, regions and culling (`W2`, `W4`) can leave stale pixels that no counter sees. A native partial
     frame read before present holds pixels two frames old outside the dirty rectangle
     ([DxUi.WindowHost.cpp](../../../src/Controls/DxUi.WindowHost.cpp) `:5189-5194`), caret and progress phases depend
@@ -297,7 +320,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
     difference; after the drop hook every registered cache reports 0 entries.
   - **Needs**: nothing (`W0.6` for native presented reads). **Size**: M.
 
-- [ ] **W0.6 Presented-frame truth test.**
+- [x] **W0.6 Presented-frame truth test.**
   - **Why**: the comment at [DxUi.WindowHost.cpp](../../../src/Controls/DxUi.WindowHost.cpp) `:5071-5073` in
     `ControlHost::Render` credits `FLIP_SEQUENTIAL` with preserving content; the actual mechanism is the runtime copy
     of the previous frame's updated areas at `Present1`
@@ -331,7 +354,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
     two, `W4` proceeds and the receipt is repeated after `W4` before `W10.4` is judged.
   - **Needs**: `W0.1`, `W0.2`, `W0.4`. **Size**: M.
 
-- [ ] **W0.8 Trace provider.**
+- [x] **W0.8 Trace provider.**
   - **Why**: input to present (`G8`) cannot be observed today; the only ETW mention is a test comment
     (`Tests/Embedded/Embedded.Tests.ComplexUiBoundaries.h:318`), and a consumer cannot diagnose a field stall without
     a debugger.
@@ -345,7 +368,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
 
 - [ ] **W0.9 Presentation-mode comparison.**
   - **Why**: composition mode renders to a premultiplied target cleared to transparent, HWND mode to an opaque target
-    cleared to the window background; `DXGI_SCALING_STRETCH` at `:4446` is shared by both modes and is required only
+    cleared to the window background; `DXGI_SCALING_STRETCH` at `DxUi.WindowHost.cpp:4446` is shared by both modes and is required only
     for composition. What a consumer relying on the default would see change is unrecorded.
   - **Change**: run `FX5` and a text-heavy page in `HwndSwapChain` and `CompositionSwapChain`, on WARP and one hardware
     adapter. Pixels: antialiasing mode used, rounded-edge pixels, transparent areas (presented image, `W0.6`). Cost:
@@ -371,7 +394,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
     (a) already does, neither adds scroll-specific work.
   - **Needs**: `W0.2`, `W0.3`, `W0.4`, `W0.8`. **Size**: M.
 
-- [ ] **W0.11 Evidence anchors.**
+- [x] **W0.11 Evidence anchors.**
   - **Why**: plan claims cite `path:line` anchors that drift as source changes; nothing checks them against `HEAD`.
   - **Change**: a tooling test under `Tools/tests`, run by
     [Invoke-ToolingTests.ps1](../../../Tools/tests/Invoke-ToolingTests.ps1), resolves every source anchor in
@@ -386,7 +409,7 @@ hardware, memory that is attributed, and two experiments that choose the archite
 Fix defects that have deterministic functional tests, independently of the measurement wave. Exit: every item's named
 regression test passes in x64 Debug, Release and ASan Debug and asserts the behaviour stated in its gate.
 
-- [ ] **W1.1 Host recovery and input.**
+- [x] **W1.1 Host recovery and input.**
   - **Why**: a failed device or swap-chain recreation returns from `Render` without invalidating or scheduling a retry,
     so the window stays blank (`DxUi.WindowHost.cpp:5045-5050`; failure paths `:754-808`), and a loss → recreate → loss
     loop has no backoff (`:5240-5250`). `EmbeddedHost::DispatchPointer` releases capture on the first button-up of a
@@ -394,7 +417,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
     `DxUi.WindowHost.cpp:3628-3632`). `ScrollPanel::OnMouseWheel` invalidates and reports handled at a clamped bound
     (`DxUi.Controls.cpp:11820-11825`), repainting the window and blocking scroll chaining. Each swap-chain resize clears
     the brush cache (`DxUi.WindowHost.cpp:4612`, `:4552`) though brushes are device-context resources. The `#else`
-    `Render` body is dead (`:4708-4952`, `include/DxUi/Configuration.h:4`); the comment at `:5070-5073` gives the wrong
+    `Render` body is dead (`:4708-4952`, `include/DxUi/Configuration.h:4`); the comment at `DxUi.WindowHost.cpp:5070-5073` gives the wrong
     reason why partial frames present correctly.
   - **Change**: `WindowHost` schedules a one-shot retry on its own HWND after a failed recreation and backs off on
     repeated failure or loss, resetting after a successful `Present`; the embedded host reports the failure and owns no
@@ -410,7 +433,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
     down, Left up keeps capture and Right up releases it; a middle release reaches the control in both hosts; a wheel at
     the bound is unhandled with 0 invalidations and the outer `ScrollPanel` scrolls; 30 resize steps create 0 brushes.
   - **Needs**: nothing. **Size**: L.
-- [ ] **W1.2 Control correctness.**
+- [x] **W1.2 Control correctness.**
   - **Why**: `CardPanel::SetCornerRadius` stores the radius without invalidating (`DxUi.Controls.cpp:2736-2739`).
     `Grid` applies the wheel delta as a float (`DxUi.Grid.cpp:5891`), then `ClampScrollOffsets(normalizeVertical = true)`
     (`include/DxUi/DxUi.h:5525`) floors the offset to a row (`DxUi.Grid.cpp:7311`): a downward touchpad delta under a
@@ -430,7 +453,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
     to the start row (today: 0 rows down, 4 rows up); with the lines setting overridden to 5, one notch moves 5 rows in
     `Grid` and `Tree`; `Ctrl+Click` rows 2 and 10, then `Ctrl+Shift+Click` row 14, selects {2, 10–14}.
   - **Needs**: nothing. **Size**: M.
-- [ ] **W1.3 UI Automation conformance.**
+- [x] **W1.3 UI Automation conformance.**
   - **Why**: Win64 `WM_GETOBJECT` compares the sign-extended `lParam` (`DxUi.Accessibility.cpp:13954`), so a
     zero-extended `UiaRootObjectId` falls through to the MSAA proxy and an empty window
     ([WM_GETOBJECT](https://learn.microsoft.com/en-us/windows/win32/winauto/wm-getobject)). A toggle `Button` exposes
@@ -451,7 +474,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
     before `Detach` disconnects its provider and leaks no target; unregistration allocates nothing; an unnamed field
     with text reports an empty Name and raises no Name change while typing.
   - **Needs**: nothing. **Size**: M.
-- [ ] **W1.4 TSF conformance.**
+- [x] **W1.4 TSF conformance.**
   - **Why**: `GetACPFromPoint` ignores `dwFlags` (`DxUi.TextStoreACP.cpp:1728`), acts as nearest-and-round inside the
     view (`:558-567`) and returns `TS_E_INVALIDPOS` outside (`:553-556`), where the contract defines `TS_E_INVALIDPOINT`
     and `TS_E_NOLAYOUT`
@@ -470,7 +493,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
     notifies `{2, 4, 4}`; the attribute mapping turns a three-clause span set into three boundaries and one target
     range. One Japanese IME composition under `test.ps1 -Interactive`, with the developer's agreement, confirms it.
   - **Needs**: nothing. **Size**: M.
-- [ ] **W1.5 Text correctness.**
+- [x] **W1.5 Text correctness.**
   - **Why**: `PreparedLayout::TryCaret` always hit-tests with `isTrailingHit = FALSE` (`DxUi.RichTextLayout.cpp:620`) and
     `Caret(position)` has no affinity (`include/DxUi/RichTextLayout.h:259`), so a caret at a soft wrap cannot sit at the
     end of the upper line. Above `MaximumCodeTokens` = 4,096 (`include/DxUi/RichCodeTokenizer.h:25`) `TokenizeCode`
@@ -489,7 +512,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
     layout; at 125% and 150% the selection rectangles equal the text layout's hit-test ranges. Harness gallery captures
     of the `StatusStrip` and multiline `TextField` tiles at 100%, 125% and 150%.
   - **Needs**: nothing. **Size**: L.
-- [ ] **W1.6 Tooltip repaint.**
+- [x] **W1.6 Tooltip repaint.**
   - **Why**: while a tooltip is pending, `TooltipLayer::SetTooltipDelayed` reports a change whenever only the pending
     origin moved (`DxUi.Controls.cpp:12044-12050`) and the host requests animation and invalidates the window
     (`DxUi.WindowHost.cpp:1788-1792`), so every pointer move over a tooltip-bearing control during the hover delay is a
@@ -510,7 +533,7 @@ regression test passes in x64 Debug, Release and ASan Debug and asserts the beha
 Remove the biggest verified costs with the caches and helpers DxUi already has, without new architecture. Exit: every
 item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`, `G10` and `G11` met.
 
-- [ ] **W2.1 Retained text layouts.**
+- [x] **W2.1 Retained text layouts.**
   - **Why**: `DrawCenteredText` (`DxUi.Controls.cpp:1072-1095`, 61 callers) calls `DrawTextW`, which lays out the whole
     string on every call; plain `Label` returns early from preparation (`:2972-2976`) and paints the same way. `Label`
     measure creates a fresh layout and a heap line-metrics vector per call (`DxUi.Layout.cpp:99`, `:266`, `:291`), and
@@ -527,10 +550,10 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
     measure; exact WARP BGRA parity with today on `FX5` and every harness gallery tile at 100%, 150% and 200%; resident
     entries never exceed the strings drawn by the last two paints.
   - **Needs**: `W0.4`, `W2.9`. **Size**: M.
-- [ ] **W2.2 `ComboBox` popup layout.**
+- [x] **W2.2 `ComboBox` popup layout.**
   - **Why**: each `UpdatePopupLayout` measures every filtered item with a fresh DirectWrite layout
     (`DxUi.ComboBox.cpp:2577-2681`, `:2689-2700`; `DxUi.SingleLineTextEditing.cpp:374-381`), and paint calls it
-    `1 + 2V` times (`:857`, `:3095`, `:3118`): 8,500 layouts per paint at 500 items. When every row fits, `V = M`
+    `1 + 2V` times (`DxUi.ComboBox.cpp:857`, `:3095`, `:3118`): 8,500 layouts per paint at 500 items. When every row fits, `V = M`
     (`:2616-2622`), giving `(1 + 2M) × M` (20,100 at 100 items). Three hit-tests per `WM_MOUSEMOVE` repeat it (1,500
     layouts per message at 500 items), and each typed character runs it while closed (`:2114-2115`).
   - **Change**: measure each item's width once per items and typography/DPI revision into a `float` per item; the popup
@@ -541,12 +564,12 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
     per open hover frame, 0 per typed character open or closed, and 0 per paint of the 100-item all-fit popup after the
     first measure; exact WARP parity of the open popup.
   - **Needs**: `W0.4`. **Size**: S.
-- [ ] **W2.3 Reuse across edits.**
+- [x] **W2.3 Reuse across edits.**
   - **Why**: image and native-object reuse requires `state_->document == document` (`DxUi.RichSemanticGeometry.cpp:2437`,
     `:2447`) and every edit builds a new semantic document (`DxUi.RichSemanticDocument.cpp:2848-2855`), so each
     keystroke re-uploads every raster image (up to `MaximumDecodedBytes`, 64 MiB, `DxUi.RichImageResources.h:26`),
     re-parses and re-rasterizes every SVG, and rebuilds every formula and diagram. Raster lookup is already keyed by
-    pixels (`:289`), SVG by pixels and size (`:310`); math and diagrams look up by element index (`:364`, `:2671`).
+    pixels (`DxUi.RichSemanticGeometry.cpp:289`), SVG by pixels and size (`:310`); math and diagrams look up by element index (`:364`, `:2671`).
   - **Change**: drop the `document ==` condition from raster and SVG reuse, keeping the target, epoch and option checks.
     Math carries by expression source, font size, display mode, DPI, reading direction, math font family and resource
     generation; diagrams by graph source, revision, palette, DPI and resource generation. The carry reads only the
@@ -577,7 +600,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
     embedded-only menu sessions after the first (`G10`); exact WARP parity for every material including `Solid` at 100%,
     150% and 200%, harness gallery captures of the `ComboBox` and `Menu` tiles unchanged.
   - **Needs**: `W0.1`, `W0.4`. **Size**: L.
-- [ ] **W2.5 `Grid` data paths.**
+- [x] **W2.5 `Grid` data paths.**
   - **Why**: `CollectOrderedGroups` (`DxUi.Grid.cpp:497-574`) runs about ten times per frame (`:4091`, `:7187`, `:7453`,
     `:7492`, `:7598`, `:7612`, `:7717`, `:7728`, `:7753`, `:7764`) and once per cell in right-to-left layout
     (`:7866-7868`); `GetRowTopDip` is O(G) (`:7077-7114`) and runs twice per group (`:7393`, `:7424`): O(G²) per frame.
@@ -598,7 +621,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
     0 DxUi-owned allocations per arrow key and per click after the 200,000-row select-all; cell layouts held never
     exceed the cells the last paint drew; exact WARP parity.
   - **Needs**: `W0.1`, `W0.4`. **Size**: L.
-- [ ] **W2.6 `Tree` data paths.**
+- [x] **W2.6 `Tree` data paths.**
   - **Why**: the default `ITreeModel::FindVisibleItemById` is O(N) and copies four strings per item
     (`DxUi.Tree.cpp:279-295`); it runs on every key through `FindFocusedVisibleIndex` (`:3035`, `:2265`), on selection
     and toggle paths (`:1139`, `:2325`), and `SetFocusedItemId` looks up twice (`:892`, `:901`).
@@ -612,7 +635,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
     per expand or collapse at most the viewport's rows; collapse frames sampled with a frozen clock are WARP-identical
     to today.
   - **Needs**: `W0.4`. **Size**: M.
-- [ ] **W2.7 Text field paint.**
+- [x] **W2.7 Text field paint.**
   - **Why**: multiline `TextField` has 15 uncached full-text layout sites (`DxUi.TextInput.cpp:353`, `:483`, `:585`,
     `:713`, `:729`, `:766`, `:811`, `:1521`, `:1627`, `:1958`, `:2027`, `:2088`, `:2180`, `:3215`, `:3679`): every focused paint
     builds two (`:766`, `:811`), `PageDown` five, a sub-notch wheel two before the zero-step check (`:2180-2203`). A
@@ -626,7 +649,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
   - **Gate**: on `FX1` and a 64 Ki-unit multiline field, 0 layouts per focused paint, sub-notch wheel and `PageDown`
     with unchanged text and width, and 0 DxUi-owned allocations per focused single-line paint; exact WARP parity.
   - **Needs**: `W1.5`, `W0.1`, `W0.4`. **Size**: M.
-- [ ] **W2.8 Format and brush caches.**
+- [x] **W2.8 Format and brush caches.**
   - **Why**: above 96 format keys `TrimCaches` clears the format map and forces every visible control to re-prepare,
     every frame while the working set stays above 96 (`DxUi.WindowHost.cpp:4678-4682`, `include/DxUi/DxUi.h:6365`); the
     flag exists because some retained keys hold a raw format pointer (`include/DxUi/DxUi.h:2926`) or no format at all
@@ -641,7 +664,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
   - **Gate**: on a 120-key typography variant of `FX12`, 0 forced full re-preparations per frame; on `FX11` color
     transitions, 0 brushes created per frame after the first; exact WARP parity.
   - **Needs**: `W0.1`, `W0.4`. **Size**: M.
-- [ ] **W2.9 Pointer-move cost.**
+- [x] **W2.9 Pointer-move cost.**
   - **Why**: one `WM_MOUSEMOVE` hit-tests three times: cursor, hover and target (`DxUi.WindowHost.cpp:3581`, `:5833`,
     `:5868`); in an open `ComboBox` each repeats the popup layout (`W2.2`). `Label` and `Button` preparation run the
     `IsControlInTree` depth-first walk (`DxUi.WindowHost.cpp:1225-1243`) before their cheap guards
@@ -654,7 +677,7 @@ item's gate met on its fixture with a before-and-after receipt (`A15`), and `G3`
   - **Gate**: on `FX14` and `FX2`, 1 hit-test per `WM_MOUSEMOVE`; on `FX10`, 0 `IsControlInTree` calls during
     preparation and 0 plain labels pending preparation after each step; exact WARP parity on `FX5`.
   - **Needs**: `W0.1`, `W0.4`. **Size**: M.
-- [ ] **W2.10 One way to assign a property.**
+- [x] **W2.10 One way to assign a property.**
   - **Why**: about 30 setters invalidate without an unchanged-value guard, 28 counted
     (`DxUi.Controls.cpp:2911`, `:3495`, `:5186`, `:5205`, `:5223`, `:5304`, `:6051-6103`, `:6476`, `:7334`, `:7360`,
     `:7958`, `:10537`, `StackPanel` `:10660-10701`; `NumericStepper` and `ColorPicker` in
@@ -677,12 +700,12 @@ Purpose: replace the fixed 8 ms dispatcher timer with event-driven scheduling, s
 something is due, and pace native animation frames to the display. Exit: `G1` met on `FX1`; API revision 6 landed with
 `W3.5` (`A8`); the `W3.6` no-deadlock gate passes.
 
-- [ ] **W3.1 One frame scheduler per host.**
+- [x] **W3.1 One frame scheduler per host.**
   - **Why**: native ticks come from `SetTimer(8 ms)` (`src/Support/AnimationDispatcher.h:182, 348`), which Windows
     raises to the 10 ms `USER_TIMER_MINIMUM`; it runs while any `Tick` returns `true` (`:331-391`), so a focused caret
     keeps it running (about 640 wakes in 10 s, inferred). Each tick walks the whole tree (`Panel::Tick`,
-    `DxUi.Controls.cpp:1571-1585`, from `DxUi.WindowHost.cpp:6146` and `src/Rendering/Embedded.cpp:433`); the first
-    tick after idle adds a phantom 8 ms (`AnimationDispatcher.h:431-447`).
+    `DxUi.Controls.cpp:1571-1585`, from `DxUi.WindowHost.cpp:6025` and `src/Rendering/Embedded.cpp:433`); the first
+    tick after idle adds a phantom 8 ms (`src/Support/AnimationDispatcher.h:431-447`).
   - **Change**: `ControlHost` keeps one schedule of `Continuous`, `Deadline(tickMs)` and `Once` requests and ticks only
     the controls holding one, not the tree. Native: one `SetCoalescableTimer` on the dispatcher window for the earliest
     deadline; `Continuous` frames come from `W3.6`. A deadline wake runs `Tick` and renders only if something
@@ -696,7 +719,7 @@ something is due, and pace native animation frames to the display. Exit: `G1` me
     `Tick` calls per wake equal requesting controls; detach and popup-close fuzz under ASan with 0 stale pointers.
   - **Needs**: `W0.1`, `W0.4`. **Size**: L.
 
-- [ ] **W3.2 Caret clock.**
+- [x] **W3.2 Caret clock.**
   - **Why**: `TextField` blinks at a fixed 530 ms (`DxUi.TextInput.cpp:17`) and its `Tick` returns `true` while focused
     (`:1787-1813`); `ComboBox` the same while editable and focused (`DxUi.ComboBox.cpp:1883-1910`); `RichTextEditor` at
     500 ms (`DxUi.RichTextEditor.cpp:5505-5511`). `GetCaretBlinkTime` and `SPI_GETCARETTIMEOUT` appear nowhere in `src`,
@@ -710,7 +733,7 @@ something is due, and pace native animation frames to the display. Exit: `G1` me
     frame; 0 wakes after the caret timeout; harness gallery capture of focused read-only and editable `TextField`.
   - **Needs**: `W3.1`. **Size**: M.
 
-- [ ] **W3.3 Tooltip deadlines.**
+- [x] **W3.3 Tooltip deadlines.**
   - **Why**: `TooltipLayer::Tick` returns `true` on every tick while a show is pending and while shown
     (`DxUi.Controls.cpp:12156-12158, 12183-12186`); the show delay is `SPI_GETMOUSEHOVERTIME` clamped to 100–2,500 ms
     (`DxUi.WindowHost.cpp:499-507`) and the hide 5,000 ms (`DxUi.Controls.cpp:12167`): about 345 ticks per tooltip at
@@ -735,7 +758,7 @@ something is due, and pace native animation frames to the display. Exit: `G1` me
     `FX9` `Tree` with collapsed branches: 0 ticks from collapsed rows; `W0.5` oracle 0 differences on re-show.
   - **Needs**: `W3.1`, `W0.5`. **Size**: M.
 
-- [ ] **W3.5 Embedded animation request (API 6).**
+- [x] **W3.5 Embedded animation request (API 6).**
   - **Why**: `EmbeddedHost::NeedsAnimation()`/`AdvanceAnimation()` (`include/DxUi/Embedded.h:144-148`) is a boolean, so
     an application must advance every frame while anything is armed, including a 530 ms caret, and each advance ticks the
     whole tree (`src/Rendering/Embedded.cpp:433`).
@@ -793,7 +816,13 @@ Purpose: stop running `Paint` for controls that did not change and stop repainti
 one-week spike decides the mechanism. Exit: `G2` and `G4` met on `FX5`; `W4.5` verifier clean across the Controls and
 Embedded suites; or, on a no-go, `W4.10` gates met.
 
-- [ ] **W4.0 Spike and go/no-go.**
+Outcome of the spike: **no-go**, decided by the developer on 23 November 2026
+([receipt](../../../Measurements/PerformanceAndMotion_2026-11-13/W4.0/README.md)). Replaying a recorded control cost 0.85
+to 1.07 of painting it on hardware, against the required half. Not drawing an unchanged control cost 0.04 to 0.09
+of painting it. So `W4.10` is the mechanism of this wave, `W4.7` and `W4.9` run on its region, and the other items
+close as each one says below.
+
+- [x] **W4.0 Spike and go/no-go.**
   - **Why**: every dirty frame paints every visible control: native clips, clears and paints the whole tree
     (`DxUi.WindowHost.cpp:5105-5137`), embedded clears and repaints the whole surface (`src/Rendering/Embedded.cpp:631,
     641`); one hover change on `FX5` costs 83 `Paint` executions and 54 allocations (`G2`, `G3`).
@@ -809,6 +838,7 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W0.2`, `W0.5`, `W0.7`, `W2.1`, `W2.3`. **Size**: M.
 
 - [ ] **W4.1 Retention mechanism.**
+  - **Closed unbuilt**: `W4.0` was a no-go (23 November 2026), so no control drawing is retained as a command list.
   - **Why**: `W4.0` go; nothing today retains a control's drawing between frames.
   - **Change**: `Control` gains a private `uint32_t` paint revision advanced by `InvalidateVisual()`. The host keeps a
     side table (not in `Control`, so `W9.6` sizes hold) of `{command list, ink bounds, paint revision, resource epoch}`;
@@ -824,6 +854,7 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.0` (go), `W0.3`. **Size**: L.
 
 - [ ] **W4.2 Parts for self-painting controls.**
+  - **Closed unbuilt**: `W4.0` was a no-go (23 November 2026); parts are command lists.
   - **Why**: large controls paint all their rows in one `Paint`, so one changed row re-runs the whole control.
   - **Change**: `host.PaintPart(owner, key, revision, fn)` retains one slice of a control as its own command list:
     `MenuPopup` chrome and each row, the `ComboBox` popup, `Grid` header and each visible row, `Tree` rows,
@@ -834,6 +865,9 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.1`. **Size**: L.
 
 - [ ] **W4.3 Raster promotion and retention cap.**
+  - **Closed unbuilt**: `W4.0` was a no-go (23 November 2026), and the design review of `W4.10` found nothing to
+    tile: no shadow or blur effect is painted inside the control tree outside the popups of `W2.4`. No tile cap is
+    added to the performance contract.
   - **Why**: shadow and blur effects cost an intermediate pass on every replay. The only surface bound today is the
     single embedded surface: at most 64 MiB, with a 128 MiB replacement peak per view
     ([performance and resources](../../Core/Core_PerformanceAndResources.md)); it is not a per-view retention budget, and
@@ -851,6 +885,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.1`, `W0.3`. **Size**: M.
 
 - [ ] **W4.4 Nine-slice shadows.**
+  - **Closed unbuilt**: `W4.0` was a no-go (23 November 2026). Popup shadows stay with `W2.4`, and no other
+    elevated surface draws a shadow today.
   - **Why**: `ComboBox` and `Menu` popups recreate both shadow passes (`CreateCommandList` plus a shadow effect each)
     on every paint (`DxUi.ComboBox.cpp:414-428`, `DxUi.Menu.cpp:778-793`).
   - **Change**: one blurred corner tile per `(corner radius, sigma, color, scale)` in a small host atlas; any rectangle
@@ -862,6 +898,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.3`, `W2.4`. **Size**: M.
 
 - [ ] **W4.5 Paranoid verifier.**
+  - **Closed unbuilt**: `W4.0` was a no-go (23 November 2026); there is no retained drawing to verify. The `W0.5`
+    oracle after every partial frame is the check for `W4.10`.
   - **Why**: a retained drawing goes stale if a control's `Paint` reads state that nothing invalidated; users would
     see it before tests do.
   - **Change**: in Debug and ASan Debug, every Nth frame re-record retained controls and parts and compare 64-bit
@@ -872,6 +910,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.1`. **Size**: M.
 
 - [ ] **W4.6 Region invalidation.**
+  - **Closed as written**: `W4.0` was a no-go (23 November 2026). `W4.10` builds the region, with overhang each
+    control declares per state in place of ink bounds read from a command list.
   - **Why**: every control invalidation is full-window (`DxUi.WindowHost.cpp:1912`); `rcPaint` is the bounding box of
     the update region ([GetUpdateRect](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getupdaterect)),
     so a region passed through `WM_PAINT` collapses two far-apart rectangles into one.
@@ -886,6 +926,9 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.1`, `W0.7`. **Size**: M.
 
 - [ ] **W4.7 Embedded partial preparation.**
+  - **Changed by the `W4.0` no-go** (23 November 2026): stays open and runs on the region of `W4.10`. Per region
+    rectangle it paints the controls that intersect it; there are no retained lists to replay, so its gate counts
+    `Paint` executions where it says replays.
   - **Why**: `EmbeddedHost::Prepare` clears and repaints the whole surface for any change
     (`src/Rendering/Embedded.cpp:631, 641`), although the texture persists while its size is unchanged (`:544-574`).
   - **Change**: per region rectangle, push an aliased axis-aligned clip, clear to premultiplied `(0, 0, 0, 0)` and
@@ -897,6 +940,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.6`, `W4.8`. **Size**: M.
 
 - [ ] **W4.8 Culling.**
+  - **Closed as written**: `W4.0` was a no-go (23 November 2026). `W4.10` builds culling as a test of child bounds
+    plus overhang against the paint clip.
   - **Why**: `Panel::Paint` tests only `IsVisible` and `ScrollPanel::Paint` clips but paints every child
     (`DxUi.Controls.cpp:1535-1545, 11311, 11326`); without culling a per-rectangle loop repeats a full traversal per
     rectangle.
@@ -907,6 +952,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.1`. **Size**: M.
 
 - [ ] **W4.9 Native partial present and scrolling.**
+  - **Changed by the `W4.0` no-go** (23 November 2026): stays open and presents the region of `W4.10`; where it names
+    `W4.6` and `W4.8`, read `W4.10`.
   - **Why**: with dirty rectangles on a flip-model chain the runtime copies the previous frame's updated areas onto the
     current back buffer at present
     ([DXGI 1.2 presentation](https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/dxgi-1-2-presentation-improvements)),
@@ -941,6 +988,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
 
 ## W5 — Motion: better animation everywhere
 
+Delivered in a later pull request than the other waves ([delivery](#delivery-in-pull-requests)).
+
 Purpose: one motion system behind every interactive state change, with motion that keeps running while the UI thread is
 busy in native composition mode and degrades to cooperative ticks everywhere else. Exit: `G14` met on `FX11` for every
 row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
@@ -948,11 +997,11 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
 - [ ] **W5.1 Animation core.**
   - **Why**: at least six hand-rolled patterns (eased snapshot restarted on retarget, `Slider`
     [DxUi.Controls.cpp](../../../src/Controls/DxUi.Controls.cpp) `:6605-6651`; constant-rate linear `:4445-4454`,
-    [DxUi.Scrollbar.cpp](../../../src/Controls/DxUi.Scrollbar.cpp) `:117-142`; clamped accumulation `:4468-4508`; `Tree`
-    stamps `DxUi.Tree.cpp:3507-3571`; inline `1-(1-t)^3` `:6349-6350`, `DxUi.Menu.cpp:1695-1698`; phase loop
-    `:5418-5445`). A `Slider` retarget restarts the full 100 ms and resets velocity (`:6619-6641`); linear patterns
-    reverse velocity instantly. Durations are constants, several in the public header (`DxUi.h:2040`, `2301-2302`,
-    `2709`, `2849-2850`, `5223-5224`); `tokens.json` has only `caretPhaseMs` (`:815`); `MotionPolicy` has no caller
+    [DxUi.Scrollbar.cpp](../../../src/Controls/DxUi.Scrollbar.cpp) `:117-142`; clamped accumulation `DxUi.Controls.cpp:4468-4508`; `Tree`
+    stamps `DxUi.Tree.cpp:3507-3571`; inline `1-(1-t)^3` `DxUi.Controls.cpp:6349-6350`, `DxUi.Menu.cpp:1695-1698`; phase loop
+    `DxUi.Controls.cpp:5418-5445`). A `Slider` retarget restarts the full 100 ms and resets velocity (`:6619-6641`); linear patterns
+    reverse velocity instantly. Durations are constants, several in the public header (`include/DxUi/DxUi.h:2040`, `2301-2302`,
+    `2709`, `2849-2850`, `5223-5224`); `tokens.json` has only `caretPhaseMs` (`Specs/DesignSystem/tokens.json:815`); `MotionPolicy` has no caller
     ([FrameRuntime.cpp](../../../src/Foundation/FrameRuntime.cpp) `:152-159`).
   - **Change**: private `MotionValue` (scalar; colors use four, `W5.2`), about 24 B, no `alignas`: `float target, x0,
     v0`; `uint64_t t0Us`; `uint16_t token`; `uint8_t mode, flags`; `static_assert(sizeof ≤ 24)`. Spring: displacement
@@ -963,11 +1012,11 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
     Retarget at `t`: `x0 = x(t) + oldTarget − newTarget`, `v0 = x'(t)`, `t0 = t`. Settle bound for tolerance `ε`:
     `t_s = ln((|A|+|B|)/ε)/(ζω)`; critical `t_s = 2 ln((|A| + 2|B|/(eω))/ε)/ω`; over-damped
     `t_s = ln((|C1|+|C2|)/ε)/|r1|`; at `t_s` the value lands on target and stops ticking. Timed mode: cubic-bezier
-    (Newton with bisection fallback, replacing the 14-step solver `:376-401`), `steps(n, jump-start|end|none|both)`,
+    (Newton with bisection fallback, replacing the 14-step solver `DxUi.Controls.cpp:376-401`), `steps(n, jump-start|end|none|both)`,
     repeat and reverse; a timed retarget builds a cubic Hermite segment from `(x, x')` to `(target, 0)` over the token
     duration, so every mode keeps C¹. Delay, a fixed-capacity sequence (four inline segments) and stagger
     (`index × token.staggerUs`). Time is microseconds from the host clock (`W3.6` predicted present time); tests inject
-    it through `DebugSetAnimationClockForTest` (`DxUi.h:6428`) natively and `AdvanceAnimation` embedded. Every value
+    it through `DebugSetAnimationClockForTest` (`include/DxUi/DxUi.h:6428`) natively and `AdvanceAnimation` embedded. Every value
     consults `MotionPolicy`. Tokens: a `motion` group in [tokens.json](../../DesignSystem/tokens.json) (`spring.micro`,
     `spring.control`, `spring.spatial`, `curve.page`, `curve.fade`, `curve.loop`, `curve.blink`, `stagger`) and a motion
     section in the [design-system guideline](../../DesignSystem/README.md). Coordinate with the explicit-state-machines
@@ -978,7 +1027,7 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
     allocations (`W0.1`) over `FX11`.
   - **Needs**: `W0.1`, `W0.4`, `W3.1`, `W3.6`. **Size**: M.
 - [ ] **W5.2 Animated assignment.**
-  - **Why**: each control stores and advances its own transition state (`DxUi.h:2271-2310`, `2793-2850`, `5225-5253`);
+  - **Why**: each control stores and advances its own transition state (`include/DxUi/DxUi.h:2271-2310`, `2793-2850`, `5225-5253`);
     `BlendColor` lerps straight, gamma-encoded components including alpha
     ([DxUi.Theme.cpp](../../../src/Controls/DxUi.Theme.cpp) `:198-202`), and the strongly different checked-track pair
     (`DxUi.Theme.cpp:573`) does not animate at all.
@@ -1021,33 +1070,33 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
 
     | Control | State change | Today | Motion |
     | --- | --- | --- | --- |
-    | `Button` | hover, focus tint | animates: constant-rate linear 140 ms, velocity reverses on retarget (`:4397-4466`, `DxUi.h:2301`) | `spring.micro` |
-    | `Button` | press | snaps: `Button::Tick` advances only hover, focus and disclosure (`:4199-4212`) | `spring.micro` |
-    | `Button` | disclosure chevron | animates: 240 ms `PointToPoint`, accumulated time, 100 ms tick clamp (`:4468-4508`, `DxUi.h:2302`) | `spring.control` |
-    | `Toggle` | knob position | snaps: `checked ? right : left` (`:1274`) | `spring.control` (transform, `W5.3`) |
-    | `Toggle` | knob diameter rest/hover/press | snaps by state (`:4608`) | `spring.micro` |
+    | `Button` | hover, focus tint | animates: constant-rate linear 140 ms, velocity reverses on retarget (`DxUi.Controls.cpp:4397-4466`, `include/DxUi/DxUi.h:2301`) | `spring.micro` |
+    | `Button` | press | snaps: `Button::Tick` advances only hover, focus and disclosure (`DxUi.Controls.cpp:4199-4212`) | `spring.micro` |
+    | `Button` | disclosure chevron | animates: 240 ms `PointToPoint`, accumulated time, 100 ms tick clamp (`DxUi.Controls.cpp:4468-4508`, `include/DxUi/DxUi.h:2302`) | `spring.control` |
+    | `Toggle` | knob position | snaps: `checked ? right : left` (`DxUi.Controls.cpp:1274`) | `spring.control` (transform, `W5.3`) |
+    | `Toggle` | knob diameter rest/hover/press | snaps by state (`DxUi.Controls.cpp:4608`) | `spring.micro` |
     | `Toggle` | track fill and border | snaps (`DxUi.Theme.cpp:573`) | `spring.control`, perceptual color (`W5.2`) |
-    | `Toggle`, `Checkbox`, `RadioButton` | hover, focus tint | animates as `Button` (`:4595-4596`, `:4792-4793`, `:4896-4897`) | `spring.micro` |
-    | `Checkbox` | check mark | snaps: glyph drawn when checked (`:4821-4825`) | `spring.control` (clip reveal and scale, `W5.3`) |
+    | `Toggle`, `Checkbox`, `RadioButton` | hover, focus tint | animates as `Button` (`DxUi.Controls.cpp:4595-4596`, `:4792-4793`, `:4896-4897`) | `spring.micro` |
+    | `Checkbox` | check mark | snaps: glyph drawn when checked (`DxUi.Controls.cpp:4821-4825`) | `spring.control` (clip reveal and scale, `W5.3`) |
     | `Checkbox` | indicator fill | snaps (`DxUi.Theme.cpp:573`) | `spring.control`, perceptual color |
-    | `Checkbox` | indeterminate dash | snaps (`:4812-4820`) | `spring.control` |
-    | `RadioButton` | selected dot | snaps: drawn when checked (`:4920-4925`) | `spring.control` (dot diameter) |
-    | `Slider` | thumb hover, press, touch halo | animates: eased from snapshot, 100 ms, restarts on retarget (`:6605-6651`, `DxUi.h:2849`) | `spring.micro` |
-    | `Slider` | keyboard and pointer value | animates: 167 ms, restarts on retarget (`:6619-6641`, `DxUi.h:2850`) | `spring.control` |
+    | `Checkbox` | indeterminate dash | snaps (`DxUi.Controls.cpp:4812-4820`) | `spring.control` |
+    | `RadioButton` | selected dot | snaps: drawn when checked (`DxUi.Controls.cpp:4920-4925`) | `spring.control` (dot diameter) |
+    | `Slider` | thumb hover, press, touch halo | animates: eased from snapshot, 100 ms, restarts on retarget (`DxUi.Controls.cpp:6605-6651`, `include/DxUi/DxUi.h:2849`) | `spring.micro` |
+    | `Slider` | keyboard and pointer value | animates: 167 ms, restarts on retarget (`DxUi.Controls.cpp:6619-6641`, `include/DxUi/DxUi.h:2850`) | `spring.control` |
     | `Slider` | `SetValue` | snaps by contract ([controls guide](../../../docs/controls.md)) | unchanged |
     | Scrollbar (`Grid`, `Tree`) | track and thumb hot color | animates: constant-rate 140 ms (`DxUi.Scrollbar.cpp:14`, `:117-142`) | `spring.micro` |
     | `ScrollPanel`, `Grid`, `Tree` | scroll offset | snaps per wheel event (`DxUi.Grid.cpp:5891-5898`, `DxUi.Tree.cpp:2154-2173`) | `spring.spatial` (`W5.7`) |
-    | `ProgressBar` | determinate value | snaps: no transition state (`DxUi.h:2525-2536`) | `spring.control` |
-    | `ProgressBar` | indeterminate sweep | animates: phase loop (`:5418-5445`) | `curve.loop`; compositor in `W5.11` |
-    | `ThroughputGraph` | values | animates: inline cubic ease-out 160 ms (`:6349-6350`, `DxUi.h:2709`) | `spring.control` |
-    | `PageIndicator` | selected dot | snaps: painted from the selected index, no `Tick` (`:5564-5584`) | `spring.spatial` |
-    | `TabControl` | selected tab chrome | snaps: no `Tick`; painted from `_selectedIndex` (`:9773-9778`) | `spring.spatial` (indicator transform) |
+    | `ProgressBar` | determinate value | snaps: no transition state (`include/DxUi/DxUi.h:2525-2536`) | `spring.control` |
+    | `ProgressBar` | indeterminate sweep | animates: phase loop (`DxUi.Controls.cpp:5418-5445`) | `curve.loop`; compositor in `W5.11` |
+    | `ThroughputGraph` | values | animates: inline cubic ease-out 160 ms (`DxUi.Controls.cpp:6349-6350`, `include/DxUi/DxUi.h:2709`) | `spring.control` |
+    | `PageIndicator` | selected dot | snaps: painted from the selected index, no `Tick` (`DxUi.Controls.cpp:5564-5584`) | `spring.spatial` |
+    | `TabControl` | selected tab chrome | snaps: no `Tick`; painted from `_selectedIndex` (`DxUi.Controls.cpp:9773-9778`) | `spring.spatial` (indicator transform) |
     | `TabControl` | page change | not verified | `curve.page` cross-fade (`W5.6`) |
     | `TabControl` | tab reorder drag | not verified | `spring.spatial` glide (`W5.5`) |
-    | `PageHost` | page change | animates: 250 ms fade and 24 DIP slide, up to four layers per frame (`:1819-1843`, `:1803`, `:1936`, `DxUi.h:2040`) | `curve.page` (`W5.6`) |
-    | `PageHost` | connected element | placeholder accent rectangle (`:1968-1980`) | `spring.spatial` (`W5.6`) |
-    | `Tree` | expander chevron | animates: 240 ms, stamp-based reversal (`DxUi.Tree.cpp:3507-3571`, `DxUi.h:5223`) | `spring.control` |
-    | `Tree` | row slide on expand/collapse | animates: 320 ms before/after snapshots of every visible item (`DxUi.Tree.cpp:3608-3663`, `DxUi.h:5224`) | `spring.spatial` (`W5.5`) |
+    | `PageHost` | page change | animates: 250 ms fade and 24 DIP slide, up to four layers per frame (`DxUi.Controls.cpp:1819-1843`, `:1803`, `:1936`, `include/DxUi/DxUi.h:2040`) | `curve.page` (`W5.6`) |
+    | `PageHost` | connected element | placeholder accent rectangle (`DxUi.Controls.cpp:1968-1980`) | `spring.spatial` (`W5.6`) |
+    | `Tree` | expander chevron | animates: 240 ms, stamp-based reversal (`DxUi.Tree.cpp:3507-3571`, `include/DxUi/DxUi.h:5223`) | `spring.control` |
+    | `Tree` | row slide on expand/collapse | animates: 320 ms before/after snapshots of every visible item (`DxUi.Tree.cpp:3608-3663`, `include/DxUi/DxUi.h:5224`) | `spring.spatial` (`W5.5`) |
     | `Tree` | hover and selection highlight; reorder drop | not verified | `spring.micro`; drop glide `spring.spatial` |
     | `Grid` | hover and selection highlight | not verified | `spring.micro` |
     | `Grid` | sort glyph | animates: linear 140 ms (`DxUi.Grid.cpp:695`, `:4787-4802`) | `spring.micro` |
@@ -1058,10 +1107,10 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
     | `MenuPopup` | open/close | no open animation found (not exhaustively verified) | `spring.spatial` + `curve.fade`; compositor in `W5.11` |
     | `MenuPopup` | row highlight | not verified | `spring.micro` |
     | `MenuPopup` | slider item | animates: inline cubic 160 ms (`DxUi.Menu.cpp:80`, `:1645-1705`) | `spring.control` |
-    | `MenuBar` | item highlight | snaps: no `Tick` override (`DxUi.h:2875-2960`) | `spring.micro` |
-    | `TooltipLayer` | show/hide | snaps at the deadline (`:12152-12196`) | `curve.fade`; coordinate with the tooltip state machine |
+    | `MenuBar` | item highlight | snaps: no `Tick` override (`include/DxUi/DxUi.h:2875-2960`) | `spring.micro` |
+    | `TooltipLayer` | show/hide | snaps at the deadline (`DxUi.Controls.cpp:12152-12196`) | `curve.fade`; coordinate with the tooltip state machine |
     | `TextField` | focus border and ring | snaps: style resolved from `HasFocus()` (`DxUi.TextInput.cpp:1642`) | `spring.micro` |
-    | `TextField`, `ComboBox`, `RichTextEditor` | caret | on/off phase (`DxUi.TextInput.cpp:1804`, `DxUi.ComboBox.cpp:1901`, `tokens.json:815`) | `curve.blink`; clock owned by `W3.2` |
+    | `TextField`, `ComboBox`, `RichTextEditor` | caret | on/off phase (`DxUi.TextInput.cpp:1804`, `DxUi.ComboBox.cpp:1901`, `Specs/DesignSystem/tokens.json:815`) | `curve.blink`; clock owned by `W3.2` |
     | Focus ring (`PaintFocusRing`) | appear, disappear | animates in the `Button` family; snaps in `TextField` (`DxUi.TextInput.cpp:1642`); elsewhere not verified | `spring.micro` opacity |
     | Popups (`MenuPopup`, `ComboBox`) | elevation | not verified | cross-fade of two cached nine-slice shadows (`W4.4`) |
     | `Splitter`, `NumericStepper`, `ColorSwatch`, `TagPicker`, `ColorPicker` | hover, press, selection | not verified | `spring.micro` |
@@ -1073,7 +1122,7 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
   - **Needs**: `W5.1`, `W5.2`, `W5.3`. **Size**: L.
 - [ ] **W5.5 Layout transitions.**
   - **Why**: only `Tree` animates layout change, by copying every visible `TreeItemData` (four `std::wstring` each,
-    `DxUi.h:868-882`) twice per expand and sorting both (`DxUi.Tree.cpp:3578-3663`): O(n) allocation, not O(viewport).
+    `include/DxUi/DxUi.h:868-882`) twice per expand and sorting both (`DxUi.Tree.cpp:3578-3663`): O(n) allocation, not O(viewport).
     Panels, `TabControl` reorder and `Grid` rows jump.
   - **Change**: one private before/after recorder: at layout commit it keeps `{stable id, rect}` for visible items in a
     reused buffer; after layout it starts a `spring.spatial` `MotionValue` per moved item on `W5.3`'s transform
@@ -1198,8 +1247,8 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
     recapture of every affected tile.
   - **Needs**: `W5.3`. **Size**: M.
 - [ ] **W5.14 Reduced-motion policy.**
-  - **Why**: each control tests `theme.reducedMotion` (`DxUi.h:901`) itself, and `MotionPolicy` has no caller
-    (`FrameRuntime.cpp:152-159`); the only behaviour is "remove", so a page change loses its spatial cue entirely.
+  - **Why**: each control tests `theme.reducedMotion` (`include/DxUi/DxUi.h:901`) itself, and `MotionPolicy` has no caller
+    (`src/Foundation/FrameRuntime.cpp:152-159`); the only behaviour is "remove", so a page change loses its spatial cue entirely.
   - **Change**: `MotionPolicy` becomes the single policy object read by `MotionValue`, with modes `Full`, `Reduce`
     (spatial motion becomes a `curve.fade` cross-fade; loops rest) and `Remove` (instant). `ThemePalette::reducedMotion`
     maps to `Remove`, keeping today's semantics; an application selects `Reduce` explicitly. The policy, its tokens and
@@ -1210,7 +1259,7 @@ row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
   - **Needs**: `W5.1`, `W5.4`. **Size**: S.
 - [ ] **W5.15 `Expander` control.**
   - **Why**: the catalog has no collapsible section. An application builds one from a `Button` with the `Disclosure`
-    variant (`DxUi.h:241`, `SetDisclosureExpanded` `:2211-2214`), which animates only its chevron and exposes
+    variant (`include/DxUi/DxUi.h:241`, `SetDisclosureExpanded` `:2211-2214`), which animates only its chevron and exposes
     ExpandCollapse; "the application updates the state, content visibility and focus"
     ([controls guide](../../../docs/controls.md)). Every product therefore re-implements the header, the content toggle,
     the focus rule and the layout, and the content appears and disappears without motion.
@@ -1256,7 +1305,7 @@ measure runs once per key, and a layout pass visits only dirty subtrees and stop
     fresh preparation at every step.
   - **Needs**: `W0.2`, `W0.5`, `W2.1`; the v0-chunk part also `W7.3`. **Size**: M.
 
-- [ ] **W6.2 Measure cache in `Control::Measure`.**
+- [x] **W6.2 Measure cache in `Control::Measure`.**
   - **Why**: measure results are cached per parent in one slot: `FlexPanel::_records`, keyed by child revision,
     constraints, typography, DPI, flow and density (`DxUi.Layout.cpp:699-710`), and `FormField::_measureCache`
     (`DxUi.Forms.cpp:274-275`); other parents measure again. A `Label` measure creates an `IDWriteTextLayout` and a heap
@@ -1291,7 +1340,7 @@ measure runs once per key, and a layout pass visits only dirty subtrees and stop
     newly shown rows; `W0.5` oracle clean.
   - **Needs**: `W0.1`, `W0.5`, `W6.2`. **Size**: M.
 
-- [ ] **W6.4 Text rendering parameters.**
+- [x] **W6.4 Text rendering parameters.**
   - **Why**: the native host never calls `SetTextAntialiasMode`; the embedded host forces grayscale
     (`src/Rendering/Embedded.cpp:283`). Direct2D already gives ClearType on the `HwndSwapChain` (`DXGI_ALPHA_MODE_IGNORE`)
     and grayscale on the premultiplied composition chain (`DxUi.WindowHost.cpp:4448`, `:4541`)
@@ -1349,7 +1398,7 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
     multimap nodes 0; map bytes at the cap ≤ display text plus spans; seeded edit fuzz equal to a fresh build.
   - **Needs**: `W0.1`, `W0.5`. **Size**: L.
 
-- [ ] **W7.2 Incremental parse reuse.**
+- [x] **W7.2 Incremental parse reuse.**
   - **Why**: each parse builds a new `MarkdownSyntax` owning a full source copy (`DxUi.MarkdownSyntax.cpp:135`) with
     only lexical prefix/suffix reuse (`:392-408`) and revalidates front matter wherever the edit is (YAML `:446-449`,
     TOML `:436-439`). How much block and inline parsing is whole-document beyond that reuse is not verified.
@@ -1378,7 +1427,7 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
     off-screen chunk; the oracle passes for fractional fonts, RTL, transformed drawing and large origins.
   - **Needs**: `W0.5`. **Size**: L.
 
-- [ ] **W7.4 Text-input sync and flatten sites.**
+- [x] **W7.4 Text-input sync and flatten sites.**
   - **Why**: text-input sync runs twice per character and per arrow key (`DxUi.WindowHost.cpp:2335`, `:3908`;
     `DxUi.RichTextEditor.cpp:3657` → `DxUi.TextInput.cpp:914`); each pass flattens the document and copies
     `previousState` (`DxUi.NativeTextInput.cpp:1063`, `:1076-1077`), and the overlay rebuild copies the cache again
@@ -1440,11 +1489,11 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
     `CreateDeviceContext` per preparation ≤ 1; harness gallery capture of dashed and 3 px flowchart edges.
   - **Needs**: `W0.1`, `W2.3`. **Size**: M.
 
-- [ ] **W7.8 Image decode.**
+- [x] **W7.8 Image decode.**
   - **Why**: `Decode` copies its encoded input into `owned` (`DxUi.RichImage.cpp:251-255`) although every WIC object is
     local and `CopyPixels` finishes before it returns (`:253-293`); `LoadFile` reads into its own buffer first
     (`:506-518`). With the 16 MiB encoded cap (`include/DxUi/RichImage.h:66`) the encoded peak is 32 MiB; a GIF canvas
-    (`:151`) or EXIF orientation (`:192`) adds a decoded-size buffer (up to 16 MiB). Failed sources are already not
+    (`DxUi.RichImage.cpp:151`) or EXIF orientation (`:192`) adds a decoded-size buffer (up to 16 MiB). Failed sources are already not
     retried while location and binding are unchanged (`DxUi.RichImageResources.h:250`, `:327`).
   - **Change**: initialize the `IWICStream` over the caller's span (`InitializeFromMemory`) instead of copying;
     `LoadFile` moves its buffer into the decode, keeping the `FileCalls` test seam and cancellation granularity.
@@ -1454,11 +1503,11 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
     place.
   - **Needs**: `W0.3`. **Size**: S.
 
-- [ ] **W7.9 Hover and hit index.**
+- [x] **W7.9 Hover and hit index.**
   - **Why**: `RichTextEditor::HoveredTitle` hit-tests and then scans every semantic element for the smallest titled
     span (`DxUi.RichTextEditor.cpp:7391-7401`). Tooltip revalidation runs it twice per animation tick while a target is
-    live (`DxUi.WindowHost.cpp:6022-6023`, called from `:6127` and `src/Rendering/Embedded.cpp:431`), each time after a
-    recursive control-tree search (`DxUi.WindowHost.cpp:5948-5955`).
+    live (`DxUi.WindowHost.cpp:5901-5902`, called from `:6006` and `src/Rendering/Embedded.cpp:431`), each time after a
+    recursive control-tree search (`DxUi.WindowHost.cpp:5827-5834`).
   - **Change**: at preparation, index link, footnote, image and abbreviation spans by display range in the semantic
     geometry generation; a hover does a binary search. The host keeps the last (point, modifiers, geometry generation)
     and its title and re-resolves only when one changes. Coordinate with `W3.3` and the explicit-state-machines tooltip
@@ -1472,7 +1521,7 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
 Purpose: UI Automation costs nothing without a client and work proportional to the change with one; IME input copies
 the document at most once per lock. Exit: `G9` met; the `FX6` and `FX7` gates below met with 0 and with 1 client.
 
-- [ ] **W8.1 Client gate.**
+- [x] **W8.1 Client gate.**
   - **Why**: native builds run on `providerRequested || UiaClientsAreListening()` (`DxUi.Accessibility.cpp:13785-13794`);
     one `WM_GETOBJECT` latches `providerRequested` for the window's lifetime (`:6377`) and the flag is system-wide, so
     a prober makes every mutation three tree walks plus an index. Embedded: no gate; each application
@@ -1481,10 +1530,10 @@ the document at most once per lock. Exit: `G9` met; the `FX6` and `FX7` gates be
     flag, decide mutation-time builds and raising. Provider entry keeps a freshness-checked build (native
     `:1586-1587, 6378-6384`; added for embedded root queries), and without listeners `UpdateAccessibility` only records
     the revision ([contract](../../UI/UI_InputAndAccessibility.md) updated). The posted `AccessibilityFlush` stays: its
-    drain is the only place a `WindowHost` raises focus, property, structure, selection and text events (`:14786-14856`).
+    drain is the only place a `WindowHost` raises focus, property, structure, selection and text events (`DxUi.Accessibility.cpp:14786-14856`).
   - **Assumes**: item-specific — UI Automation reports every subscription, focus-changed included, via
     `AdviseEventAdded`, and query-only clients re-enter through `WM_GETOBJECT`; checked with Narrator and Inspect first.
-  - **Gate**: `FX6`, 100 mutations: `g_accessibilitySnapshotBuildCount` (`:1441`) +0 with no client, also after a
+  - **Gate**: `FX6`, 100 mutations: `g_accessibilitySnapshotBuildCount` (`DxUi.Accessibility.cpp:1441`) +0 with no client, also after a
     released probe and with `UpdateAccessibility` every frame (`G9`); with 1 client the event sequence equals today's.
   - **Needs**: `W1.3`. **Size**: M.
 
@@ -1514,7 +1563,7 @@ the document at most once per lock. Exit: `G9` met; the `FX6` and `FX7` gates be
     build (counted); `FX3` 100 wheel notches, 1 client: 0 structural builds, records touched ≤ scroll scopes.
   - **Needs**: `W8.2`, `W8.5`, `W9.1`. **Size**: L.
 
-- [ ] **W8.4 Text provider.**
+- [x] **W8.4 Text provider.**
   - **Why**: `AccessibilityTextRangeProvider::ResolveText` returns the text by value at 16 call sites
     (`DxUi.Accessibility.cpp:8332-8349`), 128 KiB per COM call at 64 Ki units. `GetEnclosingTextRangeWordSpan` steps from
     0 (`:4604-4630`): a word-by-word read is quadratic (≈ 3.3×10^8 unit visits for 10,000 words, inference).
@@ -1527,7 +1576,7 @@ the document at most once per lock. Exit: `G9` met; the `FX6` and `FX7` gates be
     `FX7` with 0 clients: 0 document copies from automation events.
   - **Needs**: `W8.1`. **Size**: M.
 
-- [ ] **W8.5 IME copies.**
+- [x] **W8.5 IME copies.**
   - **Why**: one TSF lock in a native `TextField` copies the whole document 21 times (2+2+2+2+3+1+1+1+2+2+1+2; through
     `DxUi.TextStoreACP.cpp:256-274, 457, 572, 655-707, 751, 1289, 1486, 1557, 1894`, `DxUi.NativeTextInput.cpp:1063,
     1077, 1306-1310, 2094`, `DxUi.TextInput.cpp:3161, 3170`), plus 1 per caret move and 3–5 deferred: about 2.4 MiB per
@@ -1541,7 +1590,7 @@ the document at most once per lock. Exit: `G9` met; the `FX6` and `FX7` gates be
     `RichTextEditor`; `FX2` typed through an IME: 0 popup rebuilds before commit.
   - **Needs**: `W0.1`, `W1.4`. **Size**: L.
 
-- [ ] **W8.6 Grapheme stepping.**
+- [x] **W8.6 Grapheme stepping.**
   - **Why**: off the ASCII fast path `StepToNextTextElement` segments from 0 (`DxUi.SingleLineTextEditing.cpp:81-95`)
     and `SnapCaretIndexToTextElementBoundary` always does (`:117-144`), so each non-ASCII arrow key and each UI
     Automation character expansion (`DxUi.Accessibility.cpp:4598`) is O(caret offset).
@@ -1558,7 +1607,7 @@ Purpose: budgets that are measured and enforced, aimed at the largest lines firs
 (5–15 MB), accessibility snapshots (1–2 MB per 1,000 controls), control objects (≈ 21 KB in ComplexUi). Class sizes
 are hand counts until the `W9.1` probes exist. Exit: `G13` met.
 
-- [ ] **W9.1 Size probes and budgets.**
+- [x] **W9.1 Size probes and budgets.**
   - **Why**: no class size is recorded; hand counts: `Control` ≈ 296 B, `Label` ≈ 448 B, `Button` ≈ 816 B, `Toggle`
     ≈ 904 B, `Checkbox` ≈ 912 B, `RadioButton` ≈ 864 B, `ThroughputGraphSample` 408 B,
     `AccessibilityControlNavigationSnapshot` ≈ 936 B. ComplexUi records allocation counts but no live bytes, cache bytes
@@ -1584,7 +1633,7 @@ are hand counts until the `W9.1` probes exist. Exit: `G13` met.
     `surfaceBytes` on an owned device; embedded tests see 0 `Trim`, `ClearState` or `Flush` on the application's device.
   - **Needs**: `W9.1`, `W3.1`. **Size**: M.
 
-- [ ] **W9.3 Text history by bytes.**
+- [x] **W9.3 Text history by bytes.**
   - **Why**: `TextField` and `ComboBox` cap history at 64 entries (`include/DxUi/DxUi.h:4025, 4224`), each a full-text
     `EditHistoryState` (`:3911-3917`; `DxUi.TextInput.cpp:3362-3366`, `DxUi.ComboBox.cpp:2163, 2197`): a 64 Ki-unit
     field holds up to 64 × 131,072 B = 8 MiB of undo plus 8 MiB of redo.
@@ -1657,6 +1706,8 @@ are hand counts until the `W9.1` probes exist. Exit: `G13` met.
 
 ## W10 — Scale, and the conditional GPU backend
 
+Delivered in a later pull request than the other waves ([delivery](#delivery-in-pull-requests)).
+
 Purpose: the same budgets at a thousand times the data, and a hardware-receipt decision on a DxUi-owned GPU backend.
 Exit: `G15` met; `W10.4` either meets its go criterion or is closed unbuilt.
 
@@ -1708,6 +1759,114 @@ Exit: `G15` met; `W10.4` either meets its go criterion or is closed unbuilt.
   - **Gate**: go only with ≥ 3× lower hardware CPU per dirty frame on `FX5` and the antialiasing differences accepted in
     a harness gallery review of the `FX5` and `FX12` captures; exact BGRA parity is not claimed.
   - **Needs**: `W0.7`, `W4.1`, `W4.2`. **Size**: L.
+
+## Implementation record
+
+A ticked item has its code, deterministic tests, contract text and changelog fragment on the implementation branch.
+This table lists what a ticked item still leaves open and where its implementation differs from its text. An item
+with an open row is not accepted for closeout until that row closes.
+
+| Item | Left open or different | Closes with |
+| --- | --- | --- |
+| `W0.1` | Two commits: the counters, helpers and matcher, then the counting wrappers and the draw-call count. The wrappers cross-check creations on the embedded 83-control fixture only: no test installs them on the native `WindowHost` path, whose shared per-thread resources outlive one test. The pacer wake counter arrives with `W3.6`. A dirty frame reports 54 allocations in Release, which the gate asserts, and 257 in Debug and ASan Debug, where debug iterators allocate; it makes 399 Direct2D draw calls. | Recorded limit; a native cross-check needs a per-test native pool |
+| `W0.2` | The calibration ran on 15 November 2026 on an RTX 5080 with the High Performance scheme set by the developer. On `FX5` dirty frames the gate is met: the medians of preparation cycles (floor 0.55%), submission time (0.55%) and GPU frame time (1.24%) are judged; composition cycles (7.69%, one step of the cycle clock) and both p95 metrics are advisory with their floors. On `FX3` the first calibration timed empty frames: the adapter kept stepping past the end of the scroll, so 99.4% of the frames did nothing and the floors read 0.00%. The adapter now times only a fixture's declared steps and rebuilds the scene between passes, a run is refused unless every timed frame prepared work, and a metric is judged only if one step of its clock is at most a tenth of its margin. The `FX3` calibration was rerun the same day with the fixed adapter: preparation cycles (floor 1.85%) and submission time (1.69%) are judged; the GPU frame median (5.64% against a 5% margin), composition cycles (clock too coarse) and both p95 metrics are advisory. Retained receipts hold per-run summaries and the hash of each raw report (about 45 KB, against 2.3 MB and 71 MB with every frame). The machine idled at 8 to 11% busy during these runs, close to the 10% limit of the idle preflight. | — |
+| `W0.2` | The item's idle rule, at most 10% of all processors busy, refused or rejected four hardware runs on a 32-thread machine with 28 processors idle. On 15 November 2026 the developer judged that limit too aggressive for such a machine. The runs it rejected showed that whole-machine load between 5.9% and 15.6% does not predict a timing difference, while the measuring thread's own running share does (0.997 to 1.001 when undisturbed, 0.976 to 0.978 on the passes that came out up to 7.9% off). The rule is now `interference-interim-v1`: the measuring thread's running share (median at least 0.99, 5th percentile at least 0.97), its core's sibling at most 10% busy, other work on its processor at most 5%, other processes on the measured GPU's busiest engine at most 15%, and other processes' load at most a quarter of the logical processors; automatic pinning takes a whole quiet core instead of the last hardware thread. The running-share limits rest on evidence; the sibling, own-processor and GPU limits and the quarter-of-processors cap are provisional until the load-sensitivity study runs (0, 2, 4, 8 and 12 busy processors away from the measuring core, and one arm on its sibling). The earlier rule stays selectable, and the two calibrations taken under it stay valid. | One ten-minute load-sensitivity run on the hardware adapter, then the rule's final limits |
+| `W0.2` | The first load-sensitivity study (23 November 2026, quiet hardware, `FX5`) stopped at 26 of 30 sessions on a burst of desktop load, and is a partial result, not a receipt. Against the quiet runs of the same sessions: 2 busy processors elsewhere cost 1.6% and stay equivalent; 4 cost 3.2%, 8 cost 4.2% and 12 cost 5.7% to 7.4%, none equivalent; one busy thread on the measuring core's sibling costs 46% to 52%. The running share stayed at 0.991 to 0.995 at every level, so it cannot catch load elsewhere. The same day every 4K `FX12` pass was refused for a busy sibling, which was the measured process's own Direct2D and driver threads. The rule is now `interference-interim-v2`: the process keeps its other threads off the measuring core through CPU sets (no elevation), so the sibling limit stays at 10% and judges only foreign work; other work on the measuring processor may reach 10% (was 5%, provisional: nothing between 6% and 10% has been measured); the four runs of a session must see other-process load within 2 logical processors of each other. A refused preflight waits and retries, the study subtracts its own processes, and it resumes from a checkpoint. The first version of the rule and the 10% rule stay selectable. | A complete study bracketing 0 to 4 busy processors (25 sessions, about nine minutes on the hardware adapter), a before and after `FX12` smoke run for the core isolation, then the rule's final limits |
+| `W0.3` | The receipt contradicts one line of `G13`: `sizeof(Label)` is 448 B in Release and a built scene tracks about 640 B per control, against a target of 256 B or less per simple control. On the hardware adapter, hiding a view frees its 3.69 MB surface while local and non-local video memory do not fall, even after a flush. `RichTextEditor` text layouts are not counted in the retained statistics. | `W9.6` recovers the per-control line or the developer restates it under `A7`; `W9.2` for the video memory |
+| `W0.4` | All fourteen fixtures are built on one framework, with one definition serving receipts, hardware timing, the determinism gate and item gates, and each has a receipt. Open: every timing field says "not measured"; the pixel oracle cannot replay a fixture yet; the rows below give each fixture's limits. | The quiet measurement window for timing; an oracle adapter as a follow-up to `W0.5` |
+| `W0.4` | `FX6`, `FX7` and `FX13` are built on the embedded host only: a `Splitter` drag on a window host takes real mouse capture, and the window runner neither counts C++ allocations nor stops its clock when nothing is armed. In `FX6` "one client" is the system-listener test override, with no UI Automation client thread, so counts do not depend on event timing. `FX7` composes in plain seven-letter words, and its per-lock numbers include the frame after the lock. The `FX13` cold start is a receipt without a verdict (141.5–203.0 ms on WARP, taken under load). The minimized-on-hardware variant and every timing field are declared and not run. | The quiet measurement window on hardware |
+| `W0.4` | `FX6` delivers its accessibility notifications by hand at a fixed point, through a test-only seam, because the thread-pool item that normally delivers them made the owner thread's allocation count depend on its progress (118 or 120 for one step). The fixture therefore does not exercise that delivery item and raises nothing to UI Automation; the client-gate tests of `W8.1` remain the proof of delivery. | Recorded difference |
+| `W0.4` | Baselines the fixtures recorded, Release on WARP. `FX6`: with a listener every mutation, `Slider` step and `Splitter` pixel is one whole build of 4 records and 3,952 B; a word step visits up to 64,536 units, 2,098,168 over 64 steps. `FX7`: per syllable 3 document-sized allocations in a `TextField` and 38 in a `RichTextEditor`. `FX13`: a focused caret wakes once per simulated second and walks 35 controls each time. | `W8.2`, `W8.4`, `W7.4` and `W3.2` in turn |
+| `W0.4` | The private-byte growth first seen in `FX6` and `FX13` with flat tracked bytes (about 85 KB per composited frame) was the embedded fixture runner, which composited without ever presenting or flushing, so WARP kept each frame's queued work; the runner now flushes once per frame and the same runs stay flat, as they do on a hardware adapter and on a native host. The embedded contract now tells an application to present or flush each frame it composites. Not explained by the flush: `FX10` swept to 3840×2160 still peaks at 400 MB to 600 MB, `FX9` at 3840×2160 at about 360 MB and `FX2` at about 400 MB. A 64 Ki-unit single-line `TextField` of CJK and emoji text costs about 6 s per dirty frame on WARP, which is why `FX7` does not use that text. | `W9.5` and `W2.2` for the remaining peaks; `W2.7` and the `W6` text items for the layout cost |
+| `W0.4` | `FX9` runs on the embedded host only: the window runner presents every frame, and 2,440 frames twice exceeded the suite deadline on WARP. Its 1,000,000-row, 1920×1080 and 3840×2160 variants, the 3840×2160 variants of `FX10` and `FX12`, and the 10,000-control form are receipt-only: the receipt command runs them and the determinism gate in the suites does not. `G5` and `G6` timing is not measured. | The quiet measurement window on hardware; a native presented-frame run of `FX9` with `W4.9` |
+| `W0.4` | Baselines, Release on WARP. `FX9`: each wheel notch repaints the full surface with 3 paints, 317 draw calls and 125 to 130 allocations; tracked bytes are 44,776 at 100,000 rows and 45,192 at 1,000,000. `FX10`: 41 paints and 54 to 60 text layouts per sweep step; on the window host sweep steps alternate between 0 and 2 renders. `FX12`: a hover repaints all 2,001 controls; the form repaints all 10,002 on scroll; with 120 format keys requested on every paint the format cache is trimmed every frame; tracked bytes per control are about 704, 784 and 905. Sweeping `FX10` to 3840×2160 takes private bytes to about 985 MB with 94 KB tracked. | `W4.6` and `W4.8`, `W6.2` and `W6.3`, `W2.8`, `W9.6` and the `G13` decision; the memory investigation; `W3.6` for the alternating renders |
+| `W0.4` | `FX4` is declared and not built. A menu session activates and focuses its root popup, takes mouse capture at four sites, is always clamped onto a visible monitor, seeds its first hover from the real cursor and blurs real screen pixels; no existing seam suppresses any of that, and the testing contract ties menu measurement to real foreground interaction. `FX4` is named by the gates of `W2.4`, `W4.2` to `W4.4`, `W5.12` and `W10.1`. | Decided by the developer on 14 November 2026: interactive runs, no non-activating menu mode. `FX4` is built into the interactive menu path; its first run and each later gate check need the developer's agreement to a time |
+| `W0.4` | `FX4` runs only under the interactive lease, as a test of the `Menu` suite and through `performance-fixtures.ps1 -Fixture FX4 -Interactive`; every ordinary gate and receipt command skips it and says so. It fails with a named reason, and writes no receipt, when activation is blocked or other input reaches the menu. Its first run, on 14 November 2026 with the developer's agreement, passed the determinism gate and left foreground, focus and pointer unchanged; its popups render on the thread's shared device stack, hardware first. Baselines, Release: each menu session creates 1 Direct3D device, 1 Direct2D device, 1 composition device and 1 swap chain; an open paints the popup twice and creates 4,096 text layouts, one per row; a keyboard step repaints 12 rows with 2 shadow passes, 2 effects and 2 command lists. `ContextMenu::ShowAsync` cannot tie a popup to the application's `EmbeddedHost` today, so the scene attaches one for `W2.4` to wire. | `W2.4` (`G10`), `W4.2` to `W4.4`; each later gate check on `FX4` is another interactive run |
+| `W0.4` | `FX2` and `FX3` run on the embedded host only (a `ComboBox` popup is a native window on a window host; `FX3` took 172 s there); the 200,000-row grouped `FX3` variant is receipt-only. Baselines, Release on WARP. `FX1`: an editable and a read-only caret both stay armed on every step and each tick walks the tree; the read-only field repaints. `FX2`: opening 500 items creates 9,500 text layouts and each hover move 11,000; a typed character about 265. `FX3`: a wheel notch makes 298 allocations and 4 hit tests; grouped, 35,544 at 1,000 groups and 354,144 at 10,000; select-all 16,225 and 160,225. `FX14`: 4 hit tests per pointer move; while shown, one render per move. | `W3.1` and `W3.2`, `W2.2`, `W2.5`, `W2.9`; the shown-tooltip decision recorded under `W1.6` |
+| `W0.4` | Found while building the window runner, inferred from code and not reproduced in an application: the thread's animation dispatcher destroys its message window when thread-locals are destroyed, and that window procedure opens a failure scope; an application that returns from `WinMain` with the dispatcher still armed and its failure host already uninstalled would fail fast at exit. | `W3.1`, which reworks the dispatcher's subscriptions and teardown |
+| `W0.4` | `FX8` runs on the embedded host only and counts one action with all of its cooperative preparation turns as one step. Its rendered variants never run the v0 chunk layout, so it has four more variants: Source mode, where chunks are laid, and rendering off with a line-height multiplier, where one whole layout replaces them, each suite-sized and full-sized. Baselines, Release on WARP, full size: a one-character insert takes 895 turns, 3,310 text layouts, 1,712 elements, about 53,860 display units, 36,864 uploaded image bytes, 3 formulas, 1 SVG, 2 diagrams and about 115,500 allocations; with the code fence in view a frame makes about 2,010 draw calls; in Source mode an Enter re-lays 62 to 64 chunks; with the multiplier every insert lays the whole document once. | `W7.1`, `W7.2`, `W2.3`, `W7.6`; `W7.3` measured on the full-size Source and multiplier variants |
+| `W0.4` | `FX11` samples eleven transitions at 30, 60, 144 and 240 Hz on both hosts. Today `PageHost`, `Tree` and `Slider` animate; `Toggle`, `Checkbox` and the `ComboBox` popup snap. An animated frame makes 14 allocations, a page slide creates 4 layers per frame, a `Tree` transition 8 to 25 brushes. `PageHost` destroys the page that slid out, so the premise of `W3.4` (a page slid away keeps ticking) is not observed there. Menu popups and hover or focus transitions are not in `FX11`. | `W5.4`, `W2.8`, `W3.4`; menus with the interactive `FX4` |
+| `W0.4` | Receipts taken before later runner fixes are stale in places: the `FX12` window receipt shows 2 renders per hover step where the runner now gives 1, and receipts taken before a counter was added lack it. | Every receipt is regenerated on the final commit at closeout |
+| `W0.4` | The window-host determinism gate failed intermittently on unrelated fixtures. The cause was other processes on the desktop, not load and not the library: a UI Automation client's `WM_GETOBJECT` arriving in the middle of a step made the host publish its accessibility snapshot early (two builds where one coalesced build was expected), and another process's repaint of the fixture window made the host render an extra frame (creation counts exactly doubled). The window runner now answers messages sent by other threads without the host, paints only what the host itself invalidated, and pins the accessibility gate to a listening client for the run. Before: 15 of 16 Debug runs and 6 of 6 ASan runs failed with a desktop client running; after: 30 of 30 and 15 of 15 pass. Consequence for reading receipts: every window-host fixture receipt is taken with a listening UI Automation client, so its accessibility counters are those of a desktop that has one. The one failure of the gallery two-capture test did not reproduce in 40 runs; it now reports the differing rectangle, the tile and any hovered menu row when it fails (the menu popups it captures are real windows a pointer can hover). | A window-host receipt variant without a listening client, if the developer wants that figure; the gallery test's own diagnostics at its next failure |
+| `W0.5` | Found in today's code, exempted by name and not fixed: in a native window `Control::SetBounds` does not refresh the UI Automation snapshot, so a client reads a moved or resized control's old bounding rectangle until something else republishes. | `W8.2` fixes it and removes the exemption |
+| `W0.5` | Native partial frames are not covered: the oracle reads full native frames until it is wired to the presented-image reader of `W0.6`. Popup scenes pin the solid overlay material, because two scenes cannot share a screen capture. | The reader is wired before `W4.6` relies on it; the material exemption ends with `W5.12` |
+| `W0.6` | Observed on WARP and on the NVIDIA RTX 5080, in both presentation modes: after two partial presents the presented image has 0 BGRA differences from a full render, and a back-buffer read before the present is stale outside the dirty rectangle. The integrated AMD adapter was not exercised: `ControlHost` has no adapter choice. | Recorded result; nothing to run |
+| `W0.6` | Whether the `PrintWindow` capture works on a hosted runner is not verified. If it does not, the WARP case reports a skip that is not on the allow list and the hosted native run fails. | The first hosted native run of this branch, before it merges |
+| `W0.8` | A real-time trace session can be started in the developer's desktop session without elevation, so the read-back of events through ETW ran and matched the in-process record. Where a session is refused, that test reports a skip that is not on the allow list; whether a hosted runner allows it is not verified. The hardware verdict on input to present (`G8`) belongs to `W3.7`. | The first hosted native run of this branch, before it merges |
+| `W1.1` | Embedded dispatch has no right-button action (`PointerAction` carries the primary and middle buttons only), so the embedded chord test holds capture across primary and middle; the native test uses Left and Right as the gate says. | A right button in embedded dispatch belongs to the API revision 6 pointer shape (`W5.8`) |
+| `W1.1` | Adds the public, additive virtual `Control::OnMouseMiddleUp` (default declines), because a middle release had no control-level hook. The retry's first step, "one frame", is declared as 16 ms. | Recorded addition; nothing to run |
+| `W1.1` | `ScrollPanel` now forwards the middle release to its child, and no longer holds a forwarded capture for a middle press its child handled without capturing. In the embedded chord primary down, middle down, primary up, middle up, the child receives the final middle release only when it happens over that child. | Recorded limit; closing it needs `ScrollPanel` to track the middle button inside its forwarded gesture |
+| `W1.2` | `Tree` still takes the Shift branch for `Ctrl+Shift+Click`, replacing the selection; the item names `Grid` only. | Recorded limit; a `Tree` change needs its own item |
+| `W1.3` | An unlabelled `TextField` or `ComboBox`, editable or not, now reports an empty Name; one existing test that expected the content as Name was updated. A toggle `Button` reports Toggle and no longer Invoke. | Recorded behaviour change; acceptance with a physical screen reader stays with D-Q1 |
+| `W1.4` | The Japanese IME composition check and the `NativeTextInput` suite were not run: both take focus. The display-attribute path from the edit sink to the host is proved only through its pure mapping. | `test.ps1 -Interactive`, with the developer's agreement to the time |
+| `W1.4` | Three clauses publish four boundaries (the composition start, the two interior edges and the end), following the existing IMM convention; the gate text says three. | Recorded difference; nothing to run |
+| `W1.4` | Adds the public, additive `TextInputScope` with `TextField::SetInputScope` and `GetInputScope`, because no field could declare a numeric or URL scope before. | Recorded addition; nothing to run |
+| `W1.5` | Its gallery captures of the `StatusStrip` and multiline `TextField` tiles at 100%, 125% and 150% were taken afterwards, once the gallery harness gained a scale option, and are retained with their receipt. At 100% the item changes neither tile by more than the one level that separates every published tile from a fresh capture. | Closed |
+| Gallery | Not a numbered item: the gallery harness gained a scale option, a tile filter, a theme selector, WARP rendering and a before/after pixel-parity mode, with a receipt of every tile at 100%, 125%, 150% and 200% on WARP as the reference. The published `docs/gallery` sheets were generated at an earlier commit and differ from a fresh capture by one to three levels per channel in every tile. | `gallery.ps1 -PublishDocs` at closeout |
+| `W1.5` | Adds the public, additive `CaretAffinity` with `Caret` and `TryCaret` overloads; the affinity affects painting, caret reveal and the text-service caret rectangle only. The multiline text and its selection are now painted at the unsnapped width that the caret and hit-testing already used. | Recorded addition; nothing to run |
+| `W1.5` | Two other word classifiers still treat every surrogate pair as a word character: whole-word find in rich documents and undo word grouping. | Recorded limit, outside the item |
+| `W1.5` | Its `StatusStrip` test exposed a library defect, fixed in a commit of its own: a host that never attached and only measured text created the thread's graphics pool, which was never released and refused a later forced-WARP attachment on that thread. | Recorded fix; nothing to run |
+| `W1.6` | No gallery capture was published: the gallery has no `Tree` tooltip tile and no existing tile changes. | Recorded difference; a tile with a synthetic hover would be a gallery addition |
+| `W1.6` | A `Tree` row tooltip now stays where the pointer entered the row. A tooltip that is already shown still follows the pointer and repaints on each move; the gate covers the hover delay only. | Recorded behaviour; the shown case is a developer decision if `FX14` should repaint nothing while shown |
+| `W8.1` | The item's assumption proved false. UI Automation advises a window's root provider only of subscriptions scoped to that window or its elements: no focus-changed handler, no subscription made at the desktop root, which is how a screen reader subscribes, and nothing at all for an embedded root. So the advise count is not used. Three independent reviews each found a path where a listening client lost an event in a lazier native gate, and that design was withdrawn. What ships is one rule: a host builds on a change only if a client has called its provider during this attachment or `UiaClientsAreListening` is true. Native hosts publish, drain and answer queries exactly as before the item; the saving is for an embedded view that no client has called, which only records its updates. `G9` is restated accordingly. A fourth independent review of the final design found no path where a listening client loses an event it received before the item; its one qualification is closed: an embedded view no longer raises events from inside a provider call, and raises the owed delta once at the next `UpdateAccessibility`. | Closed on 14 November 2026 |
+| `W8.1` | Older than the item and unchanged by it: a native window that no client has requested can lose one event when another process listened and then stopped, an unheard change followed, a screen reader then starts and queries, and the value returns to its earlier state. | `W8.2`, which reworks the event baseline |
+| `W8.1` | The Narrator and Inspect check was not run. Whether a client that relies only on WinEvent hooks makes `UiaClientsAreListening` true is unmeasured; the latch covers any `WM_GETOBJECT` such a client sends. An embedded view's first request after a bounds change and before the next preparation serves the snapshot built at attachment, which can be older than what the previous code served, and refuses rows it has not cached; the next accepted update repairs it and raises the delta. | Narrator, and NVDA or JAWS, on the developer's desktop |
+| `W8.5` | `TextField` meets the gate: at most 1 document-sized allocation per lock, from up to 33, and an editable `ComboBox` rebuilds its popup 0 times before the commit. `RichTextEditor` is measured and not gated: 9 per lock at the commit, from 32, because its remaining copies come from flattening the document for text-input sync. The real IME check and the `NativeTextInput` suite were not run. | `W7.4` closes the `RichTextEditor` part; `test.ps1 -Interactive` with the developer's agreement |
+| `W8.5` | Behaviour changed on purpose: while a composition is previewed, an editable `ComboBox` keeps its popup filter and selected index and applies them at the commit, and a preview left by focus loss or a text-services teardown is settled to the shown text. | Recorded behaviour; nothing to run |
+| `W8.5` | An independent review found no blocker and four points, fixed in a follow-up. A class derived from `TextField` or `ComboBox` that overrides the text-input state is honoured on every input path: the shared buffer applies to the exact library types, or to a derived class that opts in through the additive protected `KeepsDefaultTextInputState`. A released shared buffer is zeroed through its whole capacity, and growth releases the old block through the same wipe. Text stays readable while a control is destroyed. The teardown branch where a competing text-services session refuses the restore has no automated test. | The interactive run covers the untested branch |
+| `W8.6` | The UI Automation character expansion visits up to 63 of the gate's 64 code units, because it reads the same sequence three times. Runs of regional indicators, pictographs joined by ZWJ and Indic linker chains are still read back to their start, as the item says. | `W8.4` gives the expansion headroom; the unbounded runs are by design |
+| `W3.1` | Done differently from the item's text. `ForgetControl` scrubs the schedule only: hover, capture and double-click observers stay with the existing stale-state pruning, which releases native capture properly, and "region owners" do not exist yet. A request that names no control, and the first tick of an embedded root, still walk the visible tree once, counted on their own, so controls the library does not own keep animating. The tooltip layer keeps its per-frame request while it waits. A deadline timer is armed one system tick (16 ms) late. A window hidden by other means than minimize or the presentation flag is noticed at its next wake, so it wakes at most once more. | `W3.3` for the tooltip; `W4.6` adds region owners |
+| `W3.1` | Measured in real time on a native window on WARP: a focused editable caret wakes the thread 18 times in 10 s, all deadline wakes, none periodic; tree visits per tick are 0 on every fixture. Not run: `FX4` with this change (it touches the menu slider), and the thread-exit test was not seen to fail on the old code. The plan's line anchors in `W3.2` to `W3.6` still resolve but point at code this item moved or removed (`AnimationTickThunk` and `OnAnimationTick` are gone): find code by symbol. Two native-focus tests (`TestNativeIncrementalParityInteraction`, `TestNativeAccessibilityFocusCallbackReplacementStopsOriginalAction`) fail when the test executable is run directly and pass under `test.ps1` on the same build, with and without this change. | The next interactive `FX4` run |
+| `W3.1` | An independent review found no lifetime defect and three regressions against the previous behaviour, fixed with a test for each: a native host seen hidden at one wake stayed suspended until resized or shown; a control hidden mid-transition lost its request; an embedded host's request flag stayed set after the schedule emptied. What the fixes cost: a child host hidden only through an ancestor (a minimized top-level, a hidden parent) receives no message when it becomes visible again, so while it holds requests it checks once a second, about one wake per second; a minimized top-level host still wakes 0 times. A hidden control keeps its request without waking the host and is ticked when shown. Requests from another thread are refused. Not individually tested: the `Tree` expander, scrollbar hot transitions and the menu slider, which use the same request path. | `W3.4` for unseen controls; the next interactive run for the menu slider |
+| `W8.4` | Done differently from the item's text: the caret event got no interest check, because gating it would drop an event that a client which starts listening later receives today; it reads the caret index alone instead. The clause "`FX7` with 0 clients: 0 document copies" is proven on a native window that is not activated, for a `TextField` and a `RichTextEditor`, because the embedded host never reaches that function. An independent review found that a held composition range pinned a whole snapshot on a native host; it now pins one copy of the field's text. Not asserted on a native host, where composition needs real keyboard focus: that old snapshots are released while such ranges are held. Window-thread line requests still copy live control text. Seen in passing and older than the item: after a composition preview on an embedded view, the field's published text is still the committed text. | The developer's interactive run; `W8.3` for the remaining copies; `W8.2` to confirm or fix the published text during composition |
+| `W2.5` | One clause is not met literally: the first arrow key after a select-all makes 2 allocations, the two one-id buffers the selection's give-back contract requires; every later arrow and click makes 0. The item's assumption holds: a model owes `NotifyDataChanged` after it changes, one existing test did not and was corrected, and a Debug verification mode now catches a model that does not. The group prefix and column copies add about 8 B per group. | Recorded difference |
+| `W2.9` | The clause "1 hit test per `WM_MOUSEMOVE`" holds on the window host through the real message sequence (`WM_NCHITTEST`, `WM_SETCURSOR`, the mouse message) sent to a window that is not activated; with real pointer input it is unproven until the interactive test `TestPointerHitRealInputReusesTheCursorQuery` runs. An independent review found the cursor query read its point from `GetMessagePos`, which still describes the previous message at that moment; it now comes from the `WM_NCHITTEST` of the same delivery. The review also found an open `ComboBox` popup resizing without moving the hit revision; the revision now moves wherever a recomputed placement differs. Reuse is off for a whole host while it holds any control the library does not know, unless that control's class declares that it reports its hit-shape changes; a host can say why reuse is off. Corrections to the plan: the 4 "hit tests" per move in the `FX14` receipt were 4 tree visits of 2 hit tests, and the separate tooltip-target walk per move remains. Reordering children through the legacy `GetChildren()` span is documented as unsupported and not tracked. Native menu popups are exercised only by the interactive suites. | The interactive real-input run; `W2.10` routes `Affects::Hit` through `ControlHost::AdvanceHitRevision` |
+| `W2.2` | The plan and the `FX2` header were wrong on one point: a `ComboBox` popup is painted into the host window as an overlay on both hosts, so no path of this item is covered only by the interactive suites. The first open of a popup still measures each item once (500 layouts for 500 items); a hover frame, a typed character and a second open measure nothing. `FX2`'s peak private bytes fell from about 450 MB to about 166 MB and still grow during hover while this path creates no layout: what remains per frame is the implicit layouts of `DrawCenteredText` and the popup's effects and command lists. | `W2.1` and `W2.4` for the remaining growth |
+| `W2.6` | Done differently from the item's text: a collapse keeps a record for every removed row, not only for those that intersect the viewport, because a scroll or resize during the animation can bring any of them into view and the frames must stay identical. Only a model without a lookup of its own gets the id index, at 12 B per visible row; a model that answers lookups itself holds none. The item's assumption is now a contract: a model owes `NotifyDataChanged` for every change of the visible rows, and a Debug mode compares each index answer with the model's. UI Automation lookups and Shift-range selection still ask the model directly and stay proportional to the row count. | `W10.1`, which replaces the visible-row bookkeeping |
+| `W7.1` | Landed as part 1 and not ticked. Unchanged top-level blocks are no longer rebuilt, and every publication equals a fresh build (a seeded fuzz of 48,024 publications in Release, and an independent review's own 27,000). But unchanged blocks are still copied on every edit: on full `FX8` a one-character insert builds 2 elements and copies 1,710 elements and about 1 MB, so the work per keystroke is still proportional to the document and `G12` is not met. Storing blocks relative to their start and naming elements by display range, as the item asks, change public types (`SemanticElement::name` is a public string; the accessors hand out absolute positions). The parser still builds its identity map (about 1,465 nodes per insert). An older crash was fixed on the way: a callout header followed by invalid inline HTML failed the map's overlap check fatally. | Part 2 with API revision 6; `W7.2` for the parser's map |
+| `W9.1` | Every `G13` line is a counter on `FX5` and `FX13`, and three are over budget today, each held by a named exception that fails the gate once its line is met: per simple control 640 B on `FX5` and 973 B on `FX13` against 256 B; per grid cell about 21 KB on hardware against 1 KB; video memory while hidden 17 MB to 76 MB on hardware against 8 MiB. The cell line is not measured on software adapters or under ASan, where the heaps make it unreliable, and text history is not measured for a `RichTextEditor`, whose snapshots share storage. Other fixtures exceed the per-control line too (`FX12` 704 B, `FX10` 1,049 B) and are not gated. | `W9.6`, `W9.4`, `W9.2`, `W9.3`; exception rows for the other fixtures when their receipts are regenerated at closeout |
+| `W9.1` | The idle line (8 MB private above process entry) measures 56.8 MB on WARP and 89.6 MB on hardware on `FX13` and is advisory by the item's rule. DxUi's own share is about 37 KB of tracked and cached bytes plus its 8.3 MB surface; on hardware 69.5 MB exists before DxUi creates anything. Hiding a `Grid` returns about 3 KB of the 250 KB its cells added, because released DirectWrite storage stays busy in the heaps. `ThroughputGraphSample` is 408 B and a graph holds 180 of them; no item lowers it. | The developer's decision on restating the idle budget in DxUi-owned bytes; `W9.5` for the heaps |
+| `W7.4` | Not run: a real IME composition and the focus-taking `NativeTextInput` suite. An independent review found that skipping the host's second synchronization after a key message also skipped the only refresh of the system caret; the skip now refreshes the caret and compares every cached field, with direct tests on a window that is not activated. The IMM start of a composition still copies the whole text twice. | The developer's interactive run; the IMM path is remaining work with no item |
+| `W7.4` | The gate on the input event itself (0 bytes copied, no flatten) is proven on the item's own 64 Ki-unit fixture. On `FX8` and `FX7` a step includes the frame that follows, so their assertions allow one flatten of the editor's document per edit step: the Markdown parse of the next preparation (`MarkdownParser::TryBeginSource`) on `FX8`, the projection of the single 64 Ki-unit line on `FX7`. Counters now separate the editor's document from other documents: a numbered code fence of 2,000 lines builds 2,001 small documents and copies 27,584 B on every preparation. Still flattening, none on a gated operation: Find (`TryFindInSource`), paste, wrap-in-block, Alt+Up and Alt+Down line moves in Source mode, and Tab indent. | `W7.2` for the parser's copy; `W7.3` for the single line; `W7.6` for the fence's line numbers |
+| `W6.4` | With font smoothing fully off, text is drawn in grayscale, not aliased, as the item says. Whether aliased text is wanted there is the developer's choice. The retained gallery tiles show the native host; the embedded host's parameters are proven by counters and pixels in tests on WARP. | The developer's decision; the gallery republish at closeout |
+| `W2.8` | Done differently from the item's text: a hidden host keeps its format and brush maps (it always did; the item said it keeps none). Nothing is evicted while a host paints no frame, and what it drew before hiding is protected for its first two frames after it shows. Dropping the maps on hide is a separate decision. `_forceAllVisualPreparation` also served theme changes and whole-tree cancellation; those now mark every control in the tree. | The developer's decision on hidden hosts; `W9.5` if the maps are to be released on hide |
+| `W2.8` | A defect fixed in passing changes pixels: the Selector recolored the keyed brush of its own text color, so its caption was drawn in the chevron gray. 15 `button-selector-hover` gallery tiles differ from the `G1` receipt for that reason only; before and after images are retained under `W2.8/gallery`. | The gallery republish at closeout |
+| `W2.8` | A brush key is a color quantized to 8 bits per channel and draws the color it was first asked for. A fresh view drops the map, so 102 Tree-fade frames of `FX11` differ from a fresh render by less than one 8-bit step; the oracle accepts that only on fade phases. A frame draws at most 64 transition brushes; a frame that needs more creates keyed brushes for the rest, as before this item. Brushes kept across frames (retained command lists) must be keyed. | `W4.1` (retained scene decides brush ownership); `W5.2` if exact per-frame colors are required |
+| `W3.2` | Not run: the focus-taking `NativeTextInput` suite, the only one that covers the system caret and the real `WM_KILLFOCUS`/`WM_SETFOCUS` stop and restart of a focused native field. The hardware `FX13` minimized receipt still shows the caret of before this item. The two new gallery tiles (`TextField / Focused`, `TextField / Focused read-only`) are retained under `W3.2/gallery-tiles` and are not yet on the published sheets. | An agreed interactive run; the hardware measurement window; the gallery republish at closeout |
+| `W3.2` | An embedded application now has one more call to forward: `Controls().RefreshCaretBlinkSettings()` when its own window receives `WM_SETTINGCHANGE`; without it the caret keeps the settings read at its first start. `FX1` now runs with motion on and the Windows defaults pinned (530 ms, 5 s timeout), so `FX1 editable` is 10 flips in 10 s, not 18. `FX13` still runs with reduced motion, so its focused-caret phases now measure a steady caret (0 ticks). Each flip still repaints the whole surface (480,000 px on `FX1`). | `W3.5` (upgrade notes for API revision 6); `W3.7` and `W4.6` (caret-sized invalidation) |
+| `W3.2` | An independent review found two regressions, fixed with a test for each: the caret did not restart when a host hidden only through an ancestor was shown again (it now restarts at the next look, at most one second after the ancestor shows, because no message reaches the window), and a focused owner that draws no caret (disabled, without area, or a rich editor navigating elements by keyboard) kept blinking; it now holds no deadline. A focused owner below a disabled ancestor still blinks until the host's next message drops its focus, which matches what is drawn. The rich editor's element-navigation case has no dedicated test. | `W5.4` (motion in every control) for the element-navigation test |
+| `W6.2` | A defect older than this item was found and fixed: a control that changed its own geometry in `OnBoundsChanged` while its owner arranged it made the owner return `E_ABORT`, and the host then kept the previous geometry. On `FX10` the `RichTextEditor` after the `Grid` was never arranged, so every `FX10` receipt before this item measured a scene without its editor. Such a change inside the branch being arranged is now accepted; a change outside it still aborts. An `E_ABORT` that reaches the host is still never retried. The `FX10` and `FX12` receipts were not retaken on the final commit. | `W6.3` (retry after an aborted layout); receipts regenerated at closeout |
+| `W6.2` | The cache costs memory: 96 B for a control whose size does not depend on the maximum and 160 B otherwise, 106.7 B per control on the 10,000-control form, on top of a per-control line that is already over the `G13` budget. Four slots are needed, not two, because a width that returns to an earlier value is measured with two maximum heights. | `W9.6` (control footprint) and the developer's decision on the `G13` per-control budget |
+| `W6.2` | `FX12`'s first variants are absolutely positioned, so the gate was trivially true on them; the variants `form-layout` (200 rows) and `form-layout-10k` (2,000 rows in 100-row sections, because a `FlexPanel` holds at most 1,024 children and a `FormPanel` 256 fields) are laid out by the library. The oracle now replays `FX10` and `FX12` on the native host with 0 differences; the replay adapter covers native window fixtures only, not the embedded host, fixtures that own their host (`FX5`) or fixtures that settle preparation. | `W0.5` adapter for the embedded host with `W4.5`; `W10.1` for the child limits |
+| `W6.2` | Not run on the final commit: the oracle replays under ASan (the run stopped earlier, at a window determinism difference on `FX1`, 6 against 2 resources created at one step, on a base without the caret clock) and the ARM64 builds. One Debug run differed on `FX10` (`rich.documentBytesCopied` 3,928 against 1,964 at one step; 40 isolated reruns were identical; cause not established). | The conductor's ASan verification of the integration tip; the closeout matrix |
+| `W3.3` | An embedded view still reports `NeedsAnimation()` true while a tooltip deadline is pending, so an application that polls every frame keeps advancing; the gate is met on the tick counts, not on application wakes. An embedded application has a second call to forward on `WM_SETTINGCHANGE`, `Controls().RefreshTooltipHoverTime()`, beside `RefreshCaretBlinkSettings()`. A host hidden while a tooltip waits to show drops that show; a hide that expires while hidden is held and runs at the first wake after show. | `W3.5` (the request carries the deadline; one settings entry point for embedded applications) |
+| `W3.3` | The figures for before this item (about 345 to 540 periodic wakes per tooltip) are read from the code, not measured, and the new tests could not be run against the old code because their counters and seams did not exist. The tooltip has no fade today, so every tooltip wake is a waiting wake. The item's Why is partly off: the hover time was read once per scheduled tooltip, not per tick. | `W5.4` if the tooltip gains motion |
+| `W3.3` | An independent review found one regression, fixed with tests: with no wake between the two deadlines, a pending or shown tooltip outlived a target that was removed, hidden, disabled or given new text, for up to five seconds. Such a change now marks the tooltip and makes the schedule due at once; it costs nothing when no tooltip is pending or shown. The tooltips that `Grid`, `Tree` and `TabControl` set themselves had the same defect when their rows or tabs changed (for `Grid` and `Tree` it is older than this item) and take the same mark. Still noticed only at the next deadline or pointer move: a target that moves without a data or geometry change of its owner (a plain `SetBounds`, a scroll offset), because marking those would wake once per animation frame. | `W5.7` (scrolling feel) if a tooltip must follow a scrolled target |
+| `W3.5` | Done differently from `A8`, which declares the whole revision-6 surface in this item: only what this item implements is declared (the animation request and one settings call). `W5.8` (pointer identity in `DispatchPointer`) and `W4.1` (`PaintRetention`) add their surface in their own commits. Consumers still meet one compile break, because the whole plan ships as one pull request and revision 6 is marked unreleased until then; no public surface without behaviour sits in the tree, and `PaintRetention` depends on a go/no-go not yet taken. `NeedsAnimation()` and the boolean result of `AdvanceAnimation` are removed, not deprecated; what the two consumers call today is not recorded in this repository. `RefreshUserSettings()` replaces the two per-setting calls added by `W3.2` and `W3.3`, which never shipped; a native host on a child window does not receive `WM_SETTINGCHANGE`, so its application forwards it or calls the method, as an embedded application does. | `W5.8`, `W4.1` and `W7.1` part 2 extend revision 6; each consumer's adoption is its own work |
+| `W3.5` | A deadline held while an embedded view is hidden keeps its remaining time, because the embedded timeline does not count hidden time; a native host fires an expired deadline once when shown. When the schedule needs the application sooner than the request it last reported, the view raises the existing preparation callback, which also marks the view dirty: a busy application may prepare more often, though no fixture counter moved. Not run: the ARM64 builds and the Debug suites after the last rebase, which merged test registrations only. | The developer's judgement if the two hosts should agree; the conductor's verification of the tip |
+| `W3.5` | An independent review found four defects in the request contract, fixed with a test for each. A stamp taken between advances (input, a setter, a caret restart, a tooltip delay) used the time of the last advance, so after a long sleep a tooltip showed early and a caret flipped late: `EmbeddedCallbacks::nowTickMs`, the application's clock, is now required at `Attach` (`E_INVALIDARG` without it, macro `DXUI_HAS_EMBEDDED_APPLICATION_CLOCK`), which is a second source break inside revision 6. The view now records the request the application last read, so a sooner need always raises `requestPreparation`. A deadline beyond the end of the application's clock is reported as `None`, so a documented loop cannot spin. The fixture's simulated application no longer polls. Known costs: after a pause the first advance still only takes the baseline, and paint-time progress follows the application's clock, which can move it by up to a frame. | Recorded; consumer adoption of revision 6 is not closed here |
+| `W2.1` | A retained layout costs about 18 KB of DirectWrite heap (about 27 KB of private bytes), which the item did not foresee: the dense form went from 40.0 to 67.7 MB. On 15 November 2026 the developer asked for a bound between 1,024 and 2,048 entries, about 50 MB being acceptable, chosen from the balance of memory and speed. Measured: 2,048 is the smallest bound at which every fixture that fits a real screen creates no layout on an unchanged frame (at 1,024 the dense form still re-creates 67 of its 1,014 strings per frame); worst case about 37 MB of heap, about 55 MB private, per host. The table holds only what the last paint drew (0.65 MB on `FX5`) and is released on hide, minimize and device loss, not yet when a host goes idle. A screen above the bound lays out its overflow each frame (374 of 9,000 strings on the 10,000-control form). The registry row reports the table and its keys only, not DirectWrite's storage. | `W9.2` (release when idle); `W6.5` for the memory itself |
+| `W2.1` | Done differently from the item's text: the key holds the exact width and height, not sizes rounded to 1/64 DIP, because only exact sizes draw the same pixels as before; a label is not painted with its measured layout, whose box, format, alignment and clipping differ, so each label shapes once for paint. Essentially every retained string on `FX12`, `FX5`, `FX9` and `FX13` would qualify for the glyph-run tier (one line, no trimming), at about 280 B against about 18 KB: memory, not only the CPU share the item names, is a reason to open `W6.5`. Not redone on the final rebase: the gallery comparison (1,245 of 1,290 tiles identical on the previous base; 30 are new since `G1` and 15 differ through `W2.8`'s selector fix). | `W6.1` (reuse across a width change); the developer's decision on `W6.5`'s entry condition; the gallery republish at closeout |
+| `W2.1` | An independent review found no wrong pixel, no use after release and nothing on the embedded composition path, and four points that are now closed. A native host on a child window, hidden or minimized through an ancestor or resized to zero, kept its whole table although the contract said it released it; it now releases at the schedule wake that sees it hidden and when its size reaches zero. The pixel oracle could not detect a key that ignored the width alone or the height alone; it now can (dropping either from the key fails it with about 10,000 differing pixels). A host text format is now stated to be immutable once created, with a Debug check on every hit. The single-line field's fallback no longer copies its text, which may be a revealed password, into the host table. Not isolated by a test: the release for a top-level window minimized over a child host, which would need a real window minimized on the desktop; and a host with nothing scheduled keeps its table until a message or a paint reaches it. A parent's redraw block releases the table, so the next paint lays every string out again. | `W9.2` (release when idle, which also covers a host with nothing scheduled) |
+| `W2.10` | The item counted about 30 setters that route on an equal value; 48 did real work on one (repaint, relayout, a hit-revision move, a republish or a re-sync of parts). Of 262 public control setters, 153 now assign, 43 register callbacks and 66 are allowed with a reason each: state the host tracks through the interaction revision, model and delegate rebinding, selection and focus that reveal or notify on every call, editing state a programmatic set resets, forwards to parts that assign, transitions and deadlines, and 24 `RichTextEditor` setters. Applications that relied on a side effect of setting an equal value lose it: `ComboBox::SetItems` with the same list no longer rebuilds the popup or resets its scroll, and `ColorPicker`, `TagPicker` and `NumericStepper` no longer re-sync their parts. For a changed value some effects widened (for example `TextField` placeholder and caret colour now repaint, `StackPanel` gap and padding now invalidate the measure) and some narrowed (accessible name, help text and role no longer repaint). | Each consumer's adoption notes for revision 6 |
+| `W2.10` | On an embedded host a change that is only semantic invalidates the view, because an embedded view republishes accessibility only after a preparation; setters that never invalidated before (`SetFocusable`, the automation id, a mnemonic target) now do there. The effects each setter declares were derived by reading the paint, measure and snapshot code, not by an exhaustive audit of the accessibility builder; the least certain are `TextField::SetFontRole` as a semantic value and `Tree::SetAppearance`, `Tree::SetTypographyOverride` and the `StatusStrip` setters as paint only. The gate runs on both hosts, the `FX5` embedded host and a WARP window host; "nothing undeclared" is not checked for 10 composite setters whose parts route their own changes. The gallery comparison (420 of 420 tiles at each scale) was taken one rebase earlier. | `W8.2` (per-record marks replace the whole refresh); the gallery republish at closeout |
+| `W2.10` | An independent review and an ASan run found defects, fixed with tests. A heap use after free: `NumericStepper::SetUnit` arranged its parts from inside the stored-value callback after the control could have been retired; every one of the 153 setters was then audited, and six more got a lifetime check or had their last step moved after the assignment (`NumericStepper::SetLabel`, three `TextField` setters, two `TagPicker` setters). `ScrollPanel` did not re-clamp its offset when its bounds changed, which the equal-value shortcut of `SetContentHeight` had exposed; it now re-clamps in `OnBoundsChanged`. `TabControl::SetTabClosable` now declares the semantic state it changes. The setter tooling now rejects a raw member store beside an assignment, a macro-declared setter, and a stored-value callback that runs application code and continues without a lifetime check. Decided and recorded in the changelog: `ComboBox::SetSelectedIndex` and `ColorPicker::SetColor` with the same value stay no-ops. Left open: setters that move geometry the accessibility snapshot reads (scroll offset and content height, `Slider` orientation, `TextField` padding, `Tree` appearance, an open `ComboBox` popup's sizing) publish stale bounds on a window host; a `ThroughputGraph` transition when reduced motion changes in the middle of it was read as low risk and not tested. | `W8.2` for the stale bounds |
+| `W2.7` | Done differently from the item's text: the wheel's zero-step check was not moved ahead of the layout, because the cached layout makes that read free and moving the check would change behaviour (a sub-notch wheel resets an imported top line on a field that fits its viewport). A masked multiline field still lays its plaintext out uncached for the navigation keys (1 layout per key), because the cache holds the dots. One or two allocations per `FX1` multiline phase remain, not attributed and not gated. | `W9.1` allocation attribution if those are to be removed |
+| `W2.7` | Not compared: the 30 focused `TextField` gallery tiles, which did not exist at the `G1` receipt; their states are `FX1`'s editable and read-only phases, whose frame hashes are identical before and after. A masked field's plaintext can be in DirectWrite's own copy inside a layout object, which DxUi cannot wipe. Not run: the focus-taking `NativeTextInput` suite and the ARM64 builds. | The gallery republish at closeout; an agreed interactive run; the closeout matrix |
+| `W2.7` | An independent review found no defect in layout reuse, geometry, composition or lifetimes, and four points that are now closed: a field moved without resizing keeps its layout; a concealed or re-masked field releases its plaintext layouts at once; the contract no longer claims the single-line key is the only copy of a field's text; and a test on the real in-place undo and redo of `W9.3` shows the layout stays fresh (it fails when the invalidation is removed). Left open, and older than this item: the text-input state copies are not wiped. `TryReadNativeTextInputState`, `TryReadTextInputState` and `ExportTextInputState` copy the whole text into a plain string freed without a wipe, and the embedded `ApplyTextInput` preview does not refuse a masked field, so a masked field that composes or is read by an embedded application leaves plaintext copies in freed memory. | The developer's decision whether masked fields must refuse text-input reads and previews on the embedded host; `W7.4`'s owner for a wiping state type |
+| `W2.3` | Done differently from the item's text: a diagram carries by its exact source only, not by revision or DPI. The model's revision is the syntax revision, which `W7.1` copies into every carried model, so it is not content; flowchart preparation reads no DPI. An independent review found no defect; it established that a formula's and a diagram's preparation read nothing outside their keys, and that a document holds at most 128 prepared objects, so the claim scans stay small. A deliberately wrong carry is caught by the oracle (33 pixels) on both hosts. | — |
+| `W2.3` | What one typed character still costs on `FX8` after this item: 11,419 C++ allocations on the default document and 87,111 on the full one (11,501 and 87,193 before). The prepared objects are no longer the cost; the copies of unchanged blocks are. Not run: the whole suites in Release and ASan (the gate tests ran in all three), peak private bytes over three runs, the ARM64 builds. | `W7.1` part 2, `W7.2`, `W7.3`; the closeout matrix |
+| `W9.3` | The item's Why was out of date: since `W8.4` and `W8.5` an entry shared its text, so a 64 Ki-unit field held about 7.2 MB of history after 128 edits (measured), not 8 MiB of undo plus 8 MiB of redo. It now holds about 132 KB. The 64-step count cap stays, so undo granularity is unchanged: a 700-operation script recorded on the old code is replayed on the new code with 831 identical observations per control. Two cases can exceed 4 MiB by design: a single text larger than the budget, which stays as the newest step while every older step is dropped, and the step an undo or redo has just pushed when it alone is larger. | — |
+| `W9.3` | Undo and redo now change the text in place, where each step used to install another buffer. `W2.7`'s multiline layout cache is keyed by the buffer's identity and length, so after this item its invalidation flag, not its key, is what keeps a same-length undo from reusing a stale layout. The receipts record a source commit that differs from the final one only in the eviction limit. One Debug run of the Embedded suite failed outside this item ("the UI Automation client starts") and passed alone. | `W2.7` follow-up (a test for an in-place undo of equal length); the conductor's verification of the tip |
+| `W7.2` | The item's Why was wrong: reuse of closed top-level blocks already existed. What was whole-document per edit was inline parsing (48,420 units scanned per insert on the full document, now 134), the identity map (1,465 nodes, now 2), front-matter validation, two full source copies and the line count. The oracle (22,452 edits in Release, each compared field by field with a fresh parse) found two defects in the reuse that existed before, both fixed: a block before the edit was reused although its blank line was the document's last line without a line break, and a code or HTML block still open at the end of the document lost the full parse's decision about the final line. | — |
+| `W7.2` | Done differently from the item's text: "copy only the reparse window" is met for the read from the piece tree (1 unit per typed character), not for the source, because the public `Source()` is one contiguous string per revision: one full copy per edit remains (128 KiB at 64 Ki units, two before). Imported records are shifted by a walk (about 5,400 nodes per insert on the full document), because the public node, inline and lexeme vectors hold absolute ranges. The reuse state travels in the publication's deleter, because the public header was left untouched. A typed character still makes 8,515 allocations on the full document (13,651 before). A character typed in a table cell reparses the inlines of the whole table. `FX8` has no list or front matter, so those two kinds are measured on its text with both added. | `W7.1` part 2 with API revision 6 (block-relative storage, the reuse state as a member); `W7.5` (tables) |
+| `W7.2` | An independent review, with its own generator and about 1.73 million compared edits, confirmed one remaining class of wrong trees: a block after the edit was reused although, in the previous parse, it had begun in the middle of a paragraph (a lone `-` after a link reference definition; a table whose header row was a paragraph's last line). It was older than this item on the editor's path and newly reached callers that pass strings. The fix states the rule's real precondition instead of the shapes: a block is reused only if it began with no document-level leaf or table row open, and only if the line after it also began that way; the author's own 200,000-edit run then found a third shape the narrower rule would have missed (a paragraph still open when the next line became a table header). The oracle now also runs the reviewer's generator: 474,584 compared edits in Release without a difference. Whole-document work that remains per edit and is now counted instead of claimed away: reference definitions are read again on every edit (a block holding one is never reused); a document without definitions, as `FX8`, reads none. That a line starting a top-level block behaves as a fresh start whatever containers were open is argued from the code and supported by the runs, not proved. | `W7.5` or a later item if documents with many reference definitions matter |
+| `W4.0` | Closed as a no-go by the developer on 23 November 2026: three go criteria were met and the third failed, replay costing 0.85 to 1.07 of painting on hardware against at most half. No library code landed. `W4.1` to `W4.5` close unbuilt; `W4.6` and `W4.8` close as written and `W4.10` builds their paint-based form; `W4.7` and `W4.9` stay open on the region of `W4.10`. `FX5` has no `Button`, and `CardPanel` has no shadow, so the item's three kinds were not the effect-heavy ones: the effect cost is the popup and transient-surface elevation. | `W4.10`, then `W4.7` and `W4.9` |
+| `W4.0` | The prototype is kept on a local branch of the implementation worktree, `pm/w4-0-spike-code`, with its oracle scripts, its per-control benchmark and a same-binary comparison switch for `performance-timing.ps1`. Tested on WARP only, not on hardware: that a command list keeps brushes by value, and that `DrawImage` of a list draws ClearType text grayscale on the opaque window target. The mask that retains every leaf kind never ran on the window host. The memory of a list (about 2.4 to 2.7 KB) was measured once. | `W4.10` takes the benchmark and the switch as test infrastructure; the branch is deleted at closeout |
+| `W4.0` | The spike's window-host interaction script hovers where the embedded one presses. Its author saw `TestNativeIncrementalParityInteraction` fail at step 2 with a focus-state difference when the test program was started outside the suite runner, with the spike off as well. Inside the `Rendering` suite under `test.ps1` the test passes on the same commit. The cause is not established; it looks like a dependency on which hidden window holds Win32 focus. | `W4.10`, which needs the native interaction oracle after every partial frame |
+| `W4.0` | Follow-up from the design review of `W4.10` (23 November 2026). No raster tile is built: every shadow or blur effect in the library belongs to the `ComboBox` popup, the `Menu` popups or the public `PaintTransientSurface` helper, which no library control calls. So the 16 MiB tile cap of `A16` is not introduced. Budget `G2` cannot be met as written by a design that paints: one hover change on `FX5` repaints the two changed toggles, the card under each and the root, 5 or 6 `Paint` executions against 83 today, because the pixels under a changed control must be painted again by its ancestors. | The developer restates `G2` or accepts it as not met; `W4.10` gates the exact count |
+| `W1.4` | The `NativeTextInput` suite ran on 23 November 2026 under the interactive lease, with automatic start on the developer's agreement: its 175 tests pass in x64 Release, Debug and ASan Debug. Its first run stopped at an assertion that still expected the whole-document range for an external change; three such assertions now expect the changed middle. The same runs pass the `Menu` suite (131 tests, `TestPerformanceFixtureFx4IsDeterministic` among them) and the two menu resource fixtures in the three configurations, which is the first run of these suites for `W2.7`, `W3.1`, `W3.2`, `W7.4` and `W8.5` too. These suites fail when a person uses the desktop while they run: one Debug run stopped where the pointer did not reach its point, and one ASan Debug run lost the foreground. Not run: a Japanese IME composition. | A real IME composition, with the developer's agreement |
+| `W2.9` | The interactive test ran with real pointer input in x64 Release, Debug and ASan Debug on 23 November 2026: every real move is one `WM_NCHITTEST`, one `WM_SETCURSOR`, one `WM_MOUSEMOVE`, one hit test and one reuse. One placement of the pointer delivers no move, one move or two, so the test counts the `WM_MOUSEMOVE` messages its window receives and requires one walk and one reuse per move; as first written it assumed one move per placement and failed on a placement that delivered two. | — |
 
 ## Decisions carried into this plan
 

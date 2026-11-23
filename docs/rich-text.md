@@ -64,7 +64,7 @@ partial language profile. Neither status supplies current-source build, runtime,
 performance, physical-input or consumer acceptance. Those results retain their
 own source identities in [the evidence archive](../Measurements/RichText/README.md).
 `capabilities.json` owns the table; `validate-specs.ps1` rejects a changed, missing
-or contradictory row. API revision is 5; pair headers with the exact library.
+or contradictory row. API revision is 6; pair headers with the exact library.
 The source-bound x64 library qualification above does not establish the remaining
 foreground, physical-input, consumer or formal performance gates.
 The added control triple-click virtual has an ordinary-press default for existing
@@ -212,6 +212,10 @@ Rich view. Editable editors require Ctrl; read-only editors do not. A nested
 image title takes precedence over its enclosing link title. When no authored
 title is eligible, the control's consumer-supplied tooltip remains available.
 Scrolling, source replacement, hiding and detachment retire the old title.
+Each prepared layout indexes its titled and underlined spans, so finding the
+title under the pointer is a binary search however long the document is, and the
+host does not look it up again while the pointer, modifiers and prepared view
+stay unchanged ([receipt](../Measurements/PerformanceAndMotion_2026-11-13/W7.9/README.md)).
 
 Temporary link and source-ink decoration follows the shared
 [transient raster contract](../Specs/Core/Core_PerformanceAndResources.md#transient-raster-decoration).
@@ -405,7 +409,9 @@ owns clipboard transport. All of these features still require the project's
 complete platform, allocation and performance qualification before plan closeout.
 The tokenizer runs for visible blocks plus one viewport of overscan, at most once
 per owner turn. Do not rely on callbacks for offscreen blocks or use them to
-perform document-wide side effects. A declined block or invalid returned token set keeps ordinary ink;
+perform document-wide side effects. `TokenizeBuiltinCode` returns at most
+`MaximumCodeTokens` (4,096) spans: a longer block keeps its first 4,096 spans
+coloured and the rest of its code in ordinary ink. A declined block or invalid returned token set keeps ordinary ink;
 an unexpected exception escaping the tokenizer takes the host fatal path.
 Content remains usable while later visual requests prepare other visible blocks.
 List marker ink uses the parser's exact source token range, so nested, ordered,
@@ -553,6 +559,17 @@ consumers must check its syntax source/revision/profile before treating it as
 current. Cancel preserves that publication; Clear releases builder ownership.
 Held documents remain immutable. Queries and coalesced requests do not advance
 work or start a worker.
+
+Keep one builder per edited document: each `Begin` after an edit builds only the
+top-level blocks the edit touched and copies the unchanged blocks before and after
+them from the current publication, shifted. Building then costs the edited block,
+but the copy still touches the whole document (every element, its strings and the
+display text), so an edit is cheaper than a rebuild yet not yet proportional to the
+edited block; removing the copy is remaining work. The result is the same document
+a fresh builder would produce. Footnotes, an edited link reference definition, front matter or
+abbreviation definition, a scoped source block and the other cases listed in the
+[contract](../Specs/UI/UI_ControlsAndLayout.md#block-incremental-semantic-projection)
+build the whole document. `Clear` (or a new builder) always starts from scratch.
 
 The document supplies a source/display map, style runs, semantic roles and ordered
 paragraph/table-cell metadata. Its source remains exact; code/escape/entity
@@ -739,6 +756,10 @@ pixels, 32 unique sources, 128 native placements shared with diagrams and 64 MiB
 of unique retained CPU pixels. Shared images also share prepared GPU bitmaps.
 The sample's completion queue has its own 64-MiB bound. Decode/staging/driver
 overhead and transient old/new graphs are separate from those retained limits.
+`Decode` reads the caller's encoded bytes in place for the duration of the call
+and `LoadFile` decodes from its single read buffer; a GIF canvas and EXIF
+orientation are applied in place, except that a transposing orientation (5-8)
+of a non-square image uses one extra decoded-size buffer.
 Cancellation is checked between 64-KiB reads, decoder phases and pixel rows;
 an individual codec call is not preemptible. Painting uses fully materialized
 pixels and prepared bitmaps, preserving image aspect, source ACPs, selection
@@ -930,7 +951,11 @@ allocating the UTF-16 result. Exact three-byte BMP and supplementary-scalar
 capacity limits remain accepted. Accepted BOM and mixed line endings round-trip unchanged.
 
 `SourceSnapshot::IsBoundary` and `Slice(first,last)` inspect shared pieces without
-flattening a revision. Slices and edits preserve scalar and CRLF boundaries,
+flattening a revision; `UnitAt(offset)` reads one unit by tree lookup and `LineStart(line)` finds a
+logical line's start (CRLF is one break) from the immutable line summaries, neither scanning nor
+copying source. Text input reads the editor's revision the same way: a keystroke, an arrow key or a
+word movement copies no whole document, and a TSF lock materializes at most one contiguous copy
+(see `KeepsDefaultTextInputState` in [controls](controls.md)). Slices and edits preserve scalar and CRLF boundaries,
 including CR/LF split across two pieces. A persistent B+ tree stores cumulative
 piece/subtree ends, with 16..32 entries in each non-root node. Reads descend by
 binary search and slices visit only intersecting entries. Edits copy boundary
@@ -985,7 +1010,11 @@ Rich arrows, deletion, UIA character commands and mouse hit stops use the shared
 Unicode 17.0.0 default extended grapheme rules. Hangul, Indic conjuncts, contextual
 emoji ZWJ and regional-indicator sequences are covered by all 766 original
 conformance vectors at every UTF-16 offset. Prepared stops and password mask
-indices use a forward walker with no C++ heap requests. Font glyph clusters
+indices use a forward walker with no C++ heap requests. A single arrow step,
+caret snap or UIA character expansion starts that walker at the nearest preceding
+position where the rules always break, so it reads about one element rather than
+the text before the caret; long regional-indicator runs and emoji ZWJ chains are
+the cases that read further back. Font glyph clusters
 still belong to DirectWrite; explicit ACP caret/range geometry remains available
 inside an element for text services. [Pinned data and regeneration](../ThirdParty/Unicode/README.md)
 are kept in the repository. Logical grapheme support does not establish visual
@@ -1000,6 +1029,19 @@ usual preceding/following behavior; empty edges yield empty intervals. Invalid
 positions or retired layout are reported by `TryDeletionRange`. Rich keyboard deletion maps this interval
 back to source. Explicit noncollapsed source selections retain their exact
 scalar/CRLF meaning, and undo restores the original source and caret ACP.
+
+`Caret(position)` places a caret at a soft wrap at the start of the following
+visual line. `Caret(position, CaretAffinity::Upstream)` places it at the end of
+the preceding line instead; at every other position, including a hard line
+break and the text's end, both affinities return the same geometry. The editor
+keeps this visual choice beside its source selection: `End`, a click past a
+line's end and a vertical move that lands on a line's trailing edge choose
+`Upstream`, so `End` on a wrapped line shows the caret at that line's end, and
+`Home`, `End` and vertical movement continue from the line the caret is drawn
+on. Any other selection change, edit or document change returns to the default.
+The affinity changes only where the caret is drawn and the caret bounds the text
+service receives; it never changes the source model, the ACPs that text services
+and UI Automation see, or undo history.
 
 Bulk UIA character movement uses bounded forward traversal, with overflow-safe
 INT_MIN/INT_MAX handling and actual signed counts. It adds no C++ heap work or
@@ -1236,8 +1278,14 @@ until Clear and reconciled under compatible parent identities. Generated missing
 table cells may share empty ranges; each consumes one prior identity in traversal
 order, retaining distinct IDs across unrelated edits and undo/redo. String Begin uses
 common-prefix/suffix mapping; deleted/reclassified/reparented nodes may acquire
-new IDs, and no unbounded syntax history is retained. Blocks are reparsed across
-the bounded source before reconciliation. Per-line transitions, paragraph
+new IDs, and no unbounded syntax history is retained. An edit reparses from the
+top-level block that encloses it (unchanged blocks before it count only when an
+unchanged blank line or a closed front-matter fence ends them) to the first
+unchanged top-level block the new parse reaches with no container, paragraph,
+fence or table still open; unchanged top-level blocks are copied with their inline content and identities, and front
+matter is validated again only when its envelope may have changed. The result is
+always identical to parsing the new text from scratch; a change to the link
+reference definitions reparses every paragraph's inlines. Per-line transitions, paragraph
 finalization and tree compaction remain indivisible; step budgets are not hard
 latency guarantees.
 `BlockStatistics()` reports deterministic prefix inspection and container closure
@@ -1891,6 +1939,16 @@ geometry, code-ink, source-ink or source-guide work. Optional overlay fallback
 dirtiness is reported separately from a ready content frame.
 `lastAdvanceImageWork` counts image candidates actually visited in the last
 owner turn, including rejected candidates, independently of geometry block steps.
+
+Editing outside a formula, diagram or image does not prepare it again: the next
+geometry carries each prepared object whose content and inputs are unchanged (the
+formula's source, mode and font size; the diagram's source; the same decoded
+image and raster size) from the current one, including when blocks are inserted
+before it, so typing uploads no image bytes. Editing inside an object, or a
+change of font, DPI, locale, direction, raster target or device, prepares the
+objects that read it again. A deleted object is released when the edited
+geometry is published. The keys are in the
+[contract](../Specs/UI/UI_ControlsAndLayout.md#prepared-objects-across-edits).
 
 Limits are 16,384 source units, 4,096 staging/syntax nodes, 64 parsed nesting
 levels, 64 rows/columns and 1,024 cells per formula including generated padding.

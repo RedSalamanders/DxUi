@@ -1,0 +1,20 @@
+[WATCHDOG] each test may run 300 s; a test that outlives it ends the run with exit code 124
+[START] WindowHost
+  [START] TestWindowHostPresentedFrameAfterPartialPresentsIsCurrentOnWarp
+    [PRESENTED] adapter=warp mode=HwndSwapChain description="Microsoft Basic Render Driver" vendor=0x1414 device=0x008C software=1 driver=10.0.26100.9711 dpi=144 configuration=x64-Release
+    [PRESENTED] adapter=warp mode=HwndSwapChain presentedVsFullRender=0 differing pixels (0 outside B: A-only 0, neither 0, unpainted 0); first at (-1, -1) BGRA 0x00000000 expected 0x00000000 backBufferBeforePresentVsFullRender=5120 differing pixels (5120 outside B: A-only 5120, neither 0, unpainted 0); first at (16, 16) BGRA 0xFFC01010 expected 0xFF10C010
+    [PRESENTED] adapter=warp mode=HwndSwapChain negativeControl=5120 differing pixels (5120 outside B: A-only 5120, neither 0, unpainted 0); first at (16, 16) BGRA 0xFF10C010 expected 0xFFC01010
+    [PRESENTED] adapter=warp mode=CompositionSwapChain description="Microsoft Basic Render Driver" vendor=0x1414 device=0x008C software=1 driver=10.0.26100.9711 dpi=144 configuration=x64-Release
+    [PRESENTED] adapter=warp mode=CompositionSwapChain presentedVsFullRender=0 differing pixels (0 outside B: A-only 0, neither 0, unpainted 0); first at (-1, -1) BGRA 0x00000000 expected 0x00000000 backBufferBeforePresentVsFullRender=5120 differing pixels (5120 outside B: A-only 5120, neither 0, unpainted 0); first at (16, 16) BGRA 0xFFC01010 expected 0xFF10C010
+    [PRESENTED] adapter=warp mode=CompositionSwapChain negativeControl=5120 differing pixels (5120 outside B: A-only 5120, neither 0, unpainted 0); first at (16, 16) BGRA 0xFF10C010 expected 0xFFC01010
+  [DONE] TestWindowHostPresentedFrameAfterPartialPresentsIsCurrentOnWarp (0.328 s)
+  [START] TestWindowHostPresentedFrameAfterPartialPresentsIsCurrentOnHardware
+    [PRESENTED] adapter=hardware mode=HwndSwapChain description="NVIDIA GeForce RTX 5080" vendor=0x10DE device=0x2C02 software=0 driver=32.0.16.1714 dpi=144 configuration=x64-Release
+    [PRESENTED] adapter=hardware mode=HwndSwapChain presentedVsFullRender=0 differing pixels (0 outside B: A-only 0, neither 0, unpainted 0); first at (-1, -1) BGRA 0x00000000 expected 0x00000000 backBufferBeforePresentVsFullRender=5120 differing pixels (5120 outside B: A-only 5120, neither 0, unpainted 0); first at (16, 16) BGRA 0xFFC01010 expected 0xFF10C010
+    [PRESENTED] adapter=hardware mode=HwndSwapChain negativeControl=5120 differing pixels (5120 outside B: A-only 5120, neither 0, unpainted 0); first at (16, 16) BGRA 0xFF10C010 expected 0xFFC01010
+    [PRESENTED] adapter=hardware mode=CompositionSwapChain description="NVIDIA GeForce RTX 5080" vendor=0x10DE device=0x2C02 software=0 driver=32.0.16.1714 dpi=144 configuration=x64-Release
+    [PRESENTED] adapter=hardware mode=CompositionSwapChain presentedVsFullRender=0 differing pixels (0 outside B: A-only 0, neither 0, unpainted 0); first at (-1, -1) BGRA 0x00000000 expected 0x00000000 backBufferBeforePresentVsFullRender=5120 differing pixels (5120 outside B: A-only 5120, neither 0, unpainted 0); first at (16, 16) BGRA 0xFFC01010 expected 0xFF10C010
+    [PRESENTED] adapter=hardware mode=CompositionSwapChain negativeControl=5120 differing pixels (5120 outside B: A-only 5120, neither 0, unpainted 0); first at (16, 16) BGRA 0xFF10C010 expected 0xFFC01010
+  [DONE] TestWindowHostPresentedFrameAfterPartialPresentsIsCurrentOnHardware (0.446 s)
+[DONE] WindowHost (0.774 s)
+All DxUi tests passed.

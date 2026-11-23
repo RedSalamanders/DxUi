@@ -364,7 +364,7 @@ static void TestRichImageFrameHostFailure()
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create frame replacement graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "attach frame replacement host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "attach frame replacement host");
     auto owned   = std::make_unique<RichTextEditor>();
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));

@@ -3,6 +3,7 @@
 #endif
 
 #include "DxUi.Internal.h"
+#include "DxUi.TextEditHistory.h"
 
 #include <algorithm>
 #include <chrono>
@@ -10,17 +11,21 @@
 #include <cwctype>
 #include <d2d1effects.h>
 #include <limits>
+#include <typeinfo>
 
 #include "Support/Diagnostics.h"
 
 namespace DxUi
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+thread_local bool testComboBoxMeasurePopupItemsEveryLayout{};
+#endif
+
 namespace
 {
 constexpr float kComboBoxPopupPaddingDip      = 4.0f;
 constexpr float kComboBoxPopupCornerRadiusDip = kPopupRoundSmallCornerRadiusDip;
 constexpr size_t kComboBoxMaxVisibleItems     = 8u;
-constexpr uint64_t kCaretBlinkPeriodMs        = 530u;
 constexpr GUID kComboBoxGaussianBlurEffectId  = {0x1feb6d69, 0x2fe6, 0x4ac9, {0x8c, 0x58, 0x1d, 0x7f, 0x93, 0xe7, 0xa6, 0xa5}};
 
 struct ComboBoxPopupMaterialStyle
@@ -202,7 +207,7 @@ struct ComboBoxPopupMaterialStyle
     wil::com_ptr<ID2D1Bitmap1> bitmap;
     const UINT32 pitch = static_cast<UINT32>(capture.widthPx * 4u);
     const HRESULT hr =
-        d2dContext->CreateBitmap(D2D1::SizeU(capture.widthPx, capture.heightPx), capture.bgraPixels.data(), pitch, &bitmapProperties, bitmap.put());
+        CountedCreateBitmap(d2dContext, D2D1::SizeU(capture.widthPx, capture.heightPx), capture.bgraPixels.data(), pitch, &bitmapProperties, bitmap.put());
     if (FAILED(hr) || ! bitmap)
     {
         Debug::Warning(L"DxUi::ComboBox: failed to create popup backdrop bitmap: 0x{:08X}", hr);
@@ -229,14 +234,16 @@ struct ComboBoxPopupMaterialStyle
     };
 
     wil::com_ptr<ID2D1GradientStopCollection> stopCollection;
-    if (FAILED(dc->CreateGradientStopCollection(stops, static_cast<UINT32>(std::size(stops)), stopCollection.put())))
+    if (FAILED(CountedCreateGradientStopCollection(dc, stops, static_cast<UINT32>(std::size(stops)), stopCollection.put())))
     {
         return {};
     }
 
     wil::com_ptr<ID2D1LinearGradientBrush> brush;
-    if (FAILED(dc->CreateLinearGradientBrush(
-            D2D1::LinearGradientBrushProperties(D2D1::Point2F(rect.left, rect.top), D2D1::Point2F(rect.left, rect.bottom)), stopCollection.get(), brush.put())))
+    if (FAILED(CountedCreateLinearGradientBrush(dc,
+                                                D2D1::LinearGradientBrushProperties(D2D1::Point2F(rect.left, rect.top), D2D1::Point2F(rect.left, rect.bottom)),
+                                                stopCollection.get(),
+                                                brush.put())))
     {
         return {};
     }
@@ -338,14 +345,15 @@ void PaintComboBoxBackdropSurface(ControlHost& host,
     dc->GetFactory(factory.put());
 
     wil::com_ptr<ID2D1RoundedRectangleGeometry> roundedGeometry;
-    if (! factory || FAILED(factory->CreateRoundedRectangleGeometry(D2D1::RoundedRect(popupRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
+    if (! factory ||
+        FAILED(CountedCreateRoundedRectangleGeometry(factory, D2D1::RoundedRect(popupRect, cornerRadiusDip, cornerRadiusDip), roundedGeometry.put())) ||
         ! roundedGeometry)
     {
         return;
     }
 
     wil::com_ptr<ID2D1Effect> blurEffect;
-    if (FAILED(dc->CreateEffect(kComboBoxGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
+    if (FAILED(CountedCreateEffect(dc, kComboBoxGaussianBlurEffectId, blurEffect.put())) || ! blurEffect)
     {
         return;
     }
@@ -356,7 +364,7 @@ void PaintComboBoxBackdropSurface(ControlHost& host,
     blurEffect->SetValue(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_BORDER_MODE_HARD);
 
     wil::com_ptr<ID2D1Layer> layer;
-    if (FAILED(dc->CreateLayer(layer.put())) || ! layer)
+    if (FAILED(CountedCreateLayer(dc, layer.put())) || ! layer)
     {
         return;
     }
@@ -374,6 +382,7 @@ void PaintComboBoxBackdropSurface(ControlHost& host,
     const D2D1_POINT_2F targetOffset             = D2D1::Point2F(popupRect.left, popupRect.top);
     dc->PushLayer(layerParameters, layer.get());
     dc->DrawImage(blurEffect.get(), &targetOffset, &sourceRect, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+    ++Detail::Work().popups.backdropBlurPasses;
     if (material.backdropDetailOpacity > 0.0f)
     {
         dc->DrawBitmap(bitmap, popupRect, (std::clamp)(material.backdropDetailOpacity, 0.0f, 1.0f), D2D1_INTERPOLATION_MODE_LINEAR);
@@ -446,35 +455,85 @@ void PaintComboBoxPopupMaterialSurface(ControlHost& host,
 }
 } // namespace
 
-ComboBox::ComboBox()
+ComboBox::ComboBox() : _text(EmptySharedText())
 {
     SetFocusable(true);
+}
+
+bool ComboBox::KeepsDefaultTextInputState() const noexcept
+{
+    return typeid(*this) == typeid(ComboBox);
+}
+
+void ComboBox::SettlePreview(const ControlHost* host) noexcept
+{
+    if (! _committedText)
+        return;
+    // The preview the composition left is now the text: filter and select by it.
+    _committedText.reset();
+    SyncEditableSelectionFromText();
+    RebuildPopupItems(host);
+    EnsurePopupSelectionVisible(host);
+    RequestInvalidate();
+}
+
+const std::wstring& ComboBox::Text() const noexcept
+{
+    return *_text;
+}
+
+std::wstring& ComboBox::MutableText(size_t requiredUnits)
+{
+    // An edit commits its text: the popup filters by it again.
+    _committedText.reset();
+    return MutableSharedText(_text, requiredUnits);
+}
+
+const std::wstring& ComboBox::FilterText() const noexcept
+{
+    return _committedText ? *_committedText : *_text;
 }
 
 void ComboBox::SetVariant(ComboBoxVariant variant) noexcept
 {
     _typeaheadBuffer.clear();
-    const bool changed  = _variant != variant;
-    _variant            = variant;
-    const bool editable = variant == ComboBoxVariant::Edit;
-    _editable           = editable;
-    if (_editable)
+    // An editable box has a text pattern and a writable value (UI Automation); the measure reads neither. The popup's rows are
+    // filtered again, and they size the popup (GetHitBounds, HitTestOverlay).
+    AssignAccess::Assign(*this,
+                         HitRevisionSite::ComboBoxRebuild,
+                         _variant,
+                         variant,
+                         Affects::Paint | Affects::Hit | Affects::SemanticState,
+                         [this, variant]() noexcept
     {
-        if (_text.empty() && _selectedIndex && _selectedIndex.value() < _items.size())
+        const bool editable = variant == ComboBoxVariant::Edit;
+        _editable           = editable;
+        if (_editable)
         {
-            _text = _items[_selectedIndex.value()].value;
+            if (_text->empty() && _selectedIndex && _selectedIndex.value() < _items.size())
+            {
+                try
+                {
+                    if (! _items[_selectedIndex.value()].value.empty())
+                        TextEditHistory::NoteUnrecordedChange(_undoHistory, _redoHistory, *_text);
+                }
+                catch (const std::bad_alloc&)
+                {
+                    Failure::FailAllocation();
+                }
+                _text = MakeSharedText(_items[_selectedIndex.value()].value);
+                _committedText.reset();
+            }
+            SyncEditableSelectionFromText();
+            _caretIndex = std::min(_caretIndex, _text->size());
         }
-        SyncEditableSelectionFromText();
-        _caretIndex = std::min(_caretIndex, _text.size());
-    }
-    else
-    {
-        _caretIndex = 0u;
-    }
-    InvalidateSingleLineLayoutCache();
-    RebuildPopupItems();
-    if (changed)
-        InvalidateMeasure();
+        else
+        {
+            _caretIndex = 0u;
+        }
+        InvalidateSingleLineLayoutCache();
+        RebuildPopupItems();
+    });
 }
 
 ComboBoxVariant ComboBox::GetVariant() const noexcept
@@ -484,16 +543,8 @@ ComboBoxVariant ComboBox::GetVariant() const noexcept
 
 void ComboBox::SetChromeVisible(bool visible) noexcept
 {
-    if (_chromeVisible == visible)
-    {
-        return;
-    }
-
-    _chromeVisible      = visible;
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    if (! lifetime.expired())
-        RequestInvalidate();
+    // Paint only: the measure reserves the same chrome either way.
+    Assign(_chromeVisible, visible, Affects::Paint);
 }
 
 bool ComboBox::IsChromeVisible() const noexcept
@@ -503,17 +554,23 @@ bool ComboBox::IsChromeVisible() const noexcept
 
 void ComboBox::SetMaxVisibleItems(size_t maxItems) noexcept
 {
-    _maxVisibleItemsOverride = maxItems;
-    ResetPopupLayout();
+    // The popup's rectangle (GetHitBounds, HitTestOverlay) is placed again.
+    AssignAccess::Assign(
+        *this, HitRevisionSite::ComboBoxLayout, _maxVisibleItemsOverride, maxItems, Affects::Paint | Affects::Hit, [this]() noexcept { ResetPopupLayout(); });
 }
 
 void ComboBox::SetNoMatchesText(std::wstring text)
 {
-    if (_noMatchesText == text)
-        return;
-    _noMatchesText = std::move(text);
-    ResetPopupLayout();
-    RequestInvalidate();
+    AssignAccess::Assign(*this,
+                         HitRevisionSite::ComboBoxLayout,
+                         _noMatchesText,
+                         std::move(text),
+                         Affects::Paint | Affects::Hit,
+                         [this]() noexcept
+    {
+        _popupItemWidthCache.noMatchesValid = false;
+        ResetPopupLayout();
+    });
 }
 
 std::wstring_view ComboBox::GetNoMatchesText() const noexcept
@@ -523,19 +580,25 @@ std::wstring_view ComboBox::GetNoMatchesText() const noexcept
 
 void ComboBox::SetMinimumPopupItemHeight(float heightDip) noexcept
 {
-    if (! std::isfinite(heightDip) || heightDip < 0.0f || heightDip > 4096.0f || heightDip == _minimumPopupItemHeightDip)
+    if (! std::isfinite(heightDip) || heightDip < 0.0f || heightDip > 4096.0f)
     {
         return;
     }
-    _minimumPopupItemHeightDip = heightDip;
-    ResetPopupLayout();
-    if (_open)
+    AssignAccess::Assign(*this,
+                         HitRevisionSite::ComboBoxLayout,
+                         _minimumPopupItemHeightDip,
+                         heightDip,
+                         Affects::Paint | Affects::Hit,
+                         [this]() noexcept
     {
-        _hoveredPopupIndex.reset();
-        _dragPopupScrollbar = false;
-        EnsurePopupSelectionVisible(GetHost());
-    }
-    RequestInvalidate();
+        ResetPopupLayout();
+        if (_open)
+        {
+            _hoveredPopupIndex.reset();
+            _dragPopupScrollbar = false;
+            EnsurePopupSelectionVisible(GetHost());
+        }
+    });
 }
 
 float ComboBox::GetMinimumPopupItemHeight() const noexcept
@@ -560,6 +623,14 @@ void ComboBox::SetEditable(bool editable) noexcept
         _selectionAnchorIndex.reset();
         _dragSelecting = false;
     }
+    // A focused box gains or loses its caret with the mode.
+    if (ControlHost* const host = GetHost(); host && HasFocus())
+    {
+        if (_editable)
+            ResetEditableCaretBlink(*host);
+        else
+            CaretClockAccess::Stop(*host, *this);
+    }
 }
 
 bool ComboBox::IsEditable() const noexcept
@@ -569,7 +640,8 @@ bool ComboBox::IsEditable() const noexcept
 
 void ComboBox::SetAutoOpenOnTextInput(bool autoOpen) noexcept
 {
-    _autoOpenOnTextInput = autoOpen;
+    // Read by the next typed character.
+    Assign(_autoOpenOnTextInput, autoOpen, Affects::None);
 }
 
 bool ComboBox::GetAutoOpenOnTextInput() const noexcept
@@ -580,32 +652,38 @@ bool ComboBox::GetAutoOpenOnTextInput() const noexcept
 void ComboBox::SetItems(std::vector<Item> items)
 {
     _typeaheadBuffer.clear();
-    _items            = std::move(items);
-    _popupScrollIndex = 0u;
-    RebuildPopupItems();
-    if (_editable)
+    // The items give the shown text and selection UI Automation reads, and the popup's rows (GetHitBounds, HitTestOverlay); an
+    // unchanged list keeps the popup as it is.
+    AssignAccess::Assign(*this,
+                         HitRevisionSite::ComboBoxRebuild,
+                         _items,
+                         std::move(items),
+                         Affects::Paint | Affects::Hit | Affects::SemanticValue,
+                         [this]()
     {
-        SyncEditableSelectionFromText();
-        _caretIndex = std::min(_caretIndex, _text.size());
-        _selectionAnchorIndex.reset();
-        _editableHorizontalScrollDip = 0.0f;
-        _dragSelecting               = false;
-        InvalidateSingleLineLayoutCache();
+        _popupScrollIndex = 0u;
+        // New items: their widths are measured again at the next placement of the open popup.
+        _popupItemWidthCache.valid = false;
+        RebuildPopupItems();
+        if (_editable)
+        {
+            SyncEditableSelectionFromText();
+            _caretIndex = std::min(_caretIndex, _text->size());
+            _selectionAnchorIndex.reset();
+            _editableHorizontalScrollDip = 0.0f;
+            _dragSelecting               = false;
+            InvalidateSingleLineLayoutCache();
+        }
+        else if (_items.empty())
+        {
+            _selectedIndex.reset();
+        }
+        else if (! _selectedIndex || _selectedIndex.value() >= _items.size())
+        {
+            _selectedIndex = 0u;
+        }
         EnsurePopupSelectionVisible();
-        RequestInvalidate();
-        return;
-    }
-
-    if (_items.empty())
-    {
-        _selectedIndex.reset();
-    }
-    else if (! _selectedIndex || _selectedIndex.value() >= _items.size())
-    {
-        _selectedIndex = 0u;
-    }
-    EnsurePopupSelectionVisible();
-    RequestInvalidate();
+    });
 }
 
 std::span<const ComboBox::Item> ComboBox::GetItems() const noexcept
@@ -616,22 +694,24 @@ std::span<const ComboBox::Item> ComboBox::GetItems() const noexcept
 void ComboBox::SetSelectedIndex(std::optional<size_t> selectedIndex) noexcept
 {
     _typeaheadBuffer.clear();
-    if (selectedIndex && selectedIndex.value() >= _items.size())
+    // An index past the items selects nothing.
+    const bool rejected = selectedIndex && selectedIndex.value() >= _items.size();
+    if (rejected)
+        selectedIndex.reset();
+    Assign(_selectedIndex,
+           selectedIndex,
+           Affects::Paint | Affects::SemanticValue,
+           [this, rejected]() noexcept
     {
-        _selectedIndex.reset();
-        RefreshAccessibilitySnapshot();
-        RequestInvalidate();
-        return;
-    }
-    _selectedIndex = selectedIndex;
-    if (_editable)
-    {
-        _selectionAnchorIndex.reset();
-        _dragSelecting = false;
-    }
-    EnsurePopupSelectionVisible();
-    RefreshAccessibilitySnapshot();
-    RequestInvalidate();
+        if (rejected)
+            return;
+        if (_editable)
+        {
+            _selectionAnchorIndex.reset();
+            _dragSelecting = false;
+        }
+        EnsurePopupSelectionVisible();
+    });
 }
 
 std::optional<size_t> ComboBox::GetSelectedIndex() const noexcept
@@ -652,7 +732,7 @@ std::wstring_view ComboBox::GetDisplayedText() const noexcept
 {
     if (_editable)
     {
-        return _text;
+        return *_text;
     }
     if (! _selectedIndex || _selectedIndex.value() >= _items.size())
     {
@@ -665,14 +745,16 @@ void ComboBox::SetText(std::wstring text)
 {
     _typeaheadBuffer.clear();
     const auto lifetime = GetLifetimeToken();
-    _text               = std::move(text);
-    _caretIndex         = _text.size();
+    _text               = MakeSharedText(std::move(text));
+    _committedText.reset();
+    _caretIndex = _text->size();
     _selectionAnchorIndex.reset();
     _undoHistory.clear();
     _redoHistory.clear();
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
-    _caretBlinkAnchorTickMs.reset();
-    _caretVisible                = true;
+    // A focused editable box restarts its blink now, with the caret shown, and sleeps until the first flip.
+    if (ControlHost* const caretHost = GetHost(); caretHost && _editable && HasFocus())
+        ResetEditableCaretBlink(*caretHost);
     _editableHorizontalScrollDip = 0.0f;
     _dragSelecting               = false;
     InvalidateSingleLineLayoutCache();
@@ -708,8 +790,9 @@ void ComboBox::SetTextAndNotify(std::wstring text)
     const auto callback = _onTextChanged;
     if (callback)
     {
-        const std::wstring snapshot = _text;
-        (*callback)(snapshot);
+        // A pinned buffer: valid however the callback edits or destroys this control.
+        const SharedText snapshot = _text;
+        (*callback)(std::wstring_view(*snapshot));
     }
 }
 
@@ -717,7 +800,7 @@ std::wstring_view ComboBox::GetText() const noexcept
 {
     if (_editable)
     {
-        return _text;
+        return *_text;
     }
 
     return GetSelectedValue();
@@ -725,7 +808,8 @@ std::wstring_view ComboBox::GetText() const noexcept
 
 void ComboBox::SetPlaceholder(std::wstring text)
 {
-    _placeholder = std::move(text);
+    // Painted while nothing is selected or typed.
+    Assign(_placeholder, std::move(text), Affects::Paint);
 }
 
 void ComboBox::SetOnTextChanged(std::function<void(std::wstring_view)> onTextChanged)
@@ -783,9 +867,9 @@ void ComboBox::Paint(ControlHost& host) const
 
     const std::wstring_view text =
         _editable
-            ? (_text.empty() ? std::wstring_view(_placeholder) : std::wstring_view(_text))
+            ? (_text->empty() ? std::wstring_view(_placeholder) : std::wstring_view(Text()))
             : ((_selectedIndex && _selectedIndex.value() < _items.size()) ? std::wstring_view(_items[_selectedIndex.value()].display) : std::wstring_view(L""));
-    const bool usePlaceholder    = _editable && _text.empty() && ! _placeholder.empty();
+    const bool usePlaceholder    = _editable && _text->empty() && ! _placeholder.empty();
     const float leftInsetDip     = ResolveComboBoxLeftInsetDip(style, theme);
     const float verticalInsetDip = ResolveComboBoxVerticalInsetDip(theme);
     const float rightInsetDip    = ResolveComboBoxRightTextInsetDip(theme);
@@ -827,7 +911,7 @@ void ComboBox::Paint(ControlHost& host) const
         DrawTextInputUnderlineRects(host, BuildNativeCompositionUnderlineRects(host, *this, true), theme.accent);
     }
 
-    if (_editable && HasFocus() && _caretVisible)
+    if (_editable && HasFocus() && CaretClockAccess::Shown(host, *this))
     {
         const float caretMaxX = std::max(textRect.left, textRect.right - 1.0f);
         const float caretX    = std::clamp(textRect.left + editableCaretOffsetDip - _editableHorizontalScrollDip, textRect.left, caretMaxX);
@@ -975,7 +1059,7 @@ bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBut
             {
                 const D2D1_RECT_F textRect = GetEditableTextRect();
                 const size_t hitIndex      = HitTestCaretIndexDip(
-                    &host, _text, FontRole::Body, textRect, _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
+                    &host, Text(), FontRole::Body, textRect, _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
                 if (ModifiersContainShift(modifiers))
                 {
                     SetEditableCaretIndex(hitIndex, true);
@@ -1031,7 +1115,7 @@ bool ComboBox::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightBut
         {
             const D2D1_RECT_F textRect = GetEditableTextRect();
             const size_t hitIndex =
-                HitTestCaretIndexDip(&host, _text, FontRole::Body, textRect, _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
+                HitTestCaretIndexDip(&host, Text(), FontRole::Body, textRect, _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
             if (ModifiersContainShift(modifiers))
             {
                 SetEditableCaretIndex(hitIndex, true);
@@ -1083,7 +1167,7 @@ bool ComboBox::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool r
     }
     const D2D1_RECT_F textRect = GetEditableTextRect();
     const size_t hitIndex =
-        HitTestCaretIndexDip(&host, _text, FontRole::Body, textRect, _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
+        HitTestCaretIndexDip(&host, Text(), FontRole::Body, textRect, _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
     SelectEditableWordAt(hitIndex);
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
     ArmSingleLineSelectionClickSequence(_selectionClickSequence, point);
@@ -1110,7 +1194,7 @@ bool ComboBox::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifi
     {
         const D2D1_RECT_F textRect = GetEditableTextRect();
         const size_t hitIndex =
-            HitTestCaretIndexDip(&host, _text, FontRole::Body, textRect, _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
+            HitTestCaretIndexDip(&host, Text(), FontRole::Body, textRect, _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
         SetEditableCaretIndex(hitIndex, true);
         EnsureEditableCaretVisible(&host, std::max(1.0f, textRect.right - textRect.left));
         ResetEditableCaretBlink(host);
@@ -1147,11 +1231,20 @@ D2D1_RECT_F ComboBox::DebugGetPopupBounds() const noexcept
 
 D2D1_RECT_F ComboBox::DebugGetPopupItemRect(size_t popupListIndex, const ControlHost* host) const noexcept
 {
+    // A test may ask between events: place the popup for `host` first, as paint does.
+    if (_open)
+    {
+        UpdatePopupLayout(host);
+    }
     return GetPopupItemRect(popupListIndex, host);
 }
 
 D2D1_RECT_F ComboBox::DebugGetPopupItemTextRect(size_t popupListIndex, const ControlHost* host) const noexcept
 {
+    if (_open)
+    {
+        UpdatePopupLayout(host);
+    }
     return GetPopupItemTextRect(popupListIndex, host);
 }
 
@@ -1162,7 +1255,8 @@ D2D1_RECT_F ComboBox::DebugGetEditableTextRect() const noexcept
 
 bool ComboBox::DebugIsCaretVisible() const noexcept
 {
-    return _caretVisible;
+    const ControlHost* const host = GetHost();
+    return ! host || CaretClockAccess::Shown(*host, *this);
 }
 
 bool ComboBox::DebugGetEditablePaintState(const ControlHost& host, ComboBoxDebugEditablePaintState& out) const noexcept
@@ -1189,7 +1283,7 @@ size_t ComboBox::HitTestEditableCaretIndex(const ControlHost& host, D2D1_POINT_2
     }
 
     return HitTestCaretIndexDip(
-        &host, _text, FontRole::Body, GetEditableTextRect(), _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
+        &host, Text(), FontRole::Body, GetEditableTextRect(), _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
 }
 
 bool ComboBox::OnMouseUp(ControlHost& host, D2D1_POINT_2F /*point*/, bool rightButton, UINT /*modifiers*/)
@@ -1340,7 +1434,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                     {
                         RecordUndoStateForEditableEdit();
                         static_cast<void>(DeleteEditableSelection());
-                        _text.insert(_caretIndex, normalizedClipboardText);
+                        MutableText(_text->size() + normalizedClipboardText.size()).insert(_caretIndex, normalizedClipboardText);
                         _caretIndex += normalizedClipboardText.size();
                         _selectionAnchorIndex.reset();
                         RefreshEditableTextAfterMutation(host);
@@ -1357,11 +1451,11 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                     RefreshEditableTextAfterMutation(host);
                     return true;
                 }
-                const size_t eraseFrom = FindPreviousWordBoundary(_text, _caretIndex);
+                const size_t eraseFrom = FindPreviousWordBoundary(Text(), _caretIndex);
                 if (eraseFrom < _caretIndex)
                 {
                     RecordUndoStateForEditableEdit();
-                    _text.erase(eraseFrom, _caretIndex - eraseFrom);
+                    MutableText(_text->size()).erase(eraseFrom, _caretIndex - eraseFrom);
                     _caretIndex = eraseFrom;
                     _selectionAnchorIndex.reset();
                     RefreshEditableTextAfterMutation(host);
@@ -1378,11 +1472,11 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                     RefreshEditableTextAfterMutation(host);
                     return true;
                 }
-                const size_t eraseTo = FindNextWordBoundary(_text, _caretIndex);
+                const size_t eraseTo = FindNextWordBoundary(Text(), _caretIndex);
                 if (eraseTo > _caretIndex)
                 {
                     RecordUndoStateForEditableEdit();
-                    _text.erase(_caretIndex, eraseTo - _caretIndex);
+                    MutableText(_text->size()).erase(_caretIndex, eraseTo - _caretIndex);
                     _selectionAnchorIndex.reset();
                     RefreshEditableTextAfterMutation(host);
                     return true;
@@ -1402,7 +1496,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 {
                     RecordUndoStateForEditableEdit();
                     static_cast<void>(DeleteEditableSelection());
-                    _text.insert(_caretIndex, normalizedClipboardText);
+                    MutableText(_text->size() + normalizedClipboardText.size()).insert(_caretIndex, normalizedClipboardText);
                     _caretIndex += normalizedClipboardText.size();
                     _selectionAnchorIndex.reset();
                     RefreshEditableTextAfterMutation(host);
@@ -1427,7 +1521,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             const bool extendSelection = ModifiersContainShift(modifiers);
             if (ModifiersContainCtrl(modifiers))
             {
-                SetEditableCaretIndex(FindPreviousWordBoundary(_text, _caretIndex), extendSelection);
+                SetEditableCaretIndex(FindPreviousWordBoundary(Text(), _caretIndex), extendSelection);
                 refreshEditableCaret();
                 return true;
             }
@@ -1440,7 +1534,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             }
             if (_caretIndex > 0u)
             {
-                SetEditableCaretIndex(StepToPreviousTextElement(_text, _caretIndex), extendSelection);
+                SetEditableCaretIndex(StepToPreviousTextElement(Text(), _caretIndex), extendSelection);
                 refreshEditableCaret();
             }
             return true;
@@ -1450,7 +1544,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
             const bool extendSelection = ModifiersContainShift(modifiers);
             if (ModifiersContainCtrl(modifiers))
             {
-                SetEditableCaretIndex(FindNextWordBoundary(_text, _caretIndex), extendSelection);
+                SetEditableCaretIndex(FindNextWordBoundary(Text(), _caretIndex), extendSelection);
                 refreshEditableCaret();
                 return true;
             }
@@ -1461,7 +1555,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 refreshEditableCaret();
                 return true;
             }
-            SetEditableCaretIndex(StepToNextTextElement(_text, _caretIndex), extendSelection);
+            SetEditableCaretIndex(StepToNextTextElement(Text(), _caretIndex), extendSelection);
             refreshEditableCaret();
             return true;
         }
@@ -1473,7 +1567,7 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
         }
         if (virtualKey == VK_END)
         {
-            SetEditableCaretIndex(_text.size(), ModifiersContainShift(modifiers));
+            SetEditableCaretIndex(_text->size(), ModifiersContainShift(modifiers));
             refreshEditableCaret();
             return true;
         }
@@ -1486,11 +1580,11 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 RefreshEditableTextAfterMutation(host);
                 return true;
             }
-            if (_caretIndex > 0u && ! _text.empty())
+            if (_caretIndex > 0u && ! _text->empty())
             {
-                const auto range = GetTextElementDeletionRange(_text, _caretIndex, true);
+                const auto range = GetTextElementDeletionRange(Text(), _caretIndex, true);
                 RecordUndoStateForEditableEdit();
-                _text.erase(range.first, range.last - range.first);
+                MutableText(_text->size()).erase(range.first, range.last - range.first);
                 _caretIndex = range.first;
                 _selectionAnchorIndex.reset();
                 RefreshEditableTextAfterMutation(host);
@@ -1506,11 +1600,11 @@ bool ComboBox::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                 RefreshEditableTextAfterMutation(host);
                 return true;
             }
-            if (_caretIndex < _text.size())
+            if (_caretIndex < _text->size())
             {
-                const auto range = GetTextElementDeletionRange(_text, _caretIndex, false);
+                const auto range = GetTextElementDeletionRange(Text(), _caretIndex, false);
                 RecordUndoStateForEditableEdit();
-                _text.erase(range.first, range.last - range.first);
+                MutableText(_text->size()).erase(range.first, range.last - range.first);
                 _caretIndex = range.first;
                 _selectionAnchorIndex.reset();
                 RefreshEditableTextAfterMutation(host);
@@ -1831,12 +1925,12 @@ bool ComboBox::OnChar(ControlHost& host, wchar_t ch, UINT modifiers)
     if (IsUtf16TrailSurrogate(ch))
     {
         const wchar_t pair[] = {lead, ch};
-        _text.insert(_caretIndex, pair, 2u);
+        MutableText(_text->size() + 2u).insert(_caretIndex, pair, 2u);
         _caretIndex += 2u;
     }
     else
     {
-        _text.insert(_caretIndex, 1u, ch);
+        MutableText(_text->size() + 1u).insert(_caretIndex, 1u, ch);
         ++_caretIndex;
     }
     _selectionAnchorIndex.reset();
@@ -1862,7 +1956,7 @@ bool ComboBox::OnCopy(ControlHost& host)
         if (const std::optional<std::pair<size_t, size_t>> selectionRange = GetEditableSelectionRange())
         {
             const auto [selectionStart, selectionEnd] = selectionRange.value();
-            return host.CopyTextToClipboard(_text.substr(selectionStart, selectionEnd - selectionStart));
+            return host.CopyTextToClipboard(_text->substr(selectionStart, selectionEnd - selectionStart));
         }
         return false;
     }
@@ -1882,31 +1976,14 @@ bool ComboBox::DebugIsPopupOpen() const noexcept
 
 bool ComboBox::Tick(ControlHost& host, uint64_t nowTickMs)
 {
-    if (! _editable || ! HasFocus())
+    // Only the caret blinks; an open list has nothing that moves on its own, so it keeps no frames ticking. The host's
+    // caret clock flips the phase and arms the next flip.
+    if (_editable && HasFocus() && CaretClockAccess::Tick(host, *this, nowTickMs))
     {
-        // Only the caret blinks; an open list has nothing that moves on its own, so it keeps no frames ticking.
-        _caretVisible = true;
-        _caretBlinkAnchorTickMs.reset();
-        return false;
-    }
-
-    const bool caretWasVisible = _caretVisible;
-    if (! _caretBlinkAnchorTickMs)
-    {
-        _caretBlinkAnchorTickMs = nowTickMs;
-        _caretVisible           = true;
-    }
-    else
-    {
-        _caretVisible = ((ElapsedTickMs(*_caretBlinkAnchorTickMs, nowTickMs) / kCaretBlinkPeriodMs) % 2u) == 0u;
-    }
-    if (_caretVisible != caretWasVisible)
-    {
-        // Only a blink-phase flip changes pixels; ticks within one phase leave the surface clean.
+        // Only a blink-phase flip changes pixels; a tick within one phase leaves the surface clean.
         Invalidate(host);
     }
-
-    return true;
+    return false;
 }
 
 bool ComboBox::OnSelectAll(ControlHost& host)
@@ -1943,12 +2020,12 @@ std::optional<D2D1_RECT_F> ComboBox::GetTextInputCaretRect(const ControlHost& ho
     }
 
     const D2D1_RECT_F textRect                      = GetEditableTextRect();
-    const size_t clampedCaretIndex                  = (std::min)(controlTextIndex, _text.size());
+    const size_t clampedCaretIndex                  = (std::min)(controlTextIndex, _text->size());
     const bool perfEnabled                          = Debug::Perf::IsCaptureEnabled();
     const auto startedAt                            = perfEnabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
     const DWRITE_READING_DIRECTION readingDirection = ResolveReadingDirection(GetFlowDirection());
     const float caretOffset                         = MeasureCaretOffsetDip(&host,
-                                                                            _text,
+                                                                            Text(),
                                                                             FontRole::Body,
                                                                             clampedCaretIndex,
                                                                             std::max(1.0f, textRect.bottom - textRect.top),
@@ -1957,10 +2034,10 @@ std::optional<D2D1_RECT_F> ComboBox::GetTextInputCaretRect(const ControlHost& ho
     const float caretMaxX                           = std::max(textRect.left, textRect.right - 1.0f);
     const float caretX                              = std::clamp(textRect.left + caretOffset - _editableHorizontalScrollDip, textRect.left, caretMaxX);
     const D2D1_RECT_F result                        = D2D1::RectF(caretX, textRect.top + 2.0f, caretX + 1.0f, textRect.bottom - 2.0f);
-    if (perfEnabled && ShouldEmitSingleLineBiDiTextMetric(_text, readingDirection))
+    if (perfEnabled && ShouldEmitSingleLineBiDiTextMetric(Text(), readingDirection))
     {
         const std::wstring_view detail = readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT ? L"editable-combo-rtl" : L"editable-combo-ltr";
-        Debug::Perf::Emit(L"dxui.textinput.bidi_caret_rect_us", detail, Debug::Perf::ElapsedUs(startedAt), clampedCaretIndex, _text.size(), S_OK);
+        Debug::Perf::Emit(L"dxui.textinput.bidi_caret_rect_us", detail, Debug::Perf::ElapsedUs(startedAt), clampedCaretIndex, _text->size(), S_OK);
     }
     return result;
 }
@@ -1974,8 +2051,8 @@ std::optional<std::vector<D2D1_RECT_F>> ComboBox::GetTextInputRangeRects(const C
         return std::nullopt;
     }
 
-    const size_t rangeStart = (std::min)(controlTextStartIndex, _text.size());
-    const size_t rangeEnd   = (std::min)(controlTextEndIndex, _text.size());
+    const size_t rangeStart = (std::min)(controlTextStartIndex, _text->size());
+    const size_t rangeEnd   = (std::min)(controlTextEndIndex, _text->size());
     if (rangeStart >= rangeEnd || rangeStart > static_cast<size_t>(std::numeric_limits<UINT32>::max()) ||
         rangeEnd - rangeStart > static_cast<size_t>(std::numeric_limits<UINT32>::max()))
     {
@@ -1990,9 +2067,9 @@ std::optional<std::vector<D2D1_RECT_F>> ComboBox::GetTextInputRangeRects(const C
 
     const DWRITE_READING_DIRECTION readingDirection = ResolveReadingDirection(GetFlowDirection());
     const float heightDip                           = std::max(1.0f, textRect.bottom - textRect.top);
-    const float measuredTextWidthDip                = MeasureSingleLineTextWidthDip(&host, _text, FontRole::Body, heightDip, readingDirection);
+    const float measuredTextWidthDip                = MeasureSingleLineTextWidthDip(&host, Text(), FontRole::Body, heightDip, readingDirection);
     const float layoutWidthDip = std::max({1.0f, textRect.right - textRect.left + _editableHorizontalScrollDip, measuredTextWidthDip + 32.0f});
-    const wil::com_ptr<IDWriteTextLayout> layout = CreateSingleLineTextLayout(&host, _text, FontRole::Body, layoutWidthDip, heightDip, readingDirection);
+    const wil::com_ptr<IDWriteTextLayout> layout = CreateSingleLineTextLayout(&host, Text(), FontRole::Body, layoutWidthDip, heightDip, readingDirection);
     if (! layout)
     {
         return std::nullopt;
@@ -2057,8 +2134,8 @@ std::optional<size_t> ComboBox::HitTestTextInputPoint(const ControlHost& host, D
     }
 
     const size_t hitIndex =
-        HitTestCaretIndexDip(&host, _text, FontRole::Body, textRect, _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
-    return (std::min)(hitIndex, _text.size());
+        HitTestCaretIndexDip(&host, Text(), FontRole::Body, textRect, _editableHorizontalScrollDip, point, ResolveReadingDirection(GetFlowDirection()));
+    return (std::min)(hitIndex, _text->size());
 }
 
 bool ComboBox::ExportTextInputState(TextInputState& outState) const
@@ -2068,7 +2145,7 @@ bool ComboBox::ExportTextInputState(TextInputState& outState) const
         return false;
     }
 
-    outState.text                 = _text;
+    outState.text.assign(Text());
     outState.selectionAnchorIndex = _selectionAnchorIndex;
     outState.caretIndex           = _caretIndex;
     outState.readOnly             = false;
@@ -2079,6 +2156,12 @@ bool ComboBox::ExportTextInputState(TextInputState& outState) const
 
 bool ComboBox::ImportTextInputState(ControlHost& host, const TextInputState& state, bool notifyChange)
 {
+    // Unchanged text keeps the buffer; changed text is the one copy of this import.
+    return ImportTextInputText(host, SharedTextEquals(_text, state.text) ? _text : MakeSharedText(state.text), state, notifyChange);
+}
+
+bool ComboBox::ImportTextInputText(ControlHost& host, std::shared_ptr<const std::wstring> text, const TextInputState& state, bool notifyChange)
+{
     const Failure::Scope outerFailureScope;
     const auto lifetime = GetLifetimeToken();
     if (! SupportsTextInput())
@@ -2087,17 +2170,31 @@ bool ComboBox::ImportTextInputState(ControlHost& host, const TextInputState& sta
     }
     _typeaheadBuffer.clear();
 
-    const std::wstring previousText = _text;
+    // Pinned for the comparisons below: the notification re-entry can replace _text.
+    const SharedText previousText = _text;
+    const bool changed            = ! SharedTextEquals(previousText, text);
     ResetSingleLineSelectionClickSequence(_selectionClickSequence);
-    if (notifyChange && previousText != state.text)
+    if (notifyChange && changed)
     {
         RecordUndoStateForEditableEdit();
     }
-    _text       = state.text;
-    _caretIndex = std::min(state.caretIndex, _text.size());
+    else if (changed)
+    {
+        TextEditHistory::NoteUnrecordedChange(_undoHistory, _redoHistory, *previousText);
+    }
+    // A notifying import commits its text. A silent one that changes the text is a composition preview (or its
+    // cancellation): the popup keeps filtering by the committed text until the composition commits.
+    if (notifyChange)
+        _committedText.reset();
+    else if (changed && ! _committedText)
+        _committedText = previousText;
+    _text = std::move(text);
+    if (_committedText && SharedTextEquals(_committedText, _text))
+        _committedText.reset();
+    _caretIndex = std::min(state.caretIndex, _text->size());
     if (state.selectionAnchorIndex)
     {
-        _selectionAnchorIndex = std::min(state.selectionAnchorIndex.value(), _text.size());
+        _selectionAnchorIndex = std::min(state.selectionAnchorIndex.value(), _text->size());
         if (_selectionAnchorIndex.value() == _caretIndex)
         {
             _selectionAnchorIndex.reset();
@@ -2110,14 +2207,17 @@ bool ComboBox::ImportTextInputState(ControlHost& host, const TextInputState& sta
 
     _dragSelecting = false;
     InvalidateSingleLineLayoutCache();
-    SyncEditableSelectionFromText();
-    RebuildPopupItems(&host);
-    EnsurePopupSelectionVisible(&host);
+    if (notifyChange)
+    {
+        SyncEditableSelectionFromText();
+        RebuildPopupItems(&host);
+        EnsurePopupSelectionVisible(&host);
+    }
     ResetEditableCaretBlink(host);
     if (lifetime.expired())
         return false;
     EnsureEditableCaretVisible(&host, std::max(1.0f, GetEditableTextRect().right - GetEditableTextRect().left));
-    if (notifyChange && previousText != _text)
+    if (notifyChange && ! SharedTextEquals(previousText, _text))
     {
         if (! NotifyTextChanged())
         {
@@ -2130,6 +2230,7 @@ bool ComboBox::ImportTextInputState(ControlHost& host, const TextInputState& sta
 
 ComboBox::EditHistoryState ComboBox::CaptureEditHistoryState() const
 {
+    // Shares the current buffer: history costs no copy, and a later edit makes its own buffer.
     return EditHistoryState{
         .text = _text, .caretIndex = _caretIndex, .selectionAnchorIndex = _selectionAnchorIndex, .horizontalScrollDip = _editableHorizontalScrollDip};
 }
@@ -2137,11 +2238,11 @@ ComboBox::EditHistoryState ComboBox::CaptureEditHistoryState() const
 void ComboBox::RestoreEditHistoryState(const EditHistoryState& state) noexcept
 {
     _typeaheadBuffer.clear();
-    _text       = state.text;
-    _caretIndex = std::min(state.caretIndex, _text.size());
+    _committedText.reset();
+    _caretIndex = std::min(state.caretIndex, _text->size());
     if (state.selectionAnchorIndex)
     {
-        _selectionAnchorIndex = std::min(state.selectionAnchorIndex.value(), _text.size());
+        _selectionAnchorIndex = std::min(state.selectionAnchorIndex.value(), _text->size());
         if (_selectionAnchorIndex.value() == _caretIndex)
         {
             _selectionAnchorIndex.reset();
@@ -2160,50 +2261,41 @@ void ComboBox::RestoreEditHistoryState(const EditHistoryState& state) noexcept
 
 void ComboBox::RecordUndoStateForEditableEdit()
 {
-    _undoHistory.push_back(CaptureEditHistoryState());
-    if (_undoHistory.size() > kMaxEditHistoryEntries)
-    {
-        _undoHistory.erase(_undoHistory.begin());
-    }
-    _redoHistory.clear();
+    TextEditHistory::Record(_undoHistory, _redoHistory, *_text, CaptureEditHistoryState(), kMaxEditHistoryEntries);
 }
 
 bool ComboBox::TryUndoEditableEdit() noexcept
 {
-    if (_undoHistory.empty())
+    try
     {
-        return false;
+        EditHistoryState applied;
+        bool textChanged = false;
+        if (! TextEditHistory::Undo(_undoHistory, _redoHistory, _text, CaptureEditHistoryState(), kMaxEditHistoryEntries, applied, textChanged))
+            return false;
+        RestoreEditHistoryState(applied);
+        return true;
     }
-
-    _redoHistory.push_back(CaptureEditHistoryState());
-    if (_redoHistory.size() > kMaxEditHistoryEntries)
+    catch (const std::bad_alloc&)
     {
-        _redoHistory.erase(_redoHistory.begin());
+        Failure::FailAllocation();
     }
-
-    const EditHistoryState state = std::move(_undoHistory.back());
-    _undoHistory.pop_back();
-    RestoreEditHistoryState(state);
-    return true;
 }
 
 bool ComboBox::TryRedoEditableEdit() noexcept
 {
-    if (_redoHistory.empty())
+    try
     {
-        return false;
+        EditHistoryState applied;
+        bool textChanged = false;
+        if (! TextEditHistory::Redo(_undoHistory, _redoHistory, _text, CaptureEditHistoryState(), kMaxEditHistoryEntries, applied, textChanged))
+            return false;
+        RestoreEditHistoryState(applied);
+        return true;
     }
-
-    _undoHistory.push_back(CaptureEditHistoryState());
-    if (_undoHistory.size() > kMaxEditHistoryEntries)
+    catch (const std::bad_alloc&)
     {
-        _undoHistory.erase(_undoHistory.begin());
+        Failure::FailAllocation();
     }
-
-    const EditHistoryState state = std::move(_redoHistory.back());
-    _redoHistory.pop_back();
-    RestoreEditHistoryState(state);
-    return true;
 }
 
 void ComboBox::RefreshEditableTextAfterMutation(ControlHost& host)
@@ -2223,7 +2315,7 @@ void ComboBox::RefreshEditableTextAfterMutation(ControlHost& host)
 
 void ComboBox::SetEditableCaretIndex(size_t caretIndex, bool extendSelection) noexcept
 {
-    SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, std::min(caretIndex, _text.size()), extendSelection);
+    SetSingleLineCaretIndex(_caretIndex, _selectionAnchorIndex, std::min(caretIndex, _text->size()), extendSelection);
     RefreshAccessibilitySnapshot();
 }
 
@@ -2234,8 +2326,8 @@ void ComboBox::SetEditableSelectionRange(size_t selectionStart, size_t selection
         return;
     }
 
-    selectionStart = std::min(selectionStart, _text.size());
-    selectionEnd   = std::min(selectionEnd, _text.size());
+    selectionStart = std::min(selectionStart, _text->size());
+    selectionEnd   = std::min(selectionEnd, _text->size());
     if (selectionStart > selectionEnd)
     {
         std::swap(selectionStart, selectionEnd);
@@ -2272,18 +2364,27 @@ std::optional<std::pair<size_t, size_t>> ComboBox::GetEditableSelectionRange() c
 
 bool ComboBox::DeleteEditableSelection() noexcept
 {
-    return DeleteSingleLineSelection(_text, _caretIndex, _selectionAnchorIndex);
+    if (! GetSingleLineSelectionRange(_selectionAnchorIndex, _caretIndex))
+        return false;
+    try
+    {
+        return DeleteSingleLineSelection(MutableText(_text->size()), _caretIndex, _selectionAnchorIndex);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
 }
 
 void ComboBox::SelectAllEditableText() noexcept
 {
-    SelectAllSingleLineText(_text.size(), _caretIndex, _selectionAnchorIndex);
+    SelectAllSingleLineText(_text->size(), _caretIndex, _selectionAnchorIndex);
     RefreshAccessibilitySnapshot();
 }
 
 void ComboBox::SelectEditableWordAt(size_t hitIndex) noexcept
 {
-    SelectSingleLineWordAt(_text, hitIndex, _caretIndex, _selectionAnchorIndex);
+    SelectSingleLineWordAt(Text(), hitIndex, _caretIndex, _selectionAnchorIndex);
     RefreshAccessibilitySnapshot();
 }
 
@@ -2368,7 +2469,7 @@ void ComboBox::InvalidateSingleLineLayoutCache() const noexcept
 
 float ComboBox::EnsureEditableCaretVisible(const ControlHost* host, float availableWidthDip) const noexcept
 {
-    if (_text.empty())
+    if (_text->empty())
     {
         _editableHorizontalScrollDip = 0.0f;
         return 0.0f;
@@ -2378,8 +2479,8 @@ float ComboBox::EnsureEditableCaretVisible(const ControlHost* host, float availa
     const DWRITE_READING_DIRECTION readingDirection = ResolveReadingDirection(GetFlowDirection());
     const float heightDip                           = std::max(1.0f, textRect.bottom - textRect.top);
     const wil::com_ptr<IDWriteTextLayout> layout =
-        GetOrCreateSingleLineLayout(host, _text, std::max(1.0f, availableWidthDip + _editableHorizontalScrollDip), heightDip, readingDirection);
-    const float caretOffset = MeasureCaretOffsetDip(layout.get(), _text, _caretIndex);
+        GetOrCreateSingleLineLayout(host, Text(), std::max(1.0f, availableWidthDip + _editableHorizontalScrollDip), heightDip, readingDirection);
+    const float caretOffset = MeasureCaretOffsetDip(layout.get(), Text(), _caretIndex);
     const float padding     = 6.0f;
     if (caretOffset < _editableHorizontalScrollDip + padding)
     {
@@ -2394,9 +2495,16 @@ float ComboBox::EnsureEditableCaretVisible(const ControlHost* host, float availa
 
 void ComboBox::ResetEditableCaretBlink(ControlHost& host) noexcept
 {
-    _caretBlinkAnchorTickMs = host.GetAnimationTickMs();
-    _caretVisible           = true;
-    host.RequestAnimation();
+    // Focus gain or input: the caret shows now and blinks from here; a disabled box's caret is steady.
+    CaretClockAccess::Restart(host, *this, IsEnabled());
+}
+
+void ComboBox::OnEnabledChanged(bool enabled) noexcept
+{
+    Control::OnEnabledChanged(enabled);
+    // A focused editable box disabled or enabled again: its caret stops blinking, or blinks again from now.
+    if (ControlHost* const host = GetHost(); host && _editable && HasFocus())
+        ResetEditableCaretBlink(*host);
 }
 
 void ComboBox::OnFocusChanged(ControlHost& host, bool focused)
@@ -2410,10 +2518,12 @@ void ComboBox::OnFocusChanged(ControlHost& host, bool focused)
     }
     else if (! focused)
     {
-        _caretBlinkAnchorTickMs.reset();
-        _caretVisible  = true;
+        // The caret is the box's only tick: an unfocused box waits for nothing.
+        CaretClockAccess::Stop(host, *this);
         _dragSelecting = false;
         ResetSingleLineSelectionClickSequence(_selectionClickSequence);
+        // Focus left mid-composition: the preview it shows is the text now.
+        SettlePreview(&host);
     }
     if (! focused && _open)
     {
@@ -2449,8 +2559,9 @@ bool ComboBox::NotifyTextChanged() const
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (const auto callback = _onTextChanged; callback)
     {
-        const std::wstring snapshot = _text;
-        (*callback)(snapshot);
+        // A pinned buffer: valid however the callback edits or destroys this control.
+        const SharedText snapshot = _text;
+        (*callback)(std::wstring_view(*snapshot));
     }
     if (lifetime.expired())
     {
@@ -2470,8 +2581,10 @@ void ComboBox::RefreshAccessibilitySnapshot() const noexcept
 
 void ComboBox::ResetPopupLayout() noexcept
 {
+    NoteHitTestChange(*this, HitRevisionSite::ComboBoxLayout); // the popup rectangle GetHitBounds and HitTestOverlay read
     _popupBounds                 = D2D1::RectF();
     _popupVisibleItemCount       = 0u;
+    _popupLayoutCache.valid      = false; // the placement above is gone: the next UpdatePopupLayout computes it
     _dragPopupScrollbar          = false;
     _popupScrollbarDragOffsetDip = 0.0f;
     _popupUsesBackdropBlur       = false;
@@ -2488,7 +2601,8 @@ void ComboBox::OpenPopup(ControlHost& host) noexcept
     }
 
     RebuildPopupItems(&host);
-    _open             = true;
+    _open = true;
+    NoteHitTestChange(*this, HitRevisionSite::ComboBoxOpen); // the open popup covers what lies below it
     _activePopupIndex = (_selectedIndex && FindPopupListIndexForItem(_selectedIndex.value())) ? _selectedIndex : GetPopupItemIndexAt(0u);
     _hoveredPopupIndex.reset();
     EnsurePopupSelectionVisible(&host);
@@ -2518,6 +2632,8 @@ bool ComboBox::RequestPopup(ControlHost& host)
 
 void ComboBox::ClosePopup() noexcept
 {
+    if (_open)
+        NoteHitTestChange(*this, HitRevisionSite::ComboBoxClose); // what the popup covered is hit again
     _open = false;
     _activePopupIndex.reset();
     _hoveredPopupIndex.reset();
@@ -2576,34 +2692,80 @@ void ComboBox::CapturePopupBackdrop(ControlHost& host) noexcept
 
 void ComboBox::UpdatePopupLayout(const ControlHost* host) const noexcept
 {
-    size_t desiredVisibleRows = std::min(GetPopupRenderRowCount(), _maxVisibleItemsOverride > 0u ? _maxVisibleItemsOverride : kComboBoxMaxVisibleItems);
-    _popupVisibleItemCount    = desiredVisibleRows;
+    const size_t renderRowCount = GetPopupRenderRowCount();
+    const size_t maximumRows    = _maxVisibleItemsOverride > 0u ? _maxVisibleItemsOverride : kComboBoxMaxVisibleItems;
+    size_t desiredVisibleRows   = std::min(renderRowCount, maximumRows);
 
     const D2D1_RECT_F bounds        = GetBounds();
     const ControlHost* resolvedHost = host ? host : GetHost();
-    const ThemePalette popupTheme   = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
-    const float gapDip              = popupTheme.density == Density::Compact ? 3.0f : 4.0f;
-    const float itemHeightDip       = std::max(_minimumPopupItemHeightDip, ResolveComboBoxItemHeightDip(popupTheme));
-    const float defaultHeightDip    = ComputeComboPopupHeightDip(desiredVisibleRows, itemHeightDip);
-    _popupBounds                    = D2D1::RectF(bounds.left, bounds.bottom + gapDip, bounds.right, bounds.bottom + gapDip + defaultHeightDip);
+    std::optional<ThemePalette> defaultTheme;
+    const ThemePalette& popupTheme = resolvedHost ? resolvedHost->GetTheme() : defaultTheme.emplace(MakeDefaultThemePalette(false));
+    const float gapDip             = popupTheme.density == Density::Compact ? 3.0f : 4.0f;
+    const float itemHeightDip      = std::max(_minimumPopupItemHeightDip, ResolveComboBoxItemHeightDip(popupTheme));
 
-    if (! host || desiredVisibleRows == 0u)
+    // A closed popup is not placed: nothing reads its placement until it opens, and the open path places it again. Placing
+    // it measures the items, which typing into a closed field must not do.
+    const bool placed        = host && _open && desiredVisibleRows > 0u;
+    D2D1_RECT_F clientBounds = D2D1::RectF();
+    if (placed)
+    {
+        clientBounds = host->GetClientBoundsDip();
+        if (const auto* scrollParent = FindContainingScrollPanel(host, *this))
+        {
+            const D2D1_RECT_F scrollBounds  = scrollParent->GetBounds();
+            const D2D1_RECT_F visibleBounds = D2D1::RectF((std::max)(clientBounds.left, scrollBounds.left),
+                                                          (std::max)(clientBounds.top, scrollBounds.top),
+                                                          (std::min)(clientBounds.right, scrollBounds.right),
+                                                          (std::min)(clientBounds.bottom, scrollBounds.bottom));
+            const float scrollOffset        = scrollParent->GetScrollOffset();
+            clientBounds = D2D1::RectF(visibleBounds.left, visibleBounds.top + scrollOffset, visibleBounds.right, visibleBounds.bottom + scrollOffset);
+        }
+    }
+    const bool clientUsable     = clientBounds.right > clientBounds.left && clientBounds.bottom > clientBounds.top;
+    const float contentWidthDip = placed && clientUsable ? ComputePopupContentWidthDip(host) : 0.0f;
+    const PopupLayoutCache inputs{true,
+                                  host,
+                                  _open,
+                                  renderRowCount,
+                                  GetPopupItemCount(),
+                                  maximumRows,
+                                  {bounds.left,
+                                   bounds.top,
+                                   bounds.right,
+                                   bounds.bottom,
+                                   clientBounds.left,
+                                   clientBounds.top,
+                                   clientBounds.right,
+                                   clientBounds.bottom,
+                                   gapDip,
+                                   itemHeightDip,
+                                   contentWidthDip}};
+#if DXUI_ENABLE_DIAGNOSTICS
+    const bool reuse = ! testComboBoxMeasurePopupItemsEveryLayout && _popupLayoutCache == inputs;
+#else
+    const bool reuse = _popupLayoutCache == inputs;
+#endif
+    if (reuse)
     {
         return;
     }
-
-    D2D1_RECT_F clientBounds = host->GetClientBoundsDip();
-    if (const auto* scrollParent = FindContainingScrollPanel(host, *this))
+    // W2.9: GetHitBounds and HitTestOverlay read the placement. Whatever input changed it (items, filter, no-matches text,
+    // maximum rows, minimum row height, theme, bounds, the client or a containing ScrollPanel's visible bounds and offset),
+    // a recomputed placement that differs from the previous one moves the hit revision, here, where it is known.
+    const D2D1_RECT_F previousPopupBounds = _popupBounds;
+    const auto notePlacementChange        = wil::scope_exit([this, previousPopupBounds]() noexcept
     {
-        const D2D1_RECT_F scrollBounds  = scrollParent->GetBounds();
-        const D2D1_RECT_F visibleBounds = D2D1::RectF((std::max)(clientBounds.left, scrollBounds.left),
-                                                      (std::max)(clientBounds.top, scrollBounds.top),
-                                                      (std::min)(clientBounds.right, scrollBounds.right),
-                                                      (std::min)(clientBounds.bottom, scrollBounds.bottom));
-        const float scrollOffset        = scrollParent->GetScrollOffset();
-        clientBounds = D2D1::RectF(visibleBounds.left, visibleBounds.top + scrollOffset, visibleBounds.right, visibleBounds.bottom + scrollOffset);
-    }
-    if (clientBounds.right <= clientBounds.left || clientBounds.bottom <= clientBounds.top)
+        if (_popupBounds.left != previousPopupBounds.left || _popupBounds.top != previousPopupBounds.top || _popupBounds.right != previousPopupBounds.right ||
+            _popupBounds.bottom != previousPopupBounds.bottom)
+            NoteHitTestChange(*const_cast<ComboBox*>(this), HitRevisionSite::ComboBoxLayout);
+    });
+    _popupLayoutCache                     = inputs;
+    ++Detail::Work().popups.comboBoxPopupLayouts;
+
+    _popupVisibleItemCount       = desiredVisibleRows;
+    const float defaultHeightDip = ComputeComboPopupHeightDip(desiredVisibleRows, itemHeightDip);
+    _popupBounds                 = D2D1::RectF(bounds.left, bounds.bottom + gapDip, bounds.right, bounds.bottom + gapDip + defaultHeightDip);
+    if (! placed || ! clientUsable)
     {
         return;
     }
@@ -2612,7 +2774,6 @@ void ComboBox::UpdatePopupLayout(const ControlHost* host) const noexcept
     const float availableAboveDip = std::max(0.0f, (bounds.top - gapDip) - clientBounds.top);
     const size_t fitBelow         = ComputeComboPopupRowsThatFit(availableBelowDip, itemHeightDip);
     const size_t fitAbove         = ComputeComboPopupRowsThatFit(availableAboveDip, itemHeightDip);
-    const size_t renderRowCount   = GetPopupRenderRowCount();
     if (renderRowCount > desiredVisibleRows)
     {
         if (renderRowCount <= fitBelow || renderRowCount <= fitAbove)
@@ -2644,7 +2805,7 @@ void ComboBox::UpdatePopupLayout(const ControlHost* host) const noexcept
 
     _popupVisibleItemCount     = chosenRows;
     const float popupHeightDip = ComputeComboPopupHeightDip(chosenRows, itemHeightDip);
-    const float popupWidthDip  = ComputePopupWidthDip(host);
+    const float popupWidthDip  = HasPopupScrollbar() ? contentWidthDip + kScrollbarThicknessDip : contentWidthDip;
     float popupLeft            = bounds.left;
     float popupRight           = popupLeft + popupWidthDip;
     const float clientWidthDip = clientBounds.right - clientBounds.left;
@@ -2680,37 +2841,94 @@ void ComboBox::UpdatePopupLayout(const ControlHost* host) const noexcept
     _popupBounds         = D2D1::RectF(popupLeft, popupTop, popupRight, popupTop + popupHeightDip);
 }
 
-float ComboBox::ComputePopupWidthDip(const ControlHost* host) const noexcept
+float ComboBox::ComputePopupContentWidthDip(const ControlHost* host) const noexcept
 {
+    // Width-table allocation failure remains fatal by repository policy; noexcept is intentional at this UI boundary.
     const ControlHost* resolvedHost = host ? host : GetHost();
-    const ThemePalette theme        = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
-    const float itemTextInsetsDip   = ResolveComboBoxPopupItemLeftInsetDip(theme) + ResolveComboBoxPopupItemRightInsetDip(theme);
-    float popupWidthDip             = std::max(0.0f, GetBounds().right - GetBounds().left);
-    for (size_t popupListIndex = 0u; popupListIndex < GetPopupItemCount(); ++popupListIndex)
+    std::optional<ThemePalette> defaultTheme;
+    const ThemePalette& theme     = resolvedHost ? resolvedHost->GetTheme() : defaultTheme.emplace(MakeDefaultThemePalette(false));
+    const float itemTextInsetsDip = ResolveComboBoxPopupItemLeftInsetDip(theme) + ResolveComboBoxPopupItemRightInsetDip(theme);
+    float popupWidthDip           = std::max(0.0f, GetBounds().right - GetBounds().left);
+    const bool noMatches          = _editable && GetPopupItemCount() == 0u && ! _items.empty();
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (testComboBoxMeasurePopupItemsEveryLayout)
     {
-        const std::optional<size_t> itemIndex = GetPopupItemIndexAt(popupListIndex);
-        if (! itemIndex)
+        // The measurement before retained widths (W2.2), kept for the test that compares both.
+        for (size_t popupListIndex = 0u; popupListIndex < GetPopupItemCount(); ++popupListIndex)
         {
-            continue;
+            const std::optional<size_t> itemIndex = GetPopupItemIndexAt(popupListIndex);
+            if (! itemIndex)
+            {
+                continue;
+            }
+
+            popupWidthDip = std::max(popupWidthDip,
+                                     MeasureSingleLineTextWidthDip(host, _items[itemIndex.value()].display, FontRole::Body) +
+                                         (kComboBoxPopupPaddingDip * 2.0f) + itemTextInsetsDip);
         }
-
-        popupWidthDip = std::max(popupWidthDip,
-                                 MeasureSingleLineTextWidthDip(host, _items[itemIndex.value()].display, FontRole::Body) + (kComboBoxPopupPaddingDip * 2.0f) +
-                                     itemTextInsetsDip);
+        if (noMatches)
+        {
+            popupWidthDip =
+                std::max(popupWidthDip, MeasureSingleLineTextWidthDip(host, GetNoMatchesText(), FontRole::Small) + (kComboBoxPopupPaddingDip * 2.0f) + 12.0f);
+        }
+        return popupWidthDip;
     }
+#endif
 
-    if (_editable && GetPopupItemCount() == 0u && ! _items.empty())
+    // An item's width depends on its display text and on the host's Body text format, which is built from a fixed role
+    // spec by the host's DirectWrite factory: a new factory moves the typography revision. Widths are in DIPs, measured
+    // left to right in a single line, so DPI, density, flow direction and the filter do not change them.
+    PopupItemWidthCache& cache = _popupItemWidthCache;
+    if (! cache.valid || cache.host != host || cache.typographyRevision != (host ? host->GetTypographyRevision() : 0u))
     {
-        popupWidthDip =
-            std::max(popupWidthDip, MeasureSingleLineTextWidthDip(host, GetNoMatchesText(), FontRole::Small) + (kComboBoxPopupPaddingDip * 2.0f) + 12.0f);
+        cache.itemWidthsDip.resize(_items.size());
+        for (size_t itemIndex = 0u; itemIndex < _items.size(); ++itemIndex)
+        {
+            cache.itemWidthsDip[itemIndex] = MeasureSingleLineTextWidthDip(host, _items[itemIndex].display, FontRole::Body);
+            ++Detail::Work().popups.comboBoxItemWidthMeasurements;
+        }
+        cache.valid = true;
+        cache.host  = host;
+        // Read after measuring: the first measurement may create the host's DirectWrite factory, which moves the revision.
+        cache.typographyRevision = host ? host->GetTypographyRevision() : 0u;
+        cache.filteredValid      = false;
+        cache.noMatchesValid     = false;
     }
-
-    if (HasPopupScrollbar())
+    if (! cache.filteredValid)
     {
-        popupWidthDip += kScrollbarThicknessDip;
+        cache.filteredMaximum.reset();
+        for (const size_t itemIndex : _popupItemIndices)
+        {
+            if (itemIndex < cache.itemWidthsDip.size())
+            {
+                cache.filteredMaximum =
+                    cache.filteredMaximum ? std::max(*cache.filteredMaximum, cache.itemWidthsDip[itemIndex]) : cache.itemWidthsDip[itemIndex];
+            }
+        }
+        cache.filteredValid = true;
     }
-
+    // Adding the padding and insets keeps the order of widths, so applying it to the maximum gives the maximum of the sums.
+    if (cache.filteredMaximum)
+    {
+        popupWidthDip = std::max(popupWidthDip, *cache.filteredMaximum + (kComboBoxPopupPaddingDip * 2.0f) + itemTextInsetsDip);
+    }
+    if (noMatches)
+    {
+        if (! cache.noMatchesValid)
+        {
+            cache.noMatchesWidthDip = MeasureSingleLineTextWidthDip(host, GetNoMatchesText(), FontRole::Small);
+            cache.noMatchesValid    = true;
+            ++Detail::Work().popups.comboBoxItemWidthMeasurements;
+        }
+        popupWidthDip = std::max(popupWidthDip, cache.noMatchesWidthDip + (kComboBoxPopupPaddingDip * 2.0f) + 12.0f);
+    }
     return popupWidthDip;
+}
+
+void ComboBox::InvalidatePopupLayoutCaches() const noexcept
+{
+    _popupItemWidthCache = {};
+    _popupLayoutCache    = {};
 }
 
 bool ComboBox::HasPopupScrollbar() const noexcept
@@ -2720,10 +2938,13 @@ bool ComboBox::HasPopupScrollbar() const noexcept
 
 void ComboBox::RebuildPopupItems(const ControlHost* host) noexcept
 {
+    ++Detail::Work().popups.comboBoxPopupRebuilds;
+    _popupItemWidthCache.filteredValid = false;                 // the maximum over the filtered items follows the new filter
+    NoteHitTestChange(*this, HitRevisionSite::ComboBoxRebuild); // the filtered rows size the popup, which GetHitBounds and HitTestOverlay read
     _popupItemIndices.clear();
     _popupItemIndices.reserve(_items.size());
 
-    if (! _editable || _text.empty())
+    if (! _editable || FilterText().empty())
     {
         for (size_t itemIndex = 0; itemIndex < _items.size(); ++itemIndex)
         {
@@ -2734,7 +2955,7 @@ void ComboBox::RebuildPopupItems(const ControlHost* host) noexcept
     {
         for (size_t itemIndex = 0; itemIndex < _items.size(); ++itemIndex)
         {
-            if (StartsWithInsensitive(_items[itemIndex].value, _text) || StartsWithInsensitive(_items[itemIndex].display, _text))
+            if (StartsWithInsensitive(_items[itemIndex].value, FilterText()) || StartsWithInsensitive(_items[itemIndex].display, FilterText()))
             {
                 _popupItemIndices.push_back(itemIndex);
             }
@@ -2796,8 +3017,12 @@ void ComboBox::CommitSelection(ControlHost& host, size_t itemIndex, bool closePo
     _activePopupIndex = itemIndex;
     if (_editable)
     {
-        _text       = _items[itemIndex].value;
-        _caretIndex = _text.size();
+        // The committed item replaces the text without an undo step: the history's newest steps keep restoring their text.
+        if (! SharedTextEquals(_text, _items[itemIndex].value))
+            TextEditHistory::NoteUnrecordedChange(_undoHistory, _redoHistory, *_text);
+        _text = MakeSharedText(_items[itemIndex].value);
+        _committedText.reset();
+        _caretIndex = _text->size();
         _selectionAnchorIndex.reset();
         _dragSelecting = false;
         if (! NotifyTextChanged() || lifetime.expired() || GetHost() != originalHost)
@@ -2845,7 +3070,7 @@ void ComboBox::SyncEditableSelectionFromText() noexcept
 
     for (size_t itemIndex = 0; itemIndex < _items.size(); ++itemIndex)
     {
-        if (_items[itemIndex].value == _text)
+        if (_items[itemIndex].value == FilterText())
         {
             _selectedIndex = itemIndex;
             return;
@@ -3087,12 +3312,12 @@ D2D1_RECT_F ComboBox::GetPopupScrollbarThumbHitRect() const noexcept
 
 D2D1_RECT_F ComboBox::GetPopupItemRect(size_t popupListIndex, const ControlHost* host) const noexcept
 {
+    // Arithmetic over the placement the last UpdatePopupLayout computed (paint, hit testing and input place it first).
     if (! _open)
     {
         return D2D1::RectF();
     }
 
-    UpdatePopupLayout(host);
     const size_t visibleCount = GetPopupVisibleItemCount();
     const size_t visibleEnd   = std::min(GetPopupItemCount(), _popupScrollIndex + visibleCount);
     if (popupListIndex < _popupScrollIndex || popupListIndex >= visibleEnd)
@@ -3117,9 +3342,10 @@ D2D1_RECT_F ComboBox::GetPopupItemTextRect(size_t popupListIndex, const ControlH
 {
     const D2D1_RECT_F itemRect      = GetPopupItemRect(popupListIndex, host);
     const ControlHost* resolvedHost = host ? host : GetHost();
-    const ThemePalette theme        = resolvedHost ? resolvedHost->GetTheme() : MakeDefaultThemePalette(false);
-    const float leftInsetDip        = ResolveComboBoxPopupItemLeftInsetDip(theme);
-    const float rightInsetDip       = ResolveComboBoxPopupItemRightInsetDip(theme);
+    std::optional<ThemePalette> defaultTheme;
+    const ThemePalette& theme = resolvedHost ? resolvedHost->GetTheme() : defaultTheme.emplace(MakeDefaultThemePalette(false));
+    const float leftInsetDip  = ResolveComboBoxPopupItemLeftInsetDip(theme);
+    const float rightInsetDip = ResolveComboBoxPopupItemRightInsetDip(theme);
     return D2D1::RectF(itemRect.left + leftInsetDip, itemRect.top, itemRect.right - rightInsetDip, itemRect.bottom);
 }
 

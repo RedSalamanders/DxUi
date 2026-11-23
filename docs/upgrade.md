@@ -1,5 +1,54 @@
 # Upgrade a DxUi consumer
 
+## API 6
+
+API revision 6 is unreleased and still collecting changes: each change below is a compile break by design, so revision-5
+code that used a changed call stops compiling instead of running with a changed meaning. No API 6 commit has a consumer
+qualification record yet: pin a reviewed exact commit with `"apiRevision": 6` and qualify it as described below. The
+revision-6 compile fixture is [`ConsumerApi.Tests.Revision6.cpp`](../Tools/ConsumerApi/ConsumerApi.Tests.Revision6.cpp).
+
+Changes in API 6:
+
+1. [Embedded animation request](#embedded-animation-request)
+2. [One user-settings call](#one-user-settings-call)
+
+### Embedded animation request
+
+An embedded application asks the view when it next needs the application's clock. Revision-5 code that asks
+`NeedsAnimation()` or tests `AdvanceAnimation`'s result as a `bool` fails with errors such as `'NeedsAnimation': is not a
+member of 'DxUi::EmbeddedHost'` and `cannot convert from 'DxUi::EmbeddedAnimationRequest' to 'bool'`.
+`DXUI_HAS_EMBEDDED_ANIMATION_REQUEST` marks headers that have the new surface. Native `ControlHost` hosting needs no
+change.
+
+| Revision 5 | Revision 6 |
+| --- | --- |
+| `view.NeedsAnimation()` | `view.GetAnimationRequest().kind != DxUi::EmbeddedAnimationRequest::Kind::None` |
+| `bool more = view.AdvanceAnimation(now);` | `DxUi::EmbeddedAnimationRequest next = view.AdvanceAnimation(now);` and `more` is `next.kind != Kind::None` |
+| a timer or frame loop running while `NeedsAnimation()` | sleep until the request: `None` sleeps, `Continuous` advances every frame, `Deadline` advances once at `dueTickMs` on your own clock |
+| "call only while `NeedsAnimation()`" | an `AdvanceAnimation` with nothing requested does nothing and returns `None` |
+| `view.Attach(pool, {context, requestPreparation})` | `view.Attach(pool, {context, requestPreparation, nowTickMs})`: your clock is required; `Attach` returns `E_INVALIDARG` without it |
+
+`AdvanceAnimation` still takes your application's milliseconds and the clock rules are unchanged: the first advance after
+a pause only sets the baseline, a tick that goes back adds nothing, and the clock saturates. `EmbeddedCallbacks::nowTickMs`
+returns the same clock, read by the view wherever it takes a time stamp between advances (input, setters, a caret
+restart, a tooltip delay), so stamps are current however long your application sleeps; it is required, so no view can be
+attached with a clock that stops between advances. A request's `dueTickMs` is on that same clock; it is 0 when the view
+needs its baseline advance, may already have passed, and is never beyond the end of your clock's range (such a deadline
+is `None`). The polling loop, the loop that sleeps until the request and the timer-driven message loop are shown in
+[hosting](hosting.md#input-dpi-and-animation); polling every frame stays correct, but only the other two let an idle or
+blinking view stop waking the application. The view remembers the request it last reported and calls
+`requestPreparation` when it needs you sooner, so sleeping until the last request you read is safe; read the request
+after that callback. `DXUI_HAS_EMBEDDED_APPLICATION_CLOCK` marks headers that require the clock.
+
+### One user-settings call
+
+When your window receives `WM_SETTINGCHANGE`, call `view.Controls().RefreshUserSettings()` for each embedded view, and
+for each native host attached to a child window (Windows sends the message to top-level windows only; forwarding it to
+the child host's `HandleMessage` works too). It re-reads every user setting a host keeps: caret blink time, caret
+timeout, tooltip hover time. Earlier development builds had a separate call per setting; no released revision did.
+
+## API 5
+
 **API 5:** the recorded x64 library scope is qualified at `f6791b5070efd1fa8dc86601bc9422ae9a321d2e`;
 see the [evidence](../Measurements/FailurePolicy_2026-11-06/README.md). Native ARM64 execution, formal
 performance-policy qualification and each consumer product's integration remain separate. The exact lock below
@@ -140,7 +189,8 @@ depend on it. This boundary does not remove existing declarations or change thei
 
 | Current consumer | Work to do |
 | --- | --- |
-| Already on API 4 | Implement the API 5 host, checked-result and rebuild work above; select a reviewed exact API 5 pin and qualify the consumer. |
+| Already on API 5 | Port embedded animation to the API 6 request and forward `WM_SETTINGCHANGE` to `RefreshUserSettings` (above); select a reviewed exact API 6 pin and qualify the consumer. |
+| Already on API 4 | Implement the API 5 host, checked-result and rebuild work above; select a reviewed exact API 5 pin and qualify the consumer. Then the API 6 port. |
 | Still on API 3 | Also port the historical revision-4 Grid/Tree focus and selection, child/tab transfer and menu contracts below. Update the consumer's expected-revision guard together with its adapters and lock. |
 | API 2 or older | First apply the earlier interface/script renames in the [compatibility contract](../Specs/Build/Build_ToolchainAndConsumption.md#compatibility-and-the-consumer-interface), then the revision-4 and API 5 migrations. |
 

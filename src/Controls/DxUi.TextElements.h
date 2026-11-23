@@ -18,15 +18,25 @@ struct Utf16CodePoint
 [[nodiscard]] std::size_t StepToPreviousCodePoint(std::wstring_view text, std::size_t caret) noexcept;
 [[nodiscard]] std::size_t StepToNextCodePoint(std::wstring_view text, std::size_t caret) noexcept;
 [[nodiscard]] Utf16CodePoint ReadCodePointAt(std::wstring_view text, std::size_t position) noexcept;
-// The start is an established element boundary. Arbitrary-caret wrappers scan
-// from the beginning to retain RI/Indic/emoji context. Unpaired surrogates are
+// The start is an established element boundary. Arbitrary-caret wrappers start
+// from FindTextElementSearchAnchor to retain RI/Indic/emoji context. Unpaired surrogates are
 // preserved as individual code units for legacy callers; the rich model rejects them.
 [[nodiscard]] std::size_t FindNextTextElementBoundary(std::wstring_view text, std::size_t start) noexcept;
+// Returns an element boundary at or before position: 0, the end, or the nearest
+// code-point position whose neighbor pair breaks under every possible preceding
+// context (UAX #29 GB4/GB5 or GB999 with GB3 and GB6-GB13 excluded by the pair).
+// A forward walk from it equals a walk from 0. The backward search is bounded by
+// the containing element, except across regional-indicator runs (GB12/GB13),
+// pictographic ZWJ chains (GB11) and Indic linker chains (GB9c).
+[[nodiscard]] std::size_t FindTextElementSearchAnchor(std::wstring_view text, std::size_t position) noexcept;
 // Returns the preceding boundary, or the containing element's start for an
 // interior UTF-16 position. Contextual RI/Indic/emoji runs remain unbounded.
 [[nodiscard]] std::size_t FindPreviousTextElementBoundary(std::wstring_view text, std::size_t position) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
 extern thread_local std::size_t testTextElementPropertyLookups;
+// UTF-16 code units read by the grapheme walkers, counted once per code point
+// read. A local hook until the shared work counters own it.
+extern thread_local std::size_t testTextElementCodeUnitsVisited;
 #endif
 struct TextElementRange
 {

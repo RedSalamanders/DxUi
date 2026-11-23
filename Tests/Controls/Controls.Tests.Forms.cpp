@@ -110,6 +110,14 @@ public:
             L"alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu");
         text->SetMultiline(true);
     }
+    // The shared measure cache (W6.2) answers a width this probe measured before without calling it, so the probe keeps every
+    // width it measured in a layout, not only the last one.
+    void ForgetMeasurement() noexcept
+    {
+        InvalidateMeasure();
+        measuredWidths.clear();
+    }
+    mutable std::vector<float> measuredWidths;
     Label* text                 = nullptr;
     mutable float measuredWidth = 0.0f;
     mutable size_t measureCalls = 0;
@@ -119,6 +127,7 @@ protected:
     HRESULT MeasureOverride(const MeasureContext& context, const LayoutConstraints& constraints, DesiredSize& desired) const override
     {
         measuredWidth = constraints.maximumWidthDip.value_or(0.0f);
+        measuredWidths.push_back(measuredWidth);
         ++measureCalls;
         return text->Measure(context, constraints, desired);
     }
@@ -229,7 +238,7 @@ void TestFormsLocalizedGeometryMatrix()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "form matrix shared graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "form matrix embedded attachment");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "form matrix embedded attachment");
     auto root    = std::make_unique<Panel>();
     auto* form   = root->AddChild<FormPanel>();
     auto* first  = form->AddField(L"name", L"Nom du document e\u0301 \U0001F642 العربية");
@@ -508,6 +517,7 @@ void TestFormsFractionalBesidePartsMeasureTheirCommittedWidths()
         for (const float origin : {1.1f, 15.6f, 351.5f, 400.1f, 1200.2f})
         {
             form->SetFlowDirection(flow);
+            editor->ForgetMeasurement();
             form->SetBounds(D2D1::RectF(origin, 5.3f, origin + 340.4f, 505.3f));
             const auto bounds = form->GetBounds();
             const float width = bounds.right - bounds.left;
@@ -520,7 +530,8 @@ void TestFormsFractionalBesidePartsMeasureTheirCommittedWidths()
             const auto editorBounds      = editor->GetBounds();
             const float representedWidth = editorBounds.right - editorBounds.left;
             exercisedRounding            = exercisedRounding || formerOfferedWidth != representedWidth;
-            Require(editor->measuredWidth == representedWidth && editor->measureCalls == editor->measuresAtBounds,
+            Require(std::ranges::find(editor->measuredWidths, representedWidth) != editor->measuredWidths.end() &&
+                        editor->measureCalls == editor->measuresAtBounds,
                     "wrapped editor receives the exact offered width and is not remeasured during commit");
             DesiredSize expectedEditor;
             RequireSucceeded(editor->text->Measure({host}, LayoutConstraints::AtMost(representedWidth), expectedEditor),
@@ -929,7 +940,7 @@ void TestFormsEmbeddedReflowPreservesCompositionSelectionAndFocus()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded form input graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "embedded form input attach");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "embedded form input attach");
     auto root    = std::make_unique<FormPanel>();
     auto* form   = root.get();
     auto* first  = form->AddField(L"name", L"Nom");
@@ -993,7 +1004,7 @@ void TestFormsEmbeddedValidationOnEachEditKeepsInput()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "validating form graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "validating form attach");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "validating form attach");
     auto root    = std::make_unique<FormPanel>();
     auto* form   = root.get();
     auto* field  = form->AddField(L"name", L"Nom");

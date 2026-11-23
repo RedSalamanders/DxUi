@@ -1,4 +1,5 @@
 #include "DxUi.Internal.h"
+#include "DxUi.RetainedCaches.h"
 
 #include <algorithm>
 #include <cmath>
@@ -255,7 +256,7 @@ bool DrawShadowEffectPass(ControlHost& host, const D2D1_RECT_F& targetRect, floa
     dc->GetTarget(previousTarget.put());
 
     wil::com_ptr<ID2D1CommandList> mask;
-    if (FAILED(dc->CreateCommandList(mask.put())) || ! mask)
+    if (FAILED(CountedCreateCommandList(dc, mask.put())) || ! mask)
     {
         return false;
     }
@@ -280,7 +281,7 @@ bool DrawShadowEffectPass(ControlHost& host, const D2D1_RECT_F& targetRect, floa
     }
 
     wil::com_ptr<ID2D1Effect> shadowEffect;
-    if (FAILED(dc->CreateEffect(kD2DShadowEffectId, shadowEffect.put())) || ! shadowEffect)
+    if (FAILED(CountedCreateEffect(dc, kD2DShadowEffectId, shadowEffect.put())) || ! shadowEffect)
     {
         return false;
     }
@@ -292,6 +293,7 @@ bool DrawShadowEffectPass(ControlHost& host, const D2D1_RECT_F& targetRect, floa
 
     const D2D1_POINT_2F shadowOffset = D2D1::Point2F(0.0f, yOffsetDip);
     dc->DrawImage(shadowEffect.get(), &shadowOffset, nullptr, D2D1_INTERPOLATION_MODE_LINEAR, D2D1_COMPOSITE_MODE_SOURCE_OVER);
+    ++Detail::Work().frame.shadowPasses;
     return true;
 }
 
@@ -444,8 +446,8 @@ constexpr float kSliderTouchHaloRingWidthDip = 2.0f;
     }
 
     wil::com_ptr<IDWriteTextLayout> layout;
-    if (FAILED(factory->CreateTextLayout(
-            text.data(), static_cast<UINT32>(text.size()), format, (std::max)(1.0f, widthDip), (std::max)(1.0f, heightDip), layout.addressof())) ||
+    if (FAILED(CountedCreateTextLayout(
+            factory, text.data(), static_cast<UINT32>(text.size()), format, (std::max)(1.0f, widthDip), (std::max)(1.0f, heightDip), layout.addressof())) ||
         ! layout)
     {
         return {};
@@ -691,7 +693,7 @@ void PrepareTopRoundedAttachedRect(ControlHost& host,
     wil::com_ptr<ID2D1PathGeometry> fillGeometry;
     if (creationCount)
         ++*creationCount;
-    if (FAILED(factory->CreatePathGeometry(fillGeometry.addressof())) || ! fillGeometry)
+    if (FAILED(CountedCreatePathGeometry(factory, fillGeometry.addressof())) || ! fillGeometry)
     {
         return;
     }
@@ -727,7 +729,7 @@ void PrepareTopRoundedAttachedRect(ControlHost& host,
     wil::com_ptr<ID2D1PathGeometry> strokeGeometry;
     if (creationCount)
         ++*creationCount;
-    if (FAILED(factory->CreatePathGeometry(strokeGeometry.addressof())) || ! strokeGeometry)
+    if (FAILED(CountedCreatePathGeometry(factory, strokeGeometry.addressof())) || ! strokeGeometry)
     {
         return;
     }
@@ -868,7 +870,9 @@ void DrawSingleFocusRing(ID2D1RenderTarget* target,
     target->DrawRoundedRectangle(D2D1::RoundedRect(focusRect, cornerRadius + focusOutset, cornerRadius + focusOutset), brush, focusStroke);
 }
 
-void DrawRawCenteredText(ID2D1RenderTarget* target,
+// With a host (Button's own chrome), through the host's retained layouts; the public DrawButtonChrome has none.
+void DrawRawCenteredText(ControlHost* host,
+                         ID2D1RenderTarget* target,
                          ID2D1SolidColorBrush* brush,
                          IDWriteTextFormat* format,
                          std::wstring_view text,
@@ -881,7 +885,10 @@ void DrawRawCenteredText(ID2D1RenderTarget* target,
     }
 
     brush->SetColor(color);
-    target->DrawTextW(text.data(), static_cast<UINT32>(text.size()), format, rect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
+    if (host)
+        DrawHostText(*host, target, text, format, rect, brush, kTextDrawOptions);
+    else
+        CountedDrawText(target, text.data(), static_cast<UINT32>(text.size()), format, rect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
 }
 
 } // namespace
@@ -992,12 +999,37 @@ ButtonChromeResolvedStyle ResolveButtonChromeResolvedStyle(const ThemePalette& t
     return resolved;
 }
 
+namespace
+{
+void DrawButtonChromeText(ControlHost* host,
+                          ID2D1RenderTarget* target,
+                          ID2D1SolidColorBrush* brush,
+                          IDWriteTextFormat* textFormat,
+                          IDWriteTextFormat* iconFormat,
+                          const ThemePalette& theme,
+                          const ButtonChromeDrawSpec& spec) noexcept;
+} // namespace
+
 void DrawButtonChrome(ID2D1RenderTarget* target,
                       ID2D1SolidColorBrush* brush,
                       IDWriteTextFormat* textFormat,
                       IDWriteTextFormat* iconFormat,
                       const ThemePalette& theme,
                       const ButtonChromeDrawSpec& spec) noexcept
+{
+    DrawButtonChromeText(nullptr, target, brush, textFormat, iconFormat, theme, spec);
+}
+
+namespace
+{
+// DrawButtonChrome; with a host, its text draws through the host's retained layouts.
+void DrawButtonChromeText(ControlHost* host,
+                          ID2D1RenderTarget* target,
+                          ID2D1SolidColorBrush* brush,
+                          IDWriteTextFormat* textFormat,
+                          IDWriteTextFormat* iconFormat,
+                          const ThemePalette& theme,
+                          const ButtonChromeDrawSpec& spec) noexcept
 {
     if (! target || ! brush || ! HasPaintableArea(spec.bounds))
     {
@@ -1047,7 +1079,8 @@ void DrawButtonChrome(ID2D1RenderTarget* target,
 
     if (spec.variant == ButtonVariant::IconOnly)
     {
-        DrawRawCenteredText(target, brush, iconFormat ? iconFormat : textFormat, spec.text, OffsetButtonChromeRect(spec.bounds, offsetX, offsetY), style.text);
+        DrawRawCenteredText(
+            host, target, brush, iconFormat ? iconFormat : textFormat, spec.text, OffsetButtonChromeRect(spec.bounds, offsetX, offsetY), style.text);
         return;
     }
 
@@ -1060,14 +1093,15 @@ void DrawButtonChrome(ID2D1RenderTarget* target,
     }
 
     const D2D1_RECT_F textRect = OffsetButtonChromeRect(layout.textRect, offsetX, offsetY);
-    DrawRawCenteredText(target, brush, textFormat, spec.text, textRect, style.text);
+    DrawRawCenteredText(host, target, brush, textFormat, spec.text, textRect, style.text);
 
     if (layout.hasChevron)
     {
         const wchar_t chevronText[2]{spec.chevronGlyph != L'\0' ? spec.chevronGlyph : kButtonDropDownChevronGlyph, L'\0'};
-        DrawRawCenteredText(target, brush, iconFormat ? iconFormat : textFormat, std::wstring_view(chevronText, 1u), layout.chevronRect, style.chevron);
+        DrawRawCenteredText(host, target, brush, iconFormat ? iconFormat : textFormat, std::wstring_view(chevronText, 1u), layout.chevronRect, style.chevron);
     }
 }
+} // namespace
 
 void DrawCenteredText(ControlHost& host,
                       std::wstring_view text,
@@ -1090,7 +1124,7 @@ void DrawCenteredText(ControlHost& host,
 
     if (auto* brush = host.GetSolidBrush(color))
     {
-        dc->DrawTextW(text.data(), static_cast<UINT32>(text.size()), format, rect, brush, kTextDrawOptions, DWRITE_MEASURING_MODE_NATURAL);
+        DrawHostText(host, dc, text, format, rect, brush, kTextDrawOptions);
     }
 }
 
@@ -1200,7 +1234,7 @@ void DrawTextWithMnemonic(ControlHost& host,
 #if DXUI_ENABLE_DIAGNOSTICS
     ++testMnemonicLayoutCreations;
 #endif
-    if (FAILED(factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.addressof())) || ! layout)
+    if (FAILED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.addressof())) || ! layout)
     {
         DrawCenteredText(host, text, rect, fontRole, color, alignment, paragraphAlignment, wrap, flowDirection);
         return;
@@ -1534,8 +1568,10 @@ void Panel::Paint(ControlHost& host) const
 {
     const auto paintChild = [&host](const Control& child)
     {
+        ++Detail::Work().frame.treeVisitsPaint;
         if (child.IsVisible())
         {
+            ++Detail::Work().frame.paintExecutions;
             child.Paint(host);
         }
     };
@@ -1570,12 +1606,16 @@ void Panel::PaintOverlay(ControlHost& host) const
 
 bool Panel::Tick(ControlHost& host, uint64_t nowTickMs)
 {
+    // The host's frame schedule ticks each requesting child itself; only a direct call walks the children.
+    if (host._tickWakeFrame)
+        return false;
     bool keepTicking         = false;
     const auto ownerLifetime = GetLifetimeToken();
     ForEachPanelChildCallback(*this,
                               ownerLifetime,
                               [&host, nowTickMs, &keepTicking](Control& child)
     {
+        ++Detail::Work().frame.treeVisitsTick;
         if (child.IsVisible())
         {
             keepTicking = child.Tick(host, nowTickMs) || keepTicking;
@@ -1592,7 +1632,13 @@ Control* Panel::HitTest(D2D1_POINT_2F point)
     }
 
     const auto ownerLifetime = GetLifetimeToken();
-    if (Control* const hit = FindPanelChildHit(*this, ownerLifetime, [point](Control& child) { return child.HitTest(point); }))
+    if (Control* const hit = FindPanelChildHit(*this,
+                                               ownerLifetime,
+                                               [point](Control& child)
+    {
+        ++Detail::Work().frame.treeVisitsHitTest;
+        return child.HitTest(point);
+    }))
         return hit;
     return ownerLifetime.expired() ? nullptr : this;
 }
@@ -1742,6 +1788,7 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
         return;
     }
 
+    NoteHitTestChange(*this, HitRevisionSite::PageTransitionStart); // a PageHost in transition hits nothing
     _outgoingPage                     = std::move(_currentPage);
     _currentPage                      = std::move(page);
     _transition.active                = true;
@@ -1768,7 +1815,7 @@ void PageHost::SetPage(std::unique_ptr<Control> page, std::wstring connectedAnim
         }
     }
 
-    host->RequestAnimation();
+    host->RequestAnimation(*this);
     if (! ownerLifetime.expired() && GetHost() == host)
         RequestInvalidate();
 }
@@ -1800,9 +1847,10 @@ void PageHost::PaintPage(ControlHost& host, const Control* page, float opacity, 
     dc->GetTransform(&previousTransform);
     auto restoreTransform = wil::scope_exit([dc, previousTransform] { dc->SetTransform(previousTransform); });
     wil::com_ptr<ID2D1Layer> layer;
-    if (FAILED(dc->CreateLayer(layer.addressof())) || ! layer)
+    if (FAILED(CountedCreateLayer(dc, layer.addressof())) || ! layer)
     {
         dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
+        Detail::NotePaintDispatch();
         page->Paint(host);
         return;
     }
@@ -1813,6 +1861,7 @@ void PageHost::PaintPage(ControlHost& host, const Control* page, float opacity, 
     dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
     dc->PushLayer(layerParameters, layer.get());
     auto restoreLayer = wil::scope_exit([dc] { dc->PopLayer(); });
+    Detail::NotePaintDispatch();
     page->Paint(host);
 }
 
@@ -1857,6 +1906,7 @@ void PageHost::Paint(ControlHost& host) const
     const auto state = ResolveDebugState(host.GetTheme(), 0u);
     if (! state.active)
     {
+        Detail::NotePaintDispatch();
         current->Paint(host);
         return;
     }
@@ -1867,7 +1917,7 @@ void PageHost::Paint(ControlHost& host) const
     if (! _transition.debugFrozen)
 #endif
     {
-        host.RequestAnimation();
+        host.RequestAnimation(*this);
     }
 
     Debug::Perf::Scope transitionPaintPerf(L"dxui.animation.page_transition.paint");
@@ -1933,7 +1983,7 @@ void PageHost::PaintOverlay(ControlHost& host) const
         dc->GetTransform(&previousTransform);
         auto restoreTransform = wil::scope_exit([dc, previousTransform] { dc->SetTransform(previousTransform); });
         wil::com_ptr<ID2D1Layer> layer;
-        if (FAILED(dc->CreateLayer(layer.addressof())) || ! layer)
+        if (FAILED(CountedCreateLayer(dc, layer.addressof())) || ! layer)
         {
             dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
             page->PaintOverlay(host);
@@ -1988,17 +2038,21 @@ bool PageHost::Tick(ControlHost& host, uint64_t nowTickMs)
     const std::weak_ptr<int> currentLifetime  = current ? GetControlLifetimeToken(*current) : std::weak_ptr<int>{};
     const std::weak_ptr<int> outgoingLifetime = outgoing ? GetControlLifetimeToken(*outgoing) : std::weak_ptr<int>{};
     bool keepTicking                          = false;
-    if (current && ! currentLifetime.expired() && current->IsVisible())
+    // The host's frame schedule ticks each requesting page control itself; only a direct call walks the pages.
+    const bool walkPages = host._tickWakeFrame == nullptr;
+    if (walkPages && current && ! currentLifetime.expired() && current->IsVisible())
     {
+        ++Detail::Work().frame.treeVisitsTick;
         keepTicking = current->Tick(host, nowTickMs) || keepTicking;
         if (ownerLifetime.expired())
         {
             return false;
         }
     }
-    if (outgoing && outgoing != current && ! outgoingLifetime.expired() && (_currentPage.get() == outgoing || _outgoingPage.get() == outgoing) &&
+    if (walkPages && outgoing && outgoing != current && ! outgoingLifetime.expired() && (_currentPage.get() == outgoing || _outgoingPage.get() == outgoing) &&
         outgoing->IsVisible())
     {
+        ++Detail::Work().frame.treeVisitsTick;
         keepTicking = outgoing->Tick(host, nowTickMs) || keepTicking;
         if (ownerLifetime.expired())
         {
@@ -2113,7 +2167,8 @@ Control* PageHost::HitTest(D2D1_POINT_2F point)
     if (page)
     {
         const std::weak_ptr<int> pageLifetime = GetControlLifetimeToken(*page);
-        Control* const hit                    = page->HitTest(point);
+        ++Detail::Work().frame.treeVisitsHitTest;
+        Control* const hit = page->HitTest(point);
         if (ownerLifetime.expired())
             return nullptr;
         if (pageLifetime.expired() || _currentPage.get() != page || _transition.active)
@@ -2146,7 +2201,8 @@ const Control* PageHost::HitTest(D2D1_POINT_2F point) const
     if (page)
     {
         const std::weak_ptr<int> pageLifetime = GetControlLifetimeToken(*page);
-        const Control* const hit              = page->HitTest(point);
+        ++Detail::Work().frame.treeVisitsHitTest;
+        const Control* const hit = page->HitTest(point);
         if (ownerLifetime.expired())
             return nullptr;
         if (pageLifetime.expired() || _currentPage.get() != page || _transition.active)
@@ -2368,8 +2424,9 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     // still publish healthy siblings while one control keeps unavailable ink.
     const bool isolateContentFailures = ! _embedded;
     const bool prepareAllContent      = _preparedContentResources != GetResourceGeneration() || _preparedContentTypography != GetTypographyRevision();
-    const bool prepareAllVisual =
-        _forceAllVisualPreparation || _preparedVisualResources != GetResourceGeneration() || _preparedVisualTypography != GetTypographyRevision();
+    // A theme change or a whole-tree cancellation marks every control pending instead; a format or brush eviction prepares
+    // nothing, because no retained key borrows a format pointer (W2.8).
+    const bool prepareAllVisual  = _preparedVisualResources != GetResourceGeneration() || _preparedVisualTypography != GetTypographyRevision();
     _contentPreparationContinues = false;
     _contentPreparationFailure   = S_OK;
     if (! _pendingPageLayout && ! _pendingIntrinsicLayout && ! _pendingContentPreparation && ! prepareAllContent && ! _pendingVisualPreparation &&
@@ -2379,8 +2436,10 @@ bool ControlHost::PreparePendingPageLayout() noexcept
     _pendingIntrinsicLayout    = false;
     _pendingContentPreparation = false;
     _pendingVisualPreparation  = false;
+    ++g_hostPreparationDepth;
+    const auto endPreparationDepth = wil::scope_exit([]() noexcept { --g_hostPreparationDepth; });
     if (prepareAllVisual)
-        _forceAllVisualPreparation = false;
+        ++Detail::Work().frame.fullVisualPreparations;
     bool contentPending     = false;
     bool contentFailed      = false;
     bool visualPending      = false;
@@ -2609,8 +2668,6 @@ void ControlHost::CancelPreparedVisualContent(Control* subtree) noexcept
     const auto rootCurrent    = [&]() noexcept { return root && ! rootLifetime.expired() && _root.get() == root; };
     Control* const start      = subtree ? subtree : root;
     const auto startLifetime  = start ? GetControlLifetimeToken(*start) : std::weak_ptr<int>{};
-    if (! subtree)
-        _forceAllVisualPreparation = true;
     if (subtree && (! rootCurrent() || subtree->GetHost() != this || ! IsControlInTree(root, subtree)))
         return;
     const auto cancel = [&](auto&& self, Control& control) noexcept -> void
@@ -2714,6 +2771,8 @@ void ControlHost::PublishPreparedContent() noexcept
 
 bool PageHost::FinishTransition() noexcept
 {
+    if (_transition.active)
+        NoteHitTestChange(*this, HitRevisionSite::PageTransitionEnd); // the current page is hit again
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     _transition.active                     = false;
     _transition.hasConnectedAnimation      = false;
@@ -2735,7 +2794,7 @@ bool PageHost::FinishTransition() noexcept
 
 void CardPanel::SetCornerRadius(float cornerRadiusDip) noexcept
 {
-    _cornerRadiusDip = (std::max)(0.0f, cornerRadiusDip);
+    Assign(_cornerRadiusDip, (std::max)(0.0f, cornerRadiusDip), Affects::Paint);
 }
 
 float CardPanel::GetCornerRadius() const noexcept
@@ -2758,16 +2817,9 @@ Separator::Separator() noexcept
 
 void Separator::SetOrientation(SeparatorOrientation orientation) noexcept
 {
-    const auto next = orientation == SeparatorOrientation::Horizontal ? SeparatorOrientation::Horizontal : SeparatorOrientation::Vertical;
-    if (_orientation == next)
-        return;
-    _orientation        = next;
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    // Embedded layout scheduling can synchronously retire the control's root.
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
+    Assign(_orientation,
+           orientation == SeparatorOrientation::Horizontal ? SeparatorOrientation::Horizontal : SeparatorOrientation::Vertical,
+           Affects::Layout | Affects::Paint);
 }
 
 SeparatorOrientation Separator::GetOrientation() const noexcept
@@ -2805,9 +2857,11 @@ const Control* Separator::HitTest(D2D1_POINT_2F /*point*/) const
     return nullptr;
 }
 
+// A plain label (no typography override, no mnemonic, exactly class Label) paints with DrawCenteredText and has nothing to
+// prepare, so it is not prepared: SetTypographyOverride and Control::SetMnemonic enable preparation when they make it
+// non-plain and disable it when it is plain again; a subclass keeps it from attachment (RefreshLabelVisualPreparation).
 Label::Label(std::wstring text) : _text(std::move(text))
 {
-    EnableVisualContentPreparation();
 }
 void Label::InvalidateTypographyPreparation() noexcept
 {
@@ -2842,23 +2896,16 @@ void Label::OnHostDpiChanged(ControlHost& host) noexcept
 
 void Label::SetText(std::wstring text)
 {
-    if (_text != text)
+    // The text names the label, and through a mnemonic target that control too.
+    Assign(_text,
+           std::move(text),
+           Affects::Layout | Affects::Paint | Affects::SemanticName,
+           [this]() noexcept
     {
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        _text                             = std::move(text);
-        InvalidateTypographyPreparation();
-        InvalidateMeasure();
-        // Embedded preparation can synchronously retire the owning root.
-        if (lifetime.expired())
-            return;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
-            if (lifetime.expired())
-                return;
-        }
-        RequestInvalidate();
-    }
+        // Test seam: the oracle's negative control leaves the retained layout current, as a forgotten invalidation would.
+        if (! IsStaleLabelLayoutInjectedForTest())
+            InvalidateTypographyPreparation();
+    });
 }
 
 std::wstring_view Label::GetText() const noexcept
@@ -2873,45 +2920,22 @@ Control* Label::GetMnemonicTarget() const noexcept
 
 void Label::SetFontRole(FontRole fontRole) noexcept
 {
-    if (_fontRole == fontRole)
-        return;
-    _fontRole = fontRole;
-    InvalidateTypographyPreparation();
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    // Embedded layout scheduling can synchronously retire the control's root.
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
+    Assign(_fontRole, fontRole, Affects::Layout | Affects::Paint, [this]() noexcept { InvalidateTypographyPreparation(); });
 }
 
 void Label::SetAlignment(DWRITE_TEXT_ALIGNMENT alignment) noexcept
 {
-    if (_alignment == alignment)
-        return;
-    _alignment = alignment;
-    InvalidateTypographyPreparation();
-    RequestInvalidate();
+    Assign(_alignment, alignment, Affects::Paint, [this]() noexcept { InvalidateTypographyPreparation(); });
 }
 
 void Label::SetMultiline(bool multiline) noexcept
 {
-    if (_multiline == multiline)
-        return;
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    _multiline                        = multiline;
-    InvalidateTypographyPreparation();
-    InvalidateMeasure();
-    // Embedded preparation can synchronously retire the owning root.
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
+    Assign(_multiline, multiline, Affects::Layout | Affects::Paint, [this]() noexcept { InvalidateTypographyPreparation(); });
 }
 
 void Label::SetTextColor(std::optional<D2D1_COLOR_F> color) noexcept
 {
-    _textColor = color;
-    RequestInvalidate();
+    Assign(_textColor, color, Affects::Paint);
 }
 
 HRESULT Label::SetTypographyOverride(std::optional<LabelTypography> typography) noexcept
@@ -2925,19 +2949,16 @@ HRESULT Label::SetTypographyOverride(std::optional<LabelTypography> typography) 
         typography->fontSizeDip         = static_cast<float>(std::lround(typography->fontSizeDip * 64.0f)) / 64.0f;
         typography->characterSpacingDip = static_cast<float>(std::lround(typography->characterSpacingDip * 64.0f)) / 64.0f;
     }
-    if (_typographyOverride == typography)
-        return S_FALSE;
-    _typographyOverride = typography;
-    InvalidateTypographyPreparation();
-    if (typography)
-        EnableVisualContentPreparation();
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    // Embedded layout scheduling can synchronously retire the control's root.
-    if (lifetime.expired())
-        return S_OK;
-    RequestInvalidate();
-    return S_OK;
+    return Assign(_typographyOverride,
+                  typography,
+                  Affects::Layout | Affects::Paint,
+                  [this]() noexcept
+    {
+        InvalidateTypographyPreparation();
+        RefreshLabelVisualPreparation(); // an override enables preparation, clearing it on a plain label disables it again
+    })
+               ? S_OK
+               : S_FALSE;
 }
 
 std::optional<LabelTypography> Label::GetTypographyOverride() const noexcept
@@ -2947,14 +2968,8 @@ std::optional<LabelTypography> Label::GetTypographyOverride() const noexcept
 
 void Label::SetMnemonicTarget(Control* target) noexcept
 {
-    if (_mnemonicTarget != target)
-    {
-        _mnemonicTarget = target;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-    }
+    // The label's text names its target (UI Automation): nothing of the label itself is painted differently.
+    Assign(_mnemonicTarget, target, Affects::SemanticName);
 }
 
 void Label::PrepareVisualContent(ControlHost& host) noexcept
@@ -2967,10 +2982,13 @@ void Label::PrepareVisualContent(ControlHost& host) noexcept
     {
         return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root && host.GetInteractionRevision() == interaction;
     };
-    if (! root || ! current() || ! IsControlInTree(root, this) || ! current())
+    // The host's preparation pass reached this label from its root; GetHost() == &host (in current()) refuses a label
+    // that is not attached to this host. The depth-first membership walk this used to run cost O(tree) per label.
+    if (! root || ! current())
         return;
     if (! _typographyOverride && ! GetMnemonic())
     {
+        ++Detail::Work().frame.plainLabelPreparations;
         CancelVisualContentPreparation();
         return;
     }
@@ -3004,7 +3022,8 @@ void Label::PrepareVisualContent(ControlHost& host) noexcept
 #if DXUI_ENABLE_DIAGNOSTICS
         ++testMnemonicLayoutCreations;
 #endif
-        if (FAILED(host.GetWriteFactory()->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.put())) || ! layout)
+        if (FAILED(CountedCreateTextLayout(host.GetWriteFactory(), text.data(), static_cast<UINT32>(text.size()), format, width, height, layout.put())) ||
+            ! layout)
             return;
         const DWRITE_TEXT_RANGE range{0u, static_cast<UINT32>(text.size())};
         const float spacing = typography ? typography->characterSpacingDip * .5f : 0.f;
@@ -3109,14 +3128,7 @@ void Button::RetirePreparedIconTextLayout() noexcept
 
 void Button::SetMultiline(bool multiline) noexcept
 {
-    if (_multiline != multiline)
-    {
-        _multiline          = multiline;
-        const auto lifetime = GetLifetimeToken();
-        InvalidateMeasure();
-        if (! lifetime.expired())
-            RequestInvalidate();
-    }
+    Assign(_multiline, multiline, Affects::Layout | Affects::Paint);
 }
 
 bool Button::IsMultiline() const noexcept
@@ -3130,19 +3142,16 @@ HRESULT Button::SetContentFontSizeDip(std::optional<float> fontSizeDip) noexcept
         return E_INVALIDARG;
     if (fontSizeDip)
         fontSizeDip = static_cast<float>(std::lround(fontSizeDip.value() * 64.0f)) / 64.0f;
-    if (_contentFontSizeDip == fontSizeDip)
-        return S_FALSE;
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    _contentFontSizeDip               = fontSizeDip;
-    RetirePreparedIconTextLayout();
-    if (lifetime.expired())
-        return S_OK;
-    RequestVisualContentPreparation(false);
-    InvalidateMeasure();
-    // Embedded preparation scheduling may synchronously retire this control or its owning root.
-    if (! lifetime.expired())
-        RequestInvalidate();
-    return S_OK;
+    return Assign(_contentFontSizeDip,
+                  fontSizeDip,
+                  Affects::Layout | Affects::Paint,
+                  [this]() noexcept
+    {
+        RetirePreparedIconTextLayout();
+        RequestVisualContentPreparation(false);
+    })
+               ? S_OK
+               : S_FALSE;
 }
 
 std::optional<float> Button::GetContentFontSizeDip() const noexcept
@@ -3188,7 +3197,8 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
         return ! lifetime.expired() && ! rootLifetime.expired() && GetHost() == &host && host.GetRoot() == root &&
                host.GetInteractionRevision() == interactionRevision;
     };
-    if (! root || rootLifetime.expired() || GetHost() != &host || ! IsControlInTree(root, this))
+    // Reached from the host's root by its preparation pass; GetHost() != &host refuses a button attached elsewhere or nowhere.
+    if (! root || rootLifetime.expired() || GetHost() != &host)
         return;
     if (_variant == ButtonVariant::Hyperlink && ! dynamic_cast<const Toggle*>(this) && ! dynamic_cast<const RadioButton*>(this))
     {
@@ -3377,7 +3387,7 @@ void Button::PrepareVisualContent(ControlHost& host) noexcept
     else
 #endif
     {
-        createResult = factory->CreateTextLayout(text, length, format.get(), widthDip, heightDip, layout.put());
+        createResult = CountedCreateTextLayout(factory, text, length, format.get(), widthDip, heightDip, layout.put());
     }
     if (FAILED(createResult))
         layout.reset();
@@ -3471,31 +3481,19 @@ void Button::OnHostDpiChanged(ControlHost& host) noexcept
 
 void Button::SetText(std::wstring text)
 {
-    if (_text != text)
+    Assign(_text,
+           std::move(text),
+           Affects::Layout | Affects::Paint | Affects::SemanticName,
+           [this]() noexcept
     {
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        _text                             = std::move(text);
         RetirePreparedIconTextLayout();
-        if (lifetime.expired())
-            return;
         RequestVisualContentPreparation(false);
-        InvalidateMeasure();
-        if (lifetime.expired())
-            return;
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
-            if (lifetime.expired())
-                return;
-        }
-        RequestInvalidate();
-    }
+    });
 }
 
 void Button::SetPrimary(bool primary) noexcept
 {
-    _primary = primary;
-    RequestInvalidate();
+    Assign(_primary, primary, Affects::Paint);
 }
 
 bool Button::IsPrimary() const noexcept
@@ -3505,8 +3503,6 @@ bool Button::IsPrimary() const noexcept
 
 void Button::SetThemePreview(std::optional<ButtonThemePreview> preview) noexcept
 {
-    const auto sameColor = [](const D2D1_COLOR_F& left, const D2D1_COLOR_F& right) noexcept
-    { return left.r == right.r && left.g == right.g && left.b == right.b && left.a == right.a; };
     const auto validColor = [](const D2D1_COLOR_F& color) noexcept
     {
         return std::isfinite(color.r) && std::isfinite(color.g) && std::isfinite(color.b) && std::isfinite(color.a) && color.r >= 0.0f && color.r <= 1.0f &&
@@ -3514,10 +3510,7 @@ void Button::SetThemePreview(std::optional<ButtonThemePreview> preview) noexcept
     };
     if (preview && ! std::ranges::all_of(preview->swatches, validColor))
         return;
-    if (_themePreview.has_value() == preview.has_value() && (! preview || std::ranges::equal(_themePreview->swatches, preview->swatches, sameColor)))
-        return;
-    _themePreview = std::move(preview);
-    RequestInvalidate();
+    Assign(_themePreview, std::move(preview), Affects::Paint);
 }
 
 std::optional<ButtonThemePreview> Button::GetThemePreview() const noexcept
@@ -3527,17 +3520,8 @@ std::optional<ButtonThemePreview> Button::GetThemePreview() const noexcept
 
 void Button::SetToggleState(std::optional<bool> checked) noexcept
 {
-    if (_toggleState == checked)
-        return;
-    _toggleState                      = checked;
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    if (ControlHost* const host = GetHost())
-    {
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
-    }
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
+    // The toggle state UI Automation reads, published as content: a mutation that cannot move focus (as before Assign).
+    Assign(_toggleState, checked, Affects::Paint | Affects::SemanticValue);
 }
 
 std::optional<bool> Button::GetToggleState() const noexcept
@@ -3547,21 +3531,17 @@ std::optional<bool> Button::GetToggleState() const noexcept
 
 void Button::SetVariant(ButtonVariant variant) noexcept
 {
-    if (_variant == variant)
-        return;
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    _variant                          = variant;
-    RetirePreparedIconTextLayout();
-    if (lifetime.expired())
-        return;
-    if ((variant == ButtonVariant::IconOnly || variant == ButtonVariant::Hyperlink) && ! dynamic_cast<Toggle*>(this) && ! dynamic_cast<RadioButton*>(this))
-        EnableVisualContentPreparation();
-    else
-        RequestVisualContentPreparation(false);
-    InvalidateMeasure();
-    if (lifetime.expired())
-        return;
-    RequestInvalidate();
+    Assign(_variant,
+           variant,
+           Affects::Layout | Affects::Paint,
+           [this, variant]() noexcept
+    {
+        RetirePreparedIconTextLayout();
+        if ((variant == ButtonVariant::IconOnly || variant == ButtonVariant::Hyperlink) && ! dynamic_cast<Toggle*>(this) && ! dynamic_cast<RadioButton*>(this))
+            EnableVisualContentPreparation();
+        else
+            RequestVisualContentPreparation(false);
+    });
 }
 
 ButtonVariant Button::GetVariant() const noexcept
@@ -3571,10 +3551,7 @@ ButtonVariant Button::GetVariant() const noexcept
 
 void Button::SetAppearance(ButtonAppearance appearance) noexcept
 {
-    if (_appearance == appearance)
-        return;
-    _appearance = appearance;
-    RequestInvalidate();
+    Assign(_appearance, appearance, Affects::Paint);
 }
 
 ButtonAppearance Button::GetAppearance() const noexcept
@@ -3584,13 +3561,7 @@ ButtonAppearance Button::GetAppearance() const noexcept
 
 void Button::SetLeadingIcon(std::wstring glyph)
 {
-    if (_leadingIcon == glyph)
-        return;
-    _leadingIcon        = std::move(glyph);
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    if (! lifetime.expired())
-        RequestInvalidate();
+    Assign(_leadingIcon, std::move(glyph), Affects::Layout | Affects::Paint);
 }
 
 std::wstring_view Button::GetLeadingIcon() const noexcept
@@ -3600,16 +3571,15 @@ std::wstring_view Button::GetLeadingIcon() const noexcept
 
 void Button::SetShortcutText(std::wstring text)
 {
-    if (_shortcutText == text)
-        return;
-    _shortcutText             = std::move(text);
-    _preparedShortcutWidthDip = 0.0f;
-    _preparedShortcutValid    = false;
-    EnableVisualContentPreparation();
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    if (! lifetime.expired())
-        RequestInvalidate();
+    Assign(_shortcutText,
+           std::move(text),
+           Affects::Layout | Affects::Paint,
+           [this]() noexcept
+    {
+        _preparedShortcutWidthDip = 0.0f;
+        _preparedShortcutValid    = false;
+        EnableVisualContentPreparation();
+    });
 }
 
 std::wstring_view Button::GetShortcutText() const noexcept
@@ -3619,12 +3589,7 @@ std::wstring_view Button::GetShortcutText() const noexcept
 
 void Button::SetDisclosureCollapsedDirection(ChevronDirection direction) noexcept
 {
-    const ChevronDirection collapsedDirection = direction == ChevronDirection::Left ? ChevronDirection::Left : ChevronDirection::Right;
-    if (_disclosureCollapsedDirection != collapsedDirection)
-    {
-        _disclosureCollapsedDirection = collapsedDirection;
-        RequestInvalidate();
-    }
+    Assign(_disclosureCollapsedDirection, direction == ChevronDirection::Left ? ChevronDirection::Left : ChevronDirection::Right, Affects::Paint);
 }
 
 void Button::SetDisclosureExpanded(bool expanded) noexcept
@@ -3641,6 +3606,13 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
         _disclosureTransition.initialized   = true;
         _disclosureTransition.active        = false;
         const auto lifetime                 = GetLifetimeToken();
+        // Measure reads whether a disclosure state exists when a content font size is set.
+        if (_contentFontSizeDip)
+        {
+            InvalidateMeasure();
+            if (lifetime.expired())
+                return;
+        }
         RequestInvalidate();
         if (lifetime.expired())
             return;
@@ -3669,7 +3641,7 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
     _disclosureTransition.active        = host && ! host->GetTheme().reducedMotion;
     if (_disclosureTransition.active)
     {
-        host->RequestAnimation();
+        host->RequestAnimation(*this);
         if (lifetime.expired() || GetHost() != host)
             return;
     }
@@ -3701,6 +3673,12 @@ void Button::ClearDisclosureState() noexcept
         _disclosureExpanded.reset();
         _disclosureTransition = {};
         const auto lifetime   = GetLifetimeToken();
+        if (_contentFontSizeDip)
+        {
+            InvalidateMeasure();
+            if (lifetime.expired())
+                return;
+        }
         RequestInvalidate();
         if (lifetime.expired())
             return;
@@ -3761,10 +3739,13 @@ bool Button::Invoke(ControlHost& host, bool focusSelf)
 
 void Button::Paint(ControlHost& host) const
 {
+    // A hover or focus blend in progress draws its colors through the host's transition brushes (W2.8).
+    const TransitionBrushScope transition(
+        host, IsColorTransitionProgress(ResolveHoverAnimationProgress(host)) || IsColorTransitionProgress(ResolveFocusAnimationProgress(host)));
     // A disclosure rotation left pending while the button was hidden resumes ticking when it paints again.
     if (_disclosureTransition.active)
     {
-        host.RequestAnimation();
+        host.RequestAnimation(*this);
     }
     const FlowDirection flowDirection = GetFlowDirection();
     const bool caption                = _appearance == ButtonAppearance::Caption || _appearance == ButtonAppearance::CaptionClose;
@@ -3893,7 +3874,9 @@ void Button::Paint(ControlHost& host) const
         IDWriteTextFormat* const textFormat = ResolveContentTextFormat(host, FontRole::Body);
         IDWriteTextFormat* const iconFormat =
             host.GetTextFormat(FontRole::Icon, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, ResolveReadingDirection(flowDirection));
-        DrawButtonChrome(host.GetDeviceContext(), host.GetSolidBrush(style.text), textFormat, iconFormat, host.GetTheme(), spec);
+        // DrawButtonChrome sets the brush's color before each draw: it takes a brush no keyed color owns (W2.8).
+        DrawButtonChromeText(
+            &host, host.GetDeviceContext(), TransitionBrushScope::ScratchBrush(host, style.text), textFormat, iconFormat, host.GetTheme(), spec);
         return;
     }
 
@@ -4294,7 +4277,8 @@ void Button::SetPressed(bool pressed) noexcept
 
 void Button::SetPressedVisual(bool pressed) noexcept
 {
-    SetPressed(pressed);
+    // The pressed look an application drives itself (SetPressed is the press gesture's own store, which repaints with it).
+    Assign(_pressed, pressed, Affects::Paint);
 }
 
 void Button::OnCaptureLost(ControlHost& host)
@@ -4416,7 +4400,7 @@ void Button::UpdateInteractionTransition(ControlHost& host, InteractionTransitio
     transition.active               = true;
     const auto lifetime             = GetLifetimeToken();
     ControlHost* const originalHost = GetHost();
-    host.RequestAnimation();
+    host.RequestAnimation(*this);
     if (! lifetime.expired() && GetHost() == originalHost)
         Invalidate(host);
 }
@@ -4523,19 +4507,7 @@ Toggle::Toggle(std::wstring text) : Button(std::move(text))
 
 void Toggle::SetChecked(bool checked) noexcept
 {
-    if (_checked != checked)
-    {
-        _checked                          = checked;
-        const std::weak_ptr<int> lifetime = GetLifetimeToken();
-        if (ControlHost* const host = GetHost())
-        {
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-        }
-        if (! lifetime.expired())
-        {
-            RequestInvalidate();
-        }
-    }
+    Assign(_checked, checked, Affects::Paint | Affects::SemanticState);
 }
 
 bool Toggle::IsChecked() const noexcept
@@ -4545,15 +4517,11 @@ bool Toggle::IsChecked() const noexcept
 
 void Toggle::SetStateLabels(std::wstring uncheckedText, std::wstring checkedText)
 {
-    // Unchanged labels (an application that sets them on every refresh) relay out nothing.
-    if (_uncheckedText == uncheckedText && _checkedText == checkedText)
-        return;
-    _uncheckedText      = std::move(uncheckedText);
-    _checkedText        = std::move(checkedText);
-    const auto lifetime = GetLifetimeToken();
-    InvalidateMeasure();
-    if (! lifetime.expired())
-        RequestInvalidate();
+    // Unchanged labels (an application that sets them on every refresh) relay out nothing. A toggle without text is named by
+    // the label of its state.
+    Assign(std::tie(_uncheckedText, _checkedText),
+           std::tuple<std::wstring, std::wstring>(std::move(uncheckedText), std::move(checkedText)),
+           Affects::Layout | Affects::Paint | Affects::SemanticName);
 }
 
 std::wstring_view Toggle::GetActiveStateLabel() const noexcept
@@ -4584,6 +4552,8 @@ ToggleLayoutMetrics Toggle::GetLayoutMetrics() const noexcept
 
 void Toggle::Paint(ControlHost& host) const
 {
+    const TransitionBrushScope transition(
+        host, IsColorTransitionProgress(ResolveHoverAnimationProgress(host)) || IsColorTransitionProgress(ResolveFocusAnimationProgress(host)));
     const FlowDirection flowDirection = GetFlowDirection();
     const ToggleVisualStyle style     = ResolveToggleVisualStyle(host.GetTheme(),
                                                                  IsEnabled(),
@@ -4755,22 +4725,8 @@ bool Checkbox::OnMnemonic(ControlHost& host)
 
 void Checkbox::SetIndeterminate(bool indeterminate) noexcept
 {
-    if (_indeterminate == indeterminate)
-    {
-        return;
-    }
-    _indeterminate = indeterminate;
-    // UI Automation reads the third toggle state, as SetChecked publishes the other two. Publication can deliver events
-    // that run application code, so the checkbox may be gone afterwards.
-    const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    if (ControlHost* const host = GetHost())
-    {
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
-    }
-    if (! lifetime.expired())
-    {
-        RequestInvalidate();
-    }
+    // UI Automation reads the third toggle state, as SetChecked publishes the other two.
+    Assign(_indeterminate, indeterminate, Affects::Paint | Affects::SemanticState);
 }
 
 bool Checkbox::IsIndeterminate() const noexcept
@@ -4780,6 +4736,8 @@ bool Checkbox::IsIndeterminate() const noexcept
 
 void Checkbox::Paint(ControlHost& host) const
 {
+    const TransitionBrushScope transition(
+        host, IsColorTransitionProgress(ResolveHoverAnimationProgress(host)) || IsColorTransitionProgress(ResolveFocusAnimationProgress(host)));
     const bool rightToLeft          = IsRightToLeft();
     const bool effectiveChecked     = IsChecked() || _indeterminate;
     const CheckboxVisualStyle style = ResolveCheckboxVisualStyle(host.GetTheme(),
@@ -4879,12 +4837,16 @@ void RadioButton::SetOnSelected(std::function<void()> onSelected)
 
 void RadioButton::SetGroup(RadioButtons* group) noexcept
 {
-    _group         = group;
-    _groupLifetime = group ? GetControlLifetimeToken(*group) : std::weak_ptr<int>{};
+    // A destroyed group is no group: a new one at the same address is a change.
+    if (_groupLifetime.expired())
+        _group = nullptr;
+    Assign(_group, group, Affects::None, [this, group]() noexcept { _groupLifetime = group ? GetControlLifetimeToken(*group) : std::weak_ptr<int>{}; });
 }
 
 void RadioButton::Paint(ControlHost& host) const
 {
+    const TransitionBrushScope transition(
+        host, IsColorTransitionProgress(ResolveHoverAnimationProgress(host)) || IsColorTransitionProgress(ResolveFocusAnimationProgress(host)));
     const bool rightToLeft             = IsRightToLeft();
     const RadioButtonVisualStyle style = ResolveRadioButtonVisualStyle(host.GetTheme(),
                                                                        IsEnabled(),
@@ -5085,15 +5047,7 @@ void RadioButtons::SetOnSelectionChanged(std::function<void(int)> onSelectionCha
 void RadioButtons::SetHeader(std::wstring text)
 {
     const Failure::Scope outerFailureScope;
-    if (_header == text)
-        return;
-    _header             = std::move(text);
-    const auto lifetime = GetLifetimeToken();
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
-    if (ControlHost* const host = GetHost())
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    Assign(_header, std::move(text), Affects::Paint | Affects::SemanticName);
 }
 
 void RadioButtons::SelectItem(RadioButton* item)
@@ -5185,16 +5139,10 @@ struct ProgressTrack
 
 void ProgressBar::SetValue(double value) noexcept
 {
-    // Like Slider, a non-finite value is rejected: NaN would reach UI Automation and never compare equal.
+    // Like Slider, a non-finite value is rejected: NaN would reach UI Automation.
     if (! std::isfinite(value))
         return;
-    _value              = value;
-    const auto lifetime = GetLifetimeToken();
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
-    if (ControlHost* const host = GetHost())
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    Assign(_value, value, Affects::Paint | Affects::SemanticValue);
 }
 
 double ProgressBar::GetValue() const noexcept
@@ -5206,13 +5154,7 @@ void ProgressBar::SetMinimum(double minimum) noexcept
 {
     if (! std::isfinite(minimum))
         return;
-    _minimum            = minimum;
-    const auto lifetime = GetLifetimeToken();
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
-    if (ControlHost* const host = GetHost())
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    Assign(_minimum, minimum, Affects::Paint | Affects::SemanticValue);
 }
 
 double ProgressBar::GetMinimum() const noexcept
@@ -5224,13 +5166,7 @@ void ProgressBar::SetMaximum(double maximum) noexcept
 {
     if (! std::isfinite(maximum))
         return;
-    _maximum            = maximum;
-    const auto lifetime = GetLifetimeToken();
-    RequestInvalidate();
-    if (lifetime.expired())
-        return;
-    if (ControlHost* const host = GetHost())
-        RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+    Assign(_maximum, maximum, Affects::Paint | Affects::SemanticValue);
 }
 
 double ProgressBar::GetMaximum() const noexcept
@@ -5240,24 +5176,19 @@ double ProgressBar::GetMaximum() const noexcept
 
 void ProgressBar::SetIndeterminate(bool indeterminate) noexcept
 {
-    if (_indeterminate == indeterminate)
+    Assign(_indeterminate,
+           indeterminate,
+           Affects::Paint,
+           [this, indeterminate]() noexcept
     {
-        return;
-    }
-
-    _indeterminate      = indeterminate;
-    _animationPhase     = 0.0f;
-    _lastTickMs         = 0u;
-    const auto lifetime = GetLifetimeToken();
-    if (indeterminate && ! _animationPaused && IsEnabled() && IsVisible())
-    {
-        if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
+        _animationPhase = 0.0f;
+        _lastTickMs     = 0u;
+        if (indeterminate && ! _animationPaused && IsEnabled() && IsVisible())
         {
-            host->RequestAnimation();
+            if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
+                host->RequestAnimation(*this);
         }
-    }
-    if (! lifetime.expired())
-        RequestInvalidate();
+    });
 }
 
 bool ProgressBar::IsIndeterminate() const noexcept
@@ -5267,18 +5198,18 @@ bool ProgressBar::IsIndeterminate() const noexcept
 
 void ProgressBar::SetAnimationPaused(bool paused) noexcept
 {
-    if (_animationPaused == paused)
-        return;
-    _animationPaused    = paused;
-    _lastTickMs         = 0u;
-    const auto lifetime = GetLifetimeToken();
-    if (! paused && _indeterminate && IsEnabled() && IsVisible())
+    Assign(_animationPaused,
+           paused,
+           Affects::Paint,
+           [this, paused]() noexcept
     {
-        if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
-            host->RequestAnimation();
-    }
-    if (! lifetime.expired())
-        RequestInvalidate();
+        _lastTickMs = 0u;
+        if (! paused && _indeterminate && IsEnabled() && IsVisible())
+        {
+            if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
+                host->RequestAnimation(*this);
+        }
+    });
 }
 
 bool ProgressBar::IsAnimationPaused() const noexcept
@@ -5288,12 +5219,7 @@ bool ProgressBar::IsAnimationPaused() const noexcept
 
 void ProgressBar::SetTrackHeightDip(float heightDip) noexcept
 {
-    const float next = std::max(0.0f, heightDip);
-    if (_trackHeightDip != next)
-    {
-        _trackHeightDip = next;
-        RequestInvalidate();
-    }
+    Assign(_trackHeightDip, std::max(0.0f, heightDip), Affects::Paint);
 }
 
 float ProgressBar::GetTrackHeightDip() const noexcept
@@ -5303,11 +5229,9 @@ float ProgressBar::GetTrackHeightDip() const noexcept
 
 void ProgressBar::SetSegmentedValues(double primaryValue, double secondaryValue, D2D1_COLOR_F secondaryColor) noexcept
 {
-    _primarySegmentValue   = primaryValue;
-    _secondarySegmentValue = secondaryValue;
-    _secondarySegmentColor = secondaryColor;
-    _segmented             = true;
-    RequestInvalidate();
+    Assign(std::tie(_primarySegmentValue, _secondarySegmentValue, _secondarySegmentColor, _segmented),
+           std::tuple<double, double, D2D1_COLOR_F, bool>(primaryValue, secondaryValue, secondaryColor, true),
+           Affects::Paint);
 }
 
 void ProgressBar::ClearSegmentedValues() noexcept
@@ -5344,7 +5268,7 @@ void ProgressBar::Paint(ControlHost& host) const
     // Reduced motion paints a resting segment and requests no ticks.
     if (_indeterminate && ! _animationPaused && IsEnabled() && IsVisible() && ! theme.reducedMotion && bounds.right > bounds.left && bounds.bottom > bounds.top)
     {
-        host.RequestAnimation();
+        host.RequestAnimation(*this);
     }
 
     const ProgressTrack progressTrack = ComputeProgressTrack(bounds, _indeterminate, _trackHeightDip);
@@ -5467,23 +5391,24 @@ PageIndicator::PageIndicator()
 
 void PageIndicator::SetPageCount(uint32_t count) noexcept
 {
-    const uint32_t next = (std::min)(count, kMaximumPages);
-    if (_pageCount == next)
+    // Fewer than two pages leave no hit bounds (GetHitBounds); the count is the range maximum UI Automation reads.
+    AssignAccess::Assign(*this,
+                         HitRevisionSite::PageIndicatorCount,
+                         _pageCount,
+                         (std::min)(count, kMaximumPages),
+                         Affects::Paint | Affects::Hit | Affects::SemanticValue,
+                         [this]() noexcept
     {
-        return;
-    }
-    _pageCount = next;
-    if (_pageCount == 0)
-    {
-        _selectedIndex = 0;
-    }
-    else if (_selectedIndex >= _pageCount)
-    {
-        _selectedIndex = _pageCount - 1;
-    }
-    SetFocusable(_pageCount >= 2);
-    PublishAccessibility();
-    RequestInvalidate();
+        if (_pageCount == 0)
+        {
+            _selectedIndex = 0;
+        }
+        else if (_selectedIndex >= _pageCount)
+        {
+            _selectedIndex = _pageCount - 1;
+        }
+        SetFocusable(_pageCount >= 2);
+    });
 }
 
 uint32_t PageIndicator::GetPageCount() const noexcept
@@ -5497,14 +5422,7 @@ void PageIndicator::SetSelectedIndex(uint32_t index) noexcept
     {
         return;
     }
-    const uint32_t next = (std::min)(index, _pageCount - 1);
-    if (_selectedIndex == next)
-    {
-        return;
-    }
-    _selectedIndex = next;
-    PublishAccessibility();
-    RequestInvalidate();
+    Assign(_selectedIndex, (std::min)(index, _pageCount - 1), Affects::Paint | Affects::SemanticValue);
 }
 
 uint32_t PageIndicator::GetSelectedIndex() const noexcept
@@ -5744,6 +5662,48 @@ D2D1_COLOR_F ThroughputGraphColorFromHue(float hueDegrees, bool dark) noexcept
 
 namespace
 {
+// The secondary series as SetSecondarySamples stores it, negative samples at zero: a range Control::Assign compares with the
+// retained series and copies into it, read in place.
+struct NonNegativeSamples final
+{
+    std::span<const double> samples;
+    struct Iterator final
+    {
+        using iterator_category = std::forward_iterator_tag;
+        using value_type        = double;
+        using difference_type   = std::ptrdiff_t;
+        using pointer           = const double*;
+        using reference         = double;
+        const double* at        = nullptr;
+        [[nodiscard]] double operator*() const noexcept
+        {
+            return std::max(0.0, *at);
+        }
+        Iterator& operator++() noexcept
+        {
+            ++at;
+            return *this;
+        }
+        Iterator operator++(int) noexcept
+        {
+            Iterator previous = *this;
+            ++at;
+            return previous;
+        }
+        [[nodiscard]] bool operator==(const Iterator&) const noexcept = default;
+    };
+    [[nodiscard]] Iterator begin() const noexcept
+    {
+        return Iterator{.at = samples.data()};
+    }
+    [[nodiscard]] Iterator end() const noexcept
+    {
+        return Iterator{.at = samples.data() + samples.size()};
+    }
+};
+} // namespace
+namespace
+{
 [[nodiscard]] wil::com_ptr<ID2D1PathGeometry> CreateThroughputGraphAreaGeometry(
     ID2D1RenderTarget* context, const D2D1_RECT_F& bounds, std::span<const ThroughputGraphSample> samples, double displayedLatestValue, double maximum) noexcept
 {
@@ -5755,7 +5715,7 @@ namespace
 
     wil::com_ptr<ID2D1Factory> factory;
     context->GetFactory(factory.addressof());
-    if (! factory || FAILED(factory->CreatePathGeometry(geometry.addressof())) || ! geometry)
+    if (! factory || FAILED(CountedCreatePathGeometry(factory, geometry.addressof())) || ! geometry)
     {
         geometry.reset();
         return geometry;
@@ -5849,7 +5809,7 @@ ThroughputGraphBandPaintMetrics PaintThroughputGraphBands(ID2D1RenderTarget* tar
     metrics.bandsActive = ShouldRenderThroughputGraphBands(options.rainbowMode, options.perStreamBands, options.highContrast, maximumConcurrentColorSlots);
 
     wil::com_ptr<ID2D1SolidColorBrush> brush;
-    if (FAILED(target->CreateSolidColorBrush(options.baseFillColor, brush.addressof())) || ! brush)
+    if (FAILED(CountedCreateSolidColorBrush(target, options.baseFillColor, brush.addressof())) || ! brush)
     {
         return finish();
     }
@@ -5985,11 +5945,12 @@ ThroughputGraphBandPaintMetrics PaintThroughputGraphBands(ID2D1RenderTarget* tar
     const D2D1_BITMAP_PROPERTIES bitmapProperties =
         D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
     wil::com_ptr<ID2D1Bitmap> bandBitmap;
-    if (FAILED(target->CreateBitmap(D2D1::SizeU(static_cast<UINT32>(sampleCount), static_cast<UINT32>(kRasterRows)),
-                                    pixels.data(),
-                                    static_cast<UINT32>(sampleCount * sizeof(uint32_t)),
-                                    &bitmapProperties,
-                                    bandBitmap.addressof())) ||
+    if (FAILED(CountedCreateBitmap(target,
+                                   D2D1::SizeU(static_cast<UINT32>(sampleCount), static_cast<UINT32>(kRasterRows)),
+                                   pixels.data(),
+                                   static_cast<UINT32>(sampleCount * sizeof(uint32_t)),
+                                   &bitmapProperties,
+                                   bandBitmap.addressof())) ||
         ! bandBitmap)
     {
         return finish();
@@ -6001,7 +5962,7 @@ ThroughputGraphBandPaintMetrics PaintThroughputGraphBands(ID2D1RenderTarget* tar
         return finish();
     }
     wil::com_ptr<ID2D1Layer> layer;
-    if (FAILED(target->CreateLayer(layer.addressof())) || ! layer)
+    if (FAILED(CountedCreateLayer(target, layer.addressof())) || ! layer)
     {
         return finish();
     }
@@ -6016,95 +5977,91 @@ ThroughputGraphBandPaintMetrics PaintThroughputGraphBands(ID2D1RenderTarget* tar
 void ThroughputGraph::SetSamples(std::span<const ThroughputGraphSample> samples)
 {
     const double previousTarget = _targetLatestValue;
-    const size_t retainedCount  = std::min(samples.size(), ThroughputGraphSample::kMaxSamples);
-    _samples.assign(samples.end() - static_cast<std::ptrdiff_t>(retainedCount), samples.end());
-    _targetLatestValue = _samples.empty() ? 0.0 : std::max(0.0, _samples.back().value);
+    // The newest kMaxSamples, copied into the retained storage only when they differ from it.
+    Assign(_samples,
+           samples.last(std::min(samples.size(), ThroughputGraphSample::kMaxSamples)),
+           Affects::Paint,
+           [this, previousTarget]() noexcept
+    {
+        _targetLatestValue = _samples.empty() ? 0.0 : std::max(0.0, _samples.back().value);
 
-    ControlHost* const host  = GetHost();
-    const bool targetChanged = previousTarget != _targetLatestValue;
-    if (host && ! host->GetTheme().reducedMotion && ! _samples.empty() && targetChanged)
-    {
-        _transitionStartValue  = _displayedLatestValue;
-        _transitionStartTickMs = 0u;
-        _transitionActive      = true;
-        host->RequestAnimation();
-    }
-    else if (! _transitionActive || ! host || host->GetTheme().reducedMotion || _samples.empty())
-    {
-        _displayedLatestValue = _targetLatestValue;
-        _transitionActive     = false;
-    }
-    RequestInvalidate();
+        ControlHost* const host  = GetHost();
+        const bool targetChanged = previousTarget != _targetLatestValue;
+        if (host && ! host->GetTheme().reducedMotion && ! _samples.empty() && targetChanged)
+        {
+            _transitionStartValue  = _displayedLatestValue;
+            _transitionStartTickMs = 0u;
+            _transitionActive      = true;
+            host->RequestAnimation(*this);
+        }
+        else if (! _transitionActive || ! host || host->GetTheme().reducedMotion || _samples.empty())
+        {
+            _displayedLatestValue = _targetLatestValue;
+            _transitionActive     = false;
+        }
+    });
 }
 
 void ThroughputGraph::SetSecondarySamples(std::span<const double> samples)
 {
-    const size_t retainedCount = std::min(samples.size(), ThroughputGraphSample::kMaxSamples);
-    _secondarySamples.assign(samples.end() - static_cast<std::ptrdiff_t>(retainedCount), samples.end());
-    for (double& sample : _secondarySamples)
-    {
-        sample = std::max(0.0, sample);
-    }
-    RequestInvalidate();
+    // The newest kMaxSamples, negative values at zero, copied into the retained storage only when they differ from it.
+    Assign(_secondarySamples, NonNegativeSamples{samples.last(std::min(samples.size(), ThroughputGraphSample::kMaxSamples))}, Affects::Paint);
 }
 
 void ThroughputGraph::SetSecondarySeriesColor(D2D1_COLOR_F color) noexcept
 {
-    _secondarySeriesColor = color;
-    RequestInvalidate();
+    Assign(_secondarySeriesColor, color, Affects::Paint);
 }
 
 void ThroughputGraph::SetLimit(double value) noexcept
 {
-    _limit = std::max(0.0, value);
-    RequestInvalidate();
+    Assign(_limit, std::max(0.0, value), Affects::Paint);
 }
 
 void ThroughputGraph::SetCurrentValueMarker(double value, std::wstring label, std::wstring trailingLabel)
 {
-    const double nextTarget    = std::max(0.0, value);
-    _currentValueLabel         = std::move(label);
-    _currentValueTrailingLabel = std::move(trailingLabel);
-
-    ControlHost* const host  = GetHost();
-    const bool targetChanged = _targetCurrentValue != nextTarget;
-    _targetCurrentValue      = nextTarget;
-    if (host && ! host->GetTheme().reducedMotion && targetChanged)
+    const double previousTarget = _targetCurrentValue;
+    Assign(std::tie(_targetCurrentValue, _currentValueLabel, _currentValueTrailingLabel),
+           std::tuple<double, std::wstring, std::wstring>(std::max(0.0, value), std::move(label), std::move(trailingLabel)),
+           Affects::Paint,
+           [this, previousTarget]() noexcept
     {
-        _currentValueTransitionStart       = _displayedCurrentValue;
-        _currentValueTransitionStartTickMs = 0u;
-        _currentValueTransitionActive      = true;
-        host->RequestAnimation();
-    }
-    else if (! _currentValueTransitionActive || ! host || host->GetTheme().reducedMotion)
-    {
-        _displayedCurrentValue        = _targetCurrentValue;
-        _currentValueTransitionActive = false;
-    }
-    RequestInvalidate();
+        ControlHost* const host  = GetHost();
+        const bool targetChanged = previousTarget != _targetCurrentValue;
+        if (host && ! host->GetTheme().reducedMotion && targetChanged)
+        {
+            _currentValueTransitionStart       = _displayedCurrentValue;
+            _currentValueTransitionStartTickMs = 0u;
+            _currentValueTransitionActive      = true;
+            host->RequestAnimation(*this);
+        }
+        else if (! _currentValueTransitionActive || ! host || host->GetTheme().reducedMotion)
+        {
+            _displayedCurrentValue        = _targetCurrentValue;
+            _currentValueTransitionActive = false;
+        }
+    });
 }
 
 void ThroughputGraph::SetOverlayText(std::wstring text)
 {
-    _overlayText = std::move(text);
-    RequestInvalidate();
+    Assign(_overlayText, std::move(text), Affects::Paint);
 }
 
 void ThroughputGraph::SetRainbowMode(bool enabled) noexcept
 {
-    _rainbowMode = enabled;
-    RequestInvalidate();
+    Assign(_rainbowMode, enabled, Affects::Paint);
 }
 
 void ThroughputGraph::SetPerStreamBands(bool enabled) noexcept
 {
-    _perStreamBands = enabled;
-    RequestInvalidate();
+    Assign(_perStreamBands, enabled, Affects::Paint);
 }
 
 void ThroughputGraph::SetTransitionDuration(uint64_t durationMs) noexcept
 {
-    _transitionDurationMs = std::max<uint64_t>(1u, durationMs);
+    // Read by the next transition step, never painted directly.
+    Assign(_transitionDurationMs, std::max<uint64_t>(1u, durationMs), Affects::None);
 }
 
 ThroughputGraphDebugState ThroughputGraph::GetDebugState() const noexcept
@@ -6277,12 +6234,7 @@ void ThroughputGraph::Paint(ControlHost& host) const
             {
                 if (auto* textBrush = host.GetSolidBrush(palette.text))
                 {
-                    context->DrawTextW(_currentValueLabel.data(),
-                                       static_cast<UINT32>(_currentValueLabel.size()),
-                                       format,
-                                       leadingBounds,
-                                       textBrush,
-                                       D2D1_DRAW_TEXT_OPTIONS_CLIP);
+                    DrawHostText(host, context, _currentValueLabel, format, leadingBounds, textBrush, D2D1_DRAW_TEXT_OPTIONS_CLIP);
                 }
             }
 
@@ -6294,12 +6246,7 @@ void ThroughputGraph::Paint(ControlHost& host) const
                     {
                         const D2D1_RECT_F trailingBounds =
                             D2D1::RectF(labelCenter + kLabelGapDip * 0.5f, bounds.top + 3.0f, bounds.right - kLabelInsetDip, bounds.bottom);
-                        context->DrawTextW(_currentValueTrailingLabel.data(),
-                                           static_cast<UINT32>(_currentValueTrailingLabel.size()),
-                                           format,
-                                           trailingBounds,
-                                           textBrush,
-                                           D2D1_DRAW_TEXT_OPTIONS_CLIP);
+                        DrawHostText(host, context, _currentValueTrailingLabel, format, trailingBounds, textBrush, D2D1_DRAW_TEXT_OPTIONS_CLIP);
                     }
                 }
             }
@@ -6312,7 +6259,7 @@ void ThroughputGraph::Paint(ControlHost& host) const
         {
             if (auto* textBrush = host.GetSolidBrush(palette.text))
             {
-                context->DrawTextW(_overlayText.data(), static_cast<UINT32>(_overlayText.size()), format, bounds, textBrush, D2D1_DRAW_TEXT_OPTIONS_CLIP);
+                DrawHostText(host, context, _overlayText, format, bounds, textBrush, D2D1_DRAW_TEXT_OPTIONS_CLIP);
             }
         }
     }
@@ -6361,13 +6308,8 @@ bool ThroughputGraph::Tick(ControlHost& host, uint64_t nowTickMs)
 
 void Slider::SetOrientation(SliderOrientation orientation) noexcept
 {
-    if (_orientation == orientation)
-    {
-        return;
-    }
-
-    _orientation = orientation;
-    RequestInvalidate();
+    // The hit band follows the orientation (GetHitBounds).
+    AssignAccess::Assign(*this, HitRevisionSite::SliderOrientation, _orientation, orientation, Affects::Paint | Affects::Hit, []() noexcept {});
 }
 
 SliderOrientation Slider::GetOrientation() const noexcept
@@ -6379,19 +6321,23 @@ void Slider::SetMinimum(double minimum) noexcept
 {
     if (! std::isfinite(minimum) || ! std::isfinite((std::max)(_maximum, minimum) - minimum))
         return;
-    _minimum = minimum;
-    if (_maximum < _minimum)
+    Assign(_minimum,
+           minimum,
+           Affects::Paint | Affects::SemanticValue,
+           [this]() noexcept
     {
-        _maximum = _minimum;
-    }
-    for (double& tick : _tickMarks)
-    {
-        tick = ClampValue(tick);
-    }
-    std::ranges::sort(_tickMarks);
-    _value = ClampValue(_value);
-    SnapDisplayedValue();
-    PublishRangeState();
+        if (_maximum < _minimum)
+        {
+            _maximum = _minimum;
+        }
+        for (double& tick : _tickMarks)
+        {
+            tick = ClampValue(tick);
+        }
+        std::ranges::sort(_tickMarks);
+        _value = ClampValue(_value);
+        SnapDisplayedValue();
+    });
 }
 
 double Slider::GetMinimum() const noexcept
@@ -6403,15 +6349,19 @@ void Slider::SetMaximum(double maximum) noexcept
 {
     if (! std::isfinite(maximum) || ! std::isfinite((std::max)(maximum, _minimum) - _minimum))
         return;
-    _maximum = (std::max)(maximum, _minimum);
-    for (double& tick : _tickMarks)
+    Assign(_maximum,
+           (std::max)(maximum, _minimum),
+           Affects::Paint | Affects::SemanticValue,
+           [this]() noexcept
     {
-        tick = ClampValue(tick);
-    }
-    std::ranges::sort(_tickMarks);
-    _value = ClampValue(_value);
-    SnapDisplayedValue();
-    PublishRangeState();
+        for (double& tick : _tickMarks)
+        {
+            tick = ClampValue(tick);
+        }
+        std::ranges::sort(_tickMarks);
+        _value = ClampValue(_value);
+        SnapDisplayedValue();
+    });
 }
 
 double Slider::GetMaximum() const noexcept
@@ -6421,7 +6371,21 @@ double Slider::GetMaximum() const noexcept
 
 void Slider::SetValue(double value) noexcept
 {
-    SetValueInternal(nullptr, value, false, false);
+    if (! std::isfinite(value))
+        return;
+    const double clamped = ClampValue(value);
+    if (IsSameValueTarget(clamped))
+    {
+        // A model acknowledgement can match the accepted target while the painted thumb is still easing. SetValue is silent
+        // and immediate even for that same target: it retires the animation work.
+        if (_valueAnimationActive)
+        {
+            SnapDisplayedValue();
+            RequestInvalidate();
+        }
+        return;
+    }
+    Assign(_value, clamped, Affects::Paint | Affects::SemanticValue, [this]() noexcept { SnapDisplayedValue(); });
 }
 
 bool Slider::RequestValue(ControlHost& host, double value) noexcept
@@ -6441,9 +6405,9 @@ void Slider::SetStep(double step) noexcept
 {
     if (! std::isfinite(step))
         return;
-    _step      = (std::max)(step, 0.0001);
-    _largeStep = (std::max)(_largeStep, _step);
-    PublishRangeState();
+    const double next = (std::max)(step, 0.0001);
+    // UI Automation's small and large changes; neither is painted.
+    Assign(std::tie(_step, _largeStep), std::tuple<double, double>(next, (std::max)(_largeStep, next)), Affects::SemanticValue);
 }
 
 double Slider::GetStep() const noexcept
@@ -6455,8 +6419,7 @@ void Slider::SetLargeStep(double step) noexcept
 {
     if (! std::isfinite(step))
         return;
-    _largeStep = (std::max)(step, _step);
-    PublishRangeState();
+    Assign(_largeStep, (std::max)(step, _step), Affects::SemanticValue);
 }
 
 double Slider::GetLargeStep() const noexcept
@@ -6475,13 +6438,12 @@ void Slider::PublishRangeState() noexcept
 
 void Slider::SetTickMarks(std::vector<double> tickMarks)
 {
-    _tickMarks = std::move(tickMarks);
-    for (double& tick : _tickMarks)
+    for (double& tick : tickMarks)
     {
         tick = ClampValue(tick);
     }
-    std::ranges::sort(_tickMarks);
-    RequestInvalidate();
+    std::ranges::sort(tickMarks);
+    Assign(_tickMarks, std::move(tickMarks), Affects::Paint);
 }
 
 std::span<const double> Slider::GetTickMarks() const noexcept
@@ -6567,7 +6529,7 @@ void Slider::BeginValueAnimation(ControlHost& host, double fromValue, double toV
     _valueAnimationActive           = true;
     const auto lifetime             = GetLifetimeToken();
     ControlHost* const originalHost = GetHost();
-    host.RequestAnimation();
+    host.RequestAnimation(*this);
     if (! lifetime.expired() && GetHost() == originalHost)
         Invalidate(host);
 }
@@ -6622,7 +6584,7 @@ void Slider::BeginVisualTransition(ControlHost& host, VisualTransitionState& tra
     transition.active               = true;
     const auto lifetime             = GetLifetimeToken();
     ControlHost* const originalHost = GetHost();
-    host.RequestAnimation();
+    host.RequestAnimation(*this);
     if (! lifetime.expired() && GetHost() == originalHost)
         Invalidate(host);
 }
@@ -6685,13 +6647,17 @@ void Slider::SyncInteractionVisuals(ControlHost& host) noexcept
     BeginVisualTransition(host, _touchTransition, (_dragging && _touchDragging) ? 1.0f : 0.0f);
 }
 
+// "Same target" absorbs floating noise, well below the smallest step (0.0001), so a minimum step still moves.
+bool Slider::IsSameValueTarget(double clamped) const noexcept
+{
+    return std::fabs(clamped - _value) <= (std::min)(0.0001, _step * 1.0e-3);
+}
 void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChanged, bool animatePosition) noexcept
 {
     if (! std::isfinite(value))
         return;
     const double clamped = ClampValue(value);
-    // "Same target" absorbs floating noise, well below the smallest step (0.0001), so a minimum step still moves.
-    if (std::fabs(clamped - _value) <= (std::min)(0.0001, _step * 1.0e-3))
+    if (IsSameValueTarget(clamped))
     {
         // A model acknowledgement can match the accepted target while the painted thumb is still easing.
         // SetValue is silent and immediate even for that same target; it must also retire animation work.
@@ -7333,23 +7299,34 @@ TagPicker::TagPicker()
 
 void TagPicker::SetOptions(std::wstring allLabel, std::vector<std::wstring> options)
 {
-    _allLabel = std::move(allLabel);
-    _options.clear();
-    _options.reserve(options.size());
+    // Empty and repeated options (compared as FindOptionIndex compares them) are dropped first.
+    std::vector<std::wstring> next;
+    next.reserve(options.size());
     for (std::wstring& option : options)
     {
-        if (option.empty() || ContainsOption(option))
+        if (option.empty() || std::ranges::any_of(next, [&option](const std::wstring& kept) noexcept { return TagPickerEqualsIgnoreCase(kept, option); }))
         {
             continue;
         }
-        _options.push_back(std::move(option));
+        next.push_back(std::move(option));
     }
-
-    PruneSelectedValues();
-    RefreshComboItems();
-    RebuildDisplayTags();
-    LayoutParts();
-    RequestInvalidate();
+    Assign(std::tie(_allLabel, _options),
+           std::tuple<std::wstring, std::vector<std::wstring>>(std::move(allLabel), std::move(next)),
+           Affects::Paint,
+           [this]()
+    {
+        // Refilling the ComboBox part and placing the parts run their routing (an embedded host's callbacks can retire this
+        // picker): each later step first checks that it is still alive.
+        const auto lifetime = GetLifetimeToken();
+        PruneSelectedValues();
+        RefreshComboItems();
+        if (lifetime.expired())
+            return;
+        RebuildDisplayTags();
+        if (lifetime.expired())
+            return;
+        LayoutParts();
+    });
 }
 
 std::span<const std::wstring> TagPicker::GetOptions() const noexcept
@@ -7359,22 +7336,35 @@ std::span<const std::wstring> TagPicker::GetOptions() const noexcept
 
 void TagPicker::SetSelectedValues(std::vector<std::wstring> values)
 {
-    _selectedValues.clear();
-    _selectedValues.reserve(values.size());
-    for (std::wstring& value : values)
+    // Each value names an option (its spelling is the option's); unknown and repeated values are dropped first.
+    std::vector<std::wstring> next;
+    next.reserve(values.size());
+    for (const std::wstring& value : values)
     {
         const std::optional<size_t> optionIndex = FindOptionIndex(value);
-        if (! optionIndex || ContainsSelectedValue(_options[optionIndex.value()]))
+        if (! optionIndex ||
+            std::ranges::any_of(next, [&](const std::wstring& kept) noexcept { return TagPickerEqualsIgnoreCase(kept, _options[optionIndex.value()]); }))
         {
             continue;
         }
-        _selectedValues.push_back(_options[optionIndex.value()]);
+        next.push_back(_options[optionIndex.value()]);
     }
-
-    RebuildDisplayTags();
-    RefreshComboItems();
-    LayoutParts();
-    RequestInvalidate();
+    Assign(_selectedValues,
+           std::move(next),
+           Affects::Paint,
+           [this]()
+    {
+        // Rebuilding the tag parts, refilling the ComboBox part and placing the parts run their routing (an embedded host's
+        // callbacks can retire this picker): each later step first checks that it is still alive.
+        const auto lifetime = GetLifetimeToken();
+        RebuildDisplayTags();
+        if (lifetime.expired())
+            return;
+        RefreshComboItems();
+        if (lifetime.expired())
+            return;
+        LayoutParts();
+    });
 }
 
 std::span<const std::wstring> TagPicker::GetSelectedValues() const noexcept
@@ -7957,21 +7947,25 @@ MenuBar::MenuBar()
 
 void MenuBar::SetItems(std::vector<MenuBarItem> items)
 {
-    _items = std::move(items);
-    InvalidateMenuBarLayoutCache();
-    if (_selectedIndex.has_value() && _selectedIndex.value() >= _items.size())
+    Assign(_items,
+           std::move(items),
+           Affects::Paint,
+           [this]() noexcept
     {
-        _selectedIndex.reset();
-    }
-    if (_hoveredIndex.has_value() && _hoveredIndex.value() >= _items.size())
-    {
-        _hoveredIndex.reset();
-    }
-    if (_pressedIndex.has_value() && _pressedIndex.value() >= _items.size())
-    {
-        _pressedIndex.reset();
-    }
-    RequestInvalidate();
+        InvalidateMenuBarLayoutCache();
+        if (_selectedIndex.has_value() && _selectedIndex.value() >= _items.size())
+        {
+            _selectedIndex.reset();
+        }
+        if (_hoveredIndex.has_value() && _hoveredIndex.value() >= _items.size())
+        {
+            _hoveredIndex.reset();
+        }
+        if (_pressedIndex.has_value() && _pressedIndex.value() >= _items.size())
+        {
+            _pressedIndex.reset();
+        }
+    });
 }
 
 std::span<const MenuBarItem> MenuBar::GetItems() const noexcept
@@ -7995,11 +7989,7 @@ void MenuBar::SetSelectedIndex(std::optional<size_t> index) noexcept
     {
         index.reset();
     }
-    if (_selectedIndex != index)
-    {
-        _selectedIndex = index;
-        RequestInvalidate();
-    }
+    Assign(_selectedIndex, index, Affects::Paint);
 }
 
 void MenuBar::ClearInteractionState() noexcept
@@ -8016,7 +8006,8 @@ void MenuBar::ClearInteractionState() noexcept
 
 void MenuBar::SetRetainSelectedIndexOnFocusLost(bool retain) noexcept
 {
-    _retainSelectedIndexOnFocusLost = retain;
+    // Read when focus leaves the bar.
+    Assign(_retainSelectedIndexOnFocusLost, retain, Affects::None);
 }
 
 std::optional<size_t> MenuBar::GetSelectedIndex() const noexcept
@@ -8488,8 +8479,8 @@ const MenuBar::MenuBarLayoutCache& MenuBar::EnsureMenuBarLayoutCache(const Contr
 
     const MenuBarLayoutCache& cached = _menuBarLayoutCache;
     if (cached.valid && cached.host == &host && cached.bounds.left == bounds.left && cached.bounds.top == bounds.top && cached.bounds.right == bounds.right &&
-        cached.bounds.bottom == bounds.bottom && cached.readingDirection == readingDirection && cached.textFormat == format && cached.fontRole == fontRole &&
-        cached.menuBarHeightDip == menuBarHeightDip && cached.insetDip == insetDip && cached.itemGapDip == itemGapDip &&
+        cached.bounds.bottom == bounds.bottom && cached.readingDirection == readingDirection && cached.textFormat.get() == format &&
+        cached.fontRole == fontRole && cached.menuBarHeightDip == menuBarHeightDip && cached.insetDip == insetDip && cached.itemGapDip == itemGapDip &&
         cached.itemPaddingXDip == itemPaddingXDip && cached.measureHeightDip == measureHeightDip && cached.itemRects.size() == _items.size())
     {
         return _menuBarLayoutCache;
@@ -8575,7 +8566,8 @@ float MenuBar::MeasureItemWidth(const ControlHost& host, const MenuBarItem& item
     }
 
     wil::com_ptr<IDWriteTextLayout> layout;
-    if (FAILED(factory->CreateTextLayout(item.text.data(), static_cast<UINT32>(item.text.size()), format, 512.0f, measureHeightDip, layout.addressof())) ||
+    if (FAILED(
+            CountedCreateTextLayout(factory, item.text.data(), static_cast<UINT32>(item.text.size()), format, 512.0f, measureHeightDip, layout.addressof())) ||
         ! layout)
     {
         return (itemPaddingXDip * 2.0f) + 24.0f;
@@ -8826,12 +8818,17 @@ void TabControl::SetTabTitle(size_t index, std::wstring title)
     {
         return;
     }
-
-    _tabs[index].title = std::move(title);
-    _tabs[index].measuredTitleWidthDip.reset();
-    _tabs[index].measuredTitleTextFormat = nullptr;
-    InvalidateTabHeaderLayoutCache();
-    static_cast<void>(SyncLayout());
+    // A title names its tab item (UI Automation).
+    Assign(_tabs[index].title,
+           std::move(title),
+           Affects::Paint | Affects::SemanticName,
+           [this, index]() noexcept
+    {
+        _tabs[index].measuredTitleWidthDip.reset();
+        _tabs[index].measuredTitleTextFormat = nullptr;
+        InvalidateTabHeaderLayoutCache();
+        static_cast<void>(SyncLayout(false));
+    });
 }
 
 std::wstring_view TabControl::GetTabTitle(size_t index) const noexcept
@@ -8845,8 +8842,8 @@ void TabControl::SetTabTooltip(size_t index, std::wstring tooltipText)
     {
         return;
     }
-
-    _tabs[index].tooltipText = std::move(tooltipText);
+    // Read when the pointer next rests on the tab.
+    Assign(_tabs[index].tooltipText, std::move(tooltipText), Affects::None);
 }
 
 std::wstring_view TabControl::GetTabTooltip(size_t index) const noexcept
@@ -8860,15 +8857,16 @@ void TabControl::SetTabClosable(size_t index, bool closable) noexcept
     {
         return;
     }
-
-    if (_tabs[index].closable == closable)
+    // The close button widens the tab's header, which moves the rectangles of this tab item and every later one that UI
+    // Automation reports: they are republished with the tab items.
+    Assign(_tabs[index].closable,
+           closable,
+           Affects::Paint | Affects::SemanticState,
+           [this]() noexcept
     {
-        return;
-    }
-
-    _tabs[index].closable = closable;
-    InvalidateTabHeaderLayoutCache();
-    static_cast<void>(SyncLayout());
+        InvalidateTabHeaderLayoutCache();
+        static_cast<void>(SyncLayout(false));
+    });
 }
 
 bool TabControl::IsTabClosable(size_t index) const noexcept
@@ -8878,52 +8876,57 @@ bool TabControl::IsTabClosable(size_t index) const noexcept
 
 void TabControl::SetTabVisible(size_t index, bool visible) noexcept
 {
-    if (index >= _tabs.size() || _tabs[index].visible == visible)
+    if (index >= _tabs.size())
     {
         return;
     }
-
-    _tabs[index].visible = visible;
-    if (! visible)
+    // The visible tabs are the tab items UI Automation lists, and hiding the selected one selects another.
+    Assign(_tabs[index].visible,
+           visible,
+           Affects::Paint | Affects::SemanticState,
+           [this, index, visible]() noexcept
     {
-        if (_hoveredTabIndex == index)
+        if (! visible)
         {
-            _hoveredTabIndex.reset();
-        }
-        if (_pressedTabIndex == index)
-        {
-            _pressedTabIndex.reset();
-        }
-        if (_closePressedIndex == index)
-        {
-            _closePressedIndex.reset();
-        }
-        if (_draggingTabIndex == index)
-        {
-            _draggingTabIndex.reset();
-            _dragReordering = false;
-        }
-    }
-
-    if (_selectedIndex == index && ! visible)
-    {
-        _selectedIndex.reset();
-        for (size_t candidate = 0u; candidate < _tabs.size(); ++candidate)
-        {
-            if (_tabs[candidate].visible)
+            if (_hoveredTabIndex == index)
             {
-                _selectedIndex = candidate;
-                break;
+                _hoveredTabIndex.reset();
+            }
+            if (_pressedTabIndex == index)
+            {
+                _pressedTabIndex.reset();
+            }
+            if (_closePressedIndex == index)
+            {
+                _closePressedIndex.reset();
+            }
+            if (_draggingTabIndex == index)
+            {
+                _draggingTabIndex.reset();
+                _dragReordering = false;
             }
         }
-    }
-    else if (! _selectedIndex.has_value() && visible)
-    {
-        _selectedIndex = index;
-    }
 
-    InvalidateTabHeaderLayoutCache();
-    static_cast<void>(SyncLayout());
+        if (_selectedIndex == index && ! visible)
+        {
+            _selectedIndex.reset();
+            for (size_t candidate = 0u; candidate < _tabs.size(); ++candidate)
+            {
+                if (_tabs[candidate].visible)
+                {
+                    _selectedIndex = candidate;
+                    break;
+                }
+            }
+        }
+        else if (! _selectedIndex.has_value() && visible)
+        {
+            _selectedIndex = index;
+        }
+
+        InvalidateTabHeaderLayoutCache();
+        static_cast<void>(SyncLayout(false));
+    });
 }
 
 bool TabControl::IsTabVisible(size_t index) const noexcept
@@ -8933,16 +8936,17 @@ bool TabControl::IsTabVisible(size_t index) const noexcept
 
 void TabControl::SetTabReorderingEnabled(bool enabled) noexcept
 {
-    if (_tabReorderingEnabled == enabled)
+    Assign(_tabReorderingEnabled,
+           enabled,
+           Affects::None,
+           [this, enabled]() noexcept
     {
-        return;
-    }
-    _tabReorderingEnabled = enabled;
-    if (! enabled)
-    {
-        _draggingTabIndex.reset();
-        _dragReordering = false;
-    }
+        if (! enabled)
+        {
+            _draggingTabIndex.reset();
+            _dragReordering = false;
+        }
+    });
 }
 
 bool TabControl::IsTabReorderingEnabled() const noexcept
@@ -8974,14 +8978,8 @@ void TabControl::SetSelectedIndex(std::optional<size_t> index) noexcept
             }
         }
     }
-
-    if (_selectedIndex == index)
-    {
-        return;
-    }
-
-    _selectedIndex = index;
-    static_cast<void>(SyncLayout());
+    // The selected tab item, and the one a focused tab control reports focused.
+    Assign(_selectedIndex, index, Affects::Paint | Affects::SemanticState, [this]() noexcept { static_cast<void>(SyncLayout(false)); });
 }
 
 std::optional<size_t> TabControl::GetSelectedIndex() const noexcept
@@ -9446,7 +9444,7 @@ bool TabControl::UpdateVisiblePageBounds() noexcept
     return ! ownerLifetime.expired();
 }
 
-bool TabControl::SyncLayout() noexcept
+bool TabControl::SyncLayout(bool route) noexcept
 {
     RequestVisualContentPreparation(false);
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
@@ -9470,6 +9468,9 @@ bool TabControl::SyncLayout() noexcept
     {
         return false;
     }
+    // A setter that assigns through Control::Assign routes the repaint and the publication itself.
+    if (! route)
+        return true;
     RequestInvalidate();
     if (ownerLifetime.expired())
         return false;
@@ -10307,8 +10308,7 @@ StatusStrip::StatusStrip(std::wstring text) : _text(std::move(text))
 
 void StatusStrip::SetText(std::wstring text)
 {
-    _text = std::move(text);
-    RequestInvalidate();
+    Assign(_text, std::move(text), Affects::Paint);
 }
 
 std::wstring_view StatusStrip::GetText() const noexcept
@@ -10318,19 +10318,12 @@ std::wstring_view StatusStrip::GetText() const noexcept
 
 void StatusStrip::SetFontRole(FontRole fontRole) noexcept
 {
-    _fontRole = fontRole;
-    RequestInvalidate();
+    Assign(_fontRole, fontRole, Affects::Paint);
 }
 
 void StatusStrip::SetBlendWithWindowBackground(bool blend) noexcept
 {
-    if (_blendWithWindowBackground == blend)
-    {
-        return;
-    }
-
-    _blendWithWindowBackground = blend;
-    RequestInvalidate();
+    Assign(_blendWithWindowBackground, blend, Affects::Paint);
 }
 
 bool StatusStrip::GetBlendWithWindowBackground() const noexcept
@@ -10340,16 +10333,14 @@ bool StatusStrip::GetBlendWithWindowBackground() const noexcept
 
 void StatusStrip::SetSections(std::vector<Section> sections)
 {
-    _sections = std::move(sections);
-    RequestInvalidate();
+    Assign(_sections, std::move(sections), Affects::Paint);
 }
 
 void StatusStrip::SetSectionText(size_t index, std::wstring text)
 {
     if (index < _sections.size())
     {
-        _sections[index].text = std::move(text);
-        RequestInvalidate();
+        Assign(_sections[index].text, std::move(text), Affects::Paint);
     }
 }
 
@@ -10395,44 +10386,96 @@ std::wstring StatusStrip::ElideLeadingForWidth(const ControlHost* host, std::wst
         return L"...";
     }
 
-    if (MeasureSingleLineTextWidthDip(host, text, fontRole, heightDip) <= (widthDip + 0.5f))
+    // One layout of the dots followed by the text measures both; its cluster metrics price every cut. Without a
+    // layout each UTF-16 unit counts 7 DIP, the single-line measuring fallback.
+    constexpr std::wstring_view kEllipsis = L"...";
+    std::wstring measured(kEllipsis);
+    measured.append(text);
+    std::vector<DWRITE_CLUSTER_METRICS> clusters;
+    bool measuredByLayout = false;
+    if (host)
+    {
+        auto* factory = host->GetWriteFactory();
+        auto* format  = host->GetTextFormat(fontRole, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false);
+        if (factory && format)
+        {
+            constexpr float kMeasureWidthDip = 32768.0f;
+            wil::com_ptr<IDWriteTextLayout> layout;
+#if DXUI_ENABLE_DIAGNOSTICS
+            ++testSingleLineMeasureLayoutCreations; // The single-line measuring counter; the layout is also counted by kind.
+#endif
+            UINT32 count = 0u;
+            if (SUCCEEDED(CountedCreateTextLayout(
+                    factory, measured.data(), static_cast<UINT32>(measured.size()), format, kMeasureWidthDip, heightDip, layout.addressof())) &&
+                layout && layout->GetClusterMetrics(nullptr, 0u, &count) == HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))
+            {
+                clusters.resize(count);
+                measuredByLayout = SUCCEEDED(layout->GetClusterMetrics(clusters.data(), count, &count)) && count <= clusters.size();
+                clusters.resize(measuredByLayout ? count : 0u);
+            }
+        }
+    }
+    if (! measuredByLayout)
+    {
+        DWRITE_CLUSTER_METRICS unit{};
+        unit.width  = 7.0f;
+        unit.length = 1u;
+        clusters.assign(measured.size(), unit);
+    }
+
+    float ellipsisWidth = 0.0f;
+    float textWidth     = 0.0f;
+    size_t position     = 0u;
+    for (const auto& cluster : clusters)
+    {
+        (position < kEllipsis.size() ? ellipsisWidth : textWidth) += cluster.width;
+        position += cluster.length;
+    }
+    if (textWidth <= (widthDip + 0.5f))
     {
         return std::wstring(text);
     }
-
-    constexpr std::wstring_view kEllipsis = L"...";
-    if (MeasureSingleLineTextWidthDip(host, kEllipsis, fontRole, heightDip) > widthDip)
+    if (ellipsisWidth > widthDip)
     {
         return std::wstring(kEllipsis);
     }
 
-    size_t low  = 0u;
-    size_t high = text.size();
-    while (low < high)
+    // Keep the longest tail that fits. A cut is admitted only where a layout cluster starts on a grapheme boundary,
+    // so the tail never begins inside a combining sequence, surrogate pair or emoji ZWJ sequence.
+    std::vector<size_t> boundaries(1u, 0u);
+    while (boundaries.back() < text.size())
     {
-        const size_t candidateSuffixLength = low + ((high - low + 1u) / 2u);
-        const size_t suffixStart           = text.size() - candidateSuffixLength;
-        std::wstring candidate(kEllipsis);
-        candidate.append(text.substr(suffixStart));
-
-        if (MeasureSingleLineTextWidthDip(host, candidate, fontRole, heightDip) <= (widthDip + 0.5f))
-        {
-            low = candidateSuffixLength;
-        }
-        else
-        {
-            high = candidateSuffixLength - 1u;
-        }
+        boundaries.push_back(FindNextTextElementBoundary(text, boundaries.back()));
     }
-
-    size_t suffixStart = text.size() - low;
-    while (suffixStart < text.size() && IsUtf16TrailSurrogate(text[suffixStart]))
+    size_t cut        = text.size();
+    float suffixWidth = 0.0f;
+    size_t end        = measured.size();
+    auto boundary     = boundaries.rbegin();
+    for (auto cluster = clusters.rbegin(); cluster != clusters.rend(); ++cluster)
     {
-        ++suffixStart;
+        if (cluster->length > end || end - cluster->length < kEllipsis.size())
+        {
+            break;
+        }
+        end -= cluster->length;
+        suffixWidth += cluster->width;
+        if (ellipsisWidth + suffixWidth > (widthDip + 0.5f))
+        {
+            break;
+        }
+        const size_t textStart = end - kEllipsis.size();
+        while (boundary != boundaries.rend() && *boundary > textStart)
+        {
+            ++boundary;
+        }
+        if (boundary != boundaries.rend() && *boundary == textStart)
+        {
+            cut = textStart;
+        }
     }
 
     std::wstring result(kEllipsis);
-    result.append(text.substr(suffixStart));
+    result.append(text.substr(cut));
     return result;
 }
 
@@ -10536,8 +10579,7 @@ void ColorSwatch::SetOnClick(std::function<void()> onClick)
 
 void ColorSwatch::SetSwatchValue(std::optional<uint32_t> swatchArgb) noexcept
 {
-    _swatchArgb = swatchArgb;
-    RequestInvalidate();
+    Assign(_swatchArgb, swatchArgb, Affects::Paint);
 }
 
 std::optional<uint32_t> ColorSwatch::GetSwatchValue() const noexcept
@@ -10659,12 +10701,7 @@ const Control* PopupLayer::HitTestOverlay(D2D1_POINT_2F point) const
 
 void StackPanel::SetOrientation(StackOrientation orientation) noexcept
 {
-    if (_orientation != orientation)
-    {
-        _orientation = orientation;
-        ++_layoutRevision;
-    }
-    RequestInvalidate();
+    Assign(_orientation, orientation, Affects::Layout | Affects::Paint, [this]() noexcept { ++_layoutRevision; });
 }
 
 StackOrientation StackPanel::GetOrientation() const noexcept
@@ -10674,12 +10711,7 @@ StackOrientation StackPanel::GetOrientation() const noexcept
 
 void StackPanel::SetGap(float gapDip) noexcept
 {
-    if (_gapDip != gapDip)
-    {
-        _gapDip = gapDip;
-        ++_layoutRevision;
-    }
-    RequestInvalidate();
+    Assign(_gapDip, gapDip, Affects::Layout | Affects::Paint, [this]() noexcept { ++_layoutRevision; });
 }
 
 float StackPanel::GetGap() const noexcept
@@ -10689,15 +10721,10 @@ float StackPanel::GetGap() const noexcept
 
 void StackPanel::SetPadding(float left, float top, float right, float bottom) noexcept
 {
-    if (_padLeft != left || _padTop != top || _padRight != right || _padBottom != bottom)
-    {
-        _padLeft   = left;
-        _padTop    = top;
-        _padRight  = right;
-        _padBottom = bottom;
-        ++_layoutRevision;
-    }
-    RequestInvalidate();
+    Assign(std::tie(_padLeft, _padTop, _padRight, _padBottom),
+           std::tuple<float, float, float, float>(left, top, right, bottom),
+           Affects::Layout | Affects::Paint,
+           [this]() noexcept { ++_layoutRevision; });
 }
 
 void StackPanel::SetChildExtent(const Control* child, float extentDip)
@@ -10712,16 +10739,13 @@ void StackPanel::SetChildExtent(const Control* child, float extentDip)
     {
         if (entry.child == child)
         {
-            if (entry.extentDip != extentDip)
-            {
-                entry.extentDip = extentDip;
-                ++_layoutRevision;
-            }
+            Assign(entry.extentDip, extentDip, Affects::Layout | Affects::Paint, [this]() noexcept { ++_layoutRevision; });
             return;
         }
     }
     _childExtents.push_back(ChildExtent{.child = child, .lifetime = GetControlLifetimeToken(*child), .extentDip = extentDip});
     ++_layoutRevision;
+    RouteAffects(Affects::Layout | Affects::Paint);
 }
 
 float StackPanel::FindChildExtent(const Control& child) const noexcept
@@ -11037,10 +11061,9 @@ void ScrollPanel::ClearChildren() noexcept
 void ScrollPanel::SetContentHeight(float heightDip) noexcept
 {
     const float previousOffset = _scrollOffsetDip;
-    _contentHeightDip          = (std::max)(0.0f, heightDip);
-    ClampScrollOffset();
-    RequestInvalidate();
-    static_cast<void>(NotifyScrollChanged(previousOffset));
+    const auto lifetime        = GetLifetimeToken();
+    if (Assign(_contentHeightDip, (std::max)(0.0f, heightDip), Affects::Paint, [this]() noexcept { ClampScrollOffset(); }) && ! lifetime.expired())
+        static_cast<void>(NotifyScrollChanged(previousOffset));
 }
 
 void StackPanel::OnBoundsChanged() noexcept
@@ -11085,13 +11108,17 @@ float ScrollPanel::GetScrollOffset() const noexcept
 void ScrollPanel::SetScrollOffset(float offsetDip) noexcept
 {
     const float previousOffset = _scrollOffsetDip;
-    _scrollOffsetDip           = offsetDip;
-    ClampScrollOffset();
-    if (_scrollOffsetDip != previousOffset)
-    {
-        RequestInvalidate();
+    const float extent         = GetScrollableExtent();
+    const auto lifetime        = GetLifetimeToken();
+    // Content moves under a still pointer (the hit revision moves at the scroll site), then the application hears of it.
+    if (AssignAccess::Assign(*this,
+                             HitRevisionSite::ScrollOffset,
+                             _scrollOffsetDip,
+                             (extent <= 0.0f) ? 0.0f : (std::clamp)(offsetDip, 0.0f, extent),
+                             Affects::Paint | Affects::Hit,
+                             []() noexcept {}) &&
+        ! lifetime.expired())
         static_cast<void>(NotifyScrollChanged(previousOffset));
-    }
 }
 
 void ScrollPanel::ScrollToTop() noexcept
@@ -11099,21 +11126,35 @@ void ScrollPanel::ScrollToTop() noexcept
     SetScrollOffset(0.0f);
 }
 
+// The viewport sets the scrollable extent, so a resize re-clamps the offset by itself: the result never depends on a caller
+// setting an unchanged content height again (an equal SetContentHeight is no change). A moved offset moves the content under
+// a still pointer (the hit revision at the scroll site) and is reported; SetBounds repaints after this hook.
+void ScrollPanel::OnBoundsChanged() noexcept
+{
+    Panel::OnBoundsChanged();
+    const float previousOffset = _scrollOffsetDip;
+    ClampScrollOffset();
+    if (_scrollOffsetDip != previousOffset)
+        static_cast<void>(NotifyScrollChanged(previousOffset));
+}
+
 void ScrollPanel::SetScrollStepDip(float stepDip) noexcept
 {
-    _scrollStepDip = (std::max)(1.0f, stepDip);
+    // Read by the next wheel or key step.
+    Assign(_scrollStepDip, (std::max)(1.0f, stepDip), Affects::None);
 }
 
 void ScrollPanel::SetInternalScrollbarEnabled(bool enabled) noexcept
 {
-    if (_internalScrollbarEnabled != enabled)
+    Assign(_internalScrollbarEnabled,
+           enabled,
+           Affects::Paint,
+           [this]() noexcept
     {
-        _internalScrollbarEnabled = enabled;
-        _scrollbarHotPart         = HotPart::None;
-        _dragThumb                = false;
-        _dragThumbOffsetDip       = 0.0f;
-        RequestInvalidate();
-    }
+        _scrollbarHotPart   = HotPart::None;
+        _dragThumb          = false;
+        _dragThumbOffsetDip = 0.0f;
+    });
 }
 
 void ScrollPanel::SetOnScrollChanged(std::function<void(float)> callback) noexcept
@@ -11212,6 +11253,9 @@ void ScrollPanel::ClampScrollOffset() noexcept
 
 bool ScrollPanel::NotifyScrollChanged(float previousOffsetDip) noexcept
 {
+    // Every offset change comes here: content moved under a still pointer (an open popup of a scrolled child included).
+    if (_scrollOffsetDip != previousOffsetDip)
+        NoteHitTestChange(*this, HitRevisionSite::ScrollOffset);
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (_scrollOffsetDip != previousOffsetDip && _onScrollChanged)
     {
@@ -11431,6 +11475,44 @@ bool ScrollPanel::OnMouseMiddleDown(ControlHost& host, D2D1_POINT_2F point, UINT
     return DispatchPress(host, point, false, modifiers, 4u);
 }
 
+bool ScrollPanel::OnMouseMiddleUp(ControlHost& host, D2D1_POINT_2F point, UINT modifiers)
+{
+    if ((_innerCapturedChild || _dragThumb) && ! HostCaptureCarriesGesture(host))
+    {
+        // The capture went away without a capture-loss callback: that gesture ended, and this release is ordinary.
+        const std::weak_ptr<int> selfLifetime = GetLifetimeToken();
+        OnCaptureLost(host);
+        if (selfLifetime.expired())
+            return true;
+    }
+    const D2D1_POINT_2F contentPoint = ToContentSpace(point);
+    if (_innerCapturedChild)
+    {
+        // The release reaches the child that owns the forwarded gesture, as its press did. As in a host, the middle
+        // release ends no gesture by itself: the gesture stays the child's until its own button is up or it releases it.
+        Control* const capturedChild = LiveInnerCaptured();
+        return capturedChild && capturedChild->OnMouseMiddleUp(host, contentPoint, modifiers);
+    }
+    if (_dragThumb)
+        return false;
+
+    const std::weak_ptr<int> queryLifetime = GetLifetimeToken();
+    Control* overlayChild                  = FindOverlayChildAtContent(contentPoint);
+    if (queryLifetime.expired())
+        return false;
+    if (overlayChild)
+        return overlayChild->OnMouseMiddleUp(host, contentPoint, modifiers);
+    if (PointInRect(GetViewportRect(), point))
+    {
+        Control* const child = FindChildAtContent(contentPoint);
+        if (queryLifetime.expired())
+            return false;
+        if (child)
+            return child->OnMouseMiddleUp(host, contentPoint, modifiers);
+    }
+    return false;
+}
+
 bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers, unsigned clickCount)
 {
     const auto forward = [&](Control& child, D2D1_POINT_2F contentPoint)
@@ -11440,6 +11522,9 @@ bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rig
                : clickCount == 2u ? child.OnMouseDoubleClick(host, contentPoint, rightButton, modifiers)
                                   : child.OnMouseDown(host, contentPoint, rightButton, modifiers);
     };
+    // A host takes no capture for a middle press: the panel forwards one as a gesture only when the child captured itself.
+    const auto takesGesture = [&](Control& liveChild) noexcept
+    { return clickCount != 4u ? PressStillOwnsPointer(host, rightButton) : host.GetCapturedControl() == &liveChild; };
     if ((_innerCapturedChild || _dragThumb) && ! HostCaptureCarriesGesture(host))
     {
         // The capture went away without a capture-loss callback: that gesture ended, and this press begins another.
@@ -11480,7 +11565,7 @@ bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rig
         }
         if (childHandled)
         {
-            if (Control* const liveChild = RevalidateScrollPanelChild(childLifetime, this, overlayChild); liveChild && PressStillOwnsPointer(host, rightButton))
+            if (Control* const liveChild = RevalidateScrollPanelChild(childLifetime, this, overlayChild); liveChild && takesGesture(*liveChild))
             {
                 SetInnerCaptured(liveChild, rightButton);
                 host.CaptureMouse(this);
@@ -11543,7 +11628,7 @@ bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rig
             }
             if (childHandled)
             {
-                if (Control* const liveChild = RevalidateScrollPanelChild(childLifetime, this, child); liveChild && PressStillOwnsPointer(host, rightButton))
+                if (Control* const liveChild = RevalidateScrollPanelChild(childLifetime, this, child); liveChild && takesGesture(*liveChild))
                 {
                     SetInnerCaptured(liveChild, rightButton);
                     host.CaptureMouse(this);
@@ -11820,6 +11905,11 @@ bool ScrollPanel::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float whe
     const float previousOffset = _scrollOffsetDip;
     _scrollOffsetDip -= steps * _scrollStepDip;
     ClampScrollOffset();
+    if (_scrollOffsetDip == previousOffset)
+    {
+        // At the bound nothing moves: repaint nothing and leave the wheel to an enclosing scroller.
+        return false;
+    }
     RequestInvalidate();
     static_cast<void>(NotifyScrollChanged(previousOffset));
     return true;
@@ -12043,11 +12133,9 @@ bool TooltipLayer::SetTooltipDelayed(std::wstring text, const D2D1_POINT_2F& ori
     const uint64_t nextShowTickMs = delayMs > (std::numeric_limits<uint64_t>::max)() - nowTickMs ? (std::numeric_limits<uint64_t>::max)() : nowTickMs + delayMs;
     if (_showScheduled && _pendingText == text)
     {
-        if (! TooltipPointsMatch(_pendingOriginDip, originDip))
-        {
-            _pendingOriginDip = originDip;
-            return true;
-        }
+        // A pending tooltip paints nothing, so a moved origin is only stored: it changes no pixels and no deadline, and the
+        // tooltip shows at the last pointer origin.
+        _pendingOriginDip = originDip;
         return false;
     }
 
@@ -12149,13 +12237,35 @@ std::wstring_view TooltipLayer::DebugGetPendingTooltipText() const noexcept
 }
 #endif
 
+std::optional<TooltipLayer::PendingDeadline> TooltipLayer::GetPendingDeadline() const noexcept
+{
+    if (_showScheduled)
+        return PendingDeadline{true, _showTickMs};
+    if (_hideScheduled)
+        return PendingDeadline{false, _hideTickMs};
+    return std::nullopt;
+}
+
+// Show and hide are deadlines (W3.3): Tick does something only when one is reached and asks for no next frame, since
+// nothing about a tooltip moves between them. The owning host ticks its layer at the deadline GetPendingDeadline names.
+// A layer placed in a control tree instead names its next deadline to its host's frame schedule itself.
 bool TooltipLayer::Tick(ControlHost& host, uint64_t nowTickMs)
 {
+    // Invalidate may run application code (an embedded view's callback) that destroys a layer placed in a tree.
+    const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    const auto armNext                = wil::scope_exit([this, &host, &lifetime]() noexcept
+    {
+        if (! lifetime.expired() && GetHost() == &host)
+        {
+            if (const auto next = GetPendingDeadline())
+                host.RequestAnimationAt(*this, next->dueTickMs);
+        }
+    });
     if (_showScheduled)
     {
         if (nowTickMs < _showTickMs)
         {
-            return true;
+            return false;
         }
 
         std::wstring text             = std::move(_pendingText);
@@ -12172,7 +12282,7 @@ bool TooltipLayer::Tick(ControlHost& host, uint64_t nowTickMs)
         {
             Invalidate(host);
         }
-        return changed;
+        return false;
     }
 
     if (! _hideScheduled)
@@ -12182,17 +12292,16 @@ bool TooltipLayer::Tick(ControlHost& host, uint64_t nowTickMs)
 
     if (nowTickMs < _hideTickMs)
     {
-        return true;
+        return false;
     }
 
-    _hideScheduled     = false;
-    _hideTickMs        = 0u;
-    const bool cleared = Clear();
-    if (cleared)
+    _hideScheduled = false;
+    _hideTickMs    = 0u;
+    if (Clear())
     {
         Invalidate(host);
     }
-    return cleared;
+    return false;
 }
 
 void TooltipLayer::OnHostDpiChanged(ControlHost& host) noexcept

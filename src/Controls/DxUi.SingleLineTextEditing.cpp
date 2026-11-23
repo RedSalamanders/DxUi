@@ -82,7 +82,9 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
     // cluster scan locally, including combining marks after the ASCII unit.
     if (text[caret] <= 0x7fu && (! caret || (text[caret - 1u] <= 0x7fu && ! (text[caret - 1u] == L'\r' && text[caret] == L'\n'))))
         return finish(FindNextTextElementBoundary(text, caret));
-    size_t cursor = 0u;
+    // Otherwise walk forward from the nearest unconditional break, which costs
+    // the containing element rather than the caret offset.
+    size_t cursor = FindTextElementSearchAnchor(text, caret);
     while (cursor < text.size())
     {
         const size_t nextBoundary = FindNextTextElementBoundary(text, cursor);
@@ -122,7 +124,11 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
         return caret;
     }
 
-    size_t cursor = 0u;
+    size_t cursor = FindTextElementSearchAnchor(text, caret);
+    if (cursor == caret)
+    {
+        return caret;
+    }
     while (cursor < text.size())
     {
         const size_t nextBoundary = FindNextTextElementBoundary(text, cursor);
@@ -371,8 +377,8 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
 #if DXUI_ENABLE_DIAGNOSTICS
             ++testSingleLineMeasureLayoutCreations;
 #endif
-            if (SUCCEEDED(factory->CreateTextLayout(
-                    text.data(), static_cast<UINT32>(text.size()), format, kSingleLineMeasureWidthDip, heightDip, layout.addressof())) &&
+            if (SUCCEEDED(CountedCreateTextLayout(
+                    factory, text.data(), static_cast<UINT32>(text.size()), format, kSingleLineMeasureWidthDip, heightDip, layout.addressof())) &&
                 layout)
             {
                 DWRITE_TEXT_METRICS metrics{};
@@ -410,8 +416,8 @@ constexpr float kSingleLineMeasureWidthDip = 32768.0f;
     }
 
     wil::com_ptr<IDWriteTextLayout> layout;
-    if (FAILED(factory->CreateTextLayout(
-            text.data(), static_cast<UINT32>(text.size()), format, std::max(1.0f, widthDip), std::max(1.0f, heightDip), layout.addressof())) ||
+    if (FAILED(CountedCreateTextLayout(
+            factory, text.data(), static_cast<UINT32>(text.size()), format, std::max(1.0f, widthDip), std::max(1.0f, heightDip), layout.addressof())) ||
         ! layout)
     {
         return {};
@@ -465,8 +471,8 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
 
     const float resolvedMinimumWidthDip = std::max(1.0f, minimumWidthDip);
     const float resolvedHeightDip       = std::max(1.0f, heightDip);
-    const bool cacheHit =
-        cache && cache->layout && cache->text == text && cache->textFormat == format && cache->role == role && cache->readingDirection == readingDirection;
+    const bool cacheHit                 = cache && cache->layout && cache->text == text && cache->textFormat.get() == format && cache->role == role &&
+                                          cache->readingDirection == readingDirection;
 
     wil::com_ptr<IDWriteTextLayout> layout;
     float measuredTextWidthDip = static_cast<float>(text.size()) * 7.0f;
@@ -480,8 +486,8 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
         const float initialLayoutWidthDip = std::max(resolvedMinimumWidthDip, kSingleLineMeasureWidthDip);
         const bool perfEnabled            = Debug::Perf::IsCaptureEnabled();
         const auto createStartedAt        = perfEnabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-        const HRESULT createHr =
-            factory->CreateTextLayout(text.data(), static_cast<UINT32>(text.size()), format, initialLayoutWidthDip, resolvedHeightDip, layout.addressof());
+        const HRESULT createHr            = CountedCreateTextLayout(
+            factory, text.data(), static_cast<UINT32>(text.size()), format, initialLayoutWidthDip, resolvedHeightDip, layout.addressof());
         if (perfEnabled)
         {
             const std::wstring_view detail = readingDirection == DWRITE_READING_DIRECTION_RIGHT_TO_LEFT ? L"rtl" : L"ltr";
@@ -515,6 +521,9 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
     }
 
     const float resolvedLayoutWidthDip = std::max({1.0f, resolvedMinimumWidthDip, measuredTextWidthDip + 32.0f});
+    // A hit at the size it already has is the cached layout as it is: nothing is set, cleared or copied.
+    if (cacheHit && cache->layoutWidthDip == resolvedLayoutWidthDip && cache->layoutHeightDip == resolvedHeightDip)
+        return layout;
     if (FAILED(layout->SetMaxWidth(resolvedLayoutWidthDip)) || FAILED(layout->SetMaxHeight(resolvedHeightDip)))
     {
         if (cache)
@@ -524,20 +533,27 @@ void ClearSingleLineTextLayoutCache(SingleLineTextLayoutCache& cache, bool secur
         return {};
     }
 
+    if (cacheHit)
+    {
+        // The key text is already the cache's: only the size moved.
+        cache->layoutWidthDip  = resolvedLayoutWidthDip;
+        cache->layoutHeightDip = resolvedHeightDip;
+        return layout;
+    }
     if (cache)
     {
         cache->layout = layout;
         if (secureCacheText)
         {
+            // Wiped first, then overwritten in place: the cache keeps its capacity, so a relayout copies the text without
+            // allocating, and no stale secret survives beyond the new text.
             SecureWipe::SecureClear(cache->text);
-            std::wstring exactText(text.size(), L'\0');
-            std::copy(text.begin(), text.end(), exactText.begin());
-            cache->text.swap(exactText);
         }
-        else
-        {
-            cache->text = std::wstring(text);
-        }
+        // Room for typing: a text that grows a few units at a time (an IME composition) keeps relaying out without
+        // reallocating the copy.
+        if (cache->text.capacity() < text.size())
+            cache->text.reserve(text.size() + text.size() / 16u + 16u);
+        cache->text.assign(text);
         cache->textFormat           = format;
         cache->role                 = role;
         cache->readingDirection     = readingDirection;
@@ -687,16 +703,20 @@ void DrawSingleLineTextClippedWithLayout(ControlHost& host,
         return;
     }
 
+    // Reached only when the field's own layout could not be created. The text may be a revealed password, and the host's
+    // retained layouts keep their key strings for reuse without wiping them, so it is drawn through DrawText, retaining
+    // nothing (W2.1 review, F4).
     if (auto* format = host.GetTextFormat(role, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER, false, readingDirection))
     {
         dc->PushAxisAlignedClip(snappedRect, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-        dc->DrawTextW(text.data(),
-                      static_cast<UINT32>(text.size()),
-                      format,
-                      D2D1::RectF(snappedRect.left - scrollDip, snappedRect.top, snappedRect.right - scrollDip, snappedRect.bottom),
-                      brush,
-                      kTextDrawOptions,
-                      DWRITE_MEASURING_MODE_NATURAL);
+        CountedDrawText(dc,
+                        text.data(),
+                        static_cast<UINT32>(text.size()),
+                        format,
+                        D2D1::RectF(snappedRect.left - scrollDip, snappedRect.top, snappedRect.right - scrollDip, snappedRect.bottom),
+                        brush,
+                        kTextDrawOptions,
+                        DWRITE_MEASURING_MODE_NATURAL);
         dc->PopAxisAlignedClip();
     }
 }
@@ -816,8 +836,11 @@ bool ShouldPromoteSingleLineClickToSelectAll(const ControlHost& host, const Sing
     return std::iswspace(static_cast<wint_t>(value)) != 0;
 }
 
-[[nodiscard]] int GetWordSelectionClass(wchar_t value) noexcept
+// Classes the complete scalar at a code-point start, so a surrogate pair is
+// one word character or one symbol, never two punctuation units.
+[[nodiscard]] int GetWordSelectionClass(std::wstring_view text, size_t index) noexcept
 {
+    const wchar_t value = text[index];
     if (IsSelectionWhitespace(value))
     {
         return 0;
@@ -826,7 +849,7 @@ bool ShouldPromoteSingleLineClickToSelectAll(const ControlHost& host, const Sing
     {
         return 1;
     }
-    if (IsWordCharacter(value))
+    if (IsWordCharacter(ReadCodePointAt(text, index).value))
     {
         return 2;
     }
@@ -842,18 +865,27 @@ void SelectSingleLineWordAt(std::wstring_view text, size_t hitIndex, size_t& car
         return;
     }
 
-    size_t index             = std::min(hitIndex, text.size() - 1u);
-    const int selectionClass = GetWordSelectionClass(text[index]);
-    size_t selectionStart    = index;
-    while (selectionStart > 0u && GetWordSelectionClass(text[selectionStart - 1u]) == selectionClass)
+    size_t index = std::min(hitIndex, text.size() - 1u);
+    if (index > 0u && IsUtf16TrailSurrogate(text[index]) && IsUtf16LeadSurrogate(text[index - 1u]))
     {
-        --selectionStart;
+        --index;
+    }
+    const int selectionClass = GetWordSelectionClass(text, index);
+    size_t selectionStart    = index;
+    while (selectionStart > 0u)
+    {
+        const size_t previous = StepToPreviousCodePoint(text, selectionStart);
+        if (GetWordSelectionClass(text, previous) != selectionClass)
+        {
+            break;
+        }
+        selectionStart = previous;
     }
 
-    size_t selectionEnd = index + 1u;
-    while (selectionEnd < text.size() && GetWordSelectionClass(text[selectionEnd]) == selectionClass)
+    size_t selectionEnd = StepToNextCodePoint(text, index);
+    while (selectionEnd < text.size() && GetWordSelectionClass(text, selectionEnd) == selectionClass)
     {
-        ++selectionEnd;
+        selectionEnd = StepToNextCodePoint(text, selectionEnd);
     }
 
     anchorIndex = selectionStart;

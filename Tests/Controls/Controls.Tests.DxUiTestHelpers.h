@@ -3,7 +3,9 @@
 
 #include "Controls/DxUi.Internal.h"
 #include "Controls/DxUi.h"
+#include "Embedded.Tests.PerformanceGridModels.h"
 #include "Support.Tests.DesktopLease.h"
+#include "Support.Tests.EmbeddedClock.h"
 #include "Support.Tests.TestWatchdog.h"
 #include "Support.Tests.TestWindowActivationGuard.h"
 #include "Support/Diagnostics.h"
@@ -35,6 +37,13 @@
 
 #pragma comment(lib, "imm32.lib")
 
+// Whether an embedded view's animation request (DxUi::EmbeddedAnimationRequest, API revision 6) asks for anything: what
+// NeedsAnimation() and AdvanceAnimation's bool answered before it.
+template <class Request> [[nodiscard]] inline bool AnimationRequested(const Request& request) noexcept
+{
+    return request.kind != Request::Kind::None;
+}
+
 // Animation fixtures explicitly choose motion instead of depending on the runner's accessibility preference.
 // Tests for reduced motion still set theme.reducedMotion = true. No system setting is changed.
 [[nodiscard]] inline DxUi::ThemePalette MakeAnimatedTestThemePalette(bool dark)
@@ -59,6 +68,41 @@ inline void Require(bool condition, const char* message)
         std::exit(1);
     }
 }
+
+// Gives the process a lines-per-notch setting through the test seam, never the real system setting, and applies it as a
+// real change arrives: a window host receives WM_SETTINGCHANGE. Nullopt returns to the user's setting.
+inline void ApplyWheelScrollLinesForTest(DxUi::WindowHost& host, std::optional<UINT> lines)
+{
+    DxUi::DebugSetWheelScrollLinesForTest(lines);
+    bool handled = true;
+    static_cast<void>(host.HandleMessage(host.GetHwnd(), WM_SETTINGCHANGE, SPI_SETWHEELSCROLLLINES, 0, handled));
+    Require(! handled, "a window host leaves WM_SETTINGCHANGE to the application's window procedure as well");
+}
+
+// Gives the process a font-smoothing setting through the test seam, never the real system setting, and delivers it as a
+// real change arrives: a window host receives WM_SETTINGCHANGE for SPI_SETFONTSMOOTHING. Nullopt returns to the user's.
+inline void ApplyFontSmoothingForTest(DxUi::WindowHost& host, std::optional<DxUi::FontSmoothingForTest> smoothing)
+{
+    DxUi::DebugSetFontSmoothingForTest(smoothing);
+    bool handled = true;
+    static_cast<void>(host.HandleMessage(host.GetHwnd(), WM_SETTINGCHANGE, SPI_SETFONTSMOOTHING, 0, handled));
+    Require(! handled, "a window host leaves WM_SETTINGCHANGE to the application's window procedure as well");
+}
+
+// Returns the process to the user's font-smoothing setting however the test leaves its scope. The seam is process state:
+// a failing Require ends the process, which never touched the system setting.
+struct ScopedFontSmoothingForTest final
+{
+    ScopedFontSmoothingForTest() noexcept                                    = default;
+    ScopedFontSmoothingForTest(const ScopedFontSmoothingForTest&)            = delete;
+    ScopedFontSmoothingForTest& operator=(const ScopedFontSmoothingForTest&) = delete;
+    ScopedFontSmoothingForTest(ScopedFontSmoothingForTest&&)                 = delete;
+    ScopedFontSmoothingForTest& operator=(ScopedFontSmoothingForTest&&)      = delete;
+    ~ScopedFontSmoothingForTest()
+    {
+        DxUi::DebugSetFontSmoothingForTest(std::nullopt);
+    }
+};
 
 inline std::atomic<bool>& DeferredDxUiTestFailure() noexcept
 {
@@ -1073,6 +1117,17 @@ public:
         _applicationMessageHandler = std::move(handler);
     }
 
+    // Called with every message this window's procedure receives, before the host handles it; returning true answers the
+    // message with DefWindowProc and the host never sees it. The performance-fixture runner records the messages per step
+    // (a step that differs between two runs names the message that was in one run and not in the other) and keeps messages
+    // other threads send, such as a desktop UI Automation client's WM_GETOBJECT, away from the host. Null removes it.
+    using MessageObserver = bool (*)(void* context, UINT message, WPARAM wParam, LPARAM lParam);
+    void SetMessageObserver(MessageObserver observer, void* context) noexcept
+    {
+        _messageObserver        = observer;
+        _messageObserverContext = context;
+    }
+
     // How often another application took the foreground from this window: Windows then sends WM_ACTIVATEAPP with FALSE and
     // the thread of the window it activated. The host reacts as designed and releases its native text session, so state a
     // test observes across a pump is gone; see RunWhileForegroundHeld.
@@ -1157,6 +1212,8 @@ private:
         }
         if (self)
         {
+            if (self->_messageObserver && self->_messageObserver(self->_messageObserverContext, msg, wp, lp))
+                return DefWindowProcW(hwnd, msg, wp, lp);
             if (msg == WM_ACTIVATEAPP && wp == FALSE)
             {
                 ++self->_foregroundLossCount;
@@ -1191,6 +1248,8 @@ private:
     wil::unique_hwnd _hwnd;
     DxUi::WindowHost _host;
     ApplicationMessageHandler _applicationMessageHandler;
+    MessageObserver _messageObserver = nullptr;
+    void* _messageObserverContext    = nullptr;
     SIZE _maximumTrackSizePx{};
     uint32_t _foregroundLossCount           = 0u;
     DWORD _lastForegroundThiefThreadId      = 0u;
@@ -1727,53 +1786,7 @@ private:
     std::vector<Group> _groups;
 };
 
-class LargeGridModel final : public DxUi::IGridModel
-{
-public:
-    LargeGridModel(size_t rowCount, size_t columnCount, float columnWidthDip) : _rowCount(rowCount), _columnCount(columnCount), _columnWidthDip(columnWidthDip)
-    {
-    }
-
-    [[nodiscard]] size_t GetRowCount() const noexcept override
-    {
-        return _rowCount;
-    }
-
-    [[nodiscard]] size_t GetColumnCount() const noexcept override
-    {
-        return _columnCount;
-    }
-
-    [[nodiscard]] DxUi::GridColumnDesc GetColumn(size_t columnIndex) const override
-    {
-        DxUi::GridColumnDesc column;
-        column.id       = std::format(L"col-{}", columnIndex);
-        column.title    = std::format(L"Column {}", columnIndex);
-        column.widthDip = _columnWidthDip;
-        return column;
-    }
-
-    void GetCellData(size_t rowIndex, size_t columnIndex, DxUi::GridCellData& outCell) const override
-    {
-        outCell.kind = DxUi::GridCellKind::Text;
-        outCell.text = std::format(L"R{}C{}", rowIndex, columnIndex);
-    }
-
-    [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t rowId) const noexcept override
-    {
-        if (rowId >= _rowCount)
-        {
-            return std::nullopt;
-        }
-
-        return static_cast<size_t>(rowId);
-    }
-
-private:
-    size_t _rowCount      = 0u;
-    size_t _columnCount   = 0u;
-    float _columnWidthDip = 120.0f;
-};
+// LargeGridModel is shared with the FX3 performance fixture: Embedded.Tests.PerformanceGridModels.h.
 
 class MutableRowGridModel final : public DxUi::IGridModel
 {

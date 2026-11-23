@@ -1,4 +1,5 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.GridDataPaths.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
 #include "Support.Tests.FatalChildren.h"
 
@@ -2347,6 +2348,185 @@ void TestGridMouseWheelReportsUnhandledAtScrollEdges()
             "grid wheel returns unhandled at the bottom edge for downward wheel input");
 }
 
+// A grid of 80 rows of 24 DIP under a 32 DIP header whose body shows ten rows.
+struct WheelGridFixture
+{
+    DxUi::WindowHost host;
+    MultiRowGridModel model{80u};
+    DxUi::Grid* grid = nullptr;
+
+    WheelGridFixture(const WheelGridFixture&)            = delete;
+    WheelGridFixture& operator=(const WheelGridFixture&) = delete;
+    WheelGridFixture(WheelGridFixture&&)                 = delete;
+    WheelGridFixture& operator=(WheelGridFixture&&)      = delete;
+    ~WheelGridFixture()                                  = default;
+
+    WheelGridFixture()
+    {
+        auto root = std::make_unique<DxUi::Panel>();
+        grid      = root->AddChild<DxUi::Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 272.0f));
+        grid->SetRowHeightDip(24.0f);
+        grid->SetHeaderHeightDip(32.0f);
+        grid->SetModel(&model);
+        host.SetRoot(std::move(root));
+        host.GetRoot()->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 272.0f));
+    }
+
+    // The row drawn at the top of the body.
+    [[nodiscard]] size_t TopRow() const
+    {
+        return grid->FindRowAtPoint(DxUi::MakePointDip(20.0f, 32.0f + 12.0f)).value_or(std::numeric_limits<size_t>::max());
+    }
+
+    bool Wheel(float delta)
+    {
+        return grid->OnMouseWheel(host, D2D1::Point2F(20.0f, 80.0f), delta, 0u);
+    }
+};
+
+// A precision touchpad sends a notch as several small deltas. The grid keeps where they lead unrounded and draws the row
+// nearest to it, so four 30-unit deltas scroll the three rows one 120-unit notch does, and four in the other direction
+// return to the row they started from. Any other scroll starts the wheel from where it left the grid.
+void TestGridWheelKeepsAnUnsnappedTargetForPartialNotches()
+{
+    WheelGridFixture fixture;
+    ApplyWheelScrollLinesForTest(fixture.host, 3u);
+    fixture.grid->DebugSetScrollOffsets(10.0f * 24.0f, 0.0f);
+    Require(fixture.TopRow() == 10u, "the wheel test starts with row 10 at the top");
+
+    // Both directions run before any check, so a failure reports where each left the grid.
+    bool downHandled = true;
+    for (int step = 0; step < 4; ++step)
+        downHandled = fixture.Wheel(-30.0f) && downHandled;
+    const size_t afterDown = fixture.TopRow();
+    bool upHandled         = true;
+    for (int step = 0; step < 4; ++step)
+        upHandled = fixture.Wheel(30.0f) && upHandled;
+    const size_t afterUp      = fixture.TopRow();
+    const std::string message = std::format("four downward 30-unit deltas move from row 10 to row 13 and four upward ones return to row 10 "
+                                            "(observed: row {} after the downward deltas, row {} after the upward ones)",
+                                            afterDown,
+                                            afterUp);
+    Require(afterDown == 13u && afterUp == 10u, message.c_str());
+    Require(downHandled && upHandled, "each 30-unit delta that moves the wheel's target is handled");
+
+    // A row and a quarter down, then a row is revealed elsewhere: the next delta starts from the revealed row.
+    Require(fixture.Wheel(-30.0f) && fixture.Wheel(-20.0f), "two small downward deltas are handled");
+    fixture.grid->EnsureRowVisible(60u);
+    const size_t revealedTop = fixture.TopRow();
+    Require(revealedTop > 40u && revealedTop <= 60u, "revealing row 60 scrolls the grid to it");
+    Require(fixture.Wheel(-30.0f), "a downward delta after the reveal is handled");
+    Require(fixture.TopRow() == revealedTop + 1u, "a scroll other than the wheel resets the wheel's target");
+
+    ApplyWheelScrollLinesForTest(fixture.host, std::nullopt);
+}
+
+// A notch scrolls the lines the user chose in the mouse settings, read again when a window host receives WM_SETTINGCHANGE;
+// "one screen at a time" (WHEEL_PAGESCROLL) scrolls the rows the body shows.
+void TestGridWheelScrollsTheUsersLinesPerNotch()
+{
+    WheelGridFixture fixture;
+    ApplyWheelScrollLinesForTest(fixture.host, 5u);
+    Require(fixture.TopRow() == 0u, "the grid starts at its first row");
+    Require(fixture.Wheel(-static_cast<float>(WHEEL_DELTA)), "a notch is handled");
+    Require(fixture.TopRow() == 5u, "with the setting at 5 one notch moves 5 rows");
+
+    DxUi::DebugSetWheelScrollLinesForTest(7u);
+    Require(fixture.Wheel(-static_cast<float>(WHEEL_DELTA)) && fixture.TopRow() == 10u, "a changed setting waits for WM_SETTINGCHANGE");
+    ApplyWheelScrollLinesForTest(fixture.host, 7u);
+    Require(fixture.Wheel(-static_cast<float>(WHEEL_DELTA)) && fixture.TopRow() == 17u, "WM_SETTINGCHANGE applies the new setting");
+
+    ApplyWheelScrollLinesForTest(fixture.host, WHEEL_PAGESCROLL);
+    Require(fixture.Wheel(static_cast<float>(WHEEL_DELTA)) && fixture.TopRow() == 7u, "with one screen at a time a notch moves the ten rows the body shows");
+
+    ApplyWheelScrollLinesForTest(fixture.host, 0u);
+    Require(! fixture.Wheel(-static_cast<float>(WHEEL_DELTA)) && fixture.TopRow() == 7u, "with the setting at 0 the wheel scrolls nothing");
+
+    ApplyWheelScrollLinesForTest(fixture.host, std::nullopt);
+}
+
+// Ctrl+Shift+click follows the Windows list convention: it adds the visible rows from the anchor to the clicked row to
+// the selection, skips the rows of collapsed groups and keeps the anchor.
+void TestGridCtrlShiftClickAddsTheAnchorRangeToTheSelection()
+{
+    using namespace DxUi;
+
+    const auto selectedRows = [](const Grid& grid)
+    {
+        std::vector<uint64_t> rows(grid.GetSelectionModel().GetOrderedSelection().begin(), grid.GetSelectionModel().GetOrderedSelection().end());
+        std::ranges::sort(rows);
+        return rows;
+    };
+    const auto click = [](WindowHost& host, Grid& grid, size_t row, UINT modifiers)
+    {
+        const std::optional<D2D1_RECT_F> rect = grid.GetVisibleCellRect(row, 0u);
+        Require(rect.has_value(), "the row to click is on screen");
+        const D2D1_POINT_2F point = D2D1::Point2F((rect->left + rect->right) * 0.5f, (rect->top + rect->bottom) * 0.5f);
+        Require(grid.OnMouseDown(host, point, false, modifiers), "the grid handles the press on the row");
+        static_cast<void>(grid.OnMouseUp(host, point, false, modifiers));
+    };
+
+    {
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 480.0f));
+        grid->SetRowHeightDip(24.0f);
+        grid->SetHeaderHeightDip(32.0f);
+        grid->SetSelectionMode(GridSelectionMode::Extended);
+        MultiRowGridModel model(30u);
+        grid->SetModel(&model);
+        host.SetRoot(std::move(root));
+        host.GetRoot()->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 480.0f));
+
+        click(host, *grid, 2u, MK_CONTROL);
+        click(host, *grid, 10u, MK_CONTROL);
+        Require(selectedRows(*grid) == std::vector<uint64_t>{2u, 10u}, "Ctrl+click selects rows 2 and 10");
+        click(host, *grid, 14u, MK_CONTROL | MK_SHIFT);
+        Require(selectedRows(*grid) == std::vector<uint64_t>{2u, 10u, 11u, 12u, 13u, 14u}, "Ctrl+Shift+click on row 14 selects {2, 10-14}");
+        Require(grid->GetSelectionModel().GetAnchor() == std::optional<uint64_t>(10u), "Ctrl+Shift+click keeps the anchor");
+        Require(grid->GetFocusedRowId() == std::optional<uint64_t>(14u) && grid->GetPrimarySelectedRow() == std::optional<size_t>(14u),
+                "the clicked row is focused and primary");
+
+        // From the same anchor, a range that ends above it adds rows 6-9 and keeps every row already selected.
+        click(host, *grid, 6u, MK_CONTROL | MK_SHIFT);
+        Require(selectedRows(*grid) == std::vector<uint64_t>{2u, 6u, 7u, 8u, 9u, 10u, 11u, 12u, 13u, 14u},
+                "a second Ctrl+Shift+click adds the range above the anchor");
+        Require(grid->GetSelectionModel().GetAnchor() == std::optional<uint64_t>(10u), "the anchor stays through a second Ctrl+Shift+click");
+
+        // Shift+click alone still replaces the selection with the range.
+        click(host, *grid, 12u, MK_SHIFT);
+        Require(selectedRows(*grid) == std::vector<uint64_t>{10u, 11u, 12u}, "Shift+click still replaces the selection with the anchor range");
+    }
+
+    {
+        WindowHost host;
+        auto root  = std::make_unique<Panel>();
+        auto* grid = root->AddChild<Grid>();
+        grid->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 480.0f));
+        grid->SetRowHeightDip(24.0f);
+        grid->SetHeaderHeightDip(32.0f);
+        grid->SetSelectionMode(GridSelectionMode::Extended);
+        GroupedGridModel model(30u);
+        model.SetGroups({
+            GroupedGridModel::Group{.stableId = 100u, .title = L"First", .startRowIndex = 0u, .rowCount = 10u},
+            GroupedGridModel::Group{.stableId = 200u, .title = L"Collapsed", .startRowIndex = 10u, .rowCount = 5u, .collapsed = true},
+            GroupedGridModel::Group{.stableId = 300u, .title = L"Last", .startRowIndex = 15u, .rowCount = 15u},
+        });
+        grid->SetModel(&model);
+        host.SetRoot(std::move(root));
+        host.GetRoot()->SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 480.0f));
+
+        click(host, *grid, 1u, 0u);
+        click(host, *grid, 5u, MK_CONTROL);
+        click(host, *grid, 17u, MK_CONTROL | MK_SHIFT);
+        Require(selectedRows(*grid) == std::vector<uint64_t>{1u, 5u, 6u, 7u, 8u, 9u, 15u, 16u, 17u},
+                "Ctrl+Shift+click adds the visible range and skips the rows of a collapsed group");
+        Require(grid->GetSelectionModel().GetAnchor() == std::optional<uint64_t>(5u), "the anchor stays across a collapsed group");
+    }
+}
+
 void TestGroupedGridLongRunScrollKeepsVisibleRowRects()
 {
     using namespace DxUi;
@@ -3076,10 +3256,13 @@ void TestGroupedGridCopySkipsRowsHiddenByCollapsedGroups()
     });
 
     grid.SetModel(&model);
+
+    // The model publishes its collapse (the grid reads groups as of its last notification), then a selection that still names
+    // a row of the collapsed group is set directly, without a refresh that would drop it.
+    Require(model.SetGroupCollapsed(10u, true), "grouped grid copy test collapses the selected group externally");
+    grid.NotifyDataChanged();
     grid.GetSelectionModel().SetSingle(model.GetStableRowId(0u));
     grid.GetSelectionModel().Toggle(model.GetStableRowId(2u));
-
-    Require(model.SetGroupCollapsed(10u, true), "grouped grid copy test collapses the selected group externally");
     Require(SetClipboardUnicodeTextForTest(window.Hwnd(), L"sentinel"), "clipboard initialized before grouped grid copy");
     Require(grid.OnCopy(window.Host()), "grouped grid copy handles visible selected rows after collapse");
 
@@ -5381,6 +5564,12 @@ void TestGridSetModelReleasesThePreviousBorrowedModelOnReturn()
 
 void RunGridTests()
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+    // Every Grid test reads its grids' cached group layouts, column descriptions and selection epochs against the uncached
+    // computations they replace (plan W2.5): a cache or a model that breaks its notification rule ends the run.
+    DxUi::Grid::DebugSetDataPathVerification(DxUi::Grid::DataPathVerification::Fatal);
+    const auto stopVerifying = wil::scope_exit([] { DxUi::Grid::DebugSetDataPathVerification(DxUi::Grid::DataPathVerification::Off); });
+#endif
     DXUI_RUN_TEST(TestGridGesturesContinueWhenACallbackChangesAnotherControl);
     DXUI_RUN_TEST(TestGridClickSurvivesAFocusHandlerThatChangesAnotherControl);
     DXUI_RUN_TEST(TestGridRightClickMenuFollowsThePressedRow);
@@ -5441,6 +5630,9 @@ void RunGridTests()
     DXUI_RUN_TEST(TestGridPartiallyVisibleBottomRowIsPaintedAndHitTestable);
     DXUI_RUN_TEST(TestGroupedGridProgrammaticSelectionAllowsOffscreenExpandedRows);
     DXUI_RUN_TEST(TestGridMouseWheelReportsUnhandledAtScrollEdges);
+    DXUI_RUN_TEST(TestGridWheelKeepsAnUnsnappedTargetForPartialNotches);
+    DXUI_RUN_TEST(TestGridWheelScrollsTheUsersLinesPerNotch);
+    DXUI_RUN_TEST(TestGridCtrlShiftClickAddsTheAnchorRangeToTheSelection);
     DXUI_RUN_TEST(TestGroupedGridLongRunScrollKeepsVisibleRowRects);
     DXUI_RUN_TEST(TestScrollPanelForwardsCapturedChildGridScrollbarDrag);
     DXUI_RUN_TEST(TestGridScrollbarThumbGutterDragThroughWindowHost);
@@ -5501,4 +5693,9 @@ void RunGridTests()
     DXUI_RUN_TEST(TestGridCompactDensityShrinksHeaderAndRowMetrics);
     DXUI_RUN_TEST(TestGridEffectiveRowHeightBypassesDensityScaling);
     DXUI_RUN_TEST(TestGridRowMetricsClampToSegoeVariableBodyLineHeight);
+    DXUI_RUN_TEST(TestGridDataPathsEqualTheUncachedImplementationForSeededModels);
+    DXUI_RUN_TEST(TestGridDataCachesFillOncePerNotification);
+    DXUI_RUN_TEST(TestGridDataPathVerificationCatchesAModelThatDoesNotNotify);
+    DXUI_RUN_TEST(TestSelectionModelEpochMovesExactlyWhenTheOrderedSelectionChanges);
+    DXUI_RUN_TEST(TestSelectionModelAssignInOrderMatchesTheHashSetMembership);
 }

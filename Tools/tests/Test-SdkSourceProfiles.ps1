@@ -25,6 +25,12 @@ Invoke-FixtureCase 'only reviewed old sources select explicit API-4 recipes and 
     $current=Get-DxUiSdkSourceProfile $fixture -SourceCommit ('a'*40)
     Assert-Equal 2 $current.shared.Count 'API-5 ships both original host sources'
     Assert-Equal 'Main|FailureHost' ($current.units -join '|') 'both units require header-closure proof'
+    Asset $fixture capabilities.json '{"apiRevision":6}'
+    $api6=Get-DxUiSdkSourceProfile $fixture -SourceCommit ('a'*40)
+    Assert-Equal 'api6-source-owned-v1' $api6.name 'API-6 keeps the API-5 assets under its own recipe name'
+    Assert-Equal 2 $api6.shared.Count 'API-6 ships both original host sources'
+    Asset $fixture capabilities.json '{"apiRevision":7}'
+    Assert-Throws {Get-DxUiSdkSourceProfile $fixture -SourceCommit ('a'*40)} 'an unreviewed API has no implicit recipe'
 }
 Invoke-FixtureCase 'actual source-build entrypoint rejects unsupported roles and dirty source before discovery or output' {
     param($fixture)

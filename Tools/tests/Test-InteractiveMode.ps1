@@ -623,9 +623,18 @@ Invoke-TestCase 'desktop takeover requires local -Interactive or the verified ho
     Assert-True ($failureHandler -gt $nativeGate -and $childRoute -gt $failureHandler) 'the hosted gate still precedes UI setup, and the intentional runtime-failure child still runs only after the no-dialog handler is installed'
     $text = [IO.File]::ReadAllText($testScript)
     Assert-True $text.Contains('DxUi.InteractiveLease.exe') 'test.ps1 names the lease executable'
-    foreach ($other in Get-ChildItem -LiteralPath $repository -Filter '*.ps1' | Where-Object { $_.Name -ne 'test.ps1' }) {
+    # performance-fixtures.ps1 -Interactive is the one other caller: an interactive-only performance fixture's receipt (FX4).
+    foreach ($other in Get-ChildItem -LiteralPath $repository -Filter '*.ps1' | Where-Object { $_.Name -notin @('test.ps1', 'performance-fixtures.ps1') }) {
         Assert-True (-not [IO.File]::ReadAllText($other.FullName).Contains('Invoke-DxUiInteractiveLease')) "$($other.Name) never runs the lease"
     }
+    $fixtureScript = Join-Path $repository 'performance-fixtures.ps1'
+    $fixtureAst = [Management.Automation.Language.Parser]::ParseFile($fixtureScript, [ref]$null, [ref]$null)
+    $fixtureCalls = @($fixtureAst.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and
+                $node.GetCommandName() -in @('Invoke-DxUiInteractiveLease', 'Test-DxUiDesktopAvailable') }, $true))
+    Assert-Equal 2 $fixtureCalls.Count 'performance-fixtures.ps1 checks the desktop and runs the lease once each'
+    foreach ($call in $fixtureCalls) { Assert-True (Test-GuardedByInteractive $call) "performance-fixtures.ps1 calls $($call.GetCommandName()) only under -Interactive" }
+    $fixtureText = [IO.File]::ReadAllText($fixtureScript)
+    Assert-True ($fixtureText.IndexOf('Get-DxUiInteractiveRefusal') -gt 0 -and $fixtureText.IndexOf('Get-DxUiInteractiveRefusal') -lt $fixtureText.IndexOf("'build.ps1'")) 'performance-fixtures.ps1 refuses before it builds'
 }
 Invoke-TestCase 'an interactive run is settled before anything is built or run' {
     $text = [IO.File]::ReadAllText($testScript)

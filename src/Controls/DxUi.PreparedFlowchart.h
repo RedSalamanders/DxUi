@@ -6,6 +6,9 @@
 
 namespace DxUi::RichText::Detail
 {
+#if DXUI_ENABLE_DIAGNOSTICS
+extern thread_local std::size_t testRichLiveDiagramPreparations; // PreparedFlowchart objects alive on this thread (W2.3).
+#endif
 struct FlowchartResourceEpoch
 {
     std::uint64_t typography{}, resources{};
@@ -36,9 +39,11 @@ struct DiagramPalette
     {
         return ready;
     }
+    // A palette serves a prepared diagram whose model has the same source (W2.3: a diagram carried across edits keeps
+    // the model it was prepared from, while a palette staged later may hold a later revision's equal model).
     bool Matches(const FlowchartModel* value, ID2D1RenderTarget* raster) const noexcept
     {
-        return graph.get() == value && target.get() == raster;
+        return target.get() == raster && value && graph && (graph.get() == value || graph->source == value->source);
     }
     static bool Needed(const FlowchartModel& graph) noexcept;
     std::shared_ptr<const FlowchartModel> graph;

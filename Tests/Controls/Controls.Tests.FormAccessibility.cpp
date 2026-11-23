@@ -108,7 +108,7 @@ struct FormFixture final
             RequireSucceeded(graphics.Create(), "create WARP device for embedded form provider tests");
             std::shared_ptr<DxUi::GraphicsDevice> pool;
             RequireSucceeded(DxUi::GraphicsDevice::Create(graphics.device.get(), pool), "create embedded form graphics pool");
-            RequireSucceeded(view.Attach(std::move(pool)), "attach embedded form to borrowed graphics");
+            RequireSucceeded(view.Attach(std::move(pool), StoppedTestClock()), "attach embedded form to borrowed graphics");
             controls = &view.Controls();
         }
         auto root = std::make_unique<DxUi::Panel>();

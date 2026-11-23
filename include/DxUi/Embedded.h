@@ -30,7 +30,15 @@ struct EmbeddedCallbacks
     // Mutating input coalesces wakes until the outermost entry finishes; direct setters may notify immediately.
     // The owning EmbeddedHost must remain alive throughout the callback.
     void (*requestPreparation)(void* context) noexcept = nullptr;
+    // Required (API revision 6; Attach refuses a null clock with E_INVALIDARG): the application's current time in
+    // milliseconds, on the same clock it passes to AdvanceAnimation. The view reads it, on the UI thread, only where it
+    // takes a time stamp outside an advance (input, a setter, a caret restart, a tooltip delay) and when the application
+    // reads its animation request, so a stamp is never older than the call that takes it. It must be cheap, must not call
+    // into the view, and may return the same value repeatedly; a value below the last one the view saw changes nothing.
+    uint64_t (*nowTickMs)(void* context) noexcept = nullptr;
 };
+// Header capability: EmbeddedCallbacks carries the required application clock (nowTickMs).
+#define DXUI_HAS_EMBEDDED_APPLICATION_CLOCK 1
 enum class PointerAction : uint8_t
 {
     Move,
@@ -109,10 +117,53 @@ struct EmbeddedStatistics
     uint64_t replacementPeakBytes = 0;
     uint64_t surfaceAllocations   = 0;
     // Current sizes of the bounded per-view caches (ControlHost::kSolidBrushCacheLimit and
-    // kConfiguredTextFormatCacheLimit); a cache beyond its bound is cleared at the next preparation start.
+    // kConfiguredTextFormatCacheLimit; brushes include those serving color transitions). At the next preparation start a
+    // cache beyond its bound releases the entries neither of the last two preparations used.
     uint64_t cachedBrushes     = 0;
     uint64_t cachedTextFormats = 0;
+    // Resources the view's controls and tooltip keep between preparations, counted by GetStatistics (never during
+    // Composite). Covered: Label, Button and its derived controls, TextField, ComboBox, Grid, RichTextEditor images and
+    // the tooltip; RichTextEditor text layouts are not yet counted. DirectWrite and Direct2D keep their objects' storage
+    // privately, so layout bytes are not observable: the UTF-16 units the layouts shape are the size that drives it.
+    uint64_t retainedTextLayouts     = 0;
+    uint64_t retainedTextLayoutUnits = 0;
+    // Retained Direct2D bitmaps and decoded images, the cached surface excluded, and their pixel bytes.
+    uint64_t retainedBitmaps     = 0;
+    uint64_t retainedBitmapBytes = 0;
+    // Every registered retained cache of the view, its controls and its tooltip, summed, also counted by GetStatistics:
+    // live entries, and resident bytes, which are the heap storage DxUi holds for those caches (container storage by
+    // capacity, heap strings, bitmap pixels; never the private storage of DirectWrite and Direct2D objects, and nothing for
+    // a RichTextEditor's prepared layout, which keeps no byte total). The surface is reported by surfaceBytes alone.
+    uint64_t retainedCacheEntries = 0;
+    uint64_t retainedCacheBytes   = 0;
+    // Undo and redo history of the TextField or ComboBox that holds the most: entry storage by capacity plus the text
+    // buffers its entries keep that the control's current text does not share. 0 without an editor.
+    uint64_t largestTextHistoryBytes = 0;
 };
+// Header capability: EmbeddedStatistics reports retained text layouts and bitmaps.
+#define DXUI_HAS_RETAINED_RESOURCE_STATISTICS 1
+// Header capability: EmbeddedStatistics reports retained cache entries and bytes and the largest text history.
+#define DXUI_HAS_RETAINED_CACHE_STATISTICS 1
+
+// When the view next needs the application's clock (API revision 6). DxUi owns no timer and no worker: the application
+// reads the request, decides when to call AdvanceAnimation, and calls it then (docs/hosting.md, "Input, DPI and animation").
+struct EmbeddedAnimationRequest
+{
+    enum class Kind : uint8_t
+    {
+        None,       // nothing is scheduled: advance nothing until a requestPreparation callback or a call into the view
+        Continuous, // advance on every frame the application presents
+        Deadline,   // advance once when the application's clock reaches dueTickMs; an advance before it ticks nothing
+    };
+    Kind kind = Kind::None;
+    // Deadline only: milliseconds on the application's own clock, the one it passes to AdvanceAnimation. It may already have
+    // passed (advance at once); it is 0 when the view needs its first advance after a pause, which only sets the baseline.
+    // It is always reachable: a deadline beyond the end of the application's clock is reported as None.
+    uint64_t dueTickMs = 0u;
+};
+// Header capability: EmbeddedHost::GetAnimationRequest and AdvanceAnimation(nowTickMs) return an EmbeddedAnimationRequest
+// (API revision 6; NeedsAnimation was removed).
+#define DXUI_HAS_EMBEDDED_ANIMATION_REQUEST 1
 
 // One retained view and cached surface. Applications with two density variants create two views with one shared pool
 // and bind both views to the same application model. No rendering HWND, swap chain, render worker, timer or device is created here.
@@ -141,11 +192,19 @@ public:
     void SetVisible(bool visible) noexcept;
     void MarkDirty() noexcept;
     [[nodiscard]] bool NeedsPreparation() const noexcept;
-    [[nodiscard]] bool NeedsAnimation() const noexcept;
-    // Application milliseconds, from any epoch. The view's animation clock (ControlHost::GetAnimationTickMs) advances by the
-    // difference between consecutive ticks; the first tick after a pause in ticking (nothing requested, hidden, zero-sized,
-    // a new attachment) only sets the baseline, and a tick that goes back adds nothing. Call only while NeedsAnimation().
-    bool AdvanceAnimation(uint64_t nowTickMs) noexcept;
+    // What the view's frame schedule needs next, on the application's clock: None while hidden, zero-sized, detached, with
+    // nothing scheduled, or with only a deadline the application's clock can no longer reach (it is at the end of its range).
+    // The view remembers the request it reports here and from AdvanceAnimation, and calls requestPreparation whenever it then
+    // needs the application sooner, so an application that sleeps until the last request it read is never left asleep.
+    // Reading costs no tick and walks no tree. Inside an advance (from a callback that advance raises) use the request the
+    // advance returns, not this one.
+    [[nodiscard]] EmbeddedAnimationRequest GetAnimationRequest() const noexcept;
+    // Application milliseconds, from any epoch, on the clock EmbeddedCallbacks::nowTickMs reads. The view's animation clock
+    // (ControlHost::GetAnimationTickMs) advances by the difference between consecutive ticks, and between advances follows
+    // nowTickMs where a stamp is taken; the first tick after a pause in ticking (nothing requested, hidden, zero-sized, a new
+    // attachment) only sets the baseline, a tick that goes back adds nothing, and the clock saturates. Ticks only the controls
+    // whose requests are due, and returns the next request. With nothing requested it does nothing.
+    [[nodiscard]] EmbeddedAnimationRequest AdvanceAnimation(uint64_t nowTickMs) noexcept;
     // Physical pixel size and DPI. Text shaping and raster work happen only here, never in Composite.
     // Updating a surface mutates the borrowed immediate-context state, including PS SRV slot 0 and OM render targets.
     // Rebind application state after Prepare and before subsequent drawing; Prepare does not preserve those bindings.
@@ -161,6 +220,11 @@ public:
     // device replacement still require Prepare. S_FALSE means unchanged or unavailable; dispatch stays disabled
     // when unavailable. Does not publish accessibility/text geometry or change surface/preparation statistics.
     HRESULT PrepareInteraction(UINT widthPixels, UINT heightPixels, float dpi = 96.0f) noexcept;
+    // Optional: the monitor that shows this view. The next Prepare binds that monitor's DirectWrite rendering parameters
+    // (IDWriteFactory::CreateMonitorRenderingParams) and repaints; text stays grayscale. Each call reads the parameters
+    // again, so call it when the view moves to another monitor or the user's ClearType settings change, not per frame.
+    // nullptr (the default) binds no parameters, as before this input existed. Call on the view's owner thread.
+    HRESULT SetTextRenderingMonitor(HMONITOR monitor) noexcept;
     // Host binds its render target. This binds all other required pipeline state and issues one premultiplied-alpha draw.
     // Context must be the immediate context of the supplied device. No allocation, rasterization or readback occurs.
     HRESULT Composite(ID3D11DeviceContext* context, const D3D11_VIEWPORT& viewport) noexcept;
@@ -211,9 +275,18 @@ public:
     // The application keeps that module mapped while any external provider references can survive.
     void DisconnectAccessibility() noexcept;
     [[nodiscard]] EmbeddedStatistics GetStatistics() const noexcept;
+#if DXUI_ENABLE_DIAGNOSTICS
+    // Tests only. Drops every registered retained cache of the view (DxUi.RetainedCaches.h), the cached surface included, and
+    // marks it dirty: the next Prepare draws what a freshly attached view would (incremental-versus-fresh oracle).
+    void DebugDropRetainedStateForTest() noexcept;
+    // Tests only. Copies the prepared surface's premultiplied BGRA pixels through a staging texture on the view's device.
+    // S_FALSE when the view holds no surface. Not for composition or any production path.
+    [[nodiscard]] HRESULT DebugReadSurfaceForTest(WindowHostBitmapCapture& out) noexcept;
+#endif
 
 private:
     friend struct EmbeddedAccessibilityAccess;
+    friend struct RetainedCacheAccess;
     struct State;
     class InputScope;
     std::unique_ptr<State> _state;
@@ -229,7 +302,8 @@ private:
     uint64_t _keyDispatchSequence = 0u;
     static void InvalidateThunk(void* context) noexcept;
     bool DispatchKeyImpl(UINT virtualKey, bool down, UINT modifiers, EmbeddedKeyDispatchReceipt* receipt) noexcept;
-    void RequestPreparation() noexcept;
+    // traceFrameReason names why, for the trace provider (src/Support/Trace.h, FrameReason).
+    void RequestPreparation(uint8_t traceFrameReason) noexcept;
     void CancelPointer(bool clearPendingDoubleClick = true) noexcept;
     // A drag may continue across a bounds revision while its control is still in the tree and it and every ancestor
     // are enabled and visible. Hiding or disabling it or an ancestor, removing it, or resizing the view still cancels.
@@ -238,6 +312,13 @@ private:
     // preparation allocates exactly one replacement.
     void ReleaseSurface() noexcept;
     [[nodiscard]] bool InputIsCoherent(bool allowDirty) noexcept;
+    // InputIsCoherent(true) without its side effects: visible, coherent, and no interaction change since preparation.
+    [[nodiscard]] bool PreparedGeometryIsCurrent() const noexcept;
+    // The animation request the schedule implies now, on the application's clock, and the wake it reports (None when the
+    // request is None); reads no clock and records nothing.
+    [[nodiscard]] EmbeddedAnimationRequest RequestFromSchedule(ControlHost::FrameScheduleWake& reported) const noexcept;
+    // GetStatistics().preparations without its retained-resource walk of the tree, for per-frame internal callers.
+    [[nodiscard]] uint64_t PreparationCount() const noexcept;
     [[nodiscard]] bool TextInputIsAvailable() noexcept;
     // Keys and characters reach the focused control, which PruneStaleInteractionState keeps current.
     // They hit-test nothing, so geometry the next preparation will move cannot make them stale: a hidden, suspended or

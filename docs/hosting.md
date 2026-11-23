@@ -25,7 +25,8 @@ physical interoperability remains a separate acceptance step. See the [format-or
 For a deterministic native software-rendering host, call `Attach(hwnd, {.forceWarp = true})` before creating
 other native graphics on that UI thread. Default peers inherit the thread pool's selection. An incompatible
 forced request returns false with `ERROR_INVALID_STATE` and preserves existing attachments; detach the last
-attachment before selecting another pool policy. Device replacement preserves WARP. The default option retains
+attachment before selecting another pool policy. An unattached host used only to measure text creates no
+native graphics and never blocks that choice. Device replacement preserves WARP. The default option retains
 hardware creation with its existing WARP fallback. This option does not create an embedded device or scheduler.
 
 Device creation preserves native HRESULT failures and the existing retry without an unavailable optional debug
@@ -41,20 +42,35 @@ PageHost's current page participates in Tab traversal and UI Automation, includi
 point hits. Outgoing transition pages are visual-only. Unhandled native keys continue to the application's window
 procedure; host animation ticks request further scheduling independently of repainting changed control pixels.
 
-Call `EmbeddedHost::AdvanceAnimation` with your application's milliseconds, from any epoch, while `NeedsAnimation()` is
-true. The view's animation clock, `ControlHost::GetAnimationTickMs()`, advances by the difference between consecutive
-ticks and stands still while the view is idle, hidden or zero-sized: the first tick after such a pause, or after a new
-attachment, only sets the baseline. Every control stamps its transitions with that clock and `Tick` receives it, so no
+Call `EmbeddedHost::AdvanceAnimation` with your application's milliseconds, from any epoch, when the view's
+`GetAnimationRequest()` asks for it (see [input, DPI and animation](#input-dpi-and-animation)). The view's animation
+clock, `ControlHost::GetAnimationTickMs()`, advances by the difference between consecutive ticks and stands still while
+the view is idle, hidden or zero-sized: the first tick after such a pause, or after a new attachment, only sets the
+baseline. Every control stamps its transitions with that clock and `Tick` receives it, so no
 application epoch, zero or near the top of the range, changes what a transition shows. Natively the clock is the UI
 thread's animation dispatcher timeline. A custom control stamps its own transitions with `host.GetAnimationTickMs()`;
 input timing such as double clicks uses real time, never this clock.
+
+A control asks for its own ticks, and the host ticks only the controls that asked: call `host.RequestAnimation(*this)`
+to be ticked on the next frame and on every frame while `Tick` returns true, or `host.RequestAnimationAt(*this, dueTickMs)`
+to be ticked once when the animation clock reaches `dueTickMs` (a caret blink, a delay) with nothing woken before, and
+`host.CancelAnimation(*this)` when nothing is pending any more. `RequestAnimation()` without a control still works: it
+ticks the whole visible tree once, and each control whose `Tick` returns true keeps ticking on its own, but it costs a
+walk of the tree, so name the control instead. A native host whose window is hidden or minimized, or whose presentation
+the application hid, holds its requests and is not woken; a deadline that passed meanwhile fires once when it is shown.
+A hidden control keeps its request without being ticked and is ticked again when shown, so a transition finishes. Call
+these methods on the host's owner thread: from another thread they do nothing and set `ERROR_INVALID_THREAD_ID`.
+See [window hosting](../Specs/Rendering/Rendering_Win32Host.md#frame-schedule). Carets need none of this: the host's
+[caret clock](../Specs/Rendering/Rendering_Win32Host.md#caret-clock) arms one deadline per blink of the focused
+`TextField`, editable `ComboBox` or `RichTextEditor`, following the user's blink time, caret timeout and reduced motion.
 Device replacement and detach release owned graphics without clearing or flushing the application's immediate
 context; composition retains its documented pipeline-binding behavior.
 
 ## Embedded view
 
 The application creates a D3D11 device with `D3D11_CREATE_DEVICE_BGRA_SUPPORT`. Call
-`GraphicsDevice::Create(device, pool)` and `view.Attach(pool, callbacks)`, checking both HRESULTs.
+`GraphicsDevice::Create(device, pool)` and `view.Attach(pool, callbacks)`, checking both HRESULTs. `callbacks.nowTickMs`
+(your clock, the one you pass to `AdvanceAnimation`) is required; see [input, DPI and animation](#input-dpi-and-animation).
 Share one pool per device generation; each `EmbeddedHost` owns an independent control tree and cached BGRA surface.
 All view/pool operations and destruction occur on the UI thread. The pool retains COM references to the supplied
 device; the application owns immediate-context scheduling and presentation.
@@ -76,6 +92,9 @@ device; the application owns immediate-context scheduling and presentation.
 4. Bind the application's render target, then call `view.Composite(context, viewport)`. It binds its required
    pipeline state and draws the prepared texture. It changes D3D state: rebind your state for subsequent drawing.
 5. Present through the application. DxUi embedded mode owns no HWND, swap chain, timer, worker or presentation loop.
+   Submit the immediate context every frame (Present does it; call `Flush` when you compose offscreen without
+   presenting): DxUi never flushes your context, and an unsubmitted software (WARP) context keeps every frame's queued
+   work and released surfaces in process memory.
 
 Clean `Composite` does no allocation, layout, shaping or readback. DPI must be 48..768; the per-view surface limit
 is 64 MiB, and because a resize allocates the replacement before releasing the old surface the replacement peak is
@@ -94,7 +113,9 @@ Pass view-local physical pixel coordinates to `DispatchPointer`. Convert applica
 through the actual displayed viewport transform, including animation offsets. Pass Move/Down/Up/Wheel/Leave/Cancel
 and the appropriate modifiers. Set `device` to the contact's device so a touch drag gets touch feedback (a slider's touch
 halo): for a mouse message your window received, `PointerDeviceFromMessageExtraInfo(GetMessageExtraInfo())` while you
-handle it. An event that names no device is the mouse. A paint-dirty view still accepts hit-tested pointer gestures while its geometry is
+handle it. An event that names no device is the mouse. Pass MiddleDown/MiddleUp too: the release reaches the control
+(`OnMouseMiddleUp`), and a captured primary drag that the control let a middle press join keeps its capture until the
+last of the two buttons is up. A paint-dirty view still accepts hit-tested pointer gestures while its geometry is
 coherent; Prepare before composition, and after bounds, tree, visibility or enabled changes that bump the interaction
 revision. Pending intrinsic layout does not bump it. Keys, characters and text-service calls go to the focused control
 between preparations too; a hidden or suspended view, one never prepared, or one a failed callback suspended until its
@@ -142,17 +163,97 @@ association when the outer call completes, so neither call can authorize a delay
 The embedded API is not a complete IME, text-store or UI Automation bridge: the consumer must supply the integrations
 described in [input and accessibility](../Specs/UI/UI_InputAndAccessibility.md). Native ControlHost has separate HWND services.
 
-Call `AdvanceAnimation(nowTickMs)` only while `NeedsAnimation()` requests host ticks. A tick marks the view dirty
+`GetAnimationRequest()` says when the view next needs your clock, and `AdvanceAnimation(nowTickMs)` ticks what is due
+and returns the next request (API revision 6). The view owns no timer: you decide when to call. A request is one of:
+
+- `None`: nothing to advance. Sleep until input, your own model changes or the `requestPreparation` callback.
+- `Continuous`: advance on every frame you present (a transition, an indeterminate progress bar).
+- `Deadline`: advance once when your clock reaches `dueTickMs`, which is on the clock you pass to `AdvanceAnimation`. It
+  may already have passed (advance at once); it is 0 for the first advance after a pause, which only takes the
+  baseline. An advance before it ticks nothing and returns the same deadline. A deadline your clock can never reach
+  (it is at the end of its range) is reported as `None`, so no loop spins on it.
+
+Attach the view with your clock: `EmbeddedCallbacks::nowTickMs` returns your current milliseconds, on the same clock you
+pass to `AdvanceAnimation` (`Attach` refuses a view without it). Between advances the view reads it wherever it takes a
+time stamp (a keystroke restarting the caret, a pointer resting on a tooltip target, a transition started from input or
+a setter), so a stamp is never older than the call that takes it, whichever loop you run; a read never moves time back
+and never crosses the baseline a pause leaves for the next advance. Keep it cheap and do not call into the view from it.
+
+The view remembers the request it last reported, from `GetAnimationRequest` or `AdvanceAnimation`, and calls
+`requestPreparation` when it needs you sooner (something after nothing, every frame after a deadline, an earlier
+deadline): sleeping until the last request you read is therefore always safe, and the callback is the one thing that
+can wake you early. Read the request after that callback; reading costs nothing (no tree walk, no tick). A call that
+can only make your request later or `None` (hiding the view, a cancel) needs no callback: sleeping on the old request
+then costs at most one wake that ticks nothing, which reading the request after your own call avoids. Inside an
+advance, a callback that advance raises sees the due requests being ticked: use the request `AdvanceAnimation` returns.
+Three loops are enough, with `now` your clock in milliseconds:
+
+```cpp
+// Poll every frame: what revision 5's NeedsAnimation() allowed. Correct, but wakes every frame while anything waits.
+if (view.GetAnimationRequest().kind != DxUi::EmbeddedAnimationRequest::Kind::None)
+    static_cast<void>(view.AdvanceAnimation(now));
+
+// Sleep until the request: advance when due, then sleep until the next one or until the callback wakes you (input you
+// dispatch yourself may also end the sleep; reading the request again then is harmless).
+DxUi::EmbeddedAnimationRequest request = view.GetAnimationRequest();
+using Kind = DxUi::EmbeddedAnimationRequest::Kind;
+if (request.kind == Kind::Continuous || (request.kind == Kind::Deadline && request.dueTickMs <= now))
+    request = view.AdvanceAnimation(now);
+const uint64_t sleepMs = request.kind == Kind::None         ? INFINITE
+                         : request.kind == Kind::Continuous ? frameMs
+                         : request.dueTickMs > now          ? request.dueTickMs - now
+                                                            : 0u;
+
+// A message loop with one timer (as in Samples/EmbeddedControls): after every frame (the callback asks for one) and every
+// WM_TIMER advance, set the timer from the request: KillTimer for None, the frame period for Continuous, dueTickMs - now
+// (at least USER_TIMER_MINIMUM) for a Deadline. A waitable timer works the same way with an absolute due time.
+```
+
+A focused caret at the Windows default blink time therefore costs two wakes per blink period, and none after the caret
+timeout; an idle view costs none. A tick marks the view dirty
 only when a control changes visual state (an indeterminate progress bar on every tick, a caret only when its blink
-phase flips), so check `NeedsPreparation()` after ticking instead of preparing unconditionally; a clean `Prepare`
-returns `S_FALSE`. The `requestPreparation` callback also fires when animation first becomes requested, so a host
-that reacts to it observes `NeedsAnimation()` after preparing; a repeated request changes nothing. Stop scheduling
-idle and hidden views. Call `SetVisible(false)` when a view is unavailable:
+phase flips), so check `NeedsPreparation()` after ticking instead of preparing unconditionally. A caret blinks at the
+user's caret blink time until the caret timeout and is steady when read-only or under the theme's reduced motion; a
+steady caret requests nothing. The view has no window to receive `WM_SETTINGCHANGE`: call
+`Controls().RefreshUserSettings()` when your window receives it, which re-reads every user setting the view keeps (the
+caret blink time and timeout, the tooltip hover time; see the
+[caret clock](../Specs/Rendering/Rendering_Win32Host.md#caret-clock)). A clean `Prepare`
+returns `S_FALSE`. A hidden or zero-sized view requests nothing; showing it again requests a baseline advance when
+anything was held. Call `SetVisible(false)` when a view is unavailable:
 hiding, like preparing a zero extent, releases the cached surface (`GetStatistics().surfaceBytes` becomes 0), and
 the next visible sized `Prepare` allocates one surface and re-rasterizes the content. `cachedBrushes` and
-`cachedTextFormats` report the bounded per-view caches (256 solid brushes, 96 configured text formats, trimmed at
-preparation start). Change layout in DIPs and pass the new physical extent/DPI to Prepare; do not rasterize at each
+`cachedTextFormats` report the bounded per-view caches (256 solid brushes, including those a running color transition
+reuses, and 256 configured text formats; at preparation start a cache above its bound releases what neither of the last
+two preparations used). `retainedTextLayouts` and `retainedTextLayoutUnits` report the text layouts controls keep between
+frames and the UTF-16 units they shape; `retainedBitmaps` and `retainedBitmapBytes` report kept bitmaps and decoded
+images other than the surface. These are counted when you call `GetStatistics`, so query them outside your frame
+loop's hot path; hiding a view returns a Grid's layouts and the surface. `DXUI_HAS_RETAINED_RESOURCE_STATISTICS` marks
+headers that have these fields. `retainedCacheEntries` and `retainedCacheBytes` total every cache DxUi keeps for the
+view and its controls (bytes are the storage DxUi itself holds; DirectWrite and Direct2D objects are not included), and
+`largestTextHistoryBytes` reports the undo and redo history of the TextField or editable ComboBox that holds the most
+(each keeps at most 4 MiB, unless a single edit of a text over 2 Mi units needs more on its own); `DXUI_HAS_RETAINED_CACHE_STATISTICS`
+marks headers that have them. The view also keeps one text layout for each plain-text string (labels, captions, list
+rows) its last preparation drew, so a repaint that only changes hover or values does not lay text out again; those
+layouts count in `retainedCacheEntries`, not in `retainedTextLayouts`, are created only inside `Prepare`, never in
+`Composite`, and are released when the view is hidden or detached. Change layout in DIPs and pass the new physical extent/DPI to Prepare; do not rasterize at each
 intermediate animation scale. Theme and layout changes need refreshed docs/gallery when changing the library.
+
+Embedded text is drawn grayscale, since the view's surface is premultiplied. To draw it with the ClearType tuning (gamma,
+contrast, pixel geometry) of the monitor that shows the view, call `view.SetTextRenderingMonitor(MonitorFromWindow(hwnd,
+MONITOR_DEFAULTTONEAREST))` once, and again when the window moves to another monitor (`WM_DPICHANGED`, or a move that
+changes `MonitorFromWindow`) or receives a font-smoothing `WM_SETTINGCHANGE`; never per frame. The next `Prepare`
+repaints with those parameters. Without that call, or after `SetTextRenderingMonitor(nullptr)`, no parameters are bound.
+A native host does this itself: it follows the user's ClearType setting (grayscale when ClearType is off) and its
+window's monitor, refreshing on `WM_SETTINGCHANGE`, `WM_DPICHANGED` and `WM_MOVE` that you forward to `HandleMessage`.
+
+Tooltips wait for the user's mouse hover time (clamped to 100-2,500 ms), then show for 5 seconds; the view is ticked only
+at those two deadlines, so the request is that deadline while one is pending and an application that sleeps until it
+wakes twice per tooltip. Hiding the view drops a tooltip that has not shown yet; a shown tooltip's hide keeps the time it
+had left, since the view's clock does not count hidden time. A view reads the hover time once; when your window receives
+`WM_SETTINGCHANGE`, `view.Controls().RefreshUserSettings()` reads it again for the next tooltip. A native host attached
+to a top-level window does this itself; Windows sends `WM_SETTINGCHANGE` to top-level windows only, so for a host
+attached to a child window, forward the message to its `HandleMessage` or call `RefreshUserSettings()` (see
+[user settings](../Specs/Rendering/Rendering_Win32Host.md#user-settings)).
 
 ## Native HWND host
 
@@ -161,6 +262,12 @@ call `Attach(hwnd)` and check its boolean result, then install the tree and them
 messages through `HandleMessage(hwnd, message, wParam, lParam, handled)`; return that result when handled and
 otherwise continue normal window dispatch. This mode owns native graphics, text/accessibility and presentation
 services. The application still owns the top-level window and event-blocked message loop.
+
+When the host cannot recreate its device or swap chain, or loses the device, it retries by itself: it arms a one-shot
+timer on the attached HWND (its timer procedure runs from your message loop's `DispatchMessage`, not from your window
+procedure) that repaints after one frame, doubling the wait on each further failure up to one second, and a successful
+present resets it. Keep dispatching messages; nothing else is required. An embedded view keeps no timer: its failed
+`Prepare` returns the HRESULT and you schedule the next one.
 
 When the attached HWND is a child window, forward top-level ancestor movement
 (for example, from the owner's `WM_WINDOWPOSCHANGED` handler) with
@@ -363,7 +470,10 @@ coalesced application work; it must not synchronously reenter controls. A plugin
 
 AttachAccessibility takes a process-unique nonzero attachment ID and a physical-screen placement. The viewport
 size matches Prepare's pixel size; GetAccessibilityProvider returns an owned COM reference. Publish changed
-preparation/placement/focus with UpdateAccessibility; unchanged updates allocate nothing. Hide/detach/device loss
+preparation/placement/focus with UpdateAccessibility; unchanged updates allocate nothing. Until a UIA provider call first
+reaches the view, and while no client of the desktop listens, a changed update only records the preparation and placement
+(calling it every frame builds nothing); from the first request on, every changed update builds as before. A window host
+follows the same rule: once any client requested its provider it builds at every mutation for that attachment. Hide/detach/device loss
 disconnect surviving providers. Keep provider code mapped while external COM references may survive.
 
 Tests/Embedded/Embedded.Tests.EmbeddedAccessibility.h is an executable example using only public control/hosting interfaces:

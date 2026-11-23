@@ -7,6 +7,7 @@ namespace DxUi
 {
 #if DXUI_ENABLE_DIAGNOSTICS
 thread_local std::size_t testTextElementPropertyLookups{};
+thread_local std::size_t testTextElementCodeUnitsVisited{};
 #endif
 bool IsUtf16LeadSurrogate(wchar_t value) noexcept
 {
@@ -97,6 +98,43 @@ bool HardBoundary(BreakClass value) noexcept
 {
     return value == BreakClass::CR || value == BreakClass::LF || value == BreakClass::Control;
 }
+Utf16CodePoint ReadVisitedCodePointAt(std::wstring_view text, std::size_t index) noexcept
+{
+    const auto point = ReadCodePointAt(text, index);
+#if DXUI_ENABLE_DIAGNOSTICS
+    testTextElementCodeUnitsVisited += point.end - index;
+#endif
+    return point;
+}
+// True when the pair breaks whatever precedes the left code point. Every rule
+// that can keep the pair together is excluded by the pair alone; the contextual
+// rules (GB9c, GB11, GB12/GB13) are excluded by the class their pair requires.
+bool BreaksUnconditionally(std::uint8_t leftProperties, std::uint8_t rightProperties) noexcept
+{
+    const auto left       = static_cast<BreakClass>(leftProperties & 15u);
+    const auto right      = static_cast<BreakClass>(rightProperties & 15u);
+    const auto leftIndic  = static_cast<IndicClass>((leftProperties >> 5u) & 3u);
+    const auto rightIndic = static_cast<IndicClass>((rightProperties >> 5u) & 3u);
+    if (left == BreakClass::CR && right == BreakClass::LF)
+        return false; // GB3
+    if (HardBoundary(left) || HardBoundary(right))
+        return true; // GB4/GB5
+    if (left == BreakClass::L && (right == BreakClass::L || right == BreakClass::V || right == BreakClass::LV || right == BreakClass::LVT))
+        return false; // GB6
+    if ((left == BreakClass::LV || left == BreakClass::V) && (right == BreakClass::V || right == BreakClass::T))
+        return false; // GB7
+    if ((left == BreakClass::LVT || left == BreakClass::T) && right == BreakClass::T)
+        return false; // GB8
+    if (right == BreakClass::Extend || right == BreakClass::ZWJ || right == BreakClass::SpacingMark || left == BreakClass::Prepend)
+        return false; // GB9/GB9a/GB9b
+    if (rightIndic == IndicClass::Consonant && (leftIndic == IndicClass::Extend || leftIndic == IndicClass::Linker))
+        return false; // GB9c depends on the preceding conjunct.
+    if (left == BreakClass::ZWJ && (rightProperties & 16u) != 0u)
+        return false; // GB11 depends on the preceding pictographic prefix.
+    if (left == BreakClass::RegionalIndicator && right == BreakClass::RegionalIndicator)
+        return false; // GB12/GB13 depend on the run parity.
+    return true;      // GB999
+}
 } // namespace
 
 std::size_t FindNextTextElementBoundary(std::wstring_view text, std::size_t elementStart) noexcept
@@ -107,7 +145,7 @@ std::size_t FindNextTextElementBoundary(std::wstring_view text, std::size_t elem
     unsigned indicState = 0u; // 1: consonant prefix; 2: that prefix has a linker (GB9c).
     while (cursor < text.size())
     {
-        const auto point        = ReadCodePointAt(text, cursor);
+        const auto point        = ReadVisitedCodePointAt(text, cursor);
         const auto properties   = Properties(point.value);
         const auto current      = static_cast<BreakClass>(properties & 15u);
         const auto indic        = static_cast<IndicClass>((properties >> 5u) & 3u);
@@ -152,29 +190,37 @@ std::size_t FindNextTextElementBoundary(std::wstring_view text, std::size_t elem
     }
     return text.size();
 }
+std::size_t FindTextElementSearchAnchor(std::wstring_view text, std::size_t position) noexcept
+{
+    auto anchor = std::min(position, text.size());
+    if (anchor == text.size())
+        return anchor; // GB2
+    // Code-point pairing is local, so stepping off a trail half lands on the
+    // same code point the walk from 0 reads; lone halves stay single points.
+    if (anchor && IsUtf16TrailSurrogate(text[anchor]) && IsUtf16LeadSurrogate(text[anchor - 1u]))
+        --anchor;
+    if (! anchor)
+        return 0u; // GB1
+    auto rightProperties = Properties(ReadVisitedCodePointAt(text, anchor).value);
+    while (anchor)
+    {
+        const auto left           = StepToPreviousCodePoint(text, anchor);
+        const auto leftProperties = Properties(ReadVisitedCodePointAt(text, left).value);
+        if (BreaksUnconditionally(leftProperties, rightProperties))
+            break;
+        anchor          = left;
+        rightProperties = leftProperties;
+    }
+    return anchor;
+}
 std::size_t FindPreviousTextElementBoundary(std::wstring_view text, std::size_t position) noexcept
 {
     const auto caret = std::min(position, text.size());
     if (! caret)
         return 0u;
-    auto start = StepToPreviousCodePoint(text, caret);
-    while (start)
-    {
-        const auto left            = StepToPreviousCodePoint(text, start);
-        const auto leftProperties  = Properties(ReadCodePointAt(text, left).value);
-        const auto rightProperties = Properties(ReadCodePointAt(text, start).value);
-        const auto leftClass       = static_cast<BreakClass>(leftProperties & 15u);
-        const auto rightClass      = static_cast<BreakClass>(rightProperties & 15u);
-        // These pairs establish a boundary independently of all preceding
-        // context. Other pairs retain the canonical forward scan's RI parity,
-        // Indic linker and pictographic-ZWJ state without an arbitrary cutoff.
-        const bool hard = (HardBoundary(leftClass) || HardBoundary(rightClass)) && ! (leftClass == BreakClass::CR && rightClass == BreakClass::LF);
-        const bool ordinary =
-            leftClass == BreakClass::Other && rightClass == BreakClass::Other && ((leftProperties >> 5u) & 3u) == 0u && ((rightProperties >> 5u) & 3u) == 0u;
-        if (hard || ordinary)
-            break;
-        start = left;
-    }
+    // The anchor retains the canonical forward scan's RI parity, Indic linker
+    // and pictographic-ZWJ state without an arbitrary cutoff.
+    const auto start = FindTextElementSearchAnchor(text, StepToPreviousCodePoint(text, caret));
     for (auto cursor = start; cursor < text.size();)
     {
         const auto next = FindNextTextElementBoundary(text, cursor);
