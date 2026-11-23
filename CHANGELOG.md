@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Use the pinned shared scoped test planner and run-evidence engine while retaining DxUi's native build, SDK and benchmark attestations.
 - The `W4.0` spike of retained command lists closes as a no-go, decided by the developer on 23 November 2026: hosts keep
   running `Paint` for every visible control, and the performance contract now says so and why. Replaying a control's
   recorded `ID2D1CommandList` with `DrawImage` cost 0.85 to 1.07 of painting it on hardware (`Label`, `Button`,
