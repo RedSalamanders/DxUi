@@ -203,6 +203,7 @@ Decided by the developer on 23 November 2026. The plan stays one document; the w
 What moves with step 3:
 
 - Budgets `G7`, `G14` and `G15` get their receipts in step 3, not before.
+- `W9.8` moves to step 3 with `W5.9`: after the `W4.0` no-go it caps nothing that exists before layers do.
 - `W5.8` breaks source for pointer identity in embedded dispatch. It lands in the API revision that is open when
   step 3 is built: revision 6 if it is still unreleased, the next revision otherwise. `A8` no longer promises one
   source break for `W3.5` and `W5.8` together.
@@ -1647,6 +1648,11 @@ are hand counts until the `W9.1` probes exist. Exit: `G13` met.
   - **Needs**: `W9.1`. **Size**: M.
 
 - [ ] **W9.4 `Grid` cell footprint.**
+  - **Changed by the `W4.0` no-go** (23 November 2026): rows are not retained parts (`W4.2` is closed unbuilt), so a
+    released cell layout has no recorded row to draw from. A single-line cell is drawn from glyph runs captured from
+    its layout, the mechanism of `W6.5`, which this item uses on memory grounds whether or not `W6.5`'s own CPU entry
+    condition is met; the layout is rebuilt on demand where hit-testing needs it. It needs that capture in place of
+    `W4.2`. Proposed by the implementation; the developer may still restate it.
   - **Why**: a painting `Grid` keeps one `IDWriteTextLayout` per cell its last paint drew, about 20 KB each (accepted
     envelope in [performance and resources](../../Core/Core_PerformanceAndResources.md)): about 304 visible cells
     (6.1 MB) at 1080p, 770 (15.4 MB) at 4K. A single-line cell as a glyph run is about 280 B (20 glyphs × ~14 B).
@@ -1695,6 +1701,10 @@ are hand counts until the `W9.1` probes exist. Exit: `G13` met.
   - **Needs**: `W8.2`, `W8.3`, `W9.1`. **Size**: M.
 
 - [ ] **W9.8 Retained-scene and layer caps.**
+  - **Changed by the `W4.0` no-go** (23 November 2026): no retained operation, tile or atlas exists (`W4.3` is closed
+    unbuilt) and layers arrive with `W5.9`, so nothing this item caps exists before step 3. It moves to the pull
+    request that delivers `W5` ([delivery](#delivery-in-pull-requests)); `W2.4` bounds its own retained popup bitmaps
+    in its gate. Proposed by the implementation; the developer may still restate it.
   - **Why**: retention (`W4`), layers (`W5.9`) and in-window blur (`A12`) add lines with no bound: one 4K layer or blur
     scratch is 33,177,600 B. The 64 MiB embedded cap bounds one surface with a 128 MiB replacement peak; it is not a
     per-view budget, and `WindowHost` has no cap.
@@ -1869,7 +1879,7 @@ with an open row is not accepted for closeout until that row closes.
 | `W4.0` | Follow-up from the design review of `W4.10` (23 November 2026). No raster tile is built: every shadow or blur effect in the library belongs to the `ComboBox` popup, the `Menu` popups or the public `PaintTransientSurface` helper, which no library control calls. So the 16 MiB tile cap of `A16` is not introduced. Budget `G2` cannot be met as written by a design that paints: one hover change on `FX5` repaints the two changed toggles, the card under each and the root, 5 or 6 `Paint` executions against 83 today, because the pixels under a changed control must be painted again by its ancestors. | The developer restates `G2` or accepts it as not met; `W4.10` gates the exact count |
 | `W1.4` | The `NativeTextInput` suite ran on 23 November 2026 under the interactive lease, with automatic start on the developer's agreement: its 175 tests pass in x64 Release, Debug and ASan Debug. Its first run stopped at an assertion that still expected the whole-document range for an external change; three such assertions now expect the changed middle. The same runs pass the `Menu` suite (131 tests, `TestPerformanceFixtureFx4IsDeterministic` among them) and the two menu resource fixtures in the three configurations, which is the first run of these suites for `W2.7`, `W3.1`, `W3.2`, `W7.4` and `W8.5` too. These suites fail when a person uses the desktop while they run: one Debug run stopped where the pointer did not reach its point, and one ASan Debug run lost the foreground. Not run: a Japanese IME composition. | A real IME composition, with the developer's agreement |
 | `W2.9` | The interactive test ran with real pointer input in x64 Release, Debug and ASan Debug on 23 November 2026: every real move is one `WM_NCHITTEST`, one `WM_SETCURSOR`, one `WM_MOUSEMOVE`, one hit test and one reuse. One placement of the pointer delivers no move, one move or two, so the test counts the `WM_MOUSEMOVE` messages its window receives and requires one walk and one reuse per move; as first written it assumed one move per placement and failed on a placement that delivered two. | — |
-| `W0.7` | The receipt was taken on 23 November 2026 on the integration tip (`8f3b34ee3`; NVIDIA GeForce RTX 5080, High performance active, other work paused), with every pass of every case admitted. `FX12` at 4K, full frame: 9.47 ms of UI-thread CPU, 11.61 ms of GPU busy time, 94.4% of the frame inside Direct2D calls. The 10,000-control form at 4K: 38.72 ms of CPU, 4.38 ms of GPU busy time, 78.3% inside Direct2D. `G5` (at most 4 ms of CPU, GPU time below CPU time) is now measured and is not met. The receipt reads its rule on both cases as "the entry condition of `W10.4` is evaluated"; the decision is the developer's. A window-host `Present` takes 0.06 ms median. The tables of the item's README are still to be filled from the receipt. | The developer's decision on `W10.4`; `G5` is the target of the later waves |
+| `W0.7` | The receipt was taken on 23 November 2026 on the integration tip (`8f3b34ee3`; NVIDIA GeForce RTX 5080, High performance active, other work paused), with every pass of every case admitted. `FX12` at 4K, full frame: 9.47 ms of UI-thread CPU, 11.61 ms of GPU busy time, 94.4% of the frame inside Direct2D calls. The 10,000-control form at 4K: 38.72 ms of CPU, 4.38 ms of GPU busy time, 78.3% inside Direct2D. `G5` (at most 4 ms of CPU, GPU time below CPU time) is now measured and is not met. The receipt reads its rule on both cases as "the entry condition of `W10.4` is evaluated"; the decision is the developer's. A window-host `Present` takes 0.06 ms median. The receipt was stamped afterwards with its library identity and the hashes of its 31 input sources, computed from its recorded commit; no measured figure changed. The README tables are generated from it. | The developer's decision on `W10.4`; `G5` is the target of the later waves |
 | `W0.2` | Hardware slot of 23 November 2026 on `8f3b34ee3`: the `FX12` 4K smoke passes admission with core isolation off and on (GPU frame noise floor 1.34% shared, 0.12% isolated). The load-sensitivity study did not run: `performance-timing.ps1` takes no GPU engine snapshot for `-Purpose LoadSensitivity`, and the admission rule then rejects the quiet runs of every session because the other-process GPU load is not recorded. | A fix of that defect, then the 25-session study in the next hardware slot |
 
 ## Decisions carried into this plan
