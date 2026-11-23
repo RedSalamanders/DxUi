@@ -123,6 +123,65 @@ ended after each B run). The receipt names the largest load level at which FX5's
 within their margins, and whether a busy sibling is admissible; every run also records the interference indicators, so
 the sibling and own-processor limits can be set from the same data.
 
+## Admission, 23 November: core isolation, rule v2 and the partial load-sensitivity study
+
+The hardware slot of 23 November (tip `2b09df9e6`, Release, High Performance, RTX 5080, no builds running) showed two
+problems, fixed by `interference-interim-v2` and core isolation.
+
+**The sibling was our own process.** The W0.7 attribution tool, which judges its passes with
+`Test-FrameTimingRunAdmission`, had every FX12 4K pass refused with the measuring processor's sibling 0.46 to 0.82 busy
+while other processes kept only 3.3 to 4.8 logical processors busy and the measuring thread's median running share stayed
+at 0.996 to 0.998 in the timing and phase passes (rejected records of runs 074153Z and 080630Z). FX12's Direct2D, DirectWrite and driver worker threads
+landed on the measuring core's second hardware thread. They do disturb the measurement: in the load-sensitivity study
+one busy sibling thread made FX5 46 to 52% slower. The harness now isolates the measuring core: the measured process's
+default CPU set excludes the measuring core and the measuring thread selects its own processor (no elevation). The
+Embedded self-test starts helper threads after isolation and checks that none ever runs on the measuring core. A WARP
+smoke run of FX12 on this machine while other workers were building (other processes 13 logical processors, the
+machine about 68% busy) read sibling 0.60 shared and 0.61 to 0.66 isolated, close to the machine's average processor load,
+so it cannot show the difference; on an idle machine the scheduler leaves an idle sibling idle (quiet FX5 runs read 0.00
+to 0.03), and the hardware smoke below shows FX12 before and after. FX12 now declares its timed "full" phase
+repeatable, so the harness no longer rebuilds 2,000 controls every four frames.
+
+**The load-sensitivity study stopped at session 27 of 30** (5.5 minutes): the preflight saw 9.4 busy logical
+processors. It was the desktop, not the study's load: no `DxUi.EmbeddedTests` process was alive in that preflight's
+host observations (the previous arm's load child had exited), and the busiest processes were git, Zoom, OneDrive and
+the observer itself, with the host at 25.9% against 8.5 to 19.8% in the 26 earlier preflights. A refused preflight now
+waits 30 s and retries up to 10 times, the study's own processes (observer, runner, load children) are left out of the
+preflight figure, every admitted session is checkpointed, and running the same command resumes the study.
+
+**Partial result** (not a receipt: 26 of 30 sessions, read from the raw reports of the aborted study; measuring
+processor 28; the loaded runs against the quiet runs of the same sessions; the three metrics FX5's calibration judges):
+
+| Extra busy logical processors | Sessions | Preparation cycles | Submission time | GPU frame time | Equivalent within margin |
+| --- | --- | --- | --- | --- | --- |
+| 0 (control) | 5 | +0.04% (-0.65 to +0.50) | +0.04% | +0.11% | yes |
+| 2, away from the core | 5 | +1.59% (+0.88 to +2.35) | +1.60% | +1.58% | yes |
+| 4, away | 4 | +3.23% (+2.34 to +4.40) | +3.26% | +3.41% | no (above 3%; 4 sessions cannot show equivalence) |
+| 8, away | 4 | +4.21% | +4.22% | +4.45% | no |
+| 12, away | 4 | +5.66% | +5.76% | +7.42% | no |
+| 1, on the sibling | 4 | +51.6% | +51.4% | +46.1% | no |
+
+The measuring thread was not preempted under load elsewhere (its 5th-percentile running share stayed at 0.991 to
+0.995), so the running share cannot catch this slowdown: the total-load cap and a new session steadiness clause do.
+Two extra busy logical processors stay within the margin, four do not, so v2 rejects a session whose four runs' other
+load differs by more than 2 logical processors and keeps the cap at 8 (the 2-processor arm's loaded runs reached 8.46).
+Other work on the measuring processor read 0.00 to 0.06 in every arm, and the W4.0 comparisons were rejected at 0.050
+and 0.058 under the 5% limit and completed on repeat; v2 allows 10%. Running shares of 0.93 at the 5th percentile (two
+rejections in those comparisons) stay rejected, as do 8.11 busy logical processors (one).
+
+**Next quiet slot** (High Performance set; after the build):
+
+```powershell
+# FX12 before and after core isolation, hardware smoke runs (one session each, about a minute):
+./performance-timing.ps1 -Purpose Smoke -Fixture FX12@uhd-192dpi -Phase Dirty -Sessions 1 -CoreIsolation Off -OutputDirectory .build/reports/frame-timing/fx12-shared
+./performance-timing.ps1 -Purpose Smoke -Fixture FX12@uhd-192dpi -Phase Dirty -Sessions 1 -SkipBuild -OutputDirectory .build/reports/frame-timing/fx12-isolated
+# The load-sensitivity study, bracketing the boundary between 2 and 4 (25 sessions, about 9 minutes; resumable):
+./performance-timing.ps1 -Purpose LoadSensitivity -Fixture FX5 -Phase Dirty -SkipBuild -PreflightSeconds 1 -LoadLevels 0,1,2,3,4 -NoSiblingArm -CalibrationPath Measurements/PerformanceAndMotion_2026-11-13/W0.2/calibration-FX5-dirty/receipt.json -OutputDirectory Measurements/PerformanceAndMotion_2026-11-13/W0.2/load-sensitivity-FX5-dirty
+```
+
+If it stops, the same command resumes it. The two retained calibrations were taken under the stricter original rule
+without isolation; their judged statuses stand.
+
 ## Retained form
 
 A committed receipt holds per-run summaries (the six statistics, the clock steps and resolution, frame counts), each

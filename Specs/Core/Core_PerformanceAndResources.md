@@ -766,48 +766,62 @@ paired sets above, their judges, bands and exact budgets, nor the ComplexUi benc
   counters and pixels. Anything weaker is a smoke run, labelled as such, with no calibration, noise floor or verdict.
 - **Machine state.** The runner activates the existing High Performance scheme with `powercfg` and restores the
   original scheme however the study ends, verifying the restoration. It never creates a scheme and never elevates; an
-  absent or refused scheme stops the study. Only the measuring UI thread of each child is pinned, so driver threads are
-  not constrained. `auto` samples every logical processor's busy share for 500 ms and pins the lowest-numbered logical
-  processor of the quietest physical core of the highest efficiency class, never processor 0's core when another exists;
-  the run records the core, its siblings, the last-level cache and the sample. Each session starts
-  `Tools/Watch-BenchmarkHost.ps1` for the idle preflight and keeps observing until the session ends. Other people's
-  processes are never stopped.
+  absent or refused scheme stops the study. `auto` samples every logical processor's busy share for 500 ms and pins the
+  measuring UI thread to the lowest-numbered logical processor of the quietest physical core of the highest efficiency
+  class, never processor 0's core when another exists; the run records the core, its siblings, the last-level cache and
+  the sample. Each session starts `Tools/Watch-BenchmarkHost.ps1` for the idle preflight and keeps observing until the
+  session ends. Other people's processes are never stopped.
+- **Core isolation.** With `-CoreIsolation On` (default), the measured process keeps its other threads (Direct2D,
+  DirectWrite, WARP and driver workers) off the measuring core, without elevation: its default CPU set
+  (`SetProcessDefaultCpuSets`) is every logical processor of group 0 except the measuring core's, and the measuring thread
+  selects its own processor's set. A thread on the measuring core's sibling shares its execution resources: one busy
+  sibling thread made FX5 frames about 50% slower. A process that is multi-threaded by design is measured this way: its
+  other threads run on the other cores, where their processor time is the process's own use (recorded, never judged as
+  interference); the rule judges only what reaches the measuring core, whoever's work it is. The run records whether
+  isolation was applied; `-CoreIsolation Off` reproduces earlier runs.
 - **Interference records.** Every run records, for its timed loop, without elevation: each frame's running share (the
   measuring thread's cycles over time-stamp-counter ticks during preparation and composition, x64 only); every logical
   processor's busy share (`NtQuerySystemInformation`); this process's own processor use; hence the busiest sibling of
   the measuring processor, other work on the measuring processor itself, and other processes' load in logical
-  processors. Per-processor busy shares are not attributed to processes, so the sibling's figure also holds this
-  process's own unpinned threads (driver workers, WARP rasterizer threads); the load-sensitivity run's quiet arm shows
-  that baseline on hardware. Around each session the runner reads the `GPU Engine` running-time counters and records the busiest engine
-  of the measured adapter (by LUID) occupied by other processes, from per-instance deltas.
-- **Admission rule.** Receipts name the rule they were admitted under. `interference-interim-v1` (default, interim
-  until the load-sensitivity run below sets the limits): the preflight refuses a session when other processes keep more
-  than a quarter of the logical processors busy (at least one; 8 on the 32-thread reference machine); a run is rejected
-  when the measuring thread's running share is below 0.99 at the median or 0.97 at the 5th percentile, its sibling is
-  more than 10% busy, other work keeps its own processor more than 5% busy, other processes keep more logical processors
-  busy than the cap, or other processes keep the measured GPU's busiest engine more than 15% busy. A calibration or
-  comparison repeats a rejected session up to three times and records every rejection; smoke and load-sensitivity runs
-  record the decisions without enforcing them. A run without these records (an older executable, or ARM64, which has no
-  time-stamp counter read) is not admitted by this rule. `host-busy-10pct-v1`, the original rule (the preflight refuses
-  a session when the whole host is more than 10% busy; runs are not judged on interference), stays selectable with
-  `-Admission Legacy10`; receipts without an admission field were taken under it, and stay valid.
-- **Evidence for the interim rule.** Whole-host load does not predict the result in the existing data: in two rejected
-  attribution runs (100 passes, other-process load 5.9 to 15.6% of 32 logical processors) the paired passes whose
-  higher load was 9% or more differed by at most 0.74% while lower-load pairs differed by up to 3.79%; in the two
-  calibrations the runs' deviations from the median correlate with session host load by at most 0.34. The measuring
-  thread's own record does: the largest attribution difference (7.3%) came from a pass whose cycles-per-tick ratio was
-  0.976 (undisturbed passes read 0.997 to 1.001), and the three FX5 calibration runs whose 5th-percentile cycle rate fell
-  about 6% below the other seventeen carried the three largest GPU p95 deviations (+13 to +18%; correlation -0.95)
-  while their host load was ordinary. The sibling, own-processor, total-load and GPU limits are conservative choices
-  that the existing data neither confirms nor rejects.
+  processors. Per-processor busy shares are not attributed to processes: without isolation the sibling's figure also
+  holds this process's own helper threads. Around each session the runner reads the `GPU Engine` running-time counters
+  and records the busiest engine of the measured adapter (by LUID) occupied by other processes, from per-instance deltas.
+- **Admission rule.** Receipts name the rule they were admitted under. `interference-interim-v2` (default, provisional):
+  the preflight refuses a session when other processes keep more than a quarter of the logical processors busy (at least
+  one; 8 on the 32-thread reference machine), leaving out the study's own processes (observer, runner, load children);
+  a run is rejected when the measuring thread's running share is below 0.99 at the median or 0.97 at the 5th
+  percentile, its sibling is more than 10% busy, other work keeps its own processor more than 10% busy, other processes
+  keep more logical processors busy than the cap, or other processes keep the measured GPU's busiest engine more than 15%
+  busy; a session is rejected when its four runs' other-process load differs by more than 2 logical processors. A
+  calibration or comparison repeats a rejected session up to three times and records every rejection; a load-sensitivity
+  study judges only its quiet runs. A refused preflight waits (30 s by default) and retries (10 times); every admitted
+  session is checkpointed, and the same command resumes an interrupted study (`-Restart` discards the checkpoint). A run
+  without these records (an older executable, or ARM64, which has no time-stamp counter read) is not admitted.
+  `interference-interim-v1` (15 November: own processor at most 5%, no steadiness clause) and `host-busy-10pct-v1`
+  (the original whole-host 10% preflight; receipts without an admission field were taken under it) stay selectable
+  with `-Admission InterimV1` and `-Admission Legacy10`; receipts taken under them stay valid.
+- **Evidence for the rule.** A partial load-sensitivity study on the reference machine (23 November, FX5 dirty, 26 of
+  30 sessions; the study stopped on a desktop burst of 9.4 busy logical processors in the next preflight) gives, for
+  the loaded runs against quiet runs of the same sessions (mean change of the three judged metrics): 0 extra busy
+  logical processors, +0.04 to +0.11% (equivalent); 2, +1.6% (equivalent within the 3% and 5% margins); 4, +3.2 to
+  +3.4%; 8, +4.2 to +4.5%; 12, +5.7% (GPU +7.4%); one busy thread on the sibling, +46 to +52%. Load elsewhere slows the
+  measuring thread without preempting it (its running share stayed at 0.99 at every level), so the total-load cap and
+  the session steadiness clause, not the running share, guard against it: two extra busy logical processors are within
+  margin, four are not. The busy sibling justifies the strict sibling limit and core isolation. Whole-host load alone
+  did not predict differences in the earlier data (attribution passes at 9% or more of the host differed by at most
+  0.74%; calibration deviations correlate with host load by at most 0.34), while the running share did: the largest
+  attribution difference (7.3%) came from a pass at 0.976 cycles per tick, and the three FX5 calibration runs whose
+  5th-percentile cycle rate fell about 6% carried the three largest GPU p95 deviations (+13 to +18%). Quiet runs read
+  0.00 to 0.06 of other work on the measuring processor; FX5 comparisons were rejected at 0.050 and 0.058 under the 5%
+  limit, so v2 allows 10%. The 15% GPU limit has no evidence yet.
 - **Load sensitivity.** `-Purpose LoadSensitivity` measures one executable on FX5 dirty frames with the measuring thread
   pinned to the quietest core, in arms of five A/B/B/A sessions run round-robin: A runs quiet, B runs under a synthetic
-  load of 0, 2, 4, 8 and 12 busy logical processors placed away from the measuring core (one per other core, farthest
-  first, then second hardware threads) and one arm with one busy thread on the measuring processor's sibling. The load
-  is `DxUi.EmbeddedTests.exe --busy-load`, the runner's own child, started before and ended after each B run. Per arm,
-  every judged metric of the given calibration is tested for equivalence within its margin; the admissible level is the
-  largest level at which it and every lower level are equivalent. That level replaces the interim total-load cap, and
-  the sibling arm decides whether a busy sibling is admissible.
+  load of busy logical processors placed away from the measuring core (one per other core, farthest first, then second
+  hardware threads), and optionally one arm with one busy thread on the measuring processor's sibling. The load is
+  `DxUi.EmbeddedTests.exe --busy-load`, the runner's own child, started before and ended (and waited for) after each B
+  run. Per arm, every judged metric of the given calibration is tested for equivalence within its margin; the admissible
+  level is the largest level at which it and every lower level are equivalent. That level sets the total-load cap and
+  the session steadiness limit.
 - **Receipt.** The committed receipt is the retained form: per-run summaries (statistics, clock steps, resolution,
   frame counts), each raw run report's path, SHA-256 and size, the judged statistics, the host preflight records, the
   power scheme record, the pinning, adapter identity and driver version, the executables' hashes and this tree's v2

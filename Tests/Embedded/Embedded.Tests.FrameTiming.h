@@ -86,6 +86,7 @@ struct Options
     Phase phase           = Phase::Dirty;
     bool hardware         = true;
     std::wstring pinCore  = L"auto"; // auto, none or a logical processor index in group 0
+    bool isolateCore      = true;    // keep this process's other threads off the measuring core (IsolateMeasuringCore)
     size_t warmupFrames   = kDefaultWarmupFrames;
     size_t minimumFrames  = kJudgedMinimumFrames;
     double minimumSeconds = kJudgedMinimumSeconds;
@@ -105,6 +106,7 @@ struct LogicalProcessor
     BYTE core            = 0u;
     BYTE efficiencyClass = 0u;
     BYTE cache           = 0u;
+    ULONG cpuSet         = 0u; // the CPU set id, for SetProcessDefaultCpuSets and SetThreadSelectedCpuSets
 };
 
 inline std::vector<LogicalProcessor> ProcessorTopology()
@@ -121,8 +123,11 @@ inline std::vector<LogicalProcessor> ProcessorTopology()
         const auto* entry = reinterpret_cast<const SYSTEM_CPU_SET_INFORMATION*>(buffer.data() + offset);
         Check(entry->Size > 0u, "frame timing CPU set entry size");
         if (entry->Type == CpuSetInformation && entry->CpuSet.Group == 0u && entry->CpuSet.LogicalProcessorIndex < 64u)
-            processors.push_back(
-                {entry->CpuSet.LogicalProcessorIndex, entry->CpuSet.CoreIndex, entry->CpuSet.EfficiencyClass, entry->CpuSet.LastLevelCacheIndex});
+            processors.push_back({entry->CpuSet.LogicalProcessorIndex,
+                                  entry->CpuSet.CoreIndex,
+                                  entry->CpuSet.EfficiencyClass,
+                                  entry->CpuSet.LastLevelCacheIndex,
+                                  entry->CpuSet.Id});
         offset += entry->Size;
     }
     std::sort(processors.begin(), processors.end(), [](const LogicalProcessor& a, const LogicalProcessor& b) { return a.index < b.index; });
@@ -184,7 +189,45 @@ struct Pinning
     BYTE cache             = 0u;
     std::vector<DWORD> siblings;     // the other logical processors of the same physical core
     std::vector<double> sampledBusy; // auto: every processor's busy share over the selection sample
+    // Core isolation: the measured process's other threads are kept off the measuring core (see IsolateMeasuringCore).
+    bool isolationRequested = false;
+    bool isolated           = false;
+    DWORD isolationError    = 0u;
 };
+
+// Keep the measured process's other threads (Direct2D, DirectWrite, WARP and driver workers) off the measuring core,
+// without elevation: the process default CPU set is every logical processor of group 0 except the measuring core's, and
+// the measuring thread selects its own processor's set. Helper threads on the measuring core's sibling share its
+// execution resources and slow it (a busy sibling made FX5 frames about 50% slower); away from it they are only this
+// process's own use. Undone by ReleaseMeasuringCore.
+inline bool IsolateMeasuringCore(const std::vector<LogicalProcessor>& processors, const LogicalProcessor& measuring, DWORD& error)
+{
+    std::vector<ULONG> others;
+    for (const auto& processor : processors)
+        if (processor.core != measuring.core)
+            others.push_back(processor.cpuSet);
+    error = 0u;
+    if (others.empty())
+        return false;
+    if (SetProcessDefaultCpuSets(GetCurrentProcess(), others.data(), static_cast<ULONG>(others.size())) == FALSE)
+    {
+        error = GetLastError();
+        return false;
+    }
+    if (SetThreadSelectedCpuSets(GetCurrentThread(), &measuring.cpuSet, 1u) == FALSE)
+    {
+        error = GetLastError();
+        static_cast<void>(SetProcessDefaultCpuSets(GetCurrentProcess(), nullptr, 0u));
+        return false;
+    }
+    return true;
+}
+
+inline void ReleaseMeasuringCore() noexcept
+{
+    static_cast<void>(SetThreadSelectedCpuSets(GetCurrentThread(), nullptr, 0u));
+    static_cast<void>(SetProcessDefaultCpuSets(GetCurrentProcess(), nullptr, 0u));
+}
 
 inline constexpr DWORD kQuietCoreSampleMilliseconds = 500u;
 
@@ -228,7 +271,7 @@ inline LogicalProcessor QuietestProcessor(const std::vector<LogicalProcessor>& p
     return *best;
 }
 
-inline Pinning PinMeasuringThread(std::wstring_view request)
+inline Pinning PinMeasuringThread(std::wstring_view request, bool isolate = true)
 {
     Pinning result;
     result.requested = request == L"none" ? "none" : request == L"auto" ? "auto" : "explicit";
@@ -264,7 +307,9 @@ inline Pinning PinMeasuringThread(std::wstring_view request)
             result.siblings.push_back(processor.index);
     result.previousMask = SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR{1} << result.processor);
     Check(result.previousMask != 0u, "frame timing thread affinity");
-    result.pinned = true;
+    result.pinned             = true;
+    result.isolationRequested = isolate;
+    result.isolated           = isolate && IsolateMeasuringCore(processors, chosen, result.isolationError);
     return result;
 }
 
@@ -421,11 +466,13 @@ inline Run Measure(Fixture& fixture, const Options& options)
     run.height             = fixture.Height();
     run.dpi                = fixture.Dpi();
     run.options            = options;
-    run.pinning            = PinMeasuringThread(options.pinCore);
+    run.pinning            = PinMeasuringThread(options.pinCore, options.isolateCore);
     const auto unpin       = wil::scope_exit([&]
     {
         if (run.pinning.pinned)
             static_cast<void>(SetThreadAffinityMask(GetCurrentThread(), run.pinning.previousMask));
+        if (run.pinning.isolated)
+            ReleaseMeasuringCore();
     });
     GraphicsFixture gpu;
     gpu.width  = fixture.Width();
@@ -651,8 +698,9 @@ inline void Write(const Run& run, std::ostream& output)
            << "\",\"dedicatedVideoBytes\":" << run.adapter.videoBytes << ",\"luid\":\"" << LuidText(run.adapter.luid)
            << "\"},\"pinning\":{\"requested\":" << JsonString(run.pinning.requested) << ",\"pinned\":" << (run.pinning.pinned ? "true" : "false")
            << ",\"processor\":" << run.pinning.processor << ",\"efficiencyClass\":" << +run.pinning.efficiencyClass
-           << ",\"maximumEfficiencyClass\":" << +run.pinning.maximumEfficiency << ",\"core\":" << +run.pinning.core
-           << ",\"lastLevelCache\":" << +run.pinning.cache;
+           << ",\"maximumEfficiencyClass\":" << +run.pinning.maximumEfficiency
+           << ",\"isolationRequested\":" << (run.pinning.isolationRequested ? "true" : "false") << ",\"isolated\":" << (run.pinning.isolated ? "true" : "false")
+           << ",\"isolationError\":" << run.pinning.isolationError << ",\"core\":" << +run.pinning.core << ",\"lastLevelCache\":" << +run.pinning.cache;
     series("siblings", run.pinning.siblings);
     series("sampledBusy", run.pinning.sampledBusy);
     const auto& interference = run.interference;
@@ -696,6 +744,31 @@ inline bool TryParseCount(std::wstring_view text, size_t& value)
         value = value * 10u + static_cast<size_t>(c - L'0');
     }
     return true;
+}
+
+// A helper thread of the self-test: for 300 ms, counts the samples in which it ran on the measuring core.
+struct IsolationProbe
+{
+    std::vector<LogicalProcessor> processors;
+    BYTE core = 0u;
+    std::atomic<uint64_t> samples{0u};
+    std::atomic<uint64_t> onMeasuringCore{0u};
+};
+
+inline DWORD WINAPI IsolationProbeThread(void* parameter) noexcept
+{
+    auto& probe        = *static_cast<IsolationProbe*>(parameter);
+    const auto started = std::chrono::steady_clock::now();
+    while (std::chrono::steady_clock::now() - started < std::chrono::milliseconds(300))
+    {
+        PROCESSOR_NUMBER number{};
+        GetCurrentProcessorNumberEx(&number);
+        probe.samples.fetch_add(1u, std::memory_order_relaxed);
+        for (const auto& processor : probe.processors)
+            if (number.Group == 0u && processor.index == number.Number && processor.core == probe.core)
+                probe.onMeasuringCore.fetch_add(1u, std::memory_order_relaxed);
+    }
+    return 0u;
 }
 
 // DxUi.EmbeddedTests.exe --processor-topology <output>: group 0's logical processors (core, efficiency class, last-level
@@ -778,16 +851,18 @@ inline int BusyLoadCommand(int argc, wchar_t** argv)
     return 0;
 }
 
-// DxUi.EmbeddedTests.exe --timing-method <output> <fixture> Clean|Dirty Hardware|Warp <auto|none|index> <minFrames> <minMilliseconds>
+// DxUi.EmbeddedTests.exe --timing-method <output> <fixture> Clean|Dirty Hardware|Warp <auto|none|index> <minFrames> <minMilliseconds> [isolate|share]
 inline int RunCommand(int argc, wchar_t** argv)
 {
     Options options;
     size_t milliseconds = 0u;
-    if (argc != 9 || (std::wstring_view(argv[4]) != L"Clean" && std::wstring_view(argv[4]) != L"Dirty") ||
+    if ((argc != 9 && argc != 10) || (argc == 10 && std::wstring_view(argv[9]) != L"isolate" && std::wstring_view(argv[9]) != L"share") ||
+        (std::wstring_view(argv[4]) != L"Clean" && std::wstring_view(argv[4]) != L"Dirty") ||
         (std::wstring_view(argv[5]) != L"Hardware" && std::wstring_view(argv[5]) != L"Warp") || ! TryParseCount(argv[7], options.minimumFrames) ||
         ! TryParseCount(argv[8], milliseconds) || options.minimumFrames == 0u)
     {
-        std::fputs("Frame timing requires output, fixture, Clean|Dirty, Hardware|Warp, auto|none|processor, minimum frames and minimum milliseconds.\n",
+        std::fputs("Frame timing requires output, fixture, Clean|Dirty, Hardware|Warp, auto|none|processor, minimum frames, minimum milliseconds and "
+                   "optionally isolate|share.\n",
                    stderr);
         return 2;
     }
@@ -802,6 +877,7 @@ inline int RunCommand(int argc, wchar_t** argv)
     options.phase          = std::wstring_view(argv[4]) == L"Dirty" ? Phase::Dirty : Phase::Clean;
     options.hardware       = std::wstring_view(argv[5]) == L"Hardware";
     options.pinCore        = argv[6];
+    options.isolateCore    = argc != 10 || std::wstring_view(argv[9]) == L"isolate";
     options.minimumSeconds = static_cast<double>(milliseconds) / 1000.0;
     const auto run         = Measure(*fixture, options);
     std::ofstream output{std::filesystem::path(argv[2])};
@@ -876,6 +952,36 @@ inline void SelfTest()
     const auto processors = ProcessorTopology();
     const auto pinned     = PinMeasuringThread(std::to_wstring(static_cast<unsigned>(processors.back().index)));
     Check(pinned.pinned && SetThreadAffinityMask(GetCurrentThread(), pinned.previousMask) != 0u, "frame timing pins and restores an explicit processor");
+    const bool severalCores = std::any_of(processors.begin(), processors.end(), [&](const LogicalProcessor& p) { return p.core != pinned.core; });
+    Check(pinned.isolated == severalCores && pinned.isolationError == 0u, "frame timing isolates the measuring core without elevation");
+    if (pinned.isolated)
+    {
+        // A thread started now inherits the process default CPU set: it may not be selected onto the measuring core.
+        ULONG count = 0u;
+        static_cast<void>(GetProcessDefaultCpuSets(GetCurrentProcess(), nullptr, 0u, &count));
+        std::vector<ULONG> sets(count);
+        Check(count > 0u && GetProcessDefaultCpuSets(GetCurrentProcess(), sets.data(), count, &count) != FALSE,
+              "frame timing reads the process default CPU sets");
+        for (const auto& processor : processors)
+            Check((std::find(sets.begin(), sets.end(), processor.cpuSet) != sets.end()) == (processor.core != pinned.core),
+                  "the process default CPU sets exclude exactly the measuring core");
+        // Helper threads started now, as Direct2D, DirectWrite and driver workers are, never run on the measuring core.
+        IsolationProbe probe;
+        probe.processors = processors;
+        probe.core       = pinned.core;
+        std::array<wil::unique_handle, 4> helpers;
+        for (auto& helper : helpers)
+        {
+            helper.reset(CreateThread(nullptr, 0u, IsolationProbeThread, &probe, 0u, nullptr));
+            Check(helper.is_valid(), "frame timing isolation probe thread");
+        }
+        for (auto& helper : helpers)
+            Check(WaitForSingleObject(helper.get(), 10000u) == WAIT_OBJECT_0, "frame timing isolation probe thread ends");
+        Check(probe.samples.load() > 0u && probe.onMeasuringCore.load() == 0u, "no helper thread of the measured process ran on the measuring core");
+        ReleaseMeasuringCore();
+        Check(GetProcessDefaultCpuSets(GetCurrentProcess(), nullptr, 0u, &count) != FALSE && count == 0u,
+              "releasing the core clears the process default CPU sets");
+    }
     for (const DWORD sibling : pinned.siblings)
         Check(std::any_of(processors.begin(), processors.end(), [&](const LogicalProcessor& p) { return p.index == sibling && p.core == pinned.core; }),
               "a recorded sibling shares the pinned processor's core");

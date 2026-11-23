@@ -439,17 +439,23 @@ never creates a scheme or asks for elevation, so use `-PowerPlan Keep` (smoke on
 the measuring UI thread is pinned, by default to the quietest physical core. A run is admitted on what disturbs the
 measurement, not on total load: every run records whether the measuring thread kept its processor for the whole frame,
 how busy its core's sibling and its own processor were, and how many logical processors other processes kept busy;
-each session also records how busy other processes kept the measured GPU. Under the default interim rule a session
-starts when other processes keep at most a quarter of the logical processors busy (8 of 32), and a calibration or
-comparison repeats a session whose runs were disturbed, up to three times. `-Admission Legacy10` restores the original
-10%-of-the-host preflight. Wait for a quiet window rather than stopping other work. A calibration or comparison refuses
-WARP, Debug, short runs and fewer sessions.
+each session also records how busy other processes kept the measured GPU. The measured process keeps its own helper
+threads (Direct2D, DirectWrite, driver workers) off the measuring core through CPU sets (`-CoreIsolation On`, the
+default): a busy sibling makes frames about 50% slower. Under the default provisional rule a session starts when other
+processes keep at most a quarter of the logical processors busy (8 of 32), its four runs' other load may differ by at
+most 2 logical processors (two extra busy ones cost FX5 about 1.6%, four about 3.2%), and a calibration or comparison
+repeats a session whose runs were disturbed, up to three times. A refused preflight waits and retries, and an
+interrupted study resumes from its checkpoint when the same command runs again. `-Admission Legacy10` restores the
+original 10%-of-the-host preflight. Wait for a quiet window rather than stopping other work. A calibration or comparison
+refuses WARP, Debug, short runs and fewer sessions.
 
-The interim limits are replaced by a load-sensitivity study (about ten minutes on a quiet machine) that measures FX5
-quiet against 0, 2, 4, 8 and 12 busy logical processors away from the measuring core and one on its sibling:
+The limits come from a load-sensitivity study that measures FX5 quiet against busy logical processors placed away from
+the measuring core (and, optionally, one on its sibling). A partial study (26 of 30 sessions) found two extra busy
+logical processors within the margin and four outside it; the next one brackets that boundary (about nine minutes on a
+quiet machine, resumable):
 
 ```powershell
-./performance-timing.ps1 -Purpose LoadSensitivity -Fixture FX5 -Phase Dirty -PreflightSeconds 1 -CalibrationPath Measurements/PerformanceAndMotion_2026-11-13/W0.2/calibration-FX5-dirty/receipt.json -OutputDirectory Measurements/PerformanceAndMotion_2026-11-13/W0.2/load-sensitivity-FX5-dirty
+./performance-timing.ps1 -Purpose LoadSensitivity -Fixture FX5 -Phase Dirty -PreflightSeconds 1 -LoadLevels 0,1,2,3,4 -NoSiblingArm -CalibrationPath Measurements/PerformanceAndMotion_2026-11-13/W0.2/calibration-FX5-dirty/receipt.json -OutputDirectory Measurements/PerformanceAndMotion_2026-11-13/W0.2/load-sensitivity-FX5-dirty
 ```
 New fixtures plug in through `FrameTiming::MakeFixture` in `Tests/Embedded/Embedded.Tests.FrameTiming.h`.
 

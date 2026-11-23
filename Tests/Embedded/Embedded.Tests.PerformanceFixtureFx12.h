@@ -345,5 +345,8 @@ inline constexpr Definition kDefinition{
     .timedPhase = "full",
     .sources    = kSources,
     .create     = []() -> std::unique_ptr<Scenario> { return std::make_unique<Scene>(); },
+    // Every "full" step invalidates an unchanged screen: the timing harness repeats it instead of rebuilding 2,000
+    // controls every four frames.
+    .timedPhaseRepeats = true,
 };
 } // namespace PerformanceFixtures::Fx12

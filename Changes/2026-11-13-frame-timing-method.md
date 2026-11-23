@@ -31,6 +31,14 @@
     the original rule. Existing data show that whole-host load did not predict differences while the measuring thread's
     own running share did. `-Purpose LoadSensitivity` (synthetic load through `DxUi.EmbeddedTests.exe --busy-load`)
     will set the final limits; its run is pending.
+  - The measured process keeps its own helper threads off the measuring core through CPU sets (`-CoreIsolation On`,
+    no elevation): FX12's Direct2D and driver threads had kept the measuring core's sibling 46 to 82% busy, and a busy
+    sibling makes frames about 50% slower. Rule `interference-interim-v2` (default) allows 10% of other work on the
+    measuring processor, adds a session steadiness clause (the four runs' other load within 2 logical processors) and
+    leaves the study's own processes out of the preflight; a refused preflight waits and retries, every session is
+    checkpointed and an interrupted study resumes. A partial load-sensitivity study (26 of 30 sessions, stopped by a
+    desktop burst) found 2 extra busy logical processors within the FX5 margins (+1.6%), 4 outside (+3.2%) and a busy
+    sibling at +46 to +52%. FX12 declares its timed phase repeatable.
   - Validation: `Tools/tests/Test-FrameTiming.ps1` (statistics, resolution rule, retained-form conversion; runner with
     shimmed executable, `powercfg`, build and observer, including restoration after a failed run and a refused
     preflight) and the WARP mechanics check `--test-frame-timing` in the ordinary `Embedded` suite, which now also

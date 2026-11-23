@@ -20,7 +20,7 @@ function New-TimingRun([int] $Frames = 1000, [double] $Seconds = 2.5, [double] $
         adapter = [ordered]@{ description = 'Synthetic'; vendorId = 1; deviceId = 2; software = ($Renderer -eq 'WARP'); driverVersion = '1.2.3.4'; dedicatedVideoBytes = 0; luid = '0x00000000_0x0001bdd0' }
         interference = [ordered]@{ tscAvailable = $true; wallSeconds = $Seconds; logicalProcessors = 32; ownProcessors = 1.2; threadShare = 0.9
             measuringBusy = 0.95; siblingBusy = $SiblingBusy; otherOnMeasuring = 0.02; otherProcessors = $OtherProcessors; processorBusy = @(for ($i = 0; $i -lt 32; $i++) { 0.05 }) }
-        pinning = [ordered]@{ requested = 'auto'; pinned = $true; processor = 3; efficiencyClass = 1; maximumEfficiencyClass = 1; scope = 'measuring UI thread only' }
+        pinning = [ordered]@{ requested = 'auto'; pinned = $true; processor = 3; efficiencyClass = 1; maximumEfficiencyClass = 1; isolated = $true; scope = 'measuring UI thread only' }
         warmupFrames = 60; minimumFrames = $MinimumFrames; minimumSeconds = $MinimumSeconds; frames = $Frames; elapsedSeconds = $Seconds
         gpuSlots = 2; gpuReadLatencyFrames = 1; timestampFrequency = 1000000000; disjointFrames = $Disjoint
         preparedFrames = $Frames; timedSteps = 0; rebuilds = 0
@@ -246,6 +246,37 @@ Invoke-TestCase 'admission: decisions on recorded samples (quiet, loaded elsewhe
     Assert-Equal 0.9 $legacy.indicators.siblingBusy 'the legacy rule still records the indicators'
 }
 
+Invoke-TestCase 'admission: interim v2 widens the own-processor limit, records core isolation and judges a session''s load steadiness' {
+    $v2 = Get-FrameTimingAdmissionRule
+    $v1 = Get-FrameTimingAdmissionRule -Name 'interference-interim-v1'
+    Assert-Equal 'interference-interim-v2' $v2.id 'v2 is the default'
+    $run = New-TimingRun; $run.interference.otherOnMeasuring = 0.058
+    Assert-True (Test-FrameTimingRunAdmission -Summary (Get-FrameTimingRunSummary $run) -OtherGpuBusy 0.0 -Rule $v2).admitted 'other work of 0.058 on the measuring processor is admitted by v2'
+    Assert-True (-not (Test-FrameTimingRunAdmission -Summary (Get-FrameTimingRunSummary $run) -OtherGpuBusy 0.0 -Rule $v1).admitted) 'and still refused by v1'
+    $run.interference.otherOnMeasuring = 0.11
+    Assert-True (-not (Test-FrameTimingRunAdmission -Summary (Get-FrameTimingRunSummary $run) -OtherGpuBusy 0.0 -Rule $v2).admitted) 'above 0.10 it is refused'
+    Assert-Equal $true (Test-FrameTimingRunAdmission -Summary (Get-FrameTimingRunSummary (New-TimingRun)) -OtherGpuBusy 0.0 -Rule $v2).indicators.coreIsolated 'core isolation recorded'
+    $steady = Test-FrameTimingSessionSteadiness -Summaries @(2.0, 3.5, 2.5, 3.9 | ForEach-Object { Get-FrameTimingRunSummary (New-TimingRun -OtherProcessors $_) }) -Rule $v2
+    Assert-True ($steady.admitted -and [Math]::Abs($steady.spread - 1.9) -lt 1e-9) 'a spread of 1.9 logical processors is steady'
+    $unsteady = Test-FrameTimingSessionSteadiness -Summaries @(2.0, 6.5, 2.5, 3.0 | ForEach-Object { Get-FrameTimingRunSummary (New-TimingRun -OtherProcessors $_) }) -Rule $v2
+    Assert-True (-not $unsteady.admitted -and $unsteady.reason.Contains('4.50')) 'a run under 4.5 more busy logical processors makes the session unsteady'
+    Assert-True (Test-FrameTimingSessionSteadiness -Summaries @(2.0, 9.0 | ForEach-Object { Get-FrameTimingRunSummary (New-TimingRun -OtherProcessors $_) }) -Rule $v1).admitted 'v1 has no steadiness clause'
+}
+
+Invoke-TestCase 'admission: the preflight leaves out the study''s own processes (observer, runner, load children)' {
+    $process = { param($id, $ticks) [ordered]@{ pid = $id; status = 'observed'; cpuTicks = $ticks } }
+    $samples = @(
+        [ordered]@{ idle100ns = 0; kernelIncludingIdle100ns = 0; user100ns = 0; qpcStart = 0; qpcEnd = 0; qpcFrequency = 10000000; observerPid = 77
+            processes = @((& $process 77 0), (& $process 88 0), (& $process 99 0)) },
+        [ordered]@{ idle100ns = 6000000; kernelIncludingIdle100ns = 10000000; user100ns = 0; qpcStart = 10000000; qpcEnd = 10000000; qpcFrequency = 10000000; observerPid = 77
+            processes = @((& $process 77 3000000), (& $process 88 5000000), (& $process 99 1000000)) })
+    # 40% of 32 = 12.8 busy logical processors over one second; the observer used 0.3 and the load child 0.5 of them.
+    $result = Test-FrameTimingPreflight -Samples $samples -Rule (Get-FrameTimingAdmissionRule) -LogicalProcessors 32 -ExcludeProcessIds @(88)
+    Assert-True ([Math]::Abs($result.ownProcessors - 0.8) -lt 1e-9) 'own processes measured'
+    Assert-True ([Math]::Abs($result.busyProcessors - 12.0) -lt 1e-9) 'only other processes count'
+    Assert-Equal 0.0 (Get-FrameTimingProcessProcessors -Samples @($samples[0]) -ProcessIds @(77)) 'one sample has no window'
+}
+
 Invoke-TestCase 'admission: the preflight caps other load in logical processors; the legacy rule caps 10% of the host' {
     $samples = @([ordered]@{ idle100ns = 0; kernelIncludingIdle100ns = 0; user100ns = 0 }, [ordered]@{ idle100ns = 800; kernelIncludingIdle100ns = 1000; user100ns = 0 })
     $interim = Test-FrameTimingPreflight -Samples $samples -Rule (Get-FrameTimingAdmissionRule) -LogicalProcessors 32
@@ -382,6 +413,9 @@ Export-ModuleMember -Function Get-PerformanceMeasurementState, Assert-Performanc
     Set-FixtureFile $Root 'Tools/Watch-BenchmarkHost.ps1' @'
 param([string] $OutputPath, [int] $IntervalMilliseconds = 1000)
 $busy = [double][IO.File]::ReadAllText((Join-Path $PSScriptRoot '../host-busy.txt'))
+# host-busy-next.txt, when present, is the busy share every later observer reads (a burst of desktop work that passes).
+$next = Join-Path $PSScriptRoot '../host-busy-next.txt'
+if (Test-Path -LiteralPath $next) { Move-Item -LiteralPath $next -Destination (Join-Path $PSScriptRoot '../host-busy.txt') -Force }
 [IO.File]::AppendAllText((Join-Path $PSScriptRoot '../calls.txt'), "observer:start`n")
 $sequence = 0
 while ($true) {
@@ -446,6 +480,7 @@ $native = {
     $count = @([IO.File]::ReadAllLines((Join-Path $root 'calls.txt')) | Where-Object { $_.StartsWith('native:') }).Count
     $global:LASTEXITCODE = 0
     if ([IO.File]::ReadAllText((Join-Path $root 'mode.txt')) -eq 'fail-third' -and $count -eq 3) { $global:LASTEXITCODE = 7; return }
+    if ([IO.File]::ReadAllText((Join-Path $root 'mode.txt')) -eq 'fail-ninth' -and $count -eq 9) { $global:LASTEXITCODE = 9; return }
     $run = [IO.File]::ReadAllText((Join-Path $root 'run-template.json')) | ConvertFrom-Json -AsHashtable
     $run['minimumFrames'] = [int]$Frames; $run['minimumSeconds'] = [double]$Milliseconds / 1000.0
     $mode = [IO.File]::ReadAllText((Join-Path $root 'mode.txt'))
@@ -559,7 +594,7 @@ Invoke-FixtureCase 'runner: a session rejected for its sibling load is repeated 
     Assert-True ($receipt.rejectedSessions[0].reasons[0].Contains('sibling')) 'the rejection names the sibling load'
     Assert-Equal 5 @($receipt.sessions).Count 'five admitted sessions'
     Assert-Equal 2 ([int]$receipt.sessions[0].attempt) 'the first session was admitted on its second attempt'
-    Assert-Equal 'interference-interim-v1' $receipt.admission.rule.id 'the interim rule admitted the receipt'
+    Assert-Equal 'interference-interim-v2' $receipt.admission.rule.id 'the interim rule admitted the receipt'
     Assert-True $receipt.admission.interim 'the receipt says the rule is interim'
     Assert-Equal 24 @(Get-Calls $root | Where-Object { $_ -like 'native:*' }).Count 'the rejected session was measured again'
 }
@@ -588,6 +623,40 @@ Invoke-FixtureCase 'runner: another process busy on the measured GPU rejects the
     Assert-True ($receipt.sessions[0].otherGpuBusy -gt 0.1) 'the GPU load is still recorded'
 }
 
+Invoke-FixtureCase 'runner: a refused preflight waits and retries; a burst that passes does not end the study' {
+    param($root)
+    New-TimingRunnerFixture $root
+    Set-FixtureFile $root 'host-busy.txt' '40'
+    Set-FixtureFile $root 'host-busy-next.txt' '2'
+    $run = Invoke-TimingRunner $root @{ Purpose = 'Calibration'; Sessions = 5; SkipBuild = $true; PreflightWaitSeconds = 0 }
+    Assert-Equal 0 $run.Exit "a passing burst ended the study: $($run.Text)"
+    $receipt = Get-FixtureJson $root 'out/receipt.json'
+    Assert-Equal 1 @($receipt.sessions[0].idlePreflight.refusals).Count 'the refused attempt is recorded'
+    Assert-Equal 2 ([int]$receipt.sessions[0].idlePreflight.attempt) 'the second preflight admitted the session'
+}
+
+Invoke-FixtureCase 'runner: completed sessions are checkpointed and the same command resumes the study' {
+    param($root)
+    New-TimingRunnerFixture $root
+    Set-FixtureFile $root 'mode.txt' 'fail-ninth'
+    $first = Invoke-TimingRunner $root @{ Purpose = 'Calibration'; Sessions = 5; SkipBuild = $true }
+    Assert-True ($first.Exit -ne 0 -and $first.Text.Contains('exit code 9')) "the failing run was accepted: $($first.Text)"
+    $checkpoint = Get-ChildItem -LiteralPath (Join-Path $root '.build/reports/frame-timing/checkpoints') -Filter '*.checkpoint.json'
+    Assert-Equal 1 @($checkpoint).Count 'a checkpoint was kept'
+    Assert-Equal 2 @((Get-Content -Raw -LiteralPath $checkpoint[0].FullName | ConvertFrom-Json -AsHashtable -Depth 60).sessions).Count 'two completed sessions checkpointed'
+    Set-FixtureFile $root 'mode.txt' 'valid'
+    $second = Invoke-TimingRunner $root @{ Purpose = 'Calibration'; Sessions = 5; SkipBuild = $true }
+    Assert-Equal 0 $second.Exit "resume failed: $($second.Text)"
+    Assert-True $second.Text.Contains('Resuming after 2 checkpointed sessions') 'the study resumed'
+    Assert-Equal 21 @(Get-Calls $root | Where-Object { $_ -like 'native:*' }).Count 'nine calls before the failure, twelve to finish'
+    $receipt = Get-FixtureJson $root 'out/receipt.json'
+    Assert-Equal 5 @($receipt.sessions).Count 'five sessions in the receipt'
+    Assert-True $receipt.admission.resumed 'the receipt says it was resumed'
+    Assert-True (-not (Test-Path -LiteralPath $checkpoint[0].FullName)) 'the checkpoint is removed when the study completes'
+    $other = Invoke-TimingRunner $root @{ Purpose = 'Calibration'; Sessions = 5; SkipBuild = $true; OutputDirectory = (Join-Path $root 'out2') }
+    Assert-Equal 0 $other.Exit "an unrelated study failed: $($other.Text)"
+}
+
 Invoke-FixtureCase 'runner: a failed run still restores the scheme and stops the observer' {
     param($root)
     New-TimingRunnerFixture $root
@@ -603,8 +672,8 @@ Invoke-FixtureCase 'runner: a busy host refuses the session before any measureme
     param($root)
     New-TimingRunnerFixture $root
     Set-FixtureFile $root 'host-busy.txt' '40'
-    $run = Invoke-TimingRunner $root @{ Purpose = 'Calibration'; Sessions = 5; SkipBuild = $true }
-    Assert-True ($run.Exit -ne 0 -and $run.Text.Contains('Idle preflight refused')) "busy host accepted: $($run.Text)"
+    $run = Invoke-TimingRunner $root @{ Purpose = 'Calibration'; Sessions = 5; SkipBuild = $true; PreflightAttempts = 2; PreflightWaitSeconds = 0 }
+    Assert-True ($run.Exit -ne 0 -and $run.Text.Contains('refused session 1 2 times')) "busy host accepted: $($run.Text)"
     Assert-Equal 0 @(Get-Calls $root | Where-Object { $_ -like 'native:*' }).Count 'no run on a busy host'
     Assert-Equal '381b4222-f694-41f0-9685-ff5bb260df2e' ([IO.File]::ReadAllText((Join-Path $root 'power.txt'))) 'scheme restored after refusal'
 }
