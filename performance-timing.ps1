@@ -253,7 +253,7 @@ function Invoke-TimingSession([int] $Number, [int] $Attempt, [object] $Arm) {
         Start-Sleep -Seconds $PreflightWaitSeconds
     }
     $preflight['refusals'] = $refusals.ToArray()
-    $gpuBefore = if ($Purpose -ne 'LoadSensitivity') { Get-FrameTimingGpuEngineSnapshot } else { @{} }
+    $gpuBefore = Get-FrameTimingGpuEngineSnapshot
     $gpuStart = [Diagnostics.Stopwatch]::StartNew()
     $runs = [Collections.Generic.List[object]]::new()
     for ($slot = 0; $slot -lt 4; $slot++) {
@@ -271,12 +271,15 @@ function Invoke-TimingSession([int] $Number, [int] $Attempt, [object] $Arm) {
             timestampFrequency = $measured.run['timestampFrequency'] })
     }
     $gpuSeconds = $gpuStart.Elapsed.TotalSeconds
-    $gpuAfter = if ($Purpose -ne 'LoadSensitivity') { Get-FrameTimingGpuEngineSnapshot } else { @{} }
+    $gpuAfter = Get-FrameTimingGpuEngineSnapshot
     Stop-HostObserver $script:observer $observerPath
     $script:observer = $null
     $luid = if ($runs[0]['adapter'] -is [Collections.IDictionary] -and $runs[0]['adapter'].Contains('luid')) { [string]$runs[0]['adapter']['luid'] } else { '' }
     $otherGpu = if ($luid) { Get-FrameTimingOtherGpuBusy -Before $gpuBefore -After $gpuAfter -Luid $luid -Seconds $gpuSeconds } else { $null }
     foreach ($run in $runs) { $run['admission'] = Test-FrameTimingRunAdmission -Summary $run['summary'] -OtherGpuBusy $otherGpu -Rule $rule }
+    # The GPU window spans every purpose's session, load-sensitivity arms included: their quiet runs are judged on it. The
+    # study's own children (runs and synthetic load) start after the first snapshot and end before the second, so the
+    # per-instance deltas leave them out.
     # Loaded runs of a load-sensitivity arm are judged on nothing: only its quiet runs must be undisturbed.
     $judgedRuns = @($runs | Where-Object { -not $Arm -or $_['role'] -ceq 'A' })
     $steadiness = if ($Arm) { [ordered]@{ admitted = $true; spread = $null; reason = $null } } else { Test-FrameTimingSessionSteadiness -Summaries @($runs | ForEach-Object { $_['summary'] }) -Rule $rule }

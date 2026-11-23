@@ -236,6 +236,8 @@ Invoke-TestCase 'admission: decisions on recorded samples (quiet, loaded elsewhe
     Assert-True (-not $sibling.admitted -and $sibling.reasons[0].Contains('sibling')) 'a busy sibling is refused'
     $gpu = & $admit (New-TimingRun) 0.2
     Assert-True (-not $gpu.admitted -and $gpu.reasons[0].Contains('GPU')) 'another process busy on the measured GPU is refused'
+    $noGpu = & $admit (New-TimingRun) $null
+    Assert-True (-not $noGpu.admitted -and ($noGpu.reasons -join ' ').Contains('other-process GPU load was not recorded')) 'a session without a GPU figure is refused'
     $preempted = & $admit (New-TimingRun -RunningPermyriad 9700)
     Assert-True (-not $preempted.admitted -and $preempted.reasons[0].Contains('median')) 'a thread that lost 3% of its frame time is refused'
     $old = New-TimingRun; $old.Remove('interference'); $old.samples.Remove('runningPermyriad')
@@ -476,6 +478,13 @@ $native = {
         $global:LASTEXITCODE = 0
         return
     }
+    if ($Flag -eq '--processor-topology') {
+        # Four logical processors on two cores; the quietest is processor 0. Level 0 starts no load, so no child process.
+        [IO.File]::AppendAllText((Join-Path $root 'calls.txt'), "topology`n")
+        [IO.File]::WriteAllText($Output, '{"quietest":{"processor":0},"processors":[{"index":0,"core":0},{"index":1,"core":0},{"index":2,"core":1},{"index":3,"core":1}]}')
+        $global:LASTEXITCODE = 0
+        return
+    }
     [IO.File]::AppendAllText((Join-Path $root 'calls.txt'), "native:${Flag}:${Fixture}:${Phase}:${Adapter}:${Pin}:${Frames}:${Milliseconds}`n")
     $count = @([IO.File]::ReadAllLines((Join-Path $root 'calls.txt')) | Where-Object { $_.StartsWith('native:') }).Count
     $global:LASTEXITCODE = 0
@@ -621,6 +630,26 @@ Invoke-FixtureCase 'runner: another process busy on the measured GPU rejects the
     $receipt = Get-FixtureJson $root 'legacy/receipt.json'
     Assert-Equal 'host-busy-10pct-v1' $receipt.admission.rule.id 'legacy rule recorded'
     Assert-True ($receipt.sessions[0].otherGpuBusy -gt 0.1) 'the GPU load is still recorded'
+}
+
+Invoke-FixtureCase 'runner: a load-sensitivity session judges its quiet runs on a recorded other-process GPU load' {
+    param($root)
+    New-TimingRunnerFixture $root
+    $calibration = Invoke-TimingRunner $root @{ Purpose = 'Calibration'; Sessions = 5; SkipBuild = $true }
+    Assert-Equal 0 $calibration.Exit "calibration failed: $($calibration.Text)"
+    $study = @{ Purpose = 'LoadSensitivity'; Sessions = 5; SkipBuild = $true; LoadLevels = @(0); NoSiblingArm = $true; SessionAttempts = 1
+        CalibrationPath = (Join-Path $root 'out/receipt.json') }
+    Remove-Item -LiteralPath (Join-Path $root 'calls.txt'), (Join-Path $root 'gpu-samples.txt') -ErrorAction SilentlyContinue
+    $run = Invoke-TimingRunner $root ($study + @{ OutputDirectory = (Join-Path $root 'quiet') })
+    Assert-Equal 0 $run.Exit "a quiet load-sensitivity study was refused: $($run.Text)"
+    Assert-True (-not $run.Text.Contains('was not recorded')) 'the GPU load is recorded'
+    $receipt = Get-FixtureJson $root 'quiet/receipt.json'
+    Assert-True ($null -ne $receipt.sessions[0].otherGpuBusy -and $receipt.sessions[0].otherGpuBusy -lt 0.15) 'a GPU figure below the limit is recorded'
+    Assert-Equal 10 @(Get-Calls $root | Where-Object { $_ -eq 'gpu-counter' }).Count 'one GPU engine snapshot before and after every session'
+    # Another process busy on the measured GPU rejects the quiet runs of the session.
+    Set-FixtureFile $root 'mode.txt' 'gpu-busy'
+    $busy = Invoke-TimingRunner $root ($study + @{ OutputDirectory = (Join-Path $root 'busy') })
+    Assert-True ($busy.Exit -ne 0 -and $busy.Text.Contains('busiest engine') -and -not $busy.Text.Contains('was not recorded')) "a busy GPU was admitted: $($busy.Text)"
 }
 
 Invoke-FixtureCase 'runner: a refused preflight waits and retries; a burst that passes does not end the study' {

@@ -784,8 +784,10 @@ paired sets above, their judges, bands and exact budgets, nor the ComplexUi benc
   processor's busy share (`NtQuerySystemInformation`); this process's own processor use; hence the busiest sibling of
   the measuring processor, other work on the measuring processor itself, and other processes' load in logical
   processors. Per-processor busy shares are not attributed to processes: without isolation the sibling's figure also
-  holds this process's own helper threads. Around each session the runner reads the `GPU Engine` running-time counters
-  and records the busiest engine of the measured adapter (by LUID) occupied by other processes, from per-instance deltas.
+  holds this process's own helper threads. Around each session of every purpose, load sensitivity included, the runner reads the `GPU Engine`
+  running-time counters and records the busiest engine of the measured adapter (by LUID) occupied by other processes,
+  from per-instance deltas; the study's own children (timing runs, synthetic load) start and end inside the window, so
+  an instance present in only one snapshot is left out. A load-sensitivity session's quiet runs are judged on that figure.
 - **Admission rule.** Receipts name the rule they were admitted under. `interference-interim-v2` (default, provisional):
   the preflight refuses a session when other processes keep more than a quarter of the logical processors busy (at least
   one; 8 on the 32-thread reference machine), leaving out the study's own processes (observer, runner, load children);
