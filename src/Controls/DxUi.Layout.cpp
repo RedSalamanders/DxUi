@@ -904,15 +904,6 @@ size_t FlexPanel::CompactChildren() noexcept
     return Panel::CompactChildren();
 }
 
-// Control::Assign's equality for a child's options (AssignEquality): every member.
-[[nodiscard]] static bool SameAssignedValue(const FlexChildOptions& a, const FlexChildOptions& b) noexcept
-{
-    return AssignEquality::Same(a.constraints.minimumDip, b.constraints.minimumDip) &&
-           AssignEquality::Same(a.constraints.maximumWidthDip, b.constraints.maximumWidthDip) &&
-           AssignEquality::Same(a.constraints.maximumHeightDip, b.constraints.maximumHeightDip) && AssignEquality::Same(a.explicitSizeDip, b.explicitSizeDip) &&
-           AssignEquality::Same(a.grow, b.grow) && a.alignment == b.alignment;
-}
-
 HRESULT FlexPanel::SetChildOptions(const Control* child, const FlexChildOptions& options) noexcept
 {
     if (! child || ! ValidOptions(options))

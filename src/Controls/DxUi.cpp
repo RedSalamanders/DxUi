@@ -913,12 +913,9 @@ HRESULT Control::SetAccessibleFormProperties(Control* label, bool required, bool
             properties->itemStatus = std::move(itemStatus);
         }
         _accessibleFormProperties.swap(properties);
-        const auto lifetime = GetLifetimeToken();
-        RequestInvalidate();
-        if (lifetime.expired())
-            return S_OK;
-        if (ControlHost* const host = GetHost())
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+        // Presentation metadata UI Automation reads (labelled-by, required, valid, item status); nothing paints it. Routed as
+        // Control::Assign routes a semantic change, so an embedded view still prepares and republishes.
+        RouteAffects(Affects::SemanticState);
         return S_OK;
     }
     catch (const std::bad_alloc&)

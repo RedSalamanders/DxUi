@@ -649,12 +649,6 @@ bool ComboBox::GetAutoOpenOnTextInput() const noexcept
     return _autoOpenOnTextInput;
 }
 
-// Control::Assign's equality for items (AssignEquality): both strings.
-[[nodiscard]] static bool SameAssignedValue(const ComboBox::Item& a, const ComboBox::Item& b) noexcept
-{
-    return a.value == b.value && a.display == b.display;
-}
-
 void ComboBox::SetItems(std::vector<Item> items)
 {
     _typeaheadBuffer.clear();

@@ -184,18 +184,37 @@ mutation through the host's mutation entry point, so the client gate still decid
 ([UI_InputAndAccessibility.md](UI_InputAndAccessibility.md)): a state as a mutation that can change patterns or focus, a
 name or value as a content-only one. An embedded view publishes only at the application's `UpdateAccessibility` after a
 preparation, so on an embedded host a semantic change that is not also painted invalidates the view. Each step can run application code that destroys the control, and none runs after
-that. A property's `Affects` is what reads it: `Paint` when a paint path does, `Layout` when a `MeasureOverride` or an
+that. `Assign` checks the control's lifetime after `onStored` returns, not inside it: a step of `onStored` that can run
+application code (a part's setter, an invalidation, a text-input sync, an animation request) is its last step or is followed
+at once by a lifetime check, and work that must follow the routing (arranging parts, naming a part) comes after `Assign`,
+behind `GetLifetimeToken()`. The tooling test rejects any other `onStored`. A property's `Affects` is what reads it: `Paint` when a paint path does, `Layout` when a `MeasureOverride` or an
 arrange does, `Hit` when `HitTest`, `HitTestOverlay`, `GetHitBounds` or interactivity does, and the semantic aspect the
-accessibility snapshot reads it as. A composite whose property lives on a part forwards to the part's setter, which routes.
+accessibility snapshot reads it as (its name, value or state). Geometry the snapshot reads (the bounding rectangles of the
+control, its children, its items or its text ranges) has no aspect: a window host republishes rectangles on its geometry
+path (an intrinsic layout pass, a structural change) and an embedded view at its next `UpdateAccessibility`, never through
+`Affects`. A setter that moves such rectangles without a semantic aspect leaves a window host's rectangles stale until the
+next publication; these are, until incremental publication publishes bounds (performance and motion plan W8.2),
+`ScrollPanel::SetScrollOffset`, `SetContentHeight` and `SetInternalScrollbarEnabled`, `Slider::SetOrientation`,
+`TextField::SetHorizontalTextPadding`, `SetVerticalTextPadding` and `SetClearButtonEnabled`, `Tree::SetAppearance`, the
+open popup's `ComboBox::SetMaxVisibleItems`, `SetMinimumPopupItemHeight` and `SetNoMatchesText`, and the `StackPanel` and
+`FlexPanel` layout setters until the next arrangement. A setter whose value other state can change without it (a viewport
+size, a part edited directly) leaves that state to its own path: `ScrollPanel` re-clamps its offset when its bounds change,
+whoever sets the content height afterwards, so an unchanged `SetContentHeight` stays no change. A composite whose property
+lives on a part forwards to the part's setter, which routes.
 
 Every public `Set*` of a public control class under `src/Controls` uses `Assign`, registers a callback, or is on the
 reviewed allow list of `Tools/AssignSetters.psm1` with its reason (tree state and geometry the host tracks through the
 interaction revision, model bindings that reload on every call, editing state that a programmatic set resets on every
 call, scheduled transitions and deadlines, and the rich text editor's document options). The tooling test
-`Tools/tests/Test-AssignSetters.ps1` fails any other setter and any stale entry, and requires each setter that uses
-`Assign` to be a row of the native gate on FX5 (`Tests/Embedded/Embedded.Tests.AssignSetters.h`), which proves that an
-unchanged value routes nothing and a changed one routes what its `Affects` declares. A control outside the library assigns
-its properties the same way: `Assign` and `Affects` are available to every subclass and add no storage.
+`Tools/tests/Test-AssignSetters.ps1` fails any other setter and any stale entry; a setter that calls `Assign` but also writes
+a member itself outside it (unless a reviewed side-write entry says why) and a function-like macro at class scope are
+findings too. It requires each setter that uses `Assign` to be a row of the native gate
+(`Tests/Support/Support.Tests.AssignSetterRows.h`), run on FX5's embedded host and on a window host, where repainting and
+publishing are separate: it proves that an unchanged value routes nothing and a changed one routes what its `Affects`
+declares and nothing else, except where a row names the parts of a composite that route their own changes. A control
+outside the library assigns its properties the same way: `Assign`, `RouteAffects` and `Affects` are available to every
+subclass and add no storage, and `AssignEquality::Same` with the `SameAssignedValue` extension point is the public
+equality; `AssignEquality::Detail` and `AssignAccess` are the library's own and not API.
 
 ## Opt-in intrinsic measurement and flow
 

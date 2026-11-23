@@ -2020,7 +2020,7 @@ __declspec(noinline) static int RunFunctionalTests()
     {
         GraphicsFixture gpu;
         Hr(gpu.Create(true), "assignment gate WARP device");
-        AssignSetterGate::TestAssignEquality();
+        AssignSetterGate::TestAssignEqualityOnEmbeddedSuite();
         AssignSetterGate::TestFx5EverySetterAssignsOnce(gpu);
         return 0;
     }
@@ -2277,7 +2277,7 @@ __declspec(noinline) static int RunFunctionalTests()
     EmbeddedPointerHit::TestPointerHitEmbeddedResultNeverOutlivesItsControl(gpu);
     EmbeddedPointerHit::TestPointerHitEmbeddedEverySiteMovesTheRevision(gpu);
     FormatBrushCacheTests::RunAll(gpu);
-    AssignSetterGate::TestAssignEquality();
+    AssignSetterGate::TestAssignEqualityOnEmbeddedSuite();
     AssignSetterGate::TestFx5EverySetterAssignsOnce(gpu);
     TestUnicodeGraphemeForwardWalkAllocationBudget();
     TestUnicodeBulkMovementAndDeletionAllocationBudget();

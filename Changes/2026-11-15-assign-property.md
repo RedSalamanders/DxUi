@@ -17,3 +17,11 @@
   properties the same way. `Tools/tests/Test-AssignSetters.ps1` requires every public setter to use `Assign`, register a
   callback or sit on a reviewed allow list of 66 entries with reasons, and the FX5 gate sets every assigning setter
   twice. Work counters add `invalidations`, `measureInvalidations`, `hitRevisionMoves` and accessibility `mutations`.
+  Review fixes: a `ScrollPanel` re-clamps its scroll offset when its bounds change (and reports a moved offset), so a resize
+  followed by an unchanged `SetContentHeight` no longer leaves the content scrolled past its end. `TabControl::SetTabClosable`
+  republishes the tab items, whose rectangles the wider header moves, as it did before `Assign`.
+  `SetAccessibleFormProperties` repaints no more than `SetAccessibleName`: it routes a semantic state change. An unchanged
+  `ComboBox::SetSelectedIndex` or `ColorPicker::SetColor` deliberately leaves a scrolled popup, an editable selection and a
+  part being edited as they are. The assignment gate also runs on a window host, where repainting and publishing are separate,
+  with fewer composite exemptions, and the setter inventory rejects a setter that calls `Assign` but stores its property
+  itself, and class-scope macros. `NumericStepper::SetLabel` and `SetUnit` arrange their parts only after `Assign`'s routing and a lifetime check again (an embedded measure callback that retired the stepper made `SetUnit` use it after it was freed), `TagPicker`, `TextField` font, read-only and password setters check the lifetime between steps that can run application code, and the setter inventory rejects an `onStored` that goes on after such a step.

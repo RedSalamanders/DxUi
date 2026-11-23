@@ -1,3 +1,4 @@
+#include "Controls.Tests.AssignSetters.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.GridMultilineFixtures.h"
 #include "Controls.Tests.HostControlRegressions.h"
@@ -3256,6 +3257,9 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestTraceProviderEventsReadBackThroughEtw);
     DXUI_RUN_TEST(TestPerformanceFixtureFrameworkOnWindowHost);
     DXUI_RUN_TEST(TestPerformanceFixturesAreDeterministicOnWindowHost);
+    DXUI_RUN_TEST(TestAssignEqualityOnControlSuite);
+    DXUI_RUN_TEST(TestAssignSettersOnWindowHost);
+    DXUI_RUN_TEST(TestScrollPanelResizeReclampsItsOffset);
     DXUI_RUN_TEST(TestFrameScheduleGatesOnWindowFixtures);
     DXUI_RUN_TEST(TestPointerHitFx14WindowHitTestsOncePerMove);
     DXUI_RUN_TEST(TestPointerHitFx10WindowPreparesNoPlainLabelAndSearchesNoTree);

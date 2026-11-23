@@ -980,6 +980,44 @@ inline void NoteHitTestChange(Control& control, HitRevisionSite site) noexcept
 
         control.InvalidateHitTest();
 
+} // Control::Assign's equality (AssignEquality::Same) for the public value types the library's setters store that have no
+// operator==: every member, so that an unchanged value routes nothing and a changed one is stored. One inline definition
+// here, found by argument-dependent lookup wherever the library instantiates Same for these types.
+[[nodiscard]] inline bool SameAssignedValue(const ThroughputGraphHueWeight& a, const ThroughputGraphHueWeight& b) noexcept
+{
+    return AssignEquality::Same(a.hueDegrees, b.hueDegrees) && AssignEquality::Same(a.weight, b.weight) && a.colorSlot == b.colorSlot;
+}
+[[nodiscard]] inline bool SameAssignedValue(const ThroughputGraphSample& a, const ThroughputGraphSample& b) noexcept
+{
+    return AssignEquality::Same(a.value, b.value) && AssignEquality::Same(a.hueDegrees, b.hueDegrees) && a.colorSlot == b.colorSlot &&
+           a.hueWeightCount == b.hueWeightCount && AssignEquality::Same(a.hueWeights, b.hueWeights);
+}
+[[nodiscard]] inline bool SameAssignedValue(const MenuBarItem& a, const MenuBarItem& b) noexcept
+{
+    return a.text == b.text && a.mnemonic == b.mnemonic && a.enabled == b.enabled && a.rightJustified == b.rightJustified && a.sourceIndex == b.sourceIndex;
+}
+[[nodiscard]] inline bool SameAssignedValue(const StatusStrip::Section& a, const StatusStrip::Section& b) noexcept
+{
+    return a.text == b.text && AssignEquality::Same(a.widthDip, b.widthDip) && a.alignment == b.alignment && a.leadingEllipsis == b.leadingEllipsis;
+}
+[[nodiscard]] inline bool SameAssignedValue(const ComboBox::Item& a, const ComboBox::Item& b) noexcept
+{
+    return a.value == b.value && a.display == b.display;
+}
+[[nodiscard]] inline bool SameAssignedValue(const GridSortSpec& a, const GridSortSpec& b) noexcept
+{
+    return a.columnIndex == b.columnIndex && a.direction == b.direction;
+}
+[[nodiscard]] inline bool SameAssignedValue(const FlexChildOptions& a, const FlexChildOptions& b) noexcept
+{
+    return AssignEquality::Same(a.constraints.minimumDip, b.constraints.minimumDip) &&
+           AssignEquality::Same(a.constraints.maximumWidthDip, b.constraints.maximumWidthDip) &&
+           AssignEquality::Same(a.constraints.maximumHeightDip, b.constraints.maximumHeightDip) && AssignEquality::Same(a.explicitSizeDip, b.explicitSizeDip) &&
+           AssignEquality::Same(a.grow, b.grow) && a.alignment == b.alignment;
+}
+[[nodiscard]] inline bool SameAssignedValue(const HsvColor& a, const HsvColor& b) noexcept
+{
+    return AssignEquality::Same(a.hue, b.hue) && AssignEquality::Same(a.saturation, b.saturation) && AssignEquality::Same(a.value, b.value);
 } // Control::Assign for a library setter whose hit-test change keeps its own named site, so that the hit revision's mutation
 // coverage can still suppress that site alone: Affects::Hit moves the revision at site instead of HitRevisionSite::Assign.
 struct AssignAccess
@@ -989,7 +1027,7 @@ struct AssignAccess
     {
         if (AssignEquality::Same(field, value))
             return false;
-        AssignEquality::Store(field, std::forward<Value>(value));
+        AssignEquality::Detail::Store(field, std::forward<Value>(value));
         const std::weak_ptr<int> lifetime = control._lifetimeToken;
         std::forward<OnStored>(onStored)();
         if (! lifetime.expired())

@@ -851,17 +851,17 @@ void NumericStepper::SetStepButtonNames(std::wstring increaseName, std::wstring 
 
 void NumericStepper::SetLabel(std::wstring label, float widthDip)
 {
-    // The label names the field part, which publishes its own name.
-    Assign(std::tie(_label, _labelWidthDip),
-           std::tuple<std::wstring, float>(std::move(label), std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f),
-           Affects::Layout | Affects::Paint,
-           [this]()
-    {
-        const auto lifetime = GetLifetimeToken();
-        _field->SetAccessibleName(_label);
-        if (! lifetime.expired())
-            Arrange();
-    });
+    // The label names the field part, which publishes its own name. Naming the part and arranging the parts run their own
+    // routing (an embedded host's callbacks can retire this stepper), so they follow Assign, each behind a lifetime check.
+    const auto lifetime = GetLifetimeToken();
+    if (! Assign(std::tie(_label, _labelWidthDip),
+                 std::tuple<std::wstring, float>(std::move(label), std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f),
+                 Affects::Layout | Affects::Paint) ||
+        lifetime.expired())
+        return;
+    _field->SetAccessibleName(_label);
+    if (! lifetime.expired())
+        Arrange();
 }
 
 std::wstring_view NumericStepper::GetLabel() const noexcept
@@ -871,10 +871,14 @@ std::wstring_view NumericStepper::GetLabel() const noexcept
 
 void NumericStepper::SetUnit(std::wstring unit, float widthDip)
 {
-    Assign(std::tie(_unit, _unitWidthDip),
-           std::tuple<std::wstring, float>(std::move(unit), std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f),
-           Affects::Layout | Affects::Paint,
-           [this]() noexcept { Arrange(); });
+    // Arranging moves the parts, whose bounds changes can run an embedded host's callbacks: it follows Assign's routing,
+    // behind a lifetime check, as before Assign.
+    const auto lifetime = GetLifetimeToken();
+    if (Assign(std::tie(_unit, _unitWidthDip),
+               std::tuple<std::wstring, float>(std::move(unit), std::isfinite(widthDip) ? (std::max)(0.0f, widthDip) : 0.0f),
+               Affects::Layout | Affects::Paint) &&
+        ! lifetime.expired())
+        Arrange();
 }
 
 std::wstring_view NumericStepper::GetUnit() const noexcept
@@ -1508,12 +1512,6 @@ void ColorPicker::SetLabels(Labels labels)
 const ColorPicker::Labels& ColorPicker::GetLabels() const noexcept
 {
     return _labels;
-}
-
-// Control::Assign's equality for a colour's hue, saturation and value (AssignEquality): every member.
-[[nodiscard]] static bool SameAssignedValue(const HsvColor& a, const HsvColor& b) noexcept
-{
-    return AssignEquality::Same(a.hue, b.hue) && AssignEquality::Same(a.saturation, b.saturation) && AssignEquality::Same(a.value, b.value);
 }
 
 void ColorPicker::SetColor(uint32_t argb) noexcept

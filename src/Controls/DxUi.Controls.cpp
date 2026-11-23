@@ -5660,19 +5660,6 @@ D2D1_COLOR_F ThroughputGraphColorFromHue(float hueDegrees, bool dark) noexcept
     return D2D1::ColorF(red + match, green + match, blue + match, 1.0f);
 }
 
-// Control::Assign's equality for the graph's samples (AssignEquality): every member, so that an unchanged series repaints
-// nothing and a changed one is stored.
-[[nodiscard]] static bool SameAssignedValue(const ThroughputGraphHueWeight& a, const ThroughputGraphHueWeight& b) noexcept
-{
-    return AssignEquality::Same(a.hueDegrees, b.hueDegrees) && AssignEquality::Same(a.weight, b.weight) && a.colorSlot == b.colorSlot;
-}
-
-[[nodiscard]] static bool SameAssignedValue(const ThroughputGraphSample& a, const ThroughputGraphSample& b) noexcept
-{
-    return AssignEquality::Same(a.value, b.value) && AssignEquality::Same(a.hueDegrees, b.hueDegrees) && a.colorSlot == b.colorSlot &&
-           a.hueWeightCount == b.hueWeightCount && AssignEquality::Same(a.hueWeights, b.hueWeights);
-}
-
 namespace
 {
 // The secondary series as SetSecondarySamples stores it, negative samples at zero: a range Control::Assign compares with the
@@ -7328,9 +7315,16 @@ void TagPicker::SetOptions(std::wstring allLabel, std::vector<std::wstring> opti
            Affects::Paint,
            [this]()
     {
+        // Refilling the ComboBox part and placing the parts run their routing (an embedded host's callbacks can retire this
+        // picker): each later step first checks that it is still alive.
+        const auto lifetime = GetLifetimeToken();
         PruneSelectedValues();
         RefreshComboItems();
+        if (lifetime.expired())
+            return;
         RebuildDisplayTags();
+        if (lifetime.expired())
+            return;
         LayoutParts();
     });
 }
@@ -7360,8 +7354,15 @@ void TagPicker::SetSelectedValues(std::vector<std::wstring> values)
            Affects::Paint,
            [this]()
     {
+        // Rebuilding the tag parts, refilling the ComboBox part and placing the parts run their routing (an embedded host's
+        // callbacks can retire this picker): each later step first checks that it is still alive.
+        const auto lifetime = GetLifetimeToken();
         RebuildDisplayTags();
+        if (lifetime.expired())
+            return;
         RefreshComboItems();
+        if (lifetime.expired())
+            return;
         LayoutParts();
     });
 }
@@ -7944,11 +7945,6 @@ MenuBar::MenuBar()
     SetFocusable(true);
 }
 
-// Control::Assign's equality for menu bar items (AssignEquality): every member.
-[[nodiscard]] static bool SameAssignedValue(const MenuBarItem& a, const MenuBarItem& b) noexcept
-{
-    return a.text == b.text && a.mnemonic == b.mnemonic && a.enabled == b.enabled && a.rightJustified == b.rightJustified && a.sourceIndex == b.sourceIndex;
-}
 void MenuBar::SetItems(std::vector<MenuBarItem> items)
 {
     Assign(_items,
@@ -8861,9 +8857,11 @@ void TabControl::SetTabClosable(size_t index, bool closable) noexcept
     {
         return;
     }
+    // The close button widens the tab's header, which moves the rectangles of this tab item and every later one that UI
+    // Automation reports: they are republished with the tab items.
     Assign(_tabs[index].closable,
            closable,
-           Affects::Paint,
+           Affects::Paint | Affects::SemanticState,
            [this]() noexcept
     {
         InvalidateTabHeaderLayoutCache();
@@ -10308,11 +10306,6 @@ StatusStrip::StatusStrip(std::wstring text) : _text(std::move(text))
 {
 }
 
-// Control::Assign's equality for status sections (AssignEquality): every member.
-[[nodiscard]] static bool SameAssignedValue(const StatusStrip::Section& a, const StatusStrip::Section& b) noexcept
-{
-    return a.text == b.text && AssignEquality::Same(a.widthDip, b.widthDip) && a.alignment == b.alignment && a.leadingEllipsis == b.leadingEllipsis;
-}
 void StatusStrip::SetText(std::wstring text)
 {
     Assign(_text, std::move(text), Affects::Paint);
@@ -11131,6 +11124,18 @@ void ScrollPanel::SetScrollOffset(float offsetDip) noexcept
 void ScrollPanel::ScrollToTop() noexcept
 {
     SetScrollOffset(0.0f);
+}
+
+// The viewport sets the scrollable extent, so a resize re-clamps the offset by itself: the result never depends on a caller
+// setting an unchanged content height again (an equal SetContentHeight is no change). A moved offset moves the content under
+// a still pointer (the hit revision at the scroll site) and is reported; SetBounds repaints after this hook.
+void ScrollPanel::OnBoundsChanged() noexcept
+{
+    Panel::OnBoundsChanged();
+    const float previousOffset = _scrollOffsetDip;
+    ClampScrollOffset();
+    if (_scrollOffsetDip != previousOffset)
+        static_cast<void>(NotifyScrollChanged(previousOffset));
 }
 
 void ScrollPanel::SetScrollStepDip(float stepDip) noexcept

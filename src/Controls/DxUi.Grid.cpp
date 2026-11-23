@@ -1864,12 +1864,6 @@ void Grid::SetHeaderBusyColumn(std::optional<size_t> columnIndex) noexcept
     Assign(_headerBusyColumn, columnIndex, Affects::Paint);
 }
 
-// Control::Assign's equality for a sort (AssignEquality): column and direction.
-[[nodiscard]] static bool SameAssignedValue(const GridSortSpec& a, const GridSortSpec& b) noexcept
-{
-    return a.columnIndex == b.columnIndex && a.direction == b.direction;
-}
-
 void Grid::SetSortSpec(const GridSortSpec& sortSpec) noexcept
 {
     const GridSortSpec previousSortSpec = _sortSpec;

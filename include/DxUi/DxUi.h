@@ -1668,19 +1668,24 @@ inline constexpr size_t kMaxIntrinsicTextUnits = 65'536u;
 // (std::tie of several fields) and other ranges element by element. A type with none of these and no operator== supplies
 // SameAssignedValue(a, b), found by argument-dependent lookup, rather than comparing bytes (padding). A callable has no
 // equality: a setter that stores one does not use Assign.
+// Public for a control outside the library: Same (what Assign compares) and the SameAssignedValue extension point. The
+// templates are in this header only because Assign instantiates them; AssignEquality::Detail is not API and may change.
 namespace AssignEquality
 {
-void SameAssignedValue()                                = delete; // Unqualified lookup finds this; argument-dependent lookup adds a type's own.
-template <typename T> inline constexpr bool kIsOptional = false;
+void SameAssignedValue() = delete; // Unqualified lookup finds this; argument-dependent lookup adds a type's own.
+
+template <typename A, typename B> [[nodiscard]] constexpr bool Same(const A& a, const B& b) noexcept;
+
+namespace Detail
+{
+template <typename T> inline constexpr bool kIsOptional                   = false;
 template <typename T> inline constexpr bool kIsOptional<std::optional<T>> = true;
 template <typename T> inline constexpr bool kIsTuple                      = false;
 template <typename... T> inline constexpr bool kIsTuple<std::tuple<T...>> = true;
 
-template <typename A, typename B> [[nodiscard]] constexpr bool Same(const A& a, const B& b) noexcept;
-
 template <typename A, typename B, size_t... Index> [[nodiscard]] constexpr bool SameTuple(const A& a, const B& b, std::index_sequence<Index...>) noexcept
 {
-    return (Same(std::get<Index>(a), std::get<Index>(b)) && ...);
+    return (AssignEquality::Same(std::get<Index>(a), std::get<Index>(b)) && ...);
 }
 
 template <typename A, typename B> [[nodiscard]] constexpr bool SameRange(const A& a, const B& b) noexcept
@@ -1688,10 +1693,21 @@ template <typename A, typename B> [[nodiscard]] constexpr bool SameRange(const A
     auto left  = a.begin();
     auto right = b.begin();
     for (; left != a.end() && right != b.end(); ++left, ++right)
-        if (! Same(*left, *right))
+        if (! AssignEquality::Same(*left, *right))
             return false;
     return left == a.end() && right == b.end();
 }
+
+// Stores a changed value: by assignment, or for a container given a range of another type (a vector from a span) by
+// assigning its elements, which keeps the container's storage.
+template <typename Field, typename Value> constexpr void Store(Field& field, Value&& value)
+{
+    if constexpr (std::is_assignable_v<Field&, Value&&>)
+        field = std::forward<Value>(value);
+    else
+        field.assign(value.begin(), value.end());
+}
+} // namespace Detail
 
 template <typename A, typename B> constexpr bool Same(const A& a, const B& b) noexcept
 {
@@ -1707,12 +1723,12 @@ template <typename A, typename B> constexpr bool Same(const A& a, const B& b) no
         return Same(a.width, b.width) && Same(a.height, b.height);
     else if constexpr (std::is_same_v<A, D2D_POINT_2F> && std::is_same_v<B, D2D_POINT_2F>)
         return Same(a.x, b.x) && Same(a.y, b.y);
-    else if constexpr (kIsOptional<A> && kIsOptional<B>)
+    else if constexpr (Detail::kIsOptional<A> && Detail::kIsOptional<B>)
         return a.has_value() == b.has_value() && (! a.has_value() || Same(*a, *b));
-    else if constexpr (kIsOptional<A>)
+    else if constexpr (Detail::kIsOptional<A>)
         return a.has_value() && Same(*a, b);
-    else if constexpr (kIsTuple<A> && kIsTuple<B>)
-        return SameTuple(a, b, std::make_index_sequence<std::tuple_size_v<A>>{});
+    else if constexpr (Detail::kIsTuple<A> && Detail::kIsTuple<B>)
+        return Detail::SameTuple(a, b, std::make_index_sequence<std::tuple_size_v<A>>{});
     else if constexpr (std::is_convertible_v<const A&, std::wstring_view> && std::is_convertible_v<const B&, std::wstring_view>)
         return std::wstring_view(a) == std::wstring_view(b);
     else if constexpr (requires {
@@ -1721,19 +1737,9 @@ template <typename A, typename B> constexpr bool Same(const A& a, const B& b) no
                            b.begin();
                            b.end();
                        })
-        return SameRange(a, b);
+        return Detail::SameRange(a, b);
     else
         return a == b;
-}
-
-// Stores a changed value: by assignment, or for a container given a range of another type (a vector from a span) by
-// assigning its elements, which keeps the container's storage.
-template <typename Field, typename Value> constexpr void Store(Field& field, Value&& value)
-{
-    if constexpr (std::is_assignable_v<Field&, Value&&>)
-        field = std::forward<Value>(value);
-    else
-        field.assign(value.begin(), value.end());
 }
 } // namespace AssignEquality
 
@@ -1891,7 +1897,7 @@ protected:
     friend class Panel;
     friend class Label;
     friend struct ControlModelQueryAccess;
-    friend struct AssignAccess;
+    friend struct AssignAccess; // library-internal: Assign at a named hit-revision site (DxUi.Internal.h); not API
     friend class PageHost;
     friend class ScrollPanel;
     friend class ControlHost;
@@ -1951,6 +1957,8 @@ protected:
     // control, in this order: Hit, Layout, Paint, then one accessibility mutation for the semantic aspects. Assign returns true.
     // Routing can run the application's code (an embedded host's invalidation callback, an accessibility event), which may
     // destroy this control: a setter returns after a true Assign, or holds GetLifetimeToken() to touch the control again.
+    // onStored is checked only after it returns: a step in it that can run the application's code (a part's setter, an
+    // invalidation, a text-input sync, an animation request) is its last step or is followed at once by a lifetime check.
     // A control outside the library assigns its properties the same way. Field may be a std::tie of several fields, given a
     // std::tuple of their values.
     // Extension points: incremental accessibility publication marks only this control's record dirty for the semantic aspects
@@ -1960,7 +1968,7 @@ protected:
     {
         if (AssignEquality::Same(field, value))
             return false;
-        AssignEquality::Store(field, std::forward<Value>(value));
+        AssignEquality::Detail::Store(field, std::forward<Value>(value));
         RouteAffects(affects);
         return true;
     }
@@ -1968,7 +1976,7 @@ protected:
     {
         if (AssignEquality::Same(field, value))
             return false;
-        AssignEquality::Store(field, std::forward<Value>(value));
+        AssignEquality::Detail::Store(field, std::forward<Value>(value));
         const std::weak_ptr<int> lifetime = _lifetimeToken;
         std::forward<OnStored>(onStored)();
         if (! lifetime.expired())
@@ -5159,6 +5167,8 @@ public:
     void OnCaptureLost(ControlHost& host) override;
 
 protected:
+    // A viewport resize re-clamps the scroll offset (and reports a moved offset) whoever sets the content height afterwards.
+    void OnBoundsChanged() noexcept override;
     // End the forwarded gesture before refusal checks and hover after committed removal.
     void OnDescendantDetaching(Control& subtree) noexcept override;
     void OnDescendantDetached(Control& subtree) noexcept override;

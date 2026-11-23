@@ -75,10 +75,10 @@ void Widget::SetSecret(int value) noexcept
 '@
 
 function Inventory([string] $Header = $header, [string] $Source = $compliant, [System.Collections.IDictionary] $AllowList = [ordered]@{ 'Control::SetVisible' = 'tree state' }) {
-    , @(Get-AssignSetterInventory -Headers @{ 'include/DxUi/DxUi.h' = $Header } -Sources @{ 'src/Controls/Widget.cpp' = $Source } -AllowList $AllowList)
+    , @(Get-AssignSetterInventory -Headers @{ 'include/DxUi/DxUi.h' = $Header } -Sources @{ 'src/Controls/Widget.cpp' = $Source } -AllowList $AllowList -SideWrites ([ordered]@{}))
 }
-function Findings([string] $Header = $header, [string] $Source = $compliant, [System.Collections.IDictionary] $AllowList = [ordered]@{ 'Control::SetVisible' = 'tree state' }) {
-    , @(Find-AssignSetterFindings -Headers @{ 'include/DxUi/DxUi.h' = $Header } -Sources @{ 'src/Controls/Widget.cpp' = $Source } -AllowList $AllowList)
+function Findings([string] $Header = $header, [string] $Source = $compliant, [System.Collections.IDictionary] $AllowList = [ordered]@{ 'Control::SetVisible' = 'tree state' }, [System.Collections.IDictionary] $SideWrites = [ordered]@{}, [System.Collections.IDictionary] $OnStoredReviewed = [ordered]@{}) {
+    , @(Find-AssignSetterFindings -Headers @{ 'include/DxUi/DxUi.h' = $Header } -Sources @{ 'src/Controls/Widget.cpp' = $Source } -AllowList $AllowList -SideWrites $SideWrites -OnStoredReviewed $OnStoredReviewed)
 }
 
 Invoke-TestCase 'every public control setter of the repository assigns, registers a callback or is allowed with a reason' {
@@ -97,7 +97,7 @@ Invoke-TestCase 'every public control setter of the repository assigns, register
 Invoke-TestCase 'every setter that assigns is a row of the native gate on FX5' {
     $inputs = Get-AssignSetterInputs -Root $root
     $inventory = @(Get-AssignSetterInventory -Headers $inputs.Headers -Sources $inputs.Sources)
-    $gate = [IO.File]::ReadAllText((Join-Path $root 'Tests/Embedded/Embedded.Tests.AssignSetters.h'))
+    $gate = [IO.File]::ReadAllText((Join-Path $root 'Tests/Support/Support.Tests.AssignSetterRows.h'))
     $findings = @(Find-AssignGateCoverageFindings -Inventory $inventory -GateText $gate)
     foreach ($finding in $findings) { Write-Host "     $finding" }
     Assert-Equal 0 $findings.Count 'setters the gate does not exercise'
@@ -127,6 +127,62 @@ Invoke-TestCase 'a setter that stores without Assign is a finding' {
     Assert-Equal 1 (Findings -Source $compliant.Replace('Assign(_width,', 'AssignChecked(_width,')).Count 'another function whose name starts with Assign does not count'
 }
 
+Invoke-TestCase 'a setter that calls Assign for a side field but stores its property itself is a finding (review probes)' {
+    $raw = $compliant.Replace('Assign(_width, width, Affects::Layout | Affects::Paint);', '_width = width; RequestInvalidate(); Assign(_dirty, true, Affects::None);')
+    $findings = Findings -Source $raw
+    Assert-Equal 1 $findings.Count 'one finding'
+    Assert-True ($findings[0] -like 'Widget::SetWidth (*): uses Assign but writes _width itself*') $findings[0]
+    $branch = $compliant.Replace('Assign(_width, width, Affects::Layout | Affects::Paint);', 'if (width > 0) Assign(_width, width, Affects::Layout); else { _width = 0; InvalidateMeasure(); }')
+    Assert-Equal 1 (Findings -Source $branch).Count 'a raw store on another path'
+    foreach ($write in @('_state->width = width;', 'this->_width += width;', '++_count;', '_items[0].text = text;')) {
+        Assert-Equal 1 (Findings -Source $compliant.Replace('Assign(_width, width, Affects::Layout | Affects::Paint);', "Assign(_width, width, Affects::Paint); $write")).Count "a raw write outside Assign: $write"
+    }
+    $bookkeeping = $compliant.Replace('Assign(_width, width, Affects::Layout | Affects::Paint);', 'const float previous = _width; Assign(_width, width, Affects::Paint, [this]() noexcept { ++_revision; _cache = nullptr; }); if (previous == _width) {}')
+    Assert-Equal 0 (Findings -Source $bookkeeping).Count 'reads, comparisons and onStored bookkeeping are not raw writes'
+    $allowed = Findings -Source $raw -SideWrites ([ordered]@{ 'Widget::SetWidth' = 'reviewed' })
+    Assert-Equal 0 $allowed.Count 'a reviewed side write passes'
+    $stale = Findings -SideWrites ([ordered]@{ 'Widget::SetGone' = 'removed' })
+    Assert-True ($stale -contains 'Widget::SetGone: side-write entry names no setter that uses Assign') ($stale -join '; ')
+}
+
+Invoke-TestCase 'a macro at class scope is a finding and does not hide the next declaration (review probes)' {
+    foreach ($macro in @('    DXUI_SETTER(Height, float)', '    DXUI_SETTER(Height, float);')) {
+        $header2 = $header.Replace("    void SetWidth(float width) noexcept;", "$macro`n    void SetWidth(float width) noexcept;")
+        $inventory = Inventory -Header $header2
+        Assert-True (@($inventory | Where-Object Setter -eq 'Widget::macro DXUI_SETTER' | Where-Object Kind -eq 'Finding').Count -eq 1) "the macro is a finding: $macro"
+        Assert-True (@($inventory | Where-Object Setter -eq 'Widget::SetWidth' | Where-Object Kind -eq 'Assign').Count -eq 1) "the declaration after it is still seen: $macro"
+    }
+}
+
+Invoke-TestCase 'definitions split across lines and templates defined in a header are found (review probes)' {
+    $split = $compliant.Replace('void Widget::SetWidth(float width) noexcept', "void`nWidget::SetWidth(float width) noexcept")
+    Assert-Equal 0 (Findings -Source $split).Count 'a return type on its own line'
+    $header2 = $header.Replace('    void SetWidth(float width) noexcept;', '    template <typename T> void SetWidth(T width) noexcept;') + "`ntemplate <typename T> inline void Widget::SetWidth(T width) noexcept { _width = width; RequestInvalidate(); }`n"
+    $source2 = $compliant.Replace('void Widget::SetWidth(float width) noexcept', 'void Widget::Resize(float width) noexcept')
+    $findings = Findings -Header $header2 -Source $source2
+    Assert-True ($findings[0] -like 'Widget::SetWidth (*): assigns without Control::Assign*') ($findings -join '; ')
+}
+Invoke-TestCase 'an onStored that goes on after a call that can run application code is a finding (W2.10 review, NumericStepper::SetUnit)' {
+    $base = 'Assign(_width, width, Affects::Layout | Affects::Paint);'
+    $unsafe = @(
+        'Assign(_width, width, Affects::Layout, [this]() noexcept { _field->SetAccessibleName(_label); Arrange(); });',
+        'Assign(_width, width, Affects::Paint, [this]() noexcept { if (_multiline) InvalidateMeasure(); RegenerateEpoch(); });',
+        'Assign(_width, width, Affects::Paint, [this]() noexcept { RefreshComboItems(); RebuildDisplayTags(); LayoutParts(); });')
+    foreach ($onStored in $unsafe) {
+        $findings = Findings -Source $compliant.Replace($base, $onStored)
+        Assert-Equal 1 $findings.Count "a step after application code: $onStored"
+        Assert-True ($findings[0] -like '*its onStored goes on after*') $findings[0]
+    }
+    $safe = @(
+        'Assign(_width, width, Affects::Layout, [this]() noexcept { ResetCache(); Arrange(); });',
+        'Assign(_width, width, Affects::Layout, [this]() noexcept { const auto lifetime = GetLifetimeToken(); RefreshComboItems(); if (lifetime.expired()) return; LayoutParts(); });',
+        'Assign(_width, width, Affects::Paint, [this]() noexcept { if (_host) { _host->RequestAnimation(*this); } else { _done = true; } });',
+        'Assign(_width, width, Affects::Paint, [this]() noexcept { if (_a) SetMode(1); else if (_b) SetMode(2); });')
+    foreach ($onStored in $safe) {
+        Assert-Equal 0 (Findings -Source $compliant.Replace($base, $onStored)).Count "last step, checked step or other branch: $onStored"
+    }
+    Assert-Equal 0 (Findings -Source $compliant.Replace($base, $unsafe[0]) -OnStoredReviewed ([ordered]@{ 'Widget::SetWidth' = 'reviewed' })).Count 'a reviewed onStored passes'
+}
 Invoke-TestCase 'a setter with no definition is a finding' {
     $findings = Findings -Source $compliant.Replace('void Widget::SetWidth(float width) noexcept', 'void Widget::Resize(float width) noexcept')
     Assert-Equal 1 $findings.Count 'one finding'
@@ -163,10 +219,10 @@ Invoke-FixtureCase 'a repository tree fails for an unlisted raw setter and passe
     Set-FixtureFile $fixture 'src/Controls/Widget.cpp' ($compliant.Replace('Assign(_width, width, Affects::Layout | Affects::Paint);', '_width = width;'))
     $inputs = Get-AssignSetterInputs -Root $fixture
     $allow = [ordered]@{ 'Control::SetVisible' = 'tree state' }
-    Assert-Equal 1 @(Find-AssignSetterFindings -Headers $inputs.Headers -Sources $inputs.Sources -AllowList $allow).Count 'the raw store fails'
+    Assert-Equal 1 @(Find-AssignSetterFindings -Headers $inputs.Headers -Sources $inputs.Sources -AllowList $allow -SideWrites ([ordered]@{})).Count 'the raw store fails'
     Set-FixtureFile $fixture 'src/Controls/Widget.cpp' $compliant
     $inputs = Get-AssignSetterInputs -Root $fixture
-    Assert-Equal 0 @(Find-AssignSetterFindings -Headers $inputs.Headers -Sources $inputs.Sources -AllowList $allow).Count 'the repaired tree passes'
+    Assert-Equal 0 @(Find-AssignSetterFindings -Headers $inputs.Headers -Sources $inputs.Sources -AllowList $allow -SideWrites ([ordered]@{})).Count 'the repaired tree passes'
 }
 
 Invoke-FixtureCase 'missing inputs fail closed' {

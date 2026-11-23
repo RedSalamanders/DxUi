@@ -14,7 +14,10 @@ definition of it under src/Controls (or inline in its header) calls Assign. Two 
 - an entry of the reviewed allow list below, each with its one-line reason.
 
 A finding is a setter that is neither; a stale allow-list entry (one that now uses Assign or no longer exists) is a finding
-too, so the list cannot outlive its reasons.
+too, so the list cannot outlive its reasons. A setter that calls Assign but also writes a member itself, outside the
+arguments of its Assign calls, is a finding unless its SideWrites entry says why (a raw store of the property beside an
+Assign of another field would otherwise pass), and so is a function-like macro at class scope, which can declare setters
+the parser cannot see. Mutators not named Set* (Request*, Clear*, Add*, Take*, commands) are outside by design.
 #>
 Set-StrictMode -Version Latest
 
@@ -95,6 +98,19 @@ $script:AllowList = [ordered]@{
 }
 
 function Get-AssignSetterAllowList { $script:AllowList }
+function Get-AssignSetterSideWrites { $script:SideWrites }
+
+# Setters whose onStored calls something that can run application code before more of its own steps, reviewed: 'Class::Setter'
+# = why nothing after that call can touch a destroyed control.
+$script:OnStoredReviewed = [ordered]@{}
+
+# Setters that assign their property through Assign and also write another member themselves, outside Assign: 'Class::Setter'
+# = why that write is not the property. Every other raw member write in an assigning setter is a finding.
+$script:SideWrites = [ordered]@{
+    'StackPanel::SetChildExtent' = 'a first extent for a child inserts its record (_layoutRevision) and routes it with RouteAffects; an existing one assigns'
+    'RadioButton::SetGroup'  = 'forgets a destroyed group (_group) before comparing, so a new group at its address is a change'
+    'TextField::SetReadOnly' = 'ends a pending surrogate pair (_pendingLeadSurrogate) on every call, as before Assign'
+}
 
 # Comments and literals, leftmost first (the same rule as Tools/CountedCreation.psm1).
 $script:LiteralPattern = [regex]::new(
@@ -196,8 +212,18 @@ function Get-ClassSetterDeclarations([Parameter(Mandatory)][AllowEmptyString()][
     $results.ToArray()
 }
 
+# A function-like macro invoked at class scope (an all-capitals name and its arguments), which may expand to declarations the
+# inventory cannot see; without a semicolon it would also hide the declaration that follows it.
+$script:ClassMacro = [regex]::new('^\s*(?<name>[A-Z][A-Z0-9_]*)\s*\((?<arguments>[^()]*)\)\s*')
+
 function Add-SetterDeclaration($Results, $Class, [string] $Access, [string] $Statement, [int] $Start, [string] $Code, [int] $BodyOpen, [int] $BodyEnd) {
     if ($Access -ne 'public') { return }
+    for ($macro = $script:ClassMacro.Match($Statement); $macro.Success; $macro = $script:ClassMacro.Match($Statement)) {
+        $line = 1 + ([regex]::Matches($Code.Substring(0, $Start + $macro.Groups['name'].Index), "`n")).Count
+        $Results.Add([pscustomobject]@{ Class = $Class.Name; Name = "macro $($macro.Groups['name'].Value)"; Bases = $Class.Bases; Parameters = $macro.Groups['arguments'].Value.Trim(); Line = $line; Body = $null; Macro = $true })
+        $Start += $macro.Length
+        $Statement = $Statement.Substring($macro.Length)
+    }
     if ($Statement -match '\b(class|struct|enum|union|using|typedef|friend)\b') { return }
     $match = $script:SetterDeclaration.Match($Statement)
     if (-not $match.Success) { return }
@@ -206,7 +232,7 @@ function Add-SetterDeclaration($Results, $Class, [string] $Access, [string] $Sta
     $parameters = Get-ParameterList $Statement ($match.Index + $match.Length - 1)
     $line = 1 + ([regex]::Matches($Code.Substring(0, $Start + $match.Index), "`n")).Count
     $body = if ($BodyOpen -ge 0) { $Code.Substring($BodyOpen, $BodyEnd - $BodyOpen) } else { $null }
-    $Results.Add([pscustomobject]@{ Class = $Class.Name; Name = $match.Groups['name'].Value; Bases = $Class.Bases; Parameters = $parameters.Trim(); Line = $line; Body = $body })
+    $Results.Add([pscustomobject]@{ Class = $Class.Name; Name = $match.Groups['name'].Value; Bases = $Class.Bases; Parameters = $parameters.Trim(); Line = $line; Body = $body; Macro = $false })
 }
 # The classes derived, directly or not, from Control (Control included), from every class head of the header texts.
 function Get-ControlClassNames([Parameter(Mandatory)][AllowEmptyString()][string[]] $HeaderTexts) {
@@ -235,7 +261,8 @@ function Get-SetterDefinitions([Parameter(Mandatory)][AllowEmptyString()][string
     $code = Remove-AssignCommentsAndLiterals $Text
     $closeOf = (Get-CodeTokens $code).CloseOf
     $results = [Collections.Generic.List[object]]::new()
-    foreach ($match in [regex]::Matches($code, '(?m)^[^\S\n]*(?:[\w:<>,\*&\[\]]+[^\S\n]+)+(?<class>[A-Za-z_]\w*)::(?<name>Set[A-Z]\w*)\s*\(')) {
+    # The return type may end a line of its own (void, then Class::SetName on the next).
+    foreach ($match in [regex]::Matches($code, '(?m)^[^\S\n]*(?:[\w:<>,\*&\[\]]+\s+)+(?<class>[A-Za-z_]\w*)::(?<name>Set[A-Z]\w*)\s*\(')) {
         $parameters = Get-ParameterList $code ($match.Index + $match.Length - 1)
         $after = $match.Index + $match.Length - 1 + $parameters.Length + 2
         # Up to the body: qualifiers, noexcept, a member initializer list never occurs on a setter.
@@ -255,8 +282,69 @@ function Test-CallbackParameters([string] $Parameters) {
     $Parameters -match '\bstd::function\s*<' -or $Parameters -match '\b\w+Callback\b'
 }
 
+$script:AssignCall = [regex]::new('(?<![\w.>])Assign\s*\(')
+# A write to a member (an underscore field, through _state-> or this->, indexed or not) by =, a compound assignment, ++ or --.
+$script:MemberWrite = [regex]::new('(?<![\w.>])(?<target>(?:this->)?_\w+(?:\[[^\]]*\])?(?:(?:\.|->)\w+(?:\[[^\]]*\])?)*)\s*(?:(?:[+\-*/|&^]|<<|>>)?=(?!=)|\+\+|--)|(?:\+\+|--)\s*(?<target2>(?:this->)?_\w+)')
+
 function Test-UsesAssign([string] $Body) {
-    $Body -match '(?<![\w.>])Assign\s*\('
+    $script:AssignCall.IsMatch($Body)
+}
+
+# Calls in an onStored lambda that can run the application's code (an embedded host's invalidation or animation callback, an
+# accessibility event, a part's setter, a text-service sync), after which the control may be gone.
+$script:ApplicationCall = [regex]::new('(?<![\w.])(?:InvalidateMeasure|RequestInvalidate|Invalidate|SyncTextInput|NotifyTextInputLayoutChanged|RefreshAccessibilitySnapshot|RefreshWindowHostAccessibilitySnapshot|RequestAnimation|RequestAnimationAt|ReleaseMouseCapture|SyncLayout|Arrange|LayoutParts|RefreshComboItems|RebuildDisplayTags|SyncChildren|SyncText|RemaskPasswordReveal|ResetCaretBlink|ResetEditableCaretBlink|OnTooltipScheduleChanged|EnsureCaretVisible|EnsureMultilineCaretVisible|RouteAffects|Notify\w*|Set[A-Z]\w*)\s*\(')
+
+# The onStored lambdas of a body's Assign calls (the brace-enclosed body of a lambda argument).
+function Get-OnStoredBodies([string] $Body) {
+    foreach ($call in $script:AssignCall.Matches($Body)) {
+        $open = $call.Index + $call.Length - 1
+        $depth = 0
+        $close = $Body.Length
+        for ($index = $open; $index -lt $Body.Length; $index++) {
+            if ($Body[$index] -eq '(') { $depth++ } elseif ($Body[$index] -eq ')') { $depth--; if ($depth -eq 0) { $close = $index; break } }
+        }
+        $arguments = $Body.Substring($open, $close - $open)
+        $lambda = [regex]::Match($arguments, '\[[^\]]*\]\s*\([^)]*\)[^{]*\{')
+        if (-not $lambda.Success) { continue }
+        $start = $lambda.Index + $lambda.Length
+        $braces = 1
+        for ($index = $start; $index -lt $arguments.Length; $index++) {
+            if ($arguments[$index] -eq '{') { $braces++ } elseif ($arguments[$index] -eq '}') { $braces--; if ($braces -eq 0) { break } }
+        }
+        $arguments.Substring($start, $index - $start)
+    }
+}
+
+# Calls in an onStored lambda that can run the application's code and are followed by more of the lambda: each must be the
+# lambda's last statement (only closing braces follow) or be followed at once by a lifetime check (if (... expired() ...)).
+# Assign checks the control's lifetime after onStored returns, never inside it.
+function Get-OnStoredHazards([string] $Body) {
+    foreach ($lambda in @(Get-OnStoredBodies $Body)) {
+        foreach ($call in $script:ApplicationCall.Matches($lambda)) {
+            $end = $lambda.IndexOf(';', $call.Index)
+            if ($end -lt 0) { continue }
+            $rest = $lambda.Substring($end + 1)
+            if ($rest -match '^[\s}]*$') { continue }
+            if ($rest -match '^\s*(?:\}\s*)*if\s*\([^;{]*expired\s*\(\s*\)') { continue }
+            if ($rest -match '^\s*(?:\}\s*)*else\b') { continue } # the other branch runs instead
+            ($call.Value -replace '\s*\($', '')
+        }
+    }
+}
+
+# The members a body writes itself, outside the arguments of its Assign calls (the field, the value and the onStored
+# bookkeeping): a setter that assigns its property through Assign writes none, unless its SideWrites entry says why.
+function Get-RawMemberWrites([string] $Body) {
+    $outside = [Text.StringBuilder]::new($Body)
+    foreach ($call in $script:AssignCall.Matches($Body)) {
+        $open = $call.Index + $call.Length - 1
+        $depth = 0
+        for ($index = $open; $index -lt $Body.Length; $index++) {
+            if ($Body[$index] -eq '(') { $depth++ } elseif ($Body[$index] -eq ')') { $depth--; if ($depth -eq 0) { break } }
+            if ($Body[$index] -ne "`n") { $outside[$index] = ' ' }
+        }
+    }
+    @($script:MemberWrite.Matches($outside.ToString()) | ForEach-Object { if ($_.Groups['target'].Success) { $_.Groups['target'].Value } else { $_.Groups['target2'].Value } } | Sort-Object -Unique)
 }
 
 <#
@@ -264,7 +352,7 @@ Every public setter of every public control class, with its compliance: Setter (
 'Callback', 'Allowed' or 'Finding'), Reason, Declaration ('path:line'), Definitions ('path:line' each).
 Headers: path => text of the public headers; Sources: path => text of the sources that define them.
 #>
-function Get-AssignSetterInventory([Parameter(Mandatory)][hashtable] $Headers, [Parameter(Mandatory)][hashtable] $Sources, [System.Collections.IDictionary] $AllowList = $script:AllowList) {
+function Get-AssignSetterInventory([Parameter(Mandatory)][hashtable] $Headers, [Parameter(Mandatory)][hashtable] $Sources, [System.Collections.IDictionary] $AllowList = $script:AllowList, [System.Collections.IDictionary] $SideWrites = $script:SideWrites, [System.Collections.IDictionary] $OnStoredReviewed = $script:OnStoredReviewed) {
     $controls = Get-ControlClassNames -HeaderTexts @($Headers.Values)
     $declarations = [ordered]@{}
     foreach ($path in ($Headers.Keys | Sort-Object)) {
@@ -272,14 +360,18 @@ function Get-AssignSetterInventory([Parameter(Mandatory)][hashtable] $Headers, [
             if ($controls -notcontains $declaration.Class) { continue }
             $key = '{0}::{1}' -f $declaration.Class, $declaration.Name
             if (-not $declarations.Contains($key)) {
-                $declarations[$key] = [pscustomobject]@{ Setter = $key; Parameters = [Collections.Generic.List[string]]::new(); Declaration = ('{0}:{1}' -f $path, $declaration.Line); Bodies = [Collections.Generic.List[object]]::new() }
+                $declarations[$key] = [pscustomobject]@{ Setter = $key; Parameters = [Collections.Generic.List[string]]::new(); Declaration = ('{0}:{1}' -f $path, $declaration.Line); Bodies = [Collections.Generic.List[object]]::new(); Macro = $declaration.Macro }
             }
             $declarations[$key].Parameters.Add($declaration.Parameters)
             if ($null -ne $declaration.Body) { $declarations[$key].Bodies.Add([pscustomobject]@{ Where = ('{0}:{1}' -f $path, $declaration.Line); Body = $declaration.Body }) }
         }
     }
-    foreach ($path in ($Sources.Keys | Sort-Object)) {
-        foreach ($definition in Get-SetterDefinitions $Sources[$path]) {
+    # Out-of-line definitions in the sources, and in the headers (a template or inline member defined after its class).
+    $definitionTexts = @{}
+    foreach ($path in $Sources.Keys) { $definitionTexts[$path] = $Sources[$path] }
+    foreach ($path in $Headers.Keys) { if (-not $definitionTexts.ContainsKey($path)) { $definitionTexts[$path] = $Headers[$path] } }
+    foreach ($path in ($definitionTexts.Keys | Sort-Object)) {
+        foreach ($definition in Get-SetterDefinitions $definitionTexts[$path]) {
             $key = '{0}::{1}' -f $definition.Class, $definition.Name
             if ($declarations.Contains($key)) { $declarations[$key].Bodies.Add([pscustomobject]@{ Where = ('{0}:{1}' -f $path, $definition.Line); Body = $definition.Body }) }
         }
@@ -289,7 +381,12 @@ function Get-AssignSetterInventory([Parameter(Mandatory)][hashtable] $Headers, [
         $callback = @($entry.Parameters | Where-Object { Test-CallbackParameters $_ }).Count -eq $entry.Parameters.Count
         $bodies = @($entry.Bodies)
         $assigns = $bodies.Count -gt 0 -and @($bodies | Where-Object { -not (Test-UsesAssign $_.Body) }).Count -eq 0
-        $kind, $reason = if ($assigns) { 'Assign', '' }
+        $rawWrites = @($bodies | ForEach-Object { Get-RawMemberWrites $_.Body } | Sort-Object -Unique)
+        $hazards = @($bodies | ForEach-Object { Get-OnStoredHazards $_.Body } | Sort-Object -Unique)
+        $kind, $reason = if ($entry.Macro) { 'Finding', 'a function-like macro at class scope can declare setters the inventory cannot see; declare them directly' }
+        elseif ($assigns -and $rawWrites.Count -and -not $SideWrites.Contains($entry.Setter)) { 'Finding', "uses Assign but writes $($rawWrites -join ', ') itself: assign the property through Assign (bookkeeping goes in onStored)" }
+        elseif ($assigns -and $hazards.Count -and -not $OnStoredReviewed.Contains($entry.Setter)) { 'Finding', "its onStored goes on after $($hazards -join ', '), which can run application code: make that call the last step or check GetLifetimeToken() right after it" }
+        elseif ($assigns) { 'Assign', '' }
         elseif ($callback) { 'Callback', 'callback registration: no equality, no visual, layout, hit or semantic effect' }
         elseif ($AllowList.Contains($entry.Setter)) { 'Allowed', [string] $AllowList[$entry.Setter] }
         elseif ($bodies.Count -eq 0) { 'Finding', 'no definition found under src/Controls or inline' }
@@ -300,8 +397,8 @@ function Get-AssignSetterInventory([Parameter(Mandatory)][hashtable] $Headers, [
 }
 
 # Findings: setters neither using Assign, nor callbacks, nor allowed; and allow-list entries that are stale or unexplained.
-function Find-AssignSetterFindings([Parameter(Mandatory)][hashtable] $Headers, [Parameter(Mandatory)][hashtable] $Sources, [System.Collections.IDictionary] $AllowList = $script:AllowList) {
-    $inventory = @(Get-AssignSetterInventory -Headers $Headers -Sources $Sources -AllowList $AllowList)
+function Find-AssignSetterFindings([Parameter(Mandatory)][hashtable] $Headers, [Parameter(Mandatory)][hashtable] $Sources, [System.Collections.IDictionary] $AllowList = $script:AllowList, [System.Collections.IDictionary] $SideWrites = $script:SideWrites, [System.Collections.IDictionary] $OnStoredReviewed = $script:OnStoredReviewed) {
+    $inventory = @(Get-AssignSetterInventory -Headers $Headers -Sources $Sources -AllowList $AllowList -SideWrites $SideWrites -OnStoredReviewed $OnStoredReviewed)
     $findings = [Collections.Generic.List[string]]::new()
     foreach ($entry in $inventory | Where-Object Kind -eq 'Finding') { $findings.Add(('{0} ({1}): {2}' -f $entry.Setter, $entry.Declaration, $entry.Reason)) }
     foreach ($key in $AllowList.Keys) {
@@ -310,10 +407,15 @@ function Find-AssignSetterFindings([Parameter(Mandatory)][hashtable] $Headers, [
         elseif ($entry.Kind -ne 'Allowed') { $findings.Add("${key}: allow-list entry is stale (the setter is $($entry.Kind))") }
         elseif ([string]::IsNullOrWhiteSpace([string] $AllowList[$key])) { $findings.Add("${key}: allow-list entry has no reason") }
     }
+    foreach ($key in $SideWrites.Keys) {
+        $entry = $inventory | Where-Object Setter -eq $key | Select-Object -First 1
+        if (-not $entry -or $entry.Kind -ne 'Assign') { $findings.Add("${key}: side-write entry names no setter that uses Assign") }
+        elseif ([string]::IsNullOrWhiteSpace([string] $SideWrites[$key])) { $findings.Add("${key}: side-write entry has no reason") }
+    }
     $findings.ToArray()
 }
 
-# Setters of kind Assign that the native gate (Tests/Embedded/Embedded.Tests.AssignSetters.h) names in no row: each row names
+# Setters of kind Assign that the native gate (Tests/Support/Support.Tests.AssignSetterRows.h) names in no row: each row names
 # its setter as the string literal "Class::Setter", and the gate requires every unchanged value to route nothing.
 function Find-AssignGateCoverageFindings([Parameter(Mandatory)][object[]] $Inventory, [Parameter(Mandatory)][AllowEmptyString()][string] $GateText) {
     $named = [Collections.Generic.HashSet[string]]::new([string[]] @([regex]::Matches($GateText, 'Row\{"(?<name>\w+::Set\w+)"') | ForEach-Object { $_.Groups['name'].Value }))
@@ -340,4 +442,4 @@ function Get-AssignSetterInputs([Parameter(Mandatory)][string] $Root) {
     @{ Headers = $headers; Sources = $sources }
 }
 
-Export-ModuleMember -Function Get-AssignSetterAllowList, Find-AssignGateCoverageFindings, Get-ClassSetterDeclarations, Get-ControlClassNames, Get-SetterDefinitions, Get-AssignSetterInventory, Find-AssignSetterFindings, Get-AssignSetterInputs
+Export-ModuleMember -Function Get-AssignSetterAllowList, Get-AssignSetterSideWrites, Find-AssignGateCoverageFindings, Get-ClassSetterDeclarations, Get-ControlClassNames, Get-SetterDefinitions, Get-AssignSetterInventory, Find-AssignSetterFindings, Get-AssignSetterInputs

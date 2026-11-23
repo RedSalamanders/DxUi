@@ -1351,6 +1351,8 @@ void TextField::SetFontRole(const FontRole fontRole) noexcept
                 EnsureMultilineCaretVisible(host);
             else
                 EnsureCaretVisible(host, std::max(1.0f, GetTextRect().right - GetTextRect().left));
+            if (lifetime.expired() || GetHost() != host)
+                return;
             if (HasFocus())
                 host->SyncTextInput(this);
             if (lifetime.expired() || GetHost() != host)
@@ -1541,12 +1543,13 @@ void TextField::SetPasswordRevealState(PasswordRevealState state) noexcept
                  Affects::Paint | Affects::SemanticState,
                  [this]() noexcept
     {
-        // A masked multiline field measures its displayed text: the mask or the revealed value.
-        if (_multiline && _masked)
-            InvalidateMeasure();
         // Revealing or concealing changes the shown text: a layout of the plaintext is released the moment it is hidden again.
         InvalidateSingleLineLayoutCache();
         InvalidateMultilineLayoutCache();
+        // A masked multiline field measures its displayed text: the mask or the revealed value. Last: the measure invalidation
+        // can run an embedded host's callbacks, after which nothing here touches the field.
+        if (_multiline && _masked)
+            InvalidateMeasure();
     }))
         return;
     if (Debug::Perf::IsCaptureEnabled())
@@ -1568,11 +1571,12 @@ void TextField::SetPasswordMaskLengthPolicy(PasswordMaskLengthPolicy policy) noe
            Affects::Paint,
            [this]() noexcept
     {
-        // The policy sets how many dots a masked multiline field displays, and so measures.
-        if (_multiline && _masked)
-            InvalidateMeasure();
         RegenerateConcealedMaskEpoch();
         InvalidateSingleLineLayoutCache();
+        // The policy sets how many dots a masked multiline field displays, and so measures. Last: the measure invalidation
+        // can run an embedded host's callbacks, after which nothing here touches the field.
+        if (_multiline && _masked)
+            InvalidateMeasure();
     });
 }
 
@@ -1763,6 +1767,8 @@ void TextField::SetReadOnly(bool readOnly) noexcept
         {
             // An editable caret blinks and a read-only one is steady: the caret restarts in its new mode.
             ResetCaretBlink(*host);
+            if (lifetime.expired() || GetHost() != host)
+                return;
             host->SyncTextInput(this);
         }
     });
