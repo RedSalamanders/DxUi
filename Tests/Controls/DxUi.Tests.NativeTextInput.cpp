@@ -9156,8 +9156,8 @@ void TestNativeTextInputTextStoreExternalRetainedChangesNotifySink()
     RequireSucceeded(sessionHr, "native text store external retained text lock succeeds");
     Require(sink.textChangeCount == 1u && sink.selectionChangeCount == 1u && sink.layoutChangeCount == 1u,
             "native text store notifies text, selection, and layout sinks after external retained text change");
-    Require(sink.lastTextChange.acpStart == 0 && sink.lastTextChange.acpOldEnd == 10 && sink.lastTextChange.acpNewEnd == 11,
-            "native text store external retained text change reports the previous and current document length");
+    Require(sink.lastTextChange.acpStart == 6 && sink.lastTextChange.acpOldEnd == 9 && sink.lastTextChange.acpNewEnd == 10,
+            "native text store external retained text change reports only the changed middle: alpha beta to alpha gamma replaces bet with gamm at 6");
 
     const uint32_t textChangesAfterText      = sink.textChangeCount;
     const uint32_t selectionChangesAfterText = sink.selectionChangeCount;
@@ -9334,8 +9334,8 @@ void TestNativeTextInputTextStoreExternalChangeNotificationHandlesSinkRequestedL
     RequireSucceeded(innerSessionHr, "native text store nested sink-requested read lock succeeds during external notification");
     Require(sink.textChangeCount == 1u && sink.selectionChangeCount == 1u && sink.layoutChangeCount == 1u,
             "native text store emits each external retained-change notification once when the sink requests a lock");
-    Require(sink.lastTextChange.acpStart == 0 && sink.lastTextChange.acpOldEnd == 10 && sink.lastTextChange.acpNewEnd == 11,
-            "native text store reentrant external retained text change reports the previous and current document length");
+    Require(sink.lastTextChange.acpStart == 6 && sink.lastTextChange.acpOldEnd == 9 && sink.lastTextChange.acpNewEnd == 10,
+            "native text store reentrant external retained text change reports only the changed middle: alpha beta to alpha gamma replaces bet with gamm at 6");
 
     RequireSucceeded(store->UnadviseSink(&sink), "native text store reentrant external-change test unadvises the sink");
 }
@@ -9415,9 +9415,10 @@ void TestNativeTextInputTextStoreRepeatedEmojiExternalChangesStayBounded()
         Require(sink.textChangeCount == expectedChangeCount && sink.selectionChangeCount == expectedChangeCount &&
                     sink.layoutChangeCount == expectedChangeCount,
                 "native text store repeated emoji soak emits each notification family once per external change");
-        Require(sink.lastTextChange.acpStart == 0 && sink.lastTextChange.acpOldEnd == static_cast<LONG>(previousText.size()) &&
-                    sink.lastTextChange.acpNewEnd == static_cast<LONG>(nextText.size()),
-                "native text store repeated emoji soak reports previous and current UTF-16 document lengths");
+        const TS_TEXTCHANGE expectedChange = ComputeTextStoreTextChange(previousText, nextText);
+        Require(sink.lastTextChange.acpStart == expectedChange.acpStart && sink.lastTextChange.acpOldEnd == expectedChange.acpOldEnd &&
+                    sink.lastTextChange.acpNewEnd == expectedChange.acpNewEnd,
+                "native text store repeated emoji soak reports the changed middle without the common prefix and suffix");
 
         previousText = std::move(nextText);
     }
