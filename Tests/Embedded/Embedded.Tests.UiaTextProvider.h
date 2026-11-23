@@ -267,7 +267,6 @@ inline void TestNativeCaretEventsCopyNoDocument()
     const wil::unique_hwnd window = CreateTextProviderWindow(host);
     const auto detach             = wil::scope_exit([&] { host.Detach(); });
     static_cast<void>(ShowWindow(window.get(), SW_SHOWNOACTIVATE)); // native text input needs a visible window, not focus
-    const HWND foregroundBefore = GetForegroundWindow();
     host.SetTextInputBackend(TextInputBackend::Native);
     const std::wstring document = PerformanceFixtures::Fx6::MakeDocument();
     auto root                   = std::make_unique<Panel>();
@@ -296,7 +295,8 @@ inline void TestNativeCaretEventsCopyNoDocument()
     std::cout << "W8.4 native caret moves with no client: " << kMoves << " moves, " << events << " caret events, " << copies << " document-sized allocations\n";
     Check(events == kMoves, "each caret move raises the caret event");
     Check(copies == 0u, "no caret event copies the document while no client listens");
-    Check(GetForegroundWindow() == foregroundBefore, "the native text-input host never takes the foreground");
+    // The claim is about this host: another application may change the desktop foreground while the test runs.
+    Check(GetForegroundWindow() != window.get(), "the native text-input host never takes the foreground");
 }
 
 // Lifetime across threads. A UI Automation worker's range resolves its text; before it reads the view, the owner thread
@@ -571,7 +571,6 @@ inline void TestNativeRichEditorCaretEventsCopyNoDocument()
     const wil::unique_hwnd window = CreateTextProviderWindow(host);
     const auto detach             = wil::scope_exit([&] { host.Detach(); });
     static_cast<void>(ShowWindow(window.get(), SW_SHOWNOACTIVATE));
-    const HWND foregroundBefore = GetForegroundWindow();
     host.SetTextInputBackend(TextInputBackend::Native);
     // RichTextEditor documents stop at 64 Ki units: seven-letter words and spaces, no line breaks.
     std::wstring document(65'536u - 64u, L'a');
@@ -606,7 +605,7 @@ inline void TestNativeRichEditorCaretEventsCopyNoDocument()
               << " document-sized allocations, " << flattens << " document flattens\n";
     Check(events == kMoves, "each rich-editor caret move raises the caret event");
     Check(copies == 0u && flattens == 0u, "no rich-editor caret event copies or flattens the document while no client listens");
-    Check(GetForegroundWindow() == foregroundBefore, "the native rich-editor host never takes the foreground");
+    Check(GetForegroundWindow() != window.get(), "the native rich-editor host never takes the foreground");
 }
 
 namespace Retention
