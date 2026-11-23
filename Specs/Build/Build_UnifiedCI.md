@@ -147,7 +147,9 @@ pushes run no separate changelog comparison. `Fold-Changelog.ps1` folds fragment
 `Submit-ChangelogFold.ps1` performs that fold in a temporary worktree and opens its pull request; hosted workflows never
 fold. `Release-Changelog.ps1` is a separate release-only change after every fragment is folded on the base.
 `Test-ChangelogWorkflow.ps1` runs the changelog fixtures in engine CI and in each product's tooling tests through its
-shim.
+shim. `Tools/Changelog.psm1` preserves DxUi's existing module import path and resolves the pinned engine module.
+Only the changelog validator imports it. Native solution validation and historical benchmark overlays can load
+the validation helpers without loading the changelog module.
 
 ## Hosted acceptance
 

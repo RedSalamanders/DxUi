@@ -317,17 +317,21 @@ Invoke-TestCase 'merging keeps the changelog''s own line endings' {
     Assert-Throws { Merge-ChangelogFragments "# Changelog`n" $fragments } 'a changelog without the heading is refused'
 }
 
-Invoke-FixtureCase 'fold reports the other author when two fragments have identical notes' {
+Invoke-FixtureCase 'fold refuses duplicate pending notes and retains both fragments' {
     param($root)
     Set-ChangelogFixture $root
     Set-FixtureFile $root 'Changes/2026-11-01-a.md' "- Same note.`n"
     Set-FixtureFile $root 'Changes/2026-11-01-b.md' "- Same note.`n"
-    $warnings = @()
-    & $foldChangelog -Root $root -WarningVariable warnings 6>$null
-    $content = [IO.File]::ReadAllText((Join-Path $root 'CHANGELOG.md'))
-    Assert-Equal 1 ([regex]::Matches($content, '(?m)^- Same note\.$').Count) 'fold publishes one note'
-    Assert-True (($warnings | Out-String) -match '2026-11-01-a\.md') 'fold warns about the skipped author fragment'
-    Assert-Equal 1 @(Get-ChildItem -LiteralPath (Join-Path $root 'Changes') -File).Count 'both processed fragments removed'
+    $changelog = Join-Path $root 'CHANGELOG.md'
+    $before = [IO.File]::ReadAllText($changelog)
+    $failure = $null
+    try { & $foldChangelog -Root $root 6>$null }
+    catch { $failure = $_.Exception.Message }
+    Assert-True ($failure -match '^Ambiguous duplicate changelog fragment text' -and
+        $failure.Contains('Changes/2026-11-01-a.md') -and $failure.Contains('Changes/2026-11-01-b.md')) 'the refusal identifies both fragments'
+    Assert-Equal $before ([IO.File]::ReadAllText($changelog)) 'the changelog remains intact'
+    Assert-Equal "- Same note.`n" ([IO.File]::ReadAllText((Join-Path $root 'Changes/2026-11-01-a.md'))) 'the first fragment remains intact'
+    Assert-Equal "- Same note.`n" ([IO.File]::ReadAllText((Join-Path $root 'Changes/2026-11-01-b.md'))) 'the second fragment remains intact'
 }
 Invoke-TestCase 'duplicate fragment text is idempotent and identifies each skipped author' {
     $fragments = @(
