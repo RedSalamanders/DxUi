@@ -24,7 +24,8 @@ unchanged since `4acabe0e`, the commit the evidence was read at.
   [performance and resources](../../Core/Core_PerformanceAndResources.md).
 - **Reading order**: [§1](#1-goals-and-budgets) says what "better" means in numbers;
   [§2](#2-assumptions) lists what the plan takes as given; [§3](#3-where-the-time-and-memory-go-today) is the evidence;
-  [§4](#4-order-of-work) is the order; the waves `W0`–`W10` are the work.
+  [§4](#4-order-of-work) is the order, and its [delivery section](#delivery-in-pull-requests) says which pull
+  request carries which wave; the waves `W0`–`W10` are the work.
 
 ## 1. Goals and budgets
 
@@ -185,6 +186,25 @@ If only ten things get done, these are the ten, in this order: `W2.1` retained t
 edits; `W2.2` `ComboBox` popup layout; `W1.6` tooltip repaint; `W3.1` with `W3.2` (deadlines and the caret clock);
 `W4.7` embedded partial preparation; `W2.5` `Grid` data paths; `W7.1` block-incremental semantic projection; `W5.1`
 with `W5.4` (the motion system in every control); `W9.2` video memory.
+
+### Delivery in pull requests
+
+Decided by the developer on 23 November 2026. The plan stays one document; the work reaches `main` in three steps.
+
+1. **Intermediate pull request.** The items ticked at a stable point merge first. Stable means: no known defect
+   open against a ticked item, `main` merged in, and closeout step 3 green on the merged tree.
+2. **Remaining items of `W0`–`W4` and `W6`–`W9`.** They follow in the next pull request, in the order above.
+3. **`W5` Motion and `W10` Scale.** All 15 items of `W5` and all 4 items of `W10` move to a later pull request. No
+   item of this plan waits for them, so the order of the other waves does not change.
+
+What moves with step 3:
+
+- Budgets `G7`, `G14` and `G15` get their receipts in step 3, not before.
+- `W5.8` breaks source for pointer identity in embedded dispatch. It lands in the API revision that is open when
+  step 3 is built: revision 6 if it is still unreleased, the next revision otherwise. `A8` no longer promises one
+  source break for `W3.5` and `W5.8` together.
+- `W0.9` and `W0.10` stay in step 2. They are measurements, and step 3 reads their results for `W5.9`–`W5.12`.
+- Of the ten items listed above, `W5.1` with `W5.4` is delivered in step 3.
 
 ## W0 — Truth: measure before changing
 
@@ -943,6 +963,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
 
 ## W5 — Motion: better animation everywhere
 
+Delivered in a later pull request than the other waves ([delivery](#delivery-in-pull-requests)).
+
 Purpose: one motion system behind every interactive state change, with motion that keeps running while the UI thread is
 busy in native composition mode and degrades to cooperative ticks everywhere else. Exit: `G14` met on `FX11` for every
 row of the `W5.4` table; `G7` met on `FX11` and `FX9` in composition mode.
@@ -1658,6 +1680,8 @@ are hand counts until the `W9.1` probes exist. Exit: `G13` met.
   - **Needs**: `W4.3`, `W5.9`, `W9.1`. **Size**: M.
 
 ## W10 — Scale, and the conditional GPU backend
+
+Delivered in a later pull request than the other waves ([delivery](#delivery-in-pull-requests)).
 
 Purpose: the same budgets at a thousand times the data, and a hardware-receipt decision on a DxUi-owned GPU backend.
 Exit: `G15` met; `W10.4` either meets its go criterion or is closed unbuilt.
