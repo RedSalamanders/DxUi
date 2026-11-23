@@ -109,8 +109,14 @@ DxUi has no publication workflow; qualified SDK ZIPs remain internal artifacts. 
 
 Shared skill index: `../RedHome/AGENTS.md`; packages: `../RedHome/.agents/skills/`. If `../RedHome` is missing, clone https://github.com/RedSalamanders/RedHome.git to that path. This repository's guidance and domain specs own product behavior and validation.
 
-Read a focused repository-local skill under `.agents/skills/` for the affected work: control-development,
-embedded-rendering, win32-host, input-accessibility, or consumer-integration (their referenced files must exist).
+Read the skill for the affected work.
+
+- [control-development](.agents/skills/control-development/SKILL.md) covers control design and implementation.
+- [embedded-rendering](.agents/skills/embedded-rendering/SKILL.md) covers embedded rendering and ownership.
+- [win32-host](.agents/skills/win32-host/SKILL.md) covers native window hosts and their rendering lifecycle.
+- [input-accessibility](.agents/skills/input-accessibility/SKILL.md) covers input, focus and accessibility.
+- [consumer-integration](.agents/skills/consumer-integration/SKILL.md) covers SDK consumption and product pins.
+
 Building, restoring and toolchain failures are the shared `native-build` skill in `RedHome` (formerly build-dxui
 here), with DxUi's commands, restore and interactive-suite rules in its `references/repository-facts.md`.
 Cross-repository C++/WIL, performance, and specification skills live in the sibling `RedHome` repository.
