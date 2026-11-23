@@ -919,8 +919,10 @@ the choice between retained painting (`W4`) and a DxUi-owned GPU backend (`W10.4
   inclusively, as the phases pass's share of the frame spent inside Direct2D calls (which contains DirectWrite rendering,
   the runtime and the driver work those calls do) reaching half; the sampled leaf shares are recorded beside it. The two
   regions the rule leaves open are reported as outside the rule. The decision is the developer's.
-- **Receipt.** `attribution.json` holds summaries only (medians, means, shares, counters, adapter and driver, source
-  commit, build profile and executables' hashes, power scheme as read, idle preflight and host load); every raw per-frame
+- **Receipt.** `attribution.json` is a library measurement (`workloadOwner` `DxUi`, fixture `dxui-frame-attribution-v1`) with the
+  SHA-256 of every input source in `benchmarkInputs`, checked unchanged at the end of the run. It holds summaries only
+  (medians, means, shares, counters, adapter and driver, source commit, build profile and executables' hashes, power scheme
+  as read, idle preflight and host load); every raw per-frame
   report stays in the build tree, named in the receipt with its SHA-256. Fixture code, the wrappers, the sampler thread and
   the timers are test-only: no library path gains a timer, thread or query.
 

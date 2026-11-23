@@ -498,6 +498,11 @@ again when other processes disturbed it or its frames did no work, and keeps per
 
 The method and its limits are in [the performance contract](../Specs/Core/Core_PerformanceAndResources.md#hardware-attribution-method).
 
+The first receipt (23 November 2026, RTX 5080; [README and tables](../Measurements/PerformanceAndMotion_2026-11-13/W0.7/README.md))
+measures budget `G5`, a full repaint of the 2,000-control screen at 4K (`FX12@uhd-192dpi`): 9.5 ms of UI-thread CPU and
+11.6 ms of GPU busy time against at most 4 ms of CPU with GPU below CPU, so `G5` is not met. About 94% of that frame is spent
+inside Direct2D calls.
+
 ## Trace provider
 
 DxUi writes a [TraceLogging](https://learn.microsoft.com/en-us/windows/win32/tracelogging/trace-logging-about) provider

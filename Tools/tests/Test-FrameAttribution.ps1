@@ -191,6 +191,9 @@ function New-AttributionRunnerFixture([string] $Root) {
     foreach ($module in @('FrameTiming.psm1','FrameAttribution.psm1','PerformanceComparison.psm1','PerformanceFixtures.psm1','InteractiveRun.psm1')) {
         Copy-Item -LiteralPath (Join-Path $repository "Tools/$module") -Destination (Join-Path $Root "Tools/$module")
     }
+    foreach ($input in @(Get-FrameAttributionInputPaths -EmbeddedTestFiles @('Embedded.Tests.PerformanceFixture.h','Embedded.Tests.PerformanceFixtureFx5.h'))) {
+        if (-not (Test-Path -LiteralPath (Join-Path $Root $input))) { Set-FixtureFile $Root $input "synthetic attribution input $input" }
+    }
     Set-FixtureFile $Root ".build/$fixturePlatform/Release/DxUi.EmbeddedTests.exe" 'synthetic embedded bytes; a function shim runs instead'
     Set-FixtureFile $Root ".build/$fixturePlatform/Release/DxUi.ControlTests.exe" 'synthetic control bytes; a function shim runs instead'
     Set-FixtureFile $Root 'host-busy.txt' '2'
@@ -299,6 +302,7 @@ Invoke-FixtureCase 'runner: a smoke run reads the power scheme without switching
     Assert-Equal 1 @($calls | Where-Object { $_ -like 'wpr:-start CPU -instancename DxUiAttribution-*' }).Count 'one unelevated kernel-trace probe'
     Assert-Equal 1 @($calls | Where-Object { $_ -eq 'observer:stop' }).Count 'observer stopped'
     $receipt = Get-FixtureJson $root 'out/attribution.json'
+    Assert-True (-not [IO.File]::ReadAllText((Join-Path $root 'out/attribution.json')).Contains("`r")) 'the receipt is written with LF line endings'
     Assert-Equal 'Smoke' $receipt.purpose 'purpose'
     Assert-True $receipt.classification.StartsWith('smoke run') 'smoke label'
     Assert-True (-not $receipt.kernelSampling.available) 'refused kernel sampling recorded'
@@ -453,5 +457,60 @@ Invoke-FixtureCase 'runner: the interim admission rule judges running share, exc
     $legacy = Invoke-AttributionRunner $root @{ Purpose = 'Receipt'; Admission = 'Legacy10'; Cases = @('FX5@uhd-192dpi full'); OutputDirectory = (Join-Path $root 'legacy') }
     Assert-Equal 0 $legacy.Exit "the legacy rule refused an idle host: $($legacy.Text)"
     Assert-Equal 'host-busy-10pct-v1' (Get-FixtureJson $root 'legacy/attribution.partial.json').admission.rule.id 'the legacy rule is named'
+}
+Invoke-TestCase 'the published receipt reads back into the README tables' {
+    $receiptPath = Join-Path $repository 'Measurements/PerformanceAndMotion_2026-11-13/W0.7/attribution.json'
+    $receipt = Get-Content -Raw -LiteralPath $receiptPath | ConvertFrom-Json -AsHashtable -Depth 60
+    Assert-Equal 'hardware attribution receipt' $receipt.classification 'a published receipt'
+    Assert-True $receipt.conditions.met 'every pass of the published receipt was admitted'
+    $tables = Format-FrameAttributionReceipt -Receipt $receipt
+    $rows = @($tables.Split("`n") | Where-Object { $_.StartsWith('| `FX') })
+    Assert-Equal 16 @($rows | Where-Object { $_.Contains(' full` |') -or $_.Contains(' dirty` |') } | Where-Object { -not $_.Contains('W10.4') -and -not $_.Contains('W4 proceeds') -and -not $_.Contains('outside the rule') }).Count 'one row per embedded case'
+    Assert-True ($tables.Contains('Window host, full frames: `FX12` `Present`')) 'the window host line'
+    Assert-Equal 2 @($rows | Where-Object { $_.Contains('W10.4') -or $_.Contains('W4 proceeds') -or $_.Contains('outside the rule') }).Count 'both decision readings'
+    $readme = [IO.File]::ReadAllText((Join-Path $repository 'Measurements/PerformanceAndMotion_2026-11-13/W0.7/README.md')).Replace("`r`n", "`n")
+    Assert-True ($readme.Contains($tables)) 'the README carries the tables exactly as generated from the receipt'
+}
+Invoke-FixtureCase 'runner: a published receipt is a library measurement with its input hashes, as validate-specs requires' {
+    param($root)
+    New-AttributionRunnerFixture $root
+    Set-FixtureFile $root 'power.txt' $script:HighPerformance
+    $receiptPath = Join-Path $root 'Measurements/Study/attribution.json'
+    $run = Invoke-AttributionRunner $root @{ Purpose = 'Receipt'; SkipWindow = $true; ReceiptPath = $receiptPath; IdleWaitSeconds = 1 }
+    Assert-Equal 0 $run.Exit "receipt run failed: $($run.Text)"
+    $receipt = Get-FixtureJson $root 'Measurements/Study/attribution.json'
+    Assert-Equal 'DxUi' $receipt.workloadOwner 'library workload'
+    Assert-Equal 'dxui-frame-attribution-v1' $receipt.fixture 'library fixture identity'
+    Assert-Equal (Get-FileHash -LiteralPath (Join-Path $root 'Tests/Embedded/Embedded.Tests.FrameAttribution.h') -Algorithm SHA256).Hash $receipt.benchmarkInputs['Tests/Embedded/Embedded.Tests.FrameAttribution.h'] 'input hash'
+    Set-FixtureFile $root 'Measurements/Study/README.md' '# Study'
+    Import-Module (Join-Path $repository 'Tools/Validation.psm1') -Force
+    $result = Test-DxUiMeasurements -Root $root
+    Assert-Equal 0 @($result.Failures).Count "the measurement check accepts the published receipt: $(@($result.Failures) -join '; ')"
+}
+
+Invoke-FixtureCase 'runner: -StampReceipt adds the input hashes of a published receipt''s recorded commit and changes nothing else' {
+    param($root)
+    New-AttributionRunnerFixture $root
+    & git -C $root init -q 2>&1 | Out-Null
+    & git -C $root -c user.name=fixture -c user.email=fixture@invalid add -A 2>&1 | Out-Null
+    & git -C $root -c user.name=fixture -c user.email=fixture@invalid commit -q -m fixture 2>&1 | Out-Null
+    $commit = @(& git -C $root rev-parse HEAD)[0].Trim()
+    $published = [ordered]@{ schema = 1; method = 'dxui-frame-attribution-v1'; item = 'W0.7'; purpose = 'Receipt'; source = [ordered]@{ commit = $commit; dirty = $false }
+        cases = @([ordered]@{ id = 'FX12@uhd-192dpi full'; timing = [ordered]@{ cpuFrameMsMedian = 9.465122716711987; gpuBusyMsMean = 3.335800362E-05 } }) }
+    Set-FixtureJson $root 'Measurements/Study/attribution.json' $published
+    Set-FixtureFile $root 'Measurements/Study/README.md' '# Study'
+    Import-Module (Join-Path $repository 'Tools/Validation.psm1') -Force
+    Assert-True (@((Test-DxUiMeasurements -Root $root).Failures).Count -gt 0) 'an unstamped receipt fails the measurement check'
+    $run = Invoke-AttributionRunner $root @{ StampReceipt = (Join-Path $root 'Measurements/Study/attribution.json') }
+    Assert-Equal 0 $run.Exit "stamping failed: $($run.Text)"
+    $stamped = Get-FixtureJson $root 'Measurements/Study/attribution.json'
+    Assert-Equal 'DxUi' $stamped.workloadOwner 'library workload'
+    Assert-Equal (Get-FileHash -LiteralPath (Join-Path $root 'Tests/Embedded/Embedded.Tests.FrameAttribution.h') -Algorithm SHA256).Hash $stamped.benchmarkInputs['Tests/Embedded/Embedded.Tests.FrameAttribution.h'] 'hash of the committed file'
+    Assert-True ($stamped.benchmarkInputsSource.Contains($commit)) 'the stamp names its commit'
+    Assert-Equal 9.465122716711987 ([double]$stamped.cases[0].timing.cpuFrameMsMedian) 'a recorded figure is unchanged'
+    Assert-True (-not [IO.File]::ReadAllText((Join-Path $root 'Measurements/Study/attribution.json')).Contains("`r")) 'written with LF'
+    Assert-Equal 0 @((Test-DxUiMeasurements -Root $root).Failures).Count 'the stamped receipt passes the measurement check'
+    $again = Invoke-AttributionRunner $root @{ StampReceipt = (Join-Path $root 'Measurements/Study/attribution.json') }
+    Assert-True ($again.Exit -ne 0 -and $again.Text.Contains('already carries')) 'a stamped receipt is not stamped twice'
 }
 Complete-TestRun 'Frame attribution method'

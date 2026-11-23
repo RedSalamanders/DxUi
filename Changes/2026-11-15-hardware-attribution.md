@@ -16,4 +16,11 @@
   `FX5@fhd-144dpi` and `FX12@form-layout-10k-uhd` supply the two sizes. No library code changes.
   - Validation: `Tools/tests/Test-FrameAttribution.ps1` (summaries, decision-rule regions, runner admissions with shimmed
     executables, `powercfg`, `wpr` and observer) and the WARP mechanics check `--test-frame-attribution` in the ordinary
-    `Embedded` suite. The receipt under `Measurements/PerformanceAndMotion_2026-11-13/W0.7/` needs a quiet hardware slot.
+    `Embedded` suite. The receipt under `Measurements/PerformanceAndMotion_2026-11-13/W0.7/` was recorded in a quiet slot.
+  - The runner writes its receipt, partial, rejected and checkpoint records with LF line endings, as the repository stores
+    them, and `Format-FrameAttributionReceipt` (`Tools/FrameAttribution.psm1`) renders a published receipt's tables for the
+    item's README. The first receipt, `Measurements/PerformanceAndMotion_2026-11-13/W0.7/attribution.json` (23 November 2026,
+    RTX 5080), measures `G5` on `FX12@uhd-192dpi`: 9.5 ms of UI-thread CPU and 11.6 ms of GPU busy time, not met.
+  - A published receipt is a library measurement with the SHA-256 of its input sources (`benchmarkInputs`), as the
+    repository's measurement check requires; `-StampReceipt` adds them to a receipt published without them, from the clean
+    source commit it records, and changes no recorded figure.

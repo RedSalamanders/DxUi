@@ -51,6 +51,9 @@ param(
     [ValidateRange(0,100)][double] $MinimumWorkSharePercent = 95,
     # Leaves out the two window-host Present cases (an off-screen, non-activating test window).
     [switch] $SkipWindow,
+    # Stamps an already published receipt with its library identity and input hashes, computed from the source commit it
+    # records (clean tree required); measures nothing and changes no recorded figure.
+    [string] $StampReceipt = '',
     [switch] $SkipBuild
 )
 Set-StrictMode -Version Latest
@@ -59,7 +62,25 @@ Import-Module (Join-Path $PSScriptRoot 'Tools/FrameTiming.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/FrameAttribution.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Tools/PerformanceFixtures.psm1') -Force
 $culture = [Globalization.CultureInfo]::InvariantCulture
-
+if ($StampReceipt) {
+    $path = [IO.Path]::GetFullPath($StampReceipt)
+    $original = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -AsHashtable -Depth 80 -DateKind String
+    if ($original['method'] -cne (Get-FrameAttributionMethod) -or $original['purpose'] -cne 'Receipt') { throw "Not a published attribution receipt: $path" }
+    if ($original.Contains('benchmarkInputs')) { throw "The receipt already carries its input hashes: $path" }
+    $commit = [string]$original['source']['commit']
+    if ($original['source']['dirty']) { throw 'The receipt was measured on a tree with uncommitted changes; its inputs cannot be recovered from its commit.' }
+    $global:LASTEXITCODE = 0
+    & git -C $PSScriptRoot cat-file -e "$commit^{commit}" 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "The receipt's source commit $commit is not in this repository." }
+    $inputs = Get-FrameAttributionInputsAtCommit -Root $PSScriptRoot -Commit $commit
+    $stamped = Add-FrameAttributionLibraryIdentity -Receipt $original -Inputs $inputs -InputsSource "added after the measurement, from the recorded clean source commit $commit (git cat-file --filters)"
+    # Nothing the measurement recorded changes: the stamped receipt without the added fields equals the original.
+    $check = [ordered]@{}; foreach ($key in $stamped.Keys) { if ($key -notin @('workloadOwner','fixture','benchmarkInputs','benchmarkInputsSource')) { $check[$key] = $stamped[$key] } }
+    if ((ConvertTo-Json -InputObject $check -Depth 80 -Compress) -cne (ConvertTo-Json -InputObject $original -Depth 80 -Compress)) { throw 'Stamping would change a recorded field; nothing was written.' }
+    [IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $stamped -Depth 80).Replace("`r`n", "`n") + "`n", [Text.UTF8Encoding]::new($false))
+    Write-Host "Stamped $path with the input hashes of commit $commit ($($inputs.Count) files)."
+    return
+}
 $native = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 if (($Platform -eq 'ARM64' -and $native -ne 'Arm64') -or ($Platform -eq 'x64' -and $native -ne 'X64')) {
     throw 'Frame attribution requires native execution matching the requested architecture.'
@@ -108,6 +129,8 @@ $executables = [ordered]@{ embedded = (Join-Path $PSScriptRoot ".build/$Platform
 foreach ($path in $executables.Values) { if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing $path; build first." } }
 $rule = Get-FrameTimingAdmissionRule -Name $(switch ($Admission) { 'Legacy10' { 'host-busy-10pct-v1' } 'InterimV1' { 'interference-interim-v1' } default { 'interference-interim-v2' } })
 $logicalProcessors = [Environment]::ProcessorCount
+# The sources this run's figures depend on, hashed now and checked again at the end (benchmarkInputs).
+$inputHashes = Get-FrameAttributionInputs -Root $PSScriptRoot
 $hashes = [ordered]@{}; foreach ($key in $executables.Keys) { $hashes[$key] = (Get-FileHash -LiteralPath $executables[$key] -Algorithm SHA256).Hash }
 
 function Invoke-AttributionChild([string] $Executable, [string[]] $Arguments, [string] $Log) {
@@ -333,7 +356,7 @@ $startedUtc = [DateTime]::UtcNow.ToString('o')
 function Save-Checkpoint {
     $checkpoint = [ordered]@{ schema = 1; method = (Get-FrameAttributionMethod); runId = $runId; startedUtc = $startedUtc; identity = $identity; adapter = $adapterIdentity
         cases = $records.ToArray() }
-    [IO.File]::WriteAllText($checkpointPath, (ConvertTo-Json -InputObject $checkpoint -Depth 30) + "`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($checkpointPath, (ConvertTo-Json -InputObject $checkpoint -Depth 30).Replace("`r`n", "`n") + "`n", [Text.UTF8Encoding]::new($false))
 }
 try {
     $observer = Start-HostObserver $observerPath
@@ -425,6 +448,9 @@ try {
 foreach ($key in $executables.Keys) {
     if ((Get-FileHash -LiteralPath $executables[$key] -Algorithm SHA256).Hash -cne $hashes[$key]) { throw "The $key executable changed during the run; the receipt cannot be published." }
 }
+if ((ConvertTo-Json -Compress -InputObject (Get-FrameAttributionInputs -Root $PSScriptRoot)) -cne (ConvertTo-Json -Compress -InputObject $inputHashes)) {
+    throw 'The attribution inputs changed during the run; the receipt cannot be published.'
+}
 foreach ($run in $resumed) {
     if ($null -ne $run.adapter -and $null -ne $adapterIdentity -and (ConvertTo-Json -Compress -InputObject $run.adapter) -cne (ConvertTo-Json -Compress -InputObject $adapterIdentity)) {
         throw "The run at $($run.path) measured another adapter or driver; its passes cannot be combined with this run's."
@@ -476,6 +502,7 @@ $receipt = [ordered]@{
     conditions = $conditions
     rawDirectory = $OutputDirectory
 }
+$receipt = Add-FrameAttributionLibraryIdentity -Receipt $receipt -Inputs $inputHashes
 foreach ($record in $records) {
     $line = "{0,-34} {1}" -f $record.id, $(if ($record.Contains('timing')) { [string]::Format($culture, 'cpu {0:0.000} ms  gpu busy {1:0.000} ms  gpu timeline {2:0.000} ms', $record['timing']['cpuFrameMsMedian'], $record['timing']['gpuBusyMsMean'], $record['timing']['gpuFrameMsMedian']) }
         elseif ($record.Contains('present')) { [string]::Format($culture, 'present {0:0.000} ms  render {1:0.000} ms', $record['present']['presentMsMedian'], $record['present']['renderMsMedian']) } else { '' })
@@ -487,15 +514,15 @@ if ($Purpose -eq 'Receipt' -and -not $conditions.met) {
     # in the checkpoint for -ResumeFrom.
     $rejected = Join-Path $OutputDirectory 'attribution.rejected.json'
     $receipt['classification'] = 'rejected: measured under conditions a receipt does not admit (see conditions.problems)'
-    [IO.File]::WriteAllText($rejected, (ConvertTo-Json -InputObject $receipt -Depth 30) + "`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($rejected, (ConvertTo-Json -InputObject $receipt -Depth 30).Replace("`r`n", "`n") + "`n", [Text.UTF8Encoding]::new($false))
     throw "The attribution receipt was not published: $($conditions.problems -join '; '). Rejected record: $rejected. Resume with -ResumeFrom $OutputDirectory"
 }
 if ($Purpose -eq 'Receipt' -and -not $complete) {
     $partial = Join-Path $OutputDirectory 'attribution.partial.json'
-    [IO.File]::WriteAllText($partial, (ConvertTo-Json -InputObject $receipt -Depth 30) + "`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($partial, (ConvertTo-Json -InputObject $receipt -Depth 30).Replace("`r`n", "`n") + "`n", [Text.UTF8Encoding]::new($false))
     Write-Host "Partial attribution run (not a receipt): $partial. Complete it with -ResumeFrom $OutputDirectory"
     return
 }
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ReceiptPath) | Out-Null
-[IO.File]::WriteAllText($ReceiptPath, (ConvertTo-Json -InputObject $receipt -Depth 30) + "`n", [Text.UTF8Encoding]::new($false))
+[IO.File]::WriteAllText($ReceiptPath, (ConvertTo-Json -InputObject $receipt -Depth 30).Replace("`r`n", "`n") + "`n", [Text.UTF8Encoding]::new($false))
 Write-Host "Frame attribution receipt ($Purpose): $ReceiptPath"

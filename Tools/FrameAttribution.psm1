@@ -13,6 +13,69 @@ $script:W10EntryMs = 8.33
 # Frames after a scene rebuild that the settled statistics leave out.
 $script:RebuildSettleFrames = 3
 
+# The sources a receipt's figures depend on: the attribution and timing harnesses, the counting wrappers and call timing, the
+# fixtures, the scenes, the device fixture, the window runner and the tools. Their SHA-256 go into benchmarkInputs, as the
+# repository requires of a retained library measurement (validate-specs.ps1, Test-DxUiMeasurements).
+$script:InputPaths = @('performance-attribution.ps1','Tools/FrameAttribution.psm1','Tools/FrameTiming.psm1',
+    'Tests/Embedded/Embedded.Tests.FrameAttribution.h','Tests/Embedded/Embedded.Tests.FrameTiming.h','Tests/Embedded/Embedded.Tests.Embedded.cpp',
+    'Tests/Support/Support.Tests.CallTicks.h','Tests/Support/Support.Tests.GpuEngineTime.h','Tests/Support/Support.Tests.CountingDirect2D.h',
+    'Tests/Support/Support.Tests.CountingWriteFactory.h','Tests/Controls/Controls.Tests.PerformanceFixtures.cpp','Samples/ComplexUi/ComplexUiScene.h',
+    'Samples/EmbeddedControls/GraphicsFixture.h')
+
+function Get-FrameAttributionInputPaths {
+    <# Every input path: the fixed list and every performance fixture header, from a listing of Tests/Embedded's file names. #>
+    param([Parameter(Mandatory)][AllowEmptyCollection()][string[]] $EmbeddedTestFiles)
+    $fixtures = @($EmbeddedTestFiles | Where-Object { $_ -like 'Embedded.Tests.PerformanceFixture*.h' } | Sort-Object { $_ } -CaseSensitive | ForEach-Object { "Tests/Embedded/$_" })
+    return [string[]]@($script:InputPaths + $fixtures)
+}
+
+function Get-FrameAttributionInputs {
+    <# The SHA-256 of every input file of a checkout, as the measurement saw them. #>
+    param([Parameter(Mandatory)][string] $Root)
+    $names = @(Get-ChildItem -LiteralPath (Join-Path $Root 'Tests/Embedded') -File | ForEach-Object Name)
+    $inputs = [ordered]@{}
+    foreach ($path in Get-FrameAttributionInputPaths -EmbeddedTestFiles $names) { $inputs[$path] = (Get-FileHash -LiteralPath (Join-Path $Root $path) -Algorithm SHA256).Hash }
+    return $inputs
+}
+
+function Get-FrameAttributionInputsAtCommit {
+    <# The same hashes for a commit, without a checkout: each file's bytes as a checkout of that commit writes them
+       (git cat-file --filters applies the repository's line-ending rules). #>
+    param([Parameter(Mandatory)][string] $Root, [Parameter(Mandatory)][string] $Commit)
+    $names = @(& git -C $Root ls-tree --name-only "${Commit}:Tests/Embedded")
+    if ($LASTEXITCODE -ne 0) { throw "Commit $Commit has no Tests/Embedded." }
+    $inputs = [ordered]@{}
+    foreach ($path in Get-FrameAttributionInputPaths -EmbeddedTestFiles $names) {
+        $start = [Diagnostics.ProcessStartInfo]::new('git')
+        foreach ($argument in @('-C', $Root, 'cat-file', '--filters', "${Commit}:$path")) { $start.ArgumentList.Add($argument) }
+        $start.UseShellExecute = $false; $start.RedirectStandardOutput = $true
+        $process = [Diagnostics.Process]::Start($start)
+        try {
+            $buffer = [IO.MemoryStream]::new()
+            $process.StandardOutput.BaseStream.CopyTo($buffer)
+            $process.WaitForExit()
+            if ($process.ExitCode -ne 0) { throw "Commit $Commit has no $path." }
+            $inputs[$path] = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($buffer.ToArray()))
+        } finally { $process.Dispose() }
+    }
+    return $inputs
+}
+
+function Add-FrameAttributionLibraryIdentity {
+    <# Marks a receipt as a library measurement (workloadOwner, fixture) and adds its input hashes, keeping every other field
+       and its order. #>
+    param([Parameter(Mandatory)][Collections.IDictionary] $Receipt, [Parameter(Mandatory)][Collections.IDictionary] $Inputs, [string] $InputsSource = '')
+    $result = [ordered]@{}
+    foreach ($key in $Receipt.Keys) {
+        if ($key -in @('workloadOwner','fixture','benchmarkInputs','benchmarkInputsSource')) { continue }
+        $result[$key] = $Receipt[$key]
+        if ($key -eq 'method') {
+            $result['workloadOwner'] = 'DxUi'; $result['fixture'] = $script:Method; $result['benchmarkInputs'] = $Inputs
+            if ($InputsSource) { $result['benchmarkInputsSource'] = $InputsSource }
+        }
+    }
+    return $result
+}
 function Get-FrameAttributionMethod { return $script:Method }
 
 function Get-FrameAttributionCases {
@@ -308,6 +371,39 @@ function Get-FrameAttributionDecision {
     }
 }
 
-Export-ModuleMember -Function Get-FrameAttributionMethod, Get-FrameAttributionCases, ConvertTo-FrameAttributionMs, Assert-FrameAttributionReport,
+function Format-FrameAttributionReceipt {
+    <# The Markdown tables of a published attribution receipt (attribution.json), for the item's README: one row per
+       embedded case, the window host's Present, and the decision rule's reading with its margins. Every figure is read from
+       the receipt; nothing is measured. #>
+    param([Parameter(Mandatory)][Collections.IDictionary] $Receipt)
+    $c = [Globalization.CultureInfo]::InvariantCulture
+    $f = { param($format, $value) if ($null -eq $value) { '-' } else { [string]::Format($c, $format, [double]$value) } }
+    $lines = [Collections.Generic.List[string]]::new()
+    $lines.Add('| Case | UI-thread CPU median (ms) | GPU busy (ms) | GPU below CPU | Inside Direct2D | EndDraw | DxUi own | Draw calls | Leaf d2d1 / dwrite / driver / system / DxUi | Attempts |')
+    $lines.Add('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |')
+    foreach ($case in @($Receipt['cases'] | Where-Object { $_['host'] -eq 'embedded' })) {
+        $timing = $case['timing']; $phases = $case['phases']; $sampling = $case['sampling']
+        $inside = if ($phases) { [double]$phases['sharePercent']['endDraw'] + [double]$phases['sharePercent']['drawCalls'] + [double]$phases['sharePercent']['beginDrawAndFlush'] } else { $null }
+        $leaf = if ($sampling) { $s = $sampling['sharePercentByClass']; [string]::Format($c, '{0:0} / {1:0} / {2:0} / {3:0} / {4:0}%', [double]$s['d2d1'], [double]$s['dwrite'], [double]$s['d3d11AndDriver'], [double]$s['system'], [double]$s['dxui']) } else { '-' }
+        $attempts = (@($case['attempts'].Keys | ForEach-Object { @($case['attempts'][$_]).Count }) | Measure-Object -Sum).Sum
+        $lines.Add([string]::Format($c, '| `{0}` | {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} |', $case['id'], (& $f '{0:0.000}' $timing['cpuFrameMsMedian']),
+            (& $f '{0:0.000}' $timing['gpuBusyMsMean']), $(if ($timing['gpuBelowCpu']) { 'yes' } else { 'no' }), (& $f '{0:0.0}%' $inside),
+            (& $f '{0:0.0}%' $(if ($phases) { $phases['sharePercent']['endDraw'] } else { $null })), (& $f '{0:0.0}%' $(if ($phases) { $phases['sharePercent']['dxuiOwn'] } else { $null })),
+            (& $f '{0:0}' $(if ($phases) { $phases['counters']['drawCalls']['median'] } else { $null })), $leaf, $attempts))
+    }
+    $lines.Add('')
+    $present = @($Receipt['cases'] | Where-Object { $_['host'] -eq 'window' } | ForEach-Object {
+        [string]::Format($c, '`{0}` `Present` {1:0.000} ms median (p95 {2:0.000}; render {3:0.000} ms)', $_['selection'], [double]$_['present']['presentMsMedian'], [double]$_['present']['presentMsP95'], [double]$_['present']['renderMsMedian']) })
+    if ($present.Count) { $lines.Add('Window host, full frames: ' + ($present -join '; ') + '.'); $lines.Add('') }
+    $lines.Add('| Case | UI-thread CPU (ms) | GPU busy (ms) | GPU below CPU | Inside Direct2D | Reading | 4 ms minus CPU / 8.33 ms minus CPU |')
+    $lines.Add('| --- | --- | --- | --- | --- | --- | --- |')
+    foreach ($decision in @($Receipt['decision'])) {
+        $lines.Add([string]::Format($c, '| `{0}` | {1:0.000} | {2:0.000} | {3} | {4:0.0}% | {5} | {6:+0.000;-0.000} / {7:+0.000;-0.000} ms |', $decision['case'], [double]$decision['cpuFrameMsMedian'],
+            [double]$decision['gpuMs'], $(if ($decision['gpuBelowCpu']) { 'yes' } else { 'no' }), [double]$decision['insideDirect2DSharePercent'], $decision['outcome'],
+            [double]$decision['marginToBudgetMs'], [double]$decision['marginToW10EntryMs']))
+    }
+    return ($lines -join "`n")
+}
+Export-ModuleMember -Function Format-FrameAttributionReceipt, Get-FrameAttributionInputPaths, Get-FrameAttributionInputs, Get-FrameAttributionInputsAtCommit, Add-FrameAttributionLibraryIdentity, Get-FrameAttributionMethod, Get-FrameAttributionCases, ConvertTo-FrameAttributionMs, Assert-FrameAttributionReport,
     Get-FrameAttributionTimingSummary, Get-FrameAttributionPhasesSummary, Get-FrameAttributionSamplingSummary, Get-FrameAttributionPresentSummary,
     Get-FrameAttributionDecision, Get-FrameAttributionConditions
