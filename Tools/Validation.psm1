@@ -2,7 +2,6 @@
 # Each Test-DxUi* function returns Failures and Messages instead of printing, so the tooling tests can drive it
 # against fixture trees; the root validate-*.ps1 scripts print the result and fail on any finding.
 Set-StrictMode -Version Latest
-Import-Module (Join-Path $PSScriptRoot 'Changelog.psm1')
 
 $script:PathComparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
 
@@ -372,6 +371,7 @@ function Test-DxUiSpecs([Parameter(Mandatory)][string] $Root) {
 }
 
 function Test-DxUiChangelog([Parameter(Mandatory)][string] $Root) {
+    Import-Module (Join-Path $PSScriptRoot 'Changelog.psm1') -Scope Local -ErrorAction Stop
     # A change is recorded as a fragment under Changes/, which its README explains. After merge the default branch folds it
     # under CHANGELOG.md's Unreleased heading (Submit-ChangelogFold.ps1). Every fragment is one dated bullet.
     $failures = [Collections.Generic.List[string]]::new()

@@ -42,7 +42,7 @@ Invoke-TestCase 'every library, build, benchmark and measurement path is measure
         'Samples/EmbeddedControls/EmbeddedScene.h' = 'fixture or sample compiled into it'
         'DxUi.sln' = 'build or restore'; 'build.ps1' = 'build or restore'; 'vcpkg-install.ps1' = 'build or restore'; 'vcpkg-configuration.json' = 'build or restore'
         'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/VcpkgRestore.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'; 'Tools/SdkLibraryInputs.psm1' = 'build or restore'; 'Tools/SdkSourceProfiles.psm1' = 'build or restore'; 'Tools/ProcessInspection.psm1' = 'build or restore'
-        'Tools/Validation.psm1' = 'build or restore'; 'Tools/Changelog.psm1' = 'build or restore'; 'Tools/Modules/Documentation/Changelog.psm1' = 'build or restore'
+        'Tools/Validation.psm1' = 'build or restore'
         'Tools/PairedRun.psm1' = 'benchmark harness'; 'Tools/BenchmarkGate.psm1' = 'benchmark harness'
         'Tools/PerformancePolicy.psm1' = 'benchmark harness'; 'Tools/PerformanceAcceptancePolicy.v1.json' = 'paired measurement or gate'
         'Tools/Get-BenchmarkScope.ps1' = 'paired measurement or gate'; 'Tools/Publish-BenchmarkVerdict.ps1' = 'paired measurement or gate'
@@ -174,7 +174,7 @@ Invoke-TestCase 'every module the build and measurement scripts import is measur
         }
     }
     Assert-True ($seen.Contains('Tools/PerformanceComparison.psm1') -and $seen.Contains('Tools/PairedRun.psm1') -and $seen.Contains('Tools/VcpkgTriplet.psm1') -and $seen.Contains('Tools/VcpkgRestore.psm1')) 'the walk reaches the comparator, the schedule and the restore'
-    Assert-True ($seen.Contains('Tools/Validation.psm1') -and $seen.Contains('Tools/Changelog.psm1')) 'the solution attestation helper closure is measured too'
+    Assert-True ($seen.Contains('Tools/Validation.psm1')) 'the solution attestation validator is measured too'
 }
 
 Invoke-FixtureCase 'the baseline is the merge commit''s first parent, so only this pull request is compared' {
