@@ -397,14 +397,15 @@ animation callbacks, module-owned window procedures and menu invocation without 
 `docs/README.md` documents consumption and all controls; root README links it and the published gallery.
 `gallery.ps1 -PublishDocs` publishes reviewed sheets and a generation receipt under `docs/gallery`, leaving runtime
 logs in `.build`. The receipt's `sourceDirty` excludes `docs/gallery`, which the command itself replaces. Docs/gallery maintenance follows [Core_Documentation](../Core/Core_Documentation.md).
-The formatting workflow uses `format.ps1` and the repository `.clang-format` on pushes and PRs, returning a patch
-when changes are needed. Formatting is pinned to clang-format 22.1.3: `Tools/Install-ClangFormat.ps1` fetches the
-Windows x64 wheel by the version and SHA-256 it pins, verifies it and extracts only the executable under
-`.build/format`. `format.ps1` checks the version and accepts `-FormatterPath` or `DXUI_CLANG_FORMAT`, then that
-install, before PATH/Visual Studio discovery, so a runner image update cannot silently change output.
-Manual `apply_changes` mode commits formatting to the selected branch with ordinary push
-semantics; it never force-pushes, runs on pull_request_target, or grants fork PRs a write token. Branch protection
-still applies. Token-created commits require an explicit validation run or subsequent user push for fresh CI.
+Formatting: the root `.clang-format` is the one style. `format.ps1` formats, and `format.ps1 -Check` verifies
+without writing and lists every file that needs formatting. Both take clang-format from `Install-CiFormatter` in the
+pinned `.ci-engine`, which installs the build that the engine's `Policy/clang-format.json` pins (22.1.3 today) under
+`.build/shared-format` and verifies its SHA-256 and version; no Visual Studio, `PATH` or repository-pinned formatter
+is used. Both cover the files CI formats: `.c`, `.cc`, `.cpp`, `.cxx`, `.h`, `.hh`, `.hpp` and `.hxx` files under the
+`formatRoots` of `.ci/project.json` that its `formatExclude` does not match. Pull-request checks run the same formatter
+over the files the pull request changes, or over every file when `.clang-format` or `.clang-format-ignore` changes;
+drift fails the check and retains the patch. The manual `Commit PR formatting` workflow commits that formatting to an
+open same-repository pull request with an ordinary push and requests fresh checks for the new head.
 Repository tooling needs only PowerShell 7; no CI job installs another runtime. Each test invocation includes complex-UI FPS/memory,
 and implementation acceptance requires matched before/after evidence under the performance contract.
 

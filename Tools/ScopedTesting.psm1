@@ -197,7 +197,7 @@ function Get-ScopedSourceMap {
         # Validators read prose, skills and archived mappings too. Their full identity includes every versioned input.
         if ($path -match '^\.build/') { continue }
         # Build attestation excludes immutable evidence/prose, but has no extension whitelist: .inl and new generators count.
-        if ($CompiledOnly -and ($path -match '^(Measurements|docs|Changes|legacy|Specs/(Plans|Done|TestRuns|Reviews|Mockups))/' -or (Test-ScopedDocumentationPath $path))) { continue }
+        if ($CompiledOnly -and ($path -match '^(Measurements|docs|Changes|legacy|Specs/(Plans|SourceImport|TestRuns|Reviews|Mockups))/' -or (Test-ScopedDocumentationPath $path))) { continue }
         $full = Join-Path $Root $path
         # A tracked path removed from the worktree is absent source content whether or not
         # the deletion has been staged. The changed-path identity records the deletion.

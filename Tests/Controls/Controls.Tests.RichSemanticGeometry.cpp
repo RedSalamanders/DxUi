@@ -663,6 +663,55 @@ void TestNativeDiagramLabelBrushRetirement()
     Require(poisonPixels == 0u, "retired diagram brushes cannot paint a later source revision after host-cache eviction");
     Require(editor->GetText() == source + L"\n" && GetForegroundWindow() == foreground, "brush retirement preserves the latest source and desktop foreground");
 }
+void TestNativeDiagramOmitsCodeBackdrop()
+{
+    using namespace DxUi::RichText;
+    const auto imaging   = CreateWicFactoryForTest();
+    const auto drawing   = PreparedFlowchartTests::DrawingFactory();
+    const auto writing   = PreparedFlowchartTests::WriteFactory();
+    constexpr UINT width = 400u, height = 240u, stride = width * 4u;
+    wil::com_ptr<IWICBitmap> bitmap;
+    THROW_IF_FAILED(imaging->CreateBitmap(width, height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnLoad, bitmap.put()));
+    wil::com_ptr<ID2D1RenderTarget> target;
+    THROW_IF_FAILED(drawing->CreateWicBitmapRenderTarget(
+        bitmap.get(),
+        D2D1::RenderTargetProperties(
+            D2D1_RENDER_TARGET_TYPE_SOFTWARE, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.f, 96.f),
+        target.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> ink, surface, chip;
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), ink.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), surface.put()));
+    THROW_IF_FAILED(target->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Magenta), chip.put()));
+    const auto raster = [&](std::wstring_view source, bool diagram)
+    {
+        const auto document = RichSemanticDocumentTests::Build(source, MarkdownProfile::RichMarkdown);
+        Require(Detail::SemanticExtensionAccess::Diagrams(*document).size() == (diagram ? 1u : 0u), "admit the expected native graph fixture");
+        Detail::PreparedSemanticGeometry geometry;
+        LayoutOptions options;
+        options.widthDip             = static_cast<float>(width);
+        options.markdownPresentation = MarkdownPresentationStyle::Subtle;
+        geometry.Begin(writing.get(), document, options, drawing.get(), {1u, 1u});
+        RichSemanticGeometryTests::Complete(geometry);
+        target->BeginDraw();
+        target->Clear(D2D1::ColorF(D2D1::ColorF::White));
+        geometry.Draw(target.get(), ink.get(), ink.get(), {}, 0.f, static_cast<float>(height), surface.get(), 1.f, nullptr, chip.get());
+        THROW_IF_FAILED(target->EndDraw());
+        std::vector<BYTE> pixels(stride * height);
+        THROW_IF_FAILED(bitmap->CopyPixels(nullptr, stride, static_cast<UINT>(pixels.size()), pixels.data()));
+        unsigned inkPixels{};
+        unsigned chipPixels{};
+        for (std::size_t offset = 0u; offset < pixels.size(); offset += 4u)
+        {
+            inkPixels += pixels[offset] < 64u && pixels[offset + 1u] < 64u && pixels[offset + 2u] < 64u;
+            chipPixels += pixels[offset] > 240u && pixels[offset + 1u] < 16u && pixels[offset + 2u] > 240u;
+        }
+        Require(inkPixels > 0u, "the fixture paints visible ink on the supplied surface");
+        return chipPixels;
+    };
+    Require(raster(L"`dispatch`\n", false) > 0u, "ordinary inline code paints the supplied chip brush");
+    Require(raster(L"```mermaid\nflowchart LR\nA[Write] --> B[Review]\n```\n", true) == 0u,
+            "a native graph paints no pixels with the inline-code backdrop brush");
+}
 void TestNativeDiagramLabelBackdrops()
 {
     using namespace DxUi::RichText;
@@ -1201,6 +1250,7 @@ void RunRichSemanticGeometryTests()
     DXUI_RUN_TEST(TestRichSemanticCodeChromeUsesReadableTextInk);
     DXUI_RUN_TEST(TestNativeSequenceExtensionsRasterAndResources);
     DXUI_RUN_TEST(TestNativeDiagramLabelBrushRetirement);
+    DXUI_RUN_TEST(TestNativeDiagramOmitsCodeBackdrop);
     DXUI_RUN_TEST(TestNativeDiagramLabelBackdrops);
     DXUI_RUN_TEST(TestRichSemanticDocumentHeadingMarginsAndIndentation);
     DXUI_RUN_TEST(TestRichSemanticGeometryAtomicNavigationAndCancellation);

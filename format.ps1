@@ -1,34 +1,87 @@
-<# .SYNOPSIS Formats all owned C++ source and tests, or checks them with -Check. #>
-[CmdletBinding()] param([switch] $Check, [string] $FormatterPath = $env:DXUI_CLANG_FORMAT)
+#Requires -Version 7.4
+<#
+.SYNOPSIS
+Formats the C and C++ sources that CI formats, or verifies them with -Check.
+.DESCRIPTION
+The formatter is the one CI uses: Install-CiFormatter from this repository's .ci-engine installs the
+clang-format build pinned in the engine's Policy/clang-format.json under .build/shared-format and checks
+its SHA-256 and version. There is no other formatter lookup.
+The files are the ones CI formats: tracked and new files that Git does not ignore, with one of the eight
+C and C++ extensions, under a formatRoots entry of .ci/project.json and not matched by its formatExclude.
+.PARAMETER Check
+Verify without writing. Lists every file that needs formatting and fails if there is one.
+#>
+[CmdletBinding()]
+param([switch]$Check)
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-if (-not $FormatterPath) {
-    # The pinned install from Tools/Install-ClangFormat.ps1 first, then PATH, then Visual Studio's LLVM.
-    $pinned = Join-Path $PSScriptRoot '.build/format/clang_format/data/bin/clang-format.exe'
-    $formatter = Get-Command clang-format.exe -ErrorAction SilentlyContinue
-    if (Test-Path -LiteralPath $pinned -PathType Leaf) { $FormatterPath = $pinned }
-    elseif ($formatter) { $FormatterPath = $formatter.Source }
-    else {
-        $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
-        $installation = & $vswhere -latest -prerelease -products '*' -property installationPath
-        $FormatterPath = Join-Path $installation 'VC/Tools/Llvm/x64/bin/clang-format.exe'
-    }
+
+$root = $PSScriptRoot
+$engine = Join-Path $root '.ci-engine'
+$modules = Join-Path $engine 'Tools/Modules'
+if (-not (Test-Path -LiteralPath (Join-Path $modules 'Ci.Format.psm1') -PathType Leaf)) {
+    throw 'format.ps1 needs the shared CI engine in .ci-engine. Clone https://github.com/RedSalamanders/.github.git there and check out the engine.ref that .ci/project.json pins.'
 }
-if (-not (Test-Path -LiteralPath $FormatterPath -PathType Leaf)) { throw 'clang-format not found; run Tools/Install-ClangFormat.ps1 (see CONTRIBUTING.md).' }
-$formatterVersion = & $FormatterPath --version
-if ($LASTEXITCODE -ne 0 -or $formatterVersion -notmatch '^clang-format version 22\.1\.3(?:\s|$)') {
-    throw "DxUi requires clang-format 22.1.3; found '$formatterVersion'. Run Tools/Install-ClangFormat.ps1, or use -FormatterPath or DXUI_CLANG_FORMAT; see CONTRIBUTING.md."
+Import-Module (Join-Path $modules 'Ci.Policy.psm1') -ErrorAction Stop
+Import-Module (Join-Path $modules 'Ci.Format.psm1') -ErrorAction Stop
+
+$project = Read-CiProject $root
+$engineHead = (Invoke-CiGit $engine @('rev-parse', 'HEAD')).stdout.Trim()
+if ($engineHead -cne $project.engine.ref) {
+    throw ".ci-engine is at $engineHead, but .ci/project.json pins $($project.engine.ref). Run: git -C .ci-engine fetch origin; git -C .ci-engine checkout --detach $($project.engine.ref)"
 }
-Write-Host "Formatter: $formatterVersion"
-$files = @('src','include','Tests','Samples') | ForEach-Object {
-    Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot $_) -Recurse -File | Where-Object Extension -In '.cpp','.h'
+$style = Join-Path $root '.clang-format'
+if (-not (Test-Path -LiteralPath $style -PathType Leaf) -or [IO.File]::ReadAllText($style) -match 'InheritParentConfig') {
+    throw 'Formatting requires the repository''s own root .clang-format, which must not inherit a style from outside the checkout.'
 }
-foreach ($file in $files) {
-    if ($Check) { & $formatterPath --dry-run --Werror $file.FullName }
-    else {
-        # Preserve timestamps of already formatted files so a no-op formatting pass does not rebuild the library.
-        & $formatterPath --dry-run --Werror $file.FullName 2>$null
-        if ($LASTEXITCODE -eq 0) { continue }
-        & $formatterPath -i $file.FullName
-    }
-    if ($LASTEXITCODE -ne 0) { throw "Formatting failed: $($file.FullName)" }
+
+# The selection of Invoke-CiFormatting in .ci-engine/Tools/Modules/Ci.Format.psm1, applied to every file
+# instead of only the files a pull request changes.
+$extensions = @('.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx')
+$listed = (Invoke-CiGit $root @('-c', 'core.fsmonitor=false', 'ls-files', '--cached', '--others', '--exclude-standard', '-z')).stdout
+$seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+$sources = [Collections.Generic.List[string]]::new()
+foreach ($path in $listed.Split([char]0, [StringSplitOptions]::RemoveEmptyEntries)) {
+    if (-not $seen.Add($path)) { continue }
+    if ([IO.Path]::GetExtension($path).ToLowerInvariant() -notin $extensions) { continue }
+    $owned = @($project.formatRoots | Where-Object { $_ -eq '.' -or $path.StartsWith(($_.TrimEnd('/') + '/'), [StringComparison]::Ordinal) }).Count -gt 0
+    if (-not $owned) { continue }
+    if ($project.Contains('formatExclude') -and @($project.formatExclude | Where-Object { Test-CiGlob $path $_ }).Count -gt 0) { continue }
+    if (-not (Test-Path -LiteralPath (Assert-CiContainedPath $root (Join-Path $root $path)) -PathType Leaf)) { continue }
+    $sources.Add($path)
 }
+if (-not $sources.Count) { throw 'No C or C++ source file is under the formatRoots of .ci/project.json.' }
+
+$formatter = Install-CiFormatter $root
+$version = (Invoke-CiProcess $formatter @('--version') $root).stdout.Trim()
+Write-Host "Formatter: $version ($formatter)"
+
+# One clang-format process per processor, each given every n-th file from largest to smallest, so a pass
+# takes about as long as the largest file. clang-format leaves an already formatted file untouched, so a
+# clean pass rebuilds nothing.
+$mode = if ($Check) { @('--style=file', '--Werror', '--dry-run') } else { @('--style=file', '--Werror', '-i') }
+$characters = ($sources | Measure-Object -Property Length -Sum).Sum + 3 * $sources.Count
+$count = [int][Math]::Min($sources.Count, [Math]::Max([Environment]::ProcessorCount, [Math]::Ceiling($characters / 12000)))
+$batches = @(for ($index = 0; $index -lt $count; ++$index) { , [Collections.Generic.List[string]]::new() })
+$ordered = @($sources | Sort-Object -Property { [IO.FileInfo]::new((Join-Path $root $_)).Length } -Descending)
+for ($index = 0; $index -lt $ordered.Count; ++$index) { $batches[$index % $count].Add($ordered[$index]) }
+$results = @($batches | ForEach-Object -ThrottleLimit ([Environment]::ProcessorCount) -Parallel {
+        Set-Location -LiteralPath $using:root
+        $executable = $using:formatter
+        $arguments = @($using:mode) + '--' + $_
+        $output = @(& $executable @arguments 2>&1 | ForEach-Object { $_.ToString() })
+        [pscustomobject]@{ exitCode = $LASTEXITCODE; output = $output -join "`n" }
+    })
+
+$unformatted = [Collections.Generic.SortedSet[string]]::new([StringComparer]::Ordinal)
+foreach ($result in $results) {
+    if ($result.exitCode -eq 0) { continue }
+    $violations = @([regex]::Matches($result.output, '(?m)^(.+?):\d+:\d+: error: code should be clang-formatted') | ForEach-Object { $_.Groups[1].Value })
+    if (-not $Check -or -not $violations.Count) { throw "clang-format failed ($($result.exitCode)): $($result.output.Trim())" }
+    foreach ($violation in $violations) { [void]$unformatted.Add($violation.Replace('\', '/')) }
+}
+if ($unformatted.Count) {
+    foreach ($path in $unformatted) { Write-Host "Needs formatting: $path" }
+    throw "$($unformatted.Count) of $($sources.Count) files need formatting. Run ./format.ps1 to format them."
+}
+Write-Host "$(if ($Check) { 'Checked' } else { 'Formatted' }) $($sources.Count) files."

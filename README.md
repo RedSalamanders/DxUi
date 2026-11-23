@@ -64,7 +64,7 @@ No DxUi DLL or copied/enumerated library sources are required.
 ## Validation and remaining application work
 
 Foundation, inherited control suites and supplied-device WARP tests all link the same library. The
-[test-port inventory](Specs/Done/SourceImport/test-port.json) records every inherited case and exclusions. Native x64/ARM64
+[test-port inventory](Specs/SourceImport/test-port.json) records every inherited case and exclusions. Native x64/ARM64
 Debug/Release/ASan Debug CI produces per-suite receipts; cross-compilation is not reported as native execution. Eight original
 visual baselines remain unchanged. Runtime logs and measurements stay in `.build`; `gallery.ps1 -PublishDocs`
 publishes reviewed gallery images to `docs/gallery`.
@@ -81,7 +81,7 @@ consumer qualification; the consumer-owned pin, adapter, publication and product
 
 Start with [AGENTS.md](AGENTS.md), [spec authority](Specs/README.md), and [active plans](Specs/Plans/WIP/README.md).
 Every repository tool is a PowerShell 7 script: build, test, formatting, the validators and the tooling tests.
-Historical source attribution is in [the import archive](Specs/Done/SourceImport/README.md); this repository is the root and home
+Historical source attribution is in [the import archive](Specs/SourceImport/README.md); this repository is the root and home
 of DxUi, with no upstream source tree and no dependency on either application checkout.
 
 Affected iteration, full local coverage, exact reuse and pending PR obligations are described in [the testing guide](Tests/README.md).

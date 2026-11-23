@@ -4,6 +4,219 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Moved the vcpkg tool pin in `vcpkg-tool.json` from `9e593bb1` to `aeb162b7`, the same commit as the baseline and
+  as RedSalamander's pin (RedHome CV-4-07, register C-07). The managed checkout's scripts and triplets now come from
+  that commit and its bootstrap downloads vcpkg-tool 2026-09-26 instead of 2026-07-27; package ABI hashes change, so
+  the first restore rebuilds the dependencies. Consumers are unaffected until their DxUi pins move. Compiler-free
+  checks pass; native qualification runs on `main` after merge.
+- Moved the vcpkg `builtin-baseline` in `vcpkg.json` from `9eec002d` to `aeb162b7` (microsoft/vcpkg, 2026-10-22),
+  RedSalamander's baseline, so every repository resolves ports from one baseline (RedHome CV-4-07, register C-06).
+  Between the two baselines only `7zip` and `sqlite3` change, and this repository uses neither, so no dependency
+  version changes. Compiler-free checks pass; native qualification runs on `main` after merge.
+- Gave `Specs/Build/Build_UnifiedCI.md` the skeleton every RedSalamanders repository now shares (convergence
+  CV-6-03, B-08): the same headings in the same order, one common text above `## Project adapter` built from the
+  paragraphs the six files already shared, five stale statements corrected to the engine's `Specs/CI.md`, and every
+  DxUi-specific sentence, the SDK producer facts included, moved unchanged into the fixed adapter subsections. Prose
+  only; no CI behavior changed. Validated with `validate-specs.ps1` and `Tools/Test-Changelog.ps1`.
+- Gave the specifications the same shape as every RedSalamanders repository (convergence CV-6-03): the common
+  `Specs/README.md` structure and WIP and Done index headers, the four common plan statuses (the performance and
+  motion plan moves from `SPEC READY` to `ACTIVE`, still not started), the common CODEOWNERS file, which owns the
+  same paths, and the common `Measurements/` archive rule in `Testing_RunEvidence.md`. No behavior, build input or
+  test changed. Validated with `validate-specs.ps1`, `Tools/tests/Test-CodeOwners.ps1` and
+  `Tools/Test-Changelog.ps1`.
+- Retired the repository-local `build-dxui` agent skill, now folded into the shared `native-build` skill in `RedHome`
+  (convergence CV-2-12). Every rule and code line of it is in the shared skill, with DxUi's commands, the toolset
+  pinned restore, the single-test filter and watchdog, and the interactive-suite rules in its
+  `references/repository-facts.md`. Claude Code (the `redhome` plugin), Codex, and Copilot list the shared skills
+  from this repository. `AGENTS.md` points at it. No build, test or product input changes.
+- Agent guidance now matches the other RedSalamanders repositories (`RedHome` convergence step CV-6-02). There is
+  one identical `.github/copilot-instructions.md` pointer to `AGENTS.md`, and the shared-skill pointer sits directly
+  under `## Skills`. The drive-root, scoped-testing, Changes, native build and Unified CI sections use the text every
+  repository shares. A new shared "Interactive desktop tests" section states the focus rule, while DxUi's own
+  `test.ps1 -Interactive` and release facts move into "Workflow and validation". The introduction names all five
+  consumers and their API revisions, and `consumer-integration` no longer says API revision 5 only. The common
+  `.gitignore` block ignores `.claude/settings.local.json` and `.claude/scheduled_tasks.lock`, and `capabilities.json`
+  gains `product` and `status`. The consumer interface is unchanged, and nothing compiles differently.
+- The window-hosting contract now records why `ControlHost`'s per-thread graphics pool creates its device on the
+  default adapter instead of the adapter of each window's monitor: every host on the thread shares that device, a
+  window can cross adapters at any time, and a message-driven host presents only invalidated frames. This is the
+  by-design outcome that RedHome register row H-17 (CV-6-08) allows for DxUi. Documentation only; behavior unchanged.
+- Converged the remaining root files with every RedSalamanders repository (convergence CV-6-03, B-12 default):
+  `CONTRIBUTING.md` is the common text with all of its DxUi rules kept in a repository section, and the common pull
+  request template and `.vsconfig` are added. CODEOWNERS names the workflows and Dependabot on their own lines, as
+  every repository's does; no path changes owner. Validated with `Tools/tests/Test-CodeOwners.ps1`,
+  `validate-specs.ps1` and `Tools/Test-Changelog.ps1`.
+- Draw native Mermaid diagrams directly on the editor or export surface. Keep inline-code chips on code and retain local diagram shapes and label backing.
+- Measured what a flip-model `Present` returns on the Windows 11 baseline (RedHome register H-20, CV-6-08): on 25H2,
+  flip-sequential and flip-discard swap chains returned `S_OK` while their window was shown, minimized, cloaked or
+  hidden, and a blt-model control returned `DXGI_STATUS_OCCLUDED`. The window-hosting contract's statement that
+  Windows does not return that status for flip-model swap chains now cites the record in
+  `Measurements/FlipModelOcclusion_2026-11-19/`. Documentation and evidence only; behavior unchanged.
+- Corrected the flip-model occlusion record (RedHome register H-20, CV-6-08). A second probe run adds a window
+  covered by a visible child and by another topmost window: a flip-model `Present` still returned `S_OK` in every
+  state. RedXe's renderer records `DXGI_STATUS_OCCLUDED` arriving when one of its own native child windows covered
+  its swap chain, which this probe did not reproduce. The contract now says the status is not a usable occlusion
+  signal for flip-model swap chains, instead of saying Windows never returns it. Documentation and evidence only.
+- Moved the shared CI engine pin from `a094b2e` to `f965c79`, engine `main` today, with `Update-ProjectPin.ps1`:
+  `.ci/project.json` and the workflow callers name the same full commit. This is this repository's step of the
+  `RedHome` convergence wave (CV-4-04, CV-4-05) that puts every repository on one engine commit. Between the two
+  commits the engine adds the shared changelog commands with their product shim templates (CV-5-01, CV-5-02) and the
+  harness exclusions, and changes no workflow template. The pin also adds the agent harness paths `.codex/**`,
+  `.github/agents/**`, `.github/copilot-instructions.md` to the prose exclusions, so editing them no longer changes
+  native inputs (CV-6-01). Compiler-free checks pass; native qualification runs on `main` after merge.
+- Planned the code-convention rows of the RedHome convergence register (CV-6-08) that move DxUi as section D-CV1
+  of the remaining-work plan: device-loss results (H-19), Alt+Enter on HWND swap chains (H-18), `ControlHost`'s COM
+  pointers (H-03), adapter selection (H-17), flip-model occlusion (H-20) and keyboard state under hidden self-tests
+  (H-23), one pull request each. Plan only; no code changes.
+- `vcpkg-install.ps1` keeps a complete clone of the pinned vcpkg checkout instead of a `--filter=blob:none`
+  partial clone. vcpkg 2026-07-27 extracts each versioned port with `git read-tree` and `git checkout-index` in an
+  environment that holds only `GIT_INDEX_FILE`; without `SystemRoot` that Git resolves no host, so a blob that the
+  partial clone left on the server failed with "Could not resolve host: github.com". It started on 2026-11-18,
+  when upstream `master` stopped carrying the `vcpkg-cmake` tree the baseline selects, and stopped every fresh
+  restore on x64 and ARM64. The pinned commit is now fetched only when the default branch lacks it, without
+  `--depth`, and a partial checkout left by an earlier version is completed in place once. The tooling test pins
+  the clone, the fetch and the completion order.
+- Every local skill description now says what the skill does and then when to use it ("Use when ..."), the form
+  the shared `RedHome` skills already use, because an agent picks a skill from its description alone (`RedHome`
+  convergence step CV-2-13). `consumer-integration`, `control-development`, `embedded-rendering`,
+  `input-accessibility` and `win32-host` gain the clause, taken from each skill's own body; `build-dxui` already
+  had one. Only the five front-matter descriptions change. `validate.ps1` passes; no build, test or product input changes.
+- `format.ps1` now formats with the formatter CI uses and over the files CI formats. It takes clang-format from
+  `Install-CiFormatter` in the pinned `.ci-engine` (22.1.3 today, under `.build/shared-format`) and selects the
+  eight C and C++ extensions under the `formatRoots` of `.ci/project.json`, minus `formatExclude`. `-Check`
+  still verifies without writing, and now lists every file that needs formatting.
+  `Tools/Install-ClangFormat.ps1`, the second copy of the version pin, `-FormatterPath`, `DXUI_CLANG_FORMAT`,
+  and the `PATH` and Visual Studio lookups are removed. `Tools` was outside the old local scope, and
+  `Tools/ConsumerApi/ConsumerApi.Tests.Revision4.cpp`, its one unformatted file, is formatted: whitespace only.
+  The build contract, contributing guide, getting-started page, tools index, and notices describe the new
+  command. This is step CV-6-05 of the `RedHome` convergence plan (register D-02, D-05, D-06).
+- Moved the shared CI engine pin from `766fd7e` to `a094b2e`, engine `main` today, with `Update-ProjectPin.ps1`:
+  `.ci/project.json` and the eight workflow callers name the same full commit, and nothing else changes in them.
+  This is the first step of the `RedHome` convergence wave that puts every repository on one engine commit.
+  Between the two commits the engine adds local SDK build and binding guards and changes no workflow template.
+  Compiler-free checks pass; native qualification of the new pin runs on `main` after merge.
+- `.gitattributes` and `.gitignore` start with the common blocks that every RedSalamanders repository now
+  shares, and `.editorconfig` is the shared file. The `.gitattributes` block stores text with LF and checks out
+  C and C++ sources, PowerShell, and Visual Studio files with CRLF and Markdown, JSON, and YAML with LF; the
+  repository's own lines follow it unchanged and still take precedence. No tracked file needs renormalizing:
+  every file with CRLF or mixed line endings in the index is already `-text`.
+  This is step CV-6-05 of the `RedHome` convergence plan (register D-03, D-04, and the `.editorconfig` part of B-12).
+- Named the API 4 maintenance branch in `AGENTS.md`. The branch formerly called `ej/api4-maintenance-4cdf1ce5` is now
+  `maintenance/api4` on GitHub, and a ruleset forbids deleting or force-pushing any `maintenance/*` branch. It stays
+  for consumers that still lock API 4; `RedSalamander`'s `DxUi` lock pins a commit that only this branch holds.
+  Consumers clone the whole repository and check out the locked commit, so the rename changes no restore, build or
+  test input.
+- Aligned agent guidance and dependency automation with the other RedSalamanders repositories (convergence step 1,
+  planned in `RedHome`): `CLAUDE.md` is the same thin pointer to `AGENTS.md` in every repository,
+  `.claude/settings.json` enables the shared `redhome` Claude Code skill plugin from the `RedHome` marketplace, and
+  Dependabot now ignores `RedSalamanders/.github/*` so it stops opening one notice per shared-workflow caller; engine
+  pins keep moving through `Update-ProjectPin.ps1` only. No build, test or product input changes.
+- Reconciled the common workflow callers with the existing shared engine pin in `.ci/project.json` through
+  the pinned engine's canonical generator, removing partial dependency-update drift without selecting a new
+  engine version. Compiler-free CI configuration, workflow, scoped-planner and affected tooling checks cover
+  the repair; native, interactive and platform qualification remain separate.
+- Consolidated the shared `modern-cpp-wil`, `performance-resources`, and `spec-workflow` agent skills into the
+  organization `RedHome` repository, retaining the six DxUi-specific skills under `.agents/skills/` and validating
+  with `validate.ps1` and `Tools/Test-Changelog.ps1` (documentation/tooling only; native qualification unchanged).
+  Shared-skill discovery names `../RedHome/AGENTS.md`, the package directory, and the clone URL while preserving
+  local product authority.
+  Skill/spec/dependency/port/build-matrix validators pass; the affected tooling gate remains blocked by existing
+  workflow engine pins on `main` that diverge from `.ci/project.json`.
+- Replaced three overlapping documents with one plan, `Specs/Plans/WIP/PerformanceAndMotion_2026-11-13.md`: what DxUi
+  will do for better speed, higher frame rate, lower memory use and animation of every interactive change, with
+  budgets `G1`–`G15`, assumptions `A1`–`A16`, 45 verified facts about today's cost, fixtures `FX1`–`FX14` and 92 items
+  in waves `W0`–`W10`, each stating why, the change, its assumption, a measurable gate, its dependencies and its size;
+  the one new control is `Expander` (`W5.15`). It carries only work that survived review; an appendix maps archived
+  item IDs to the new items. The runtime efficiency study was first challenge-reviewed
+  (`Specs/Plans/Done/RuntimeEfficiencyReview_2026-11-12.md`: every evidence-ledger row `E1`–`E84` re-read against
+  source, 156 of 269 sub-claims holding as written; 123 of about 230 external citations fetched at their pinned
+  commits, 85 confirmed; the asymmetric `Present1` design shown unnecessary against Microsoft's flip-model
+  documentation) and corrected for fact; the study, the review and the frontier plan then moved to `Specs/Plans/Done/`
+  as superseded records, and the smart features of the frontier plan are no longer scheduled anywhere.
+  `Specs/Build/Build_ToolchainAndConsumption.md` and `docs/getting-started.md` now state the runtime minimum as
+  Windows 11 version 25H2 (build 10.0.26200), replacing the Windows 10 baseline, and the contract records that hosted
+  x64 qualification runs one build label lower, on Windows Server 2025 (build 10.0.26100), where unconditional imports
+  must also resolve. Documentation only: no code changed and nothing was built or measured; the default presentation
+  mode and every native gate remain open.
+- Restore an absent historical paired-study engine by fetching only its exact pin when the hosted common reader has shallow history. Keep existing wrong/dirty engines fail-closed and both reader identities frozen; exercise the real shallow acquisition without compiling or benchmarking.
+- Compare actual first-strong header text fragments before and after unequal table mirroring as well as outer cell rectangles, so an incorrect text budget cannot hide behind correct cell bounds.
+- Prepare and retain the sample crash reporter's system PSAPI dependency before installing fatal hooks. This avoids first loading it while the reporter is suspending its own process for module enumeration; the original fatal-child exit, dump, and originating-stack checks remain required.
+- Add shared session admission before explicit foreground batches so canonical Root and DxUi tests coordinate while the existing native lease retains consent, warnings, watchdogs and exact restoration checks. Ordinary noninteractive work remains outside that session lease; routing controls execute no foreground input.
+- Re-audited the runtime efficiency and rendering quality WIP specification (`Specs/Plans/WIP/RuntimeEfficiency_2026-11-07.md`)
+  from the ground up against `DxUi` (`4acabe0e`) and 15 external reference codebases (`longbridge/gpui-fast` `af019de`,
+  `anomalyco/rune` `0ea75abe`, `makepad/makepad` `506ec051`, `microsoft/terminal` `5f7dc283`, `chromium/chromium`
+  `301a3f2f`, `AccessKit/accesskit` `dea43841`, `microsoft/vscode` `75436fa4`, `xi-editor/xi-editor` `a2dea305`,
+  `linebender/parley` `36f82852`, `rive-app/rive-runtime` `66a4fbf3`, `thorvg/thorvg` `22c20d62`, `DioxusLabs/taffy`
+  `d0345bac`, `nicbarker/clay` `e6cc3694`, `ocornut/imgui` `abaca051` and clean-room `ppmpreetham/BUI` `ae284781`),
+  expanding the verified evidence ledger to `E1`–`E84`, scenarios to `S1`–`S20`, and phases `P0`–`P8`, `V1`–`V8` and
+  `B1`–`B6` across controls, host/DirectComposition/waitable-swap-chain & asymmetric `Present1` safety, typography,
+  monotonicity-aware `MeasureCache`, piece-tree/split-CRLF/semantic documents/math/diagrams, bitmask-slab UI Automation,
+  re-entrant TSF IME/clipboard and inline struct memory; validated with `validate.ps1`, `format.ps1 -Check`,
+  `Tools/Test-Changelog.ps1 -Base origin/main` and `Test-Changes.ps1 -Explain`, with owner confirmation of `D3` and
+  `D5`–`D12` and all native implementation/counter/parity gates remaining open.
+- Align scoped validation guidance with the existing hosted Release adapter, which already selects two ordinary workers. Keep local defaults, preflight, performance and foreground serialization explicit; actual native campaign acceptance and paired performance evidence remain separate.
+- Preserve historical engine pins in paired diagnostics while binding both the actual side and common reader inputs, refusing changed or incompatible evidence and retaining default qualification and production gates.
+- Use the pinned shared CI engine's private per-child compiler metadata services for hosted native execution.
+- Seeded and restored the owned physical pointer for each fresh modal state-probe menu attempt, preserving readiness and foreground-retry assertions and their existing deadlines.
+- Add explicit local Release SDK snapshot capture with exact built dirty-source/library provenance, complete input barriers, immutable shared storage and producer lease release before consumer handoff. Share existing SDK byte staging without changing its integration props or qualification gates. Candidate application linking and native qualification remain pending; synthetic tooling controls grant no product or SDK acceptance.
+- Aligned local SDK snapshot ABI capture with ordinary packaging's native MSBuild host selection, preserving original library provenance and strict consumer toolchain matching.
+- Added an explicit local-only Release library build role for dirty separate DxUi sources, preserving pinned SDK refusal, source/API compatibility checks and native input ownership.
+- Read historical SDK source engines through the current tooling's authenticated reader when the old
+  engine predates that module, binding both exact engine identities without changing source pins.
+- Add the frontier WIP plan (`Specs/Plans/WIP/Frontier_2026-11-11.md`): a challenge review of the runtime efficiency
+  plan, its reference libraries and `DxUi` at `0fe99c4a`, with budgets `B1`–`B12`, moves `F0`–`F8` (work truth,
+  retained Direct2D command-list scene, regions, frame clock, compositor layers and pointer input, properties,
+  semantics platform, scale and a conditional owned GPU backend), smart features `K1`–`K12`, a triage of every
+  `P`/`V`/`B` item and decisions `FD1`–`FD10` (all confirmed except `FD4`, composition by default, which waits for
+  the `F0.9` presentation-mode comparison). Under `FD8`, remove the `BUI` review and every `BUI` file, line and
+  commit citation from the runtime efficiency plan; each `B` item now names its independent permissive or Microsoft
+  source. Plan only; no code or contract change.
+- Bind local build and test reuse to the actual pinned CI engine inputs, refusing missing, modified or mismatched engine checkouts while preserving the existing local and main gates.
+- Service synchronous setup callbacks while accessibility workers publish readiness, retaining the original
+  500 ms startup, 50 ms pending and two-second dispatch assertions. Retire the RangeFromPoint worker before
+  reporting its captured observations, and cover withheld readiness with the real provider operation.
+- Coordinate pinned vcpkg checkout/bootstrap changes and platform installs so concurrent
+  architecture restores cannot clone or replace shared tooling under an active installer;
+  retain parallel platform-private installs and never terminate another owner.
+- Add the explicit versioned SDK producer-reference option through the reviewed shared controller. Preserve legacy production, every native SDK gate, exact application pins and independent consumer admission.
+- Use the reviewed shared SDK controller that selects native MSBuild and explicitly
+  preserves the producer compiler host during final ABI metadata acquisition;
+  keep original dependency pins, qualification gates and disabled qualified transport.
+  Isolate direct OLE fixtures from inherited worker-thread modifiers and retain an
+  explicit Alt-refusal control without taking focus or changing product input rules.
+  Preserve descendant-launch failure details in private-desktop launcher self-tests
+  without changing timeout bounds, containment rules or acceptance assertions.
+- Add the optional isolated native shadow caller and exact shared-engine admission tooling while retaining current required checks, local coverage and production qualification.
+- Retain independently passed scoped tooling before a later native failure, so an
+  identical continuation does not repeat completed validators. Keep complete input
+  checks, failed-run revocation, instrumentation isolation and native/foreground
+  obligations; no failed native batch becomes a pass.
+- Align CI callers with the reviewed qualified SDK distribution controller while retaining same-run library reuse, native tests, SDK smoke checks and immutable historical producer identities.
+- Added the indexed WIP handoff plan (`Specs/Plans/WIP/ExplicitStateMachines_2026-11-10.md`) cataloging internal explicit state-machine refactors and interaction/lifetime bug fixes across `src/` and `Tools/` with zero public ABI changes.
+  Validation: `validate.ps1`, `Tools/Test-Changelog.ps1 -Base origin/main`, and `Tools/Invoke-ProjectCi.ps1 -Phase Static`.
+- Add an explicit main-only SDK-input producer for the three unchanged application source pins, with independent native x64/ARM64 selection, canonical byte checks and every existing extracted-SDK gate; application consumption and native acceptance remain separate.
+- Build the selected native target union for affected and explicit suite runs, including the benchmark, sanitizer detector and desktop helper dependencies. Validate evaluated references and required outputs, bind receipts to actual target coverage, retain full-build obligations and revoke prior proof after failed builds. Default full solution and production roles remain available.
+- Reuse exact Release SDK library/PDB inputs from the successful hosted regression attempt after verifying complete source, dependency and evaluated-toolchain provenance; rebuild when absent or incompatible, revoke failed records, and retain all extracted-SDK checks and both architecture gates. Library-only inputs grant no native test or Full result.
+- Publish native-checked SDK inputs into the shared immutable byte store and retain reader leases with complete before/after input and payload verification, without reusing product test results.
+- Acquire complete pinned SDK input identities independently of checkout-derived build/test receipt metadata, preserving all native profile, source/dependency/toolchain and mutation checks.
+- Expose bounded parallel suites through affected testing, retain serial performance/foreground execution and bind the scheduling option into reusable native evidence; hosted concurrency remains unchanged pending native comparison.
+- Adopt owned-prose exclusions and run compiler-free planner controls in PR checks. Isolate simulated local child environments while proving hosted CI refuses local iteration baselines; preserve native gates and historical artifact identity.
+- Build and package reviewed immutable DxUi sources with current governed tooling, exact historical API/license recipes and source/tooling/library provenance; retain isolated output ownership and all native SDK gates without changing consumer pins or granting test results from cached inputs.
+- Reuse exact successful local filter/watchdog verification for up to 24 hours, with source, binary, dependency, host and environment checks; keep Full and hosted preflights fresh and revoke reusable success on failure or mutation.
+- Acquire the complete native build-property set in one evaluation using an owned response file, preserving every property and profile check while reducing repeated build-engine startup during validation.
+- Reuse a successful local affected iteration for subsequent edits in the same profile, with byte-verified source/index, dependency, compiler/SDK and output boundaries. Keep cumulative Full, PrePush and foreground obligations, force fresh Full harness verification, revoke old state before reruns and refuse competing test operations in the same profile. Treat runtime Markdown fixtures as native inputs and retain the canonical preflight's build/desktop ordering checks.
+- Keep DirectWrite's internally handled overhang-formatting exceptions inside the existing native-call boundary, preserving HRESULT refusal and observation of subsequent SDK work; the maximum-document geometry regression remains required.
+- Adopt the shared ABI-indexed vcpkg fallback cache and manual native dependency caching while preserving compiler-free PRs, exact dependency pins and native qualification gates.
+- Run the complete hosted Release regression with two independent non-foreground suite workers, preserving per-suite evidence, serial foreground/preflight/performance and every existing gate; native architecture acceptance remains campaign-specific.
+- Strengthen native rich-text scrolling coverage by checking the published visible source range before caller refresh; live bounding rectangles alone cannot detect a stale accessibility snapshot. Retain the earlier passing mutation experiments separately from negative evidence.
+- Clarify the exact-pin diagnostic API boundary and retain the capability-based script/color-glyph fallback.
+  Existing diagnostic declarations and runtime behavior are unchanged; source-specific platform qualification
+  and each application's adoption remain separate.
+- Add a task-oriented Markdown editing guide, document child-window text-layout notifications, correct the pinned Mermaid corpus summary and link current evidence packets while preserving their qualification limits.
+- Record a private all-ref/worktree-head history scan and evidence-bound metadata-candidate review without changing public history, visibility or scanner rules.
+- Correct stale rich-text implementation and active-plan references, distinguish immutable task syntax from
+  checkbox editing, and document selection-transforming quote/code insertion in the design guideline.
+  These documentation changes preserve existing rendering and gallery pixels.
 - Record the runtime efficiency and rendering quality plan in `Specs/Plans/WIP/RuntimeEfficiency_2026-11-07.md`:
   the 7 November `longbridge/gpui-fast`/`anomalyco/rune` study, red-team reviewed on 8 November 2026 against
   `a7f276c` and `fb8cf94`. A 45-row evidence ledger removes draft items that were already closed (`EDIT-01`,

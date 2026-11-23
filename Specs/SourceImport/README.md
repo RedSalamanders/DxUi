@@ -11,6 +11,7 @@ a second implementation. Current behavior belongs in the domain specs; current c
 | [pending-dependencies.json](pending-dependencies.json) | Empty final dependency inventory; validation requires standalone code to remain free of application includes. |
 | [migration-ledger.md](migration-ledger.md) | Historical sequence and consumer boundaries; the final extraction entry supersedes earlier pending status. |
 
-Validators read these records at their archived location. When an owned file or retained test is deliberately
+It is historical evidence, not a second source tree or a product contract; completed implementation plans are in
+[Plans/Done](../Plans/Done/README.md). Validators read these records at this location. When an owned file or retained test is deliberately
 renamed or retired, update its mapping/disposition with a reason while preserving the original identity and hashes.
 Do not add ongoing feature plans here or synchronize source back to the original application automatically.

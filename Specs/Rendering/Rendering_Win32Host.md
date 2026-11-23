@@ -20,10 +20,15 @@ a different caller thread. Embedded applications retain `EmbeddedHost::SetVisibl
 
 The application owns the visibility decision and its event source; DxUi installs
 no global window hooks and does not poll other windows. Both native presentation
-modes use flip-model swap chains, for which Windows does not return
-DXGI_STATUS_OCCLUDED. The historical proposal to infer arbitrary window coverage
+modes use flip-model swap chains, for which DXGI_STATUS_OCCLUDED is not a usable occlusion signal. The historical proposal to infer arbitrary window coverage
 from Present or DXGI occlusion notifications is not this contract; see
 [Microsoft's status documentation](https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/dxgi-status).
+This is measured on the Windows 11 baseline: on 25H2, flip-sequential and flip-discard swap chains returned `S_OK`
+from `Present` and from `DXGI_PRESENT_TEST` while their window was shown, minimized, cloaked, hidden, or covered by
+a child or another window, while a blt-model control returned `DXGI_STATUS_OCCLUDED` when minimized; RedXe records
+the status arriving when one of its own native child windows covered its swap chain
+([flip-model occlusion record](../../Measurements/FlipModelOcclusion_2026-11-19/README.md)). This holds for every
+Direct3D host in the RedSalamanders applications, not only for DxUi.
 
 Implemented capabilities are listed in [capabilities.json](../../capabilities.json); requirements for pending
 targets are acceptance contracts, not claims of current support.
@@ -264,6 +269,15 @@ lays out text (`GetWriteFactory`, `GetTextFormat`) borrows the process-shared Di
 attached hosts use, and creates no device or pool, so after it a forced-WARP or default attachment on that thread
 succeeds in either order.
 This additive option supports deterministic native validation and leaves the default hardware/fallback path intact.
+
+The owner thread's graphics pool creates its device on the default adapter, then WARP; it does not pick the adapter
+of each window's monitor, as the RedXe and RedPrism renderers do. This difference is by design. Every host attached
+on one thread shares that device with its Direct2D device, factories and native peers and menus, and a window may
+move between monitors of different adapters at any time. A monitor-matched device would split the pool into one
+device per adapter and move a window's device-dependent resources each time it crosses adapters. A window host
+presents only invalidated frames, so the cross-adapter copy Windows makes for a window on another adapter's monitor
+costs one copy per presented frame, not per display refresh. A real-time host that owns its device and presents from
+the idle side of its loop chooses the monitor's adapter instead.
 `CreateD3D11DeviceWithWarpFallback` places each `D3D11CreateDevice` attempt inside the
 audited synchronous native-call boundary. A C++ exception handled within the native
 implementation may return its original HRESULT; an escaping exception remains fatal.

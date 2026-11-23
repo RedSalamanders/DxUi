@@ -2315,7 +2315,9 @@ struct PreparedSemanticGeometry::Preparation
                 box->native         = native;
             }
         }
-        if (next.codeChipsAvailable && next.document->Elements()[content.element].role != SemanticRole::Code && ! caretOnly)
+        // A native diagram replaces its fence with one object. The fence's code
+        // flags do not provide a backdrop for that object.
+        if (next.codeChipsAvailable && ! box->native && next.document->Elements()[content.element].role != SemanticRole::Code && ! caretOnly)
             for (const auto& run : box->layout.Content().runs)
             {
                 const bool marked = (run.flags & Marked) != 0u;

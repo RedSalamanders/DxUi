@@ -4251,9 +4251,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 auto style = ResolveTextFieldVisualStyle(host.GetTheme(), IsEnabled(), IsHovered(), HasFocus(), HasFocus() && host.IsKeyboardFocusVisible());
                 if (state.appearance.blendWithWindowBackground)
                     style.fill = host.GetTheme().windowBackground;
-                auto surface          = state.appearance.markdownPresentation == RichText::MarkdownPresentationStyle::Subtle
-                                            ? ResolveMarkdownQuoteFill(host.GetTheme(), style)
-                                            : style.fill;
+                auto surface          = style.fill;
                 surface.a             = 1.f;
                 const bool sameColors = State::SameColor(state.diagramLabelInk, style.text) && State::SameColor(state.diagramLabelSurface, surface);
                 if (! state.diagramLabelFill || state.diagramLabelResources != host.GetResourceGeneration() ||
@@ -5452,7 +5450,7 @@ void RichTextEditor::Paint(ControlHost& host) const
         const bool decorated =
             links.markedTextFill || ! links.inkRanges.empty() || dimmed || (state.mode == RichText::ViewMode::Rich && (links.brush || ! links.underline));
         const RichText::Detail::DiagramColorContext diagramColors{style.text, style.text, style.fill};
-        auto diagramSurface = subtleMarkdown ? ResolveMarkdownQuoteFill(host.GetTheme(), style) : style.fill;
+        auto diagramSurface = style.fill;
         diagramSurface.a    = 1.f;
         // Contrast and brush creation run in preparation. Selected, dimmed and
         // stale-color passes retain their caller-resolved opaque surface.

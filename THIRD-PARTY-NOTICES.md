@@ -2,7 +2,7 @@
 
 The imported DxUi source and tests originate in RedSalamander, copyright (c) 2026 RedSalamander,
 under the MIT license retained in [LICENSE.txt](LICENSE.txt). See the historical per-file hashes in
-[source origin](Specs/Done/SourceImport/source-origin.json). Copied reference images are test baselines, not shipping assets.
+[source origin](Specs/SourceImport/source-origin.json). Copied reference images are test baselines, not shipping assets.
 
 DxUi uses WIL (Windows Implementation Libraries), Microsoft Corporation, MIT.
 The exact restored version is governed by [vcpkg.json](vcpkg.json) and its pinned baseline; the current dependency
@@ -28,7 +28,7 @@ records the retained input and license identities.
 DxUi also links Windows SDK/system libraries, using the consumer's matching MSVC runtime. Those components are
 supplied under their respective Microsoft terms, not relicensed by this project's MIT license. System fonts are
 selected at runtime; DxUi ships no fonts or icon fonts. Generated gallery images illustrate the library's own
-palettes and controls. The pinned clang-format that `Tools/Install-ClangFormat.ps1` fetches for formatting is a
+palettes and controls. The pinned clang-format that `format.ps1` installs through the shared CI engine is a
 development tool, not a linked or packaged library dependency.
 
 The former RedSalamander application dependency list (archive/image/network/viewer libraries and external theme
