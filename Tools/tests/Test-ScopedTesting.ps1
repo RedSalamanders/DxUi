@@ -325,6 +325,15 @@ try {
         $refused=$false;try{Resolve-ScopedBuildProjects @('invented-target')|Out-Null}catch{$refused=$true}
         Assert-Scope $refused 'Unknown native project was admitted'
     }
+    Run-Case 'selected native unions name solution targets the way a metaproject does' {
+        $union=@('DxUi','DxUi.EmbeddedTests')
+        Assert-Scope ((Get-ScopedMSBuildTargetArgument $union 'Build') -ceq '/t:DxUi;DxUi_EmbeddedTests') 'A build must use bare project targets; a solution metaproject has no Project:Build'
+        Assert-Scope ((Get-ScopedMSBuildTargetArgument $union 'Rebuild') -ceq '/t:DxUi:Rebuild;DxUi_EmbeddedTests:Rebuild') 'A rebuild must use Project:Rebuild targets'
+        Assert-Scope ((Get-ScopedMSBuildTargetArgument @('A.B(c)%d','E') 'Build') -ceq '/t:A_B_c__d;E') 'MSBuild solution target escaping was not applied'
+        foreach ($project in (Get-ScopedBuildProjectCatalog).Keys) {
+            Assert-Scope ((Get-ScopedMSBuildTargetArgument @($project) 'Build') -cmatch '^/t:[A-Za-z_]+$') "Catalog project $project produced a qualified build target"
+        }
+    }
     Run-Case 'selected build receipts cover actual unions and never grant full solution coverage' {
         $targetRoot=Join-Path $fixture '.build/selected-receipt-fixture'
         foreach($project in (Get-ScopedBuildProjectCatalog).Keys) {

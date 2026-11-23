@@ -406,6 +406,16 @@ function Resolve-ScopedBuildProjects {
     return @($catalog.Keys | Where-Object { $_ -ceq 'DxUi' -or $_ -cin $Projects })
 }
 
+function Get-ScopedMSBuildTargetArgument {
+    param([string[]] $Projects, [string] $Target)
+    # A solution metaproject names the build target of a project after the project alone and every other target
+    # "<project>:<target>"; MSBuild replaces % $ @ ; . ( ) and ' in the project name with an underscore (no catalog
+    # project sits in a solution folder, which would prefix the folder path).
+    $names=@($Projects | ForEach-Object { [regex]::Replace($_, "[%`$@;.()']", '_') })
+    $targets=if ($Target -ceq 'Build') { $names } else { @($names | ForEach-Object { "${_}:$Target" }) }
+    return '/t:' + ($targets -join ';')
+}
+
 function Get-ScopedRequiredBuildProjects {
     param([string[]] $Suites, [string] $Configuration, [switch] $Full)
     if ($Full) { return @((Get-ScopedBuildProjectCatalog).Keys) }
@@ -739,6 +749,6 @@ Export-ModuleMember -Function Get-ScopedChangedPaths, Get-ScopedPrContractDigest
     Get-ScopedToolIdentity, Get-ScopedInstrumentation, Test-ScopedPattern, Get-ScopedInteractiveObligations, Invoke-ScopedHarnessPreflight
 Export-ModuleMember -Function Get-ScopedSourceMap, Get-ScopedIndexMap, Get-ScopedMapIdentity, Get-ScopedMapDelta, Get-ScopedPendingIndexDelta,
     Get-ScopedIterationNativeContext, Read-ScopedIteration, Write-ScopedIteration, Remove-ScopedIteration, Enter-ScopedProfileLease, Exit-ScopedProfileLease
-Export-ModuleMember -Function Get-ScopedBuildProjectCatalog, Resolve-ScopedBuildProjects, Get-ScopedRequiredBuildProjects, Assert-ScopedSelectedBuildGraph,
+Export-ModuleMember -Function Get-ScopedBuildProjectCatalog, Get-ScopedMSBuildTargetArgument, Resolve-ScopedBuildProjects, Get-ScopedRequiredBuildProjects, Assert-ScopedSelectedBuildGraph,
     Assert-ScopedBuildOutputs, Get-ScopedTargetBuildReceipt, Write-ScopedTargetBuildReceipt, Test-ScopedBuildCoverage
 Export-ModuleMember -Function Remove-ScopedBuildReceipts

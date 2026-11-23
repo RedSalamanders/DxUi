@@ -259,7 +259,7 @@ if ($ProductionOnly) {
     $arguments[4] = if ($target -eq 'Rebuild') { '/t:DxUi:Rebuild' } else { '/t:DxUi' }
 }
 if ($partialBuild) {
-    $arguments[4]='/t:' + (($selectedProjects | ForEach-Object { $_.Replace('.','_')+':'+$target }) -join ';')
+    $arguments[4]=Get-ScopedMSBuildTargetArgument $selectedProjects $target
     Write-Host "Selected native target union: $($selectedProjects -join ', ')"
 }
 Write-Host 'Build configuration:' -ForegroundColor Cyan
