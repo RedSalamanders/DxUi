@@ -1,0 +1,1 @@
+- Keep the lazy changelog compatibility module in the conservative benchmark path classifier so the tooling import-coverage check can follow its literal import.
