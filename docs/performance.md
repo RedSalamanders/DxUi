@@ -405,7 +405,10 @@ builds, records and bytes per mutation with no UI Automation client and with one
 `Splitter` drag, and the units a word walk over a 64 Ki-unit document visits; its "client" is the client gate's test
 switch, so no count depends on when events arrive. It also counts copies of its document (`cppLargeAllocations`): since
 the text-provider change (`W8.4`) a word step copies none and the 64-step walk visits about 1,600 units, where every step
-used to rescan the document from its start (2.1 million units). `FX7` composes and commits ten syllables through the production text
+used to rescan the document from its start (2.1 million units). Since incremental publication (`W8.2`, [receipt](../Measurements/PerformanceAndMotion_2026-11-13/W8.2/README.md))
+a `Slider` step re-reads one record and builds no whole window, and the `Splitter` drag builds once, at its release. A
+layout that moves every control still costs a publication that rebuilds every bounding rectangle (about 11 ms on a
+2,000-control form), so geometry-only publications are published at most once per 100 ms and once when the layout settles. `FX7` composes and commits ten syllables through the production text
 store in a 64 Ki-unit `TextField` and `RichTextEditor`, one TSF lock per step, and counts the copies of the document
 (`cppLargeAllocations`). `FX13` idles an application for 60 simulated seconds with nothing armed and with a focused
 caret, then hides it; its cold start to the first presented frame is a separate real-time receipt. See the

@@ -146,11 +146,21 @@
 
 // UI Automation.
 #define DXUI_WORK_COUNTERS_ACCESSIBILITY(X)                                                                                                                    \
+    X(accessibility, chunksCloned)                 /* Record-spine chunks a successor generation cloned to replace a record in them (W8.2). */                 \
+    X(accessibility, geometryMarksCollapsed)       /* Times geometry marks filled their capacity and became one mark on their common ancestor (W8.2). */       \
+    X(accessibility, geometryPublicationsDeferred) /* Geometry-only publications held for the 100 ms interval or the layout's settle (W8.2). */                \
+    X(accessibility, incrementalPublications) /* Publications that shared the previous generation's records instead of building the whole window (W8.2). */    \
+    X(accessibility, marksWhileDormant)       /* Marks on a dirty native window no client listens to, noted without a refresh (W8.2). */                       \
     X(accessibility, mutations)        /* Accessibility mutations controls raised (RefreshWindowHostAccessibilitySnapshot with a host), built or not. */       \
+    X(accessibility, pointHitRebuilds) /* Successor generations that rebuilt every bounding rectangle for a marked geometry change (W8.2). */                  \
+    X(accessibility, recordsCloned)    /* Records a successor generation re-read from their controls; every other record is shared (W8.2). */                  \
+    X(accessibility, recordsMarked)    /* Record marks noted for the next publication (name, value, focus or geometry; W8.2). */                               \
     X(accessibility, snapshotBuilds)   /* Whole-window UI Automation snapshot builds that reached the tree walk. */                                            \
     X(accessibility, snapshotBytes)    /* Bytes reserved by those snapshots' per-control record arrays (excluding owned strings). */                           \
     X(accessibility, snapshotNodes)    /* Control records those snapshots hold. */                                                                             \
-    X(accessibility, wordUnitsVisited) /* UTF-16 units text-range word movement stepped over, the enclosing-word scan from offset 0 included. */
+    X(accessibility, spineBytes)       /* Bytes a successor generation copied: its record spine and the chunks it cloned (W8.2). */                            \
+    X(accessibility, undeclaredInvalidations) /* Invalidations of a published host that declared nothing for UI Automation: the next publication is whole. */  \
+    X(accessibility, wordUnitsVisited)        /* UTF-16 units text-range word movement stepped over, the enclosing-word scan from offset 0 included. */
 
 // Memory: counted memory work; byte metrics live in receipts, not here.
 #define DXUI_WORK_COUNTERS_MEMORY(X)                                                                                                                           \

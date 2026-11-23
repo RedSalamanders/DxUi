@@ -21,6 +21,7 @@
 //   void Key(UINT virtualKey);                       void Character(wchar_t);
 //   void SetDpi(UINT dpi);                           void Advance(uint64_t milliseconds);   // the frozen clock
 //   ParityFrame Capture(bool fresh);
+#include "Controls/DxUi.Internal.h"
 #include "Controls/DxUi.RetainedCaches.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 #include <DxUi/DxUi.h>
@@ -249,18 +250,9 @@ inline void RequireRetainedCachesEmpty(std::span<const DxUi::RetainedCacheCount>
 enum ParityKnownDifference : uint32_t
 {
     kNoKnownDifference = 0u,
-    // Native window host: Control::SetBounds refreshes no UI Automation snapshot, so a client keeps reading a moved or
-    // resized control's previous bounding rectangle until another accessibility mutation republishes. Only the bounding
-    // rectangle field of an element may differ; every other property, the element count and all pixels still must match.
-    // Found by this oracle (W0.5); left for the accessibility items of the performance and motion plan.
-    kNativeUiaBoundsAfterSetBounds = 1u,
+    // None today. The native window host's stale bounding rectangles after Control::SetBounds, found by this oracle (W0.5),
+    // were exempted here until W8.2 published geometry incrementally.
 };
-
-[[nodiscard]] inline std::wstring_view WithoutBounds(std::wstring_view line) noexcept
-{
-    const size_t bar = line.rfind(L'|');
-    return bar == std::wstring_view::npos ? line : line.substr(0u, bar);
-}
 
 // Empty when the frames agree; otherwise the first difference, pixels first. channelTolerance stays 0 except for an item
 // whose gate declares one (an effect rasterized differently on purpose). An exempted known difference is appended to
@@ -268,6 +260,9 @@ enum ParityKnownDifference : uint32_t
 [[nodiscard]] inline std::string FirstDifference(
     const ParityFrame& incremental, const ParityFrame& fresh, uint8_t channelTolerance = 0u, uint32_t knownDifferences = 0u, std::string* known = nullptr)
 {
+    // No difference is exempted today (ParityKnownDifference); the parameters stay for the next one a scene declares.
+    static_cast<void>(knownDifferences);
+    static_cast<void>(known);
     if (incremental.widthPx != fresh.widthPx || incremental.heightPx != fresh.heightPx || incremental.bgra.size() != fresh.bgra.size())
         return std::format("frame size {}x{} incremental, {}x{} fresh", incremental.widthPx, incremental.heightPx, fresh.widthPx, fresh.heightPx);
     if (fresh.bgra.empty())
@@ -342,18 +337,7 @@ enum ParityKnownDifference : uint32_t
     const size_t nodes = (std::min)(incremental.uia.size(), fresh.uia.size());
     for (size_t index = 0u; index < nodes; ++index)
         if (incremental.uia[index] != fresh.uia[index])
-        {
-            if ((knownDifferences & kNativeUiaBoundsAfterSetBounds) != 0u && WithoutBounds(incremental.uia[index]) == WithoutBounds(fresh.uia[index]))
-            {
-                if (known && known->empty())
-                    *known = std::format("UI Automation element {} bounding rectangle: incremental [{}] fresh [{}]",
-                                         index,
-                                         Narrow(incremental.uia[index]),
-                                         Narrow(fresh.uia[index]));
-                continue;
-            }
             return std::format("UI Automation element {}: incremental [{}] fresh [{}]", index, Narrow(incremental.uia[index]), Narrow(fresh.uia[index]));
-        }
     if (incremental.uia.size() != fresh.uia.size())
         return std::format("{} UI Automation elements incremental, {} fresh", incremental.uia.size(), fresh.uia.size());
     return {};
@@ -397,6 +381,11 @@ template <typename Scene, typename Make>
         operation();
         DxUi::Detail::SetFreshPreparationForTest(false);
     };
+    // Every incremental UI Automation publication of either scene is also checked against a whole build of the same tree (W8.2).
+    const bool wasVerifying = DxUi::DebugGetAccessibilityIncrementalVerificationForTest();
+    DxUi::DebugResetAccessibilityIncrementalVerificationForTest();
+    DxUi::DebugSetAccessibilityIncrementalVerificationForTest(true);
+    const auto stopVerifying = wil::scope_exit([wasVerifying] { DxUi::DebugSetAccessibilityIncrementalVerificationForTest(wasVerifying); });
     script.build(*incremental);
     freshly([&] { script.build(*fresh); });
     Rng incrementalRng{seed};
@@ -415,6 +404,11 @@ template <typename Scene, typename Make>
         std::string exempted;
         if (std::string difference = FirstDifference(a, b, channelTolerance, Scene::kKnownDifferences, &exempted); ! difference.empty())
             return std::format("step {} ({}): {}", step, step == 0u ? std::string_view("initial frame") : g_lastStep, difference);
+        if (DxUi::DebugGetAccessibilityIncrementalMismatchCountForTest() != 0u)
+            return std::format("step {} ({}): an incremental UI Automation publication differs from a whole build: {}",
+                               step,
+                               g_lastStep,
+                               Narrow(DxUi::DebugGetAccessibilityFirstIncrementalMismatchForTest()));
         if (known && known->empty() && ! exempted.empty())
             *known = std::format("step {} ({}): {}", step, g_lastStep, exempted);
     }
@@ -437,7 +431,7 @@ void RunParityScript(const ParityScript<Scene>& script, const Make& make, std::s
                              replay));
         std::cout << "  parity " << host << ' ' << script.name << std::format(" seed 0x{:016X}", seed) << ": " << script.steps << " steps, 0 differences\n";
         if (! known.empty())
-            std::cout << "    KNOWN DIFFERENCE (exempted by name: native UIA bounds after SetBounds), first at " << known << '\n';
+            std::cout << "    KNOWN DIFFERENCE (exempted by name), first at " << known << '\n';
     }
 }
 

@@ -146,7 +146,13 @@ struct EmbeddedParityScene final
             site->root = provider.get();
         }
         else
+        {
             Check(SUCCEEDED(view.UpdateAccessibility(placement)), "parity accessibility publication");
+            // A geometry-only publication within 100 ms of the last one waits for the next frame, which the view's animation
+            // request asks the application for (W8.2 coalescing): the step is read once that frame's update has published.
+            if (view.GetAnimationRequest().kind != DxUi::EmbeddedAnimationRequest::Kind::None)
+                Check(SUCCEEDED(view.UpdateAccessibility(placement)), "parity accessibility publication on the next frame");
+        }
         DxUi::WindowHostBitmapCapture surface;
         Hr(view.DebugReadSurfaceForTest(surface), "parity surface read");
         ParityFrame frame;

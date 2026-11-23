@@ -2969,7 +2969,15 @@ std::optional<LabelTypography> Label::GetTypographyOverride() const noexcept
 void Label::SetMnemonicTarget(Control* target) noexcept
 {
     // The label's text names its target (UI Automation): nothing of the label itself is painted differently.
-    Assign(_mnemonicTarget, target, Affects::SemanticName);
+    // The old target loses the name and the new one gains it: a whole-window publication, since a mark names only this label.
+    Assign(_mnemonicTarget,
+           target,
+           Affects::SemanticName,
+           [this]() noexcept
+    {
+        if (ControlHost* const host = GetHost())
+            NoteAccessibilityWholeChange(*host);
+    });
 }
 
 void Label::PrepareVisualContent(ControlHost& host) noexcept
@@ -6432,8 +6440,7 @@ void Slider::PublishRangeState() noexcept
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     RequestInvalidate();
     if (! lifetime.expired())
-        if (ControlHost* const host = GetHost())
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+        NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Value);
 }
 
 void Slider::SetTickMarks(std::vector<double> tickMarks)
@@ -6474,9 +6481,9 @@ void Slider::NotifyChange(SliderChangePhase phase, bool notifyLegacy) noexcept
     {
         Failure::FailUnexpected();
     }
+    // The value is the slider's own record (W8.2): a mark, not a whole-window build.
     if (! lifetime.expired())
-        if (ControlHost* const host = GetHost())
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
+        NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Value);
 }
 
 void Slider::SetOnValueChanged(std::function<void(double)> onValueChanged)
@@ -6694,8 +6701,7 @@ void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChange
     if (notifyChanged)
         NotifyChange(_dragging ? SliderChangePhase::Preview : SliderChangePhase::Commit, true);
     if (! notifyChanged && ! lifetime.expired())
-        if (ControlHost* const currentHost = GetHost())
-            RefreshWindowHostAccessibilitySnapshot(currentHost->GetHwnd(), currentHost);
+        NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Value);
 }
 
 D2D1_POINT_2F Slider::GetThumbCenter() const noexcept

@@ -41,7 +41,7 @@ constexpr uint64_t kClockStartMs = 1'000'000u;
 
 struct NativeParityScene final
 {
-    static constexpr uint32_t kKnownDifferences = kNativeUiaBoundsAfterSetBounds;
+    static constexpr uint32_t kKnownDifferences = kNoKnownDifference;
     static constexpr bool kCrossStepCapture     = false;
     AttachedHostWindow window{WindowHost::PresentationMode::HwndSwapChain, true};
     std::array<Control*, kParitySlots> slots{};

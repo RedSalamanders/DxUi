@@ -371,8 +371,10 @@ void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
             return;
         }
 
+        uint64_t interactionBefore = 0u;
         if (_host)
         {
+            interactionBefore = _host->_interactionRevision;
             ++_host->_interactionRevision;
             if (_host->_intrinsicArrangeBranch)
             {
@@ -385,8 +387,12 @@ void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
                     ++_host->_intrinsicArrangeBoundsRevision;
             }
         }
-        const bool hadArea                = _bounds.right > _bounds.left && _bounds.bottom > _bounds.top;
-        _bounds                           = bounds;
+        const bool hadArea = _bounds.right > _bounds.left && _bounds.bottom > _bounds.top;
+        _bounds            = bounds;
+        // UI Automation publishes this control's bounding rectangles again, and its subtree's (W8.2): marked once the bounds
+        // are stored, before any override runs.
+        if (_host)
+            NoteAccessibilityGeometryMove(*this, interactionBefore, _host->_hitRevision);
         const std::weak_ptr<int> lifetime = GetLifetimeToken();
         OnBoundsChanged();
         if (lifetime.expired())
@@ -404,6 +410,7 @@ void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
             if (lifetime.expired() || GetHost() != host)
                 return;
         }
+        const AttestedInvalidation geometry(GetHost()); // the move is marked above
         RequestInvalidate();
     }
 }
@@ -1034,7 +1041,14 @@ void Control::SetOnContextMenu(std::function<void(POINT screenPoint, bool keyboa
 void Control::InvalidateHitTest() noexcept
 {
     if (_host)
+    {
+        // What a hit test reads of this control moved (a popup, a scroll offset, a separator, a declared Affects::Hit), and
+        // the bounding rectangles UI Automation publishes read the same geometry: the host's geometry path marks it (W8.2).
+        const uint64_t hitBefore         = _host->_hitRevision;
+        const uint64_t interactionBefore = _host->_interactionRevision;
         _host->AdvanceHitRevision();
+        NoteAccessibilityGeometryMove(*this, interactionBefore, hitBefore);
+    }
 }
 
 void Control::RouteAffects(Affects affects) noexcept
@@ -1050,37 +1064,51 @@ void Control::RouteAffectsAt(Affects affects, uint8_t hitRevisionSite) noexcept
     if (affects == Affects::None)
         return;
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    // What UI Automation publishes of this assignment (W8.2): a name or a value marks this control's record; a hit change, and a
+    // painted change that declared no semantic aspect (a color, a scroll extent: drawn geometry a bounding rectangle may follow),
+    // mark its geometry; a state is a whole-window mutation (patterns, control type, focus). The invalidations below declare
+    // what they repaint, so they do not by themselves make the next publication whole.
+    const bool semantic = HasAffects(affects, Affects::SemanticName | Affects::SemanticValue | Affects::SemanticState);
     if (HasAffects(affects, Affects::Hit))
-        NoteHitTestChange(*this, static_cast<HitRevisionSite>(hitRevisionSite));
+        NoteHitTestChange(*this, static_cast<HitRevisionSite>(hitRevisionSite)); // marks its geometry (InvalidateHitTest)
+    else if (HasAffects(affects, Affects::Paint) && ! semantic)
+        NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Geometry);
     if (HasAffects(affects, Affects::Layout))
     {
+        const AttestedInvalidation declared(GetHost());
         InvalidateMeasure();
         if (lifetime.expired())
             return;
     }
     if (HasAffects(affects, Affects::Paint))
     {
+        const AttestedInvalidation declared(GetHost());
         RequestInvalidate();
         if (lifetime.expired())
             return;
     }
-    // One mutation for every semantic aspect: the snapshot is rebuilt whole today. A state can change patterns and focus
-    // (General); a name or value cannot (ContentOnly), so an already posted flush publishes it. An embedded view publishes
+    // A state can change patterns and focus (General); a name or value cannot, and marks its record. An embedded view publishes
     // at the application's UpdateAccessibility after a preparation, so a change it has not repainted asks for one.
-    if (HasAffects(affects, Affects::SemanticName | Affects::SemanticValue | Affects::SemanticState))
+    if (semantic)
     {
         if (ControlHost* const host = GetHost())
         {
             if (host->IsEmbedded() && ! HasAffects(affects, Affects::Paint))
             {
+                const AttestedInvalidation declared(host);
                 RequestInvalidate();
                 if (lifetime.expired() || GetHost() != host)
                     return;
             }
-            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(),
-                                                   host,
-                                                   HasAffects(affects, Affects::SemanticState) ? AccessibilityMutationKind::General
-                                                                                               : AccessibilityMutationKind::ContentOnly);
+            if (HasAffects(affects, Affects::SemanticState))
+                RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::General);
+            else
+            {
+                if (HasAffects(affects, Affects::SemanticName))
+                    NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Name);
+                if (HasAffects(affects, Affects::SemanticValue))
+                    NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Value);
+            }
         }
     }
 }
@@ -1279,6 +1307,8 @@ WindowHostCursorKind Control::ResolveCursorKind(ControlHost& /*host*/, D2D1_POIN
 
 void Control::Invalidate(ControlHost& host) const
 {
+    // A control that reports every change of its record repaints with nothing undeclared for UI Automation (W8.2).
+    const AttestedInvalidation reported(&host, ReportsOwnAccessibilityChanges(*this));
     host.Invalidate();
 }
 
@@ -1286,6 +1316,7 @@ void Control::RequestInvalidate() const noexcept
 {
     if (_host)
     {
+        const AttestedInvalidation reported(_host, ReportsOwnAccessibilityChanges(*this));
         _host->Invalidate();
     }
 }

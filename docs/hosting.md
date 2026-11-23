@@ -356,6 +356,20 @@ while text, selection and other ordinary state changes remain coalesced. Detachi
 cookie; an old queued flush cannot publish into a later host attached to the same HWND. Embedded accessibility follows
 its explicit `UpdateAccessibility` timing after coherent preparation, placement or focus changes.
 
+A publication shares with the one before it everything that did not change: a slider step, a field's text set by `SetText`, a focus
+move or a moved control re-reads only the records it touched (and, for a move, every bounding rectangle), so it costs the
+change, not the window, and a client hears what a whole rebuild would raise. Moving or resizing a control (`SetBounds`), a
+scroll offset or a splitter's separator republishes its bounding rectangles without a refresh call. A layout that moves
+many controls (a pane laid out during a splitter drag) is published as one move of their common parent, and publications
+that only move controls are published at most once per 100 ms and once when the layout settles. While such a publication
+waits, an embedded view's `GetAnimationRequest` stays due at once and clients read the bounds of its last publication:
+prepare and call `UpdateAccessibility` on the next frame, as for any due request, and that update publishes the settled
+bounds (or defers once more if the layout moved again). Whatever that update does, it ends the wait, so the request never
+stays due with nothing to publish. A window host does this itself through its frame schedule. Structure, state and
+model changes, and changes the host cannot account for (a hover or animation of another control between publications),
+still rebuild the whole window. The [input and accessibility contract](../Specs/UI/UI_InputAndAccessibility.md#incremental-publication)
+lists what each change republishes.
+
 Without a requested provider or UIA listener, native mutations retain dirty state without walking focus paths or
 posting new publication work. The next owner-thread provider query sees the latest state, and a flush already
 queued before interest ceased still includes later mutations. No additional application refresh call is required.

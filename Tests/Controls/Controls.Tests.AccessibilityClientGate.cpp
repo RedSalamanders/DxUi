@@ -12,6 +12,7 @@
 #include <array>
 #include <atomic>
 #include <cstddef>
+#include <format>
 #include <functional>
 #include <iostream>
 #include <optional>
@@ -234,6 +235,13 @@ namespace
     return DxUi::DebugGetAccessibilitySnapshotBuildCountForTest();
 }
 
+// What the client gate decides is whether a host publishes: since W8.2 a publication may share the records before it
+// instead of building the whole window, so the gate's tests count publications of either kind.
+[[nodiscard]] uint64_t Publications() noexcept
+{
+    return DxUi::DebugGetAccessibilityPublicationCountForTest();
+}
+
 // The element among `elements` (and their descendants, three levels down) whose name is `name`; zero when none.
 [[nodiscard]] UiaTest::ElementId FindNamed(UiaTest::Client& client, UiaTest::ElementId from, std::wstring_view name, int depth = 3)
 {
@@ -298,18 +306,18 @@ void TestAccessibilityClientGateFx6NoClientBuildsNothing()
     Fx6::Controls controls;
     controls.Build(window.Host());
     window.PumpMessages();
-    const uint64_t before = Builds();
+    const uint64_t before = Publications();
     const DxUi::Detail::WorkCounterScope work;
     MutateFx6(controls, window);
     Require(work.Delta().accessibility.snapshotBuilds == 0u && work.Delta().accessibility.snapshotNodes == 0u,
             "FX6 with no client: the work counters count no snapshot build or record");
-    std::cerr << "    [FX6] no client: builds +" << (Builds() - before) << " for " << Fx6::kMutations << " mutations\n";
-    Require(Builds() == before, "FX6 with no client: 100 mutations build no snapshot (G9)");
+    std::cerr << "    [FX6] no client: builds +" << (Publications() - before) << " for " << Fx6::kMutations << " mutations\n";
+    Require(Publications() == before, "FX6 with no client: 100 mutations build no snapshot (G9)");
     UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
     const UiaTest::ElementId root = client.Root();
     RequireFinalFx6Tree(client, root, "a client attaching after 100 unobserved mutations reads the current tree");
-    std::cerr << "    [FX6] late client: builds +" << (Builds() - before) << '\n';
-    Require(Builds() == before + 1u, "the late client's queries build one snapshot");
+    std::cerr << "    [FX6] late client: builds +" << (Publications() - before) << '\n';
+    Require(Publications() == before + 1u, "the late client's queries build one snapshot");
 }
 
 // FX6 after a probe that queried the window and let it go: the request latched the window for this attachment, so each of
@@ -327,10 +335,10 @@ void TestAccessibilityClientGateFx6RequestedWindowKeepsBuilding()
         Require(FindNamed(probe, root, L"Entry") != 0u, "the probe reads the window's tree");
     }
     window.PumpMessages();
-    const uint64_t before = Builds();
+    const uint64_t before = Publications();
     MutateFx6(controls, window);
-    std::cerr << "    [FX6] after a released probe: builds +" << (Builds() - before) << '\n';
-    Require(Builds() >= before + Fx6::kMutations, "a window a client requested keeps building at each mutation for the attachment");
+    std::cerr << "    [FX6] after a released probe: builds +" << (Publications() - before) << '\n';
+    Require(Publications() >= before + Fx6::kMutations, "a window a client requested keeps building at each mutation for the attachment");
 }
 
 // A client that holds elements and only queries them, on its own thread, reads what the mutations left.
@@ -414,10 +422,10 @@ void TestAccessibilityClientGateFx6EmbeddedEveryFrameBuildsNothing()
         RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare FX6 embedded");
         {
             EmbeddedUiaTest::Bridge bridge(view, kWidth, kHeight);
-            const uint64_t beforeAttach = Builds();
+            const uint64_t beforeAttach = Publications();
             RequireSucceeded(bridge.Attach(false, 0x46583601ull), "attach FX6 embedded accessibility");
-            Require(Builds() == beforeAttach + 1u, "attaching accessibility builds the first snapshot");
-            const uint64_t before = Builds();
+            Require(Publications() == beforeAttach + 1u, "attaching accessibility builds the first snapshot");
+            const uint64_t before = Publications();
             const DxUi::Detail::WorkCounterScope work;
             for (size_t index = 0u; index < Fx6::kMutations; ++index)
             {
@@ -426,8 +434,8 @@ void TestAccessibilityClientGateFx6EmbeddedEveryFrameBuildsNothing()
                 Require(bridge.Update() == S_OK, "UpdateAccessibility accepts every changed frame");
                 Require(bridge.Update() == S_FALSE, "an unchanged frame's update is a no-op");
             }
-            std::cerr << "    [FX6] embedded, every frame, no client: builds +" << (Builds() - before) << '\n';
-            Require(Builds() == before, "FX6 embedded with no client: UpdateAccessibility every frame builds no snapshot (G9)");
+            std::cerr << "    [FX6] embedded, every frame, no client: builds +" << (Publications() - before) << '\n';
+            Require(Publications() == before, "FX6 embedded with no client: UpdateAccessibility every frame builds no snapshot (G9)");
             Require(work.Delta().accessibility.snapshotBuilds == 0u, "FX6 embedded with no client: the work counters count no snapshot build");
             Require(work.Delta().frame.treeVisitsStatistics == 0u, "a recorded update reads its preparation count without walking the tree");
             {
@@ -435,25 +443,25 @@ void TestAccessibilityClientGateFx6EmbeddedEveryFrameBuildsNothing()
                 const UiaTest::ElementId root = client.Root();
                 RequireFinalFx6Tree(client, root, "a client of the embedded view reads the current tree after deferred updates");
             }
-            std::cerr << "    [FX6] embedded late client: builds +" << (Builds() - before) << '\n';
-            Require(Builds() == before + 1u, "the embedded client's first request builds the recorded update once");
-            const uint64_t requested = Builds();
+            std::cerr << "    [FX6] embedded late client: builds +" << (Publications() - before) << '\n';
+            Require(Publications() == before + 1u, "the embedded client's first request builds the recorded update once");
+            const uint64_t requested = Publications();
             for (size_t index = 0u; index < 3u; ++index)
             {
                 controls.Mutate(index);
                 RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare a frame of the requested view");
                 Require(bridge.Update() == S_OK, "a requested view's frame publishes");
             }
-            Require(Builds() == requested + 3u, "once requested, each changed frame builds, with no listener on the desktop");
+            Require(Publications() == requested + 3u, "once requested, each changed frame builds, with no listener on the desktop");
             const SystemListeners listening(true);
-            const uint64_t listened = Builds();
+            const uint64_t listened = Publications();
             for (size_t index = 3u; index < 6u; ++index)
             {
                 controls.Mutate(index);
                 RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare a listened FX6 frame");
                 Require(bridge.Update() == S_OK, "a listened frame publishes");
             }
-            Require(Builds() == listened + 3u, "with a listening client each changed frame builds, as before the gate");
+            Require(Publications() == listened + 3u, "with a listening client each changed frame builds, as before the gate");
         }
         view.Detach();
     }),
@@ -981,16 +989,16 @@ void TestAccessibilityClientGateOutOfProcessQueryOnlyClientLatchesTheWindow()
         static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, 5u, QS_ALLINPUT, MWMO_INPUTAVAILABLE));
     }
     Require(WaitForSingleObject(ready.get(), 0u) == WAIT_OBJECT_0, "the query client read the window's elements");
-    const uint64_t before = Builds();
+    const uint64_t before = Publications();
     fields.first->SetText(L"after the query client");
     window.PumpMessages();
-    Require(Builds() > before, "a window an out-of-process client requested keeps building at a mutation");
+    Require(Publications() > before, "a window an out-of-process client requested keeps building at a mutation");
     static_cast<void>(TerminateProcess(process.hProcess, 0u));
     static_cast<void>(WaitForSingleObject(process.hProcess, 10000u));
-    const uint64_t ended = Builds();
+    const uint64_t ended = Publications();
     fields.first->SetText(L"after the query client ended");
     window.PumpMessages();
-    Require(Builds() > ended, "and keeps building after that client ended, for the attachment");
+    Require(Publications() > ended, "and keeps building after that client ended, for the attachment");
 }
 
 // Building when only paint is dirty: a query of a single-line field whose text an input handler changed before the next
@@ -1080,9 +1088,9 @@ void TestAccessibilityClientGateEmbeddedFirstRequestBeforePrepareReadsTheLastBui
         UiaTest::Client client(bridge.Hwnd(), {}, [&bridge] { bridge.Pump(); });
         const UiaTest::ElementId first = FindNamed(client, client.Root(), L"First");
         Require(first != 0u && client.StringProperty(first, UIA_ValueValuePropertyId) == L"x", "the first request reads the snapshot attachment built");
-        const uint64_t before = Builds();
+        const uint64_t before = Publications();
         RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the next frame");
-        Require(bridge.Update() == S_OK && Builds() == before + 1u, "the next update of the requested view builds");
+        Require(bridge.Update() == S_OK && Publications() == before + 1u, "the next update of the requested view builds");
         Require(client.StringProperty(first, UIA_ValueValuePropertyId) == L"y", "and the client reads the current tree");
     });
 }
@@ -1181,8 +1189,8 @@ void TestAccessibilityClientGateEmbeddedListenerBeforeAnyRequestRaisesTheWholeDe
         const size_t mark = client.Mark();
         fields.second->SetText(L"z");
         RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the heard change");
-        const uint64_t before = Builds();
-        Require(bridge.Update() == S_OK && Builds() == before + 1u, "with a listener the next changed update builds");
+        const uint64_t before = Publications();
+        Require(bridge.Update() == S_OK && Publications() == before + 1u, "with a listener the next changed update builds");
         Require(HeardFromFirst(client, mark, UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"y"), "it raises the change recorded unheard");
         Require(HeardFrom(client, mark, L"Second", UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"z"), "and the new one");
     });
@@ -1209,24 +1217,24 @@ void TestAccessibilityClientGateEmbeddedReattachStartsUnrequested()
             }
             fields.first->SetText(L"requested");
             RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare a requested frame");
-            uint64_t before = Builds();
-            Require(bridge.Update() == S_OK && Builds() == before + 1u, "a requested view builds at each changed update");
+            uint64_t before = Publications();
+            Require(bridge.Update() == S_OK && Publications() == before + 1u, "a requested view builds at each changed update");
             view.DebugDropRetainedStateForTest();
             fields.first->SetText(L"after the drop");
             RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare after the drop");
-            before = Builds();
-            Require(bridge.Update() == S_OK && Builds() == before + 1u, "after a drop the next update builds a tree again");
+            before = Publications();
+            Require(bridge.Update() == S_OK && Publications() == before + 1u, "after a drop the next update builds a tree again");
             fields.first->SetText(L"still requested");
             RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare another frame");
-            before = Builds();
-            Require(bridge.Update() == S_OK && Builds() == before + 1u, "a drop keeps the request");
+            before = Publications();
+            Require(bridge.Update() == S_OK && Publications() == before + 1u, "a drop keeps the request");
         } // The bridge disconnects the view's accessibility.
         EmbeddedUiaTest::Bridge again(view, kWidth, kHeight);
         RequireSucceeded(again.Attach(false, 0x4658360Dull), "attach the view's accessibility again");
         fields.first->SetText(L"unrequested");
         RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare a frame of the new attachment");
-        const uint64_t before = Builds();
-        Require(again.Update() == S_OK && Builds() == before, "a new attachment starts unrequested: the changed update builds nothing");
+        const uint64_t before = Publications();
+        Require(again.Update() == S_OK && Publications() == before, "a new attachment starts unrequested: the changed update builds nothing");
     });
 }
 
@@ -1266,10 +1274,860 @@ void TestAccessibilityClientGateEmbeddedResizedFirstRequestIsRepairedByTheNextUp
         static_cast<void>(client.WaitOutTheStream());
         const size_t mark = client.Mark();
         const DxUi::EmbeddedAccessibilityPlacement wider{{-32000.0, -32000.0, static_cast<double>(kWiderWidth), static_cast<double>(kHeight)}, false};
-        const uint64_t before = Builds();
-        Require(view.UpdateAccessibility(wider) == S_OK && Builds() == before + 1u, "the next accepted update builds the current tree");
+        const uint64_t before = Publications();
+        Require(view.UpdateAccessibility(wider) == S_OK && Publications() == before + 1u, "the next accepted update builds the current tree");
         Require(HeardFromFirst(client, mark, UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"y"), "and raises the delta since the snapshot served");
         Require(client.StringProperty(first, UIA_ValueValuePropertyId) == L"y", "the client reads the current tree");
         Require(SUCCEEDED(GetGridItem(client, rows, 150)), "and GetItem of the uncached row succeeds");
     });
+}
+
+// ---- Incremental publication (W8.2) --------------------------------------------------------------------------------------
+
+namespace
+{
+// While alive: incremental publications are verified against a whole build, and the verification starts from zero.
+class VerifiedPublications final
+{
+public:
+    VerifiedPublications() noexcept : previous_(DxUi::DebugGetAccessibilityIncrementalVerificationForTest())
+    {
+        DxUi::DebugResetAccessibilityIncrementalVerificationForTest();
+        DxUi::DebugSetAccessibilityIncrementalVerificationForTest(true);
+    }
+    ~VerifiedPublications()
+    {
+        DxUi::DebugSetAccessibilityIncrementalVerificationForTest(previous_);
+    }
+    VerifiedPublications(const VerifiedPublications&)            = delete;
+    VerifiedPublications& operator=(const VerifiedPublications&) = delete;
+    VerifiedPublications(VerifiedPublications&&)                 = delete;
+    VerifiedPublications& operator=(VerifiedPublications&&)      = delete;
+    void RequireNoDifference(const char* what) const
+    {
+        const uint64_t mismatches = DxUi::DebugGetAccessibilityIncrementalMismatchCountForTest();
+        if (mismatches != 0u)
+            std::wcerr << L"    [W8.2] first difference from a whole build: " << DxUi::DebugGetAccessibilityFirstIncrementalMismatchForTest() << L'\n';
+        Require(mismatches == 0u, what);
+    }
+
+private:
+    bool previous_;
+};
+} // namespace
+
+// The event baseline (W8.1 record, closed by W8.2): another process listened while the field became "a", then stopped; the
+// field became "b" with nobody listening; a client then starts, queries and subscribes; the field returns to "a". The client
+// read "b", so it is owed the change back to "a". The record expected the event baseline to still hold "a" here and nothing
+// to be raised; on this tree the scenario passes with and without W8.2's baseline rule (the in-process client's arrival
+// publishes through the drain), so this test guards the scenario rather than reproducing the loss.
+void TestAccessibilityIncrementalLostEventAfterListenerLeft()
+{
+    AttachedHostWindow window;
+    Fx6::Controls controls;
+    controls.Build(window.Host());
+    window.PumpMessages();
+    {
+        const SystemListeners another(true);
+        controls.field->SetText(L"a");
+        window.PumpMessages();
+    }
+    const SystemListeners nobody(false);
+    controls.field->SetText(L"b");
+    window.PumpMessages();
+    {
+        // The screen reader's first request reaches the window's thread (WM_GETOBJECT and the root's first calls), which
+        // publishes the unheard change there, outside the queued drain: the publication that left the baseline behind.
+        wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> owner;
+        owner.attach(window.Host().DebugCreateAccessibilityProvider());
+        wil::com_ptr_nothrow<IRawElementProviderFragment> fragment;
+        Require(owner && SUCCEEDED(owner.query_to(fragment.put())), "the window's root provider is requested on its thread");
+        wil::com_ptr_nothrow<IRawElementProviderFragment> first;
+        Require(SUCCEEDED(fragment->Navigate(NavigateDirection_FirstChild, first.put())) && first, "the request reads the window's tree");
+    }
+    UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
+    const UiaTest::ElementId root  = client.Root();
+    const UiaTest::ElementId field = FindNamed(client, root, L"Entry");
+    Require(field != 0u && client.StringProperty(field, UIA_ValueValuePropertyId) == L"b", "the starting client reads the unheard value");
+    RequireSucceeded(client.Perform("subscribe to the field's value",
+                                    [](UiaTest::Session& session) -> HRESULT
+    {
+        wil::com_ptr_nothrow<IUIAutomationElement> element;
+        RETURN_IF_FAILED(session.automation->ElementFromHandle(session.target, element.put()));
+        std::array<PROPERTYID, 1u> ids = {{UIA_ValueValuePropertyId}};
+        return session.automation->AddPropertyChangedEventHandlerNativeArray(
+            element.get(), TreeScope_Subtree, session.cache.get(), session.recorder, ids.data(), static_cast<int>(ids.size()));
+    }),
+                     "subscribe to the field's value");
+    client.Settle(300u);
+    static_cast<void>(client.WaitOutTheStream());
+    const size_t mark = client.Mark();
+    controls.field->SetText(L"a");
+    window.PumpMessages();
+    const bool heard = HeardFrom(client, mark, L"Entry", UiaTest::EventKind::Property, UIA_ValueValuePropertyId, L"a");
+    for (const auto& event : client.DistinctSince(mark))
+        std::wcerr << L"    [W8.2] heard " << UiaTest::DescribeEvent(event) << L'\n';
+    Require(heard, "the client hears the value return to the state another listener last heard");
+}
+
+// A native window's control moved by SetBounds: a client reads the new bounding rectangle without any other change
+// republishing (the W0.5 record), and the move costs no whole-window build: its record and the rectangles are republished.
+void TestAccessibilityIncrementalNativeBoundsFollowSetBounds()
+{
+    const SystemListeners nobody(false);
+    AttachedHostWindow window;
+    Fx6::Controls controls;
+    controls.Build(window.Host());
+    window.PumpMessages();
+    const VerifiedPublications verified;
+    UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
+    const UiaTest::ElementId root  = client.Root();
+    const UiaTest::ElementId field = FindNamed(client, root, L"Entry");
+    Require(field != 0u, "the client finds the field");
+    const RECT before    = client.Describe(field).boundingRectangle;
+    const uint64_t built = Builds();
+    controls.field->SetBounds(D2D1::RectF(8.0f, 140.0f, 240.0f, 168.0f));
+    window.PumpMessages();
+    const RECT after   = client.Describe(field).boundingRectangle;
+    const float scale  = window.Host().GetDpi() / 96.0f;
+    const LONG shifted = static_cast<LONG>(std::lround(100.0f * scale));
+    std::cerr << "    [W8.2] field top " << before.top << " -> " << after.top << ", whole builds +" << (Builds() - built) << '\n';
+    Require(after.top - before.top == shifted && after.bottom - before.bottom == shifted, "a client reads the moved control's new bounding rectangle");
+    Require(Builds() == built, "a move republishes the moved record and the rectangles, not the whole window");
+    verified.RequireNoDifference("the move's publication equals a whole build");
+}
+
+// A published snapshot never changes: a reader on another thread describes one generation over and over while the owner
+// publishes 100 later ones, each sharing every record but the slider's with the one before.
+void TestAccessibilityIncrementalOldSnapshotIsStableAcrossThreads()
+{
+    const SystemListeners nobody(false);
+    AttachedHostWindow window;
+    Fx6::Controls controls;
+    controls.Build(window.Host());
+    Require(DxUi::DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), true), "the window publishes at each mutation");
+    const auto clearInterest = wil::scope_exit([&] { static_cast<void>(DxUi::DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), std::nullopt)); });
+    window.Host().RefreshAccessibilitySnapshot();
+    window.PumpMessages();
+    const VerifiedPublications verified;
+    const std::shared_ptr<const void> held = DxUi::DebugHoldAccessibilitySnapshotForTest(window.Host());
+    Require(held != nullptr, "the window published a snapshot");
+    std::vector<std::wstring> expected;
+    DxUi::DebugDescribeAccessibilitySnapshotForTest(held, expected);
+    std::atomic<bool> stop{false};
+    std::atomic<size_t> reads{0u}, changed{0u};
+    std::thread reader([&]
+    {
+        std::vector<std::wstring> lines;
+        while (! stop.load(std::memory_order_acquire))
+        {
+            DxUi::DebugDescribeAccessibilitySnapshotForTest(held, lines);
+            if (lines != expected)
+                changed.fetch_add(1u, std::memory_order_relaxed);
+            reads.fetch_add(1u, std::memory_order_relaxed);
+        }
+    });
+    const uint64_t built                   = Builds();
+    std::shared_ptr<const void> generation = held;
+    size_t fewestShared                    = (std::numeric_limits<size_t>::max)();
+    for (size_t step = 0u; step < 100u; ++step)
+    {
+        controls.slider->SetValue(static_cast<double>(step + 1u));
+        window.PumpMessages();
+        const std::shared_ptr<const void> next = DxUi::DebugHoldAccessibilitySnapshotForTest(window.Host());
+        fewestShared                           = (std::min)(fewestShared, DxUi::DebugCountSharedAccessibilityRecordsForTest(generation, next));
+        generation                             = next;
+    }
+    while (reads.load(std::memory_order_relaxed) < 100u)
+        std::this_thread::yield();
+    stop.store(true, std::memory_order_release);
+    reader.join();
+    std::vector<std::wstring> latest;
+    DxUi::DebugDescribeAccessibilitySnapshotForTest(generation, latest);
+    std::cerr << "    [W8.2] " << reads.load() << " reads of the held generation, " << changed.load() << " changed; whole builds +" << (Builds() - built)
+              << ", fewest records shared with the previous generation " << fewestShared << '\n';
+    Require(changed.load() == 0u, "a held generation reads the same on another thread while later ones are published");
+    Require(latest != expected, "the latest generation shows the slider's value");
+    Require(Builds() == built, "100 slider values publish 100 successors and no whole build");
+    Require(fewestShared == 2u, "each successor shares the two records the value did not change");
+    verified.RequireNoDifference("every successor equals a whole build");
+}
+
+// FX6's slider on a native window: 100 Right keys through the window's message path publish successors, with no
+// whole-window build after the first key, one record re-read each.
+void TestAccessibilityIncrementalNativeSliderKeys()
+{
+    const SystemListeners nobody(false);
+    AttachedHostWindow window;
+    Fx6::Controls controls;
+    controls.Build(window.Host());
+    Require(DxUi::DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), true), "the window publishes at each mutation");
+    const auto clearInterest = wil::scope_exit([&] { static_cast<void>(DxUi::DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), std::nullopt)); });
+    window.Host().SetFocusControl(controls.slider, false);
+    window.Host().RefreshAccessibilitySnapshot();
+    window.PumpMessages();
+    const auto key = [&]
+    {
+        SendMessageW(window.Hwnd(), WM_KEYDOWN, VK_RIGHT, 1);
+        SendMessageW(window.Hwnd(), WM_KEYUP, VK_RIGHT, static_cast<LPARAM>(0xC0000001u));
+        window.PumpMessages();
+    };
+    key(); // The first key may turn the keyboard focus ring on.
+    const VerifiedPublications verified;
+    const uint64_t built = Builds();
+    const DxUi::Detail::WorkCounterScope work;
+    for (size_t step = 1u; step < 100u; ++step)
+        key();
+    const auto delta = work.Delta().accessibility;
+    std::cerr << "    [W8.2] native slider keys: whole builds +" << (Builds() - built) << ", incremental " << delta.incrementalPublications << ", records "
+              << delta.recordsCloned << '\n';
+    Require(controls.slider->GetValue() == 100.0, "the keys moved the slider");
+    Require(Builds() == built && delta.incrementalPublications == 99u && delta.recordsCloned == 99u,
+            "each native slider key publishes one successor that re-reads the slider's record alone");
+    verified.RequireNoDifference("every native slider key's publication equals a whole build");
+}
+
+namespace
+{
+// One frame of the embedded slider and drag script: every event raised (kind, id, sender path, old and new values), the
+// property ids among them, the whole builds it made and the geometry marks it collapsed.
+struct FrameEvents final
+{
+    std::vector<std::wstring> events;
+    std::vector<long> ids;
+    uint64_t builds    = 0u;
+    uint64_t collapsed = 0u;
+};
+
+struct RecordedEvents final
+{
+    std::vector<std::wstring> events;
+    std::vector<long> ids;
+    static void Record(const DxUi::AccessibilityRaisedEventForTest& event, void* context) noexcept
+    {
+        try
+        {
+            auto& self = *static_cast<RecordedEvents*>(context);
+            self.events.push_back(std::format(L"{} {} {} {} -> {}", static_cast<int>(event.kind), event.id, event.sender, event.oldValue, event.newValue));
+            if (event.kind == DxUi::AccessibilityRaisedEventKindForTest::Property)
+                self.ids.push_back(event.id);
+        }
+        catch (const std::bad_alloc&)
+        {
+            DxUi::Failure::FailAllocation();
+        }
+        catch (const std::exception&)
+        {
+            DxUi::Failure::FailUnexpected();
+        }
+    }
+};
+
+// FX6's slider and splitter in an embedded view with a real in-process client listening: 100 Right keys, then a 200 px drag.
+// The splitter's change lays out an application's pane of 40 buttons beside it, as a pane layout does during a drag, so each
+// move also moves 40 controls (more geometry marks than a host keeps, collapsed into one on their common parent). Each input
+// is followed by a Prepare and an UpdateAccessibility (one frame). `whole` publishes every frame by a whole build.
+[[nodiscard]] std::vector<FrameEvents> RunEmbeddedSliderAndDrag(bool whole)
+{
+    std::vector<FrameEvents> frames;
+    RunEmbeddedGateCase("run the embedded slider and splitter script",
+                        [&](DxUi::EmbeddedHost& view)
+    {
+        const SystemListeners listening(true);
+        DxUi::DebugSetAccessibilityWholePublicationForTest(whole);
+        const auto restoreWhole = wil::scope_exit([] { DxUi::DebugSetAccessibilityWholePublicationForTest(false); });
+        constexpr UINT kWidth = 640u, kHeight = 720u;
+        auto root    = std::make_unique<DxUi::Panel>();
+        auto* slider = root->AddChild<DxUi::Slider>();
+        slider->SetBounds(D2D1::RectF(8.0f, 76.0f, 240.0f, 112.0f));
+        slider->SetAccessibleName(L"Level");
+        slider->SetMinimum(0.0);
+        slider->SetMaximum(200.0);
+        auto* splitter = root->AddChild<DxUi::Splitter>();
+        splitter->SetBounds(D2D1::RectF(8.0f, 120.0f, 632.0f, 232.0f));
+        splitter->SetAccessibleName(L"Panes");
+        splitter->SetPosition(100.0f);
+        auto* pane = root->AddChild<DxUi::Panel>();
+        pane->SetBounds(D2D1::RectF(0.0f, 240.0f, 640.0f, 720.0f));
+        std::vector<DxUi::Button*> paneItems;
+        for (size_t item = 0u; item < 40u; ++item)
+            paneItems.push_back(pane->AddChild<DxUi::Button>(L"Item " + std::to_wstring(item)));
+        const auto layoutPane = [&paneItems](float position)
+        {
+            for (size_t item = 0u; item < paneItems.size(); ++item)
+            {
+                const float top = 244.0f + 11.0f * static_cast<float>(item);
+                paneItems[item]->SetBounds(D2D1::RectF(position + 8.0f, top, position + 108.0f, top + 10.0f));
+            }
+        };
+        layoutPane(splitter->GetPosition());
+        splitter->SetOnChange([layoutPane](DxUi::SplitterChange change) { layoutPane(change.position); });
+        view.Controls().SetRoot(std::move(root));
+        view.Controls().SetFocusControl(slider, false);
+        RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare the slider and splitter");
+        EmbeddedUiaTest::Bridge bridge(view, kWidth, kHeight);
+        RequireSucceeded(bridge.Attach(true, 0x46583611ull), "attach the view's accessibility");
+        UiaTest::Subscription subscription;
+        subscription.properties = {UIA_RangeValueValuePropertyId, UIA_HasKeyboardFocusPropertyId};
+        subscription.structure  = true;
+        UiaTest::Client client(bridge.Hwnd(), subscription, [&bridge] { bridge.Pump(); });
+        static_cast<void>(client.Root());
+        static_cast<void>(client.WaitOutTheStream());
+        RecordedEvents raised;
+        DxUi::DebugSetAccessibilityEventRecorderForTest(&RecordedEvents::Record, &raised);
+        const auto clearRecorder = wil::scope_exit([] { DxUi::DebugSetAccessibilityEventRecorderForTest(nullptr, nullptr); });
+        // Marks collapse as the input lays out the pane, before the frame: counted from one frame's end to the next.
+        uint64_t collapsedBefore = DxUi::Detail::Work().accessibility.geometryMarksCollapsed;
+        const auto frame         = [&]
+        {
+            RequireSucceeded(view.Prepare(kWidth, kHeight, 96.0f), "prepare a frame");
+            raised.events.clear();
+            raised.ids.clear();
+            const uint64_t before = Builds();
+            Require(SUCCEEDED(bridge.Update()), "the frame's update publishes");
+            const uint64_t collapsed = DxUi::Detail::Work().accessibility.geometryMarksCollapsed;
+            frames.push_back({raised.events, raised.ids, Builds() - before, collapsed - collapsedBefore});
+            collapsedBefore = collapsed;
+        };
+        frame(); // Settles the attachment.
+        for (size_t step = 0u; step < 100u; ++step)
+        {
+            static_cast<void>(view.DispatchKey(VK_RIGHT, true, 0u));
+            static_cast<void>(view.DispatchKey(VK_RIGHT, false, 0u));
+            frame();
+        }
+        Require(view.DispatchPointer({DxUi::PointerAction::Down, 111.0f, 176.0f}), "the drag starts on the separator");
+        frame();
+        for (size_t pixel = 1u; pixel <= 200u; ++pixel)
+        {
+            Require(view.DispatchPointer({DxUi::PointerAction::Move, 111.0f + static_cast<float>(pixel), 176.0f}), "the drag moves");
+            frame();
+        }
+        Require(view.DispatchPointer({DxUi::PointerAction::Up, 311.0f, 176.0f}), "the drag ends");
+        frame();
+        Require(slider->GetValue() == 100.0 && splitter->GetPosition() == 300.0f, "the script moved the slider and the splitter");
+    });
+    return frames;
+}
+} // namespace
+
+// The gate's events (plan W8.2): with a real client listening, the slider keys and the drag (whose change lays out a pane of
+// 40 buttons) raise exactly what a whole build of every frame raises, in the same order: each event's kind, id, sender, old
+// and new values, focus and structure events included. The drag builds nothing while it moves, raises at most one property
+// per frame (the splitter's RangeValue), collapses the pane's geometry marks, and builds once at the release.
+void TestAccessibilityIncrementalEventsEqualWholeBuilds()
+{
+    const VerifiedPublications verified;
+    const std::vector<FrameEvents> reference   = RunEmbeddedSliderAndDrag(true);
+    const std::vector<FrameEvents> incremental = RunEmbeddedSliderAndDrag(false);
+    Require(reference.size() == incremental.size() && reference.size() == 1u + 100u + 1u + 200u + 1u, "both runs publish every frame");
+    size_t differing = 0u, events = 0u;
+    for (size_t index = 0u; index < reference.size(); ++index)
+    {
+        events += reference[index].events.size();
+        if (reference[index].events != incremental[index].events && differing++ == 0u)
+        {
+            std::cerr << "    [W8.2] frame " << index << " differs\n";
+            for (const auto& event : reference[index].events)
+                std::wcerr << L"      whole:       " << event << L'\n';
+            for (const auto& event : incremental[index].events)
+                std::wcerr << L"      incremental: " << event << L'\n';
+        }
+    }
+    Require(differing == 0u, "every frame raises the events a whole build raises, with the same senders and values, in the same order");
+    uint64_t keyBuilds = 0u, moveBuilds = 0u, moveCollapses = 0u;
+    size_t mostMoveEvents = 0u;
+    bool onlyRange        = true;
+    for (size_t index = 1u; index <= 100u; ++index)
+        keyBuilds += incremental[index].builds;
+    for (size_t index = 102u; index < 302u; ++index)
+    {
+        moveBuilds += incremental[index].builds;
+        moveCollapses += incremental[index].collapsed;
+        mostMoveEvents = (std::max)(mostMoveEvents, incremental[index].ids.size());
+        for (const long id : incremental[index].ids)
+            onlyRange = onlyRange && id == UIA_RangeValueValuePropertyId;
+    }
+    std::cerr << "    [W8.2] embedded with a client: " << events << " events compared; slider keys whole builds " << keyBuilds << ", press "
+              << incremental[101].builds << ", moves " << moveBuilds << " (at most " << mostMoveEvents << " property per frame, " << moveCollapses
+              << " pane marks collapsed), release " << incremental[302].builds << '\n';
+    Require(keyBuilds == 0u, "100 slider keys build no whole window");
+    Require(incremental[101].builds == 0u, "the press's focus move builds no whole window");
+    Require(moveBuilds == 0u && mostMoveEvents <= 1u && onlyRange,
+            "the drag, laying out a 40-button pane, builds nothing while it moves and raises at most its RangeValue per frame");
+    Require(moveCollapses != 0u, "the pane's geometry marks overflow and collapse onto their common parent");
+    Require(incremental[302].builds == 1u, "the release builds the whole window once");
+    verified.RequireNoDifference("every successor of the script equals a whole build");
+}
+
+// A control whose elements are laid out inside it (a tab header, a grid cell, a tree row, a reveal button) moves them when
+// its name or value changes: retitling a tab moves the headers after it, which a successor rebuilds the rectangles of instead
+// of keeping the ones before (W8.2 review R1).
+void TestAccessibilityIncrementalTabTitleMovesHeaderRectangles()
+{
+    const SystemListeners nobody(false);
+    AttachedHostWindow window;
+    auto root  = std::make_unique<DxUi::Panel>();
+    auto* tabs = root->AddChild<DxUi::TabControl>();
+    tabs->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 180.0f));
+    static_cast<void>(tabs->AddTab<DxUi::Panel>(L"A"));
+    static_cast<void>(tabs->AddTab<DxUi::Panel>(L"B"));
+    static_cast<void>(tabs->AddTab<DxUi::Panel>(L"C"));
+    window.Host().SetRoot(std::move(root));
+    Require(DxUi::DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), true), "the window publishes at each mutation");
+    const auto clearInterest = wil::scope_exit([&] { static_cast<void>(DxUi::DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), std::nullopt)); });
+    window.Host().RefreshAccessibilitySnapshot();
+    window.PumpMessages();
+    const VerifiedPublications verified;
+    const uint64_t built = Builds();
+    const DxUi::Detail::WorkCounterScope work;
+    tabs->SetTabTitle(0u, L"A much, much longer first title");
+    window.PumpMessages();
+    const auto delta = work.Delta().accessibility;
+    std::cerr << "    [W8.2] tab title: whole builds +" << (Builds() - built) << ", incremental " << delta.incrementalPublications << ", verified "
+              << DxUi::DebugGetAccessibilityIncrementalVerificationCountForTest() << '\n';
+    Require(delta.incrementalPublications >= 1u && DxUi::DebugGetAccessibilityIncrementalVerificationCountForTest() >= 1u,
+            "the retitle publishes a verified successor");
+    verified.RequireNoDifference("a retitled tab's successor carries the moved header rectangles a whole build has");
+}
+
+// A slider's change callback that moves the keyboard focus publishes inside the callback (a focus transition publishes at
+// once): that publication, and the one after it, equal whole builds (W8.2 review R3).
+void TestAccessibilityIncrementalPublicationInsideSliderCallback()
+{
+    const SystemListeners nobody(false);
+    AttachedHostWindow window;
+    Fx6::Controls controls;
+    controls.Build(window.Host());
+    auto* other = const_cast<DxUi::Panel*>(static_cast<const DxUi::Panel*>(window.Host().GetRoot()))->AddChild<DxUi::Slider>();
+    other->SetBounds(D2D1::RectF(8.0f, 120.0f, 240.0f, 150.0f));
+    other->SetAccessibleName(L"Other");
+    Require(DxUi::DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), true), "the window publishes at each mutation");
+    const auto clearInterest = wil::scope_exit([&] { static_cast<void>(DxUi::DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), std::nullopt)); });
+    window.Host().SetFocusControl(controls.slider, false);
+    window.Host().RefreshAccessibilitySnapshot();
+    window.PumpMessages();
+    std::vector<std::wstring> inCallback;
+    controls.slider->SetOnChange([&](DxUi::SliderChange)
+    {
+        window.Host().SetFocusControl(other, false);
+        DxUi::DebugDescribeAccessibilitySnapshotForTest(DxUi::DebugHoldAccessibilitySnapshotForTest(window.Host()), inCallback);
+    });
+    const VerifiedPublications verified;
+    Require(controls.slider->RequestValue(window.Host(), 42.0), "request a value");
+    window.PumpMessages();
+    std::vector<std::wstring> settled;
+    DxUi::DebugDescribeAccessibilitySnapshotForTest(DxUi::DebugHoldAccessibilitySnapshotForTest(window.Host()), settled);
+    const auto has = [](const std::vector<std::wstring>& lines, std::wstring_view text)
+    { return std::ranges::any_of(lines, [text](const std::wstring& line) { return line.find(text) != std::wstring::npos; }); };
+    std::cerr << "    [W8.2] slider callback: verified " << DxUi::DebugGetAccessibilityIncrementalVerificationCountForTest() << '\n';
+    Require(! inCallback.empty() && ! settled.empty(), "the window published inside the callback and after it");
+    Require(controls.slider->GetValue() == 42.0 && has(settled, L"42"), "the settled publication reads the requested value");
+    verified.RequireNoDifference("the publications inside and after the slider's callback equal whole builds");
+}
+
+// A window host detached with a flush still owed and attached again publishes a listened change: the marks of the
+// attachment before are not the new one's (W8.2 review R4).
+void TestAccessibilityIncrementalFlushRequestAcrossReattach()
+{
+    AttachedHostWindow window;
+    Fx6::Controls controls;
+    {
+        const SystemListeners listening(true);
+        controls.Build(window.Host());
+        window.Host().RefreshAccessibilitySnapshot();
+        window.PumpMessages();
+        controls.label->SetText(L"pending"); // A flush is requested and never drained before the detach.
+    }
+    {
+        const SystemListeners nobody(false);
+        window.Host().Detach();
+        Require(window.Host().Attach(window.Hwnd()), "the host attaches to its window again");
+        controls.Build(window.Host());
+        window.PumpMessages();
+    }
+    const SystemListeners listening(true);
+    const uint64_t before = Publications();
+    controls.label->SetText(L"heard");
+    window.PumpMessages();
+    const uint64_t published = Publications() - before;
+    std::cerr << "    [W8.2] reattached host: publications after a listened label change " << published << '\n';
+    Require(published >= 1u, "a listened change on a reattached host publishes");
+}
+
+// The marks cost a host one pointer (an empty deleter that is not final takes no room).
+static_assert(sizeof(std::unique_ptr<DxUi::Detail::AccessibilityRecordMarks, DxUi::Detail::AccessibilityRecordMarksDeleter>) == sizeof(void*),
+              "a host's record marks are one pointer wide");
+
+// No client: a layout of 1000 SetBounds and a value change after one listened publication refresh the window once at most,
+// then a client that arrives reads the current value and bounds, not those of the last publication (W8.2 review R6, and
+// the W8.1 record: a client arriving after unheard changes reads them).
+void TestAccessibilityIncrementalMarksWithoutClientStayCurrent()
+{
+    AttachedHostWindow window;
+    auto root   = std::make_unique<DxUi::Panel>();
+    auto* field = root->AddChild<DxUi::TextField>(L"Value");
+    field->SetBounds(D2D1::RectF(8.0f, 600.0f, 240.0f, 628.0f));
+    field->SetAccessibleName(L"Entry");
+    std::vector<DxUi::Button*> buttons;
+    for (size_t index = 0u; index < 100u; ++index)
+        buttons.push_back(root->AddChild<DxUi::Button>(L"B" + std::to_wstring(index)));
+    const auto layout = [&buttons](size_t frame)
+    {
+        const float left = 8.0f + 20.0f * static_cast<float>(frame);
+        for (size_t index = 0u; index < buttons.size(); ++index)
+            buttons[index]->SetBounds(D2D1::RectF(left, 4.0f * static_cast<float>(index), left + 50.0f, 4.0f * static_cast<float>(index) + 4.0f));
+    };
+    layout(0u);
+    {
+        const SystemListeners listening(true);
+        window.Host().SetRoot(std::move(root));
+        window.Host().RefreshAccessibilitySnapshot();
+        window.PumpMessages();
+    }
+    const SystemListeners nobody(false);
+    const uint64_t before = Publications();
+    const DxUi::Detail::WorkCounterScope work;
+    for (size_t frame = 1u; frame <= 10u; ++frame)
+        layout(frame);
+    const auto delta = work.Delta().accessibility;
+    window.PumpMessages();
+    field->SetText(L"current");
+    window.PumpMessages();
+    std::cerr << "    [W8.2] no client, 1000 SetBounds: mutations " << delta.mutations << ", marks while dormant " << delta.marksWhileDormant
+              << ", publications " << (Publications() - before) << '\n';
+    Require(delta.mutations <= 1u && delta.marksWhileDormant >= 998u, "1000 SetBounds with no client refresh the window once at most");
+    UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(); });
+    const UiaTest::ElementId rootElement = client.Root();
+    const UiaTest::ElementId entry       = FindNamed(client, rootElement, L"Entry");
+    const UiaTest::ElementId first       = FindNamed(client, rootElement, L"B0");
+    Require(entry != 0u && first != 0u, "the arriving client finds the field and the first button");
+    Require(client.StringProperty(entry, UIA_ValueValuePropertyId) == L"current", "the arriving client reads the value set while nobody listened");
+    const RECT entryRect  = client.Describe(entry).boundingRectangle;
+    const RECT firstRect  = client.Describe(first).boundingRectangle;
+    const float scale     = window.Host().GetDpi() / 96.0f;
+    const LONG expected   = static_cast<LONG>(std::lround((8.0f + 200.0f - 8.0f) * scale));
+    const LONG difference = firstRect.left - entryRect.left;
+    std::cerr << "    [W8.2] arriving client: B0 left - field left " << difference << " (expected " << expected << ")\n";
+    Require(difference >= expected - 1 && difference <= expected + 1, "the arriving client reads the bounds of the last layout");
+}
+
+namespace
+{
+// A window host whose every mutation publishes, with each incremental publication verified against a whole build.
+class InterestedWindow final
+{
+public:
+    explicit InterestedWindow(std::unique_ptr<DxUi::Panel> root)
+    {
+        _window.Host().SetRoot(std::move(root));
+        Require(DxUi::DebugSetAccessibilityMutationInterestForTest(_window.Hwnd(), true), "the window publishes at each mutation");
+        _window.Host().RefreshAccessibilitySnapshot();
+        _window.PumpMessages();
+    }
+    ~InterestedWindow()
+    {
+        static_cast<void>(DxUi::DebugSetAccessibilityMutationInterestForTest(_window.Hwnd(), std::nullopt));
+    }
+    InterestedWindow(const InterestedWindow&)            = delete;
+    InterestedWindow& operator=(const InterestedWindow&) = delete;
+    InterestedWindow(InterestedWindow&&)                 = delete;
+    InterestedWindow& operator=(InterestedWindow&&)      = delete;
+    [[nodiscard]] AttachedHostWindow& Window() noexcept
+    {
+        return _window;
+    }
+
+private:
+    AttachedHostWindow _window;
+};
+} // namespace
+
+// A Splitter laid out narrower clamps its position in OnBoundsChanged, and its range maximum follows its extent: a
+// SetBounds marks only its geometry, so its record must be read again (W8.2 review A1: the successor kept position 400
+// where a whole build has 146).
+void TestAccessibilityIncrementalSplitterResizeRange()
+{
+    const SystemListeners nobody(false);
+    auto root      = std::make_unique<DxUi::Panel>();
+    auto* splitter = root->AddChild<DxUi::Splitter>();
+    splitter->SetAccessibleName(L"Divider");
+    splitter->SetOrientation(DxUi::SplitterOrientation::Vertical);
+    splitter->SetBounds(D2D1::RectF(0.0f, 0.0f, 600.0f, 100.0f));
+    splitter->SetPosition(400.0f);
+    InterestedWindow interested(std::move(root));
+    const VerifiedPublications verified;
+    const uint64_t built = Builds();
+    splitter->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 100.0f));
+    interested.Window().PumpMessages();
+    splitter->SetBounds(D2D1::RectF(0.0f, 0.0f, 900.0f, 100.0f));
+    interested.Window().PumpMessages();
+    std::cerr << "    [W8.2] splitter resized 600 -> 200 -> 900: position " << splitter->GetPosition() << ", whole builds +" << (Builds() - built)
+              << ", verified " << DxUi::DebugGetAccessibilityIncrementalVerificationCountForTest() << '\n';
+    Require(DxUi::DebugGetAccessibilityIncrementalVerificationCountForTest() >= 2u, "both resizes publish verified successors");
+    verified.RequireNoDifference("a resized splitter publishes the position and range a whole build has");
+}
+
+// Every library control that overrides OnBoundsChanged, resized through SetBounds (narrower, then wider) with a client
+// interested: each publication equals a whole build of the same tree (W8.2 review A1 sweep). What a resize changes either
+// reaches a re-read record (text, rich text, grid, tree, tab control, range value) or a child's own SetBounds.
+void TestAccessibilityIncrementalResizeOfEveryBoundsOverride()
+{
+    const SystemListeners nobody(false);
+    struct Case
+    {
+        const char* name;
+        std::function<DxUi::Control*(DxUi::Panel&)> make;
+    };
+    const std::vector<Case> cases{
+        {"FlexPanel",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        auto* flex = root.AddChild<DxUi::FlexPanel>();
+        static_cast<void>(flex->AddChild<DxUi::Button>(L"One"));
+        static_cast<void>(flex->AddChild<DxUi::TextField>(L"Two"));
+        return flex;
+    }},
+        {"Grid", [](DxUi::Panel& root) -> DxUi::Control* { return root.AddChild<DxUi::Grid>(); }},
+        {"FormField",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        auto* field = root.AddChild<DxUi::FormField>(L"name", L"Name");
+        return field;
+    }},
+        {"FormPanel", [](DxUi::Panel& root) -> DxUi::Control* { return root.AddChild<DxUi::FormPanel>(); }},
+        {"Splitter",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        auto* splitter = root.AddChild<DxUi::Splitter>();
+        splitter->SetPosition(300.0f);
+        return splitter;
+    }},
+        {"NumericStepper", [](DxUi::Panel& root) -> DxUi::Control* { return root.AddChild<DxUi::NumericStepper>(); }},
+        {"ColorPicker", [](DxUi::Panel& root) -> DxUi::Control* { return root.AddChild<DxUi::ColorPicker>(); }},
+        {"PageHost",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        auto* pages = root.AddChild<DxUi::PageHost>();
+        pages->SetPage(std::make_unique<DxUi::Button>(L"Page"));
+        return pages;
+    }},
+        {"Label", [](DxUi::Panel& root) -> DxUi::Control* { return root.AddChild<DxUi::Label>(L"A label long enough to wrap when it is narrow"); }},
+        {"Button", [](DxUi::Panel& root) -> DxUi::Control* { return root.AddChild<DxUi::Button>(L"A button long enough to elide"); }},
+        {"TagPicker",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        auto* tags = root.AddChild<DxUi::TagPicker>();
+        tags->SetOptions(L"All", {L"Red", L"Green", L"Blue"});
+        tags->SetSelectedValues({L"Red", L"Blue"});
+        return tags;
+    }},
+        {"MenuBar",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        auto* menu = root.AddChild<DxUi::MenuBar>();
+        menu->SetItems({DxUi::MenuBarItem{.text = L"File"}, DxUi::MenuBarItem{.text = L"Edit"}, DxUi::MenuBarItem{.text = L"View"}});
+        return menu;
+    }},
+        {"TabControl",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        auto* tabs = root.AddChild<DxUi::TabControl>();
+        static_cast<void>(tabs->AddTab<DxUi::Panel>(L"First"));
+        static_cast<void>(tabs->AddTab<DxUi::Panel>(L"Second"));
+        static_cast<void>(tabs->AddTab<DxUi::Panel>(L"Third"));
+        return tabs;
+    }},
+        {"StackPanel",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        auto* stack = root.AddChild<DxUi::StackPanel>();
+        static_cast<void>(stack->AddChild<DxUi::Button>(L"One"));
+        static_cast<void>(stack->AddChild<DxUi::Button>(L"Two"));
+        return stack;
+    }},
+        {"ScrollPanel",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        auto* scroll = root.AddChild<DxUi::ScrollPanel>();
+        for (size_t index = 0u; index < 10u; ++index)
+            scroll->AddChild<DxUi::Button>(std::format(L"Row {}", index))
+                ->SetBounds(D2D1::RectF(0.0f, 30.0f * static_cast<float>(index), 100.0f, 30.0f * static_cast<float>(index) + 28.0f));
+        scroll->SetContentHeight(300.0f);
+        scroll->SetScrollOffset(200.0f);
+        return scroll;
+    }},
+        {"ComboBox",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        auto* combo = root.AddChild<DxUi::ComboBox>();
+        combo->SetItems({{L"a", L"Alpha"}, {L"b", L"Beta"}});
+        combo->SetSelectedIndex(1u);
+        return combo;
+    }},
+        {"Tree", [](DxUi::Panel& root) -> DxUi::Control* { return root.AddChild<DxUi::Tree>(); }},
+        {"TextField",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    { return root.AddChild<DxUi::TextField>(L"A single-line field with text that scrolls when the field is narrow"); }},
+        {"TextField (multiline)",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        auto* field = root.AddChild<DxUi::TextField>(L"A multiline field\nwith lines\nthat wrap and scroll when it is small");
+        field->SetMultiline(true);
+        return field;
+    }},
+        {"RichTextEditor",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    { return root.AddChild<DxUi::RichTextEditor>(L"Rich text long enough to wrap differently at another width."); }},
+    };
+    size_t differing = 0u;
+    for (const Case& test : cases)
+    {
+        auto root                = std::make_unique<DxUi::Panel>();
+        DxUi::Control* const box = test.make(*root);
+        box->SetBounds(D2D1::RectF(8.0f, 8.0f, 600.0f, 300.0f));
+        InterestedWindow interested(std::move(root));
+        const VerifiedPublications verified;
+        const uint64_t built = Builds();
+        box->SetBounds(D2D1::RectF(8.0f, 8.0f, 120.0f, 60.0f));
+        interested.Window().PumpMessages();
+        box->SetBounds(D2D1::RectF(8.0f, 8.0f, 700.0f, 400.0f));
+        interested.Window().PumpMessages();
+        const uint64_t verifiedCount = DxUi::DebugGetAccessibilityIncrementalVerificationCountForTest();
+        const uint64_t mismatches    = DxUi::DebugGetAccessibilityIncrementalMismatchCountForTest();
+        std::cerr << "    [W8.2] resize " << test.name << ": incremental publications verified " << verifiedCount << ", differences " << mismatches
+                  << ", whole builds " << (Builds() - built) << '\n';
+        Require(verifiedCount + (Builds() - built) >= 2u, "both resizes publish");
+        if (mismatches != 0u)
+        {
+            ++differing;
+            std::wcerr << L"      first difference: " << DxUi::DebugGetAccessibilityFirstIncrementalMismatchForTest() << L'\n';
+        }
+    }
+    Require(differing == 0u, "every bounds override's resize publishes what a whole build has");
+}
+
+// A PageIndicator that gains pages becomes an element (review probe): the publication equals a whole build.
+void TestAccessibilityIncrementalPageIndicatorBecomesPaged()
+{
+    const SystemListeners nobody(false);
+    auto root   = std::make_unique<DxUi::Panel>();
+    auto* pages = root->AddChild<DxUi::PageIndicator>();
+    pages->SetBounds(D2D1::RectF(8.0f, 40.0f, 200.0f, 64.0f));
+    pages->SetPageCount(1u);
+    InterestedWindow interested(std::move(root));
+    const VerifiedPublications verified;
+    const uint64_t publications = Publications();
+    pages->SetPageCount(3u);
+    interested.Window().PumpMessages();
+    Require(Publications() > publications, "the page count publishes");
+    verified.RequireNoDifference("a page indicator that gains pages publishes what a whole build has");
+}
+
+// Native coalescing of geometry-only publications (W8.2 reviews F3c, B2), on a window shown without activation: a second
+// move within 100 ms is deferred and published once the layout settles, with nothing left waking; a client's query
+// publishes a deferred move at once; a host hidden with a deferral pending publishes it at its next wake and holds no
+// wake; a hidden window never defers.
+void TestAccessibilityIncrementalNativeGeometryCoalescing()
+{
+    const SystemListeners nobody(false);
+    const auto pumpUntil = [](AttachedHostWindow& window, auto done)
+    {
+        const ULONGLONG started = GetTickCount64();
+        while (! done() && GetTickCount64() - started < 2'000u)
+        {
+            window.PumpMessages(20u);
+            Sleep(1u);
+        }
+        return done();
+    };
+    const auto build = []
+    {
+        auto root   = std::make_unique<DxUi::Panel>();
+        auto* field = root->AddChild<DxUi::TextField>(L"Value");
+        field->SetBounds(D2D1::RectF(8.0f, 40.0f, 240.0f, 68.0f));
+        field->SetAccessibleName(L"Entry");
+        return std::pair{std::move(root), field};
+    };
+    enum class Then : uint8_t
+    {
+        Settle,
+        Query,
+        Hide,
+    };
+    for (const Then then : {Then::Settle, Then::Query, Then::Hide})
+    {
+        auto [root, field] = build();
+        InterestedWindow interested(std::move(root));
+        AttachedHostWindow& window = interested.Window();
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        window.PumpMessages();
+        const VerifiedPublications verified;
+        const DxUi::Detail::WorkCounterScope work;
+        field->SetBounds(D2D1::RectF(8.0f, 80.0f, 240.0f, 108.0f));
+        window.PumpMessages();
+        const uint64_t afterFirst = Publications();
+        field->SetBounds(D2D1::RectF(8.0f, 120.0f, 240.0f, 148.0f));
+        window.PumpMessages();
+        const uint64_t deferred = work.Delta().accessibility.geometryPublicationsDeferred;
+        const bool waiting      = Publications() == afterFirst;
+        if (then == Then::Query)
+        {
+            wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> owner;
+            owner.attach(window.Host().DebugCreateAccessibilityProvider());
+            wil::com_ptr_nothrow<IRawElementProviderFragment> fragment, first;
+            Require(owner && SUCCEEDED(owner.query_to(fragment.put())) && SUCCEEDED(fragment->Navigate(NavigateDirection_FirstChild, first.put())),
+                    "a client queries the window");
+            Require(Publications() > afterFirst, "a client's query publishes the deferred move at once");
+        }
+        else if (then == Then::Hide)
+            ShowWindow(window.Hwnd(), SW_HIDE);
+        const bool published = pumpUntil(window, [&] { return Publications() > afterFirst; });
+        // A query that published early leaves the dispatcher's entry for the deferral's wake, which then finds nothing to do and
+        // leaves it.
+        const bool quiet = pumpUntil(
+            window, [&] { return window.Host().DebugGetFrameScheduleWakeForTest().kind == 0u && ! window.Host().DebugHasActiveAnimationSubscription(); });
+        std::cerr << "    [W8.2] native coalescing ("
+                  << (then == Then::Settle  ? "settle"
+                      : then == Then::Query ? "query"
+                                            : "hide")
+                  << "): deferred " << deferred << ", waiting " << waiting << ", published " << published << ", schedule quiet " << quiet << '\n';
+        Require(deferred >= 1u && waiting, "a second move within 100 ms on a shown window is deferred");
+        Require(published, "the deferred move is published");
+        Require(quiet, "nothing keeps the host's schedule awake afterwards");
+        verified.RequireNoDifference("the coalesced publication equals a whole build");
+    }
+    {
+        auto [root, field] = build();
+        InterestedWindow interested(std::move(root));
+        AttachedHostWindow& window = interested.Window(); // Never shown.
+        const DxUi::Detail::WorkCounterScope work;
+        const uint64_t before = Publications();
+        field->SetBounds(D2D1::RectF(8.0f, 80.0f, 240.0f, 108.0f));
+        window.PumpMessages();
+        field->SetBounds(D2D1::RectF(8.0f, 120.0f, 240.0f, 148.0f));
+        window.PumpMessages();
+        Require(work.Delta().accessibility.geometryPublicationsDeferred == 0u && Publications() == before + 2u,
+                "a hidden window publishes every move at once: it presents no frame that could publish a deferral");
+        Require(window.Host().DebugGetFrameScheduleWakeForTest().kind == 0u, "and holds no wake");
+    }
+}
+
+// An AttestedInvalidation alive while its host is destroyed (application code run by the invalidation destroyed it) does
+// not write to the host's freed marks when it ends (W8.2 review; ASan reports the write without the guard).
+void TestAccessibilityAttestationOutlivesItsHost()
+{
+    const SystemListeners nobody(false);
+    auto window = std::make_unique<AttachedHostWindow>();
+    window->Host().SetRoot(std::make_unique<DxUi::Panel>());
+    Require(DxUi::DebugSetAccessibilityMutationInterestForTest(window->Hwnd(), true), "the window publishes at each mutation");
+    window->Host().RefreshAccessibilitySnapshot();
+    window->PumpMessages();
+    // The override is the thread's one: cleared before the window goes, as InterestedWindow does.
+    static_cast<void>(DxUi::DebugSetAccessibilityMutationInterestForTest(window->Hwnd(), std::nullopt));
+    {
+        const DxUi::AttestedInvalidation attested(&window->Host());
+        window.reset(); // The host and its marks are gone before the attestation ends.
+    }
+    Require(window == nullptr, "the host was destroyed inside the attestation");
 }

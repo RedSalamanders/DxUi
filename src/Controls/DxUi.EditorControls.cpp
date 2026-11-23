@@ -724,8 +724,13 @@ void Splitter::NotifyChange(SplitterChangePhase phase) noexcept
 {
     const Failure::Scope outerFailureScope;
     // Every drag, key and cancel that moved the separator announces it here: its hit band moved with it.
-    NoteHitTestChange(*this, HitRevisionSite::SplitterPosition);
+    NoteHitTestChange(*this, HitRevisionSite::SplitterPosition); // marks the separator's rectangle (InvalidateHitTest)
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
+    // A preview publishes the position and the moved separator's rectangle for this control alone (W8.2): no whole-window build
+    // runs while the separator follows the pointer. The commit, a key step and a cancellation publish the whole window once,
+    // after the application has laid its panes out for the final position.
+    if (phase == SplitterChangePhase::Preview)
+        NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Value);
     try
     {
         const auto changed = _onChange;
@@ -739,7 +744,7 @@ void Splitter::NotifyChange(SplitterChangePhase phase) noexcept
     {
         Failure::FailUnexpected();
     }
-    if (! lifetime.expired())
+    if (phase != SplitterChangePhase::Preview && ! lifetime.expired())
         if (ControlHost* const host = GetHost())
             RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host);
 }

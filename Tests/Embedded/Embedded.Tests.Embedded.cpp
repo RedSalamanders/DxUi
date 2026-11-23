@@ -94,6 +94,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.FrameAttribution.h"
 #include "Embedded.Tests.PointerHit.h"
 // After the performance fixtures: the W2.1 gate drives FX5.
+#include "Embedded.Tests.IncrementalPublication.h"
 #include "Embedded.Tests.RetainedTextLayouts.h"
 #include "Embedded.Tests.RichDocumentStorageResources.h"
 #include "Embedded.Tests.RichGeometryResources.h"
@@ -1554,9 +1555,81 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
     }
 }
 
+#if DXUI_ENABLE_DIAGNOSTICS && defined(_DEBUG)
+// W8.2: in Debug every incremental UI Automation publication of every test is checked against a whole build of the same
+// tree. That build is the verification's, not the test's: the instrument neither counts nor fails it.
+namespace VerifyEveryPublication
+{
+struct Instrument
+{
+    bool countAllocations;
+    bool countLiveBytes;
+    ptrdiff_t* liveBytesPeak;
+    size_t largeAllocationMinimumBytes;
+    size_t failAllocationAfter;
+    void (*liveBlockObserver)(size_t bytes);
+};
+static thread_local Instrument saved{};
+static thread_local unsigned depth = 0u;
+
+static void Observe(bool entering) noexcept
+{
+    if (entering)
+    {
+        if (depth++ != 0u)
+            return;
+        saved                       = {countAllocations, countLiveBytes, liveBytesPeak, largeAllocationMinimumBytes, failAllocationAfter, liveBlockObserver};
+        countAllocations            = false;
+        countLiveBytes              = false;
+        liveBytesPeak               = nullptr;
+        largeAllocationMinimumBytes = std::numeric_limits<size_t>::max();
+        failAllocationAfter         = std::numeric_limits<size_t>::max();
+        liveBlockObserver           = nullptr;
+        return;
+    }
+    if (--depth != 0u)
+        return;
+    countAllocations            = saved.countAllocations;
+    countLiveBytes              = saved.countLiveBytes;
+    liveBytesPeak               = saved.liveBytesPeak;
+    largeAllocationMinimumBytes = saved.largeAllocationMinimumBytes;
+    failAllocationAfter         = saved.failAllocationAfter;
+    liveBlockObserver           = saved.liveBlockObserver;
+}
+
+// Reports the program's verified publications at exit, and fails the run on any difference from a whole build.
+struct Report final
+{
+    Report() noexcept
+    {
+        DxUi::Detail::verificationScopeObserver = Observe;
+        DxUi::DebugSetAccessibilityIncrementalVerificationForTest(true);
+    }
+    ~Report()
+    {
+        DxUi::DebugSetAccessibilityIncrementalVerificationForTest(false);
+        DxUi::Detail::verificationScopeObserver = nullptr;
+        uint64_t verified = 0u, mismatches = 0u;
+        DxUi::DebugGetAccessibilityIncrementalVerificationTotalsForTest(verified, mismatches);
+        std::cout << "[W8.2-VERIFY] Embedded: verified " << verified << ", mismatches " << mismatches << '\n';
+        if (mismatches != 0u)
+            std::wcerr << L"[W8.2-VERIFY] first difference from a whole build: " << DxUi::DebugGetAccessibilityFirstProgramMismatchForTest() << L'\n';
+        Check(mismatches == 0u, "every incremental publication equals a whole build of the same tree");
+    }
+    Report(const Report&)            = delete;
+    Report& operator=(const Report&) = delete;
+    Report(Report&&)                 = delete;
+    Report& operator=(Report&&)      = delete;
+};
+} // namespace VerifyEveryPublication
+#endif
+
 // Keep unrelated functional-test locals out of the benchmark entry stack, even under LTCG.
 __declspec(noinline) static int RunFunctionalTests()
 {
+#if DXUI_ENABLE_DIAGNOSTICS && defined(_DEBUG)
+    const VerifyEveryPublication::Report verifyEveryPublication;
+#endif
     if (__argc == 2 &&
         (std::wstring_view(__wargv[1]) == L"--test-embedded-input-wake" || std::wstring_view(__wargv[1]) == L"--test-direct-textfield-retirement" ||
          std::wstring_view(__wargv[1]) == L"--test-direct-combobox-retirement" || std::wstring_view(__wargv[1]) == L"--test-form-clear-retirement"))
@@ -1809,6 +1882,19 @@ __declspec(noinline) static int RunFunctionalTests()
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-accessibility-text-provider")
     {
         AccessibilityTextProvider::Run();
+        return 0;
+    }
+    // The incremental UI Automation publication gate alone (W8.2); the Embedded suite also runs it.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-incremental-publication")
+    {
+        IncrementalPublication::Run();
+        return 0;
+    }
+    // The publication cost of a layout that moves every control (W8.2), at 2,000 and 10,000 controls; Release for its figures.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--measure-incremental-publication")
+    {
+        IncrementalPublication::MeasureLayoutPublication(400u);
+        IncrementalPublication::MeasureLayoutPublication(2'000u);
         return 0;
     }
     // The hover and hit index gate alone (W7.9); the Embedded suite also runs it.
@@ -2354,6 +2440,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichTextInputCopies::Run(gpu, nullptr);
     RichTextInputCopies::RunBehaviour(gpu);
     AccessibilityTextProvider::Run();
+    IncrementalPublication::Run();
     TestRichFlatProjectionFailureAtomicity();
     TestRichProjectionPreparationAllocationFailureAtomicity();
     TestRichProjectionRetainedStorageBudget();

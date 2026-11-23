@@ -4433,7 +4433,7 @@ void TestAccessibilityInterestedMutationsBoundFocusedPathResolution()
     DebugSetAccessibilityResolutionCountingForTest(true);
     const auto stopCounting = wil::scope_exit([]() noexcept { DebugSetAccessibilityResolutionCountingForTest(false); });
     DebugResetAccessibilityResolutionVisitCountForTest();
-    const auto builds = DebugGetAccessibilitySnapshotBuildCountForTest();
+    const auto builds = DebugGetAccessibilityPublicationCountForTest();
     label->SetText(L"0");
     const auto firstMutationVisits = DebugGetAccessibilityResolutionVisitCountForTest();
     Require(firstMutationVisits > 0u && firstMutationVisits <= 32u, "the first interested content mutation resolves the published focus path once");
@@ -4444,10 +4444,10 @@ void TestAccessibilityInterestedMutationsBoundFocusedPathResolution()
     const auto visits = DebugGetAccessibilityResolutionVisitCountForTest();
     std::cerr << "    [FOCUSED-PATH-BATCH] siblings=512 mutations=128 visits=" << visits << '\n';
     Require(visits == firstMutationVisits, "later interested content mutations skip redundant focus-path resolution while the flush is pending");
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == builds, "interested label changes still coalesce without synchronous rebuilds");
+    Require(DebugGetAccessibilityPublicationCountForTest() == builds, "interested label changes still coalesce without synchronous rebuilds");
     Require(ReadProviderStringProperty(*labelSimple.get(), UIA_NamePropertyId, "final wide-tree status") == L"127",
             "the first owner query publishes the last committed status");
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == builds + 1u, "the first owner query performs one coherent rebuild");
+    Require(DebugGetAccessibilityPublicationCountForTest() == builds + 1u, "the first owner query performs one coherent rebuild");
     wil::com_ptr_nothrow<IUnknown> togglePattern;
     RequireSucceeded(actionSimple->GetPatternProvider(UIA_TogglePatternId, togglePattern.put()), "query the updated action toggle pattern");
     Require(togglePattern != nullptr, "the pending content batch publishes the new action pattern");
@@ -4457,15 +4457,15 @@ void TestAccessibilityInterestedMutationsBoundFocusedPathResolution()
     RequireSucceeded(toggle->get_ToggleState(&state), "read the batched toggle state");
     Require(state == ToggleState_On && replacementFocus->GetText() == L"Updated action caption",
             "the content batch retains the exact action text and exposed toggle state");
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == builds + 1u, "all content queries reuse the coherent snapshot");
+    Require(DebugGetAccessibilityPublicationCountForTest() == builds + 1u, "all content queries reuse the coherent snapshot");
     window.PumpMessages();
 
-    const uint64_t pendingFocusBuilds = DebugGetAccessibilitySnapshotBuildCountForTest();
+    const uint64_t pendingFocusBuilds = DebugGetAccessibilityPublicationCountForTest();
     label->SetText(L"content before pending focus change");
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == pendingFocusBuilds, "content mutation queues without synchronously rebuilding");
+    Require(DebugGetAccessibilityPublicationCountForTest() == pendingFocusBuilds, "content mutation queues without synchronously rebuilding");
     window.Host().SetFocusControl(replacementFocus, false);
     Require(window.Host().GetFocusControl() == replacementFocus, "general focus mutation moves logical focus while the content flush is pending");
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == pendingFocusBuilds + 1u,
+    Require(DebugGetAccessibilityPublicationCountForTest() == pendingFocusBuilds + 1u,
             "focus-capable mutation synchronously reconciles despite the pending content flush");
     wil::com_ptr_nothrow<IRawElementProviderFragment> changedFocus;
     RequireSucceeded(provider->GetFocus(changedFocus.put()), "query the synchronously reconciled focus");
@@ -4474,7 +4474,7 @@ void TestAccessibilityInterestedMutationsBoundFocusedPathResolution()
     Require(ReadProviderStringProperty(*changedFocusSimple.get(), UIA_NamePropertyId, "pending-flush replacement focus") == L"Replacement focus",
             "pending content flush does not suppress the new focused element");
     window.PumpMessages();
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == pendingFocusBuilds + 1u, "the queued publication reuses the synchronous focus snapshot");
+    Require(DebugGetAccessibilityPublicationCountForTest() == pendingFocusBuilds + 1u, "the queued publication reuses the synchronous focus snapshot");
 
     auto removed = panel->TakeChild(1u);
     Require(removed != nullptr && panel->CompactChildren() == 1u, "shift the tracked focus away from its published path");
@@ -4516,13 +4516,13 @@ void TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh()
         DebugSetAccessibilityResolutionCountingForTest(true);
         const auto stopMutationCounting = wil::scope_exit([]() noexcept { DebugSetAccessibilityResolutionCountingForTest(false); });
         DebugResetAccessibilityResolutionVisitCountForTest();
-        const uint64_t mutationBuilds = DebugGetAccessibilitySnapshotBuildCountForTest();
+        const uint64_t mutationBuilds = DebugGetAccessibilityPublicationCountForTest();
         for (size_t mutationIndex = 0u; mutationIndex < 128u; ++mutationIndex)
             mutationLabel->SetText(std::to_wstring(mutationIndex));
         Require(DebugGetAccessibilityResolutionVisitCountForTest() == 0u, "uninterested real label mutations do not search the focused control's tree path");
-        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == mutationBuilds, "uninterested label mutations do not synchronously rebuild a snapshot");
+        Require(DebugGetAccessibilityPublicationCountForTest() == mutationBuilds, "uninterested label mutations do not synchronously rebuild a snapshot");
         mutationWindow.PumpMessages();
-        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == mutationBuilds, "uninterested mutations do not schedule an automatic snapshot publication");
+        Require(DebugGetAccessibilityPublicationCountForTest() == mutationBuilds, "uninterested mutations do not schedule an automatic snapshot publication");
 
         Require(DebugSetAccessibilityMutationInterestForTest(mutationWindow.Hwnd(), std::nullopt), "restore real interest before the first provider query");
         wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> mutationProvider;
@@ -4534,40 +4534,40 @@ void TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh()
         RequireSucceeded(mutationLabelProvider.query_to(mutationLabelSimple.put()), "retain the label provider across mutation");
         Require(ReadProviderStringProperty(*mutationLabelSimple.get(), UIA_NamePropertyId, "first uninterested batch label name") == L"127",
                 "first owner query sees the latest committed uninterested mutation");
-        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == mutationBuilds + 1u,
+        Require(DebugGetAccessibilityPublicationCountForTest() == mutationBuilds + 1u,
                 "first owner query builds exactly one current snapshot after the uninterested batch");
         mutationWindow.PumpMessages();
-        const uint64_t retainedMutationBuilds = DebugGetAccessibilitySnapshotBuildCountForTest();
+        const uint64_t retainedMutationBuilds = DebugGetAccessibilityPublicationCountForTest();
         Require(DebugSetAccessibilityMutationInterestForTest(mutationWindow.Hwnd(), false), "force synthetic uninterested mutation with a retained provider");
         DebugResetAccessibilityResolutionVisitCountForTest();
         mutationLabel->SetText(L"dirty after retained snapshot");
-        Require(DebugGetAccessibilityResolutionVisitCountForTest() == 0u && DebugGetAccessibilitySnapshotBuildCountForTest() == retainedMutationBuilds,
+        Require(DebugGetAccessibilityResolutionVisitCountForTest() == 0u && DebugGetAccessibilityPublicationCountForTest() == retainedMutationBuilds,
                 "synthetic uninterested mutation preserves its existing snapshot without a focus-path search");
         Require(ReadProviderStringProperty(*mutationLabelSimple.get(), UIA_NamePropertyId, "retained provider sees dirty revision") ==
                     L"dirty after retained snapshot",
                 "uninterested early return still marks the retained snapshot dirty for an owner query");
-        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == retainedMutationBuilds + 1u,
+        Require(DebugGetAccessibilityPublicationCountForTest() == retainedMutationBuilds + 1u,
                 "a retained-provider owner query rebuilds exactly once for the uninterested dirty revision");
 
         Require(DebugSetAccessibilityMutationInterestForTest(mutationWindow.Hwnd(), std::nullopt),
                 "restore actual provider interest before queuing an ordinary mutation");
-        const uint64_t queuedMutationBuilds = DebugGetAccessibilitySnapshotBuildCountForTest();
+        const uint64_t queuedMutationBuilds = DebugGetAccessibilityPublicationCountForTest();
         mutationLabel->SetText(L"queued interested mutation");
-        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == queuedMutationBuilds,
+        Require(DebugGetAccessibilityPublicationCountForTest() == queuedMutationBuilds,
                 "an interested label mutation queues publication without rebuilding synchronously");
         Require(DebugSetAccessibilityMutationInterestForTest(mutationWindow.Hwnd(), false),
                 "force only the later mutation uninterested while a flush is already queued");
         DebugResetAccessibilityResolutionVisitCountForTest();
         mutationLabel->SetText(L"final value after queued mutation");
-        Require(DebugGetAccessibilityResolutionVisitCountForTest() == 0u && DebugGetAccessibilitySnapshotBuildCountForTest() == queuedMutationBuilds,
+        Require(DebugGetAccessibilityResolutionVisitCountForTest() == 0u && DebugGetAccessibilityPublicationCountForTest() == queuedMutationBuilds,
                 "the later uninterested mutation marks dirty without searching focus or rebuilding");
         mutationWindow.PumpMessages();
-        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == queuedMutationBuilds + 1u,
+        Require(DebugGetAccessibilityPublicationCountForTest() == queuedMutationBuilds + 1u,
                 "the existing queued flush remains scheduled and builds the final dirty revision exactly once");
         Require(ReadProviderStringProperty(*mutationLabelSimple.get(), UIA_NamePropertyId, "queued final label name") == L"final value after queued mutation",
                 "the retained provider reads the final value published by the existing queued flush");
         mutationWindow.PumpMessages();
-        Require(DebugGetAccessibilitySnapshotBuildCountForTest() == queuedMutationBuilds + 1u,
+        Require(DebugGetAccessibilityPublicationCountForTest() == queuedMutationBuilds + 1u,
                 "reading the published value and another owner turn do not repeat the completed flush");
 
         std::atomic<bool> nonOwnerMutationArmAccepted{true};
@@ -4611,14 +4611,14 @@ void TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh()
         mutationWindow.PumpMessages();
     }
     // Keep the original real-provider coalescing and owner-query checks independent of the synthetic branch above.
-    const uint64_t initialBuilds = DebugGetAccessibilitySnapshotBuildCountForTest();
+    const uint64_t initialBuilds = DebugGetAccessibilityPublicationCountForTest();
     AttachedHostWindow window;
     auto field          = std::make_unique<TextField>(L"initial");
     auto* retainedField = field.get();
     field->SetBounds(D2D1::RectF(0, 0, 240, 28));
     window.Host().SetRoot(std::move(field));
     retainedField->SetText(L"before first query");
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == initialBuilds, "attach and mutations construct no initial snapshot eagerly");
+    Require(DebugGetAccessibilityPublicationCountForTest() == initialBuilds, "attach and mutations construct no initial snapshot eagerly");
     wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> root;
     root.attach(CreateWindowHostAccessibilityProvider(window.Hwnd()));
     wil::com_ptr_nothrow<IRawElementProviderSimple> simple;
@@ -4626,18 +4626,18 @@ void TestAccessibilityLazyPublicationCoalescesAndOwnerQueriesStayFresh()
     Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "lazy first value") == L"before first query",
             "first provider access publishes the latest committed value");
     window.PumpMessages();
-    const uint64_t before = DebugGetAccessibilitySnapshotBuildCountForTest();
+    const uint64_t before = DebugGetAccessibilityPublicationCountForTest();
     for (size_t index = 0; index < 128u; ++index)
         retainedField->SetText(std::to_wstring(index));
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before, "a mutation batch performs no synchronous tree rebuild");
+    Require(DebugGetAccessibilityPublicationCountForTest() == before, "a mutation batch performs no synchronous tree rebuild");
     Require(ReadProviderStringProperty(*simple.get(), UIA_ValueValuePropertyId, "fresh batched value") == L"127",
             "an owner-thread query flushes the final state before the posted turn");
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before + 1u, "the query builds only one final snapshot");
+    Require(DebugGetAccessibilityPublicationCountForTest() == before + 1u, "the query builds only one final snapshot");
     window.PumpMessages();
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before + 1u, "queued event publication reuses the snapshot built for the query");
+    Require(DebugGetAccessibilityPublicationCountForTest() == before + 1u, "queued event publication reuses the snapshot built for the query");
     retainedField->SetText(L"queued only");
     window.PumpMessages();
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before + 2u, "a held provider receives one publication at the queued boundary");
+    Require(DebugGetAccessibilityPublicationCountForTest() == before + 2u, "a held provider receives one publication at the queued boundary");
 }
 
 void TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath()
@@ -5292,9 +5292,9 @@ void TestAccessibilityPostedPublicationDoesNotReachAReattachedHost()
     window.Host().RefreshAccessibilitySnapshot();
     window.Host().Detach();
     Require(window.Host().Attach(window.Hwnd()), "host reattaches before its old publication message drains");
-    const uint64_t before = DebugGetAccessibilitySnapshotBuildCountForTest();
+    const uint64_t before = DebugGetAccessibilityPublicationCountForTest();
     window.PumpMessages();
-    Require(DebugGetAccessibilitySnapshotBuildCountForTest() == before, "an old attachment cookie cannot publish into the new attachment");
+    Require(DebugGetAccessibilityPublicationCountForTest() == before, "an old attachment cookie cannot publish into the new attachment");
     wil::com_ptr_nothrow<IRawElementProviderSimple> oldSimple;
     RequireSucceeded(old.query_to(oldSimple.put()), "retain the detached provider identity");
     VARIANT value{};
@@ -12129,6 +12129,20 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedListenerBeforeAnyRequestRaisesTheWholeDelta);
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedReattachStartsUnrequested);
     DXUI_RUN_TEST(TestAccessibilityClientGateEmbeddedResizedFirstRequestIsRepairedByTheNextUpdate);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalLostEventAfterListenerLeft);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalNativeBoundsFollowSetBounds);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalOldSnapshotIsStableAcrossThreads);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalNativeSliderKeys);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalEventsEqualWholeBuilds);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalTabTitleMovesHeaderRectangles);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalPublicationInsideSliderCallback);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalFlushRequestAcrossReattach);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalMarksWithoutClientStayCurrent);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalSplitterResizeRange);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalResizeOfEveryBoundsOverride);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalPageIndicatorBecomesPaged);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalNativeGeometryCoalescing);
+    DXUI_RUN_TEST(TestAccessibilityAttestationOutlivesItsHost);
     DXUI_RUN_TEST(TestAccessibilityInterestedMutationsBoundFocusedPathResolution);
     DXUI_RUN_TEST(TestAccessibilityTextEventsUseIndexedOwnerValidation);
     DXUI_RUN_TEST(TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath);

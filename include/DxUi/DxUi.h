@@ -6707,6 +6707,17 @@ private:
 };
 #pragma warning(pop)
 
+namespace Detail
+{
+// The record marks of incremental UI Automation publication, private to the library (DxUi.Internal.h).
+struct AccessibilityRecordMarks;
+// Not final: an empty deleter that is not final keeps the owning pointer one pointer wide.
+struct AccessibilityRecordMarksDeleter
+{
+    void operator()(AccessibilityRecordMarks* marks) const noexcept;
+};
+} // namespace Detail
+
 class ControlHost final
 {
 public:
@@ -7098,9 +7109,11 @@ private:
     void FlushInitialRootChildBatch(const Panel& root) noexcept;
     void NotifyRetainedTreeMutation() noexcept;
     void* _embeddedAccessibilityTarget = nullptr;
-    bool _gainingWindowFocus           = false; // In OnSetFocus: the system's focus event reports the element.
-    bool _resettingInteractionState    = false;
-    bool _replacingRoot                = false;
+    // Incremental UI Automation publication (W8.2): made on the owner thread by the first publication of a snapshot.
+    mutable std::unique_ptr<Detail::AccessibilityRecordMarks, Detail::AccessibilityRecordMarksDeleter> _accessibilityMarks;
+    bool _gainingWindowFocus        = false; // In OnSetFocus: the system's focus event reports the element.
+    bool _resettingInteractionState = false;
+    bool _replacingRoot             = false;
     struct KeyCharacterDispatch final
     {
         KeyCharacterDispatch* previous = nullptr;

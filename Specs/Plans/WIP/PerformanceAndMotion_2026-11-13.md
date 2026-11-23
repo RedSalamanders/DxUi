@@ -1540,7 +1540,7 @@ the document at most once per lock. Exit: `G9` met; the `FX6` and `FX7` gates be
     released probe and with `UpdateAccessibility` every frame (`G9`); with 1 client the event sequence equals today's.
   - **Needs**: `W1.3`. **Size**: M.
 
-- [ ] **W8.2 Incremental publication.**
+- [x] **W8.2 Incremental publication.**
   - **Why**: each value step is a whole-window build (`ProgressBar::SetValue`, `Slider::PublishRangeState`,
     `DxUi.Controls.cpp:5186-5198, 6467-6474`); a `Splitter` preview builds once per `WM_MOUSEMOVE`
     (`DxUi.EditorControls.cpp:730-750`). Snapshots are `shared_ptr<const>` read by UI Automation worker threads

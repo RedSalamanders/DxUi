@@ -1318,9 +1318,14 @@ void TextField::SetText(std::wstring text)
         if (lifetime.expired())
             return;
     }
-    RefreshAccessibilitySnapshot();
+    // The text, caret, selection and scroll it resets are this field's record alone (W8.2): a mark, and a declared repaint.
+    NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Value);
+    // A masked field shows its reveal button only with text: that button's rectangle may come or go.
+    if (IsMasked())
+        NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Geometry);
     if (lifetime.expired())
         return;
+    const AttestedInvalidation declared(GetHost());
     RequestInvalidate();
     if (lifetime.expired())
         return;

@@ -59,6 +59,31 @@ struct EmbeddedAccessibilityAccess
     {
         return host._embeddedAccessibilityTarget;
     }
+    // The host's record marks (W8.2), or null before its first publication.
+    [[nodiscard]] static Detail::AccessibilityRecordMarks* Marks(const ControlHost& host) noexcept
+    {
+        return host._accessibilityMarks.get();
+    }
+    // The host's frame schedule changed (a deferred geometry publication now needs a wake).
+    static void FrameScheduleChanged(ControlHost& host) noexcept
+    {
+        host.OnFrameScheduleChanged();
+    }
+    [[nodiscard]] static Detail::AccessibilityRecordMarks& EnsureMarks(ControlHost& host)
+    {
+        if (! host._accessibilityMarks)
+            host._accessibilityMarks =
+                std::unique_ptr<Detail::AccessibilityRecordMarks, Detail::AccessibilityRecordMarksDeleter>(new Detail::AccessibilityRecordMarks{});
+        return *host._accessibilityMarks;
+    }
+    [[nodiscard]] static AccessibilityRevisions Revisions(const ControlHost& host) noexcept
+    {
+        return {host._interactionRevision, host._hitRevision};
+    }
+    [[nodiscard]] static uint32_t UnreportedHitControls(const ControlHost& host) noexcept
+    {
+        return host._unreportedHitControls;
+    }
     [[nodiscard]] static bool Coherent(const EmbeddedHost& host) noexcept
     {
         // Grid materialization reads prepared geometry, not cached surface pixels.
@@ -332,6 +357,17 @@ std::atomic<HANDLE> g_accessibilityUiActionPostedEvent{nullptr};
 std::atomic<DWORD> g_accessibilityUiActionDispatchTimeoutOverrideMs{0u};
 std::atomic<uint32_t> g_accessibilityUiActionExecutionCount{0u};
 std::atomic<uint64_t> g_accessibilitySnapshotBuildCount{0u};
+// W8.2: every publication whole (the reference), and the verification of every incremental publication against a whole build.
+std::atomic<bool> g_accessibilityWholePublicationForTest{false};
+std::atomic<bool> g_accessibilityIncrementalVerificationForTest{false};
+std::atomic<uint64_t> g_accessibilityIncrementalMismatchCount{0u};
+std::atomic<uint64_t> g_accessibilityIncrementalVerificationCount{0u};
+std::atomic<uint64_t> g_accessibilityPublicationCount{0u};
+// Never reset by a test: what a test program's run verified in all (DebugGetAccessibilityIncrementalVerificationTotalsForTest).
+std::atomic<uint64_t> g_accessibilityIncrementalVerificationTotal{0u};
+std::atomic<uint64_t> g_accessibilityIncrementalMismatchTotal{0u};
+thread_local std::wstring g_accessibilityFirstIncrementalMismatch;
+thread_local std::wstring g_accessibilityFirstProgramMismatch;
 thread_local HRESULT g_richAccessibilityFontFailure = S_OK;
 thread_local size_t g_richAccessibilityFontFailureCount{};
 std::atomic<size_t> g_accessibilityOffscreenSelectedRowMaterializationLimitOverride{0u};
@@ -475,6 +511,56 @@ void NotifyPropertyEventRaisedForTest(PROPERTYID propertyId) noexcept
         hook(propertyId, g_accessibilityPropertyEventHookContext.load(std::memory_order_acquire));
 }
 
+std::atomic<AccessibilityEventRecorderForTest> g_accessibilityEventRecorder{nullptr};
+std::atomic<void*> g_accessibilityEventRecorderContext{nullptr};
+
+[[nodiscard]] std::wstring DescribeVariantForTest(const VARIANT* value)
+{
+    if (! value)
+        return {};
+    switch (value->vt)
+    {
+        case VT_EMPTY: return L"-";
+        case VT_BSTR: return value->bstrVal ? std::wstring(value->bstrVal, SysStringLen(value->bstrVal)) : std::wstring{};
+        case VT_I4: return std::to_wstring(value->lVal);
+        case VT_BOOL: return value->boolVal == VARIANT_TRUE ? L"true" : L"false";
+        case VT_R8: return std::format(L"{:.6f}", value->dblVal);
+        case VT_UNKNOWN: return L"element";
+        default: return std::format(L"vt{}", static_cast<int>(value->vt));
+    }
+}
+
+// Every event a publication raises (or, embedded, queues), with its sender's path and identity and its values, for a test
+// that compares two runs event by event (W8.2). Dormant (one load) otherwise.
+void RecordAccessibilityEventForTest(
+    AccessibilityRaisedEventKindForTest kind, long id, const ControlPath* path, uint64_t identity, const VARIANT* oldValue, const VARIANT* newValue) noexcept
+{
+    const AccessibilityEventRecorderForTest recorder = g_accessibilityEventRecorder.load(std::memory_order_acquire);
+    if (! recorder)
+        return;
+    try
+    {
+        AccessibilityRaisedEventForTest event;
+        event.kind     = kind;
+        event.id       = id;
+        event.identity = identity;
+        if (path)
+            for (uint32_t level = 0u; level < path->depth; ++level)
+                event.sender += std::format(L"/{}", path->indices[level]);
+        event.oldValue = DescribeVariantForTest(oldValue);
+        event.newValue = DescribeVariantForTest(newValue);
+        recorder(event, g_accessibilityEventRecorderContext.load(std::memory_order_acquire));
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    catch (const std::exception&)
+    {
+        Failure::FailUnexpected();
+    }
+}
+
 [[nodiscard]] DWORD AccessibilityUiActionDispatchTimeoutMs() noexcept
 {
     const DWORD timeoutOverride = g_accessibilityUiActionDispatchTimeoutOverrideMs.load(std::memory_order_acquire);
@@ -557,6 +643,10 @@ constexpr void NotifySelectionEventRaisedForTest() noexcept
 }
 
 constexpr void NotifyPropertyEventRaisedForTest(PROPERTYID) noexcept
+{
+}
+
+constexpr void RecordAccessibilityEventForTest(AccessibilityRaisedEventKindForTest, long, const ControlPath*, uint64_t, const VARIANT*, const VARIANT*) noexcept
 {
 }
 
@@ -916,29 +1006,32 @@ struct AccessibilityGridCellSnapshotRecord
 // strides, which visit every slot of a power-of-two table without the clusters that unit strides build) until the
 // caller's test accepts a record (its whole key matches) or a slot is empty. It is sized once, to a power of two of at
 // least four times its entries, when a snapshot is published and only read afterwards, so a lookup allocates nothing
-// and examines a slot or two however many records the snapshot holds.
+// and examines a slot or two however many records the snapshot holds. Generations that keep the same records in the same
+// places share one table (W8.2): copying an index copies a pointer.
 class AccessibilityOrdinalIndex final
 {
 public:
     void Reserve(size_t entryCount)
     {
         const size_t slotCount = std::bit_ceil((std::max)(entryCount, size_t{1u}) * 4u);
-        _slots.assign(slotCount, 0u);
-        _mask = slotCount - 1u;
+        _table                 = std::make_shared<std::vector<uint32_t>>(slotCount, 0u);
+        _mask                  = slotCount - 1u;
     }
 
-    // Places the record unless the test accepts one placed on the way: the first record of a key is the one found.
+    // Places the record unless the test accepts one placed on the way: the first record of a key is the one found. Only on a
+    // table Reserve just made, which no published generation holds yet.
     template <typename Matches> void Place(uint64_t hash, uint32_t ordinal, const Matches& matches) noexcept
     {
-        size_t stride = 0u;
+        std::vector<uint32_t>& slots = *_table;
+        size_t stride                = 0u;
         for (size_t slot = static_cast<size_t>(hash) & _mask;; slot = (slot + ++stride) & _mask)
         {
-            if (_slots[slot] == 0u)
+            if (slots[slot] == 0u)
             {
-                _slots[slot] = ordinal + 1u;
+                slots[slot] = ordinal + 1u;
                 return;
             }
-            if (matches(_slots[slot] - 1u))
+            if (matches(slots[slot] - 1u))
             {
                 return;
             }
@@ -947,20 +1040,21 @@ public:
 
     template <typename Matches> [[nodiscard]] std::optional<uint32_t> Find(uint64_t hash, const Matches& matches) const noexcept
     {
-        if (_slots.empty())
+        if (! _table || _table->empty())
         {
             return std::nullopt;
         }
+        const std::vector<uint32_t>& slots = *_table;
 
         size_t examined = 0u;
         size_t stride   = 0u;
         std::optional<uint32_t> found;
-        for (size_t slot = static_cast<size_t>(hash) & _mask; _slots[slot] != 0u; slot = (slot + ++stride) & _mask)
+        for (size_t slot = static_cast<size_t>(hash) & _mask; slots[slot] != 0u; slot = (slot + ++stride) & _mask)
         {
             ++examined;
-            if (matches(_slots[slot] - 1u))
+            if (matches(slots[slot] - 1u))
             {
-                found = _slots[slot] - 1u;
+                found = slots[slot] - 1u;
                 break;
             }
         }
@@ -968,8 +1062,13 @@ public:
         return found;
     }
 
+    [[nodiscard]] size_t SlotBytes() const noexcept
+    {
+        return _table ? _table->size() * sizeof(uint32_t) : 0u;
+    }
+
 private:
-    std::vector<uint32_t> _slots; // A record's ordinal plus one; zero marks an empty slot.
+    std::shared_ptr<std::vector<uint32_t>> _table; // A record's ordinal plus one; zero marks an empty slot.
     size_t _mask = 0u;
 };
 
@@ -981,10 +1080,243 @@ struct AccessibilityControlAddress
     uint32_t ordinal  = 0u;
 };
 
+// A vector that generations share (W8.2): filled while its snapshot is unpublished, then only read. A successor generation
+// copies the pointer, never the elements.
+template <typename T> class AccessibilitySharedVector final
+{
+public:
+    [[nodiscard]] size_t size() const noexcept
+    {
+        return _items ? _items->size() : 0u;
+    }
+    [[nodiscard]] bool empty() const noexcept
+    {
+        return size() == 0u;
+    }
+    [[nodiscard]] size_t capacity() const noexcept
+    {
+        return _items ? _items->capacity() : 0u;
+    }
+    [[nodiscard]] const T& operator[](size_t index) const noexcept
+    {
+        return (*_items)[index];
+    }
+    [[nodiscard]] const T& front() const noexcept
+    {
+        return _items->front();
+    }
+    [[nodiscard]] const T* begin() const noexcept
+    {
+        return _items ? _items->data() : nullptr;
+    }
+    [[nodiscard]] const T* end() const noexcept
+    {
+        return _items ? _items->data() + _items->size() : nullptr;
+    }
+    // The builder's vector, made on first use. A vector another generation holds is never written: a UI Automation thread may
+    // be reading it.
+    [[nodiscard]] std::vector<T>& Building()
+    {
+        if (! _items)
+            _items = std::make_shared<std::vector<T>>();
+        else if (_items.use_count() != 1)
+            Failure::FailContract(E_UNEXPECTED);
+        return *_items;
+    }
+    [[nodiscard]] bool SharedWith(const AccessibilitySharedVector& other) const noexcept
+    {
+        return _items && _items == other._items;
+    }
+
+private:
+    std::shared_ptr<std::vector<T>> _items;
+};
+
+// The records of a snapshot (W8.2). While its snapshot is built they are one vector the builder writes. Sealed for
+// publication, the vector moves whole into one shared block, and the snapshot reaches each record through a chunked spine of
+// pointers into it: a successor generation copies the spine (one pointer per chunk), clones the chunk of each replaced record
+// and allocates only the replaced records, sharing every other record and chunk with the generations before it. Nothing
+// reachable from a sealed array is ever written.
+class AccessibilityRecordArray final
+{
+public:
+    using Record                       = AccessibilityControlNavigationSnapshot;
+    static constexpr size_t kChunkSize = 32u;
+    struct Chunk final
+    {
+        std::array<std::shared_ptr<const Record>, kChunkSize> records{};
+    };
+    struct Replacement final
+    {
+        size_t ordinal = 0u;
+        std::shared_ptr<const Record> record;
+    };
+    // What a successor cost: records allocated, chunks cloned, and bytes of spine and chunks copied.
+    struct SuccessorCost final
+    {
+        size_t records = 0u;
+        size_t chunks  = 0u;
+        size_t bytes   = 0u;
+    };
+
+    class Iterator final
+    {
+    public:
+        using iterator_concept  = std::forward_iterator_tag;
+        using iterator_category = std::forward_iterator_tag;
+        using value_type        = Record;
+        using difference_type   = std::ptrdiff_t;
+        using pointer           = const Record*;
+        using reference         = const Record&;
+        Iterator() noexcept     = default;
+        Iterator(const AccessibilityRecordArray* array, size_t index) noexcept : _array(array), _index(index)
+        {
+        }
+        [[nodiscard]] reference operator*() const noexcept
+        {
+            return (*_array)[_index];
+        }
+        [[nodiscard]] pointer operator->() const noexcept
+        {
+            return &(*_array)[_index];
+        }
+        Iterator& operator++() noexcept
+        {
+            ++_index;
+            return *this;
+        }
+        Iterator operator++(int) noexcept
+        {
+            Iterator before = *this;
+            ++_index;
+            return before;
+        }
+        [[nodiscard]] bool operator==(const Iterator& other) const noexcept
+        {
+            return _index == other._index;
+        }
+
+    private:
+        const AccessibilityRecordArray* _array = nullptr;
+        size_t _index                          = 0u;
+    };
+
+    [[nodiscard]] size_t size() const noexcept
+    {
+        return _sealed ? _size : _building.size();
+    }
+    [[nodiscard]] bool empty() const noexcept
+    {
+        return size() == 0u;
+    }
+    [[nodiscard]] size_t capacity() const noexcept
+    {
+        return _sealed ? _size : _building.capacity();
+    }
+    [[nodiscard]] const Record& operator[](size_t ordinal) const noexcept
+    {
+        return _sealed ? *_chunks[ordinal / kChunkSize]->records[ordinal % kChunkSize] : _building[ordinal];
+    }
+    [[nodiscard]] const Record& front() const noexcept
+    {
+        return (*this)[0u];
+    }
+    [[nodiscard]] Iterator begin() const noexcept
+    {
+        return {this, 0u};
+    }
+    [[nodiscard]] Iterator end() const noexcept
+    {
+        return {this, size()};
+    }
+    [[nodiscard]] bool IsSealed() const noexcept
+    {
+        return _sealed;
+    }
+    // The builder's records, before the array is sealed.
+    [[nodiscard]] std::vector<Record>& Building()
+    {
+        if (_sealed)
+            Failure::FailContract(E_UNEXPECTED);
+        return _building;
+    }
+    // One allocation for the records' block, one per chunk of the spine; the records do not move.
+    void Seal()
+    {
+        if (_sealed)
+            return;
+        const auto block = std::make_shared<const std::vector<Record>>(std::move(_building));
+        _building        = {};
+        _size            = block->size();
+        _chunks.reserve((_size + kChunkSize - 1u) / kChunkSize);
+        for (size_t first = 0u; first < _size; first += kChunkSize)
+        {
+            auto chunk = std::make_shared<Chunk>();
+            for (size_t ordinal = first; ordinal < _size && ordinal < first + kChunkSize; ++ordinal)
+                chunk->records[ordinal - first] = std::shared_ptr<const Record>(block, &(*block)[ordinal]);
+            _chunks.push_back(std::move(chunk));
+        }
+        _sealed = true;
+    }
+    // A successor of a sealed array with `replacements` (ascending ordinals) in place of its records.
+    [[nodiscard]] AccessibilityRecordArray WithReplaced(std::span<const Replacement> replacements, SuccessorCost& cost) const
+    {
+        if (! _sealed)
+            Failure::FailContract(E_UNEXPECTED);
+        AccessibilityRecordArray successor;
+        successor._sealed = true;
+        successor._size   = _size;
+        successor._chunks = _chunks;
+        cost.bytes += _chunks.size() * sizeof(std::shared_ptr<const Chunk>);
+        size_t clonedIndex = (std::numeric_limits<size_t>::max)();
+        std::shared_ptr<Chunk> cloned; // Owned by the successor alone until it is published.
+        for (const Replacement& replacement : replacements)
+        {
+            const size_t chunkIndex = replacement.ordinal / kChunkSize;
+            if (chunkIndex != clonedIndex)
+            {
+                cloned                        = std::make_shared<Chunk>(*_chunks[chunkIndex]);
+                successor._chunks[chunkIndex] = cloned;
+                clonedIndex                   = chunkIndex;
+                ++cost.chunks;
+                cost.bytes += sizeof(Chunk);
+            }
+            cloned->records[replacement.ordinal % kChunkSize] = replacement.record;
+            ++cost.records;
+        }
+        return successor;
+    }
+    [[nodiscard]] bool SameRecord(const AccessibilityRecordArray& other, size_t ordinal) const noexcept
+    {
+        return _sealed && other._sealed && ordinal < _size && ordinal < other._size &&
+               _chunks[ordinal / kChunkSize]->records[ordinal % kChunkSize] == other._chunks[ordinal / kChunkSize]->records[ordinal % kChunkSize];
+    }
+    [[nodiscard]] bool SameChunk(const AccessibilityRecordArray& other, size_t chunk) const noexcept
+    {
+        return _sealed && other._sealed && chunk < _chunks.size() && chunk < other._chunks.size() && _chunks[chunk] == other._chunks[chunk];
+    }
+    [[nodiscard]] size_t ChunkCount() const noexcept
+    {
+        return _sealed ? _chunks.size() : 0u;
+    }
+    [[nodiscard]] size_t SpineBytes() const noexcept
+    {
+        return _chunks.capacity() * sizeof(std::shared_ptr<const Chunk>) + _chunks.size() * sizeof(Chunk);
+    }
+
+private:
+    std::vector<Record> _building;
+    std::vector<std::shared_ptr<const Chunk>> _chunks;
+    size_t _size = 0u;
+    bool _sealed = false;
+};
+
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
 #pragma warning(disable : 4625 4626)
+// A published snapshot never changes (W8.2): UI Automation threads read it through a shared_ptr<const> without a lock. A later
+// generation is a new object; it may share records, chunks and tables with this one, all immutable once published.
 struct AccessibilitySnapshot
 {
     HWND hwnd     = nullptr;
@@ -996,23 +1328,52 @@ struct AccessibilitySnapshot
     bool hasRetainedRoot          = false;
     bool hasCollapsedSemanticRoot = false;
     float pixelsToDipScale        = 1.0f;
+    // A process-wide serial: the generation a host's record marks apply to (0 for a stand-in).
+    uint64_t generation = 0u;
     std::wstring windowName;
     std::optional<AccessibilityFocusedFragmentSnapshot> focusedFragment;
-    std::vector<AccessibilityPointHitSnapshot> pointHitRecords;
+    AccessibilitySharedVector<AccessibilityPointHitSnapshot> pointHitRecords;
     // semanticControlOrder[i] is the path of controlNavigationRecords[i], both in tree order.
-    std::vector<ControlPath> semanticControlOrder;
-    std::vector<AccessibilityControlNavigationSnapshot> controlNavigationRecords;
+    AccessibilitySharedVector<ControlPath> semanticControlOrder;
+    AccessibilityRecordArray controlNavigationRecords;
     // Resolving what a provider or an event names costs a probe or two whatever the size of the tree: these tables
     // over the records above are filled once when the snapshot is published (IndexAccessibilitySnapshot) and only read
     // afterwards. A control's record is found by its path, a fragment's hit rectangle by its kind, path and item, and a
     // control's record by its address (sorted, so a search takes about log2 of the records).
     AccessibilityOrdinalIndex controlRecordsByPath;
     AccessibilityOrdinalIndex pointHitsByFragment;
-    std::vector<AccessibilityControlAddress> controlsByAddress;
+    AccessibilitySharedVector<AccessibilityControlAddress> controlsByAddress;
     // What DebugGetContextMenuResources reports for a snapshot of a menu popup while anything still holds it.
     Detail::LiveResourceCount liveMenuRecords;
 };
 #pragma warning(pop)
+
+// Two generations that share their structure (W8.2) hold the same controls, at the same places, in the same order: a record
+// at an ordinal of one is the other's record at that ordinal, and one they share is the same record, which no diff needs to
+// read. Only a successor shares its predecessor's structure; a whole build makes its own.
+[[nodiscard]] bool SharesAccessibilityStructure(const AccessibilitySnapshot& before, const AccessibilitySnapshot& after) noexcept
+{
+    return after.semanticControlOrder.SharedWith(before.semanticControlOrder) && after.controlNavigationRecords.IsSealed() &&
+           before.controlNavigationRecords.IsSealed() && after.controlNavigationRecords.size() == before.controlNavigationRecords.size();
+}
+
+// For a loop over ordinals: whether `ordinal` names a record the two generations share. At the start of a chunk they share,
+// it moves `ordinal` to that chunk's last record, so the loop's increment steps over the whole chunk.
+[[nodiscard]] bool SkipsSharedAccessibilityRecord(const AccessibilitySnapshot& before,
+                                                  const AccessibilitySnapshot& after,
+                                                  bool sharedStructure,
+                                                  size_t& ordinal) noexcept
+{
+    if (! sharedStructure)
+        return false;
+    constexpr size_t chunkSize = AccessibilityRecordArray::kChunkSize;
+    if (ordinal % chunkSize == 0u && after.controlNavigationRecords.SameChunk(before.controlNavigationRecords, ordinal / chunkSize))
+    {
+        ordinal = (std::min)(ordinal + chunkSize, after.controlNavigationRecords.size()) - 1u;
+        return true;
+    }
+    return after.controlNavigationRecords.SameRecord(before.controlNavigationRecords, ordinal);
+}
 
 [[nodiscard]] bool IsSemanticAccessibilityControl(const Control* control) noexcept;
 [[nodiscard]] bool TryResolveSingleSemanticRootControlPath(const Control* root, ControlPath& outPath) noexcept;
@@ -1020,7 +1381,9 @@ struct AccessibilitySnapshot
 [[nodiscard]] const AccessibilityControlNavigationSnapshot* FindControlNavigationRecord(const AccessibilitySnapshot& snapshot,
                                                                                         const ControlPath& path) noexcept;
 [[nodiscard]] std::optional<uint32_t> FindControlRecordOrdinalByAddress(const AccessibilitySnapshot& snapshot, const Control* control) noexcept;
+[[nodiscard]] std::optional<uint32_t> FindControlRecordOrdinal(const AccessibilitySnapshot& snapshot, const ControlPath& path) noexcept;
 void IndexAccessibilitySnapshot(AccessibilitySnapshot& snapshot);
+void IndexAccessibilityPointHits(AccessibilitySnapshot& snapshot);
 [[nodiscard]] std::wstring_view GetControlAccessibleName(const Control* root, const Control* control) noexcept;
 [[nodiscard]] std::wstring_view GetControlAccessibleValue(const Control* control) noexcept;
 [[nodiscard]] std::wstring GetControlAccessibleTextRangeText(const Control* control);
@@ -1064,6 +1427,13 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
                                                          AccessibilitySnapshot& snapshot,
                                                          const AccessibilitySnapshotBuild& build,
                                                          bool ancestorsEnabled = true);
+[[nodiscard]] bool FillAccessibilityControlRecord(ControlHost& host,
+                                                  const Control* root,
+                                                  const Control* current,
+                                                  const ControlPath& basePath,
+                                                  const AccessibilitySnapshotBuild& build,
+                                                  bool effectiveEnabled,
+                                                  AccessibilityControlNavigationSnapshot& record);
 [[nodiscard]] const AccessibilityPointHitSnapshot* FindSnapshotPointHit(const AccessibilitySnapshot& snapshot, D2D1_POINT_2F pointDip) noexcept;
 [[nodiscard]] std::optional<D2D1_RECT_F> FindSnapshotFragmentBounds(const AccessibilitySnapshot& snapshot,
                                                                     AccessibilityFragmentKind kind,
@@ -1270,6 +1640,9 @@ struct WindowHostAccessibilityTarget final
     uintptr_t attachmentCookie = 0u;
     bool flushPosted           = false;
     bool publishing            = false;
+    // A native window's mutations since its last publication that a client could hear (interest at the time) or not (W8.2).
+    bool heardChanges   = false;
+    bool unheardChanges = false;
     std::atomic<bool> providerRequested{false};
     // An embedded view (owner thread): no provider call has reached it during this attachment yet, and its last changed
     // UpdateAccessibility only recorded its preparation and placement (deferredPlacement), since no client had asked and
@@ -1515,8 +1888,11 @@ struct WindowHostSnapshotChanges
 {
     if (before.controlNavigationRecords.size() != after.controlNavigationRecords.size())
         return false;
+    const bool sharedStructure = SharesAccessibilityStructure(before, after);
     for (size_t index = 0u; index < after.controlNavigationRecords.size(); ++index)
     {
+        if (SkipsSharedAccessibilityRecord(before, after, sharedStructure, index))
+            continue;
         const AccessibilityControlNavigationSnapshot& old = before.controlNavigationRecords[index];
         const AccessibilityControlNavigationSnapshot& now = after.controlNavigationRecords[index];
         if (! AreControlPathsEqual(old.path, now.path) || ! SameControlLifetime(old.controlLifetime, now.controlLifetime))
@@ -1529,18 +1905,87 @@ struct WindowHostSnapshotChanges
     return true;
 }
 
-WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAccessibilityTarget& target, ControlHost& host)
+// The focused element of `snapshot`, from the host's focused control: a control, or the item a focused tree, grid or tab
+// control focuses. False when a model callback changed the tree under the build.
+[[nodiscard]] bool ResolveAccessibilityFocusedFragment(ControlHost& host,
+                                                       const Control* root,
+                                                       AccessibilitySnapshot& snapshot,
+                                                       const AccessibilitySnapshotBuild& build)
 {
-    const uint64_t revision = target.dirtyRevision;
-    // WM_GETTEXT can run application code. Read it before borrowing any control/model, then revalidate the attachment.
-    wchar_t windowText[128]{};
-    const int length = target.hwnd ? GetWindowTextW(target.hwnd, windowText, static_cast<int>(std::size(windowText))) : 0;
-    if (target.ResolveHost() != &host || (! target.embedded && revision != target.dirtyRevision))
-        return {};
+    snapshot.focusedFragment.reset();
+    // The host prunes a focused control that left the tree only at its next message, so find it by pointer before
+    // touching it: one removed with its panel's children in the meantime is gone, not focused. The records are the
+    // semantic controls the tree holds, and their addresses are only compared.
+    Control* const focused = host.GetFocusControl();
+    if (! root || ! focused)
+        return true;
+    const std::optional<uint32_t> focusedOrdinal = FindControlRecordOrdinalByAddress(snapshot, focused);
+    if (! focusedOrdinal)
+        return true;
+    AccessibilityFocusedFragmentSnapshot focusedFragment{};
+    focusedFragment.path = snapshot.controlNavigationRecords[focusedOrdinal.value()].path;
+    if (const auto* tree = dynamic_cast<const Tree*>(focused))
+    {
+        if (const auto* model = tree->GetModel(); model && tree->GetFocusedItemId())
+        {
+            const auto lifetime = GetControlLifetimeToken(*tree);
+            const BorrowedControlModelGuard<Tree, ITreeModel> modelGuard(*tree, lifetime, model);
+            const auto itemId                        = tree->GetFocusedItemId().value();
+            const std::optional<size_t> visibleIndex = model->FindVisibleItemById(itemId);
+            if (! modelGuard.IsCurrent() || ! build.IsCurrent(tree, lifetime, focusedFragment.path))
+                return false;
+            if (visibleIndex)
+            {
+                focusedFragment.kind             = AccessibilityFragmentKind::TreeItem;
+                focusedFragment.treeVisibleIndex = visibleIndex.value();
+                focusedFragment.treeItemId       = itemId;
+            }
+        }
+    }
+    else if (const auto* grid = dynamic_cast<const Grid*>(focused))
+    {
+        if (const auto* model = grid->GetModel(); model)
+        {
+            if (const std::optional<uint64_t> focusedRow = grid->GetFocusedRowId())
+            {
+                focusedFragment.kind      = AccessibilityFragmentKind::GridRow;
+                focusedFragment.gridRowId = focusedRow.value();
+            }
+        }
+    }
+    else if (const auto* tabs = dynamic_cast<const TabControl*>(focused))
+    {
+        // A focused tab control's focus is its selected tab, which its arrow keys move.
+        const auto items = ControlModelQueryAccess::Tabs(*tabs);
+        if (const std::optional<size_t> selected = tabs->GetSelectedIndex(); selected && *selected < items.size() && items[*selected].visible)
+        {
+            focusedFragment.kind      = AccessibilityFragmentKind::TabItem;
+            focusedFragment.gridRowId = items[*selected].id;
+        }
+    }
+    snapshot.focusedFragment = focusedFragment;
+    return true;
+}
+
+[[nodiscard]] uint64_t NextAccessibilitySnapshotGeneration() noexcept
+{
+    static std::atomic<uint64_t> serial{0u};
+    return serial.fetch_add(1u, std::memory_order_relaxed) + 1u;
+}
+
+// Builds the whole window's snapshot from the tree, unpublished and not yet sealed. Null when the build stopped: `failure` says
+// why when it failed, and stays S_OK when a callback changed the tree under it. `counted` false for the verification build of
+// a test (DebugSetAccessibilityIncrementalVerificationForTest), which no counter sees.
+[[nodiscard]] std::shared_ptr<AccessibilitySnapshot> BuildWholeAccessibilitySnapshot(
+    WindowHostAccessibilityTarget& target, ControlHost& host, uint64_t revision, std::wstring_view windowText, bool counted, HRESULT& buildFailure)
+{
+    if (counted)
+    {
 #if DXUI_ENABLE_DIAGNOSTICS
-    g_accessibilitySnapshotBuildCount.fetch_add(1u, std::memory_order_relaxed);
+        g_accessibilitySnapshotBuildCount.fetch_add(1u, std::memory_order_relaxed);
 #endif
-    ++Detail::Work().accessibility.snapshotBuilds;
+        ++Detail::Work().accessibility.snapshotBuilds;
+    }
     auto snapshot              = std::make_shared<AccessibilitySnapshot>();
     snapshot->hwnd             = target.hwnd;
     snapshot->buildThreadId    = GetCurrentThreadId();
@@ -1550,22 +1995,18 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     snapshot->placement        = target.placement;
     snapshot->pixelsToDipScale = USER_DEFAULT_SCREEN_DPI / host.GetDpi();
     const Control* const root  = host.GetRoot();
-    HRESULT buildFailure       = S_OK;
+    buildFailure               = S_OK;
     const AccessibilitySnapshotBuild build{target, host, root, root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{}, revision, buildFailure};
     snapshot->hasRetainedRoot = root != nullptr;
     // Sized once: a menu's rows make thousands of records, which growing vectors would move again and again.
     const size_t semanticControls = CountAccessibilitySnapshotNavigation(root, ControlPath{});
-    snapshot->semanticControlOrder.reserve(semanticControls);
-    snapshot->controlsByAddress.reserve(semanticControls);
-    snapshot->controlNavigationRecords.reserve(semanticControls);
+    snapshot->semanticControlOrder.Building().reserve(semanticControls);
+    snapshot->controlsByAddress.Building().reserve(semanticControls);
+    snapshot->controlNavigationRecords.Building().reserve(semanticControls);
     if (! AppendAccessibilitySnapshotNavigation(host, root, root, ControlPath{}, *snapshot, build))
-    {
-        WindowHostSnapshotChanges failure;
-        failure.result = buildFailure;
-        return failure;
-    }
+        return nullptr;
     if (! AppendRequestedGridRows(host, target, *snapshot, build))
-        return {};
+        return nullptr;
     if (root && ! target.embedded)
     {
         ControlPath collapsedRootPath{};
@@ -1576,84 +2017,379 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
                                              AreControlPathsEqual(snapshot->semanticControlOrder.front(), collapsedRootPath);
     }
     if (! AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *snapshot, build))
-        return {};
+        return nullptr;
     IndexAccessibilitySnapshot(*snapshot);
-    auto& accessibilityWork = Detail::Work().accessibility;
-    accessibilityWork.snapshotNodes += snapshot->controlNavigationRecords.size();
-    accessibilityWork.snapshotBytes += snapshot->controlNavigationRecords.capacity() * sizeof(AccessibilityControlNavigationSnapshot) +
-                                       snapshot->semanticControlOrder.capacity() * sizeof(ControlPath) +
-                                       snapshot->controlsByAddress.capacity() * sizeof(AccessibilityControlAddress);
-
-    // The host prunes a focused control that left the tree only at its next message, so find it by pointer before
-    // touching it: one removed with its panel's children in the meantime is gone, not focused. The records are the
-    // semantic controls the tree holds, and their addresses are only compared.
-    Control* const focused = host.GetFocusControl();
-    if (root && focused)
+    if (counted)
     {
-        if (const std::optional<uint32_t> focusedOrdinal = FindControlRecordOrdinalByAddress(*snapshot, focused))
-        {
-            AccessibilityFocusedFragmentSnapshot focusedFragment{};
-            focusedFragment.path = snapshot->controlNavigationRecords[focusedOrdinal.value()].path;
-
-            if (const auto* tree = dynamic_cast<const Tree*>(focused))
-            {
-                if (const auto* model = tree->GetModel(); model && tree->GetFocusedItemId())
-                {
-                    const auto lifetime = GetControlLifetimeToken(*tree);
-                    const BorrowedControlModelGuard<Tree, ITreeModel> modelGuard(*tree, lifetime, model);
-                    const auto itemId                        = tree->GetFocusedItemId().value();
-                    const std::optional<size_t> visibleIndex = model->FindVisibleItemById(itemId);
-                    if (! modelGuard.IsCurrent() || ! build.IsCurrent(tree, lifetime, focusedFragment.path))
-                        return {};
-                    if (visibleIndex)
-                    {
-                        focusedFragment.kind             = AccessibilityFragmentKind::TreeItem;
-                        focusedFragment.treeVisibleIndex = visibleIndex.value();
-                        focusedFragment.treeItemId       = itemId;
-                    }
-                }
-            }
-            else if (const auto* grid = dynamic_cast<const Grid*>(focused))
-            {
-                if (const auto* model = grid->GetModel(); model)
-                {
-                    if (const std::optional<uint64_t> focusedRow = grid->GetFocusedRowId())
-                    {
-                        focusedFragment.kind      = AccessibilityFragmentKind::GridRow;
-                        focusedFragment.gridRowId = focusedRow.value();
-                    }
-                }
-            }
-            else if (const auto* tabs = dynamic_cast<const TabControl*>(focused))
-            {
-                // A focused tab control's focus is its selected tab, which its arrow keys move.
-                const auto items = ControlModelQueryAccess::Tabs(*tabs);
-                if (const std::optional<size_t> selected = tabs->GetSelectedIndex(); selected && *selected < items.size() && items[*selected].visible)
-                {
-                    focusedFragment.kind      = AccessibilityFragmentKind::TabItem;
-                    focusedFragment.gridRowId = items[*selected].id;
-                }
-            }
-
-            snapshot->focusedFragment = focusedFragment;
-        }
+        auto& accessibilityWork = Detail::Work().accessibility;
+        accessibilityWork.snapshotNodes += snapshot->controlNavigationRecords.size();
+        accessibilityWork.snapshotBytes += snapshot->controlNavigationRecords.capacity() * sizeof(AccessibilityControlNavigationSnapshot) +
+                                           snapshot->semanticControlOrder.capacity() * sizeof(ControlPath) +
+                                           snapshot->controlsByAddress.capacity() * sizeof(AccessibilityControlAddress);
     }
-
-    snapshot->windowName.assign(windowText, static_cast<size_t>((std::max)(0, length)));
+    if (! ResolveAccessibilityFocusedFragment(host, root, *snapshot, build))
+        return nullptr;
+    snapshot->windowName.assign(windowText);
     if (target.embedded)
         snapshot->windowName = root && ! root->GetAccessibleName().empty() ? root->GetAccessibleName() : L"Embedded controls";
 
     if (target.embedded && ! target.placement.hasKeyboardFocus)
     {
         snapshot->focusedFragment.reset();
-        for (auto& record : snapshot->controlNavigationRecords)
+        for (auto& record : snapshot->controlNavigationRecords.Building())
             record.controlHasFocus = false;
     }
     if (target.menuPopup)
         snapshot->liveMenuRecords = Detail::LiveResourceCount(Detail::LiveResource::MenuAccessibilityRecord, snapshot->controlNavigationRecords.size());
-    WindowHostSnapshotChanges changes{};
     if (! build.IsCurrent())
+        return nullptr;
+    return snapshot;
+}
+
+// Whether the next publication may be a successor of `previous` that shares its unmarked records (W8.2): the host's marks
+// apply to that very generation, no whole-window mutation and no undeclared invalidation came since, every move of the
+// interaction and hit revisions was a marked one, the host can see every attached control's hit testing (so a structure
+// change would have moved a revision), and the scale and placement are those `previous` was built at.
+[[nodiscard]] bool MayPublishAccessibilitySuccessor(const WindowHostAccessibilityTarget& target,
+                                                    const ControlHost& host,
+                                                    const AccessibilitySnapshot* previous,
+                                                    const Detail::AccessibilityRecordMarks& marks) noexcept
+{
+#if DXUI_ENABLE_DIAGNOSTICS
+    if (g_accessibilityWholePublicationForTest.load(std::memory_order_acquire))
+        return false;
+#endif
+    if (marks.wholeOwed || marks.overflow || marks.unattested || ! previous || ! previous->alive || ! previous->hasRetainedRoot ||
+        ! previous->controlNavigationRecords.IsSealed() || previous->generation == 0u || previous->generation != marks.baseGeneration || ! host.GetRoot())
+        return false;
+    const AccessibilityRevisions revisions = ReadAccessibilityRevisions(host);
+    if (revisions.interaction != marks.interactionRevision || revisions.hit != marks.hitRevision ||
+        EmbeddedAccessibilityAccess::UnreportedHitControls(host) != 0u)
+        return false;
+    if (previous->pixelsToDipScale != USER_DEFAULT_SCREEN_DPI / host.GetDpi())
+        return false;
+    const auto& was = previous->placement;
+    const auto& now = target.placement;
+    return ! target.embedded || (was.viewport.left == now.viewport.left && was.viewport.top == now.viewport.top && was.viewport.width == now.viewport.width &&
+                                 was.viewport.height == now.viewport.height && was.hasKeyboardFocus == now.hasKeyboardFocus);
+}
+
+// Coalescing of geometry-only publications (W8.2): called where a publication is about to follow from marks (a window host's
+// posted flush, an embedded UpdateAccessibility), never for a client's query. A publication whose marks are all geometry
+// and that would be incremental waits when the last geometry publication is less than kGeometryPublicationIntervalMs old on
+// the host's clock, unless the layout settled (no geometry mark since it was last deferred) or a wake made it due. The
+// deferral asks the host's frame schedule for a wake (AccessibilityGeometryWakeDueTickMs, SettleAccessibilityGeometry).
+[[nodiscard]] bool DeferGeometryOnlyPublication(WindowHostAccessibilityTarget& target, ControlHost& host) noexcept
+{
+    Detail::AccessibilityRecordMarks* const marks = EmbeddedAccessibilityAccess::Marks(host);
+    if (! marks || marks->count == 0u)
+        return false;
+    constexpr auto geometry = static_cast<uint8_t>(AccessibilityRecordAspect::Geometry);
+    bool geometryOnly = true, anyGeometry = false;
+    for (size_t index = 0u; index < marks->count; ++index)
+    {
+        geometryOnly = geometryOnly && marks->marks[index].aspects == geometry;
+        anyGeometry  = anyGeometry || (marks->marks[index].aspects & geometry) != 0u;
+    }
+    // A window that is hidden or minimized presents no frame and its schedule does not wake: nothing would publish a deferral.
+    if (! host.IsEmbedded())
+    {
+        HWND const hwnd = host.GetHwnd();
+        HWND const top  = hwnd ? GetAncestor(hwnd, GA_ROOT) : nullptr;
+        if (! hwnd || IsWindowVisible(hwnd) == FALSE || (top && IsIconic(top) != FALSE))
+        {
+            marks->geometryDeferred = false;
+            marks->geometryDue      = false;
+            return false;
+        }
+    }
+    const uint64_t now = host.GetAnimationTickMs();
+    const bool due     = std::exchange(marks->geometryDue, false);
+    const bool recent = marks->geometryPublished && (now < marks->lastGeometryPublicationMs ||
+                                                     now - marks->lastGeometryPublicationMs < Detail::AccessibilityRecordMarks::kGeometryPublicationIntervalMs);
+    const bool settled = marks->geometryDeferred && marks->geometryMarks == marks->geometryMarksAtDeferral;
+    if (geometryOnly && ! due && recent && ! settled &&
+        MayPublishAccessibilitySuccessor(target, host, target.snapshot.load(std::memory_order_acquire).get(), *marks))
+    {
+        const bool wasDeferred         = std::exchange(marks->geometryDeferred, true);
+        marks->geometryMarksAtDeferral = marks->geometryMarks;
+        marks->geometryDeferredAtMs    = now;
+        ++Detail::Work().accessibility.geometryPublicationsDeferred;
+        if (! wasDeferred)
+        {
+            // An embedded view's schedule change invalidates it so the application prepares again; that repaint is declared.
+            const AttestedInvalidation attested(&host);
+            EmbeddedAccessibilityAccess::FrameScheduleChanged(host);
+        }
+        return true;
+    }
+    if (anyGeometry)
+    {
+        marks->geometryPublished         = true;
+        marks->lastGeometryPublicationMs = now;
+    }
+    marks->geometryDeferred = false;
+    return false;
+}
+
+// The path of `control` below `root` through the live tree, and whether every ancestor is enabled. False when it is not there.
+[[nodiscard]] bool LiveAccessibilityPathOf(const Control* root, const Control& control, ControlPath& path, bool& ancestorsEnabled) noexcept
+{
+    std::array<uint16_t, kAccessibilityMaxDepth> reversed{};
+    uint32_t depth   = 0u;
+    ancestorsEnabled = true;
+    for (const Control* child = &control; child != root;)
+    {
+        const Control* const parent = ControlModelQueryAccess::LogicalParent(*child);
+        if (! parent || depth >= kAccessibilityMaxDepth)
+            return false;
+        size_t index = (std::numeric_limits<size_t>::max)();
+        for (size_t candidate = 0u; candidate < parent->GetLogicalChildCount(); ++candidate)
+            if (parent->GetLogicalChild(candidate) == child)
+            {
+                index = candidate;
+                break;
+            }
+        if (index > (std::numeric_limits<uint16_t>::max)())
+            return false;
+        reversed[depth++] = static_cast<uint16_t>(index);
+        ancestorsEnabled  = ancestorsEnabled && parent->IsEnabled();
+        child             = parent;
+    }
+    path.depth = depth;
+    for (uint32_t level = 0u; level < depth; ++level)
+        path.indices[level] = reversed[depth - 1u - level];
+    return true;
+}
+
+// Tree order is the order of paths compared index by index, a path before its extensions: the order of a snapshot's records.
+[[nodiscard]] bool AccessibilityPathPrecedes(const ControlPath& first, const ControlPath& second) noexcept
+{
+    const uint32_t shared = (std::min)(first.depth, second.depth);
+    for (uint32_t level = 0u; level < shared; ++level)
+        if (first.indices[level] != second.indices[level])
+            return first.indices[level] < second.indices[level];
+    return first.depth < second.depth;
+}
+
+[[nodiscard]] bool AccessibilityPathStartsWith(const ControlPath& path, const ControlPath& prefix) noexcept
+{
+    if (path.depth < prefix.depth)
+        return false;
+    for (uint32_t level = 0u; level < prefix.depth; ++level)
+        if (path.indices[level] != prefix.indices[level])
+            return false;
+    return true;
+}
+
+// The successor of `previous` for the host's marks (W8.2): each marked record, and every record of a marked geometry's subtree,
+// re-read from its control; every bounding rectangle again when geometry moved; everything else shared. Null with `whole` set
+// when the marks cannot be followed (a control no longer at its place, too many records), so the caller builds the whole
+// window; null with `whole` clear when the build stopped as a whole build would (a failure, a callback changing the tree).
+[[nodiscard]] std::shared_ptr<AccessibilitySnapshot> BuildAccessibilitySuccessor(WindowHostAccessibilityTarget& target,
+                                                                                 ControlHost& host,
+                                                                                 const AccessibilitySnapshot& previous,
+                                                                                 const Detail::AccessibilityRecordMarks& marks,
+                                                                                 uint64_t revision,
+                                                                                 std::wstring_view windowText,
+                                                                                 HRESULT& buildFailure,
+                                                                                 bool& whole,
+                                                                                 AccessibilityRecordArray::SuccessorCost& cost)
+{
+    whole                     = true;
+    buildFailure              = S_OK;
+    const Control* const root = host.GetRoot();
+    const AccessibilitySnapshotBuild build{target, host, root, GetControlLifetimeToken(*root), revision, buildFailure};
+    const auto& records = previous.controlNavigationRecords;
+    std::vector<uint32_t> ordinals;
+    ordinals.reserve(marks.count * 2u);
+    bool geometry      = false;
+    const auto addPath = [&](const ControlPath& path)
+    {
+        if (const std::optional<uint32_t> ordinal = FindControlRecordOrdinal(previous, path))
+            ordinals.push_back(ordinal.value());
+    };
+    for (size_t index = 0u; index < marks.count; ++index)
+    {
+        const Detail::AccessibilityRecordMark& mark = marks.marks[index];
+        ControlPath path{};
+        bool ancestorsEnabled = true;
+        if (! mark.control || mark.lifetime.expired() || ! LiveAccessibilityPathOf(root, *mark.control, path, ancestorsEnabled))
+            return nullptr;
+        if ((mark.aspects & static_cast<uint8_t>(AccessibilityRecordAspect::Geometry)) != 0u)
+        {
+            // Every rectangle is rebuilt. Of the subtree's records (contiguous in tree order: the first at or after the path,
+            // then while it is a prefix) only those whose published content can follow their bounds are read again: a text
+            // control's selection rectangles and visible range, a grid's visible rows and columns, a tree's rows, a tab
+            // control's headers, and any range value (a splitter's position and maximum follow its extent, and its
+            // OnBoundsChanged clamps the position without marking it). A button, a label or a panel holds none: what a
+            // panel's resize changes reaches its children through their own SetBounds.
+            geometry   = true;
+            auto first = std::ranges::lower_bound(previous.semanticControlOrder, path, AccessibilityPathPrecedes);
+            for (; first != previous.semanticControlOrder.end() && AccessibilityPathStartsWith(*first, path); ++first)
+            {
+                const size_t ordinal                               = static_cast<size_t>(first - previous.semanticControlOrder.begin());
+                const AccessibilityControlNavigationSnapshot& held = records[ordinal];
+                if (held.controlSupportsText || held.isGrid || held.isTree || held.controlRichText || held.hasPasswordRevealButton ||
+                    held.controlSupportsRangeValue || held.isTabControl)
+                    ordinals.push_back(static_cast<uint32_t>(ordinal));
+            }
+        }
+        if ((mark.aspects & static_cast<uint8_t>(AccessibilityRecordAspect::Geometry)) != mark.aspects)
+        {
+            addPath(path);
+            // A control that publishes rectangles of its own parts (a tab control's headers, a grid's or tree's rows and cells,
+            // a field's reveal button, a combo box's open popup) can move them when its name or value changes, without any
+            // bounds change (a longer tab title widens its header and moves the next ones): its rectangles are rebuilt too.
+            if (const std::optional<uint32_t> ordinal = FindControlRecordOrdinal(previous, path))
+            {
+                const AccessibilityControlNavigationSnapshot& held = records[ordinal.value()];
+                if (held.isTabControl || held.isGrid || held.isTree || held.hasPasswordRevealButton || dynamic_cast<const ComboBox*>(mark.control))
+                    geometry = true;
+            }
+        }
+        // A label's text names its mnemonic target too.
+        if ((mark.aspects & static_cast<uint8_t>(AccessibilityRecordAspect::Name)) != 0u)
+            if (const auto* label = dynamic_cast<const Label*>(mark.control); label && label->GetMnemonicTarget())
+            {
+                ControlPath targetPath{};
+                bool targetEnabled = true;
+                if (LiveAccessibilityPathOf(root, *label->GetMnemonicTarget(), targetPath, targetEnabled))
+                    addPath(targetPath);
+            }
+    }
+    std::ranges::sort(ordinals);
+    ordinals.erase(std::ranges::unique(ordinals).begin(), ordinals.end());
+    if (ordinals.size() > (std::max)(size_t{16u}, records.size() / 4u))
+        return nullptr;
+    std::vector<AccessibilityRecordArray::Replacement> replacements;
+    replacements.reserve(ordinals.size());
+    for (const uint32_t ordinal : ordinals)
+    {
+        const AccessibilityControlNavigationSnapshot& old = records[ordinal];
+        // A grid's record also carries the rows clients asked for (AppendRequestedGridRows): the whole build adds them.
+        if (old.isGrid && target.requestedGridRowCount != 0u)
+            return nullptr;
+        const Control* const control = ResolveControlAtPath(root, old.path);
+        ControlPath live{};
+        bool ancestorsEnabled = true;
+        if (! control || ! SameControlLifetime(old.controlLifetime, GetControlLifetimeToken(*control)) || ! control->IsVisible() ||
+            ! IsSemanticAccessibilityControl(control) || ! LiveAccessibilityPathOf(root, *control, live, ancestorsEnabled) ||
+            ! AreControlPathsEqual(live, old.path))
+            return nullptr;
+        auto record = std::make_shared<AccessibilityControlNavigationSnapshot>();
+        if (! FillAccessibilityControlRecord(host, root, control, old.path, build, ancestorsEnabled && control->IsEnabled(), *record))
+        {
+            whole = false;
+            return nullptr;
+        }
+        if (target.embedded && ! target.placement.hasKeyboardFocus)
+            record->controlHasFocus = false;
+        replacements.push_back({ordinal, std::move(record)});
+    }
+
+    auto successor                      = std::make_shared<AccessibilitySnapshot>();
+    successor->hwnd                     = previous.hwnd;
+    successor->embedded                 = previous.embedded;
+    successor->placement                = target.placement;
+    successor->buildThreadId            = GetCurrentThreadId();
+    successor->windowThreadId           = previous.windowThreadId;
+    successor->alive                    = true;
+    successor->hasRetainedRoot          = true;
+    successor->hasCollapsedSemanticRoot = previous.hasCollapsedSemanticRoot;
+    successor->pixelsToDipScale         = previous.pixelsToDipScale;
+    successor->semanticControlOrder     = previous.semanticControlOrder;
+    successor->controlsByAddress        = previous.controlsByAddress;
+    successor->controlRecordsByPath     = previous.controlRecordsByPath;
+    successor->controlNavigationRecords = records.WithReplaced(replacements, cost);
+    if (geometry)
+    {
+        // Every rectangle is absolute today, so a move rebuilds them all, once, with no record: W8.3's container-relative
+        // bounds make a scroll touch its scroll scope only.
+        ++Detail::Work().accessibility.pointHitRebuilds;
+        if (! AppendAccessibilitySnapshotPointHits(host, root, ControlPath{}, *successor, build))
+        {
+            whole = false;
+            return nullptr;
+        }
+        IndexAccessibilityPointHits(*successor);
+    }
+    else
+    {
+        successor->pointHitRecords     = previous.pointHitRecords;
+        successor->pointHitsByFragment = previous.pointHitsByFragment;
+    }
+    if (! ResolveAccessibilityFocusedFragment(host, root, *successor, build))
+    {
+        whole = false;
+        return nullptr;
+    }
+    successor->windowName.assign(windowText);
+    if (target.embedded)
+    {
+        successor->windowName = ! root->GetAccessibleName().empty() ? root->GetAccessibleName() : L"Embedded controls";
+        if (! target.placement.hasKeyboardFocus)
+            successor->focusedFragment.reset();
+    }
+    if (target.menuPopup)
+        successor->liveMenuRecords = Detail::LiveResourceCount(Detail::LiveResource::MenuAccessibilityRecord, successor->controlNavigationRecords.size());
+    whole = false;
+    if (! build.IsCurrent())
+        return nullptr;
+    return successor;
+}
+
+#if DXUI_ENABLE_DIAGNOSTICS
+void VerifyAccessibilitySuccessor(
+    WindowHostAccessibilityTarget& target, ControlHost& host, uint64_t revision, std::wstring_view windowText, const AccessibilitySnapshot& successor);
+#endif
+
+WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAccessibilityTarget& target, ControlHost& host)
+{
+    const uint64_t revision = target.dirtyRevision;
+    // WM_GETTEXT can run application code. Read it before borrowing any control/model, then revalidate the attachment.
+    wchar_t windowText[128]{};
+    const int length = target.hwnd ? GetWindowTextW(target.hwnd, windowText, static_cast<int>(std::size(windowText))) : 0;
+    if (target.ResolveHost() != &host || (! target.embedded && revision != target.dirtyRevision))
         return {};
+    const std::wstring_view text(windowText, static_cast<size_t>((std::max)(0, length)));
+    // What the host noted since the publication its marks apply to, read before the build: a note the build's callbacks make
+    // moves the epoch, and the next publication is then whole.
+    Detail::AccessibilityRecordMarks& marks = EmbeddedAccessibilityAccess::EnsureMarks(host);
+    const uint64_t epoch                    = marks.epoch;
+    const AccessibilityRevisions revisions  = ReadAccessibilityRevisions(host);
+    const auto published                    = target.snapshot.load(std::memory_order_acquire);
+    HRESULT buildFailure                    = S_OK;
+    bool whole                              = true;
+    AccessibilityRecordArray::SuccessorCost cost{};
+    std::shared_ptr<AccessibilitySnapshot> snapshot;
+    if (MayPublishAccessibilitySuccessor(target, host, published.get(), marks))
+        snapshot = BuildAccessibilitySuccessor(target, host, *published, marks, revision, text, buildFailure, whole, cost);
+    if (! snapshot && whole)
+        snapshot = BuildWholeAccessibilitySnapshot(target, host, revision, text, true, buildFailure);
+    if (! snapshot)
+    {
+        WindowHostSnapshotChanges failure;
+        failure.result = buildFailure;
+        return failure;
+    }
+    snapshot->controlNavigationRecords.Seal();
+    snapshot->generation = NextAccessibilitySnapshotGeneration();
+#if DXUI_ENABLE_DIAGNOSTICS
+    g_accessibilityPublicationCount.fetch_add(1u, std::memory_order_relaxed);
+#endif
+    if (! whole)
+    {
+        auto& accessibilityWork = Detail::Work().accessibility;
+        ++accessibilityWork.incrementalPublications;
+        accessibilityWork.recordsCloned += cost.records;
+        accessibilityWork.chunksCloned += cost.chunks;
+        accessibilityWork.spineBytes += cost.bytes;
+#if DXUI_ENABLE_DIAGNOSTICS
+        VerifyAccessibilitySuccessor(target, host, revision, text, *snapshot);
+#endif
+    }
+    WindowHostSnapshotChanges changes{};
     // An embedded view diffs against the snapshot its last UpdateAccessibility raised events for, so a publication made in
     // between (an uncached GetItem row) leaves the changes since then to be raised.
     std::shared_ptr<const AccessibilitySnapshot> previous =
@@ -1666,15 +2402,279 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
         changes.focusMoved = ! SameFocusedElement(*previous, *snapshot);
         changes.selections = CollectSelectionChanges(*previous, *snapshot);
     }
+    const uint64_t generation = snapshot->generation;
     PublishAccessibilitySnapshot(target, std::move(snapshot));
+    // The marks are spent: the next ones apply to this generation. A note made during the build may not be in it.
+    for (size_t index = 0u; index < marks.count; ++index)
+        marks.marks[index] = {};
+    marks.count               = 0u;
+    marks.overflow            = false;
+    marks.unattested          = false;
+    marks.flushRequested      = false;
+    marks.dormant             = false;
+    marks.geometryDeferred    = false; // Whatever published carried the deferred geometry too.
+    marks.geometryDue         = false;
+    marks.wholeOwed           = marks.epoch != epoch;
+    marks.baseGeneration      = generation;
+    marks.interactionRevision = revisions.interaction;
+    marks.hitRevision         = revisions.hit;
     if (! target.embedded)
     {
         target.publishedRevision = revision;
-        if (! target.eventBaseline)
+        // A publication only unheard changes led to (made while no client listened, and published by a later query) becomes
+        // the event baseline: nobody is owed their events, and a client that then queried reads them. Left in place, the
+        // baseline would hold a state no client saw last, and a change back to it would raise nothing.
+        if (! target.eventBaseline || (target.unheardChanges && ! target.heardChanges))
             target.eventBaseline = target.snapshot.load(std::memory_order_acquire);
+        target.heardChanges   = false;
+        target.unheardChanges = false;
     }
     return changes;
 }
+
+#if DXUI_ENABLE_DIAGNOSTICS
+// The verification of an incremental publication (W8.2, test only): a whole build of the same tree at the same moment, never
+// published and never counted, compared field by field with the successor. The first difference names the field.
+[[nodiscard]] bool SameAccessibilityRect(const D2D1_RECT_F& first, const D2D1_RECT_F& second) noexcept
+{
+    return std::memcmp(&first, &second, sizeof(D2D1_RECT_F)) == 0;
+}
+
+[[nodiscard]] bool SameAccessibilityRects(std::span<const D2D1_RECT_F> first, std::span<const D2D1_RECT_F> second) noexcept
+{
+    return std::ranges::equal(first, second, SameAccessibilityRect);
+}
+
+[[nodiscard]] bool SameOptionalAccessibilityRects(std::span<const std::optional<D2D1_RECT_F>> first,
+                                                  std::span<const std::optional<D2D1_RECT_F>> second) noexcept
+{
+    return std::ranges::equal(first, second, [](const std::optional<D2D1_RECT_F>& a, const std::optional<D2D1_RECT_F>& b) noexcept {
+        return a.has_value() == b.has_value() && (! a || SameAccessibilityRect(*a, *b));
+    });
+}
+
+// A rich text record's links, annotations, annotation types and format runs, element by element.
+[[nodiscard]] bool SameAccessibilityRichContent(const AccessibilityRichTextSnapshot& x, const AccessibilityRichTextSnapshot& y) noexcept
+{
+    const auto sameAnnotation = [](const AccessibilityRichAnnotation& first, const AccessibilityRichAnnotation& second) noexcept
+    {
+        return first.source == second.source && first.kind == second.kind && first.bounds.has_value() == second.bounds.has_value() &&
+               (! first.bounds || SameAccessibilityRect(*first.bounds, *second.bounds));
+    };
+    const auto sameTypes = [](const AccessibilityAnnotationTypes& first, const AccessibilityAnnotationTypes& second) noexcept
+    { return first.source == second.source && first.mask == second.mask; };
+    const auto sameRun = [](const RichText::StyleRun& first, const RichText::StyleRun& second) noexcept
+    { return first.start == second.start && first.length == second.length && first.flags == second.flags && first.heading == second.heading; };
+    return x.underlinedLinks == y.underlinedLinks && std::ranges::equal(x.annotations, y.annotations, sameAnnotation) &&
+           std::ranges::equal(x.annotationTypes, y.annotationTypes, sameTypes) && std::ranges::equal(x.formatRuns, y.formatRuns, sameRun);
+}
+
+[[nodiscard]] const char* FirstAccessibilityRecordDifference(const AccessibilityControlNavigationSnapshot& a,
+                                                             const AccessibilityControlNavigationSnapshot& b) noexcept
+{
+#define DXUI_SAME_FIELD(field)                                                                                                                                 \
+    if (! (a.field == b.field))                                                                                                                                \
+        return #field;
+    if (! AreControlPathsEqual(a.path, b.path))
+        return "path";
+    if (! SameControlLifetime(a.controlLifetime, b.controlLifetime))
+        return "controlLifetime";
+    DXUI_SAME_FIELD(controlIdentity)
+    DXUI_SAME_FIELD(controlTypeId)
+    DXUI_SAME_FIELD(controlAccessibleName)
+    DXUI_SAME_FIELD(controlAccessibleHelpText)
+    DXUI_SAME_FIELD(controlAccessibleItemStatus)
+    DXUI_SAME_FIELD(controlLabelIdentity)
+    DXUI_SAME_FIELD(controlRequiredForForm)
+    DXUI_SAME_FIELD(controlDataValidForForm)
+    DXUI_SAME_FIELD(controlAutomationId)
+    DXUI_SAME_FIELD(controlAccessibleValue)
+    DXUI_SAME_FIELD(controlAccessibleText)
+    DXUI_SAME_FIELD(controlVisible)
+    DXUI_SAME_FIELD(controlEnabled)
+    DXUI_SAME_FIELD(controlFocusable)
+    DXUI_SAME_FIELD(controlHasFocus)
+    DXUI_SAME_FIELD(controlIsPassword)
+    DXUI_SAME_FIELD(controlSupportsInvoke)
+    DXUI_SAME_FIELD(controlSupportsToggle)
+    DXUI_SAME_FIELD(controlSupportsValue)
+    DXUI_SAME_FIELD(controlSupportsText)
+    DXUI_SAME_FIELD(controlSupportsText2)
+    DXUI_SAME_FIELD(controlSupportsRangeValue)
+    DXUI_SAME_FIELD(controlSupportsSelection)
+    DXUI_SAME_FIELD(controlSupportsTable)
+    DXUI_SAME_FIELD(controlSupportsSelectionItem)
+    DXUI_SAME_FIELD(controlSelectionItemSelected)
+    if (bool(a.radioGroup) != bool(b.radioGroup) ||
+        (a.radioGroup && (! std::ranges::equal(a.radioGroup->childPaths, b.radioGroup->childPaths, AreControlPathsEqual) ||
+                          ! std::ranges::equal(a.radioGroup->selectedPaths, b.radioGroup->selectedPaths, AreControlPathsEqual))))
+        return "radioGroup";
+    DXUI_SAME_FIELD(controlPositionInSet)
+    DXUI_SAME_FIELD(controlSizeOfSet)
+    DXUI_SAME_FIELD(controlValueReadOnly)
+    DXUI_SAME_FIELD(controlToggleState)
+    DXUI_SAME_FIELD(controlDisclosureExpanded)
+    DXUI_SAME_FIELD(controlTextSelectionStart)
+    DXUI_SAME_FIELD(controlTextSelectionEnd)
+    DXUI_SAME_FIELD(controlTextCaretIndex)
+    DXUI_SAME_FIELD(controlTextVisibleRange)
+    if (bool(a.controlRichText) != bool(b.controlRichText))
+        return "controlRichText";
+    if (a.controlRichText)
+    {
+        const auto& x = *a.controlRichText;
+        const auto& y = *b.controlRichText;
+        if (x.document != y.document || x.epoch != y.epoch || x.semanticRevision != y.semanticRevision || x.bindingRevision != y.bindingRevision ||
+            ! SameOptionalAccessibilityRects(x.bounds, y.bounds) || ! SameOptionalAccessibilityRects(x.copyBounds, y.copyBounds) ||
+            ! SameAccessibilityRichContent(x, y) || x.bodyFont != y.bodyFont || x.codeFont != y.codeFont || x.copyName != y.copyName ||
+            x.externalLinkActivationEnabled != y.externalLinkActivationEnabled || x.readOnlyTasksInteractive != y.readOnlyTasksInteractive ||
+            x.fontSizePoints != y.fontSizePoints || x.codeFontSizePoints != y.codeFontSizePoints || x.headingScaleStep != y.headingScaleStep ||
+            x.headingFontSizeDip != y.headingFontSizeDip)
+            return "controlRichText";
+    }
+    if (! SameAccessibilityRects(a.controlTextSelectionBoundsDip, b.controlTextSelectionBoundsDip))
+        return "controlTextSelectionBoundsDip";
+    DXUI_SAME_FIELD(controlTextCompositionStart)
+    DXUI_SAME_FIELD(controlTextCompositionEnd)
+    DXUI_SAME_FIELD(controlTextConversionTargetStart)
+    DXUI_SAME_FIELD(controlTextConversionTargetEnd)
+    DXUI_SAME_FIELD(controlRangeValue)
+    DXUI_SAME_FIELD(controlRangeMinimum)
+    DXUI_SAME_FIELD(controlRangeMaximum)
+    DXUI_SAME_FIELD(controlRangeSmallChange)
+    DXUI_SAME_FIELD(controlRangeLargeChange)
+    DXUI_SAME_FIELD(isGrid)
+    DXUI_SAME_FIELD(isTree)
+    DXUI_SAME_FIELD(gridCanSelectMultiple)
+    DXUI_SAME_FIELD(treeCanSelectMultiple)
+    DXUI_SAME_FIELD(hasPasswordRevealButton)
+    DXUI_SAME_FIELD(passwordRevealButtonEnabled)
+    DXUI_SAME_FIELD(treeIsEnabled)
+    DXUI_SAME_FIELD(gridIsEnabled)
+    DXUI_SAME_FIELD(gridRowCount)
+    DXUI_SAME_FIELD(gridColumnCount)
+    DXUI_SAME_FIELD(treeVisibleItemCount)
+    DXUI_SAME_FIELD(gridModelIdentity)
+    DXUI_SAME_FIELD(gridModelAssignmentGeneration)
+    DXUI_SAME_FIELD(passwordRevealButtonAccessibleName)
+    DXUI_SAME_FIELD(focusedTreeVisibleIndex)
+    DXUI_SAME_FIELD(selectedTreeItemIds)
+    if (! std::ranges::equal(a.treeItems,
+                             b.treeItems,
+                             [](const AccessibilityTreeItemSnapshotRecord& x, const AccessibilityTreeItemSnapshotRecord& y)
+    {
+        return x.visibleIndex == y.visibleIndex && x.itemId == y.itemId && x.text == y.text && x.badgeText == y.badgeText && x.depth == y.depth &&
+               x.hasChildren == y.hasChildren && x.expanded == y.expanded;
+    }))
+        return "treeItems";
+    DXUI_SAME_FIELD(treeBindingRevision)
+    DXUI_SAME_FIELD(preparedTreeRows)
+    if (! std::ranges::equal(
+            a.gridHeaders, b.gridHeaders, [](const auto& x, const auto& y) { return x.columnIndex == y.columnIndex && x.gridHeaderName == y.gridHeaderName; }))
+        return "gridHeaders";
+    if (! std::ranges::equal(a.gridRows, b.gridRows, [](const auto& x, const auto& y) {
+        return x.rowIndex == y.rowIndex && x.rowId == y.rowId && x.gridRowAccessibleName == y.gridRowAccessibleName;
+    }))
+        return "gridRows";
+    if (! std::ranges::equal(a.gridCells,
+                             b.gridCells,
+                             [](const AccessibilityGridCellStateSnapshotRecord& x, const AccessibilityGridCellStateSnapshotRecord& y)
+    {
+        return x.rowIndex == y.rowIndex && x.rowId == y.rowId && x.columnIndex == y.columnIndex && x.gridCellControlTypeId == y.gridCellControlTypeId &&
+               x.gridCellAccessibleText == y.gridCellAccessibleText && x.gridCellHelpText == y.gridCellHelpText && x.gridCellEnabled == y.gridCellEnabled &&
+               x.gridCellChecked == y.gridCellChecked && x.gridCellSupportsToggle == y.gridCellSupportsToggle &&
+               x.gridCellSupportsValue == y.gridCellSupportsValue && x.gridCellSupportsRangeValue == y.gridCellSupportsRangeValue &&
+               x.gridCellRangeValue == y.gridCellRangeValue;
+    }))
+        return "gridCells";
+    DXUI_SAME_FIELD(gridVisibleColumns)
+    DXUI_SAME_FIELD(gridColumnDisplayOrder)
+    DXUI_SAME_FIELD(gridVisibleRows)
+    DXUI_SAME_FIELD(gridVisibleRowIds)
+    DXUI_SAME_FIELD(selectedGridRowIds)
+    DXUI_SAME_FIELD(isTabControl)
+    if (! std::ranges::equal(a.tabItems, b.tabItems, [](const auto& x, const auto& y) { return x.tabId == y.tabId && x.title == y.title; }))
+        return "tabItems";
+    DXUI_SAME_FIELD(selectedTabId)
+#undef DXUI_SAME_FIELD
+    return nullptr;
+}
+
+[[nodiscard]] std::wstring DescribeAccessibilitySnapshotDifference(const AccessibilitySnapshot& successor, const AccessibilitySnapshot& whole)
+{
+    const auto widen = [](const char* text) { return std::wstring(text, text + std::strlen(text)); };
+    if (successor.controlNavigationRecords.size() != whole.controlNavigationRecords.size())
+        return std::format(L"{} records, whole build {}", successor.controlNavigationRecords.size(), whole.controlNavigationRecords.size());
+    for (size_t ordinal = 0u; ordinal < whole.controlNavigationRecords.size(); ++ordinal)
+        if (const char* field = FirstAccessibilityRecordDifference(successor.controlNavigationRecords[ordinal], whole.controlNavigationRecords[ordinal]))
+            return std::format(L"record {} ({}): {}", ordinal, whole.controlNavigationRecords[ordinal].controlAccessibleName, widen(field));
+    if (! std::ranges::equal(successor.semanticControlOrder, whole.semanticControlOrder, AreControlPathsEqual))
+        return L"semanticControlOrder";
+    if (! std::ranges::equal(successor.pointHitRecords,
+                             whole.pointHitRecords,
+                             [](const AccessibilityPointHitSnapshot& x, const AccessibilityPointHitSnapshot& y)
+    {
+        return x.kind == y.kind && AreControlPathsEqual(x.path, y.path) && SameAccessibilityRect(x.hitRectDip, y.hitRectDip) &&
+               x.treeVisibleIndex == y.treeVisibleIndex && x.gridRowId == y.gridRowId && x.gridColumnIndex == y.gridColumnIndex;
+    }))
+        return L"pointHitRecords (bounding rectangles)";
+    if (! std::ranges::equal(successor.controlsByAddress, whole.controlsByAddress, [](const auto& x, const auto& y) {
+        return x.address == y.address && x.ordinal == y.ordinal;
+    }))
+        return L"controlsByAddress";
+    const auto& f = successor.focusedFragment;
+    const auto& g = whole.focusedFragment;
+    if (f.has_value() != g.has_value() || (f && (f->kind != g->kind || ! AreControlPathsEqual(f->path, g->path) || f->treeVisibleIndex != g->treeVisibleIndex ||
+                                                 f->treeItemId != g->treeItemId || f->gridRowId != g->gridRowId)))
+        return L"focusedFragment";
+    if (successor.windowName != whole.windowName)
+        return L"windowName";
+    if (successor.hasCollapsedSemanticRoot != whole.hasCollapsedSemanticRoot || successor.hasRetainedRoot != whole.hasRetainedRoot ||
+        successor.pixelsToDipScale != whole.pixelsToDipScale || successor.embedded != whole.embedded)
+        return L"snapshot header";
+    return {};
+}
+
+void VerifyAccessibilitySuccessor(
+    WindowHostAccessibilityTarget& target, ControlHost& host, uint64_t revision, std::wstring_view windowText, const AccessibilitySnapshot& successor)
+{
+    if (! g_accessibilityIncrementalVerificationForTest.load(std::memory_order_acquire))
+        return;
+    // Neither its counters, its build count nor (through the observer) a test program's allocation counts are the
+    // publication's.
+    if (const auto observer = Detail::verificationScopeObserver)
+        observer(true);
+    const Detail::WorkCounters saved = Detail::Work();
+    std::wstring difference;
+    bool verified = false;
+    {
+        HRESULT failure = S_OK;
+        auto whole      = BuildWholeAccessibilitySnapshot(target, host, revision, windowText, false, failure);
+        if (whole)
+        {
+            whole->controlNavigationRecords.Seal();
+            verified   = true;
+            difference = DescribeAccessibilitySnapshotDifference(successor, *whole);
+        }
+    }
+    Detail::Work() = saved;
+    if (verified)
+    {
+        g_accessibilityIncrementalVerificationCount.fetch_add(1u, std::memory_order_relaxed);
+        g_accessibilityIncrementalVerificationTotal.fetch_add(1u, std::memory_order_relaxed);
+        if (! difference.empty())
+        {
+            g_accessibilityIncrementalMismatchTotal.fetch_add(1u, std::memory_order_relaxed);
+            if (g_accessibilityFirstProgramMismatch.empty())
+                g_accessibilityFirstProgramMismatch = difference;
+            if (g_accessibilityIncrementalMismatchCount.fetch_add(1u, std::memory_order_relaxed) == 0u || g_accessibilityFirstIncrementalMismatch.empty())
+                g_accessibilityFirstIncrementalMismatch = std::move(difference);
+        }
+    }
+    if (const auto observer = Detail::verificationScopeObserver)
+        observer(false);
+}
+#endif
 
 // The build gate's system half: whether any UI Automation client of the desktop listens for events. A host builds a snapshot
 // on a mutation (or an embedded update) when a client requested its provider during this attachment, or when this answers
@@ -2047,12 +3047,12 @@ void AppendAccessibilityPointHit(AccessibilitySnapshot& snapshot,
         return;
     }
 
-    snapshot.pointHitRecords.push_back(AccessibilityPointHitSnapshot{.kind             = kind,
-                                                                     .path             = path,
-                                                                     .hitRectDip       = hitRectDip,
-                                                                     .treeVisibleIndex = treeVisibleIndex,
-                                                                     .gridRowId        = gridRowId,
-                                                                     .gridColumnIndex  = gridColumnIndex});
+    snapshot.pointHitRecords.Building().push_back(AccessibilityPointHitSnapshot{.kind             = kind,
+                                                                                .path             = path,
+                                                                                .hitRectDip       = hitRectDip,
+                                                                                .treeVisibleIndex = treeVisibleIndex,
+                                                                                .gridRowId        = gridRowId,
+                                                                                .gridColumnIndex  = gridColumnIndex});
 }
 
 void AppendTransformedAccessibilityPointHit(AccessibilitySnapshot& snapshot,
@@ -2381,6 +3381,16 @@ void IndexAccessibilitySnapshot(AccessibilitySnapshot& snapshot)
             HashControlPath(path), static_cast<uint32_t>(ordinal), [&](uint32_t placed) noexcept { return AreControlPathsEqual(records[placed].path, path); });
     }
 
+    IndexAccessibilityPointHits(snapshot);
+
+    std::ranges::sort(snapshot.controlsByAddress.Building(), [](const AccessibilityControlAddress& first, const AccessibilityControlAddress& second) noexcept {
+        return first.address != second.address ? first.address < second.address : first.ordinal < second.ordinal;
+    });
+}
+
+// The point-hit table alone: a successor whose geometry moved (W8.2) rebuilds its hits and this table, and shares the rest.
+void IndexAccessibilityPointHits(AccessibilitySnapshot& snapshot)
+{
     const auto& hits = snapshot.pointHitRecords;
     snapshot.pointHitsByFragment.Reserve(hits.size());
     for (size_t ordinal = 0u; ordinal < hits.size(); ++ordinal)
@@ -2396,10 +3406,6 @@ void IndexAccessibilitySnapshot(AccessibilitySnapshot& snapshot)
                                            [&](uint32_t placed) noexcept
         { return SnapshotPointHitMatchesFragment(hits[placed], hit.kind, hit.path, hit.treeVisibleIndex, hit.gridRowId, hit.gridColumnIndex); });
     }
-
-    std::ranges::sort(snapshot.controlsByAddress, [](const AccessibilityControlAddress& first, const AccessibilityControlAddress& second) noexcept {
-        return first.address != second.address ? first.address < second.address : first.ordinal < second.ordinal;
-    });
 }
 
 std::optional<uint32_t> FindControlRecordOrdinalByAddress(const AccessibilitySnapshot& snapshot, const Control* control) noexcept
@@ -2497,13 +3503,43 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
 
     if (IsSemanticAccessibilityControl(current))
     {
-        snapshot.semanticControlOrder.push_back(basePath);
-        snapshot.controlsByAddress.push_back(AccessibilityControlAddress{.address = reinterpret_cast<uintptr_t>(current),
-                                                                         .ordinal = static_cast<uint32_t>(snapshot.controlNavigationRecords.size())});
+        snapshot.semanticControlOrder.Building().push_back(basePath);
+        snapshot.controlsByAddress.Building().push_back(AccessibilityControlAddress{
+            .address = reinterpret_cast<uintptr_t>(current), .ordinal = static_cast<uint32_t>(snapshot.controlNavigationRecords.size())});
 
         // Made in place, and complete before the children below add theirs.
-        AccessibilityControlNavigationSnapshot& record = snapshot.controlNavigationRecords.emplace_back();
+        if (! FillAccessibilityControlRecord(
+                host, root, current, basePath, build, effectiveEnabled, snapshot.controlNavigationRecords.Building().emplace_back()))
+            return false;
+    }
 
+    for (size_t index = 0u; index < current->GetLogicalChildCount(); ++index)
+    {
+        const Control* child = current->GetLogicalChild(index);
+        if (! child)
+        {
+            continue;
+        }
+        ControlPath childPath{};
+        if (! TryAppendPathIndex(basePath, index, childPath))
+            continue;
+        if (! AppendAccessibilitySnapshotNavigation(host, root, child, childPath, snapshot, build, effectiveEnabled))
+            return false;
+    }
+    return true;
+}
+
+// Everything a semantic control's record holds, read from the control as it is now: a whole build fills one per control, an
+// incremental publication (W8.2) one per marked control. `effectiveEnabled` is the control's enabled state with its ancestors'.
+bool FillAccessibilityControlRecord(ControlHost& host,
+                                    const Control* root,
+                                    const Control* current,
+                                    const ControlPath& basePath,
+                                    const AccessibilitySnapshotBuild& build,
+                                    bool effectiveEnabled,
+                                    AccessibilityControlNavigationSnapshot& record)
+{
+    {
         record.path                        = basePath;
         record.controlLifetime             = GetControlLifetimeToken(*current);
         record.controlIdentity             = ControlIdentityOf(record.controlLifetime);
@@ -3098,27 +4134,18 @@ bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
         record.controlSupportsSelection = record.isTree || record.isGrid || record.isTabControl || static_cast<bool>(record.radioGroup);
         record.controlSupportsTable     = record.isGrid && record.gridColumnCount > 0u;
     }
-
-    for (size_t index = 0u; index < current->GetLogicalChildCount(); ++index)
-    {
-        const Control* child = current->GetLogicalChild(index);
-        if (! child)
-        {
-            continue;
-        }
-        ControlPath childPath{};
-        if (! TryAppendPathIndex(basePath, index, childPath))
-            continue;
-        if (! AppendAccessibilitySnapshotNavigation(host, root, child, childPath, snapshot, build, effectiveEnabled))
-            return false;
-    }
     return true;
+}
+
+std::optional<uint32_t> FindControlRecordOrdinal(const AccessibilitySnapshot& snapshot, const ControlPath& path) noexcept
+{
+    return snapshot.controlRecordsByPath.Find(
+        HashControlPath(path), [&](uint32_t placed) noexcept { return AreControlPathsEqual(snapshot.controlNavigationRecords[placed].path, path); });
 }
 
 const AccessibilityControlNavigationSnapshot* FindControlNavigationRecord(const AccessibilitySnapshot& snapshot, const ControlPath& path) noexcept
 {
-    const std::optional<uint32_t> ordinal = snapshot.controlRecordsByPath.Find(
-        HashControlPath(path), [&](uint32_t placed) noexcept { return AreControlPathsEqual(snapshot.controlNavigationRecords[placed].path, path); });
+    const std::optional<uint32_t> ordinal = FindControlRecordOrdinal(snapshot, path);
     return ordinal ? &snapshot.controlNavigationRecords[ordinal.value()] : nullptr;
 }
 
@@ -3161,8 +4188,8 @@ const AccessibilityControlNavigationSnapshot* ResolveSnapshotControlRecord(const
 std::optional<size_t> FindSemanticControlOrderIndex(const AccessibilitySnapshot& snapshot, const ControlPath& path) noexcept
 {
     // The order lists the records' paths, so a record's place in it is its ordinal.
-    const AccessibilityControlNavigationSnapshot* const record = FindControlNavigationRecord(snapshot, path);
-    return record ? std::optional<size_t>(static_cast<size_t>(record - snapshot.controlNavigationRecords.data())) : std::nullopt;
+    const std::optional<uint32_t> ordinal = FindControlRecordOrdinal(snapshot, path);
+    return ordinal ? std::optional<size_t>(ordinal.value()) : std::nullopt;
 }
 
 bool SnapshotHasCollapsedSemanticRoot(const AccessibilitySnapshot& snapshot) noexcept
@@ -3246,6 +4273,10 @@ void RememberRequestedGridRow(WindowHostAccessibilityTarget& target,
                               uint64_t modelAssignmentGeneration,
                               uint64_t rowId) noexcept
 {
+    // The requested row joins the grid's record at the next publication, which a successor would not re-read (W8.2).
+    if (ControlHost* const owner = target.ResolveHost())
+        if (Detail::AccessibilityRecordMarks* const marks = EmbeddedAccessibilityAccess::Marks(*owner))
+            marks->wholeOwed = true;
     size_t existingIndex = target.requestedGridRowCount;
     for (size_t index = 0u; index < target.requestedGridRowCount; ++index)
     {
@@ -3300,10 +4331,10 @@ bool AppendRequestedGridRows(ControlHost& host, WindowHostAccessibilityTarget& t
     while (requestIndex < target.requestedGridRowCount)
     {
         const RequestedGridRow request = target.requestedGridRows[requestIndex];
-        const auto recordIterator      = std::ranges::find_if(snapshot.controlNavigationRecords, [&](const AccessibilityControlNavigationSnapshot& record) {
-            return AreControlPathsEqual(record.path, request.path);
-        });
-        AccessibilityControlNavigationSnapshot* const record = recordIterator != snapshot.controlNavigationRecords.end() ? &*recordIterator : nullptr;
+        auto& building                 = snapshot.controlNavigationRecords.Building();
+        const auto recordIterator      = std::ranges::find_if(
+            building, [&](const AccessibilityControlNavigationSnapshot& record) { return AreControlPathsEqual(record.path, request.path); });
+        AccessibilityControlNavigationSnapshot* const record = recordIterator != building.end() ? &*recordIterator : nullptr;
         if (! record || ! record->isGrid || record->controlIdentity != request.controlIdentity || ! request.modelIdentity ||
             record->gridModelIdentity != request.modelIdentity || record->gridModelAssignmentGeneration != request.modelAssignmentGeneration)
         {
@@ -3626,8 +4657,13 @@ private:
 std::vector<SelectionChange> CollectSelectionChanges(const AccessibilitySnapshot& before, const AccessibilitySnapshot& after)
 {
     std::vector<SelectionChange> changes;
-    for (const AccessibilityControlNavigationSnapshot& record : after.controlNavigationRecords)
+    const bool sharedStructure = SharesAccessibilityStructure(before, after);
+    for (size_t ordinal = 0u; ordinal < after.controlNavigationRecords.size(); ++ordinal)
     {
+        // A record both generations share selects what it selected (W8.2).
+        if (SkipsSharedAccessibilityRecord(before, after, sharedStructure, ordinal))
+            continue;
+        const AccessibilityControlNavigationSnapshot& record = after.controlNavigationRecords[ordinal];
         if (record.isTabControl)
         {
             // A tab control holds one selected tab: a new one is that tab being selected, which says the old one left.
@@ -13914,6 +14950,8 @@ bool RaiseWindowHostTextInputAutomationEvent(HWND hwnd, const Control* control, 
 void RegisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexcept
 {
     const Failure::Scope failureScope;
+    if (host)
+        ResetAccessibilityRecordMarks(*host); // a new attachment: no mark or flush of an earlier one rides on it (W8.2)
     if (hwnd && host)
     {
         const std::scoped_lock lock(GetAccessibilityTargetMutex());
@@ -13979,6 +15017,9 @@ void UnregisterWindowHostAccessibilityTarget(HWND hwnd, ControlHost* host) noexc
         target->diffBaseline.reset();
         target->eventBaseline.reset();
         PublishEmptyAccessibilitySnapshot(*target);
+        // A flush posted for this attachment carries its cookie and is ignored after it: no later mark may wait on it (W8.2).
+        if (current)
+            ResetAccessibilityRecordMarks(*current);
         target->host.store(nullptr, std::memory_order_release);
         {
             const std::scoped_lock cacheLock(target->providerMutex);
@@ -14011,11 +15052,250 @@ void NotifyWindowHostAccessibilityDestroyed(HWND hwnd) noexcept
     }
 }
 
+namespace
+{
+// The innermost AttestedInvalidation alive on this thread; each links to the one alive before it.
+thread_local constinit AttestedInvalidation* g_innermostAttestation = nullptr;
+} // namespace
+
+void Detail::AccessibilityRecordMarksDeleter::operator()(AccessibilityRecordMarks* marks) const noexcept
+{
+    // An attestation outlives its host when application code its invalidation ran (a preparation request, a control
+    // callback) destroyed the host: it must not write to the deleted marks when it ends.
+    AttestedInvalidation::ForgetMarks(marks);
+    delete marks;
+}
+
+AccessibilityRevisions ReadAccessibilityRevisions(const ControlHost& host) noexcept
+{
+    return EmbeddedAccessibilityAccess::Revisions(host);
+}
+
+AttestedInvalidation::AttestedInvalidation(const ControlHost* host, bool attest) noexcept : _outer(g_innermostAttestation)
+{
+    g_innermostAttestation = this;
+    if (attest && host)
+        if (Detail::AccessibilityRecordMarks* const marks = EmbeddedAccessibilityAccess::Marks(*host))
+        {
+            marks->attestNextInvalidate = true;
+            _marks                      = marks;
+        }
+}
+
+AttestedInvalidation::~AttestedInvalidation()
+{
+    if (_marks)
+        _marks->attestNextInvalidate = false; // Unconsumed: it never declares a later, unrelated invalidation.
+    g_innermostAttestation = _outer;
+}
+
+void AttestedInvalidation::ForgetMarks(const Detail::AccessibilityRecordMarks* marks) noexcept
+{
+    for (AttestedInvalidation* attestation = g_innermostAttestation; attestation; attestation = attestation->_outer)
+        if (attestation->_marks == marks)
+            attestation->_marks = nullptr;
+}
+
+bool ReportsOwnAccessibilityChanges(const Control& control) noexcept
+{
+    // Exact types: a derived class may change what its overrides publish without marking it.
+    const std::type_info& type = typeid(control);
+    return type == typeid(Slider) || type == typeid(Splitter) || type == typeid(ProgressBar);
+}
+
+namespace
+{
+// Adds `aspect` to `control`'s mark, merging with a mark it already has. Owner thread.
+void AddAccessibilityRecordMark(Detail::AccessibilityRecordMarks& marks, const Control& control, AccessibilityRecordAspect aspect) noexcept
+{
+    ++marks.epoch;
+    ++Detail::Work().accessibility.recordsMarked;
+    for (size_t index = 0u; index < marks.count; ++index)
+        if (marks.marks[index].control == &control && ! marks.marks[index].lifetime.expired())
+        {
+            marks.marks[index].aspects = static_cast<uint8_t>(marks.marks[index].aspects | static_cast<uint8_t>(aspect));
+            return;
+        }
+    if (marks.count == marks.marks.size() && aspect == AccessibilityRecordAspect::Geometry)
+    {
+        // A layout that moves many controls: their geometry marks become one on their nearest common ancestor, whose subtree
+        // they all lie in (a geometry mark already covers its subtree), so a pane laid out again stays one incremental
+        // publication instead of overflowing into a whole build.
+        constexpr size_t kDepth = 64u;
+        std::array<const Control*, kDepth> chain{};
+        size_t chainLength = 0u;
+        for (const Control* ancestor = &control; ancestor && chainLength < kDepth; ancestor = ControlModelQueryAccess::LogicalParent(*ancestor))
+            chain[chainLength++] = ancestor;
+        size_t common = 0u; // chain[common] is the deepest ancestor every geometry mark lies under
+        for (size_t index = 0u; index < marks.count && common < chainLength; ++index)
+        {
+            const Detail::AccessibilityRecordMark& mark = marks.marks[index];
+            if ((mark.aspects & static_cast<uint8_t>(AccessibilityRecordAspect::Geometry)) == 0u)
+                continue;
+            if (mark.lifetime.expired())
+            {
+                common = chainLength; // a removed control: the structure changed, and the publication is whole anyway
+                break;
+            }
+            size_t found = chainLength;
+            for (const Control* ancestor = mark.control; ancestor && found == chainLength; ancestor = ControlModelQueryAccess::LogicalParent(*ancestor))
+                for (size_t level = common; level < chainLength; ++level)
+                    if (chain[level] == ancestor)
+                    {
+                        found = level;
+                        break;
+                    }
+            common = found;
+        }
+        if (common < chainLength)
+        {
+            size_t kept = 0u;
+            for (size_t index = 0u; index < marks.count; ++index)
+            {
+                Detail::AccessibilityRecordMark mark = std::move(marks.marks[index]);
+                mark.aspects                         = static_cast<uint8_t>(mark.aspects & ~static_cast<uint8_t>(AccessibilityRecordAspect::Geometry));
+                if (mark.aspects != 0u)
+                    marks.marks[kept++] = std::move(mark);
+            }
+            for (size_t index = kept; index < marks.count; ++index)
+                marks.marks[index] = {};
+            marks.count = kept;
+            ++Detail::Work().accessibility.geometryMarksCollapsed;
+            if (marks.count < marks.marks.size())
+            {
+                const Control& ancestor = *chain[common];
+                marks.marks[marks.count++] =
+                    Detail::AccessibilityRecordMark{&ancestor, GetControlLifetimeToken(ancestor), static_cast<uint8_t>(AccessibilityRecordAspect::Geometry)};
+                return;
+            }
+        }
+    }
+    if (marks.count == marks.marks.size())
+    {
+        marks.overflow = true;
+        return;
+    }
+    marks.marks[marks.count++] = Detail::AccessibilityRecordMark{&control, GetControlLifetimeToken(control), static_cast<uint8_t>(aspect)};
+}
+} // namespace
+
+void ResetAccessibilityRecordMarks(const ControlHost& host) noexcept
+{
+    Detail::AccessibilityRecordMarks* const marks = EmbeddedAccessibilityAccess::Marks(host);
+    if (! marks)
+        return;
+    for (size_t index = 0u; index < marks->count; ++index)
+        marks->marks[index] = {};
+    marks->count             = 0u;
+    marks->overflow          = false;
+    marks->wholeOwed         = true;
+    marks->flushRequested    = false;
+    marks->dormant           = false;
+    marks->baseGeneration    = 0u;
+    marks->geometryPublished = false;
+    marks->geometryDeferred  = false;
+    marks->geometryDue       = false;
+    ++marks->epoch;
+}
+
+std::optional<uint64_t> AccessibilityGeometryWakeDueTickMs(const ControlHost& host) noexcept
+{
+    const Detail::AccessibilityRecordMarks* const marks = EmbeddedAccessibilityAccess::Marks(host);
+    if (! marks || ! marks->geometryDeferred)
+        return std::nullopt;
+    if (host.IsEmbedded())
+        return 0u;
+    using Marks = Detail::AccessibilityRecordMarks;
+    return (std::min)(marks->geometryDeferredAtMs + Marks::kGeometrySettleMs, marks->lastGeometryPublicationMs + Marks::kGeometryPublicationIntervalMs);
+}
+
+void SettleAccessibilityGeometry(ControlHost& host, uint64_t nowTickMs, bool now) noexcept
+{
+    Detail::AccessibilityRecordMarks* const marks = EmbeddedAccessibilityAccess::Marks(host);
+    HWND const hwnd                               = host.GetHwnd();
+    if (! marks || ! marks->geometryDeferred || host.IsEmbedded() || ! hwnd)
+        return;
+    const std::optional<uint64_t> due = AccessibilityGeometryWakeDueTickMs(host);
+    if (! now && (! due || nowTickMs < *due))
+        return; // Still moving: the schedule wakes again at the due time.
+    marks->geometryDeferred = false;
+    marks->geometryDue      = true;
+    marks->flushRequested   = false;
+    RefreshWindowHostAccessibilitySnapshot(hwnd, &host, AccessibilityMutationKind::Marked);
+}
+
+void NoteAccessibilityRecordChange(const Control& control, AccessibilityRecordAspect aspect) noexcept
+{
+    ControlHost* const host = const_cast<ControlHost*>(ControlModelQueryAccess::Host(control));
+    if (! host)
+        return;
+    Detail::AccessibilityRecordMarks* const marks = EmbeddedAccessibilityAccess::Marks(*host);
+    if (! marks)
+    {
+        // Nothing published yet: the first publication builds the whole window. A name or value still dirties a native
+        // window's snapshot as it did before W8.2; a geometry never did, and a host that never published pays nothing for it.
+        if (aspect == AccessibilityRecordAspect::Name || aspect == AccessibilityRecordAspect::Value)
+            RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::ContentOnly);
+        return;
+    }
+    AddAccessibilityRecordMark(*marks, control, aspect);
+    if (aspect == AccessibilityRecordAspect::Geometry)
+        ++marks->geometryMarks;
+    // A focus move raises its own mutation once both records are marked (ControlHost::SetFocusControl).
+    if (aspect == AccessibilityRecordAspect::Focus)
+        return;
+    // A native window is dirtied once per publication: later marks ride on the flush already requested, and a layout pass that
+    // moves a thousand controls takes the window's target once, not once per control.
+    if (marks->flushRequested && ! host->IsEmbedded())
+        return;
+    // A native window already dirtied for an earlier mark that no client was interested in needs no second refresh (the
+    // window's target, its registry lock and a dirty revision) for every SetBounds of a layout. Whether a client now listens
+    // is asked again each time, so one that starts listening gets the next mark's flush; one that only queries latches the
+    // window and publishes on its query, which builds from these marks or whole.
+    if (marks->dormant && ! host->IsEmbedded() && ! SystemClientsAreListening())
+    {
+        ++Detail::Work().accessibility.marksWhileDormant;
+        return;
+    }
+    RefreshWindowHostAccessibilitySnapshot(host->GetHwnd(), host, AccessibilityMutationKind::Marked);
+}
+
+void NoteAccessibilityGeometryMove(const Control& control, uint64_t interactionBefore, uint64_t hitBefore) noexcept
+{
+    const ControlHost* const host                 = ControlModelQueryAccess::Host(control);
+    Detail::AccessibilityRecordMarks* const marks = host ? EmbeddedAccessibilityAccess::Marks(*host) : nullptr;
+    if (! marks)
+        return;
+    // The move is accounted for only when the revisions were where the marks expected them: an unmarked move before it
+    // keeps the chain broken, and the next publication is whole.
+    const AccessibilityRevisions now = EmbeddedAccessibilityAccess::Revisions(*host);
+    if (marks->interactionRevision == interactionBefore && marks->hitRevision == hitBefore)
+    {
+        marks->interactionRevision = now.interaction;
+        marks->hitRevision         = now.hit;
+    }
+    NoteAccessibilityRecordChange(control, AccessibilityRecordAspect::Geometry);
+}
+
+void NoteAccessibilityWholeChange(const ControlHost& host) noexcept
+{
+    RefreshWindowHostAccessibilitySnapshot(host.GetHwnd(), const_cast<ControlHost*>(&host), AccessibilityMutationKind::General);
+}
+
 void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, AccessibilityMutationKind mutation) noexcept
 {
     if (! host)
         return;
     ++Detail::Work().accessibility.mutations;
+    const bool marked                             = mutation == AccessibilityMutationKind::Marked || mutation == AccessibilityMutationKind::MarkedFocus;
+    Detail::AccessibilityRecordMarks* const marks = EmbeddedAccessibilityAccess::Marks(*host);
+    if (marks)
+    {
+        // A mutation that marked nothing can change anything: the next publication builds the whole window (W8.2).
+        if (! marked)
+            marks->wholeOwed = true;
+        ++marks->epoch;
+    }
     if (! hwnd)
         return; // EmbeddedHost::UpdateAccessibility publishes after coherent preparation.
 
@@ -14025,9 +15305,15 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, Access
     if (! target || target->ResolveHost() != host)
         return;
     ++target->dirtyRevision;
-    // The already-posted flush will publish content changes. Focus-capable mutations keep the general path below.
-    if (mutation == AccessibilityMutationKind::ContentOnly && target->flushPosted)
+    // The already-posted flush will publish content changes, and was posted for a listener. Focus-capable mutations keep the
+    // general path below.
+    if ((mutation == AccessibilityMutationKind::ContentOnly || mutation == AccessibilityMutationKind::Marked) && target->flushPosted)
+    {
+        target->heardChanges = true;
+        if (marks)
+            marks->flushRequested = true;
         return;
+    }
     bool interested = target->providerRequested.load(std::memory_order_acquire) || SystemClientsAreListening();
 #if DXUI_ENABLE_DIAGNOSTICS
     // Tests override only this attachment's owner-thread mutation decision, never global UIA interest.
@@ -14036,8 +15322,19 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, Access
         interestOverride.interested.has_value())
         interested = interestOverride.interested.value();
 #endif
+    // Whether anyone could hear this change: a publication that only unheard changes led to becomes the event baseline
+    // silently, since nobody is owed their events (PublishWindowHostAccessibilitySnapshot).
+    if (interested)
+        target->heardChanges = true;
+    else
+        target->unheardChanges = true;
     if (! interested)
+    {
+        // The window is dirty and nobody listens: further marks can wait for an interested mutation or a query.
+        if (marks && mutation == AccessibilityMutationKind::Marked)
+            marks->dormant = true;
         return;
+    }
     const auto before = target->snapshot.load(std::memory_order_acquire);
     // Windows' first focus event calls GetFocus on a worker. Only actual focus transitions publish synchronously.
     Control* focused = host->GetFocusControl();
@@ -14065,7 +15362,9 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, Access
             }
         }
     }
-    if (focusChanged && ! target->publishing)
+    // A content mark never publishes on the stack of its change: the change may still be under way (a SetBounds before it
+    // stores the bounds, a hit-test site before it moves its popup), and the publication would spend the mark on the old state.
+    if (focusChanged && ! target->publishing && mutation != AccessibilityMutationKind::Marked)
     {
         FlushNativeAccessibilitySnapshot(*target);
         const auto current = target->snapshot.load(std::memory_order_acquire);
@@ -14079,13 +15378,19 @@ void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, Access
                 EmbeddedAccessibilityAccess::CountFocusMoveLeftToSystem(*host);
         }
     }
-    if (target->flushPosted)
-        return;
-    const auto message = WndMsg::AccessibilityFlush();
-    if (message && PostMessageW(hwnd, message.value, static_cast<WPARAM>(target->attachmentCookie), 0) != FALSE)
-        target->flushPosted = true;
-    else
-        OutputDebugStringW(L"DxUi: accessibility publication remains dirty after failed post.\n");
+    if (! target->flushPosted)
+    {
+        const auto message = WndMsg::AccessibilityFlush();
+        if (message && PostMessageW(hwnd, message.value, static_cast<WPARAM>(target->attachmentCookie), 0) != FALSE)
+            target->flushPosted = true;
+        else
+            OutputDebugStringW(L"DxUi: accessibility publication remains dirty after failed post.\n");
+    }
+    // Later marks ride on this flush (NoteAccessibilityRecordChange) while it still has a revision to publish: not after the
+    // focus path above published synchronously, since that flush would then find nothing to publish and drop the marks.
+    if (target->flushPosted && target->publishedRevision != target->dirtyRevision && target->ResolveHost() == host)
+        if (Detail::AccessibilityRecordMarks* const current = EmbeddedAccessibilityAccess::Marks(*host))
+            current->flushRequested = true;
 }
 
 void BeginWindowHostFocusGain(HWND hwnd, ControlHost* host) noexcept
@@ -14160,6 +15465,7 @@ void PublishEmptyWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host) n
 }
 void DropRetainedAccessibilitySnapshot(ControlHost& host) noexcept
 {
+    ResetAccessibilityRecordMarks(host); // the next publication builds the tree again (W8.2)
     if (HWND const hwnd = host.GetHwnd())
     {
         const std::scoped_lock lock(GetAccessibilityTargetMutex());
@@ -14248,6 +15554,14 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
         if (target && target.get()->attachmentCookie == static_cast<uintptr_t>(wp))
         {
             target.get()->flushPosted = false;
+            // No mark rides on a flush that is no longer posted (W8.2).
+            ControlHost* const owner = target.get()->ResolveHost();
+            if (owner)
+                if (Detail::AccessibilityRecordMarks* const marks = EmbeddedAccessibilityAccess::Marks(*owner))
+                    marks->flushRequested = false;
+            // A geometry-only publication within the interval waits for the host's next frame (W8.2 coalescing).
+            if (owner && target.get()->threadId == GetCurrentThreadId() && DeferGeometryOnlyPublication(*target.get(), *owner))
+                return true;
             DrainNativeAccessibilityPublication(*target.get());
         }
         return true;
@@ -14900,8 +16214,14 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
     FlushRichSemanticStateChanges(target);
     if (! connected())
         return;
-    for (const auto& record : current->controlNavigationRecords)
+    // Generations that share their structure are compared by record (W8.2): a record both hold raises nothing, exactly as the
+    // equal record a whole build would make, and the others are compared in the same order as before.
+    const bool sharedStructure = SharesAccessibilityStructure(*previous, *current);
+    for (size_t ordinal = 0u; ordinal < current->controlNavigationRecords.size(); ++ordinal)
     {
+        if (SkipsSharedAccessibilityRecord(*previous, *current, sharedStructure, ordinal))
+            continue;
+        const auto& record = current->controlNavigationRecords[ordinal];
         if (! connected())
             return;
         if (record.controlLifetime.expired())
@@ -14979,6 +16299,7 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                 // Test retirement stays on the owner. Embedded delivery occurs later on the work item's MTA;
                 // this hook denotes queue-time publication there, never a foreign-thread control callback.
                 NotifyPropertyEventRaisedForTest(id);
+                RecordAccessibilityEventForTest(AccessibilityRaisedEventKindForTest::Property, id, &record.path, record.controlIdentity, &oldValue, &newValue);
             }
         };
         const auto stringProperty = [&](PROPERTYID id, const std::wstring& oldText, const std::wstring& newText)
@@ -15044,7 +16365,15 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                      VariantFromBool(before->controlSelectionItemSelected),
                      VariantFromBool(record.controlSelectionItemSelected));
             if (record.controlSelectionItemSelected && connected() && ! record.controlLifetime.expired())
+            {
                 static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, provider.get(), UIA_SelectionItem_ElementSelectedEventId));
+                RecordAccessibilityEventForTest(AccessibilityRaisedEventKindForTest::Automation,
+                                                UIA_SelectionItem_ElementSelectedEventId,
+                                                &record.path,
+                                                record.controlIdentity,
+                                                nullptr,
+                                                nullptr);
+            }
         }
         if (record.controlDisclosureExpanded.has_value() && before->controlDisclosureExpanded.has_value() &&
             record.controlDisclosureExpanded != before->controlDisclosureExpanded)
@@ -15060,9 +16389,17 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
             property(UIA_HasKeyboardFocusPropertyId, VariantFromBool(before->controlHasFocus), VariantFromBool(record.controlHasFocus));
         }
         if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && textChanged)
+        {
             static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, provider.get(), UIA_Text_TextChangedEventId));
+            RecordAccessibilityEventForTest(
+                AccessibilityRaisedEventKindForTest::Automation, UIA_Text_TextChangedEventId, &record.path, record.controlIdentity, nullptr, nullptr);
+        }
         if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && selectionChanged)
+        {
             static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, provider.get(), UIA_Text_TextSelectionChangedEventId));
+            RecordAccessibilityEventForTest(
+                AccessibilityRaisedEventKindForTest::Automation, UIA_Text_TextSelectionChangedEventId, &record.path, record.controlIdentity, nullptr, nullptr);
+        }
         if (connected() && ! record.controlLifetime.expired() && record.controlSupportsText && compositionChanged)
         {
             // UiaRaiseTextEditTextChangedEvent: Composition carries the part of the composition string that changed,
@@ -15097,13 +16434,25 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
                 wil::unique_bstr text(SysAllocStringLen(changedText.data(), static_cast<UINT>(changedText.size())));
                 LONG index = 0;
                 if (changed && text && SUCCEEDED(SafeArrayPutElement(changed.get(), &index, text.get())))
+                {
                     static_cast<void>(InvokeNativeUia(UiaRaiseTextEditTextChangedEvent, provider.get(), change, changed.get()));
+                    VARIANT changedValue{};
+                    changedValue.vt      = VT_BSTR;
+                    changedValue.bstrVal = text.get();
+                    RecordAccessibilityEventForTest(AccessibilityRaisedEventKindForTest::Automation,
+                                                    UIA_TextEdit_TextChangedEventId,
+                                                    &record.path,
+                                                    record.controlIdentity,
+                                                    nullptr,
+                                                    &changedValue);
+                }
             }
         }
     }
     if (connected() && structureChanged)
     {
         QueueStructureInvalidation(target);
+        RecordAccessibilityEventForTest(AccessibilityRaisedEventKindForTest::Structure, StructureChangeType_ChildrenInvalidated, nullptr, 0u, nullptr, nullptr);
     }
     if (target.embedded && connected() && changes.focusMoved && target.snapshot.load(std::memory_order_acquire) == current && current->focusedFragment)
     {
@@ -15111,7 +16460,17 @@ void RaiseAccessibilitySnapshotChanges(WindowHostAccessibilityTarget& target,
         wil::com_ptr_nothrow<IRawElementProviderFragment> focused;
         wil::com_ptr_nothrow<IRawElementProviderSimple> provider;
         if (fragmentRoot && SUCCEEDED(fragmentRoot->GetFocus(focused.put())) && focused && SUCCEEDED(focused.query_to(provider.put())) && connected())
+        {
             static_cast<void>(InvokeNativeUia(UiaRaiseAutomationEvent, provider.get(), UIA_AutomationFocusChangedEventId));
+            const AccessibilityFocusedFragmentSnapshot& fragment              = current->focusedFragment.value();
+            const AccessibilityControlNavigationSnapshot* const focusedRecord = FindControlNavigationRecord(*current, fragment.path);
+            RecordAccessibilityEventForTest(AccessibilityRaisedEventKindForTest::Focus,
+                                            UIA_AutomationFocusChangedEventId,
+                                            &fragment.path,
+                                            focusedRecord ? focusedRecord->controlIdentity : 0u,
+                                            nullptr,
+                                            nullptr);
+        }
     }
     if (connected())
         RaiseSelectionEvents(target, target.hwnd, changes.selections);
@@ -15247,7 +16606,8 @@ HRESULT EmbeddedHost::AttachAccessibility(std::shared_ptr<EmbeddedAccessibilityS
     auto* target = new (std::nothrow) WindowHostAccessibilityTarget(nullptr, &_host);
     if (! target)
         return E_OUTOFMEMORY;
-    target->embedded                           = true;
+    target->embedded = true;
+    ResetAccessibilityRecordMarks(_host);
     target->embeddedOwner                      = this;
     target->runtimeId                          = runtimeId;
     target->rootLifetime                       = GetControlLifetimeToken(*_host.GetRoot());
@@ -15266,7 +16626,18 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
         return S_FALSE;
     if (target->threadId != GetCurrentThreadId())
         return RPC_E_WRONG_THREAD;
-    const auto& box = placement.viewport;
+    // A deferred geometry-only publication keeps the view's animation request due only while this update deferred it again
+    // (W8.2): an update that published it, or that returns for any other reason (nobody listens or asked, input not coherent,
+    // a failure, a detach from a callback), leaves no request due with nothing to publish. Its marks stay for the next one.
+    bool deferredAgain       = false;
+    const auto endDeferral   = wil::scope_exit([this, &deferredAgain]() noexcept
+    {
+        if (! deferredAgain)
+            if (Detail::AccessibilityRecordMarks* const marks = EmbeddedAccessibilityAccess::Marks(_host))
+                marks->geometryDeferred = false;
+    });
+    const bool geometryWaits = AccessibilityGeometryWakeDueTickMs(_host).has_value();
+    const auto& box          = placement.viewport;
     if (! std::isfinite(box.left) || ! std::isfinite(box.top) || ! std::isfinite(box.width) || ! std::isfinite(box.height) || box.width <= 0 ||
         box.height <= 0 || box.left < LONG_MIN || box.top < LONG_MIN || box.left + box.width > LONG_MAX || box.top + box.height > LONG_MAX)
         return E_INVALIDARG;
@@ -15316,7 +16687,7 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
         const auto& previousBox = latest.viewport;
         if (target->snapshot.load(std::memory_order_acquire) && target->preparation == preparation && previousBox.left == box.left &&
             previousBox.top == box.top && previousBox.width == box.width && previousBox.height == box.height &&
-            latest.hasKeyboardFocus == placement.hasKeyboardFocus)
+            latest.hasKeyboardFocus == placement.hasKeyboardFocus && ! geometryWaits)
             return raisedOwed ? S_OK : S_FALSE;
         // Until a client requests a provider of this view, and while no client of the desktop listens, a changed update only
         // records its preparation and placement: no snapshot is built. The first update (attachment) builds, and so does an
@@ -15326,6 +16697,14 @@ HRESULT EmbeddedHost::UpdateAccessibility(const EmbeddedAccessibilityPlacement& 
             target->deferredPlacement           = placement;
             target->preparation                 = preparation;
             target->embeddedPublicationDeferred = true;
+            return S_OK;
+        }
+        // A geometry-only publication within the interval waits for a later update (W8.2 coalescing): the view's animation
+        // request asks the application back on its next frame. The preparation stays unrecorded, so that update publishes.
+        target->placement = placement;
+        if (DeferGeometryOnlyPublication(*target, _host))
+        {
+            deferredAgain = true;
             return S_OK;
         }
         target->embeddedPublicationDeferred = false;
@@ -15379,7 +16758,8 @@ void EmbeddedHost::DisconnectAccessibility() noexcept
         return;
     const Failure::Scope failureScope;
     EmbeddedAccessibilityAccess::Target(_host) = nullptr;
-    target->embeddedOwner                      = nullptr;
+    ResetAccessibilityRecordMarks(_host); // W8.2: no mark outlives the attachment
+    target->embeddedOwner = nullptr;
     target->host.store(nullptr, std::memory_order_release);
     target->snapshot.store(nullptr, std::memory_order_release);
     target->eventBaseline.reset();
@@ -15541,6 +16921,9 @@ bool DebugSetAccessibilityMutationInterestForTest(HWND hwnd, std::optional<bool>
     wil::unique_any<WindowHostAccessibilityTarget*, decltype(releaseTarget), releaseTarget> retained(AcquireWindowHostAccessibilityTarget(hwnd));
     if (! retained || retained.get()->embedded || retained.get()->threadId != GetCurrentThreadId() || ! retained.get()->ResolveHost())
         return false;
+    // The interest decision changes: marks no longer wait on a decision made under the old one (W8.2).
+    if (Detail::AccessibilityRecordMarks* const marks = EmbeddedAccessibilityAccess::Marks(*retained.get()->ResolveHost()))
+        marks->dormant = false;
     auto& interestOverride = g_accessibilityMutationInterestOverride;
     if (! interested.has_value())
     {
@@ -15568,6 +16951,110 @@ std::optional<bool> DebugGetAccessibilitySystemListenersForTest() noexcept
 uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept
 {
     return g_accessibilitySnapshotBuildCount.load(std::memory_order_relaxed);
+}
+
+uint64_t DebugGetAccessibilityPublicationCountForTest() noexcept
+{
+    return g_accessibilityPublicationCount.load(std::memory_order_relaxed);
+}
+
+void DebugSetAccessibilityEventRecorderForTest(AccessibilityEventRecorderForTest recorder, void* context) noexcept
+{
+    if (! recorder)
+    {
+        g_accessibilityEventRecorder.store(nullptr, std::memory_order_release);
+        g_accessibilityEventRecorderContext.store(nullptr, std::memory_order_release);
+        return;
+    }
+    g_accessibilityEventRecorderContext.store(context, std::memory_order_release);
+    g_accessibilityEventRecorder.store(recorder, std::memory_order_release);
+}
+
+void DebugSetAccessibilityWholePublicationForTest(bool whole) noexcept
+{
+    g_accessibilityWholePublicationForTest.store(whole, std::memory_order_release);
+}
+
+void DebugSetAccessibilityIncrementalVerificationForTest(bool verify) noexcept
+{
+    g_accessibilityIncrementalVerificationForTest.store(verify, std::memory_order_release);
+}
+
+bool DebugGetAccessibilityIncrementalVerificationForTest() noexcept
+{
+    return g_accessibilityIncrementalVerificationForTest.load(std::memory_order_acquire);
+}
+
+void DebugGetAccessibilityIncrementalVerificationTotalsForTest(uint64_t& verified, uint64_t& mismatches) noexcept
+{
+    verified   = g_accessibilityIncrementalVerificationTotal.load(std::memory_order_relaxed);
+    mismatches = g_accessibilityIncrementalMismatchTotal.load(std::memory_order_relaxed);
+}
+
+uint64_t DebugGetAccessibilityIncrementalVerificationCountForTest() noexcept
+{
+    return g_accessibilityIncrementalVerificationCount.load(std::memory_order_relaxed);
+}
+
+uint64_t DebugGetAccessibilityIncrementalMismatchCountForTest() noexcept
+{
+    return g_accessibilityIncrementalMismatchCount.load(std::memory_order_relaxed);
+}
+
+std::wstring DebugGetAccessibilityFirstIncrementalMismatchForTest()
+{
+    return g_accessibilityFirstIncrementalMismatch;
+}
+
+std::wstring DebugGetAccessibilityFirstProgramMismatchForTest()
+{
+    return g_accessibilityFirstProgramMismatch;
+}
+
+void DebugResetAccessibilityIncrementalVerificationForTest() noexcept
+{
+    g_accessibilityIncrementalMismatchCount.store(0u, std::memory_order_relaxed);
+    g_accessibilityIncrementalVerificationCount.store(0u, std::memory_order_relaxed);
+    g_accessibilityFirstIncrementalMismatch.clear();
+}
+
+std::shared_ptr<const void> DebugHoldAccessibilitySnapshotForTest(ControlHost& host) noexcept
+{
+    if (HWND const hwnd = host.GetHwnd())
+    {
+        const std::scoped_lock lock(GetAccessibilityTargetMutex());
+        if (auto* const target = FindRegisteredAccessibilityTarget(hwnd); target && target->host.load(std::memory_order_acquire) == &host)
+            return target->snapshot.load(std::memory_order_acquire);
+        return nullptr;
+    }
+    auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(host));
+    return target ? std::shared_ptr<const void>(target->snapshot.load(std::memory_order_acquire)) : nullptr;
+}
+
+void DebugDescribeAccessibilitySnapshotForTest(const std::shared_ptr<const void>& held, std::vector<std::wstring>& lines)
+{
+    lines.clear();
+    const auto* const snapshot = static_cast<const AccessibilitySnapshot*>(held.get());
+    if (! snapshot)
+        return;
+    for (const AccessibilityControlNavigationSnapshot& record : snapshot->controlNavigationRecords)
+        lines.push_back(
+            std::format(L"{}|{}|{}|{}", record.controlAccessibleName, record.controlAccessibleValue, record.controlRangeValue, record.controlHasFocus));
+    for (const AccessibilityPointHitSnapshot& hit : snapshot->pointHitRecords)
+        lines.push_back(std::format(L"hit {:.2f},{:.2f},{:.2f},{:.2f}", hit.hitRectDip.left, hit.hitRectDip.top, hit.hitRectDip.right, hit.hitRectDip.bottom));
+}
+
+size_t DebugCountSharedAccessibilityRecordsForTest(const std::shared_ptr<const void>& first, const std::shared_ptr<const void>& second) noexcept
+{
+    const auto* const a = static_cast<const AccessibilitySnapshot*>(first.get());
+    const auto* const b = static_cast<const AccessibilitySnapshot*>(second.get());
+    if (! a || ! b || a->controlNavigationRecords.size() != b->controlNavigationRecords.size())
+        return 0u;
+    size_t shared = 0u;
+    for (size_t ordinal = 0u; ordinal < a->controlNavigationRecords.size(); ++ordinal)
+        if (a->controlNavigationRecords.SameRecord(b->controlNavigationRecords, ordinal))
+            ++shared;
+    return shared;
 }
 
 uint32_t DebugGetAccessibilityUiActionExecutionCountForTest() noexcept

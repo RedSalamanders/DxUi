@@ -307,11 +307,29 @@ void TestWorkCountersCountAccessibilitySnapshotBuilds()
     Require(DebugSetAccessibilityMutationInterestForTest(window.Hwnd(), true), "this attachment is interested in mutations, as with a client");
     const auto clearInterest = wil::scope_exit([]() noexcept { static_cast<void>(DebugSetAccessibilityMutationInterestForTest(nullptr, std::nullopt)); });
 
-    // A content change of an interested attachment makes the next owner query rebuild the snapshot.
+    // A content change of an interested attachment makes the next owner query republish: since W8.2 a label's text re-reads
+    // that label's record alone (an incremental publication, counted apart from whole builds).
+    {
+        const uint64_t buildsBefore = DebugGetAccessibilitySnapshotBuildCountForTest();
+        const Detail::WorkCounterScope scope;
+        static_cast<Label*>(panel.GetLogicalChild(0u))->SetText(L"Changed");
+        Require(ReadProviderStringProperty(*labelSimple.get(), UIA_NamePropertyId, "the changed label name") == L"Changed",
+                "the owner query publishes the change");
+        const Detail::WorkCounters delta = scope.Delta();
+        std::cerr << "    [WORK] label text: whole builds=" << DebugGetAccessibilitySnapshotBuildCountForTest() - buildsBefore
+                  << " incremental=" << delta.accessibility.incrementalPublications << " records=" << delta.accessibility.recordsCloned << '\n';
+        Require(DebugGetAccessibilitySnapshotBuildCountForTest() - buildsBefore == delta.accessibility.snapshotBuilds &&
+                    delta.accessibility.snapshotBuilds + delta.accessibility.incrementalPublications == 1u &&
+                    delta.accessibility.recordsCloned == delta.accessibility.incrementalPublications,
+                "a label's text republishes once, whole or as an incremental publication of that one record");
+    }
+    // A whole-window mutation makes the next owner query rebuild the snapshot.
     const uint64_t buildsBefore = DebugGetAccessibilitySnapshotBuildCountForTest();
     const Detail::WorkCounterScope scope;
-    static_cast<Label*>(panel.GetLogicalChild(0u))->SetText(L"Changed");
-    Require(ReadProviderStringProperty(*labelSimple.get(), UIA_NamePropertyId, "the changed label name") == L"Changed", "the owner query publishes the change");
+    static_cast<Label*>(panel.GetLogicalChild(0u))->SetText(L"Changed again");
+    host.RefreshAccessibilitySnapshot();
+    Require(ReadProviderStringProperty(*labelSimple.get(), UIA_NamePropertyId, "the changed label name") == L"Changed again",
+            "the owner query publishes the change");
     const Detail::WorkCounters delta = scope.Delta();
     const uint64_t builds            = DebugGetAccessibilitySnapshotBuildCountForTest() - buildsBefore;
     std::cerr << "    [WORK] snapshot builds=" << builds << " counted=" << delta.accessibility.snapshotBuilds << " nodes=" << delta.accessibility.snapshotNodes

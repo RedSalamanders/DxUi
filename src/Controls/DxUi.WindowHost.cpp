@@ -2033,6 +2033,14 @@ void ControlHost::Invalidate() const noexcept
 void ControlHost::InvalidateFor(uint8_t traceFrameReason) const noexcept
 {
     ++Detail::Work().frame.invalidations;
+    // Read and cleared before any application code runs here (the embedded callback), so an invalidation it makes in turn
+    // is never taken for the declared one (W8.2).
+    if (_accessibilityMarks && ! std::exchange(_accessibilityMarks->attestNextInvalidate, false))
+    {
+        _accessibilityMarks->unattested = true;
+        ++_accessibilityMarks->epoch;
+        ++Detail::Work().accessibility.undeclaredInvalidations;
+    }
     if (_embedded)
     {
         if (_embeddedInvalidate)
@@ -2284,6 +2292,13 @@ ControlHost::FrameScheduleWake ControlHost::GetFrameScheduleWake() const noexcep
     const std::optional<uint64_t> tooltipDue = GetTooltipWakeDueTickMs();
     bool hasDeadline                         = tooltipDue.has_value();
     uint64_t earliestDue                     = tooltipDue.value_or(0u);
+    // A deferred geometry-only accessibility publication wakes at its settle or interval (W8.2).
+    if (const std::optional<uint64_t> accessibilityDue = AccessibilityGeometryWakeDueTickMs(*this);
+        accessibilityDue && (! hasDeadline || *accessibilityDue < earliestDue))
+    {
+        hasDeadline = true;
+        earliestDue = *accessibilityDue;
+    }
     for (const TickRequest& request : _tickRequests)
     {
         // A request of a hidden control (or one below a hidden control) is held and costs no wake until it is shown.
@@ -2886,8 +2901,14 @@ void ControlHost::SetFocusControl(Control* control, bool transferNativeFocus) no
                 return;
         }
     }
-    // The republish raises the UIA focus change for the newly focused element (see RefreshWindowHostAccessibilitySnapshot).
-    RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
+    // The republish raises the UIA focus change for the newly focused element (see RefreshWindowHostAccessibilitySnapshot). The
+    // move marks the two records whose keyboard focus changed (W8.2); anything a focus handler changed besides reports itself.
+    if (oldFocus && ! oldFocusLifetime.expired())
+        NoteAccessibilityRecordChange(*oldFocus, AccessibilityRecordAspect::Focus);
+    if (_focusedControl)
+        NoteAccessibilityRecordChange(*_focusedControl, AccessibilityRecordAspect::Focus);
+    RefreshWindowHostAccessibilitySnapshot(_hwnd, this, AccessibilityMutationKind::MarkedFocus);
+    const AttestedInvalidation focusVisual(this);
     Invalidate();
 }
 
@@ -4356,7 +4377,9 @@ try
                 TextLayoutCacheAccess::Release(*this); // a minimized window paints nothing and keeps no retained text layout
             if (wp == SIZE_MINIMIZED && ! _animationSuspendedWhileHidden)
             {
-                // A minimized host holds its schedule and does not wake until it is restored.
+                // A minimized host holds its schedule and does not wake until it is restored. A deferred geometry-only
+                // accessibility publication is not held: it publishes now (W8.2).
+                SettleAccessibilityGeometry(*this, GetAnimationTickMs(), true);
                 _animationSuspendedWhileHidden = true;
                 DropPendingTooltipShowWhileHidden();
                 OnFrameScheduleChanged();
@@ -4394,6 +4417,8 @@ try
                 CancelPreparedVisualContent();
                 DeactivateNativeTextInputSession();
                 TextLayoutCacheAccess::Release(*this); // a hidden window keeps no retained text layout
+                // A deferred geometry-only accessibility publication is not held while hidden: it publishes now (W8.2).
+                SettleAccessibilityGeometry(*this, GetAnimationTickMs(), true);
             }
             handled = false;
             return 0;
@@ -4727,7 +4752,8 @@ try
                 controlHandled = target->OnMouseUp(*this, point, rightButton, static_cast<UINT>(wp));
             }
             Control* const liveControl = RevalidateDispatchedControl(targetLifetime, _root.get(), target);
-            if (controlHandled && liveControl)
+            // A control that reports its own record changes (W8.2) leaves nothing for a whole-window republish to find.
+            if (controlHandled && liveControl && ! ReportsOwnAccessibilityChanges(*liveControl))
             {
                 RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
             }
@@ -4845,7 +4871,7 @@ try
                         SyncNativeTextInputAfterDispatch(liveKeyTarget, synchronizationsBefore);
                         RecordNativeTextInputKeyToStateMetric(inputStartedAt, L"native-keydown", static_cast<uint64_t>(wp), modifiers);
                     }
-                    if (liveKeyTarget)
+                    if (liveKeyTarget && ! ReportsOwnAccessibilityChanges(*liveKeyTarget))
                     {
                         RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
                     }
@@ -4899,7 +4925,7 @@ try
                     // As after a handled pointer release: a key the control handled may have changed what it exposes to
                     // UI Automation (a toggle state, a value, a selected tab), so the window publishes again. With no
                     // client listening this only marks the snapshot dirty.
-                    if (liveKeyTarget)
+                    if (liveKeyTarget && ! ReportsOwnAccessibilityChanges(*liveKeyTarget))
                     {
                         RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
                     }
@@ -7248,6 +7274,8 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
     UpdateSupplementalTooltipTarget(pointDip);
     if (hoverChanged)
     {
+        // Which control is hovered is drawn, never published: a control's own hover handling declares what it changes.
+        const AttestedInvalidation hoverVisual(this);
         Invalidate();
     }
 }
@@ -7401,6 +7429,8 @@ void ControlHost::SetInputModality(InputModality modality) noexcept
     _inputModality = modality;
     if (_focusedControl)
     {
+        // Only whether a focus ring shows: nothing UI Automation publishes.
+        const AttestedInvalidation focusVisual(this);
         Invalidate();
     }
 }
@@ -7455,7 +7485,10 @@ UINT ControlHost::GetModifierState() const noexcept
 
 ControlHost::FrameScheduleWake ControlHost::OnScheduledWake(uint64_t nowTickMs, bool* hostGone) noexcept
 {
-    // Held, not run: a hidden host keeps its requests and does not wake until it is shown (ResumeScheduleAfterShow).
+    // Held, not run: a hidden host keeps its requests and does not wake until it is shown (ResumeScheduleAfterShow). A deferred
+    // geometry-only accessibility publication is not held: it publishes now, so a hidden host holds no wake for it (W8.2).
+    if (! _nativePresentationVisible || (_hwnd && ! IsHostWindowEffectivelyVisible(_hwnd)))
+        SettleAccessibilityGeometry(*this, nowTickMs, true);
     if (! _nativePresentationVisible)
     {
         DropPendingTooltipShowWhileHidden();
@@ -7545,6 +7578,9 @@ bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
         if (frame.abandoned)
             return false;
     }
+
+    // A deferred geometry-only accessibility publication whose layout settled, or whose interval passed, becomes due (W8.2).
+    SettleAccessibilityGeometry(*this, nowTickMs);
 
     // Snapshot the due requests; a request made from now on (a Tick re-arming) lands in the schedule for a later wake.
     _tickDue.clear();

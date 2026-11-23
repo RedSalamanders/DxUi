@@ -795,6 +795,130 @@ that control's own items (a tree's items by id, a grid's rows and cells), and a 
 rectangles in paint order. A diagnostics counter of what resolutions examine, and a check of the tables against a scan
 of the records, back the tests.
 
+#### Incremental publication
+
+A published snapshot never changes: UI Automation threads read it through a `shared_ptr<const>` without a lock, and every
+later publication is a new generation. A generation may share with the one before it everything its changes did not touch
+(performance plan `W8.2`). Its records are reached through a chunked spine: a vector of pointers to chunks of 32 pointers to
+records. A whole build moves its record vector into one shared block and points the spine into it; a successor copies the
+spine (one pointer per 32 records), clones the chunk of each record it replaces, allocates only the replaced records and
+shares the structure tables (paths, addresses, the path index) and, when no geometry moved, the bounding rectangles and their
+index. Nothing reachable from a published generation is written again. A provider that holds an old generation reads that
+generation exactly as it was published, whatever the owner publishes after it; a record, chunk or table lives as long as any
+generation holding it does: the published one, the event baseline, a root-swap stand-in, a queued notification or a client's
+provider or text range. A block of records from a whole build stays alive while any of its records is still shared, so
+replacing records one by one holds at most one older copy of each until the next whole build.
+
+What a change marks for the next publication of its host (owner thread):
+
+| Mark | Raised by | Next publication |
+|---|---|---|
+| Name | `Control::Assign` with `SemanticName` (accessible name, help text, automation id, a label's text, a button's text) | Re-reads that control's record, and a label's mnemonic target's |
+| Value | `SemanticValue` (a slider's, progress bar's or splitter's value and range, a field's text) and the library's own value paths (`Slider` steps, a `Splitter` preview, `TextField::SetText`) | Re-reads that control's record |
+| Focus | `ControlHost::SetFocusControl` moving the keyboard focus | Re-reads the records that lost and gained focus, and the focused element |
+| Geometry | `Control::SetBounds`, every library hit-test change of a control (`Affects::Hit`, a scroll offset, a splitter's separator) and a painted assignment that declares no semantic aspect | Re-reads the records in the control's subtree whose content follows bounds (text-capable controls, rich text, grids, trees, tab controls, a field's reveal button and every range value: selection rectangles, visible ranges and rows, headers, a splitter's position and maximum) and rebuilds every bounding rectangle once |
+
+What a resize changes in a library control reaches the snapshot either through a re-read record of that list or through
+the children the control lays out with `SetBounds`: every `OnBoundsChanged` override of the library is resized narrower and
+wider with a client interested, each publication compared with a whole build (`TestAccessibilityIncrementalResizeOfEveryBoundsOverride`).
+A control of an application whose `OnBoundsChanged` changes what its record publishes (a name, a value, a state) declares it
+through `Control::Assign` with the semantic aspect, as any other change of its record.
+
+A control that lays out elements of its own inside its bounds (a `TabControl`'s headers, a `Grid`'s cells, a `Tree`'s rows,
+a `ComboBox`'s popup, a masked field's reveal button) moves them when its name or value changes: a retitled tab moves the
+headers after it. A name, value or focus mark on such a control also rebuilds every bounding rectangle
+(`TestAccessibilityIncrementalTabTitleMovesHeaderRectangles`). Composites of child controls (`StatusStrip`, `RadioButtons`,
+`ColorPicker`, `NumericStepper`) position their children with `SetBounds`, which marks each child's geometry, and a
+`PageIndicator` publishes one record with its own bounds; a `Menu` is its own popup host.
+
+A host keeps at most 32 marks. A geometry mark that finds them full collapses every geometry mark into one on the deepest
+common ancestor of the marked controls (a layout that moves a pane of 40 controls marks their parent once), counted in
+`accessibility.geometryMarksCollapsed`; the publication then re-reads the follow-bounds records of that ancestor's subtree and
+rebuilds every rectangle. Only marks that still overflow after collapsing (more than 32 controls marked for name, value or
+focus) make the publication whole.
+
+A native window that no client is interested in is dirtied once: the first mark refreshes it, finds nobody, and later marks
+are recorded without taking the window's target again until a client listens or queries (`accessibility.marksWhileDormant`).
+A client that arrives then reads the current values and bounds, built from the recorded marks or whole
+(`TestAccessibilityIncrementalMarksWithoutClientStayCurrent`). Marks belong to one attachment: registering or unregistering
+a window host's target, attaching or disconnecting an embedded view's accessibility and dropping the retained snapshot (a
+hidden host, a device loss that retires it) clear them and owe the next publication a whole build, so a flush requested
+before a detach never silences the next attachment (`TestAccessibilityIncrementalFlushRequestAcrossReattach`).
+
+Geometry-only publications are coalesced in time. A publication that follows from marks (a window host's posted flush, an
+embedded `UpdateAccessibility`), would be incremental, and whose marks are all geometry is published at most once per 100 ms
+of the host's clock (the dispatcher's on a window host, the application's on an embedded view), plus once when the layout
+settles; the others are deferred (`accessibility.geometryPublicationsDeferred`). A name, value, focus, state or structure
+change publishes at once and carries the deferred geometry with it, and so does any publication a client's query makes. No
+timer is added: a deferral asks the host's existing frame schedule for a wake.
+
+- A window host defers only while its window is visible and not minimized: a hidden window presents no frame, so it
+  publishes every move at once. It wakes at the earlier of 32 ms after its last deferral (its flushes follow every frame of
+  marks, so 32 ms without one is a settled layout) and 100 ms after its last geometry publication, and posts its flush
+  then. A window hidden or minimized with a deferral pending publishes it at once (at `WM_SHOWWINDOW`, `SIZE_MINIMIZED` or
+  the first wake that finds it hidden, an ancestor's hide included) and holds no wake for it; a client's query publishes it
+  at once in any state (`TestAccessibilityIncrementalNativeGeometryCoalescing`).
+- An embedded view reports an animation request due at once while a deferral waits: the published deadline of the
+  embedding contract. Its next `UpdateAccessibility` with no geometry mark since the deferral publishes, as does one 100 ms
+  after the last geometry publication. Every other outcome of an update ends the wait: an update that publishes, or that
+  returns without publishing for any reason (nobody listens and no client asked, accessibility disconnected, the view hidden
+  or detached, input not yet coherent, a failure), leaves the request as the rest of the schedule makes it, so no state
+  keeps a request due with nothing to publish (`TestDeferredRequestEnds`). The marks stay, and the next update that
+  publishes carries them; until an application calls `UpdateAccessibility` again, the view keeps the bounds of its last
+  publication, as for any change it has not updated.
+
+So bounds a client reads while a layout moves are at most 100 ms old, and current once the layout settles: on a visible
+window host at its next wake, on a hidden or minimized one at once, and on an embedded view at the application's next
+`UpdateAccessibility` while a client listens or has asked (with no client, a view publishes nothing until one asks, which
+then reads the current tree) (`TestGeometryPublicationsCoalesce`). On FX12's form shape
+with one client, a frame moving every control publishes in about 11 ms at 2,000 controls and 280 to 540 ms at 10,000
+(Release, WARP; a whole build costs about three times as much), and a deferred frame in under 0.01 ms with no allocation,
+which is why only a settled or 100 ms-old layout is published
+([W8.2 receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W8.2/README.md)).
+
+Geometry is published through the host's geometry path, not through `Control::Affects`: what moves a bounding rectangle
+the snapshot reads is either a bounds change or a move of the host's interaction or hit revision, and each library site
+that moves them for one control marks that control's geometry. A state (`SemanticState`: a role, focusability, a toggle,
+masking), every whole-window mutation (`RefreshWindowHostAccessibilitySnapshot` without a mark, `RefreshAccessibilitySnapshot`,
+visibility, enabled state, the tree's structure, a model change) and a mnemonic target change build the whole window. So
+does a publication whose marks cannot be followed: more than 32 marks or than a quarter of the records, a marked control no
+longer at its path, a grid that carries rows a client requested, a changed scale or embedded placement, and any change the
+host cannot account for. The host accounts for a change when every move of its interaction and hit revisions since the last
+publication was a marked one, it can see every attached control's hit testing (no control outside the library that does not
+report its hit changes), and every invalidation since was a declared one: an assignment's paint or layout route, a bounds
+change, a focus-ring change, or the repaint of a control that reports all of its own record changes (exact `Slider`,
+`Splitter` and `ProgressBar`; a class derived from them is not one). A handled key or pointer release on such a control
+raises no whole-window republish on a window host, since the control marked what it changed; on any other control it still
+does. Any other invalidation, for example a hover or an animation of another control, makes the next publication whole, as
+every embedded preparation made it before. A whole build is what an incremental publication must equal: every incremental
+publication of the parity scripts, of FX6 and of the item's tests is compared field by field with a whole build of the same
+tree at the same moment (`DebugSetAccessibilityIncrementalVerificationForTest`), with no difference allowed. In Debug the
+Accessibility, Control and Embedded test programs turn that verification on for every test they run and fail on any
+difference, printing the publications verified per suite (`[W8.2-VERIFY]`).
+
+Events compare generations. Two generations that share their structure hold the same controls at the same ordinals, so the
+event diff, the structure check and the selection diff skip every record and every chunk both hold, and compare the others
+in the order a whole build's diff compares them: a successor raises exactly the events a whole build of the same frame
+raises, in the same order, for the same clients, with the same senders and old and new values, focus and structure events
+included (`TestAccessibilityIncrementalEventsEqualWholeBuilds`).
+
+A `Splitter` drag previews without a whole build: each preview marks the splitter's value and geometry, so a client reading
+mid-drag reads the separator's current position and rectangle, and the frame raises at most the RangeValue change. This holds
+when the application lays a pane out from the splitter's change: the pane's moved controls collapse into one geometry mark. The
+coalescing is the host's own: an embedded view publishes once per `UpdateAccessibility`, a window host once per posted flush,
+whatever number of moves came between. The release (the commit), a keyboard step and a cancellation build the whole window once,
+after the application laid its panes out for the final position.
+
+The event baseline of a window host: a publication made by a query (not by the queued drain) that only unheard changes led
+to, changes made while no client was requested and none listened, becomes the event baseline itself. Nobody is owed their
+events, and a client that starts and queries reads them; left in place, the baseline would hold a state no client saw last,
+and a change back to it would raise nothing (`TestAccessibilityIncrementalLostEventAfterListenerLeft`). A batch that mixes
+heard and unheard changes keeps the baseline, and the drain raises both, the unheard ones redundantly.
+
+A composition previewed in a field publishes the previewed text: the composition string is part of the field's document
+and value while it is composed, as in a Windows edit control, and the active composition range reads its span of that
+text; the commit publishes the committed text (`TestCompositionPreviewPublishesThePreviewText`).
+
 Buttons with acknowledged disclosure state expose ExpandCollapse, consistent state properties and
 state-change notifications. Expand/Collapse requests are idempotent against current acknowledged state,
 reject disabled controls and invoke caller behavior only when a change is requested. Caller callbacks

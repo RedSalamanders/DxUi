@@ -1062,9 +1062,128 @@ enum class AccessibilityMutationKind : unsigned
 {
     General,
     // Only content changes that cannot alter focus, visibility, enabled state or logical structure.
-    ContentOnly
+    ContentOnly,
+    // The caller marked the records it changed (NoteAccessibilityRecordChange): the next publication need not be whole (W8.2).
+    // Marked is content (a name, a value, a geometry); MarkedFocus a focus move, which keeps the focus path below.
+    Marked,
+    MarkedFocus,
 };
 void RefreshWindowHostAccessibilitySnapshot(HWND hwnd, ControlHost* host, AccessibilityMutationKind mutation = AccessibilityMutationKind::General) noexcept;
+// An event a host raised or queued for UI Automation, as a test compares two runs (W8.2, DebugSetAccessibilityEventRecorderForTest).
+enum class AccessibilityRaisedEventKindForTest : uint8_t
+{
+    Property,
+    Automation,
+    Structure,
+    Focus,
+};
+struct AccessibilityRaisedEventForTest final
+{
+    AccessibilityRaisedEventKindForTest kind = AccessibilityRaisedEventKindForTest::Property;
+    long id                                  = 0;
+    std::wstring sender;   // The sender's control path ("/0/2"), empty for the window's element.
+    uint64_t identity = 0; // The sender's control identity, 0 for the window's element.
+    std::wstring oldValue, newValue;
+};
+using AccessibilityEventRecorderForTest = void (*)(const AccessibilityRaisedEventForTest& event, void* context) noexcept;
+// Incremental publication (W8.2; UI_InputAndAccessibility.md, "Incremental publication"). What a precise change asks of the
+// next publication of its control's record: its name or value (the record alone, and a label's mnemonic target), its keyboard
+// focus (the record and the focused element), or its geometry (the records of its subtree and every bounding rectangle).
+enum class AccessibilityRecordAspect : uint8_t
+{
+    Name     = 1u,
+    Value    = 2u,
+    Focus    = 4u,
+    Geometry = 8u,
+};
+namespace Detail
+{
+// A host's marks since its last publication, kept on its owner thread while a snapshot is published (ControlHost owns them).
+// The next publication shares every record no mark names when the host can show that nothing else changed: no whole-window
+// mutation was raised, every move of the interaction and hit revisions was a marked one, and every invalidation came from a
+// path that declared what it changed. Otherwise, or when the marks overflow, it builds the whole window.
+struct AccessibilityRecordMark final
+{
+    const Control* control = nullptr; // Compared and resolved through the published tree, never dereferenced unchecked.
+    std::weak_ptr<int> lifetime;
+    uint8_t aspects = 0u;
+};
+struct AccessibilityRecordMarks final
+{
+    static constexpr size_t kCapacity = 32u;
+    std::array<AccessibilityRecordMark, kCapacity> marks{};
+    size_t count                 = 0u;
+    bool overflow                = false;
+    bool wholeOwed               = true;  // A whole-window mutation, or nothing published yet: the next publication builds.
+    bool unattested              = false; // An invalidation that declared nothing since the last publication.
+    bool attestNextInvalidate    = false; // One-shot: the next ControlHost::Invalidate is a declared one (AttestedInvalidation).
+    bool flushRequested          = false; // Native: a flush was posted for these marks.
+    bool dormant                 = false; // Native: already dirty while no client was interested; later marks need no refresh.
+    uint64_t epoch               = 0u;    // Moves on every note; a build that saw it move publishes and owes a whole build.
+    uint64_t baseGeneration      = 0u;    // The published snapshot these marks apply to.
+    uint64_t interactionRevision = 0u;    // The host revisions the published snapshot accounts for, advanced by marked moves.
+    uint64_t hitRevision         = 0u;
+    // Coalescing of geometry-only publications (W8.2): at most one per kGeometryPublicationIntervalMs on the host's clock,
+    // plus one when the layout settles: an embedded view's next update with no geometry mark since the deferral, a window
+    // host's schedule wake kGeometrySettleMs after the last deferral (its flushes follow every frame of marks).
+    static constexpr uint64_t kGeometryPublicationIntervalMs = 100u;
+    static constexpr uint64_t kGeometrySettleMs              = 32u;
+    uint64_t geometryMarks                                   = 0u;    // Moves on every geometry mark.
+    uint64_t geometryMarksAtDeferral                         = 0u;    // geometryMarks when the last geometry-only publication was deferred.
+    uint64_t geometryDeferredAtMs                            = 0u;    // The host's clock at that deferral.
+    uint64_t lastGeometryPublicationMs                       = 0u;    // The host's clock at the last publication that carried a geometry mark.
+    bool geometryPublished                                   = false; // lastGeometryPublicationMs is set.
+    bool geometryDeferred                                    = false; // A geometry-only publication waits for the interval or the settle.
+    bool geometryDue                                         = false; // The next publication carries the deferred geometry, whatever the interval.
+};
+} // namespace Detail
+// Marks `control`'s record for the next publication of its host (owner thread). A whole-window publication covers any mark.
+void NoteAccessibilityRecordChange(const Control& control, AccessibilityRecordAspect aspect) noexcept;
+// The host's interaction or hit revision just moved from `before` for `control`'s geometry (SetBounds, a named hit site):
+// marked as a geometry change, so the move is accounted for and does not force a whole build.
+void NoteAccessibilityGeometryMove(const Control& control, uint64_t interactionBefore, uint64_t hitBefore) noexcept;
+struct AccessibilityRevisions final
+{
+    uint64_t interaction = 0u;
+    uint64_t hit         = 0u;
+};
+[[nodiscard]] AccessibilityRevisions ReadAccessibilityRevisions(const ControlHost& host) noexcept;
+// A change the next publication must build whole for (a mnemonic target, a structure the marks cannot follow).
+void NoteAccessibilityWholeChange(const ControlHost& host) noexcept;
+// The host's accessibility attachment ends or begins (a window detaches or attaches, an embedded view connects or
+// disconnects): its marks are dropped, no flush rides on an old attachment, and the next publication builds whole.
+void ResetAccessibilityRecordMarks(const ControlHost& host) noexcept;
+// When `host`'s schedule must wake for a deferred geometry-only publication (W8.2 coalescing): a window host at its settle or
+// interval, whichever is first; an embedded view at once, which brings the application back for its next update. None when
+// nothing is deferred.
+[[nodiscard]] std::optional<uint64_t> AccessibilityGeometryWakeDueTickMs(const ControlHost& host) noexcept;
+// A wake of a window host's schedule at `nowTickMs`: a deferred geometry-only publication whose layout settled (no deferral
+// for kGeometrySettleMs) or whose interval passed becomes due, and the host posts its flush; with `now`, whatever the time
+// (a wake that finds the host hidden, which then holds no wake for it). An embedded view decides at its next update.
+void SettleAccessibilityGeometry(ControlHost& host, uint64_t nowTickMs, bool now = false) noexcept;
+// Exact library types that report every change of their own record through marks and declare their own invalidations: a
+// handled input event on one of them needs no whole-window republish, and its invalidations are declared ones.
+[[nodiscard]] bool ReportsOwnAccessibilityChanges(const Control& control) noexcept;
+// While alive, the next ControlHost::Invalidate on `host` declares what it repaints (a marked change, a geometry move, a
+// focus-visual or a self-reporting control's paint): it does not by itself make the next publication whole.
+class AttestedInvalidation final
+{
+public:
+    explicit AttestedInvalidation(const ControlHost* host, bool attest = true) noexcept;
+    ~AttestedInvalidation();
+    AttestedInvalidation(const AttestedInvalidation&)            = delete;
+    AttestedInvalidation& operator=(const AttestedInvalidation&) = delete;
+    AttestedInvalidation(AttestedInvalidation&&)                 = delete;
+    AttestedInvalidation& operator=(AttestedInvalidation&&)      = delete;
+
+    // The host owning `marks` is being destroyed (from code its invalidation ran): every live attestation of this thread
+    // that refers to them forgets them, so none writes to them after the host is gone.
+    static void ForgetMarks(const Detail::AccessibilityRecordMarks* marks) noexcept;
+
+private:
+    Detail::AccessibilityRecordMarks* _marks = nullptr;
+    AttestedInvalidation* _outer             = nullptr; // The attestation alive on this thread before this one.
+};
 // A window host begins to gain focus, before it publishes anything: records how many fragment-root GetFocus calls had
 // begun, which says whether UI Automation will ask for what the gain focuses or restores (none had) or answer without
 // asking (see EndWindowHostFocusGainTurn), and starts the gain with no announcement made.
@@ -1096,6 +1215,29 @@ void DebugSetAccessibilityOffscreenSelectedRowMaterializationLimitForTest(size_t
 // Window-host and embedded accessibility targets alive in this process.
 [[nodiscard]] size_t DebugGetLiveAccessibilityTargetCountForTest() noexcept;
 [[nodiscard]] uint64_t DebugGetAccessibilitySnapshotBuildCountForTest() noexcept;
+// Every publication of a snapshot, whole build or successor (W8.2): what "one publication" means for a host's flushes.
+[[nodiscard]] uint64_t DebugGetAccessibilityPublicationCountForTest() noexcept;
+// W8.2, process-wide: `recorder` receives every event a host raises or queues (null clears it), on the raising thread.
+void DebugSetAccessibilityEventRecorderForTest(AccessibilityEventRecorderForTest recorder, void* context) noexcept;
+// W8.2, process-wide. Whole: every publication builds the whole window, the reference an incremental publication is held to.
+// Verification: after every incremental publication the owner also builds the whole window, unpublished and uncounted, and
+// compares it field by field; the mismatches are counted and the first is described (on the publishing thread).
+void DebugSetAccessibilityWholePublicationForTest(bool whole) noexcept;
+void DebugSetAccessibilityIncrementalVerificationForTest(bool verify) noexcept;
+[[nodiscard]] bool DebugGetAccessibilityIncrementalVerificationForTest() noexcept;
+// Since the program started, never reset: verified incremental publications and those that differed from a whole build.
+void DebugGetAccessibilityIncrementalVerificationTotalsForTest(uint64_t& verified, uint64_t& mismatches) noexcept;
+[[nodiscard]] uint64_t DebugGetAccessibilityIncrementalVerificationCountForTest() noexcept;
+[[nodiscard]] uint64_t DebugGetAccessibilityIncrementalMismatchCountForTest() noexcept;
+[[nodiscard]] std::wstring DebugGetAccessibilityFirstIncrementalMismatchForTest();
+// The first difference on the calling thread since the program started, never reset.
+[[nodiscard]] std::wstring DebugGetAccessibilityFirstProgramMismatchForTest();
+void DebugResetAccessibilityIncrementalVerificationForTest() noexcept;
+// W8.2: the snapshot `host` publishes now, held as an opaque owner (null when none). Any thread may describe a held snapshot,
+// one line per record (name, value, range value, focus), and count the records two held snapshots share.
+[[nodiscard]] std::shared_ptr<const void> DebugHoldAccessibilitySnapshotForTest(ControlHost& host) noexcept;
+void DebugDescribeAccessibilitySnapshotForTest(const std::shared_ptr<const void>& held, std::vector<std::wstring>& lines);
+[[nodiscard]] size_t DebugCountSharedAccessibilityRecordsForTest(const std::shared_ptr<const void>& first, const std::shared_ptr<const void>& second) noexcept;
 // Owner-thread-only deterministic failure at the rich snapshot font query.
 void DebugSetRichAccessibilityFontFailureForTest(HRESULT failure) noexcept;
 [[nodiscard]] size_t DebugGetRichAccessibilityFontFailureCountForTest() noexcept;
@@ -1115,6 +1257,10 @@ namespace Detail
 // costs one thread-local read per resolution. It is called while the range holds its target's snapshotMutex, so an observer
 // must never wait for another thread that takes that mutex (any text-range call on the same window).
 inline thread_local constinit void (*textRangeResolvedObserver)(const std::shared_ptr<const void>& owner, std::wstring_view text) noexcept = nullptr;
+// Called with true before and false after the whole build that verifies an incremental publication (W8.2,
+// DebugSetAccessibilityIncrementalVerificationForTest), so a test program can leave that build out of its allocation counts.
+// Process-wide and called on the publishing thread; a program sets it once, before any test runs.
+inline constinit void (*verificationScopeObserver)(bool entering) noexcept = nullptr;
 } // namespace Detail
 // Holds every call of `hwnd`'s fragment-root GetFocus before it counts itself or reads the snapshot, so a test decides
 // when the system's focus event is answered: each call sets `enteredEvent` on arrival and waits, for at most five seconds

@@ -573,12 +573,29 @@ int wmain(int argc, wchar_t** argv)
         SetDxUiTestWindowsCanActivate(suiteCanActivate(name));
         std::cerr << "[START] " << name << '\n' << std::flush;
         const auto started = std::chrono::steady_clock::now();
+#if DXUI_ENABLE_DIAGNOSTICS && defined(_DEBUG)
+        // W8.2: in Debug every incremental UI Automation publication of every suite is checked against a whole build.
+        uint64_t verifiedBefore = 0u, mismatchesBefore = 0u;
+        DxUi::DebugGetAccessibilityIncrementalVerificationTotalsForTest(verifiedBefore, mismatchesBefore);
+        DxUi::DebugSetAccessibilityIncrementalVerificationForTest(true);
+#endif
         {
             std::optional<DxUi::TestSupport::ScopedTestDeadline> fixtureDeadline;
             if (isFixtureSuite(name))
                 fixtureDeadline.emplace(name);
             suite();
         }
+#if DXUI_ENABLE_DIAGNOSTICS && defined(_DEBUG)
+        DxUi::DebugSetAccessibilityIncrementalVerificationForTest(false);
+        uint64_t verifiedAfter = 0u, mismatchesAfter = 0u;
+        DxUi::DebugGetAccessibilityIncrementalVerificationTotalsForTest(verifiedAfter, mismatchesAfter);
+        std::cerr << "[W8.2-VERIFY] " << name << ": verified " << (verifiedAfter - verifiedBefore) << ", mismatches " << (mismatchesAfter - mismatchesBefore)
+                  << '\n'
+                  << std::flush;
+        if (mismatchesAfter != mismatchesBefore)
+            std::wcerr << L"[W8.2-VERIFY] first difference from a whole build: " << DxUi::DebugGetAccessibilityFirstProgramMismatchForTest() << L'\n';
+        Require(mismatchesAfter == mismatchesBefore, "every incremental publication equals a whole build of the same tree");
+#endif
         DxUi::Ui::AnimationDispatcher::GetInstance().Shutdown();
         std::cerr << std::format("[DONE] {} ({:.3f} s)\n", name, std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count())
                   << std::flush;
