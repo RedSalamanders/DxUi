@@ -865,8 +865,9 @@ close as each one says below.
   - **Needs**: `W4.1`. **Size**: L.
 
 - [ ] **W4.3 Raster promotion and retention cap.**
-  - **Closed as written**: `W4.0` was a no-go (23 November 2026). `W4.10` builds the tiles, for effect-heavy content
-    only and from painting, not from a retained list; the cap and its contract bound move with them.
+  - **Closed unbuilt**: `W4.0` was a no-go (23 November 2026), and the design review of `W4.10` found nothing to
+    tile: no shadow or blur effect is painted inside the control tree outside the popups of `W2.4`. No tile cap is
+    added to the performance contract.
   - **Why**: shadow and blur effects cost an intermediate pass on every replay. The only surface bound today is the
     single embedded surface: at most 64 MiB, with a 128 MiB replacement peak per view
     ([performance and resources](../../Core/Core_PerformanceAndResources.md)); it is not a per-view retention budget, and
@@ -884,8 +885,8 @@ close as each one says below.
   - **Needs**: `W4.1`, `W0.3`. **Size**: M.
 
 - [ ] **W4.4 Nine-slice shadows.**
-  - **Closed unbuilt**: `W4.0` was a no-go (23 November 2026). Popup shadows stay with `W2.4`; other elevated
-    surfaces are served by the tiles of `W4.10`.
+  - **Closed unbuilt**: `W4.0` was a no-go (23 November 2026). Popup shadows stay with `W2.4`, and no other
+    elevated surface draws a shadow today.
   - **Why**: `ComboBox` and `Menu` popups recreate both shadow passes (`CreateCommandList` plus a shadow effect each)
     on every paint (`DxUi.ComboBox.cpp:414-428`, `DxUi.Menu.cpp:778-793`).
   - **Change**: one blurred corner tile per `(corner radius, sigma, color, scale)` in a small host atlas; any rectangle
@@ -1861,6 +1862,7 @@ with an open row is not accepted for closeout until that row closes.
 | `W4.0` | Closed as a no-go by the developer on 23 November 2026: three go criteria were met and the third failed, replay costing 0.85 to 1.07 of painting on hardware against at most half. No library code landed. `W4.1`, `W4.2`, `W4.4` and `W4.5` close unbuilt; `W4.3`, `W4.6` and `W4.8` close as written and `W4.10` builds their paint-based form; `W4.7` and `W4.9` stay open on the region of `W4.10`. `FX5` has no `Button`, and `CardPanel` has no shadow, so the item's three kinds were not the effect-heavy ones: the effect cost is the popup and transient-surface elevation. | `W4.10`, then `W4.7` and `W4.9` |
 | `W4.0` | The prototype is kept on a local branch of the implementation worktree, `pm/w4-0-spike-code`, with its oracle scripts, its per-control benchmark and a same-binary comparison switch for `performance-timing.ps1`. Tested on WARP only, not on hardware: that a command list keeps brushes by value, and that `DrawImage` of a list draws ClearType text grayscale on the opaque window target. The mask that retains every leaf kind never ran on the window host. The memory of a list (about 2.4 to 2.7 KB) was measured once. | `W4.10` takes the benchmark and the switch as test infrastructure; the branch is deleted at closeout |
 | `W4.0` | The spike's window-host interaction script hovers where the embedded one presses. Its author saw `TestNativeIncrementalParityInteraction` fail at step 2 with a focus-state difference when the test program was started outside the suite runner, with the spike off as well. Inside the `Rendering` suite under `test.ps1` the test passes on the same commit. The cause is not established; it looks like a dependency on which hidden window holds Win32 focus. | `W4.10`, which needs the native interaction oracle after every partial frame |
+| `W4.0` | Follow-up from the design review of `W4.10` (23 November 2026). No raster tile is built: every shadow or blur effect in the library belongs to the `ComboBox` popup, the `Menu` popups or the public `PaintTransientSurface` helper, which no library control calls. So the 16 MiB tile cap of `A16` is not introduced. Budget `G2` cannot be met as written by a design that paints: one hover change on `FX5` repaints the two changed toggles, the card under each and the root, 5 or 6 `Paint` executions against 83 today, because the pixels under a changed control must be painted again by its ancestors. | The developer restates `G2` or accepts it as not met; `W4.10` gates the exact count |
 
 ## Decisions carried into this plan
 
