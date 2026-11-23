@@ -193,7 +193,9 @@ with `W5.4` (the motion system in every control); `W9.2` video memory.
 Decided by the developer on 23 November 2026. The plan stays one document; the work reaches `main` in three steps.
 
 1. **Intermediate pull request.** The items ticked at a stable point merge first. Stable means: no known defect
-   open against a ticked item, `main` merged in, and closeout step 3 green on the merged tree.
+   open against a ticked item, `main` merged in, and closeout step 3 green on the merged tree. Merged on 23 November 2026
+   as pull request 291 (merge commit `972e3b52b`): 40 items, with the four focus-taking suites green in x64 Release,
+   Debug and ASan Debug.
 2. **Remaining items of `W0`–`W4` and `W6`–`W9`.** They follow in the next pull request, in the order above.
 3. **`W5` Motion and `W10` Scale.** All 15 items of `W5` and all 4 items of `W10` move to a later pull request. No
    item of this plan waits for them, so the order of the other waves does not change.
