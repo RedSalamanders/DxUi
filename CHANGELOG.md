@@ -4,6 +4,13 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Use the pinned shared CI engine for DxUi changelog commands and validation. Reverts keep the original pending fragment and add a new one. The benchmark solution validator stays usable on historical revisions.
+- Keep the lazy changelog compatibility module in the conservative benchmark path classifier so the tooling import-coverage check can follow its literal import.
+- Moved the RedSalamander source-import records from the stray `Specs/Done/` folder to `Specs/SourceImport/`, where
+  RedMonitor keeps its own (convergence CV-6-03, B-05). The records are unchanged; `Tools/Validation.psm1`, the scope
+  planner's compiled-only exclusion, four tooling tests and every guide and spec that cites them follow. Validated with
+  `validate-specs.ps1`, `validate-dependencies.ps1`, `validate-test-port.ps1`, `Test-Validation.ps1`,
+  `Test-TestPort.ps1`, `Test-NativeScope.ps1`, `Test-ScopedTesting.ps1` and `Tools/Test-Changelog.ps1`.
 - Moved the vcpkg tool pin in `vcpkg-tool.json` from `9e593bb1` to `aeb162b7`, the same commit as the baseline and
   as RedSalamander's pin (RedHome CV-4-07, register C-07). The managed checkout's scripts and triplets now come from
   that commit and its bootstrap downloads vcpkg-tool 2026-09-26 instead of 2026-07-27; package ABI hashes change, so
