@@ -2,7 +2,8 @@
 
 Status: ACTIVE — implementation started on 13 November 2026. A ticked item is implemented, with the commit whose
 subject carries its id; an unticked item is not. Line anchors in unticked items were read before implementation
-began and implemented items move the cited code, so locate it by symbol. This is the single plan for making DxUi faster, raising
+began and implemented items move the cited code, so locate it by symbol. An unticked item whose first line says
+it is closed will not be built as written. This is the single plan for making DxUi faster, raising
 its frame rate, lowering its memory use and animating every interactive change. It replaces three documents, now
 archived as records: the [runtime efficiency study](../Done/RuntimeEfficiency_2026-11-07.md), its
 [challenge review](../Done/RuntimeEfficiencyReview_2026-11-12.md) and the
@@ -815,6 +816,12 @@ Purpose: stop running `Paint` for controls that did not change and stop repainti
 one-week spike decides the mechanism. Exit: `G2` and `G4` met on `FX5`; `W4.5` verifier clean across the Controls and
 Embedded suites; or, on a no-go, `W4.10` gates met.
 
+Outcome of the spike: **no-go**, decided by the developer on 23 November 2026
+([receipt](../../../Measurements/PerformanceAndMotion_2026-11-13/W4.0/README.md)). Replaying a recorded control cost 0.85
+to 1.07 of painting it on hardware, against the required half. Not drawing an unchanged control cost 0.04 to 0.09
+of painting it. So `W4.10` is the mechanism of this wave, `W4.7` and `W4.9` run on its region, and the other items
+close as each one says below.
+
 - [x] **W4.0 Spike and go/no-go.**
   - **Why**: every dirty frame paints every visible control: native clips, clears and paints the whole tree
     (`DxUi.WindowHost.cpp:5105-5137`), embedded clears and repaints the whole surface (`src/Rendering/Embedded.cpp:631,
@@ -831,6 +838,7 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W0.2`, `W0.5`, `W0.7`, `W2.1`, `W2.3`. **Size**: M.
 
 - [ ] **W4.1 Retention mechanism.**
+  - **Closed unbuilt**: `W4.0` was a no-go (23 November 2026), so no control drawing is retained as a command list.
   - **Why**: `W4.0` go; nothing today retains a control's drawing between frames.
   - **Change**: `Control` gains a private `uint32_t` paint revision advanced by `InvalidateVisual()`. The host keeps a
     side table (not in `Control`, so `W9.6` sizes hold) of `{command list, ink bounds, paint revision, resource epoch}`;
@@ -846,6 +854,7 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.0` (go), `W0.3`. **Size**: L.
 
 - [ ] **W4.2 Parts for self-painting controls.**
+  - **Closed unbuilt**: `W4.0` was a no-go (23 November 2026); parts are command lists.
   - **Why**: large controls paint all their rows in one `Paint`, so one changed row re-runs the whole control.
   - **Change**: `host.PaintPart(owner, key, revision, fn)` retains one slice of a control as its own command list:
     `MenuPopup` chrome and each row, the `ComboBox` popup, `Grid` header and each visible row, `Tree` rows,
@@ -856,6 +865,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.1`. **Size**: L.
 
 - [ ] **W4.3 Raster promotion and retention cap.**
+  - **Closed as written**: `W4.0` was a no-go (23 November 2026). `W4.10` builds the tiles, for effect-heavy content
+    only and from painting, not from a retained list; the cap and its contract bound move with them.
   - **Why**: shadow and blur effects cost an intermediate pass on every replay. The only surface bound today is the
     single embedded surface: at most 64 MiB, with a 128 MiB replacement peak per view
     ([performance and resources](../../Core/Core_PerformanceAndResources.md)); it is not a per-view retention budget, and
@@ -873,6 +884,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.1`, `W0.3`. **Size**: M.
 
 - [ ] **W4.4 Nine-slice shadows.**
+  - **Closed unbuilt**: `W4.0` was a no-go (23 November 2026). Popup shadows stay with `W2.4`; other elevated
+    surfaces are served by the tiles of `W4.10`.
   - **Why**: `ComboBox` and `Menu` popups recreate both shadow passes (`CreateCommandList` plus a shadow effect each)
     on every paint (`DxUi.ComboBox.cpp:414-428`, `DxUi.Menu.cpp:778-793`).
   - **Change**: one blurred corner tile per `(corner radius, sigma, color, scale)` in a small host atlas; any rectangle
@@ -884,6 +897,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.3`, `W2.4`. **Size**: M.
 
 - [ ] **W4.5 Paranoid verifier.**
+  - **Closed unbuilt**: `W4.0` was a no-go (23 November 2026); there is no retained drawing to verify. The `W0.5`
+    oracle after every partial frame is the check for `W4.10`.
   - **Why**: a retained drawing goes stale if a control's `Paint` reads state that nothing invalidated; users would
     see it before tests do.
   - **Change**: in Debug and ASan Debug, every Nth frame re-record retained controls and parts and compare 64-bit
@@ -894,6 +909,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.1`. **Size**: M.
 
 - [ ] **W4.6 Region invalidation.**
+  - **Closed as written**: `W4.0` was a no-go (23 November 2026). `W4.10` builds the region, with overhang each
+    control declares per state in place of ink bounds read from a command list.
   - **Why**: every control invalidation is full-window (`DxUi.WindowHost.cpp:1912`); `rcPaint` is the bounding box of
     the update region ([GetUpdateRect](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getupdaterect)),
     so a region passed through `WM_PAINT` collapses two far-apart rectangles into one.
@@ -908,6 +925,9 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.1`, `W0.7`. **Size**: M.
 
 - [ ] **W4.7 Embedded partial preparation.**
+  - **Changed by the `W4.0` no-go** (23 November 2026): stays open and runs on the region of `W4.10`. Per region
+    rectangle it paints the controls that intersect it; there are no retained lists to replay, so its gate counts
+    `Paint` executions where it says replays.
   - **Why**: `EmbeddedHost::Prepare` clears and repaints the whole surface for any change
     (`src/Rendering/Embedded.cpp:631, 641`), although the texture persists while its size is unchanged (`:544-574`).
   - **Change**: per region rectangle, push an aliased axis-aligned clip, clear to premultiplied `(0, 0, 0, 0)` and
@@ -919,6 +939,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.6`, `W4.8`. **Size**: M.
 
 - [ ] **W4.8 Culling.**
+  - **Closed as written**: `W4.0` was a no-go (23 November 2026). `W4.10` builds culling as a test of child bounds
+    plus overhang against the paint clip.
   - **Why**: `Panel::Paint` tests only `IsVisible` and `ScrollPanel::Paint` clips but paints every child
     (`DxUi.Controls.cpp:1535-1545, 11311, 11326`); without culling a per-rectangle loop repeats a full traversal per
     rectangle.
@@ -929,6 +951,8 @@ Embedded suites; or, on a no-go, `W4.10` gates met.
   - **Needs**: `W4.1`. **Size**: M.
 
 - [ ] **W4.9 Native partial present and scrolling.**
+  - **Changed by the `W4.0` no-go** (23 November 2026): stays open and presents the region of `W4.10`; where it names
+    `W4.6` and `W4.8`, read `W4.10`.
   - **Why**: with dirty rectangles on a flip-model chain the runtime copies the previous frame's updated areas onto the
     current back buffer at present
     ([DXGI 1.2 presentation](https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/dxgi-1-2-presentation-improvements)),
@@ -1833,6 +1857,9 @@ with an open row is not accepted for closeout until that row closes.
 | `W7.2` | The item's Why was wrong: reuse of closed top-level blocks already existed. What was whole-document per edit was inline parsing (48,420 units scanned per insert on the full document, now 134), the identity map (1,465 nodes, now 2), front-matter validation, two full source copies and the line count. The oracle (22,452 edits in Release, each compared field by field with a fresh parse) found two defects in the reuse that existed before, both fixed: a block before the edit was reused although its blank line was the document's last line without a line break, and a code or HTML block still open at the end of the document lost the full parse's decision about the final line. | — |
 | `W7.2` | Done differently from the item's text: "copy only the reparse window" is met for the read from the piece tree (1 unit per typed character), not for the source, because the public `Source()` is one contiguous string per revision: one full copy per edit remains (128 KiB at 64 Ki units, two before). Imported records are shifted by a walk (about 5,400 nodes per insert on the full document), because the public node, inline and lexeme vectors hold absolute ranges. The reuse state travels in the publication's deleter, because the public header was left untouched. A typed character still makes 8,515 allocations on the full document (13,651 before). A character typed in a table cell reparses the inlines of the whole table. `FX8` has no list or front matter, so those two kinds are measured on its text with both added. | `W7.1` part 2 with API revision 6 (block-relative storage, the reuse state as a member); `W7.5` (tables) |
 | `W7.2` | An independent review, with its own generator and about 1.73 million compared edits, confirmed one remaining class of wrong trees: a block after the edit was reused although, in the previous parse, it had begun in the middle of a paragraph (a lone `-` after a link reference definition; a table whose header row was a paragraph's last line). It was older than this item on the editor's path and newly reached callers that pass strings. The fix states the rule's real precondition instead of the shapes: a block is reused only if it began with no document-level leaf or table row open, and only if the line after it also began that way; the author's own 200,000-edit run then found a third shape the narrower rule would have missed (a paragraph still open when the next line became a table header). The oracle now also runs the reviewer's generator: 474,584 compared edits in Release without a difference. Whole-document work that remains per edit and is now counted instead of claimed away: reference definitions are read again on every edit (a block holding one is never reused); a document without definitions, as `FX8`, reads none. That a line starting a top-level block behaves as a fresh start whatever containers were open is argued from the code and supported by the runs, not proved. | `W7.5` or a later item if documents with many reference definitions matter |
+| `W4.0` | Closed as a no-go by the developer on 23 November 2026: three go criteria were met and the third failed, replay costing 0.85 to 1.07 of painting on hardware against at most half. No library code landed. `W4.1`, `W4.2`, `W4.4` and `W4.5` close unbuilt; `W4.3`, `W4.6` and `W4.8` close as written and `W4.10` builds their paint-based form; `W4.7` and `W4.9` stay open on the region of `W4.10`. `FX5` has no `Button`, and `CardPanel` has no shadow, so the item's three kinds were not the effect-heavy ones: the effect cost is the popup and transient-surface elevation. | `W4.10`, then `W4.7` and `W4.9` |
+| `W4.0` | The prototype is kept on a local branch of the implementation worktree, `pm/w4-0-spike-code`, with its oracle scripts, its per-control benchmark and a same-binary comparison switch for `performance-timing.ps1`. Tested on WARP only, not on hardware: that a command list keeps brushes by value, and that `DrawImage` of a list draws ClearType text grayscale on the opaque window target. The mask that retains every leaf kind never ran on the window host. The memory of a list (about 2.4 to 2.7 KB) was measured once. | `W4.10` takes the benchmark and the switch as test infrastructure; the branch is deleted at closeout |
+| `W4.0` | The spike's window-host interaction script hovers where the embedded one presses. Its author saw `TestNativeIncrementalParityInteraction` fail at step 2 with a focus-state difference when the test program was started outside the suite runner, with the spike off as well. Inside the `Rendering` suite under `test.ps1` the test passes on the same commit. The cause is not established; it looks like a dependency on which hidden window holds Win32 focus. | `W4.10`, which needs the native interaction oracle after every partial frame |
 
 ## Decisions carried into this plan
 
