@@ -1,0 +1,25 @@
+{"layoutExperiment":true,"refsBefore":1,"refsAfter":1,"replayAfterReleaseDifferingPixels":0,"translatedDifferingPixels":0}
+{"clearTypeExperiment":"CLEARTYPE","directFringed":23999,"replayFringed":24000,"differingPixels":1602}
+{"clearTypeExperiment":"DEFAULT","directFringed":23999,"replayFringed":24000,"differingPixels":1602}
+{"list":"card label","commands":15,"glyphRuns":2,"glyphs":15,"geometries":0,"rectangles":0,"images":0,"clipsAndLayers":2,"stateChanges":11,"other":0,"brushesByReference":false}
+{"list":"card chrome","commands":12,"glyphRuns":0,"glyphs":0,"geometries":2,"rectangles":0,"images":0,"clipsAndLayers":0,"stateChanges":10,"other":0,"brushesByReference":false}
+{"list":"button","commands":16,"glyphRuns":1,"glyphs":8,"geometries":1,"rectangles":0,"images":0,"clipsAndLayers":2,"stateChanges":12,"other":0,"brushesByReference":false}
+{"list":"hyperlink","commands":15,"glyphRuns":1,"glyphs":11,"geometries":0,"rectangles":0,"images":0,"clipsAndLayers":2,"stateChanges":12,"other":0,"brushesByReference":false}
+{"list":"icon button","commands":12,"glyphRuns":0,"glyphs":0,"geometries":1,"rectangles":0,"images":0,"clipsAndLayers":0,"stateChanges":11,"other":0,"brushesByReference":false}
+{"list":"shortcut button","commands":20,"glyphRuns":2,"glyphs":10,"geometries":3,"rectangles":0,"images":0,"clipsAndLayers":4,"stateChanges":11,"other":0,"brushesByReference":false}
+{"list":"multiline label","commands":17,"glyphRuns":3,"glyphs":71,"geometries":0,"rectangles":0,"images":0,"clipsAndLayers":2,"stateChanges":12,"other":0,"brushesByReference":false}
+{"mask":0,"phase":"warm","frames":20,"paintExecutions":1660,"records":0,"replays":0,"treeVisitsPaint":1660}
+{"mask":0,"phase":"clean","frames":40,"paintExecutions":3320,"records":0,"replays":0,"treeVisitsPaint":3320}
+{"mask":0,"phase":"dirty","frames":40,"paintExecutions":3320,"records":0,"replays":0,"treeVisitsPaint":3320}
+{"mask":0,"phase":"hover","frames":20,"paintExecutions":1660,"records":0,"replays":0,"treeVisitsPaint":1660}
+{"mask":7,"phase":"warm","frames":20,"paintExecutions":1052,"records":32,"replays":608,"treeVisitsPaint":1660}
+{"mask":7,"phase":"clean","frames":40,"paintExecutions":2040,"records":0,"replays":1280,"treeVisitsPaint":3320}
+{"mask":7,"phase":"dirty","frames":40,"paintExecutions":2040,"records":0,"replays":1280,"treeVisitsPaint":3320}
+{"mask":7,"phase":"hover","frames":20,"paintExecutions":1020,"records":0,"replays":640,"treeVisitsPaint":1660}
+{"mask":63,"phase":"warm","frames":20,"paintExecutions":748,"records":688,"replays":912,"treeVisitsPaint":1660}
+{"mask":63,"phase":"clean","frames":40,"paintExecutions":120,"records":0,"replays":3200,"treeVisitsPaint":3320}
+{"mask":63,"phase":"dirty","frames":40,"paintExecutions":1400,"records":1280,"replays":1920,"treeVisitsPaint":3320}
+{"mask":63,"phase":"hover","frames":20,"paintExecutions":99,"records":39,"replays":1561,"treeVisitsPaint":1660}
+{"memoryKind":"Label","lists":2000,"privateBytesDelta":4797883}
+{"memoryKind":"Button","lists":2000,"privateBytesDelta":5229883}
+{"memoryKind":"CardPanel","lists":2000,"privateBytesDelta":5437707}

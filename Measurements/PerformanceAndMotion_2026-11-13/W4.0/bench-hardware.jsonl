@@ -1,0 +1,90 @@
+{"round":0,"kind":"Label","mode":"empty","frames":46668,"medianPrepareCycles":18456,"medianSubmitUs":5.90,"medianGpuPrepareUs":16.54,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"Label","mode":"skip","frames":15366,"medianPrepareCycles":333917,"medianSubmitUs":80.60,"medianGpuPrepareUs":99.78,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"Label","mode":"paint","frames":1911,"medianPrepareCycles":4142638,"medianSubmitUs":969.20,"medianGpuPrepareUs":1002.02,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"Label","mode":"replay","frames":2226,"medianPrepareCycles":3553346,"medianSubmitUs":831.80,"medianGpuPrepareUs":862.86,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"Label","mode":"tile","frames":3809,"medianPrepareCycles":1977754,"medianSubmitUs":462.90,"medianGpuPrepareUs":489.41,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"Label","mode":"stream","frames":1622,"medianPrepareCycles":4930220,"medianSubmitUs":1154.70,"medianGpuPrepareUs":1187.25,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"Button","mode":"empty","frames":48286,"medianPrepareCycles":18027,"medianSubmitUs":5.70,"medianGpuPrepareUs":16.64,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"Button","mode":"skip","frames":16070,"medianPrepareCycles":311170,"medianSubmitUs":74.20,"medianGpuPrepareUs":90.62,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"Button","mode":"paint","frames":1000,"medianPrepareCycles":8530780,"medianSubmitUs":1992.90,"medianGpuPrepareUs":1836.78,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"Button","mode":"replay","frames":1203,"medianPrepareCycles":7067207,"medianSubmitUs":1651.80,"medianGpuPrepareUs":1428.99,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"Button","mode":"tile","frames":3365,"medianPrepareCycles":2182482,"medianSubmitUs":511.50,"medianGpuPrepareUs":555.14,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"Button","mode":"stream","frames":1000,"medianPrepareCycles":8827786,"medianSubmitUs":2062.40,"medianGpuPrepareUs":1962.13,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"CardPanel","mode":"empty","frames":40467,"medianPrepareCycles":27039,"medianSubmitUs":8.90,"medianGpuPrepareUs":22.27,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"CardPanel","mode":"skip","frames":12488,"medianPrepareCycles":434780,"medianSubmitUs":103.20,"medianGpuPrepareUs":125.23,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"CardPanel","mode":"paint","frames":1000,"medianPrepareCycles":8387641,"medianSubmitUs":1979.55,"medianGpuPrepareUs":2182.83,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"CardPanel","mode":"replay","frames":1000,"medianPrepareCycles":9185310,"medianSubmitUs":2154.05,"medianGpuPrepareUs":2364.43,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"CardPanel","mode":"tile","frames":3134,"medianPrepareCycles":2317680,"medianSubmitUs":543.70,"medianGpuPrepareUs":587.23,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":0,"kind":"CardPanel","mode":"stream","frames":1000,"medianPrepareCycles":10032121,"medianSubmitUs":2353.20,"medianGpuPrepareUs":2547.46,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"Label","mode":"stream","frames":1480,"medianPrepareCycles":5179157,"medianSubmitUs":1214.20,"medianGpuPrepareUs":1255.60,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"Label","mode":"tile","frames":3301,"medianPrepareCycles":2250296,"medianSubmitUs":527.80,"medianGpuPrepareUs":564.03,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"Label","mode":"replay","frames":2043,"medianPrepareCycles":3752496,"medianSubmitUs":880.10,"medianGpuPrepareUs":916.83,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"Label","mode":"paint","frames":1812,"medianPrepareCycles":4257664,"medianSubmitUs":997.90,"medianGpuPrepareUs":1034.40,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"Label","mode":"skip","frames":13515,"medianPrepareCycles":393576,"medianSubmitUs":94.00,"medianGpuPrepareUs":112.80,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"Label","mode":"empty","frames":36871,"medianPrepareCycles":27898,"medianSubmitUs":9.10,"medianGpuPrepareUs":25.38,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"Button","mode":"stream","frames":1000,"medianPrepareCycles":9948642,"medianSubmitUs":2329.45,"medianGpuPrepareUs":2307.97,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"Button","mode":"tile","frames":3218,"medianPrepareCycles":2249008,"medianSubmitUs":527.70,"medianGpuPrepareUs":569.98,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"Button","mode":"replay","frames":1048,"medianPrepareCycles":8030976,"medianSubmitUs":1877.85,"medianGpuPrepareUs":1737.01,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"Button","mode":"paint","frames":1000,"medianPrepareCycles":9432958,"medianSubmitUs":2206.55,"medianGpuPrepareUs":2290.74,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"Button","mode":"skip","frames":13144,"medianPrepareCycles":387138,"medianSubmitUs":92.50,"medianGpuPrepareUs":111.17,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"Button","mode":"empty","frames":38476,"medianPrepareCycles":21031,"medianSubmitUs":6.50,"medianGpuPrepareUs":19.94,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"CardPanel","mode":"stream","frames":1000,"medianPrepareCycles":10102510,"medianSubmitUs":2366.40,"medianGpuPrepareUs":2578.70,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"CardPanel","mode":"tile","frames":2737,"medianPrepareCycles":2382489,"medianSubmitUs":562.20,"medianGpuPrepareUs":642.30,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"CardPanel","mode":"replay","frames":1000,"medianPrepareCycles":9339392,"medianSubmitUs":2187.90,"medianGpuPrepareUs":2416.80,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"CardPanel","mode":"paint","frames":1000,"medianPrepareCycles":8637650,"medianSubmitUs":2026.90,"medianGpuPrepareUs":2252.96,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"CardPanel","mode":"skip","frames":12099,"medianPrepareCycles":459674,"medianSubmitUs":109.40,"medianGpuPrepareUs":128.19,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":1,"kind":"CardPanel","mode":"empty","frames":44470,"medianPrepareCycles":20602,"medianSubmitUs":6.40,"medianGpuPrepareUs":18.66,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"Label","mode":"empty","frames":41536,"medianPrepareCycles":21460,"medianSubmitUs":6.50,"medianGpuPrepareUs":18.53,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"Label","mode":"skip","frames":13813,"medianPrepareCycles":378554,"medianSubmitUs":90.40,"medianGpuPrepareUs":109.22,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"Label","mode":"paint","frames":1799,"medianPrepareCycles":4276120,"medianSubmitUs":1005.70,"medianGpuPrepareUs":1041.66,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"Label","mode":"replay","frames":2084,"medianPrepareCycles":3626310,"medianSubmitUs":850.95,"medianGpuPrepareUs":885.94,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"Label","mode":"tile","frames":3254,"medianPrepareCycles":2250725,"medianSubmitUs":528.00,"medianGpuPrepareUs":564.85,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"Label","mode":"stream","frames":1523,"medianPrepareCycles":5089025,"medianSubmitUs":1193.80,"medianGpuPrepareUs":1233.18,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"Button","mode":"empty","frames":44350,"medianPrepareCycles":20602,"medianSubmitUs":6.40,"medianGpuPrepareUs":18.43,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"Button","mode":"skip","frames":12917,"medianPrepareCycles":379412,"medianSubmitUs":90.60,"medianGpuPrepareUs":110.50,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"Button","mode":"paint","frames":1000,"medianPrepareCycles":9475018,"medianSubmitUs":2218.10,"medianGpuPrepareUs":2228.00,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"Button","mode":"replay","frames":1034,"medianPrepareCycles":8096000,"medianSubmitUs":1896.30,"medianGpuPrepareUs":1714.26,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"Button","mode":"tile","frames":3157,"medianPrepareCycles":2255875,"medianSubmitUs":529.30,"medianGpuPrepareUs":571.01,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"Button","mode":"stream","frames":1000,"medianPrepareCycles":10222042,"medianSubmitUs":2391.90,"medianGpuPrepareUs":2489.76,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"CardPanel","mode":"empty","frames":45212,"medianPrepareCycles":20602,"medianSubmitUs":6.40,"medianGpuPrepareUs":19.26,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"CardPanel","mode":"skip","frames":12102,"medianPrepareCycles":467398,"medianSubmitUs":111.10,"medianGpuPrepareUs":130.02,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"CardPanel","mode":"paint","frames":1000,"medianPrepareCycles":8408458,"medianSubmitUs":1972.00,"medianGpuPrepareUs":2160.30,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"CardPanel","mode":"replay","frames":1000,"medianPrepareCycles":9006547,"medianSubmitUs":2110.00,"medianGpuPrepareUs":2302.75,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"CardPanel","mode":"tile","frames":3117,"medianPrepareCycles":2323260,"medianSubmitUs":545.00,"medianGpuPrepareUs":587.23,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":2,"kind":"CardPanel","mode":"stream","frames":1000,"medianPrepareCycles":10059375,"medianSubmitUs":2359.00,"medianGpuPrepareUs":2559.62,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"Label","mode":"stream","frames":1550,"medianPrepareCycles":5072500,"medianSubmitUs":1190.20,"medianGpuPrepareUs":1226.94,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"Label","mode":"tile","frames":3269,"medianPrepareCycles":2249437,"medianSubmitUs":527.60,"medianGpuPrepareUs":564.90,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"Label","mode":"replay","frames":2021,"medianPrepareCycles":3713010,"medianSubmitUs":873.10,"medianGpuPrepareUs":910.91,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"Label","mode":"paint","frames":1625,"medianPrepareCycles":4444795,"medianSubmitUs":1044.20,"medianGpuPrepareUs":1094.85,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"Label","mode":"skip","frames":12541,"medianPrepareCycles":483279,"medianSubmitUs":114.90,"medianGpuPrepareUs":131.14,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"Label","mode":"empty","frames":43747,"medianPrepareCycles":22318,"medianSubmitUs":6.70,"medianGpuPrepareUs":19.33,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"Button","mode":"stream","frames":1000,"medianPrepareCycles":14703104,"medianSubmitUs":3436.90,"medianGpuPrepareUs":2796.38,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"Button","mode":"tile","frames":2731,"medianPrepareCycles":2404808,"medianSubmitUs":567.20,"medianGpuPrepareUs":640.80,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"Button","mode":"replay","frames":1000,"medianPrepareCycles":8118747,"medianSubmitUs":1905.80,"medianGpuPrepareUs":1966.54,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"Button","mode":"paint","frames":1000,"medianPrepareCycles":12465685,"medianSubmitUs":2937.65,"medianGpuPrepareUs":2473.14,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"Button","mode":"skip","frames":11385,"medianPrepareCycles":530062,"medianSubmitUs":127.20,"medianGpuPrepareUs":119.36,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"Button","mode":"empty","frames":43593,"medianPrepareCycles":22318,"medianSubmitUs":6.80,"medianGpuPrepareUs":18.78,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"CardPanel","mode":"stream","frames":1000,"medianPrepareCycles":15682539,"medianSubmitUs":3665.75,"medianGpuPrepareUs":3823.34,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"CardPanel","mode":"tile","frames":2290,"medianPrepareCycles":3700348,"medianSubmitUs":866.70,"medianGpuPrepareUs":918.43,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"CardPanel","mode":"replay","frames":1000,"medianPrepareCycles":9098612,"medianSubmitUs":2133.75,"medianGpuPrepareUs":2334.43,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"CardPanel","mode":"paint","frames":1000,"medianPrepareCycles":12571268,"medianSubmitUs":2940.10,"medianGpuPrepareUs":3053.55,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"CardPanel","mode":"skip","frames":11601,"medianPrepareCycles":466111,"medianSubmitUs":111.00,"medianGpuPrepareUs":130.11,"adapter":"NVIDIA GeForce RTX 5080"}
+{"round":3,"kind":"CardPanel","mode":"empty","frames":35623,"medianPrepareCycles":32619,"medianSubmitUs":10.80,"medianGpuPrepareUs":26.72,"adapter":"NVIDIA GeForce RTX 5080"}
+{"perControl":true,"kind":"Label","mode":"empty","controls":800,"prepareCyclesPerControl":0.0,"submitNsPerControl":0.0,"gpuPrepareNsPerControl":0.0,"ratioToPaint":0.000,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"Label","mode":"skip","controls":800,"prepareCyclesPerControl":455.2,"submitNsPerControl":107.0,"gpuPrepareNsPerControl":115.1,"ratioToPaint":0.086,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"Label","mode":"paint","controls":800,"prepareCyclesPerControl":5306.3,"submitNsPerControl":1244.0,"gpuPrepareNsPerControl":1273.9,"ratioToPaint":1.000,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"Label","mode":"replay","controls":800,"prepareCyclesPerControl":4559.7,"submitNsPerControl":1069.3,"gpuPrepareNsPerControl":1099.4,"ratioToPaint":0.859,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"Label","mode":"tile","controls":800,"prepareCyclesPerControl":2785.0,"submitNsPerControl":651.4,"gpuPrepareNsPerControl":681.9,"ratioToPaint":0.525,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"Label","mode":"stream","controls":800,"prepareCyclesPerControl":6323.6,"submitNsPerControl":1481.8,"gpuPrepareNsPerControl":1513.9,"ratioToPaint":1.192,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"Button","mode":"empty","controls":800,"prepareCyclesPerControl":0.0,"submitNsPerControl":0.0,"gpuPrepareNsPerControl":0.0,"ratioToPaint":0.000,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"Button","mode":"skip","controls":800,"prepareCyclesPerControl":453.1,"submitNsPerControl":106.4,"gpuPrepareNsPerControl":115.3,"ratioToPaint":0.038,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"Button","mode":"paint","controls":800,"prepareCyclesPerControl":11791.5,"submitNsPerControl":2757.3,"gpuPrepareNsPerControl":2800.9,"ratioToPaint":1.000,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"Button","mode":"replay","controls":800,"prepareCyclesPerControl":10053.3,"submitNsPerControl":2350.8,"gpuPrepareNsPerControl":2133.8,"ratioToPaint":0.853,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"Button","mode":"tile","controls":800,"prepareCyclesPerControl":2789.5,"submitNsPerControl":652.6,"gpuPrepareNsPerControl":689.9,"ratioToPaint":0.237,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"Button","mode":"stream","controls":800,"prepareCyclesPerControl":12580.7,"submitNsPerControl":2942.8,"gpuPrepareNsPerControl":2975.3,"ratioToPaint":1.067,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"CardPanel","mode":"empty","controls":800,"prepareCyclesPerControl":0.0,"submitNsPerControl":0.0,"gpuPrepareNsPerControl":0.0,"ratioToPaint":0.000,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"CardPanel","mode":"skip","controls":800,"prepareCyclesPerControl":548.8,"submitNsPerControl":128.2,"gpuPrepareNsPerControl":135.4,"ratioToPaint":0.052,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"CardPanel","mode":"paint","controls":800,"prepareCyclesPerControl":10624.0,"submitNsPerControl":2494.5,"gpuPrepareNsPerControl":2746.4,"ratioToPaint":1.000,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"CardPanel","mode":"replay","controls":800,"prepareCyclesPerControl":11397.7,"submitNsPerControl":2670.3,"gpuPrepareNsPerControl":2910.8,"ratioToPaint":1.073,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"CardPanel","mode":"tile","controls":800,"prepareCyclesPerControl":2911.3,"submitNsPerControl":682.4,"gpuPrepareNsPerControl":742.5,"ratioToPaint":0.274,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}
+{"perControl":true,"kind":"CardPanel","mode":"stream","controls":800,"prepareCyclesPerControl":12571.4,"submitNsPerControl":2943.8,"gpuPrepareNsPerControl":3185.5,"ratioToPaint":1.183,"drawCallsPerFrame":0.0,"paintExecutionsPerFrame":0.0}

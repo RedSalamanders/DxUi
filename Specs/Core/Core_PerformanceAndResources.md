@@ -1133,6 +1133,27 @@ FX13 21 layouts (about 0.4 MB), FX5 34 (about 0.65 MB), FX1 none. Releasing it w
 planned with `W9.2`. Text measurement reads the first line's metrics into a 16-line stack buffer, so a `Label`
 measure makes no C++ allocation; text with more lines reads them into a heap buffer (`text.lineMetricsHeapFallbacks`).
 
+### Retained drawing
+
+Hosts do not retain a control's drawing as an `ID2D1CommandList`: every visible control a frame paints runs its `Paint`.
+The developer decided this on 23 November 2026 from the `W4.0` spike
+([receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W4.0/README.md)), which met three of its four go criteria
+and failed the one that matters. Replaying a recorded list with `DrawImage` cost 0.85 to 1.07 of painting the control on
+hardware (`Label`, `Button`, `CardPanel`, 800 controls at 4K), because Direct2D keeps nothing rasterized for a command
+list and submits every recorded primitive again; FX5 frames were not faster with the item's kinds retained and 7 to 8%
+slower with every leaf kind retained. On the opaque window-host target `DrawImage` of a list also draws ClearType text
+grayscale; streaming the list's commands back into the context (`ID2D1CommandList::Stream`) keeps ClearType exactly but
+costs 1.07 to 1.19 of painting. What does remove the Direct2D cost of an unchanged control is not drawing it (0.04 to 0.09
+of painting) or drawing a bitmap tile of it (0.24 to 0.53 of painting, about 36 KB per 90×24 DIP control at 192 DPI). The
+replacement, plan item `W4.10`, is not implemented yet: region invalidation with overhang each control declares per state,
+culling of children outside the paint clip, and raster tiles for effect-heavy content only, under the surface budgets
+this contract states.
+
+Facts the spike established for any later design: a command list keeps brushes by value (a brush changed after
+recording does not change the list), and it holds text as glyph runs, not as the `IDWriteTextLayout` that drew them, so a
+recorded list replays identically after the layout is released; a list translated by whole device pixels draws text at
+exactly the positions `DrawTextLayout` draws at the translated origin.
+
 ### I19 accepted resource trade-off
 
 On 2026-09-13 the user accepted the measured static-library adoption trade-off and

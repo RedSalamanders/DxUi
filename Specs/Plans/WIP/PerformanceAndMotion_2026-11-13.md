@@ -815,7 +815,7 @@ Purpose: stop running `Paint` for controls that did not change and stop repainti
 one-week spike decides the mechanism. Exit: `G2` and `G4` met on `FX5`; `W4.5` verifier clean across the Controls and
 Embedded suites; or, on a no-go, `W4.10` gates met.
 
-- [ ] **W4.0 Spike and go/no-go.**
+- [x] **W4.0 Spike and go/no-go.**
   - **Why**: every dirty frame paints every visible control: native clips, clears and paints the whole tree
     (`DxUi.WindowHost.cpp:5105-5137`), embedded clears and repaints the whole surface (`src/Rendering/Embedded.cpp:631,
     641`); one hover change on `FX5` costs 83 `Paint` executions and 54 allocations (`G2`, `G3`).
