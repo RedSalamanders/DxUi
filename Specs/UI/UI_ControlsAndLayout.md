@@ -1308,23 +1308,25 @@ evidence pass in all three x64 profiles, with all ARM64 cross-builds and tooling
 The [qualification packet](../../Measurements/RichText/README.md)
 retains original failures and exact source/artifact bindings. It provides no shared
 worker, arbitrary-thread DirectWrite access or complete Markdown engine.
-The qualified positioned-line implementation seeds each noninitial layout with an invisible
-DirectWrite inline object and line break. The two private UTF-16 units never enter
-source/display maps, Unicode navigation or text-service content. DirectWrite
-accumulates real lines in document coordinates and draws every chunk at the same
-origin, preserving its mixed-font caret and color-font behavior. Reuse requires
-the same vertical origin; a height-changing edit rebuilds dependent suffixes and
-reports all that work. An inexact synthetic line or an empty displayed suffix
-retains canonical whole geometry, including terminal-font behavior.
-Source presentation with an explicit uniform line-height multiplier instead uses
-unprefixed chunk layouts and prepares each line's local/document baseline. Continuation
-origins, document height and line baselines retain DirectWrite's sequential
-single-precision accumulation; adding a chunk-local total to its origin is insufficient.
-Drawing maps the prepared baseline before target-DPI snapping, including horizontal
-skew, and shares the existing prepared font/color renderer. Hit testing, carets and
-selection rectangles use the same prepared line placement. Same-origin chunks remain reusable after
-an edit; uniform Source spacing MUST NOT force whole-document shaping. Rich v0
-uniform spacing retains its separate compatibility path for mixed styles.
+Chunks are position-independent (W7.3): each DirectWrite chunk layout is laid out
+at its own origin 0 from exactly its projection text, with no private units, and the
+document places it at the double-precision sum of the line heights of the chunks before it,
+rounded once to single precision. Carets, hit tests, selection rectangles, visible ranges and drawing add that
+placement, so every consumer of absolute positions (paint and clipping, caret and
+selection, scrolling and anchoring, find, UI Automation ranges and rectangles, IME
+candidate rectangles, drag selection) receives document coordinates, now measured from the
+exact sum of line heights (the line-top bound of
+[performance and resources](../Core/Core_PerformanceAndResources.md)). An unchanged chunk
+is reused whatever its new position, so a height-changing edit re-lays only the chunks
+containing it. An explicit line-height multiplier, in Source and in Rich v0 alike, and
+any script run space every chunk with the whole document's largest run size and script
+flag, as one whole layout would; uniform spacing MUST NOT force whole-document shaping.
+An empty displayed suffix after other chunks retains canonical whole geometry,
+including terminal-font behavior. Chunks meeting the owner's viewport are laid first and
+published first as a partial publication, every other chunk standing in as its previous or
+stale geometry or an estimated placeholder; a partial publication is not current for any
+geometry consumer and only paints its laid chunks, as stated in
+[performance and resources](../Core/Core_PerformanceAndResources.md).
 Private semantic DirectWrite preparation consumes bounded display text and runs without fabricating source identity arrays; public Projection preparation retains its strict source mapping validation. Semantic staging remains transactional, and matching public headers and library builds remain required.
 
 Semantic paint stages order-preserving viewport interval indexes for box frames, element decorations, code numbers, heading rules and table rows as part of its unpublished geometry. Draw queries them without allocation and preserves authored paint order even for overlapping bounds. The query includes a 3-DIP paint outset so strokes and antialiasing crossing a viewport edge remain visible; rebuilding an index stages its replacement before publication. Application-supplied decoration rectangles use the same order-preserving interval index to cull offscreen work. Selection normally uses the prepared union mask and draws one viewport pass; if that resource is unavailable, its per-rectangle fallback remains correct and benefits from indexed viewport culling, but may redraw a box more than once.

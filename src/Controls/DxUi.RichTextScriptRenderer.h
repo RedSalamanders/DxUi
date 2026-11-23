@@ -21,27 +21,13 @@ struct ScriptDecoration final
 {
     float left{}, right{}, baseline{}, offset{};
 };
-struct UniformSourceLine final
-{
-    // DirectWrite sums float line heights in document order. Retain those
-    // coordinates rather than reassociating a chunk-local total in Draw.
-    std::size_t first{};
-    float localTop{}, documentTop{}, localBaseline{}, documentBaseline{};
-};
-inline const UniformSourceLine& UniformLineAt(std::span<const UniformSourceLine> lines, std::size_t position) noexcept
-{
-    const auto after =
-        std::upper_bound(lines.begin(), lines.end(), position, [](std::size_t value, const UniformSourceLine& line) { return value < line.first; });
-    return after == lines.begin() ? lines.front() : *std::prev(after);
-}
 struct ScriptMetadata final
 {
-    ScriptMetadata() : fonts(0u), decorations(0u), uniformSourceLines(0u)
+    ScriptMetadata() : fonts(0u), decorations(0u)
     {
     }
     std::vector<ScriptFont> fonts;
     std::vector<ScriptDecoration> decorations;
-    std::vector<UniformSourceLine> uniformSourceLines;
     bool requiresColor{}, unsupported{};
 };
 // The layout and every effect brush are borrowed for one synchronous draw.
@@ -165,8 +151,6 @@ public:
                     result_ = DWRITE_E_UNSUPPORTEDOPERATION;
                 return S_OK;
             }
-        if (! staging_ && ! metadata_.uniformSourceLines.empty())
-            y = SnapY(origin_.y + UniformLineAt(metadata_.uniformSourceLines, first).documentBaseline, true);
         y += Offset(flags, glyphs->fontEmSize);
         if (! glyphs->fontFace)
         {
@@ -236,7 +220,7 @@ public:
             return S_OK;
         }
         const auto decorationOffset = DecorationOffset(x, y);
-        y                           = UniformBaseline(y) + decorationOffset;
+        y += decorationOffset;
         Stroke(x, y + line->offset, line->width, line->thickness, ink);
         return S_OK;
     }
@@ -256,7 +240,7 @@ public:
             return S_OK;
         }
         const auto decorationOffset = DecorationOffset(x, y);
-        y                           = SnapY(UniformBaseline(y)) + decorationOffset;
+        y                           = SnapY(y) + decorationOffset;
         target_->FillRectangle(D2D1::RectF(x, y + line->offset, x + line->width, y + line->offset + line->thickness), ink);
         return S_OK;
     }
@@ -378,18 +362,6 @@ private:
         if (! effect)
             return brush_;
         return SUCCEEDED(effect->QueryInterface(IID_PPV_ARGS(effectBrush_.put()))) ? effectBrush_.get() : nullptr;
-    }
-    float UniformBaseline(float y) const noexcept
-    {
-        const auto& lines = metadata_.uniformSourceLines;
-        if (lines.empty())
-            return y;
-        const auto local = y - origin_.y;
-        auto line =
-            std::lower_bound(lines.begin(), lines.end(), local, [](const UniformSourceLine& value, float baseline) { return value.localBaseline < baseline; });
-        if (line == lines.end() || (line != lines.begin() && local - std::prev(line)->localBaseline < line->localBaseline - local))
-            --line;
-        return origin_.y + line->documentBaseline;
     }
     ID2D1RenderTarget* target_{};
     ID2D1Brush* brush_{};

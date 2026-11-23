@@ -1104,18 +1104,21 @@ or preparing the clone does not change the original. Full shared scheduling,
 complete Markdown/extensions and platform/performance acceptance remain pending.
 
 The implementation reserves one of its 128 geometry slots for a canonical whole-layout
-compatibility cache. The qualified positioned-line implementation prepends an invisible
-origin line inside noninitial DirectWrite layouts. Its private UTF-16 units never
-enter source/display mappings or text-service content. DirectWrite calculates
-real lines in document coordinates and draws every chunk at the same origin.
-Reuse requires the same origin: height-changing edits can rebuild the dependent
-suffix. Inexact origin lines and empty displayed suffixes retain whole geometry
-to preserve terminal-font behavior.
-An explicit Source line-height multiplier uses translated chunks instead of a
-synthetic origin line, so ordinary edits reuse unchanged same-origin geometry.
-Drawing, carets, hit tests and selection rectangles use the same translation;
-whole-layout work remains visible in the existing diagnostics. Rich v0 uniform
-spacing keeps its mixed-style compatibility path.
+compatibility cache. Each chunk is laid out at its own origin and placed at the sum
+of the heights of the chunks before it; carets, hit tests, selection rectangles and
+drawing add that offset. Line tops follow the exact sum of the line heights (within 1/64 DIP
+below 2^17 DIP), where one whole layout drifts slightly through single-precision accumulation. An
+unchanged chunk is reused wherever it moves, so typing or pressing Enter re-lays at
+most the chunks that contain the edit. An explicit line-height multiplier, in Source
+and Rich alike, uses the same chunks, spaced with the whole document's largest font
+size. An empty displayed suffix retains whole geometry to preserve terminal-font
+behavior. The editor names its viewport while it prepares: chunks it shows (plus one
+viewport of overscan) are laid first and painted before any off-screen chunk is laid,
+whether the document is new, reflowed or edited. Until the rest is laid the editor's
+geometry is not current: caret, selection, find, scrolling, UI Automation and text-input
+rectangles wait as for any pending preparation, and the first visible line keeps its place.
+Long documents can differ from one whole layout by a device pixel where that layout's own
+single-precision line tops have drifted.
 `UsesWholeGeometry()`, `UsesWholeRaster()` and the separate whole-layout preparation,
 reuse and source-unit statistics make that work visible. Prefix indexing remains
 linear in line count. Positioned lines pass all three x64 profiles and ARM64

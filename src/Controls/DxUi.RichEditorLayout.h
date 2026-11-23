@@ -1,8 +1,10 @@
 #pragma once
+#include "DxUi.RichLayoutOptions.h"
 #include "DxUi.RichSemanticGeometry.h"
 #include "Support/WorkCounters.h"
 #include <optional>
 #include <string_view>
+#include <utility>
 
 namespace DxUi::RichText::Detail
 {
@@ -52,12 +54,43 @@ public:
     {
         return beginResult_;
     }
-    LayoutAdvance AdvancePreparation(LayoutWorkBudget budget = {})
+    // The viewport (document DIPs, read again on every advance) orders v0 chunk preparation: chunks meeting it are laid
+    // first and published as a partial publication before any other chunk (W7.3).
+    LayoutAdvance AdvancePreparation(LayoutWorkBudget budget = {}, const DocumentViewport& viewport = {})
     {
-        auto result = requestedSemantic_ ? semantic_.Advance(budget) : v0_.AdvancePreparation(budget);
+        const auto before = v0_.Generation();
+        LayoutAdvance result;
+        if (requestedSemantic_)
+            result = semantic_.Advance(budget);
+        else
+            result = PreparedDocumentLayoutAccess::Advance(v0_, budget, viewport);
         if (result.status == LayoutPreparationStatus::Complete)
             Publish();
+        else if (result.status == LayoutPreparationStatus::Pending && ! requestedSemantic_ && PreparedDocumentLayoutAccess::Partial(v0_) &&
+                 v0_.Generation() != before)
+        {
+            Publish();
+            viewportPublication_ = true;
+        }
         return result;
+    }
+    // True once after an advance published the viewport's chunks while the rest of the preparation continues.
+    bool TakeViewportPublication() noexcept
+    {
+        return std::exchange(viewportPublication_, false);
+    }
+    // The published v0 geometry is a partial publication: not Ready(), drawable in its laid chunks only.
+    bool Partial() const noexcept
+    {
+        return ! activeSemantic_ && PreparedDocumentLayoutAccess::Partial(v0_);
+    }
+    [[nodiscard]] HRESULT DrawPartial(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float top, float bottom) const
+    {
+        return Partial() ? PreparedDocumentLayoutAccess::DrawPartial(v0_, target, brush, origin, top, bottom) : E_UNEXPECTED;
+    }
+    [[nodiscard]] HRESULT PartialSourceTop(std::size_t source, float& y) const
+    {
+        return Partial() ? PreparedDocumentLayoutAccess::PartialSourceTop(v0_, source, y) : E_UNEXPECTED;
     }
     std::span<const NativeObjectRejection> RejectedNativeObjects() const noexcept
     {
@@ -72,13 +105,14 @@ public:
     {
         v0_.Invalidate();
         semantic_.Invalidate();
+        viewportPublication_ = false;
     }
     void Clear() noexcept
     {
         v0_.Clear();
         semantic_.Clear();
         activeSemantic_ = requestedSemantic_ = false;
-        hasPublication_                      = false;
+        hasPublication_ = viewportPublication_ = false;
         ++generation_;
     }
     bool Ready() const noexcept
@@ -435,7 +469,7 @@ private:
     PreparedDocumentLayout v0_;
     PreparedSemanticGeometry semantic_;
     std::uint64_t generation_{}, targetGeneration_{};
-    bool activeSemantic_{}, requestedSemantic_{}, hasPublication_{};
+    bool activeSemantic_{}, requestedSemantic_{}, hasPublication_{}, viewportPublication_{};
 };
 #pragma warning(pop)
 } // namespace DxUi::RichText::Detail

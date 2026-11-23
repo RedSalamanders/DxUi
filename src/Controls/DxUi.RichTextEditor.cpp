@@ -631,6 +631,14 @@ struct RichTextEditor::State
         uint64_t binding{};
     };
     std::optional<ViewportAnchor> viewportAnchor;
+    // A partial (viewport-first, W7.3) v0 publication being shown: only Paint reads it, at this scroll offset, while the
+    // layout is not current for anything else.
+    struct PartialView
+    {
+        uint64_t revision{}, binding{}, typography{}, resources{};
+        float width{}, scrollDip{};
+    };
+    std::optional<PartialView> partialView;
     bool readOnly                             = false;
     RichTextTaskTogglePolicy taskTogglePolicy = RichTextTaskTogglePolicy::EditableOnly;
     bool suppressTaskSpace                    = false;
@@ -4308,6 +4316,7 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
             state.layout.Invalidate();
             state.requestActive = false;
         }
+        // A viewport-first publication (W7.3) is current while the rest of its preparation continues below.
         if (LayoutIsCurrent(host))
         {
             prepareSemanticBrushes();
@@ -4541,6 +4550,18 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
         {
             if (state.layout.HasPendingPreparation())
                 ++state.cancelledPreparations;
+            // A v0 reflow of the same source (width, typography): keep the first visible source line where it is, in the
+            // partial publication and at completion (W7.3).
+            if (! state.layout.Semantic() && state.layout.Ready() && state.layout.Revision() == revision && ! state.revealCaret && ! state.viewportAnchor &&
+                state.scrollDip > 0.0f)
+            {
+                RichText::Detail::SourceCaretHit hit{};
+                RichText::CaretGeometry caret{};
+                if (state.layout.TryHitTestSource(0.f, state.scrollDip, hit) == S_OK &&
+                    state.layout.TrySourceCaret(hit.position, RichText::MarkdownNoNode, caret) == S_OK)
+                    state.viewportAnchor.emplace(State::ViewportAnchor{Snapshot(), hit.position, caret.y - state.scrollDip, state.bindingRevision});
+            }
+            state.partialView.reset();
             state.layout.Invalidate();
             state.requestActive = false;
             auto* format        = host.GetTextFormat(FontRole::Body);
@@ -4638,7 +4659,11 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 NativeGeometryDiagnosticThrowOrigin(failure);
             }
 #endif
-            const auto advance = state.layout.AdvancePreparation();
+            const auto shown = TextViewport();
+            // The caret is revealed when the preparation completes: its chunk then belongs to the viewport (W7.3).
+            const auto focus   = state.revealCaret ? state.document.GetSelection().caret : RichText::Detail::DocumentViewport::NoFocus;
+            const auto advance = state.layout.AdvancePreparation(
+                {}, RichText::Detail::DocumentViewport::Of(state.scrollDip, state.scrollDip + std::max(0.0f, shown.bottom - shown.top), focus));
             if (const auto rejected = state.layout.RejectedNativeObjects(); ! rejected.empty())
                 return rejectNativeObjects(rejected);
             state.lastAdvanceLayouts     = advance.layoutsPrepared;
@@ -4657,7 +4682,24 @@ HRESULT RichTextEditor::PrepareContent(ControlHost& host) noexcept
                 return FAILED(advance.result) ? advance.result : E_FAIL;
             }
             if (advance.status == RichText::LayoutPreparationStatus::Pending)
+            {
+                // Viewport first (W7.3): the v0 layout published the viewport's chunks (laid chunks only; the rest are
+                // stand-ins or estimated placeholders). Paint draws it; the layout stays not current, so input, caret,
+                // selection, scrolling, find, UI Automation and text services wait for completion as for any pending
+                // preparation. The anchored first visible line keeps its place on screen.
+                if (state.layout.TakeViewportPublication() && GetHost() == &host && Revision() == revision &&
+                    std::max(1.0f, TextViewport().right - TextViewport().left) == width && host.GetResourceGeneration() == resources &&
+                    host.GetTypographyRevision() == typography)
+                {
+                    auto scroll = state.scrollDip;
+                    float anchorTop{};
+                    if (state.viewportAnchor && state.layout.PartialSourceTop(state.viewportAnchor->position, anchorTop) == S_OK)
+                        scroll = std::max(0.0f, anchorTop - state.viewportAnchor->viewportY);
+                    state.partialView = State::PartialView{revision, binding, typography, resources, width, scroll};
+                    Invalidate(host);
+                }
                 return S_FALSE;
+            }
         }
         // No application callback crosses staging. Recheck the complete key
         // before acknowledging geometry; host publication follows rasterization.
@@ -5308,8 +5350,26 @@ void RichTextEditor::Paint(ControlHost& host) const
                           host.GetSolidBrush(host.GetTheme().accent),
                           2.0f);
     const auto viewport = TextViewport();
-    if (viewport.right <= viewport.left || viewport.bottom <= viewport.top || ! LayoutIsCurrent(host))
+    if (viewport.right <= viewport.left || viewport.bottom <= viewport.top)
         return;
+    if (! LayoutIsCurrent(host))
+    {
+        // A partial (viewport-first) publication: its laid chunks' text only, at the anchored scroll offset (W7.3).
+        const auto& partial = _state->partialView;
+        if (partial && _state->layout.Partial() && GetHost() == &host && Revision() == partial->revision && _state->bindingRevision == partial->binding &&
+            host.GetTypographyRevision() == partial->typography && host.GetResourceGeneration() == partial->resources &&
+            std::max(1.0f, viewport.right - viewport.left) == partial->width)
+        {
+            context->PushAxisAlignedClip(viewport, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            const auto restoreClip = wil::scope_exit([context]() noexcept { context->PopAxisAlignedClip(); });
+            const auto origin      = D2D1::Point2F(viewport.left + HorizontalTranslation(), viewport.top - partial->scrollDip);
+            if (const auto status = _state->layout.DrawPartial(
+                    context, host.GetSolidBrush(style.text), origin, partial->scrollDip, partial->scrollDip + viewport.bottom - viewport.top);
+                FAILED(status))
+                Failure::FailContract(status);
+        }
+        return;
+    }
     auto& state               = *_state;
     auto* textBrush           = host.GetSolidBrush(style.text);
     auto* selectedTextBrush   = host.GetSolidBrush(style.selectionText);

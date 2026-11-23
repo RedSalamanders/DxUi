@@ -1191,8 +1191,10 @@ void TestRichTextEditorNativeCompatibilityWorkIsReported()
     raw->SetAppearance(appearance);
     RenderEditor(window);
     const auto whole = raw->DebugGetState();
-    Require(whole.layoutReady && whole.wholeGeometryFallback && whole.wholeLayoutsPrepared > 0u && whole.wholeLayoutSourceUnits == raw->GetText().size(),
-            "native editor reports actual whole-layout geometry work when custom line height requires compatibility placement");
+    // W7.3: a custom line height lays the same position-independent chunks instead of one whole layout.
+    Require(whole.layoutReady && ! whole.wholeGeometryFallback && ! whole.wholeRasterFallback && whole.wholeLayoutsPrepared == 0u &&
+                whole.retainedGeometryChunks > 1u,
+            "native editor lays bounded chunks, not a whole layout, when a custom line height applies");
 }
 void TestRichTextEditorNativeChunkReuseAndRetirement()
 {
@@ -1225,6 +1227,67 @@ void TestRichTextEditorNativeChunkReuseAndRetirement()
     raw->SetViewMode(ViewMode::Source);
     RenderEditor(window);
     Require(raw->DebugGetState().reusedGeometryChunks == 0u && raw->GetText() == seed, "source mode retires rich geometry without rewriting source");
+}
+// Review finding D3 (W7.3): while a viewport-first (partial) publication is shown, nothing positions or answers from its
+// stale or estimated geometry. The layout is not current: caret, range and visible-line queries for text services and UI
+// Automation answer pending, scroll-into-view (find, reveal) fabricates no geometry, keyboard navigation that needs
+// geometry and pointer selection wait, and the preparation completes within bounded owner turns. A non-activated native
+// window; no focus is taken.
+void TestRichTextEditorNativeViewportFirstWindowRefusesStaleGeometry()
+{
+    std::wstring seed;
+    for (size_t line = 0u; line < 640u; ++line) // below the 65,536-unit document cap
+        seed += L"Line " + std::to_wstring(line) + L" carries enough ordinary words to wrap at narrow widths in source mode.\r\n";
+    AttachedHostWindow window;
+    auto owned   = std::make_unique<RichTextEditor>(seed);
+    auto* editor = owned.get();
+    window.Host().SetRoot(std::move(owned));
+    editor->SetViewMode(ViewMode::Source);
+    RenderEditor(window);
+    Require(editor->DebugGetState().layoutReady && editor->DebugGetState().retainedGeometryChunks > 20u, "the editor lays a many-chunk document");
+    const auto middle = seed.find(L'\n', seed.size() / 2u) + 1u; // a line start, never inside a CRLF
+    editor->SetSelection({middle, middle});
+    Require(editor->SetScrollOffsetDip(editor->DebugGetState().contentHeightDip * 0.5f), "scroll to the middle");
+    RenderEditor(window);
+    const auto scrolled = editor->DebugGetState().scrollOffsetDip;
+    // A typography change reflows every chunk; the viewport is published first and the rest stays pending.
+    auto appearance            = editor->GetAppearance();
+    appearance.bodyFontSizeDip = 17.25f;
+    appearance.codeFontSizeDip = 16.75f;
+    editor->SetAppearance(appearance);
+    const DxUi::Detail::WorkCounterScope counters;
+    for (size_t turn = 0u; turn < 64u && counters.Delta().rich.viewportPublications == 0u; ++turn)
+        Require(window.Host().RenderInitialFrameForShow(), "one owner preparation turn");
+    const auto partial = editor->DebugGetState();
+    std::cout << "viewport-first editor: publications=" << counters.Delta().rich.viewportPublications
+              << " offscreenFirst=" << counters.Delta().rich.offscreenChunksLaidFirst << " chunksLaid=" << counters.Delta().rich.chunksLaid
+              << " pending=" << partial.preparationPending << " ready=" << partial.layoutReady << '\n';
+    Require(counters.Delta().rich.viewportPublications == 1u && counters.Delta().rich.offscreenChunksLaidFirst == 0u && partial.preparationPending &&
+                ! partial.layoutReady,
+            "the editor shows a partial publication while the rest of the reflow is pending");
+    const auto selection = editor->GetSelection();
+    Require(! editor->TryGetTextInputCaretRect(window.Host(), selection.caret) && ! editor->TryGetTextInputRangeRects(window.Host(), 0u, 4u) &&
+                ! editor->GetVisibleSourceRange(window.Host()) && ! editor->GetSourceVisualLineRanges(window.Host()),
+            "text services and UI Automation get pending answers, not stale rectangles");
+    Require(! editor->ScrollSourceRangeIntoView(window.Host(), seed.size() - 4u, seed.size(), true) &&
+                editor->DebugGetState().scrollOffsetDip == partial.scrollOffsetDip,
+            "scroll into view (find, reveal) fabricates no position from stale or estimated geometry");
+    static_cast<void>(editor->OnKeyDown(window.Host(), VK_NEXT, 0u));
+    Require(editor->GetSelection() == selection && editor->DebugGetState().scrollOffsetDip == partial.scrollOffsetDip,
+            "Page Down does not move the caret or the view by stale geometry");
+    static_cast<void>(editor->OnMouseDown(window.Host(), D2D1::Point2F(40.0f, 200.0f), false, 0u));
+    static_cast<void>(editor->OnMouseUp(window.Host(), D2D1::Point2F(40.0f, 200.0f), false, 0u));
+    Require(editor->GetSelection() == selection, "a pointer press selects nothing from stale geometry");
+    // Ctrl+End needs no geometry to move the caret; revealing it waits for completion.
+    static_cast<void>(editor->OnKeyDown(window.Host(), VK_END, MK_CONTROL));
+    Require(editor->DebugGetState().scrollOffsetDip == partial.scrollOffsetDip, "the reveal waits for complete geometry");
+    // The window cannot stay pending: bounded owner turns complete it.
+    RenderEditor(window);
+    const auto complete = editor->DebugGetState();
+    Require(complete.layoutReady && ! complete.preparationPending && editor->TryGetTextInputCaretRect(window.Host(), editor->GetSelection().caret),
+            "the reflow completes and geometry answers again");
+    std::cout << "viewport-first native window: scrolled=" << scrolled << " partialScroll=" << partial.scrollOffsetDip
+              << " completeScroll=" << complete.scrollOffsetDip << " caret=" << editor->GetSelection().caret << " of " << editor->GetText().size() << '\n';
 }
 void TestRichTextEditorNativeCooperativePreparation()
 {
@@ -2546,6 +2609,7 @@ void RunRichTextEditorTests()
     DXUI_RUN_TEST(TestRichTextEditorNativeChunkReuseAndRetirement);
     DXUI_RUN_TEST(TestRichTextEditorNativeCompatibilityWorkIsReported);
     DXUI_RUN_TEST(TestRichTextEditorNativeCooperativePreparation);
+    DXUI_RUN_TEST(TestRichTextEditorNativeViewportFirstWindowRefusesStaleGeometry);
     DXUI_RUN_TEST(TestRichTextEditorNativeMessageSchedulingAndFailure);
     DXUI_RUN_TEST(TestRichTextEditorNativeDenseSourceAndSplitScheduling);
     DXUI_RUN_TEST(TestRichTextEditorNativeHostVisibilityAndZeroHeight);

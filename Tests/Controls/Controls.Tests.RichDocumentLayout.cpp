@@ -1,7 +1,11 @@
 #include "Controls.Tests.RichDocumentLayout.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls/DxUi.PreparedLayoutAccess.h"
+#include "Controls/DxUi.RichLayoutOptions.h"
 #include "GraphicsFixture.h"
 #include "Support.Tests.UniformSourceChunks.h"
+#include "Support/RetainedCaches.Tests.Hooks.h"
+#include "Support/WorkCounters.h"
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
 #include <bit>
@@ -11,6 +15,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <span>
 #include <vector>
 #include <wil/result.h>
@@ -404,13 +409,133 @@ void Near(float actual, float expected, const char* message)
         std::cerr << message << " actual=" << actual << " expected=" << expected << '\n';
     Require(std::abs(actual - expected) <= 0.125f, message);
 }
-void CompareDocumentGeometry(PreparedDocumentLayout& prepared, PreparedLayout& flat, std::size_t stride = 1u)
+// W7.3 contract (Core_PerformanceAndResources.md, rich document geometry): a chunk is placed at the exact (double) sum
+// of the line heights before it, rounded once. The chunked geometry is checked against those exact sums, computed here
+// from one whole layout's line heights (which do not drift), not against the whole layout's own single-precision line
+// tops (which do). Tolerance: 1/64 DIP below 2^17 DIP, beyond that one single-precision unit of the coordinate plus the
+// same 1/64 DIP.
+constexpr double kLineTopTolerance = 1.0 / 64.0;
+// Largest |chunked coordinate - exact sum|: over all checked coordinates, and over chunks' first lines only (where the
+// placement alone decides the coordinate and the contract's 1/64 DIP applies without an in-chunk term).
+thread_local double g_largestLineTopDifference{}, g_largestWholeLayoutDrift{}, g_largestChunkStartDifference{};
+[[nodiscard]] double LineTopTolerance(double exact)
 {
+    const auto magnitude = static_cast<float>(std::abs(exact));
+    return magnitude < 131072.0f ? kLineTopTolerance : kLineTopTolerance + static_cast<double>(std::nextafter(magnitude, INFINITY) - magnitude);
+}
+// The whole layout's lines: display starts and the exact tops (one more than lines: the document bottom).
+struct ExactLineTops
+{
+    std::vector<std::size_t> starts;
+    std::vector<double> exact;
+    std::size_t textSize{};
+    explicit ExactLineTops(const PreparedLayout& flat) : textSize(flat.Content().text.size())
+    {
+        double sum        = 0.0;
+        std::size_t start = 0u;
+        for (const auto& line : Detail::PreparedLayoutAccess::LineMetrics(flat))
+        {
+            starts.push_back(start);
+            exact.push_back(sum);
+            sum += line.height;
+            start += line.length;
+        }
+        exact.push_back(sum);
+    }
+    [[nodiscard]] std::size_t LineAt(std::size_t position) const
+    {
+        const auto found = std::upper_bound(starts.begin(), starts.end(), position);
+        return found == starts.begin() ? 0u : static_cast<std::size_t>(found - starts.begin()) - 1u;
+    }
+    // The line whose exact box contains y (clamped to the first and last line).
+    [[nodiscard]] std::size_t LineAtY(double y) const
+    {
+        const auto found = std::upper_bound(exact.begin(), exact.end() - 1, y);
+        return found == exact.begin() ? 0u : std::min(starts.size() - 1u, static_cast<std::size_t>(found - exact.begin()) - 1u);
+    }
+    // PreparedLayout::VisibleRange's rule on the exact line boxes.
+    [[nodiscard]] std::pair<std::size_t, std::size_t> Visible(double top, double bottom) const
+    {
+        std::optional<std::size_t> first;
+        std::size_t last = 0u;
+        for (std::size_t line = 0u; line < starts.size(); ++line)
+        {
+            if (exact[line] >= bottom)
+                break;
+            if (exact[line + 1u] > top)
+            {
+                if (! first)
+                    first = starts[line];
+                last = line + 1u < starts.size() ? starts[line + 1u] : textSize;
+            }
+        }
+        return {first.value_or(0u), last};
+    }
+    // The nearest exact line top to y.
+    [[nodiscard]] double NearestTop(double y) const
+    {
+        const auto found = std::lower_bound(exact.begin(), exact.end(), y);
+        double best      = found == exact.end() ? exact.back() : *found;
+        if (found != exact.begin() && std::abs(*std::prev(found) - y) < std::abs(best - y))
+            best = *std::prev(found);
+        return best;
+    }
+};
+// `inChunk`: DirectWrite's own single-precision accumulation of the lines before this one inside its chunk (half a
+// unit of the chunk-local coordinate per line), the only term the placement does not make exact.
+void NearExact(float actual, double exact, const char* message, double inChunk = 0.0)
+{
+    const auto difference      = std::abs(static_cast<double>(actual) - exact);
+    g_largestLineTopDifference = std::max(g_largestLineTopDifference, difference);
+    if (inChunk == 0.0)
+        g_largestChunkStartDifference = std::max(g_largestChunkStartDifference, difference);
+    const auto allowed = LineTopTolerance(exact) + inChunk;
+    if (difference > allowed)
+        std::cerr << message << " actual=" << actual << " exact=" << exact << " inChunk=" << inChunk << '\n';
+    Require(difference <= allowed, message);
+}
+// The in-chunk accumulation bound of each whole-layout line: lines before it in its chunk times half a single-precision
+// unit at its chunk-local top.
+std::vector<double> InChunkAllowances(const PreparedDocumentLayout& prepared, const ExactLineTops& tops)
+{
+    const auto starts = Detail::PreparedDocumentLayoutAccess::ChunkDisplayStarts(prepared);
+    std::vector<double> allowance(tops.starts.size() + 1u, 0.0);
+    std::size_t chunk = 0u, chunkLine = 0u;
+    for (std::size_t line = 0u; line < tops.starts.size(); ++line)
+    {
+        while (chunk + 1u < starts.size() && starts[chunk + 1u] <= tops.starts[line])
+        {
+            ++chunk;
+            chunkLine = line;
+        }
+        const auto local = static_cast<float>(tops.exact[line] - tops.exact[chunkLine]);
+        allowance[line]  = 0.5 * static_cast<double>(line - chunkLine) * static_cast<double>(std::nextafter(local, INFINITY) - local);
+    }
+    allowance.back() = allowance[tops.starts.size() - 1u] * 2.0;
+    return allowance;
+}
+// `longChunks`: the document has chunks of about a thousand lines (empty-line runs), where DirectWrite's own in-chunk
+// accumulation can exceed 1/64 DIP; only then is that term allowed (and bounded). Every other document must meet
+// 1/64 DIP against the exact sums at every line, as the contract promises.
+void CompareDocumentGeometry(PreparedDocumentLayout& prepared, PreparedLayout& flat, std::size_t stride = 1u, bool longChunks = false)
+{
+    const ExactLineTops tops(flat);
+    auto inChunk = InChunkAllowances(prepared, tops);
+    if (! longChunks)
+        std::fill(inChunk.begin(), inChunk.end(), 0.0);
     const auto& projection = flat.Content();
     Require(prepared.SourceLength() == projection.source.size() && prepared.SourceMatches(projection.source),
             "chunked source comparison matches every source unit");
     Require(prepared.DisplayText() == projection.text && prepared.Revision() == projection.revision, "chunked text and published revision match flat v0");
-    Near(prepared.Height(), flat.Height(), "complete chunked height matches DirectWrite whole-document metrics");
+    // The whole-layout fallback is that layout: compared exactly. Chunked geometry is compared with the exact sums.
+    const bool whole = prepared.UsesWholeGeometry();
+    if (whole)
+        Require(prepared.Height() == flat.Height(), "whole-layout fallback height is the whole layout's");
+    else
+        NearExact(prepared.Height(), tops.exact.back(), "complete chunked height is the exact sum of line heights", inChunk.back());
+    // The whole layout's own drift from the exact sums, recorded for the receipts (measured at its line-start carets).
+    for (std::size_t line = 0u; line < tops.starts.size(); line += std::max<std::size_t>(1u, tops.starts.size() / 64u))
+        g_largestWholeLayoutDrift = std::max(g_largestWholeLayoutDrift, std::abs(static_cast<double>(flat.Caret(tops.starts[line]).y) - tops.exact[line]));
     for (std::size_t position = 0u; position <= projection.source.size(); ++position)
         Require(prepared.ToDisplay(position) == projection.ToDisplay(position), "chunked source mapping covers every ACP");
     for (std::size_t position = 0u;; position = std::min(projection.text.size(), position + stride))
@@ -422,8 +547,18 @@ void CompareDocumentGeometry(PreparedDocumentLayout& prepared, PreparedLayout& f
             Require(prepared.DisplayUnit(position) == projection.text[position], "indexed display unit matches flat UTF16 including interior ACPs");
         const auto actual = prepared.Caret(position), expected = flat.Caret(position);
         Near(actual.x, expected.x, "chunked caret x matches whole layout");
-        Near(actual.y, expected.y, "chunked caret y matches whole layout");
         Near(actual.height, expected.height, "chunked caret height matches whole layout");
+        if (whole)
+            Require(actual.y == expected.y, "whole-layout fallback caret is the whole layout's");
+        else
+        {
+            // The caret box meets its line's exact box (a caret may reach above or below a uniformly spaced line).
+            const auto line  = tops.LineAt(position);
+            const auto slack = LineTopTolerance(tops.exact[line + 1u]) + inChunk[line];
+            Require(static_cast<double>(actual.y) < tops.exact[line + 1u] + slack &&
+                        static_cast<double>(actual.y) + static_cast<double>(actual.height) > tops.exact[line] - slack,
+                    "chunked caret box meets its line's exact box");
+        }
         for (const bool trailing : {false, true})
             Require(prepared.ToSource(position, trailing) == projection.ToSource(position, trailing),
                     "chunked display mapping preserves both source affinities");
@@ -437,18 +572,57 @@ void CompareDocumentGeometry(PreparedDocumentLayout& prepared, PreparedLayout& f
         if (position == projection.text.size())
             break;
     }
+    // Every line's top (a selection rectangle over its first unit spans the line box) at its exact sum.
+    if (! whole)
+        for (std::size_t line = 0u; line < tops.starts.size(); line += std::max<std::size_t>(1u, stride / 4u))
+        {
+            if (tops.starts[line] >= projection.text.size())
+                continue;
+            const auto rectangles = prepared.Range(tops.starts[line], tops.starts[line] + 1u);
+            Require(! rectangles.empty(), "every line's first unit has a selection rectangle");
+            NearExact(rectangles.front().top, tops.exact[line], "chunked line top is the exact sum of the line heights before it", inChunk[line]);
+            NearExact(rectangles.front().bottom, tops.exact[line + 1u], "chunked line bottom is the exact sum through that line", inChunk[line]);
+        }
     for (float top = -20.0f; top < flat.Height() + 20.0f; top += std::max(7.0f, flat.Height() / 41.0f))
     {
-        const auto actualRange = prepared.VisibleRange(top, top + 57.0f), expectedRange = flat.VisibleRange(top, top + 57.0f);
+        const auto actualRange = prepared.VisibleRange(top, top + 57.0f);
+        if (whole)
+        {
+            Require(actualRange == flat.VisibleRange(top, top + 57.0f), "whole-layout fallback visible lines are the whole layout's");
+            continue;
+        }
+        // The visible lines follow PreparedLayout::VisibleRange's rule (a line's caret box meets the viewport) on the
+        // chunked carets, whose placement the line-top checks above bind to the exact sums.
+        std::optional<std::size_t> firstVisible;
+        std::size_t lastVisible = 0u;
+        for (std::size_t line = 0u; line < tops.starts.size(); ++line)
+        {
+            const auto caret = prepared.Caret(tops.starts[line]);
+            if (caret.y >= top + 57.0f)
+                break;
+            if (caret.y + caret.height > top)
+            {
+                if (! firstVisible)
+                    firstVisible = tops.starts[line];
+                lastVisible = line + 1u < tops.starts.size() ? tops.starts[line + 1u] : projection.text.size();
+            }
+        }
+        const std::pair<std::size_t, std::size_t> expectedRange{firstVisible.value_or(0u), lastVisible};
         if (actualRange != expectedRange)
-            std::cerr << "visible top=" << top << " bottom=" << top + 57.0f << " actual=" << actualRange.first << ',' << actualRange.second
-                      << " expected=" << expectedRange.first << ',' << expectedRange.second << '\n';
-        Require(actualRange == expectedRange, "chunked visible lines match the complete layout");
+            std::cerr << "visible top=" << top << " actual=" << actualRange.first << ',' << actualRange.second << " expected=" << expectedRange.first << ','
+                      << expectedRange.second << '\n';
+        Require(actualRange == expectedRange, "chunked visible lines are the lines whose placed caret boxes meet the viewport");
+        // A hit lands in the line whose exact box contains the point.
         for (float x : {-20.0f, 0.0f, 17.0f, 103.0f, 1000.0f})
         {
-            const auto actual = prepared.HitTest(x, top), expected = flat.HitTest(x, top);
-            Require(actual.position == expected.position && actual.trailing == expected.trailing,
-                    "chunked hit tests match whole layout inside/outside viewport");
+            const auto hit      = prepared.HitTest(x, top);
+            const auto expected = tops.LineAtY(top);
+            auto line           = tops.LineAt(hit.position);
+            if (hit.trailing && line > expected && hit.position == tops.starts[line])
+                line = expected; // a trailing hit at a line's end reports the next line's start
+            const auto nearBoundary = std::abs(static_cast<double>(top) - tops.NearestTop(top)) <= LineTopTolerance(top) + inChunk[expected];
+            Require(line == expected || (nearBoundary && (line + 1u == expected || line == expected + 1u)),
+                    "chunked hit tests land in the line whose exact box contains the point");
         }
     }
     for (std::size_t first = 0u; first < projection.text.size(); first += std::max(std::size_t(1u), projection.text.size() / 23u))
@@ -460,8 +634,15 @@ void CompareDocumentGeometry(PreparedDocumentLayout& prepared, PreparedLayout& f
         {
             Near(actual[index].left, expected[index].left, "selection left matches whole layout");
             Near(actual[index].right, expected[index].right, "selection right matches whole layout");
-            Near(actual[index].top, expected[index].top, "selection top matches whole layout");
-            Near(actual[index].bottom, expected[index].bottom, "selection bottom matches whole layout");
+            if (whole)
+                Require(actual[index].top == expected[index].top && actual[index].bottom == expected[index].bottom,
+                        "whole-layout fallback selection is the whole layout's");
+            else
+            {
+                const auto line = tops.LineAtY(actual[index].top + 0.5f);
+                NearExact(actual[index].top, tops.NearestTop(actual[index].top), "selection top is an exact line top", inChunk[line]);
+                NearExact(actual[index].bottom, tops.NearestTop(actual[index].bottom), "selection bottom is an exact line bottom", inChunk[line]);
+            }
         }
     }
 }
@@ -503,7 +684,8 @@ void TestRichDocumentLayoutWholeReferenceReuseAndStyleChanges()
     Document initial(original);
     PreparedDocumentLayout prepared;
     prepared.Prepare(factory.get(), initial.Snapshot(), initial.Revision(), ViewMode::Rich, options);
-    Require(prepared.UsesWholeGeometry(), "explicit line height requires the whole-reference fixture");
+    // W7.3: an explicit line height outside Source is laid in chunks spaced with the whole document's inputs.
+    Require(! prepared.UsesWholeGeometry() && prepared.LastPreparation().wholeLayoutsPrepared == 0u, "explicit line height lays chunks, not a whole layout");
     for (const auto replacement :
          {std::wstring_view(original), std::wstring_view(L"plain\nline\n**tail**\nend"), std::wstring_view(L"plain\nline\n**tall**\nend")})
     {
@@ -512,10 +694,8 @@ void TestRichDocumentLayoutWholeReferenceReuseAndStyleChanges()
         Require(candidate.Snapshot().ChangedRangeFrom(initial.Snapshot()).kind == SourceChangeKind::FullReplacement,
                 "whole-reference comparison fixture has independent source ancestry");
         prepared.Prepare(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, options);
-        const bool unchanged = replacement == original;
-        Require(prepared.LastPreparation().wholeLayoutsReused == (unchanged ? 1u : 0u) &&
-                    prepared.LastPreparation().wholeLayoutsPrepared == (unchanged ? 0u : 1u),
-                "whole-reference reuse compares joined text and coalesced styles across physical blocks");
+        Require(prepared.LastPreparation().wholeLayoutsReused == 0u && prepared.LastPreparation().wholeLayoutsPrepared == 0u && ! prepared.UsesWholeGeometry(),
+                "styled multiplier documents keep chunk geometry");
         PreparedLayout flat;
         flat.Prepare(factory.get(), Project(candidate.Snapshot(), candidate.Revision(), ViewMode::Rich), options);
         CompareDocumentGeometry(prepared, flat);
@@ -617,9 +797,10 @@ void TestRichDocumentLayoutHeightChangesRepositionSuffix()
         document.Replace(0u, 0u, insertion, {0u, 0u});
         prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options);
         const auto work = prepared.LastPreparation();
-        Require(prepared.Height() > oldHeight && work.reusedChunks == 0u && work.preparedSourceUnits == document.Length() && work.wholeLayoutsPrepared == 0u &&
-                    ! prepared.UsesWholeGeometry(),
-                "changed first-line height rebuilds every dependent document origin and reports its complete source work");
+        // W7.3: chunks carry no origin, so a height change re-lays only the edited chunk and moves the rest.
+        Require(prepared.Height() > oldHeight && work.reusedChunks + 2u >= prepared.ChunkCount() && work.preparedChunks <= 2u &&
+                    work.preparedSourceUnits <= 2048u && work.wholeLayoutsPrepared == 0u && ! prepared.UsesWholeGeometry(),
+                "changed first-line height re-lays at most the edited chunks and repositions every later chunk");
         PreparedLayout flat;
         flat.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Rich), options);
         CompareDocumentGeometry(prepared, flat, 7u);
@@ -677,93 +858,187 @@ void TestRichDocumentLayoutLongHeightAndChunkBudget()
         if (seed.front() == L'\n')
             Require(! prepared.UsesWholeGeometry() && prepared.LastPreparation().wholeLayoutsPrepared == 0u,
                     "maximum newline geometry actually uses positioned retained chunks without a hidden whole layout");
-        CompareDocumentGeometry(prepared, flat, 257u);
+        CompareDocumentGeometry(prepared, flat, 257u, true); // 65,536 one-unit lines: chunks of 1,024 lines
     }
 }
-void TestRichDocumentLayoutWarpRasterOracle()
+// W7.3 oracle: an incrementally prepared document (an Enter near its top and a character in its middle, so later chunks
+// move without being laid again) draws exactly the WARP BGRA pixels of a fresh preparation with the same chunking, and
+// every caret is bit-identical, for fractional fonts, right-to-left text, scaled and skewed drawing and large origins.
+// Its geometry stays within the 1/64 DIP line-top contract of one whole layout. With a deliberately wrong placement
+// offset (Detail::testRichChunkOffsetError) the same comparison must fail.
+struct RasterTarget
 {
-    const auto factory = DocumentFactory();
+    GraphicsFixture graphics;
+    wil::com_ptr<ID2D1DeviceContext> context;
+    wil::com_ptr<ID2D1SolidColorBrush> brush;
+    RasterTarget()
+    {
+        THROW_IF_FAILED(graphics.Create());
+        wil::com_ptr<ID2D1Factory1> d2dFactory;
+        THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, IID_PPV_ARGS(d2dFactory.put())));
+        wil::com_ptr<IDXGIDevice> dxgiDevice;
+        THROW_IF_FAILED(graphics.device.query_to(dxgiDevice.put()));
+        wil::com_ptr<ID2D1Device> device;
+        THROW_IF_FAILED(d2dFactory->CreateDevice(dxgiDevice.get(), device.put()));
+        THROW_IF_FAILED(device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, context.put()));
+        wil::com_ptr<IDXGISurface> surface;
+        THROW_IF_FAILED(graphics.target.query_to(surface.put()));
+        const auto properties = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+                                                        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        wil::com_ptr<ID2D1Bitmap1> bitmap;
+        THROW_IF_FAILED(context->CreateBitmapFromDxgiSurface(surface.get(), &properties, bitmap.put()));
+        context->SetTarget(bitmap.get());
+        THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), brush.put()));
+    }
+    std::vector<std::uint8_t> Draw(const PreparedDocumentLayout& layout, float top, float viewportHeight)
+    {
+        context->BeginDraw();
+        context->Clear(D2D1::ColorF(0, 0));
+        layout.Draw(context.get(), brush.get(), D2D1::Point2F(8.0f, -top), top, top + viewportHeight);
+        THROW_IF_FAILED(context->EndDraw());
+        std::vector<std::uint8_t> pixels;
+        THROW_IF_FAILED(graphics.Read(pixels));
+        return pixels;
+    }
+};
+std::wstring RasterProfileSource(unsigned profile)
+{
     std::wstring seed;
     for (std::size_t line = 0u; line < 130u; ++line)
         seed +=
             L"# Heading\n**bold** a\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301 *italic* ~~strike~~ \U0001f600 `code`\n\u05d0\u05d1\u05d2 mixed text\r\n";
-    GraphicsFixture graphics;
-    THROW_IF_FAILED(graphics.Create());
-    wil::com_ptr<ID2D1Factory1> d2dFactory;
-    THROW_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, IID_PPV_ARGS(d2dFactory.put())));
-    wil::com_ptr<IDXGIDevice> dxgiDevice;
-    THROW_IF_FAILED(graphics.device.query_to(dxgiDevice.put()));
-    wil::com_ptr<ID2D1Device> device;
-    THROW_IF_FAILED(d2dFactory->CreateDevice(dxgiDevice.get(), device.put()));
-    wil::com_ptr<ID2D1DeviceContext> context;
-    THROW_IF_FAILED(device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, context.put()));
-    wil::com_ptr<IDXGISurface> surface;
-    THROW_IF_FAILED(graphics.target.query_to(surface.put()));
-    const auto properties = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-                                                    D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
-    wil::com_ptr<ID2D1Bitmap1> bitmap;
-    THROW_IF_FAILED(context->CreateBitmapFromDxgiSurface(surface.get(), &properties, bitmap.put()));
-    context->SetTarget(bitmap.get());
-    wil::com_ptr<ID2D1SolidColorBrush> brush;
-    THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), brush.put()));
-    std::size_t comparedPairs = 0u;
+    if (profile == 2u)
+    {
+        for (auto position = seed.find(L"# "); position != std::wstring::npos; position = seed.find(L"# ", position))
+            seed.erase(position, 2u);
+    }
+    if (profile == 5u)
+        seed.insert(0u, 50000u, L'\n'); // Exercise large document coordinates with populated final viewports.
+    if (profile == 8u)
+        seed.insert(0u, 1000u, L'\n');
+    return seed;
+}
+LayoutOptions RasterProfileOptions(unsigned profile, DWRITE_READING_DIRECTION direction)
+{
+    LayoutOptions options;
+    options.widthDip             = 417.0f;
+    options.fontSizeDip          = profile == 0u || profile == 6u ? 18.0f : profile <= 2u ? 16.0f : profile == 3u ? 13.0f : 18.1f;
+    options.lineHeightMultiplier = profile >= 6u ? 1.6f : 0.f;
+    options.readingDirection     = direction;
+    return options;
+}
+ViewMode RasterProfileMode(unsigned profile)
+{
+    return profile == 1u || profile >= 6u ? ViewMode::Source : ViewMode::Rich;
+}
+// Prepares `incremental` through two edits from the profile's source and `fresh` with the incremental's chunk starts.
+void PrepareIncrementalAndFresh(IDWriteFactory* factory,
+                                unsigned profile,
+                                DWRITE_READING_DIRECTION direction,
+                                PreparedDocumentLayout& incremental,
+                                PreparedDocumentLayout& fresh,
+                                Document& document)
+{
+    const auto options              = RasterProfileOptions(profile, direction);
+    const auto mode                 = RasterProfileMode(profile);
+    Detail::testRichRecordChunkPlan = true;
+    const auto stopRecording        = wil::scope_exit([] { Detail::testRichRecordChunkPlan = false; });
+    incremental.Prepare(factory, document.Snapshot(), document.Revision(), mode, options);
+    const auto firstLine = document.Text().find(L'\n');
+    document.Replace(firstLine, firstLine, L"\n", {0u, 0u}); // an Enter above every later chunk
+    incremental.Prepare(factory, document.Snapshot(), document.Revision(), mode, options);
+    Require(incremental.LastPreparation().preparedChunks <= 2u && incremental.LastPreparation().reusedChunks + 2u >= incremental.ChunkCount(),
+            "an Enter above later chunks re-lays at most two chunks");
+    const auto middle = document.Text().find(L' ', document.Length() / 2u); // a boundary inside no surrogate pair or CRLF
+    document.Replace(middle, middle, L"x", {0u, 0u});
+    incremental.Prepare(factory, document.Snapshot(), document.Revision(), mode, options);
+    Require(incremental.LastPreparation().reusedChunks > 0u && ! incremental.UsesWholeGeometry(), "the edited preparation reuses chunks");
+    DxUi::Detail::SetFreshPreparationForTest(true);
+    const auto notFresh = wil::scope_exit([] { DxUi::Detail::SetFreshPreparationForTest(false); });
+    fresh.Prepare(factory, document.Snapshot(), document.Revision(), mode, options);
+    Require(fresh.LastPreparation().reusedChunks == 0u && fresh.ChunkCount() == incremental.ChunkCount(),
+            "the fresh preparation lays every chunk again with the incremental chunking");
+}
+void TestRichDocumentLayoutWarpRasterOracle()
+{
+    const auto factory = DocumentFactory();
+    RasterTarget raster;
+    std::size_t comparedPairs  = 0u;
+    g_largestLineTopDifference = g_largestWholeLayoutDrift = 0.0;
     for (unsigned profile = 0u; profile < 9u; ++profile)
     {
-        auto input = seed;
-        if (profile == 2u)
-        {
-            for (auto position = input.find(L"# "); position != std::wstring::npos; position = input.find(L"# ", position))
-                input.erase(position, 2u);
-        }
-        if (profile == 5u)
-            input.insert(0u, 50000u, L'\n'); // Exercise large document coordinates with populated final viewports.
-        if (profile == 8u)
-            input.insert(0u, 1000u, L'\n');
-        Document document(input);
-        const auto mode = profile == 1u || profile >= 6u ? ViewMode::Source : ViewMode::Rich;
         for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
         {
-            LayoutOptions options;
-            options.widthDip             = 417.0f;
-            options.fontSizeDip          = profile == 0u || profile == 6u ? 18.0f : profile <= 2u ? 16.0f : profile == 3u ? 13.0f : 18.1f;
-            options.lineHeightMultiplier = profile >= 6u ? 1.6f : 0.f;
-            options.readingDirection     = direction;
-            PreparedDocumentLayout prepared;
+            Document document(RasterProfileSource(profile));
+            PreparedDocumentLayout incremental, fresh;
+            PrepareIncrementalAndFresh(factory.get(), profile, direction, incremental, fresh, document);
+            // Every chunk equals a fresh layout of it at origin 0, placed at the same offset: carets are bit-identical.
+            const auto length = incremental.DisplayLength();
+            for (std::size_t position = 0u; position <= length; position += std::max<std::size_t>(1u, length / 997u))
+            {
+                const auto a = incremental.Caret(position), b = fresh.Caret(position);
+                Require(std::bit_cast<std::uint32_t>(a.x) == std::bit_cast<std::uint32_t>(b.x) &&
+                            std::bit_cast<std::uint32_t>(a.y) == std::bit_cast<std::uint32_t>(b.y) &&
+                            std::bit_cast<std::uint32_t>(a.height) == std::bit_cast<std::uint32_t>(b.height),
+                        "incremental chunk geometry is bit-identical with a fresh preparation of the same chunking");
+            }
             PreparedLayout flat;
-            prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), mode, options);
-            flat.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), mode), options);
-            Require(! prepared.UsesWholeGeometry() && prepared.ChunkCount() > 1u && prepared.LastPreparation().wholeLayoutsPrepared == 0u,
-                    "every raster profile actually retains positioned chunks without whole geometry or preparation");
+            flat.Prepare(
+                factory.get(), Project(document.Snapshot(), document.Revision(), RasterProfileMode(profile)), RasterProfileOptions(profile, direction));
+            g_largestLineTopDifference = g_largestChunkStartDifference = 0.0;
+            // Profiles 5 and 8 begin with 50,000 and 1,000 empty lines: chunks of about 1,000 lines.
+            CompareDocumentGeometry(incremental, flat, profile == 5u ? 4099u : 61u, profile == 5u || profile == 8u);
+            std::cout << "  profile=" << profile << " direction=" << direction << " height=" << flat.Height()
+                      << " largestLineTopDifference=" << g_largestLineTopDifference << " atChunkStarts=" << g_largestChunkStartDifference << '\n';
+            // Placement: each chunk's first line lies at the exact (double) sum of every line height before it, rounded
+            // once to single precision, independent of how the document was chunked.
+            {
+                std::vector<std::size_t> lineStarts;
+                std::vector<double> exactTops;
+                double sum        = 0.0;
+                std::size_t start = 0u;
+                for (const auto& line : Detail::PreparedLayoutAccess::LineMetrics(flat))
+                {
+                    lineStarts.push_back(start);
+                    exactTops.push_back(sum);
+                    sum += line.height;
+                    start += line.length;
+                }
+                std::size_t placed = 0u;
+                for (const auto chunkStart : Detail::testRichPublishedChunkStarts)
+                {
+                    const auto display = incremental.ToDisplay(chunkStart);
+                    const auto line    = std::lower_bound(lineStarts.begin(), lineStarts.end(), display);
+                    if (display >= incremental.DisplayLength() || line == lineStarts.end() || *line != display)
+                        continue;
+                    const auto rectangles = incremental.Range(display, display + 1u);
+                    Require(! rectangles.empty(), "a chunk's first unit has a selection rectangle");
+                    const auto exactTop = exactTops[static_cast<std::size_t>(line - lineStarts.begin())];
+                    const auto top      = rectangles.front().top;
+                    Require(std::abs(static_cast<double>(top) - exactTop) <= static_cast<double>(std::nextafter(std::abs(top), INFINITY) - std::abs(top)),
+                            "a chunk is placed at the exact sum of the line heights before it");
+                    ++placed;
+                }
+                Require(placed > 1u, "the placement check sees several chunks");
+            }
             for (unsigned variant = 0u; variant < 3u; ++variant)
             {
-                context->SetDpi(variant == 1u ? 144.0f : 96.0f, variant == 1u ? 144.0f : 96.0f);
-                context->SetTransform(variant == 1u   ? D2D1::Matrix3x2F::Scale(0.75f, 0.75f)
-                                      : variant == 2u ? D2D1::Matrix3x2F::Skew(6.0f, 0.0f)
-                                                      : D2D1::Matrix3x2F::Identity());
-                const auto viewportHeight = static_cast<float>(graphics.height) / (variant == 1u ? 1.125f : 1.0f);
+                raster.context->SetDpi(variant == 1u ? 144.0f : 96.0f, variant == 1u ? 144.0f : 96.0f);
+                raster.context->SetTransform(variant == 1u   ? D2D1::Matrix3x2F::Scale(0.75f, 0.75f)
+                                             : variant == 2u ? D2D1::Matrix3x2F::Skew(6.0f, 0.0f)
+                                                             : D2D1::Matrix3x2F::Identity());
+                const auto viewportHeight = static_cast<float>(raster.graphics.height) / (variant == 1u ? 1.125f : 1.0f);
                 size_t viewportIndex      = 0u;
-                for (const float top : {0.0f, flat.Height() * 0.5f, std::max(0.0f, flat.Height() - viewportHeight)})
+                for (const float top : {0.0f, incremental.Height() * 0.5f, std::max(0.0f, incremental.Height() - viewportHeight)})
                 {
-                    const auto raster = [&](bool chunked)
-                    {
-                        context->BeginDraw();
-                        context->Clear(D2D1::ColorF(0, 0));
-                        const auto origin = D2D1::Point2F(8.0f, -top);
-                        if (chunked)
-                            prepared.Draw(context.get(), brush.get(), origin, top, top + viewportHeight);
-                        else
-                            flat.Draw(context.get(), brush.get(), origin);
-                        THROW_IF_FAILED(context->EndDraw());
-                        std::vector<std::uint8_t> pixels;
-                        THROW_IF_FAILED(graphics.Read(pixels));
-                        return pixels;
-                    };
-                    const auto expected = raster(false), actual = raster(true);
+                    const auto expected = raster.Draw(fresh, top, viewportHeight), actual = raster.Draw(incremental, top, viewportHeight);
                     const auto capturePath = std::filesystem::path(L".build/reports/rich-document-raster") /
                                              (L"profile-" + std::to_wstring(profile) + L"-direction-" + std::to_wstring(static_cast<unsigned>(direction)) +
                                               L"-variant-" + std::to_wstring(variant) + L"-viewport-" + std::to_wstring(viewportIndex++));
-                    Require(SaveWindowHostBitmapCaptureAsPngForTest(capturePath.wstring() + L"-expected.png", {graphics.width, graphics.height, expected}) &&
-                                SaveWindowHostBitmapCaptureAsPngForTest(capturePath.wstring() + L"-actual.png", {graphics.width, graphics.height, actual}),
+                    Require(SaveWindowHostBitmapCaptureAsPngForTest(capturePath.wstring() + L"-expected.png",
+                                                                    {raster.graphics.width, raster.graphics.height, expected}) &&
+                                SaveWindowHostBitmapCaptureAsPngForTest(capturePath.wstring() + L"-actual.png",
+                                                                        {raster.graphics.width, raster.graphics.height, actual}),
                             "retain actual and reference WARP pixels with this native test receipt");
                     if (actual != expected)
                     {
@@ -773,9 +1048,8 @@ void TestRichDocumentLayoutWarpRasterOracle()
                         std::cerr << "chunk raster profile=" << profile << " direction=" << direction << " variant=" << variant << " top=" << top
                                   << " differingBytes=" << differences << '\n';
                     }
-                    Require(actual == expected, "chunked visible raster matches whole-document DirectWrite pixels exactly on WARP");
+                    Require(actual == expected, "incremental chunk raster matches a fresh preparation of the same chunking exactly on WARP");
                     ++comparedPairs;
-                    Require(! prepared.UsesWholeRaster(), "axis-aligned and skewed raster profiles actually draw positioned chunks without whole fallback");
                     if (viewportIndex == 3u)
                         Require(std::any_of(expected.begin(), expected.end(), [](std::uint8_t value) { return value != 0u; }),
                                 "every final viewport contains actual reference glyph ink, including the large-origin profile");
@@ -783,8 +1057,344 @@ void TestRichDocumentLayoutWarpRasterOracle()
             }
         }
     }
-    Require(comparedPairs == 162u, "all original and added font/large-origin/uniform Source WARP pixel pairs execute");
-    std::cout << "rich positioned raster exactPairs=" << comparedPairs << " fontProfiles=9 directions=2 transforms=3 viewports=3\n";
+    raster.context->SetDpi(96.0f, 96.0f);
+    raster.context->SetTransform(D2D1::Matrix3x2F::Identity());
+    Require(comparedPairs == 162u, "all font/large-origin/uniform Source/RTL/transform WARP pixel pairs execute");
+    std::cout << "rich chunk raster exactPairs=" << comparedPairs
+              << " fontProfiles=9 directions=2 transforms=3 viewports=3 largestLineTopDifference=" << g_largestLineTopDifference
+              << " largestWholeLayoutDrift=" << g_largestWholeLayoutDrift << '\n';
+}
+void TestRichDocumentLayoutWarpRasterOracleDetectsAWrongOffset()
+{
+    const auto factory = DocumentFactory();
+    RasterTarget raster;
+    Document document(RasterProfileSource(4u));
+    PreparedDocumentLayout incremental, fresh;
+    Detail::testRichChunkOffsetError = 1.0f;
+    {
+        const auto restore = wil::scope_exit([] { Detail::testRichChunkOffsetError = 0.0f; });
+        PrepareIncrementalAndFresh(factory.get(), 4u, DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, incremental, fresh, document);
+    }
+    const auto viewportHeight = static_cast<float>(raster.graphics.height);
+    const auto top            = incremental.Height() * 0.5f;
+    Require(raster.Draw(incremental, top, viewportHeight) != raster.Draw(fresh, top, viewportHeight),
+            "a chunk placed one DIP off differs from a fresh preparation of the same chunking");
+    const auto caret = std::max<std::size_t>(1u, incremental.DisplayLength() / 2u);
+    Require(incremental.Caret(caret).y != fresh.Caret(caret).y, "the wrong offset reaches caret geometry");
+}
+// Review finding H1: an oracle that a chunk drawn away from its placement cannot pass. For short documents, where one
+// whole layout's single-precision line tops agree with the exact sums far below a device pixel, chunk pixels equal the
+// whole layout's pixels exactly.
+void TestRichDocumentLayoutChunkPixelsMatchShortWholeLayout()
+{
+    const auto factory = DocumentFactory();
+    RasterTarget raster;
+    const std::wstring hebrew{static_cast<wchar_t>(0x05d0), static_cast<wchar_t>(0x05d1), static_cast<wchar_t>(0x05d2)};
+    std::wstring source;
+    for (std::size_t line = 0u; line < 70u; ++line)
+        source += L"Line " + std::to_wstring(line) + L" carries **ordinary** words that wrap at narrow widths, " + hebrew + L" and `code`.\n";
+    std::size_t pairs = 0u;
+    for (const auto mode : {ViewMode::Source, ViewMode::Rich})
+        for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
+            for (const float multiplier : {0.0f, 1.6f})
+            {
+                Document document(source);
+                auto options                 = RasterProfileOptions(0u, direction);
+                options.fontSizeDip          = 16.5f;
+                options.lineHeightMultiplier = multiplier;
+                PreparedDocumentLayout chunked;
+                chunked.Prepare(factory.get(), document.Snapshot(), document.Revision(), mode, options);
+                PreparedLayout flat;
+                flat.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), mode), options);
+                Require(chunked.ChunkCount() > 2u && ! chunked.UsesWholeGeometry(), "the short document spans several chunks");
+                const auto viewportHeight = static_cast<float>(raster.graphics.height);
+                for (const float top : {0.0f, flat.Height() * 0.5f, std::max(0.0f, flat.Height() - viewportHeight)})
+                {
+                    const auto actual = raster.Draw(chunked, top, viewportHeight);
+                    raster.context->BeginDraw();
+                    raster.context->Clear(D2D1::ColorF(0, 0));
+                    flat.Draw(raster.context.get(), raster.brush.get(), D2D1::Point2F(8.0f, -top));
+                    THROW_IF_FAILED(raster.context->EndDraw());
+                    std::vector<std::uint8_t> expected;
+                    THROW_IF_FAILED(raster.graphics.Read(expected));
+                    std::size_t differing = 0u;
+                    for (std::size_t index = 0u; index < actual.size(); ++index)
+                        differing += actual[index] != expected[index] ? 1u : 0u;
+                    if (differing)
+                        std::cerr << "short whole-layout pixels mode=" << static_cast<unsigned>(mode) << " direction=" << direction
+                                  << " multiplier=" << multiplier << " top=" << top << " differingBytes=" << differing << '\n';
+                    Require(differing == 0u, "chunk pixels of a short document equal one whole layout's pixels exactly");
+                    ++pairs;
+                }
+            }
+    std::cout << "short whole-layout pixel pairs=" << pairs << '\n';
+}
+// Review finding H1, every profile: each chunk's ink, drawn by the document at its placement, equals that chunk's own text
+// laid out alone and drawn at the chunk's line top (its first line's selection rectangle, from the exact sums). Source
+// mode profiles, so the chunk alone projects exactly as inside the document.
+void TestRichDocumentLayoutChunkInkAtPlacement()
+{
+    const auto factory = DocumentFactory();
+    RasterTarget raster;
+    raster.context->SetDpi(96.0f, 96.0f);
+    raster.context->SetTransform(D2D1::Matrix3x2F::Identity());
+    std::size_t bands = 0u;
+    for (const unsigned profile : {1u, 6u, 7u, 8u})
+        for (const auto direction : {DWRITE_READING_DIRECTION_LEFT_TO_RIGHT, DWRITE_READING_DIRECTION_RIGHT_TO_LEFT})
+        {
+            Document document(RasterProfileSource(profile));
+            PreparedDocumentLayout incremental, fresh;
+            PrepareIncrementalAndFresh(factory.get(), profile, direction, incremental, fresh, document);
+            const auto starts  = Detail::testRichPublishedChunkStarts;
+            const auto text    = document.Text();
+            const auto options = RasterProfileOptions(profile, direction);
+            const auto height  = static_cast<float>(raster.graphics.height);
+            for (const float top : {0.0f, incremental.Height() * 0.5f, std::max(0.0f, incremental.Height() - height)})
+            {
+                const auto whole = raster.Draw(incremental, top, height);
+                for (std::size_t index = 0u; index < starts.size(); ++index)
+                {
+                    const auto display = incremental.ToDisplay(starts[index]);
+                    const auto end     = index + 1u < starts.size() ? starts[index + 1u] : text.size();
+                    if (display >= incremental.DisplayLength())
+                        continue;
+                    const auto chunkTop    = incremental.Range(display, display + 1u).front().top;
+                    const auto chunkBottom = index + 1u < starts.size()
+                                                 ? incremental.Range(incremental.ToDisplay(end), incremental.ToDisplay(end) + 1u).front().top
+                                                 : incremental.Height();
+                    // Device rows strictly inside the chunk's band, away from neighbours' ascenders and descenders.
+                    const auto first = static_cast<long>(std::ceil(chunkTop - top)) + 6, last = static_cast<long>(std::floor(chunkBottom - top)) - 6;
+                    const auto rowFirst = std::max(0L, first), rowLast = std::min(static_cast<long>(raster.graphics.height), last);
+                    if (rowLast - rowFirst < 8)
+                        continue;
+                    Document alone(text.substr(starts[index], end - starts[index]));
+                    PreparedLayout chunk;
+                    chunk.Prepare(factory.get(), Project(alone.Snapshot(), alone.Revision(), ViewMode::Source), options);
+                    raster.context->BeginDraw();
+                    raster.context->Clear(D2D1::ColorF(0, 0));
+                    chunk.Draw(raster.context.get(), raster.brush.get(), D2D1::Point2F(8.0f, chunkTop - top));
+                    THROW_IF_FAILED(raster.context->EndDraw());
+                    std::vector<std::uint8_t> own;
+                    THROW_IF_FAILED(raster.graphics.Read(own));
+                    const auto stride     = static_cast<std::size_t>(raster.graphics.width) * 4u;
+                    std::size_t differing = 0u;
+                    for (auto row = rowFirst; row < rowLast; ++row)
+                        for (std::size_t column = 0u; column < stride; ++column)
+                        {
+                            const auto offset = static_cast<std::size_t>(row) * stride + column;
+                            differing += whole[offset] != own[offset] ? 1u : 0u;
+                        }
+                    if (differing)
+                        std::cerr << "chunk ink profile=" << profile << " direction=" << direction << " top=" << top << " chunk=" << index
+                                  << " differingBytes=" << differing << '\n';
+                    Require(differing == 0u, "a chunk's ink in the document is its own layout's ink at its exact line top");
+                    ++bands;
+                }
+            }
+        }
+    Require(bands > 8u, "the ink check compares several chunk bands");
+    std::cout << "chunk ink bands=" << bands << '\n';
+}
+HRESULT DrainDocumentPreparation(PreparedDocumentLayout& layout, const LayoutWorkBudget& budget);
+// The viewport-first fixture: about 40,000 units of wrapping Source lines (39 chunks at 420 DIP).
+std::wstring ViewportFixtureSource()
+{
+    const std::wstring hebrew{static_cast<wchar_t>(0x05d0), static_cast<wchar_t>(0x05d1), static_cast<wchar_t>(0x05d2)};
+    std::wstring source;
+    for (std::size_t line = 0u; source.size() < 40000u; ++line)
+        source += L"Line " + std::to_wstring(line) + L" carries enough ordinary words to wrap at narrow widths, " + hebrew + L" too.\n";
+    return source;
+}
+LayoutOptions ViewportFixtureOptions(float width)
+{
+    LayoutOptions options;
+    options.widthDip    = width;
+    options.fontSizeDip = 15.5f;
+    return options;
+}
+// Advances with the owner's viewport until the layout publishes (partially or completely) or finishes.
+void AdvanceUntilPublication(PreparedDocumentLayout& layout, float top, float bottom)
+{
+    const auto generation = layout.Generation();
+    for (std::size_t advance = 0u; advance < 100000u && layout.Generation() == generation && layout.HasPendingPreparation(); ++advance)
+        Require(Detail::PreparedDocumentLayoutAccess::Advance(layout, {1u, 4096u}, Detail::DocumentViewport::Of(top, bottom)).status !=
+                    LayoutPreparationStatus::Failed,
+                "viewport-first advance succeeds");
+}
+// A partial publication answers no query: it is not Ready, and a position outside its laid chunks is pending.
+void RequirePartialRefusesQueries(PreparedDocumentLayout& layout)
+{
+    CaretGeometry caret{};
+    Hit hit{};
+    std::vector<D2D1_RECT_F> rectangles;
+    std::pair<std::size_t, std::size_t> range{};
+    Require(Detail::PreparedDocumentLayoutAccess::Partial(layout) && ! layout.Ready() && layout.TryCaret(0u, caret) == E_UNEXPECTED &&
+                layout.TryHitTest(0.0f, 0.0f, hit) == E_UNEXPECTED && layout.TryRange(0u, 1u, rectangles) == E_UNEXPECTED &&
+                layout.TryVisibleRange(0.0f, 10.0f, range) == E_UNEXPECTED,
+            "a partial publication answers no geometry query (D3)");
+}
+// W7.3 gate: after a width change, the chunks meeting the viewport (and one viewport of overscan) are laid and published
+// before any other chunk is laid; the rest keep stand-ins until the preparation completes.
+void TestRichDocumentLayoutViewportFirstPublication()
+{
+    const auto factory = DocumentFactory();
+    Document document(ViewportFixtureSource());
+    PreparedDocumentLayout layout;
+    layout.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, ViewportFixtureOptions(420.0f));
+    const auto chunks = layout.ChunkCount();
+    Require(chunks > 20u, "the viewport-first fixture spans many chunks");
+    const float top = layout.Height() * 0.6f, bottom = top + 500.0f;
+    const auto first = layout.ToSource(layout.HitTest(10.0f, top + 50.0f).position), second = layout.ToSource(layout.HitTest(10.0f, top + 400.0f).position);
+    const auto narrower = ViewportFixtureOptions(383.0f);
+    PreparedDocumentLayout reference;
+    reference.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, narrower);
+    const auto generation = layout.Generation();
+    const DxUi::Detail::WorkCounterScope counters;
+    Require(layout.BeginPreparation(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, narrower) == LayoutPreparationStatus::Pending,
+            "a width change stages a preparation");
+    AdvanceUntilPublication(layout, top, bottom);
+    const auto atPublication = counters.Delta().rich;
+    std::cout << "viewport-first chunks=" << chunks << " laidBeforePublication=" << atPublication.chunksLaid
+              << " viewportPublications=" << atPublication.viewportPublications << " offscreenFirst=" << atPublication.offscreenChunksLaidFirst << '\n';
+    Require(layout.HasPendingPreparation() && layout.Generation() == generation + 1u && atPublication.viewportPublications == 1u,
+            "the viewport's chunks are published while the rest of the preparation is still pending");
+    Require(atPublication.offscreenChunksLaidFirst == 0u && atPublication.chunksLaid > 0u && atPublication.chunksLaid <= 8u &&
+                atPublication.chunksLaid < chunks,
+            "only chunks meeting the viewport and its overscan were laid before that publication");
+    RequirePartialRefusesQueries(layout);
+    // The published viewport already follows the new width: line spacing between two viewport positions is the reference's.
+    float firstTop{}, secondTop{};
+    Require(Detail::PreparedDocumentLayoutAccess::PartialSourceTop(layout, first, firstTop) == S_OK &&
+                Detail::PreparedDocumentLayoutAccess::PartialSourceTop(layout, second, secondTop) == S_OK,
+            "viewport positions lie in laid chunks");
+    const auto expected = reference.Caret(reference.ToDisplay(second)).y - reference.Caret(reference.ToDisplay(first)).y;
+    Require(std::abs((secondTop - firstTop) - expected) <= 1.0f / 64.0f, "viewport lines are already wrapped at the new width");
+    Require(DrainDocumentPreparation(layout, {4u, 4096u}) == S_OK && layout.Ready() && layout.Generation() == generation + 2u,
+            "the rest completes in one more publication");
+    PreparedLayout flat;
+    flat.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Source), narrower);
+    CompareDocumentGeometry(layout, flat, 211u);
+    Require(counters.Delta().rich.chunksLaid == layout.ChunkCount() && layout.ChunkCount() == chunks,
+            "every chunk was laid once for the new width, and the chunking did not coarsen");
+}
+// Review finding D1: consecutive width steps, each arriving while the previous one's off-screen chunks are still pending
+// (a live resize), each publish their viewport before any off-screen chunk; stale stand-ins stand in again.
+void TestRichDocumentLayoutViewportFirstAcrossWidthSteps()
+{
+    const auto factory = DocumentFactory();
+    Document document(ViewportFixtureSource());
+    PreparedDocumentLayout layout;
+    layout.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, ViewportFixtureOptions(420.0f));
+    const auto chunks = layout.ChunkCount();
+    const float top = layout.Height() * 0.6f, bottom = top + 500.0f;
+    auto width = 420.0f;
+    for (unsigned step = 0u; step < 6u; ++step)
+    {
+        width -= 11.0f;
+        const DxUi::Detail::WorkCounterScope counters;
+        Require(layout.BeginPreparation(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, ViewportFixtureOptions(width)) ==
+                    LayoutPreparationStatus::Pending,
+                "each width step stages a preparation");
+        AdvanceUntilPublication(layout, top, bottom);
+        const auto delta = counters.Delta().rich;
+        std::cout << "width step " << step << ": viewportPublications=" << delta.viewportPublications << " chunksLaid=" << delta.chunksLaid
+                  << " offscreenFirst=" << delta.offscreenChunksLaidFirst << " chunks=" << layout.ChunkCount() << '\n';
+        Require(delta.viewportPublications == 1u && delta.offscreenChunksLaidFirst == 0u && delta.chunksLaid <= 8u && layout.HasPendingPreparation(),
+                "every width step of a live resize publishes its viewport before any off-screen chunk");
+        Require(layout.ChunkCount() == chunks, "the plan keeps the chunking: nothing coarsens while nothing is reusable");
+        RequirePartialRefusesQueries(layout);
+    }
+    Require(DrainDocumentPreparation(layout, {4u, 4096u}) == S_OK && layout.Ready() && layout.ChunkCount() == chunks, "the last width step completes");
+    PreparedLayout flat;
+    flat.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Source), ViewportFixtureOptions(width));
+    CompareDocumentGeometry(layout, flat, 211u);
+}
+// Review finding D2: an insert, an Enter and a paste during a viewport-first window each lay at most two chunks before
+// their publication, and the result is the same geometry as a complete preparation.
+void TestRichDocumentLayoutEditsDuringViewportFirst()
+{
+    const auto factory = DocumentFactory();
+    Document document(ViewportFixtureSource());
+    PreparedDocumentLayout layout;
+    layout.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, ViewportFixtureOptions(420.0f));
+    const float top = layout.Height() * 0.6f, bottom = top + 500.0f;
+    auto at             = layout.ToSource(layout.HitTest(10.0f, top + 100.0f).position);
+    const auto narrower = ViewportFixtureOptions(383.0f);
+    std::wstring pasted;
+    while (pasted.size() < 300u)
+        pasted += L"pasted ordinary words\n";
+    layout.BeginPreparation(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, narrower);
+    AdvanceUntilPublication(layout, top, bottom);
+    Require(Detail::PreparedDocumentLayoutAccess::Partial(layout), "the width step leaves a partial publication");
+    for (const auto* text : {L"x", L"\n", pasted.c_str()})
+    {
+        document.Replace(at, at, text, {0u, 0u});
+        at += std::wstring_view(text).size();
+        const DxUi::Detail::WorkCounterScope counters;
+        layout.BeginPreparation(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, narrower);
+        AdvanceUntilPublication(layout, top, bottom);
+        const auto delta = counters.Delta().rich;
+        std::cout << "edit during viewport-first (" << std::wstring_view(text).size() << " units): chunksLaid=" << delta.chunksLaid
+                  << " viewportPublications=" << delta.viewportPublications << " offscreenFirst=" << delta.offscreenChunksLaidFirst << '\n';
+        Require(delta.chunksLaid <= 2u && delta.offscreenChunksLaidFirst == 0u,
+                "an insert, an Enter or a paste during a viewport-first window lays at most two chunks before it is shown");
+    }
+    Require(DrainDocumentPreparation(layout, {4u, 4096u}) == S_OK && layout.Ready(), "the edits complete");
+    PreparedLayout flat;
+    flat.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Source), narrower);
+    CompareDocumentGeometry(layout, flat, 211u);
+}
+// A document's first preparation also publishes its viewport first: chunks without any previous geometry are estimated
+// placeholders until laid.
+void TestRichDocumentLayoutFirstLoadViewportFirst()
+{
+    const auto factory = DocumentFactory();
+    Document document(ViewportFixtureSource());
+    PreparedDocumentLayout layout;
+    const DxUi::Detail::WorkCounterScope counters;
+    Require(layout.BeginPreparation(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, ViewportFixtureOptions(420.0f)) ==
+                LayoutPreparationStatus::Pending,
+            "a first preparation stages");
+    AdvanceUntilPublication(layout, 0.0f, 500.0f);
+    const auto delta = counters.Delta().rich;
+    std::cout << "first load: viewportPublications=" << delta.viewportPublications << " chunksLaid=" << delta.chunksLaid
+              << " offscreenFirst=" << delta.offscreenChunksLaidFirst << '\n';
+    Require(delta.viewportPublications == 1u && delta.offscreenChunksLaidFirst == 0u && delta.chunksLaid <= 6u && layout.HasPendingPreparation(),
+            "a first load publishes its viewport before any off-screen chunk");
+    RequirePartialRefusesQueries(layout);
+    Require(DrainDocumentPreparation(layout, {4u, 4096u}) == S_OK && layout.Ready(), "the first load completes");
+    PreparedLayout flat;
+    flat.Prepare(factory.get(), Project(document.Snapshot(), document.Revision(), ViewMode::Source), ViewportFixtureOptions(420.0f));
+    CompareDocumentGeometry(layout, flat, 211u);
+    {
+        // One advance with budget left after the window is published goes on laying in the same advance: the window is
+        // still published before any off-screen chunk, and only once per advance.
+        PreparedDocumentLayout wide;
+        const DxUi::Detail::WorkCounterScope wideCounters;
+        wide.BeginPreparation(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, ViewportFixtureOptions(420.0f));
+        const auto advance   = Detail::PreparedDocumentLayoutAccess::Advance(wide, {24u, 4096u}, Detail::DocumentViewport::Of(0.0f, 500.0f));
+        const auto wideDelta = wideCounters.Delta().rich;
+        std::cout << "first load, one wide advance: viewportPublications=" << wideDelta.viewportPublications << " chunksLaid=" << wideDelta.chunksLaid
+                  << " offscreenFirst=" << wideDelta.offscreenChunksLaidFirst << '\n';
+        Require(advance.status == LayoutPreparationStatus::Pending && wideDelta.viewportPublications == 1u && wideDelta.offscreenChunksLaidFirst == 0u &&
+                    wideDelta.chunksLaid == 24u && Detail::PreparedDocumentLayoutAccess::Partial(wide),
+                "an advance continues after its viewport publication without laying an off-screen chunk first");
+    }
+    {
+        // A first load whose whole document fits one advance completes in that advance (one turn, one frame), even when
+        // it has chunks outside the window.
+        std::wstring shortSource;
+        while (shortSource.size() < 2600u)
+            shortSource += L"A short document line of ordinary words that wraps at narrow widths.\n";
+        Document shortDocument(shortSource);
+        PreparedDocumentLayout once;
+        const DxUi::Detail::WorkCounterScope onceCounters;
+        once.BeginPreparation(factory.get(), shortDocument.Snapshot(), shortDocument.Revision(), ViewMode::Source, ViewportFixtureOptions(420.0f));
+        const auto advance = Detail::PreparedDocumentLayoutAccess::Advance(once, {}, Detail::DocumentViewport::Of(0.0f, 60.0f));
+        std::cout << "short first load: chunks=" << once.ChunkCount() << " viewportPublications=" << onceCounters.Delta().rich.viewportPublications << '\n';
+        Require(advance.status == LayoutPreparationStatus::Complete && once.Ready() && once.ChunkCount() > 2u && once.ChunkCount() <= 4u,
+                "a first load that fits one advance completes in it, although chunks lie outside the window");
+    }
 }
 void TestRichDocumentLayoutBranchesOptionsAndCompaction()
 {
@@ -797,17 +1407,41 @@ void TestRichDocumentLayoutBranchesOptionsAndCompaction()
     options.fontSizeDip = 2048.0f;
     PreparedDocumentLayout prepared;
     prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options);
-    bool compacted = false;
     for (size_t edit = 0u; edit < 512u; ++edit)
     {
         const auto position = (edit * 997u + 512u) % document.Length();
         document.Replace(position, position, L"x\n", {0u, 0u});
         prepared.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options);
-        compacted = compacted || prepared.LastPreparation().preparedChunks > prepared.ChunkCount();
         Require(prepared.ChunkCount() <= 128u && prepared.SourceMatches(document.Text()),
                 "fragmenting edits keep the published COM graph and exact source bounded");
     }
-    Require(compacted, "fragmentation fixture actually exercises bounded compaction rather than only its count predicate");
+    {
+        // W7.3: an edit re-lays the chunk that contains it up to the next unchanged chunk, so edits no longer fragment
+        // a document towards 127 chunks. Compaction is exercised directly: a forced plan of more than 127 cuts (the
+        // oracle's same-chunking seam) must compact to the default chunking without failing.
+        Detail::testRichRecordChunkPlan       = true;
+        Detail::testRichPublishedSourceLength = document.Length();
+        Detail::testRichPublishedChunkStarts.clear();
+        const auto text = document.Text();
+        for (std::size_t start = 0u; start < text.size(); start = text.find(L'\n', start) + 1u)
+        {
+            Detail::testRichPublishedChunkStarts.push_back(start);
+            if (text.find(L'\n', start) == std::wstring::npos)
+                break;
+        }
+        Require(Detail::testRichPublishedChunkStarts.size() > 200u, "the forced plan asks for more than 127 chunks");
+        DxUi::Detail::SetFreshPreparationForTest(true);
+        const auto restore = wil::scope_exit([]() noexcept
+        {
+            DxUi::Detail::SetFreshPreparationForTest(false);
+            Detail::testRichRecordChunkPlan = false;
+            Detail::testRichPublishedChunkStarts.clear();
+        });
+        PreparedDocumentLayout compacted;
+        Require(SUCCEEDED(compacted.TryPrepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options)) &&
+                    compacted.ChunkCount() <= 127u && compacted.ChunkCount() > 1u && compacted.LastPreparation().preparedChunks == compacted.ChunkCount(),
+                "a plan of more than 127 chunks compacts before laying any chunk");
+    }
     Document sibling = document;
     document.Replace(0u, 1u, L"a", {0u, 0u});
     sibling.Replace(2u, 3u, L"b", {0u, 0u});
@@ -907,7 +1541,11 @@ void TestRichDocumentLayoutCoalescingCancellationAndFailure()
     layout.Prepare(factory.get(), original.Snapshot(), original.Revision(), ViewMode::Rich, options);
     const auto generation = layout.Generation();
     layout.BeginPreparation(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, options);
-    const auto first = layout.AdvancePreparation({1u, 1u});
+    // W7.3: chunks are planned and ordered before they are laid; advance until the first chunk is laid.
+    auto first = layout.AdvancePreparation({1u, 1u});
+    for (std::size_t advance = 0u; advance < 64u && first.status == LayoutPreparationStatus::Pending && layout.PendingPreparation().preparedChunks == 0u;
+         ++advance)
+        first = layout.AdvancePreparation({1u, 1u});
     Require(first.status == LayoutPreparationStatus::Pending && layout.SourceMatches(original.Text()) && layout.Generation() == generation,
             "pending work leaves the previous published source/geometry pair intact");
     Require(layout.BeginPreparation(factory.get(), candidate.Snapshot(), candidate.Revision(), ViewMode::Rich, options) == LayoutPreparationStatus::Pending,
@@ -959,6 +1597,13 @@ void RunRichDocumentLayoutTests()
     DXUI_RUN_TEST(TestRichDocumentLayoutPrivateOriginsDoNotEnterProjection);
     DXUI_RUN_TEST(TestRichDocumentLayoutLongHeightAndChunkBudget);
     DXUI_RUN_TEST(TestRichDocumentLayoutWarpRasterOracle);
+    DXUI_RUN_TEST(TestRichDocumentLayoutWarpRasterOracleDetectsAWrongOffset);
+    DXUI_RUN_TEST(TestRichDocumentLayoutViewportFirstPublication);
+    DXUI_RUN_TEST(TestRichDocumentLayoutViewportFirstAcrossWidthSteps);
+    DXUI_RUN_TEST(TestRichDocumentLayoutEditsDuringViewportFirst);
+    DXUI_RUN_TEST(TestRichDocumentLayoutFirstLoadViewportFirst);
+    DXUI_RUN_TEST(TestRichDocumentLayoutChunkPixelsMatchShortWholeLayout);
+    DXUI_RUN_TEST(TestRichDocumentLayoutChunkInkAtPlacement);
     DXUI_RUN_TEST(TestRichDocumentLayoutBranchesOptionsAndCompaction);
     DXUI_RUN_TEST(TestRichDocumentLayoutCooperativeBudgetsAndGeometry);
     DXUI_RUN_TEST(TestRichDocumentLayoutCoalescingCancellationAndFailure);

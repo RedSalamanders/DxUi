@@ -1831,16 +1831,81 @@ receipts separately; they are not acceptance of this failure policy.
 
 Guarded rich document geometry retains at most 127 chunk layouts plus one optional
 whole-layout compatibility resource, with old/staged replacement bounded together.
-The qualified positioned-line implementation preserves DirectWrite's global coordinate math with
-private invisible origin lines. Reuse additionally requires an identical document
-origin; height-changing edits may rebuild the entire suffix and must report every
-prepared source unit. Inexact origins and empty displayed suffixes fall back
-explicitly. Uniform Source line spacing uses unprefixed chunks with prepared per-line
-document baselines and the same origin-reuse/bounded layout limits. Font/color
+Position-independent chunks (W7.3): every v0 chunk is laid out at its own origin 0 with no
+private text, and the document places it at the double-precision sum of the line heights
+of the chunks before it (a nonfinal chunk contributes its lines without the phantom line
+after its final line feed; the final chunk all its lines), rounded once to single precision.
+Caret, hit-test, range, visible-range and drawing coordinates add that placement; a
+placement is recomputed for every chunk of a publication, at most 127 additions. Reuse requires only
+the chunk's unchanged blocks and compatible options, never its old position: an edit
+re-lays the chunk that contains it, which grows up to 2,048 source units to the next unchanged
+chunk instead of splitting when other chunks are reused (one chunk per insert and per Enter on
+`FX8`, at most two by contract); when nothing is reusable chunks keep the 1,024-unit target. It moves every
+later chunk, whatever the height change, and reports the prepared source units. An
+explicit line-height multiplier or any script run spaces every chunk with the whole
+document's largest run size and script flag, as one whole layout would; a change of those
+inputs re-lays every chunk. An empty displayed suffix after other chunks falls back
+explicitly to the whole layout. A chunk's placement is the exact sum of the line heights
+before it, rounded once (at most 1/256 DIP below 2^17 DIP, one single-precision unit
+above). Within a chunk DirectWrite places lines by its own single-precision sums from the
+chunk's top. Guarantee: below 2^17 DIP every chunk's first line, and every line of a chunk of
+ordinary text lines, lies within 1/64 DIP of the exact line sum (one single-precision unit more
+above 2^17 DIP). The one exception is a chunk of about a thousand short lines (runs of empty
+lines fill a 1,024-unit chunk with up to 1,024 lines): there DirectWrite's in-chunk
+accumulation adds at most half a unit of the chunk-local coordinate per line before it in the
+chunk, measured up to 0.39 DIP (a 1.6 line-height Source document with 1,000 leading empty
+lines, 40,313 DIP tall) against at most 0.0013 DIP at its chunks' first lines. One whole
+DirectWrite layout accumulates its line tops in single precision from the document start
+and drifts from the exact sum as the document grows (measured: 0.02 DIP at 7,000 DIP for
+1,000 lines, more than 1,000 DIP at 1.57 million DIP for 65,536 lines); position-independent
+chunks cannot reproduce that drift, so a chunked coordinate differs from one whole layout by
+at most 1/64 DIP plus the whole layout's own drift at that line, and the bound is stated
+against the exact sum. The `TestRichDocumentLayout*` geometry oracles check every line top,
+caret, selection rectangle, visible range and hit test against the exact sums and record the
+whole layout's largest drift. Pixels therefore may differ from one whole layout where its drift
+moved a glyph baseline across a device-pixel rounding boundary (measured: 6 of 36 viewport
+pairs of the raster profiles, 116 to 56,096 differing bytes, at drifts up to 0.046 DIP); line
+pitch and heights are unchanged, and documents short enough for that drift to stay far below
+a pixel draw exactly the whole layout's pixels (`TestRichDocumentLayoutChunkPixelsMatchShortWholeLayout`).
+Each chunk's ink is its own layout's ink at its exact line top
+(`TestRichDocumentLayoutChunkInkAtPlacement`). An
+incremental preparation equals a fresh preparation with the same chunking exactly: carets
+bit-identical and WARP BGRA pixels identical for fractional fonts, RTL, scaled and skewed
+transforms and large origins, with a wrong-offset negative control. Direct2D snaps glyph
+baselines in device space from the final drawing origin, so a chunk draws the same pixels
+wherever it is placed for a given document origin. Font/color
 capabilities and coordinate maps are prepared once; drawing borrows them without
 layout, font queries or allocation. Changed-source units, reused chunks
-and any whole-layout work remain separately reported. Geometry and actual WARP
-pixel comparisons cover fractional fonts, RTL, transformed drawing and large origins.
+and any whole-layout work remain separately reported.
+
+Viewport-first preparation (W7.3): an owner gives its current viewport to every advance
+(a library-internal argument; the public `AdvancePreparation` takes none and publishes only
+complete results). On each advance the chunks whose estimated placement meets the viewport,
+with one viewport height of overscan above and below (centred on the caret the owner will
+reveal after an edit), are laid before any other chunk; then the document publishes a
+partial publication and lays the rest, publishing again when complete. The advance that
+publishes goes on laying within its budget, so a document whose rest fits that advance
+completes in it; an advance publishes at most one partial publication. Every chunk not yet
+laid has a stand-in, so the viewport is always published before any off-screen chunk is
+laid: in order, the previous chunk of the same unchanged blocks (laid with other options or
+before an edit), a stale chunk of an earlier partial publication (it stands in again but is
+never reused), or an estimated placeholder with no geometry. Estimate rule: a placeholder is
+as tall as its source units times the height per unit of the plan's chunks whose heights are
+known (laid, reused or stand-in); before any is known, the previous publication's height per
+unit; without one, 0. A partial publication is not `Ready()`: every query refuses it as a
+pending preparation would, and the editor treats its layout as not current, so input that
+needs geometry, caret and selection rectangles, scrolling and reveal, find, UI Automation and
+text-service rectangles wait for completion or answer pending; only painting draws the laid
+chunks, never a stale chunk or a placeholder. Both hosts still withhold every frame while
+any control's content preparation is pending (no partial surface is composed), so no host
+frame shows a partial publication yet: the gain is the order of the work, and the drawing
+path waits for a host policy that presents one. The owner anchors a reflow on its first visible
+source line so that the partial and the complete publication show it at the same place. Work
+units are the existing layout and block-step budgets; no time budget exists; the viewport is
+read on every advance, so a scroll during preparation moves the window. A partial publication
+shares chunk geometry with the previous publication, which stays alive while its chunks stand
+in; the 127 chunk plus one whole-layout bound holds for each graph and for old and staged
+graphs together.
 Count whole-layout work separately from chunk reuse. Owner preparation may construct that cache; cached
 embedded composition must allocate and prepare nothing. `PreparedDocumentLayout::Draw`
 uses only published reference/chunk layouts and never creates a compatibility layout,

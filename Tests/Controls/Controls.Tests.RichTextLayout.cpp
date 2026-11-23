@@ -2196,17 +2196,20 @@ void TestRichTextDocumentLinePitchMatchesCanonicalAcrossChunks()
     options.widthDip             = 280.0f;
     options.fontSizeDip          = 16.0f;
     options.lineHeightMultiplier = 1.65f;
+    // W7.3: chunks sit at the exact sum of the line heights before them; one whole layout sums its 180 line tops in single
+    // precision. Their coordinates agree within the contract's 1/64 DIP plus that accumulation (half a unit per line).
+    constexpr float kPitchTolerance = 1.0f / 64.0f + 180.0f * 0.5f / 2048.0f;
     PreparedLayout canonical;
     canonical.Prepare(factory.get(), projection, options);
     PreparedDocumentLayout retained;
     retained.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, options);
     Require(! retained.UsesWholeGeometry() && ! retained.UsesWholeRaster() && retained.LastPreparation().wholeLayoutsPrepared == 0u &&
-                retained.LastPreparation().preparedChunks > 1u && retained.Height() == canonical.Height(),
-            "explicit Source line pitch retains bounded chunks and the exact canonical document height");
+                retained.LastPreparation().preparedChunks > 1u && std::abs(retained.Height() - canonical.Height()) <= kPitchTolerance,
+            "explicit Source line pitch retains bounded chunks and the canonical document height");
     for (const size_t position : {size_t{0u}, size_t{1024u}, size_t{2048u}, size_t{4096u}, source.size()})
     {
         const auto expected = canonical.Caret(position), actual = retained.Caret(position);
-        Require(expected.x == actual.x && expected.y == actual.y && expected.height == actual.height,
+        Require(expected.x == actual.x && std::abs(expected.y - actual.y) <= kPitchTolerance && expected.height == actual.height,
                 "line pitch and caret geometry stay canonical across all three chunk boundaries");
         const auto expectedHit = canonical.HitTest(expected.x + .1f, expected.y + expected.height * .5f);
         const auto actualHit   = retained.HitTest(expected.x + .1f, expected.y + expected.height * .5f);
@@ -2216,9 +2219,10 @@ void TestRichTextDocumentLinePitchMatchesCanonicalAcrossChunks()
         const auto expectedRange = canonical.Range(position, last), actualRange = retained.Range(position, last);
         Require(expectedRange.size() == actualRange.size(), "uniform chunk selection keeps canonical rectangle ownership");
         for (size_t index = 0u; index < expectedRange.size(); ++index)
-            Require(expectedRange[index].left == actualRange[index].left && expectedRange[index].top == actualRange[index].top &&
-                        expectedRange[index].right == actualRange[index].right && expectedRange[index].bottom == actualRange[index].bottom,
-                    "uniform chunk selection retains exact canonical coordinates");
+            Require(expectedRange[index].left == actualRange[index].left && std::abs(expectedRange[index].top - actualRange[index].top) <= kPitchTolerance &&
+                        expectedRange[index].right == actualRange[index].right &&
+                        std::abs(expectedRange[index].bottom - actualRange[index].bottom) <= kPitchTolerance,
+                    "uniform chunk selection retains canonical coordinates");
     }
     GraphicsFixture graphics;
     THROW_IF_FAILED(graphics.Create());
@@ -2239,6 +2243,10 @@ void TestRichTextDocumentLinePitchMatchesCanonicalAcrossChunks()
     context->SetTarget(bitmap.get());
     wil::com_ptr<ID2D1SolidColorBrush> brush;
     THROW_IF_FAILED(context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), brush.put()));
+    // W7.3: chunk pixels are compared with a fresh preparation of the same chunking (the incremental oracle's reference),
+    // not with one whole layout, whose single-precision line tops may round to other device pixels.
+    PreparedDocumentLayout fresh;
+    fresh.Prepare(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Source, options);
     for (const float dpi : {96.0f, 144.0f})
         for (const size_t position : {size_t{0u}, size_t{2048u}, size_t{4096u}})
         {
@@ -2247,7 +2255,7 @@ void TestRichTextDocumentLinePitchMatchesCanonicalAcrossChunks()
             const auto origin = D2D1::Point2F(4.0f, 4.0f - top);
             context->BeginDraw();
             context->Clear(D2D1::ColorF(0u, 0.0f));
-            canonical.Draw(context.get(), brush.get(), origin);
+            fresh.Draw(context.get(), brush.get(), origin, top, top + 300.0f);
             THROW_IF_FAILED(context->EndDraw());
             std::vector<uint8_t> expected;
             THROW_IF_FAILED(graphics.Read(expected));
@@ -2257,7 +2265,7 @@ void TestRichTextDocumentLinePitchMatchesCanonicalAcrossChunks()
             THROW_IF_FAILED(context->EndDraw());
             std::vector<uint8_t> actual;
             THROW_IF_FAILED(graphics.Read(actual));
-            Require(expected == actual, "explicit-pitch retained drawing matches canonical WARP pixels at 96 and 144 DPI");
+            Require(expected == actual, "explicit-pitch retained drawing matches a fresh preparation's WARP pixels at 96 and 144 DPI");
         }
 }
 
@@ -2330,7 +2338,6 @@ void TestRichTextInlineMetricsFailurePreservesPreparedLayout()
                                                                      factory.get(),
                                                                      projection,
                                                                      options,
-                                                                     0.f,
                                                                      true,
                                                                      false,
                                                                      useSpan ? nullptr : object.Get(),

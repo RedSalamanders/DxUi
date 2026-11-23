@@ -14,6 +14,7 @@ namespace DxUi::RichText
 namespace Detail
 {
 struct PreparedLayoutAccess;
+struct PreparedDocumentLayoutAccess;
 } // namespace Detail
 struct LayoutOptions
 {
@@ -172,6 +173,8 @@ private:
     std::pair<float, float> DrawingVerticalBounds() const;
     std::pair<float, float> HorizontalTextBounds() const;
     std::span<const DWRITE_LINE_METRICS> LineMetrics() const;
+    // Every layout is laid out at its own origin (W7.3): verticalOrigin must be 0, anything else is E_INVALIDARG.
+    // VerticalOrigin() and PositionedExactly() below remain for compatibility and have no callers.
     HRESULT PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin = 0.0f);
     float VerticalOrigin() const noexcept;
     bool PositionedExactly() const noexcept;
@@ -210,10 +213,10 @@ struct LayoutAdvance
 };
 // Owner-thread, bounded v0 document geometry. Chunks end at physical source
 // lines and target 1 Ki source units; 127 chunks plus one optional whole layout
-// bound the retained graph. Private positioning lines preserve DirectWrite's
-// document-coordinate math without entering the projection. Reuse requires the
-// same vertical origin. Inexact positioning/empty suffixes retain canonical whole
-// geometry; statistics report that work separately from incremental reuse.
+// bound the retained graph. Each chunk is laid out at its own origin and placed at
+// the sum of the heights before it, so an unchanged chunk is reused wherever it
+// moves. An empty displayed suffix retains canonical whole geometry; statistics
+// report that work separately from incremental reuse.
 // Source edits may retain immutable old chunks for the next Prepare. Invalidate
 // rejects stale geometry; Clear additionally releases the complete retained graph.
 // This service owns no HWND, graphics device, worker, timer or scheduling policy.
@@ -291,6 +294,8 @@ public:
         ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, float top, float bottom, const LinkDrawing* links = nullptr) const;
 
 private:
+    // Library-internal viewport-first preparation and drawing of a partial publication (W7.3); not public API.
+    friend struct Detail::PreparedDocumentLayoutAccess;
     struct State;
     struct Preparation;
     const State& Prepared() const;

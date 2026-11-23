@@ -216,14 +216,19 @@ static void TestRichDocumentGeometryFailureAtomicity(bool trace = false, bool re
     std::wstring seed;
     for (size_t line = 0u; line < 96u; ++line)
         seed += L"line **bold** \U0001f600\r\n";
+    if (requireWhole)
+        seed = std::wstring(1024u, L'\n') + L"# ";
     Document document(seed);
     const auto before   = document.Snapshot();
     const auto revision = document.Revision();
-    document.Replace(seed.size() / 2u, seed.size() / 2u + 1u, L"# changed\n", {0u, 0u});
-    LayoutOptions options;
-    options.widthDip = 310.0f;
+    // W7.3: chunks carry no origin, so only an empty displayed suffix after a full chunk still takes the whole-layout
+    // path: 1,024 empty lines then an empty heading, edited without moving the chunk boundary.
     if (requireWhole)
-        options.fontSizeDip = 0.0001f; // The minimum private prefix font dominates this tiny document origin.
+        document.Replace(512u, 513u, L"x", {0u, 0u});
+    else
+        document.Replace(seed.size() / 2u, seed.size() / 2u + 1u, L"# changed\n", {0u, 0u});
+    LayoutOptions options;
+    options.widthDip          = 310.0f;
     const auto prepareChanged = [&](PreparedDocumentLayout& prepared)
     {
         prepared.BeginPreparation(factory.get(), document.Snapshot(), document.Revision(), ViewMode::Rich, options);

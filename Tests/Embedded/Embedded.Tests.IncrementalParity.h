@@ -4,6 +4,7 @@
 // Embedded preparation clears and repaints the whole surface today, and the surface persists between preparations, so a
 // later partial preparation (W4.7) is compared here against a dropped surface, with no extra reader needed.
 #include "Controls/DxUi.RetainedCaches.h"
+#include "Controls/DxUi.RichLayoutOptions.h"
 #include "Support.Tests.IncrementalParity.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 
@@ -231,6 +232,11 @@ inline void TestEmbeddedIncrementalParityScripts(GraphicsFixture& gpu)
     RunParityScript(RichScript<EmbeddedParityScene>(), make, "embedded", kReplay);
     RunParityScript(RichBlocksScript<EmbeddedParityScene>(), make, "embedded", kReplay);
     RunParityScript(RichObjectsScript<EmbeddedParityScene>(), make, "embedded", kReplay);
+    // W7.3: the fresh scene prepares with the incremental scene's chunk starts.
+    DxUi::RichText::Detail::testRichRecordChunkPlan = true;
+    const auto stopRecording                        = wil::scope_exit([]() noexcept { DxUi::RichText::Detail::testRichRecordChunkPlan = false; });
+    RunParityScript(RichChunksScript<EmbeddedParityScene>(), make, "embedded", kReplay);
+    RunParityScript(RichChunksMultiplierScript<EmbeddedParityScene>(), make, "embedded", kReplay);
 }
 
 inline void TestEmbeddedIncrementalParity(GraphicsFixture& gpu)

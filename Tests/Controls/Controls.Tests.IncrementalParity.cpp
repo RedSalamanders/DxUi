@@ -3,6 +3,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.DxUiTestMovedControls.h"
 #include "Controls/DxUi.RetainedCaches.h"
+#include "Controls/DxUi.RichLayoutOptions.h"
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.ComboBoxPopupLayout.h"
 #include "Support.Tests.IncrementalParity.h"
@@ -173,6 +174,30 @@ void TestNativeIncrementalParityRichBlocks()
 }
 
 // W2.3: formulas, diagrams, raster images and SVG rasters carried across edits against a fresh preparation of every object.
+// W7.3: position-independent v0 chunks against a fresh preparation with the same chunking, Source and multiplier.
+void TestNativeIncrementalParityRichChunks()
+{
+    DxUi::RichText::Detail::testRichRecordChunkPlan = true;
+    const auto stopRecording                        = wil::scope_exit([]() noexcept { DxUi::RichText::Detail::testRichRecordChunkPlan = false; });
+    RunParityScript(RichChunksScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+    RunParityScript(RichChunksMultiplierScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+}
+
+// W7.3 negative control: every chunk after the first placed one DIP off in the incremental scene must differ.
+void TestNativeIncrementalParityRichChunksDetectsAWrongOffset()
+{
+    DxUi::RichText::Detail::testRichRecordChunkPlan  = true;
+    DxUi::RichText::Detail::testRichChunkOffsetError = 1.0f;
+    const auto restore                               = wil::scope_exit([]() noexcept
+    {
+        DxUi::RichText::Detail::testRichRecordChunkPlan  = false;
+        DxUi::RichText::Detail::testRichChunkOffsetError = 0.0f;
+    });
+    const std::string difference                     = RunParityScriptOnce(RichChunksScript<NativeParityScene>(), kRichChunksSeeds[0], MakeNativeScene);
+    std::cout << "  native wrong-offset negative control: " << difference << '\n';
+    Require(difference.find("pixels differ") != std::string::npos, "a chunk placed one DIP off differs from a fresh preparation of the same chunking");
+}
+
 void TestNativeIncrementalParityRichObjects()
 {
     RunParityScript(RichObjectsScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
@@ -446,6 +471,8 @@ void RunIncrementalParityTests()
     DXUI_RUN_TEST(TestNativeIncrementalParityRichBlocks);
     DXUI_RUN_TEST(TestNativeIncrementalParityRichObjects);
     DXUI_RUN_TEST(TestNativeIncrementalParityRichObjectsDetectsAWrongCarry);
+    DXUI_RUN_TEST(TestNativeIncrementalParityRichChunks);
+    DXUI_RUN_TEST(TestNativeIncrementalParityRichChunksDetectsAWrongOffset);
     DXUI_RUN_TEST(TestNativeIncrementalParityComboPopup);
     DXUI_RUN_TEST(TestFx10LiveResizeArrangesEveryBodyChild);
     DXUI_RUN_TEST(TestNativeIncrementalParityFx10LiveResize);

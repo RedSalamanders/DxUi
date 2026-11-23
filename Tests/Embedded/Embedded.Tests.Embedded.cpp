@@ -90,6 +90,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.PerformanceGridDataPaths.h"
 // After the performance fixtures: the W2.2 gate drives FX2, the W0.7 attribution runs catalog fixtures.
 #include "Embedded.Tests.AssignSetters.h"
+#include "Embedded.Tests.ChunkPlacementFx8.h"
 #include "Embedded.Tests.ComboBoxPopupLayout.h"
 #include "Embedded.Tests.FrameAttribution.h"
 #include "Embedded.Tests.PointerHit.h"
@@ -2082,7 +2083,14 @@ __declspec(noinline) static int RunFunctionalTests()
         PerformanceFixtures::TestTooltipDeadlineGatesOnFx14();
         RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
         MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
+        ChunkPlacementFx8::TestFx8ChunksPerEditAndViewportFirst();
         PerformanceFixtures::TestApplicationWakeGatesOnFixtures();
+        return 0;
+    }
+    // Plan W7.3 alone: the FX8 v0 chunk gates (chunks per edit, viewport first).
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-chunk-placement")
+    {
+        ChunkPlacementFx8::TestFx8ChunksPerEditAndViewportFirst();
         return 0;
     }
     // W3.5 alone: the embedded animation request (API revision 6) and its application-wake gates on FX1, FX13 and FX14.
@@ -2365,6 +2373,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichReuseAcrossEditsEmbedded::TestRichObjectsOracleCatchesAWrongCarry(gpu);
     MarkdownParseReuseFx8::TestFx8ParserInsertKinds();
     MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
+    ChunkPlacementFx8::TestFx8ChunksPerEditAndViewportFirst();
     ComboBoxPopupLayoutTests::Run(gpu);
     TextFieldPaintTests::Run(gpu);
     RetainedTextLayoutTests::Run(gpu);

@@ -125,6 +125,7 @@
     X(rich, markdownSourceUnitsMaterialized) /* Of those, units read out of the document's piece tree rather than the previous parse's source. */              \
     X(rich, mathPreparations)                /* Prepared math formulas built (beside the testRichMathPreparations seam). */                                    \
     X(rich, otherDocumentBytesCopied)        /* Bytes copied out of any other RichText::Document (code-fence line numbers, labels, scratch documents). */      \
+    X(rich, offscreenChunksLaidFirst)        /* v0 chunks outside the preparation viewport laid before that preparation's first publication (W7.3). */         \
     X(rich, otherDocumentFlattens)           /* Copies of such a whole non-empty other Document (a subset of otherDocumentBytesCopied). */                     \
     X(rich, preparationTurns)                /* RichTextEditor::PrepareContent calls: owner turns of cooperative rich-content preparation. */                  \
     X(rich, semanticBlocksReused)            /* Top-level semantic blocks a SemanticBuilder copied from its previous publication instead of building. */       \
@@ -142,6 +143,7 @@
     X(rich, semanticFullBuildStructure)     /* Full semantic builds because a reused block's syntax nodes or identities did not pair. */                       \
     X(rich, semanticIncrementalBuilds)      /* Semantic builds that reused the previous publication's unchanged top-level blocks. */                           \
     X(rich, svgRasterizations)              /* SVG strips rasterized into image bitmaps (beside the testRichSvgRasterizations seam). */                        \
+    X(rich, viewportPublications)           /* v0 document publications of the viewport's new chunks before the rest of a preparation is laid (W7.3). */       \
     X(rich, wholeLayoutsLaid)               /* Whole-document text layouts a document-layout preparation built (not reused). */
 
 // UI Automation.

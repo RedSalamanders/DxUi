@@ -1,4 +1,5 @@
 #pragma once
+#include "Controls/DxUi.PreparedLayoutAccess.h"
 #include <DxUi/DxUi.h>
 #include <DxUi/RichTextLayout.h>
 #include <algorithm>
@@ -6,6 +7,7 @@
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 
 namespace UniformSourceTests
 {
@@ -34,11 +36,31 @@ template <typename Check> inline void EditReuse(IDWriteFactory* factory, Check&&
           "custom Source line spacing retains bounded unchanged chunks after one edit");
     PreparedLayout flat;
     flat.Prepare(factory, Project(document.Snapshot(), document.Revision(), ViewMode::Source), options);
+    // W7.3: chunk line tops follow the exact sum of the line heights; the whole layout's own single-precision running sum
+    // drifts from it on this 1,000-line document, so its carets are compared after removing that drift.
+    std::vector<std::size_t> starts;
+    std::vector<double> drift;
+    {
+        float running     = 0.0f;
+        double sum        = 0.0;
+        std::size_t start = 0u;
+        for (const auto& line : DxUi::RichText::Detail::PreparedLayoutAccess::LineMetrics(flat))
+        {
+            starts.push_back(start);
+            drift.push_back(static_cast<double>(running) - sum);
+            volatile float next = running + line.height;
+            running             = next;
+            sum += line.height;
+            start += line.length;
+        }
+    }
     for (std::size_t position = 0u; position <= flat.Content().text.size(); position = std::min(flat.Content().text.size(), position + 127u))
     {
         const auto actual = prepared.Caret(position), expected = flat.Caret(position);
-        check(std::abs(actual.y - expected.y) <= .125f && std::abs(actual.height - expected.height) <= .125f,
-              "uniform chunk carets retain the whole-layout geometry");
+        const auto line = static_cast<std::size_t>(std::upper_bound(starts.begin(), starts.end(), position) - starts.begin()) - 1u;
+        check(std::abs(static_cast<double>(actual.y) - static_cast<double>(expected.y)) <= 1.0 / 64.0 + std::abs(drift[line]) &&
+                  std::abs(actual.height - expected.height) <= .125f,
+              "uniform chunk carets lie within 1/64 DIP plus the whole layout's own drift of its line tops");
         if (position == flat.Content().text.size())
             break;
     }

@@ -1413,7 +1413,7 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
     continuations, link reference definitions, fences opened and closed, and front matter created and removed.
   - **Needs**: `W0.1`, `W7.1`. **Size**: M.
 
-- [ ] **W7.3 Position-independent chunks and viewport-first preparation.**
+- [x] **W7.3 Position-independent chunks and viewport-first preparation.**
   - **Why**: v0 chunks bake their absolute vertical origin into the text through a private `U+FFFC` prefix
     (`DxUi.RichTextLayout.cpp:308-340`), so Enter re-lays every later chunk (up to 64 × 1,024 units), and the contract
     allows it ("height-changing edits may rebuild the entire suffix"). Reuse relies on bit-exact float equality with a

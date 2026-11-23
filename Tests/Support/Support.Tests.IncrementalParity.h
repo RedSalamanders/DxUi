@@ -1090,6 +1090,90 @@ template <typename Scene> [[nodiscard]] ParityScript<Scene> RichObjectsScript() 
     return {"richObjects", kRichObjectsSeeds, 18u, &BuildRichObjectsScene<Scene>, &StepRichObjects<Scene>};
 }
 
+// Scripts "richChunks" and "richChunksMultiplier" (W7.3): the v0 document layout's position-independent chunks in a
+// rich editor, Source mode and Rich mode without Markdown rendering at line height 1.5, with a fractional font size and a
+// document of many chunks: typing, Enter and Backspace above later chunks (which move without being laid again), width
+// changes (viewport-first preparation with previous chunks shown meanwhile) and scrolling far down (large origins). The
+// fresh scene prepares with the incremental scene's chunk starts (Detail::testRichRecordChunkPlan, set by the test that
+// runs the script), so the comparison is "a fresh preparation with the same chunking".
+template <typename Scene> void BuildRichChunksSceneWith(Scene& scene, bool multiplier)
+{
+    scene.Host().SetTheme(ParityTheme(false));
+    auto root    = std::make_unique<DxUi::Panel>();
+    auto& slots  = scene.slots;
+    slots[kRoot] = root.get();
+    auto* editor = root->AddChild<DxUi::RichTextEditor>();
+    editor->SetBounds(D2D1::RectF(12, 12, 560, 420));
+    std::wstring text;
+    for (size_t line = 0u; text.size() < 9000u; ++line)
+        text += std::format(L"Line {} carries ordinary words, **bold** marks and \u05d0\u05d1\u05d2 so that it wraps at narrow widths.\r\n", line);
+    editor->SetText(text);
+    auto appearance            = editor->GetAppearance();
+    appearance.bodyFontSizeDip = 15.25f;
+    appearance.codeFontSizeDip = 14.75f;
+    if (multiplier)
+    {
+        appearance.lineHeightMultiplier = 1.5f;
+        editor->SetMarkdownRenderingEnabled(false);
+    }
+    else
+        editor->SetViewMode(DxUi::RichText::ViewMode::Source);
+    editor->SetAppearance(appearance);
+    editor->SetSelection({200u, 200u});
+    slots[1] = editor;
+    scene.SetRoot(std::move(root));
+    scene.Host().SetFocusControl(editor, false);
+}
+template <typename Scene> void BuildRichChunksScene(Scene& scene)
+{
+    BuildRichChunksSceneWith(scene, false);
+}
+template <typename Scene> void BuildRichChunksMultiplierScene(Scene& scene)
+{
+    BuildRichChunksSceneWith(scene, true);
+}
+template <typename Scene> void StepRichChunks(Scene& scene, Rng& rng, size_t /*step*/)
+{
+    auto* editor = static_cast<DxUi::RichTextEditor*>(scene.slots[1]);
+    switch (rng.Below(6u))
+    {
+        case 0u:
+        case 1u:
+            NoteStep("chunk character");
+            scene.Character(L"ab\u05d3 "[rng.Below(4u)]);
+            break;
+        case 2u:
+            NoteStep("chunk enter");
+            scene.Key(VK_RETURN);
+            break;
+        case 3u:
+            NoteStep("chunk backspace");
+            scene.Key(VK_BACK);
+            break;
+        case 4u:
+        {
+            NoteStep("chunk width");
+            D2D1_RECT_F bounds = editor->GetBounds();
+            bounds.right       = 300.0f + 260.0f * rng.Unit();
+            editor->SetBounds(bounds);
+            break;
+        }
+        default:
+            NoteStep("chunk scroll");
+            static_cast<void>(editor->SetScrollOffsetDip(rng.Unit() * 40000.0f));
+            break;
+    }
+}
+inline constexpr std::array<uint64_t, 2u> kRichChunksSeeds{0x5EED00F1u, 0x5EED00F2u};
+template <typename Scene> [[nodiscard]] ParityScript<Scene> RichChunksScript() noexcept
+{
+    return {"richChunks", kRichChunksSeeds, 20u, &BuildRichChunksScene<Scene>, &StepRichChunks<Scene>};
+}
+template <typename Scene> [[nodiscard]] ParityScript<Scene> RichChunksMultiplierScript() noexcept
+{
+    return {"richChunksMultiplier", kRichChunksSeeds, 20u, &BuildRichChunksMultiplierScene<Scene>, &StepRichChunks<Scene>};
+}
+
 // The registry's rows read populated before the drop on the controls and rich scenes together, except those the scenes
 // cannot populate (listed with the reason). A row that reads 0 on a scene that exercises it is not counting what it drops.
 inline constexpr std::array<std::string_view, 6u> kRowsNotPopulatedByScenes{

@@ -13,27 +13,10 @@
 #include <stdexcept>
 #include <wil/resource.h>
 #include <wil/result.h>
-// Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
-// Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
-#pragma warning(push)
-#pragma warning(disable : 4746)
-#include <wrl/implements.h>
-#pragma warning(pop)
 namespace DxUi::RichText
 {
 namespace
 {
-// Match DirectWrite's sequential single-precision document line accumulation.
-// Reassociating chunk-local sums changes geometry for pitches such as 16 * 1.65.
-// Stack-only rounding barrier. Owner: DxUi maintainers; review: 2027-01-31.
-#pragma warning(push)
-#pragma warning(disable : 4746)
-float AddLineCoordinate(float left, float right) noexcept
-{
-    volatile float result = left + right;
-    return result;
-}
-#pragma warning(pop)
 void Check(HRESULT result, const char*)
 {
     if (FAILED(result))
@@ -50,52 +33,6 @@ HRESULT NativeOverhangMetrics(IDWriteTextLayout* layout, DWRITE_OVERHANG_METRICS
 {
     return layout->GetOverhangMetrics(metrics);
 }
-// A positioning-only first line lets DirectWrite perform its own sequential
-// document-coordinate rounding, mixed-font caret math and color-font drawing.
-// Its two private text units never enter source/display ACP mappings.
-// Existing identity/RAII/reference traits intentionally delete these implicit operations.
-// Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
-#pragma warning(push)
-#pragma warning(disable : 4625 4626 5026 5027)
-class InvisibleLayoutOrigin final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
-{
-public:
-    explicit InvisibleLayoutOrigin(float height) noexcept : height_(height)
-    {
-    }
-    HRESULT STDMETHODCALLTYPE Draw(void*, IDWriteTextRenderer*, FLOAT, FLOAT, BOOL, BOOL, IUnknown*) noexcept override
-    {
-        return S_OK;
-    }
-    HRESULT STDMETHODCALLTYPE GetMetrics(DWRITE_INLINE_OBJECT_METRICS* metrics) noexcept override
-    {
-        if (! metrics)
-            return E_POINTER;
-        *metrics = {0.0f, height_, height_ * 0.5f, FALSE};
-        return S_OK;
-    }
-    HRESULT STDMETHODCALLTYPE GetOverhangMetrics(DWRITE_OVERHANG_METRICS* metrics) noexcept override
-    {
-        if (! metrics)
-            return E_POINTER;
-        // No ink belongs to this zero-width object. Collapse its ink box at the
-        // synthetic line's end so it cannot expand viewport drawing bounds.
-        *metrics = {0.0f, -height_, 0.0f, 0.0f};
-        return S_OK;
-    }
-    HRESULT STDMETHODCALLTYPE GetBreakConditions(DWRITE_BREAK_CONDITION* before, DWRITE_BREAK_CONDITION* after) noexcept override
-    {
-        if (! before || ! after)
-            return E_POINTER;
-        *before = *after = DWRITE_BREAK_CONDITION_NEUTRAL;
-        return S_OK;
-    }
-
-private:
-    float height_{};
-};
-#pragma warning(pop)
-
 } // namespace
 struct PreparedLayout::State
 {
@@ -116,10 +53,9 @@ struct PreparedLayout::State
     float height{};
     float drawingTop{}, drawingBottom{};
     float textLeft{}, textWidth{};
-    float verticalOrigin{};
-    float verticalTranslation{};
+    // Every layout starts at its own origin 0 (W7.3): the SDK buffer equals the projection, so this offset of the
+    // renderers' SDK positions stays 0 and no private positioning object exists.
     UINT32 textOffset{};
-    bool positionedExactly = true;
 };
 PreparedLayout::PreparedLayout()
     : projection_{std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)}
@@ -189,7 +125,30 @@ HRESULT PreparedLayout::TryPrepare(IDWriteFactory* factory, Projection projectio
 }
 HRESULT PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin)
 {
-    return Detail::PreparedLayoutAccess::Prepare(*this, factory, projection, options, verticalOrigin);
+    // Every layout is laid out at its own origin (W7.3); a document places its chunks.
+    if (verticalOrigin != 0.0f)
+        return E_INVALIDARG;
+    return Detail::PreparedLayoutAccess::Prepare(*this, factory, projection, options);
+}
+float PreparedLayout::VerticalOrigin() const noexcept
+{
+    return 0.0f;
+}
+bool PreparedLayout::PositionedExactly() const noexcept
+{
+    return static_cast<bool>(state_);
+}
+void Detail::PreparedLayoutAccess::AccumulateLineSpacing(DocumentLineSpacing& spacing, std::span<const StyleRun> runs, const LayoutOptions& options) noexcept
+{
+    for (const auto& run : runs)
+    {
+        auto runSize = (run.flags & Code) && options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : options.fontSizeDip;
+        if (run.heading)
+            runSize = options.headingFontSizeDip[run.heading - 1u] > 0.0f ? options.headingFontSizeDip[run.heading - 1u]
+                                                                          : runSize * (1.0f + options.headingScaleStep * static_cast<float>(7u - run.heading));
+        spacing.size    = std::max(spacing.size, runSize);
+        spacing.scripts = spacing.scripts || (run.flags & (Superscript | Subscript)) != 0u;
+    }
 }
 HRESULT Detail::PreparedLayoutAccess::PrepareSemantic(PreparedLayout& owner,
                                                       IDWriteFactory* factory,
@@ -204,19 +163,19 @@ HRESULT Detail::PreparedLayoutAccess::PrepareSemantic(PreparedLayout& owner,
     projection.text.swap(input.text);
     projection.runs.swap(input.runs);
     projection.revision = input.revision;
-    return Prepare(owner, factory, projection, options, 0.0f, true, marker, object, objectOffset, objects, input.padInlineCode);
+    return Prepare(owner, factory, projection, options, true, marker, object, objectOffset, objects, input.padInlineCode);
 }
 HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
                                               IDWriteFactory* factory,
                                               Projection& projection,
                                               const LayoutOptions& options,
-                                              float verticalOrigin,
                                               bool semanticDisplay,
                                               bool marker,
                                               IDWriteInlineObject* object,
                                               UINT32 objectOffset,
                                               std::span<const InlineObject> objects,
-                                              bool padInlineCode)
+                                              bool padInlineCode,
+                                              const DocumentLineSpacing* documentSpacing)
 {
     const Failure::Scope failureScope;
     const auto width = options.widthDip, fontSize = options.fontSizeDip;
@@ -238,9 +197,10 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
         (options.readingDirection != DWRITE_READING_DIRECTION_LEFT_TO_RIGHT && options.readingDirection != DWRITE_READING_DIRECTION_RIGHT_TO_LEFT) ||
         (options.textAlignment != DWRITE_TEXT_ALIGNMENT_LEADING && options.textAlignment != DWRITE_TEXT_ALIGNMENT_TRAILING &&
          options.textAlignment != DWRITE_TEXT_ALIGNMENT_CENTER) ||
-        ! std::isfinite(verticalOrigin) || verticalOrigin < 0.0f || ! std::ranges::all_of(options.headingFontSizeDip, validHeadingSize) ||
-        ! std::ranges::all_of(options.headingLineHeightMultiplier, validHeadingHeight) || ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) ||
-        ! validSpacing(options.listItemSpacingDip, 256.0f) || (options.semanticSpacing && ! options.semanticSpacing->IsValid()) ||
+        (documentSpacing && (! std::isfinite(documentSpacing->size) || documentSpacing->size < fontSize)) ||
+        ! std::ranges::all_of(options.headingFontSizeDip, validHeadingSize) || ! std::ranges::all_of(options.headingLineHeightMultiplier, validHeadingHeight) ||
+        ! validSpacing(options.paragraphSpacingAfterLines, 4.0f) || ! validSpacing(options.listItemSpacingDip, 256.0f) ||
+        (options.semanticSpacing && ! options.semanticSpacing->IsValid()) ||
         (options.markdownPresentation != MarkdownPresentationStyle::Default && options.markdownPresentation != MarkdownPresentationStyle::Subtle))
         return E_INVALIDARG;
     const auto maximum = semanticDisplay ? Document::MaximumUnits * 2u : Document::MaximumUnits;
@@ -303,43 +263,21 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     if (options.tabStopDip > 0.0f)
         RETURN_IF_FAILED(format->SetIncrementalTabStop(options.tabStopDip));
     wil::com_ptr<IDWriteTextLayout> layout;
-    std::wstring positionedText(0u, L'\0');
-    // Uniform Source spacing applies to every SDK line, including a private
-    // prefix. Position these unstyled chunks through their drawing/query origin
-    // instead; retain the exact-prefix path for natural and rich typography.
-    const bool translatedOrigin    = verticalOrigin > 0.0f && options.lineHeightMultiplier > 0.0f && projection.mode == ViewMode::Source;
-    const auto verticalTranslation = translatedOrigin ? verticalOrigin : 0.0f;
-    const UINT32 textOffset        = verticalOrigin > 0.0f && ! translatedOrigin ? 2u : 0u;
-    if (textOffset)
-    {
-        positionedText.assign(L"\ufffc\n");
-        positionedText.append(projection.text);
-    }
+    std::wstring objectText(0u, L'\0');
+    // Every layout is laid out at its own origin 0; a document places it (W7.3).
+    constexpr UINT32 textOffset = 0u;
     if (! objects.empty())
     {
-        if (! textOffset)
-            positionedText.assign(projection.text);
+        objectText.assign(projection.text);
         // The public display/source map retains the Unicode alternative. Only
         // the private SDK buffer uses neutral object code units of equal
         // length: otherwise script/font fallback can split a Han/emoji alt
         // into several inline-object runs and repeat the image metrics.
         for (const auto& inlineObject : objects)
-            std::fill_n(positionedText.begin() + inlineObject.first + textOffset, inlineObject.length, L'\ufffc');
+            std::fill_n(objectText.begin() + inlineObject.first, inlineObject.length, L'\ufffc');
     }
-    const auto text = textOffset || ! objects.empty() ? std::wstring_view(positionedText) : std::wstring_view(projection.text);
+    const auto text = ! objects.empty() ? std::wstring_view(objectText) : std::wstring_view(projection.text);
     RETURN_IF_FAILED(CountedCreateTextLayout(factory, text.data(), static_cast<UINT32>(text.size()), format.get(), width, 1000000.0f, layout.put()));
-    wil::com_ptr<IDWriteInlineObject> positioning;
-    if (textOffset)
-    {
-        // WRL allocates through Make's nothrow new. Translate only its null
-        // allocation result to the existing fallible staging contract.
-        auto origin = Microsoft::WRL::Make<InvisibleLayoutOrigin>(verticalOrigin);
-        if (origin.Get() == nullptr)
-            return E_OUTOFMEMORY;
-        positioning = origin.Get();
-        RETURN_IF_FAILED(layout->SetFontSize(0.01f, {0u, textOffset}));
-        RETURN_IF_FAILED(layout->SetInlineObject(positioning.get(), {0u, 1u}));
-    }
     float scriptTopOutset{}, scriptBottomOutset{};
     for (const auto& run : projection.runs)
     {
@@ -411,21 +349,18 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     if (semanticDisplay && headingRun != projection.runs.end() && options.headingLineHeightMultiplier[headingRun->heading - 1u] > 0.0f)
         lineHeight = options.headingLineHeightMultiplier[headingRun->heading - 1u];
     const bool scripts = std::ranges::any_of(projection.runs, [](const auto& run) { return (run.flags & (Superscript | Subscript)) != 0u; });
-    if (lineHeight > 0.0f || scripts)
+    // A document chunk spaces its lines with the whole document's inputs, as one whole layout would.
+    DocumentLineSpacing spacing{fontSize, false};
+    if (documentSpacing)
+        spacing = *documentSpacing;
+    else
+        AccumulateLineSpacing(spacing, projection.runs, options);
+    if (lineHeight > 0.0f || spacing.scripts)
     {
-        auto size = fontSize;
-        for (const auto& run : projection.runs)
-        {
-            auto runSize = (run.flags & Code) && options.codeFontSizeDip > 0.0f ? options.codeFontSizeDip : fontSize;
-            if (run.heading)
-                runSize = options.headingFontSizeDip[run.heading - 1u] > 0.0f
-                              ? options.headingFontSizeDip[run.heading - 1u]
-                              : runSize * (1.0f + options.headingScaleStep * static_cast<float>(7u - run.heading));
-            size = std::max(size, runSize);
-        }
+        const auto size = spacing.size;
         // Font-relative line height matches a document's 16/1.65 typography.
         // Inline images/math must still reserve their complete ascent/descent.
-        auto ascent = size * (scripts ? 1.05f : .8f), descent = size * (scripts ? .4f : .2f);
+        auto ascent = size * (spacing.scripts ? 1.05f : .8f), descent = size * (spacing.scripts ? .4f : .2f);
         const auto accommodate = [&](IDWriteInlineObject* value) -> HRESULT
         {
             DWRITE_INLINE_OBJECT_METRICS extent{};
@@ -451,8 +386,8 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     RETURN_IF_FAILED(Failure::InvokeNative(&NativeTextMetrics, layout.get(), &metrics));
     DWRITE_OVERHANG_METRICS overhang{};
     RETURN_IF_FAILED(Failure::InvokeNative(&NativeOverhangMetrics, layout.get(), &overhang));
-    const auto drawingTop    = std::min(verticalOrigin, verticalTranslation - overhang.top) - scriptTopOutset;
-    const auto drawingBottom = verticalTranslation + std::max(metrics.height, metrics.layoutHeight + overhang.bottom) + scriptBottomOutset;
+    const auto drawingTop    = std::min(0.0f, -overhang.top) - scriptTopOutset;
+    const auto drawingBottom = std::max(metrics.height, metrics.layoutHeight + overhang.bottom) + scriptBottomOutset;
     if (! std::isfinite(metrics.height) || ! std::isfinite(drawingTop) || ! std::isfinite(drawingBottom))
         return E_UNEXPECTED;
     std::vector<std::size_t> clusters{0};
@@ -465,34 +400,13 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     std::vector<DWRITE_LINE_METRICS> lineMetrics(count);
     if (count)
         RETURN_IF_FAILED(layout->GetLineMetrics(lineMetrics.data(), count, &count));
-    // An empty suffix would inherit the tiny prefix LF's terminal font. Keep
-    // that uncommon case on canonical whole geometry instead.
-    const bool positionedExactly = ! textOffset || (! projection.text.empty() && ! lineMetrics.empty() && lineMetrics.front().length == textOffset &&
-                                                    lineMetrics.front().height == verticalOrigin);
-    if (textOffset && ! lineMetrics.empty())
-        lineMetrics.erase(lineMetrics.begin());
     std::vector<std::size_t> lines{0};
     for (const auto& line : lineMetrics)
         lines.push_back(lines.back() + line.length);
-    auto next            = std::make_unique<PreparedLayout::State>();
-    next->hasScripts     = scripts;
-    float documentHeight = verticalTranslation + metrics.height;
-    if (translatedOrigin)
-    {
-        auto localTop = 0.0f, documentTop = verticalOrigin;
-        std::size_t first = 0u;
-        next->scripts.uniformSourceLines.reserve(lineMetrics.size());
-        for (const auto& line : lineMetrics)
-        {
-            next->scripts.uniformSourceLines.push_back(
-                {first, localTop, documentTop, AddLineCoordinate(localTop, line.baseline), AddLineCoordinate(documentTop, line.baseline)});
-            first += line.length;
-            localTop    = AddLineCoordinate(localTop, line.height);
-            documentTop = AddLineCoordinate(documentTop, line.height);
-        }
-        documentHeight = documentTop;
-    }
-    if (scripts || translatedOrigin)
+    auto next                  = std::make_unique<PreparedLayout::State>();
+    next->hasScripts           = scripts;
+    const float documentHeight = metrics.height;
+    if (scripts)
     {
         Detail::ScriptTextRenderer collector(nullptr, nullptr, layout.get(), projection, textOffset, {}, next->scripts, true);
         RETURN_IF_FAILED(layout->Draw(nullptr, &collector, 0.f, 0.f));
@@ -506,21 +420,17 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             return a.baseline < b.baseline || (a.baseline == b.baseline && a.left < b.left);
         });
     }
-    owner.projection_         = std::move(projection);
-    next->layout              = std::move(layout);
-    next->positioning         = std::move(positioning);
-    next->clusters            = std::move(clusters);
-    next->lines               = std::move(lines);
-    next->lineMetrics         = std::move(lineMetrics);
-    next->height              = documentHeight;
-    next->drawingTop          = drawingTop;
-    next->drawingBottom       = std::max(drawingBottom, documentHeight + std::max(0.0f, overhang.bottom) + scriptBottomOutset);
-    next->textLeft            = metrics.left;
-    next->textWidth           = metrics.widthIncludingTrailingWhitespace;
-    next->verticalOrigin      = verticalOrigin;
-    next->verticalTranslation = verticalTranslation;
-    next->textOffset          = textOffset;
-    next->positionedExactly   = positionedExactly;
+    owner.projection_   = std::move(projection);
+    next->layout        = std::move(layout);
+    next->clusters      = std::move(clusters);
+    next->lines         = std::move(lines);
+    next->lineMetrics   = std::move(lineMetrics);
+    next->height        = documentHeight;
+    next->drawingTop    = drawingTop;
+    next->drawingBottom = std::max(drawingBottom, documentHeight + std::max(0.0f, overhang.bottom) + scriptBottomOutset);
+    next->textLeft      = metrics.left;
+    next->textWidth     = metrics.widthIncludingTrailingWhitespace;
+    next->textOffset    = textOffset;
     owner.state_.swap(next);
     ++owner.generation_;
     return S_OK;
@@ -571,30 +481,13 @@ float Detail::PreparedLayoutAccess::MinimumTextWidth(const PreparedLayout& owner
         Failure::FailContract(E_INVALIDARG);
     return minimum;
 }
-float PreparedLayout::VerticalOrigin() const noexcept
-{
-    return state_ ? state_->verticalOrigin : 0.0f;
-}
-bool PreparedLayout::PositionedExactly() const noexcept
-{
-    return state_ && state_->positionedExactly;
-}
 HRESULT PreparedLayout::TryHitTest(float x, float y, Hit& output) const
 {
     if (! state_ || ! std::isfinite(x) || ! std::isfinite(y))
         return E_INVALIDARG;
     BOOL trailing = FALSE, inside = FALSE;
     DWRITE_HIT_TEST_METRICS metrics{};
-    auto localY       = y - state_->verticalTranslation;
-    const auto& lines = state_->scripts.uniformSourceLines;
-    if (! lines.empty())
-    {
-        const auto after =
-            std::upper_bound(lines.begin(), lines.end(), y, [](float value, const Detail::UniformSourceLine& line) { return value < line.documentTop; });
-        const auto& line = after == lines.begin() ? lines.front() : *std::prev(after);
-        localY           = line.localTop + (y - line.documentTop);
-    }
-    const auto hr = state_->layout->HitTestPoint(x, localY, &trailing, &inside, &metrics);
+    const auto hr = state_->layout->HitTestPoint(x, y, &trailing, &inside, &metrics);
     if (FAILED(hr))
         return hr;
     const auto actual = static_cast<std::size_t>(metrics.textPosition) + (trailing ? metrics.length : 0u);
@@ -635,13 +528,6 @@ HRESULT PreparedLayout::TryCaret(std::size_t position, CaretAffinity affinity, C
     const auto hr = state_->layout->HitTestTextPosition(static_cast<UINT32>(anchor) + state_->textOffset, upstream ? TRUE : FALSE, &x, &y, &metrics);
     if (FAILED(hr))
         return hr;
-    if (! state_->scripts.uniformSourceLines.empty())
-    {
-        const auto& line = Detail::UniformLineAt(state_->scripts.uniformSourceLines, anchor);
-        y                = line.documentBaseline - (line.localBaseline - y);
-    }
-    else
-        y += state_->verticalTranslation;
     output = {x, y, metrics.height};
     return S_OK;
 }
@@ -669,8 +555,8 @@ HRESULT PreparedLayout::TryRange(std::size_t first, std::size_t last, std::vecto
     std::vector<D2D1_RECT_F> rectangles(0u);
     if (first != last)
     {
-        const auto origin = state_->scripts.uniformSourceLines.empty() ? state_->verticalTranslation : 0.0f;
-        UINT32 count      = 0;
+        constexpr float origin = 0.0f;
+        UINT32 count           = 0;
         const auto query =
             state_->layout->HitTestTextRange(static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, origin, nullptr, 0, &count);
         if (FAILED(query) && query != HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))
@@ -689,13 +575,7 @@ HRESULT PreparedLayout::TryRange(std::size_t first, std::size_t last, std::vecto
         for (UINT32 index = 0u; index < count; ++index)
         {
             const auto& item = metrics[index];
-            auto top         = item.top;
-            if (! state_->scripts.uniformSourceLines.empty())
-            {
-                const auto& line = Detail::UniformLineAt(state_->scripts.uniformSourceLines, item.textPosition);
-                top              = line.documentBaseline - (line.localBaseline - top);
-            }
-            rectangles.push_back({item.left, top, item.left + item.width, top + item.height});
+            rectangles.push_back({item.left, item.top, item.left + item.width, item.top + item.height});
         }
     }
     output.swap(rectangles);
@@ -818,7 +698,7 @@ bool Detail::PreparedLayoutAccess::ScriptTargetSupported(const PreparedLayout& o
 {
     if (! owner.state_)
         return false;
-    if (! owner.state_->hasScripts && owner.state_->scripts.uniformSourceLines.empty())
+    if (! owner.state_->hasScripts)
         return true;
     if (owner.state_->scripts.unsupported)
         return false;
@@ -837,10 +717,7 @@ HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2
     Failure::Scope failureScope;
     if (! target || ! brush || ! state_)
         return E_INVALIDARG;
-    const bool positionedSource = ! state_->scripts.uniformSourceLines.empty();
-    if (! positionedSource)
-        origin.y += state_->verticalTranslation;
-    const bool scripts = state_->hasScripts || positionedSource;
+    const bool scripts = state_->hasScripts;
     if (scripts && state_->scripts.unsupported)
         return DWRITE_E_UNSUPPORTEDOPERATION;
     if (scripts && state_->scripts.requiresColor)
