@@ -145,7 +145,7 @@ __declspec(noinline) inline void TestComboBoxPopupMatchesLegacyMeasurement(Graph
     DxUi::EmbeddedHost view;
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "popup legacy comparison graphics");
-    Hr(view.Attach(std::move(graphics)), "popup legacy comparison view");
+    Hr(view.Attach(std::move(graphics), StoppedTestClock()), "popup legacy comparison view");
     DxUi::ControlHost& host = view.Controls();
     host.SetTheme(IncrementalParity::ParityTheme(false));
     auto rootOwner          = std::make_unique<DxUi::Panel>();
@@ -303,7 +303,7 @@ __declspec(noinline) inline void TestComboBoxPopupWidthsFollowTypography(Graphic
     DxUi::EmbeddedHost view;
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "popup typography graphics");
-    Hr(view.Attach(graphics), "popup typography view");
+    Hr(view.Attach(graphics, StoppedTestClock()), "popup typography view");
     auto rootOwner = std::make_unique<DxUi::Panel>();
     auto* combo    = rootOwner->AddChild<DxUi::ComboBox>();
     combo->SetItems(MakeItems(ItemSet::Mixed, 0x5EED0231u));

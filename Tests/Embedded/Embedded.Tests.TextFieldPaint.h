@@ -253,7 +253,7 @@ __declspec(noinline) inline void TestTextFieldStaleLayoutIsNeverUsed(GraphicsFix
     DxUi::EmbeddedHost view;
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "W2.7 stale-layout graphics");
-    Hr(view.Attach(graphics), "W2.7 stale-layout view");
+    Hr(view.Attach(graphics, StoppedTestClock()), "W2.7 stale-layout view");
     view.Controls().SetTheme(IncrementalParity::ParityTheme(false));
     auto rootOwner   = std::make_unique<DxUi::Panel>();
     auto* const root = rootOwner.get();
@@ -380,7 +380,7 @@ __declspec(noinline) inline void TestMaskedTextFieldWipesItsCopies(GraphicsFixtu
         DxUi::EmbeddedHost view;
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "W2.7 wipe graphics");
-        Hr(view.Attach(graphics), "W2.7 wipe view");
+        Hr(view.Attach(graphics, StoppedTestClock()), "W2.7 wipe view");
         auto rootOwner        = std::make_unique<DxUi::Panel>();
         auto* const panel     = rootOwner.get();
         constexpr auto secret = L"correct horse battery";
@@ -488,7 +488,7 @@ __declspec(noinline) inline void TestTextFieldInPlaceUndoIsFresh(GraphicsFixture
     DxUi::EmbeddedHost view;
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "W2.7 undo graphics");
-    Hr(view.Attach(graphics), "W2.7 undo view");
+    Hr(view.Attach(graphics, StoppedTestClock()), "W2.7 undo view");
     view.Controls().SetTheme(IncrementalParity::ParityTheme(false));
     auto rootOwner   = std::make_unique<DxUi::Panel>();
     auto* const root = rootOwner.get();

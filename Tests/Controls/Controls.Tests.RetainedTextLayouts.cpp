@@ -262,7 +262,7 @@ void RunMatrixOnEmbedded(std::span<const TextCase> cases, float dpi, MatrixTotal
     std::shared_ptr<GraphicsDevice> graphics;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "equivalence matrix graphics device");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(std::move(graphics)), "equivalence matrix view attaches");
+    RequireSucceeded(view.Attach(std::move(graphics), StoppedTestClock()), "equivalence matrix view attaches");
     auto theme          = MakeDefaultThemePalette(true);
     theme.reducedMotion = true;
     view.Controls().SetTheme(theme);
@@ -492,7 +492,7 @@ struct LifetimeScene
         RequireSucceeded(gpu.Create(), "lifetime WARP device");
         std::shared_ptr<GraphicsDevice> graphics;
         RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "lifetime graphics device");
-        RequireSucceeded(view.Attach(std::move(graphics)), "lifetime view attaches");
+        RequireSucceeded(view.Attach(std::move(graphics), StoppedTestClock()), "lifetime view attaches");
         auto theme          = MakeDefaultThemePalette(true);
         theme.reducedMotion = true;
         view.Controls().SetTheme(theme);

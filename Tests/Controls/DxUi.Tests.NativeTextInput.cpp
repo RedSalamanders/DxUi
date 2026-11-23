@@ -9889,7 +9889,7 @@ void TestRichCommandStateDuringNativeComposition()
     std::shared_ptr<GraphicsDevice> pool;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), pool), "native composition fixture graphics pool");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(pool), "native composition fixture headless host");
+    RequireSucceeded(view.Attach(pool, StoppedTestClock()), "native composition fixture headless host");
     auto& host  = view.Controls();
     auto editor = std::make_unique<RichTextEditor>(L"**a**");
     auto* raw   = editor.get();

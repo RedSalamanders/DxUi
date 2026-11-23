@@ -26,14 +26,19 @@ change.
 | `bool more = view.AdvanceAnimation(now);` | `DxUi::EmbeddedAnimationRequest next = view.AdvanceAnimation(now);` and `more` is `next.kind != Kind::None` |
 | a timer or frame loop running while `NeedsAnimation()` | sleep until the request: `None` sleeps, `Continuous` advances every frame, `Deadline` advances once at `dueTickMs` on your own clock |
 | "call only while `NeedsAnimation()`" | an `AdvanceAnimation` with nothing requested does nothing and returns `None` |
+| `view.Attach(pool, {context, requestPreparation})` | `view.Attach(pool, {context, requestPreparation, nowTickMs})`: your clock is required; `Attach` returns `E_INVALIDARG` without it |
 
 `AdvanceAnimation` still takes your application's milliseconds and the clock rules are unchanged: the first advance after
-a pause only sets the baseline, a tick that goes back adds nothing, and the clock saturates. A request's `dueTickMs` is on
-that same clock; it is 0 when the view needs its baseline advance, and may already have passed. The polling loop,
-the loop that sleeps until the request and the timer-driven message loop are shown in
+a pause only sets the baseline, a tick that goes back adds nothing, and the clock saturates. `EmbeddedCallbacks::nowTickMs`
+returns the same clock, read by the view wherever it takes a time stamp between advances (input, setters, a caret
+restart, a tooltip delay), so stamps are current however long your application sleeps; it is required, so no view can be
+attached with a clock that stops between advances. A request's `dueTickMs` is on that same clock; it is 0 when the view
+needs its baseline advance, may already have passed, and is never beyond the end of your clock's range (such a deadline
+is `None`). The polling loop, the loop that sleeps until the request and the timer-driven message loop are shown in
 [hosting](hosting.md#input-dpi-and-animation); polling every frame stays correct, but only the other two let an idle or
-blinking view stop waking the application. The view calls `requestPreparation` when it needs you sooner than the
-request it last reported, so read the request after that callback as after every call into the view.
+blinking view stop waking the application. The view remembers the request it last reported and calls
+`requestPreparation` when it needs you sooner, so sleeping until the last request you read is safe; read the request
+after that callback. `DXUI_HAS_EMBEDDED_APPLICATION_CLOCK` marks headers that require the clock.
 
 ### One user-settings call
 

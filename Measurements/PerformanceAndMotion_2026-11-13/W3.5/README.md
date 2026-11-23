@@ -19,10 +19,14 @@ Each fixture runs twice on its own definition through `RunEmbedded`, with one of
   is the best revision 5 allowed (`NeedsAnimation()` is a `bool`), and it is the application of every fixture receipt, so
   `wakes.embeddedAdvance` keeps its meaning. A real polling application wakes every frame (16 ms at 60 Hz) while anything
   waits, which the fixture's 100 ms, 500 ms and 1 s steps understate.
-- **After: the application that sleeps until the request.** It reads `GetAnimationRequest()`, sleeps on the fixture clock
-  until a `Deadline` is due (exactly at `dueTickMs`), advances once per step while `Continuous`, and never while `None`.
-  A *wake* is an advance it slept until; an advance made at once in a turn it was already awake for (the baseline after
-  a pause) is counted as an advance only. Never a real timer.
+- **After: the application that sleeps until the request.** It knows only the request it last read: the one its own last
+  `AdvanceAnimation` returned, or one it read again because the view's `requestPreparation` callback woke it (or because
+  it hid the view itself). It sleeps on the fixture clock until that `Deadline` (exactly at `dueTickMs`), advances once
+  per step while `Continuous`, and never while `None`; input from the fixture's steps arrives at the fixture time between
+  deadlines, and the view's clock (`EmbeddedCallbacks::nowTickMs`) is the fixture clock. A *wake* is an advance it slept
+  until; an advance made at once in a turn it was already awake for (the baseline after a pause) is counted as an
+  advance only. Never a real timer. Measured again after the W3.5 review fixes (the required application clock, the
+  record of the reported request, the strict simulation): the same numbers.
 
 ## Application wakes
 

@@ -20,7 +20,7 @@ static void TestRichSemanticEditorQueryFailureBudgets(GraphicsFixture& gpu, bool
     for (const bool semantic : {false, true})
     {
         EmbeddedHost view;
-        Hr(view.Attach(graphics), "query failure embedded owner");
+        Hr(view.Attach(graphics, StoppedTestClock()), "query failure embedded owner");
         auto root    = std::make_unique<RichTextEditor>(source);
         auto* editor = root.get();
         editor->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::Gfm029);

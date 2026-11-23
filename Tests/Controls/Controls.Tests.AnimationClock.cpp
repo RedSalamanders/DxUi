@@ -53,7 +53,7 @@ void StartClockView(DxUi::EmbeddedHost& view,
                     UINT width,
                     UINT height)
 {
-    RequireSucceeded(view.Attach(pool), "attach an application-clock view");
+    RequireSucceeded(view.Attach(pool, StoppedTestClock()), "attach an application-clock view");
     view.Controls().DebugSetAnimationClockForTest(viewClockMs);
     view.Controls().SetTheme(MakeAnimatedTestThemePalette(false));
     view.Controls().SetRoot(std::move(root));

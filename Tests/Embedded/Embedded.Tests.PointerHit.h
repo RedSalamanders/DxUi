@@ -27,7 +27,7 @@ public:
     {
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(device, graphics), "pointer-hit graphics pool");
-        Hr(view.Attach(std::move(graphics)), "pointer-hit view attachment");
+        Hr(view.Attach(std::move(graphics), StoppedTestClock()), "pointer-hit view attachment");
         auto theme          = DxUi::MakeDefaultThemePalette(false);
         theme.reducedMotion = true;
         view.Controls().SetTheme(theme);

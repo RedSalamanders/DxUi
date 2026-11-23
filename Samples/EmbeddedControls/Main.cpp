@@ -497,7 +497,7 @@ struct App
         sample.quitOnDestroy = false; // This hidden proof owns no GetMessage loop or WM_QUIT.
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
-        RETURN_IF_FAILED(sample.View().Attach(std::move(graphics)));
+        RETURN_IF_FAILED(sample.View().Attach(std::move(graphics), DxUi::EmbeddedCallbacks{.nowTickMs = [](void*) noexcept { return GetTickCount64(); }}));
         {
             const DxUi::Failure::Scope construction;
             auto root     = std::make_unique<DxUi::Panel>();
@@ -819,7 +819,9 @@ int wmain(int argc, wchar_t** argv)
         }
         if (FAILED(app.gpu.Create()))
             return 1;
-        const DxUi::EmbeddedCallbacks callbacks{&app, [](void* context) noexcept { static_cast<App*>(context)->Request(); }};
+        // The application's clock is the one it passes to AdvanceAnimation: GetTickCount64.
+        const DxUi::EmbeddedCallbacks callbacks{
+            &app, [](void* context) noexcept { static_cast<App*>(context)->Request(); }, [](void*) noexcept { return GetTickCount64(); }};
         {
             const DxUi::Failure::Scope construction;
             if (FAILED(complex ? app.complex->Initialize(app.gpu.device.get(), callbacks)

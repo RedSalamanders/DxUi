@@ -158,7 +158,7 @@ __declspec(noinline) inline void TestLabelMeasureAllocatesNothing(GraphicsFixtur
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "label measure graphics device");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(std::move(graphics)), "label measure view");
+    Hr(view.Attach(std::move(graphics), StoppedTestClock()), "label measure view");
     auto root     = std::make_unique<DxUi::Panel>();
     auto* single  = root->AddChild<MeasureProbeLabel>(L"Metric 7");
     auto* wrapped = root->AddChild<MeasureProbeLabel>(L"A label long enough to wrap onto a few lines at a narrow width");

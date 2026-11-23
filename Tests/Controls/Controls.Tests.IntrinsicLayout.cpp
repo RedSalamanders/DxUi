@@ -1042,7 +1042,7 @@ void TestEmbeddedVisualSurfaceReleaseCanDetachHost()
         RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual-cancellation graphics pool");
         VisualCancellationProbeState state;
         EmbeddedHost view;
-        RequireSucceeded(view.Attach(device), "attach visual-cancellation embedded host");
+        RequireSucceeded(view.Attach(device, StoppedTestClock()), "attach visual-cancellation embedded host");
         auto root = std::make_unique<Panel>();
         root->AddChild<VisualCancellationProbe>(state);
         view.Controls().SetRoot(std::move(root));
@@ -1074,7 +1074,7 @@ void TestEmbeddedVisualCancellationCanReenterDetach()
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual-detach graphics pool");
     VisualCancellationProbeState state;
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "attach visual-detach embedded host");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "attach visual-detach embedded host");
     auto root = std::make_unique<Panel>();
     root->AddChild<VisualCancellationProbe>(state);
     view.Controls().SetRoot(std::move(root));
@@ -1095,7 +1095,7 @@ void TestEmbeddedVisualPreparationCanDetachHost()
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded visual-prepare detach graphics pool");
     VisualCancellationProbeState state;
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "attach visual-prepare detach embedded host");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "attach visual-prepare detach embedded host");
     auto root = std::make_unique<Panel>();
     root->AddChild<VisualCancellationProbe>(state);
     view.Controls().SetRoot(std::move(root));
@@ -1117,7 +1117,7 @@ void TestEmbeddedVisualPreparationRejectsReplacedDeviceAndRecovers()
     VisualCancellationProbeState state;
     EmbeddedHost view;
     const EmbeddedCallbacks callbacks{.context = &state, .requestPreparation = &RecordVisualPreparationWake};
-    RequireSucceeded(view.Attach(device, callbacks), "attach visual-prepare replacement embedded host");
+    RequireSucceeded(view.Attach(device, StoppedTestClock(callbacks)), "attach visual-prepare replacement embedded host");
     Require(state.preparationRequests == 0u, "initial attachment does not synchronously request preparation");
     auto root = std::make_unique<Panel>();
     root->AddChild<VisualCancellationProbe>(state);
@@ -1156,7 +1156,7 @@ void TestEmbeddedHideShowDuringVisualPreparationDefersOneWake()
     VisualCancellationProbeState state;
     EmbeddedHost view;
     const EmbeddedCallbacks callbacks{.context = &state, .requestPreparation = &RecordVisualPreparationWake};
-    RequireSucceeded(view.Attach(device, callbacks), "attach visual hide-show embedded host");
+    RequireSucceeded(view.Attach(device, StoppedTestClock(callbacks)), "attach visual hide-show embedded host");
     auto root = std::make_unique<Panel>();
     root->AddChild<VisualCancellationProbe>(state);
     view.Controls().SetRoot(std::move(root));
@@ -1190,7 +1190,7 @@ void TestHiddenVisualPreparationDoesNotWakeUntilShown()
     VisualCancellationProbeState state;
     EmbeddedHost view;
     const EmbeddedCallbacks callbacks{.context = &state, .requestPreparation = &RecordVisualPreparationWake};
-    RequireSucceeded(view.Attach(device, callbacks), "attach hidden visual embedded host");
+    RequireSucceeded(view.Attach(device, StoppedTestClock(callbacks)), "attach hidden visual embedded host");
     auto root = std::make_unique<Panel>();
     root->AddChild<VisualCancellationProbe>(state);
     view.Controls().SetRoot(std::move(root));
@@ -1239,7 +1239,7 @@ void TestButtonContentFontSizeSurvivesEmbeddedMeasureAndRetirementCallbacks()
         else
             current.measured = current.button->Measure({*current.host}, {}, current.desired);
     }};
-    RequireSucceeded(view.Attach(device, callbacks), "attach button typography callback fixture");
+    RequireSucceeded(view.Attach(device, StoppedTestClock(callbacks)), "attach button typography callback fixture");
     auto root    = std::make_unique<FlexPanel>();
     state.button = root->AddChild<Button>(L"A caption measured synchronously");
     view.Controls().SetRoot(std::move(root));
@@ -1293,7 +1293,7 @@ void TestLabelAndSeparatorTypographySurviveEmbeddedMeasureAndRetirementCallbacks
                 current.host->SetRoot(nullptr);
             }
         }};
-        RequireSucceeded(view.Attach(device, callbacks), "attach retiring typography callback fixture");
+        RequireSucceeded(view.Attach(device, StoppedTestClock(callbacks)), "attach retiring typography callback fixture");
         auto root              = std::make_unique<FlexPanel>();
         Control* const control = addChild(*root);
         Require(control != nullptr, "create intrinsic child for retiring typography setter");
@@ -1942,7 +1942,7 @@ void TestIntrinsicPreparationIsSharedByNativeAndEmbeddedHosts()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "intrinsic shared graphics pool");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "intrinsic embedded attach");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "intrinsic embedded attach");
     auto embeddedRoot   = std::make_unique<FlexPanel>();
     auto* embeddedPanel = embeddedRoot.get();
     auto* embeddedLabel = embeddedPanel->AddChild<Label>(L"Description initiale");
@@ -1984,7 +1984,7 @@ void TestIntrinsicReflowPreservesTextDraftAndCancelsMovedPress()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "reflow text/input graphics pool");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "reflow text/input view");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "reflow text/input view");
     auto root   = std::make_unique<FlexPanel>();
     auto* panel = root.get();
     auto* label = panel->AddChild<Label>(L"Short description");
@@ -2118,7 +2118,7 @@ void TestIntrinsicLayoutAllocationRetryIsBounded()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "allocation retry graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "allocation retry attach");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "allocation retry attach");
     auto owned       = std::make_unique<AllocationRetryLayout>();
     auto* layout     = owned.get();
     layout->failures = 1u;
@@ -2147,7 +2147,7 @@ void TestIntrinsicLayoutFailureKeepsPaintingThePreviousGeometry()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "layout failure graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "layout failure attach");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "layout failure attach");
     auto root           = std::make_unique<FlexPanel>();
     auto* panel         = root.get();
     auto* label         = panel->AddChild<Label>(L"Name");
@@ -2174,7 +2174,7 @@ void TestIntrinsicLayoutReachesOwnersUnderAShownContainer()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "shown container graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "shown container attach");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "shown container attach");
     auto root   = std::make_unique<Panel>();
     auto* page  = root->AddChild<Panel>();
     auto* flex  = page->AddChild<FlexPanel>();
@@ -2200,7 +2200,7 @@ void TestTextFieldFontRolePreservesEmbeddedCompositionAndUpdatesGeometry()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "font-role shared graphics pool");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "font-role embedded attach");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "font-role embedded attach");
 
     auto root   = std::make_unique<FlexPanel>();
     auto* panel = root.get();
@@ -2274,7 +2274,7 @@ void TestTextFieldFontRoleReturnsAfterEmbeddedPreparationOwnerRetires()
             state->controls->SetRoot(std::unique_ptr<Control>{});
     },
     };
-    RequireSucceeded(view.Attach(device, callbacks), "font-role retirement embedded attach");
+    RequireSucceeded(view.Attach(device, StoppedTestClock(callbacks)), "font-role retirement embedded attach");
     auto root   = std::make_unique<FlexPanel>();
     auto* field = root->AddChild<TextField>(L"draft");
     field->SetMultiline(true);
@@ -3012,7 +3012,7 @@ void TestFx12FormLayoutBuildAndLayoutCost()
         std::shared_ptr<GraphicsDevice> device;
         RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "FX12 form-layout graphics pool");
         EmbeddedHost view;
-        RequireSucceeded(view.Attach(device), "FX12 form-layout embedded attach");
+        RequireSucceeded(view.Attach(device, StoppedTestClock()), "FX12 form-layout embedded attach");
         class NoInput final : public PerformanceFixtures::HostPort
         {
         public:

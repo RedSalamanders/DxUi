@@ -97,7 +97,9 @@ public:
             std::shared_ptr<DxUi::GraphicsDevice> graphics;
             RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
             ownedView_ = std::make_unique<DxUi::EmbeddedHost>();
-            RETURN_IF_FAILED(ownedView_->Attach(std::move(graphics)));
+            // The application's clock is the fixture clock, and its preparation callback is how the view wakes the simulated
+            // application that sleeps until its request (W3.5 review F4).
+            RETURN_IF_FAILED(ownedView_->Attach(std::move(graphics), DxUi::EmbeddedCallbacks{this, &WakeThunk, &NowThunk}));
             auto theme          = DxUi::MakeDefaultThemePalette(true);
             theme.reducedMotion = definition_->reducedMotion;
             ownedView_->Controls().SetTheme(theme);
@@ -168,28 +170,43 @@ public:
                 Advance(request.kind, false);
             return;
         }
-        // Each pass reads the request and either stops (None, or a deadline after this step) or advances once; an advance
-        // re-arms at most the requests it ticked, so a step of fixture time needs a bounded number of passes.
+        // The application knows only the request it last read: from its own last advance, or read again when the view's
+        // callback woke it (input, a setter, a model change in the steps before). It never polls. Each pass either stops (None,
+        // or a deadline after this step) or advances once; an advance re-arms at most the requests it ticked, so a step of
+        // fixture time needs a bounded number of passes.
         for (size_t pass = 0u;; ++pass)
         {
             Check(pass < 100'000u, "the simulated application settles within one fixture step");
-            const DxUi::EmbeddedAnimationRequest request = view_->GetAnimationRequest();
+            if (std::exchange(woken_, false))
+                sleepingOn_ = view_->GetAnimationRequest();
+            const DxUi::EmbeddedAnimationRequest request = sleepingOn_;
             if (request.kind == Kind::None)
                 break;
             if (request.kind == Kind::Continuous)
             {
                 // Every frame: one frame at the end of the step, as the fixture renders one frame per step.
-                now_ = end;
-                Advance(request.kind, true);
+                now_        = end;
+                sleepingOn_ = Advance(request.kind, true);
                 break;
             }
             if (request.dueTickMs > end)
                 break;
             const bool slept = request.dueTickMs > now_;
             now_             = slept ? request.dueTickMs : now_;
-            Advance(request.kind, slept);
+            sleepingOn_      = Advance(request.kind, slept);
         }
         now_ = end;
+    }
+    // The simulated application made a call that can only make its request later or None (hiding the view): it reads the
+    // request again, as the hosting guide advises, instead of waking once more for nothing at the request it slept on.
+    void ApplicationChangedView() noexcept
+    {
+        woken_ = true;
+    }
+    // Calls of the view's requestPreparation callback since the simulation started.
+    [[nodiscard]] size_t ApplicationCallbacks() const noexcept
+    {
+        return callbacks_;
     }
     void Resize(UINT width, UINT height, float dpi) override
     {
@@ -203,12 +220,22 @@ public:
     }
 
 private:
-    void Advance(DxUi::EmbeddedAnimationRequest::Kind request, bool woke)
+    static void WakeThunk(void* context) noexcept
+    {
+        auto* const self = static_cast<EmbeddedInstance*>(context);
+        self->woken_     = true;
+        ++self->callbacks_;
+    }
+    static uint64_t NowThunk(void* context) noexcept
+    {
+        return static_cast<EmbeddedInstance*>(context)->now_;
+    }
+    DxUi::EmbeddedAnimationRequest Advance(DxUi::EmbeddedAnimationRequest::Kind request, bool woke)
     {
         const DxUi::Detail::WorkCounterScope scope;
-        static_cast<void>(view_->AdvanceAnimation(now_));
+        const DxUi::EmbeddedAnimationRequest next = view_->AdvanceAnimation(now_);
         if (! log_)
-            return;
+            return next;
         Check(log_->size() < log_->capacity(), "the advance log was reserved for the run");
         const DxUi::Detail::WorkCounters work = scope.Delta();
         log_->push_back(ApplicationAdvance{phase_,
@@ -221,8 +248,13 @@ private:
                                            work.frame.treeVisitsTick,
                                            work.frame.tooltipDeadlineTicks,
                                            work.frame.tooltipTargetValidations});
+        return next;
     }
 
+    // The simulated application's view of the schedule: the last request it read, and whether the callback has woken it.
+    DxUi::EmbeddedAnimationRequest sleepingOn_{};
+    bool woken_                           = true; // an application reads the request once when it starts
+    size_t callbacks_                     = 0u;
     ApplicationLoop loop_                 = ApplicationLoop::PollEveryStep;
     std::vector<ApplicationAdvance>* log_ = nullptr;
     size_t phase_                         = 0u;
@@ -980,8 +1012,12 @@ inline void CheckEveryAdvanceTicksOnlyTheDue(std::string_view fixture, const std
     for (const ApplicationAdvance& advance : advances)
     {
         Check(advance.tickCalls == advance.tickRequesters, "W3.5: an advance ticks exactly the controls whose requests are due");
-        if (advance.woke && advance.request == DxUi::EmbeddedAnimationRequest::Kind::Deadline)
-            Check(advance.tickCalls + advance.tooltipDeadlineTicks != 0u, "W3.5: a wake at a deadline ticks what is due, never nothing");
+        if (advance.woke && advance.request == DxUi::EmbeddedAnimationRequest::Kind::Deadline && advance.tickCalls + advance.tooltipDeadlineTicks == 0u)
+        {
+            std::cerr << "W3.5 " << fixture << ": empty deadline wake at phase " << advance.phase << " step " << advance.step << " time " << advance.atMs
+                      << '\n';
+            Check(false, "W3.5: a wake at a deadline ticks what is due, never nothing");
+        }
     }
     std::cout << "W3.5 " << fixture << ": every advance ticks only the due requests; no deadline wake ticks nothing\n";
 }
@@ -1018,6 +1054,7 @@ __declspec(noinline) inline void TestApplicationWakeGatesOnFixtures()
         instance.AdvanceTime(2u * Fx1::kCaretSettings.blinkTimeMs);
         shownAdvances = static_cast<size_t>(shown.Delta().wakes.embeddedAdvance);
         instance.View().SetVisible(false);
+        instance.ApplicationChangedView();
         hiddenRequest = instance.View().GetAnimationRequest().kind;
         const DxUi::Detail::WorkCounterScope hidden;
         instance.AdvanceTime(10'000u);
@@ -1085,6 +1122,7 @@ __declspec(noinline) inline void TestApplicationWakeGatesOnFixtures()
     const auto hide60 = [&](EmbeddedInstance& instance, GraphicsFixture&)
     {
         instance.View().SetVisible(false);
+        instance.ApplicationChangedView();
         const DxUi::Detail::WorkCounterScope hidden;
         instance.AdvanceTime(60'000u);
         fx13Hidden = static_cast<size_t>(hidden.Delta().wakes.embeddedAdvance);

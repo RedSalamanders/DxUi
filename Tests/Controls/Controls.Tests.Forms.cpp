@@ -238,7 +238,7 @@ void TestFormsLocalizedGeometryMatrix()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "form matrix shared graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "form matrix embedded attachment");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "form matrix embedded attachment");
     auto root    = std::make_unique<Panel>();
     auto* form   = root->AddChild<FormPanel>();
     auto* first  = form->AddField(L"name", L"Nom du document e\u0301 \U0001F642 العربية");
@@ -940,7 +940,7 @@ void TestFormsEmbeddedReflowPreservesCompositionSelectionAndFocus()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "embedded form input graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "embedded form input attach");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "embedded form input attach");
     auto root    = std::make_unique<FormPanel>();
     auto* form   = root.get();
     auto* first  = form->AddField(L"name", L"Nom");
@@ -1004,7 +1004,7 @@ void TestFormsEmbeddedValidationOnEachEditKeepsInput()
     std::shared_ptr<GraphicsDevice> device;
     RequireSucceeded(GraphicsDevice::Create(graphics.device.get(), device), "validating form graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(device), "validating form attach");
+    RequireSucceeded(view.Attach(device, StoppedTestClock()), "validating form attach");
     auto root    = std::make_unique<FormPanel>();
     auto* form   = root.get();
     auto* field  = form->AddField(L"name", L"Nom");

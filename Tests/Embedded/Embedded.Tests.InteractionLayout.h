@@ -151,7 +151,7 @@ static void TestInteractionLayoutWithoutPaint(GraphicsFixture& gpu)
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "interaction-layout ancestor-cancel graphics pool");
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "interaction-layout ancestor-cancel host attaches");
+        Hr(view.Attach(graphics, StoppedTestClock()), "interaction-layout ancestor-cancel host attaches");
         auto root    = std::make_unique<DxUi::Panel>();
         auto* pane   = root->AddChild<DxUi::Panel>();
         auto* slider = pane->AddChild<DxUi::Slider>();
@@ -173,7 +173,7 @@ static void TestInteractionLayoutWithoutPaint(GraphicsFixture& gpu)
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "interaction-layout splitter graphics pool");
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "interaction-layout splitter host attaches");
+        Hr(view.Attach(graphics, StoppedTestClock()), "interaction-layout splitter host attaches");
         auto root      = std::make_unique<DxUi::Panel>();
         auto* splitter = root->AddChild<DxUi::Splitter>();
         splitter->SetBounds(D2D1::RectF(0, 0, 480, 240));
@@ -199,7 +199,7 @@ static void TestInteractionLayoutWithoutPaint(GraphicsFixture& gpu)
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "interaction-layout destroyed-control graphics pool");
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "interaction-layout destroyed-control host attaches");
+        Hr(view.Attach(graphics, StoppedTestClock()), "interaction-layout destroyed-control host attaches");
         auto root      = std::make_unique<DxUi::Panel>();
         auto* splitter = root->AddChild<DxUi::Splitter>();
         splitter->SetBounds(D2D1::RectF(0, 0, 480, 240));
@@ -221,7 +221,7 @@ static void TestInteractionLayoutWithoutPaint(GraphicsFixture& gpu)
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "interaction-layout callback-mutation graphics pool");
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "interaction-layout callback-mutation host attaches");
+        Hr(view.Attach(graphics, StoppedTestClock()), "interaction-layout callback-mutation host attaches");
         auto root     = std::make_unique<DxUi::Panel>();
         auto* sibling = root->AddChild<DxUi::Label>(L"Sibling");
         sibling->SetBounds(D2D1::RectF(240, 120, 340, 180));
@@ -395,8 +395,8 @@ static void TestEmbeddedTabHeaderPreparationAvoidsPaintWork(GraphicsFixture& gpu
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "create tab preparation graphics");
     EmbeddedHost first, second;
-    Hr(first.Attach(graphics), "attach first tab host");
-    Hr(second.Attach(graphics), "attach second tab host");
+    Hr(first.Attach(graphics, StoppedTestClock()), "attach first tab host");
+    Hr(second.Attach(graphics, StoppedTestClock()), "attach second tab host");
     // The tab captions draw through the host's retained text layouts (W2.1), whose table allocates its entries and key
     // strings during the paint that first draws a string. This test is about the TabControl's own prepared header, so its
     // hosts draw captions through DrawText, as before W2.1, and every allocation counted during paint is the TabControl's.

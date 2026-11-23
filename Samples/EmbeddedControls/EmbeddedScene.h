@@ -24,6 +24,10 @@ struct EmbeddedScene
     {
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
+        // The view needs the application's clock, the one passed to AdvanceAnimation. A caller that advances animation passes
+        // its own (the sample passes GetTickCount64); without one the scene's time stands still, so it paints deterministically.
+        if (! callbacks.nowTickMs)
+            callbacks.nowTickMs = [](void*) noexcept -> uint64_t { return 0u; };
         RETURN_IF_FAILED(view.Attach(std::move(graphics), callbacks));
         auto theme          = DxUi::MakeDefaultThemePalette(true);
         theme.reducedMotion = true;

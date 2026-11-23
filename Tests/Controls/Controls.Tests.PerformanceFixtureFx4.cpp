@@ -144,7 +144,7 @@ public:
         theme_               = DxUi::MakeDefaultThemePalette(true);
         theme_.reducedMotion = definition.reducedMotion;
         view_                = std::make_unique<DxUi::EmbeddedHost>();
-        if (FAILED(view_->Attach(graphics_)))
+        if (FAILED(view_->Attach(graphics_, StoppedTestClock())))
             return "the application's EmbeddedHost could not attach";
         view_->Controls().SetTheme(theme_);
         auto root = std::make_unique<DxUi::Panel>();

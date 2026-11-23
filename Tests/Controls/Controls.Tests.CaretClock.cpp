@@ -365,7 +365,7 @@ void TestCaretClockEmbeddedHiddenPopupAndHiddenOwner()
     GraphicsFixture gpu;
     const auto pool = MakeCaretPool(gpu);
     DxUi::EmbeddedHost view;
-    RequireSucceeded(view.Attach(pool), "attach the caret view");
+    RequireSucceeded(view.Attach(pool, StoppedTestClock()), "attach the caret view");
     auto& host          = view.Controls();
     auto theme          = host.GetTheme();
     theme.reducedMotion = false;

@@ -189,7 +189,7 @@ struct EmbeddedSingleControlView final
     template <typename Control> EmbeddedSingleControlView(GraphicsFixture& gpu, std::unique_ptr<Control> control, std::wstring_view name)
     {
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "pool for the single-control view");
-        Hr(view.Attach(pool), "single-control view");
+        Hr(view.Attach(pool, StoppedTestClock()), "single-control view");
         control->SetBounds(D2D1::RectF(0, 0, 240, 96));
         control->SetAccessibleName(std::wstring(name));
         view.Controls().SetRoot(std::move(control));

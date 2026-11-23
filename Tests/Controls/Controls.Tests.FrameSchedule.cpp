@@ -142,7 +142,7 @@ void TestFrameScheduleTicksOnlyDueRequesters()
     GraphicsFixture gpu;
     const auto pool = MakeSchedulePool(gpu);
     DxUi::EmbeddedHost view;
-    RequireSucceeded(view.Attach(pool), "attach the frame-schedule view");
+    RequireSucceeded(view.Attach(pool, StoppedTestClock()), "attach the frame-schedule view");
     view.Controls().SetTheme(MakeAnimatedTestThemePalette(false));
     auto root = std::make_unique<DxUi::Panel>();
     for (int index = 0; index < 40; ++index)
@@ -218,7 +218,7 @@ void TestFrameScheduleLegacyRequestStillAnimatesDerivedControl()
         GraphicsFixture gpu;
         const auto pool = MakeSchedulePool(gpu);
         DxUi::EmbeddedHost view;
-        RequireSucceeded(view.Attach(pool), "attach the legacy view");
+        RequireSucceeded(view.Attach(pool, StoppedTestClock()), "attach the legacy view");
         auto root   = std::make_unique<DxUi::Panel>();
         auto* probe = root->AddChild<ScheduleProbe>();
         view.Controls().SetRoot(std::move(root));
@@ -806,7 +806,7 @@ void TestFrameScheduleEmbeddedEmptiedScheduleRebases()
         callbacks.context            = &wakes;
         callbacks.requestPreparation = [](void* context) noexcept { ++static_cast<Wakes*>(context)->count; };
         DxUi::EmbeddedHost view;
-        RequireSucceeded(view.Attach(pool, callbacks), "attach the rebase view");
+        RequireSucceeded(view.Attach(pool, StoppedTestClock(callbacks)), "attach the rebase view");
         view.Controls().SetTheme(MakeAnimatedTestThemePalette(false));
         auto root    = std::make_unique<DxUi::Panel>();
         auto* field  = root->AddChild<DxUi::TextField>(L"caret");

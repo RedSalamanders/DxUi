@@ -11,5 +11,10 @@
   freezes the surface. `ControlHost::RefreshUserSettings()` re-reads every user setting a host keeps (caret blink time,
   caret timeout, mouse hover time) and replaces the unreleased `RefreshCaretBlinkSettings()` and
   `RefreshTooltipHoverTime()`; an application calls it for embedded views and for hosts on child windows, which Windows
-  sends no `WM_SETTINGCHANGE`. An advance before the earliest deadline runs no wake. `capabilities.json` lists consumer adoption of
-  revision 6 as pending.
+  sends no `WM_SETTINGCHANGE`. An advance before the earliest deadline runs no wake. `capabilities.json` lists consumer
+  adoption of revision 6 as pending. `EmbeddedCallbacks::nowTickMs`, the application's clock, is required at `Attach`
+  (`DXUI_HAS_EMBEDDED_APPLICATION_CLOCK`): a stamp taken between advances (a keystroke, a resting pointer, a transition
+  started from input) reads it, so an application that sleeps until its request no longer sees a tooltip shown early, a
+  caret flipping right after a keystroke or a transition jumping on its first frame. The view records the request it
+  last reported, so a cancellation that leaves a later deadline cannot hide a sooner need from a sleeping application,
+  and a deadline beyond the end of the application's clock is reported as `None` instead of making a loop spin.

@@ -131,7 +131,7 @@ inline void TestTreeIdIndexBytesPerVisibleRow()
     DxUi::EmbeddedHost view;
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "id index graphics");
-    Hr(view.Attach(graphics), "id index host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "id index host");
     auto root        = std::make_unique<DxUi::Panel>();
     DxUi::Tree* tree = root->AddChild<DxUi::Tree>();
     tree->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 400.0f));
@@ -280,7 +280,7 @@ inline std::vector<uint64_t> RunMotionCase(MotionCase motionCase)
         DxUi::EmbeddedHost view;
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "tree motion graphics");
-        Hr(view.Attach(graphics), "tree motion host");
+        Hr(view.Attach(graphics, StoppedTestClock()), "tree motion host");
         auto theme          = DxUi::MakeDefaultThemePalette(true);
         theme.reducedMotion = false;
         view.Controls().SetTheme(theme);

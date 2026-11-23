@@ -196,7 +196,7 @@ public:
     PaintFixture(GraphicsFixture& gpu, const std::shared_ptr<DxUi::GraphicsDevice>& graphics, size_t rows) : _gpu(gpu)
     {
         _model.rows = rows;
-        Hr(_view.Attach(graphics), "grid selection benchmark view");
+        Hr(_view.Attach(graphics, StoppedTestClock()), "grid selection benchmark view");
         auto theme          = DxUi::MakeDefaultThemePalette(true);
         theme.reducedMotion = true;
         _view.Controls().SetTheme(theme);

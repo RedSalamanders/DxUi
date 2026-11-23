@@ -88,7 +88,7 @@ public:
     explicit ObjectScene(ID3D11Device* device)
     {
         Hr(DxUi::GraphicsDevice::Create(device, graphics_), "object scene graphics");
-        Hr(view_.Attach(graphics_), "object scene view");
+        Hr(view_.Attach(graphics_, StoppedTestClock()), "object scene view");
         auto owned = std::make_unique<DxUi::RichTextEditor>(L"Intro paragraph.\n\n$$\nx + y\n$$\n\n```mermaid\nflowchart TD\nA[Start]-->B[Stop]\nstyle A "
                                                             L"fill:#204080,color:#ffffff\n```\n\nInline $a^2$ formula.\n\n"
                                                             L"![raster](picture.png)\n\n![vector](shape.svg)\n\nLast paragraph.\n");

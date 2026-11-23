@@ -513,7 +513,7 @@ inline void TestCountingWrappersReportUncountedCreation()
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "seeded creation graphics device");
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(std::move(graphics), {}), "seeded creation attach");
+        Hr(view.Attach(std::move(graphics), StoppedTestClock({})), "seeded creation attach");
         view.Controls().SetRoot(std::make_unique<UncountedBrushProbe>());
         Hr(view.Prepare(64u, 64u), "seeded creation first preparation");
         view.Controls().Invalidate();

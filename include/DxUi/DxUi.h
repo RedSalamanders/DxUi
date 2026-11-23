@@ -7403,9 +7403,10 @@ private:
     bool _tickTreeRequested                     = false;
     bool _tickTreeDiscovery                     = false;
     FrameScheduleWake::Kind _dispatcherWakeKind = FrameScheduleWake::Kind::None;
-    // Embedded (W3.5): the wake the application last learned of, from AdvanceAnimation or from the wake that a schedule change
-    // needing an earlier one sent it (through the preparation callback). None while nothing is requested.
-    FrameScheduleWake _embeddedPublishedWake;
+    // Embedded (W3.5): the wake the application was last told of: what GetAnimationRequest or AdvanceAnimation last reported,
+    // or the wake that a schedule change needing an earlier one announced through the preparation callback. Mutable because a
+    // const read of the request records what it reported.
+    mutable FrameScheduleWake _embeddedPublishedWake;
     // Whether `wake` needs the application sooner than `published`: something after nothing, every frame after a deadline, an
     // earlier deadline.
     [[nodiscard]] static bool IsEarlierWake(FrameScheduleWake wake, FrameScheduleWake published) noexcept;
@@ -7752,10 +7753,16 @@ private:
     DWORD _attachmentOwnerThreadId    = 0u;
     uint64_t _animationSubscriptionId = 0;
     // The embedded animation clock: AdvanceAnimation adds the difference between consecutive supplied ticks, except that the
-    // first tick after a pause in ticking (idle, hidden, zero-sized, a new attachment) only sets the baseline.
-    uint64_t _animationTimelineMs         = 0;
-    uint64_t _lastSuppliedAnimationTickMs = 0;
-    bool _animationTimelineRebase         = true;
+    // first tick after a pause in ticking (idle, hidden, zero-sized, a new attachment) only sets the baseline. Between
+    // advances a stamp reads the application's clock (_embeddedNowTickMs) and moves the timeline forward the same way, never
+    // back and never across a pending baseline (W3.5 review F1); mutable because GetAnimationTickMs is const.
+    mutable uint64_t _animationTimelineMs          = 0;
+    mutable uint64_t _lastSuppliedAnimationTickMs  = 0;
+    bool _animationTimelineRebase                  = true;
+    uint64_t (*_embeddedNowTickMs)(void*) noexcept = nullptr;
+    void* _embeddedClockContext                    = nullptr;
+    // Moves the embedded timeline to the application's current time, as an advance at that tick would, ticking nothing.
+    void FollowEmbeddedApplicationClock() const noexcept;
     std::optional<uint64_t> _animationClockForTest;
     bool _animationSuspendedWhileHidden = false;
     // Seen hidden only through an ancestor at a wake (W3.2 review): the first wake that finds the window visible again resumes

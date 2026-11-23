@@ -161,7 +161,7 @@ struct Fixture final
     Fixture(GraphicsFixture& gpu, const std::wstring& document, Presentation presentation)
     {
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "rich text-input copies: graphics");
-        Hr(view.Attach(graphics), "rich text-input copies: attach");
+        Hr(view.Attach(graphics, StoppedTestClock()), "rich text-input copies: attach");
         auto owned = std::make_unique<DxUi::RichTextEditor>(document);
         editor     = owned.get();
         if (presentation == Presentation::Source)
@@ -426,7 +426,7 @@ inline void TestOverridesRunOnEveryInputPath(GraphicsFixture& gpu)
         DxUi::EmbeddedHost view;
         std::shared_ptr<DxUi::GraphicsDevice> pool;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "editor override fixture: graphics");
-        Hr(view.Attach(pool), "editor override fixture: attach");
+        Hr(view.Attach(pool, StoppedTestClock()), "editor override fixture: attach");
         auto panel         = std::make_unique<DxUi::Panel>();
         auto* const editor = panel->AddChild<FilteringEditor>(L"ab");
         editor->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 64.0f));

@@ -69,7 +69,8 @@ context; composition retains its documented pipeline-binding behavior.
 ## Embedded view
 
 The application creates a D3D11 device with `D3D11_CREATE_DEVICE_BGRA_SUPPORT`. Call
-`GraphicsDevice::Create(device, pool)` and `view.Attach(pool, callbacks)`, checking both HRESULTs.
+`GraphicsDevice::Create(device, pool)` and `view.Attach(pool, callbacks)`, checking both HRESULTs. `callbacks.nowTickMs`
+(your clock, the one you pass to `AdvanceAnimation`) is required; see [input, DPI and animation](#input-dpi-and-animation).
 Share one pool per device generation; each `EmbeddedHost` owns an independent control tree and cached BGRA surface.
 All view/pool operations and destruction occur on the UI thread. The pool retains COM references to the supplied
 device; the application owns immediate-context scheduling and presentation.
@@ -169,19 +170,31 @@ and returns the next request (API revision 6). The view owns no timer: you decid
 - `Continuous`: advance on every frame you present (a transition, an indeterminate progress bar).
 - `Deadline`: advance once when your clock reaches `dueTickMs`, which is on the clock you pass to `AdvanceAnimation`. It
   may already have passed (advance at once); it is 0 for the first advance after a pause, which only takes the
-  baseline. An advance before it ticks nothing and returns the same deadline.
+  baseline. An advance before it ticks nothing and returns the same deadline. A deadline your clock can never reach
+  (it is at the end of its range) is reported as `None`, so no loop spins on it.
 
-Read the request again after every call into the view (input, `Prepare`, a setter, `AdvanceAnimation`) and after the
-`requestPreparation` callback, which the view also calls when it needs you sooner than the request it last reported
-(something after nothing, every frame after a deadline, an earlier deadline). Reading costs nothing: it walks no tree
-and ticks nothing. Three loops are enough, with `now` your clock in milliseconds:
+Attach the view with your clock: `EmbeddedCallbacks::nowTickMs` returns your current milliseconds, on the same clock you
+pass to `AdvanceAnimation` (`Attach` refuses a view without it). Between advances the view reads it wherever it takes a
+time stamp (a keystroke restarting the caret, a pointer resting on a tooltip target, a transition started from input or
+a setter), so a stamp is never older than the call that takes it, whichever loop you run; a read never moves time back
+and never crosses the baseline a pause leaves for the next advance. Keep it cheap and do not call into the view from it.
+
+The view remembers the request it last reported, from `GetAnimationRequest` or `AdvanceAnimation`, and calls
+`requestPreparation` when it needs you sooner (something after nothing, every frame after a deadline, an earlier
+deadline): sleeping until the last request you read is therefore always safe, and the callback is the one thing that
+can wake you early. Read the request after that callback; reading costs nothing (no tree walk, no tick). A call that
+can only make your request later or `None` (hiding the view, a cancel) needs no callback: sleeping on the old request
+then costs at most one wake that ticks nothing, which reading the request after your own call avoids. Inside an
+advance, a callback that advance raises sees the due requests being ticked: use the request `AdvanceAnimation` returns.
+Three loops are enough, with `now` your clock in milliseconds:
 
 ```cpp
 // Poll every frame: what revision 5's NeedsAnimation() allowed. Correct, but wakes every frame while anything waits.
 if (view.GetAnimationRequest().kind != DxUi::EmbeddedAnimationRequest::Kind::None)
     static_cast<void>(view.AdvanceAnimation(now));
 
-// Sleep until the request: advance when due, then sleep until the next one (or until woken by input or the callback).
+// Sleep until the request: advance when due, then sleep until the next one or until the callback wakes you (input you
+// dispatch yourself may also end the sleep; reading the request again then is harmless).
 DxUi::EmbeddedAnimationRequest request = view.GetAnimationRequest();
 using Kind = DxUi::EmbeddedAnimationRequest::Kind;
 if (request.kind == Kind::Continuous || (request.kind == Kind::Deadline && request.dueTickMs <= now))
@@ -191,9 +204,9 @@ const uint64_t sleepMs = request.kind == Kind::None         ? INFINITE
                          : request.dueTickMs > now          ? request.dueTickMs - now
                                                             : 0u;
 
-// A message loop with one timer (as in Samples/EmbeddedControls): after every frame and every WM_TIMER advance, set the
-// timer from the request: KillTimer for None, the frame period for Continuous, dueTickMs - now (at least
-// USER_TIMER_MINIMUM) for a Deadline. A waitable timer works the same way with an absolute due time.
+// A message loop with one timer (as in Samples/EmbeddedControls): after every frame (the callback asks for one) and every
+// WM_TIMER advance, set the timer from the request: KillTimer for None, the frame period for Continuous, dueTickMs - now
+// (at least USER_TIMER_MINIMUM) for a Deadline. A waitable timer works the same way with an absolute due time.
 ```
 
 A focused caret at the Windows default blink time therefore costs two wakes per blink period, and none after the caret

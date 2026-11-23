@@ -455,7 +455,7 @@ inline void TestImportOverrideRunsOnEveryInputPath(GraphicsFixture& gpu)
         DxUi::EmbeddedHost view;
         std::shared_ptr<DxUi::GraphicsDevice> pool;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "override fixture: graphics");
-        Hr(view.Attach(pool), "override fixture: attach");
+        Hr(view.Attach(pool, StoppedTestClock()), "override fixture: attach");
         auto panel        = std::make_unique<DxUi::Panel>();
         auto* const field = panel->AddChild<FilteringField>(L"ab");
         field->SetBounds(D2D1::RectF(0.0f, 0.0f, 240.0f, 32.0f));

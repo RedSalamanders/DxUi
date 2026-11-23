@@ -4,6 +4,11 @@ PASS a Grid row change under a shown tooltip wakes a sleeping application
 PASS a tooltip mark alone wakes a sleeping application
 PASS embedded deadlines across a pause, a hidden period and a clock jump
 PASS one RefreshUserSettings call refreshes every user setting of an embedded view
+PASS stamps take the application's time while sleeping until a deadline
+PASS stamps take the application's time after a hidden period
+PASS stamps take the application's time after a pause with nothing requested
+PASS the view's record follows the request the application last read
+PASS a saturated application clock never makes the loop spin
 W3.5 FX1: every advance ticks only the due requests; no deadline wake ticks nothing
 W3.5 FX1: 46 polling advances before a deadline, each walking nothing
 W3.5 FX1 editable: polling application 54 advances (10 Tick calls, 0 tooltip ticks, 4 tick tree visits, 0 tooltip target walks); sleeping application 11 wakes, 11 advances (10 Tick calls, 0 tooltip ticks, 4 tick tree visits, 0 tooltip target walks)

@@ -460,7 +460,7 @@ void TestRichTextEmbeddedFileDropInsertion()
     std::shared_ptr<GraphicsDevice> graphics;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "file drop shared graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(graphics), "file drop embedded view");
+    RequireSucceeded(view.Attach(graphics, StoppedTestClock()), "file drop embedded view");
     auto owned   = std::make_unique<RichTextEditor>(L"alpha");
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -513,8 +513,8 @@ void RichTextEmbeddedFileDropCoordinatesOnSta()
     std::shared_ptr<GraphicsDevice> graphics;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "two-view drop graphics pool");
     EmbeddedHost first, second;
-    RequireSucceeded(first.Attach(graphics), "first drop view attaches");
-    RequireSucceeded(second.Attach(graphics), "second drop view attaches");
+    RequireSucceeded(first.Attach(graphics, StoppedTestClock()), "first drop view attaches");
+    RequireSucceeded(second.Attach(graphics, StoppedTestClock()), "second drop view attaches");
     RichTextEditor* editors[2]{};
     EmbeddedHost* views[] = {&first, &second};
     for (size_t i = 0u; i < 2u; ++i)
@@ -583,7 +583,7 @@ void TestRichTextApplicationImageLoading()
     std::shared_ptr<GraphicsDevice> graphics;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "application image loader pool");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(graphics), "application image loader view");
+    RequireSucceeded(view.Attach(graphics, StoppedTestClock()), "application image loader view");
     auto owned   = std::make_unique<RichTextEditor>();
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -1168,7 +1168,7 @@ void TestRichClipboardEmbeddedPreference()
     std::shared_ptr<GraphicsDevice> graphics;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "clipboard priority shared graphics owner");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(graphics), "clipboard priority embedded view");
+    RequireSucceeded(view.Attach(graphics, StoppedTestClock()), "clipboard priority embedded view");
     auto owned   = std::make_unique<RichTextEditor>(L"before chosen after");
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -1289,7 +1289,7 @@ void TestRichTextApplicationImageClipboard()
     std::shared_ptr<GraphicsDevice> graphics;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "application image clipboard pool");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(graphics), "application image clipboard view");
+    RequireSucceeded(view.Attach(graphics, StoppedTestClock()), "application image clipboard view");
     auto owned   = std::make_unique<RichTextEditor>(L"replace");
     auto* editor = owned.get();
     editor->SetMarkdownAnalysisProfile(MarkdownProfile::RichMarkdown);
@@ -1717,7 +1717,7 @@ void TestRichTextEmbeddedCompositionRevisionsAndRebinding()
     std::shared_ptr<GraphicsDevice> graphics;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "shared rich input graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(graphics), "attach embedded rich input view");
+    RequireSucceeded(view.Attach(graphics, StoppedTestClock()), "attach embedded rich input view");
     auto root = std::make_unique<Panel>();
     auto* raw = root->AddChild<RichTextEditor>(L"**a**");
     raw->SetBounds(D2D1::RectF(0, 0, 400, 180));
@@ -1779,7 +1779,7 @@ void TestRichTextEmbeddedMappedGeometry()
     std::shared_ptr<GraphicsDevice> graphics;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "mapped rich input graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(graphics), "attach mapped rich input");
+    RequireSucceeded(view.Attach(graphics, StoppedTestClock()), "attach mapped rich input");
     auto root    = std::make_unique<RichTextEditor>(L"**alpha**\r\n");
     auto* editor = root.get();
     view.Controls().SetRoot(std::move(root));
@@ -1821,8 +1821,8 @@ void TestRichTextEmbeddedPreviewRebinding()
     std::shared_ptr<GraphicsDevice> graphics;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "rebind shared graphics");
     EmbeddedHost first, second;
-    RequireSucceeded(first.Attach(graphics), "attach first rich input host");
-    RequireSucceeded(second.Attach(graphics), "attach second rich input host");
+    RequireSucceeded(first.Attach(graphics, StoppedTestClock()), "attach first rich input host");
+    RequireSucceeded(second.Attach(graphics, StoppedTestClock()), "attach second rich input host");
     auto root    = std::make_unique<Panel>();
     auto* panel  = root.get();
     auto* editor = panel->AddChild<RichTextEditor>(L"kept");
@@ -1978,7 +1978,7 @@ void TestRichTextEmbeddedLocalizedServiceCommit()
     std::shared_ptr<GraphicsDevice> graphics;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "localized service shared device");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(graphics), "localized service embedded owner");
+    RequireSucceeded(view.Attach(graphics, StoppedTestClock()), "localized service embedded owner");
     auto owned   = std::make_unique<ServiceRichEditor>();
     auto* editor = owned.get();
     view.Controls().SetRoot(std::move(owned));

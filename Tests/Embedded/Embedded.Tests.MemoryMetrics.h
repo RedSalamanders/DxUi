@@ -247,7 +247,7 @@ __declspec(noinline) inline void TestTextHistoryAndCacheStatistics()
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "text history graphics device");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(std::move(graphics)), "text history view");
+    Hr(view.Attach(std::move(graphics), StoppedTestClock()), "text history view");
     auto root        = std::make_unique<DxUi::Panel>();
     auto* shortField = root->AddChild<DxUi::TextField>();
     auto* longField  = root->AddChild<DxUi::TextField>();

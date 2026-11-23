@@ -2641,10 +2641,30 @@ bool ControlHost::DebugIsCaretClockVisibleForTest() const noexcept
 }
 #endif
 
+void ControlHost::FollowEmbeddedApplicationClock() const noexcept
+{
+    // The same arithmetic as AdvanceAnimation at that tick, without a Tick, with two differences that keep a read harmless: a
+    // pending baseline (after a hidden period, a zero size, a new attachment or a pause with nothing requested) is left for
+    // the next advance, and a value at or below the last one seen changes nothing, so a read never moves time back.
+    if (! _embeddedNowTickMs || _animationTimelineRebase)
+        return;
+    const uint64_t nowTickMs = _embeddedNowTickMs(_embeddedClockContext);
+    if (nowTickMs <= _lastSuppliedAnimationTickMs)
+        return;
+    const uint64_t deltaMs       = nowTickMs - _lastSuppliedAnimationTickMs;
+    const uint64_t remainingMs   = UINT64_MAX - _animationTimelineMs;
+    _animationTimelineMs         = deltaMs > remainingMs ? UINT64_MAX : _animationTimelineMs + deltaMs;
+    _lastSuppliedAnimationTickMs = nowTickMs;
+}
+
 uint64_t ControlHost::GetAnimationTickMs() const noexcept
 {
     if (_embedded)
     {
+        // A stamp taken outside an advance (input, a setter, a caret restart) is taken at the application's current time.
+        // Inside a wake every Tick sees the advance's own time.
+        if (! _tickWakeFrame)
+            FollowEmbeddedApplicationClock();
         return _animationTimelineMs;
     }
     if (_animationClockForTest.has_value())

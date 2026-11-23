@@ -41,7 +41,7 @@ void CheckPagedUia(bool embedded)
     ControlHost* host = nullptr;
     if (embedded)
     {
-        RequireSucceeded(view.Attach(MakePool(gpu)), "attach paged embedded view");
+        RequireSucceeded(view.Attach(MakePool(gpu), StoppedTestClock()), "attach paged embedded view");
         host = &view.Controls();
     }
     else
@@ -199,7 +199,7 @@ void TestPageHostTabTraversalUsesCurrentLogicalChildren()
 
     GraphicsFixture gpu;
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(MakePool(gpu)), "attach paged keyboard view");
+    RequireSucceeded(view.Attach(MakePool(gpu), StoppedTestClock()), "attach paged keyboard view");
     auto embeddedRoot   = std::make_unique<Panel>();
     auto* embeddedPages = embeddedRoot->AddChild<PageHost>();
     embeddedPages->SetBounds(D2D1::RectF(0, 0, 220, 120));
@@ -222,7 +222,7 @@ void TestEmbeddedTransitionsUseApplicationClockIncludingZero()
     for (const uint64_t epoch : {0ull, 1000000000000ull})
     {
         EmbeddedHost view;
-        RequireSucceeded(view.Attach(pool), "attach application-clock view");
+        RequireSucceeded(view.Attach(pool, StoppedTestClock()), "attach application-clock view");
         auto& host = view.Controls();
         host.SetTheme(MakeAnimatedTestThemePalette(false));
         auto slider = std::make_unique<Slider>();
@@ -242,7 +242,7 @@ void TestEmbeddedTransitionsUseApplicationClockIncludingZero()
                 "slider reaches its target and releases animation");
         // Each attachment has its own monotonic application timeline, with the same independently tested epoch.
         EmbeddedHost pageView;
-        RequireSucceeded(pageView.Attach(pool), "attach independent application-clock pages");
+        RequireSucceeded(pageView.Attach(pool, StoppedTestClock()), "attach independent application-clock pages");
         pageView.Controls().SetTheme(MakeAnimatedTestThemePalette(false));
         auto pages     = std::make_unique<PageHost>();
         auto* pageHost = pages.get();
@@ -624,7 +624,7 @@ void TestPacketSurrogatesThroughNativeAndEmbeddedHosts()
             ControlHost* host{};
             if (embedded)
             {
-                RequireSucceeded(view.Attach(MakePool(graphics)), "attach the supplied-device packet-input fixture");
+                RequireSucceeded(view.Attach(MakePool(graphics), StoppedTestClock()), "attach the supplied-device packet-input fixture");
                 host = &view.Controls();
             }
             else
@@ -811,7 +811,7 @@ void TestEmbeddedGraphicsRetirementPreservesApplicationBindings()
     auto oldPool = MakePool(first);
     auto newPool = MakePool(second);
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(oldPool), "attach borrowed-context view");
+    RequireSucceeded(view.Attach(oldPool, StoppedTestClock()), "attach borrowed-context view");
     view.Controls().SetRoot(std::make_unique<Button>(L"Device recovery"));
     RequireSucceeded(view.Prepare(220, 80), "prepare old-generation surface");
     const auto bind = [](GraphicsFixture& gpu)
@@ -864,7 +864,7 @@ void ExpectCompositionEventsCarryTheirText()
     std::shared_ptr<GraphicsDevice> graphics;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "composition events graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(graphics), "attach the composition view");
+    RequireSucceeded(view.Attach(graphics, StoppedTestClock()), "attach the composition view");
     auto root   = std::make_unique<Panel>();
     auto* field = root->AddChild<TextField>(L"ab");
     field->SetBounds(D2D1::RectF(12.0f, 12.0f, 260.0f, 44.0f));

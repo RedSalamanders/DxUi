@@ -222,7 +222,8 @@ EmbeddedHost::~EmbeddedHost()
 HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedCallbacks callbacks) noexcept
 {
     const Failure::Scope failureScope;
-    if (_detaching || ! graphics || graphics->_state->thread != GetCurrentThreadId())
+    // The application's clock is required (API revision 6): without it, stamps taken between advances would be stale.
+    if (_detaching || ! graphics || graphics->_state->thread != GetCurrentThreadId() || ! callbacks.nowTickMs)
         return E_INVALIDARG;
     if (_state)
         return HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED);
@@ -243,6 +244,8 @@ HRESULT EmbeddedHost::Attach(std::shared_ptr<GraphicsDevice> graphics, EmbeddedC
     _host._embedded                = true;
     _host._embeddedContext         = this;
     _host._embeddedInvalidate      = &InvalidateThunk;
+    _host._embeddedNowTickMs       = callbacks.nowTickMs;
+    _host._embeddedClockContext    = callbacks.context;
     _host._attachmentOwnerThreadId = GetCurrentThreadId();
     const auto hr                  = ReplaceDevice(std::move(graphics));
     if (FAILED(hr))
@@ -270,6 +273,8 @@ void EmbeddedHost::Detach() noexcept
     _host.Detach();
     _host._embedded              = false;
     _host._embeddedPublishedWake = {};
+    _host._embeddedNowTickMs     = nullptr;
+    _host._embeddedClockContext  = nullptr;
     _textInputRevision += attachedState->revision + 1;
     _state.reset();
 }
@@ -458,9 +463,10 @@ bool EmbeddedHost::NeedsPreparation() const noexcept
 {
     return _state && _state->visible && ! _state->zeroSized && (_state->dirty || _host._pendingVisualPreparation);
 }
-EmbeddedAnimationRequest EmbeddedHost::GetAnimationRequest() const noexcept
+EmbeddedAnimationRequest EmbeddedHost::RequestFromSchedule(ControlHost::FrameScheduleWake& reported) const noexcept
 {
     using Kind = EmbeddedAnimationRequest::Kind;
+    reported   = {};
     if (! _state || ! _state->visible || _state->zeroSized)
         return {};
     // The schedule's next wake, read from the held requests (no tree walk), is on the view's timeline; the application's
@@ -469,23 +475,53 @@ EmbeddedAnimationRequest EmbeddedHost::GetAnimationRequest() const noexcept
     switch (wake.kind)
     {
         case ControlHost::FrameScheduleWake::Kind::None: return {};
-        case ControlHost::FrameScheduleWake::Kind::Continuous: return {Kind::Continuous, 0u};
+        case ControlHost::FrameScheduleWake::Kind::Continuous: reported = wake; return {Kind::Continuous, 0u};
         case ControlHost::FrameScheduleWake::Kind::Deadline: break;
     }
     // After a pause the next tick only sets the baseline, and the application's clock is not known until it does: due now.
     if (_host._animationTimelineRebase)
+    {
+        reported = wake;
         return {Kind::Deadline, 0u};
+    }
     const uint64_t timelineMs = _host._animationTimelineMs;
     const uint64_t suppliedMs = _host._lastSuppliedAnimationTickMs;
     if (wake.dueTickMs <= timelineMs)
+    {
+        reported = wake;
         return {Kind::Deadline, suppliedMs};
+    }
+    // A deadline the application's clock cannot reach (it would pass the end of the clock's range) is never due: reporting it
+    // at UINT64_MAX would make a correct loop at the top of the clock advance with a zero sleep forever. It is None, and a
+    // sooner need still calls requestPreparation.
     const uint64_t aheadMs = wake.dueTickMs - timelineMs;
-    return {Kind::Deadline, aheadMs > UINT64_MAX - suppliedMs ? UINT64_MAX : suppliedMs + aheadMs};
+    if (aheadMs >= UINT64_MAX - suppliedMs)
+        return {};
+    reported = wake;
+    return {Kind::Deadline, suppliedMs + aheadMs};
+}
+EmbeddedAnimationRequest EmbeddedHost::GetAnimationRequest() const noexcept
+{
+    // Between advances the view's timeline follows the application's clock, so the deadline it reports is measured from now.
+    // Inside an advance (a callback that advance raised) the due requests are being ticked: nothing is recorded, and the
+    // advance's return value is the request to use.
+    if (_host._tickWakeFrame)
+    {
+        ControlHost::FrameScheduleWake ignored;
+        return RequestFromSchedule(ignored);
+    }
+    if (_state && _state->visible && ! _state->zeroSized)
+        _host.FollowEmbeddedApplicationClock();
+    ControlHost::FrameScheduleWake reported;
+    const EmbeddedAnimationRequest request = RequestFromSchedule(reported);
+    // The application now sleeps on this request: a later need sooner than it calls requestPreparation (review F2).
+    _host._embeddedPublishedWake = reported;
+    return request;
 }
 EmbeddedAnimationRequest EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
 {
     const Failure::Scope failureScope;
-    if (GetAnimationRequest().kind == EmbeddedAnimationRequest::Kind::None)
+    if (ControlHost::FrameScheduleWake ignored; RequestFromSchedule(ignored).kind == EmbeddedAnimationRequest::Kind::None)
         return {};
     // The timeline counts the time between ticks the view asked for: the first tick after a pause sets the baseline,
     // and a tick that goes back adds nothing.
@@ -498,6 +534,14 @@ EmbeddedAnimationRequest EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
     _host._lastSuppliedAnimationTickMs = tick;
     _host._animationTimelineRebase     = false;
     const uint64_t nowTickMs           = _host._animationTimelineMs;
+    // The request this advance returns is the one the application now sleeps on (review F2).
+    const auto ReportRequest = [this]() noexcept
+    {
+        ControlHost::FrameScheduleWake reported;
+        const EmbeddedAnimationRequest request = RequestFromSchedule(reported);
+        _host._embeddedPublishedWake           = reported;
+        return request;
+    };
     ++Detail::Work().wakes.embeddedAdvance;
     if (Detail::Trace::Listening()) [[unlikely]]
         Detail::Trace::Wake(Detail::Trace::WakeSource::EmbeddedAdvance, Detail::Trace::HostIdOf(_host._trace));
@@ -506,16 +550,14 @@ EmbeddedAnimationRequest EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
     if (const ControlHost::FrameScheduleWake wake = _host.GetFrameScheduleWake();
         wake.kind == ControlHost::FrameScheduleWake::Kind::Deadline && wake.dueTickMs > nowTickMs)
     {
-        _host._embeddedPublishedWake = wake;
-        return GetAnimationRequest();
+        return ReportRequest();
     }
     // Ticks dirty the view only through control invalidation; an idle tick leaves a clean surface clean. Only the due
     // requests are ticked.
     if (! _host.RunScheduledTicks(nowTickMs))
         return {};
     // A Tick may have hidden, detached or destroyed this view's tree: the request is read again from what is left.
-    _host._embeddedPublishedWake = _host.GetFrameScheduleWake();
-    return GetAnimationRequest();
+    return ReportRequest();
 }
 HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
 {

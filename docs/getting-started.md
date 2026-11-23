@@ -88,7 +88,7 @@ Do not enumerate library `.cpp` files or copy its source into your application.
 #include <DxUi/Embedded.h>
 #include <DxUi/Failure.h>
 
-// After successful view.Attach(graphics), on the UI thread:
+// After successful view.Attach(graphics, callbacks), on the UI thread:
 DxUi::Failure::Scope failureScope; // Host and this module's registration are already active.
 auto root = std::make_unique<DxUi::Panel>();
 auto* title = root->AddChild<DxUi::Label>(L"Settings");

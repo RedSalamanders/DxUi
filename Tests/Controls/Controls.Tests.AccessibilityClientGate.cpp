@@ -407,7 +407,7 @@ void TestAccessibilityClientGateFx6EmbeddedEveryFrameBuildsNothing()
         DxUi::EmbeddedHost view;
         std::shared_ptr<DxUi::GraphicsDevice> pool;
         RequireSucceeded(DxUi::GraphicsDevice::Create(graphics.device.get(), pool), "create FX6 embedded graphics pool");
-        RequireSucceeded(view.Attach(std::move(pool)), "attach FX6 embedded to borrowed graphics");
+        RequireSucceeded(view.Attach(std::move(pool), StoppedTestClock()), "attach FX6 embedded to borrowed graphics");
         Fx6::Controls controls;
         controls.Build(view.Controls());
         constexpr UINT kWidth = 320u, kHeight = 200u;
@@ -560,7 +560,7 @@ template <typename Body> void RunEmbeddedGateCase(const char* what, Body body)
         DxUi::EmbeddedHost view;
         std::shared_ptr<DxUi::GraphicsDevice> pool;
         RequireSucceeded(DxUi::GraphicsDevice::Create(graphics.device.get(), pool), "create an embedded gate case's graphics pool");
-        RequireSucceeded(view.Attach(std::move(pool)), "attach an embedded gate case to borrowed graphics");
+        RequireSucceeded(view.Attach(std::move(pool), StoppedTestClock()), "attach an embedded gate case to borrowed graphics");
         body(view);
         view.Detach();
     }),

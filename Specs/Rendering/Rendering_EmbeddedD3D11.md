@@ -191,7 +191,10 @@ marks a notification as sent without delivering one, so a later real invalidatio
 An embedded view keeps one animation clock, `ControlHost::GetAnimationTickMs`. AdvanceAnimation adds the difference
 between its application milliseconds and the previous tick's; the first tick after a pause in ticking (no animation
 requested, hidden, zero-sized, a new attachment) only sets the baseline, a tick that goes back adds nothing, and the
-clock saturates rather than wrapping. Every control stamps its transitions, caret phase, sort glyph, Tree expansion and
+clock saturates rather than wrapping. Between advances the clock follows the application's: a stamp taken outside an
+advance reads `EmbeddedCallbacks::nowTickMs` (required at `Attach`, on the clock passed to `AdvanceAnimation`) and moves
+the clock forward as an advance at that tick would, without ticking; it never moves it back and never crosses a baseline
+a pause left for the next advance, and inside an advance every `Tick` sees the advance's own time. Every control stamps its transitions, caret phase, sort glyph, Tree expansion and
 tooltip deadlines with that clock, and Tick receives it, so no control mixes system uptime with application time and no
 application epoch changes a transition. A new attachment continues from the clock the host read before it, so the clock
 never goes back. Native hosting uses the UI thread's dispatcher timeline as the same clock. Hiding/zero-sizing still
@@ -223,11 +226,12 @@ ticking; an unconditional Prepare of a clean view still returns S_FALSE.
 nowTickMs) noexcept`. A request is `None`, `Continuous` (advance every presented frame) or `Deadline` with `dueTickMs`.
 The view owns no timer or worker; the application decides when to call. Rules:
 
-1. `GetAnimationRequest` reads the schedule's held requests and the tooltip layer's one deadline; it ticks nothing,
-   walks no tree and allocates nothing. It is `None` while the view is detached, hidden or zero-sized, or nothing is
-   scheduled.
+1. `GetAnimationRequest` reads the application's clock, the schedule's held requests and the tooltip layer's one
+   deadline; it ticks nothing, walks no tree and allocates nothing. It is `None` while the view is detached, hidden or
+   zero-sized, nothing is scheduled, or the only deadline lies beyond the end of the application's clock (a clock at
+   the end of its range must not make a correct loop advance with a zero sleep forever).
 2. `dueTickMs` is on the application's clock, the one it passes to `AdvanceAnimation`: the last supplied tick plus what
-   the view's timeline still lacks of the earliest deadline, saturating at `UINT64_MAX`. A deadline the timeline has
+   the view's timeline still lacks of the earliest deadline. A deadline the timeline has
    reached is reported at the last supplied tick (due at once). While the next tick would only take the baseline (the
    first request after a pause: nothing requested, hidden, zero-sized, a new attachment) the request is a `Deadline`
    of 0, due at once, since the application's clock is not known until that tick.
@@ -238,14 +242,17 @@ The view owns no timer or worker; the application decides when to call. Rules:
 4. `AdvanceAnimation` with nothing requested does nothing and returns `None`. Otherwise it advances the timeline, ticks
    only the due requests (an advance before the earliest deadline ticks no control and returns the same deadline) and
    returns the next request, read after the ticks.
-5. The view tells a sleeping application when the schedule needs it sooner than the request it last reported (something
+5. The view records the request it reports (from `GetAnimationRequest` and `AdvanceAnimation`) and tells a sleeping
+   application when the schedule needs it sooner than that record (something
    after nothing, `Continuous` after a deadline, an earlier deadline) through the existing `requestPreparation`
    callback, the one owner wake of the view (`WakeSchedule` of the
    [explicit state machines](../Plans/WIP/ExplicitStateMachines_2026-11-10.md) catalog `1.1`): the change marks the view
    dirty, and that wake coalesces like any other until the next `Prepare`. A request raised inside a wake is returned by
    that `AdvanceAnimation` instead; a request raised while painting (an indeterminate progress bar, a busy grid) does not
    re-dirty the view inside the preparation that painted it, because it is no sooner than the one already reported.
-   Applications read the request after the callback and after every call they make into the view.
+   An application that sleeps until the last request it read is therefore never left asleep; it reads the request after
+   the callback. A callback raised inside an advance sees the due requests being ticked and uses the request that
+   advance returns.
 
 A new root gets one `Continuous` request for its discovery tick of the whole visible tree. A hidden view holds its
 requests and its timeline does not count the hidden time; a held deadline therefore keeps its remaining time across a

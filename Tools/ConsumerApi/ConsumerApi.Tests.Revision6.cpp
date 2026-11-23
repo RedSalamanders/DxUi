@@ -19,9 +19,15 @@ static_assert(std::is_same_v<decltype(&DxUi::EmbeddedHost::AdvanceAnimation), Dx
 static_assert(std::is_same_v<decltype(DxUi::EmbeddedAnimationRequest{}.kind), DxUi::EmbeddedAnimationRequest::Kind>);
 static_assert(std::is_same_v<decltype(DxUi::EmbeddedAnimationRequest{}.dueTickMs), uint64_t>);
 static_assert(DxUi::EmbeddedAnimationRequest{}.kind == DxUi::EmbeddedAnimationRequest::Kind::None);
+// The application's clock, required at Attach: the clock it passes to AdvanceAnimation, read where a stamp is taken.
+static_assert(DXUI_HAS_EMBEDDED_APPLICATION_CLOCK == 1);
+static_assert(std::is_same_v<decltype(DxUi::EmbeddedCallbacks{}.nowTickMs), uint64_t (*)(void*) noexcept>);
+[[maybe_unused]] inline constexpr DxUi::EmbeddedCallbacks kCallbacks{.context = nullptr, .requestPreparation = nullptr, .nowTickMs = nullptr};
 
-template <class Host> concept HasNeedsAnimation = requires(const Host& host) { host.NeedsAnimation(); };
-template <class Host> concept AdvanceReturnsBool = requires(Host& host) {
+template <class Host>
+concept HasNeedsAnimation = requires(const Host& host) { host.NeedsAnimation(); };
+template <class Host>
+concept AdvanceReturnsBool = requires(Host& host) {
     { host.AdvanceAnimation(uint64_t{}) } -> std::convertible_to<bool>;
 };
 static_assert(! HasNeedsAnimation<DxUi::EmbeddedHost>);
@@ -50,8 +56,7 @@ inline uint64_t AdvanceAndPlanSleep(DxUi::EmbeddedHost& view, uint64_t nowTickMs
 namespace Revision6UserSettings
 {
 static_assert(std::is_same_v<decltype(&DxUi::ControlHost::RefreshUserSettings), void (DxUi::ControlHost::*)() noexcept>);
-template <class Host> concept HasPublicPerSettingRefresh = requires(Host& host) { host.RefreshCaretBlinkSettings(); } || requires(Host& host) {
-    host.RefreshTooltipHoverTime();
-};
+template <class Host>
+concept HasPublicPerSettingRefresh = requires(Host& host) { host.RefreshCaretBlinkSettings(); } || requires(Host& host) { host.RefreshTooltipHoverTime(); };
 static_assert(! HasPublicPerSettingRefresh<DxUi::ControlHost>);
 } // namespace Revision6UserSettings

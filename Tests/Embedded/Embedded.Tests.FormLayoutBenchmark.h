@@ -205,7 +205,7 @@ public:
           _variant(variant),
           _width(profile.width)
     {
-        Hr(_view.Attach(graphics), "form layout fixture attach");
+        Hr(_view.Attach(graphics, StoppedTestClock()), "form layout fixture attach");
         auto theme          = DxUi::MakeDefaultThemePalette(true);
         theme.reducedMotion = true;
         _view.Controls().SetTheme(theme);

@@ -238,7 +238,7 @@ __declspec(noinline) inline void TestFormatWorkingSetAboveBound(GraphicsFixture&
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "W2.8 probe pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(pool), "W2.8 probe view");
+    Hr(view.Attach(pool, StoppedTestClock()), "W2.8 probe view");
     auto root                              = std::make_unique<DxUi::Panel>();
     const std::vector<FormatProbe*> probes = AddProbes(*root, 300u);
     view.Controls().SetRoot(std::move(root));
@@ -286,7 +286,7 @@ __declspec(noinline) inline void TestBrushEvictionByLastUse(GraphicsFixture& gpu
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "W2.8 brush pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(pool), "W2.8 brush view");
+    Hr(view.Attach(pool, StoppedTestClock()), "W2.8 brush view");
     auto root = std::make_unique<DxUi::Panel>();
     root->AddChild<DxUi::Label>(L"Bounded brushes")->SetBounds(D2D1::RectF(8, 8, 300, 40));
     root->AddChild<DxUi::Toggle>(L"Toggle")->SetBounds(D2D1::RectF(8, 48, 300, 88));

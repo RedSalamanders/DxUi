@@ -51,7 +51,7 @@ struct RichAccessibilityFixture
             RequireSucceeded(gpu.Create(), "rich UIA borrowed WARP device");
             std::shared_ptr<GraphicsDevice> graphics;
             RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), graphics), "rich UIA shared graphics");
-            RequireSucceeded(view.Attach(graphics), "attach rich UIA embedded view");
+            RequireSucceeded(view.Attach(graphics, StoppedTestClock()), "attach rich UIA embedded view");
             controls = &view.Controls();
         }
         else

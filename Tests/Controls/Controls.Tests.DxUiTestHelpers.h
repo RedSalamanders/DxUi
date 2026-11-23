@@ -5,6 +5,7 @@
 #include "Controls/DxUi.h"
 #include "Embedded.Tests.PerformanceGridModels.h"
 #include "Support.Tests.DesktopLease.h"
+#include "Support.Tests.EmbeddedClock.h"
 #include "Support.Tests.TestWatchdog.h"
 #include "Support.Tests.TestWindowActivationGuard.h"
 #include "Support/Diagnostics.h"

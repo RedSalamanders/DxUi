@@ -30,7 +30,15 @@ struct EmbeddedCallbacks
     // Mutating input coalesces wakes until the outermost entry finishes; direct setters may notify immediately.
     // The owning EmbeddedHost must remain alive throughout the callback.
     void (*requestPreparation)(void* context) noexcept = nullptr;
+    // Required (API revision 6; Attach refuses a null clock with E_INVALIDARG): the application's current time in
+    // milliseconds, on the same clock it passes to AdvanceAnimation. The view reads it, on the UI thread, only where it
+    // takes a time stamp outside an advance (input, a setter, a caret restart, a tooltip delay) and when the application
+    // reads its animation request, so a stamp is never older than the call that takes it. It must be cheap, must not call
+    // into the view, and may return the same value repeatedly; a value below the last one the view saw changes nothing.
+    uint64_t (*nowTickMs)(void* context) noexcept = nullptr;
 };
+// Header capability: EmbeddedCallbacks carries the required application clock (nowTickMs).
+#define DXUI_HAS_EMBEDDED_APPLICATION_CLOCK 1
 enum class PointerAction : uint8_t
 {
     Move,
@@ -150,6 +158,7 @@ struct EmbeddedAnimationRequest
     Kind kind = Kind::None;
     // Deadline only: milliseconds on the application's own clock, the one it passes to AdvanceAnimation. It may already have
     // passed (advance at once); it is 0 when the view needs its first advance after a pause, which only sets the baseline.
+    // It is always reachable: a deadline beyond the end of the application's clock is reported as None.
     uint64_t dueTickMs = 0u;
 };
 // Header capability: EmbeddedHost::GetAnimationRequest and AdvanceAnimation(nowTickMs) return an EmbeddedAnimationRequest
@@ -183,14 +192,18 @@ public:
     void SetVisible(bool visible) noexcept;
     void MarkDirty() noexcept;
     [[nodiscard]] bool NeedsPreparation() const noexcept;
-    // What the view's frame schedule needs next, on the application's clock: None while hidden, zero-sized, detached or with
-    // nothing scheduled. Read it after every call into the view and after the requestPreparation callback; reading costs no
-    // tick and walks no tree.
+    // What the view's frame schedule needs next, on the application's clock: None while hidden, zero-sized, detached, with
+    // nothing scheduled, or with only a deadline the application's clock can no longer reach (it is at the end of its range).
+    // The view remembers the request it reports here and from AdvanceAnimation, and calls requestPreparation whenever it then
+    // needs the application sooner, so an application that sleeps until the last request it read is never left asleep.
+    // Reading costs no tick and walks no tree. Inside an advance (from a callback that advance raises) use the request the
+    // advance returns, not this one.
     [[nodiscard]] EmbeddedAnimationRequest GetAnimationRequest() const noexcept;
-    // Application milliseconds, from any epoch. The view's animation clock (ControlHost::GetAnimationTickMs) advances by the
-    // difference between consecutive ticks; the first tick after a pause in ticking (nothing requested, hidden, zero-sized,
-    // a new attachment) only sets the baseline, a tick that goes back adds nothing, and the clock saturates. Ticks only the
-    // controls whose requests are due, and returns the next request. With nothing requested it does nothing.
+    // Application milliseconds, from any epoch, on the clock EmbeddedCallbacks::nowTickMs reads. The view's animation clock
+    // (ControlHost::GetAnimationTickMs) advances by the difference between consecutive ticks, and between advances follows
+    // nowTickMs where a stamp is taken; the first tick after a pause in ticking (nothing requested, hidden, zero-sized, a new
+    // attachment) only sets the baseline, a tick that goes back adds nothing, and the clock saturates. Ticks only the controls
+    // whose requests are due, and returns the next request. With nothing requested it does nothing.
     [[nodiscard]] EmbeddedAnimationRequest AdvanceAnimation(uint64_t nowTickMs) noexcept;
     // Physical pixel size and DPI. Text shaping and raster work happen only here, never in Composite.
     // Updating a surface mutates the borrowed immediate-context state, including PS SRV slot 0 and OM render targets.
@@ -301,6 +314,9 @@ private:
     [[nodiscard]] bool InputIsCoherent(bool allowDirty) noexcept;
     // InputIsCoherent(true) without its side effects: visible, coherent, and no interaction change since preparation.
     [[nodiscard]] bool PreparedGeometryIsCurrent() const noexcept;
+    // The animation request the schedule implies now, on the application's clock, and the wake it reports (None when the
+    // request is None); reads no clock and records nothing.
+    [[nodiscard]] EmbeddedAnimationRequest RequestFromSchedule(ControlHost::FrameScheduleWake& reported) const noexcept;
     // GetStatistics().preparations without its retained-resource walk of the tree, for per-frame internal callers.
     [[nodiscard]] uint64_t PreparationCount() const noexcept;
     [[nodiscard]] bool TextInputIsAvailable() noexcept;

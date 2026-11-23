@@ -632,7 +632,7 @@ inline void TestCompositionRangesOwnTheirTextNotTheSnapshot()
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "composition ranges graphics device");
     EmbeddedHost view;
-    Hr(view.Attach(std::move(graphics)), "attach the composition view");
+    Hr(view.Attach(std::move(graphics), StoppedTestClock()), "attach the composition view");
     // Long enough that every syllable's composition span lies inside the published text.
     const std::wstring base = L"composition base for eight syllables";
     auto root               = std::make_unique<Panel>();

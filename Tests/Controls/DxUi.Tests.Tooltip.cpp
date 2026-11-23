@@ -728,7 +728,7 @@ void TestTooltipPendingOriginMovesDoNotInvalidateEmbeddedHost()
     std::shared_ptr<GraphicsDevice> pool;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), pool), "share the embedded tooltip graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(pool), "attach the embedded tooltip view");
+    RequireSucceeded(view.Attach(pool, StoppedTestClock()), "attach the embedded tooltip view");
     constexpr std::wstring_view tooltipText = L"Pending origin help";
     view.Controls().SetRoot(MakeTooltipHoverPathRoot(tooltipText));
     constexpr UINT width  = 320u;
@@ -1109,7 +1109,7 @@ void TestTooltipDeadlinesOnHiddenHosts()
     std::shared_ptr<GraphicsDevice> pool;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), pool), "share the hidden-view graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(pool), "attach the hidden view");
+    RequireSucceeded(view.Attach(pool, StoppedTestClock()), "attach the hidden view");
     view.Controls().SetRoot(std::make_unique<Panel>());
     view.Controls().DebugSetTooltipHoverTimeForTest(400u);
     RequireSucceeded(view.Prepare(200u, 120u), "prepare the hidden view");
@@ -1166,7 +1166,7 @@ void TestTooltipHoverTimeIsReadOnceAndRefreshedOnSettingChange()
     std::shared_ptr<GraphicsDevice> pool;
     RequireSucceeded(GraphicsDevice::Create(gpu.device.get(), pool), "share the hover-time graphics");
     EmbeddedHost view;
-    RequireSucceeded(view.Attach(pool), "attach the hover-time view");
+    RequireSucceeded(view.Attach(pool, StoppedTestClock()), "attach the hover-time view");
     view.Controls().DebugSetTooltipHoverTimeForTest(300u);
     Require(view.Controls().DebugGetTooltipShowDelayMsForTest() == 300u, "an embedded host reads the hover time once");
     view.Controls().DebugSetTooltipHoverTimeForTest(700u);
@@ -1308,7 +1308,7 @@ void TestTooltipFollowsItsTargetBetweenDeadlinesEmbedded()
         for (const TooltipTargetChange change : kTooltipTargetChanges)
         {
             EmbeddedHost view;
-            RequireSucceeded(view.Attach(pool), "attach the tooltip-target view");
+            RequireSucceeded(view.Attach(pool, StoppedTestClock()), "attach the tooltip-target view");
             auto& host = view.Controls();
             host.DebugSetTooltipHoverTimeForTest(400u);
             TooltipTargetScene scene;

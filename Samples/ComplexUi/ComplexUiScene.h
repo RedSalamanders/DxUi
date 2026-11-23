@@ -70,6 +70,12 @@ struct ComplexUiScene
     {
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
+#if defined(DXUI_HAS_EMBEDDED_APPLICATION_CLOCK)
+        // A benchmark scene drives no animation: without a caller's clock its time stands still, so every frame it measures
+        // paints the same pixels. (A paired-benchmark input: older trees have no clock to supply.)
+        if (! callbacks.nowTickMs)
+            callbacks.nowTickMs = [](void*) noexcept -> uint64_t { return 0u; };
+#endif
         RETURN_IF_FAILED(view.Attach(std::move(graphics), callbacks));
         auto theme          = DxUi::MakeDefaultThemePalette(true);
         theme.reducedMotion = true;

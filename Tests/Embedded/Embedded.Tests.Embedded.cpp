@@ -6,6 +6,7 @@
 #include "Controls/DxUi.TextElements.h"
 #include "EmbeddedScene.h"
 #include "GraphicsFixture.h"
+#include "Support.Tests.EmbeddedClock.h"
 #include "Support.Tests.FailureHost.h"
 #include "Support.Tests.FailureReports.h"
 #include "Support.Tests.MarkdownSourceCorrelation.h"
@@ -131,7 +132,7 @@ static void TestEmbeddedRichHoverIndex(GraphicsFixture& gpu)
     DxUi::EmbeddedHost view;
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "hover index borrowed graphics");
-    Hr(view.Attach(graphics), "hover index embedded view");
+    Hr(view.Attach(graphics, StoppedTestClock()), "hover index embedded view");
     uint64_t tick      = 1'000u;
     const auto prepare = [&] { Hr(PrepareRichEmbeddedContent(view, 480u, 240u), "prepare the embedded hover scenario"); };
     const auto move    = [&](D2D1_POINT_2F point, UINT modifiers)
@@ -311,7 +312,7 @@ struct FrenchGridScene
     {
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
-        RETURN_IF_FAILED(view.Attach(std::move(graphics)));
+        RETURN_IF_FAILED(view.Attach(std::move(graphics), StoppedTestClock()));
         auto theme          = DxUi::MakeDefaultThemePalette(false);
         theme.reducedMotion = true;
         view.Controls().SetTheme(theme);
@@ -594,7 +595,7 @@ __declspec(noinline) static void TestEmbeddedCaptureEndsWithTheLastButtonUp(Grap
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "chord device pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(pool), "chord embedded host");
+    Hr(view.Attach(pool, StoppedTestClock()), "chord embedded host");
     auto root   = std::make_unique<DxUi::Panel>();
     auto* probe = root->AddChild<EmbeddedPointerButtonProbe>();
     probe->SetBounds(D2D1::RectF(20.0f, 20.0f, 220.0f, 120.0f));
@@ -626,7 +627,7 @@ __declspec(noinline) static void TestEmbeddedScrollPanelForwardsTheMiddleRelease
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "scrolled middle device pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(pool), "scrolled middle embedded host");
+    Hr(view.Attach(pool, StoppedTestClock()), "scrolled middle embedded host");
     auto root    = std::make_unique<DxUi::Panel>();
     auto* scroll = root->AddChild<DxUi::ScrollPanel>();
     scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 170.0f));
@@ -664,7 +665,7 @@ __declspec(noinline) static void TestTooltipInspectionDismissalConsumesEmbeddedG
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "tooltip gesture device pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(pool), "tooltip gesture embedded host");
+    Hr(view.Attach(pool, StoppedTestClock()), "tooltip gesture embedded host");
     auto root    = std::make_unique<DxUi::Panel>();
     auto* button = root->AddChild<DxUi::Button>(L"Underlying action");
     button->SetBounds(D2D1::RectF(200.0f, 100.0f, 310.0f, 150.0f));
@@ -701,7 +702,7 @@ __declspec(noinline) static void TestTickDirtying(GraphicsFixture& gpu)
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "tick pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(pool), "tick view");
+    Hr(view.Attach(pool, StoppedTestClock()), "tick view");
     auto root = std::make_unique<DxUi::Panel>();
     root->AddChild<DxUi::Label>(L"Static content")->SetBounds(D2D1::RectF(8, 8, 300, 40));
     view.Controls().SetRoot(std::move(root));
@@ -754,7 +755,7 @@ __declspec(noinline) static void TestCacheBounds(GraphicsFixture& gpu)
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "cache pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(pool), "cache view");
+    Hr(view.Attach(pool, StoppedTestClock()), "cache view");
     auto root = std::make_unique<DxUi::Panel>();
     root->AddChild<DxUi::Label>(L"Bounded caches")->SetBounds(D2D1::RectF(8, 8, 300, 40));
     root->AddChild<DxUi::Toggle>(L"Toggle")->SetBounds(D2D1::RectF(8, 48, 300, 88));
@@ -796,7 +797,7 @@ __declspec(noinline) static void TestEmbeddedIconLayoutRebuildsAfterFormatCacheE
     std::shared_ptr<DxUi::GraphicsDevice> pool;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), pool), "format-eviction pool");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(pool), "format-eviction view");
+    Hr(view.Attach(pool, StoppedTestClock()), "format-eviction view");
     auto root    = std::make_unique<DxUi::Panel>();
     auto* button = root->AddChild<DxUi::Button>(L"\uE8DD");
     button->SetVariant(DxUi::ButtonVariant::IconOnly);
@@ -1009,7 +1010,7 @@ __declspec(noinline) static void TestPointerDoesNotRetargetAfterHoverOrHitGeomet
         Model model(state);
         Delegate delegate(state);
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "attach pointer reentrancy test view");
+        Hr(view.Attach(graphics, StoppedTestClock()), "attach pointer reentrancy test view");
         auto root             = std::make_unique<DxUi::Panel>();
         DxUi::Control* target = nullptr;
         if (mutationSource == 0u)
@@ -1132,7 +1133,7 @@ __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsF
             DxUi::EmbeddedCallbacks callbacks{};
             callbacks.context            = &preparationRequests;
             callbacks.requestPreparation = [](void* context) noexcept { ++*static_cast<size_t*>(context); };
-            Hr(view.Attach(graphics, callbacks), "attach preparation retirement host");
+            Hr(view.Attach(graphics, StoppedTestClock(callbacks)), "attach preparation retirement host");
             view.Controls().SetRoot(std::make_unique<CallbackRoot>(state));
             auto& callback              = duringOverlay ? state.overlay : state.paint;
             callback                    = [&] { view.Controls().SetRoot(replaceRoot ? std::make_unique<DxUi::Panel>() : nullptr); };
@@ -1152,7 +1153,7 @@ __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsF
     {
         State state;
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "attach DPI retirement host");
+        Hr(view.Attach(graphics, StoppedTestClock()), "attach DPI retirement host");
         view.Controls().SetRoot(std::make_unique<CallbackRoot>(state));
         state.dpi = [&] { view.Controls().SetRoot(replaceRoot ? std::make_unique<DxUi::Panel>() : nullptr); };
         Hr(view.Prepare(320, 160, 144.0f), "DPI notification may replace or clear the root before layout");
@@ -1161,7 +1162,7 @@ __declspec(noinline) static void TestPreparationCallbacksCanRetireRoot(GraphicsF
     {
         State state;
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "attach failing preparation host");
+        Hr(view.Attach(graphics, StoppedTestClock()), "attach failing preparation host");
         view.Controls().SetRoot(std::make_unique<CallbackRoot>(state));
         if (fatalChild)
         {
@@ -1218,7 +1219,7 @@ __declspec(noinline) static void TestPageReplacementDuringPaintDefersBoundsUntil
     std::shared_ptr<DxUi::GraphicsDevice> graphics;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "graphics for deferred page bounds");
     DxUi::EmbeddedHost view;
-    Hr(view.Attach(graphics), "attach deferred page bounds host");
+    Hr(view.Attach(graphics, StoppedTestClock()), "attach deferred page bounds host");
     auto pageHost  = std::make_unique<DxUi::PageHost>();
     state.pageHost = pageHost.get();
     pageHost->SetPage(std::make_unique<ReplacingPage>(state));
@@ -1293,7 +1294,7 @@ __declspec(noinline) static void TestGridModelMutationDuringCellPaintAbortsPrepa
         Model replacementModel(queryState, 5u);
         DxUi::IGridDelegate replacementDelegate;
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "attach Grid model query host");
+        Hr(view.Attach(graphics, StoppedTestClock()), "attach Grid model query host");
         auto root  = std::make_unique<DxUi::Panel>();
         auto* grid = root->AddChild<DxUi::Grid>();
         grid->SetBounds(D2D1::RectF(0, 0, 320, 160));
@@ -1430,7 +1431,7 @@ __declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture
             state.view->Controls().SetRoot(nullptr);
         }
     };
-    Hr(view.Attach(graphics, callbacks), "attach Tree reorder retirement host");
+    Hr(view.Attach(graphics, StoppedTestClock(callbacks)), "attach Tree reorder retirement host");
     auto root  = std::make_unique<Panel>();
     auto* tree = root->AddChild<Tree>();
     tree->SetBounds(D2D1::RectF(0, 0, 220, 160));
@@ -1455,7 +1456,7 @@ __declspec(noinline) static void TestTreeReorderWakeRetiresOwner(GraphicsFixture
         EmbeddedHost nextView;
         Wake nextWake{.view = &nextView};
         callbacks.context = &nextWake;
-        Hr(nextView.Attach(graphics, callbacks), "attach Tree cancellation retirement host");
+        Hr(nextView.Attach(graphics, StoppedTestClock(callbacks)), "attach Tree cancellation retirement host");
         auto nextRoot  = std::make_unique<Panel>();
         auto* nextTree = nextRoot->AddChild<Tree>();
         nextTree->SetBounds(D2D1::RectF(0, 0, 220, 160));
@@ -1523,7 +1524,7 @@ __declspec(noinline) static void TestTreeDelegateMutationDuringItemPaintAbortsPr
         Model model(state);
         DxUi::ITreeDelegate replacementDelegate;
         DxUi::EmbeddedHost view;
-        Hr(view.Attach(graphics), "attach Tree delegate query host");
+        Hr(view.Attach(graphics, StoppedTestClock()), "attach Tree delegate query host");
         auto root  = std::make_unique<DxUi::Panel>();
         auto* tree = root->AddChild<DxUi::Tree>();
         tree->SetBounds(D2D1::RectF(0, 0, 320, 160));
@@ -2081,7 +2082,7 @@ __declspec(noinline) static int RunFunctionalTests()
         DxUi::EmbeddedHost view;
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "incremental borrowed graphics");
-        Hr(view.Attach(graphics), "incremental embedded view");
+        Hr(view.Attach(graphics, StoppedTestClock()), "incremental embedded view");
         RichSemanticTests::Run([&]
         {
             RichSemanticEditorTests::TransientPreviewRetainsChunks(
@@ -2455,7 +2456,7 @@ __declspec(noinline) static int RunFunctionalTests()
         DxUi::EmbeddedHost transactionView;
         std::shared_ptr<DxUi::GraphicsDevice> transactionGraphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), transactionGraphics), "transaction borrowed graphics");
-        Hr(transactionView.Attach(transactionGraphics), "transaction embedded view");
+        Hr(transactionView.Attach(transactionGraphics, StoppedTestClock()), "transaction embedded view");
         RichSemanticTests::Run([&]
         {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -2845,8 +2846,8 @@ __declspec(noinline) static int RunFunctionalTests()
     std::shared_ptr<DxUi::GraphicsDevice> shared;
     Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), shared), "shared supplied device pool");
     DxUi::EmbeddedHost a, b;
-    Hr(a.Attach(shared), "first shared view");
-    Hr(b.Attach(shared), "second shared view");
+    Hr(a.Attach(shared, StoppedTestClock()), "first shared view");
+    Hr(b.Attach(shared, StoppedTestClock()), "second shared view");
     for (const auto& item : DxUi::GetControlCatalog())
     {
         std::unique_ptr<DxUi::Control> control;
@@ -3441,7 +3442,7 @@ template <unsigned Stage> static void EmbeddedPreparationFailureChild()
     if (FAILED(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics)))
         return;
     DxUi::EmbeddedHost view;
-    if (FAILED(view.Attach(graphics)))
+    if (FAILED(view.Attach(graphics, StoppedTestClock())))
         return;
     auto editor = std::make_unique<DxUi::RichTextEditor>(L"**retained** and $x$\n");
     editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);

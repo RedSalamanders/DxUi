@@ -132,7 +132,7 @@ public:
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         result = DxUi::GraphicsDevice::Create(device, graphics);
         if (SUCCEEDED(result))
-            result = view_.Attach(std::move(graphics));
+            result = view_.Attach(std::move(graphics), StoppedTestClock());
         if (FAILED(result))
             return nullptr;
         auto theme          = DxUi::MakeDefaultThemePalette(true);

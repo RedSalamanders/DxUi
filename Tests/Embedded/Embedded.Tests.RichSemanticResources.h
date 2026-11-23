@@ -174,7 +174,7 @@ static void TestRichSemanticAccessibilityFailureAtomicity(GraphicsFixture& gpu, 
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "semantic UIA failure shared graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "semantic UIA failure owner");
+    Hr(view.Attach(graphics, StoppedTestClock()), "semantic UIA failure owner");
     const std::wstring source = L"| A | B |\n| - | - |\n| one |\n\n- [ ] task\n";
     auto root                 = std::make_unique<RichTextEditor>(source);
     auto* editor              = root.get();
@@ -274,7 +274,7 @@ static void TestRichMarkdownCommandHostFailureAtomicity(GraphicsFixture& gpu, un
     std::shared_ptr<GraphicsDevice> graphics;
     Hr(GraphicsDevice::Create(gpu.device.get(), graphics), "command host failure graphics");
     EmbeddedHost view;
-    Hr(view.Attach(graphics), "command host failure owner");
+    Hr(view.Attach(graphics, StoppedTestClock()), "command host failure owner");
     std::wstring source(L"- [ ] ");
     source.append(128u, L'x');
     auto root    = std::make_unique<RichTextEditor>(source);

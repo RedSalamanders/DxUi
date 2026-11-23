@@ -55,7 +55,7 @@ struct EmbeddedParityScene final
     {
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(device, graphics), "parity graphics pool");
-        Hr(view.Attach(std::move(graphics)), "parity view attachment");
+        Hr(view.Attach(std::move(graphics), StoppedTestClock()), "parity view attachment");
     }
     ~EmbeddedParityScene()
     {

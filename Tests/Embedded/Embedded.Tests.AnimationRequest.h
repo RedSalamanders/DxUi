@@ -56,8 +56,9 @@ struct Wakes
 struct View
 {
     GraphicsFixture gpu;
-    DxUi::EmbeddedHost view;
     Wakes wakes;
+    RunningTestClock clock;
+    DxUi::EmbeddedHost view;
     DxUi::Panel* root            = nullptr;
     View(const View&)            = delete;
     View& operator=(const View&) = delete;
@@ -69,7 +70,11 @@ struct View
         Hr(gpu.Create(true), "animation request WARP device");
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         Hr(DxUi::GraphicsDevice::Create(gpu.device.get(), graphics), "animation request graphics");
-        Hr(view.Attach(std::move(graphics), DxUi::EmbeddedCallbacks{&wakes, &Wakes::Count}), "attach the animation request view");
+        // The application's clock: 0 until a test sets it, which keeps every stamp at the last advance; a test about stamps
+        // between advances moves clock.nowMs as its application's time passes.
+        clock.requestPreparation = &Wakes::Count;
+        clock.requestContext     = &wakes;
+        Hr(view.Attach(std::move(graphics), clock.Callbacks()), "attach the animation request view");
         auto theme          = DxUi::MakeDefaultThemePalette(true);
         theme.reducedMotion = false;
         view.Controls().SetTheme(theme);
@@ -142,8 +147,11 @@ inline void TestRequestIsOnTheApplicationClock()
     static_cast<void>(view.AdvanceAnimation(kTop)); // the baseline, at the top of the application's clock
     host.RequestAnimationAt(*probe, host.GetAnimationTickMs() + 300u);
     probe->ticks = 0u;
-    Check(IsDeadlineAt(view.GetAnimationRequest(), UINT64_MAX), "a deadline past the end of the application's clock saturates");
-    Check(IsDeadlineAt(view.AdvanceAnimation(UINT64_MAX), UINT64_MAX) && probe->ticks == 0u, "the saturated clock never wraps into firing early");
+    // The application's clock can reach only 100 ms more: the far deadline was already unreachable (reported None, a pause),
+    // so the new one first asks for its baseline advance; after it, the deadline 300 ms ahead is unreachable and is None.
+    static_cast<void>(view.AdvanceAnimation(kTop));
+    Check(view.GetAnimationRequest().kind == Kind::None, "a deadline past the end of the application's clock is not reported");
+    Check(! AnimationRequested(view.AdvanceAnimation(UINT64_MAX)) && probe->ticks == 0u, "the saturated clock never wraps into firing early");
     host.CancelAnimation(*probe);
     host.CancelAnimation(*idle);
 
@@ -478,6 +486,258 @@ inline void TestOneCallRefreshesEveryUserSetting()
     std::cout << "PASS one RefreshUserSettings call refreshes every user setting of an embedded view\n";
 }
 
+// ---- W3.5 review fixes -------------------------------------------------------------------------------------------------
+
+// The application's clock reaches the view between advances (review F1): a stamp taken from input is taken at the
+// application's current time, not at the last advance. The three stamps the review named, in three situations: while a
+// deadline is pending and the application sleeps until it, after a hidden period, and after a pause with nothing requested.
+enum class StampSituation : uint8_t
+{
+    Sleeping,
+    AfterHidden,
+    AfterPause,
+};
+[[nodiscard]] inline const char* SituationName(StampSituation situation) noexcept
+{
+    switch (situation)
+    {
+        case StampSituation::Sleeping: return "while sleeping until a deadline";
+        case StampSituation::AfterHidden: return "after a hidden period";
+        case StampSituation::AfterPause: return "after a pause with nothing requested";
+    }
+    return "?";
+}
+
+// A scene whose application clock the test moves: a TextField (caret 530 ms, never timing out), a Label with a tooltip
+// (400 ms) and a Button (hover transition). `Arrive` brings it to the situation at application time `atMs`, with the caret
+// unfocused when the situation is a pause.
+struct ClockScene
+{
+    View scene{1'000u};
+    DxUi::TextField* field = nullptr;
+    DxUi::Label* label     = nullptr;
+    DxUi::Button* button   = nullptr;
+    ClockScene()
+    {
+        DxUi::ControlHost& host = scene.view.Controls();
+        host.DebugSetTooltipHoverTimeForTest(400u);
+        host.DebugSetCaretBlinkSettingsForTest(DxUi::ControlHost::CaretBlinkSettingsForTest{530u, 0u});
+        field = scene.root->AddChild<DxUi::TextField>(L"caret");
+        field->SetBounds(D2D1::RectF(8.0f, 8.0f, 200.0f, 40.0f));
+        label = scene.root->AddChild<DxUi::Label>(L"Help");
+        label->SetBounds(D2D1::RectF(8.0f, 60.0f, 150.0f, 120.0f));
+        label->SetTooltipText(L"Help text");
+        button = scene.root->AddChild<DxUi::Button>(L"Go");
+        button->SetBounds(D2D1::RectF(160.0f, 60.0f, 300.0f, 120.0f));
+        Hr(scene.view.Prepare(320u, 200u), "prepare the clock scene");
+        for (uint64_t at = 1'016u; at < 1'500u && AnimationRequested(scene.view.GetAnimationRequest()); at += 16u)
+            static_cast<void>(scene.view.AdvanceAnimation(at));
+    }
+    ~ClockScene()
+    {
+        scene.view.Controls().DebugSetTooltipHoverTimeForTest(std::nullopt);
+        scene.view.Controls().DebugSetCaretBlinkSettingsForTest(std::nullopt);
+    }
+    ClockScene(const ClockScene&)            = delete;
+    ClockScene& operator=(const ClockScene&) = delete;
+    ClockScene(ClockScene&&)                 = delete;
+    ClockScene& operator=(ClockScene&&)      = delete;
+    // The application sets its clock and advances once, as its loop does at `atMs`.
+    DxUi::EmbeddedAnimationRequest AdvanceAt(uint64_t atMs)
+    {
+        scene.clock.nowMs = atMs;
+        return scene.view.AdvanceAnimation(atMs);
+    }
+    // Leaves the scene at application time `atMs` in the situation: the caret blinking and the application asleep until its
+    // next flip; or shown again after an hour hidden, the application having advanced once at once; or idle for an hour with
+    // nothing requested.
+    void Arrive(StampSituation situation, uint64_t atMs)
+    {
+        DxUi::EmbeddedHost& view = scene.view;
+        scene.clock.nowMs        = 10'000u;
+        view.Controls().SetFocusControl(field, false);
+        DxUi::EmbeddedAnimationRequest request = AdvanceAt(10'000u); // the baseline after the focus
+        Check(IsDeadlineAt(request, 10'530u), "the caret's first flip is 530 ms after the focus");
+        request = AdvanceAt(10'530u);
+        Check(IsDeadlineAt(request, 11'060u) && ! field->DebugIsCaretVisible(), "the caret is off until 11,060");
+        switch (situation)
+        {
+            case StampSituation::Sleeping: Check(atMs < 11'060u, "the stamp falls while the application sleeps until the caret's next flip"); break;
+            case StampSituation::AfterHidden:
+                view.SetVisible(false);
+                scene.clock.nowMs = atMs - 500u;
+                view.SetVisible(true);
+                Hr(view.Prepare(320u, 200u), "prepare the shown view");
+                request = view.GetAnimationRequest();
+                Check(IsDeadlineAt(request, 0u), "after the hidden hour the application advances once at once");
+                request = AdvanceAt(atMs - 500u);
+                Check(IsDeadlineAt(request, atMs - 500u + 530u), "the shown caret restarts its phase at the baseline");
+                break;
+            case StampSituation::AfterPause:
+                view.Controls().SetFocusControl(nullptr, false);
+                Check(view.GetAnimationRequest().kind == DxUi::EmbeddedAnimationRequest::Kind::None, "with no focus nothing is requested");
+                break;
+        }
+        Hr(view.Prepare(320u, 200u), "prepare before the stamp");
+        scene.clock.nowMs = atMs;
+    }
+};
+
+inline void TestStampsTakeTheApplicationsTime()
+{
+    using Kind = DxUi::EmbeddedAnimationRequest::Kind;
+    for (const StampSituation situation : {StampSituation::Sleeping, StampSituation::AfterHidden, StampSituation::AfterPause})
+    {
+        const uint64_t at = situation == StampSituation::Sleeping ? 11'000u : 3'600'000u;
+        // S1: the pointer comes to rest on the label: the tooltip shows 400 ms later on the application's clock.
+        {
+            ClockScene clock;
+            clock.Arrive(situation, at);
+            DxUi::EmbeddedHost& view = clock.scene.view;
+            static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Move, 50.0f, 90.0f}));
+            DxUi::EmbeddedAnimationRequest request = view.GetAnimationRequest();
+            for (size_t turn = 0u; turn < 8u && request.kind == Kind::Deadline && request.dueTickMs <= at; ++turn)
+                request = clock.AdvanceAt(at); // a baseline after a pause is advanced at once, at the stamp's time
+            uint64_t now = at;
+            while (request.kind == Kind::Deadline && request.dueTickMs < at + 400u && ! view.Controls().HasTooltip())
+            {
+                now     = request.dueTickMs; // the caret's flips on the way
+                request = clock.AdvanceAt(now);
+            }
+            Check(! view.Controls().HasTooltip() && IsDeadlineAt(request, at + 400u), "S1: the tooltip is due 400 ms after the hover, not before");
+            static_cast<void>(clock.AdvanceAt(at + 399u));
+            Check(! view.Controls().HasTooltip(), "S1: the tooltip is not early");
+            static_cast<void>(clock.AdvanceAt(at + 400u));
+            Check(view.Controls().HasTooltip(), "S1: the tooltip shows on time");
+        }
+        // S2: a character typed restarts the caret: it stays shown a whole blink period after the keystroke.
+        {
+            ClockScene clock;
+            clock.Arrive(situation, at);
+            DxUi::EmbeddedHost& view = clock.scene.view;
+            if (situation == StampSituation::AfterPause)
+                view.Controls().SetFocusControl(clock.field, false); // the focus is the input that ends the pause
+            else
+                Check(view.DispatchCharacter(L'a'), "S2: the character reaches the field");
+            DxUi::EmbeddedAnimationRequest request = view.GetAnimationRequest();
+            if (request.kind == Kind::Deadline && request.dueTickMs <= at)
+                request = clock.AdvanceAt(at); // a baseline after a pause is advanced at once
+            Check(clock.field->DebugIsCaretVisible() && IsDeadlineAt(request, at + 530u), "S2: the caret's next flip is a whole period after the input");
+        }
+        // A transition started from input runs from the input's time: the hover's first frame is one frame in.
+        {
+            ClockScene clock;
+            clock.Arrive(situation, at);
+            DxUi::EmbeddedHost& view = clock.scene.view;
+            static_cast<void>(view.DispatchPointer({DxUi::PointerAction::Move, 230.0f, 90.0f}));
+            DxUi::EmbeddedAnimationRequest request = view.GetAnimationRequest();
+            if (request.kind == Kind::Deadline && request.dueTickMs <= at)
+                request = clock.AdvanceAt(at); // a baseline after a pause is advanced at once
+            Check(request.kind == Kind::Continuous, "the hover asks for every frame");
+            // After a pause the first frame only takes the baseline (progress 0); otherwise it is 16 ms in. Either way two
+            // frames are at most 32 ms of the 140 ms transition: the long sleep before the hover is not counted.
+            static_cast<void>(clock.AdvanceAt(at + 16u));
+            static_cast<void>(clock.AdvanceAt(at + 32u));
+            const float progress = clock.button->DebugGetHoverAnimationProgress();
+            Check(progress > 0.0f && progress < 0.5f, "the hover transition runs from the input's time, not finished by the long sleep");
+        }
+        std::cout << "PASS stamps take the application's time " << SituationName(situation) << '\n';
+    }
+}
+
+// The view remembers the request the application last read (review F2): a cancellation that leaves a later deadline, a
+// Deadline after Continuous and a request whose control was destroyed are all re-read, and a need sooner than what the
+// application now sleeps on wakes it.
+inline void TestTheRecordFollowsWhatTheApplicationRead()
+{
+    using Kind = DxUi::EmbeddedAnimationRequest::Kind;
+    // S3: deadlines at 2,500 and 2,800; 2,500 is cancelled and the application reads 2,800; a new one at 2,600 wakes it.
+    {
+        View scene(1'000u);
+        DxUi::ControlHost& host = scene.view.Controls();
+        auto* first             = scene.root->AddChild<RequestProbe>();
+        auto* second            = scene.root->AddChild<RequestProbe>();
+        Hr(scene.view.Prepare(320u, 200u), "prepare the S3 probes");
+        static_cast<void>(scene.view.AdvanceAnimation(1'001u));
+        host.RequestAnimationAt(*first, host.GetAnimationTickMs() + 500u);
+        static_cast<void>(scene.view.AdvanceAnimation(2'000u));
+        host.RequestAnimationAt(*second, host.GetAnimationTickMs() + 800u);
+        host.CancelAnimation(*first);
+        Check(IsDeadlineAt(scene.view.GetAnimationRequest(), 2'800u), "S3: after the cancel the application sleeps until 2,800");
+        Hr(scene.view.Prepare(320u, 200u), "prepare before the new deadline");
+        const size_t wakes = scene.wakes.calls;
+        host.RequestAnimationAt(*first, host.GetAnimationTickMs() + 600u);
+        Check(scene.wakes.calls == wakes + 1u && IsDeadlineAt(scene.view.GetAnimationRequest(), 2'600u),
+              "S3: a deadline sooner than the one the application sleeps on wakes it");
+    }
+    // A Deadline after Continuous: the application reads the deadline, and a sooner one wakes it.
+    {
+        View scene(1'000u);
+        DxUi::ControlHost& host = scene.view.Controls();
+        auto* frames            = scene.root->AddChild<RequestProbe>();
+        auto* deadline          = scene.root->AddChild<RequestProbe>();
+        Hr(scene.view.Prepare(320u, 200u), "prepare the Continuous probes");
+        static_cast<void>(scene.view.AdvanceAnimation(1'001u));
+        host.RequestAnimationAt(*deadline, host.GetAnimationTickMs() + 5'000u);
+        Check(IsDeadlineAt(scene.view.AdvanceAnimation(2'000u), 7'000u), "the application sleeps until 7,000");
+        host.RequestAnimation(*frames);
+        Check(scene.view.GetAnimationRequest().kind == Kind::Continuous, "the application is told every frame");
+        host.CancelAnimation(*frames);
+        Check(IsDeadlineAt(scene.view.GetAnimationRequest(), 7'000u), "after the cancel it reads the deadline again");
+        Hr(scene.view.Prepare(320u, 200u), "prepare before the sooner deadline");
+        const size_t wakes = scene.wakes.calls;
+        host.RequestAnimationAt(*frames, host.GetAnimationTickMs() + 300u);
+        Check(scene.wakes.calls == wakes + 1u, "a deadline sooner than the one read after Continuous wakes the application");
+    }
+    // A request whose control was destroyed: the application reads None, and the next request wakes it.
+    {
+        View scene(1'000u);
+        DxUi::ControlHost& host = scene.view.Controls();
+        auto* gone              = scene.root->AddChild<RequestProbe>();
+        auto* next              = scene.root->AddChild<RequestProbe>();
+        Hr(scene.view.Prepare(320u, 200u), "prepare the expiring probe");
+        static_cast<void>(scene.view.AdvanceAnimation(1'001u));
+        host.RequestAnimationAt(*gone, host.GetAnimationTickMs() + 500u);
+        static_cast<void>(scene.view.AdvanceAnimation(2'000u));
+        static_cast<void>(scene.root->TakeChild(0u)); // destroys the probe that held the deadline
+        Check(scene.view.GetAnimationRequest().kind == Kind::None, "with its control gone the application reads None");
+        Hr(scene.view.Prepare(320u, 200u), "prepare before the next request");
+        const size_t wakes = scene.wakes.calls;
+        host.RequestAnimationAt(*next, host.GetAnimationTickMs() + 900u);
+        Check(scene.wakes.calls == wakes + 1u, "a request after None wakes the application, however late it is");
+    }
+    std::cout << "PASS the view's record follows the request the application last read\n";
+}
+
+// S4: at the end of the application's clock a deadline that cannot be reached is not reported, so the documented loop
+// sleeps instead of advancing with a zero sleep forever (review F3).
+inline void TestASaturatedClockNeverSpins()
+{
+    using Kind = DxUi::EmbeddedAnimationRequest::Kind;
+    View scene(1'000u);
+    DxUi::ControlHost& host = scene.view.Controls();
+    auto* probe             = scene.root->AddChild<RequestProbe>();
+    Hr(scene.view.Prepare(320u, 200u), "prepare the saturation probe");
+    static_cast<void>(scene.view.AdvanceAnimation(1'001u));
+    constexpr uint64_t kTop = UINT64_MAX - 100u;
+    host.RequestAnimationAt(*probe, host.GetAnimationTickMs() + 1'000'000u);
+    static_cast<void>(scene.view.AdvanceAnimation(kTop));
+    host.RequestAnimationAt(*probe, host.GetAnimationTickMs() + 300u);
+    size_t zeroSleeps = 0u;
+    for (int iteration = 0; iteration < 1'000; ++iteration)
+    {
+        constexpr uint64_t now                 = UINT64_MAX;
+        DxUi::EmbeddedAnimationRequest request = scene.view.GetAnimationRequest();
+        if (request.kind == Kind::Continuous || (request.kind == Kind::Deadline && request.dueTickMs <= now))
+            request = scene.view.AdvanceAnimation(now);
+        if (request.kind == Kind::Continuous || (request.kind == Kind::Deadline && request.dueTickMs <= now))
+            ++zeroSleeps;
+    }
+    Check(zeroSleeps == 0u && probe->ticks == 0u && scene.view.GetAnimationRequest().kind == Kind::None,
+          "S4: an unreachable deadline is None: the loop sleeps, and nothing fires early");
+    std::cout << "PASS a saturated application clock never makes the loop spin\n";
+}
+
 inline void Run()
 {
     TestRequestIsOnTheApplicationClock();
@@ -486,5 +746,8 @@ inline void Run()
     TestTooltipMarkAloneWakesTheApplication();
     TestDeadlinesSurvivePausesHidingAndClockJumps();
     TestOneCallRefreshesEveryUserSetting();
+    TestStampsTakeTheApplicationsTime();
+    TestTheRecordFollowsWhatTheApplicationRead();
+    TestASaturatedClockNeverSpins();
 }
 } // namespace EmbeddedAnimationRequestTests
