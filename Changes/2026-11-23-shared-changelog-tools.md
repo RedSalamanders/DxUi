@@ -1,1 +1,0 @@
-- Use the pinned shared CI engine for DxUi changelog commands and validation. Reverts keep the original pending fragment and add a new one. The benchmark solution validator stays usable on historical revisions.
