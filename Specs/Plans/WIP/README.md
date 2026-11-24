@@ -13,6 +13,8 @@ owner, and a `git show` recovery command.
 
 - **ACTIVE**: [Explicit state machines and lifetime safety](ExplicitStateMachines_2026-11-10.md) — source-verified internal state-machine refactors and bug fixes across `EmbeddedHost`, `ControlHost`, `RichTextEditor`, `MenuController`, `ComboBox`, `TabControl`, `Tree`, `AnimationDispatcher`, `TextInputServices` and `Tools/` (`DXUI-SM-01`..`DXUI-SM-08`) with zero public ABI break. Plan only; code implementation has not started.
 
+- **HOLD**: [RichText proofing and Markdown decoration infrastructure](RichTextProofingSupport_2026-11-24.md) — future API wave (`DX-SPELL-1`–`DX-SPELL-8`: canonical prose-segment visitors, layered viewport-clipped decorations, `O(1)` typing suppression, rich context-menu hit offset, display-range replacement planner, front-matter scalar query, publication callbacks, and smooth continuous Bezier wave rendering for `RichTextDecorationKind::Squiggle`) enabling consumer simplification and familiar squiggles in RedTilde without moving dictionaries or spellcheckers into DxUi. Plan only; paused pending coordinated API bump.
+
 The [API 5 failure-policy execution record](../Done/FailurePolicy_2026-11-02.md#ordered-implementation-and-acceptance) closes library implementation and x64 qualification; the current plan retains formal performance-policy qualification, broader admission and product adoption separately. The owner's 7 November delivery scope requires x64 runtime tests and all three ARM64 compilation profiles, with ARM64 runtime explicitly set aside.
 
 [Completed and superseded records](../Done/README.md#earlier-completed-records) retain decisions, evidence, failures and detailed appendices.
