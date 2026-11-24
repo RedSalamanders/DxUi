@@ -402,6 +402,9 @@ draw pending.
 Root replacement, supported retained-tree/interaction mutation, and reentrant rendering end the current batch sequence.
 The default-off behavior remains the ordinary single EndDraw path.
 
+After creating an HWND swap chain, `ControlHost` uses its factory to disable DXGI's Alt+Enter mode switch.
+A failed association discards the new swap chain. A composition swap chain needs no window association.
+
 The native menu modal loop processes pointer/keyboard input and pending paints for its own popup windows before
 ordinary posted owner-window traffic. Input feedback cannot depend on the entire owner queue becoming empty.
 An idle menu still blocks on messages; this policy adds no timer, polling or synchronous repaint during dispatch.
