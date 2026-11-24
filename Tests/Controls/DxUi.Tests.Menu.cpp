@@ -12653,7 +12653,7 @@ bool CountRealPointerMessage(void* context, UINT message, WPARAM /*wParam*/, LPA
 // the time). Real pointer moves over a non-activating window: Windows sends WM_NCHITTEST and WM_SETCURSOR before each
 // WM_MOUSEMOVE, and the move reuses the cursor query's hit test, so each move walks the tree once. How many moves one
 // step produces is up to Windows and a person's mouse, so the test counts the WM_MOUSEMOVE messages the window receives
-// and requires one walk and one reuse per move.
+// and requires one walk and one reuse per move. A missing delivery gets two bounded retries inside the same button.
 void TestPointerHitRealInputReusesTheCursorQuery()
 {
     using namespace DxUi;
@@ -12672,25 +12672,31 @@ void TestPointerHitRealInputReusesTheCursorQuery()
     size_t steps = 0u;
     for (int step = 0; step < 12; ++step)
     {
-        POINT screen{20 + 35 * step, 40};
-        Require(ClientToScreen(window.Hwnd(), &screen) != FALSE, "client to screen");
-        messages = {};
-        const Detail::WorkCounterScope counters;
-        Require(pointer.AlignCursor(screen, window.Hwnd()), "the real pointer reaches the point");
-        window.PumpMessages(100u);
-        const auto work = counters.Delta().frame;
-        std::printf("W2.9 real move %d: mouseMoves=%zu setCursors=%zu nonClientHitTests=%zu hitTests=%llu hitTestReuses=%llu\n",
-                    step,
-                    messages.mouseMoves,
-                    messages.setCursors,
-                    messages.nonClientHit,
-                    static_cast<unsigned long long>(work.hitTests),
-                    static_cast<unsigned long long>(work.hitTestReuses));
-        if (messages.mouseMoves == 0u)
-            continue; // no mouse move reached the window for this step
-        ++steps;
-        Require(work.hitTests == messages.mouseMoves && work.hitTestReuses == messages.mouseMoves,
-                "a real move walks the tree once and reuses its cursor query's hit test");
+        for (int attempt = 0; attempt < 3; ++attempt)
+        {
+            // Each attempt requests a distinct physical move while staying inside the step's original button.
+            POINT screen{20 + 35 * step + 3 * attempt, 40};
+            Require(ClientToScreen(window.Hwnd(), &screen) != FALSE, "client to screen");
+            messages = {};
+            const Detail::WorkCounterScope counters;
+            Require(pointer.AlignCursor(screen, window.Hwnd()), "the real pointer reaches the point");
+            window.PumpMessages(100u);
+            const auto work = counters.Delta().frame;
+            std::printf("W2.9 real move %d attempt %d: mouseMoves=%zu setCursors=%zu nonClientHitTests=%zu hitTests=%llu hitTestReuses=%llu\n",
+                        step,
+                        attempt + 1,
+                        messages.mouseMoves,
+                        messages.setCursors,
+                        messages.nonClientHit,
+                        static_cast<unsigned long long>(work.hitTests),
+                        static_cast<unsigned long long>(work.hitTestReuses));
+            if (messages.mouseMoves == 0u)
+                continue;
+            ++steps;
+            Require(work.hitTests == messages.mouseMoves && work.hitTestReuses == messages.mouseMoves,
+                    "a real move walks the tree once and reuses its cursor query's hit test");
+            break;
+        }
     }
     Require(steps >= 10u, "real moves reached the window");
 }

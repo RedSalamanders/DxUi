@@ -115,26 +115,27 @@ inline void ConfigureHostPlace(AttachedHostWindow& window, UINT dpi, bool dark, 
     theme.density       = density;
     window.Host().SetTheme(theme);
     RECT outer{};
-    GetWindowRect(window.Hwnd(), &outer);
+    Require(GetWindowRect(window.Hwnd(), &outer) != FALSE, "the test host has an outer rectangle");
     bool handled = false;
     static_cast<void>(
         window.Host().HandleMessage(window.Hwnd(), WM_DPICHANGED, static_cast<WPARAM>(MAKELONG(dpi, dpi)), reinterpret_cast<LPARAM>(&outer), handled));
     Require(handled && window.Host().GetDpi() == static_cast<float>(dpi), "the host takes the requested dpi");
     RECT client{};
-    GetWindowRect(window.Hwnd(), &outer);
-    GetClientRect(window.Hwnd(), &client);
+    Require(GetWindowRect(window.Hwnd(), &outer) != FALSE && GetClientRect(window.Hwnd(), &client) != FALSE, "the test host reports its frame margins");
     const float scale = static_cast<float>(dpi) / 96.0f;
-    SetWindowPos(window.Hwnd(),
-                 nullptr,
-                 0,
-                 0,
-                 (outer.right - outer.left) - (client.right - client.left) + static_cast<LONG>(std::lround(sizeDip.width * scale)),
-                 (outer.bottom - outer.top) - (client.bottom - client.top) + static_cast<LONG>(std::lround(sizeDip.height * scale)),
-                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    const SIZE requestedOuter{(outer.right - outer.left) - (client.right - client.left) + static_cast<LONG>(std::lround(sizeDip.width * scale)),
+                              (outer.bottom - outer.top) - (client.bottom - client.top) + static_cast<LONG>(std::lround(sizeDip.height * scale))};
+    window.AllowOuterSizeBeyondDesktop(requestedOuter);
+    Require(SetWindowPos(window.Hwnd(), nullptr, 0, 0, requestedOuter.cx, requestedOuter.cy, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE,
+            "the test host accepted the requested outer size");
     window.PumpMessages();
     const D2D1_RECT_F clientDip = window.Host().GetClientBoundsDip();
-    Require(std::fabs(clientDip.right - sizeDip.width) < 0.01f && std::fabs(clientDip.bottom - sizeDip.height) < 0.01f,
-            "the host's client area is the requested size");
+    if (! (std::fabs(clientDip.right - sizeDip.width) < 0.01f && std::fabs(clientDip.bottom - sizeDip.height) < 0.01f))
+    {
+        const auto detail =
+            std::format("the host requested {}x{} DIP and reported {}x{} DIP at {} DPI", sizeDip.width, sizeDip.height, clientDip.right, clientDip.bottom, dpi);
+        Require(false, detail.c_str());
+    }
 }
 
 [[nodiscard]] inline std::unique_ptr<Control> TakeChild(Panel& parent, size_t index)
