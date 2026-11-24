@@ -2,6 +2,7 @@
 // How long the GPU's engines ran this process's work, for test tools only (the hardware attribution method, plan W0.7, and
 // the frame timing method): the per-process "GPU Engine" performance counters' "Running Time", read through PDH without
 // elevation. Nothing here is library code.
+#include <intrin.h>
 #include <pdh.h>
 #include <pdhmsg.h>
 #include <windows.h>
@@ -119,7 +120,9 @@ public:
         for (DWORD index = 0u; index < count; ++index)
         {
             const PDH_RAW_COUNTER& raw = items[index].RawValue;
-            if ((raw.CStatus != PDH_CSTATUS_VALID_DATA && raw.CStatus != PDH_CSTATUS_NEW_DATA) || ! items[index].szName || raw.FirstValue < 0)
+            // PDH_RAW_COUNTER::CStatus is `volatile` in the SDK: one explicit load, no ARM64 /volatile:iso dependence (C4746).
+            const auto status = static_cast<DWORD>(__iso_volatile_load32(reinterpret_cast<const volatile int*>(&raw.CStatus)));
+            if ((status != PDH_CSTATUS_VALID_DATA && status != PDH_CSTATUS_NEW_DATA) || ! items[index].szName || raw.FirstValue < 0)
                 continue;
             reading.values.push_back(Instance{items[index].szName, static_cast<uint64_t>(raw.FirstValue)});
             ++reading.instances;
