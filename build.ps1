@@ -5,6 +5,7 @@ milliseconds diagnose build orchestration; they are not native workload measurem
 .PARAMETER Configuration Debug, Release or ASan Debug.
 .PARAMETER Platform x64 or ARM64.
 .PARAMETER OutputRoot Optional isolated output root; defaults to this checkout's .build directory.
+.PARAMETER Analyze Runs MSVC code analysis on the checkout's solution under .build/analysis.
 .PARAMETER ProductionOnly Build only the Release library target; excludes test executables from the production role.
 .PARAMETER Projects Optional union of owned native project names. Builds their library dependency too and publishes only selected-target evidence. Omit for a full solution build.
 .PARAMETER SourceRoot Optional separate clean immutable DxUi source checkout for a production-only Release SDK input build. Tooling remains owned by this checkout; output stays in the source checkout's default build tree.
@@ -21,12 +22,16 @@ param(
     [string[]] $Projects = @(),
     [string] $SourceRoot = '',
     [switch] $LocalUnpinnedSource,
-    [string] $ToolingEngineRoot = ''
+    [string] $ToolingEngineRoot = '',
+    [switch] $Analyze
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $Projects=@($Projects | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if ($env:CI_NATIVE_BUILDS_DISABLED -eq 'true') { throw 'Native builds are forbidden in compiler-free PR checks.' }
+if ($Analyze -and ($OutputRoot -or $ProductionOnly -or $Projects.Count -or $SourceRoot -or $ToolingEngineRoot)) {
+    throw '-Analyze uses this checkout, the full solution and its dedicated output directory.'
+}
 if($LocalUnpinnedSource -and (-not $SourceRoot -or $env:GITHUB_ACTIONS -ceq 'true')){throw 'LocalUnpinnedSource requires an explicit dirty local SourceRoot; hosted execution refuses before discovery.'}
 if ($ProductionOnly -and $Configuration -ne 'Release') { throw 'ProductionOnly requires Release.' }
 if ($ProductionOnly -and $Projects.Count) { throw 'Projects and ProductionOnly are separate build roles.' }
@@ -42,6 +47,10 @@ if($SourceRoot){
     $sourceDirty=[bool](($status -join '').Trim())
     if($sourceDirty -and -not $LocalUnpinnedSource){throw 'SourceRoot requires clean committed source.'}
     if($LocalUnpinnedSource -and -not $sourceDirty){throw 'LocalUnpinnedSource requires actual dirty source; use the ordinary clean SourceRoot route otherwise.'}
+}
+if ($Analyze) {
+    Import-Module (Join-Path $buildRoot '.ci-engine/Tools/Modules/Ci.Policy.psm1') -ErrorAction Stop
+    $OutputRoot = Assert-CiContainedPath -Root $buildRoot -Path (Join-Path $buildRoot '.build/analysis')
 }
 $buildEvidencePath = Join-Path $PSScriptRoot 'Tools/DxUiBuildEvidence.psm1'
 if ($ToolingEngineRoot) {
@@ -212,7 +221,17 @@ Invoke-DxUiBuildPhase -Phase OutputUseChecks -Body {
 }
 Invoke-DxUiBuildPhase -Phase DependencyAdmission -Body {
     $triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
-    if (-not (Test-Path -LiteralPath (Join-Path $output "vcpkg_installed/$Platform/$triplet/include/wil/resource.h"))) {
+    $header = Join-Path $output "vcpkg_installed/$Platform/$triplet/include/wil/resource.h"
+    if ($Analyze -and -not (Test-Path -LiteralPath $header -PathType Leaf)) {
+        $binarySources = $env:VCPKG_BINARY_SOURCES
+        try {
+            $env:VCPKG_BINARY_SOURCES = 'clear'
+            & (Join-Path $buildRoot 'vcpkg-install.ps1') -Platform $Platform -OutputRoot $output
+        } finally {
+            $env:VCPKG_BINARY_SOURCES = $binarySources
+        }
+    }
+    if (-not (Test-Path -LiteralPath $header -PathType Leaf)) {
         throw "Restore dependencies first: vcpkg-install.ps1 -Platform $Platform -OutputRoot `"$output`""
     }
 }
@@ -278,6 +297,10 @@ if ($ProductionOnly) {
 if ($partialBuild) {
     $arguments[4]='/t:' + (($selectedProjects | ForEach-Object { $_.Replace('.','_')+':'+$target }) -join ';')
     Write-Host "Selected native target union: $($selectedProjects -join ', ')"
+}
+if ($Analyze) {
+    $arguments += '/p:DxUiAnalyze=true'
+    Write-Host 'MSVC code analysis' -ForegroundColor Cyan
 }
 Write-Host 'Build configuration:' -ForegroundColor Cyan
 Write-Host "  Configuration: $Configuration"

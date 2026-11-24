@@ -24,6 +24,20 @@
       <ForcedIncludeFiles>$(DxUiRepositoryRoot)src/Support/RequireAddressSanitizer.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
     </ClCompile>
   </ItemDefinitionGroup>
+  <!-- MSVC clears tracking state in _PrepareForClean, before BeforeClean. -->
+  <Target Name="ValidateDxUiAnalysisOutput" BeforeTargets="PrepareForBuild;_PrepareForClean" Condition="'$(DxUiAnalyze)'=='true'">
+    <PropertyGroup>
+      <_DxUiAnalysisOutputRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory).build\analysis\'))</_DxUiAnalysisOutputRoot>
+      <_DxUiEvaluatedOutputRoot>$([System.IO.Path]::GetFullPath('$(DxUiOutputRoot)'))</_DxUiEvaluatedOutputRoot>
+    </PropertyGroup>
+    <Error Condition="'$(_DxUiEvaluatedOutputRoot)'!='$(_DxUiAnalysisOutputRoot)'" Text="DxUi code analysis requires its dedicated output directory." />
+    <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildThisFileDirectory)Tools\Assert-AnalysisOutput.ps1&quot; -OutputDirectory &quot;$(OutDir)/.&quot; -IntermediateDirectory &quot;$(IntDir)/.&quot;" />
+  </Target>
+  <ItemDefinitionGroup Condition="'$(DxUiAnalyze)'=='true'">
+    <ClCompile>
+      <EnablePREfast>true</EnablePREfast>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <Target Name="ValidateDxUiBuildConfiguration" BeforeTargets="PrepareForBuild">
     <Error Condition="!$([System.String]::Copy('$(VCToolsVersion)').StartsWith('$(RequiredMsvcToolsVersion).'))" Text="DxUi requires MSVC build tools $(RequiredMsvcToolsVersion).x; selected $(VCToolsVersion). Install the required C++ tools and select that default toolset." />
     <Error Condition="'$(DxUiDisableStlAnnotations)'!='true' and '$(DxUiDisableStlAnnotations)'!='false'" Text="DxUiDisableStlAnnotations must be true or false and match the consumer." />
