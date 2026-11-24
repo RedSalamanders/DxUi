@@ -397,8 +397,9 @@ Successful Flush and EndDraw consume this initial-draw policy even when Present 
 frames never repeat the intermediate submissions while full presentation remains pending. Partial frames do not
 submit. The option does not apply to embedded hosts. A failed Flush stops further submissions, still pairs BeginDraw
 with EndDraw, suppresses capture and presentation, and leaves the initial draw and full-frame state pending; a
-device-loss result follows the existing resource reset and recovery path. An EndDraw failure also keeps the initial
-draw pending.
+device-loss result follows the existing resource reset and recovery path. The device-loss classifier accepts
+`D2DERR_RECREATE_TARGET`, `DXGI_ERROR_DEVICE_REMOVED`, `DXGI_ERROR_DEVICE_RESET`, `DXGI_ERROR_DEVICE_HUNG` and
+`DXGI_ERROR_DRIVER_INTERNAL_ERROR`. An EndDraw failure also keeps the initial draw pending.
 Root replacement, supported retained-tree/interaction mutation, and reentrant rendering end the current batch sequence.
 The default-off behavior remains the ordinary single EndDraw path.
 

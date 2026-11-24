@@ -52,7 +52,8 @@ namespace DxUi
 {
 [[nodiscard]] bool IsDeviceLossHResult(HRESULT hr) noexcept
 {
-    return hr == D2DERR_RECREATE_TARGET || hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET || hr == DXGI_ERROR_DEVICE_HUNG;
+    return hr == D2DERR_RECREATE_TARGET || hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET || hr == DXGI_ERROR_DEVICE_HUNG ||
+           hr == DXGI_ERROR_DRIVER_INTERNAL_ERROR;
 }
 
 [[nodiscard]] HRESULT CreateD3D11DeviceWithWarpFallback(UINT creationFlags,
