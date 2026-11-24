@@ -6,15 +6,15 @@
        and 5045 is the reviewed optional Spectre mitigation notice. These five
        non-actionable diagnostics do not justify suppressing other warnings. -->
   <!-- ExternalIncludePath is an evaluated and attested MSBuild input, unlike
-       opaque path-bearing AdditionalOptions. Keep dependency paths enumerable. -->
+       opaque path-bearing AdditionalOptions. Keep dependency paths enumerable.
+       A repository whose scripted vcpkg restore installs into VcpkgInstalledDir names
+       its triplet in NativeBuildVcpkgTriplet; this file names no repository. -->
   <PropertyGroup>
     <ExternalIncludePath Condition="'$(DxUiOutputRoot)'!='' and '$(DxUiTriplet)'!=''">$(ExternalIncludePath);$(DxUiOutputRoot)vcpkg_installed\$(Platform)\$(DxUiTriplet)\include</ExternalIncludePath>
     <ExternalIncludePath Condition="'$(DxUiConsumerOutputRoot)'!='' and '$(DxUiConsumerTriplet)'!=''">$(ExternalIncludePath);$(DxUiConsumerOutputRoot)vcpkg_installed\$(Platform)\$(DxUiConsumerTriplet)\include</ExternalIncludePath>
     <ExternalIncludePath Condition="'$(DxUiResolvedRoot)'!='' and '$(DxUiRepositoryRoot)'==''">$(ExternalIncludePath);$(DxUiResolvedRoot)include</ExternalIncludePath>
     <ExternalIncludePath Condition="'$(VcpkgInstalledDir)'!='' and '$(VcpkgTriplet)'!=''">$(ExternalIncludePath);$(VcpkgInstalledDir)$(VcpkgTriplet)\include</ExternalIncludePath>
-    <ExternalIncludePath Condition="'$(VcpkgInstalledDir)'!='' and '$(RedXeVcpkgTriplet)'!=''">$(ExternalIncludePath);$(VcpkgInstalledDir)$(RedXeVcpkgTriplet)\include</ExternalIncludePath>
-    <ExternalIncludePath Condition="'$(VcpkgInstalledDir)'!='' and '$(RedPrismVcpkgTriplet)'!=''">$(ExternalIncludePath);$(VcpkgInstalledDir)$(RedPrismVcpkgTriplet)\include</ExternalIncludePath>
-    <ExternalIncludePath Condition="'$(VcpkgInstalledDir)'!='' and '$(RSVcpkgTriplet)'!=''">$(ExternalIncludePath);$(VcpkgInstalledDir)$(RSVcpkgTriplet)\include</ExternalIncludePath>
+    <ExternalIncludePath Condition="'$(VcpkgInstalledDir)'!='' and '$(NativeBuildVcpkgTriplet)'!=''">$(ExternalIncludePath);$(VcpkgInstalledDir)$(NativeBuildVcpkgTriplet)\include</ExternalIncludePath>
     <ExternalIncludePath Condition="Exists('$(MSBuildThisFileDirectory)..\ThirdParty\RedMonitor\include')">$(ExternalIncludePath);$(MSBuildThisFileDirectory)..\ThirdParty\RedMonitor\include</ExternalIncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(MSBuildProjectExtension)'=='.vcxproj'">
