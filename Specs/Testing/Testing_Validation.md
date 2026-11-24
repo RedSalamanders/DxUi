@@ -191,6 +191,9 @@ These remain runtime acceptance requirements for future changes; the evidence re
 executed for the qualified x64 library scope and their limits.
 Native ARM64 and consumer-owned crash integration retain their independent execution/acceptance obligations.
 
+For an image reported as `\Device\HarddiskVolumeN\...`, use the Win32 device namespace to open its local PE image.
+Keep the same timestamp, size and checksum checks on the resulting file. [Windows path namespaces](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#windows-namespaces)
+
 Native ARM64 saved-context verification must use PAC-aware `StackWalk2` and its target-attribute callback.
 The live-target PAC-mask sentinel is permitted only for the original native child from the verifier's own
 machine, checked against the dump architecture and process id while retaining the original process handle.
