@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Adopt the shared hosted MSVC action and pinned formatting and repository policy checks.
 - Moved the toolset (`v145`), the Windows SDK (`10.0.26100.0`) and the debug-library choice that selects
   optimization (`UseDebugLibraries`) from the seven project files into `Directory.Build.props`; each project file
   now holds only its own facts (`RedHome` convergence CV-6-04 part 1, register C-11). `Build/NativeBuildPolicy.targets`
