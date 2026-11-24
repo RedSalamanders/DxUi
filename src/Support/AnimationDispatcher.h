@@ -38,9 +38,11 @@ namespace DxUi::Ui
 //    none, every frame (Continuous) or once its deadline is due (Deadline). Its callback runs at that wake and returns
 //    the next one; Reschedule changes it between wakes.
 // One periodic timer runs only while some subscriber needs every frame; otherwise one coalescable one-shot timer is armed
-// for the earliest deadline across the thread's subscribers, and nothing is armed when nobody waits. The clock: while
-// the periodic timer runs, the timeline advances by smoothed frame deltas from the real time of its first tick (no
-// phantom first frame); otherwise it is GetTickCount64.
+// for the earliest deadline across the thread's subscribers, and nothing is armed when nobody waits. A paced native host
+// (W3.6) takes its every-frame wakes from its own swap chain instead and does not ask for the periodic timer. The clock:
+// while the periodic timer runs, the timeline advances by smoothed frame deltas from the real time of its first tick (no
+// phantom first frame); while paced hosts animate, their frames advance it to each frame's predicted present time;
+// otherwise it is GetTickCount64. It never reads less than a value it gave out before.
 class AnimationDispatcher final
 {
 private:
@@ -109,10 +111,79 @@ public:
     // computed on either side keep their place.
     [[nodiscard]] uint64_t GetCurrentTickMs() const noexcept
     {
-        if (_hasTickTimestamp)
+        if (_hasTickTimestamp && (_timerRunning || _pacedTimelines == 0u))
             return _lastTickMs;
-        const uint64_t uptime = GetTickCount64();
-        return uptime > _lagMs ? uptime - _lagMs : 0u;
+        if (_hasTickTimestamp)
+        {
+            // Paced frames alone advance the timeline, and only while they come: between them (a tick that presented
+            // nothing, a stalled compositor) the clock runs on from the last sample at real time, so deadlines still come due.
+            const DxUi::FrameTimestamp now = _clock.Now();
+            const uint64_t sinceUs         = now.qpc > _lastTickTimestamp.qpc ? _clock.ElapsedUs(_lastTickTimestamp, now) : 0u;
+            _floorTickMs                   = (std::max)(_floorTickMs, _lastTickMs + sinceUs / 1'000u);
+            return _floorTickMs;
+        }
+        return IdleTickMs();
+    }
+
+    // Native frame pacing (W3.6). While a paced host animates, its frames advance the same timeline as the periodic timer,
+    // to the compositor's predicted present time instead of the time the tick runs. The timeline stays monotonic: a paced
+    // sample may run up to one frame ahead of uptime, and the idle clock never reads less than the last sample.
+    void BeginPacedTimeline() noexcept
+    {
+        ++_pacedTimelines;
+    }
+    void EndPacedTimeline() noexcept
+    {
+        if (_pacedTimelines == 0u)
+            return;
+        if (--_pacedTimelines == 0u && ! _timerRunning)
+            ResetClock();
+    }
+    struct PacedSample final
+    {
+        uint64_t tickMs    = 0u;    // the animation sample on the timeline
+        uint64_t sampleQpc = 0u;    // the QueryPerformanceCounter time the sample stands for
+        bool clamped       = false; // the hitch clamp shortened this step
+    };
+    // Advances the timeline to `presentQpc`, the time the frame being prepared is predicted to be shown. The first paced
+    // frame after idle starts the timeline at the real time it runs, as the periodic timer's first tick does; a step longer
+    // than the hitch clamp is clamped.
+    [[nodiscard]] PacedSample AdvancePacedTimeline(uint64_t presentQpc, uint64_t periodUs = 0u) noexcept
+    {
+        if (! _hasTickTimestamp)
+        {
+            _tickEpochMs       = IdleTickMs();
+            _lastTickTimestamp = _clock.Now();
+            _hasTickTimestamp  = true;
+            _elapsedTickUs     = 0u;
+            _lastTickMs        = _tickEpochMs;
+        }
+        const DxUi::FrameTimestamp target{static_cast<int64_t>(presentQpc)};
+        const uint64_t rawDeltaUs = _clock.ElapsedUs(_lastTickTimestamp, target);
+        const TickTiming timing   = ComputeTickTiming(rawDeltaUs);
+        // The same frame-timing metrics as a periodic tick, against the compositor's period when it reported one.
+        Debug::Perf::EmitDurationUs(L"dxui.animation.tick_delta_us", timing.rawDeltaUs);
+        Debug::Perf::EmitDurationUs(L"dxui.animation.jitter_us",
+                                    AbsoluteDifference(timing.rawDeltaUs, periodUs != 0u ? periodUs : _frameBudget.refreshPeriodUs));
+        PacedSample sample{};
+        const uint64_t advancedMs = AddElapsedTickUs(timing.callbackDeltaUs);
+        // Clamped, or held back by a read of the running clock that already passed the predicted time: either way the
+        // sample does not stand for the target time.
+        sample.clamped   = timing.callbackDeltaUs < rawDeltaUs || advancedMs < _floorTickMs;
+        sample.tickMs    = (std::max)(advancedMs, _floorTickMs);
+        sample.sampleQpc = presentQpc;
+        if (sample.clamped)
+        {
+            LARGE_INTEGER frequency{};
+            static_cast<void>(QueryPerformanceFrequency(&frequency));
+            sample.sampleQpc =
+                static_cast<uint64_t>(_lastTickTimestamp.qpc) + (timing.callbackDeltaUs * static_cast<uint64_t>(frequency.QuadPart)) / 1'000'000u;
+        }
+        _lastTickMs     = sample.tickMs;
+        _lastTickRealMs = GetTickCount64();
+        if (target.qpc > _lastTickTimestamp.qpc)
+            _lastTickTimestamp = target;
+        return sample;
     }
 
     void RetainIdleWindow() noexcept
@@ -141,6 +212,7 @@ public:
         _elapsedTickUs     = 0u;
         _lastTickTimestamp = {};
         _hasTickTimestamp  = false;
+        _pacedTimelines    = 0u;
         _hwnd.reset();
     }
 
@@ -218,6 +290,11 @@ public:
     [[nodiscard]] uint64_t DebugGetArmedDeadlineTickMsForTest() const noexcept
     {
         return _armedDeadlineTickMs;
+    }
+    // Paced native hosts advancing the timeline (W3.6).
+    [[nodiscard]] uint32_t DebugGetPacedTimelineCountForTest() const noexcept
+    {
+        return _pacedTimelines;
     }
     struct DebugTimingForTest
     {
@@ -471,11 +548,22 @@ private:
         _deadlineArmed = false;
     }
 
+    // Uptime less what the timeline lost to hitch clamping, never less than the last tick the timeline gave out.
+    [[nodiscard]] uint64_t IdleTickMs() const noexcept
+    {
+        const uint64_t uptime = GetTickCount64();
+        return (std::max)(uptime > _lagMs ? uptime - _lagMs : 0u, _floorTickMs);
+    }
+
     void ResetClock() noexcept
     {
-        // Keep what the timeline lost to hitch clamping, so the idle clock continues from the last periodic tick.
+        // Keep what the timeline lost to hitch clamping, so the idle clock continues from the last periodic tick. A paced
+        // timeline may stand ahead of uptime by up to a frame: the idle clock then holds at its last sample until uptime
+        // catches up, so no tick ever reads an earlier time than one before it.
         if (_hasTickTimestamp && _lastTickRealMs > _lastTickMs)
             _lagMs = _lastTickRealMs - _lastTickMs;
+        if (_hasTickTimestamp)
+            _floorTickMs = (std::max)(_floorTickMs, _lastTickMs);
         _lastTickMs        = 0u;
         _tickEpochMs       = 0u;
         _elapsedTickUs     = 0u;
@@ -504,7 +592,9 @@ private:
             KillTimer(_hwnd.get(), kTimerId);
         }
         _timerRunning = false;
-        ResetClock();
+        // A paced host still advances the timeline: it keeps running until the last one ends it.
+        if (_pacedTimelines == 0u)
+            ResetClock();
     }
 
     void StopDeadlineTimer() noexcept
@@ -617,12 +707,11 @@ private:
         {
             // The first tick after idle starts the timeline at the real time it runs: no frame is assumed to have passed.
             // On the idle clock's base, so starting the periodic timer never moves the clock either.
-            const uint64_t uptime = GetTickCount64();
-            _tickEpochMs          = uptime > _lagMs ? uptime - _lagMs : 0u;
-            _lastTickTimestamp    = timestamp;
-            _hasTickTimestamp     = true;
-            _elapsedTickUs        = 0u;
-            _lastTickMs           = _tickEpochMs;
+            _tickEpochMs       = IdleTickMs();
+            _lastTickTimestamp = timestamp;
+            _hasTickTimestamp  = true;
+            _elapsedTickUs     = 0u;
+            _lastTickMs        = _tickEpochMs;
         }
 
         const uint64_t rawDeltaUs = hadPreviousTick ? _clock.ElapsedUs(_lastTickTimestamp, timestamp) : 0u;
@@ -638,9 +727,11 @@ private:
                 Debug::Perf::EmitCounter(L"dxui.animation.tick_overrun");
             }
         }
-        _lastTickMs        = now;
-        _lastTickRealMs    = GetTickCount64();
-        _lastTickTimestamp = timestamp;
+        _lastTickMs     = now;
+        _lastTickRealMs = GetTickCount64();
+        // A paced frame may have advanced the timeline to a present time still ahead: never step the timestamp back.
+        if (timestamp.qpc > _lastTickTimestamp.qpc)
+            _lastTickTimestamp = timestamp;
         return now;
     }
 
@@ -742,6 +833,8 @@ private:
     bool _hasTickTimestamp                      = false;
     uint64_t _lagMs                             = 0u; // uptime minus the timeline, kept across idle periods
     uint64_t _lastTickRealMs                    = 0u;
+    mutable uint64_t _floorTickMs               = 0u; // the last tick a timeline gave out: the idle clock never reads less
+    uint32_t _pacedTimelines                    = 0u; // paced native hosts advancing the timeline (W3.6)
     static inline thread_local bool t_destroyed = false;
     std::vector<Subscription> _subscriptions;
     std::vector<Subscription> _pendingAdds;

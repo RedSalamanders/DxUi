@@ -130,6 +130,20 @@ void WriteEvent(const Record& record) noexcept
                               TraceLoggingUInt8(record.detail, "Source"),
                               TraceLoggingUInt64(qpc, "Qpc"));
             break;
+        case Event::FramePaced:
+            TraceLoggingWrite(g_dxuiTraceProvider,
+                              "FramePaced",
+                              TraceLoggingLevel(kLevel),
+                              TraceLoggingKeyword(kKeywordFrame),
+                              TraceLoggingUInt32(record.hostId, "HostId"),
+                              TraceLoggingUInt64(record.frame, "Frame"),
+                              TraceLoggingUInt8(record.detail, "Source"),
+                              TraceLoggingUInt64(record.targetQpc, "TargetQpc"),
+                              TraceLoggingUInt64(record.sampleQpc, "SampleQpc"),
+                              TraceLoggingUInt64(record.periodQpc, "PeriodQpc"),
+                              TraceLoggingBoolean(record.clamped ? TRUE : FALSE, "Clamped"),
+                              TraceLoggingUInt64(qpc, "Qpc"));
+            break;
         case Event::HitReuseOff:
             TraceLoggingWrite(g_dxuiTraceProvider,
                               "HitReuseOff",

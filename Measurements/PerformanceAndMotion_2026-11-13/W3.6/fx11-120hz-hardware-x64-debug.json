@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-performance-fixture-v1",
+  "fixtureId": "FX11",
+  "benchmarkInputs": {
+    "Tests/Controls/Controls.Tests.FramePacing.cpp": "987189458e684353cc66b94ff58351185e9076687433f32f142d7d2e9e2ac111",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx11.h": "b4515e7a044eef953526859320e41ea54d7fe0f3f6158df3d013a74f9688a146",
+    "src/Controls/DxUi.FramePacer.h": "ee7a6f685959872791634fcd593e9d48c668d179fdfc99404c222e7ee6d544c2",
+    "src/Controls/DxUi.WindowHost.cpp": "ff10bbf11c1eab6421f99943d3335a1d5422457cdd3687c2bfda8d85b26239cc",
+    "src/Support/AnimationDispatcher.h": "1e59bfcc244d711bab45a7bb14594287dfdeb559668cfed82c91e01fd675c102"
+  },
+  "item": "W3.6",
+  "adapter": "hardware",
+  "refreshHz": 120,
+  "pacedFrames": 607,
+  "sampleAtTarget": 607,
+  "missesClamped": 0,
+  "missesFallback": 0,
+  "displayedPresentsMatched": 595,
+  "displayedAtPredictedVblank": 0,
+  "displayedPeriodsAfterTarget": {
+    "-3": 0,
+    "-2": 0,
+    "-1": 0,
+    "0": 0,
+    "1": 77,
+    "2": 483,
+    "3": 0,
+    "4": 35
+  },
+  "overflow": 0
+}

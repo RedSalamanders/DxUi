@@ -557,13 +557,16 @@ The ETW header adds the process, thread and session time. Fields are written in 
 | `Composite` | frame | `Frame`, `Input`, `Qpc` | An `EmbeddedHost::Composite` draws the prepared surface. |
 | `Wake` | wake | `Source` (UInt8), `Qpc` | DxUi takes a turn on the owner thread because something woke it. |
 | `HitReuseOff` | input | `Qpc` | A host stops reusing pointer hit results: the first control whose hit testing it cannot see attached (`ControlHost::DebugGetFirstUnreportedHitControlType` names it). |
+| `FramePaced` | frame | `Frame` (UInt64), `Source` (UInt8), `TargetQpc` (UInt64), `SampleQpc` (UInt64), `PeriodQpc` (UInt64), `Clamped` (Boolean), `Qpc` | A paced `WindowHost` frame samples its animation time ([frame pacing](../Specs/Rendering/Rendering_Win32Host.md#frame-pacing)): `TargetQpc` is the compositor's target time the frame's present is predicted for (0 without statistics), `SampleQpc` the time the animation sample stands for (the target unless clamped or fallen back), `PeriodQpc` the refresh period, `Clamped` whether the hitch clamp shortened the step. `Frame` is the frame the sample is for. |
 
 `Kind`: 1 pointer move, 2 pointer down (any button, double clicks included), 3 pointer up, 4 wheel, 5 key down, 6 key up,
 7 character, 8 pointer leave and 9 pointer cancel (embedded dispatch only). `Reason`: 1 invalidate (a control or the host
 changed what the view shows), 2 visibility (shown again), 3 recovery (a device or resource retry), 4 continuation
 (content preparation continues, or the view changed during its own preparation), 5 input wake (embedded: the request an
-input dispatch deferred until it returned). `Source`: 1 animation timer, 2 `EmbeddedHost::AdvanceAnimation`, 3 menu
-submenu-hover timer, 4 `WM_PAINT`.
+input dispatch deferred until it returned). `Source` of `Wake`: 1 animation timer, 2 `EmbeddedHost::AdvanceAnimation`, 3 menu
+submenu-hover timer, 4 `WM_PAINT`, 5 a paced-frame message, 6 the paced skip timer. `Source` of `FramePaced`: 1 compositor
+statistics, 2 fallback to the current time, 3 a test's animation clock. A paced frame samples its target time when
+`Source` is 1, `Clamped` is false and `SampleQpc` equals `TargetQpc`; the animation clock itself has 1 ms resolution.
 
 ### Input to present
 

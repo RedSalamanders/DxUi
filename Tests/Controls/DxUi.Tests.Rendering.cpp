@@ -2909,6 +2909,13 @@ void TestAttachedHostInitialRootChildBatchesAreBoundedAndResetScoped()
         Require(batched.Host().DebugGetInitialRootChildBatchFlushCount() == 8u, "warm repaint adds no batch flushes");
 
         const RECT dirty{4, 4, 28, 28};
+        // W3.6: captures render without presenting, so the chain's first presented frame comes now; it is full, whatever
+        // its dirty rectangle, and repeats no batch submission.
+        const auto fullPresentsBeforeFirst = batched.Host().DebugGetFullPresentAttemptCount();
+        batched.Host().DebugRenderDirtyRectForTest(dirty);
+        Require(batched.Host().DebugGetFullPresentAttemptCount() == fullPresentsBeforeFirst + 1u &&
+                    batched.Host().DebugGetInitialRootChildBatchFlushCount() == 8u,
+                "the first presented frame after captures is full and repeats no batch submission");
         const auto partialPresentsBefore = batched.Host().DebugGetPartialPresentAttemptCount();
         const auto fullPresentsBefore    = batched.Host().DebugGetFullPresentAttemptCount();
         const auto previousPresentResult = batched.Host().DebugGetLastPresentResult();

@@ -37,6 +37,7 @@ enum class Event : uint8_t
     Composite      = 6u,
     Wake           = 7u,
     HitReuseOff    = 8u, // A host stops reusing pointer hit results: an unreported control attached (W2.9).
+    FramePaced     = 9u, // A native paced frame's animation sample against the compositor's target time (W3.6).
 };
 
 enum class InputKind : uint8_t
@@ -69,6 +70,16 @@ enum class WakeSource : uint8_t
     EmbeddedAdvance = 2u,
     MenuHoverTimer  = 3u,
     PaintMessage    = 4u,
+    PacedFrame      = 5u, // A native host's paced-frame message (W3.6).
+    PacerTimer      = 6u, // A native host's skip timer: a paced tick that presented nothing ticks again a period later.
+};
+
+// FramePaced: where the animation sample came from.
+enum class PacedSampleSource : uint8_t
+{
+    Compositor = 1u, // DCompositionGetStatistics: the first target time after now.
+    Fallback   = 2u, // Statistics unavailable: the current time.
+    TestClock  = 3u, // A test's animation clock.
 };
 
 // One event as the provider writes it and a test sink receives it. Fields an event does not use are 0.
@@ -79,11 +90,15 @@ struct Record final
     bool partial          = false; // Present: a partial (dirty-rectangle) present.
     uint32_t hostId       = 0u;    // Process-unique host number, 1-based; 0 when the work belongs to no single host.
     uint32_t threadId     = 0u;
-    int32_t result        = 0;  // PrepareEnd, Present: the HRESULT.
-    uint64_t frame        = 0u; // The host's frame sequence (1-based): the frame requested, prepared or presented.
-    uint64_t input        = 0u; // The host's input sequence (1-based): the input received, or the newest one a frame includes.
-    uint64_t pixels       = 0u; // PrepareEnd: device pixels cleared and repainted.
-    uint64_t qpcTimestamp = 0u; // QueryPerformanceCounter ticks, the one clock of every event.
+    int32_t result        = 0;     // PrepareEnd, Present: the HRESULT.
+    uint64_t frame        = 0u;    // The host's frame sequence (1-based): the frame requested, prepared or presented.
+    uint64_t input        = 0u;    // The host's input sequence (1-based): the input received, or the newest one a frame includes.
+    uint64_t pixels       = 0u;    // PrepareEnd: device pixels cleared and repainted.
+    uint64_t qpcTimestamp = 0u;    // QueryPerformanceCounter ticks, the one clock of every event.
+    uint64_t targetQpc    = 0u;    // FramePaced: the compositor target time the frame's present is predicted for (0 on fallback).
+    uint64_t sampleQpc    = 0u;    // FramePaced: the time the animation sample stands for; targetQpc unless clamped or fallen back.
+    uint64_t periodQpc    = 0u;    // FramePaced: the compositor's refresh period (0 when unknown).
+    bool clamped          = false; // FramePaced: the hitch clamp shortened this frame's step.
 };
 
 // A test-only observer of every record, on the thread that writes it.
@@ -175,6 +190,19 @@ template <typename Correlation> void Presented(Correlation& correlation, Event e
 template <typename Correlation> void HitReuseOff(Correlation& correlation) noexcept
 {
     Write(Record{.event = Event::HitReuseOff, .hostId = HostIdOf(correlation)});
+}
+// A native paced frame (W3.6): the frame it samples for is the host's next prepared frame.
+template <typename Correlation>
+void FramePaced(Correlation& correlation, PacedSampleSource source, uint64_t targetQpc, uint64_t sampleQpc, uint64_t periodQpc, bool clamped) noexcept
+{
+    Write(Record{.event     = Event::FramePaced,
+                 .detail    = uint8_t(source),
+                 .hostId    = HostIdOf(correlation),
+                 .frame     = correlation.frameSequence + 1u,
+                 .targetQpc = targetQpc,
+                 .sampleQpc = sampleQpc,
+                 .periodQpc = periodQpc,
+                 .clamped   = clamped});
 }
 inline void Wake(WakeSource source, uint32_t hostId = 0u) noexcept
 {

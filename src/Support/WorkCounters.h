@@ -16,21 +16,29 @@
 
 // Frames and hosts: what one preparation, render or composition did.
 #define DXUI_WORK_COUNTERS_FRAME(X)                                                                                                                            \
-    X(frame, brushColorReuses)       /* Transition brushes a host served again by SetColor instead of creating a brush (W2.8). */                              \
-    X(frame, brushEvictions)         /* Keyed solid brushes ControlHost::TrimCaches released, unused by the last two frames, above the bound. */               \
-    X(frame, clipPushesSkipped)      /* Inner clips a ScrollPanel did not push because the paint clip already lay inside its viewport (W4.10). */              \
-    X(frame, composites)             /* EmbeddedHost::Composite calls that drew the prepared surface. */                                                       \
-    X(frame, compositionDevices)     /* DirectComposition devices a thread's shared native device stack created (DCompositionCreateDevice2). */                \
-    X(frame, d2dDevices)             /* Direct2D devices a thread's shared native device stack created (ID2D1Factory1::CreateDevice). */                       \
-    X(frame, drawCalls)              /* Direct2D draw calls seen by a test executable's counting wrappers; 0 wherever none is installed. */                    \
-    X(frame, fullVisualPreparations) /* Preparation passes that prepared every visible control's visual content, not only the pending ones. */                 \
-    X(frame, hitRevisionMoves)       /* Moves of a host's pointer hit revision (ControlHost::AdvanceHitRevision): InvalidateHitTest and the named sites. */    \
-    X(frame, hitTestReuses)          /* Pointer hit tests a host answered from the hit result of the same pointer event, client point and hit revision. */     \
-    X(frame, hitTests)               /* Host hit tests that walked the control tree (overlays, then children) to find the control under a point. */            \
-    X(frame, inkEscapes)             /* Controls whose paint first drew text beyond their bounds plus reach (W4.10): their extent becomes unbounded. */        \
-    X(frame, invalidations)          /* ControlHost::Invalidate requests (a native InvalidateRect or an embedded invalidation callback), changed or not. */    \
-    X(frame, paintCulled)            /* Visible children a Panel did not paint because their painted extent missed the paint clip (W4.10). */                  \
-    X(frame, paintExecutions)        /* Control::Paint calls dispatched by a host, Panel or PageHost: one per painted control. */                              \
+    X(frame, brushColorReuses)         /* Transition brushes a host served again by SetColor instead of creating a brush (W2.8). */                            \
+    X(frame, brushEvictions)           /* Keyed solid brushes ControlHost::TrimCaches released, unused by the last two frames, above the bound. */             \
+    X(frame, clipPushesSkipped)        /* Inner clips a ScrollPanel did not push because the paint clip already lay inside its viewport (W4.10). */            \
+    X(frame, composites)               /* EmbeddedHost::Composite calls that drew the prepared surface. */                                                     \
+    X(frame, compositionDevices)       /* DirectComposition devices a thread's shared native device stack created (DCompositionCreateDevice2). */              \
+    X(frame, d2dDevices)               /* Direct2D devices a thread's shared native device stack created (ID2D1Factory1::CreateDevice). */                     \
+    X(frame, drawCalls)                /* Direct2D draw calls seen by a test executable's counting wrappers; 0 wherever none is installed. */                  \
+    X(frame, fullVisualPreparations)   /* Preparation passes that prepared every visible control's visual content, not only the pending ones. */               \
+    X(frame, hitRevisionMoves)         /* Moves of a host's pointer hit revision (ControlHost::AdvanceHitRevision): InvalidateHitTest and the named sites. */  \
+    X(frame, hitTestReuses)            /* Pointer hit tests a host answered from the hit result of the same pointer event, client point and hit revision. */   \
+    X(frame, hitTests)                 /* Host hit tests that walked the control tree (overlays, then children) to find the control under a point. */          \
+    X(frame, inkEscapes)               /* Controls whose paint first drew text beyond their bounds plus reach (W4.10): their extent becomes unbounded. */      \
+    X(frame, invalidations)            /* ControlHost::Invalidate requests (a native InvalidateRect or an embedded invalidation callback), changed or not. */  \
+    X(frame, pacedFrames)              /* Native paced frames (W3.6): a paced-frame message or skip timer that sampled the compositor clock and ticked. */     \
+    X(frame, pacerDeferredPaints)      /* WM_PAINT a paced native host validated and deferred to its next credit instead of rendering. */                      \
+    X(frame, pacerStaleFrames)         /* Paced-frame messages a native host ignored: their request was cancelled, replaced or belongs to an earlier chain. */ \
+    X(frame, pacerStatsFallbacks)      /* Paced frames sampled at the current time because the compositor's frame statistics were unavailable. */              \
+    X(frame, pacerSynchronousTimeouts) /* Synchronous native renders that found no credit within their bound and so did not present. */                        \
+    X(frame, pacerTeardownOrderViolations) /* Swap chains released while their pacer still held a wait or the waitable object; must stay 0. */                 \
+    X(frame, pacerUnavailable)             /* Native swap chains created without a frame-latency waitable object, so their host ran unpaced. */                \
+    X(frame, pacerWaitTimeouts)            /* Paced waits that saw no retired frame within their timeout (a stalled compositor); the frame stays deferred. */  \
+    X(frame, paintCulled)                  /* Visible children a Panel did not paint because their painted extent missed the paint clip (W4.10). */            \
+    X(frame, paintExecutions)              /* Control::Paint calls dispatched by a host, Panel or PageHost: one per painted control. */                        \
     X(frame, paintRegionFull)        /* Embedded preparations that repainted the whole view (W4.10): a full region, a new target, or no region support. */     \
     X(frame, paintRegionRects)       /* Region rectangles embedded preparations repainted alone, each cleared and painted under its own clip (W4.10). */       \
     X(frame, pixelsPainted)          /* Device pixels inside the area a preparation or render cleared and repainted. */                                        \
@@ -38,6 +46,7 @@
     X(frame, preparationMembershipSearches) /* IsControlInTree searches started while a host preparation pass (PreparePendingPageLayout) runs. */              \
     X(frame, preparations)                  /* EmbeddedHost::Prepare calls that painted the surface. */                                                        \
     X(frame, presents)                      /* Native swap-chain Present or Present1 calls. */                                                                 \
+    X(frame, presentsWithoutCredit)         /* Native presents made while the paced host held no frame-latency credit; must stay 0 (W3.6). */                  \
     X(frame, renders)                       /* Native WindowHost render passes (BeginDraw to EndDraw). */                                                      \
     X(frame, shadowPasses)                  /* Shadow effect passes drawn (DrawShadowEffectPass): popups, cards and other elevated surfaces. */                \
     X(frame, swapChains)                    /* Swap chains native hosts created, for composition or for a window. */                                           \
@@ -61,6 +70,8 @@
     X(wakes, deadlineTimer)   /* AnimationDispatcher one-shot WM_TIMER wakes for the earliest scheduled deadline. */                                           \
     X(wakes, embeddedAdvance) /* EmbeddedHost::AdvanceAnimation calls the application made while animation was requested. */                                   \
     X(wakes, menuHoverTimer)  /* Menu submenu-hover WM_TIMER messages. */                                                                                      \
+    X(wakes, pacedFrame)      /* WindowHost paced-frame messages a thread-pool wait on the frame-latency object posted, stale ones included (W3.6). */         \
+    X(wakes, pacerTimer)      /* WindowHost one-shot skip timers: a paced tick that presented nothing keeps its credit and ticks again a period later. */      \
     X(wakes, paintMessage)    /* WindowHost WM_PAINT messages. */
 
 // Text and typography beyond the resource kinds below.

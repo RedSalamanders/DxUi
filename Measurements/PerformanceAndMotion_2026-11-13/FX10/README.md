@@ -65,24 +65,24 @@ Video memory: software adapter: rendering uses system memory, which privateBytes
 
 ### [fx10-default-window-warp-x64-release.json](fx10-default-window-warp-x64-release.json)
 
-- Host `window`, variant `default` (1280x720 at 96 DPI), renderer WARP, x64 Release (compiler 195237025)
-- Source `19673549e3c7a78ad182423311b529819886cea8`, uncommitted changes: True; command: `performance-fixtures.ps1 -Fixture FX10 -Variant default -Adapter Warp -FixtureHost window -Configuration 'Release' -Platform x64`
-- Adapter: Microsoft Basic Render Driver (WindowHost forceWarp), driver 0.0.0.0; WARP 10.0.26100.9711 (WinBuild.160101.0800)
-- OS Microsoft Windows 10.0.26300 (build 26300.9711); displays: AMD Radeon(TM) Graphics 60 Hz, NVIDIA GeForce RTX 5080 120 Hz; power plan: Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)
-- Host idle record: 49.3% busy over 3 s before the run (recorded, not required); recorded 2026-11-15T05:24:02.6500212Z
+- Host `window`, variant `default` (1280x720 at 96 DPI), renderer WARP, x64 Release (compiler 195237032)
+- Source `a9b844b4f066a5b9f11ef316beefcca3d4681b19`, uncommitted changes: False; command: `performance-fixtures.ps1 -Fixture FX10 -Variant default -Adapter Warp -FixtureHost window -Configuration 'Release' -Platform x64`
+- Adapter: Microsoft Basic Render Driver (WindowHost forceWarp), driver 0.0.0.0; WARP 10.0.26100.9818 (WinBuild.160101.0800)
+- OS Microsoft Windows 10.0.26300 (build 26300.9974); displays: AMD Radeon(TM) Graphics 60 Hz, NVIDIA GeForce RTX 5080 120 Hz; power plan: Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)
+- Host idle record: 42.2% busy over 3 s before the run (recorded, not required); recorded 2026-11-24T14:34:21.4581797Z
 - Timing: not measured
 
 | Phase | Steps | `Paint` executions per step | Preparations | Resources created | Churn | C++ allocations per step |
 | --- | --- | --- | --- | --- | --- | --- |
-| `warm` (warmup) | 2 | 0-82 | 0 total | 162 total | 92 total | not counted |
-| `sweep` (measured) | 30 | 0-82 | 0 total | 1,499 total | 1,470 total | not counted |
+| `warm` (warmup) | 2 | 0-41 | 0 total | 138 total | 34 total | not counted |
+| `sweep` (measured) | 30 | 41 | 0 total | 1,034 total | 990 total | not counted |
 | `rest` (measured) | 3 | 0 | 0 total | 0 total | 0 total | not counted |
 
 Video memory: software adapter: rendering uses system memory, which privateBytes counts. Every counter per step is in the receipt's `series`.
 
 | `G13` line | Budget | Measured bytes | Status |
 | --- | --- | --- | --- |
-| `idle-private` | idle native window <= 8 MB private above process entry at 1080p | 30,429,184 | advisory |
+| `idle-private` | idle native window <= 8 MB private above process entry at 1080p | 28,266,496 | advisory |
 | `minimized-video` | <= 8 MiB video memory when minimized | not measured | not measured: software adapter: rendering uses system memory, which private bytes count |
 | `per-control` | <= 256 B per simple control all-in | not measured | not measured: this executable does not replace the allocation functions |
 | `per-grid-cell` | <= 1 KB per visible single-line Grid cell | not measured | not measured: the run did not probe Grid cell release |
@@ -142,24 +142,24 @@ Video memory: software adapter: rendering uses system memory, which privateBytes
 
 ### [fx10-uhd-window-warp-x64-release.json](fx10-uhd-window-warp-x64-release.json)
 
-- Host `window`, variant `uhd` (3840x2160 at 96 DPI), renderer WARP, x64 Release (compiler 195237025)
-- Source `19673549e3c7a78ad182423311b529819886cea8`, uncommitted changes: True; command: `performance-fixtures.ps1 -Fixture FX10 -Variant uhd -Adapter Warp -FixtureHost window -Configuration 'Release' -Platform x64`
-- Adapter: Microsoft Basic Render Driver (WindowHost forceWarp), driver 0.0.0.0; WARP 10.0.26100.9711 (WinBuild.160101.0800)
-- OS Microsoft Windows 10.0.26300 (build 26300.9711); displays: AMD Radeon(TM) Graphics 60 Hz, NVIDIA GeForce RTX 5080 120 Hz; power plan: Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)
-- Host idle record: 47.8% busy over 3 s before the run (recorded, not required); recorded 2026-11-15T05:24:12.7792851Z
+- Host `window`, variant `uhd` (3840x2160 at 96 DPI), renderer WARP, x64 Release (compiler 195237032)
+- Source `a9b844b4f066a5b9f11ef316beefcca3d4681b19`, uncommitted changes: False; command: `performance-fixtures.ps1 -Fixture FX10 -Variant uhd -Adapter Warp -FixtureHost window -Configuration 'Release' -Platform x64`
+- Adapter: Microsoft Basic Render Driver (WindowHost forceWarp), driver 0.0.0.0; WARP 10.0.26100.9818 (WinBuild.160101.0800)
+- OS Microsoft Windows 10.0.26300 (build 26300.9974); displays: AMD Radeon(TM) Graphics 60 Hz, NVIDIA GeForce RTX 5080 120 Hz; power plan: Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)
+- Host idle record: 37.8% busy over 3 s before the run (recorded, not required); recorded 2026-11-24T14:34:26.0085742Z
 - Timing: not measured
 
 | Phase | Steps | `Paint` executions per step | Preparations | Resources created | Churn | C++ allocations per step |
 | --- | --- | --- | --- | --- | --- | --- |
-| `warm` (warmup) | 2 | 0-82 | 0 total | 162 total | 92 total | not counted |
-| `sweep` (measured) | 30 | 0-82 | 0 total | 1,603 total | 1,470 total | not counted |
+| `warm` (warmup) | 2 | 0-41 | 0 total | 138 total | 34 total | not counted |
+| `sweep` (measured) | 30 | 41 | 0 total | 1,138 total | 990 total | not counted |
 | `rest` (measured) | 3 | 0 | 0 total | 0 total | 0 total | not counted |
 
 Video memory: software adapter: rendering uses system memory, which privateBytes counts. Every counter per step is in the receipt's `series`.
 
 | `G13` line | Budget | Measured bytes | Status |
 | --- | --- | --- | --- |
-| `idle-private` | idle native window <= 8 MB private above process entry at 1080p | 32,944,128 | advisory |
+| `idle-private` | idle native window <= 8 MB private above process entry at 1080p | 35,340,288 | advisory |
 | `minimized-video` | <= 8 MiB video memory when minimized | not measured | not measured: software adapter: rendering uses system memory, which private bytes count |
 | `per-control` | <= 256 B per simple control all-in | not measured | not measured: this executable does not replace the allocation functions |
 | `per-grid-cell` | <= 1 KB per visible single-line Grid cell | not measured | not measured: the run did not probe Grid cell release |

@@ -36,6 +36,7 @@ void TestAccessibilityIncrementalSplitterResizeRange();
 void TestAccessibilityIncrementalResizeOfEveryBoundsOverride();
 void TestAccessibilityIncrementalPageIndicatorBecomesPaged();
 void TestAccessibilityIncrementalNativeGeometryCoalescing();
+void TestAccessibilityIncrementalGeometryOnAPacedHost();
 void TestAccessibilityAttestationOutlivesItsHost();
 void TestAccessibilityIncrementalNoFrameHoldsNoDeferral();
 void TestAccessibilityIncrementalClientQueryDuringDeferral();

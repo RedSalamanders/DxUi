@@ -1617,6 +1617,11 @@ std::atomic<void*> g_menuModalLoopPeekHookContext{nullptr};
     {
         return true;
     }
+    // A popup paint that found no frame-latency credit renders at its paced frame (W3.6): that message is drained as early.
+    if (const WndMsg::RegisteredMessage pacedFrame = WndMsg::WindowHostPacedFrame(); pacedFrame && PeekMenuPopupMessage(controller, pacedFrame.value, msg))
+    {
+        return true;
+    }
 #if DXUI_ENABLE_DIAGNOSTICS
     // Test-only state probes must observe already-prioritized input without
     // waiting behind unrelated owner traffic in the modal thread queue.

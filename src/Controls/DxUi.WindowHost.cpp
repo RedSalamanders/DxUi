@@ -33,6 +33,7 @@
 #include <richedit.h>
 #include <windowsx.h>
 
+#include "DxUi.FramePacer.h"
 #include "DxUi.Typography.h"
 #include "DxUi/FrameRuntime.h"
 #include "Support/AnimationDispatcher.h"
@@ -1638,6 +1639,7 @@ void ControlHost::Detach(bool processExit) noexcept
         UnregisterWindowHostAccessibilityTarget(attachedHwnd, this);
     }
     CancelRecoveryRetry();
+    KillPacedSkipTimer();
     _recoveryRetryNextDelayMs = 0u;
     _attachmentOwnerThreadId  = 0u;
     _hwnd                     = nullptr;
@@ -1674,6 +1676,9 @@ void ControlHost::Detach(bool processExit) noexcept
     _tooltipLayer.Clear();
     DiscardSizeDependentResources(L"detach");
     DiscardDeviceResources();
+    // The pacer's wait is drained and its handle closed with the chain; a paced-frame message still queued names a request
+    // no later pacer can hold, so it is ignored after a re-attach.
+    _framePacer.reset();
     _configuredTextFormats.clear();
     _defaultButton  = nullptr;
     _cancelButton   = nullptr;
@@ -2145,6 +2150,9 @@ bool ControlHost::RenderInitialFrameForShow() noexcept
         return false;
     }
 
+    // The caller shows the window next and reads this frame: a bounded wait for a credit (W3.6).
+    const RenderPresentMode previousMode = std::exchange(_renderPresentMode, RenderPresentMode::WaitForCredit);
+    const auto restoreMode               = wil::scope_exit([&]() noexcept { _renderPresentMode = previousMode; });
     Render(nullptr, true);
     return _nativePresentationVisible && _nativePresentationRevision == presentationRevision;
 }
@@ -2458,6 +2466,23 @@ void ControlHost::OnFrameScheduleChanged() noexcept
 
 void ControlHost::SyncDispatcherSubscription(FrameScheduleWake wake) noexcept
 {
+    // W3.6: a paced host's every-frame requests come from its swap chain, not from the dispatcher's periodic timer; its
+    // deadlines are served by those frames meanwhile. Anything else stops the pacer's every-frame work. A host driven by a
+    // test's animation clock keeps the dispatcher: the test, not the display, decides when it ticks.
+    if (_framePacer)
+    {
+        if (wake.kind == FrameScheduleWake::Kind::Continuous && _framePacer->IsPaced() && _hwnd && ! IsScheduleSuspended() &&
+            ! _animationClockForTest.has_value())
+        {
+            StartPacedContinuous();
+            wake = {};
+        }
+        else
+        {
+            const bool hidden = _framePacer->HasDeferred() && (IsScheduleSuspended() || ! _hwnd || ! IsHostWindowEffectivelyVisible(_hwnd));
+            StopPacedContinuous(hidden);
+        }
+    }
     // The one place a host joins, reschedules or leaves the dispatcher (Detach also leaves it): subscribed exactly while
     // its schedule waits for something. Safe during the dispatcher's own wake, which defers adds and removals. After the
     // thread's dispatcher is destroyed (thread-local destruction) there is nothing to join or leave.
@@ -3845,6 +3870,9 @@ void ControlHost::DebugRenderDirtyRectForTest(const RECT& dirtyRectPx) noexcept
 {
     if (_hwnd)
     {
+        // The test reads what this render presented: a bounded wait for a credit (W3.6).
+        const RenderPresentMode previousMode = std::exchange(_renderPresentMode, RenderPresentMode::WaitForCredit);
+        const auto restoreMode               = wil::scope_exit([&]() noexcept { _renderPresentMode = previousMode; });
         Render(&dirtyRectPx);
     }
 }
@@ -3854,6 +3882,8 @@ bool ControlHost::DebugRenderDirtyRectForTest(const RECT& dirtyRectPx, WindowHos
     prePresentBackBuffer = {};
     if (! _hwnd)
         return false;
+    const RenderPresentMode previousMode = std::exchange(_renderPresentMode, RenderPresentMode::WaitForCredit);
+    const auto restoreMode               = wil::scope_exit([&]() noexcept { _renderPresentMode = previousMode; });
     Render(&dirtyRectPx, &prePresentBackBuffer);
     return prePresentBackBuffer.widthPx > 0u && prePresentBackBuffer.heightPx > 0u && ! prePresentBackBuffer.bgraPixels.empty();
 }
@@ -3864,7 +3894,71 @@ bool ControlHost::DebugHasActiveAnimationSubscription() const noexcept
     // window has no dispatcher: whether its schedule waits for something.
     if (! _hwnd)
         return ! _embedded && ! IsScheduleSuspended() && HasScheduledTicks();
+    // A paced host (W3.6) takes its every-frame wakes from its swap chain instead.
+    if (_framePacer && _framePacer->continuous)
+        return true;
     return _animationSubscriptionId != 0u && _dispatcherWakeKind != FrameScheduleWake::Kind::None;
+}
+
+ControlHost::DebugFramePacerState ControlHost::DebugGetFramePacerStateForTest() const noexcept
+{
+    DebugFramePacerState state{};
+    if (! _framePacer)
+        return state;
+    state.paced          = _framePacer->IsPaced();
+    state.credit         = _framePacer->HasCredit();
+    state.waitArmed      = _framePacer->IsWaitArmed();
+    state.continuous     = _framePacer->continuous;
+    state.deferred       = _framePacer->HasDeferred();
+    state.skipTimerArmed = _framePacer->skipTimerArmed;
+    state.armedRequest   = _framePacer->ArmedRequestForTest();
+    return state;
+}
+
+void ControlHost::DebugSetFramePacerWaitableForTest(HANDLE waitable, DWORD waitTimeoutMs) noexcept
+{
+    if (! _framePacer)
+        return;
+    const bool wasContinuous = _framePacer->continuous;
+    StopPacedContinuous(true);
+    _framePacer->ReplaceWaitableForTest(waitable);
+    _framePacer->SetWaitTimeoutForTest(waitTimeoutMs);
+    if (wasContinuous)
+        OnFrameScheduleChanged();
+}
+
+void ControlHost::DebugSetCompositorStatsForTest(std::optional<CompositorStatsForTest> stats) noexcept
+{
+    _debugCompositorStatsSet    = stats.has_value();
+    _debugCompositorStatsResult = stats ? stats->result : S_OK;
+    _debugCompositorTargetQpc   = stats ? stats->targetQpc : 0u;
+    _debugCompositorPeriodQpc   = stats ? stats->periodQpc : 0u;
+}
+
+bool ControlHost::DebugWaitForFrameCreditForTest(DWORD timeoutMs) noexcept
+{
+    if (! _framePacer || ! _framePacer->IsPaced())
+        return true;
+    return _framePacer->AcquireWithin(timeoutMs);
+}
+
+SIZE ControlHost::DebugGetSwapChainSizeForTest() const noexcept
+{
+    return _swapChain ? SIZE{static_cast<LONG>(_swapChainWidthPx), static_cast<LONG>(_swapChainHeightPx)} : SIZE{};
+}
+
+bool ControlHost::DebugGetPresentStatisticsForTest(UINT& lastPresentCount, DXGI_FRAME_STATISTICS& displayed) const noexcept
+{
+    lastPresentCount = 0u;
+    displayed        = {};
+    return _swapChain && SUCCEEDED(_swapChain->GetLastPresentCount(&lastPresentCount)) && SUCCEEDED(_swapChain->GetFrameStatistics(&displayed));
+}
+
+void ControlHost::DebugPostPacedFrameForTest(uint64_t request) noexcept
+{
+    if (_hwnd)
+        static_cast<void>(PostMessagePayload<Detail::PacedFramePost>(
+            _hwnd, WndMsg::WindowHostPacedFrame().value, static_cast<WPARAM>(request), std::unique_ptr<Detail::PacedFramePost>{}));
 }
 
 bool ControlHost::DebugAnimationTickForTest(uint64_t nowTickMs) noexcept
@@ -4063,6 +4157,10 @@ bool ControlHost::DebugCaptureBitmap(WindowHostBitmapCapture& out, bool allowHid
         return false;
     }
 
+    // A capture reads the back buffer before presentation and does not present: it neither takes nor needs a credit
+    // (W3.6), so it never waits and never queues a frame.
+    const RenderPresentMode previousMode = std::exchange(_renderPresentMode, RenderPresentMode::CaptureOnly);
+    const auto restoreMode               = wil::scope_exit([&]() noexcept { _renderPresentMode = previousMode; });
     Render(nullptr, &out, allowHidden);
     return out.widthPx > 0u && out.heightPx > 0u && ! out.bgraPixels.empty();
 }
@@ -4256,6 +4354,13 @@ try
         DetachForProcessExit();
         return TRUE;
     }
+    if (WndMsg::WindowHostPacedFrame().Matches(msg))
+    {
+        // W3.6: a paced-frame message from the pacer's thread-pool wait; its request identity rejects a stale one.
+        handled = true;
+        OnPacedFrameMessage(wp);
+        return 0;
+    }
     if (WndMsg::NativeTextStoreDeferredWork().Matches(msg))
     {
         handled = true;
@@ -4412,7 +4517,8 @@ try
             {
                 PAINTSTRUCT paint{};
                 wil::unique_hdc_paint paintHdc = wil::BeginPaint(hwnd, &paint);
-                if (paintHdc)
+                // W3.6: without a frame-latency credit the region is validated and rendered at the next paced frame.
+                if (paintHdc && PacedPaintMayRender(paint.rcPaint))
                 {
                     Render(&paint.rcPaint);
                 }
@@ -4468,6 +4574,13 @@ try
                 TextLayoutCacheAccess::Release(*this); // a hidden window keeps no retained text layout
                 // A deferred geometry-only accessibility publication is not held while hidden: it publishes now (W8.2).
                 SettleAccessibilityGeometry(*this, GetAnimationTickMs(), true);
+                // A deferred paint is dropped (the show repaints); an animating host observes the hide at its next frame.
+                if (_framePacer)
+                {
+                    _framePacer->DropDeferred();
+                    if (! _framePacer->continuous)
+                        _framePacer->Cancel();
+                }
             }
             handled = false;
             return 0;
@@ -5659,11 +5772,27 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         desc.Scaling          = DXGI_SCALING_STRETCH;
         desc.SwapEffect       = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
         desc.AlphaMode        = _presentationMode == PresentationMode::CompositionSwapChain ? DXGI_ALPHA_MODE_PREMULTIPLIED : DXGI_ALPHA_MODE_IGNORE;
+        // W3.6: a frame-latency waitable object paces presentation; the same flag goes to every ResizeBuffers.
+        desc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
-        HRESULT hrSwapChain = E_FAIL;
+        HRESULT hrSwapChain    = E_FAIL;
+        const auto createChain = [&]() noexcept
+        {
+            return _presentationMode == PresentationMode::CompositionSwapChain
+                       ? shared.dxgiFactory->CreateSwapChainForComposition(_d3dDevice.get(), &desc, nullptr, _swapChain.addressof())
+                       : shared.dxgiFactory->CreateSwapChainForHwnd(_d3dDevice.get(), _hwnd, &desc, nullptr, nullptr, _swapChain.addressof());
+        };
+        hrSwapChain = createChain();
+        if ((FAILED(hrSwapChain) || ! _swapChain) && ! IsDeviceLossHResult(hrSwapChain))
+        {
+            // A chain refused the waitable object: present unpaced, as before W3.6.
+            Debug::Warning(L"DxUi::ControlHost: swap chain with a frame-latency waitable object failed (0x{:08X}); retrying unpaced", hrSwapChain);
+            _swapChain.reset();
+            desc.Flags  = 0u;
+            hrSwapChain = createChain();
+        }
         if (_presentationMode == PresentationMode::CompositionSwapChain)
         {
-            hrSwapChain = shared.dxgiFactory->CreateSwapChainForComposition(_d3dDevice.get(), &desc, nullptr, _swapChain.addressof());
             if (SUCCEEDED(hrSwapChain) && _swapChain)
             {
                 if (! _dcompDevice)
@@ -5708,10 +5837,6 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
                 }
             }
         }
-        else
-        {
-            hrSwapChain = shared.dxgiFactory->CreateSwapChainForHwnd(_d3dDevice.get(), _hwnd, &desc, nullptr, nullptr, _swapChain.addressof());
-        }
         hrSwapChain = injected(1u, hrSwapChain);
         if (FAILED(hrSwapChain) || ! _swapChain)
         {
@@ -5723,8 +5848,10 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
         }
         ++Detail::Work().frame.swapChains;
 
+        _swapChainFlags    = desc.Flags;
         _swapChainWidthPx  = desc.Width;
         _swapChainHeightPx = desc.Height;
+        BindFramePacer();
         // FLIP_SEQUENTIAL buffers have no valid retained contents on creation. The first present
         // must therefore draw and present the complete target, even when WM_PAINT is partial.
         _forceFullPresentAfterBufferReset = true;
@@ -5755,7 +5882,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
                               _presentationMode == PresentationMode::CompositionSwapChain ? D2D1_ALPHA_MODE_PREMULTIPLIED : D2D1_ALPHA_MODE_IGNORE),
             static_cast<float>(_dpi),
             static_cast<float>(_dpi));
-        const HRESULT hrBitmap = injected(3u, CountedCreateBitmapFromDxgiSurface(_d2dContext, surface.get(), &props, _targetBitmap.addressof()));
+        const HRESULT hrBitmap = injected(3u, CountedCreateSwapChainTargetBitmap(_d2dContext, surface.get(), &props, _targetBitmap.addressof()));
         if (FAILED(hrBitmap) || ! _targetBitmap)
         {
             Debug::Error(L"DxUi::ControlHost: CreateBitmapFromDxgiSurface failed: 0x{:08X}", hrBitmap);
@@ -5782,7 +5909,9 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
             hrResize = injected(4u, S_OK);
         else
 #endif
-            hrResize = _swapChain->ResizeBuffers(0u, desiredWidthPx, desiredHeightPx, DXGI_FORMAT_UNKNOWN, 0u);
+            // The creation flags again: a waitable chain refuses ResizeBuffers without its flag (E_INVALIDARG). Resizing
+            // neither adds nor removes a frame-latency unit, so a credit the pacer holds stays valid (W3.6).
+            hrResize = _swapChain->ResizeBuffers(0u, desiredWidthPx, desiredHeightPx, DXGI_FORMAT_UNKNOWN, _swapChainFlags);
         if (FAILED(hrResize))
         {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -5849,6 +5978,7 @@ void ControlHost::DiscardSizeDependentResources(const std::wstring_view reason) 
                    static_cast<const void*>(_capturedControl),
                    HasActiveTextInput() ? L"true" : L"false");
     PrepareForSwapChainResize();
+    ReleaseFramePacerChain();
     _swapChain.reset();
     _swapChainWidthPx  = 0u;
     _swapChainHeightPx = 0u;
@@ -5874,6 +6004,7 @@ void ControlHost::DiscardDeviceResources() noexcept
     _brushFailureLogKeys.clear();
     _fallbackBrush.reset();
     _targetBitmap.reset();
+    ReleaseFramePacerChain();
     _swapChain.reset();
     _swapChainWidthPx  = 0u;
     _swapChainHeightPx = 0u;
@@ -6291,6 +6422,346 @@ void CALLBACK ControlHost::RecoveryRetryTimerProc(HWND hwnd, UINT, UINT_PTR time
         host->OnRecoveryRetryDue();
 }
 
+// Native frame pacing (W3.6; Specs/Rendering/Rendering_Win32Host.md, "Frame pacing"). DxUi.FramePacer.h owns the credit and
+// the thread-pool wait; the host decides when a frame is wanted, what a frame does and how a render may present.
+void Detail::FramePacerDeleter::operator()(FramePacer* pacer) const noexcept
+{
+    delete pacer;
+}
+
+namespace
+{
+// The skip timer: a paced tick that presented nothing keeps its credit and ticks again one refresh period later.
+constexpr UINT_PTR kPacedSkipTimerId = 0x44785053u;
+
+// The region a deferred frame must repaint: the given one, or the whole client area when there is none or it is empty. A
+// render treats an empty rcPaint as a full frame (ResolveWindowHostDirtyRectMetrics), and a window that is not on any monitor
+// receives an empty rcPaint for a full invalidation, so its deferral must keep the whole client area, not the empty rectangle.
+[[nodiscard]] RECT DeferredRegion(HWND hwnd, const RECT* dirtyRectPx) noexcept
+{
+    if (dirtyRectPx && dirtyRectPx->left < dirtyRectPx->right && dirtyRectPx->top < dirtyRectPx->bottom)
+        return *dirtyRectPx;
+    RECT client{};
+    static_cast<void>(GetClientRect(hwnd, &client));
+    return client;
+}
+} // namespace
+
+void ControlHost::BindFramePacer() noexcept
+{
+    if (_embedded || ! _swapChain || ! _hwnd)
+        return;
+    if (! _framePacer)
+    {
+        _framePacer.reset(new (std::nothrow) Detail::FramePacer());
+        if (! _framePacer)
+        {
+            ++Detail::Work().frame.pacerUnavailable;
+            return;
+        }
+    }
+    if ((_swapChainFlags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT) == 0u || ! _framePacer->BindChain(_hwnd, _swapChain.get()))
+    {
+        ++Detail::Work().frame.pacerUnavailable;
+        Debug::Warning(L"DxUi::ControlHost: no frame-latency waitable object; presenting unpaced hwnd=0x{:X}", reinterpret_cast<uintptr_t>(_hwnd));
+        _framePacer->ReleaseChain();
+        return;
+    }
+    // A chain recreated while something animates takes the every-frame requests back from the dispatcher.
+    if (GetFrameScheduleWake().kind == FrameScheduleWake::Kind::Continuous)
+        OnFrameScheduleChanged();
+}
+
+void ControlHost::ReleaseFramePacerChain() noexcept
+{
+    if (! _framePacer)
+        return;
+    const bool wasContinuous = _framePacer->continuous;
+    StopPacedContinuous(true);
+    // Cancel, drain, close the handle: only then may the caller release the swap chain.
+    _framePacer->ReleaseChain();
+    if (_framePacer->HoldsWaitable())
+    {
+        ++Detail::Work().frame.pacerTeardownOrderViolations;
+        Debug::Error(L"DxUi::ControlHost: frame pacer still holds its wait or waitable object at swap-chain release");
+    }
+    // Until a new chain binds, every-frame requests go back to the dispatcher's periodic timer.
+    if (wasContinuous && _hwnd && ! _detachInProgress.load(std::memory_order_acquire))
+        OnFrameScheduleChanged();
+}
+
+bool ControlHost::PacedPaintMayRender(const RECT& paintRectPx) noexcept
+{
+    if (! _framePacer || ! _framePacer->IsPaced())
+        return true;
+    // A render that cannot present (hidden, zero-sized) needs no credit: it returns before presenting.
+    if (! _nativePresentationVisible || ! _hwnd || ! IsSwapChainActiveHostWindow(_hwnd, _widthPx, _heightPx))
+        return true;
+    if (_framePacer->TryAcquire())
+        return true;
+    // No credit: the region is validated now and rendered at the next paced frame. Never a wait here.
+    _framePacer->Defer(DeferredRegion(_hwnd, &paintRectPx));
+    ++Detail::Work().frame.pacerDeferredPaints;
+    static_cast<void>(_framePacer->Arm());
+    return false;
+}
+
+bool ControlHost::AcquirePresentCredit(const RECT* dirtyRectPx) noexcept
+{
+    if (_renderPresentMode == RenderPresentMode::CaptureOnly)
+        return false;
+    if (! _framePacer || ! _framePacer->IsPaced() || _framePacer->TryAcquire())
+        return true;
+    if (_renderPresentMode == RenderPresentMode::WaitForCredit)
+    {
+        // A caller that reads the presented result (the first frame at show, a test's render): a bounded wait, never in
+        // WM_PAINT or WM_SIZE.
+        if (_framePacer->AcquireWithin(Detail::kFramePacerSynchronousWaitMs))
+            return true;
+        ++Detail::Work().frame.pacerSynchronousTimeouts;
+    }
+    // No credit: never present into a full queue. The frame stays deferred to the next paced frame.
+    _framePacer->Defer(DeferredRegion(_hwnd, dirtyRectPx));
+    static_cast<void>(_framePacer->Arm());
+    return false;
+}
+
+void ControlHost::AfterPacedPresent() noexcept
+{
+    if (! _framePacer || ! _framePacer->IsPaced())
+        return;
+    KillPacedSkipTimer();
+    // The next frame: wanted while something animates or a paint waits. The present just spent the credit, so arming waits
+    // for that frame to retire.
+    if (_framePacer->continuous || _framePacer->HasDeferred())
+        static_cast<void>(_framePacer->Arm());
+}
+
+void ControlHost::StartPacedContinuous() noexcept
+{
+    if (! _framePacer || ! _framePacer->IsPaced() || _framePacer->continuous)
+        return;
+    _framePacer->continuous = true;
+    if (_framePacer->HasCredit())
+        ArmPacedSkipTimer();
+    else
+        static_cast<void>(_framePacer->Arm());
+}
+
+void ControlHost::StopPacedContinuous(bool hidden) noexcept
+{
+    if (! _framePacer)
+        return;
+    _framePacer->continuous = false;
+    KillPacedSkipTimer();
+    if (_framePacer->timelineAcquired)
+    {
+        _framePacer->timelineAcquired = false;
+        if (auto* const dispatcher = Ui::AnimationDispatcher::TryGetInstance())
+            dispatcher->EndPacedTimeline();
+    }
+    // A hidden host paints nothing; its show repaints the whole window.
+    if (hidden)
+        _framePacer->DropDeferred();
+    // Nothing wanted: nothing stays armed. A unit the wait took is kept as the credit.
+    if (! _framePacer->HasDeferred())
+        _framePacer->Cancel();
+}
+
+void ControlHost::ArmPacedSkipTimer() noexcept
+{
+    if (! _framePacer || ! _hwnd || _framePacer->skipTimerArmed)
+        return;
+    LARGE_INTEGER frequency{};
+    static_cast<void>(QueryPerformanceFrequency(&frequency));
+    const uint64_t periodMs =
+        (_framePacer->periodQpc != 0u && frequency.QuadPart > 0) ? (_framePacer->periodQpc * 1'000u) / static_cast<uint64_t>(frequency.QuadPart) : 16u;
+    const UINT elapseMs = static_cast<UINT>(std::clamp<uint64_t>(periodMs, 1u, 100u));
+    if (SetCoalescableTimer(_hwnd, kPacedSkipTimerId, elapseMs, &ControlHost::PacedSkipTimerProc, TIMERV_NO_COALESCING) == 0u)
+    {
+        Debug::Error(L"DxUi::ControlHost: SetCoalescableTimer for the paced skip timer failed: {}", GetLastError());
+        return;
+    }
+    _framePacer->skipTimerArmed = true;
+}
+
+void ControlHost::KillPacedSkipTimer() noexcept
+{
+    if (! _framePacer || ! _framePacer->skipTimerArmed)
+        return;
+    _framePacer->skipTimerArmed = false;
+    if (_hwnd)
+        static_cast<void>(KillTimer(_hwnd, kPacedSkipTimerId));
+}
+
+void CALLBACK ControlHost::PacedSkipTimerProc(HWND hwnd, UINT, UINT_PTR timerId, DWORD) noexcept
+{
+    if (timerId != kPacedSkipTimerId)
+        return;
+    static_cast<void>(KillTimer(hwnd, timerId));
+    ControlHost* host = nullptr;
+    {
+        const std::scoped_lock lock(GetAttachedWindowHostsMutex());
+        const auto& hosts = GetAttachedWindowHosts();
+        const auto found  = std::ranges::find(hosts, hwnd, &WindowHostAttachment::hwnd);
+        if (found != hosts.end() && found->ownerThreadId == GetCurrentThreadId())
+            host = found->host;
+    }
+    if (! host || ! host->_framePacer || ! host->_framePacer->skipTimerArmed)
+        return;
+    // As the dispatcher's timers: a timer that fires after the failure host has gone does nothing.
+    const Failure::Scope failureScope(std::nothrow);
+    if (! failureScope.IsActive())
+        return;
+    host->_framePacer->skipTimerArmed = false;
+    ++Detail::Work().wakes.pacerTimer;
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::Wake(Detail::Trace::WakeSource::PacerTimer, Detail::Trace::HostIdOf(host->_trace));
+    // The credit was spent meanwhile (a paint presented): the next frame comes from the wait instead.
+    if (! host->_framePacer->HasCredit())
+    {
+        if (host->_framePacer->continuous)
+            static_cast<void>(host->_framePacer->Arm());
+        return;
+    }
+    host->RunPacedFrame();
+}
+
+void ControlHost::OnPacedFrameMessage(WPARAM request) noexcept
+{
+    ++Detail::Work().wakes.pacedFrame;
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::Wake(Detail::Trace::WakeSource::PacedFrame, Detail::Trace::HostIdOf(_trace));
+    if (! _framePacer)
+    {
+        ++Detail::Work().frame.pacerStaleFrames;
+        return;
+    }
+    switch (_framePacer->OnFrameMessage(request))
+    {
+        case Detail::FramePacer::FrameMessage::Stale: return;
+        case Detail::FramePacer::FrameMessage::TimedOut:
+            // A stalled compositor: nothing is presented into a full queue and the UI thread never waits. The frame stays
+            // deferred and the wait is armed again, so a pending frame costs one wake per timeout and nothing else does.
+            if (_framePacer->continuous || _framePacer->HasDeferred())
+                static_cast<void>(_framePacer->Arm());
+            return;
+        case Detail::FramePacer::FrameMessage::Signaled: RunPacedFrame(); return;
+    }
+}
+
+void ControlHost::RunPacedFrame() noexcept
+{
+    const HWND hwnd = _hwnd;
+    if (! hwnd || ! _framePacer)
+        return;
+    const bool visible = _nativePresentationVisible && ! IsScheduleSuspended() && IsHostWindowEffectivelyVisible(hwnd);
+    if (! visible)
+        _framePacer->DropDeferred();
+    if (_framePacer->continuous)
+    {
+        ++Detail::Work().frame.pacedFrames;
+        // A hidden host is not sampled: the wake observes it hidden and stops (the frame schedule's own rule).
+        const uint64_t nowTickMs = visible ? SamplePacedFrameTime() : GetAnimationTickMs();
+        bool hostGone            = false;
+        static_cast<void>(OnScheduledWake(nowTickMs, &hostGone));
+        if (hostGone || ! IsAttachedWindowHostRegistered(this) || _hwnd != hwnd || ! _framePacer)
+            return;
+    }
+    if (visible)
+    {
+        if (_framePacer->HasDeferred())
+        {
+            const RECT deferred = _framePacer->TakeDeferred();
+            static_cast<void>(InvalidateRect(hwnd, &deferred, FALSE));
+        }
+        // WM_PAINT now, with the credit held: it renders and presents.
+        if (GetUpdateRect(hwnd, nullptr, FALSE) != FALSE)
+            static_cast<void>(UpdateWindow(hwnd));
+        if (! IsAttachedWindowHostRegistered(this) || _hwnd != hwnd || ! _framePacer)
+            return;
+    }
+    if (! _framePacer->continuous)
+        return;
+    // A tick that presented nothing keeps its credit and ticks again one period later; never waits while holding it.
+    if (_framePacer->HasCredit())
+        ArmPacedSkipTimer();
+    else
+        static_cast<void>(_framePacer->Arm());
+}
+
+uint64_t ControlHost::SamplePacedFrameTime() noexcept
+{
+    if (_animationClockForTest.has_value())
+    {
+        if (Detail::Trace::Listening()) [[unlikely]]
+            Detail::Trace::FramePaced(_trace, Detail::Trace::PacedSampleSource::TestClock, 0u, 0u, 0u, false);
+        return *_animationClockForTest;
+    }
+    auto* const dispatcher = Ui::AnimationDispatcher::TryGetInstance();
+    if (! dispatcher || ! _framePacer)
+        return GetAnimationTickMs();
+    if (! _framePacer->timelineAcquired)
+    {
+        _framePacer->timelineAcquired = true;
+        dispatcher->BeginPacedTimeline();
+    }
+    LARGE_INTEGER now{};
+    static_cast<void>(QueryPerformanceCounter(&now));
+    const auto nowQpc  = static_cast<uint64_t>(now.QuadPart);
+    uint64_t targetQpc = 0u;
+    uint64_t periodQpc = 0u;
+    HRESULT hrStats    = S_OK;
+    if (_debugCompositorStatsSet)
+    {
+        hrStats   = _debugCompositorStatsResult;
+        targetQpc = _debugCompositorTargetQpc;
+        periodQpc = _debugCompositorPeriodQpc;
+    }
+    else
+    {
+        // The frame the compositor is composing now (CONFIRMED; a CREATED frame has no statistics yet) names the next
+        // vertical blank it targets and the refresh period.
+        COMPOSITION_FRAME_ID frameId{};
+        COMPOSITION_FRAME_STATS stats{};
+        std::array<COMPOSITION_TARGET_ID, 4u> targets{};
+        UINT targetCount = 0u;
+        hrStats          = DCompositionGetFrameId(COMPOSITION_FRAME_ID_CONFIRMED, &frameId);
+        if (SUCCEEDED(hrStats))
+            hrStats = DCompositionGetStatistics(frameId, &stats, static_cast<UINT>(targets.size()), targets.data(), &targetCount);
+        targetQpc = stats.targetTime;
+        periodQpc = stats.framePeriod;
+    }
+    Detail::Trace::PacedSampleSource source = Detail::Trace::PacedSampleSource::Compositor;
+    uint64_t presentQpc                     = nowQpc;
+    if (FAILED(hrStats) || periodQpc == 0u || targetQpc == 0u)
+    {
+        // Unavailable (some remote sessions report no period): sample the current time, with the hitch clamp.
+        ++Detail::Work().frame.pacerStatsFallbacks;
+        source    = Detail::Trace::PacedSampleSource::Fallback;
+        targetQpc = 0u;
+    }
+    else
+    {
+        // The first target time after now: the frame this present will be shown in.
+        presentQpc = targetQpc;
+        if (presentQpc <= nowQpc)
+            presentQpc += ((nowQpc - presentQpc) / periodQpc + 1u) * periodQpc;
+        targetQpc              = presentQpc;
+        _framePacer->periodQpc = periodQpc;
+    }
+    LARGE_INTEGER frequency{};
+    static_cast<void>(QueryPerformanceFrequency(&frequency));
+    const uint64_t periodUs                           = (source == Detail::Trace::PacedSampleSource::Compositor && frequency.QuadPart > 0)
+                                                            ? periodQpc * 1'000'000u / static_cast<uint64_t>(frequency.QuadPart)
+                                                            : 0u;
+    const Ui::AnimationDispatcher::PacedSample sample = dispatcher->AdvancePacedTimeline(presentQpc, periodUs);
+    _framePacer->lastSample                           = sample.sampleQpc;
+    if (Detail::Trace::Listening()) [[unlikely]]
+        Detail::Trace::FramePaced(_trace, source, targetQpc, sample.sampleQpc, periodQpc, sample.clamped);
+    return sample.tickMs;
+}
+
 #if DXUI_ENABLE_DIAGNOSTICS
 bool ControlHost::CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcept
 {
@@ -6567,11 +7038,16 @@ try
         _initialRootChildBatchPending = false;
 
     HRESULT hrPresent = S_OK;
+    bool presented    = false;
     {
         FrameStageScope presentScope(frameStage, FrameStage::Present);
         const auto presentStartedAt = frameClock.Now();
-        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
+        // W3.6: a present spends the pacer's credit; without one the frame is not presented (a capture never presents).
+        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && AcquirePresentCredit(isPartialDirty ? dirtyRectPx : nullptr))
         {
+            presented = true;
+            if (_framePacer)
+                _framePacer->OnPresent();
             if (isPartialDirty)
             {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -6598,7 +7074,7 @@ try
                 Detail::Trace::Presented(_trace, Detail::Trace::Event::Present, isPartialDirty, hrPresent);
         }
 #if DXUI_ENABLE_DIAGNOSTICS
-        if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush))
+        if (presented)
         {
             _debugLastPresentResult = hrPresent;
         }
@@ -6618,16 +7094,18 @@ try
         ScheduleRecoveryRetry();
         return;
     }
-    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
+    if (presented && SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
     {
         // The window presents again: the next failure retries after one frame.
         _recoveryRetryNextDelayMs = 0u;
         CancelRecoveryRetry();
     }
-    if (forceFullPresentAfterBufferReset && hrBatchFlush == S_OK && hrDraw == S_OK && hrPresent == S_OK)
+    if (presented && forceFullPresentAfterBufferReset && hrBatchFlush == S_OK && hrDraw == S_OK && hrPresent == S_OK)
     {
         _forceFullPresentAfterBufferReset = false;
     }
+    if (presented)
+        AfterPacedPresent();
     const HRESULT renderHr = FAILED(hrBatchFlush) ? hrBatchFlush : (FAILED(hrDraw) ? hrDraw : (FAILED(hrCapture) ? hrCapture : hrPresent));
     paintPerf.SetHr(renderHr);
     EmitPendingNativeTextInputPaintMetric(renderHr);

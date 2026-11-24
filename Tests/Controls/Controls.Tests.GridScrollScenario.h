@@ -74,9 +74,11 @@ public:
         static_cast<void>(SendMessageW(_window.Hwnd(), WM_KEYUP, virtualKey, static_cast<LPARAM>(0xC0000001u)));
     }
 
-    // Renders and presents whatever the inputs invalidated, now.
+    // Renders and presents whatever the inputs invalidated, now: with a frame-latency credit taken first (W3.6), the paint
+    // renders at once instead of deferring to the host's next paced frame.
     void Paint() const noexcept
     {
+        static_cast<void>(const_cast<AttachedHostWindow&>(_window).Host().DebugWaitForFrameCreditForTest(1'000u));
         UpdateWindow(_window.Hwnd());
     }
 

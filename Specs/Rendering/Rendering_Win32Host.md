@@ -44,7 +44,7 @@ does not hook ancestors; the public notification ignores a control that is not
 the active text-input owner. Documented forwarding does not by itself qualify
 physical IME candidate-window placement.
 Its message/timer/animation resources stop or quiesce when hidden and are destroyed by their owning runtime.
-Diagnostic bitmap capture stages the completed frame after EndDraw and before swap-chain presentation.
+Diagnostic bitmap capture stages the completed frame after EndDraw and does not present it ([frame pacing](#frame-pacing)).
 The one-argument capture keeps refusing hidden hosts; an explicit `allowHidden` overload supports owned,
 deterministic harness capture without showing, activating or reading the desktop. Consecutive captures must
 reflect current control state on their first frame, including caption hover at simulated DPI.
@@ -84,7 +84,8 @@ still walk their children. Work counters separate the two walks (`tickLegacyTree
 library's own controls never cause a legacy walk.
 
 Native wakes: one dispatcher per UI thread runs one periodic timer at the existing cadence only while some host of the
-thread holds a `Continuous` request (pacing to the display is a separate item), otherwise one `SetCoalescableTimer`
+thread holds a `Continuous` request and is not paced (a paced host takes its every-frame wakes from its swap chain; see
+[frame pacing](#frame-pacing)), otherwise one `SetCoalescableTimer`
 one-shot for the earliest deadline across the thread's hosts, armed one system tick late so its wake sees the deadline
 due, and nothing when nothing waits. A deadline wake ticks the due controls and renders only if one invalidated. The
 first periodic tick after idle starts the timeline at the real time it runs; no phantom frame is added. Every wake and
@@ -123,6 +124,109 @@ API revision 6), and `AdvanceAnimation` ticks only the due requests. The clock r
 its requests on a timeline that does not count the hidden time. When the schedule empties outside a wake (a blurred
 caret, a cancelled or forgotten request), the next request is a new start: it wakes the application and the next
 advance sets the timeline's baseline instead of counting the idle time.
+
+### Frame pacing
+
+Status: implemented (performance and motion plan item W3.6, 23 November 2026) for the native host. The embedded host is
+unchanged: the application owns its time and scheduling.
+
+A native host creates its swap chain, in both presentation modes, with `DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT`
+at a maximum frame latency of 1, and passes the same flags to every `ResizeBuffers` (DXGI refuses a waitable chain's
+`ResizeBuffers` without its flag with `E_INVALIDARG`). Device flags and the mandatory `DXGI_SCALING_STRETCH` of composition
+chains are unchanged. A chain that refuses the flag, or that offers no waitable object, is created and presented unpaced as
+before (`frame.pacerUnavailable`).
+
+The waitable object behaves as a semaphore. Observed on WARP and on hardware, for window and composition chains, shown and
+hidden (`TestFramePacingWaitableSemanticsOnWarp`): it starts with one unit; every retired present returns one unit;
+`ResizeBuffers` adds and removes none, so a unit held across a resize stays valid; a present made without taking a unit does
+not block under latency 1 but queues, and later returns a unit of its own, one more than the host waited for. The host
+therefore never presents without a unit. A unit the host holds is its credit:
+
+- The credit is taken when a unit is taken: from the chain's first unit when the chain is created, without waiting when no
+  wait is armed (`WaitForSingleObject` with a zero timeout), or by the thread-pool wait below. `Present` or `Present1` spends
+  it. Releasing or recreating the chain drops it. `ResizeBuffers` keeps it.
+- Nothing waits on the object while the credit is held, so nothing can wait for a unit that no present will return.
+- Every present spends a credit; a present without one is counted (`frame.presentsWithoutCredit`) and does not happen on any
+  path of the host.
+- Only the attachment owner thread reads or writes the credit.
+
+When a frame is wanted (an every-frame request of the [frame schedule](#frame-schedule), or a paint that found no credit) and
+no credit is held, the host arms one thread-pool wait on the object (`SetThreadpoolWait`, re-armed per frame) in the process
+default pool; DxUi starts no thread and polls nothing. The wait's callback reads the request identity it was armed for,
+records that the request was signaled and posts one paced-frame message to the host window through the posted-payload
+helper, with the identity in `wParam`. It touches no host, allocates nothing and takes no lock. The message carries no heap
+payload, so there is nothing to drain from the payload registry at teardown: a message that outlives its request owns
+nothing and is recognized by its identity. Identities come from one process-wide counter and are never reused; a message
+whose identity is not the armed request (cancelled, an earlier chain, an earlier attachment of the same HWND) is ignored and
+counted (`frame.pacerStaleFrames`). Cancelling a wait sets it to nothing and then waits for its callbacks without cancelling
+pending ones, so a unit a satisfied wait took becomes the credit instead of being lost. Teardown always cancels the wait,
+drains its callbacks and closes the handle before the chain is released (`frame.pacerTeardownOrderViolations` stays 0); the
+pacer is destroyed before the chain on every path, a destructor on a foreign thread included, and at process exit, when the
+pool's threads are gone, the wait is abandoned without waiting.
+
+A paced-frame message with its credit is one frame: while the schedule asks for every frame the host samples the animation
+time and runs the scheduled wake, then renders the paints it deferred and whatever the wake invalidated through its own
+`WM_PAINT`, which presents. A wake that presents nothing keeps the credit and ticks again one refresh period later from a
+one-shot timer on the host window (`wakes.pacerTimer`), never from a wait. While a paced host holds an every-frame request it
+does not ask the dispatcher for its periodic timer; deadlines due meanwhile are served by its frames, and the dispatcher's
+deadline timer serves them otherwise. A host whose animation clock is a test's keeps the dispatcher.
+
+Every native render waits for a credit first or defers to the paced frame, so none blocks in `Present`:
+
+- `WM_PAINT` (and with it every resize, `UpdateWindow` and `RedrawWindow(RDW_UPDATENOW)`) renders at once when it holds or can
+  take a credit without waiting; otherwise it validates the region, keeps its union, arms the wait and returns. The deferred
+  region is rendered by the next paced frame, at most one refresh interval later on a composing desktop, together with
+  anything invalidated meanwhile, so later invalidations are never presented before earlier ones. Neither `WM_PAINT` nor
+  `WM_SIZE` ever waits. A frame presented after a resize has the size the window has when it renders.
+- `RenderInitialFrameForShow` (the first frame before a show) waits at most 250 ms for a credit, because its caller shows the
+  window next. A new chain already holds its first unit, so a first frame never waits.
+- A diagnostic capture (`DebugCaptureBitmap`) renders and reads the back buffer and does not present: it neither takes nor
+  needs a credit. A test render whose caller reads the presented result (`DebugRenderDirtyRectForTest`) waits at most 250 ms.
+- A bounded wait that finds no credit does not present (`frame.pacerSynchronousTimeouts`); the frame is deferred.
+- Latency bound: since no path presents without a credit (a synchronous render that finds none defers, a capture never
+  presents), at most one frame is ever queued behind the one being shown, and the object never holds a spare unit that
+  would let a later frame queue a second one. `TestFramePacingSynchronousRendersBuildNoLatency` presents twenty bounded-wait
+  renders and twenty captures back to back and then finds no spare unit while a frame is in flight.
+- A deferred region is the paint's `rcPaint`, or the whole client area when `rcPaint` is empty (a window on no monitor
+  receives an empty `rcPaint` for a full invalidation, which a render treats as a full frame).
+
+A stalled compositor (display off, a locked or disconnected session, a remote session that stops composing) returns no unit.
+The wait then times out after 250 ms: the timeout presents nothing, the frame stays deferred and the wait is armed again, so a
+pending frame costs at most one wake per timeout period (`frame.pacerWaitTimeouts`) and nothing pending costs nothing.
+
+Time: a paced frame's animation sample is the compositor's predicted present time, not an averaged delta. The host reads the
+statistics of the frame the compositor is composing (`DCompositionGetFrameId(COMPOSITION_FRAME_ID_CONFIRMED)` and
+`DCompositionGetStatistics`: `targetTime`, `framePeriod`; a `COMPOSITION_FRAME_ID_CREATED` frame has no statistics yet, so its
+call fails) and samples the first target time after now; the phase is not tuned beyond that until hardware evidence asks for
+it. On the development workstation (120 Hz, hardware adapter, `FX11`, under load) every paced frame sampled its target
+exactly, and DXGI's frame statistics showed the frame displayed a near-constant two refresh periods after the target it was
+sampled for (537 of 599 matched presents; [receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W3.6/README.md)). The
+offset is constant, and motion needs uniformly spaced samples rather than samples at the displayed time, so the phase stays
+the first target after now. The hardware gate (sample within 1 ms of the target in at least 99% of paced frames, at 60 and
+144 Hz) is judged by `TestFramePacingSampleTimeIsTargetTimeOnHardware` when `DXUI_W36_HARDWARE_GATE=1` (the hardware slot);
+ordinary runs on a shared machine only record the evidence. The sample advances the UI thread's one animation timeline
+(`GetAnimationTickMs`), with the existing 50 ms hitch clamp; the first paced frame after idle starts from the real time, and
+the timeline never reads less than a value it gave out, so a timeline up to one frame ahead of uptime holds the idle clock
+until uptime catches up, and between paced frames the clock runs on at real time. Caret blinks and tooltip delays stay
+deadlines on that timeline. When the statistics are unavailable (or report no period) the frame samples the current time
+(`frame.pacerStatsFallbacks`); statistics are read for every frame, so a change of refresh rate or a move to another monitor is
+followed at the next frame. Each paced frame writes a `FramePaced` trace event with its target, its sample, the period and
+whether it was clamped ([trace provider](../Core/Core_PerformanceAndResources.md#trace-provider)).
+
+Idle and hidden: the pacer arms only for a deferred paint or while a visible, unsuspended host holds an every-frame request.
+Leaving the every-frame request, `SetNativePresentationVisible(false)`, minimizing, detaching and releasing the chain cancel
+and drain the wait and kill the skip timer before returning, so a host with nothing armed receives no paced wake. A window
+hidden without a schedule change is observed hidden by at most one frame, as the frame schedule says.
+
+Popups: the menu modal loop takes a popup's paced-frame message as early as its `WM_PAINT`, so popup feedback never waits
+behind ordinary owner traffic.
+
+Gate evidence on WARP (WindowHost suite, `Controls.Tests.FramePacing.cpp`): 0 pacer wakes with nothing armed on `FX1`
+read-only; ten consecutive ticks that skip `Present` run with at most one wake per refresh period and present the next frame
+with the held credit; `FX10`'s window sweep presents only with a credit and creates one chain (0 `ResizeBuffers` failures);
+stale messages are rejected after cancel, chain recreation and re-attachment; a stalled compositor presents nothing; a detach
+fuzz holds the teardown order under ASan. The hardware clause, the sample equal to the frame's `targetTime` within the
+clock's 1 ms in at least 99% of `FX11`'s paced frames at 60 and 144 Hz, is `TestFramePacingSampleTimeIsTargetTimeOnHardware`.
 
 ### Caret clock
 

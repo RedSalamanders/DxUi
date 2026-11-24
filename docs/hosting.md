@@ -48,7 +48,7 @@ clock, `ControlHost::GetAnimationTickMs()`, advances by the difference between c
 the view is idle, hidden or zero-sized: the first tick after such a pause, or after a new attachment, only sets the
 baseline. Every control stamps its transitions with that clock and `Tick` receives it, so no
 application epoch, zero or near the top of the range, changes what a transition shows. Natively the clock is the UI
-thread's animation dispatcher timeline. A custom control stamps its own transitions with `host.GetAnimationTickMs()`;
+thread's animation dispatcher timeline, which a paced frame advances to its predicted present time. A custom control stamps its own transitions with `host.GetAnimationTickMs()`;
 input timing such as double clicks uses real time, never this clock.
 
 A control asks for its own ticks, and the host ticks only the controls that asked: call `host.RequestAnimation(*this)`
@@ -276,6 +276,16 @@ timer on the attached HWND (its timer procedure runs from your message loop's `D
 procedure) that repaints after one frame, doubling the wait on each further failure up to one second, and a successful
 present resets it. Keep dispatching messages; nothing else is required. An embedded view keeps no timer: its failed
 `Prepare` returns the HRESULT and you schedule the next one.
+
+The host paces its frames to the display ([frame pacing](../Specs/Rendering/Rendering_Win32Host.md#frame-pacing)): its swap
+chain has a frame-latency waitable object at latency 1, and a frame is presented only when the previous one has left the
+queue. So `UpdateWindow` or `RedrawWindow(RDW_UPDATENOW)` on the host window no longer guarantees a presented frame when it
+returns: when the chain cannot take a frame yet, the paint is validated and rendered by the host's next paced frame, at most
+one refresh interval later while the desktop composes, together with anything invalidated meanwhile, in order. The first
+frame of a window is never deferred, and `RenderInitialFrameForShow` waits briefly for the chain instead of deferring, so a
+window shown after it shows its content. The paced frame is a message the host posts to its own window from a thread-pool
+wait; keep dispatching messages, as for every other host timer. Animations on the host advance to the compositor's
+predicted present time. An embedded view is unchanged: you decide when to advance, prepare and present.
 
 When the attached HWND is a child window, forward top-level ancestor movement
 (for example, from the owner's `WM_WINDOWPOSCHANGED` handler) with

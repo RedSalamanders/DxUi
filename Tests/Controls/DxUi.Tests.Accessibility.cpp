@@ -12142,6 +12142,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityIncrementalResizeOfEveryBoundsOverride);
     DXUI_RUN_TEST(TestAccessibilityIncrementalPageIndicatorBecomesPaged);
     DXUI_RUN_TEST(TestAccessibilityIncrementalNativeGeometryCoalescing);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalGeometryOnAPacedHost);
     DXUI_RUN_TEST(TestAccessibilityAttestationOutlivesItsHost);
     DXUI_RUN_TEST(TestAccessibilityIncrementalNoFrameHoldsNoDeferral);
     DXUI_RUN_TEST(TestAccessibilityIncrementalClientQueryDuringDeferral);

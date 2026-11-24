@@ -279,10 +279,20 @@ snapshot, delta and receipt.
   root installation asked for; `tickHeldWhileHidden` counts requests that came due while their native host was hidden
   and fired once on its show; `tooltipTargetValidations` counts the wakes that resolved a tooltip's target again (a
   hit-test walk and a title lookup, not a `Tick`).
+- **Frame pacing** ([window hosting](../Rendering/Rendering_Win32Host.md#frame-pacing)). `pacedFrames` counts native paced
+  frames that sampled the compositor clock and ran the schedule; `presentsWithoutCredit` counts presents made without a
+  frame-latency credit (0 on every path); `pacerDeferredPaints` counts `WM_PAINT` deferred to the next credit;
+  `pacerStaleFrames` paced-frame messages ignored because their request was cancelled or belongs to an earlier chain or
+  attachment; `pacerWaitTimeouts` waits that saw no retired frame within their timeout (a stalled compositor);
+  `pacerSynchronousTimeouts` synchronous renders that found no credit within their bound and did not present;
+  `pacerStatsFallbacks` frames sampled at the current time for want of compositor statistics; `pacerUnavailable` chains
+  without a waitable object; `pacerTeardownOrderViolations` chains released while their pacer still held its wait or
+  handle (0 on every path).
 - **Wakes by source.** `animationTimer` (the animation dispatcher's periodic `WM_TIMER`), `deadlineTimer` (its one-shot
   wake for the earliest deadline), `menuHoverTimer`, `paintMessage`
-  (`WM_PAINT`) and `embeddedAdvance` (each `EmbeddedHost::AdvanceAnimation` the application made while animation was
-  requested).
+  (`WM_PAINT`), `pacedFrame` (a paced-frame message from the pacer's thread-pool wait, stale ones included), `pacerTimer`
+  (the paced skip timer) and `embeddedAdvance` (each `EmbeddedHost::AdvanceAnimation` the application made while animation
+  was requested).
 - **Text.** `setTextRenderingParams` counts each `SetTextRenderingParams` call a host makes to bind or clear rendering
   parameters ([theme and typography](../UI/UI_ThemeAndTypography.md#text-antialiasing-and-rendering-parameters)).
 - **Resources.** Library code creates text layouts and formats, DirectWrite rendering parameters, geometries, stroke styles, brushes, gradient stop
@@ -363,7 +373,11 @@ snapshot, delta and receipt.
 Destruction is observed only by a test-owned `ResourceLifetimeTracker`, in storage the test supplies: while installed on
 a thread it holds one extra reference to each resource the helpers create there, and `Sweep` counts and releases those
 whose owners released them. Destruction therefore happens at the sweep instead of at the owner's release; nothing else
-changes. Objects beyond the storage are counted as overflow. Per-interval churn is `min(created, destroyed)` per resource
+changes. One creation is counted but never held: a native host's target bitmap over its swap chain's back buffer
+(`CountedCreateSwapChainTargetBitmap`), because `ResizeBuffers` refuses (`DXGI_ERROR_INVALID_CALL`) while any reference
+to a buffer remains. Before W3.6 the held reference made every tracked window-host resize fail and recreate the chain
+(the retained `FX10` window receipt shows one chain created per resize step); its destruction is not observed. Objects
+beyond the storage are counted as overflow. Per-interval churn is `min(created, destroyed)` per resource
 kind, summed over kinds, and is meaningful only under a tracker.
 
 Enforcement: `Tools/tests/Test-CountedCreation.ps1` (run by the tooling tests) fails on any occurrence under `src` of a
@@ -455,9 +469,11 @@ private.
 - **Events.** Input received (a `WindowHost` mouse, wheel, key or character message; an `EmbeddedHost` pointer, key or
   character dispatch), frame requested with its reason (the first request after each preparation begins), prepare begin
   and end (a native render pass; an embedded preparation that paints), present (a native swap-chain present) or composite
-  (an embedded composition), wake by source, and hit reuse off (a host stops reusing pointer hit results because a control
-  whose hit testing it cannot see attached). Each event site sits beside the work counter of the same moment where one
-  exists: renders and preparations, presents, composites and every wake source.
+  (an embedded composition), wake by source, hit reuse off (a host stops reusing pointer hit results because a control
+  whose hit testing it cannot see attached), and frame paced (a native paced frame's animation sample against the
+  compositor's target time, its refresh period and whether the hitch clamp applied;
+  [frame pacing](../Rendering/Rendering_Win32Host.md#frame-pacing)). Each event site sits beside the work counter of the
+  same moment where one exists: renders and preparations, presents, composites, paced frames and every wake source.
 - **Correlation and clock.** Every event carries a process-unique host number and a `QueryPerformanceCounter` timestamp.
   Each host numbers its inputs and its preparations; a preparation records the newest input received before it began, and
   its end, present or composite carry that number, so input-to-present for input *N* is the first present (composite) on

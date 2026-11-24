@@ -18,7 +18,7 @@
   "renderer": "WARP",
   "configuration": "Release",
   "iteratorDebugLevel": 0,
-  "compiler": 195237025,
+  "compiler": 195237032,
   "adapter": {
     "description": "Microsoft Basic Render Driver (WindowHost forceWarp)",
     "vendorId": 5140,
@@ -29,7 +29,7 @@
   },
   "cppAllocations": "not counted: this executable does not replace the allocation functions",
   "drawCalls": "not counted: frame.drawCalls is 0 without the counting wrappers",
-  "trackedResources": 188,
+  "trackedResources": 221,
   "trackerOverflow": 0,
   "phases": [
     {
@@ -39,11 +39,19 @@
       "steps": 2,
       "series": {
         "created": [
-          162,
+          138,
           0
         ],
         "churn": [
-          92,
+          34,
+          0
+        ],
+        "frame.brushColorReuses": [
+          0,
+          0
+        ],
+        "frame.brushEvictions": [
+          0,
           0
         ],
         "frame.composites": [
@@ -62,6 +70,14 @@
           0,
           0
         ],
+        "frame.fullVisualPreparations": [
+          1,
+          0
+        ],
+        "frame.hitRevisionMoves": [
+          2,
+          0
+        ],
         "frame.hitTestReuses": [
           0,
           0
@@ -70,12 +86,48 @@
           0,
           0
         ],
+        "frame.invalidations": [
+          55,
+          0
+        ],
+        "frame.pacedFrames": [
+          0,
+          0
+        ],
+        "frame.pacerDeferredPaints": [
+          0,
+          0
+        ],
+        "frame.pacerStaleFrames": [
+          0,
+          0
+        ],
+        "frame.pacerStatsFallbacks": [
+          0,
+          0
+        ],
+        "frame.pacerSynchronousTimeouts": [
+          0,
+          0
+        ],
+        "frame.pacerTeardownOrderViolations": [
+          0,
+          0
+        ],
+        "frame.pacerUnavailable": [
+          0,
+          0
+        ],
+        "frame.pacerWaitTimeouts": [
+          0,
+          0
+        ],
         "frame.paintExecutions": [
-          82,
+          41,
           0
         ],
         "frame.pixelsPainted": [
-          960000,
+          480000,
           0
         ],
         "frame.plainLabelPreparations": [
@@ -91,11 +143,15 @@
           0
         ],
         "frame.presents": [
-          2,
+          1,
+          0
+        ],
+        "frame.presentsWithoutCredit": [
+          0,
           0
         ],
         "frame.renders": [
-          2,
+          1,
           0
         ],
         "frame.shadowPasses": [
@@ -126,12 +182,28 @@
           0,
           0
         ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
+          0,
+          0
+        ],
+        "frame.tooltipTargetMarks": [
+          0,
+          0
+        ],
+        "frame.tooltipTargetValidations": [
+          0,
+          0
+        ],
         "frame.treeVisitsHitTest": [
           0,
           0
         ],
         "frame.treeVisitsPaint": [
-          108,
+          54,
           0
         ],
         "frame.treeVisitsStatistics": [
@@ -158,6 +230,14 @@
           0,
           0
         ],
+        "wakes.pacedFrame": [
+          0,
+          0
+        ],
+        "wakes.pacerTimer": [
+          0,
+          0
+        ],
         "wakes.paintMessage": [
           2,
           0
@@ -171,7 +251,7 @@
           0
         ],
         "resources.brush.created": [
-          12,
+          24,
           0
         ],
         "resources.brush.destroyed": [
@@ -227,11 +307,11 @@
           0
         ],
         "resources.implicitTextLayout.created": [
-          44,
+          0,
           0
         ],
         "resources.implicitTextLayout.destroyed": [
-          44,
+          0,
           0
         ],
         "resources.layer.created": [
@@ -259,27 +339,59 @@
           0
         ],
         "resources.textFormat.created": [
-          22,
+          23,
           0
         ],
         "resources.textFormat.destroyed": [
-          0,
+          1,
           0
         ],
         "resources.textLayout.created": [
-          80,
+          87,
           0
         ],
         "resources.textLayout.destroyed": [
-          48,
+          33,
+          0
+        ],
+        "text.formatCacheOverBound": [
+          0,
           0
         ],
         "text.formatCacheTrims": [
           0,
           0
         ],
+        "text.formatEvictions": [
+          0,
+          0
+        ],
+        "text.lineMetricsHeapFallbacks": [
+          0,
+          0
+        ],
+        "text.nativeTextInputStateCopies": [
+          0,
+          0
+        ],
         "text.setTextRenderingParams": [
           1,
+          0
+        ],
+        "text.textLayoutCacheBypasses": [
+          0,
+          0
+        ],
+        "text.textLayoutCacheHits": [
+          0,
+          0
+        ],
+        "text.textLayoutCacheMisses": [
+          21,
+          0
+        ],
+        "text.textLayoutCacheOverflows": [
+          0,
           0
         ],
         "popups.backdropBlurPasses": [
@@ -355,7 +467,7 @@
           0
         ],
         "rich.chunksLaid": [
-          0,
+          1,
           0
         ],
         "rich.diagramPreparations": [
@@ -367,11 +479,11 @@
           0
         ],
         "rich.documentBytesCopied": [
-          1964,
+          3928,
           0
         ],
         "rich.documentFlattens": [
-          1,
+          2,
           0
         ],
         "rich.elementsBuilt": [
@@ -391,6 +503,62 @@
           0
         ],
         "rich.imageUploadBytes": [
+          0,
+          0
+        ],
+        "rich.markdownBlockUnitsScanned": [
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidations": [
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidationsReused": [
+          0,
+          0
+        ],
+        "rich.markdownInlineFullReparses": [
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesCopied": [
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesParsed": [
+          0,
+          0
+        ],
+        "rich.markdownInlineUnitsScanned": [
+          0,
+          0
+        ],
+        "rich.markdownLexicalUnitsScanned": [
+          0,
+          0
+        ],
+        "rich.markdownNodesCopied": [
+          0,
+          0
+        ],
+        "rich.markdownParses": [
+          0,
+          0
+        ],
+        "rich.markdownReferenceUnitsRead": [
+          0,
+          0
+        ],
+        "rich.markdownRootTriviaUnitsScanned": [
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsCopied": [
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsMaterialized": [
           0,
           0
         ],
@@ -470,6 +638,42 @@
           0,
           0
         ],
+        "accessibility.chunksCloned": [
+          0,
+          0
+        ],
+        "accessibility.geometryMarksCollapsed": [
+          0,
+          0
+        ],
+        "accessibility.geometryPublicationsDeferred": [
+          0,
+          0
+        ],
+        "accessibility.incrementalPublications": [
+          0,
+          0
+        ],
+        "accessibility.marksWhileDormant": [
+          0,
+          0
+        ],
+        "accessibility.mutations": [
+          2,
+          0
+        ],
+        "accessibility.pointHitRebuilds": [
+          0,
+          0
+        ],
+        "accessibility.recordsCloned": [
+          0,
+          0
+        ],
+        "accessibility.recordsMarked": [
+          0,
+          0
+        ],
         "accessibility.snapshotBuilds": [
           1,
           0
@@ -482,21 +686,71 @@
           29,
           0
         ],
+        "accessibility.spineBytes": [
+          0,
+          0
+        ],
+        "accessibility.undeclaredInvalidations": [
+          0,
+          0
+        ],
         "accessibility.wordUnitsVisited": [
           0,
+          0
+        ],
+        "memory.controlHeapSizeReads": [
+          0,
+          0
+        ],
+        "layout.arrangedChildren": [
+          52,
+          0
+        ],
+        "layout.measureCacheEvictions": [
+          0,
+          0
+        ],
+        "layout.measureCacheHits": [
+          90,
+          0
+        ],
+        "layout.measureCacheMisses": [
+          39,
+          0
+        ],
+        "layout.measureCacheVerifyMismatches": [
+          0,
+          0
+        ],
+        "layout.measureInvalidations": [
+          0,
+          0
+        ],
+        "layout.measureOverrideExecutions": [
+          39,
           0
         ]
       },
       "summary": {
         "created": {
           "min": 0,
-          "max": 162,
-          "total": 162
+          "max": 138,
+          "total": 138
         },
         "churn": {
           "min": 0,
-          "max": 92,
-          "total": 92
+          "max": 34,
+          "total": 34
+        },
+        "frame.brushColorReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.composites": {
           "min": 0,
@@ -518,6 +772,16 @@
           "max": 0,
           "total": 0
         },
+        "frame.fullVisualPreparations": {
+          "min": 0,
+          "max": 1,
+          "total": 1
+        },
+        "frame.hitRevisionMoves": {
+          "min": 0,
+          "max": 2,
+          "total": 2
+        },
         "frame.hitTestReuses": {
           "min": 0,
           "max": 0,
@@ -528,15 +792,60 @@
           "max": 0,
           "total": 0
         },
+        "frame.invalidations": {
+          "min": 0,
+          "max": 55,
+          "total": 55
+        },
+        "frame.pacedFrames": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerDeferredPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerStaleFrames": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerStatsFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerSynchronousTimeouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerTeardownOrderViolations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerUnavailable": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerWaitTimeouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.paintExecutions": {
           "min": 0,
-          "max": 82,
-          "total": 82
+          "max": 41,
+          "total": 41
         },
         "frame.pixelsPainted": {
           "min": 0,
-          "max": 960000,
-          "total": 960000
+          "max": 480000,
+          "total": 480000
         },
         "frame.plainLabelPreparations": {
           "min": 0,
@@ -555,13 +864,18 @@
         },
         "frame.presents": {
           "min": 0,
-          "max": 2,
-          "total": 2
+          "max": 1,
+          "total": 1
+        },
+        "frame.presentsWithoutCredit": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.renders": {
           "min": 0,
-          "max": 2,
-          "total": 2
+          "max": 1,
+          "total": 1
         },
         "frame.shadowPasses": {
           "min": 0,
@@ -598,6 +912,26 @@
           "max": 0,
           "total": 0
         },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetMarks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsHitTest": {
           "min": 0,
           "max": 0,
@@ -605,8 +939,8 @@
         },
         "frame.treeVisitsPaint": {
           "min": 0,
-          "max": 108,
-          "total": 108
+          "max": 54,
+          "total": 54
         },
         "frame.treeVisitsStatistics": {
           "min": 0,
@@ -638,6 +972,16 @@
           "max": 0,
           "total": 0
         },
+        "wakes.pacedFrame": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.pacerTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "wakes.paintMessage": {
           "min": 0,
           "max": 2,
@@ -655,8 +999,8 @@
         },
         "resources.brush.created": {
           "min": 0,
-          "max": 12,
-          "total": 12
+          "max": 24,
+          "total": 24
         },
         "resources.brush.destroyed": {
           "min": 0,
@@ -725,13 +1069,13 @@
         },
         "resources.implicitTextLayout.created": {
           "min": 0,
-          "max": 44,
-          "total": 44
+          "max": 0,
+          "total": 0
         },
         "resources.implicitTextLayout.destroyed": {
           "min": 0,
-          "max": 44,
-          "total": 44
+          "max": 0,
+          "total": 0
         },
         "resources.layer.created": {
           "min": 0,
@@ -765,25 +1109,45 @@
         },
         "resources.textFormat.created": {
           "min": 0,
-          "max": 22,
-          "total": 22
+          "max": 23,
+          "total": 23
         },
         "resources.textFormat.destroyed": {
+          "min": 0,
+          "max": 1,
+          "total": 1
+        },
+        "resources.textLayout.created": {
+          "min": 0,
+          "max": 87,
+          "total": 87
+        },
+        "resources.textLayout.destroyed": {
+          "min": 0,
+          "max": 33,
+          "total": 33
+        },
+        "text.formatCacheOverBound": {
           "min": 0,
           "max": 0,
           "total": 0
         },
-        "resources.textLayout.created": {
-          "min": 0,
-          "max": 80,
-          "total": 80
-        },
-        "resources.textLayout.destroyed": {
-          "min": 0,
-          "max": 48,
-          "total": 48
-        },
         "text.formatCacheTrims": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.formatEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.lineMetricsHeapFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.nativeTextInputStateCopies": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -792,6 +1156,26 @@
           "min": 0,
           "max": 1,
           "total": 1
+        },
+        "text.textLayoutCacheBypasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheMisses": {
+          "min": 0,
+          "max": 21,
+          "total": 21
+        },
+        "text.textLayoutCacheOverflows": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "popups.backdropBlurPasses": {
           "min": 0,
@@ -885,8 +1269,8 @@
         },
         "rich.chunksLaid": {
           "min": 0,
-          "max": 0,
-          "total": 0
+          "max": 1,
+          "total": 1
         },
         "rich.diagramPreparations": {
           "min": 0,
@@ -900,13 +1284,13 @@
         },
         "rich.documentBytesCopied": {
           "min": 0,
-          "max": 1964,
-          "total": 1964
+          "max": 3928,
+          "total": 3928
         },
         "rich.documentFlattens": {
           "min": 0,
-          "max": 1,
-          "total": 1
+          "max": 2,
+          "total": 2
         },
         "rich.elementsBuilt": {
           "min": 0,
@@ -929,6 +1313,76 @@
           "total": 0
         },
         "rich.imageUploadBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownBlockUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidationsReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineFullReparses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesParsed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownLexicalUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownNodesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownParses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownReferenceUnitsRead": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownRootTriviaUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsMaterialized": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -1028,6 +1482,51 @@
           "max": 0,
           "total": 0
         },
+        "accessibility.chunksCloned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.geometryMarksCollapsed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.geometryPublicationsDeferred": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.incrementalPublications": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.marksWhileDormant": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.mutations": {
+          "min": 0,
+          "max": 2,
+          "total": 2
+        },
+        "accessibility.pointHitRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.recordsCloned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.recordsMarked": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "accessibility.snapshotBuilds": {
           "min": 0,
           "max": 1,
@@ -1043,10 +1542,60 @@
           "max": 29,
           "total": 29
         },
+        "accessibility.spineBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.undeclaredInvalidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "accessibility.wordUnitsVisited": {
           "min": 0,
           "max": 0,
           "total": 0
+        },
+        "memory.controlHeapSizeReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.arrangedChildren": {
+          "min": 0,
+          "max": 52,
+          "total": 52
+        },
+        "layout.measureCacheEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheHits": {
+          "min": 0,
+          "max": 90,
+          "total": 90
+        },
+        "layout.measureCacheMisses": {
+          "min": 0,
+          "max": 39,
+          "total": 39
+        },
+        "layout.measureCacheVerifyMismatches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureInvalidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureOverrideExecutions": {
+          "min": 0,
+          "max": 39,
+          "total": 39
         }
       }
     },
@@ -1057,68 +1606,132 @@
       "steps": 30,
       "series": {
         "created": [
-          0,
-          109,
-          0,
-          109,
-          0,
-          107,
-          0,
-          105,
-          0,
-          107,
-          0,
-          107,
-          0,
-          107,
-          0,
-          107,
-          0,
-          107,
-          0,
-          105,
-          0,
-          107,
-          0,
-          107,
-          0,
-          105,
-          0,
-          107,
-          0,
-          107
+          40,
+          38,
+          40,
+          38,
+          38,
+          38,
+          36,
+          38,
+          38,
+          38,
+          38,
+          38,
+          38,
+          38,
+          38,
+          38,
+          38,
+          38,
+          36,
+          38,
+          38,
+          38,
+          38,
+          38,
+          38,
+          36,
+          38,
+          38,
+          38,
+          38
         ],
         "churn": [
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33
+        ],
+        "frame.brushColorReuses": [
           0,
-          98,
           0,
-          98,
           0,
-          98,
           0,
-          98,
           0,
-          98,
           0,
-          98,
           0,
-          98,
           0,
-          98,
           0,
-          98,
           0,
-          98,
           0,
-          98,
           0,
-          98,
           0,
-          98,
           0,
-          98,
           0,
-          98
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.brushEvictions": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.composites": [
           0,
@@ -1248,6 +1861,70 @@
           0,
           0
         ],
+        "frame.fullVisualPreparations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.hitRevisionMoves": [
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2
+        ],
         "frame.hitTestReuses": [
           0,
           0,
@@ -1312,69 +1989,357 @@
           0,
           0
         ],
+        "frame.invalidations": [
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55,
+          55
+        ],
+        "frame.pacedFrames": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.pacerDeferredPaints": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.pacerStaleFrames": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.pacerStatsFallbacks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.pacerSynchronousTimeouts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.pacerTeardownOrderViolations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.pacerUnavailable": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.pacerWaitTimeouts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.paintExecutions": [
-          0,
-          82,
-          0,
-          82,
-          0,
-          82,
-          0,
-          82,
-          0,
-          82,
-          0,
-          82,
-          0,
-          82,
-          0,
-          82,
-          0,
-          82,
-          0,
-          82,
-          0,
-          82,
-          0,
-          82,
-          0,
-          82,
-          0,
-          82,
-          0,
-          82
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41,
+          41
         ],
         "frame.pixelsPainted": [
-          0,
-          1410816,
-          0,
-          1947280,
-          0,
-          2568192,
-          0,
-          3271520,
-          0,
-          4061120,
-          0,
-          4935168,
-          0,
-          5891008,
-          0,
-          6933744,
-          0,
-          8060928,
-          0,
-          9269280,
-          0,
-          10565152,
-          0,
-          11945472,
-          0,
-          13406336,
-          0,
-          14955344,
-          0,
-          16588800
+          587452,
+          705408,
+          834624,
+          973640,
+          1123160,
+          1284096,
+          1454676,
+          1635760,
+          1828416,
+          2030560,
+          2243208,
+          2467584,
+          2701292,
+          2945504,
+          3201600,
+          3466872,
+          3742648,
+          4030464,
+          4327300,
+          4634640,
+          4954176,
+          5282576,
+          5621480,
+          5972736,
+          6332700,
+          6703168,
+          7086144,
+          7477672,
+          7879704,
+          8294400
         ],
         "frame.plainLabelPreparations": [
           0,
@@ -1473,68 +2438,100 @@
           0
         ],
         "frame.presents": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "frame.presentsWithoutCredit": [
           0,
-          2,
           0,
-          2,
           0,
-          2,
           0,
-          2,
           0,
-          2,
           0,
-          2,
           0,
-          2,
           0,
-          2,
           0,
-          2,
           0,
-          2,
           0,
-          2,
           0,
-          2,
           0,
-          2,
           0,
-          2,
           0,
-          2
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.renders": [
-          0,
-          2,
-          0,
-          2,
-          0,
-          2,
-          0,
-          2,
-          0,
-          2,
-          0,
-          2,
-          0,
-          2,
-          0,
-          2,
-          0,
-          2,
-          0,
-          2,
-          0,
-          2,
-          0,
-          2,
-          0,
-          2,
-          0,
-          2,
-          0,
-          2
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
         ],
         "frame.shadowPasses": [
           0,
@@ -1570,35 +2567,35 @@
         ],
         "frame.swapChains": [
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "frame.tickCalls": [
           0,
@@ -1760,6 +2757,134 @@
           0,
           0
         ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetMarks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetValidations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "frame.treeVisitsHitTest": [
           0,
           0,
@@ -1793,36 +2918,36 @@
           0
         ],
         "frame.treeVisitsPaint": [
-          0,
-          108,
-          0,
-          108,
-          0,
-          108,
-          0,
-          108,
-          0,
-          108,
-          0,
-          108,
-          0,
-          108,
-          0,
-          108,
-          0,
-          108,
-          0,
-          108,
-          0,
-          108,
-          0,
-          108,
-          0,
-          108,
-          0,
-          108,
-          0,
-          108
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54,
+          54
         ],
         "frame.treeVisitsStatistics": [
           0,
@@ -2016,100 +3141,164 @@
           0,
           0
         ],
+        "wakes.pacedFrame": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "wakes.pacerTimer": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "wakes.paintMessage": [
-          1,
           2,
-          1,
           2,
-          1,
           2,
-          1,
           2,
-          1,
           2,
-          1,
           2,
-          1,
           2,
-          1,
           2,
-          1,
           2,
-          1,
           2,
-          1,
           2,
-          1,
           2,
-          1,
           2,
-          1,
           2,
-          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
           2
         ],
         "resources.bitmap.created": [
-          0,
           1,
-          0,
           1,
-          0,
           1,
-          0,
           1,
-          0,
           1,
-          0,
           1,
-          0,
           1,
-          0,
           1,
-          0,
           1,
-          0,
           1,
-          0,
           1,
-          0,
           1,
-          0,
           1,
-          0,
           1,
-          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
           1
         ],
         "resources.bitmap.destroyed": [
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
           0,
-          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
           0
         ],
         "resources.brush.created": [
@@ -2562,67 +3751,67 @@
         ],
         "resources.implicitTextLayout.created": [
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "resources.implicitTextLayout.destroyed": [
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44,
           0,
-          44
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "resources.layer.created": [
           0,
@@ -2881,68 +4070,100 @@
           0
         ],
         "resources.textLayout.created": [
-          0,
-          64,
-          0,
-          64,
-          0,
-          62,
-          0,
-          60,
-          0,
-          62,
-          0,
-          62,
-          0,
-          62,
-          0,
-          62,
-          0,
-          62,
-          0,
-          60,
-          0,
-          62,
-          0,
-          62,
-          0,
-          60,
-          0,
-          62,
-          0,
-          62
+          39,
+          37,
+          39,
+          37,
+          37,
+          37,
+          35,
+          37,
+          37,
+          37,
+          37,
+          37,
+          37,
+          37,
+          37,
+          37,
+          37,
+          37,
+          35,
+          37,
+          37,
+          37,
+          37,
+          37,
+          37,
+          35,
+          37,
+          37,
+          37,
+          37
         ],
         "resources.textLayout.destroyed": [
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33,
+          33
+        ],
+        "text.formatCacheOverBound": [
           0,
-          54,
           0,
-          54,
           0,
-          54,
           0,
-          54,
           0,
-          54,
           0,
-          54,
           0,
-          54,
           0,
-          54,
           0,
-          54,
           0,
-          54,
           0,
-          54,
           0,
-          54,
           0,
-          54,
           0,
-          54,
           0,
-          54
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
         ],
         "text.formatCacheTrims": [
           0,
@@ -2976,7 +4197,231 @@
           0,
           0
         ],
+        "text.formatEvictions": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.lineMetricsHeapFallbacks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.nativeTextInputStateCopies": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "text.setTextRenderingParams": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheBypasses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheHits": [
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11,
+          11
+        ],
+        "text.textLayoutCacheMisses": [
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10,
+          10
+        ],
+        "text.textLayoutCacheOverflows": [
           0,
           0,
           0,
@@ -3904,6 +5349,454 @@
           0,
           0
         ],
+        "rich.markdownBlockUnitsScanned": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidationsReused": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineFullReparses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesParsed": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineUnitsScanned": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownLexicalUnitsScanned": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownNodesCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownParses": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownReferenceUnitsRead": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownRootTriviaUnitsScanned": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsCopied": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsMaterialized": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
         "rich.mathPreparations": [
           0,
           0,
@@ -4001,36 +5894,36 @@
           0
         ],
         "rich.preparationTurns": [
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
         ],
         "rich.semanticBlocksReused": [
           0,
@@ -4512,6 +6405,294 @@
           0,
           0
         ],
+        "accessibility.chunksCloned": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.geometryMarksCollapsed": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "accessibility.geometryPublicationsDeferred": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.incrementalPublications": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.marksWhileDormant": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.mutations": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "accessibility.pointHitRebuilds": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.recordsCloned": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.recordsMarked": [
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42,
+          42
+        ],
         "accessibility.snapshotBuilds": [
           1,
           1,
@@ -4608,6 +6789,70 @@
           29,
           29
         ],
+        "accessibility.spineBytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "accessibility.undeclaredInvalidations": [
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14,
+          14
+        ],
         "accessibility.wordUnitsVisited": [
           0,
           0,
@@ -4639,18 +6884,284 @@
           0,
           0,
           0
+        ],
+        "memory.controlHeapSizeReads": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.arrangedChildren": [
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52,
+          52
+        ],
+        "layout.measureCacheEvictions": [
+          0,
+          20,
+          20,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23
+        ],
+        "layout.measureCacheHits": [
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106,
+          106
+        ],
+        "layout.measureCacheMisses": [
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23
+        ],
+        "layout.measureCacheVerifyMismatches": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureInvalidations": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "layout.measureOverrideExecutions": [
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23,
+          23
         ]
       },
       "summary": {
         "created": {
-          "min": 0,
-          "max": 109,
-          "total": 1603
+          "min": 36,
+          "max": 40,
+          "total": 1138
         },
         "churn": {
+          "min": 33,
+          "max": 33,
+          "total": 990
+        },
+        "frame.brushColorReuses": {
           "min": 0,
-          "max": 98,
-          "total": 1470
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
         },
         "frame.composites": {
           "min": 0,
@@ -4672,6 +7183,16 @@
           "max": 0,
           "total": 0
         },
+        "frame.fullVisualPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitRevisionMoves": {
+          "min": 2,
+          "max": 2,
+          "total": 60
+        },
         "frame.hitTestReuses": {
           "min": 0,
           "max": 0,
@@ -4682,15 +7203,60 @@
           "max": 0,
           "total": 0
         },
-        "frame.paintExecutions": {
+        "frame.invalidations": {
+          "min": 55,
+          "max": 55,
+          "total": 1650
+        },
+        "frame.pacedFrames": {
           "min": 0,
-          "max": 82,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerDeferredPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerStaleFrames": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerStatsFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerSynchronousTimeouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerTeardownOrderViolations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerUnavailable": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerWaitTimeouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.paintExecutions": {
+          "min": 41,
+          "max": 41,
           "total": 1230
         },
         "frame.pixelsPainted": {
-          "min": 0,
-          "max": 16588800,
-          "total": 115810160
+          "min": 587452,
+          "max": 8294400,
+          "total": 111823660
         },
         "frame.plainLabelPreparations": {
           "min": 0,
@@ -4708,13 +7274,18 @@
           "total": 0
         },
         "frame.presents": {
-          "min": 0,
-          "max": 2,
+          "min": 1,
+          "max": 1,
           "total": 30
         },
-        "frame.renders": {
+        "frame.presentsWithoutCredit": {
           "min": 0,
-          "max": 2,
+          "max": 0,
+          "total": 0
+        },
+        "frame.renders": {
+          "min": 1,
+          "max": 1,
           "total": 30
         },
         "frame.shadowPasses": {
@@ -4724,8 +7295,8 @@
         },
         "frame.swapChains": {
           "min": 0,
-          "max": 1,
-          "total": 15
+          "max": 0,
+          "total": 0
         },
         "frame.tickCalls": {
           "min": 0,
@@ -4752,14 +7323,34 @@
           "max": 0,
           "total": 0
         },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetMarks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsHitTest": {
           "min": 0,
           "max": 0,
           "total": 0
         },
         "frame.treeVisitsPaint": {
-          "min": 0,
-          "max": 108,
+          "min": 54,
+          "max": 54,
           "total": 1620
         },
         "frame.treeVisitsStatistics": {
@@ -4792,20 +7383,30 @@
           "max": 0,
           "total": 0
         },
+        "wakes.pacedFrame": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.pacerTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "wakes.paintMessage": {
-          "min": 1,
+          "min": 2,
           "max": 2,
-          "total": 45
+          "total": 60
         },
         "resources.bitmap.created": {
-          "min": 0,
+          "min": 1,
           "max": 1,
-          "total": 15
+          "total": 30
         },
         "resources.bitmap.destroyed": {
           "min": 0,
-          "max": 1,
-          "total": 15
+          "max": 0,
+          "total": 0
         },
         "resources.brush.created": {
           "min": 0,
@@ -4879,13 +7480,13 @@
         },
         "resources.implicitTextLayout.created": {
           "min": 0,
-          "max": 44,
-          "total": 660
+          "max": 0,
+          "total": 0
         },
         "resources.implicitTextLayout.destroyed": {
           "min": 0,
-          "max": 44,
-          "total": 660
+          "max": 0,
+          "total": 0
         },
         "resources.layer.created": {
           "min": 0,
@@ -4928,21 +7529,61 @@
           "total": 0
         },
         "resources.textLayout.created": {
-          "min": 0,
-          "max": 64,
-          "total": 928
+          "min": 35,
+          "max": 39,
+          "total": 1108
         },
         "resources.textLayout.destroyed": {
+          "min": 33,
+          "max": 33,
+          "total": 990
+        },
+        "text.formatCacheOverBound": {
           "min": 0,
-          "max": 54,
-          "total": 810
+          "max": 0,
+          "total": 0
         },
         "text.formatCacheTrims": {
           "min": 0,
           "max": 0,
           "total": 0
         },
+        "text.formatEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.lineMetricsHeapFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.nativeTextInputStateCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheBypasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheHits": {
+          "min": 11,
+          "max": 11,
+          "total": 330
+        },
+        "text.textLayoutCacheMisses": {
+          "min": 10,
+          "max": 10,
+          "total": 300
+        },
+        "text.textLayoutCacheOverflows": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -5087,6 +7728,76 @@
           "max": 0,
           "total": 0
         },
+        "rich.markdownBlockUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidationsReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineFullReparses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesParsed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownLexicalUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownNodesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownParses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownReferenceUnitsRead": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownRootTriviaUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsMaterialized": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.mathPreparations": {
           "min": 0,
           "max": 0,
@@ -5103,9 +7814,9 @@
           "total": 0
         },
         "rich.preparationTurns": {
-          "min": 0,
-          "max": 0,
-          "total": 0
+          "min": 1,
+          "max": 1,
+          "total": 30
         },
         "rich.semanticBlocksReused": {
           "min": 0,
@@ -5182,6 +7893,51 @@
           "max": 0,
           "total": 0
         },
+        "accessibility.chunksCloned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.geometryMarksCollapsed": {
+          "min": 1,
+          "max": 1,
+          "total": 30
+        },
+        "accessibility.geometryPublicationsDeferred": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.incrementalPublications": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.marksWhileDormant": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.mutations": {
+          "min": 3,
+          "max": 3,
+          "total": 90
+        },
+        "accessibility.pointHitRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.recordsCloned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.recordsMarked": {
+          "min": 42,
+          "max": 42,
+          "total": 1260
+        },
         "accessibility.snapshotBuilds": {
           "min": 1,
           "max": 1,
@@ -5197,10 +7953,60 @@
           "max": 29,
           "total": 870
         },
+        "accessibility.spineBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.undeclaredInvalidations": {
+          "min": 14,
+          "max": 14,
+          "total": 420
+        },
         "accessibility.wordUnitsVisited": {
           "min": 0,
           "max": 0,
           "total": 0
+        },
+        "memory.controlHeapSizeReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.arrangedChildren": {
+          "min": 52,
+          "max": 52,
+          "total": 1560
+        },
+        "layout.measureCacheEvictions": {
+          "min": 0,
+          "max": 23,
+          "total": 661
+        },
+        "layout.measureCacheHits": {
+          "min": 106,
+          "max": 106,
+          "total": 3180
+        },
+        "layout.measureCacheMisses": {
+          "min": 23,
+          "max": 23,
+          "total": 690
+        },
+        "layout.measureCacheVerifyMismatches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureInvalidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureOverrideExecutions": {
+          "min": 23,
+          "max": 23,
+          "total": 690
         }
       }
     },
@@ -5216,6 +8022,16 @@
           0
         ],
         "churn": [
+          0,
+          0,
+          0
+        ],
+        "frame.brushColorReuses": [
+          0,
+          0,
+          0
+        ],
+        "frame.brushEvictions": [
           0,
           0,
           0
@@ -5240,12 +8056,67 @@
           0,
           0
         ],
+        "frame.fullVisualPreparations": [
+          0,
+          0,
+          0
+        ],
+        "frame.hitRevisionMoves": [
+          0,
+          0,
+          0
+        ],
         "frame.hitTestReuses": [
           0,
           0,
           0
         ],
         "frame.hitTests": [
+          0,
+          0,
+          0
+        ],
+        "frame.invalidations": [
+          0,
+          0,
+          0
+        ],
+        "frame.pacedFrames": [
+          0,
+          0,
+          0
+        ],
+        "frame.pacerDeferredPaints": [
+          0,
+          0,
+          0
+        ],
+        "frame.pacerStaleFrames": [
+          0,
+          0,
+          0
+        ],
+        "frame.pacerStatsFallbacks": [
+          0,
+          0,
+          0
+        ],
+        "frame.pacerSynchronousTimeouts": [
+          0,
+          0,
+          0
+        ],
+        "frame.pacerTeardownOrderViolations": [
+          0,
+          0,
+          0
+        ],
+        "frame.pacerUnavailable": [
+          0,
+          0,
+          0
+        ],
+        "frame.pacerWaitTimeouts": [
           0,
           0,
           0
@@ -5276,6 +8147,11 @@
           0
         ],
         "frame.presents": [
+          0,
+          0,
+          0
+        ],
+        "frame.presentsWithoutCredit": [
           0,
           0,
           0
@@ -5320,6 +8196,26 @@
           0,
           0
         ],
+        "frame.tooltipDeadlineTicks": [
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipShowsDropped": [
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetMarks": [
+          0,
+          0,
+          0
+        ],
+        "frame.tooltipTargetValidations": [
+          0,
+          0,
+          0
+        ],
         "frame.treeVisitsHitTest": [
           0,
           0,
@@ -5356,6 +8252,16 @@
           0
         ],
         "wakes.menuHoverTimer": [
+          0,
+          0,
+          0
+        ],
+        "wakes.pacedFrame": [
+          0,
+          0,
+          0
+        ],
+        "wakes.pacerTimer": [
           0,
           0,
           0
@@ -5505,12 +8411,52 @@
           0,
           0
         ],
+        "text.formatCacheOverBound": [
+          0,
+          0,
+          0
+        ],
         "text.formatCacheTrims": [
           0,
           0,
           0
         ],
+        "text.formatEvictions": [
+          0,
+          0,
+          0
+        ],
+        "text.lineMetricsHeapFallbacks": [
+          0,
+          0,
+          0
+        ],
+        "text.nativeTextInputStateCopies": [
+          0,
+          0,
+          0
+        ],
         "text.setTextRenderingParams": [
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheBypasses": [
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheHits": [
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheMisses": [
+          0,
+          0,
+          0
+        ],
+        "text.textLayoutCacheOverflows": [
           0,
           0,
           0
@@ -5655,6 +8601,76 @@
           0,
           0
         ],
+        "rich.markdownBlockUnitsScanned": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidations": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownFrontMatterValidationsReused": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineFullReparses": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineLeavesParsed": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownInlineUnitsScanned": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownLexicalUnitsScanned": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownNodesCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownParses": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownReferenceUnitsRead": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownRootTriviaUnitsScanned": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsCopied": [
+          0,
+          0,
+          0
+        ],
+        "rich.markdownSourceUnitsMaterialized": [
+          0,
+          0,
+          0
+        ],
         "rich.mathPreparations": [
           0,
           0,
@@ -5750,6 +8766,51 @@
           0,
           0
         ],
+        "accessibility.chunksCloned": [
+          0,
+          0,
+          0
+        ],
+        "accessibility.geometryMarksCollapsed": [
+          0,
+          0,
+          0
+        ],
+        "accessibility.geometryPublicationsDeferred": [
+          0,
+          0,
+          0
+        ],
+        "accessibility.incrementalPublications": [
+          0,
+          0,
+          0
+        ],
+        "accessibility.marksWhileDormant": [
+          0,
+          0,
+          0
+        ],
+        "accessibility.mutations": [
+          0,
+          0,
+          0
+        ],
+        "accessibility.pointHitRebuilds": [
+          0,
+          0,
+          0
+        ],
+        "accessibility.recordsCloned": [
+          0,
+          0,
+          0
+        ],
+        "accessibility.recordsMarked": [
+          0,
+          0,
+          0
+        ],
         "accessibility.snapshotBuilds": [
           0,
           0,
@@ -5765,7 +8826,57 @@
           0,
           0
         ],
+        "accessibility.spineBytes": [
+          0,
+          0,
+          0
+        ],
+        "accessibility.undeclaredInvalidations": [
+          0,
+          0,
+          0
+        ],
         "accessibility.wordUnitsVisited": [
+          0,
+          0,
+          0
+        ],
+        "memory.controlHeapSizeReads": [
+          0,
+          0,
+          0
+        ],
+        "layout.arrangedChildren": [
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheEvictions": [
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheHits": [
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheMisses": [
+          0,
+          0,
+          0
+        ],
+        "layout.measureCacheVerifyMismatches": [
+          0,
+          0,
+          0
+        ],
+        "layout.measureInvalidations": [
+          0,
+          0,
+          0
+        ],
+        "layout.measureOverrideExecutions": [
           0,
           0,
           0
@@ -5778,6 +8889,16 @@
           "total": 0
         },
         "churn": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushColorReuses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.brushEvictions": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -5802,12 +8923,67 @@
           "max": 0,
           "total": 0
         },
+        "frame.fullVisualPreparations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.hitRevisionMoves": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.hitTestReuses": {
           "min": 0,
           "max": 0,
           "total": 0
         },
         "frame.hitTests": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.invalidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacedFrames": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerDeferredPaints": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerStaleFrames": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerStatsFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerSynchronousTimeouts": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerTeardownOrderViolations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerUnavailable": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.pacerWaitTimeouts": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -5838,6 +9014,11 @@
           "total": 0
         },
         "frame.presents": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.presentsWithoutCredit": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -5882,6 +9063,26 @@
           "max": 0,
           "total": 0
         },
+        "frame.tooltipDeadlineTicks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipShowsDropped": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetMarks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "frame.tooltipTargetValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "frame.treeVisitsHitTest": {
           "min": 0,
           "max": 0,
@@ -5918,6 +9119,16 @@
           "total": 0
         },
         "wakes.menuHoverTimer": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.pacedFrame": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "wakes.pacerTimer": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -6067,12 +9278,52 @@
           "max": 0,
           "total": 0
         },
+        "text.formatCacheOverBound": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.formatCacheTrims": {
           "min": 0,
           "max": 0,
           "total": 0
         },
+        "text.formatEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.lineMetricsHeapFallbacks": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.nativeTextInputStateCopies": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "text.setTextRenderingParams": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheBypasses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "text.textLayoutCacheOverflows": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -6217,6 +9468,76 @@
           "max": 0,
           "total": 0
         },
+        "rich.markdownBlockUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownFrontMatterValidationsReused": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineFullReparses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineLeavesParsed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownInlineUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownLexicalUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownNodesCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownParses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownReferenceUnitsRead": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownRootTriviaUnitsScanned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsCopied": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "rich.markdownSourceUnitsMaterialized": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "rich.mathPreparations": {
           "min": 0,
           "max": 0,
@@ -6312,6 +9633,51 @@
           "max": 0,
           "total": 0
         },
+        "accessibility.chunksCloned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.geometryMarksCollapsed": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.geometryPublicationsDeferred": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.incrementalPublications": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.marksWhileDormant": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.mutations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.pointHitRebuilds": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.recordsCloned": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.recordsMarked": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "accessibility.snapshotBuilds": {
           "min": 0,
           "max": 0,
@@ -6327,7 +9693,57 @@
           "max": 0,
           "total": 0
         },
+        "accessibility.spineBytes": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "accessibility.undeclaredInvalidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
         "accessibility.wordUnitsVisited": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "memory.controlHeapSizeReads": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.arrangedChildren": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheEvictions": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheHits": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheMisses": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureCacheVerifyMismatches": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureInvalidations": {
+          "min": 0,
+          "max": 0,
+          "total": 0
+        },
+        "layout.measureOverrideExecutions": {
           "min": 0,
           "max": 0,
           "total": 0
@@ -6336,7 +9752,7 @@
     }
   ],
   "memory": {
-    "entryPrivateBytes": 3072000,
+    "entryPrivateBytes": 3039232,
     "videoMemory": {
       "applicable": false,
       "reason": "software adapter: rendering uses system memory, which privateBytes counts"
@@ -6345,50 +9761,50 @@
     "samples": [
       {
         "at": "device",
-        "privateBytes": 7311360,
-        "workingSetBytes": 17301504
+        "privateBytes": 7299072,
+        "workingSetBytes": 16064512
       },
       {
         "at": "built",
         "privateBytes": 7483392,
-        "workingSetBytes": 19718144
+        "workingSetBytes": 18309120
       },
       {
         "at": "phase",
         "phase": "warm",
-        "privateBytes": 22388736,
-        "workingSetBytes": 40878080
+        "privateBytes": 21925888,
+        "workingSetBytes": 36524032
       },
       {
         "at": "phase",
         "phase": "sweep",
-        "privateBytes": 36016128,
-        "workingSetBytes": 142024704
+        "privateBytes": 38379520,
+        "workingSetBytes": 81084416
       },
       {
         "at": "phase",
         "phase": "rest",
-        "privateBytes": 36016128,
-        "workingSetBytes": 142118912
+        "privateBytes": 38379520,
+        "workingSetBytes": 81195008
       },
       {
         "at": "hidden",
-        "privateBytes": 36896768,
-        "workingSetBytes": 139628544
+        "privateBytes": 38379520,
+        "workingSetBytes": 102105088
       }
     ],
     "hiddenResidencyDelta": {
-      "privateBytes": 880640,
-      "workingSetBytes": -2490368
+      "privateBytes": 0,
+      "workingSetBytes": 20910080
     },
     "minimizedResidency": "hidden",
     "controlBytes": {
-      "Control": 296,
-      "Label": 448,
-      "Button": 816,
-      "Toggle": 904,
-      "Checkbox": 912,
-      "RadioButton": 864,
+      "Control": 304,
+      "Label": 456,
+      "Button": 824,
+      "Toggle": 912,
+      "Checkbox": 920,
+      "RadioButton": 872,
       "ThroughputGraphSample": 408
     },
     "retainedCaches": []
@@ -6400,7 +9816,7 @@
         "budget": "idle native window <= 8 MB private above process entry at 1080p",
         "counter": "private bytes after the last phase, shown, minus private bytes at process entry",
         "limitBytes": 8000000,
-        "measuredBytes": 32944128,
+        "measuredBytes": 35340288,
         "status": "advisory"
       },
       {
@@ -6446,11 +9862,11 @@
     "reason": "timing comes only from performance-timing.ps1 on a hardware adapter in a quiet window (W0.2); counts and memory are recorded here"
   },
   "benchmarkInputs": {
-    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "BDA786D0E185A83D1ACCFED43106154D374E7C0DDEFCF8A2427FEC0817EAA7C7",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixture.h": "16A49479AA99AE6F235B6F79A4812E12051C693B0D0B5861AF6DEB1998139420",
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureCatalog.h": "7C2FAFF45C77EFEB1B521D74379AEE3DD335B86CC339FD1C91C4BD216CC77AE0",
-    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "7C5A056727C5F60E1542313F154EFD393DD148F26DB8DC8A526901A144F8729C",
+    "Tests/Embedded/Embedded.Tests.PerformanceFixtures.h": "6043F378FB59853584E8D9292B2E3F1DE016635E0AA847F36B03556FD7028FA9",
     "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h": "00844224A58AC9CDD5B726A72BD598293BA5756E9535AC59E26134DD3D7A78DD",
-    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "B466B2EAE7F7CDF6EC9FE70867F2E5BCE04334639CC4C01B5C85C240E8DB07A3",
+    "Tests/Controls/Controls.Tests.PerformanceFixtures.cpp": "19FA42530B733E7861F5B3FA93BC72DC9575BBAC63ABD74092415A2F8864E103",
     "Samples/EmbeddedControls/GraphicsFixture.h": "B242C5EFA16862CCF416CC2C7A277A2E78354273EF43D3CFDF48C69BBEF5C19D",
     "performance-fixtures.ps1": "7137E9356F903546CD9E1D67226AA9375C7E788101409640A9C48F4B34671E5B",
     "Tools/PerformanceFixtures.psm1": "3AE90348157D4C1C743021DC9FA5CCCC01D7F706591C18CA9CCE9F06FACAABF9",
@@ -6458,19 +9874,19 @@
     "Tests/Embedded/Embedded.Tests.PerformanceFixtureFx9.h": "D68B8A8226A39AD907F25EEC465852DF6CF9BF4FA6F89CC4954809B1BA801BA1"
   },
   "provenance": {
-    "sourceCommit": "19673549e3c7a78ad182423311b529819886cea8",
-    "sourceDirty": true,
+    "sourceCommit": "a9b844b4f066a5b9f11ef316beefcca3d4681b19",
+    "sourceDirty": false,
     "platform": "x64",
     "configuration": "Release",
     "command": "performance-fixtures.ps1 -Fixture FX10 -Variant uhd -Adapter Warp -FixtureHost window -Configuration 'Release' -Platform x64",
-    "executableSha256": "25C3CFD051ED4FAA713E61FDDCA1065BCA27EF49B5AEAC94C53FD0155344093D",
+    "executableSha256": "60E2663A14C45F43A20AF399855404928D18E693FAC900C59FFEEF785FA79847",
     "os": {
       "description": "Microsoft Windows 10.0.26300",
       "build": "26300",
-      "ubr": 9711,
+      "ubr": 9974,
       "displayVersion": "26H2"
     },
-    "warpVersion": "10.0.26100.9711 (WinBuild.160101.0800)",
+    "warpVersion": "10.0.26100.9818 (WinBuild.160101.0800)",
     "displays": [
       {
         "name": "AMD Radeon(TM) Graphics",
@@ -6488,16 +9904,16 @@
       }
     ],
     "powerPlan": {
-      "guid": "381b4222-f694-41f0-9685-ff5bb260df2e",
-      "text": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)"
+      "guid": "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
+      "text": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)"
     },
     "hostIdle": {
       "seconds": 3,
-      "busyPercent": 47.824889867841414,
+      "busyPercent": 37.78030087993187,
       "observer": "Tools/Watch-BenchmarkHost.ps1",
       "required": false
     },
     "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
-    "recordedUtc": "2026-11-15T05:24:12.7792851Z"
+    "recordedUtc": "2026-11-24T14:34:26.0085742Z"
   }
 }

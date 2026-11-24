@@ -6770,6 +6770,13 @@ struct AccessibilityRecordMarksDeleter
 {
     void operator()(AccessibilityRecordMarks* marks) const noexcept;
 };
+// A native host's frame pacer (W3.6; src/Controls/DxUi.FramePacer.h): private to the library.
+class FramePacer;
+// Not final, as above: the owning pointer stays one pointer wide.
+struct FramePacerDeleter
+{
+    void operator()(FramePacer* pacer) const noexcept;
+};
 } // namespace Detail
 
 class ControlHost final
@@ -7048,6 +7055,42 @@ public:
     // basic-plane text (no colour glyph from a supplementary-plane emoji).
     [[nodiscard]] size_t DebugCountGlyphRunEligibleTextLayouts() const noexcept;
     [[nodiscard]] bool DebugHasActiveAnimationSubscription() const noexcept;
+    // Tests only (W3.6, native frame pacing). The pacer's state: whether the swap chain is paced, holds a credit, has its
+    // wait armed, serves every-frame requests, holds a deferred paint and has its skip timer armed.
+    struct DebugFramePacerState final
+    {
+        bool paced            = false;
+        bool credit           = false;
+        bool waitArmed        = false;
+        bool continuous       = false;
+        bool deferred         = false;
+        bool skipTimerArmed   = false;
+        uint64_t armedRequest = 0u;
+    };
+    [[nodiscard]] DebugFramePacerState DebugGetFramePacerStateForTest() const noexcept;
+    // Tests only. Replaces the frame-latency object the pacer waits on with a test-owned one (duplicated; nullptr makes the
+    // chain unpaced) and the wait's timeout (0: the default). The real chain keeps presenting.
+    void DebugSetFramePacerWaitableForTest(HANDLE waitable, DWORD waitTimeoutMs = 0u) noexcept;
+    // Tests only. Replaces the compositor statistics a paced frame samples (nullopt reads DCompositionGetStatistics again):
+    // a target time and refresh period in QueryPerformanceCounter ticks, or a failure.
+    struct CompositorStatsForTest final
+    {
+        uint64_t targetQpc = 0u;
+        uint64_t periodQpc = 0u;
+        HRESULT result     = S_OK;
+    };
+    void DebugSetCompositorStatsForTest(std::optional<CompositorStatsForTest> stats) noexcept;
+    // Tests only. Posts a paced-frame message with the given request identity, as a late or foreign pool callback would.
+    void DebugPostPacedFrameForTest(uint64_t request) noexcept;
+    // Tests only. Takes a frame-latency credit, waiting at most timeoutMs, so the next WM_PAINT renders at once instead of
+    // deferring: a harness that paints with UpdateWindow and counts one render per step stays deterministic. True when the
+    // host holds a credit or is unpaced.
+    [[nodiscard]] bool DebugWaitForFrameCreditForTest(DWORD timeoutMs) noexcept;
+    // Tests only. The swap chain's buffer size in device pixels (0 x 0 without a chain).
+    [[nodiscard]] SIZE DebugGetSwapChainSizeForTest() const noexcept;
+    // Tests only. The count of the chain's last present and the statistics of the last present it displayed (DXGI); false
+    // without a chain or statistics.
+    [[nodiscard]] bool DebugGetPresentStatisticsForTest(UINT& lastPresentCount, DXGI_FRAME_STATISTICS& displayed) const noexcept;
     // Tests only. Runs one frame-schedule wake at nowTickMs as the dispatcher would; true while the schedule still waits
     // for something (and the host is not hidden).
     [[nodiscard]] bool DebugAnimationTickForTest(uint64_t nowTickMs) noexcept;
@@ -7312,6 +7355,20 @@ private:
     void CancelRecoveryRetry() noexcept;
     void OnRecoveryRetryDue() noexcept;
     static void CALLBACK RecoveryRetryTimerProc(HWND hwnd, UINT message, UINT_PTR timerId, DWORD tickMs) noexcept;
+    // Native frame pacing (W3.6; Specs/Rendering/Rendering_Win32Host.md, "Frame pacing").
+    void BindFramePacer() noexcept;
+    void ReleaseFramePacerChain() noexcept;
+    [[nodiscard]] bool PacedPaintMayRender(const RECT& paintRectPx) noexcept;
+    [[nodiscard]] bool AcquirePresentCredit(const RECT* dirtyRectPx) noexcept;
+    void OnPacedFrameMessage(WPARAM request) noexcept;
+    void RunPacedFrame() noexcept;
+    [[nodiscard]] uint64_t SamplePacedFrameTime() noexcept;
+    void StartPacedContinuous() noexcept;
+    void StopPacedContinuous(bool hidden) noexcept;
+    void AfterPacedPresent() noexcept;
+    void ArmPacedSkipTimer() noexcept;
+    void KillPacedSkipTimer() noexcept;
+    static void CALLBACK PacedSkipTimerProc(HWND hwnd, UINT message, UINT_PTR timerId, DWORD tickMs) noexcept;
 #if DXUI_ENABLE_DIAGNOSTICS
     void Render(const RECT* dirtyRectPx, WindowHostBitmapCapture* capture, bool allowHidden = false) noexcept;
     [[nodiscard]] bool CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcept;
@@ -7662,6 +7719,26 @@ private:
     bool _textRenderingApplied                         = false;
     bool _textRenderingParamsStale                     = true;
     wil::com_ptr<IDXGISwapChain1> _swapChain;
+    // The flags the swap chain was created with; ResizeBuffers passes the same (DXGI rejects a changed waitable flag).
+    UINT _swapChainFlags = 0u;
+    // Native frame pacing (W3.6): declared after the chain, so it is destroyed first (its wait drained, its handle closed)
+    // on every path, a destructor on a foreign thread included.
+    std::unique_ptr<Detail::FramePacer, Detail::FramePacerDeleter> _framePacer;
+    // How the render in progress may present: as the pacer allows (a paint), after a bounded wait for a credit (a caller
+    // that reads the presented result) or not at all (a capture).
+    enum class RenderPresentMode : uint8_t
+    {
+        Paced,
+        WaitForCredit,
+        CaptureOnly,
+    };
+    RenderPresentMode _renderPresentMode = RenderPresentMode::Paced;
+    // Test-only compositor statistics (DebugSetCompositorStatsForTest), unconditional so the layout is the same in every
+    // configuration.
+    bool _debugCompositorStatsSet       = false;
+    HRESULT _debugCompositorStatsResult = S_OK;
+    uint64_t _debugCompositorTargetQpc  = 0u;
+    uint64_t _debugCompositorPeriodQpc  = 0u;
     wil::com_ptr<IDCompositionDesktopDevice> _dcompDevice;
     wil::com_ptr<IDCompositionTarget> _dcompTarget;
     wil::com_ptr<IDCompositionVisual2> _dcompVisual;

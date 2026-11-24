@@ -1,5 +1,6 @@
 #include "Controls.Tests.DxUiFocusEventClient.h"
 #include "Controls.Tests.DxUiTestHelpers.h"
+#include "Controls.Tests.FramePacing.h"
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.NativeDevicePolicy.h"
 #include "Controls.Tests.PresentedFrame.h"
@@ -6246,8 +6247,10 @@ void TestWindowHostVisibilityChangedDuringPaintRequiresFreshFrame()
                 state.paintCount == 1u,
             "a visibility change during paint prevents stale capture and presentation");
     WindowHostBitmapCapture resumed;
-    Require(host.DebugCaptureBitmap(resumed) && ! resumed.bgraPixels.empty() && host.DebugGetFullPresentAttemptCount() > presents,
-            "the next frame presents the current visible generation in full");
+    Require(host.DebugCaptureBitmap(resumed) && ! resumed.bgraPixels.empty(), "the next frame captures the current visible generation");
+    // W3.6: a capture no longer presents; the next presented frame, even one dirtying a single pixel, is still full.
+    host.DebugRenderDirtyRectForTest(RECT{0, 0, 1, 1});
+    Require(host.DebugGetFullPresentAttemptCount() > presents, "the next frame presents the current visible generation in full");
 }
 
 void TestNoninteractiveWindowActivationBlockerRejectsFocusStealing()
@@ -7499,6 +7502,8 @@ void TestWindowHostRetriesAFailedRecreationWithoutInvalidation()
     window.Host().DebugSetNextSizeResourceFailureForTest(2u, E_FAIL);
     const uint64_t resizes = window.Host().DebugGetResizeCount();
     Require(SetWindowPos(window.Hwnd(), nullptr, 0, 0, 360, 240, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE, "the window grows");
+    // W3.6: a paint renders at once only with a frame-latency credit (else it defers to the next paced frame); take one first.
+    Require(window.Host().DebugWaitForFrameCreditForTest(1'000u), "the host takes a frame credit");
     Require(UpdateWindow(window.Hwnd()) != FALSE, "the resize paints now");
     Require(window.Host().DebugGetResizeCount() == resizes + 1u, "the paint resized the swap chain");
     const uint64_t fullPresents = window.Host().DebugGetFullPresentAttemptCount();
@@ -7840,6 +7845,20 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestWindowHostDeviceCreationPreservesHandledNativeExceptions);
     DXUI_RUN_TEST(TestWindowHostPresentedFrameAfterPartialPresentsIsCurrentOnWarp);
     DXUI_RUN_TEST(TestWindowHostPresentedFrameAfterPartialPresentsIsCurrentOnHardware);
+    DXUI_RUN_TEST(TestFramePacingWaitableSemanticsOnWarp);
+    DXUI_RUN_TEST(TestFramePacingIdleArmsNothing);
+    DXUI_RUN_TEST(TestFramePacingHideDuringArmedWaitWakesNothing);
+    DXUI_RUN_TEST(TestFramePacingTenSkippedPresentsNeverDeadlock);
+    DXUI_RUN_TEST(TestFramePacingFx10SweepPresentsOnlyWithCredit);
+    DXUI_RUN_TEST(TestFramePacingResizePresentsOnlyAtTheNewSize);
+    DXUI_RUN_TEST(TestFramePacingRejectsStaleFrames);
+    DXUI_RUN_TEST(TestFramePacingSynchronousRendersBuildNoLatency);
+    DXUI_RUN_TEST(TestFramePacingCaptureNeitherTakesNorNeedsCredit);
+    DXUI_RUN_TEST(TestFramePacingStalledCompositorDefersWithoutPresenting);
+    DXUI_RUN_TEST(TestFramePacingSampleTimeIsTheTargetTime);
+    DXUI_RUN_TEST(TestFramePacingEmbeddedHostOwnsNoPacer);
+    DXUI_RUN_TEST(TestFramePacingDetachFuzz);
+    DXUI_RUN_TEST(TestFramePacingSampleTimeIsTargetTimeOnHardware);
     DXUI_RUN_TEST(TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLoss);
     DXUI_RUN_TEST(TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
     DXUI_RUN_TEST(TestWindowHostKeyboardInputMarksFocusVisible);

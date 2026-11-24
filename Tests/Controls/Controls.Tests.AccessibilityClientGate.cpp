@@ -2140,6 +2140,116 @@ void TestAccessibilityIncrementalNativeGeometryCoalescing()
     }
 }
 
+namespace
+{
+// A control that animates every frame and repaints, so its host is paced (W3.6) while it holds the request.
+class PacedAnimator final : public DxUi::Control
+{
+public:
+    PacedAnimator()                                = default;
+    PacedAnimator(const PacedAnimator&)            = delete;
+    PacedAnimator& operator=(const PacedAnimator&) = delete;
+    PacedAnimator(PacedAnimator&&)                 = delete;
+    PacedAnimator& operator=(PacedAnimator&&)      = delete;
+    ~PacedAnimator() override                      = default;
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+    bool Tick(DxUi::ControlHost& host, uint64_t) override
+    {
+        ++ticks;
+        Invalidate(host);
+        return true;
+    }
+    size_t ticks = 0u;
+};
+} // namespace
+
+// W8.2 with W3.6's pacer: a host animating through paced frames defers a geometry-only publication like any shown host; when
+// it is hidden (its presentation, minimized, its own window) the deferral is published without waiting for a frame the host
+// will not present, the pacer arms nothing, and no paced or timer wake follows. A pending accessibility deadline alone never
+// arms the pacer: it is a deadline of the dispatcher, served by paced frames only while the host animates anyway.
+void TestAccessibilityIncrementalGeometryOnAPacedHost()
+{
+    const SystemListeners nobody(false);
+    enum class Hide : uint8_t
+    {
+        Presentation,
+        Minimize,
+        OwnWindow,
+    };
+    for (const Hide hide : {Hide::Presentation, Hide::Minimize, Hide::OwnWindow})
+    {
+        auto root      = std::make_unique<DxUi::Panel>();
+        auto* field    = root->AddChild<DxUi::TextField>(L"Value");
+        auto* animator = root->AddChild<PacedAnimator>();
+        field->SetBounds(D2D1::RectF(8.0f, 40.0f, 240.0f, 68.0f));
+        field->SetAccessibleName(L"Entry");
+        animator->SetBounds(D2D1::RectF(250.0f, 8.0f, 270.0f, 28.0f));
+        InterestedWindow interested(std::move(root));
+        AttachedHostWindow& window = interested.Window();
+        auto& host                 = window.Host();
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        window.PumpMessages();
+        Require(host.DebugGetFramePacerStateForTest().paced, "the shown host is paced");
+
+        // A deadline only: the accessibility deferral wakes through the dispatcher, the pacer stays unarmed.
+        const uint64_t before = Publications();
+        field->SetBounds(D2D1::RectF(8.0f, 80.0f, 240.0f, 108.0f));
+        window.PumpMessages();
+        field->SetBounds(D2D1::RectF(8.0f, 120.0f, 240.0f, 148.0f));
+        {
+            const DxUi::Detail::WorkCounterScope deadlineOnly;
+            const auto state = host.DebugGetFramePacerStateForTest();
+            Require(! state.continuous && ! state.skipTimerArmed, "a pending accessibility deadline does not make the host animate");
+            const ULONGLONG started = GetTickCount64();
+            while (Publications() <= before + 1u && GetTickCount64() - started < 2'000u)
+                window.PumpMessages(20u);
+            Require(Publications() > before + 1u, "the deferred move is published at its deadline");
+            Require(deadlineOnly.Delta().wakes.pacedFrame == deadlineOnly.Delta().frame.pacerDeferredPaints && deadlineOnly.Delta().wakes.pacerTimer == 0u,
+                    "an accessibility deadline wakes no pacer: paced frames come only for paints that had to defer");
+        }
+
+        // Animating, then a deferral, then the hide.
+        host.RequestAnimation(*animator);
+        const ULONGLONG started = GetTickCount64();
+        while (animator->ticks < 3u && GetTickCount64() - started < 2'000u)
+            window.PumpMessages(20u);
+        Require(animator->ticks >= 3u && host.DebugGetFramePacerStateForTest().continuous, "the animator ticks through paced frames");
+        const uint64_t beforeHide = Publications();
+        field->SetBounds(D2D1::RectF(8.0f, 160.0f, 240.0f, 188.0f));
+        window.PumpMessages(5u);
+        field->SetBounds(D2D1::RectF(8.0f, 200.0f, 240.0f, 228.0f));
+        switch (hide)
+        {
+            case Hide::Presentation: Require(host.SetNativePresentationVisible(false) == S_OK, "hide the presentation"); break;
+            case Hide::Minimize: ShowWindow(window.Hwnd(), SW_SHOWMINNOACTIVE); break;
+            case Hide::OwnWindow: ShowWindow(window.Hwnd(), SW_HIDE); break;
+        }
+        const ULONGLONG hidden = GetTickCount64();
+        while (Publications() <= beforeHide + 1u && GetTickCount64() - hidden < 2'000u)
+            window.PumpMessages(20u);
+        Require(Publications() > beforeHide + 1u, "a paced host that is hidden still publishes its deferred geometry");
+        window.PumpMessages(100u);
+        const DxUi::Detail::WorkCounterScope quiet;
+        const ULONGLONG quietStarted = GetTickCount64();
+        while (GetTickCount64() - quietStarted < 600u)
+            window.PumpMessages(50u);
+        const auto state = host.DebugGetFramePacerStateForTest();
+        std::cerr << "    [W3.6+W8.2] hide " << static_cast<int>(hide) << ": quiet 600 ms, paced " << quiet.Delta().wakes.pacedFrame << ", skip "
+                  << quiet.Delta().wakes.pacerTimer << ", timers " << quiet.Delta().wakes.animationTimer + quiet.Delta().wakes.deadlineTimer << '\n';
+        // A window hidden without a schedule change (its own SW_HIDE) is observed hidden by at most one paced frame, as the frame
+        // schedule allows; the explicit hides cancel the wait at once.
+        const uint64_t allowedPaced = hide == Hide::OwnWindow ? 1u : 0u;
+        Require(! state.waitArmed && ! state.continuous && ! state.skipTimerArmed && quiet.Delta().wakes.pacedFrame <= allowedPaced &&
+                    quiet.Delta().wakes.pacerTimer == 0u && quiet.Delta().wakes.animationTimer + quiet.Delta().wakes.deadlineTimer == 0u,
+                "nothing wakes a hidden paced host once its deferral is published");
+        host.CancelAnimation(*animator);
+        if (hide == Hide::Presentation)
+            static_cast<void>(host.SetNativePresentationVisible(true));
+    }
+}
+
 // An AttestedInvalidation alive while its host is destroyed (application code run by the invalidation destroyed it) does
 // not write to the host's freed marks when it ends (W8.2 review; ASan reports the write without the guard).
 void TestAccessibilityAttestationOutlivesItsHost()

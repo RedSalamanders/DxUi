@@ -73,6 +73,22 @@ DXUI_DEFINE_COUNTED_CREATE(CreateCommandList, commandList)
 DXUI_DEFINE_COUNTED_CREATE(CreateLayer, layer)
 #undef DXUI_DEFINE_COUNTED_CREATE
 
+// A bitmap over a swap chain's back buffer (a native host's target): counted, but never held by a test's
+// ResourceLifetimeTracker. Its extra reference would keep the buffer referenced past the host's release, and
+// IDXGISwapChain::ResizeBuffers refuses (DXGI_ERROR_INVALID_CALL) while any buffer reference remains, so a tracked run
+// would recreate its chain at every resize instead of resizing it (W3.6). Its destruction is therefore not observed.
+template <typename Receiver>
+[[nodiscard]] HRESULT CountedCreateSwapChainTargetBitmap(Receiver&& receiver,
+                                                         IDXGISurface* surface,
+                                                         const D2D1_BITMAP_PROPERTIES1* properties,
+                                                         ID2D1Bitmap1** bitmap) noexcept
+{
+    const HRESULT hr = receiver->CreateBitmapFromDxgiSurface(surface, properties, bitmap);
+    if (SUCCEEDED(hr) && bitmap && *bitmap)
+        ++Detail::Tally(Detail::Work().resources, Detail::ResourceKind::bitmap).created;
+    return hr;
+}
+
 // Typography::CreateTextFormat (public, include/DxUi/Typography.h) creates one text format, possibly after a refused
 // first family; count what it returns.
 [[nodiscard]] inline HRESULT CountedCreateTypographyTextFormat(IDWriteFactory* factory,

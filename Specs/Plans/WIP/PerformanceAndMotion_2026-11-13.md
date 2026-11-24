@@ -777,7 +777,7 @@ something is due, and pace native animation frames to the display. Exit: `G1` me
     idle, 0 while hidden.
   - **Needs**: `W3.1`, `W3.2`. **Size**: M.
 
-- [ ] **W3.6 Native pacing.**
+- [x] **W3.6 Native pacing.**
   - **Why**: frames follow `WM_TIMER` (`src/Support/AnimationDispatcher.h:281-285, 429-447`), not the display;
     `FrameClock::SmoothDeltaUs` only clamps deltas above 50 ms (`src/Foundation/FrameRuntime.cpp:125-135`); the swap chain
     has no frame-latency waitable and `ResizeBuffers` passes flags 0 (`DxUi.WindowHost.cpp:4571`).

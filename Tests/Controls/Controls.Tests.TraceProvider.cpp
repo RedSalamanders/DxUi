@@ -351,6 +351,15 @@ void WINAPI OnEtwEvent(PEVENT_RECORD event) noexcept
     }
     else if (record.name == "Wake")
         record.detail = reader.Read<uint8_t>();
+    else if (record.name == "FramePaced")
+    {
+        record.frame  = reader.Read<uint64_t>();
+        record.detail = reader.Read<uint8_t>();
+        static_cast<void>(reader.Read<uint64_t>()); // TargetQpc
+        static_cast<void>(reader.Read<uint64_t>()); // SampleQpc
+        static_cast<void>(reader.Read<uint64_t>()); // PeriodQpc
+        static_cast<void>(reader.Read<uint8_t>());  // Clamped
+    }
     record.qpc = reader.Read<uint64_t>();
     const std::lock_guard guard(consumer.lock);
     if (! reader.Complete())
@@ -380,6 +389,7 @@ void WINAPI OnEtwEvent(PEVENT_RECORD event) noexcept
         case Trace::Event::Composite: return "Composite";
         case Trace::Event::Wake: return "Wake";
         case Trace::Event::HitReuseOff: return "HitReuseOff";
+        case Trace::Event::FramePaced: return "FramePaced";
         default: return "";
     }
 }

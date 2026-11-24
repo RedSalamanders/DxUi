@@ -17,6 +17,8 @@
   "Tests/Controls/Controls.Tests.FormAccessibility.h",
   "Tests/Controls/Controls.Tests.Forms.cpp",
   "Tests/Controls/Controls.Tests.Forms.h",
+  "Tests/Controls/Controls.Tests.FramePacing.cpp",
+  "Tests/Controls/Controls.Tests.FramePacing.h",
   "Tests/Controls/Controls.Tests.FrameSchedule.cpp",
   "Tests/Controls/Controls.Tests.FrameSchedule.h",
   "Tests/Controls/Controls.Tests.GridDataPaths.cpp",

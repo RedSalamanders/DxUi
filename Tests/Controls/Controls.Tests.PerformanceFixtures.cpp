@@ -1,7 +1,8 @@
 // Performance fixtures on the WindowHost: the entry point of DxUi.ControlTests.exe (plan W0.4; Tests/README.md,
 // "Performance fixtures"). Fixtures are defined in Tests/Embedded/Embedded.Tests.PerformanceFixtureFx<N>.h and listed in
 // Embedded.Tests.PerformanceFixtureCatalog.h; this file runs the ones whose hosts include the window host. A window frame
-// is the host's own WM_PAINT: posted messages other than timers are pumped, then UpdateWindow paints whatever is invalid.
+// is the host's own WM_PAINT: posted messages other than timers are pumped, then UpdateWindow paints whatever is invalid,
+// after the host took a frame-latency credit (W3.6), so the paint renders at once.
 // Timers never run here: time reaches the host only through the fixture clock (HostPort::AdvanceTime ->
 // DebugAnimationTickForTest), so two runs see the same steps. This executable does not count C++ allocations; a receipt
 // says so. Nothing here is edited to add a fixture.
@@ -147,6 +148,9 @@ public:
         paintedInvalidations_ = invalidations;
         if (updateWindow)
             Note(std::format("UpdateWindow paints an invalid region ({},{})-({},{})", invalid.left, invalid.top, invalid.right, invalid.bottom));
+        // W3.6: the paced host renders a WM_PAINT at once only while it holds a frame-latency credit, else it defers to its next
+        // paced frame; taking the credit first keeps one render per step, whatever the display's timing.
+        Require(window_->Host().DebugWaitForFrameCreditForTest(1'000u), "the window fixture's host takes a frame credit");
         static_cast<void>(UpdateWindow(hwnd));
     }
 
