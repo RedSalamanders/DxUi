@@ -1,1 +1,0 @@
-- Size the native parity fixture independently of the runner desktop and retry a real pointer delivery inside the same button in the hosted Menu regression.

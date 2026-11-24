@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Size the native parity fixture independently of the runner desktop and retry a real pointer delivery inside the same button in the hosted Menu regression.
 - Moved the core native suite projects to their canonical paths and preserved executable and paired-build identities.
 - Added guarded profile cleanup and a configurable MSBuild worker limit to the root DxUi build.
 - Exercise the reviewed CI engine's MSVC setup in the existing tooling fixtures, including direct and nested execution, refusal controls and the pinned benchmark setup path.
