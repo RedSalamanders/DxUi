@@ -551,21 +551,16 @@ try
     if (Detail::Cancelled(cancellation))
         return HRESULT_FROM_WIN32(ERROR_CANCELLED);
     std::wstring path(0u, L' ');
-    const auto admission = Detail::TryNormalizeDocumentFilePath(absolutePath, path);
+    const auto admission = Detail::TryNormalizeDocumentFilePath(absolutePath, path, true);
     if (admission == SourceResult::CapacityExceeded)
         return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
     if (admission != SourceResult::Success || path.empty())
         return E_INVALIDARG;
-    std::wstring native(0u, L' ');
-    if (path.starts_with(L"\\\\"))
-        native.append(L"\\\\?\\UNC\\").append(path, 2u);
-    else
-        native.append(L"\\\\?\\").append(path);
-    if (native.size() > 32767u)
+    if (path.size() > 32767u)
         return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
     const auto& calls = Detail::FileCalls();
     wil::unique_hfile file(
-        calls.create(native.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr));
+        calls.create(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr));
     if (! file)
         return HRESULT_FROM_WIN32(GetLastError());
     if (calls.type(file.get()) != FILE_TYPE_DISK)

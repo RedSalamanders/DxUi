@@ -151,15 +151,31 @@ inline bool ParseLocalFilePath(std::wstring_view input, ParsedLocalFilePath& res
     }
     return ! result.parts.empty();
 }
+inline void BuildCanonicalLocalFilePath(const ParsedLocalFilePath& path, std::wstring& result, bool verbatim = false)
+{
+    std::wstring_view root = std::wstring_view(path.text).substr(0u, path.rootEnd);
+    std::wstring_view prefix;
+    if (verbatim)
+    {
+        prefix = path.unc ? L"\\\\?\\UNC\\" : L"\\\\?\\";
+        if (path.unc)
+            root.remove_prefix(2u);
+    }
+    auto units = prefix.size() + root.size();
+    for (const auto component : path.parts)
+        units += 1u + component.last - component.first;
+    result.reserve(units);
+    result.append(prefix).append(root);
+    for (const auto component : path.parts)
+        result.append(L"\\").append(path.Slice(component));
+}
 inline std::wstring CanonicalLocalFilePath(const ParsedLocalFilePath& path)
 {
     std::wstring result(0u, L' ');
-    result.append(path.text, 0u, path.rootEnd);
-    for (const auto component : path.parts)
-        result.append(L"\\").append(path.Slice(component));
+    BuildCanonicalLocalFilePath(path, result);
     return std::wstring(result);
 }
-inline SourceResult TryNormalizeDocumentFilePath(std::wstring_view path, std::wstring& output)
+inline SourceResult TryNormalizeDocumentFilePath(std::wstring_view path, std::wstring& output, bool verbatim = false)
 {
     if (path.empty())
     {
@@ -170,7 +186,8 @@ inline SourceResult TryNormalizeDocumentFilePath(std::wstring_view path, std::ws
     bool capacityExceeded = false;
     if (! ParseLocalFilePath(path, parsed, &capacityExceeded))
         return capacityExceeded ? SourceResult::CapacityExceeded : SourceResult::InvalidSource;
-    auto candidate = CanonicalLocalFilePath(parsed);
+    std::wstring candidate(0u, L' ');
+    BuildCanonicalLocalFilePath(parsed, candidate, verbatim);
     output.swap(candidate);
     return SourceResult::Success;
 }
