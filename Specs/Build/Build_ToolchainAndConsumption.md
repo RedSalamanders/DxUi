@@ -312,7 +312,9 @@ and notification targets keep a module lifetime pin, so detach/uninstall must ha
 `BUSY` until those objects and active entries finish. The checked lifecycle result
 does not authorize unloading a module with retained provider state.
 
-Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
+Run `restore.ps1 [-Platform x64|ARM64]` for the product's standard pinned dependencies before building. The default
+target is x64. WIL and the vcpkg tool revision are pinned. The consumer-facing `vcpkg-install.ps1` retains its
+`-Platform x64|ARM64|All` and managed output options.
 A normal product restore in PowerShell 7 with output under DxUi's `.build` uses the pinned CI engine for
 compiler selection, complete checkout, overlay generation and manifest arguments. Source-only consumers,
 Windows PowerShell 5.1 and a consumer-supplied external output use the compatible source helpers below.
