@@ -40,6 +40,18 @@ Import-Module (Join-Path $repoRoot 'Tools/VisualStudio.psm1') -Force
 Import-Module (Join-Path $repoRoot 'Tools/VcpkgTriplet.psm1') -Force
 Import-Module (Join-Path $repoRoot 'Tools/VcpkgRestore.psm1') -Force
 $buildRoot = if ($OutputRoot) { [IO.Path]::GetFullPath($OutputRoot) } else { Join-Path $repoRoot '.build' }
+# The consumer source interface also runs under Windows PowerShell and can own a separate output root.
+$ownBuild = Join-Path $repoRoot '.build'
+$ordinaryOutput = ($buildRoot -ieq $ownBuild) -or
+    $buildRoot.StartsWith($ownBuild + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
+$useSharedToolchain = $PSVersionTable.PSEdition -ceq 'Core' -and $ordinaryOutput -and
+    [IO.File]::Exists((Join-Path $repoRoot '.ci/project.json'))
+if ($useSharedToolchain) {
+    Import-Module (Join-Path $repoRoot '.ci-engine/Tools/Modules/Ci.EngineBinding.psm1') -ErrorAction Stop
+    foreach ($module in @('VisualStudio.psm1','VcpkgTriplet.psm1','VcpkgCheckout.psm1','VcpkgInstall.psm1')) {
+        Import-Module (Resolve-CiPinnedEngineModule -ProjectRoot $repoRoot -Name $module) -Scope Local -ErrorAction Stop
+    }
+}
 $toolRoot = Join-Path $buildRoot 'vcpkg-tool'
 $toolStampPath = Join-Path $buildRoot 'vcpkg-tool.commit'
 $toolIdentityPath = Join-Path $repoRoot 'vcpkg-tool.json'
@@ -62,8 +74,13 @@ if ([string]::IsNullOrWhiteSpace($repository) -or $commit -notmatch '^[0-9a-fA-F
 # vcpkg picks the newest MSVC toolset of the Visual Studio installation it prefers; build.ps1's MSBuild compiles with the
 # installation's default toolset. Find both the way build.ps1 does, here, before anything is cloned or downloaded, so a
 # broken installation fails at once and every triplet below is pinned to what MSBuild uses.
-$installation = Get-DxUiVisualStudioInstallation
-$toolset = Get-DxUiDefaultToolset -Installation $installation
+if ($useSharedToolchain) {
+    $installation = Find-CiVisualStudioInstallation
+    $toolset = Get-CiDefaultMsvcToolset -Installation $installation
+} else {
+    $installation = Get-DxUiVisualStudioInstallation
+    $toolset = Get-DxUiDefaultToolset -Installation $installation
+}
 [xml]$toolchainPolicy = Get-Content -LiteralPath (Join-Path $repoRoot 'Directory.Build.props') -Raw
 $requiredTools = $toolchainPolicy.SelectSingleNode('/Project/PropertyGroup/RequiredMsvcToolsVersion').InnerText
 if ($toolset.MajorMinor -cne $requiredTools) {
@@ -79,6 +96,7 @@ $isToolCurrent={
     if($LASTEXITCODE -ne 0 -or $origin.TrimEnd('/') -ne $repository.TrimEnd('/')){throw 'The managed vcpkg checkout does not use the pinned repository.'}
     # A partial clone is never current: initialization completes it (see the clone below).
     if(& git.exe -C $toolRoot config --get remote.origin.partialclonefilter){return $false}
+    if ($useSharedToolchain -and ((& git.exe -C $toolRoot rev-parse --is-shallow-repository) -ceq 'true')) { return $false }
     $dirty=& git.exe -C $toolRoot status --porcelain
     if($LASTEXITCODE -ne 0 -or $dirty){throw 'The managed vcpkg checkout cannot be verified clean.'}
     $head=& git.exe -C $toolRoot rev-parse HEAD
@@ -87,83 +105,91 @@ $isToolCurrent={
     return $head -ceq $commit -and $stamp -ceq $commit -and (Test-Path -LiteralPath (Join-Path $toolRoot 'vcpkg.exe') -PathType Leaf)
 }
 $initializeTool={
-if (-not (Test-Path -LiteralPath (Join-Path $toolRoot '.git') -PathType Container)) {
-    if (Test-Path -LiteralPath $toolRoot) {
-        throw "The managed vcpkg path exists but is not a Git checkout: $toolRoot"
-    }
-
-    Write-Host "Cloning pinned vcpkg tooling into $toolRoot" -ForegroundColor Cyan
-    # A complete clone: vcpkg extracts each versioned port with git read-tree and checkout-index in an environment
-    # that holds only GIT_INDEX_FILE. Without SystemRoot that git resolves no host, so it cannot fetch an object a
-    # partial clone left on the server ("Could not resolve host: github.com" for a promisor object).
-    # Set only this managed checkout: relocated consumers may exceed traditional Win32 path limits.
-    & git.exe clone -c core.longpaths=true $repository $toolRoot
-    if ($LASTEXITCODE -ne 0) {
-        throw "git clone failed with exit code $LASTEXITCODE."
-    }
-}
-
-$origin = & git.exe -C $toolRoot remote get-url origin
-if ($LASTEXITCODE -ne 0 -or $origin.TrimEnd('/') -ne $repository.TrimEnd('/')) {
-    throw "The managed vcpkg checkout does not use the pinned repository: $repository"
-}
-
-# Earlier versions of this script made a partial, shallow clone. Complete it in place, keeping its HEAD. The filter
-# setting goes only once every object is local, so an interrupted completion is detected and retried.
-if (& git.exe -C $toolRoot config --get remote.origin.partialclonefilter) {
-    Write-Host "Completing the partial vcpkg clone in $toolRoot" -ForegroundColor Cyan
-    if ((& git.exe -C $toolRoot rev-parse --is-shallow-repository) -eq 'true') {
-        & git.exe -C $toolRoot fetch --unshallow origin
-        if ($LASTEXITCODE -ne 0) {
-            throw "Unable to unshallow the managed vcpkg checkout (exit code $LASTEXITCODE)."
-        }
-    }
-    & git.exe -C $toolRoot fetch --refetch --no-filter origin
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unable to complete the managed vcpkg checkout (exit code $LASTEXITCODE)."
-    }
-    & git.exe -C $toolRoot config --unset-all remote.origin.partialclonefilter
-    & git.exe -C $toolRoot config --unset-all remote.origin.promisor
-}
-
-$dirty = & git.exe -C $toolRoot status --porcelain
-if ($LASTEXITCODE -ne 0) {
-    throw 'Unable to inspect the managed vcpkg checkout.'
-}
-if ($dirty) {
-    throw "The managed vcpkg checkout contains local changes: $toolRoot"
-}
-
-$head = & git.exe -C $toolRoot rev-parse HEAD 2>$null
-if ($LASTEXITCODE -ne 0 -or $head -ne $commit) {
-    Write-Host "Selecting pinned vcpkg commit $commit" -ForegroundColor Cyan
-    # The default branch normally holds the pinned commit. Fetch it only when it is missing, with its history, so
-    # the checkout stays complete and never becomes shallow.
-    if (-not (& git.exe -C $toolRoot rev-parse --verify --quiet "$commit^{commit}")) {
-        & git.exe -C $toolRoot fetch origin $commit
-        if ($LASTEXITCODE -ne 0) {
-            throw "Unable to fetch pinned vcpkg commit $commit."
-        }
-    }
-    & git.exe -C $toolRoot checkout --detach $commit
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unable to check out pinned vcpkg commit $commit."
-    }
-}
-
-$vcpkg = Join-Path $toolRoot 'vcpkg.exe'
-$stampedCommit = if (Test-Path -LiteralPath $toolStampPath -PathType Leaf) {
-    (Get-Content -Raw -LiteralPath $toolStampPath).Trim()
+if ($useSharedToolchain) {
+    Initialize-CiVcpkgCheckout -ProjectRoot $repoRoot -Path $toolRoot -Repository $repository -Commit $commit
 } else {
-    ''
-}
-if (-not (Test-Path -LiteralPath $vcpkg -PathType Leaf) -or $stampedCommit -ne $commit) {
-    Write-Host 'Bootstrapping vcpkg...' -ForegroundColor Cyan
-    & (Join-Path $toolRoot 'bootstrap-vcpkg.bat') -disableMetrics
-    if ($LASTEXITCODE -ne 0) {
-        throw "vcpkg bootstrap failed with exit code $LASTEXITCODE."
+    if (-not (Test-Path -LiteralPath (Join-Path $toolRoot '.git') -PathType Container)) {
+        if (Test-Path -LiteralPath $toolRoot) {
+            throw "The managed vcpkg path exists but is not a Git checkout: $toolRoot"
+        }
+
+        Write-Host "Cloning pinned vcpkg tooling into $toolRoot" -ForegroundColor Cyan
+        # A complete clone: vcpkg extracts each versioned port with git read-tree and checkout-index in an environment
+        # that holds only GIT_INDEX_FILE. Without SystemRoot that git resolves no host, so it cannot fetch an object a
+        # partial clone left on the server ("Could not resolve host: github.com" for a promisor object).
+        # Set only this managed checkout: relocated consumers may exceed traditional Win32 path limits.
+        & git.exe clone -c core.longpaths=true $repository $toolRoot
+        if ($LASTEXITCODE -ne 0) {
+            throw "git clone failed with exit code $LASTEXITCODE."
+        }
     }
-    Set-Content -LiteralPath $toolStampPath -Value $commit -Encoding ascii
+
+    $origin = & git.exe -C $toolRoot remote get-url origin
+    if ($LASTEXITCODE -ne 0 -or $origin.TrimEnd('/') -ne $repository.TrimEnd('/')) {
+        throw "The managed vcpkg checkout does not use the pinned repository: $repository"
+    }
+
+    # Earlier versions of this script made a partial, shallow clone. Complete it in place, keeping its HEAD. The filter
+    # setting goes only once every object is local, so an interrupted completion is detected and retried.
+    if (& git.exe -C $toolRoot config --get remote.origin.partialclonefilter) {
+        Write-Host "Completing the partial vcpkg clone in $toolRoot" -ForegroundColor Cyan
+        if ((& git.exe -C $toolRoot rev-parse --is-shallow-repository) -eq 'true') {
+            & git.exe -C $toolRoot fetch --unshallow origin
+            if ($LASTEXITCODE -ne 0) {
+                throw "Unable to unshallow the managed vcpkg checkout (exit code $LASTEXITCODE)."
+            }
+        }
+        & git.exe -C $toolRoot fetch --refetch --no-filter origin
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to complete the managed vcpkg checkout (exit code $LASTEXITCODE)."
+        }
+        & git.exe -C $toolRoot config --unset-all remote.origin.partialclonefilter
+        & git.exe -C $toolRoot config --unset-all remote.origin.promisor
+    }
+
+    $dirty = & git.exe -C $toolRoot status --porcelain
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Unable to inspect the managed vcpkg checkout.'
+    }
+    if ($dirty) {
+        throw "The managed vcpkg checkout contains local changes: $toolRoot"
+    }
+
+    $head = & git.exe -C $toolRoot rev-parse HEAD 2>$null
+    if ($LASTEXITCODE -ne 0 -or $head -ne $commit) {
+        Write-Host "Selecting pinned vcpkg commit $commit" -ForegroundColor Cyan
+        # The default branch normally holds the pinned commit. Fetch it only when it is missing, with its history, so
+        # the checkout stays complete and never becomes shallow.
+        if (-not (& git.exe -C $toolRoot rev-parse --verify --quiet "$commit^{commit}")) {
+            & git.exe -C $toolRoot fetch origin $commit
+            if ($LASTEXITCODE -ne 0) {
+                throw "Unable to fetch pinned vcpkg commit $commit."
+            }
+        }
+        & git.exe -C $toolRoot checkout --detach $commit
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to check out pinned vcpkg commit $commit."
+        }
+    }
+}
+
+if ($useSharedToolchain) {
+    $null = Initialize-CiVcpkgExecutable -ProjectRoot $repoRoot -ToolRoot $toolRoot -StampPath $toolStampPath -Commit $commit
+} else {
+    $vcpkg = Join-Path $toolRoot 'vcpkg.exe'
+    $stampedCommit = if (Test-Path -LiteralPath $toolStampPath -PathType Leaf) {
+        (Get-Content -Raw -LiteralPath $toolStampPath).Trim()
+    } else {
+        ''
+    }
+    if (-not (Test-Path -LiteralPath $vcpkg -PathType Leaf) -or $stampedCommit -ne $commit) {
+        Write-Host 'Bootstrapping vcpkg...' -ForegroundColor Cyan
+        & (Join-Path $toolRoot 'bootstrap-vcpkg.bat') -disableMetrics
+        if ($LASTEXITCODE -ne 0) {
+            throw "vcpkg bootstrap failed with exit code $LASTEXITCODE."
+        }
+        Set-Content -LiteralPath $toolStampPath -Value $commit -Encoding ascii
+    }
 }
 }
 $toolLease=Enter-DxUiVcpkgToolReadLease -BuildRoot $buildRoot -IsCurrent $isToolCurrent -Initialize $initializeTool
@@ -181,21 +207,34 @@ foreach ($targetPlatform in $platforms) {
     $packagesRoot = Join-Path $buildRoot "vcpkg_packages\$platformScope"
     $downloadsRoot = Join-Path $buildRoot 'vcpkg_downloads'
     # The pinned checkout's own triplet, copied and pinned; vcpkg takes an overlay in place of the triplet of the same name.
-    $overlay = Update-DxUiVcpkgOverlayTriplet -StockTripletPath (Join-Path $toolRoot "triplets/$triplet.cmake") -Toolset $toolset `
-        -OutputDirectory (Join-Path $buildRoot "vcpkg-triplets\$platformScope")
+    $sourceTriplet = Join-Path $toolRoot "triplets/$triplet.cmake"
+    $overlayRoot = Join-Path $buildRoot "vcpkg-triplets\$platformScope"
+    if ($useSharedToolchain) {
+        $header = '# DxUi: build with the Visual Studio installation and default MSVC toolset MSBuild uses (generated by vcpkg-install.ps1; do not edit).'
+        $overlay = Update-CiVcpkgOverlayTriplet -ProjectRoot $repoRoot -SourceTripletPath $sourceTriplet `
+            -Toolset $toolset -OutputDirectory $overlayRoot -Header $header
+    } else {
+        $overlay = Update-DxUiVcpkgOverlayTriplet -StockTripletPath $sourceTriplet -Toolset $toolset -OutputDirectory $overlayRoot
+    }
     Write-Host "Overlay triplet $($overlay.Path) $(if ($overlay.Changed) { 'written' } else { 'unchanged' })" -ForegroundColor Cyan
 
     Write-Host "Installing DxUi dependencies ($triplet)" -ForegroundColor Cyan
-    $arguments = @(
-        'install',
-        "--triplet=$triplet",
-        "--x-manifest-root=$repoRoot",
-        "--x-install-root=$installRoot",
-        "--x-buildtrees-root=$buildTreesRoot",
-        "--x-packages-root=$packagesRoot",
-        "--downloads-root=$downloadsRoot",
-        "--overlay-triplets=$($overlay.Directory)"
-    )
+    if ($useSharedToolchain) {
+        $arguments = Get-CiVcpkgManifestInstallArguments -ProjectRoot $repoRoot -Triplet $triplet `
+            -InstallRoot $installRoot -BuildTreesRoot $buildTreesRoot -PackagesRoot $packagesRoot `
+            -DownloadsRoot $downloadsRoot -OverlayTriplets $overlay.Directory
+    } else {
+        $arguments = @(
+            'install',
+            "--triplet=$triplet",
+            "--x-manifest-root=$repoRoot",
+            "--x-install-root=$installRoot",
+            "--x-buildtrees-root=$buildTreesRoot",
+            "--x-packages-root=$packagesRoot",
+            "--downloads-root=$downloadsRoot",
+            "--overlay-triplets=$($overlay.Directory)"
+        )
+    }
     & $vcpkg @arguments
     if ($LASTEXITCODE -ne 0) {
         throw "vcpkg install failed for $triplet with exit code $LASTEXITCODE."

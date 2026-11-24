@@ -1,0 +1,1 @@
+- Use the pinned shared vcpkg helpers for the native product restore and retain the source consumer interface.
