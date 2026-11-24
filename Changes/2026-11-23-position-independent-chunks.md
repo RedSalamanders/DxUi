@@ -14,9 +14,11 @@
   unchanged and short documents draw identically. An incremental preparation equals a fresh preparation with the same
   chunking bit for bit and in exact WARP pixels, with a wrong-offset negative control, and each chunk's ink is checked
   at its exact line top. The editor gives its viewport to every preparation advance: chunks meeting it (with one
-  viewport of overscan) are laid and published before any off-screen chunk (no host frame shows that partial publication yet: both hosts withhold the frame until content preparation completes), on a first load, a reflow, a live resize or
-  an edit during one; every chunk not laid yet stands in as its previous or stale geometry or an estimated placeholder
-  (its source units times the known height per unit). Until the rest is laid the layout is not current: input that
-  needs geometry, caret and selection, find, scrolling, UI Automation and text-service rectangles wait or answer pending,
-  and a reflow keeps the first visible line in place. A width step with the multiplier now lays every chunk (61 at full
-  size) instead of one whole layout. New work counters `rich.offscreenChunksLaidFirst` and `rich.viewportPublications`.
+  viewport of overscan) are laid and published before any off-screen chunk, on a first load, a reflow, a live resize or
+  an edit during one. No host frame shows that partial publication yet: both hosts withhold the frame until content
+  preparation completes. Every chunk not laid yet stands in as its previous or stale geometry or an estimated
+  placeholder (its source units times the known height per unit). Until the rest is laid the layout is not current:
+  input that needs geometry, caret and selection, find, scrolling, UI Automation and text-service rectangles wait or
+  answer pending, and a reflow keeps the first visible line in place. A width step with the multiplier now lays every
+  chunk (61 at full size) instead of one whole layout. New work counters `rich.offscreenChunksLaidFirst` and
+  `rich.viewportPublications`.
