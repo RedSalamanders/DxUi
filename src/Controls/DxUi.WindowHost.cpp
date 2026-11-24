@@ -94,8 +94,8 @@ namespace DxUi
         return E_INVALIDARG;
     }
 
-    wil::com_ptr<ID3D11Device> createdDevice;
-    wil::com_ptr<ID3D11DeviceContext> createdContext;
+    wil::com_ptr_nothrow<ID3D11Device> createdDevice;
+    wil::com_ptr_nothrow<ID3D11DeviceContext> createdContext;
     D3D_FEATURE_LEVEL createdFeatureLevel = D3D_FEATURE_LEVEL{};
 
     const auto tryCreateDevice = [&](D3D_DRIVER_TYPE requestedDriverType) noexcept
@@ -172,13 +172,13 @@ constexpr uint64_t kTooltipMaxShowDelayMs      = 2500u;
 
 struct SharedWindowHostGraphicsResources
 {
-    wil::com_ptr<ID3D11Device> d3dDevice;
-    wil::com_ptr<ID3D11DeviceContext> d3dContext;
-    wil::com_ptr<IDXGIFactory2> dxgiFactory;
-    wil::com_ptr<IDCompositionDesktopDevice> dcompDevice;
-    wil::com_ptr<ID2D1Factory1> d2dFactory;
-    wil::com_ptr<ID2D1Device> d2dDevice;
-    wil::com_ptr<IDWriteFactory> dwriteFactory;
+    wil::com_ptr_nothrow<ID3D11Device> d3dDevice;
+    wil::com_ptr_nothrow<ID3D11DeviceContext> d3dContext;
+    wil::com_ptr_nothrow<IDXGIFactory2> dxgiFactory;
+    wil::com_ptr_nothrow<IDCompositionDesktopDevice> dcompDevice;
+    wil::com_ptr_nothrow<ID2D1Factory1> d2dFactory;
+    wil::com_ptr_nothrow<ID2D1Device> d2dDevice;
+    wil::com_ptr_nothrow<IDWriteFactory> dwriteFactory;
     DWORD ownerThreadId            = 0u;
     D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
     uint64_t generation            = 1u;
@@ -795,8 +795,8 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
         Debug::Warning(L"DxUi::ControlHost: shared D3D11CreateDevice fell back to WARP.");
     }
 
-    wil::com_ptr<IDXGIDevice> dxgiDevice;
-    wil::com_ptr<IDXGIAdapter> adapter;
+    wil::com_ptr_nothrow<IDXGIDevice> dxgiDevice;
+    wil::com_ptr_nothrow<IDXGIAdapter> adapter;
     const HRESULT hrDxgi        = resources.d3dDevice->QueryInterface(IID_PPV_ARGS(dxgiDevice.addressof()));
     const HRESULT hrAdapter     = SUCCEEDED(hrDxgi) && dxgiDevice ? dxgiDevice->GetAdapter(adapter.addressof()) : E_FAIL;
     const HRESULT hrDxgiFactory = SUCCEEDED(hrAdapter) && adapter ? adapter->GetParent(IID_PPV_ARGS(resources.dxgiFactory.addressof())) : E_FAIL;
@@ -855,7 +855,7 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
         return false;
     }
 
-    wil::com_ptr<IDXGIDevice> dxgiDevice;
+    wil::com_ptr_nothrow<IDXGIDevice> dxgiDevice;
     const HRESULT hrDxgiDevice = resources.d3dDevice->QueryInterface(IID_PPV_ARGS(dxgiDevice.addressof()));
     if (FAILED(hrDxgiDevice) || ! dxgiDevice)
     {
@@ -5386,10 +5386,10 @@ bool ControlHost::ApplyTextRendering() noexcept
     {
         if (! _embedded)
             _textRenderingMonitor = _hwnd ? MonitorFromWindow(_hwnd, MONITOR_DEFAULTTONEAREST) : nullptr;
-        wil::com_ptr<IDWriteRenderingParams> params;
+        wil::com_ptr_nothrow<IDWriteRenderingParams> params;
         if (_textRenderingMonitor && _dwriteFactory)
         {
-            wil::com_ptr<IDWriteRenderingParams> monitorParams;
+            wil::com_ptr_nothrow<IDWriteRenderingParams> monitorParams;
             HRESULT hr = CountedCreateMonitorRenderingParams(_dwriteFactory, _textRenderingMonitor, monitorParams.put());
             if (SUCCEEDED(hr))
                 hr = MakeTextRenderingParamsFor(_dwriteFactory.get(), monitorParams.get(), antialias, params.put());
@@ -5666,7 +5666,7 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
 
     const auto createTargetBitmap = [&]() noexcept
     {
-        wil::com_ptr<IDXGISurface> surface;
+        wil::com_ptr_nothrow<IDXGISurface> surface;
         const HRESULT hrBuffer = injected(2u, _swapChain->GetBuffer(0u, IID_PPV_ARGS(surface.addressof())));
         if (FAILED(hrBuffer) || ! surface)
         {
@@ -6200,7 +6200,7 @@ bool ControlHost::CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcep
         return false;
     }
 
-    wil::com_ptr<ID3D11Texture2D> backBuffer;
+    wil::com_ptr_nothrow<ID3D11Texture2D> backBuffer;
     if (FAILED(_swapChain->GetBuffer(0, IID_PPV_ARGS(backBuffer.addressof()))) || ! backBuffer)
     {
         return false;
@@ -6213,7 +6213,7 @@ bool ControlHost::CaptureCurrentBackBuffer(WindowHostBitmapCapture& out) noexcep
     desc.Usage          = D3D11_USAGE_STAGING;
     desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 
-    wil::com_ptr<ID3D11Texture2D> staging;
+    wil::com_ptr_nothrow<ID3D11Texture2D> staging;
     if (FAILED(_d3dDevice->CreateTexture2D(&desc, nullptr, staging.addressof())) || ! staging)
     {
         return false;

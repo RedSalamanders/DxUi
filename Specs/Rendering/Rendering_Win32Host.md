@@ -278,6 +278,8 @@ device per adapter and move a window's device-dependent resources each time it c
 presents only invalidated frames, so the cross-adapter copy Windows makes for a window on another adapter's monitor
 costs one copy per presented frame, not per display refresh. A real-time host that owns its device and presents from
 the idle side of its loop chooses the monitor's adapter instead.
+The pool and each host retain device, presentation and rendering-parameter COM interfaces with
+`wil::com_ptr_nothrow`. Native setup and recovery check each operation's HRESULT at its call boundary.
 `CreateD3D11DeviceWithWarpFallback` places each `D3D11CreateDevice` attempt inside the
 audited synchronous native-call boundary. A C++ exception handled within the native
 implementation may return its original HRESULT; an escaping exception remains fatal.

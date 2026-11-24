@@ -7503,7 +7503,7 @@ private:
     UINT _dpi             = USER_DEFAULT_SCREEN_DPI;
     ThemePalette _palette = MakeDefaultThemePalette(false);
 
-    mutable wil::com_ptr<IDWriteFactory> _dwriteFactory;
+    mutable wil::com_ptr_nothrow<IDWriteFactory> _dwriteFactory;
     mutable wil::com_ptr<IDWriteTextFormat> _bodyTextFormat;
     mutable wil::com_ptr<IDWriteTextFormat> _bodyStrongTextFormat;
     mutable wil::com_ptr<IDWriteTextFormat> _bodyLargeTextFormat;
@@ -7548,25 +7548,25 @@ private:
     mutable bool _fluentIconFontAvailabilityChecked = false;
     mutable bool _fluentIconFontAvailable           = false;
 
-    wil::com_ptr<ID3D11Device> _d3dDevice;
-    wil::com_ptr<ID3D11DeviceContext> _d3dContext;
-    wil::com_ptr<ID2D1Factory1> _d2dFactory;
-    wil::com_ptr<ID2D1Device> _d2dDevice;
-    wil::com_ptr<ID2D1DeviceContext> _d2dContext;
+    wil::com_ptr_nothrow<ID3D11Device> _d3dDevice;
+    wil::com_ptr_nothrow<ID3D11DeviceContext> _d3dContext;
+    wil::com_ptr_nothrow<ID2D1Factory1> _d2dFactory;
+    wil::com_ptr_nothrow<ID2D1Device> _d2dDevice;
+    wil::com_ptr_nothrow<ID2D1DeviceContext> _d2dContext;
     // The rendering parameters for _textRenderingMonitor (window host: its window's monitor; embedded: the application's,
     // or none), what is bound to _d2dContext, and the font smoothing and antialias mode last applied to it.
-    wil::com_ptr<IDWriteRenderingParams> _textRenderingParams;
+    wil::com_ptr_nothrow<IDWriteRenderingParams> _textRenderingParams;
     IDWriteRenderingParams* _textRenderingParamsBound  = nullptr;
     HMONITOR _textRenderingMonitor                     = nullptr;
     D2D1_TEXT_ANTIALIAS_MODE _textAntialiasModeApplied = D2D1_TEXT_ANTIALIAS_MODE_DEFAULT;
     uint8_t _textRenderingSmoothingApplied             = 0u;
     bool _textRenderingApplied                         = false;
     bool _textRenderingParamsStale                     = true;
-    wil::com_ptr<IDXGISwapChain1> _swapChain;
-    wil::com_ptr<IDCompositionDesktopDevice> _dcompDevice;
-    wil::com_ptr<IDCompositionTarget> _dcompTarget;
-    wil::com_ptr<IDCompositionVisual2> _dcompVisual;
-    wil::com_ptr<ID2D1Bitmap1> _targetBitmap;
+    wil::com_ptr_nothrow<IDXGISwapChain1> _swapChain;
+    wil::com_ptr_nothrow<IDCompositionDesktopDevice> _dcompDevice;
+    wil::com_ptr_nothrow<IDCompositionTarget> _dcompTarget;
+    wil::com_ptr_nothrow<IDCompositionVisual2> _dcompVisual;
+    wil::com_ptr_nothrow<ID2D1Bitmap1> _targetBitmap;
     D3D_FEATURE_LEVEL _featureLevel        = D3D_FEATURE_LEVEL_11_0;
     UINT _widthPx                          = 0;
     UINT _heightPx                         = 0;
