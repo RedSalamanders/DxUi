@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Add a native MSVC code-analysis mode with isolated build outputs.
 - Add a root restore command for the pinned DxUi build dependencies.
 - Reuse the reviewed shared MSVC setup in paired benchmarks and retain the existing local verification command.
 - Adopt the shared hosted MSVC action and pinned formatting and repository policy checks.
