@@ -54,7 +54,7 @@ source; "not measured" means exactly that.
 | `G10` | Devices created per menu session, embedded-only application | 1 | **0** after the first | Counter on `FX4` (`W2.4`) |
 | `G11` | Text layouts created per steady repaint | one per `DrawCenteredText` call (61 call sites) | **0** | Counter on `FX5` (`W2.1`) |
 | `G12` | Per-keystroke work in a 64 Ki-unit rich document | every image re-uploaded (up to 64 MiB); whole-document semantic rebuild | **0** uploads; work proportional to the edited block | Counters on `FX8` (`W2.3`, `W7`) |
-| `G13` | Memory | idle window, per control, per cell, undo and video memory unbudgeted | idle native window ≤ 8 MB private above process entry at 1080p; ≤ 8 MiB video memory when minimized; ≤ 256 B per simple control all-in; ≤ 1 KB per visible single-line `Grid` cell; ≤ 4 MiB text history per editor | `W0.3` metrics (`W9`) |
+| `G13` | Memory | idle window, per control, per cell, undo and video memory unbudgeted | idle native window ≤ 8 MB private above process entry at 1080p; ≤ 8 MiB video memory when minimized; ≤ 912 B per control all-in on the `FX12` 10,000-control form (restated on 24 November 2026 from 256 B per simple control, on the `W9.6` receipt: 899 B measured); ≤ 1 KB per visible single-line `Grid` cell; ≤ 4 MiB text history per editor | `W0.3` metrics (`W9`) |
 | `G14` | Motion | six hand-rolled patterns; several state changes snap | every interactive state change runs through the shared motion system; identical within 1e-5 at 30/60/144/240 Hz; **0** ticks after settle; **0** ticks under reduced motion | Tests and captures on `FX11` (`W5`) |
 | `G15` | Scale | 1,000 rows and 83 controls measured | 1,000,000 rows and 10,000 controls at `G2`/`G3`; memory independent of row count | `FX9`, `FX12` (`W10`) |
 
@@ -1676,7 +1676,12 @@ are hand counts until the `W9.1` probes exist. Exit: `G13` met.
     bytes within 1 MB of pre-show; idle native window ≤ 8 MB private above process entry at 1080p (`G13`).
   - **Needs**: `W2.1`, `W9.2`, `W9.4`. **Size**: S.
 
-- [ ] **W9.6 Control footprint.**
+- [x] **W9.6 Control footprint.**
+  - **Part 2 closed unbuilt** (24 November 2026, on the developer's instruction to restate the budget): the allocation
+    prefix is built. Its receipt gives 899 B per control on the 10,000-control form, of which `Control` alone is 304 B.
+    Moving the cold fields out would save about 216 B for a control that sets none of them, cost about 220 B for one
+    that sets any (the plan's 80 B was an underestimate), and still not reach 256 B. The per-control line of `G13` is
+    restated to 912 B in §1.
   - **Why**: `Control` is about 296 B (hand count); its allocation request adds a 24 B header plus 15 B alignment
     slack, a 336 B block, and calls `HeapSize` every time (`src/Foundation/ControlAllocation.cpp:17-22, 35-45`). The
     whole struct diet is ≈ 21 KB in ComplexUi and ≈ 0.23 MB in a 1,000-control form.
@@ -1881,6 +1886,7 @@ with an open row is not accepted for closeout until that row closes.
 | `W2.9` | The interactive test ran with real pointer input in x64 Release, Debug and ASan Debug on 23 November 2026: every real move is one `WM_NCHITTEST`, one `WM_SETCURSOR`, one `WM_MOUSEMOVE`, one hit test and one reuse. One placement of the pointer delivers no move, one move or two, so the test counts the `WM_MOUSEMOVE` messages its window receives and requires one walk and one reuse per move; as first written it assumed one move per placement and failed on a placement that delivered two. | — |
 | `W0.7` | The receipt was taken on 23 November 2026 on the integration tip (`8f3b34ee3`; NVIDIA GeForce RTX 5080, High performance active, other work paused), with every pass of every case admitted. `FX12` at 4K, full frame: 9.47 ms of UI-thread CPU, 11.61 ms of GPU busy time, 94.4% of the frame inside Direct2D calls. The 10,000-control form at 4K: 38.72 ms of CPU, 4.38 ms of GPU busy time, 78.3% inside Direct2D. `G5` (at most 4 ms of CPU, GPU time below CPU time) is now measured and is not met. The receipt reads its rule on both cases as "the entry condition of `W10.4` is evaluated"; the decision is the developer's. A window-host `Present` takes 0.06 ms median. The receipt was stamped afterwards with its library identity and the hashes of its 31 input sources, computed from its recorded commit; no measured figure changed. The README tables are generated from it. | The developer's decision on `W10.4`; `G5` is the target of the later waves |
 | `W0.2` | Hardware slot of 23 November 2026 on `8f3b34ee3`: the `FX12` 4K smoke passes admission with core isolation off and on (GPU frame noise floor 1.34% shared, 0.12% isolated). The load-sensitivity study did not run: `performance-timing.ps1` takes no GPU engine snapshot for `-Purpose LoadSensitivity`, and the admission rule then rejects the quiet runs of every session because the other-process GPU load is not recorded. | A fix of that defect, then the 25-session study in the next hardware slot |
+| `W9.6` | Only the allocation prefix is built: 16 B per control in place of a 24 B header plus up to 15 B of slack, and `HeapSize` read only for an allocation sink. On the `FX12` 10,000-control form (WARP, x64 Release) a control costs 899 B all-in, from 922 B. The item's README splits that figure: a `Label` is 528 B all-in, a `Button` 864 B, a `Toggle` 952 B, a `Checkbox` 960 B and a `TextField` about 1,120 B. The second half (cold fields in a null-means-default block) is closed unbuilt and the per-control line of `G13` is restated from 256 B to 912 B, on the developer's instruction of 24 November 2026: one added pointer per control fits under it, a second does not. The "before" receipt was measured with the old source file restored in a working tree, and says so. The window-host `form-10k` receipt of `FX12` still shows the old figure, and the fixture framework still judges the line at 256 B with exceptions for `FX5` and `FX13`. | A follow-up that applies 912 B in the fixture framework and revisits those two exceptions; the window-host receipt at closeout |
 
 ## Decisions carried into this plan
 
