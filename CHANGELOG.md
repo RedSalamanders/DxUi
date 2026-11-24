@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Advance the reviewed shared CI engine pin and regenerate its eight workflow callers.
 - Route Static checks through the compiler-free mode of the root validation command.
 - Add a native MSVC code-analysis mode with isolated build outputs.
 - Add a root restore command for the pinned DxUi build dependencies.
