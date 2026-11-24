@@ -25,6 +25,12 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <!-- MSVC clears tracking state in _PrepareForClean, before BeforeClean. -->
+  <Target Name="ValidateDxUiCleanOutput" BeforeTargets="_PrepareForClean" Condition="'$(DxUiGuardClean)'=='true'">
+    <PropertyGroup>
+      <_DxUiCleanTrackingArgument Condition="'$(TLogLocation)'!=''">-TrackingDirectory &quot;$(TLogLocation)/.&quot;</_DxUiCleanTrackingArgument>
+    </PropertyGroup>
+    <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildThisFileDirectory)Tools\Assert-AnalysisOutput.ps1&quot; -OutputDirectory &quot;$(OutDir)/.&quot; -IntermediateDirectory &quot;$(IntDir)/.&quot; -Platform &quot;$(Platform)&quot; -Configuration &quot;$(Configuration)&quot; -ProjectName &quot;$(TargetName)&quot; $(_DxUiCleanTrackingArgument)" />
+  </Target>
   <Target Name="ValidateDxUiAnalysisOutput" BeforeTargets="PrepareForBuild;_PrepareForClean" Condition="'$(DxUiAnalyze)'=='true'">
     <PropertyGroup>
       <_DxUiAnalysisOutputRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory).build\analysis\'))</_DxUiAnalysisOutputRoot>

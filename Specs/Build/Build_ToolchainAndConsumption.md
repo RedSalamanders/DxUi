@@ -378,6 +378,13 @@ separate attestation contract, so the two default-output attestation phases appl
 records add no input paths or environment values and cannot replace operation output or its original failure;
 these diagnostics are not native workload measurements or performance acceptance.
 
+`build.ps1 -Clean` removes the selected local profile's first-party artifacts without restoring
+dependencies. It revokes scoped test, performance and applicable SDK build receipts and checks the
+evaluated output and tracking paths before MSBuild cleans them. `-ProductionOnly` selects the Release
+library. `-Projects` selects owned targets and their library dependency. Use `-Rebuild` to clean and
+compile the selected profile. `-MaxCpuCount` sets the MSBuild worker limit for these commands and
+ordinary builds. By default, MSBuild selects its worker count.
+
 `build.ps1 -Analyze` rebuilds the solution with MSVC code analysis on the selected architecture and profile.
 It restores missing analysis dependencies and retains binaries, intermediates and logs below `.build/analysis/`.
 The normal warning policy applies. Diagnostic outputs carry their own logs and do not publish default-build

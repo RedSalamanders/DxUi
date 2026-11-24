@@ -1262,15 +1262,16 @@ Invoke-FixtureCase 'default build entrypoint rebuilds stale inputs and preserves
     $engineInit = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$engineArguments' },$true)
     $engineSelection = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.StartsWith('if($ToolingEngineRoot)') },$true)
     $guard = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.Contains('Start-PerformanceBuildAttestation') }, $true)
-    $consumerGuard = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.StartsWith('if (-not $attestPerformanceBuild)') }, $true)
+    $consumerGuard = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.IfStatementAst] -and $Node.Extent.Text.StartsWith('if (-not ($Clean -or $attestPerformanceBuild))') }, $true)
+    $worker = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$workerArgument' }, $true)
     $arguments = $ast.Find({ param($Node) $Node -is [Management.Automation.Language.AssignmentStatementAst] -and $Node.Left.Extent.Text -ceq '$arguments' }, $true)
     # Execute the actual pre-MSBuild entrypoint stage with real v2 attestation logic. No native build is invoked;
     # only its import is suppressed because the test already imported the production module and supplies a VS fixture.
-    $stageText = 'param($Platform,$Configuration,$attestPerformanceBuild,$Rebuild,[string]$ToolingEngineRoot='''')' + "`n" +
+    $stageText = 'param($Platform,$Configuration,$attestPerformanceBuild,$Rebuild,[string]$ToolingEngineRoot='''',[switch]$Clean,[int]$MaxCpuCount=0)' + "`n" +
         '$partialBuild=$false; $selectedProjects=@(); $buildRoot=$PSScriptRoot' + "`n" +
         $engineInit.Extent.Text + "`n" + $engineSelection.Extent.Text + "`n" +
         "function Import-Module { param(`$Name, [switch]`$Force) }`n" + $initial.Extent.Text + "`n" + $consumerGuard.Extent.Text + "`n" + $guard.Extent.Text + "`n" +
-        '$log="fixture.log"; $output=(Join-Path $PSScriptRoot ''.build'')' + "`n" + $arguments.Extent.Text + "`n" +
+        '$log="fixture.log"; $output=(Join-Path $PSScriptRoot ''.build'')' + "`n" + $worker.Extent.Text + "`n" + $arguments.Extent.Text + "`n" +
         '[ordered]@{ arguments=$arguments; state=$(if ($attestPerformanceBuild) { $performanceBuildBefore } else { $null }) }'
     # File-backed nested blocks retain the production automatic PSScriptRoot; ScriptBlock.Create has none.
     Set-FixtureFile $root 'build-entrypoint-stage.ps1' $stageText
@@ -1280,12 +1281,17 @@ Invoke-FixtureCase 'default build entrypoint rebuilds stale inputs and preserves
         foreach ($case in @(@($true,$false,'/t:Rebuild'), @($true,$false,'/t:Build'), @($true,$true,'/t:Rebuild'), @($false,$false,'/t:Rebuild'))) {
             $result = & $stage x64 Release $case[0] $case[1] 6>$null
             Assert-Contains $result.arguments $case[2] 'the actual native invocation receives the required build target'
+            Assert-Contains $result.arguments '/m' 'omitting the worker count keeps the default'
             if ($case[0]) {
                 Complete-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release -Before $result.state
                 $input=Get-ScopedBuildInputIdentity $fixture x64; $artifact=Get-ScopedArtifactIdentity $fixture x64 Release
                 Write-ScopedReceipt (Join-Path $fixture '.build/reports/scoped-tests/x64-Release/native-build.json') (Get-ScopedDigest ($input+"`n"+$artifact))
             }
         }
+        $clean = & $stage x64 Release $false $false -Clean -MaxCpuCount 2 6>$null
+        Assert-Contains $clean.arguments '/t:Clean' 'the standalone clean keeps its target'
+        Assert-Contains $clean.arguments '/m:2' 'the requested MSBuild worker count is forwarded'
+        Assert-True ($null -eq $clean.state) 'the Clean route publishes no build attestation'
         $path = Join-Path $fixture '.build/toolchain/compiler.bin'
         [IO.File]::WriteAllText($path, 'changed compiler bytes')
         $result = & $stage x64 Release $true $false 6>$null
