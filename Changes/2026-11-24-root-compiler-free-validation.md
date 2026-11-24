@@ -1,0 +1,1 @@
+- Route Static checks through the compiler-free mode of the root validation command.
