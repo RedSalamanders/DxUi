@@ -1,0 +1,226 @@
+  reach Label normal 96dpi: left -1.00 top -6.00 right -28.00 bottom -4.00
+  reach Label hovered 96dpi: left -1.00 top -6.00 right -28.00 bottom -4.00
+  reach Label pressed 96dpi: left -1.00 top -6.00 right -28.00 bottom -4.00
+  reach Label focused, focus visible 96dpi: left -1.00 top -6.00 right -28.00 bottom -4.00
+  reach Label after the focus ring left 96dpi: left -1.00 top -6.00 right -28.00 bottom -4.00
+  reach Label disabled 96dpi: left -1.00 top -6.00 right -28.00 bottom -4.00
+  reach Button normal 96dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Button hovered 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach Button pressed 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach Button focused, focus visible 96dpi: left 3.00 top 3.00 right 3.00 bottom 3.00
+  reach Button after the focus ring left 96dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Button disabled 96dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Toggle normal 96dpi: left -7.00 top -3.00 right -4.00 bottom -3.00
+  reach Toggle hovered 96dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Toggle pressed 96dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Toggle focused, focus visible 96dpi: left 2.00 top 2.00 right 2.00 bottom 2.00
+  reach Toggle after the focus ring left 96dpi: left -7.00 top -3.00 right -4.00 bottom -3.00
+  reach Toggle disabled 96dpi: left -7.00 top -3.00 right -4.00 bottom -3.00
+  reach Checkbox normal 96dpi: left -6.00 top -5.00 right -74.00 bottom -5.00
+  reach Checkbox hovered 96dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Checkbox pressed 96dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Checkbox focused, focus visible 96dpi: left 2.00 top 2.00 right 2.00 bottom 2.00
+  reach Checkbox after the focus ring left 96dpi: left -6.00 top -5.00 right -74.00 bottom -5.00
+  reach Checkbox disabled 96dpi: left -6.00 top -5.00 right -74.00 bottom -5.00
+  reach Slider normal 96dpi: left 0.00 top -4.00 right -12.00 bottom -4.00
+  reach Slider hovered 96dpi: left 0.00 top -4.00 right -12.00 bottom -4.00
+  reach Slider pressed 96dpi: left -12.00 top -4.00 right -12.00 bottom -4.00
+  reach Slider focused, focus visible 96dpi: left 3.00 top -1.00 right -12.00 bottom -1.00
+  reach Slider after the focus ring left 96dpi: left 0.00 top -4.00 right -12.00 bottom -4.00
+  reach Slider disabled 96dpi: left 0.00 top -4.00 right -12.00 bottom -4.00
+  reach ProgressBar normal 96dpi: left 1.00 top -6.00 right 1.00 bottom -6.00
+  reach ProgressBar hovered 96dpi: left 1.00 top -6.00 right 1.00 bottom -6.00
+  reach ProgressBar pressed 96dpi: left 1.00 top -6.00 right 1.00 bottom -6.00
+  reach ProgressBar focused, focus visible 96dpi: left 1.00 top -6.00 right 1.00 bottom -6.00
+  reach ProgressBar after the focus ring left 96dpi: left 1.00 top -6.00 right 1.00 bottom -6.00
+  reach ProgressBar disabled 96dpi: left 1.00 top -6.00 right 1.00 bottom -6.00
+  reach TextField normal 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach TextField hovered 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach TextField pressed 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach TextField focused, focus visible 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach TextField after the focus ring left 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach TextField disabled 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach ComboBox normal 96dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach ComboBox hovered 96dpi: left 0.00 top 1.00 right 1.00 bottom 1.00
+  reach ComboBox pressed 96dpi: left 19.00 top 1.00 right 19.00 bottom 95.00
+  reach ComboBox focused, focus visible 96dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach ComboBox after the focus ring left 96dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach ComboBox disabled 96dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach CardPanel normal 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach CardPanel hovered 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach CardPanel pressed 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach CardPanel focused, focus visible 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach CardPanel after the focus ring left 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach CardPanel disabled 96dpi: left 1.00 top 1.00 right 1.00 bottom 1.00
+  reach Separator normal 96dpi: left -80.00 top -2.00 right -79.00 bottom -2.00
+  reach Separator hovered 96dpi: left -80.00 top -2.00 right -79.00 bottom -2.00
+  reach Separator pressed 96dpi: left -80.00 top -2.00 right -79.00 bottom -2.00
+  reach Separator focused, focus visible 96dpi: left -80.00 top -2.00 right -79.00 bottom -2.00
+  reach Separator after the focus ring left 96dpi: left -80.00 top -2.00 right -79.00 bottom -2.00
+  reach Separator disabled 96dpi: left -80.00 top -2.00 right -79.00 bottom -2.00
+  reach Label normal 144dpi: left -0.67 top -7.33 right -28.00 bottom -3.33
+  reach Label hovered 144dpi: left -0.67 top -7.33 right -28.00 bottom -3.33
+  reach Label pressed 144dpi: left -0.67 top -7.33 right -28.00 bottom -3.33
+  reach Label focused, focus visible 144dpi: left -0.67 top -7.33 right -28.00 bottom -3.33
+  reach Label after the focus ring left 144dpi: left -0.67 top -7.33 right -28.00 bottom -3.33
+  reach Label disabled 144dpi: left -0.67 top -7.33 right -28.00 bottom -3.33
+  reach Button normal 144dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Button hovered 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach Button pressed 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach Button focused, focus visible 144dpi: left 3.33 top 3.33 right 3.33 bottom 3.33
+  reach Button after the focus ring left 144dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Button disabled 144dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Toggle normal 144dpi: left -7.33 top -3.33 right -4.00 bottom -3.33
+  reach Toggle hovered 144dpi: left -0.67 top -0.67 right 0.00 bottom 0.00
+  reach Toggle pressed 144dpi: left -0.67 top -0.67 right 0.00 bottom 0.00
+  reach Toggle focused, focus visible 144dpi: left 2.00 top 2.00 right 2.00 bottom 2.00
+  reach Toggle after the focus ring left 144dpi: left -7.33 top -3.33 right -4.00 bottom -3.33
+  reach Toggle disabled 144dpi: left -7.33 top -3.33 right -4.00 bottom -3.33
+  reach Checkbox normal 144dpi: left -6.67 top -5.33 right -74.00 bottom -5.33
+  reach Checkbox hovered 144dpi: left -0.67 top -0.67 right 0.00 bottom 0.00
+  reach Checkbox pressed 144dpi: left -0.67 top -0.67 right 0.00 bottom 0.00
+  reach Checkbox focused, focus visible 144dpi: left 2.00 top 2.00 right 2.00 bottom 2.00
+  reach Checkbox after the focus ring left 144dpi: left -6.67 top -5.33 right -74.00 bottom -5.33
+  reach Checkbox disabled 144dpi: left -6.67 top -5.33 right -74.00 bottom -5.33
+  reach Slider normal 144dpi: left 0.00 top -4.00 right -12.00 bottom -4.00
+  reach Slider hovered 144dpi: left 0.00 top -4.00 right -12.00 bottom -4.00
+  reach Slider pressed 144dpi: left -12.00 top -4.00 right -12.00 bottom -4.00
+  reach Slider focused, focus visible 144dpi: left 3.33 top -0.67 right -12.00 bottom -0.67
+  reach Slider after the focus ring left 144dpi: left 0.00 top -4.00 right -12.00 bottom -4.00
+  reach Slider disabled 144dpi: left 0.00 top -4.00 right -12.00 bottom -4.00
+  reach ProgressBar normal 144dpi: left 0.67 top -6.67 right 0.67 bottom -6.00
+  reach ProgressBar hovered 144dpi: left 0.67 top -6.67 right 0.67 bottom -6.00
+  reach ProgressBar pressed 144dpi: left 0.67 top -6.67 right 0.67 bottom -6.00
+  reach ProgressBar focused, focus visible 144dpi: left 0.67 top -6.67 right 0.67 bottom -6.00
+  reach ProgressBar after the focus ring left 144dpi: left 0.67 top -6.67 right 0.67 bottom -6.00
+  reach ProgressBar disabled 144dpi: left 0.67 top -6.67 right 0.67 bottom -6.00
+  reach TextField normal 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach TextField hovered 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach TextField pressed 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach TextField focused, focus visible 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach TextField after the focus ring left 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach TextField disabled 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach ComboBox normal 144dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach ComboBox hovered 144dpi: left 0.00 top 0.67 right 0.67 bottom 0.67
+  reach ComboBox pressed 144dpi: left 18.67 top 0.67 right 19.33 bottom 95.33
+  reach ComboBox focused, focus visible 144dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach ComboBox after the focus ring left 144dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach ComboBox disabled 144dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach CardPanel normal 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach CardPanel hovered 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach CardPanel pressed 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach CardPanel focused, focus visible 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach CardPanel after the focus ring left 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach CardPanel disabled 144dpi: left 0.67 top 0.67 right 0.67 bottom 0.67
+  reach Separator normal 144dpi: left -80.00 top -2.00 right -78.67 bottom -2.00
+  reach Separator hovered 144dpi: left -80.00 top -2.00 right -78.67 bottom -2.00
+  reach Separator pressed 144dpi: left -80.00 top -2.00 right -78.67 bottom -2.00
+  reach Separator focused, focus visible 144dpi: left -80.00 top -2.00 right -78.67 bottom -2.00
+  reach Separator after the focus ring left 144dpi: left -80.00 top -2.00 right -78.67 bottom -2.00
+  reach Separator disabled 144dpi: left -80.00 top -2.00 right -78.67 bottom -2.00
+  reach Label normal 192dpi: left -1.00 top -8.00 right -29.00 bottom -3.50
+  reach Label hovered 192dpi: left -1.00 top -8.00 right -29.00 bottom -3.50
+  reach Label pressed 192dpi: left -1.00 top -8.00 right -29.00 bottom -3.50
+  reach Label focused, focus visible 192dpi: left -1.00 top -8.00 right -29.00 bottom -3.50
+  reach Label after the focus ring left 192dpi: left -1.00 top -8.00 right -29.00 bottom -3.50
+  reach Label disabled 192dpi: left -1.00 top -8.00 right -29.00 bottom -3.50
+  reach Button normal 192dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Button hovered 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach Button pressed 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach Button focused, focus visible 192dpi: left 3.00 top 3.00 right 3.00 bottom 3.00
+  reach Button after the focus ring left 192dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Button disabled 192dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach Toggle normal 192dpi: left -7.00 top -3.50 right -4.50 bottom -3.50
+  reach Toggle hovered 192dpi: left -0.50 top -0.50 right -0.50 bottom -0.50
+  reach Toggle pressed 192dpi: left -0.50 top -0.50 right -0.50 bottom -0.50
+  reach Toggle focused, focus visible 192dpi: left 2.00 top 2.00 right 2.00 bottom 2.00
+  reach Toggle after the focus ring left 192dpi: left -7.00 top -3.50 right -4.50 bottom -3.50
+  reach Toggle disabled 192dpi: left -7.00 top -3.50 right -4.50 bottom -3.50
+  reach Checkbox normal 192dpi: left -6.50 top -5.50 right -74.50 bottom -5.50
+  reach Checkbox hovered 192dpi: left -0.50 top -0.50 right -0.50 bottom -0.50
+  reach Checkbox pressed 192dpi: left -0.50 top -0.50 right -0.50 bottom -0.50
+  reach Checkbox focused, focus visible 192dpi: left 2.00 top 2.00 right 2.00 bottom 2.00
+  reach Checkbox after the focus ring left 192dpi: left -6.50 top -5.50 right -74.50 bottom -5.50
+  reach Checkbox disabled 192dpi: left -6.50 top -5.50 right -74.50 bottom -5.50
+  reach Slider normal 192dpi: left 0.00 top -4.00 right -12.00 bottom -4.00
+  reach Slider hovered 192dpi: left 0.00 top -4.00 right -12.00 bottom -4.00
+  reach Slider pressed 192dpi: left -12.00 top -4.00 right -12.00 bottom -4.00
+  reach Slider focused, focus visible 192dpi: left 3.00 top -1.00 right -12.00 bottom -1.00
+  reach Slider after the focus ring left 192dpi: left 0.00 top -4.00 right -12.00 bottom -4.00
+  reach Slider disabled 192dpi: left 0.00 top -4.00 right -12.00 bottom -4.00
+  reach ProgressBar normal 192dpi: left 0.50 top -6.50 right 0.50 bottom -6.50
+  reach ProgressBar hovered 192dpi: left 0.50 top -6.50 right 0.50 bottom -6.50
+  reach ProgressBar pressed 192dpi: left 0.50 top -6.50 right 0.50 bottom -6.50
+  reach ProgressBar focused, focus visible 192dpi: left 0.50 top -6.50 right 0.50 bottom -6.50
+  reach ProgressBar after the focus ring left 192dpi: left 0.50 top -6.50 right 0.50 bottom -6.50
+  reach ProgressBar disabled 192dpi: left 0.50 top -6.50 right 0.50 bottom -6.50
+  reach TextField normal 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach TextField hovered 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach TextField pressed 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach TextField focused, focus visible 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach TextField after the focus ring left 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach TextField disabled 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach ComboBox normal 192dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach ComboBox hovered 192dpi: left 0.00 top 0.50 right 0.50 bottom 0.50
+  reach ComboBox pressed 192dpi: left 18.50 top 0.50 right 19.50 bottom 95.50
+  reach ComboBox focused, focus visible 192dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach ComboBox after the focus ring left 192dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach ComboBox disabled 192dpi: left 0.00 top 0.00 right 0.00 bottom 0.00
+  reach CardPanel normal 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach CardPanel hovered 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach CardPanel pressed 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach CardPanel focused, focus visible 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach CardPanel after the focus ring left 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach CardPanel disabled 192dpi: left 0.50 top 0.50 right 0.50 bottom 0.50
+  reach Separator normal 192dpi: left -80.00 top -2.00 right -79.00 bottom -2.00
+  reach Separator hovered 192dpi: left -80.00 top -2.00 right -79.00 bottom -2.00
+  reach Separator pressed 192dpi: left -80.00 top -2.00 right -79.00 bottom -2.00
+  reach Separator focused, focus visible 192dpi: left -80.00 top -2.00 right -79.00 bottom -2.00
+  reach Separator after the focus ring left 192dpi: left -80.00 top -2.00 right -79.00 bottom -2.00
+  reach Separator disabled 192dpi: left -80.00 top -2.00 right -79.00 bottom -2.00
+PASS W4.10 declared reach covers every pixel: 180 control kinds and states at 96, 144 and 192 DPI
+  FX5 hover step 0: 1 region rectangles, 4 Paint executions (2 leaves), 19 culled, 4624 pixels, 2 C++ allocations
+  FX5 hover step 1: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 2: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 3: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 4: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 5: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 6: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 7: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 8: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 9: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 10: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 11: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 12: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 13: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 14: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 15: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 16: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 17: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 18: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 19: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover C++ allocations per frame (G3): 2 with regions, 25 with regions off
+PASS W4.10 FX5 hover: per changed toggle the root, its card, the toggle and the slider its reach meets (4 Paint executions per rectangle; G2's literal <= 2 is not met)
+  FX5 whole frame after 60 region frames: 0 text layouts, 0 resources created, 0 table misses
+PASS W4.10 region frames keep the caches of the controls outside them
+  FX12 form-10k scrolled: at most 175 child paints for 175 children in the viewport (of 10,000 controls) over 6 frames
+  FX12 form-layout-10k scrolled: at most 182 child paints for 182 children in the viewport (of 10,000 controls) over 6 frames
+PASS W4.10 FX12 scrolled: child paints <= visible children + one row
+  enclosed clip: 1 rectangle, 1 inner clips skipped, 5 paints, 37 culled
+PASS W4.10 enclosed clips emit no inner PushAxisAlignedClip
+  W4.10: an undeclared consumer control repaints the whole view: whole view, 0 rectangles
+  W4.10: a declared consumer control repaints its region: region, 1 rectangles
+  W4.10: a declared consumer control's shrinking reach repaints its region: region, 1 rectangles
+  W4.10: a library control below an undeclared consumer panel repaints the whole view: whole view, 0 rectangles
+  W4.10: text that newly escapes its control repaints the whole view in the same preparation: whole view, 1 rectangles
+  W4.10: a control whose ink escaped repaints the whole view when it changes: whole view, 0 rectangles
+  W4.10: once it fits again, regions resume: region, 1 rectangles
+PASS W4.10 undeclared, declared and escaping controls
+  parity embedded regions seed 0x0000005EED0410A1: 48 steps, 0 differences
+  parity embedded regions seed 0x0000005EED0410B2: 48 steps, 0 differences
+  parity embedded regions seed 0x0000005EED0410C3: 48 steps, 0 differences
+  parity embedded regions-dpi seed 0x0000005EED0410D4: 32 steps, 0 differences
+  parity embedded regions-dpi seed 0x0000005EED0410E5: 32 steps, 0 differences
+  parity embedded regions-dpi seed 0x0000005EED0410F6: 32 steps, 0 differences
+  regions oracle: 118 region rectangles and 375 whole repaints, 8307 children culled, 10 ink escapes
+PASS W4.10 regions oracle: 0 differences after every partial frame

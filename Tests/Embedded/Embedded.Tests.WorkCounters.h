@@ -296,6 +296,9 @@ inline RunResult Run(const RunOptions& options)
     for (const FrameRecord& frame : dirty)
     {
         Check(frame.work.frame.preparations == 1u && frame.work.frame.composites == 1u, "a dirty ComplexUi frame prepares and composites once");
+        // W4.10: the 16 sliders, 16 progress bars and the Grid's rows a dirty frame changes cover more than half the view, so
+        // its paint region is the whole view: it repaints every visible control once, in one pass.
+        Check(frame.work.frame.paintRegionFull == 1u && frame.work.frame.paintRegionRects == 0u, "a dirty ComplexUi frame's region is the whole view");
         Check(frame.work.frame.paintExecutions == visibleControls, "a dirty ComplexUi frame paints every visible control once");
         Check(frame.work.frame.treeVisitsPaint == visibleControls, "the dirty paint walk examines every control once");
         Check(frame.work.frame.pixelsPainted == uint64_t(kWidth) * kHeight, "a dirty ComplexUi frame repaints the whole surface");

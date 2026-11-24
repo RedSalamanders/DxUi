@@ -15,6 +15,7 @@
 #include <d2d1effects.h>
 
 #include "Support/Diagnostics.h"
+#include "Support/RetainedCaches.Tests.Hooks.h"
 #include "Support/Trace.h"
 
 namespace DxUi
@@ -388,7 +389,12 @@ void Control::SetBounds(const D2D1_RECT_F& bounds) noexcept
             }
         }
         const bool hadArea = _bounds.right > _bounds.left && _bounds.bottom > _bounds.top;
-        _bounds            = bounds;
+        // W4.10: what the control painted at its old bounds leaves the view. Its own extent only: a panel's children keep
+        // theirs. The new extent joins through RequestInvalidate below, and the panels above it extend again.
+        if (_host)
+            PaintExtentAccess::AddToRegion(*_host, *this, false);
+        _bounds = bounds;
+        PaintExtentAccess::ExtentChanged(*this);
         // UI Automation publishes this control's bounding rectangles again, and its subtree's (W8.2): marked once the bounds
         // are stored, before any override runs.
         if (_host)
@@ -460,6 +466,8 @@ void Control::SetVisible(bool visible) noexcept
             static_cast<void>(_host->MarkTooltipTargetStale());
         }
         _visible = visible;
+        // W4.10: the panels above it extend over it, or no longer do.
+        PaintExtentAccess::ExtentChanged(*this);
         if (_host)
         {
             _host->_pendingContentPreparation = true;
@@ -1174,6 +1182,606 @@ bool Control::IsHitTestReported() const noexcept
     return std::ranges::any_of(kLibraryTypes, [&type](const std::type_info* library) noexcept { return *library == type; }) || IsDeclaredHitType(type);
 }
 
+namespace
+{
+// Classes outside the library that declared their painted extent (DeclarePaintOverhang), each by the exact type whose
+// constructor declared it; bounded as the hit-test declarations: one that does not fit leaves its class undeclared.
+std::array<const std::type_info*, kMaxDeclaredHitTypes> g_declaredPaintTypes{};
+size_t g_declaredPaintTypeCount  = 0u;
+SRWLOCK g_declaredPaintTypesLock = SRWLOCK_INIT;
+bool g_paintRegionsEnabled       = true;
+
+[[nodiscard]] bool IsDeclaredPaintType(const std::type_info& type) noexcept
+{
+    AcquireSRWLockShared(&g_declaredPaintTypesLock);
+    const auto release = wil::scope_exit([]() noexcept { ReleaseSRWLockShared(&g_declaredPaintTypesLock); });
+    for (size_t index = 0u; index < g_declaredPaintTypeCount; ++index)
+        if (*g_declaredPaintTypes[index] == type)
+            return true;
+    return false;
+}
+
+// The library's own classes, whose painted extent the library declares (the hit-test list: the same classes).
+[[nodiscard]] bool IsLibraryControlType(const std::type_info& type) noexcept
+{
+    static const std::array<const std::type_info*, 35u> kLibraryTypes{
+        &typeid(Panel),       &typeid(PageHost),      &typeid(CardPanel),       &typeid(Label),          &typeid(Separator),
+        &typeid(Button),      &typeid(Toggle),        &typeid(Checkbox),        &typeid(RadioButton),    &typeid(RadioButtons),
+        &typeid(ProgressBar), &typeid(PageIndicator), &typeid(ThroughputGraph), &typeid(Slider),         &typeid(Toolbar),
+        &typeid(MenuBar),     &typeid(TabControl),    &typeid(ColorSwatch),     &typeid(RichTextEditor), &typeid(TextField),
+        &typeid(ComboBox),    &typeid(TagPicker),     &typeid(StatusStrip),     &typeid(PopupLayer),     &typeid(StackPanel),
+        &typeid(FormField),   &typeid(FormPanel),     &typeid(FlexPanel),       &typeid(ScrollPanel),    &typeid(TooltipLayer),
+        &typeid(Tree),        &typeid(Grid),          &typeid(Splitter),        &typeid(NumericStepper), &typeid(ColorPicker),
+    };
+    return std::ranges::any_of(kLibraryTypes, [&type](const std::type_info* library) noexcept { return *library == type; });
+}
+
+[[nodiscard]] bool IsUnboundedOverhang(const PaintOverhang& overhang) noexcept
+{
+    return ! std::isfinite(overhang.left) || ! std::isfinite(overhang.top) || ! std::isfinite(overhang.right) || ! std::isfinite(overhang.bottom);
+}
+
+[[nodiscard]] D2D1_RECT_F UnionRect(const D2D1_RECT_F& a, const D2D1_RECT_F& b) noexcept
+{
+    return D2D1::RectF((std::min)(a.left, b.left), (std::min)(a.top, b.top), (std::max)(a.right, b.right), (std::max)(a.bottom, b.bottom));
+}
+
+[[nodiscard]] bool IsEmptyExtent(const D2D1_RECT_F& rect) noexcept
+{
+    return ! (rect.right > rect.left) || ! (rect.bottom > rect.top);
+}
+
+// The axis-aligned box of `rect` under `transform`.
+[[nodiscard]] D2D1_RECT_F TransformBox(const D2D1_MATRIX_3X2_F& transform, const D2D1_RECT_F& rect) noexcept
+{
+    if (transform._12 == 0.0f && transform._21 == 0.0f)
+    {
+        const float x0 = rect.left * transform._11 + transform._31;
+        const float x1 = rect.right * transform._11 + transform._31;
+        const float y0 = rect.top * transform._22 + transform._32;
+        const float y1 = rect.bottom * transform._22 + transform._32;
+        return D2D1::RectF((std::min)(x0, x1), (std::min)(y0, y1), (std::max)(x0, x1), (std::max)(y0, y1));
+    }
+    const std::array<D2D1_POINT_2F, 4u> corners{
+        D2D1::Point2F(rect.left, rect.top), D2D1::Point2F(rect.right, rect.top), D2D1::Point2F(rect.left, rect.bottom), D2D1::Point2F(rect.right, rect.bottom)};
+    D2D1_RECT_F box = D2D1::RectF(std::numeric_limits<float>::infinity(),
+                                  std::numeric_limits<float>::infinity(),
+                                  -std::numeric_limits<float>::infinity(),
+                                  -std::numeric_limits<float>::infinity());
+    for (const D2D1_POINT_2F& corner : corners)
+    {
+        const float x = corner.x * transform._11 + corner.y * transform._21 + transform._31;
+        const float y = corner.x * transform._12 + corner.y * transform._22 + transform._32;
+        box           = D2D1::RectF((std::min)(box.left, x), (std::min)(box.top, y), (std::max)(box.right, x), (std::max)(box.bottom, y));
+    }
+    return box;
+}
+} // namespace
+
+PaintOverhang Control::GetPaintOverhang(const ControlHost& /*host*/) const noexcept
+{
+    switch (PaintExtentAccess::Kind(*this))
+    {
+        case PaintKind::Unresolved:
+        case PaintKind::Plain: return {};
+        case PaintKind::PageHost:
+        {
+            // A page transition draws its pages translated and faded: the whole view repaints while it runs.
+            const auto* page = dynamic_cast<const PageHost*>(this);
+            if (page && page->HasActiveTransition())
+                return {std::numeric_limits<float>::infinity(), 0.0f, 0.0f, 0.0f};
+            return {kLibraryPaintReachDip, kLibraryPaintReachDip, kLibraryPaintReachDip, kLibraryPaintReachDip};
+        }
+        case PaintKind::ComboBox:
+        {
+            // The open popup paints in the overlay pass, with its shadow and backdrop, outside the box: unbounded while open.
+            const auto* combo = dynamic_cast<const ComboBox*>(this);
+            if (combo && combo->IsPopupOpen())
+                return {std::numeric_limits<float>::infinity(), 0.0f, 0.0f, 0.0f};
+            return {kLibraryPaintReachDip, kLibraryPaintReachDip, kLibraryPaintReachDip, kLibraryPaintReachDip};
+        }
+        case PaintKind::Library:
+        case PaintKind::Panel:
+        case PaintKind::ScrollPanel:
+        case PaintKind::PopupLayer: break;
+    }
+    return {kLibraryPaintReachDip, kLibraryPaintReachDip, kLibraryPaintReachDip, kLibraryPaintReachDip};
+}
+
+void Control::DeclarePaintOverhang() noexcept
+{
+    // In a constructor typeid(*this) is the class being constructed, so the declaration covers exactly that class.
+    const std::type_info& type = typeid(*this);
+    if (! IsDeclaredPaintType(type))
+    {
+        AcquireSRWLockExclusive(&g_declaredPaintTypesLock);
+        const auto release = wil::scope_exit([]() noexcept { ReleaseSRWLockExclusive(&g_declaredPaintTypesLock); });
+        bool present       = false;
+        for (size_t index = 0u; index < g_declaredPaintTypeCount && ! present; ++index)
+            present = *g_declaredPaintTypes[index] == type;
+        if (! present && g_declaredPaintTypeCount < g_declaredPaintTypes.size())
+            g_declaredPaintTypes[g_declaredPaintTypeCount++] = &type;
+    }
+    // Declared while attached (not from a constructor): resolved again, and every cached extent of the host is stale.
+    if (_host)
+    {
+        PaintExtentAccess::Resolve(*this);
+        ++_host->_paintTopologyRevision;
+    }
+}
+
+namespace Detail
+{
+bool PaintRegionsEnabled() noexcept
+{
+    return g_paintRegionsEnabled;
+}
+void SetPaintRegionsEnabledForTest(bool enabled) noexcept
+{
+    g_paintRegionsEnabled = enabled;
+}
+namespace
+{
+PaintObserverForTest g_paintObserver = nullptr;
+void* g_paintObserverContext         = nullptr;
+} // namespace
+void SetPaintObserverForTest(PaintObserverForTest observer, void* context) noexcept
+{
+    g_paintObserver        = observer;
+    g_paintObserverContext = context;
+}
+PaintObserverForTest GetPaintObserverForTest(void*& context) noexcept
+{
+    context = g_paintObserverContext;
+    return g_paintObserver;
+}
+namespace
+{
+void (*g_fullRegionObserver)() noexcept = nullptr;
+} // namespace
+void SetFullRegionObserverForTest(void (*observer)() noexcept) noexcept
+{
+    g_fullRegionObserver = observer;
+}
+void NoteFullRegionForTest() noexcept
+{
+    if (g_fullRegionObserver) [[unlikely]]
+        g_fullRegionObserver();
+}
+} // namespace Detail
+
+void PaintExtentAccess::Resolve(Control& control) noexcept
+{
+    PaintKind kind = PaintKind::Plain;
+    if (dynamic_cast<const PageHost*>(&control))
+        kind = PaintKind::PageHost;
+    else if (dynamic_cast<const ScrollPanel*>(&control))
+        kind = PaintKind::ScrollPanel;
+    else if (dynamic_cast<const PopupLayer*>(&control))
+        kind = PaintKind::PopupLayer;
+    else if (dynamic_cast<const Panel*>(&control))
+        kind = PaintKind::Panel;
+    else if (dynamic_cast<const ComboBox*>(&control))
+        kind = PaintKind::ComboBox;
+    else if (dynamic_cast<const Label*>(&control) || dynamic_cast<const Separator*>(&control) || dynamic_cast<const Button*>(&control) ||
+             dynamic_cast<const ProgressBar*>(&control) || dynamic_cast<const PageIndicator*>(&control) || dynamic_cast<const ThroughputGraph*>(&control) ||
+             dynamic_cast<const Slider*>(&control) || dynamic_cast<const MenuBar*>(&control) || dynamic_cast<const ColorSwatch*>(&control) ||
+             dynamic_cast<const RichTextEditor*>(&control) || dynamic_cast<const TextField*>(&control) || dynamic_cast<const StatusStrip*>(&control) ||
+             dynamic_cast<const TooltipLayer*>(&control) || dynamic_cast<const Tree*>(&control) || dynamic_cast<const Grid*>(&control) ||
+             dynamic_cast<const Splitter*>(&control))
+        kind = PaintKind::Library;
+    control._paintKind         = static_cast<uint8_t>(kind);
+    const std::type_info& type = typeid(control);
+    const bool declared        = IsLibraryControlType(type) || IsDeclaredPaintType(type);
+    // Only the library classes themselves: a subclass may draw text of its own outside the clip.
+    const bool clipsText = type == typeid(Tree) || type == typeid(Grid) || type == typeid(TextField) || type == typeid(ComboBox) ||
+                           type == typeid(RichTextEditor) || type == typeid(TabControl);
+    control._paintFlags = static_cast<uint8_t>((control._paintFlags & ~(kDeclared | kClipsText)) | (declared ? kDeclared : 0u) | (clipsText ? kClipsText : 0u));
+}
+
+bool PaintExtentAccess::OwnExtent(const ControlHost& host, const Control& control, D2D1_RECT_F& extent) noexcept
+{
+    if (! IsDeclared(control) || (control._paintFlags & kInkEscaped) != 0u || Kind(control) == PaintKind::Unresolved)
+        return false;
+    const PaintOverhang overhang = control.GetPaintOverhang(host);
+    if (IsUnboundedOverhang(overhang))
+        return false;
+    const D2D1_RECT_F bounds = control._bounds;
+    extent                   = D2D1::RectF(bounds.left - (std::max)(0.0f, overhang.left),
+                                           bounds.top - (std::max)(0.0f, overhang.top),
+                                           bounds.right + (std::max)(0.0f, overhang.right),
+                                           bounds.bottom + (std::max)(0.0f, overhang.bottom));
+    return true;
+}
+
+bool PaintExtentAccess::Extent(const ControlHost& host, const Control& control, D2D1_RECT_F& extent) noexcept
+{
+    const PaintKind kind = Kind(control);
+    if (kind == PaintKind::PageHost)
+        return false; // its pages are not panel children: never culled, its invalidation repaints the view
+    if (kind != PaintKind::Panel && kind != PaintKind::ScrollPanel && kind != PaintKind::PopupLayer)
+        return OwnExtent(host, control, extent);
+    const auto& panel = static_cast<const Panel&>(control);
+    auto& cached      = panel._paintExtent;
+    if (cached.valid && cached.topology == host._paintTopologyRevision)
+    {
+        extent = cached.rect;
+        return ! cached.unbounded;
+    }
+    D2D1_RECT_F rect = D2D1::RectF();
+    bool unbounded   = ! OwnExtent(host, control, rect);
+    for (const std::unique_ptr<Control>& child : panel._children)
+    {
+        if (unbounded)
+            break;
+        if (! child || ! child->_visible)
+            continue;
+        D2D1_RECT_F childExtent{};
+        if (! Extent(host, *child, childExtent))
+            unbounded = true;
+        // A ScrollPanel clips its content to its own bounds; its children only decide whether it is bounded.
+        else if (kind != PaintKind::ScrollPanel && ! IsEmptyExtent(childExtent))
+            rect = UnionRect(rect, childExtent);
+    }
+    cached.rect      = rect;
+    cached.unbounded = unbounded;
+    cached.topology  = host._paintTopologyRevision;
+    cached.valid     = true;
+    extent           = rect;
+    return ! unbounded;
+}
+
+bool PaintExtentAccess::ViewExtent(const ControlHost& host, const Control& control, bool subtree, D2D1_RECT_F& extent) noexcept
+{
+    if (! Detail::PaintRegionsEnabled() || control._host != &host)
+        return false;
+    D2D1_RECT_F rect{};
+    if (! (subtree ? Extent(host, control, rect) : OwnExtent(host, control, rect)))
+        return false;
+    // Overlay content (a PopupLayer's children) is not clipped by the viewports it is drawn through.
+    bool overlay = Kind(control) == PaintKind::PopupLayer;
+    for (const Control* ancestor = control._parent; ancestor; ancestor = ancestor->_parent)
+    {
+        if (! IsDeclared(*ancestor))
+            return false;
+        switch (Kind(*ancestor))
+        {
+            case PaintKind::PageHost:
+            {
+                const auto* page = dynamic_cast<const PageHost*>(ancestor);
+                if (! page || page->HasActiveTransition())
+                    return false;
+                break;
+            }
+            case PaintKind::ScrollPanel:
+            {
+                const auto* scroll = static_cast<const ScrollPanel*>(ancestor);
+                const float offset = scroll->GetScrollOffset();
+                rect.top -= offset;
+                rect.bottom -= offset;
+                if (! overlay)
+                {
+                    const D2D1_RECT_F viewport = scroll->GetViewportRect();
+                    rect                       = D2D1::RectF((std::max)(rect.left, viewport.left),
+                                                             (std::max)(rect.top, viewport.top),
+                                                             (std::min)(rect.right, viewport.right),
+                                                             (std::min)(rect.bottom, viewport.bottom));
+                }
+                break;
+            }
+            case PaintKind::PopupLayer: overlay = true; break;
+            case PaintKind::Unresolved: return false;
+            case PaintKind::Plain:
+            case PaintKind::Library:
+            case PaintKind::Panel:
+            case PaintKind::ComboBox: break;
+        }
+    }
+    // A control in another tree than the host's root (a detached branch) is never drawn by it.
+    const D2D1_RECT_F view = host.GetClientBoundsDip();
+    extent =
+        D2D1::RectF((std::max)(rect.left, view.left), (std::max)(rect.top, view.top), (std::min)(rect.right, view.right), (std::min)(rect.bottom, view.bottom));
+    return true;
+}
+
+void PaintExtentAccess::ExtentChanged(const Control& control) noexcept
+{
+    // The control's own cached extent (a panel's) and every one above it, up to the first already stale: a stale extent's
+    // ancestors are stale too, because computing an extent computes the stale extents below it first.
+    const ControlHost* const host = control._host;
+    if (! host)
+        return;
+    for (const Control* node = &control; node; node = node->_parent)
+    {
+        const PaintKind kind = Kind(*node);
+        if (kind != PaintKind::Panel && kind != PaintKind::ScrollPanel && kind != PaintKind::PopupLayer)
+            continue;
+        auto& cached = static_cast<const Panel*>(node)->_paintExtent;
+        if (! cached.valid || cached.topology != host->_paintTopologyRevision)
+        {
+            if (node == &control)
+                continue; // the control's own may be stale while its ancestors are not
+            return;
+        }
+        cached.valid = false;
+    }
+}
+
+void PaintExtentAccess::AddToRegion(ControlHost& host, const Control& control, bool subtree) noexcept
+{
+    if (host._paintRegion.full)
+        return;
+    D2D1_RECT_F extent{};
+    if (! ViewExtent(host, control, subtree, extent))
+    {
+        MarkFull(host);
+        return;
+    }
+    if (! IsEmptyExtent(extent))
+        AddDip(host, extent);
+}
+
+void PaintExtentAccess::Invalidate(ControlHost& host, const Control& control) noexcept
+{
+    // A control outside the library that declared its extent may change its reach with any invalidation.
+    if (IsDeclared(control) && ! IsLibraryControlType(typeid(control)))
+        ExtentChanged(control);
+    AddToRegion(host, control, true);
+    host.RequestRegionFrame();
+}
+
+namespace Detail
+{
+void NoteFullRegionForTest() noexcept;
+}
+
+void PaintExtentAccess::MarkFull(const ControlHost& host) noexcept
+{
+    if (! host._paintRegion.full)
+        Detail::NoteFullRegionForTest();
+    host._paintRegion.full  = true;
+    host._paintRegion.count = 0u;
+}
+
+void PaintExtentAccess::AddDip(ControlHost& host, const D2D1_RECT_F& rectDip) noexcept
+{
+    ControlHost::PaintRegion& region = host._paintRegion;
+    if (region.full)
+        return;
+    const UINT width  = host._widthPx;
+    const UINT height = host._heightPx;
+    if (width == 0u || height == 0u)
+    {
+        MarkFull(host);
+        return;
+    }
+    // Snapped outward to device pixels: every pixel the extent touches, partly or wholly. Antialiased coverage never reaches
+    // beyond the pixels a shape's geometry touches, and a text extent is its glyphs' ink (overhang metrics).
+    const float scale  = static_cast<float>(host.GetDpi()) / 96.0f;
+    const auto clampPx = [](float value, UINT limit) noexcept { return static_cast<LONG>(std::clamp(value, 0.0f, static_cast<float>(limit))); };
+    RECT rect{clampPx(std::floor(rectDip.left * scale), width),
+              clampPx(std::floor(rectDip.top * scale), height),
+              clampPx(std::ceil(rectDip.right * scale), width),
+              clampPx(std::ceil(rectDip.bottom * scale), height)};
+    if (rect.right <= rect.left || rect.bottom <= rect.top)
+        return;
+    const auto area  = [](const RECT& r) noexcept { return int64_t(r.right - r.left) * int64_t(r.bottom - r.top); };
+    const auto unite = [](const RECT& a, const RECT& b) noexcept
+    { return RECT{(std::min)(a.left, b.left), (std::min)(a.top, b.top), (std::max)(a.right, b.right), (std::max)(a.bottom, b.bottom)}; };
+    const auto touches = [](const RECT& a, const RECT& b) noexcept { return a.left <= b.right && b.left <= a.right && a.top <= b.bottom && b.top <= a.bottom; };
+    const auto removeAt = [&region](size_t index) noexcept
+    {
+        region.rects[index] = region.rects[region.count - 1u];
+        --region.count;
+    };
+    // Rectangles that touch or overlap the new one merge into it, until it touches none; the stored ones never overlap.
+    for (bool merged = true; merged;)
+    {
+        merged = false;
+        for (size_t index = 0u; index < region.count; ++index)
+        {
+            if (touches(region.rects[index], rect))
+            {
+                rect = unite(rect, region.rects[index]);
+                removeAt(index);
+                merged = true;
+                break;
+            }
+        }
+    }
+    if (region.count == region.rects.size())
+    {
+        // Full: the new rectangle merges with the stored one whose union grows least (then may touch others: merge again).
+        size_t best        = 0u;
+        int64_t bestGrowth = (std::numeric_limits<int64_t>::max)();
+        for (size_t index = 0u; index < region.count; ++index)
+        {
+            const int64_t growth = area(unite(rect, region.rects[index])) - area(rect) - area(region.rects[index]);
+            if (growth < bestGrowth)
+            {
+                bestGrowth = growth;
+                best       = index;
+            }
+        }
+        rect = unite(rect, region.rects[best]);
+        removeAt(best);
+        for (bool merged = true; merged;)
+        {
+            merged = false;
+            for (size_t index = 0u; index < region.count; ++index)
+            {
+                if (touches(region.rects[index], rect))
+                {
+                    rect = unite(rect, region.rects[index]);
+                    removeAt(index);
+                    merged = true;
+                    break;
+                }
+            }
+        }
+    }
+    region.rects[region.count++] = rect;
+    int64_t covered              = 0;
+    for (size_t index = 0u; index < region.count; ++index)
+        covered += area(region.rects[index]);
+    // Above half the view a full repaint costs about as much and needs no clip per rectangle.
+    if (covered * 2 > int64_t(width) * int64_t(height))
+        MarkFull(host);
+}
+
+bool PaintExtentAccess::MissesClip(const ControlHost& host, const D2D1_MATRIX_3X2_F& transform, const D2D1_RECT_F& extent) noexcept
+{
+    if (! host._paintClipBounded)
+        return false;
+    const D2D1_RECT_F box  = TransformBox(transform, extent);
+    const D2D1_RECT_F clip = host._paintClipDip;
+    return ! (box.left < clip.right && clip.left < box.right && box.top < clip.bottom && clip.top < box.bottom);
+}
+
+bool PaintExtentAccess::ClipEnclosedBy(const ControlHost& host, const D2D1_MATRIX_3X2_F& transform, const D2D1_RECT_F& rect) noexcept
+{
+    if (! host._paintClipBounded || transform._12 != 0.0f || transform._21 != 0.0f)
+        return false;
+    // The clip's pixels must each lie wholly inside the rectangle, where an antialiased clip to it covers them fully.
+    const float scale      = static_cast<float>(host.GetDpi()) / 96.0f;
+    const D2D1_RECT_F box  = TransformBox(transform, rect);
+    const D2D1_RECT_F clip = host._paintClipDip;
+    const float left       = std::floor(clip.left * scale + 0.5f);
+    const float top        = std::floor(clip.top * scale + 0.5f);
+    const float right      = std::floor(clip.right * scale + 0.5f);
+    const float bottom     = std::floor(clip.bottom * scale + 0.5f);
+    return left >= std::ceil(box.left * scale) && top >= std::ceil(box.top * scale) && right <= std::floor(box.right * scale) &&
+           bottom <= std::floor(box.bottom * scale);
+}
+
+void PaintExtentAccess::IntersectClip(ControlHost& host, const D2D1_MATRIX_3X2_F& transform, const D2D1_RECT_F& rect) noexcept
+{
+    if (! host._paintClipBounded)
+        return;
+    const D2D1_RECT_F box  = TransformBox(transform, rect);
+    const D2D1_RECT_F clip = host._paintClipDip;
+    host._paintClipDip =
+        D2D1::RectF((std::max)(clip.left, box.left), (std::max)(clip.top, box.top), (std::min)(clip.right, box.right), (std::min)(clip.bottom, box.bottom));
+    if (host._paintClipDip.right < host._paintClipDip.left)
+        host._paintClipDip.right = host._paintClipDip.left;
+    if (host._paintClipDip.bottom < host._paintClipDip.top)
+        host._paintClipDip.bottom = host._paintClipDip.top;
+}
+
+void PaintExtentAccess::NoteTextInk(ControlHost& host, const D2D1_RECT_F& inkDip) noexcept
+{
+    if (! host._paintingControl || ! host._paintingLimitBounded || host._paintingInkEscaped)
+        return;
+    const D2D1_RECT_F limit = host._paintingLimitDip;
+    if (inkDip.left >= limit.left && inkDip.top >= limit.top && inkDip.right <= limit.right && inkDip.bottom <= limit.bottom)
+        return;
+    host._paintingInkEscaped = true;
+}
+
+void PaintExtentAccess::NoteTextInk(ControlHost& host, IDWriteTextLayout* layout, D2D1_POINT_2F origin) noexcept
+{
+    if (! layout || ! host._paintingControl || ! host._paintingLimitBounded || host._paintingInkEscaped)
+        return;
+    DWRITE_OVERHANG_METRICS overhang{};
+    if (FAILED(layout->GetOverhangMetrics(&overhang)))
+    {
+        NoteUnknownTextInk(host);
+        return;
+    }
+    NoteTextInk(host,
+                D2D1::RectF(origin.x - overhang.left,
+                            origin.y - overhang.top,
+                            origin.x + layout->GetMaxWidth() + overhang.right,
+                            origin.y + layout->GetMaxHeight() + overhang.bottom));
+}
+
+void PaintExtentAccess::NoteUnknownTextInk(ControlHost& host) noexcept
+{
+    if (host._paintingControl && host._paintingLimitBounded)
+        host._paintingInkEscaped = true;
+}
+
+size_t PaintExtentAccess::CachedExtents(const Control& control) noexcept
+{
+    const auto* panel = dynamic_cast<const Panel*>(&control);
+    return panel && panel->_paintExtent.valid ? 1u : 0u;
+}
+
+void PaintExtentAccess::DropCachedExtent(Control& control) noexcept
+{
+    if (const auto* panel = dynamic_cast<const Panel*>(&control))
+        panel->_paintExtent = Panel::PaintExtent{};
+}
+
+PaintExtentAccess::ClipScope::ClipScope(ControlHost& clipHost) noexcept : host(clipHost), clip(clipHost._paintClipDip), bounded(clipHost._paintClipBounded)
+{
+}
+
+PaintExtentAccess::ClipScope::~ClipScope()
+{
+    host._paintClipDip     = clip;
+    host._paintClipBounded = bounded;
+}
+
+void PaintExtentAccess::SetClip(ControlHost& host, const D2D1_RECT_F& clipDip) noexcept
+{
+    // With regions off nothing is culled, as before W4.10.
+    host._paintClipDip     = clipDip;
+    host._paintClipBounded = Detail::PaintRegionsEnabled();
+}
+
+PaintExtentAccess::PaintingScope::PaintingScope(ControlHost& paintingHost, const Control& control) noexcept
+    : host(paintingHost),
+      lifetime(control._lifetimeToken),
+      outerControl(paintingHost._paintingControl),
+      outerLimit(paintingHost._paintingLimitDip),
+      outerBounded(paintingHost._paintingLimitBounded),
+      outerEscaped(paintingHost._paintingInkEscaped)
+{
+    host._paintingControl    = &control;
+    host._paintingInkEscaped = false;
+    // Nothing below an undeclared control is culled: its Paint may draw its children into another target, through an effect
+    // or at a place the world transform does not say.
+    if (! IsDeclared(control) && host._paintClipBounded)
+    {
+        clipSuspended          = true;
+        outerClipBounded       = true;
+        host._paintClipBounded = false;
+    }
+    // The limit is the control's bounds plus its declared reach; an undeclared or unbounded control escapes nothing.
+    const bool wasEscaped      = (control._paintFlags & kInkEscaped) != 0u;
+    control._paintFlags        = static_cast<uint8_t>(control._paintFlags & ~kInkEscaped);
+    host._paintingLimitBounded = (control._paintFlags & kClipsText) == 0u && OwnExtent(host, control, host._paintingLimitDip);
+    control._paintFlags        = static_cast<uint8_t>(control._paintFlags | (wasEscaped ? kInkEscaped : 0u));
+}
+
+PaintExtentAccess::PaintingScope::~PaintingScope()
+{
+    const Control* const control = host._paintingControl;
+    if (control && host._paintingLimitBounded && ! lifetime.expired())
+    {
+        const bool escaped    = host._paintingInkEscaped;
+        const bool wasEscaped = (control->_paintFlags & kInkEscaped) != 0u;
+        if (escaped != wasEscaped)
+        {
+            control->_paintFlags = static_cast<uint8_t>(escaped ? (control->_paintFlags | kInkEscaped) : (control->_paintFlags & ~kInkEscaped));
+            ExtentChanged(*control);
+            if (escaped)
+            {
+                // Newly escaping: a region computed with its bounded extent may miss its ink; the frame repaints the view.
+                host._paintInkEscapedNew = true;
+                ++Detail::Work().frame.inkEscapes;
+            }
+        }
+    }
+    if (clipSuspended)
+        host._paintClipBounded = outerClipBounded;
+    host._paintingControl      = outerControl;
+    host._paintingLimitDip     = outerLimit;
+    host._paintingLimitBounded = outerBounded;
+    host._paintingInkEscaped   = outerEscaped;
+}
+
 Control::~Control()
 {
     // Normally a control leaves its host (PropagateHost(nullptr)) before it is destroyed; one destroyed while attached must
@@ -1305,11 +1913,13 @@ WindowHostCursorKind Control::ResolveCursorKind(ControlHost& /*host*/, D2D1_POIN
     return WindowHostCursorKind::Default;
 }
 
+// Attributed invalidations (W4.10): the control's painted extent, with what it paints below it, joins its host's paint region.
+// An undeclared or unbounded extent, or a host the control is not attached to, repaints the whole view.
 void Control::Invalidate(ControlHost& host) const
 {
     // A control that reports every change of its record repaints with nothing undeclared for UI Automation (W8.2).
     const AttestedInvalidation reported(&host, ReportsOwnAccessibilityChanges(*this));
-    host.Invalidate();
+    PaintExtentAccess::Invalidate(host, *this);
 }
 
 void Control::RequestInvalidate() const noexcept
@@ -1317,7 +1927,7 @@ void Control::RequestInvalidate() const noexcept
     if (_host)
     {
         const AttestedInvalidation reported(_host, ReportsOwnAccessibilityChanges(*this));
-        _host->Invalidate();
+        PaintExtentAccess::Invalidate(*_host, *this);
     }
 }
 
@@ -1341,7 +1951,8 @@ void Control::InvalidateMeasure() noexcept
     if (hasLayoutOwner && _host)
     {
         _host->_pendingIntrinsicLayout = true;
-        _host->Invalidate();
+        // The layout it asks for moves controls through SetBounds, which adds what moves; until then this control's paint.
+        PaintExtentAccess::Invalidate(*_host, *this);
     }
 }
 
@@ -1483,6 +2094,16 @@ void Control::PropagateHost(ControlHost* host) noexcept
         --previousHost->_unreportedHitControls;
         _hitTestReporting = static_cast<uint8_t>(_hitTestReporting & ~kHitTestCounted);
     }
+    // W4.10: a tree change makes every cached painted extent of both hosts stale (both repaint whole frames above).
+    if (previousHost)
+        ++previousHost->_paintTopologyRevision;
+    if (host)
+    {
+        ++host->_paintTopologyRevision;
+        PaintExtentAccess::Resolve(*this);
+    }
+    else
+        _paintKind = static_cast<uint8_t>(PaintKind::Unresolved);
     _host = host;
     if (host && std::exchange(_tickRequestPending, false))
         host->RequestAnimationOnce(*this);
@@ -1522,6 +2143,13 @@ void Control::ReparentWithPreviousInheritance(Control* parent, ControlHost* host
     // control hears it the same way: once, after it stands in its final place, and only when a value differs. A child
     // that inherits what its parent already has, and a host being torn down, announce nothing. Snapshot the previous
     // values before callbacks can retire the old parent; this operation reads only the new parent chain.
+    // W4.10: a move within one host leaves its host unchanged but the panels' painted extents stale.
+    // Topology repaints the whole view.
+    if (_parent != parent && _host)
+    {
+        ++_host->_paintTopologyRevision;
+        PaintExtentAccess::MarkFull(*_host);
+    }
     _parent = parent;
     if (parent || host)
     {

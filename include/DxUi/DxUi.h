@@ -1743,6 +1743,18 @@ template <typename A, typename B> constexpr bool Same(const A& a, const B& b) no
 }
 } // namespace AssignEquality
 
+// How far a control's Paint draws outside its bounds, in DIPs on each side (Control::GetPaintOverhang; UI_ControlsAndLayout.md,
+// "Painted extent"). Every side is zero or more; an infinite side declares the reach unbounded.
+struct PaintOverhang final
+{
+    float left   = 0.0f;
+    float top    = 0.0f;
+    float right  = 0.0f;
+    float bottom = 0.0f;
+};
+// Header capability: Control::GetPaintOverhang and Control::DeclarePaintOverhang (paint regions, W4.10).
+#define DXUI_HAS_PAINT_OVERHANG 1
+
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -1920,6 +1932,19 @@ protected:
     // declares for itself. A host never reuses a hit result while an undeclared control outside the library (a subclass
     // of a library control or of a declaring class included) is attached.
     void DeclareHitTestReported() noexcept;
+    // The farthest this control's Paint draws outside GetBounds(), in DIPs, in any state it can reach with its current content
+    // and configuration: focus rings, elevation, glow and the sampling reach of a blur or shadow (UI_ControlsAndLayout.md,
+    // "Painted extent"). A host repaints and culls a control by its bounds plus this reach. The default is the reach of the
+    // library class the control derives from (zero for a direct Control subclass); a class that paints farther overrides it.
+    // An infinite side makes the reach unbounded: every invalidation repaints the whole view. When the value changes, the
+    // control invalidates while the larger value is returned.
+    [[nodiscard]] virtual PaintOverhang GetPaintOverhang(const ControlHost& host) const noexcept;
+    // Declares, from the constructor of a control class outside the library, that its Paint, apart from the children it
+    // paints through Panel::Paint, draws only within its bounds plus GetPaintOverhang, applies no transform to those children
+    // and changes its pixels only through its own invalidation. As DeclareHitTestReported, the declaration covers exactly the
+    // class whose constructor makes it. A host repaints the whole view for any invalidation of an undeclared control outside
+    // the library, or of a control below one, and never culls it.
+    void DeclarePaintOverhang() noexcept;
 
     [[nodiscard]] ControlHost* GetHost() const noexcept;
     void Invalidate(ControlHost& host) const;
@@ -2051,6 +2076,11 @@ private:
     std::unique_ptr<AccessibleFormProperties> _accessibleFormProperties;
     std::wstring _accessibleAutomationId = std::wstring(0u, L' ');
     AccessibilityRole _accessibilityRole = AccessibilityRole::Default;
+    // Painted extent (W4.10), resolved when the control joins a host: the library class it derives from (PaintKind in
+    // DxUi.Internal.h), whether its painted extent is declared, and whether its last paint drew text beyond its bounds plus
+    // reach. Both bytes sit in the padding after the one-byte role, so sizeof(Control) does not grow.
+    uint8_t _paintKind          = 0u;
+    mutable uint8_t _paintFlags = 0u;
     std::shared_ptr<const std::function<HRESULT(ControlHost&)>> _onAccessibleInvoke;
     std::shared_ptr<const std::function<void(POINT screenPoint, bool keyboardInvocation)>> _onContextMenu;
     std::shared_ptr<int> _lifetimeToken = std::make_shared<int>(0);
@@ -2084,6 +2114,7 @@ private:
     // kHitTestCounted: _host counts this control as unreported (its hit testing the host cannot see).
     static constexpr uint8_t kHitTestCounted = 1u;
     uint8_t _hitTestReporting                = 0u;
+    friend struct PaintExtentAccess;
     [[nodiscard]] bool IsHitTestReported() const noexcept;
     // A plain Label (no mnemonic, no typography override, exactly class Label) has no visual preparation; anything else
     // derived from Label keeps it. Called when a mnemonic or override changes and when the control attaches.
@@ -2197,6 +2228,18 @@ protected:
 
 private:
     std::vector<std::unique_ptr<Control>> _children;
+    // The painted extent of this panel and its visible descendants (W4.10, DxUi.RetainedCaches.cpp), in this panel's
+    // coordinates; valid while the host's paint topology revision matches. Unbounded when any of them is undeclared or
+    // unbounded. A ScrollPanel's own extent stands for its content, which its Paint clips.
+    struct PaintExtent final
+    {
+        D2D1_RECT_F rect  = D2D1::RectF();
+        uint32_t topology = 0u;
+        bool valid        = false;
+        bool unbounded    = false;
+    };
+    mutable PaintExtent _paintExtent;
+    friend struct PaintExtentAccess;
 };
 #pragma warning(pop)
 
@@ -2799,6 +2842,10 @@ public:
     bool OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers) override;
     void OnCaptureLost(ControlHost& host) override;
 
+protected:
+    // More dots than the bounds hold are drawn centred on them, beyond both ends: the reach covers that row.
+    [[nodiscard]] PaintOverhang GetPaintOverhang(const ControlHost& host) const noexcept override;
+
 private:
     friend struct ControlModelQueryAccess;
     void SelectIndex(ControlHost& host, uint32_t index);
@@ -3007,6 +3054,11 @@ public:
     void OnCaptureLost(ControlHost& host) override;
     [[nodiscard]] D2D1_RECT_F GetHitBounds() const noexcept override;
 
+protected:
+    // The hovered thumb (20 DIP) and the tick marks are not bounded by the cross size: on a short slider they pass its edges.
+    [[nodiscard]] PaintOverhang GetPaintOverhang(const ControlHost& host) const noexcept override;
+
+public:
 #if DXUI_ENABLE_DIAGNOSTICS
     [[nodiscard]] D2D1_RECT_F DebugGetTrackRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F DebugGetThumbRect() const noexcept;
@@ -6637,6 +6689,8 @@ public:
     [[nodiscard]] D2D1_RECT_F GetHueStripRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetNewSwatchRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetCurrentSwatchRect() const noexcept;
+    // Its field, strip and swatches keep their sizes in a smaller box and are drawn past it: the reach covers them.
+    [[nodiscard]] PaintOverhang GetPaintOverhang(const ControlHost& host) const noexcept override;
     [[nodiscard]] NumericStepper& RedField() noexcept;
     [[nodiscard]] NumericStepper& GreenField() noexcept;
     [[nodiscard]] NumericStepper& BlueField() noexcept;
@@ -7204,15 +7258,44 @@ private:
     void DiscardSizeDependentResources(std::wstring_view reason = {}) noexcept;
     void DiscardDeviceResources() noexcept;
     void RecreateBrushCache() const;
-    void TrimCaches() noexcept;
+    // A frame that paints only a region (W4.10) passes false: it neither starts a new cache frame nor trims, so the entries
+    // of the controls outside the region stay.
+    void TrimCaches(bool fullFrame = true) noexcept;
     // The next transition brush of this frame set to color (see _transitionBrushes); nullptr when none can be made, or with
     // orFallback the fallback brush set to color.
     [[nodiscard]] ID2D1SolidColorBrush* GetTransitionBrush(const D2D1_COLOR_F& color, bool orFallback) const;
     // Releases every keyed and transition brush and the fallback brush's warnings record (device or theme replacement).
     void ReleaseBrushes() const noexcept;
     void Render(const RECT* dirtyRectPx = nullptr, bool allowHidden = false) noexcept;
-    // Invalidate, naming why the frame is requested for the trace provider (src/Support/Trace.h, FrameReason).
+    // Invalidate, naming why the frame is requested for the trace provider (src/Support/Trace.h, FrameReason). The next frame
+    // repaints the whole view.
     void InvalidateFor(uint8_t traceFrameReason) const noexcept;
+    // Paint region (W4.10; Core_PerformanceAndResources.md, "Paint region"): at most kPaintRegionRects rectangles in device
+    // pixels of the view, snapped outward, that the next frame repaints; `full` repaints everything. Fixed storage: adding,
+    // merging and clearing do no heap work. An embedded preparation paints only the region; a native render still paints its
+    // whole window (or the system's damage) and discards it.
+    static constexpr size_t kPaintRegionRects = 8u;
+    struct PaintRegion final
+    {
+        std::array<RECT, kPaintRegionRects> rects{};
+        uint8_t count = 0u;
+        bool full     = true;
+    };
+    mutable PaintRegion _paintRegion;
+    // The paint clip in DIPs of the target (before the world transform), bounded only while a frame paints; Panel::Paint culls
+    // children whose painted extent misses it. The control whose own Paint runs and its bounds plus reach, for text that
+    // escapes it (ink escape, DxUi.Internal.h).
+    D2D1_RECT_F _paintClipDip       = D2D1::RectF();
+    bool _paintClipBounded          = false;
+    bool _paintInkEscapedNew        = false;
+    bool _paintingInkEscaped        = false;
+    bool _paintingLimitBounded      = false;
+    const Control* _paintingControl = nullptr;
+    D2D1_RECT_F _paintingLimitDip   = D2D1::RectF();
+    uint32_t _paintTopologyRevision = 1u;
+    friend struct PaintExtentAccess;
+    // Requests a frame for the region alone (the region was added to first); InvalidateFor marks it full.
+    void RequestRegionFrame() const noexcept;
     // Trace provider correlation (src/Support/Trace.h): read and written only while a trace session or test sink listens.
     struct TraceCorrelation final
     {
@@ -7550,13 +7633,16 @@ private:
         uint64_t lastUse = 0u; // the paint generation that last drew the entry
         float width      = 0.0f;
         float height     = 0.0f;
+        // How far the layout's ink reaches beyond its box (IDWriteTextLayout::GetOverhangMetrics), read once when it is made.
+        DWRITE_OVERHANG_METRICS overhang{};
     };
     friend struct TextLayoutCacheAccess;
     mutable std::vector<RetainedTextLayout> _textLayoutCache;
     uint64_t _textLayoutPaintGeneration             = 1u;
-    uint64_t _textLayoutCacheTypography             = 0u; // the typography revision the table's layouts were made under
-    uint32_t _textLayoutPaintDepth                  = 0u; // host paints in progress; the table serves only inside one
-    size_t _debugTextLayoutCacheLimit               = 0u; // 0: the bound of DxUi.Internal.h
+    uint64_t _textLayoutCacheTypography             = 0u;    // the typography revision the table's layouts were made under
+    uint32_t _textLayoutPaintDepth                  = 0u;    // host paints in progress; the table serves only inside one
+    bool _textLayoutPaintPartial                    = false; // the outermost paint covers only a region: no new generation
+    size_t _debugTextLayoutCacheLimit               = 0u;    // 0: the bound of DxUi.Internal.h
     bool _debugTextLayoutCacheDisabled              = false;
     mutable bool _fluentIconFontAvailabilityChecked = false;
     mutable bool _fluentIconFontAvailable           = false;

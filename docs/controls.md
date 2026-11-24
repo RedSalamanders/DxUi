@@ -347,6 +347,40 @@ public:
 
 Store a property in its setter with `Assign(field, value, affects)`, as the library's own controls do ([assigning a property](../Specs/UI/UI_ControlsAndLayout.md#assigning-a-property)). An unchanged value does nothing and returns `false`; a changed one is stored and routed once: `Affects::Hit` calls `InvalidateHitTest()`, `Affects::Layout` calls `InvalidateMeasure()`, `Affects::Paint` repaints and `Affects::SemanticName`, `SemanticValue` or `SemanticState` publish the change to UI Automation. Declare what reads the property: what paint, measure, hit testing or UI Automation would show stale otherwise. An optional fourth argument runs the setter's own bookkeeping (retiring a cache) after the store and before the routing; after a `true` result, return or hold `GetLifetimeToken()`, because routing can run application code that destroys the control. Several fields are assigned together as `std::tie(...)` with a `std::tuple` of values.
 
+A host repaints only what changed: an invalidation of a control adds its painted extent, its bounds plus
+`GetPaintOverhang()`, to the host's paint region, and a panel skips children whose extent misses the area being painted
+([painted extent](../Specs/UI/UI_ControlsAndLayout.md#painted-extent)). A derived control, including a subclass of a library
+control, is repainted with the whole view and never skipped until its constructor calls `DeclarePaintOverhang()`. Declare
+it when your `Paint` draws only within your bounds plus `GetPaintOverhang()`, draws the children it paints through
+`Panel::Paint` into the frame's own target with no transform of its own, and changes its pixels only through your own
+`Assign`, `Invalidate` or `RequestInvalidate`. Nothing below an undeclared control is culled, so a panel that paints its
+children into a command list, an effect or another target, or draws them somewhere else, stays correct as long as it does
+not declare. The default overhang is the reach of the library class you derive from (at least 3 DIP, the focus ring; more
+for `PageIndicator`, `Slider` and `ColorPicker`, which can draw past a box too small for them; 0 for a direct `Control`
+subclass). Override it when you paint farther: a halo, an elevation, a glow, and for a shadow or
+blur, `PaintTransientSurface`'s included, the effect's offset plus three standard deviations. Return the reach of every state
+your content and configuration allow, and invalidate while the larger value is still returned when it shrinks. An infinite
+side repaints the whole view on every invalidation. The declaration, like `DeclareHitTestReported()`, covers exactly the
+class whose constructor makes it.
+
+A reach that is too small leaves stale pixels that only some invalidations reveal, so check it: put your control alone
+in a root `Panel` of an `EmbeddedHost` on a transparent surface, bring it into every state it can reach (hover, press,
+focus with keyboard focus visible, disabled, every option that changes what it draws, the smallest size you allow), at 96,
+120, 144, 168 and 192 DPI, prepare, read the surface (`DebugReadSurfaceForTest`) and require every pixel with any coverage
+to lie inside the bounds plus `GetPaintOverhang()`, snapped outward to the device pixels they touch. The repository's own
+check is [`Support.Tests.PaintReach.h`](../Tests/Support/Support.Tests.PaintReach.h) (`InkOutsideExtent`), which
+[the library's verifier](../Tests/Embedded/Embedded.Tests.PaintRegions.h) runs on every library control.
+
+```cpp
+class Gauge final : public DxUi::Control
+{
+public:
+    Gauge() { DeclareHitTestReported(); DeclarePaintOverhang(); }
+protected:
+    DxUi::PaintOverhang GetPaintOverhang(const DxUi::ControlHost&) const noexcept override { return {4, 4, 4, 4}; } // the needle's glow
+};
+```
+
 Use keyboard/focus, cancellation, disabled and hidden states alongside pointer input. Verify high contrast,
 Unicode, DPI and minimum layout bounds. Consult [hosting](hosting.md) for the embedded text/UIA limitations.
 

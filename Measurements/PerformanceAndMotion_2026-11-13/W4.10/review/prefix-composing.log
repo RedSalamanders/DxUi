@@ -1,0 +1,2 @@
+FAIL: W4.10: nothing below an undeclared control is culled; it paints exactly as with regions off
+  undeclared composing panel: 1 culled, 4476 pixels differ from regions off

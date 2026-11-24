@@ -3,7 +3,8 @@
 // performance fixtures and the allocation instrument; uses Check and Hr from there.
 //
 // - TestFx5RetainedTextLayoutGate: the item's gate on FX5. Every step of every phase: the host's table holds no more
-//   entries than the strings its last paint drew (the registry row ControlHost._textLayoutCache); every hover frame creates
+//   entries than the strings its last whole paint drew (the registry row ControlHost._textLayoutCache; a W4.10 region frame
+//   keeps them); every hover frame creates
 //   0 text layouts and lays out nothing inside DrawText (G11); a first frame whose strings are all new creates its layouts
 //   in preparation while composition creates nothing and allocates nothing (A3); and each of FX5's labels measures with 0
 //   C++ allocations.
@@ -102,7 +103,7 @@ __declspec(noinline) inline void TestFx5RetainedTextLayoutGate()
     }
 
     // Every step: the table holds at most the strings the last paint drew (and at least one when it drew any).
-    uint64_t hoverFrames = 0u, maximumEntries = 0u;
+    uint64_t hoverFrames = 0u, maximumEntries = 0u, lastWholeEntries = TextLayoutCacheEntries(instance.View()), missesSinceWhole = 0u;
     for (size_t phase = 0u; phase < definition.phases.size(); ++phase)
         for (size_t step = 0u; step < definition.phases[phase].steps; ++step)
         {
@@ -113,8 +114,19 @@ __declspec(noinline) inline void TestFx5RetainedTextLayoutGate()
             const uint64_t drawn                  = work.text.textLayoutCacheHits + work.text.textLayoutCacheMisses;
             const uint64_t entries                = TextLayoutCacheEntries(instance.View());
             maximumEntries                        = (std::max)(maximumEntries, entries);
-            if (work.frame.preparations != 0u)
-                Check(entries <= drawn && entries > 0u, "FX5: resident entries never exceed the strings the last paint drew");
+            // A frame that repaints only its paint region (W4.10) keeps the strings of the last whole paint and adds what it
+            // laid out itself: at most the last whole frame's entries plus the misses of the region frames since.
+            if (work.frame.preparations != 0u && work.frame.paintRegionFull != 0u)
+            {
+                Check(entries <= drawn && entries > 0u, "FX5: resident entries never exceed the strings the last whole paint drew");
+                lastWholeEntries = entries;
+                missesSinceWhole = 0u;
+            }
+            else if (work.frame.preparations != 0u)
+            {
+                missesSinceWhole += work.text.textLayoutCacheMisses;
+                Check(entries <= lastWholeEntries + missesSinceWhole, "FX5: a region frame keeps at most the last whole frame's entries plus its own misses");
+            }
             Check(work.text.textLayoutCacheOverflows == 0u, "FX5 never reaches the table's bound");
             if (definition.phases[phase].name == "hover")
             {

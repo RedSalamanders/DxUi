@@ -2602,6 +2602,8 @@ void ComboBox::OpenPopup(ControlHost& host) noexcept
 
     RebuildPopupItems(&host);
     _open = true;
+    // W4.10: the open popup makes the painted reach unbounded (GetPaintOverhang): the panels above extend again.
+    PaintExtentAccess::ExtentChanged(*this);
     NoteHitTestChange(*this, HitRevisionSite::ComboBoxOpen); // the open popup covers what lies below it
     _activePopupIndex = (_selectedIndex && FindPopupListIndexForItem(_selectedIndex.value())) ? _selectedIndex : GetPopupItemIndexAt(0u);
     _hoveredPopupIndex.reset();
@@ -2633,8 +2635,14 @@ bool ComboBox::RequestPopup(ControlHost& host)
 void ComboBox::ClosePopup() noexcept
 {
     if (_open)
+    {
         NoteHitTestChange(*this, HitRevisionSite::ComboBoxClose); // what the popup covered is hit again
+        // W4.10: the closing popup leaves pixels wherever it was drawn, which the bounded reach after it does not cover.
+        if (ControlHost* const host = GetHost())
+            PaintExtentAccess::MarkFull(*host);
+    }
     _open = false;
+    PaintExtentAccess::ExtentChanged(*this);
     _activePopupIndex.reset();
     _hoveredPopupIndex.reset();
     ResetPopupLayout();

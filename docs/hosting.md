@@ -96,6 +96,14 @@ device; the application owns immediate-context scheduling and presentation.
    presenting): DxUi never flushes your context, and an unsubmitted software (WARP) context keeps every frame's queued
    work and released surfaces in process memory.
 
+The view's surface persists between preparations, so a preparation repaints only what changed since the last one: the
+painted extent of each control that was invalidated, moved or changed hover, in at most eight rectangles; a host-level
+change (`ControlHost::Invalidate`, theme, DPI, size, tree changes, a device replacement) repaints the whole surface
+([paint region](../Specs/Core/Core_PerformanceAndResources.md#paint-region)). `Composite` still draws the whole surface.
+A trace session's prepare-end event reports the pixels that preparation repainted, no longer always the whole surface.
+Controls you derive declare how far they paint outside their bounds ([controls](controls.md)); until they do, their
+changes repaint the whole surface as before.
+
 Clean `Composite` does no allocation, layout, shaping or readback. DPI must be 48..768; the per-view surface limit
 is 64 MiB, and because a resize allocates the replacement before releasing the old surface the replacement peak is
 at most 128 MiB (`GetStatistics().replacementPeakBytes`). A hidden or zero-sized view holds no surface. Check summed

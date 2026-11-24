@@ -120,7 +120,12 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
 std::span<const RetainedControlCacheRow> RetainedCacheAccess::ControlRows() noexcept
 {
     {
-        static constexpr std::array<RetainedControlCacheRow, 21u> rows{{
+        static constexpr std::array<RetainedControlCacheRow, 22u> rows{{
+            // Panel::_paintExtent, the painted extent of a panel and its visible descendants (W4.10): recomputed on demand.
+            {"Panel._paintExtent",
+             [](const Control& control) noexcept { return PaintExtentAccess::CachedExtents(control); },
+             [](Control& control) noexcept { PaintExtentAccess::DropCachedExtent(control); },
+             [](const Control&) noexcept { return uint64_t{0u}; }}, // a rectangle inside the panel
             // Label::_typographyLayout, the retained layout of a label with a mnemonic or a typography override.
             {"Label._typographyLayout",
              [](const Control& control) noexcept

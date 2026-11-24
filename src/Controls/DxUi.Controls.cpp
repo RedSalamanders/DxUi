@@ -13,6 +13,7 @@
 #include <utility>
 
 #include "Support/Diagnostics.h"
+#include "Support/RetainedCaches.Tests.Hooks.h"
 
 namespace DxUi
 {
@@ -1242,6 +1243,7 @@ void DrawTextWithMnemonic(ControlHost& host,
 
     const DWRITE_TEXT_RANGE range{static_cast<UINT32>(*mnemonicIndex), 1u};
     static_cast<void>(layout->SetUnderline(TRUE, range));
+    PaintExtentAccess::NoteTextInk(host, layout.get(), D2D1::Point2F(rect.left, rect.top));
     dc->DrawTextLayout(D2D1::Point2F(rect.left, rect.top), layout.get(), brush, kTextDrawOptions);
 }
 
@@ -1566,12 +1568,31 @@ void Panel::OnHostDpiChanged(ControlHost& host) noexcept
 
 void Panel::Paint(ControlHost& host) const
 {
-    const auto paintChild = [&host](const Control& child)
+    // Culling (W4.10): a visible child whose painted extent (bounds plus reach, a panel's with its descendants) misses the paint
+    // clip is not painted. The extent maps through the world transform as drawn, so a transform set by any ancestor counts.
+    D2D1_MATRIX_3X2_F transform = D2D1::Matrix3x2F::Identity();
+    const bool cull             = host._paintClipBounded;
+    if (cull)
+    {
+        if (auto* dc = host.GetDeviceContext())
+            dc->GetTransform(&transform);
+    }
+    const auto paintChild = [&host, cull, &transform](const Control& child)
     {
         ++Detail::Work().frame.treeVisitsPaint;
         if (child.IsVisible())
         {
+            D2D1_RECT_F extent{};
+            if (cull && PaintExtentAccess::Extent(host, child, extent) && PaintExtentAccess::MissesClip(host, transform, extent))
+            {
+                ++Detail::Work().frame.paintCulled;
+                return;
+            }
             ++Detail::Work().frame.paintExecutions;
+            void* observerContext = nullptr;
+            if (const Detail::PaintObserverForTest observer = Detail::GetPaintObserverForTest(observerContext)) [[unlikely]]
+                observer(child, observerContext);
+            const PaintExtentAccess::PaintingScope painting(host, child);
             child.Paint(host);
         }
     };
@@ -2772,7 +2793,12 @@ void ControlHost::PublishPreparedContent() noexcept
 bool PageHost::FinishTransition() noexcept
 {
     if (_transition.active)
+    {
         NoteHitTestChange(*this, HitRevisionSite::PageTransitionEnd); // the current page is hit again
+        // W4.10: the translated, faded pages leave pixels that the pages at rest do not cover: the whole view repaints.
+        if (ControlHost* const host = GetHost())
+            PaintExtentAccess::MarkFull(*host);
+    }
     const std::weak_ptr<int> ownerLifetime = GetLifetimeToken();
     _transition.active                     = false;
     _transition.hasConnectedAnimation      = false;
@@ -3077,7 +3103,10 @@ void Label::Paint(ControlHost& host) const
         {
             if (auto* dc = host.GetDeviceContext())
                 if (auto* brush = host.GetSolidBrush(style.text))
+                {
+                    PaintExtentAccess::NoteTextInk(host, _typographyLayout.get(), D2D1::Point2F(bounds.left, bounds.top));
                     dc->DrawTextLayout(D2D1::Point2F(bounds.left, bounds.top), _typographyLayout.get(), brush, kTextDrawOptions);
+                }
             return;
         }
         // An unavailable optional prepared layout uses ordinary text without
@@ -3971,6 +4000,7 @@ void Button::Paint(ControlHost& host) const
             {
                 if (auto* const brush = host.GetSolidBrush(style.text))
                 {
+                    PaintExtentAccess::NoteTextInk(host, _preparedIconTextLayout.get(), D2D1::Point2F(bounds.left, bounds.top));
                     dc->DrawTextLayout(D2D1::Point2F(bounds.left, bounds.top), _preparedIconTextLayout.get(), brush, kTextDrawOptions);
 #if DXUI_ENABLE_DIAGNOSTICS
                     ++_debugPreparedIconTextLayoutPaintCount;
@@ -5399,6 +5429,12 @@ PageIndicator::PageIndicator()
 
 void PageIndicator::SetPageCount(uint32_t count) noexcept
 {
+    // W4.10: the reach follows the count (GetPaintOverhang); the row as drawn now leaves the view with the change.
+    if (ControlHost* const host = GetHost(); host && (std::min)(count, kMaximumPages) != _pageCount)
+    {
+        PaintExtentAccess::AddToRegion(*host, *this, false);
+        PaintExtentAccess::ExtentChanged(*this);
+    }
     // Fewer than two pages leave no hit bounds (GetHitBounds); the count is the range maximum UI Automation reads.
     AssignAccess::Assign(*this,
                          HitRevisionSite::PageIndicatorCount,
@@ -5476,6 +5512,27 @@ D2D1_POINT_2F PageIndicator::DotCenter(uint32_t index) const noexcept
     const float originX      = bounds.left + (width - total) * 0.5f;
     const float originY      = (bounds.top + bounds.bottom) * 0.5f;
     return D2D1::Point2F(originX + kDotGapDip * static_cast<float>(index), originY);
+}
+
+PaintOverhang PageIndicator::GetPaintOverhang(const ControlHost& host) const noexcept
+{
+    PaintOverhang reach = Control::GetPaintOverhang(host);
+    if (_pageCount < 2)
+        return reach;
+    // The row of dots is centred on the bounds whatever their width (DotCenter); the selected dot's focus ring is a square
+    // `pad` from its centre, its stroke reaching kLibraryPaintReachDip beyond that.
+    const D2D1_RECT_F bounds = GetBounds();
+    const float width        = (std::max)(0.0f, bounds.right - bounds.left);
+    const float total        = kDotGapDip * static_cast<float>(_pageCount - 1u);
+    const float half         = kSelectedDotRadiusDip + 3.0f + kLibraryPaintReachDip;
+    const float rowLeft      = bounds.left + (width - total) * 0.5f - half;
+    const float rowRight     = bounds.left + (width + total) * 0.5f + half;
+    const float centerY      = (bounds.top + bounds.bottom) * 0.5f;
+    reach.left               = (std::max)(reach.left, bounds.left - rowLeft);
+    reach.right              = (std::max)(reach.right, rowRight - bounds.right);
+    reach.top                = (std::max)(reach.top, bounds.top - (centerY - half));
+    reach.bottom             = (std::max)(reach.bottom, (centerY + half) - bounds.bottom);
+    return reach;
 }
 
 D2D1_RECT_F PageIndicator::GetHitBounds() const noexcept
@@ -6316,6 +6373,12 @@ bool ThroughputGraph::Tick(ControlHost& host, uint64_t nowTickMs)
 
 void Slider::SetOrientation(SliderOrientation orientation) noexcept
 {
+    // W4.10: the reach follows the orientation (GetPaintOverhang); the slider as drawn now leaves the view with the change.
+    if (ControlHost* const host = GetHost(); host && orientation != _orientation)
+    {
+        PaintExtentAccess::AddToRegion(*host, *this, false);
+        PaintExtentAccess::ExtentChanged(*this);
+    }
     // The hit band follows the orientation (GetHitBounds).
     AssignAccess::Assign(*this, HitRevisionSite::SliderOrientation, _orientation, orientation, Affects::Paint | Affects::Hit, []() noexcept {});
 }
@@ -6794,6 +6857,30 @@ D2D1_RECT_F Slider::GetTouchHaloRect() const noexcept
     const float diameter       = std::lerp(ResolveHaloDiameter(GetBounds()), kSliderTouchHaloDiameterDip, _touchTransition.progress);
     const float radius         = diameter * 0.5f;
     return D2D1::RectF(center.x - radius, center.y - radius, center.x + radius, center.y + radius);
+}
+
+PaintOverhang Slider::GetPaintOverhang(const ControlHost& host) const noexcept
+{
+    // Across the track the hovered thumb (radius 10 DIP) and the tick marks (9 DIP from the track's centre line) are drawn
+    // whatever the cross size, centred on it; along it the track's 12 DIP inset keeps them inside, the focus ring 3 DIP out.
+    // The touch halo is clipped to the bounds.
+    PaintOverhang reach       = Control::GetPaintOverhang(host);
+    const D2D1_RECT_F bounds  = GetBounds();
+    const bool vertical       = _orientation == SliderOrientation::Vertical;
+    const float cross         = (std::max)(0.0f, vertical ? bounds.right - bounds.left : bounds.bottom - bounds.top);
+    const float halfDrawn     = (std::max)(kSliderThumbHoverDiameterDip * 0.5f, kSliderTrackThicknessDip * 0.5f + kSliderTickLengthDip);
+    const float crossOverhang = (std::max)(0.0f, halfDrawn - cross * 0.5f);
+    if (vertical)
+    {
+        reach.left  = (std::max)(reach.left, crossOverhang);
+        reach.right = (std::max)(reach.right, crossOverhang);
+    }
+    else
+    {
+        reach.top    = (std::max)(reach.top, crossOverhang);
+        reach.bottom = (std::max)(reach.bottom, crossOverhang);
+    }
+    return reach;
 }
 
 D2D1_RECT_F Slider::GetHitBounds() const noexcept
@@ -10979,6 +11066,15 @@ HRESULT ArrangeMeasuredActions(std::span<const D2D1_SIZE_F> sizes,
 
 void ScrollPanel::SetInnerHovered(Control* child) noexcept
 {
+    // W4.10: inner hover is painted state no control invalidates for: the old and the new hovered child join the paint region.
+    if (ControlHost* const host = GetHost(); host && child != _innerHoveredChild)
+    {
+        // Only a child that is still alive and in this panel (LiveInnerHovered's test, which itself clears through here).
+        if (_innerHoveredChild && ! _innerHoveredLifetime.expired() && IsControlInTree(this, _innerHoveredChild))
+            PaintExtentAccess::AddToRegion(*host, *_innerHoveredChild, true);
+        if (child)
+            PaintExtentAccess::AddToRegion(*host, *child, true);
+    }
     _innerHoveredChild    = child;
     _innerHoveredLifetime = child ? child->GetLifetimeToken() : std::weak_ptr<int>{};
 }
@@ -11362,28 +11458,34 @@ void ScrollPanel::Paint(ControlHost& host) const
     const auto ownerLifetime   = GetLifetimeToken();
     const D2D1_RECT_F viewport = GetViewportRect();
 
-    // Clip to viewport
-    dc->PushAxisAlignedClip(viewport, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-
-    // Apply scroll transform
     D2D1_MATRIX_3X2_F oldTransform;
     dc->GetTransform(&oldTransform);
+    // Clip to viewport, unless every pixel of the paint clip already lies inside it (W4.10): the clip would change nothing.
+    // The children are culled against the clip narrowed to the viewport either way.
+    const bool pushClip = ! PaintExtentAccess::ClipEnclosedBy(host, oldTransform, viewport);
+    const PaintExtentAccess::ClipScope paintClip(host);
+    if (pushClip)
+        dc->PushAxisAlignedClip(viewport, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+    else
+        ++Detail::Work().frame.clipPushesSkipped;
+    PaintExtentAccess::IntersectClip(host, oldTransform, viewport);
+
+    // Apply scroll transform
     auto scrollTransform = oldTransform;
     scrollTransform._32 -= _scrollOffsetDip;
     dc->SetTransform(scrollTransform);
-    auto restoreDrawingState = wil::scope_exit([dc, oldTransform]
+    auto restoreDrawingState = wil::scope_exit([dc, oldTransform, pushClip]
     {
         dc->SetTransform(oldTransform);
-        dc->PopAxisAlignedClip();
+        if (pushClip)
+            dc->PopAxisAlignedClip();
     });
 
     // Paint children in content space
     Panel::Paint(host);
 
     // Restore
-    dc->SetTransform(oldTransform);
-    dc->PopAxisAlignedClip();
-    restoreDrawingState.release();
+    restoreDrawingState.reset();
     if (ownerLifetime.expired())
         return;
 

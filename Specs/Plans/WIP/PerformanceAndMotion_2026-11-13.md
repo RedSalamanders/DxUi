@@ -975,7 +975,7 @@ close as each one says below.
     rectangle, `FX9` at 120 Hz: 0 missed frames (`G6`).
   - **Needs**: `W4.6`, `W4.8`, `W0.6`, `W0.10`. **Size**: L.
 
-- [ ] **W4.10 Fallback if the spike says no.**
+- [x] **W4.10 Fallback if the spike says no.**
   - **Why**: `W4.0` no-go: replay is not cheaper than painting, or text snaps differently; the costs `G2` and `G4`
     measure remain.
   - **Change**: `ControlHost` tracks the current paint clip in DIPs; `Panel`, `ScrollPanel`, `FlexPanel` and

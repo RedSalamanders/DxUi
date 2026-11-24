@@ -28,6 +28,9 @@ param(
     [ValidateSet('Hardware','Warp')][string] $Adapter = 'Hardware',
     [ValidateRange(1,20)][int] $Sessions = 5,
     [string] $BaselineExecutable = '',
+    # NAME=VALUE set for role B's runs alone, so one executable is compared with itself under a switch (W4.10:
+    # DXUI_PAINT_REGIONS=0 turns paint regions and culling off).
+    [ValidatePattern('^([A-Z_][A-Z0-9_]*=[^\s]*)?$')][string] $CandidateEnvironment = '',
     [string] $CalibrationPath = '',
     [string] $OutputDirectory = '',
     [ValidateSet('HighPerformance','Keep')][string] $PowerPlan = 'HighPerformance',
@@ -182,7 +185,7 @@ elseif ($Purpose -eq 'LoadSensitivity') {
 }
 $roles = @{ A = $(if ($Purpose -eq 'Comparison') { $BaselineExecutable } else { $candidate }); B = $candidate }
 $hashes = @{ A = (Get-FileHash -LiteralPath $roles.A -Algorithm SHA256).Hash; B = (Get-FileHash -LiteralPath $roles.B -Algorithm SHA256).Hash }
-if ($Purpose -eq 'Comparison' -and $hashes.A -ceq $hashes.B) { throw 'A comparison needs two different executables; use -Purpose Calibration for a same-binary study.' }
+if ($Purpose -eq 'Comparison' -and $hashes.A -ceq $hashes.B -and -not $CandidateEnvironment) { throw 'A comparison needs two different executables; use -Purpose Calibration for a same-binary study.' }
 
 function Start-HostObserver([string] $Path) {
     $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
@@ -212,9 +215,12 @@ function Stop-HostObserver([Diagnostics.Process] $Process, [string] $Path) {
 function Read-HostObservations([string] $Path) {
     return @(Get-Content -LiteralPath $Path | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json -AsHashtable -Depth 6 })
 }
-function Invoke-TimingRun([string] $Executable, [string] $Output) {
+function Invoke-TimingRun([string] $Executable, [string] $Output, [string] $Environment = '') {
     $global:LASTEXITCODE = 0
-    & $Executable '--timing-method' $Output $Fixture $Phase $Adapter $PinCore $MinimumFrames $MinimumMilliseconds $(if ($CoreIsolation -eq 'On') { 'isolate' } else { 'share' }) | Out-Host
+    $name = if ($Environment) { $Environment.Split('=', 2)[0] } else { '' }
+    if ($name) { [Environment]::SetEnvironmentVariable($name, $Environment.Split('=', 2)[1]) }
+    try { & $Executable '--timing-method' $Output $Fixture $Phase $Adapter $PinCore $MinimumFrames $MinimumMilliseconds $(if ($CoreIsolation -eq 'On') { 'isolate' } else { 'share' }) | Out-Host }
+    finally { if ($name) { [Environment]::SetEnvironmentVariable($name, $null) } }
     if ($LASTEXITCODE -ne 0) { throw "Frame timing run failed with exit code $LASTEXITCODE. Executable: $Executable" }
     if (-not (Test-Path -LiteralPath $Output -PathType Leaf)) { throw "The frame timing run wrote no report: $Output" }
     $bytes = [IO.File]::ReadAllBytes($Output)
@@ -262,7 +268,7 @@ function Invoke-TimingSession([int] $Number, [int] $Attempt, [object] $Arm) {
         $load = $null
         try {
             if ($Arm -and $role -ceq 'B' -and $Arm['processors'].Count) { $load = Start-FrameTimingLoad -Executable $candidate -Processors $Arm['processors'] }
-            $measured = Invoke-TimingRun $roles[$role] $output
+            $measured = Invoke-TimingRun $roles[$role] $output $(if ($role -eq 'B') { $CandidateEnvironment } else { '' })
         } finally { Stop-FrameTimingLoad -Process $load }
         $script:reportSizes[$measured.sha256] = $measured.size
         $runs.Add([ordered]@{ role = $role; slot = $slot; report = $output; reportSha256 = $measured.sha256; raw = $measured.run
@@ -369,7 +375,7 @@ $receipt = [ordered]@{
     startedUtc = $startedUtc; completedUtc = [DateTime]::UtcNow.ToString('o')
     runLength = [ordered]@{ minimumFrames = $MinimumFrames; minimumMilliseconds = $MinimumMilliseconds }
     pinCore = $PinCore; powerPlan = $powerRecord; schedule = @($sessionRecords | ForEach-Object { $_['order'] })
-    executables = [ordered]@{ A = [ordered]@{ path = $roles.A; sha256 = $hashes.A }; B = [ordered]@{ path = $roles.B; sha256 = $hashes.B } }
+    executables = [ordered]@{ A = [ordered]@{ path = $roles.A; sha256 = $hashes.A }; B = [ordered]@{ path = $roles.B; sha256 = $hashes.B; environment = $CandidateEnvironment } }
     metrics = (Get-FrameTimingMetrics)
     sessions = $sessionRecords.ToArray()
     # Identity of this tree's build (B, and A in calibration and smoke runs), checked before and after the study.

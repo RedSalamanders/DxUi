@@ -256,7 +256,12 @@ snapshot, delta and receipt.
   of a `Label` with neither a mnemonic nor a typography override; both are 0 since W2.9.
   `preparations` and `composites` count embedded preparations that painted and compositions; `renders` and `presents`
   count native render passes and swap-chain presents; `pixelsPainted` adds the device pixels a preparation or render
-  cleared and repainted (the dirty rectangle of a partial native frame). `drawCalls` counts Direct2D draw calls (every
+  cleared and repainted (the dirty rectangle of a partial native frame, the area of an embedded preparation's paint
+  region). `paintRegionRects` counts the region rectangles embedded preparations repainted alone and `paintRegionFull`
+  the embedded preparations that repainted the whole view; `paintCulled` counts visible children a panel did not paint
+  because their painted extent missed the paint clip, `clipPushesSkipped` the viewport clips a `ScrollPanel` did not push
+  because the paint clip already lay inside its viewport, and `inkEscapes` the controls whose paint first drew text
+  beyond their bounds plus reach ([paint region](#paint-region)). `drawCalls` counts Direct2D draw calls (every
   `Draw…`, `Fill…`, `Clear` and `BlendImage` call DxUi makes on a device context). Only the counting wrappers below
   increment it, so it is populated only where a test executable installs them and is 0 everywhere else, shipping builds
   included. `shadowPasses` counts shadow effect passes drawn for elevated surfaces (popups, cards, dialogs).
@@ -1231,14 +1236,61 @@ slower with every leaf kind retained. On the opaque window-host target `DrawImag
 grayscale; streaming the list's commands back into the context (`ID2D1CommandList::Stream`) keeps ClearType exactly but
 costs 1.07 to 1.19 of painting. What does remove the Direct2D cost of an unchanged control is not drawing it (0.04 to 0.09
 of painting) or drawing a bitmap tile of it (0.24 to 0.53 of painting, about 36 KB per 90×24 DIP control at 192 DPI). The
-replacement, plan item `W4.10`, is not implemented yet: region invalidation with overhang each control declares per state,
-culling of children outside the paint clip, and raster tiles for effect-heavy content only, under the surface budgets
-this contract states.
+replacement, plan item `W4.10`, is the [paint region](#paint-region) below: invalidation attributed to the changed control
+by its painted extent, and culling of children outside the paint clip. No raster tile is built: every shadow and blur
+effect in the library is drawn by popups (`ComboBox` and `Menu`, plan item `W2.4`), and no control in a tree draws one.
 
 Facts the spike established for any later design: a command list keeps brushes by value (a brush changed after
 recording does not change the list), and it holds text as glyph runs, not as the `IDWriteTextLayout` that drew them, so a
 recorded list replays identically after the layout is released; a list translated by whole device pixels draws text at
 exactly the positions `DrawTextLayout` draws at the translated origin.
+
+### Paint region
+
+Plan item `W4.10` ([receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W4.10/README.md)). A host keeps a paint
+region: at most eight rectangles in device pixels of its view, each snapped outward to the whole pixels its extent touches
+(antialiased coverage never leaves the pixels a shape's geometry touches), in fixed storage, so adding, merging and clearing do no heap work. A rectangle that
+touches or overlaps another merges with it; a ninth merges with the stored one whose union grows least; above half the
+view, or on any invalidation it cannot attribute, the region is the whole view. What enters it:
+
+- an attributed invalidation (`Assign` with `Affects::Paint`, `Control::Invalidate`, `RequestInvalidate`,
+  `InvalidateMeasure`) adds the control's [painted extent](../UI/UI_ControlsAndLayout.md#painted-extent), a panel's with its
+  descendants, mapped through its ancestors to the view: translated by each `ScrollPanel`'s offset and clipped to its
+  viewport (not for the overlay children of a `PopupLayer`, which no viewport clips), then clipped to the view, so an
+  invalidation of a control scrolled out of view adds nothing;
+- `SetBounds` adds the control's extent at its old bounds and at its new ones; a hover change adds the old and the new
+  hovered control (the host's, and a `ScrollPanel`'s inner hover), which no control invalidates for;
+- the whole view: `ControlHost::Invalidate` (an application's, and every host-level change: theme, DPI, typography, text
+  rendering, focus visibility, tooltip, default button), a tree change (a control joins, leaves or moves), an undeclared or
+  unbounded extent anywhere on the control's ancestor chain, a `ComboBox` popup closing and a page transition ending.
+
+An embedded preparation repaints only the region when its surface still holds the previous coherent frame at the same
+size, DPI, text rendering and device: for each rectangle, an aliased axis-aligned clip, a clear to premultiplied
+`(0, 0, 0, 0)`, and the tree, its overlays and the tooltip painted under that clip (the root and every panel run their
+`Paint`; panels skip the children that miss the clip). Anything else, and a preparation in which text newly escaped its
+control, repaints the whole surface in that same preparation. `Composite` is unchanged: it draws the whole surface and
+does no heap work. The `frame.pixelsPainted` counter and the trace provider's prepare-end pixel count report the region's
+area, so they no longer equal the surface for a partial preparation. A preparation that does not complete leaves the next
+one the whole view.
+
+The window host keeps painting whole frames (or the system's damage alone) until it presents the region (plan item `W4.9`):
+its children are culled against the window or the damage, and the region its invalidations build is discarded with each
+render.
+
+Caches that keep what the last paint drew keep, after a region frame, what the last whole paint drew: a frame that paints
+a region (embedded) or the system's damage alone (native) starts no new generation of the host's text layout table and no
+new cache frame of its brush and format caches, and releases or trims nothing, so the entries of controls outside it stay;
+a whole frame releases what it did not draw, a control culled by a viewport included. The cached painted extent of a panel
+(`Panel._paintExtent`) is a registered retained cache; a tree change invalidates every one of a host's at once, and a change
+of a control's bounds, visibility or reach those of the panels above it. A `Paint` that asks for its next animation frame
+or resumes a transition (`Button`'s disclosure, `ProgressBar`'s indeterminate sweep, `Grid`'s animated cells, `PageHost`)
+does so only as a resume after a hidden period: a request held by a visible control keeps ticking whether or not the
+control is painted, its ticks invalidate it, and those invalidations bring it into the next region. No library `Paint`
+stores geometry that hit testing or accessibility reads.
+
+The switch `DxUi::Detail::SetPaintRegionsEnabledForTest` (private, present in every configuration; `DxUi.EmbeddedTests.exe`
+reads `DXUI_PAINT_REGIONS=0`, which `performance-timing.ps1 -CandidateEnvironment` sets for one role) turns regions and culling off, which repaints whole frames as before, for same-binary
+comparisons.
 
 ### I19 accepted resource trade-off
 

@@ -583,11 +583,13 @@ __declspec(noinline) inline void TestFrameworkSelfTest()
         Check(step.work.frame.preparations == 0u && step.work.frame.paintExecutions == 0u && step.cppAllocations == 0u &&
                   DxUi::Detail::TotalCreated(step.work) == 0u && step.work.frame.composites == 1u,
               "a clean self-test step prepares nothing, paints nothing, allocates nothing and composites once");
+    // W4.10: the embedded view repaints the changed label's region: the root and the label paint, the button is culled.
+    constexpr uint64_t kTextPaints = SelfTest::kVisibleControls - 1u;
     for (const StepRecord& step : first.Phase("text").steps)
-        Check(step.work.frame.preparations == 1u && step.work.frame.paintExecutions == SelfTest::kVisibleControls,
-              "a text change prepares once and paints every visible control");
+        Check(step.work.frame.preparations == 1u && step.work.frame.paintExecutions == kTextPaints && step.work.frame.paintCulled == 1u,
+              "a text change prepares once and paints the root and the label, culling the button outside its region");
     Check(Summarize(first.Phase("hover"), "frame.treeVisitsHitTest").minimum > 0u, "every pointer step reaches the host's hit test");
-    Check(Summarize(first.Phase("text"), "frame.paintExecutions").total == 3u * SelfTest::kVisibleControls, "a summary totals a counter over the phase");
+    Check(Summarize(first.Phase("text"), "frame.paintExecutions").total == 3u * kTextPaints, "a summary totals a counter over the phase");
 
     RunOptions wrapped;
     wrapped.countDrawCalls = true;
@@ -690,6 +692,9 @@ __declspec(noinline) inline void TestFx5MatchesWorkCounterReceipt()
     for (const StepRecord& frame : dirty.steps)
     {
         Check(frame.work.frame.preparations == 1u && frame.work.frame.composites == 1u, "an FX5 dirty frame prepares and composites once");
+        // W4.10: what an FX5 dirty frame changes (16 sliders, 16 progress bars, the Grid's rows) covers more than half the view,
+        // so its paint region is the whole view.
+        Check(frame.work.frame.paintRegionFull == 1u && frame.work.frame.paintRegionRects == 0u, "an FX5 dirty frame's region is the whole view");
         Check(frame.work.frame.paintExecutions == visibleControls && frame.work.frame.treeVisitsPaint == visibleControls,
               "an FX5 dirty frame paints and visits every visible control once");
         Check(frame.work.frame.pixelsPainted == uint64_t(variant.width) * variant.height, "an FX5 dirty frame repaints the whole surface");

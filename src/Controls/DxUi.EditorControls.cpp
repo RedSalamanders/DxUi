@@ -1499,6 +1499,12 @@ ColorPicker::ColorPicker()
 
 void ColorPicker::SetLabels(Labels labels)
 {
+    // W4.10: swatch and caption widths move what Paint draws (GetPaintOverhang): what is drawn now leaves the view.
+    if (ControlHost* const host = GetHost())
+    {
+        PaintExtentAccess::AddToRegion(*host, *this, false);
+        PaintExtentAccess::ExtentChanged(*this);
+    }
     _labels          = std::move(labels);
     const auto width = [](float value, float fallback) noexcept { return std::isfinite(value) ? std::clamp(value, 0.0f, kMaxLabelWidthDip) : fallback; };
     _labels.channelLabelWidthDip = width(_labels.channelLabelWidthDip, 14.0f);
@@ -1614,6 +1620,35 @@ D2D1_RECT_F ColorPicker::GetCurrentSwatchRect() const noexcept
 {
     const D2D1_RECT_F fresh = GetNewSwatchRect();
     return D2D1::RectF(fresh.right + kGapDip, fresh.top, fresh.right + kGapDip + _labels.swatchWidthDip, fresh.bottom);
+}
+
+PaintOverhang ColorPicker::GetPaintOverhang(const ControlHost& host) const noexcept
+{
+    // What Paint draws itself: the field, the hue strip, both swatches with the 16 DIP captions beneath them and the hex
+    // caption, in this flow direction and mirrored (a flow change then needs no earlier extent). Around them: the hue
+    // marker's ends (2 DIP past the strip, stroke 3) and the focus ring, kLibraryPaintReachDip + 1.
+    PaintOverhang reach      = Control::GetPaintOverhang(host);
+    const D2D1_RECT_F bounds = GetBounds();
+    const D2D1_RECT_F fresh  = GetNewSwatchRect();
+    D2D1_RECT_F drawn        = GetFieldRect();
+    const auto unite         = [&drawn](const D2D1_RECT_F& rect) noexcept
+    {
+        drawn = D2D1::RectF(
+            (std::min)(drawn.left, rect.left), (std::min)(drawn.top, rect.top), (std::max)(drawn.right, rect.right), (std::max)(drawn.bottom, rect.bottom));
+    };
+    unite(GetHueStripRect());
+    unite(D2D1::RectF(fresh.left, fresh.top, fresh.right, fresh.bottom + 16.0f));
+    const D2D1_RECT_F current = GetCurrentSwatchRect();
+    unite(D2D1::RectF(current.left, current.top, current.right, current.bottom + 16.0f));
+    if (_hexCaptionRect.right > _hexCaptionRect.left && _hexCaptionRect.bottom > _hexCaptionRect.top)
+        unite(_hexCaptionRect);
+    unite(MirrorRect(drawn, bounds));
+    constexpr float kAround = kLibraryPaintReachDip + 1.0f;
+    reach.left              = (std::max)(reach.left, bounds.left - drawn.left + kAround);
+    reach.top               = (std::max)(reach.top, bounds.top - drawn.top + kAround);
+    reach.right             = (std::max)(reach.right, drawn.right - bounds.right + kAround);
+    reach.bottom            = (std::max)(reach.bottom, drawn.bottom - bounds.bottom + kAround);
+    return reach;
 }
 
 NumericStepper& ColorPicker::RedField() noexcept

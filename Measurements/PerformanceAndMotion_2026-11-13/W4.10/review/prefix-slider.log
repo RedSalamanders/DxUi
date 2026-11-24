@@ -1,0 +1,1 @@
+FAILED: incremental-versus-fresh oracle, embedded host, script thin-slider, seed 0x0000000004100001, step 1 (hover the 12 DIP slider): 20 BGRA pixels differ inside (195,96)-(204,115); first at (195,96): incremental 00000000 fresh 04020104; control root (class DxUi::Panel). Replay alone: set DXUI_PARITY_SEED=0x0000000004100001 and run x

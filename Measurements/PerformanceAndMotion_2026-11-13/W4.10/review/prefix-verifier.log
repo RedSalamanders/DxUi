@@ -1,0 +1,2 @@
+  PageIndicator (16 in 120) normal at 96 DPI: pixel (303, 106) alpha 8 outside [137, 97, 264, 124) (ink reaches left 48.30 top -5.40 right 49.70 bottom -5.60 DIP; extent [137.30, 97.60, 263.30, 123.60])
+FAIL: W4.10: a library control draws only within its painted extent (bounds plus declared reach)

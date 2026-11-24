@@ -499,8 +499,9 @@ struct TextLayoutCacheAccess final
                      const D2D1_RECT_F& rect,
                      ID2D1Brush* brush,
                      D2D1_DRAW_TEXT_OPTIONS options) noexcept;
-    // A host paint: nested paints share the outer one's generation.
-    static void BeginPaint(ControlHost& host) noexcept;
+    // A host paint: nested paints share the outer one's generation. A paint of a region only (W4.10) starts no generation and
+    // releases nothing when it ends: the table keeps the strings of the last paint of the whole view.
+    static void BeginPaint(ControlHost& host, bool partial = false) noexcept;
     static void EndPaint(ControlHost& host) noexcept;
     // Returns every layout, string and the table itself.
     static void Release(ControlHost& host) noexcept;
@@ -512,9 +513,9 @@ struct TextLayoutCacheAccess final
 class TextLayoutPaintScope final
 {
 public:
-    explicit TextLayoutPaintScope(ControlHost& host) noexcept : _host(host)
+    explicit TextLayoutPaintScope(ControlHost& host, bool partial = false) noexcept : _host(host)
     {
-        TextLayoutCacheAccess::BeginPaint(_host);
+        TextLayoutCacheAccess::BeginPaint(_host, partial);
     }
     ~TextLayoutPaintScope()
     {
@@ -528,6 +529,115 @@ public:
 private:
     ControlHost& _host;
 };
+
+// Painted extent, paint region and culling (W4.10; Core_PerformanceAndResources.md, "Paint region"; UI_ControlsAndLayout.md,
+// "Painted extent"). A control's painted extent is its bounds plus its reach (Control::GetPaintOverhang); a panel's also covers
+// its visible descendants, except a ScrollPanel's, whose Paint clips its content to its own bounds. The extent is trusted only
+// for a declared control (a library class exactly, or a class that called DeclarePaintOverhang); anything undeclared, an
+// unbounded reach, a page transition, or text whose ink escaped its control makes the extent unbounded, and an invalidation of
+// an unbounded extent repaints the whole view.
+enum class PaintKind : uint8_t
+{
+    Unresolved = 0u, // not attached
+    Plain,           // derives from no library class: reach 0 by default
+    Library,         // any other library control: the focus ring's reach
+    Panel,
+    ScrollPanel,
+    PopupLayer,
+    PageHost,
+    ComboBox,
+};
+// The reach of every library control: PaintFocusRing strokes a 2 DIP ring 2 DIP outside the control, 3 DIP in all.
+inline constexpr float kLibraryPaintReachDip = 3.0f;
+struct PaintExtentAccess final
+{
+    static constexpr uint8_t kDeclared   = 1u; // Control::_paintFlags: the extent is trusted
+    static constexpr uint8_t kInkEscaped = 2u; // the last paint drew text beyond bounds plus reach
+    // A library control whose Paint draws all its text under an axis-aligned clip inside its bounds (Tree, Grid, TextField,
+    // ComboBox, RichTextEditor, TabControl's headers): its text cannot escape, so its ink is not checked.
+    static constexpr uint8_t kClipsText = 4u;
+    // Resolves kind and declaration when a control joins a host (PropagateHost).
+    static void Resolve(Control& control) noexcept;
+    [[nodiscard]] static bool IsDeclared(const Control& control) noexcept
+    {
+        return (control._paintFlags & kDeclared) != 0u;
+    }
+    [[nodiscard]] static PaintKind Kind(const Control& control) noexcept
+    {
+        return static_cast<PaintKind>(control._paintKind);
+    }
+    // The control's own extent (bounds plus reach) in its coordinates; false when unbounded or undeclared.
+    [[nodiscard]] static bool OwnExtent(const ControlHost& host, const Control& control, D2D1_RECT_F& extent) noexcept;
+    // The extent of the control and what it paints below it, in its coordinates (a panel's cached subtree extent); false when
+    // unbounded.
+    [[nodiscard]] static bool Extent(const ControlHost& host, const Control& control, D2D1_RECT_F& extent) noexcept;
+    // The extent mapped through its ancestors to DIPs of the view and clipped to it; false when the whole view must repaint.
+    // An empty result (scrolled out, off the view) adds nothing.
+    [[nodiscard]] static bool ViewExtent(const ControlHost& host, const Control& control, bool subtree, D2D1_RECT_F& extent) noexcept;
+    // The control's painted extent may have changed (bounds, visibility, reach, ink escape): its ancestors' cached extents are
+    // stale. Walks up to the first one already stale.
+    static void ExtentChanged(const Control& control) noexcept;
+    // Adds the control's view extent to its host's region, or marks the region full. Requests no frame.
+    static void AddToRegion(ControlHost& host, const Control& control, bool subtree) noexcept;
+    // The attributed invalidation: AddToRegion, then a frame request.
+    static void Invalidate(ControlHost& host, const Control& control) noexcept;
+    // Adds a rectangle in DIPs of the view.
+    static void AddDip(ControlHost& host, const D2D1_RECT_F& rectDip) noexcept;
+    static void MarkFull(const ControlHost& host) noexcept;
+    // Culling: whether `extent` (in the current world space of `dc`) misses the paint clip.
+    [[nodiscard]] static bool MissesClip(const ControlHost& host, const D2D1_MATRIX_3X2_F& transform, const D2D1_RECT_F& extent) noexcept;
+    // Whether every device pixel of the clip lies wholly inside `rect` (world space): an inner clip to it changes nothing.
+    [[nodiscard]] static bool ClipEnclosedBy(const ControlHost& host, const D2D1_MATRIX_3X2_F& transform, const D2D1_RECT_F& rect) noexcept;
+    // Narrows the paint clip to `rect` (world space); the caller restores the previous clip.
+    static void IntersectClip(ControlHost& host, const D2D1_MATRIX_3X2_F& transform, const D2D1_RECT_F& rect) noexcept;
+    // Ink escape: text drawn while `control` paints, at `inkDip` in its coordinates.
+    static void NoteTextInk(ControlHost& host, const D2D1_RECT_F& inkDip) noexcept;
+    static void NoteTextInk(ControlHost& host, IDWriteTextLayout* layout, D2D1_POINT_2F origin) noexcept;
+    // Text whose ink the host cannot know (DrawText without a layout) counts as escaping.
+    static void NoteUnknownTextInk(ControlHost& host) noexcept;
+    // The registry row of Panel::_paintExtent (DxUi.RetainedCaches.cpp).
+    [[nodiscard]] static size_t CachedExtents(const Control& control) noexcept;
+    static void DropCachedExtent(Control& control) noexcept;
+    // Restores the paint clip when it ends.
+    struct ClipScope final
+    {
+        explicit ClipScope(ControlHost& host) noexcept;
+        ~ClipScope();
+        ClipScope(const ClipScope&)            = delete;
+        ClipScope& operator=(const ClipScope&) = delete;
+        ControlHost& host;
+        D2D1_RECT_F clip{};
+        bool bounded = false;
+    };
+    // Sets the paint clip of one frame (a region rectangle, the system's damage or the whole view, in DIPs of the target);
+    // ClipScope restores the unbounded clip after it.
+    static void SetClip(ControlHost& host, const D2D1_RECT_F& clipDip) noexcept;
+    // Brackets one control's own Paint for ink escape; restores the outer control's state.
+    // Brackets one control's own Paint for ink escape; restores the outer control's state. An undeclared control's Paint may
+    // draw its children anywhere (into a command list, an effect input, another target), so nothing below it is culled:
+    // the scope makes the paint clip unbounded for it and restores it after.
+    struct PaintingScope final
+    {
+        PaintingScope(ControlHost& host, const Control& control) noexcept;
+        ~PaintingScope();
+        PaintingScope(const PaintingScope&)            = delete;
+        PaintingScope& operator=(const PaintingScope&) = delete;
+        ControlHost& host;
+        std::weak_ptr<int> lifetime; // a Paint that retires the control (application code) leaves it untouched
+        const Control* outerControl = nullptr;
+        D2D1_RECT_F outerLimit{};
+        bool outerBounded     = false;
+        bool outerEscaped     = false;
+        bool clipSuspended    = false; // the control is undeclared: the clip below is unbounded
+        bool outerClipBounded = false;
+    };
+};
+namespace Detail
+{
+// Whether paint regions and culling are on (default). Off, every invalidation repaints the whole view and nothing is
+// culled: the same-binary comparison of W4.10 (test seam, RetainedCaches.Tests.Hooks.h).
+[[nodiscard]] bool PaintRegionsEnabled() noexcept;
+} // namespace Detail
 struct safearray_deleter
 {
     void operator()(SAFEARRAY* sa) const noexcept

@@ -178,6 +178,7 @@ struct EmbeddedHost::State
     uint64_t contentInteractionRevision  = 0u;
     uint64_t revision                    = 0;
     uint64_t preparedInteractionRevision = 0;
+    uint64_t preparedResourceGeneration  = 0; // the host's resource generation of the last coherent paint (W4.10)
     EmbeddedStatistics stats{};
 };
 // A stack node borrows its host only for one synchronous input call. The UI-thread
@@ -332,7 +333,13 @@ HRESULT EmbeddedHost::ReplaceDevice(std::shared_ptr<GraphicsDevice> graphics) no
 }
 void EmbeddedHost::InvalidateThunk(void* context) noexcept
 {
-    static_cast<EmbeddedHost*>(context)->MarkDirty();
+    // The host's invalidation: its paint region already says what to repaint (W4.10), so this marks no more than dirty.
+    auto* const view = static_cast<EmbeddedHost*>(context);
+    if (! view->_state)
+        return;
+    view->_state->dirty = true;
+    ++view->_state->revision;
+    view->RequestPreparation(static_cast<uint8_t>(Detail::Trace::FrameReason::Invalidate));
 }
 void EmbeddedHost::MarkDirty() noexcept
 {
@@ -341,6 +348,8 @@ void EmbeddedHost::MarkDirty() noexcept
     auto& s = *_state;
     s.dirty = true;
     ++s.revision;
+    // The application asks for a repaint without naming a control: the whole surface (W4.10).
+    PaintExtentAccess::MarkFull(_host);
     RequestPreparation(static_cast<uint8_t>(Detail::Trace::FrameReason::Invalidate));
 }
 HRESULT EmbeddedHost::SetTextRenderingMonitor(HMONITOR monitor) noexcept
@@ -653,6 +662,10 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
     }
     if (! s.dirty && ! _host._pendingVisualPreparation && s.coherent && width == s.width && height == s.height && dpi == s.dpi)
         return S_FALSE;
+    // W4.10: a preparation may repaint only the host's paint region when the surface still holds the previous coherent frame
+    // at the same size, scale and device. Anything else repaints the whole surface.
+    const bool surfaceReusable   = s.coherent && s.texture && width == s.width && height == s.height && dpi == s.dpi &&
+                                   s.preparedResourceGeneration == _host._resourceGeneration && ! IsFreshPreparationForTest();
     s.coherent                   = false;
     s.interactionLayoutAvailable = false;
     s.dirty                      = true;
@@ -724,7 +737,9 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
                     return E_ABORT;
             }
         }
-        _host.TrimCaches();
+        // A preparation that is likely to paint a region only keeps the cache frame (W4.10); one that turns out whole after layout
+        // merely skips one trim.
+        _host.TrimCaches(! surfaceReusable || _host._paintRegion.full);
         if (! preparationIsCurrent())
             return E_ABORT;
         observedRevision       = s.revision;
@@ -760,20 +775,28 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         HRESULT tracedResult     = E_ABORT;
         if (tracedPrepare) [[unlikely]]
             Detail::Trace::PrepareBegin(_host._trace);
+        uint64_t pixelsPainted     = 0u;
         const auto tracePrepareEnd = wil::scope_exit([&]() noexcept
         {
             if (tracedPrepare) [[unlikely]]
-                Detail::Trace::PrepareEnd(_host._trace, tracedResult, SUCCEEDED(tracedResult) ? uint64_t(width) * height : 0u);
+                Detail::Trace::PrepareEnd(_host._trace, tracedResult, SUCCEEDED(tracedResult) ? pixelsPainted : 0u);
         });
-        // Grayscale always; the application's monitor parameters only when it supplied a monitor.
-        static_cast<void>(_host.ApplyTextRendering());
+        // Grayscale always; the application's monitor parameters only when it supplied a monitor. A changed one applies to the
+        // whole surface.
+        const bool textRenderingChanged = _host.ApplyTextRendering();
+        // W4.10: the paint region this preparation repaints, taken now (after layout, whose moves joined it); invalidations from
+        // here on belong to the next preparation. One that does not complete leaves the next one a whole repaint.
+        ControlHost::PaintRegion region = _host._paintRegion;
+        _host._paintRegion              = ControlHost::PaintRegion{.rects = {}, .count = 0u, .full = false};
+        const bool partial              = Detail::PaintRegionsEnabled() && surfaceReusable && ! textRenderingChanged && ! region.full;
+        auto regionLost                 = wil::scope_exit([&]() noexcept { PaintExtentAccess::MarkFull(_host); });
         // One generation of the host's retained text layouts: a string new to them is laid out here, in preparation, never
-        // in composition, which only composites the surface.
-        const TextLayoutPaintScope textLayoutPaint(_host);
+        // in composition, which only composites the surface. A region alone starts none (W4.10).
+        const TextLayoutPaintScope textLayoutPaint(_host, partial);
+        const PaintExtentAccess::ClipScope paintClip(_host);
         dc->BeginDraw();
         auto finish = wil::scope_exit([&] { (void)Detail::EndDrawNative(dc); });
         dc->SetTransform(D2D1::Matrix3x2F::Identity());
-        dc->Clear(D2D1::ColorF(0, 0, 0, 0));
         Control* const paintRoot    = _host._root.get();
         const auto rootLifetime     = paintRoot ? GetControlLifetimeToken(*paintRoot) : std::weak_ptr<int>{};
         const auto treeStillCurrent = [&]() noexcept
@@ -781,34 +804,77 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
             return preparationIsCurrent() && (! paintRoot || ! rootLifetime.expired()) && _host._root.get() == paintRoot &&
                    _host._interactionRevision == interactionRevision;
         };
-        if (_host._root)
+        // Clears `clipDip` (the whole surface when not clipped) and paints the tree, its overlays and the tooltip into it.
+        const auto paintArea = [&](const D2D1_RECT_F& clipDip, bool clipped)
         {
-            Detail::NotePaintDispatch();
-            _host._root->Paint(_host);
-            if (! treeStillCurrent())
-                return E_ABORT;
-            _host._root->PaintOverlay(_host);
-            if (! treeStillCurrent())
-                return E_ABORT;
+            if (clipped)
+                dc->PushAxisAlignedClip(clipDip, D2D1_ANTIALIAS_MODE_ALIASED);
+            auto popClip = wil::scope_exit([&]() noexcept
+            {
+                if (clipped)
+                    dc->PopAxisAlignedClip();
+            });
+            dc->Clear(D2D1::ColorF(0, 0, 0, 0));
+            PaintExtentAccess::SetClip(_host, clipDip);
+            if (_host._root)
+            {
+                Detail::NotePaintDispatch();
+                {
+                    const PaintExtentAccess::PaintingScope painting(_host, *_host._root);
+                    _host._root->Paint(_host);
+                }
+                if (! treeStillCurrent())
+                    return false;
+                _host._root->PaintOverlay(_host);
+                if (! treeStillCurrent())
+                    return false;
+            }
+            if (_host._tooltipLayer.HasTooltip())
+            {
+                _host._tooltipLayer.Paint(_host);
+                if (! treeStillCurrent())
+                    return false;
+            }
+            return true;
+        };
+        const D2D1_RECT_F surfaceDip = D2D1::RectF(0.0f, 0.0f, float(width) * 96.0f / dpi, float(height) * 96.0f / dpi);
+        _host._paintInkEscapedNew    = false;
+        bool paintedWhole            = ! partial;
+        if (partial)
+        {
+            const float toDip = 96.0f / dpi;
+            for (size_t index = 0u; index < region.count; ++index)
+            {
+                const RECT& rect = region.rects[index];
+                if (! paintArea(D2D1::RectF(float(rect.left) * toDip, float(rect.top) * toDip, float(rect.right) * toDip, float(rect.bottom) * toDip), true))
+                    return E_ABORT;
+                pixelsPainted += uint64_t(rect.right - rect.left) * uint64_t(rect.bottom - rect.top);
+                ++Detail::Work().frame.paintRegionRects;
+            }
+            // Text that newly escaped its control's extent may reach outside the region: the surface repaints whole.
+            paintedWhole = _host._paintInkEscapedNew;
         }
-        if (_host._tooltipLayer.HasTooltip())
+        if (paintedWhole)
         {
-            _host._tooltipLayer.Paint(_host);
-            if (! treeStillCurrent())
+            if (! paintArea(surfaceDip, false))
                 return E_ABORT;
+            pixelsPainted = uint64_t(width) * height;
+            ++Detail::Work().frame.paintRegionFull;
         }
         finish.release();
         tracedResult = Detail::EndDrawNative(dc);
         RETURN_IF_FAILED(tracedResult);
         if (! preparationIsCurrent())
             return E_ABORT;
+        regionLost.release();
+        s.preparedResourceGeneration  = _host._resourceGeneration;
         s.preparedInteractionRevision = interactionRevision;
         s.coherent                    = interactionRevision == _host._interactionRevision;
         s.interactionLayoutAvailable  = true;
         s.dirty                       = s.revision != revision;
         ++s.stats.preparations;
         ++Detail::Work().frame.preparations;
-        Detail::Work().frame.pixelsPainted += uint64_t(width) * height;
+        Detail::Work().frame.pixelsPainted += pixelsPainted;
         _host.PublishPreparedContent();
         if (auto* focused = _host.GetFocusControl(); focused && focused != _host._nativeTextInputControl)
         {
@@ -1725,6 +1791,8 @@ HRESULT EmbeddedHost::ApplyTextInput(uint64_t revision, const NativeTextInputSta
             }
         }
         ++_state->revision;
+        // The composition preview the host keeps is painted state no control invalidates for (W4.10): the whole surface.
+        PaintExtentAccess::MarkFull(_host);
         // An application callback may remove/replace the root or focus another control.
         if (stillLive())
         {
@@ -1846,6 +1914,7 @@ void EmbeddedHost::CancelTextInput() noexcept
     if (! _state || (_state->graphics && _state->graphics->_state->thread != GetCurrentThreadId()))
         return;
     ++_state->revision;
+    PaintExtentAccess::MarkFull(_host); // the composition the host painted ends (W4.10)
     _host.DeactivateTextInput();
     _host.SetFocusControl(nullptr);
 }

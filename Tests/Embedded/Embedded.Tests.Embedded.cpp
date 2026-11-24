@@ -96,6 +96,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.PointerHit.h"
 // After the performance fixtures: the W2.1 gate drives FX5.
 #include "Embedded.Tests.IncrementalPublication.h"
+#include "Embedded.Tests.PaintRegions.h"
 #include "Embedded.Tests.RetainedTextLayouts.h"
 #include "Embedded.Tests.RichDocumentStorageResources.h"
 #include "Embedded.Tests.RichGeometryResources.h"
@@ -1631,6 +1632,10 @@ __declspec(noinline) static int RunFunctionalTests()
 #if DXUI_ENABLE_DIAGNOSTICS && defined(_DEBUG)
     const VerifyEveryPublication::Report verifyEveryPublication;
 #endif
+    // W4.10: DXUI_PAINT_REGIONS=0 turns paint regions and culling off for the whole process (performance-timing.ps1
+    // -CandidateEnvironment compares one executable with itself under it).
+    if (wchar_t value[8]{}; GetEnvironmentVariableW(L"DXUI_PAINT_REGIONS", value, 8u) == 1u && value[0] == L'0')
+        DxUi::Detail::SetPaintRegionsEnabledForTest(false);
     if (__argc == 2 &&
         (std::wstring_view(__wargv[1]) == L"--test-embedded-input-wake" || std::wstring_view(__wargv[1]) == L"--test-direct-textfield-retirement" ||
          std::wstring_view(__wargv[1]) == L"--test-direct-combobox-retirement" || std::wstring_view(__wargv[1]) == L"--test-form-clear-retirement"))
@@ -2166,6 +2171,14 @@ __declspec(noinline) static int RunFunctionalTests()
         RetainedTextLayoutTests::Run(gpu);
         return 0;
     }
+    if (__argc >= 3 && std::wstring_view(__wargv[1]) == L"--paint-region-cull-bench")
+        return PaintRegionTests::RunCullBench(__argc, __wargv);
+    // Plan W4.10 alone: paint regions and culling (gates, the reach verifier and the regions oracle).
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-paint-regions")
+    {
+        PaintRegionTests::Run(gpu);
+        return 0;
+    }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")
     {
         MarkdownSourceCorrelationTests::LexicalEdits(Check);
@@ -2377,6 +2390,7 @@ __declspec(noinline) static int RunFunctionalTests()
     ComboBoxPopupLayoutTests::Run(gpu);
     TextFieldPaintTests::Run(gpu);
     RetainedTextLayoutTests::Run(gpu);
+    PaintRegionTests::Run(gpu);
     EmbeddedPointerHit::TestPointerHitFx14AndFx2HitTestOncePerMove();
     EmbeddedPointerHit::TestPointerHitFx10PreparesNoPlainLabelAndSearchesNoTree();
     EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);

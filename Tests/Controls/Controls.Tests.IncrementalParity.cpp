@@ -7,6 +7,7 @@
 #include "Controls/DxUi.RichSemanticGeometry.h"
 #include "Support.Tests.ComboBoxPopupLayout.h"
 #include "Support.Tests.IncrementalParity.h"
+#include "Support.Tests.PaintRegions.h"
 #include "Support.Tests.TextFieldPaint.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 // Scenarios are never copied. Owner: DxUi maintainers; review: 2027-01-31.
@@ -227,6 +228,18 @@ void TestNativeIncrementalParityComboPopup()
 void TestNativeIncrementalParityTextField()
 {
     RunParityScript(TextFieldPaintTests::TextFieldScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+}
+
+// W4.10: the regions scripts on the window host, which still paints whole frames but culls children outside the window and
+// the ScrollPanel viewports; a frame of the system's damage alone (DebugRenderDirtyRectForTest) culls against it.
+void TestNativeIncrementalParityPaintRegions()
+{
+    const DxUi::Detail::WorkCounterScope scope;
+    RunParityScript(PaintRegionScript::RegionScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+    RunParityScript(PaintRegionScript::RegionDpiScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+    const DxUi::Detail::WorkCounters work = scope.Delta();
+    std::cout << "  native regions oracle: " << work.frame.paintCulled << " children culled, " << work.frame.inkEscapes << " ink escapes\n";
+    Require(work.frame.paintCulled > 0u, "W4.10: the native regions oracle compares frames that culled children");
 }
 
 // The gate's negative control: a cache that forgets one invalidation must show as a difference, at that control.
@@ -478,4 +491,5 @@ void RunIncrementalParityTests()
     DXUI_RUN_TEST(TestNativeIncrementalParityFx10LiveResize);
     DXUI_RUN_TEST(TestNativeIncrementalParityFx12DenseScreen);
     DXUI_RUN_TEST(TestNativeIncrementalParityTextField);
+    DXUI_RUN_TEST(TestNativeIncrementalParityPaintRegions);
 }

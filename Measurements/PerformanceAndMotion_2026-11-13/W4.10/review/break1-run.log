@@ -1,0 +1,7 @@
+PASS W4.10 declared reach covers every pixel: 1160 cases of 45 control kinds at 96, 120, 144, 168 and 192 DPI (190 unbounded cases skipped)
+PASS W4.10 FX5 hover: per changed toggle the root, its card, the toggle and the slider its reach meets (4 Paint executions per rectangle; G2's literal <= 2 is not met)
+PASS W4.10 region frames keep the caches of the controls outside them
+PASS W4.10 FX12 scrolled: child paints <= visible children + one row
+PASS W4.10 enclosed clips emit no inner PushAxisAlignedClip
+PASS W4.10 undeclared, declared and escaping controls
+FAILED: incremental-versus-fresh oracle, embedded 96 DPI host, script region-edges, seed 0x0000005EED0410ED, step 2 (the Patch beside the EdgeInk's last pixel column changes): 372 BGRA pixels differ inside (142,100)-(169,139); first at (142,100): incremental 5B4F169D fresh 55383E9D; control root (class DxUi::Panel). Replay alone: set DXUI_PARITY_SEED=0x0000005EED0410ED and run DxUi.EmbeddedTests.exe --test-paint-regions

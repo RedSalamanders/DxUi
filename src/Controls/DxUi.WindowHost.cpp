@@ -2032,6 +2032,8 @@ void ControlHost::Invalidate() const noexcept
 
 void ControlHost::InvalidateFor(uint8_t traceFrameReason) const noexcept
 {
+    // An invalidation no control is named for repaints the whole view (W4.10).
+    PaintExtentAccess::MarkFull(*this);
     ++Detail::Work().frame.invalidations;
     // Read and cleared before any application code runs here (the embedded callback), so an invalidation it makes in turn
     // is never taken for the declared one (W8.2).
@@ -2055,6 +2057,34 @@ void ControlHost::InvalidateFor(uint8_t traceFrameReason) const noexcept
         InvalidateRect(_hwnd, nullptr, FALSE);
         if (Detail::Trace::Listening()) [[unlikely]]
             Detail::Trace::FrameRequested(_trace, static_cast<Detail::Trace::FrameReason>(traceFrameReason));
+    }
+}
+
+void ControlHost::RequestRegionFrame() const noexcept
+{
+    ++Detail::Work().frame.invalidations;
+    // As InvalidateFor (W8.2): an invalidation no attestation declares may change what UI Automation reads.
+    if (_accessibilityMarks && ! std::exchange(_accessibilityMarks->attestNextInvalidate, false))
+    {
+        _accessibilityMarks->unattested = true;
+        ++_accessibilityMarks->epoch;
+        ++Detail::Work().accessibility.undeclaredInvalidations;
+    }
+    if (_embedded)
+    {
+        if (_embeddedInvalidate)
+            _embeddedInvalidate(_embeddedContext);
+        return;
+    }
+#if DXUI_ENABLE_DIAGNOSTICS
+    ++_debugInvalidateCount;
+#endif
+    // The window host paints whole frames until it presents the region (plan item W4.9).
+    if (_hwnd && _nativePresentationVisible && IsHostWindowEffectivelyVisible(_hwnd))
+    {
+        InvalidateRect(_hwnd, nullptr, FALSE);
+        if (Detail::Trace::Listening()) [[unlikely]]
+            Detail::Trace::FrameRequested(_trace, Detail::Trace::FrameReason::Invalidate);
     }
 }
 
@@ -5858,8 +5888,14 @@ void ControlHost::DiscardDeviceResources() noexcept
     _sharedGraphicsGeneration = 0u;
 }
 
-void ControlHost::TrimCaches() noexcept
+void ControlHost::TrimCaches(bool fullFrame) noexcept
 {
+    // A frame that paints only a region keeps the cache frame: the controls outside it still use their entries (W4.10).
+    if (! fullFrame)
+    {
+        _transitionBrushesUsed = 0u;
+        return;
+    }
     // Called only at paint/preparation start, before any brush or format is borrowed for the frame. Each call is one frame
     // (_paintFrame): entries used by the frame that just ended or the one before it stay; above its bound a map releases
     // the others. Entries in use stay even above the bound, so a working set beyond it never thrashes. Nothing retains a
@@ -5924,7 +5960,16 @@ void TextLayoutCacheAccess::Draw(ControlHost& host,
     if (! target || ! format || ! brush)
         return;
     const auto drawText = [&]() noexcept
-    { CountedDrawText(target, text.data(), static_cast<UINT32>(text.size()), format, rect, brush, options, DWRITE_MEASURING_MODE_NATURAL); };
+    {
+        // Without a layout the ink is unknown: the painting control's extent becomes unbounded (W4.10, ink escape).
+        PaintExtentAccess::NoteUnknownTextInk(host);
+        CountedDrawText(target, text.data(), static_cast<UINT32>(text.size()), format, rect, brush, options, DWRITE_MEASURING_MODE_NATURAL);
+    };
+    const auto noteInk = [&](const DWRITE_OVERHANG_METRICS& overhang) noexcept
+    {
+        PaintExtentAccess::NoteTextInk(
+            host, D2D1::RectF(rect.left - overhang.left, rect.top - overhang.top, rect.right + overhang.right, rect.bottom + overhang.bottom));
+    };
     if (host._debugTextLayoutCacheDisabled)
     {
         ++Detail::Work().text.textLayoutCacheBypasses;
@@ -5973,6 +6018,7 @@ void TextLayoutCacheAccess::Draw(ControlHost& host,
 #endif
             ++Detail::Work().text.textLayoutCacheHits;
             entry.lastUse = generation;
+            noteInk(entry.overhang);
             target->DrawTextLayout(D2D1::Point2F(rect.left, rect.top), entry.layout.get(), brush, options);
             return;
         }
@@ -5999,6 +6045,10 @@ void TextLayoutCacheAccess::Draw(ControlHost& host,
         entry.lastUse = generation;
         entry.width   = width;
         entry.height  = height;
+        // Read once per layout; a layout that cannot answer is treated as reaching everywhere.
+        if (FAILED(entry.layout->GetOverhangMetrics(&entry.overhang)))
+            entry.overhang = DWRITE_OVERHANG_METRICS{width + height, width + height, width + height, width + height};
+        noteInk(entry.overhang);
         ++Detail::Work().text.textLayoutCacheMisses;
         target->DrawTextLayout(D2D1::Point2F(rect.left, rect.top), entry.layout.get(), brush, options);
     }
@@ -6012,11 +6062,14 @@ void TextLayoutCacheAccess::Draw(ControlHost& host,
     }
 }
 
-void TextLayoutCacheAccess::BeginPaint(ControlHost& host) noexcept
+void TextLayoutCacheAccess::BeginPaint(ControlHost& host, bool partial) noexcept
 {
     if (host._textLayoutPaintDepth++ != 0u)
         return;
-    ++host._textLayoutPaintGeneration;
+    // A paint of a region only starts no generation: what it does not draw stays (W4.10).
+    host._textLayoutPaintPartial = partial;
+    if (! partial)
+        ++host._textLayoutPaintGeneration;
     // A new typography revision (a new DirectWrite factory) retires every layout made under the old one.
     if (host._textLayoutCacheTypography != host._typographyRevision)
     {
@@ -6028,6 +6081,8 @@ void TextLayoutCacheAccess::BeginPaint(ControlHost& host) noexcept
 void TextLayoutCacheAccess::EndPaint(ControlHost& host) noexcept
 {
     if (host._textLayoutPaintDepth == 0u || --host._textLayoutPaintDepth != 0u)
+        return;
+    if (std::exchange(host._textLayoutPaintPartial, false))
         return;
     EndTextLayoutPaint(host._textLayoutCache,
                        host._textLayoutPaintGeneration,
@@ -6302,8 +6357,9 @@ try
         frame->flushesRemaining = 0u;
         return;
     }
-    // Trim over-bound caches before any brush or format is borrowed for this paint.
-    TrimCaches();
+    // Trim over-bound caches before any brush or format is borrowed for this paint. A frame of the system's damage alone keeps
+    // the cache frame, as an embedded region frame does (W4.10): the controls outside it keep their entries.
+    TrimCaches(! (dirtyRectPx && ResolveWindowHostDirtyRectMetrics(dirtyRectPx, _widthPx, _heightPx).isPartialDirty && ! _forceFullPresentAfterBufferReset));
     FrameClock frameClock;
     FrameStage frameStage       = FrameStage::Idle;
     const auto frameStartedAt   = frameClock.Now();
@@ -6384,8 +6440,14 @@ try
         const bool tracedPrepare = Detail::Trace::Listening();
         if (tracedPrepare) [[unlikely]]
             Detail::Trace::PrepareBegin(_trace);
-        // One generation of the retained text layouts; the strings this paint does not draw release theirs when it ends.
-        const TextLayoutPaintScope textLayoutPaint(*this);
+        // One generation of the retained text layouts; the strings this paint does not draw release theirs when it ends. A frame
+        // of the system's damage alone starts none and releases nothing (W4.10).
+        const TextLayoutPaintScope textLayoutPaint(*this, isPartialDirty);
+        // The paint clip children are culled against (W4.10): the damage, or the whole window. The window host still paints whole
+        // frames; the region an attributed invalidation built is not used before plan item W4.9 and is dropped with the frame.
+        const PaintExtentAccess::ClipScope paintClip(*this);
+        PaintExtentAccess::SetClip(*this, isPartialDirty ? clipDip : GetClientBoundsDip());
+        _paintRegion = PaintRegion{.rects = {}, .count = 0u, .full = false};
         _d2dContext->BeginDraw();
         auto endDrawGuard = wil::scope_exit([&]
         {
@@ -6430,6 +6492,7 @@ try
         if (_root)
         {
             Detail::NotePaintDispatch();
+            const PaintExtentAccess::PaintingScope painting(*this, *_root);
             _root->Paint(*this);
         }
         if (_initialRootChildBatchFrame == &initialBatchFrame)
@@ -7259,6 +7322,8 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
         {
             Control* const oldHover                   = _hoveredControl;
             const std::weak_ptr<int> oldHoverLifetime = oldHover->GetLifetimeToken();
+            // W4.10: hover is painted state no control invalidates for: the region takes the old and the new hovered control.
+            PaintExtentAccess::AddToRegion(*this, *oldHover, true);
             static_cast<void>(TryControlCallback([&] { oldHover->OnHoverChanged(*this, false); }));
             if (_interactionRevision != interactionRevision)
                 return;
@@ -7278,6 +7343,8 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
             _hoveredControl = RevalidateInteractiveDispatchedControl(newHoverLifetime, _root.get(), newHover);
             if (_interactionRevision != interactionRevision)
                 return;
+            if (_hoveredControl)
+                PaintExtentAccess::AddToRegion(*this, *_hoveredControl, true);
         }
         hoverChanged = true;
     }
@@ -7295,7 +7362,7 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
     {
         // Which control is hovered is drawn, never published: a control's own hover handling declares what it changes.
         const AttestedInvalidation hoverVisual(this);
-        Invalidate();
+        RequestRegionFrame();
     }
 }
 

@@ -60,3 +60,40 @@ template <class Host>
 concept HasPublicPerSettingRefresh = requires(Host& host) { host.RefreshCaretBlinkSettings(); } || requires(Host& host) { host.RefreshTooltipHoverTime(); };
 static_assert(! HasPublicPerSettingRefresh<DxUi::ControlHost>);
 } // namespace Revision6UserSettings
+// Additive in revision 6, no source break (and so no number in the list above): the painted extent (W4.10). A control
+// outside the library declares how far its Paint draws outside its bounds, so a host repaints only its region and may skip
+// it when it lies outside the area being painted. Revision-5 controls compile unchanged and stay undeclared.
+namespace Revision6PaintedExtent
+{
+static_assert(DXUI_HAS_PAINT_OVERHANG == 1);
+static_assert(std::is_same_v<decltype(DxUi::PaintOverhang{}.left), float> && std::is_same_v<decltype(DxUi::PaintOverhang{}.bottom), float>);
+
+class Gauge final : public DxUi::Control
+{
+public:
+    Gauge()
+    {
+        DeclarePaintOverhang();
+    }
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+
+protected:
+    [[nodiscard]] DxUi::PaintOverhang GetPaintOverhang(const DxUi::ControlHost&) const noexcept override
+    {
+        return {4.0f, 4.0f, 4.0f, 4.0f};
+    }
+};
+static_assert(std::is_base_of_v<DxUi::Control, Gauge>);
+
+// A revision-5 control that does not declare still compiles: it is repainted with the whole view, as before.
+class Revision5Control final : public DxUi::Control
+{
+public:
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+};
+static_assert(std::is_base_of_v<DxUi::Control, Revision5Control>);
+} // namespace Revision6PaintedExtent

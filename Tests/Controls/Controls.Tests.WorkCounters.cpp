@@ -270,7 +270,16 @@ void TestWorkCountersCountNativeFramesWalksAndWakes()
     Require(host.DebugGetPartialPresentAttemptCount() == partialBefore + 1u, "the measured frame is a partial frame");
     Require(delta.frame.renders == 1u && delta.frame.presents == 1u, "one render and one present");
     Require(delta.frame.pixelsPainted == 40u * 30u, "a partial frame paints the pixels of its dirty rectangle");
-    Require(delta.frame.paintExecutions == 4u, "the root and its three visible children paint; the hidden child does not");
+    // W4.10: a label whose extent (its bounds plus the 3 DIP reach) meets the 40 x 30 pixel damage paints, the others are culled;
+    // the hidden child is not painted. At 96 DPI the first two labels (tops 4 and 32 DIP, extents from 1 and 29 DIP) meet it.
+    const float damageBottomDip = 30.0f * 96.0f / host.GetDpi();
+    uint64_t meeting            = 0u;
+    for (int index = 0; index < 3; ++index)
+        meeting += 4.0f + 28.0f * static_cast<float>(index) - 3.0f < damageBottomDip ? 1u : 0u;
+    Require(delta.frame.paintExecutions == 1u + meeting && delta.frame.paintCulled == 3u - meeting,
+            "the root and the visible children inside the damage paint, those outside it are culled; the hidden child does not paint");
+    Require(host.GetDpi() != 96.0f || (delta.frame.paintExecutions == 3u && delta.frame.paintCulled == 1u),
+            "at 96 DPI the root and two labels paint and the third is culled");
     Require(delta.frame.treeVisitsPaint == 5u, "the paint walk examines the root and all four children");
 
     // W3.1: a wake with nothing requested ticks nothing; the compatibility walk of an anonymous request still examines the

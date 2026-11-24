@@ -216,6 +216,61 @@ outside the library assigns its properties the same way: `Assign`, `RouteAffects
 subclass and add no storage, and `AssignEquality::Same` with the `SameAssignedValue` extension point is the public
 equality; `AssignEquality::Detail` and `AssignAccess` are the library's own and not API.
 
+## Painted extent
+
+A host repaints and culls each control by its painted extent: its bounds plus its reach, `Control::GetPaintOverhang`, the
+farthest its `Paint` draws outside its bounds in DIPs, on each side, in any state it can reach with its current content and
+configuration (focus ring, elevation, glow, the sampling reach of a shadow or blur). The reach is not reported state by
+state: one value covers every state, so a hover, press or focus change needs no memory of what was painted before. The
+default is the reach of the library class a control derives from (zero for a direct `Control` subclass). A library
+control declares at least 3 DIP, the outer edge of `PaintFocusRing`'s 2 DIP ring 2 DIP outside the control, and more where
+it draws farther: a `PageIndicator` with more pages than its width holds draws its row of dots centred on the bounds, past
+both ends, and declares that row (with the selected dot's focus ring); a `Slider` draws its hovered thumb (20 DIP) and its
+tick marks (9 DIP from the track's centre line) centred across the track whatever its cross size, and declares what passes
+a short slider's edges; a `ColorPicker` keeps the sizes of its field, hue strip and swatches in a smaller box and declares
+them, with their captions, in both flow directions (in a box smaller than its parts the text of its R, G, B and hex rows
+also overflows their boxes, which ink-escape detection catches, so each change of such a picker repaints the whole view:
+a known cost, measured in the `W4.10` receipt). When such a reach changes with a property (the page count, the
+orientation, the labels) the control adds its painted extent to the region before the change. The reach is unbounded
+while a `ComboBox` popup is open or a `PageHost` page transition runs, when the reach is unbounded (an infinite side): the popup's
+shadow and backdrop and the translated, faded pages lie outside any fixed reach, so every invalidation of such a control,
+and the popup's close and the transition's end, repaint the whole view. A control whose value changes invalidates while the
+larger value is returned. A transform or opacity a control applies to what it paints belongs to its reach as the box of
+its transformed extent; a control that cannot bound it (an animated transform, a translated or faded subtree) returns an
+unbounded reach while it lasts and invalidates when it ends, as `PageHost` does. Text whose ink the host draws outside the
+control's bounds plus reach (a label whose wrapped lines overflow a short box, a glyph's overhang) is detected as it is
+drawn: the control's extent is unbounded from then on, until a paint draws it within, and a preparation that painted a
+region repaints the whole view in the same preparation. Text the host draws without a retained layout (a string the host's
+text layout table cannot hold, beyond its bound of 2,048) has unknown ink and counts as escaping, so on a screen of more
+distinct strings than that its controls are repainted with the whole view and not culled. The library classes that draw all
+their text under a clip inside their bounds (`Tree`, `Grid`, `TextField`, `ComboBox`, `RichTextEditor`, `TabControl`) are not
+checked.
+
+A host trusts the extent only of a declared control: a library class exactly (the same 35 classes as the hit test,
+`Control::IsHitTestReported`), or a class outside the library whose own constructor calls `DeclarePaintOverhang`. The
+declaration covers exactly that class: a subclass of `Button` that does not declare is undeclared even though it inherits
+`Button`'s reach, because its `Paint` may draw more. Declaring promises that the class's `Paint`, apart from the children
+it paints through `Panel::Paint`, draws only within its bounds plus `GetPaintOverhang`, applies no transform to those
+children, and changes its pixels only through its own invalidation (`Assign`, `Invalidate`, `RequestInvalidate`,
+`InvalidateMeasure`), and draws those children into the frame's own target. A declared class that draws a shadow or blur, `PaintTransientSurface` included, adds the effect's
+sampling reach (its offset plus three standard deviations) to its overhang. Any invalidation of an undeclared control, or of
+a control below one, repaints the whole view; an undeclared control is never culled, and nothing below it is culled
+either (the paint clip is unbounded while its `Paint` runs), because its `Paint` may draw its children into a command list,
+an effect input or another target, or at a place the world transform does not say. So an application control written
+before the declaration existed paints exactly as before, a library panel below it included. A class that draws its
+children anywhere but the frame's target must not declare: a subclass of a library panel that redirects them is
+undeclared by default and stays correct, and declaring it would let its children be culled against a clip that does not
+apply to them. The library itself draws child controls only into the frame's target (a `PageHost` transition draws its
+pages through a layer and a translation on that target, which culling maps through the world transform).
+
+A panel's painted extent also covers its visible descendants, except a `ScrollPanel`'s, whose `Paint` clips its content to
+its viewport inside its own bounds; it is unbounded when any of them is undeclared or unbounded. A `Panel` (and so a
+`CardPanel`, `StackPanel`, `FlexPanel`, `FormPanel` and every other library panel) does not paint a visible child whose
+extent, mapped through the transform it is drawn with, misses the paint clip, and a `ScrollPanel` pushes no clip of its
+viewport when every device pixel of the paint clip already lies inside it. Painting the children that remain under the clip
+reproduces exactly what painting all of them would. What these extents and the paint region do on each host is
+[Core_PerformanceAndResources.md](../Core/Core_PerformanceAndResources.md), "Paint region".
+
 ## Opt-in intrinsic measurement and flow
 
 `Control::Measure(MeasureContext, LayoutConstraints, DesiredSize&)` is an additive, non-pure extension point.
