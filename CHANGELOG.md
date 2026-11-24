@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Exercise the reviewed CI engine's MSVC setup in the existing tooling fixtures, including direct and nested execution, refusal controls and the pinned benchmark setup path.
 - Verify native volume image paths in fatal-child dump checks, including Windows hotpatch modules.
 - Advance the reviewed shared CI engine pin and regenerate its eight workflow callers.
 - Route Static checks through the compiler-free mode of the root validation command.
