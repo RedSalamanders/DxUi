@@ -1,0 +1,1 @@
+- Reuse the reviewed shared MSVC setup in paired benchmarks and retain the existing local verification command.

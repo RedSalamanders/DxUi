@@ -41,9 +41,22 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Read reviewed CI engine commit
+        id: engine
+        shell: pwsh
+        run: |
+          $pin = (Get-Content -LiteralPath .ci/project.json -Raw | ConvertFrom-Json).engine.ref
+          if ($pin -cnotmatch '^[a-f0-9]{40}$') { throw 'Invalid CI engine commit.' }
+          "ref=$pin" >> $env:GITHUB_OUTPUT
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: RedSalamanders/.github
+          ref: ${{ steps.engine.outputs.ref }}
+          path: .ci-engine
+          persist-credentials: false
       # Explicit manual source revisions are required. Original native outputs and continuous host evidence remain mandatory.
       - name: Prepare required MSVC 14.52 tools
-        uses: ./.github/actions/setup-msvc
+        uses: ./.ci-engine/.github/actions/setup-msvc
         with:
           platform: x64
       # Restore and measure only after successful native toolchain setup.
