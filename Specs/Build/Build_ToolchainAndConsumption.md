@@ -313,6 +313,10 @@ and notification targets keep a module lifetime pin, so detach/uninstall must ha
 does not authorize unloading a module with retained provider state.
 
 Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
+A normal product restore in PowerShell 7 with output under DxUi's `.build` uses the pinned CI engine for
+compiler selection, complete checkout, overlay generation and manifest arguments. Source-only consumers,
+Windows PowerShell 5.1 and a consumer-supplied external output use the compatible source helpers below.
+Both paths retain the tool and platform leases.
 Restore coordinates by the canonical output root. Checkout selection and bootstrap take an exclusive tooling
 lease; each installer retains a shared tooling lease until vcpkg exits. A current checkout is verified under
 that read lease without waiting for another platform's install. Platform-private install, buildtree, package
