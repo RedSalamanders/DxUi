@@ -379,76 +379,6 @@ function Test-DxUiChangelog([Parameter(Mandatory)][string] $Root) {
     return New-ValidationResult $failures @()
 }
 
-# --- Skills -------------------------------------------------------------------------------------------------------
-
-function ConvertFrom-SkillFrontMatter([string] $Text) {
-    <# A strict subset of YAML: one 'key: value' per line, with plain, 'single' or "double" quoted scalars and # comment
-       lines. Anything else is rejected, so every accepted value reads as the same string in any YAML parser. A plain
-       scalar YAML 1.1 would type (null, booleans, numbers, dates) is returned as a non-string. #>
-    $values = [ordered]@{}
-    $lineNumber = 0
-    foreach ($line in $Text.Split("`n")) {
-        $lineNumber++
-        if (-not $line.Trim() -or $line.TrimStart().StartsWith('#')) { continue }
-        $match = [regex]::Match($line, '^(?<key>[A-Za-z_][A-Za-z0-9_-]*):(?:[ ]+(?<value>.*?))?[ ]*$')
-        if (-not $match.Success) { throw "unsupported front matter at line ${lineNumber}: use one 'key: value' per line" }
-        $key = $match.Groups['key'].Value
-        if ($values.Contains($key)) { throw "duplicate front matter key '$key' at line $lineNumber" }
-        $raw = $match.Groups['value'].Value
-        $values[$key] = if (-not $raw) { $null }
-        elseif ($raw[0] -eq "'") {
-            $quoted = [regex]::Match($raw, "^'(?<text>(?:[^']|'')*)'(?:[ ]+#.*)?$")
-            if (-not $quoted.Success) { throw "unterminated single-quoted value at line $lineNumber" }
-            $quoted.Groups['text'].Value.Replace("''", "'")
-        } elseif ($raw[0] -eq '"') {
-            $quoted = [regex]::Match($raw, '^"(?<text>(?:[^"\\]|\\["\\])*)"(?:[ ]+#.*)?$')
-            if (-not $quoted.Success) { throw "unsupported double-quoted value at line ${lineNumber}: only \"" and \\ escapes are accepted" }
-            [regex]::Replace($quoted.Groups['text'].Value, '\\(["\\])', '$1')
-        } else {
-            if ($raw -match '^[-?:,\[\]{}#&*!|>''"%@`]' -or $raw.Contains(': ') -or $raw.Contains(' #') -or $raw.EndsWith(':') -or $raw -match '[\x00-\x1f]') {
-                throw "unsupported plain value at line ${lineNumber}: quote it"
-            }
-            $typed = $raw -cmatch '^(?:~|null|Null|NULL|yes|Yes|YES|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF|=|<<)$' -or
-                $raw -cmatch '^[-+]?(?:[0-9][0-9_:]*(?:\.[0-9_]*)?(?:[eE][-+]?[0-9]+)?|\.[0-9_]+(?:[eE][-+]?[0-9]+)?|0b[01_]+|0x[0-9a-fA-F_]+|\.(?:inf|Inf|INF|nan|NaN|NAN))$' -or
-                $raw -cmatch '^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}'
-            if ($typed) { [pscustomobject]@{ YamlScalar = $raw } } else { $raw }
-        }
-    }
-    if ($values.Count -eq 0) { return $null }
-    return $values
-}
-
-function Test-DxUiSkills([Parameter(Mandatory)][string] $Root) {
-    $failures = [Collections.Generic.List[string]]::new()
-    $messages = [Collections.Generic.List[string]]::new()
-    $folder = Join-Path $Root '.agents/skills'
-    $entries = @(Sort-Ordinal @([IO.Directory]::EnumerateFileSystemEntries($folder) | ForEach-Object { [string]$_ }))
-    foreach ($entry in $entries) {
-        if (-not [IO.Directory]::Exists($entry)) { continue }
-        $name = [IO.Path]::GetFileName($entry)
-        $path = Join-Path $entry 'SKILL.md'
-        if (-not [IO.File]::Exists($path)) { $failures.Add("${name}: missing SKILL.md"); continue }
-        $parts = (Read-TextFile $path).Split([string[]]@('---'), 3, [StringSplitOptions]::None)
-        try {
-            $metadata = if ($parts.Count -eq 3 -and -not $parts[0].Trim()) { ConvertFrom-SkillFrontMatter $parts[1] } else { $null }
-        } catch {
-            $failures.Add("${name}: $($_.Exception.Message)")
-            continue
-        }
-        if ($metadata -isnot [Collections.IDictionary]) { $failures.Add("${name}: missing YAML front matter"); continue }
-        $skillName = if ($metadata.Contains('name')) { $metadata['name'] } else { '' }
-        $description = if ($metadata.Contains('description')) { $metadata['description'] } else { '' }
-        if ($skillName -isnot [string] -or $skillName -cne $name -or -not (Test-FullMatch $skillName '[a-z0-9]+(?:-[a-z0-9]+)*') -or $skillName.Length -gt 64) {
-            $failures.Add("${name}: invalid name")
-        }
-        if ($description -isnot [string] -or -not $description.Trim() -or $description.Length -gt 1024) { $failures.Add("${name}: invalid description") }
-        if (-not $parts[2].Trim()) { $failures.Add("${name}: empty instructions") }
-        $messages.Add("Validated $name")
-    }
-    if ($entries.Count -eq 0) { $failures.Add('No skills found') }
-    return New-ValidationResult $failures $messages
-}
-
 # --- Source ownership and dependency boundaries -----------------------------------------------------------------
 
 function Resolve-OwnedPath([string] $Root, [object] $Relative) {
@@ -951,6 +881,6 @@ function Invoke-DxUiValidation {
 }
 
 Export-ModuleMember -Function Get-MarkdownProse, Test-DxUiDocs, Test-DxUiDesignSystem, Test-DxUiMeasurements, Test-DxUiSpecs, Test-DxUiChangelog,
-    ConvertFrom-SkillFrontMatter, Test-DxUiSkills, Test-DxUiDependencies, Test-DxUiTestPort, Get-BuildMatrix,
+    Test-DxUiDependencies, Test-DxUiTestPort, Get-BuildMatrix,
     Test-DxUiProjectConfigurations, Test-DxUiSolutionConfigurations, Test-DxUiBuildMatrix, Complete-DxUiValidation,
     Get-DxUiValidationSteps, Invoke-DxUiValidation

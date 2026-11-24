@@ -773,8 +773,8 @@ exit or finishes termination handling, not at the kernel exit instant. An exact 
 must still be alive when the helper returns, independently of that scalar, and must acknowledge explicit release
 with exit zero. A five-second holder failsafe and identity-checked failure cleanup keep the fixture bounded.
 Startup delay and an EOF-wait substitution are distinct controlled checks; neither assigns an original untraced failure.
-`validate-skills.ps1` checks all repository skills, reading front matter as a strict `key: value` subset of YAML
-that any YAML parser reads the same way; `validate-specs.ps1`
+`validate-skills.ps1` runs the pinned engine's guidance contract G1 through G13 for skill packages,
+repository guidance, pointers and plan indexes. The engine owns those regression fixtures. `validate-specs.ps1`
 checks local links, normative documents and plan indexes; `validate-dependencies.ps1` verifies historical origin
 metadata, current ownership paths and the exact pending dependency inventory. Original hashes describe the original
 commit only: editing owned source must not fail a hash check. New unresolved includes, missing owned files,
