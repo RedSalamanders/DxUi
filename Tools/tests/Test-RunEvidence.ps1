@@ -23,8 +23,8 @@ if (-not [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.Int
 $repository = Split-Path -Parent $PSScriptRoot
 if (-not (Test-Path -LiteralPath (Join-Path $repository 'AGENTS.md'))) { $repository = Split-Path -Parent $repository }
 if (-not $ModulePath) {
-    $ModulePath = Join-Path $repository 'Tools/TestRunEvidence.psm1'
-    if (-not (Test-Path -LiteralPath $ModulePath)) { $ModulePath = Join-Path $repository 'Build/TestRunEvidence.psm1' }
+    Import-Module (Join-Path $repository '.ci-engine/Tools/Modules/Ci.EngineBinding.psm1')
+    $ModulePath = Resolve-CiPinnedEngineModule -ProjectRoot $repository -Name 'TestRunEvidence.psm1'
 }
 if (-not $ScratchRoot) {
     if (-not (Test-Path -LiteralPath (Join-Path $repository 'AGENTS.md'))) { $repository = Split-Path -Parent $PSScriptRoot }
@@ -44,7 +44,8 @@ function Reject-Evidence([scriptblock] $Body, [string] $Message) {
 }
 function New-Fixture([string] $Name) {
     $path = Join-Path $ScratchRoot $Name
-    [void][IO.Directory]::CreateDirectory($path)
+    [void][IO.Directory]::CreateDirectory((Join-Path $path 'Tests'))
+    [IO.File]::Copy((Join-Path $repository 'Tests/test-scopes.json'), (Join-Path $path 'Tests/test-scopes.json'))
     return $path
 }
 
@@ -184,8 +185,10 @@ if ($volume.FileSystem -eq 'NTFS') {
         $alias = Join-Path $run.Path 'shared.bin'
         [void](New-Item -ItemType HardLink -Path $alias -Target $shared)
         [IO.File]::SetAttributes($shared, [IO.FileAttributes]::ReadOnly)
-        $handle = [TestRunEvidenceV2.Native]::Pin($shared, $false)
-        try { $identity = [TestRunEvidenceV2.Native]::Identity($handle) } finally { $handle.Dispose() }
+        $native = 'TestRunEvidenceV3.Native' -as [type]
+        if (-not $native) { $native = 'TestRunEvidenceV2.Native' -as [type] }
+        $handle = $native::Pin($shared, $false)
+        try { $identity = $native::Identity($handle) } finally { $handle.Dispose() }
         Complete-TestRunEvidence $run $true
         $sharedManifest = Get-Content (Join-Path $run.Directory 'completed.json') -Raw | ConvertFrom-Json
         Assert-Evidence ($sharedManifest.payload[0].identity -ceq $identity -and

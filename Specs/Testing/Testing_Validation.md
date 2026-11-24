@@ -781,8 +781,8 @@ exit or finishes termination handling, not at the kernel exit instant. An exact 
 must still be alive when the helper returns, independently of that scalar, and must acknowledge explicit release
 with exit zero. A five-second holder failsafe and identity-checked failure cleanup keep the fixture bounded.
 Startup delay and an EOF-wait substitution are distinct controlled checks; neither assigns an original untraced failure.
-`validate-skills.ps1` checks all repository skills, reading front matter as a strict `key: value` subset of YAML
-that any YAML parser reads the same way; `validate-specs.ps1`
+`validate-skills.ps1` runs the pinned engine's guidance contract G1 through G13 for skill packages,
+repository guidance, pointers and plan indexes. The engine owns those regression fixtures. `validate-specs.ps1`
 checks local links, normative documents and plan indexes; `validate-dependencies.ps1` verifies historical origin
 metadata, current ownership paths and the exact pending dependency inventory. Original hashes describe the original
 commit only: editing owned source must not fail a hash check. New unresolved includes, missing owned files,
@@ -1565,68 +1565,57 @@ desktop lease with the lease's refusals (a CI job, no interactive window station
 runner MUST fail without a receipt when activation was blocked (the application window does not take the foreground, or a
 popup is 1 by 1 pixels, differs from its layout rectangle or lacks the foreground, focus or capture) or when the person's
 input reached the menu, and it never moves the pointer.
-## Scoped iteration and PR coverage
+## Scoped iteration and qualification
 
-Active native test sources, helpers, fixtures and seams MUST use `<Component>.Tests.Something.h/.cpp`, with the actual component context (`Controls`, `Support`, `Embedded`, etc.). Literal `Scope` is a rejected placeholder. `Tests/native-test-files.json` owns active membership. Historical archived harnesses and sealed reproduction inputs keep their original identity; they do not define new source naming. Rename project entries, includes, current inventories and callers together. DxUi historical source/test origins retain their original identities and map to current paths separately.
+Active native test sources, helpers, fixtures and seams MUST use `<Component>.Tests.Something.h/.cpp`, with the actual component context (`Controls`, `Support`, `Embedded`, etc.). Use the actual component name in every entry. `Tests/native-test-files.json` owns active membership. Historical archived harnesses and sealed reproduction inputs keep their original identity; they do not define new source naming. Rename project entries, includes, current inventories and callers together. DxUi historical source/test origins retain their original identities and map to current paths separately.
 
 Git path discovery and changed-path aggregation MUST preserve exact path identity with ordinal, case-sensitive deduplication and ordering, regardless of the host filesystem's case behavior. Scope-pattern matching remains intentionally case-insensitive.
 
 `Test-Changes.ps1` is the ordinary iteration entrypoint. Its default is affected coverage, including committed changes since a local merge base and independent staged, unstaged, deletion, rename-side and untracked discovery. No ref is fetched. Unknown executable inputs widen coverage; prose alone does not require native tests. Explanations name paths, consumers and fallback reasons. Explicit selectors reject unknown scopes. Affected, filtered and environment-reduced coverage MUST NOT be reported as a full repository pass.
 
-An ordinary local affected success may retain a profile-specific iteration baseline for at most 24 hours.
-The next default invocation selects content and pending index changes since that success rather than
-reselecting every already-tested branch change. Source maps retain every input of the full validator
-identity, exact ordinal Git path spelling and byte hashes; index maps retain blob, mode and flags.
-Staging tested working bytes alone adds no work, while distinct staged content, mode/flag changes and
-index-only deletion remain visible. Missing, malformed, expired or incompatible state falls back to the
-cumulative branch comparison. Explicit BaseRef, Force, scope selection, Full, PrePush, instrumentation
-and hosted execution never narrow their obligation using this baseline. No-work/Explain calls do not
-advance it. It records only the completed noninteractive affected lane, never repository qualification.
+The version 2 manifest owns the suite mappings, native inventory, independent Tooling and Format
+commands, instrumentation variables, profile images and interactive obligations. The pinned engine
+owns planning, receipts, the profile lease and the local iteration baseline. The baseline is reusable
+for 24 hours after an ordinary successful affected run, with identical profile, environment and Git
+identity. It retains ordinal Git paths, working-tree byte hashes and index metadata. An explicit base
+or scope, Full, PrePush, Force, instrumentation and hosted execution always use their stated scope.
+Only ordinary affected success without capability skips can advance the baseline. Changed profile
+artifacts select every scope. A run with work revokes its previous baseline before execution.
+Foreground obligations are listed from the cumulative branch changes and require a separate run.
 
-When a baseline includes native work, reuse rechecks installed dependency bytes, the canonical evaluated
-compiler/SDK byte identity and the entire executable/library/DLL/PDB profile. A mismatch selects full
-noninteractive coverage. Successful tooling-only edits preserve that native context. Publishing a new
-baseline requires stable source, index, tools/environment and native context before and after execution;
-capability skips, instrumentation, delegation or failure cannot publish one. Every selected affected
-attempt and every direct test.ps1 attempt revokes the prior baseline before work, including forced,
-filtered and explicit attempts. A failed rerun therefore cannot be hidden by an older no-work baseline.
-Affected and direct test operations hold one reentrant checkout/profile lease; competing processes refuse
-before execution while other profiles/worktrees remain independent. Native builds retain their own output
-ownership checks. Cumulative branch-based foreground obligations remain printed after a no-work result;
-only separately authorized interactive execution can satisfy them.
+Markdown in Tests/Data or Tests/Fixtures is runtime input, including a file named README.md. Unknown
+Markdown beside implementation uses the matching executable scope or conservative fallback. The
+manifest classifies owned guidance, documentation and archived measurements as prose.
 
-Documentation-only Markdown classification is restricted to owned prose/guidance locations and named
-repository/readme guidance. Markdown under Tests/Data or Tests/Fixtures is runtime data, including a file
-named README.md. Unknown Markdown beside implementation uses normal scope rules or conservative fallback,
-and remains in compiled input identity. A Markdown extension alone cannot waive native coverage.
+An independent scope may reuse its exact successful receipt across profiles. A native scope requires
+the matching scoped receipt and a successful suite report with no capability skips. The runner
+archives prior reports before invoking suites and requires fresh reports from that invocation.
+Instrumentation suppresses ordinary reuse and publication. Changed inputs, invalid receipts, failure,
+interruption and capability skips cannot grant a new reusable success. Tooling fixtures restore the
+distinction between unset, empty and nonempty environment values.
 
-Successful whole-scope results are reused only for equal repository content, installed dependency inputs, complete executable/static-library/DLL/PDB output closure, architecture, configuration, scope, runner and environment. Native build and run identities hash the selected platform's installed vcpkg triplet files plus its status, package inventory and ABI metadata; missing dependency metadata fails closed. Build attestation binds compiled source and installed dependencies to those artifacts before `SkipBuild`. Invalid, missing, failed, interrupted or concurrently mutated evidence is never reusable. Force bypasses test-result reuse. Independent tooling receipts are shared across profiles because their execution has no profile argument. Receipt identity is content-based; staging/committing the same source tree does not itself invalidate it.
-PowerShell tooling fixtures that mutate process environment variables MUST restore whether each value was unset, empty or nonempty. A test-generated empty value is a distinct identity input and MUST NOT leak into a later build or SkipBuild gate.
+For any selected native scope the shared runner builds the whole profile first, then invokes the
+required noninteractive suites. Its build receipt binds classified compiled source, options,
+environment and profile outputs. The direct native build and test commands separately attest the
+selected platform's installed vcpkg content and metadata, evaluated compiler and SDK, native project
+coverage and complete profile outputs as specified by [Toolchain and consumer integration](../Build/Build_ToolchainAndConsumption.md#selected-native-target-builds).
+Those checks govern direct SkipBuild and the actual suite process. The shared runner holds the same
+profile lease across its build and test children. Paired performance studies require their own
+source and toolchain evidence.
 
-After all selected tooling commands succeed, the scoped runner rechecks their complete content/environment/tool
-identity and publishes the independent tooling receipt before entering native execution. A subsequent native
-failure or interruption leaves that completed tooling obligation available for an identical continuation;
-it does not publish native success, a completed iteration baseline or whole-repository qualification.
-A fresh failed or interrupted tooling attempt revokes its earlier success. Changed inputs before tooling
-completion and instrumented execution publish no reusable ordinary tooling proof. If later native work
-changes tooling inputs, the retained original tooling identity cannot match those new inputs; never refresh
-its digest or claim it covered the changed source.
+Use the following commands for six-profile accounting and for a full single-profile run.
 
-Scoped reuse qualifies the existing attested artifact bytes in the recorded environment. Its environment identity
-includes Visual Studio installation metadata, the default toolset file and graphics-runtime bytes; it does not hash
-the complete external compiler or Windows SDK installation. Consequently, `SkipBuild` and a reused native receipt
-cannot establish buildability with a newly serviced compiler/SDK. Retain fresh canonical build evidence for that
-toolchain gate. Paired performance studies separately require the resolved toolchain and SDK content identity
-specified by the performance contract.
+```powershell
+./Test-Changes.ps1 -Mode PrePush -Explain
+./Test-Changes.ps1 -Mode PrePush
+./Test-Changes.ps1 -Mode Full -Platform x64 -Configuration Release
+```
 
-`-Mode Full` selects the full local noninteractive obligation. `Test-PrePush.ps1 -Explain` is the six-profile accounting entry point; after reviewing it, `Test-PrePush.ps1` runs each x64/ARM64 Debug/Release/ASan Debug profile. Identical independent tooling evidence is reused across the six invocations and executes once. ARM64 runtime work must run on a native ARM64 host or remain explicitly pending in the verified PR gate; a cross-build does not satisfy it. Use `Test-Changes.ps1 -Mode PrePush -Platform <x64|ARM64> -Configuration <Debug|Release|ASan Debug>` for one profile.
-
-An explicitly owner-approved delivery may scope ARM64 to compilation in Debug, Release and ASan Debug while
-requiring all three x64 runtime profiles. Record that decision and its exact candidate in the delivery ledger;
-label ARM64 entries compilation-only and retain earlier runtime failures. Closing that delivery scope does not
-claim native ARM64 runtime support or relax the shared two-architecture production release gate.
-
-Delegation requires a clean committed, attached non-default branch on the canonical remote; an open pull request whose head SHA is exactly the candidate; the active workflow; the bytes of the workflow and of every script and module that decides its coverage (`prContractFiles` in `Tests/test-scopes.json`: the runners, the native-scope classifier and the modules they import), with the coverage the manifest claims, matching the reviewed digest `prWorkflowDigest` (a CI-only change to a runner therefore keeps every obligation local until the digest is reviewed again); an available local ref for the pull request's actual base; and a matching native profile. This supports stacked pull requests without treating `origin/main` as their base. Staged, unstaged and untracked inputs retain obligations locally; a dirty tree, detached/default branch, foreign remote or changed HEAD during the coverage lookup rejects delegation. Nightly and weekly jobs are not PR coverage. Workflow/API uncertainty keeps obligations local. A delegated run reports `CI_PENDING`, never repository `PASSED`; the PR must pass `ci-gate`. Main/release acceptance remains separate because its merge tree, configuration matrix or requirements can differ.
+PrePush runs the three x64 profiles locally and builds the three ARM64 profiles. Native ARM64
+runtime evidence requires a matching host and separate Release qualification. Main qualification
+retains the full native test adapter, consumer and hosted foreground suites. Compiler-free PR
+checks cover static policy and validation. Interactive obligations require their own authorized
+desktop evidence.
 
 On 11 October 2026 the developer requested merging the completed S0-S2 library implementation while retaining
 S3-S7 and unfinished qualification in indexed WIP. This implementation-only decision permits normal PR integration

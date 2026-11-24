@@ -1,5 +1,6 @@
-<# .SYNOPSIS Validates every repository-local DxUi skill. #>
-[CmdletBinding()] param()
+<# .SYNOPSIS Checks DxUi's agent guidance with the pinned CI engine. #>
+[CmdletBinding()]
+param()
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-Import-Module (Join-Path $PSScriptRoot 'Tools/Validation.psm1') -Force
-Complete-DxUiValidation (Test-DxUiSkills $PSScriptRoot) 'Skill'
+& (Join-Path $PSScriptRoot 'Tools/Test-AgentGuidance.ps1') -Root $PSScriptRoot

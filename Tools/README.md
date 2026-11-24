@@ -45,7 +45,7 @@ release and isolation; actual concurrent cold restores additionally verify the p
 
 Repository tooling is PowerShell. Consumer-facing entry points keep the version promises listed in
 [`capabilities.json`](../capabilities.json); internal validation and scoped-iteration tools require PowerShell 7.
-Root entry points (`build.ps1`, `test.ps1`, `Test-Changes.ps1`, `Test-PrePush.ps1`, `format.ps1`, `gallery.ps1`,
+Root entry points (`build.ps1`, `test.ps1`, `Test-Changes.ps1`, `format.ps1`, `gallery.ps1`,
 `performance.ps1`, `performance-paired.ps1`, `test-consumer.ps1`, `validate.ps1` and the `validate-*.ps1` scripts)
 are the stable developer interface. `validate.ps1` runs the five
 validators and the tooling tests in turn and reports every failure before it fails; CI's validation job runs it, and
@@ -124,7 +124,7 @@ Local affected execution may reuse successful native filter/watchdog verificatio
 source (including native harness code), installed dependencies, artifacts, host binary and environment match.
 Failure, instrumentation, mutation or expiry refuses reuse. Full and hosted execution always verify freshly.
 Desktop availability, foreground leases, product suites and performance are outside this preflight cache.
-Benchmark native-input discovery retains the exact `ScopedTesting.psm1` instance imported beside its own
+Benchmark native-input discovery retains the exact `DxUiBuildEvidence.psm1` instance imported beside its own
 `PerformancePolicy.psm1`. A paired process may load another checkout's module with the same name; that
 module cannot redirect discovery or turn a module-name lookup into an ambiguous command. The regression
 loads a second, hostile module and compares the complete native closure with its independent pre-import result.
@@ -153,7 +153,8 @@ metadata regression) and the ASan runtime check; this operational allowance chan
 | tests/Test-PerformanceProfiling.ps1 | Portable fixtures for diagnostic inventory, CPU availability/chronology/domains, v1/v2/v3 boundary/scenario/phase and per-frame probe order, fixed allocation budgets, heap/query errors, stale and malformed output, source/artifact mutation, capture validation, owned-child timeout and bounded pipe drainage; delayed parent startup is admitted separately from the unchanged drain budget, missing holder identity retains child diagnostics, and an exact live inherited-pipe holder acknowledges release; exact PID/native-creation identity limits cleanup to the owned helper; native rendering is validated separately |
 | BenchmarkGate.psm1, Get-BenchmarkScope.ps1, Publish-BenchmarkVerdict.ps1 | Versioned paired-study policy, legacy scope compatibility and retained verdicts. Refused metric admission is labeled unassessed rather than reported as an absence of regressions. The explicit manual benchmark.yml runs the long study with a required passing verdict by default; diagnostic A/A is separate. Baseline policy/judge and exact receipt identity remain mandatory. See Specs/Core/Core_PerformanceAndResources.md. |
 | NativeScope.psm1, Get-NativeScope.ps1 | Historical six-profile PR scope compatibility only. Current CI uses the pinned shared complete-tree classifier in .ci/project.json; PRs never compile. These commands do not establish current main qualification or publication eligibility. |
-| ScopedTesting.psm1, Test-Changes.ps1, Test-PrePush.ps1 | Affected, Full and six-profile PrePush accounting; ordinal-exact Git path identity independent of host filesystem case behavior; exact successful reuse; UTF-8 path discovery; explicit capability-skip and `INTERACTIVE_NOT_RUN` status; verified open-PR delegation against its actual base; Test-PrePush shares profile-independent tooling receipts across all six profiles |
+| ScopedTesting.psm1, Test-Changes.ps1 | Pinned engine shims for affected, Full and six-profile PrePush accounting, ordinal Git paths, exact successful reuse, profile-independent tooling and separate interactive obligations. |
+| DxUiBuildEvidence.psm1 | Native project coverage, dependency and artifact identities, direct build and harness receipts, and the paired reader used by SDK and performance tooling. |
 | ProcessInspection.psm1, tests/Test-ProcessInspection.ps1 | Read-only build-output process inspection. A missing CIM image triggers direct inspection of the observed PID; confirmed exit is ignored, a live inaccessible process fails closed with its PID, and only an exact output path blocks its profile. No process is terminated. Fixtures cover actual child lifetime, refusal and the actual build phase across configurations/workspaces. The helper is a measured build input in the paired benchmark scope. |
 | Generate-MarkdownUnicodeData.ps1 | Generate or check pinned Unicode 17 Markdown character classes, label folding and first-strong bidi ranges, including DerivedBidiClass defaults and explicit overrides; `-Check` is read-only and the generator verifies every input/license hash. `tests/Test-MarkdownData.ps1` covers reproducibility and stale inputs. |
 | tests/Test-ScopedTesting.ps1 | Independent path-selection and identity fixtures, including exact-case Git paths, rename sides, Unicode, prose-stable compiled identity, rich math/diagram/script/bidi implementation, public rich headers and focused corpus helpers selecting EditorControls, Embedded and Accessibility together; reuse and delegation remain fail-closed |

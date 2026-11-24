@@ -193,14 +193,18 @@ Invoke-TestCase 'vcpkg-install.ps1 keeps its interface, fails early and passes t
     Assert-Equal "''" $parameters[1].DefaultValue.Extent.Text 'the default output root'
     Assert-True $parameters[0].Extent.Text.Contains("'x64', 'ARM64', 'All'") 'the platforms'
     $script = [IO.File]::ReadAllText($path)
-    $toolsetAt = $script.IndexOf('Get-DxUiDefaultToolset', [StringComparison]::Ordinal)
-    Assert-True ($toolsetAt -ge 0) 'the default toolset is read'
-    foreach ($later in @('git.exe clone', 'bootstrap-vcpkg.bat', '& $vcpkg @arguments')) {
+    $sharedToolsetAt = $script.IndexOf('Get-CiDefaultMsvcToolset', [StringComparison]::Ordinal)
+    $legacyToolsetAt = $script.IndexOf('Get-DxUiDefaultToolset', [StringComparison]::Ordinal)
+    Assert-True ($sharedToolsetAt -ge 0 -and $legacyToolsetAt -ge 0) 'both paths read the default toolset'
+    foreach ($later in @('Initialize-CiVcpkgCheckout', 'Initialize-CiVcpkgExecutable', 'git.exe clone', 'bootstrap-vcpkg.bat', '& $vcpkg @arguments')) {
         $at = $script.IndexOf($later, [StringComparison]::Ordinal)
-        Assert-True ($at -gt $toolsetAt) "the toolset is read before '$later', so a broken installation fails before anything is cloned or run"
+        Assert-True ($at -gt [Math]::Max($sharedToolsetAt, $legacyToolsetAt)) "the toolset is read before '$later', so a broken installation fails before anything is cloned or run"
     }
-    Assert-True $script.Contains('"--overlay-triplets=$($overlay.Directory)"') 'vcpkg takes the overlay directory'
-    Assert-True $script.Contains('-StockTripletPath (Join-Path $toolRoot "triplets/$triplet.cmake")') 'copied from the pinned checkout, not restated'
+    Assert-True $script.Contains('-OverlayTriplets $overlay.Directory') 'the shared install receives the overlay directory'
+    Assert-True $script.Contains('"--overlay-triplets=$($overlay.Directory)"') 'the legacy install receives the overlay directory'
+    Assert-True $script.Contains('$sourceTriplet = Join-Path $toolRoot "triplets/$triplet.cmake"') 'the source triplet comes from the pinned checkout'
+    Assert-True $script.Contains('-SourceTripletPath $sourceTriplet') 'the shared overlay uses the pinned source'
+    Assert-True $script.Contains('-StockTripletPath $sourceTriplet') 'the legacy overlay uses the pinned source'
     Assert-True $script.Contains('"vcpkg-triplets\$platformScope"') 'under the build output, one directory per platform'
 }
 

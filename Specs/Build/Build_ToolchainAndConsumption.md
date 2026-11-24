@@ -34,11 +34,13 @@ closure update before partial admission. The current owned targets have no app-l
 beyond their executables, symbols, static library and ASan runtime. New runtime assets must extend the catalog,
 staging and negative controls together. System graphics/Windows DLLs retain their environment/native gates.
 
-Affected execution maps Foundation to its executable, Embedded and ordinary performance to EmbeddedTests,
-other scopes to ControlTests, foreground/private lease scenarios to InteractiveLease, and ASan's failure probe
-to FoundationTests. The EmbeddedTests benchmark is required even when it is not an explicitly selected suite.
-Full and PrePush retain a full solution build request. Explicit direct test suite calls may build their union;
-`test.ps1 -Full` remains full. Unknown source input still widens the affected plan conservatively.
+Direct selected test execution maps Foundation to its executable, Embedded and ordinary performance
+to EmbeddedTests, other scopes to ControlTests, foreground/private lease scenarios to InteractiveLease,
+and ASan's failure probe to FoundationTests. The EmbeddedTests benchmark is required even when its
+suite is absent from the request. Direct `test.ps1 -Full` and the shared `Test-Changes.ps1` runner build
+the whole solution whenever native work is selected. The shared runner owns `build.json` for its build
+receipt. DxUi's direct Full attestation is `native-build.json` and direct selected target receipts
+remain in `build-targets/` beside it.
 
 Default-output selected test builds that include the benchmark retain canonical v2 source/toolchain/artifact
 and intermediate verification. Stale inputs or unverified objects force Rebuild of the selected union; a warm
@@ -311,6 +313,10 @@ and notification targets keep a module lifetime pin, so detach/uninstall must ha
 does not authorize unloading a module with retained provider state.
 
 Run `vcpkg-install.ps1 -Platform x64` (or ARM64/All) before build. WIL and the vcpkg tool revision are pinned.
+A normal product restore in PowerShell 7 with output under DxUi's `.build` uses the pinned CI engine for
+compiler selection, complete checkout, overlay generation and manifest arguments. Source-only consumers,
+Windows PowerShell 5.1 and a consumer-supplied external output use the compatible source helpers below.
+Both paths retain the tool and platform leases.
 Restore coordinates by the canonical output root. Checkout selection and bootstrap take an exclusive tooling
 lease; each installer retains a shared tooling lease until vcpkg exits. A current checkout is verified under
 that read lease without waiting for another platform's install. Platform-private install, buildtree, package

@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../PerformancePolicy.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot '../ScopedTesting.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '../DxUiBuildEvidence.psm1') -Force
 
 Invoke-TestCase 'process environment restoration distinguishes unset from empty' {
     $name = 'DXUI_TEST_PROCESS_ENV_RESTORE'
@@ -658,7 +658,7 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
     }
     foreach ($path in @('performance.ps1','performance-paired.ps1','build.ps1','vcpkg-install.ps1','Tools/Compare-Performance.ps1','Tools/PerformanceComparison.psm1',
             'Tools/PairedRun.psm1','Tools/BenchmarkGate.psm1','Tools/PerformancePolicy.psm1','Tools/PerformanceAcceptancePolicy.v1.json','Tools/VcpkgTriplet.psm1','Tools/VcpkgRestore.psm1',
-            'Tools/ScopedTesting.psm1','Tools/Validation.psm1','Build/BuildConsole.psm1','vcpkg.json','vcpkg-tool.json')) { Set-FixtureFile $root $path "fixed fixture harness: $path" }
+            'Tools/DxUiBuildEvidence.psm1','Tools/Validation.psm1','Build/BuildConsole.psm1','vcpkg.json','vcpkg-tool.json')) { Set-FixtureFile $root $path "fixed fixture harness: $path" }
     Set-FixtureFile $root '.build/vcpkg_installed/x64/vcpkg/status' 'fixture installed dependency'
     Set-FixtureFile $root '.build/vcpkg_installed/x64/vcpkg/info/wil_x64-windows.list' 'x64-windows/include/wil.h'
     Set-FixtureFile $root '.build/vcpkg_installed/x64/x64-windows/include/wil.h' 'fixture installed header'
@@ -820,15 +820,15 @@ Invoke-FixtureCase 'native input discovery retains its owning module beside anot
         Set-FixtureFile $root $path '// owned native bytes'
     }
     $expected = Get-FixtureNativeClosure $fixture
-    $foreignPath = Join-Path $root '.build/other-checkout/Tools/ScopedTesting.psm1'
-    Set-FixtureFile $root '.build/other-checkout/Tools/ScopedTesting.psm1' @'
+    $foreignPath = Join-Path $root '.build/other-checkout/Tools/DxUiBuildEvidence.psm1'
+    Set-FixtureFile $root '.build/other-checkout/Tools/DxUiBuildEvidence.psm1' @'
 function Get-ScopedTrackedPaths { throw 'Foreign checkout discovery must never run.' }
 function Get-ForeignScopedSentinel { 'foreign' }
 Export-ModuleMember -Function Get-ForeignScopedSentinel
 '@
     $foreign = Import-Module $foreignPath -Global -PassThru
     try {
-        $visible = & (Get-Module PerformancePolicy) { @(Get-Module ScopedTesting).Count }
+        $visible = & (Get-Module PerformancePolicy) { @(Get-Module DxUiBuildEvidence).Count }
         Assert-True ($visible -ge 2) 'the fixture reproduces two visible ScopedTesting module identities'
         $actual = Get-FixtureNativeClosure $fixture
         Assert-Equal (ConvertTo-Json $expected -Depth 20 -Compress) (ConvertTo-Json $actual -Depth 20 -Compress) 'another checkout cannot redirect or break native input discovery'
@@ -1000,7 +1000,7 @@ Invoke-FixtureCase 'a module reload cannot forget the byte identity of its alrea
         $path = Join-Path $root 'engine/Microsoft.Build.dll'
         [AppDomain]::CurrentDomain.SetData($key, @{ path=$path; sha=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash; assembly=$null })
         Import-Module (Join-Path $PSScriptRoot '../PerformancePolicy.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot '../ScopedTesting.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '../DxUiBuildEvidence.psm1') -Force
         Set-FixtureFile $root 'engine/Microsoft.Build.dll' 'replacement parser bytes'
         $message = ''
         try { & (Get-Module PerformancePolicy) { param($Root) Get-PerformanceSolutionConfiguration (Join-Path $Root 'engine/MSBuild.exe') (Join-Path $Root 'DxUi.sln') Release x64 } $root }
@@ -1283,7 +1283,7 @@ Invoke-FixtureCase 'default build entrypoint rebuilds stale inputs and preserves
             if ($case[0]) {
                 Complete-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release -Before $result.state
                 $input=Get-ScopedBuildInputIdentity $fixture x64; $artifact=Get-ScopedArtifactIdentity $fixture x64 Release
-                Write-ScopedReceipt (Join-Path $fixture '.build/reports/scoped-tests/x64-Release/build.json') (Get-ScopedDigest ($input+"`n"+$artifact))
+                Write-ScopedReceipt (Join-Path $fixture '.build/reports/scoped-tests/x64-Release/native-build.json') (Get-ScopedDigest ($input+"`n"+$artifact))
             }
         }
         $path = Join-Path $fixture '.build/toolchain/compiler.bin'
@@ -1452,7 +1452,7 @@ Invoke-FixtureCase 'the actual SkipBuild runner gate rejects invalid v2 identity
         Assert-Equal 0 $gateOutput.Count 'the real successful SkipBuild gate remains void'
         Assert-Throws { & $stage $sentinel 6>$null } 'v2 alone cannot attest native test sources'
         $input=Get-ScopedBuildInputIdentity $fixture x64; $artifact=Get-ScopedArtifactIdentity $fixture x64 Release
-        Write-ScopedReceipt (Join-Path $fixture '.build/reports/scoped-tests/x64-Release/build.json') (Get-ScopedDigest ($input+"`n"+$artifact))
+        Write-ScopedReceipt (Join-Path $fixture '.build/reports/scoped-tests/x64-Release/native-build.json') (Get-ScopedDigest ($input+"`n"+$artifact))
         $testPath=Join-Path $fixture 'Tests/Controls/ControlTests.cpp'
         $testBytes=[IO.File]::ReadAllText($testPath)
         [IO.File]::WriteAllText($testPath, $testBytes+' changed')
