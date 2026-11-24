@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Route Static checks through the compiler-free mode of the root validation command.
 - Add a native MSVC code-analysis mode with isolated build outputs.
 - Add a root restore command for the pinned DxUi build dependencies.
 - Reuse the reviewed shared MSVC setup in paired benchmarks and retain the existing local verification command.
