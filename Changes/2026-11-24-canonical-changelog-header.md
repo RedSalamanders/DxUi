@@ -1,0 +1,1 @@
+- Use the shared changelog header while preserving all published release notes.

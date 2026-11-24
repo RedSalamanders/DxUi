@@ -1,6 +1,6 @@
 # Changelog
 
-New entries start as fragments under [Changes](Changes/README.md) and are folded in here, newest first.
+Entries are generated from [Changes](Changes/README.md). Existing release notes remain in their original locations.
 
 ## Unreleased
 
