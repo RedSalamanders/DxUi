@@ -4,6 +4,7 @@ New entries start as fragments under [Changes](Changes/README.md) and are folded
 
 ## Unreleased
 
+- Use the pinned shared vcpkg helpers for the native product restore and retain the source consumer interface.
 - Validate DxUi skill packages and guidance through the pinned shared CI engine and index every completed plan once.
 - Use the pinned shared scoped test planner and run-evidence engine while retaining DxUi's native build, SDK and benchmark attestations.
 - The `W4.0` spike of retained command lists closes as a no-go, decided by the developer on 23 November 2026: hosts keep
