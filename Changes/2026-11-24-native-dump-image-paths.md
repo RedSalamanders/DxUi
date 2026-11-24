@@ -1,0 +1,1 @@
+- Verify native volume image paths in fatal-child dump checks, including Windows hotpatch modules.

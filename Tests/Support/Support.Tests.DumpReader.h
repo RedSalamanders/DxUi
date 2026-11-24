@@ -383,9 +383,22 @@ inline bool Verify(
         const auto name    = dump.Name(module.ModuleNameRva);
         if (name.empty())
             return false;
+        std::wstring imagePath = name;
+        constexpr std::wstring_view nativeVolumePrefix{L"\\Device\\HarddiskVolume"};
+        if (name.starts_with(nativeVolumePrefix))
+        {
+            const auto separator = name.find(L'\\', nativeVolumePrefix.size());
+            if (separator != std::wstring::npos && separator > nativeVolumePrefix.size() &&
+                std::wstring_view{name}.substr(nativeVolumePrefix.size(), separator - nativeVolumePrefix.size()).find_first_not_of(L"0123456789") ==
+                    std::wstring_view::npos)
+            {
+                // Windows may record a loaded hotpatch image using its native volume path.
+                imagePath.insert(0, L"\\\\?\\GLOBALROOT");
+            }
+        }
         wil::unique_hfile image;
         if (! module.BaseOfImage || ! module.SizeOfImage || module.BaseOfImage > (std::numeric_limits<uint64_t>::max)() - module.SizeOfImage ||
-            ! OpenMatchingImage(name, module, image))
+            ! OpenMatchingImage(imagePath, module, image))
         {
             std::fprintf(stderr, "Dump image identity unavailable or mismatched: %ls\n", name.c_str());
             return false;
@@ -393,7 +406,7 @@ inline bool Verify(
         verifiedImages.push_back(std::move(image));
         dump.AddImage(verifiedImages.back().get(), module.BaseOfImage, module.SizeOfImage);
         SetLastError(ERROR_SUCCESS);
-        const auto loaded = SymLoadModuleExW(symbolKey, nullptr, name.c_str(), nullptr, module.BaseOfImage, module.SizeOfImage, nullptr, 0);
+        const auto loaded = SymLoadModuleExW(symbolKey, nullptr, imagePath.c_str(), nullptr, module.BaseOfImage, module.SizeOfImage, nullptr, 0);
         if ((loaded && loaded != module.BaseOfImage) ||
             (! loaded && (GetLastError() != ERROR_SUCCESS || SymGetModuleBase64(symbolKey, module.BaseOfImage) != module.BaseOfImage)))
         {
