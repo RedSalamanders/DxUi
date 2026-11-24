@@ -20,6 +20,7 @@ D2D1_COLOR_F DiagramColor(std::uint32_t color) noexcept
 }
 double Contrast(D2D1_COLOR_F a, D2D1_COLOR_F b) noexcept
 {
+    DxUi::Detail::Work().rich.luminanceEvaluations += 2u;
     return DxUi::Detail::ContrastRatioFromRelativeLuminance(DxUi::Detail::RelativeLuminanceFromSrgb(a.r, a.g, a.b),
                                                             DxUi::Detail::RelativeLuminanceFromSrgb(b.r, b.g, b.b));
 }
@@ -97,6 +98,23 @@ wil::com_ptr<ID2D1PathGeometry> Path(ID2D1Factory* factory, std::span<const Flow
         return {};
     return path;
 }
+// One open figure through the points: the connector of an edge, stroked with joins and one running dash pattern.
+wil::com_ptr<ID2D1PathGeometry> OpenPath(ID2D1Factory* factory, std::span<const FlowchartPoint> points, HRESULT& result)
+{
+    wil::com_ptr<ID2D1PathGeometry> path;
+    if (FAILED(result = CountedCreatePathGeometry(factory, path.put())))
+        return {};
+    wil::com_ptr<ID2D1GeometrySink> sink;
+    if (FAILED(result = path->Open(sink.put())))
+        return {};
+    sink->BeginFigure(Point(points.front()), D2D1_FIGURE_BEGIN_HOLLOW);
+    for (std::size_t index = 1u; index < points.size(); ++index)
+        sink->AddLine(Point(points[index]));
+    sink->EndFigure(D2D1_FIGURE_END_OPEN);
+    if (FAILED(result = sink->Close()))
+        return {};
+    return path;
+}
 wil::com_ptr<ID2D1PathGeometry> CylinderPath(ID2D1Factory* factory, FlowchartRect rect, HRESULT& result)
 {
     wil::com_ptr<ID2D1PathGeometry> path;
@@ -146,6 +164,18 @@ wil::com_ptr<ID2D1PathGeometry> PiePath(ID2D1Factory* factory, FlowchartRect cir
     return path;
 }
 } // namespace
+HRESULT CreateEdgeConnectorStrokeStyle(ID2D1Factory* factory, bool dashed, ID2D1StrokeStyle** style) noexcept
+{
+    const auto properties = D2D1::StrokeStyleProperties(D2D1_CAP_STYLE_FLAT,
+                                                        D2D1_CAP_STYLE_FLAT,
+                                                        D2D1_CAP_STYLE_FLAT,
+                                                        D2D1_LINE_JOIN_BEVEL,
+                                                        10.f,
+                                                        dashed ? D2D1_DASH_STYLE_CUSTOM : D2D1_DASH_STYLE_SOLID,
+                                                        0.f);
+    constexpr std::array<FLOAT, 2u> dashes{5.f, 5.f};
+    return CountedCreateStrokeStyle(factory, properties, dashed ? dashes.data() : nullptr, dashed ? static_cast<UINT32>(dashes.size()) : 0u, style);
+}
 D2D1_COLOR_F ResolveDiagramLabelBackground(D2D1_COLOR_F ink, D2D1_COLOR_F surface) noexcept
 {
     surface.a           = 1.f;
@@ -292,8 +322,16 @@ struct PreparedFlowchart::State
           toCardinalitySizes(hasCardinality ? graph->edges.size() : 0u),
           groupSizes(graph->family == NativeDiagramFamily::Pie || graph->family == NativeDiagramFamily::Gantt ? 1u : graph->groups.size()),
           nodePaths(graph->nodes.size()),
-          arrowPaths(graph->edges.size())
+          arrowPaths(graph->edges.size()),
+          edgePaths(graph->edges.size())
     {
+        // The storage of the contrast decisions of authored colors, written at paints and never allocated by one (W7.7).
+        if (DiagramPalette::Needed(*graph))
+            for (auto& decision : colorDecisions)
+            {
+                decision.nodes.assign(graph->nodes.size(), std::uint8_t{});
+                decision.edges.assign(graph->edges.size(), std::uint8_t{});
+            }
     }
     std::shared_ptr<const FlowchartModel> graph;
     wil::com_ptr<IDWriteFactory> write;
@@ -304,14 +342,72 @@ struct PreparedFlowchart::State
     wil::com_ptr<IDWriteTextFormat> format;
     wil::com_ptr<ID2D1StrokeStyle> dottedStyle;
     wil::com_ptr<ID2D1StrokeStyle> dashedStyle;
+    // The connectors' own styles (CreateEdgeConnectorStrokeStyle): node borders keep dashedStyle and the default style.
+    wil::com_ptr<ID2D1StrokeStyle> connectorSolidStyle, connectorDashedStyle;
     std::vector<FlowchartLabel> nodeLabels, edgeLabels, fromCardinalities, toCardinalities, groupLabels;
     // Borrowed keys remain owned by the immutable graph for this generation.
     // At most one representative per admitted edge; no text copies or global cache.
     std::map<EdgeLabelKey, std::size_t, EdgeLabelOrder> edgeLabelCache;
     std::vector<FlowchartSize> nodeSizes, edgeSizes, fromCardinalitySizes, toCardinalitySizes, groupSizes;
-    std::vector<wil::com_ptr<ID2D1PathGeometry>> nodePaths, arrowPaths;
+    // One path per drawn edge: its connector as a single open figure through every point of the route, so that joins are
+    // drawn and a dash pattern runs on across the bends (W7.7). A hollow marker's end is already shortened in it.
+    std::vector<wil::com_ptr<ID2D1PathGeometry>> nodePaths, arrowPaths, edgePaths;
     std::shared_ptr<const FlowchartLayoutPlan> geometry;
     bool labelCapacity{};
+    // Which authored colors read on the page colors a diagram is painted on, decided once per pair of page colors (W7.7). A
+    // node keeps the bits 1 (its authored fill), 2 (text) and 4 (stroke); an edge the bit 1 (its authored stroke). Two keys
+    // are kept, the older displaced; a prepared diagram is painted on its owner's thread only.
+    struct ColorDecision
+    {
+        DiagramColorContext key{};
+        bool valid{};
+        std::vector<std::uint8_t> nodes, edges;
+    };
+    mutable std::array<ColorDecision, 2u> colorDecisions;
+    mutable std::size_t nextColorDecision{};
+    static bool SameColor(const D2D1_COLOR_F& left, const D2D1_COLOR_F& right) noexcept
+    {
+        return left.r == right.r && left.g == right.g && left.b == right.b && left.a == right.a;
+    }
+    // The decisions for these page colors, or none when this diagram has no storage for them (it has no authored colors, so the
+    // storage was not made at preparation): a paint then uses the caller's brushes and allocates nothing.
+    const ColorDecision* ResolveColors(const DiagramColorContext& colors) const noexcept
+    {
+        for (const auto& decision : colorDecisions)
+            if (decision.valid && SameColor(decision.key.text, colors.text) && SameColor(decision.key.stroke, colors.stroke) &&
+                SameColor(decision.key.fill, colors.fill))
+                return &decision;
+        auto& decision = colorDecisions[nextColorDecision];
+        if (decision.nodes.size() != graph->nodes.size() || decision.edges.size() != graph->edges.size())
+            return nullptr;
+        nextColorDecision = (nextColorDecision + 1u) % colorDecisions.size();
+        decision.valid    = false;
+        decision.key      = colors;
+        std::ranges::fill(decision.nodes, std::uint8_t{});
+        std::ranges::fill(decision.edges, std::uint8_t{});
+        for (std::size_t index = 0u; index < graph->edges.size(); ++index)
+        {
+            const auto& authored = graph->edges[index];
+            if (authored.strokeColor != NoDiagramColor && Contrast(DiagramColor(authored.strokeColor), colors.fill) >= 3.0)
+                decision.edges[index] = 1u;
+        }
+        for (std::size_t index = 0u; index < graph->nodes.size(); ++index)
+        {
+            const auto& authored       = graph->nodes[index];
+            const auto candidateFill   = authored.fillColor == NoDiagramColor ? colors.fill : DiagramColor(authored.fillColor);
+            const auto candidateText   = authored.textColor == NoDiagramColor ? colors.text : DiagramColor(authored.textColor);
+            const auto candidateStroke = authored.strokeColor == NoDiagramColor ? colors.stroke : DiagramColor(authored.strokeColor);
+            if (Contrast(candidateFill, Composite(candidateText, candidateFill)) >= 4.5 &&
+                Contrast(candidateFill, Composite(candidateStroke, candidateFill)) >= 3.0)
+                decision.nodes[index] =
+                    static_cast<std::uint8_t>((authored.fillColor != NoDiagramColor ? 1u : 0u) | (authored.textColor != NoDiagramColor ? 2u : 0u) |
+                                              (authored.strokeColor != NoDiagramColor ? 4u : 0u));
+            else if (authored.strokeColor != NoDiagramColor && Contrast(DiagramColor(authored.strokeColor), colors.fill) >= 3.0)
+                decision.nodes[index] = 4u;
+        }
+        decision.valid = true;
+        return &decision;
+    }
     bool Matches(IDWriteFactory* inputWrite,
                  ID2D1Factory* inputDrawing,
                  const std::shared_ptr<const FlowchartModel>& inputGraph,
@@ -352,6 +448,10 @@ struct PreparedFlowchart::State
             constexpr std::array<FLOAT, 2u> dashes{5.f, 5.f};
             RETURN_IF_FAILED(CountedCreateStrokeStyle(drawing, properties, dashes.data(), static_cast<UINT32>(dashes.size()), dashedStyle.put()));
         }
+        if (! graph->edges.empty())
+            RETURN_IF_FAILED(CreateEdgeConnectorStrokeStyle(drawing.get(), false, connectorSolidStyle.put()));
+        if (std::ranges::any_of(graph->edges, [](const auto& edge) { return edge.dashed; }))
+            RETURN_IF_FAILED(CreateEdgeConnectorStrokeStyle(drawing.get(), true, connectorDashedStyle.put()));
         return S_OK;
     }
     HRESULT Label(std::wstring_view text, FlowchartLabel& output, FlowchartSize& size, const FlowchartLabelStyles* styles = nullptr)
@@ -424,6 +524,7 @@ struct PreparedFlowchart::Preparation
         Geometry,
         NodePaths,
         ArrowPaths,
+        EdgePaths,
         Publish
     };
     Preparation(
@@ -439,6 +540,7 @@ struct PreparedFlowchart::Preparation
 #pragma warning(pop)
 #if DXUI_ENABLE_DIAGNOSTICS
 thread_local std::size_t testRichLiveDiagramPreparations{};
+thread_local unsigned testRichFlowchartConnectors{};
 PreparedFlowchart::PreparedFlowchart() noexcept
 {
     ++testRichLiveDiagramPreparations;
@@ -732,7 +834,8 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                 case Preparation::Stage::ArrowPaths:
                     if (work.cursor == state.geometry->edges.size())
                     {
-                        work.stage = Preparation::Stage::Publish;
+                        work.cursor = 0u;
+                        work.stage  = Preparation::Stage::EdgePaths;
                         break;
                     }
                     if (state.geometry->edges[work.cursor].hasArrow && ! state.geometry->edges[work.cursor].openArrow)
@@ -758,6 +861,34 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         {
                             groupSurface(state.fromCardinalities[work.cursor], edge.fromCardinality);
                             groupSurface(state.toCardinalities[work.cursor], edge.toCardinality);
+                        }
+                    }
+                    ++work.cursor;
+                    break;
+                case Preparation::Stage::EdgePaths:
+                    if (work.cursor == state.geometry->edges.size())
+                    {
+                        work.stage = Preparation::Stage::Publish;
+                        break;
+                    }
+                    {
+                        const auto& edge = state.geometry->edges[work.cursor];
+                        if (! edge.sequenceNote && edge.style != FlowchartLineStyle::Invisible && edge.path.size() > 1u)
+                        {
+                            // A hollow marker shortens its own end of the connector. A leading marker must not disconnect
+                            // the opposite node.
+                            std::vector<FlowchartPoint> route(edge.path.begin(), edge.path.end());
+                            const auto& authored = state.graph->edges[work.cursor];
+                            const bool triangle  = edge.relation == FlowchartRelation::Inheritance || edge.relation == FlowchartRelation::Realization;
+                            const bool diamond   = edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition;
+                            if ((triangle || diamond) && state.arrowPaths[work.cursor])
+                            {
+                                const auto markerBase =
+                                    triangle ? FlowchartPoint{(edge.arrow[1u].x + edge.arrow[2u].x) / 2.0, (edge.arrow[1u].y + edge.arrow[2u].y) / 2.0}
+                                             : edge.diamond[2u];
+                                (authored.markerAtStart ? route.front() : route.back()) = markerBase;
+                            }
+                            state.edgePaths[work.cursor] = OpenPath(state.drawing.get(), route, result_);
                         }
                     }
                     ++work.cursor;
@@ -895,6 +1026,8 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
                              1.f,
                              state.dottedStyle.get());
         }
+    // What the authored colors do on these page colors is decided once per pair of colors, never at a steady paint (W7.7).
+    const auto* const decisions = palette && colors ? state.ResolveColors(*colors) : nullptr;
     for (std::size_t index = 0u; index < plan.edges.size(); ++index)
     {
         const auto& edge = plan.edges[index];
@@ -910,25 +1043,45 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
             continue;
         const auto& authored = state.graph->edges[index];
         auto* edgeStroke     = stroke;
-        if (palette && colors && authored.strokeColor != NoDiagramColor && Contrast(DiagramColor(authored.strokeColor), colors->fill) >= 3.0)
+        if (decisions && (decisions->edges[index] & 1u))
             edgeStroke = palette->edgeStrokes[index].get();
         const float lineWidth = authored.strokeWidth ? static_cast<float>(authored.strokeWidth) : edge.style == FlowchartLineStyle::Thick ? 3.f : 1.f;
-        auto* lineStyle       = authored.dashSpecified                     ? (authored.dashed ? state.dashedStyle.get() : nullptr)
-                                : edge.style == FlowchartLineStyle::Dotted ? state.dottedStyle.get()
-                                                                           : nullptr;
-        const bool triangle   = edge.relation == FlowchartRelation::Inheritance || edge.relation == FlowchartRelation::Realization;
-        const bool diamond    = edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition;
-        const bool shorten    = (triangle || diamond) && state.arrowPaths[index];
-        const auto markerBase =
-            triangle ? FlowchartPoint{(edge.arrow[1u].x + edge.arrow[2u].x) / 2.0, (edge.arrow[1u].y + edge.arrow[2u].y) / 2.0} : edge.diamond[2u];
-        for (std::size_t point = 1u; point < edge.path.size(); ++point)
+        // Dashed and solid connectors take the bevel-joined styles; a dotted one its round-capped dots.
+        auto* connectorStyle = authored.dashSpecified ? (authored.dashed ? state.connectorDashedStyle.get() : state.connectorSolidStyle.get())
+                               : edge.style == FlowchartLineStyle::Dotted ? state.dottedStyle.get()
+                                                                          : state.connectorSolidStyle.get();
+#if DXUI_ENABLE_DIAGNOSTICS
+        if (testRichFlowchartConnectors)
         {
-            // Hollow markers shorten their own end of the connector. A
-            // leading marker must not disconnect the opposite node.
-            const auto start = shorten && authored.markerAtStart && point == 1u ? markerBase : edge.path[point - 1u];
-            const auto end   = shorten && ! authored.markerAtStart && point + 1u == edge.path.size() ? markerBase : edge.path[point];
-            target->DrawLine(Point(start), Point(end), edgeStroke, lineWidth, lineStyle);
+            if (testRichFlowchartConnectors == 1u)
+            {
+                auto* lineStyle = authored.dashSpecified                     ? (authored.dashed ? state.dashedStyle.get() : nullptr)
+                                  : edge.style == FlowchartLineStyle::Dotted ? state.dottedStyle.get()
+                                                                             : nullptr;
+                // The evidence seam: one DrawLine per route segment, a hollow marker shortening its own end.
+                const bool triangle = edge.relation == FlowchartRelation::Inheritance || edge.relation == FlowchartRelation::Realization;
+                const bool diamond  = edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition;
+                const bool shorten  = (triangle || diamond) && state.arrowPaths[index];
+                const auto markerBase =
+                    triangle ? FlowchartPoint{(edge.arrow[1u].x + edge.arrow[2u].x) / 2.0, (edge.arrow[1u].y + edge.arrow[2u].y) / 2.0} : edge.diamond[2u];
+                for (std::size_t point = 1u; point < edge.path.size(); ++point)
+                {
+                    const auto start = shorten && authored.markerAtStart && point == 1u ? markerBase : edge.path[point - 1u];
+                    const auto end   = shorten && ! authored.markerAtStart && point + 1u == edge.path.size() ? markerBase : edge.path[point];
+                    target->DrawLine(Point(start), Point(end), edgeStroke, lineWidth, lineStyle);
+                }
+            }
         }
+        else
+#endif
+            // The connector is one prepared path through every point of the route (OpenPath): one draw call, with joins at the
+            // bends and a dash pattern that runs on across them.
+            if (state.edgePaths[index])
+            {
+                ++DxUi::Detail::Work().rich.edgesDrawn;
+                ++DxUi::Detail::Work().rich.edgeConnectorDraws;
+                target->DrawGeometry(state.edgePaths[index].get(), edgeStroke, lineWidth, connectorStyle);
+            }
         if (state.graph->family == NativeDiagramFamily::EntityRelationship)
         {
             const auto endpoint = [&](bool last, ErMultiplicity cardinality) noexcept
@@ -993,23 +1146,14 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
         auto* nodeStroke = stroke;
         auto* nodeFill   = fill;
         auto* nodeText   = text;
-        if (palette && colors)
+        if (decisions)
         {
-            const auto& authoredNode   = state.graph->nodes[index];
-            const auto candidateFill   = authoredNode.fillColor == NoDiagramColor ? colors->fill : DiagramColor(authoredNode.fillColor);
-            const auto candidateText   = authoredNode.textColor == NoDiagramColor ? colors->text : DiagramColor(authoredNode.textColor);
-            const auto candidateStroke = authoredNode.strokeColor == NoDiagramColor ? colors->stroke : DiagramColor(authoredNode.strokeColor);
-            if (Contrast(candidateFill, Composite(candidateText, candidateFill)) >= 4.5 &&
-                Contrast(candidateFill, Composite(candidateStroke, candidateFill)) >= 3.0)
-            {
-                if (authoredNode.fillColor != NoDiagramColor)
-                    nodeFill = palette->fills[index].get();
-                if (authoredNode.textColor != NoDiagramColor)
-                    nodeText = palette->texts[index].get();
-                if (authoredNode.strokeColor != NoDiagramColor)
-                    nodeStroke = palette->strokes[index].get();
-            }
-            else if (authoredNode.strokeColor != NoDiagramColor && Contrast(DiagramColor(authoredNode.strokeColor), colors->fill) >= 3.0)
+            const auto chosen = decisions->nodes[index];
+            if (chosen & 1u)
+                nodeFill = palette->fills[index].get();
+            if (chosen & 2u)
+                nodeText = palette->texts[index].get();
+            if (chosen & 4u)
                 nodeStroke = palette->strokes[index].get();
         }
         const auto bounds          = Rect(node.bounds);

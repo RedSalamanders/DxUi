@@ -2144,7 +2144,9 @@ Flowchart node styles support `stroke-width:1px` through `3px`,
 `style ID`, a named `classDef` with `class ID name` or `ID:::name`, or
 `classDef default`; definitions may follow their use. Lists of identifiers and
 classes are supported. `linkStyle N` or `linkStyle default` applies width, dash
-and stroke to existing edges. Author colors are used only when their text and
+and stroke to existing edges. An edge is stroked as one path through its bends, so a
+dashed edge's pattern runs on around a corner and a thick edge is joined there.
+Author colors are used only when their text and
 outline contrast is sufficient; high contrast and selection use theme colors.
 Translucent or separately shaded surfaces also retain theme colors when their
 backdrop is not known to the prepared color context.

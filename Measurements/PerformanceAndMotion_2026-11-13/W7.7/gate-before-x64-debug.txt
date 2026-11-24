@@ -1,0 +1,23 @@
+  FX8 warm: math font reads 1 for 3 formulas, SVG rasterizations 2, device contexts created per step (max) 2, luminance evaluations 74
+  CLAUSE NOT MET: an FX8 preparation creates at most one Direct2D device context for its SVG pictures (W7.7)
+  FX8 prose-insert (40 steps): math font reads 0, formulas prepared 0, luminance evaluations 1440, edge connector draws 600 for 120 edges drawn, device contexts created (max per step) 0
+  CLAUSE NOT MET: an FX8 paint strokes each edge connector with one draw call, a DrawGeometry of its prepared path (W7.7)
+  CLAUSE NOT MET: an FX8 paint of a colored formula and a styled diagram runs no luminance evaluation, so no std::pow (W7.7)
+  FX8 enter (10 steps): math font reads 0, formulas prepared 0, luminance evaluations 210, edge connector draws 60 for 12 edges drawn, device contexts created (max per step) 0
+  CLAUSE NOT MET: an FX8 paint strokes each edge connector with one draw call, a DrawGeometry of its prepared path (W7.7)
+  CLAUSE NOT MET: an FX8 paint of a colored formula and a styled diagram runs no luminance evaluation, so no std::pow (W7.7)
+  FX8 arrow (50 steps): math font reads 0, formulas prepared 0, luminance evaluations 476, edge connector draws 180 for 36 edges drawn, device contexts created (max per step) 0
+  CLAUSE NOT MET: an FX8 paint strokes each edge connector with one draw call, a DrawGeometry of its prepared path (W7.7)
+  CLAUSE NOT MET: an FX8 paint of a colored formula and a styled diagram runs no luminance evaluation, so no std::pow (W7.7)
+  FX8 fence-insert (30 steps): math font reads 0, formulas prepared 0, luminance evaluations 0, edge connector draws 0 for 0 edges drawn, device contexts created (max per step) 0
+  FX8 table-insert (30 steps): math font reads 0, formulas prepared 0, luminance evaluations 0, edge connector draws 300 for 60 edges drawn, device contexts created (max per step) 0
+  CLAUSE NOT MET: an FX8 paint strokes each edge connector with one draw call, a DrawGeometry of its prepared path (W7.7)
+  FX8 resize (30 steps): math font reads 0, formulas prepared 0, luminance evaluations 0, edge connector draws 300 for 60 edges drawn, device contexts created (max per step) 0
+  CLAUSE NOT MET: an FX8 paint strokes each edge connector with one draw call, a DrawGeometry of its prepared path (W7.7)
+  FX8 seek-formula (1 steps): math font reads 0, formulas prepared 0, luminance evaluations 36, edge connector draws 15 for 3 edges drawn, device contexts created (max per step) 0
+  CLAUSE NOT MET: an FX8 paint strokes each edge connector with one draw call, a DrawGeometry of its prepared path (W7.7)
+  CLAUSE NOT MET: an FX8 paint of a colored formula and a styled diagram runs no luminance evaluation, so no std::pow (W7.7)
+  FX8 formula-insert (10 steps): math font reads 10, formulas prepared 10, luminance evaluations 360, edge connector draws 150 for 30 edges drawn, device contexts created (max per step) 0
+  CLAUSE NOT MET: an FX8 edit prepares no formula from a new math font read (W7.7)
+  CLAUSE NOT MET: an FX8 paint strokes each edge connector with one draw call, a DrawGeometry of its prepared path (W7.7)
+FAIL: the FX8 math and diagram work gates of W7.7 hold

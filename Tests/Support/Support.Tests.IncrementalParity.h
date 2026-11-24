@@ -1176,12 +1176,13 @@ template <typename Scene> [[nodiscard]] ParityScript<Scene> RichChunksMultiplier
 
 // The registry's rows read populated before the drop on the controls and rich scenes together, except those the scenes
 // cannot populate (listed with the reason). A row that reads 0 on a scene that exercises it is not counting what it drops.
-inline constexpr std::array<std::string_view, 6u> kRowsNotPopulatedByScenes{
+inline constexpr std::array<std::string_view, 7u> kRowsNotPopulatedByScenes{
     "ComboBox._popupBackdropBitmap",    // Solid overlay material: no backdrop is captured.
     "ComboBox._popupItemWidthCache",    // Measured only for an open popup; the combo-popup and interaction scripts open it.
     "ComboBox._popupLayoutCache",       // A bounds change drops the placement and a closed popup is not placed again (same scripts).
     "ColorPicker._saturationBrush",     // No ColorPicker in the scenes (its own suite covers its brushes).
     "TooltipLayer._layoutCache",        // No tooltip is shown before the drop.
     "ControlHost._richTitleHoverCache", // No pointer hovers a rich editor before the drop (W7.9 tests cover it).
+    "RichText.mathFontData", // Thread state: the drop of any scene empties it and a carried formula reads no font again (W7.7 tests fill and drop it).
 };
 } // namespace IncrementalParity

@@ -45,6 +45,9 @@ extern thread_local std::size_t testRichMathPreparations;
 extern thread_local std::size_t testRichLiveMathPreparations; // PreparedMath objects alive on this thread.
 extern thread_local std::size_t testRichMathTextFormats;
 extern thread_local std::span<const std::uint8_t> testRichMathTableOverride;
+// A system font collection to read math fonts from in place of the factory's own: an equivalent collection that is another
+// object, which is what a changed system font set looks like to MathFontDataCache (W7.7).
+extern thread_local IDWriteFontCollection* testRichMathCollection;
 #endif
 // Shared only by one owner-thread staging generation. Published formula glyphs
 // do not query or mutate this cache during paint. Fonts/formats survive through
@@ -462,6 +465,10 @@ class PreparedMath final
             }
         }
         wil::com_ptr<IDWriteFontFace> face;
+        // The system font collection the face was read from, kept so that its identity stays the identity of what a later
+        // read of the same family compares with (MathFontDataCache). Released with the data.
+        wil::com_ptr<IDWriteFontCollection> collection;
+        std::wstring family; // The family the data was read for.
         std::vector<std::uint8_t> table;
         std::vector<std::int32_t> corrections;
         std::vector<std::uint32_t> correctionDevices;
@@ -471,6 +478,114 @@ class PreparedMath final
         std::array<bool, 39u> constantPresent{};
         std::uint16_t designUnits{};
         float xHeightEm{.45f};
+    };
+    // Which math font data exists for a family on this thread, so that a formula prepared again shares it instead of reading
+    // the font again (W7.7). The cache owns nothing: an entry is the factory's identity, a hash of the family and a weak
+    // reference to the MathFontData that a prepared formula holds. The data lives while a formula that uses it lives (the
+    // published geometry generation, then the next), so no DirectWrite factory, collection or font face is kept alive by the
+    // thread: when the last formula using a factory is gone its data is gone and the entry expires. A factory's identity cannot
+    // be reused while its entry matters: the data an entry can still find is held by a formula that holds that factory. The
+    // data keeps its family name and the system font collection it was read from; a lookup compares both (the hash only finds
+    // the entry), and an entry whose collection is not the factory's current one (the system fonts changed:
+    // Typography::IsFontFamilyAvailable asks DirectWrite for an updated collection on a miss) is erased and the font read again.
+    // Fixed storage of MaximumEntries entries of plain words and weak references, the oldest displaced first: constructing the
+    // cache, reading it and dropping it allocate nothing (no string is held here). A thread's cache is dropped by the
+    // retained-cache registry (RetainedCacheAccess::Drop).
+    class MathFontDataCache final
+    {
+    public:
+        static constexpr std::size_t MaximumEntries = 8u;
+        [[nodiscard]] static MathFontDataCache& Instance() noexcept
+        {
+            static thread_local MathFontDataCache instance;
+            return instance;
+        }
+        // The family's data when an entry of this factory holds live data of the current collection; any other entry of the
+        // key is erased.
+        [[nodiscard]] bool Find(const IDWriteFactory* factory,
+                                const IDWriteFontCollection* collection,
+                                const std::wstring& family,
+                                std::shared_ptr<const MathFontData>& data)
+        {
+            const auto key = Hash(family);
+            for (std::size_t index = 0u; index < count_; ++index)
+            {
+                auto& entry = entries_[index];
+                if (entry.factory != factory || entry.family != key)
+                    continue;
+                auto live = entry.data.lock();
+                if (! live || live->family != family || live->collection.get() != collection)
+                {
+                    Erase(index);
+                    return false;
+                }
+                data = std::move(live);
+                return true;
+            }
+            return false;
+        }
+        void Store(const IDWriteFactory* factory, const std::shared_ptr<const MathFontData>& data)
+        {
+            const auto key = Hash(data->family);
+            for (std::size_t index = 0u; index < count_; ++index)
+                if (entries_[index].factory == factory && entries_[index].family == key)
+                {
+                    Erase(index);
+                    break;
+                }
+            if (count_ == MaximumEntries)
+                Erase(0u);
+            entries_[count_++] = {factory, key, data};
+        }
+        // The entries whose data is alive.
+        [[nodiscard]] std::size_t Entries() const noexcept
+        {
+            std::size_t live = 0u;
+            for (std::size_t index = 0u; index < count_; ++index)
+                live += entries_[index].data.expired() ? 0u : 1u;
+            return live;
+        }
+        // Resident bytes of the live data by capacity: the MATH table copy and glyph arrays, and the family name.
+        [[nodiscard]] std::uint64_t ResidentBytes() const noexcept
+        {
+            std::uint64_t bytes = 0u;
+            for (std::size_t index = 0u; index < count_; ++index)
+                if (const auto data = entries_[index].data.lock())
+                    bytes += sizeof(MathFontData) + data->table.capacity() + std::uint64_t(data->family.capacity()) * sizeof(wchar_t) +
+                             (data->corrections.capacity() + data->correctionDevices.capacity() + data->constructions.capacity() +
+                              data->horizontalConstructions.capacity()) *
+                                 sizeof(std::int32_t);
+            return bytes;
+        }
+        void Drop() noexcept
+        {
+            for (std::size_t index = 0u; index < count_; ++index)
+                entries_[index] = {};
+            count_ = 0u;
+        }
+
+    private:
+        struct Entry
+        {
+            const IDWriteFactory* factory{}; // identity only, never dereferenced
+            std::uint64_t family{};          // Hash of the family name
+            std::weak_ptr<const MathFontData> data;
+        };
+        [[nodiscard]] static std::uint64_t Hash(const std::wstring& family) noexcept
+        {
+            std::uint64_t hash = 14695981039346656037ull; // FNV-1a over the UTF-16 units
+            for (const wchar_t unit : family)
+                hash = (hash ^ static_cast<std::uint64_t>(unit)) * 1099511628211ull;
+            return hash;
+        }
+        void Erase(std::size_t index) noexcept
+        {
+            for (; index + 1u < count_; ++index)
+                entries_[index] = std::move(entries_[index + 1u]);
+            entries_[--count_] = {};
+        }
+        std::array<Entry, MaximumEntries> entries_;
+        std::size_t count_{};
     };
     struct VariantGlyph
     {
@@ -624,10 +739,34 @@ class PreparedMath final
         ++testRichMathConstantReads;
 #endif
         // A missing, truncated, or implausible MATH table uses deterministic
-        // em-relative constants. A valid table up to four MiB is copied and parsed once per geometry generation.
+        // em-relative constants. A valid table up to four MiB is copied and parsed once per font face: the data is shared
+        // across geometry generations through the thread's MathFontDataCache while a formula holds it, until the system font
+        // collection changes (W7.7). The one call a shared family costs is the query of the current collection, which reads no
+        // font. A family with no usable table is not remembered: reading it again finds the same absence.
         wil::com_ptr<IDWriteFontCollection> collection;
         if (! OptionalFontOperation(write->GetSystemFontCollection(collection.put(), FALSE)))
             return;
+        bool cacheable = true;
+#if DXUI_ENABLE_DIAGNOSTICS
+        cacheable = testRichMathTableOverride.empty(); // a test table stands in for the font's own and is never shared
+        if (testRichMathCollection)
+            collection = testRichMathCollection;
+#endif
+        auto& cache = MathFontDataCache::Instance();
+        if (cacheable && cache.Find(write, collection.get(), textFormats->Family(), mathData))
+        {
+            ApplyMathConstants();
+            return;
+        }
+        ++DxUi::Detail::Work().rich.mathFontReads;
+        ReadMathFontData(collection.get());
+        if (cacheable && mathData && SUCCEEDED(lastResult))
+            cache.Store(write, mathData);
+        ApplyMathConstants();
+    }
+    // Reads the family's font face and MATH table into mathData, left null when the family has none that is usable.
+    void ReadMathFontData(IDWriteFontCollection* collection)
+    {
         UINT32 familyIndex{};
         BOOL exists{};
         if (! OptionalFontOperation(collection->FindFamilyName(textFormats->Family().c_str(), &familyIndex, &exists)) || ! exists)
@@ -669,8 +808,10 @@ class PreparedMath final
         face->GetMetrics(&metrics);
         if (metrics.designUnitsPerEm == 0u || size > 4u * 1024u * 1024u)
             return;
-        mathData = std::make_shared<MathFontData>(face.get(), std::span(bytes, static_cast<std::size_t>(size)), metrics.designUnitsPerEm);
-        ApplyMathConstants();
+        auto built        = std::make_shared<MathFontData>(face.get(), std::span(bytes, static_cast<std::size_t>(size)), metrics.designUnitsPerEm);
+        built->collection = collection;
+        built->family     = textFormats->Family();
+        mathData          = std::move(built);
     }
     void ApplyMathConstants() noexcept
     {
@@ -2764,7 +2905,9 @@ class PreparedMath final
                 operation.rectangle.top += shiftY;
                 operation.rectangle.bottom += shiftY;
             }
-        extent    = {width, above, below};
+        extent = {width, above, below};
+        if (colored)
+            PrepareColorDecisions();
         finalized = true;
         return true;
     }
@@ -2778,6 +2921,19 @@ public:
     [[nodiscard]] static bool CanPrepareSyntax(const MathNode& root, bool display) noexcept
     {
         return CountAndValidate(root, display).has_value();
+    }
+    // This thread's cache of math font data (W7.7): its entries and resident bytes for the retained-cache registry, and its drop.
+    [[nodiscard]] static std::size_t FontCacheEntries() noexcept
+    {
+        return MathFontDataCache::Instance().Entries();
+    }
+    [[nodiscard]] static std::uint64_t FontCacheBytes() noexcept
+    {
+        return MathFontDataCache::Instance().ResidentBytes();
+    }
+    static void DropFontCache() noexcept
+    {
+        MathFontDataCache::Instance().Drop();
     }
     PreparedMath(IDWriteFactory* write,
                  std::shared_ptr<const MathExpression> value,
@@ -3024,6 +3180,142 @@ public:
     {
         return colors;
     }
+
+private:
+    // The contrast decisions of a colored formula on one pair of page colors: per paint operation the authored foreground that
+    // reads on its background (NoColor: the caller's brush) and, for a background operation, whether its fill is drawn. They
+    // depend on the formula and on the text and fill colors it is painted on, nothing else, so they are decided once per such
+    // key and a steady paint decides nothing: no relative luminance and no std::pow (W7.7). The storage is made when the
+    // formula is finalized and written at the first paint of a key; two keys are kept (light and dark pages), the older one
+    // displaced. A prepared formula is painted on its owner's thread only.
+    struct ResolvedOperation
+    {
+        std::uint32_t foreground{NoColor};
+        bool fillBackground{};
+    };
+    struct ColorDecision
+    {
+        MathColorContext key{};
+        bool valid{};
+        std::vector<ResolvedOperation> operations;
+    };
+    struct ColorDecisions
+    {
+        std::array<ColorDecision, 2u> slots;
+        std::size_t next{};
+    };
+    // Made when a colored formula is finalized (a formula without authored colors holds none, and the object stays small).
+    mutable std::shared_ptr<ColorDecisions> colorDecisions;
+    // The storage of the decisions, written at a paint and never allocated by one; a function of its own so that the frame of
+    // the placement that calls it (the deepest recursion of a preparation) stays what it was.
+    __declspec(noinline) void PrepareColorDecisions()
+    {
+        colorDecisions = std::make_shared<ColorDecisions>();
+        for (auto& decision : colorDecisions->slots)
+            decision.operations.assign(paintOperations.size(), ResolvedOperation{});
+    }
+    static bool SameColor(const D2D1_COLOR_F& left, const D2D1_COLOR_F& right) noexcept
+    {
+        return left.r == right.r && left.g == right.g && left.b == right.b && left.a == right.a;
+    }
+    __declspec(noinline) const ResolvedOperation* ResolveColors(const MathColorContext& context) const noexcept
+    {
+        // Without the storage made at preparation a paint decides nothing and allocates nothing (the caller's brush draws).
+        if (! colorDecisions)
+            return nullptr;
+        for (const auto& decision : colorDecisions->slots)
+            if (decision.valid && SameColor(decision.key.text, context.text) && SameColor(decision.key.fill, context.fill))
+                return decision.operations.data();
+        auto& decision       = colorDecisions->slots[colorDecisions->next];
+        colorDecisions->next = (colorDecisions->next + 1u) % colorDecisions->slots.size();
+        decision.valid       = false;
+        decision.key         = context;
+        if (decision.operations.size() != paintOperations.size())
+            return nullptr;
+        std::ranges::fill(decision.operations, ResolvedOperation{});
+        struct Resolved
+        {
+            std::uint32_t background{NoColor}, foreground{NoColor};
+        };
+        std::array<Resolved, MathMaximumNodes> backgrounds{};
+        const auto rgb = [](std::uint32_t value) noexcept
+        {
+            return D2D1::ColorF(
+                static_cast<float>((value >> 16u) & 255u) / 255.f, static_cast<float>((value >> 8u) & 255u) / 255.f, static_cast<float>(value & 255u) / 255.f);
+        };
+        const auto contrast = [](D2D1_COLOR_F a, D2D1_COLOR_F b) noexcept
+        {
+            const auto luminosity = [](D2D1_COLOR_F value)
+            {
+                ++DxUi::Detail::Work().rich.luminanceEvaluations;
+                const auto channel = [](double unit) { return unit <= .04045 ? unit / 12.92 : std::pow((unit + .055) / 1.055, 2.4); };
+                return .2126 * channel(value.r) + .7152 * channel(value.g) + .0722 * channel(value.b);
+            };
+            const auto left = luminosity(a), right = luminosity(b);
+            return (std::max(left, right) + .05) / (std::min(left, right) + .05);
+        };
+        const auto backgroundColor = [&](const Resolved& value) { return value.background == NoColor ? context.fill : rgb(value.background); };
+        const auto foregroundColor = [&](const Resolved& value, D2D1_COLOR_F background)
+        {
+            auto text        = value.foreground == NoColor ? context.text : rgb(value.foreground);
+            const auto alpha = std::clamp(text.a, 0.f, 1.f);
+            return D2D1::ColorF(
+                text.r * alpha + background.r * (1.f - alpha), text.g * alpha + background.g * (1.f - alpha), text.b * alpha + background.b * (1.f - alpha));
+        };
+        for (std::size_t index = 0u; index < paintOperations.size(); ++index)
+        {
+            const auto& operation = paintOperations[index];
+            Resolved state{};
+            if (operation.background < backgroundCount)
+                state = backgrounds[operation.background];
+            const auto background = backgroundColor(state);
+            auto foreground       = state.foreground;
+            if (operation.kind == PaintKind::Background)
+            {
+                Resolved candidateState = state;
+                if (operation.foreground != NoColor)
+                    candidateState.foreground = operation.foreground;
+                const auto candidate = rgb(operation.color);
+                auto safeForeground  = [&](std::uint32_t foreground)
+                {
+                    const Resolved value{operation.color, foreground};
+                    return contrast(foregroundColor(value, candidate), candidate) >= 4.5;
+                };
+                bool safe = safeForeground(candidateState.foreground);
+                if (! safe && safeForeground(NoColor))
+                {
+                    candidateState.foreground = NoColor;
+                    safe                      = true;
+                }
+                if (! safe)
+                    for (auto child = backgroundHeads[operation.index]; child < paintOperations.size(); child = paintOperations[child].nextInBackground)
+                    {
+                        const auto& item = paintOperations[child];
+                        if (item.kind != PaintKind::Background && item.color != NoColor && safeForeground(item.color))
+                        {
+                            candidateState.foreground = item.color;
+                            safe                      = true;
+                            break;
+                        }
+                    }
+                if (safe)
+                {
+                    state.foreground                          = candidateState.foreground;
+                    state.background                          = operation.color;
+                    decision.operations[index].fillBackground = true;
+                }
+                backgrounds[operation.index] = state;
+                continue;
+            }
+            if (operation.color != NoColor && contrast(rgb(operation.color), background) >= 4.5)
+                foreground = operation.color;
+            decision.operations[index].foreground = foreground;
+        }
+        decision.valid = true;
+        return decision.operations.data();
+    }
+
+public:
     __declspec(noinline) void DrawColored(ID2D1RenderTarget* target,
                                           ID2D1Brush* brush,
                                           const NativeColorPalette* palette,
@@ -3038,87 +3330,23 @@ public:
             target->DrawGlyphRun(D2D1::Point2F(variant.x, variant.baseline), &run, selected, DWRITE_MEASURING_MODE_NATURAL);
             target->SetTransform(current);
         };
-        struct Resolved
+        const bool enabled    = context && context->fill.a >= 1.f && palette && palette->Ready() && palette->Matches(target);
+        const auto* decisions = enabled ? ResolveColors(*context) : nullptr;
+        for (std::size_t index = 0u; index < paintOperations.size(); ++index)
         {
-            std::uint32_t background{NoColor}, foreground{NoColor};
-        };
-        std::array<Resolved, MathMaximumNodes> backgrounds{};
-        const bool enabled = context && context->fill.a >= 1.f && palette && palette->Ready() && palette->Matches(target);
-        const auto rgb     = [](std::uint32_t value) noexcept
-        {
-            return D2D1::ColorF(
-                static_cast<float>((value >> 16u) & 255u) / 255.f, static_cast<float>((value >> 8u) & 255u) / 255.f, static_cast<float>(value & 255u) / 255.f);
-        };
-        const auto contrast = [](D2D1_COLOR_F a, D2D1_COLOR_F b) noexcept
-        {
-            const auto luminosity = [](D2D1_COLOR_F value)
+            const auto& operation = paintOperations[index];
+            auto* selected        = brush;
+            if (decisions)
             {
-                const auto channel = [](double unit) { return unit <= .04045 ? unit / 12.92 : std::pow((unit + .055) / 1.055, 2.4); };
-                return .2126 * channel(value.r) + .7152 * channel(value.g) + .0722 * channel(value.b);
-            };
-            const auto left = luminosity(a), right = luminosity(b);
-            return (std::max(left, right) + .05) / (std::min(left, right) + .05);
-        };
-        const auto backgroundColor = [&](const Resolved& value) { return value.background == NoColor ? context->fill : rgb(value.background); };
-        const auto foregroundColor = [&](const Resolved& value, D2D1_COLOR_F background)
-        {
-            auto text        = value.foreground == NoColor ? context->text : rgb(value.foreground);
-            const auto alpha = std::clamp(text.a, 0.f, 1.f);
-            return D2D1::ColorF(
-                text.r * alpha + background.r * (1.f - alpha), text.g * alpha + background.g * (1.f - alpha), text.b * alpha + background.b * (1.f - alpha));
-        };
-        for (const auto& operation : paintOperations)
-        {
-            Resolved state{};
-            if (enabled && operation.background < backgroundCount)
-                state = backgrounds[operation.background];
-            auto* selected = brush;
-            if (enabled)
-            {
-                const auto background = backgroundColor(state);
-                auto foreground       = state.foreground;
                 if (operation.kind == PaintKind::Background)
                 {
-                    Resolved candidateState = state;
-                    if (operation.foreground != NoColor)
-                        candidateState.foreground = operation.foreground;
-                    const auto candidate = rgb(operation.color);
-                    auto safeForeground  = [&](std::uint32_t foreground)
-                    {
-                        const Resolved value{operation.color, foreground};
-                        return contrast(foregroundColor(value, candidate), candidate) >= 4.5;
-                    };
-                    bool safe = safeForeground(candidateState.foreground);
-                    if (! safe && safeForeground(NoColor))
-                    {
-                        candidateState.foreground = NoColor;
-                        safe                      = true;
-                    }
-                    if (! safe)
-                        for (auto child = backgroundHeads[operation.index]; child < paintOperations.size(); child = paintOperations[child].nextInBackground)
-                        {
-                            const auto& item = paintOperations[child];
-                            if (item.kind != PaintKind::Background && item.color != NoColor && safeForeground(item.color))
-                            {
-                                candidateState.foreground = item.color;
-                                safe                      = true;
-                                break;
-                            }
-                        }
-                    if (safe)
-                    {
-                        state.foreground = candidateState.foreground;
-                        state.background = operation.color;
+                    if (decisions[index].fillBackground)
                         if (auto* authored = palette->Brush(operation.color))
                             target->FillRectangle(operation.rectangle, authored);
-                    }
-                    backgrounds[operation.index] = state;
                     continue;
                 }
-                if (operation.color != NoColor && contrast(rgb(operation.color), background) >= 4.5)
-                    foreground = operation.color;
-                if (foreground != NoColor)
-                    if (auto* authored = palette->Brush(foreground))
+                if (decisions[index].foreground != NoColor)
+                    if (auto* authored = palette->Brush(decisions[index].foreground))
                         selected = authored;
             }
             switch (operation.kind)

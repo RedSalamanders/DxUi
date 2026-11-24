@@ -1,5 +1,8 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.MenuPopupReadiness.h"
+#include "Controls/DxUi.PreparedFlowchart.h"
+
+#include <DxUi/RichImage.h>
 
 #include <algorithm>
 #include <array>
@@ -848,6 +851,7 @@ struct GalleryScene
     Control* focusedControl            = nullptr;
     Grid* grid                         = nullptr;
     RichTextEditor* presentationEditor = nullptr;
+    RichTextEditor* svgEditor          = nullptr; // its picture is completed by the harness after the first preparation (W7.7)
     size_t presentationLinkOffset      = 0u;
     size_t presentationMatchOffset     = 0u;
     std::optional<D2D1_POINT_2F> tooltipOrigin;
@@ -1343,6 +1347,33 @@ void AddComboItems(ComboBox& combo)
         sequence->SetBounds(sequenceTile.content);
     }
     {
+        // W7.7: a colored formula (authored colors decide their contrast on the page colors), and the flowchart edge styles a
+        // connector path draws (a dashed edge and a 3 px colored edge with bends, a hollow marker), and an SVG picture.
+        const Tile mathTile = flow.Next(*scene.root, L"RichTextEditor / native C++ colored mathematics", 2u, 300.0f);
+        auto* colored       = scene.root->AddChild<RichTextEditor>(
+            L"Inline $\\textcolor{red}{E}=mc^2$ and display notation:\n\n"
+            L"$$\n\\frac{\\textcolor{blue}{a}+b}{c^2} + \\colorbox{yellow}{\\sqrt{x_1^2}} + \\textcolor{#c04040}{\\sum_{k=1}^{n} k}\n$$\n");
+        colored->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        colored->SetMarkdownRenderingEnabled(true);
+        colored->SetBounds(mathTile.content);
+        const Tile edgeTile = flow.Next(*scene.root, L"RichTextEditor / native C++ flowchart edges", 2u, 520.0f);
+        auto* edges =
+            scene.root->AddChild<RichTextEditor>(L"```mermaid\nflowchart TD\nA[Draft]-->B[Review]\nB-->C[Ready]\nB-->A\nA-->C\nC-->D[Published]\n"
+                                                 L"style A fill:#204080,color:#ffffff\nlinkStyle 0 stroke:#c04040,stroke-width:3px\n"
+                                                 L"linkStyle 2 stroke-dasharray:5 5\nlinkStyle 3 stroke:#2080a0,stroke-width:3px,stroke-dasharray:5 5\n```\n");
+        edges->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        edges->SetMarkdownRenderingEnabled(true);
+        edges->SetBounds(edgeTile.content);
+        const Tile svgTile = flow.Next(*scene.root, L"RichTextEditor / SVG picture", 1u, 240.0f);
+        auto* svg          = scene.root->AddChild<RichTextEditor>(L"![vector](gallery.svg)\n");
+        svg->SetMarkdownAnalysisProfile(RichText::MarkdownProfile::RichMarkdown);
+        svg->SetMarkdownRenderingEnabled(true);
+        svg->SetDocumentFilePath(L"C:\\gallery\\svg.md"); // resolves the relative source; never opened
+        svg->SetSvgImagesEnabled(true);
+        svg->SetBounds(svgTile.content);
+        scene.svgEditor = svg;
+    }
+    {
         const Tile tile = flow.Next(*scene.root, L"ComboBox / Window");
         auto* combo     = scene.root->AddChild<ComboBox>();
         AddComboItems(*combo);
@@ -1676,6 +1707,19 @@ void ResizeClientArea(AttachedHostWindow& window, UINT widthPx, UINT heightPx)
 
     WindowHostBitmapCapture capture;
     Require(PrepareNativeContentForTests(window.Host()), "gallery cooperative controls reach one acknowledged frame");
+    if (scene.svgEditor)
+    {
+        // The application's half of image loading: complete the picture the first preparation asked for, then prepare again.
+        constexpr std::string_view vector =
+            "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 30'><rect width='40' height='30' fill='#2060c0'/>"
+            "<circle cx='20' cy='15' r='9' fill='#f0c020'/><path d='M4 26 L20 4 L36 26 Z' fill='none' stroke='#ffffff' stroke-width='2'/></svg>";
+        std::shared_ptr<const RichText::RichImage> picture;
+        Require(SUCCEEDED(RichText::RichImage::CreateSvg(160u, 120u, std::as_bytes(std::span(vector)), picture)), "gallery builds its SVG picture");
+        std::vector<RichText::RichImageRequest> requests;
+        scene.svgEditor->TakePendingImageRequests(requests);
+        Require(requests.size() == 1u && scene.svgEditor->CompleteImageRequest(requests.front(), picture), "gallery completes its SVG picture");
+        Require(PrepareNativeContentForTests(window.Host()), "gallery SVG picture reaches one acknowledged frame");
+    }
     Require(scene.presentationEditor && scene.presentationEditor->HasFocus(), "gallery presentation has logical focus without desktop activation");
     Require(scene.presentationEditor->IsLinkUnderlineVisible(scene.presentationLinkOffset), "gallery presentation exposes its focused caret-link underline");
     const auto matchRects =
@@ -2389,6 +2433,16 @@ void RunGalleryTileCaptures(const std::filesystem::path& outputDirectory,
     Require(! scalePercents.empty(), "gallery tile capture names at least one scale");
     for (const UINT percent : scalePercents)
         Require(IsSupportedGalleryScalePercent(percent), "gallery tile capture scale is supported");
+#if DXUI_ENABLE_DIAGNOSTICS
+    // W7.7 pixel evidence: DXUI_GALLERY_EDGE_CONNECTORS=1 strokes flowchart connectors one DrawLine per segment, as before
+    // their prepared path, and =2 not at all, so that a capture can separate the connectors from everything else.
+    {
+        wchar_t connectors[8]{};
+        if (GetEnvironmentVariableW(L"DXUI_GALLERY_EDGE_CONNECTORS", connectors, 8u) != 0u)
+            DxUi::RichText::Detail::testRichFlowchartConnectors = static_cast<unsigned>(_wtoi(connectors));
+    }
+    const auto restoreConnectors = wil::scope_exit([]() noexcept { DxUi::RichText::Detail::testRichFlowchartConnectors = 0u; });
+#endif
 
     std::vector<GalleryTheme> themes;
     for (GalleryTheme& theme : BuildGalleryThemes())

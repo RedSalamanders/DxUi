@@ -53,7 +53,33 @@ thread_local std::size_t testRichLiveMathPreparations{};
 thread_local bool testRichMathCarryIgnoresSource{};
 thread_local std::size_t testRichMathTextFormats{};
 thread_local std::span<const std::uint8_t> testRichMathTableOverride{};
+thread_local IDWriteFontCollection* testRichMathCollection{};
 #endif
+SvgStripPlan PlanSvgStrips(std::uint32_t width, std::uint32_t height, std::size_t elements, std::size_t turnBytes) noexcept
+{
+    constexpr std::size_t pixelsPerElement = 64u;
+    const std::size_t turnPixels           = std::max<std::size_t>(1u, turnBytes / 4u);
+    const std::size_t walk                 = elements * pixelsPerElement;
+    const std::size_t capacity             = std::max(turnPixels > walk ? turnPixels - walk : std::size_t{}, std::max<std::size_t>(1u, turnPixels / 2u));
+    if (width == 0u || height == 0u)
+        return {width, height};
+    if (capacity < width)
+        return {static_cast<std::uint32_t>(capacity), 1u};
+    return {width, static_cast<std::uint32_t>(std::min<std::size_t>(height, capacity / width))};
+}
+std::size_t SvgElementEstimate(std::span<const std::byte> document) noexcept
+{
+    std::size_t elements{};
+    for (std::size_t index = 0u; index + 1u < document.size(); ++index)
+    {
+        if (document[index] != std::byte{'<'})
+            continue;
+        const auto next = static_cast<unsigned char>(document[index + 1u]);
+        if ((next >= 'A' && next <= 'Z') || (next >= 'a' && next <= 'z') || next == '_' || next == ':')
+            ++elements;
+    }
+    return elements;
+}
 namespace
 {
 DWRITE_READING_DIRECTION ParagraphDirection(const SemanticDocument& document, const SemanticParagraph& paragraph, const LayoutOptions& options) noexcept
@@ -190,7 +216,6 @@ struct NativeImagePlacement
     MarkdownRange display;
     std::shared_ptr<const RichImage> pixels;
     wil::com_ptr<ID2D1Bitmap> bitmap;
-    wil::com_ptr<ID2D1DeviceContext5> svgContext;
     wil::com_ptr<ID2D1SvgDocument> svgDocument;
     wil::com_ptr<ID2D1Bitmap1> svgTarget;
     std::shared_ptr<PreparedMath> math;
@@ -269,6 +294,7 @@ struct NativeImagePlacement
     bool hasMathCaret{};
     UINT32 uploadedX{}, uploadedY{}; // Staging only; never published partially.
     UINT32 svgWidth{}, svgHeight{};
+    std::size_t svgElements{}; // SvgElementEstimate of this SVG, for the strip plan of each turn (PlanSvgStrips).
 };
 #pragma warning(pop)
 struct NativeImageGeometry
@@ -446,6 +472,10 @@ struct NativeImageGeometry
     }
     std::vector<NativeImagePlacement> placements;
     std::vector<const RichImage*> unsupportedPixels;
+    // The one private same-device context every SVG placement of this preparation rasterizes through (W7.7): created at the
+    // first SVG that needs a raster, retargeted to each placement's bitmap at each strip and released when the preparation's
+    // images are done.
+    wil::com_ptr<ID2D1DeviceContext5> svgContext;
     std::size_t retainedImageBytes{};
     HRESULT nativeResult = S_OK;
     ID2D1RenderTarget* targetIdentity; // Identity only after staging; never dereferenced here.
@@ -458,7 +488,8 @@ struct NativeImageGeometry
         std::size_t bytes{};
         HRESULT result = S_OK;
     };
-    UploadProgress PrepareOne(std::size_t index, ID2D1RenderTarget* target, std::size_t maximumBytes)
+    // `maximumBytes` is what this turn has left of its upload budget and `turnBytes` the whole of it.
+    UploadProgress PrepareOne(std::size_t index, ID2D1RenderTarget* target, std::size_t maximumBytes, std::size_t turnBytes)
     {
         auto& placement = placements[index];
         if (std::ranges::find(unsupportedPixels, placement.pixels.get()) != unsupportedPixels.end())
@@ -496,33 +527,40 @@ struct NativeImageGeometry
                     retainedImageBytes += pixelBytes;
                     return {true, false, false, 0u};
                 }
-                wil::com_ptr<ID2D1DeviceContext> ownerContext;
-                const auto query = target->QueryInterface(IID_PPV_ARGS(ownerContext.put()));
-                if (query == E_NOINTERFACE || query == E_NOTIMPL || query == D2DERR_UNSUPPORTED_OPERATION)
-                    return reject();
-                if (FAILED(query))
-                    return {false, true, false, 0u, query};
-                wil::com_ptr<ID2D1Device> device;
-                ownerContext->GetDevice(device.put());
-                if (! device)
-                    return reject();
-                wil::com_ptr<ID2D1DeviceContext> privateContext;
-                const auto contextResult = CountedCreateDeviceContext(device, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, privateContext.put());
-                if (contextResult == E_NOTIMPL || contextResult == D2DERR_UNSUPPORTED_OPERATION)
-                    return reject();
-                if (FAILED(contextResult))
-                    return {false, true, false, 0u, contextResult};
-                const auto svgQuery = privateContext->QueryInterface(IID_PPV_ARGS(placement.svgContext.put()));
-                if (svgQuery == E_NOINTERFACE || svgQuery == E_NOTIMPL || svgQuery == D2DERR_UNSUPPORTED_OPERATION)
-                    return reject();
-                if (FAILED(svgQuery))
-                    return {false, true, false, 0u, svgQuery};
+                if (! svgContext)
+                {
+                    // The preparation's one private context, shared by every SVG placement (W7.7).
+                    wil::com_ptr<ID2D1DeviceContext> ownerContext;
+                    const auto query = target->QueryInterface(IID_PPV_ARGS(ownerContext.put()));
+                    if (query == E_NOINTERFACE || query == E_NOTIMPL || query == D2DERR_UNSUPPORTED_OPERATION)
+                        return reject();
+                    if (FAILED(query))
+                        return {false, true, false, 0u, query};
+                    wil::com_ptr<ID2D1Device> device;
+                    ownerContext->GetDevice(device.put());
+                    if (! device)
+                        return reject();
+                    wil::com_ptr<ID2D1DeviceContext> privateContext;
+                    const auto contextResult = CountedCreateDeviceContext(device, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, privateContext.put());
+                    if (contextResult == E_NOTIMPL || contextResult == D2DERR_UNSUPPORTED_OPERATION)
+                        return reject();
+                    if (FAILED(contextResult))
+                        return {false, true, false, 0u, contextResult};
+                    wil::com_ptr<ID2D1DeviceContext5> svgCapable;
+                    const auto svgQuery = privateContext->QueryInterface(IID_PPV_ARGS(svgCapable.put()));
+                    if (svgQuery == E_NOINTERFACE || svgQuery == E_NOTIMPL || svgQuery == D2DERR_UNSUPPORTED_OPERATION)
+                        return reject();
+                    if (FAILED(svgQuery))
+                        return {false, true, false, 0u, svgQuery};
+                    svgCapable->SetDpi(96.f, 96.f);
+                    svgContext = std::move(svgCapable);
+                }
                 const auto bytes = placement.pixels->SvgBytes();
                 wil::com_ptr<IStream> stream;
                 stream.attach(SHCreateMemStream(reinterpret_cast<const BYTE*>(bytes.data()), static_cast<UINT>(bytes.size())));
                 if (! stream)
                     return {false, true, false, 0u, E_OUTOFMEMORY};
-                const auto create = placement.svgContext->CreateSvgDocument(
+                const auto create = svgContext->CreateSvgDocument(
                     stream.get(), D2D1::SizeF(static_cast<float>(width), static_cast<float>(height)), placement.svgDocument.put());
                 if (FAILED(create) && create != E_OUTOFMEMORY && create != D2DERR_RECREATE_TARGET)
                     return reject();
@@ -530,22 +568,25 @@ struct NativeImageGeometry
                     return {false, true, false, 0u, create};
                 const auto properties = D2D1::BitmapProperties1(
                     D2D1_BITMAP_OPTIONS_TARGET, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.f, 96.f);
-                const auto bitmapResult = CountedCreateBitmap(
-                    placement.svgContext, D2D1::SizeU(placement.svgWidth, placement.svgHeight), nullptr, 0u, &properties, placement.svgTarget.put());
+                const auto bitmapResult =
+                    CountedCreateBitmap(svgContext, D2D1::SizeU(placement.svgWidth, placement.svgHeight), nullptr, 0u, &properties, placement.svgTarget.put());
                 if (bitmapResult == E_NOTIMPL || bitmapResult == D2DERR_UNSUPPORTED_OPERATION)
                     return reject();
                 if (FAILED(bitmapResult))
                     return {false, true, false, 0u, bitmapResult};
                 retainedImageBytes += pixelBytes;
-                placement.svgContext->SetTarget(placement.svgTarget.get());
-                placement.svgContext->SetDpi(96.f, 96.f);
+                placement.svgElements = SvgElementEstimate(bytes);
             }
-            const auto columns = static_cast<UINT32>(std::min(static_cast<std::size_t>(placement.svgWidth - placement.uploadedX), maximumBytes / 4u));
-            const auto rows    = placement.uploadedX == 0u && columns == placement.svgWidth
-                                     ? static_cast<UINT32>(std::min(static_cast<std::size_t>(placement.svgHeight - placement.uploadedY),
-                                                                    maximumBytes / (static_cast<std::size_t>(placement.svgWidth) * 4u)))
-                                     : 1u;
-            auto* context      = placement.svgContext.get();
+            // The strip is planned again at every turn from that turn's whole budget (PlanSvgStrips), so it never exceeds the
+            // budget of the turn that draws it, whatever the budgets of the turns before it. One that fits this turn's whole
+            // budget but not what the turn has left waits for the next turn, which has the whole of it.
+            const auto plan    = PlanSvgStrips(placement.svgWidth, placement.svgHeight, placement.svgElements, turnBytes);
+            const auto columns = std::min(placement.svgWidth - placement.uploadedX, plan.columns);
+            const auto rows = placement.uploadedX == 0u && columns == placement.svgWidth ? std::min(placement.svgHeight - placement.uploadedY, plan.rows) : 1u;
+            if (static_cast<std::size_t>(columns) * rows * 4u > maximumBytes)
+                return {false, true, false, 0u};
+            auto* context = svgContext.get();
+            context->SetTarget(placement.svgTarget.get());
             context->BeginDraw();
             context->SetTransform(D2D1::Matrix3x2F::Identity());
             context->PushAxisAlignedClip(D2D1::RectF(static_cast<float>(placement.uploadedX),
@@ -578,7 +619,6 @@ struct NativeImageGeometry
                 placement.bitmap = placement.svgTarget.get();
                 placement.svgTarget.reset();
                 placement.svgDocument.reset();
-                placement.svgContext.reset();
             }
             return {complete, true, false, static_cast<std::size_t>(columns) * rows * 4u};
         }
@@ -2927,6 +2967,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
             {
                 if (! work.state->images || work.imageIndex == work.state->images->placements.size())
                 {
+                    if (work.state->images)
+                        work.state->images->svgContext.reset();
                     work.raster.reset();
                     work.phase = Preparation::Phase::CodeLabels;
                     continue;
@@ -2961,7 +3003,8 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 }
                 if (budget.maximumUploadBytes - result.uploadedBytes < 4u)
                     break;
-                const auto upload = work.state->images->PrepareOne(work.imageIndex, work.raster.get(), budget.maximumUploadBytes - result.uploadedBytes);
+                const auto upload = work.state->images->PrepareOne(
+                    work.imageIndex, work.raster.get(), budget.maximumUploadBytes - result.uploadedBytes, budget.maximumUploadBytes);
                 if (FAILED(upload.result))
                 {
                     result.status = LayoutPreparationStatus::Failed;

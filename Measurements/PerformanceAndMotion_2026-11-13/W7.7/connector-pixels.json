@@ -1,0 +1,499 @@
+{
+  "schemaVersion": 1,
+  "workloadOwner": "DxUi",
+  "fixture": "dxui-gallery-connector-pixels",
+  "description": "Pixel comparison of three captures of the gallery RichTextEditor diagram tiles: production drawing (one path per edge), the old drawing (one DrawLine per route segment, DXUI_GALLERY_EDGE_CONNECTORS=1) and no connector at all (=2). differing: pixels that differ between production and the old drawing; connectorPixels: pixels a connector paints in either drawing; differingOutsideConnectors must be 0.",
+  "command": "gallery.ps1 -Configuration 'Release' -Platform x64 -Scale 100,150,200 -Tiles 'RichTextEditor' -Warp (three captures)",
+  "sourceCommit": "d87e67983bb510f629a4345a92d24a088ec5f211",
+  "configuration": "Release",
+  "platform": "x64",
+  "adapter": "WARP (forced)",
+  "benchmarkInputs": {
+    "gallery.ps1": "3e159f7d6abf6fd18bd548b8a0f4f10b881bb2aa3ed4782a1f4cec5197bd8fa8",
+    "Tools/GalleryCapture.psm1": "15f150485530506fb7ad044e5e5254956be5718ada29e19c81a20a0527cd254b",
+    "Tests/Controls/DxUi.Tests.Gallery.cpp": "23628224f5d36528a2e1983d28b52b303f6375a784d0602b766fb759543fda85",
+    "Tests/Controls/DxUi.Tests.Runner.cpp": "ddae48616d7003d10df999f769c9df59dbf38637f8e95271e7298eddd25acc6d"
+  },
+  "tiles": [
+    {
+      "tile": "100/dark/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 156960,
+      "differing": 6,
+      "connectorPixels": 561,
+      "differingOutsideConnectors": 0,
+      "box": "160,250..333,251"
+    },
+    {
+      "tile": "100/dark/richtexteditor-composed-document.png",
+      "pixels": 244160,
+      "differing": 4,
+      "connectorPixels": 102,
+      "differingOutsideConnectors": 0,
+      "box": "96,257..120,258"
+    },
+    {
+      "tile": "100/dark/richtexteditor-native-c-diagrams.png",
+      "pixels": 209280,
+      "differing": 8,
+      "connectorPixels": 283,
+      "differingOutsideConnectors": 0,
+      "box": "95,51..151,153"
+    },
+    {
+      "tile": "100/dark/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 226720,
+      "differing": 738,
+      "connectorPixels": 1356,
+      "differingOutsideConnectors": 0,
+      "box": "27,59..132,341"
+    },
+    {
+      "tile": "100/high-contrast/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 156960,
+      "differing": 6,
+      "connectorPixels": 561,
+      "differingOutsideConnectors": 0,
+      "box": "160,250..333,251"
+    },
+    {
+      "tile": "100/high-contrast/richtexteditor-composed-document.png",
+      "pixels": 244160,
+      "differing": 4,
+      "connectorPixels": 103,
+      "differingOutsideConnectors": 0,
+      "box": "96,257..120,258"
+    },
+    {
+      "tile": "100/high-contrast/richtexteditor-native-c-diagrams.png",
+      "pixels": 209280,
+      "differing": 8,
+      "connectorPixels": 283,
+      "differingOutsideConnectors": 0,
+      "box": "95,51..151,153"
+    },
+    {
+      "tile": "100/high-contrast/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 226720,
+      "differing": 723,
+      "connectorPixels": 1341,
+      "differingOutsideConnectors": 0,
+      "box": "27,59..132,341"
+    },
+    {
+      "tile": "100/light/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 156960,
+      "differing": 6,
+      "connectorPixels": 561,
+      "differingOutsideConnectors": 0,
+      "box": "160,250..333,251"
+    },
+    {
+      "tile": "100/light/richtexteditor-composed-document.png",
+      "pixels": 244160,
+      "differing": 4,
+      "connectorPixels": 103,
+      "differingOutsideConnectors": 0,
+      "box": "96,257..120,258"
+    },
+    {
+      "tile": "100/light/richtexteditor-native-c-diagrams.png",
+      "pixels": 209280,
+      "differing": 8,
+      "connectorPixels": 283,
+      "differingOutsideConnectors": 0,
+      "box": "95,51..151,153"
+    },
+    {
+      "tile": "100/light/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 226720,
+      "differing": 755,
+      "connectorPixels": 1360,
+      "differingOutsideConnectors": 0,
+      "box": "27,59..132,341"
+    },
+    {
+      "tile": "100/rainbow-dark/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 156960,
+      "differing": 6,
+      "connectorPixels": 561,
+      "differingOutsideConnectors": 0,
+      "box": "160,250..333,251"
+    },
+    {
+      "tile": "100/rainbow-dark/richtexteditor-composed-document.png",
+      "pixels": 244160,
+      "differing": 4,
+      "connectorPixels": 102,
+      "differingOutsideConnectors": 0,
+      "box": "96,257..120,258"
+    },
+    {
+      "tile": "100/rainbow-dark/richtexteditor-native-c-diagrams.png",
+      "pixels": 209280,
+      "differing": 8,
+      "connectorPixels": 283,
+      "differingOutsideConnectors": 0,
+      "box": "95,51..151,153"
+    },
+    {
+      "tile": "100/rainbow-dark/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 226720,
+      "differing": 738,
+      "connectorPixels": 1356,
+      "differingOutsideConnectors": 0,
+      "box": "27,59..132,341"
+    },
+    {
+      "tile": "100/rainbow-light/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 156960,
+      "differing": 6,
+      "connectorPixels": 561,
+      "differingOutsideConnectors": 0,
+      "box": "160,250..333,251"
+    },
+    {
+      "tile": "100/rainbow-light/richtexteditor-composed-document.png",
+      "pixels": 244160,
+      "differing": 4,
+      "connectorPixels": 103,
+      "differingOutsideConnectors": 0,
+      "box": "96,257..120,258"
+    },
+    {
+      "tile": "100/rainbow-light/richtexteditor-native-c-diagrams.png",
+      "pixels": 209280,
+      "differing": 8,
+      "connectorPixels": 283,
+      "differingOutsideConnectors": 0,
+      "box": "95,51..151,153"
+    },
+    {
+      "tile": "100/rainbow-light/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 226720,
+      "differing": 755,
+      "connectorPixels": 1360,
+      "differingOutsideConnectors": 0,
+      "box": "27,59..132,341"
+    },
+    {
+      "tile": "150/dark/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 353160,
+      "differing": 8,
+      "connectorPixels": 856,
+      "differingOutsideConnectors": 0,
+      "box": "240,305..500,377"
+    },
+    {
+      "tile": "150/dark/richtexteditor-composed-document.png",
+      "pixels": 549360,
+      "differing": 6,
+      "connectorPixels": 229,
+      "differingOutsideConnectors": 0,
+      "box": "145,385..181,387"
+    },
+    {
+      "tile": "150/dark/richtexteditor-native-c-diagrams.png",
+      "pixels": 470880,
+      "differing": 8,
+      "connectorPixels": 408,
+      "differingOutsideConnectors": 0,
+      "box": "143,77..227,229"
+    },
+    {
+      "tile": "150/dark/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 510120,
+      "differing": 1475,
+      "connectorPixels": 3037,
+      "differingOutsideConnectors": 0,
+      "box": "41,88..199,512"
+    },
+    {
+      "tile": "150/high-contrast/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 353160,
+      "differing": 8,
+      "connectorPixels": 856,
+      "differingOutsideConnectors": 0,
+      "box": "240,305..500,377"
+    },
+    {
+      "tile": "150/high-contrast/richtexteditor-composed-document.png",
+      "pixels": 549360,
+      "differing": 6,
+      "connectorPixels": 227,
+      "differingOutsideConnectors": 0,
+      "box": "145,385..181,387"
+    },
+    {
+      "tile": "150/high-contrast/richtexteditor-native-c-diagrams.png",
+      "pixels": 470880,
+      "differing": 8,
+      "connectorPixels": 408,
+      "differingOutsideConnectors": 0,
+      "box": "143,77..227,229"
+    },
+    {
+      "tile": "150/high-contrast/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 510120,
+      "differing": 1447,
+      "connectorPixels": 3005,
+      "differingOutsideConnectors": 0,
+      "box": "41,88..199,512"
+    },
+    {
+      "tile": "150/light/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 353160,
+      "differing": 8,
+      "connectorPixels": 856,
+      "differingOutsideConnectors": 0,
+      "box": "240,305..500,377"
+    },
+    {
+      "tile": "150/light/richtexteditor-composed-document.png",
+      "pixels": 549360,
+      "differing": 6,
+      "connectorPixels": 227,
+      "differingOutsideConnectors": 0,
+      "box": "145,385..181,387"
+    },
+    {
+      "tile": "150/light/richtexteditor-native-c-diagrams.png",
+      "pixels": 470880,
+      "differing": 8,
+      "connectorPixels": 406,
+      "differingOutsideConnectors": 0,
+      "box": "143,77..227,229"
+    },
+    {
+      "tile": "150/light/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 510120,
+      "differing": 1515,
+      "connectorPixels": 3049,
+      "differingOutsideConnectors": 0,
+      "box": "41,111..199,512"
+    },
+    {
+      "tile": "150/rainbow-dark/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 353160,
+      "differing": 8,
+      "connectorPixels": 856,
+      "differingOutsideConnectors": 0,
+      "box": "240,305..500,377"
+    },
+    {
+      "tile": "150/rainbow-dark/richtexteditor-composed-document.png",
+      "pixels": 549360,
+      "differing": 6,
+      "connectorPixels": 229,
+      "differingOutsideConnectors": 0,
+      "box": "145,385..181,387"
+    },
+    {
+      "tile": "150/rainbow-dark/richtexteditor-native-c-diagrams.png",
+      "pixels": 470880,
+      "differing": 8,
+      "connectorPixels": 408,
+      "differingOutsideConnectors": 0,
+      "box": "143,77..227,229"
+    },
+    {
+      "tile": "150/rainbow-dark/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 510120,
+      "differing": 1475,
+      "connectorPixels": 3037,
+      "differingOutsideConnectors": 0,
+      "box": "41,88..199,512"
+    },
+    {
+      "tile": "150/rainbow-light/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 353160,
+      "differing": 8,
+      "connectorPixels": 856,
+      "differingOutsideConnectors": 0,
+      "box": "240,305..500,377"
+    },
+    {
+      "tile": "150/rainbow-light/richtexteditor-composed-document.png",
+      "pixels": 549360,
+      "differing": 6,
+      "connectorPixels": 227,
+      "differingOutsideConnectors": 0,
+      "box": "145,385..181,387"
+    },
+    {
+      "tile": "150/rainbow-light/richtexteditor-native-c-diagrams.png",
+      "pixels": 470880,
+      "differing": 8,
+      "connectorPixels": 406,
+      "differingOutsideConnectors": 0,
+      "box": "143,77..227,229"
+    },
+    {
+      "tile": "150/rainbow-light/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 510120,
+      "differing": 1515,
+      "connectorPixels": 3049,
+      "differingOutsideConnectors": 0,
+      "box": "41,111..199,512"
+    },
+    {
+      "tile": "200/dark/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 628560,
+      "differing": 12,
+      "connectorPixels": 1663,
+      "differingOutsideConnectors": 0,
+      "box": "320,501..667,503"
+    },
+    {
+      "tile": "200/dark/richtexteditor-composed-document.png",
+      "pixels": 977760,
+      "differing": 6,
+      "connectorPixels": 294,
+      "differingOutsideConnectors": 0,
+      "box": "193,514..241,516"
+    },
+    {
+      "tile": "200/dark/richtexteditor-native-c-diagrams.png",
+      "pixels": 838080,
+      "differing": 10,
+      "connectorPixels": 630,
+      "differingOutsideConnectors": 0,
+      "box": "192,103..303,306"
+    },
+    {
+      "tile": "200/dark/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 907920,
+      "differing": 2335,
+      "connectorPixels": 4841,
+      "differingOutsideConnectors": 0,
+      "box": "55,150..266,683"
+    },
+    {
+      "tile": "200/high-contrast/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 628560,
+      "differing": 12,
+      "connectorPixels": 1663,
+      "differingOutsideConnectors": 0,
+      "box": "320,501..667,503"
+    },
+    {
+      "tile": "200/high-contrast/richtexteditor-composed-document.png",
+      "pixels": 977760,
+      "differing": 6,
+      "connectorPixels": 294,
+      "differingOutsideConnectors": 0,
+      "box": "193,514..241,516"
+    },
+    {
+      "tile": "200/high-contrast/richtexteditor-native-c-diagrams.png",
+      "pixels": 838080,
+      "differing": 10,
+      "connectorPixels": 630,
+      "differingOutsideConnectors": 0,
+      "box": "192,103..303,306"
+    },
+    {
+      "tile": "200/high-contrast/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 907920,
+      "differing": 2290,
+      "connectorPixels": 4775,
+      "differingOutsideConnectors": 0,
+      "box": "55,150..266,683"
+    },
+    {
+      "tile": "200/light/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 628560,
+      "differing": 12,
+      "connectorPixels": 1663,
+      "differingOutsideConnectors": 0,
+      "box": "320,501..667,503"
+    },
+    {
+      "tile": "200/light/richtexteditor-composed-document.png",
+      "pixels": 977760,
+      "differing": 6,
+      "connectorPixels": 294,
+      "differingOutsideConnectors": 0,
+      "box": "193,514..241,516"
+    },
+    {
+      "tile": "200/light/richtexteditor-native-c-diagrams.png",
+      "pixels": 838080,
+      "differing": 10,
+      "connectorPixels": 630,
+      "differingOutsideConnectors": 0,
+      "box": "192,103..303,306"
+    },
+    {
+      "tile": "200/light/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 907920,
+      "differing": 2391,
+      "connectorPixels": 4857,
+      "differingOutsideConnectors": 0,
+      "box": "55,148..266,683"
+    },
+    {
+      "tile": "200/rainbow-dark/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 628560,
+      "differing": 12,
+      "connectorPixels": 1663,
+      "differingOutsideConnectors": 0,
+      "box": "320,501..667,503"
+    },
+    {
+      "tile": "200/rainbow-dark/richtexteditor-composed-document.png",
+      "pixels": 977760,
+      "differing": 6,
+      "connectorPixels": 294,
+      "differingOutsideConnectors": 0,
+      "box": "193,514..241,516"
+    },
+    {
+      "tile": "200/rainbow-dark/richtexteditor-native-c-diagrams.png",
+      "pixels": 838080,
+      "differing": 10,
+      "connectorPixels": 630,
+      "differingOutsideConnectors": 0,
+      "box": "192,103..303,306"
+    },
+    {
+      "tile": "200/rainbow-dark/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 907920,
+      "differing": 2335,
+      "connectorPixels": 4841,
+      "differingOutsideConnectors": 0,
+      "box": "55,150..266,683"
+    },
+    {
+      "tile": "200/rainbow-light/richtexteditor-actors-notes-and-message-numbers.png",
+      "pixels": 628560,
+      "differing": 12,
+      "connectorPixels": 1663,
+      "differingOutsideConnectors": 0,
+      "box": "320,501..667,503"
+    },
+    {
+      "tile": "200/rainbow-light/richtexteditor-composed-document.png",
+      "pixels": 977760,
+      "differing": 6,
+      "connectorPixels": 294,
+      "differingOutsideConnectors": 0,
+      "box": "193,514..241,516"
+    },
+    {
+      "tile": "200/rainbow-light/richtexteditor-native-c-diagrams.png",
+      "pixels": 838080,
+      "differing": 10,
+      "connectorPixels": 630,
+      "differingOutsideConnectors": 0,
+      "box": "192,103..303,306"
+    },
+    {
+      "tile": "200/rainbow-light/richtexteditor-native-c-flowchart-edges.png",
+      "pixels": 907920,
+      "differing": 2391,
+      "connectorPixels": 4857,
+      "differingOutsideConnectors": 0,
+      "box": "55,148..266,683"
+    }
+  ]
+}

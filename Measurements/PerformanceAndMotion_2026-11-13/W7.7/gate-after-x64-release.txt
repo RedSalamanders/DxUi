@@ -1,0 +1,9 @@
+  FX8 warm: math font reads 1 for 3 formulas, SVG rasterizations 2, device contexts created per step (max) 1, luminance evaluations 38
+  FX8 prose-insert (40 steps): math font reads 0, formulas prepared 0, luminance evaluations 0, edge connector draws 120 for 120 edges drawn, device contexts created (max per step) 0
+  FX8 enter (10 steps): math font reads 0, formulas prepared 0, luminance evaluations 0, edge connector draws 12 for 12 edges drawn, device contexts created (max per step) 0
+  FX8 arrow (50 steps): math font reads 0, formulas prepared 0, luminance evaluations 0, edge connector draws 36 for 36 edges drawn, device contexts created (max per step) 0
+  FX8 fence-insert (30 steps): math font reads 0, formulas prepared 0, luminance evaluations 0, edge connector draws 0 for 0 edges drawn, device contexts created (max per step) 0
+  FX8 table-insert (30 steps): math font reads 0, formulas prepared 0, luminance evaluations 0, edge connector draws 60 for 60 edges drawn, device contexts created (max per step) 0
+  FX8 resize (30 steps): math font reads 0, formulas prepared 0, luminance evaluations 0, edge connector draws 60 for 60 edges drawn, device contexts created (max per step) 0
+  FX8 seek-formula (1 steps): math font reads 0, formulas prepared 0, luminance evaluations 0, edge connector draws 3 for 3 edges drawn, device contexts created (max per step) 0
+  FX8 formula-insert (10 steps): math font reads 0, formulas prepared 10, luminance evaluations 220, edge connector draws 30 for 30 edges drawn, device contexts created (max per step) 0

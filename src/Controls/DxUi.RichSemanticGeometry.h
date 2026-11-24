@@ -22,6 +22,18 @@ inline std::optional<D2D1_RECT_F> CodeCopyBounds(D2D1_RECT_F frame, bool rtl) no
     return D2D1_RECT_F{left, frame.top + 3.0f, left + 18.0f, frame.top + 21.0f};
 }
 struct RichImageResourceSet;
+// The strips an SVG raster is drawn in, a few at each owner turn (W7.7). Each strip walks the whole document tree and draws
+// the pixels of its clip, so the count follows from an estimate of both: a strip holds at most what one turn's upload budget
+// holds (its bytes at four per pixel), less what walking the document's elements costs (taken as 64 pixels an element), and
+// never less than half of that budget. Full-width rows of at least one, or columns of one row when a row is wider than a
+// strip. `elements` is SvgElementEstimate of the document. Pure and deterministic.
+struct SvgStripPlan
+{
+    std::uint32_t columns{}, rows{};
+};
+[[nodiscard]] SvgStripPlan PlanSvgStrips(std::uint32_t width, std::uint32_t height, std::size_t elements, std::size_t turnBytes) noexcept;
+// The elements of an SVG document, counted without parsing it: each `<` that opens a name.
+[[nodiscard]] std::size_t SvgElementEstimate(std::span<const std::byte> document) noexcept;
 struct NativeObjectRejection
 {
     std::size_t element{};

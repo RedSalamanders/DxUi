@@ -8,6 +8,9 @@ namespace DxUi::RichText::Detail
 {
 #if DXUI_ENABLE_DIAGNOSTICS
 extern thread_local std::size_t testRichLiveDiagramPreparations; // PreparedFlowchart objects alive on this thread (W2.3).
+// How Draw strokes an edge's connector, for the pixel evidence of W7.7: 0 the prepared path (production), 1 one DrawLine per
+// route segment as before the path existed, 2 not at all.
+extern thread_local unsigned testRichFlowchartConnectors;
 #endif
 struct FlowchartResourceEpoch
 {
@@ -18,6 +21,13 @@ struct DiagramColorContext
 {
     D2D1_COLOR_F text{}, stroke{}, fill{};
 };
+// The stroke style of a flowchart edge's connector, solid or dashed (5 on, 5 off): flat caps, as the per-segment lines had,
+// and a bevel join. A bevel join fills only the wedge between the two segments' own outer corners, so the ink of the joined
+// connector lies inside the convex hull of the ink the segments drew apart, whatever the angle of the bend; a miter join
+// (Direct2D's default) reaches 1 / sin(angle / 2) line widths beyond the corner, up to its limit of ten, and would leave the
+// bounds the diagram is painted and compared in. A dotted connector keeps the round caps and join of its dots, which already
+// draw a dot at every vertex.
+[[nodiscard]] HRESULT CreateEdgeConnectorStrokeStyle(ID2D1Factory* factory, bool dashed, ID2D1StrokeStyle** style) noexcept;
 // Preparation-only choice of an opaque arrow-label surface. Keep the canvas
 // color at readable contrast; otherwise use the smallest neutral adjustment.
 D2D1_COLOR_F ResolveDiagramLabelBackground(D2D1_COLOR_F ink, D2D1_COLOR_F surface) noexcept;

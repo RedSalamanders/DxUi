@@ -122,13 +122,16 @@
     X(rich, diagramPreparations) /* Native diagram paint objects begun by a semantic geometry preparation (not carried). */                                    \
     X(rich,                                                                                                                                                    \
       displayUnitsWritten) /* Display UTF-16 units a semantic build emitted from syntax; units copied from reused blocks are semanticDisplayUnitsCopied. */    \
-    X(rich, documentBytesCopied) /* Bytes of a RichTextEditor's own source or display text copied into a string: slices, flattens, text-input copies. */       \
-    X(rich, documentFlattens)    /* Copies of an editor's whole non-empty source or display text (a subset of documentBytesCopied). */                         \
-    X(rich, elementsBuilt)       /* Semantic elements a semantic document build created. */                                                                    \
-    X(rich, hoveredTitleCalls)   /* RichTextEditor::HoveredTitle resolutions: the hover title under a point, for the host's tooltip. */                        \
-    X(rich, hoverScanElements)   /* Semantic elements a pointer-hover lookup tested one by one; the prepared hover index adds none. */                         \
-    X(rich, identityMapNodes)    /* Nodes or boxes inserted into an identity map to pair an old revision with a new one; block-range pairing adds none. */     \
-    X(rich, imageUploadBytes)    /* Pixel bytes rich-image preparation uploaded into Direct2D bitmaps (creation with pixels or CopyFromMemory). */             \
+    X(rich, documentBytesCopied)  /* Bytes of a RichTextEditor's own source or display text copied into a string: slices, flattens, text-input copies. */      \
+    X(rich, documentFlattens)     /* Copies of an editor's whole non-empty source or display text (a subset of documentBytesCopied). */                        \
+    X(rich, edgeConnectorDraws)   /* Direct2D draw calls that stroked a flowchart edge's connector (one DrawGeometry per edge; W7.7). */                       \
+    X(rich, edgesDrawn)           /* Flowchart edges whose connector a paint drew: the denominator of edgeConnectorDraws. */                                   \
+    X(rich, elementsBuilt)        /* Semantic elements a semantic document build created. */                                                                   \
+    X(rich, hoveredTitleCalls)    /* RichTextEditor::HoveredTitle resolutions: the hover title under a point, for the host's tooltip. */                       \
+    X(rich, hoverScanElements)    /* Semantic elements a pointer-hover lookup tested one by one; the prepared hover index adds none. */                        \
+    X(rich, identityMapNodes)     /* Nodes or boxes inserted into an identity map to pair an old revision with a new one; block-range pairing adds none. */    \
+    X(rich, imageUploadBytes)     /* Pixel bytes rich-image preparation uploaded into Direct2D bitmaps (creation with pixels or CopyFromMemory). */            \
+    X(rich, luminanceEvaluations) /* Relative-luminance evaluations (up to three std::pow each) that math and diagram contrast decisions ran (W7.7). */        \
     X(rich, markdownBlockUnitsScanned) /* Source units the Markdown block scanner stepped over; closed roots imported from the previous parse add none. */     \
     X(rich, markdownFrontMatterValidations)       /* YAML or TOML front-matter validations a Markdown parse ran. */                                            \
     X(rich, markdownFrontMatterValidationsReused) /* Front-matter results a Markdown parse carried from its previous parse (unchanged envelope). */            \
@@ -143,6 +146,7 @@
     X(rich, markdownRootTriviaUnitsScanned) /* Source units of trivia lines between top-level blocks the root partition scanned; copied lines add none. */     \
     X(rich, markdownSourceUnitsCopied)      /* UTF-16 units written into a Markdown parse's owned source copy. */                                              \
     X(rich, markdownSourceUnitsMaterialized) /* Of those, units read out of the document's piece tree rather than the previous parse's source. */              \
+    X(rich, mathFontReads)                   /* Math fonts read from DirectWrite: family, face and MATH table copied and parsed (W7.7). */                     \
     X(rich, mathPreparations)                /* Prepared math formulas built (beside the testRichMathPreparations seam). */                                    \
     X(rich, otherDocumentBytesCopied)        /* Bytes copied out of any other RichText::Document (code-fence line numbers, labels, scratch documents). */      \
     X(rich, offscreenChunksLaidFirst)        /* v0 chunks laid outside the viewport window while a chunk meeting it was not laid yet (W7.3). */                \

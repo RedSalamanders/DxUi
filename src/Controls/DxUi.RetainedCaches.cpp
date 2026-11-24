@@ -1,6 +1,7 @@
 #include "DxUi.RetainedCaches.h"
 
 #include "DxUi.Internal.h"
+#include "DxUi.PreparedMath.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 
 #include <algorithm>
@@ -64,7 +65,7 @@ template <typename Map> [[nodiscard]] uint64_t UnorderedMapBytes(const Map& map)
 std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
 {
     {
-        static constexpr std::array<RetainedHostCacheRow, 6u> rows{{
+        static constexpr std::array<RetainedHostCacheRow, 7u> rows{{
             // ControlHost::_brushCache, its _transitionBrushes (W2.8) and _brushFailureLogKeys, the warnings already written.
             {"ControlHost._brushCache",
              [](const ControlHost& host) noexcept { return host._brushCache.size() + host._transitionBrushes.size(); },
@@ -111,6 +112,19 @@ std::span<const RetainedHostCacheRow> RetainedCacheAccess::HostRows() noexcept
              [](const ControlHost& host) noexcept { return CountRetainedAccessibilitySnapshotRecords(host); },
              [](ControlHost& host) noexcept { DropRetainedAccessibilitySnapshot(host); },
              [](const ControlHost& host) noexcept { return RetainedAccessibilitySnapshotBytes(host); }},
+            // The math font data of the host's thread (W7.7): which MATH table data of a font face exists, so that a formula
+            // prepared again shares it (PreparedMath::MathFontDataCache). It owns nothing: fixed storage for eight entries, each a
+            // factory identity, a family hash and a weak reference to data that prepared formulas hold, so the entries count only
+            // data a live formula holds, and no factory, collection or font face is kept by the thread (a thread that prepared no
+            // formula holds nothing, and reading or dropping the row allocates nothing). An entry is replaced when the system
+            // font collection is another one than the data was read from; the drop forgets the entries, and the next formula
+            // reads the font again. It is thread state, so every host of the thread reports and drops the same entries. The
+            // per-palette color decisions of prepared formulas and diagrams (W7.7) belong to the prepared objects:
+            // RichTextEditor.layout covers them.
+            {"RichText.mathFontData",
+             [](const ControlHost&) noexcept { return RichText::Detail::PreparedMath::FontCacheEntries(); },
+             [](ControlHost&) noexcept { RichText::Detail::PreparedMath::DropFontCache(); },
+             [](const ControlHost&) noexcept { return RichText::Detail::PreparedMath::FontCacheBytes(); }},
         }};
         return rows;
     }

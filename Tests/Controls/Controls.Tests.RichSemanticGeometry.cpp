@@ -7,6 +7,7 @@
 #include "Support.Tests.RichReuseAcrossEdits.h"
 #include "Support.Tests.RichSemanticEditor.h"
 #include "Support.Tests.RichSemanticGeometry.h"
+#include "Support.Tests.RichSvgStrips.h"
 #include "Support/Utilities.h"
 namespace
 {
@@ -998,6 +999,10 @@ void TestRichSemanticGeometryLinkRasterOracle()
 #if DXUI_ENABLE_DIAGNOSTICS
 // W2.3: prepared formulas, diagrams, SVG rasters and image uploads carry across edits by content, equal a fresh preparation
 // and are released at publication.
+void TestRichSvgStripsFollowTheTurnBudget()
+{
+    RichSemanticTests::Run(RichSvgStripTests::StripsFollowTheTurnBudget);
+}
 void TestRichSemanticGeometryReuseAcrossEdits()
 {
     RichSemanticTests::Run(RichReuseAcrossEditsTests::CarryAcrossEdits);
@@ -1231,6 +1236,7 @@ void TestRichSemanticImagePlaceholderParagraphDirection()
 }
 void RunRichSemanticGeometryTests()
 {
+    DXUI_RUN_TEST(TestRichSvgStripsFollowTheTurnBudget);
     DXUI_RUN_TEST(TestRichSemanticImagePlaceholderParagraphDirection);
 #if DXUI_ENABLE_DIAGNOSTICS
     DXUI_RUN_TEST(TestRichSemanticNativeTitleTooltips);

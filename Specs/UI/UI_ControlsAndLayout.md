@@ -1585,8 +1585,13 @@ bytes, 2,048 elements, depth 64 and 65,536 aggregate path/point units; embedded
 images have a zero budget. The existing dimension, pixel-equivalent and total
 retained-byte limits still apply. XML admission belongs on a caller worker.
 Direct2D SVG document, stream and private same-device context creation occur in
-preparation. The bounded SVG raster is prepared at the authored, viewport-clamped
-size and current DPI in budgeted pixel tiles. Its logical BGRA pixel bytes and
+preparation, and one private context serves every SVG raster of a preparation. The
+bounded SVG raster is prepared at the authored, viewport-clamped
+size and current DPI in budgeted pixel tiles: each tile walks the whole document, so
+the tile size is planned at every turn from the picture's pixel count, an estimate of
+its elements and that turn's whole upload budget, so a tile never exceeds the budget
+of the turn that draws it, and one that fits the turn's budget but not what the turn
+has left waits for the next one. Its logical BGRA pixel bytes and
 source bytes share the existing candidate retained-image ceiling; identical resources share a raster
 only at the same pixel dimensions. Completed GPU bitmaps are private to the
 device generation; Draw uses the ordinary bitmap path, with no SVG parsing,
@@ -3507,8 +3512,16 @@ zero-based edges, with explicit edge properties overriding defaults. Unsupported
 properties, colors, unknown targets/classes and widths retain exact source with
 a diagnostic.
 
+A flowchart edge's connector is one path through every point of its route, prepared
+with the diagram and stroked with one draw call, so a dashed edge's pattern runs on
+across its bends and a thick edge has a bevel join at each (flat caps; a dotted edge
+keeps its round dots), which stays inside the ink the segments drew apart; a hollow marker shortens its own
+end of that path. Arrowheads, cardinality marks and sequence lifelines are separate
+primitives.
+
 Author colors use target-bound solid brushes prepared incrementally before
-publication and recreated for a replacement render target. The chosen text and
+publication and recreated for a replacement render target. Which authored color
+reads on the page colors is decided once per pair of page colors, not at every paint. The chosen text and
 outline must contrast against the chosen fill by at least 4.5:1 and 3:1;
 edge strokes must contrast against the theme background by 3:1. Otherwise the
 corresponding theme colors are used. High contrast and selected/overlay text

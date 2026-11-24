@@ -1480,7 +1480,7 @@ in [performance and resources](../../Core/Core_PerformanceAndResources.md) updat
     `HitTestTextPosition` calls per visible-range query 0.
   - **Needs**: `W0.1`, `W2.3`. **Size**: M.
 
-- [ ] **W7.7 Math and diagrams.**
+- [x] **W7.7 Math and diagrams.**
   - **Why**: math font data (`GetSystemFontCollection`, `FindFamilyName`, `CreateFontFace`, MATH table copy;
     `DxUi.PreparedMath.h:604-648`) is rebuilt per geometry generation (`:2797-2800`). Each atom run gets one text layout
     (`:2855`) and one `DrawTextLayout` per paint; colored math runs `std::pow` per op per paint (`:3026-3035`), as does

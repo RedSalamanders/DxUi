@@ -1,9 +1,9 @@
 #pragma once
 // FX8 Rich typing (plan W0.4; proves G12): a RichTextEditor holding a Markdown document near the 64 Ki-unit cap with 3 math
-// blocks, 2 Mermaid diagrams, 2 raster images, 1 SVG, a 200x5 table and a numbered 2,000-line code fence, edited by 100
+// blocks, 2 Mermaid diagrams, 2 raster images, 2 SVGs, a 200x5 table and a numbered 2,000-line code fence, edited by 100
 // one-character inserts (in prose, inside the fence and next to the table), 10 Enter presses, 50 arrow keys and a 30-step
-// width resize. Embedded host only: G12 is content work, the same on both hosts, and the embedded runner adds the C++
-// allocation sink.
+// width resize, then 10 inserts inside the first formula (W7.7; the first formula is colored and the first diagram styled). Embedded host only: G12 is content
+// work, the same on both hosts, and the embedded runner adds the C++ allocation sink.
 //
 // Cooperative preparation: the editor prepares a change over many owner turns, and paints nothing until it is done. The
 // definition sets settlePreparation, so the embedded runner repeats a step's frame until the host needs no further
@@ -23,24 +23,27 @@ namespace PerformanceFixtures::Fx8
 {
 inline constexpr std::array kBudgets{std::string_view("G12")};
 
-inline constexpr size_t kWarmSteps    = 4u;
-inline constexpr size_t kProseInserts = 40u;
-inline constexpr size_t kEnters       = 10u;
-inline constexpr size_t kArrows       = 50u;
-inline constexpr size_t kFenceInserts = 30u;
-inline constexpr size_t kTableInserts = 30u;
-inline constexpr size_t kResizeSteps  = 30u;
+inline constexpr size_t kWarmSteps      = 4u;
+inline constexpr size_t kProseInserts   = 40u;
+inline constexpr size_t kEnters         = 10u;
+inline constexpr size_t kArrows         = 50u;
+inline constexpr size_t kFenceInserts   = 30u;
+inline constexpr size_t kTableInserts   = 30u;
+inline constexpr size_t kResizeSteps    = 30u;
+inline constexpr size_t kFormulaInserts = 10u;
 
 // Phase indices, in kPhases order.
-inline constexpr size_t kWarm        = 0u;
-inline constexpr size_t kProseInsert = 1u;
-inline constexpr size_t kEnter       = 2u;
-inline constexpr size_t kArrow       = 3u;
-inline constexpr size_t kSeekFence   = 4u;
-inline constexpr size_t kFenceInsert = 5u;
-inline constexpr size_t kSeekTable   = 6u;
-inline constexpr size_t kTableInsert = 7u;
-inline constexpr size_t kResize      = 8u;
+inline constexpr size_t kWarm          = 0u;
+inline constexpr size_t kProseInsert   = 1u;
+inline constexpr size_t kEnter         = 2u;
+inline constexpr size_t kArrow         = 3u;
+inline constexpr size_t kSeekFence     = 4u;
+inline constexpr size_t kFenceInsert   = 5u;
+inline constexpr size_t kSeekTable     = 6u;
+inline constexpr size_t kTableInsert   = 7u;
+inline constexpr size_t kResize        = 8u;
+inline constexpr size_t kSeekFormula   = 9u;
+inline constexpr size_t kFormulaInsert = 10u;
 
 inline constexpr std::array kPhases{
     Phase{"warm", kWarmSteps, PhaseKind::Warmup, "initial preparation of the whole document; image requests completed from the decoded fixtures"},
@@ -52,6 +55,8 @@ inline constexpr std::array kPhases{
     Phase{"seek-table", 1u, PhaseKind::Measured, "the caret moves to the start of the paragraph right after the table (SetSelection)"},
     Phase{"table-insert", kTableInserts, PhaseKind::Measured, "30 one-character inserts in the paragraph next to the table"},
     Phase{"resize", kResizeSteps, PhaseKind::Measured, "30 width steps, each 1/64 of the variant width narrower"},
+    Phase{"seek-formula", 1u, PhaseKind::Measured, "the caret moves inside the first formula's source (SetSelection)"},
+    Phase{"formula-insert", kFormulaInserts, PhaseKind::Measured, "10 one-character inserts inside the first formula, which prepare that formula again (W7.7)"},
 };
 
 // The document's scale. "full" is the plan's document; "default", run by the ordinary suites, keeps every object and every
@@ -100,6 +105,7 @@ inline constexpr std::array kVariants{
 
 // Markers the seeks look for; each occurs once in the document.
 inline constexpr std::wstring_view kAfterTableMarker = L"After the table";
+inline constexpr std::wstring_view kFormulaMarker    = L"+b}";
 
 // The fixture's Markdown source for a shape: deterministic, exactly shape.units UTF-16 units.
 [[nodiscard]] inline std::wstring BuildSource(const DocumentShape& shape)
@@ -118,8 +124,11 @@ inline constexpr std::wstring_view kAfterTableMarker = L"After the table";
     };
     for (size_t index = 0u; index < 4u; ++index)
         prose(index);
-    source += L"$$\n\\frac{a+b}{c^2} + \\sqrt{x_1^2 + x_2^2}\n$$\n\n";
-    source += L"```mermaid\nflowchart TD\nA[Draft]-->B[Review]\nB-->C[Ready]\nB-->A\n```\n\n";
+    // The first formula carries an authored color and the first diagram authored styles (W7.7): a colored formula and a styled
+    // diagram decide their contrast at paint; the edge styles are a 3 px colored edge and a dashed back edge with a bend.
+    source += L"$$\n\\frac{a+b}{c^2} + \\textcolor{red}{\\sqrt{x_1^2 + x_2^2}}\n$$\n\n";
+    source += L"```mermaid\nflowchart TD\nA[Draft]-->B[Review]\nB-->C[Ready]\nB-->A\nstyle A fill:#204080,color:#ffffff\n";
+    source += L"linkStyle 0 stroke:#c04040,stroke-width:3px\nlinkStyle 2 stroke-dasharray:5 5\n```\n\n";
     source += L"![first raster](first.png)\n\n";
     source += L"$$\n\\sum_{k=1}^{n} k^2 = \\frac{n(n+1)(2n+1)}{6}\n$$\n\n";
     source += L"| Name | Kind | Size | Owner | State |\n| --- | --- | --- | --- | --- |\n";
@@ -136,6 +145,7 @@ inline constexpr std::wstring_view kAfterTableMarker = L"After the table";
     source += L"![second raster](second.jpg)\n\n";
     source += L"$$\n\\int_0^1 x^2 \\, dx = \\frac{1}{3}\n$$\n\n";
     source += L"![vector](shape.svg)\n\n";
+    source += L"![second vector](shape2.svg)\n\n";
     source += L"```cpp\n";
     for (size_t line = 0u; line < shape.fenceLines; ++line)
         source += L"v" + std::to_wstring(line) + L";\n";
@@ -196,6 +206,7 @@ public:
         {
             case kProseInsert:
             case kFenceInsert:
+            case kFormulaInsert:
             case kTableInsert: static_cast<void>(context.port.Character(static_cast<wchar_t>(L'a' + action % 26u))); break;
             case kEnter:
                 static_cast<void>(context.port.Key(VK_RETURN, true));
@@ -211,6 +222,7 @@ public:
             }
             case kSeekFence: Seek(fenceLine_, fenceLine_.size() - 1u); break; // before the line's ';'
             case kSeekTable: Seek(kAfterTableMarker, 0u); break;
+            case kSeekFormula: Seek(kFormulaMarker, 2u); break; // before the closing brace of the numerator
             case kResize:
             {
                 const UINT narrower = static_cast<UINT>(((action % kResizeSteps) + 1u) * (width_ / 64u));
@@ -244,7 +256,11 @@ private:
         RETURN_IF_FAILED(RichImageTests::Decode(factory.get(), scenarios.at(1u).encoded, jpeg_));
         constexpr std::string_view svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 30'><rect width='40' height='30' fill='#2060c0'/>"
                                          "<circle cx='20' cy='15' r='9' fill='#f0c020'/></svg>";
-        return DxUi::RichText::RichImage::CreateSvg(80u, 60u, std::as_bytes(std::span(svg)), svg_);
+        RETURN_IF_FAILED(DxUi::RichText::RichImage::CreateSvg(80u, 60u, std::as_bytes(std::span(svg)), svg_));
+        // A second vector picture, a different image: its own placement, so the preparation rasterizes two SVGs (W7.7).
+        constexpr std::string_view second = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 30'><rect width='40' height='30' fill='#c04040'/>"
+                                            "<path d='M4 26 L20 4 L36 26 Z' fill='#ffffff'/></svg>";
+        return DxUi::RichText::RichImage::CreateSvg(80u, 60u, std::as_bytes(std::span(second)), svg2_);
     }
     CATCH_RETURN();
 
@@ -256,7 +272,7 @@ private:
         for (const DxUi::RichText::RichImageRequest& request : requests_)
         {
             const std::wstring_view source = request.Source();
-            const auto image               = source.ends_with(L"first.png") ? png_ : source.ends_with(L"second.jpg") ? jpeg_ : svg_;
+            const auto image = source.ends_with(L"first.png") ? png_ : source.ends_with(L"second.jpg") ? jpeg_ : source.ends_with(L"shape2.svg") ? svg2_ : svg_;
             static_cast<void>(editor_->CompleteImageRequest(request, image));
         }
     }
@@ -271,7 +287,7 @@ private:
     }
 
     DxUi::RichTextEditor* editor_ = nullptr;
-    std::shared_ptr<const DxUi::RichText::RichImage> png_, jpeg_, svg_;
+    std::shared_ptr<const DxUi::RichText::RichImage> png_, jpeg_, svg_, svg2_;
     std::vector<DxUi::RichText::RichImageRequest> requests_;
     std::wstring fenceLine_;
     UINT width_  = 0u;
@@ -284,8 +300,9 @@ inline constexpr std::array kSources{std::string_view("Tests/Embedded/Embedded.T
 inline constexpr Definition kDefinition{
     .id         = "FX8",
     .title      = "Rich typing",
-    .scenario   = "A 64 Ki-unit document with 3 math blocks, 2 diagrams, 2 raster images, 1 SVG, a 200x5 table and a numbered code fence of 2,000 lines; 100 "
-                  "one-character inserts, 10 Enter presses, 50 arrow keys, a 30-step width resize. Proves G12. RichTextEditor, RichMarkdown profile, Subtle "
+    .scenario   = "A 64 Ki-unit document with 3 math blocks, 2 diagrams, 2 raster images, 2 SVGs, a 200x5 table and a numbered code fence of 2,000 lines; 100 "
+                  "one-character inserts, 10 Enter presses, 50 arrow keys, a 30-step width resize and 10 inserts inside the first (colored) formula. Proves G12. "
+                  "RichTextEditor, RichMarkdown profile, Subtle "
                   "presentation, embedded host; each step is one action settled through every owner turn of its preparation. Variant full is the plan's document "
                   "(65,280 units); default keeps every object and action at 7,936 units, a 250-line fence and a 25-row table. Variants source and "
                   "multiplier (each with a -full form) lay the same document out through the v0 document layout: Source mode in chunks, and Rich mode "

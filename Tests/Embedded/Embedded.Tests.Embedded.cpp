@@ -93,6 +93,8 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.ChunkPlacementFx8.h"
 #include "Embedded.Tests.ComboBoxPopupLayout.h"
 #include "Embedded.Tests.FrameAttribution.h"
+#include "Embedded.Tests.MathDiagramsFx8.h"
+#include "Embedded.Tests.MathPaintAllocations.h"
 #include "Embedded.Tests.PointerHit.h"
 // After the performance fixtures: the W2.1 gate drives FX5.
 #include "Embedded.Tests.IncrementalPublication.h"
@@ -2089,7 +2091,22 @@ __declspec(noinline) static int RunFunctionalTests()
         RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
         MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
         ChunkPlacementFx8::TestFx8ChunksPerEditAndViewportFirst();
+        MathDiagramsFx8::Run();
+        MathPaintAllocations::Run();
         PerformanceFixtures::TestApplicationWakeGatesOnFixtures();
+        return 0;
+    }
+    // Plan W7.7 round 2 alone: the allocation-free paints, the cache's row and the cache's lifetime.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-math-paint-allocations")
+    {
+        MathPaintAllocations::Run();
+        return 0;
+    }
+    // Plan W7.7 alone: the FX8 math font, contrast, edge connector and SVG device context gates.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-math-diagrams")
+    {
+        MathDiagramsFx8::Run();
+        MathPaintAllocations::Run();
         return 0;
     }
     // Plan W7.3 alone: the FX8 v0 chunk gates (chunks per edit, viewport first).
@@ -2387,6 +2404,8 @@ __declspec(noinline) static int RunFunctionalTests()
     MarkdownParseReuseFx8::TestFx8ParserInsertKinds();
     MarkdownParseReuseFx8::TestFx8ParseWorkPerInsert();
     ChunkPlacementFx8::TestFx8ChunksPerEditAndViewportFirst();
+    MathDiagramsFx8::Run();
+    MathPaintAllocations::Run();
     ComboBoxPopupLayoutTests::Run(gpu);
     TextFieldPaintTests::Run(gpu);
     RetainedTextLayoutTests::Run(gpu);
