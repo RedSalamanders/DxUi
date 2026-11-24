@@ -5,6 +5,9 @@ milliseconds diagnose build orchestration; they are not native workload measurem
 .PARAMETER Configuration Debug, Release or ASan Debug.
 .PARAMETER Platform x64 or ARM64.
 .PARAMETER OutputRoot Optional isolated output root; defaults to this checkout's .build directory.
+.PARAMETER Clean Clean first-party artifacts for the selected profile without requiring dependency restore.
+.PARAMETER Rebuild Clean and compile the selected profile.
+.PARAMETER MaxCpuCount Bound MSBuild's worker processes. Zero uses the existing tool default.
 .PARAMETER Analyze Runs MSVC code analysis on the checkout's solution under .build/analysis.
 .PARAMETER ProductionOnly Build only the Release library target; excludes test executables from the production role.
 .PARAMETER Projects Optional union of owned native project names. Builds their library dependency too and publishes only selected-target evidence. Omit for a full solution build.
@@ -17,7 +20,9 @@ param(
     [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration = 'Debug',
     [ValidateSet('x64','ARM64')][string] $Platform = 'x64',
     [string] $OutputRoot = '',
+    [switch] $Clean,
     [switch] $Rebuild,
+    [ValidateRange(0,256)][int] $MaxCpuCount = 0,
     [switch] $ProductionOnly,
     [string[]] $Projects = @(),
     [string] $SourceRoot = '',
@@ -29,6 +34,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $Projects=@($Projects | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if ($env:CI_NATIVE_BUILDS_DISABLED -eq 'true') { throw 'Native builds are forbidden in compiler-free PR checks.' }
+if ($Clean -and ($Rebuild -or $Analyze -or $OutputRoot -or $SourceRoot -or $ToolingEngineRoot)) {
+    throw '-Clean uses a standalone local profile with the default output.'
+}
 if ($Analyze -and ($OutputRoot -or $ProductionOnly -or $Projects.Count -or $SourceRoot -or $ToolingEngineRoot)) {
     throw '-Analyze uses this checkout, the full solution and its dedicated output directory.'
 }
@@ -78,8 +86,9 @@ if ($defaultBuildOutput) {
     Remove-ScopedIteration -Root $buildRoot -Path (Join-Path $scopedReports 'iteration.json')
     Remove-ScopedIteration -Root $buildRoot -Path (Join-Path $scopedReports 'build.json')
 }
-$attestSdkLibrary=$defaultBuildOutput -and $Configuration -eq 'Release'
-if($attestSdkLibrary){
+$defaultRelease=$defaultBuildOutput -and $Configuration -eq 'Release'
+$attestSdkLibrary=$defaultRelease -and -not $Clean
+if($defaultRelease){
     Import-Module (Join-Path $PSScriptRoot 'Tools/SdkLibraryInputs.psm1') -Force
     $sdkModuleLoaded=$true
     Remove-DxUiSdkLibraryReceipt -Root $buildRoot -Platform $Platform
@@ -190,7 +199,7 @@ function Write-DxUiMSBuildLine {
 }
 
 $script:UseInteractiveTerminal = Test-DxUiInteractiveTerminal
-$target = if ($Rebuild) { 'Rebuild' } else { 'Build' }
+$target = if ($Clean) { 'Clean' } elseif ($Rebuild) { 'Rebuild' } else { 'Build' }
 Write-Host 'Locating Visual Studio and MSBuild...' -ForegroundColor Yellow
 # The one discovery: vcpkg-install.ps1 pins vcpkg to this installation and its default toolset.
 Import-Module (Join-Path $PSScriptRoot 'Tools/PerformancePolicy.psm1') -Force
@@ -219,20 +228,27 @@ Invoke-DxUiBuildPhase -Phase OutputUseChecks -Body {
         }
     }
 }
-Invoke-DxUiBuildPhase -Phase DependencyAdmission -Body {
-    $triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
-    $header = Join-Path $output "vcpkg_installed/$Platform/$triplet/include/wil/resource.h"
-    if ($Analyze -and -not (Test-Path -LiteralPath $header -PathType Leaf)) {
-        $binarySources = $env:VCPKG_BINARY_SOURCES
-        try {
-            $env:VCPKG_BINARY_SOURCES = 'clear'
-            & (Join-Path $buildRoot 'vcpkg-install.ps1') -Platform $Platform -OutputRoot $output
-        } finally {
-            $env:VCPKG_BINARY_SOURCES = $binarySources
+if ($Clean) {
+    Import-Module (Join-Path $buildRoot '.ci-engine/Tools/Modules/Ci.Policy.psm1') -ErrorAction Stop
+    $null = Assert-CiContainedPath -Root $buildRoot -Path $output
+    $null = Assert-CiContainedPath -Root $buildRoot -Path (Join-Path $output "reports/performance-build/$Platform-$($Configuration -replace ' ','')")
+    Remove-PerformanceBuildAttestation -Root $buildRoot -Platform $Platform -Configuration $Configuration
+} else {
+    Invoke-DxUiBuildPhase -Phase DependencyAdmission -Body {
+        $triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
+        $header = Join-Path $output "vcpkg_installed/$Platform/$triplet/include/wil/resource.h"
+        if ($Analyze -and -not (Test-Path -LiteralPath $header -PathType Leaf)) {
+            $binarySources = $env:VCPKG_BINARY_SOURCES
+            try {
+                $env:VCPKG_BINARY_SOURCES = 'clear'
+                & (Join-Path $buildRoot 'vcpkg-install.ps1') -Platform $Platform -OutputRoot $output
+            } finally {
+                $env:VCPKG_BINARY_SOURCES = $binarySources
+            }
         }
-    }
-    if (-not (Test-Path -LiteralPath $header -PathType Leaf)) {
-        throw "Restore dependencies first: vcpkg-install.ps1 -Platform $Platform -OutputRoot `"$output`""
+        if (-not (Test-Path -LiteralPath $header -PathType Leaf)) {
+            throw "Restore dependencies first: vcpkg-install.ps1 -Platform $Platform -OutputRoot `"$output`""
+        }
     }
 }
 $defaultOutput = [IO.Path]::GetFullPath((Join-Path $buildRoot '.build')).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
@@ -243,9 +259,9 @@ if ($Projects.Count) {
     $partialBuild=$selectedProjects.Count -lt (Get-ScopedBuildProjectCatalog).Count
     Assert-ScopedSelectedBuildGraph -Root $buildRoot -MSBuildPath $msbuild -Platform $Platform -Configuration $Configuration -OutputRoot $output -Projects $selectedProjects
 }
-$attestPerformanceBuild = (-not $ProductionOnly) -and [string]::Equals($output, $defaultOutput, [StringComparison]::OrdinalIgnoreCase)
+$attestPerformanceBuild = (-not ($Clean -or $ProductionOnly)) -and [string]::Equals($output, $defaultOutput, [StringComparison]::OrdinalIgnoreCase)
 if ($partialBuild -and 'DxUi.EmbeddedTests' -cnotin $selectedProjects) { $attestPerformanceBuild=$false }
-if (-not $attestPerformanceBuild) { $target = 'Rebuild' }
+if (-not ($Clean -or $attestPerformanceBuild)) { $target = 'Rebuild' }
 if ($attestPerformanceBuild) {
     # Consumer-owned output roots retain their separate integration contract. Default builds also serve performance.ps1
     # and test.ps1 -SkipBuild, so bind compiled source/dependencies and the resolved toolchain before invoking MSBuild.
@@ -287,12 +303,13 @@ Write-DxUiBuildBanner -Configuration $Configuration -Platform $Platform -Target 
 $logDirectory = Join-Path $output 'logs'
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 $log = Join-Path $logDirectory ("build-$Platform-$Configuration-" + [guid]::NewGuid().ToString('N') + '.log')
-$arguments = @((Join-Path $buildRoot 'DxUi.sln'), '/m', '/nologo', '/verbosity:minimal', "/t:$target",
+$workerArgument = if ($MaxCpuCount) { "/m:$MaxCpuCount" } else { '/m' }
+$arguments = @((Join-Path $buildRoot 'DxUi.sln'), $workerArgument, '/nologo', '/verbosity:minimal', "/t:$target",
     "/p:Configuration=$Configuration", "/p:Platform=$Platform", "/p:DxUiOutputRoot=$output",
     "/flp:logfile=$log;verbosity=normal;encoding=UTF-8")
 if ($ProductionOnly) {
     if ($Configuration -ne 'Release') { throw 'ProductionOnly requires Release.' }
-    $arguments[4] = if ($target -eq 'Rebuild') { '/t:DxUi:Rebuild' } else { '/t:DxUi' }
+    $arguments[4] = if ($target -eq 'Build') { '/t:DxUi' } else { "/t:DxUi:$target" }
 }
 if ($partialBuild) {
     $arguments[4]='/t:' + (($selectedProjects | ForEach-Object { $_.Replace('.','_')+':'+$target }) -join ';')
@@ -302,6 +319,7 @@ if ($Analyze) {
     $arguments += '/p:DxUiAnalyze=true'
     Write-Host 'MSVC code analysis' -ForegroundColor Cyan
 }
+if ($Clean) { $arguments += '/p:DxUiGuardClean=true' }
 Write-Host 'Build configuration:' -ForegroundColor Cyan
 Write-Host "  Configuration: $Configuration"
 Write-Host "  Platform:      $Platform"
@@ -309,7 +327,8 @@ Write-Host "  Target:        $target"
 Write-Host "  Toolchain:     $installation" -ForegroundColor DarkGray
 Write-Host "  Output:        $output" -ForegroundColor DarkGray
 Write-Host ''
-Write-Host 'Compiling DxUi...' -ForegroundColor Yellow
+if ($Clean) { Write-Host 'Cleaning DxUi...' -ForegroundColor Yellow }
+else { Write-Host 'Compiling DxUi...' -ForegroundColor Yellow }
 $stopwatch = [Diagnostics.Stopwatch]::StartNew()
 Invoke-DxUiBuildPhase -Phase MSBuild -Body {
     if ($attestPerformanceBuild -or $attestSdkLibrary) { Push-Location -LiteralPath $buildRoot }
@@ -332,6 +351,11 @@ Invoke-DxUiBuildPhase -Phase MSBuild -Body {
     }
 }
 Assert-NativeBuildDiagnostics -LogPath $log
+if ($Clean) {
+    Write-Host "Cleaned DxUi first-party outputs for $Platform $Configuration. Log: $log"
+    $buildCompleted=$true
+    return
+}
 if ($attestPerformanceBuild) {
     $performanceBuildAfter=Invoke-DxUiBuildPhase -Phase PostBuildAttestation -Body {
         Complete-PerformanceBuildAttestation -Root $buildRoot -Platform $Platform -Configuration $Configuration -Before $performanceBuildBefore @engineArguments -PassThru

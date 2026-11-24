@@ -971,6 +971,17 @@ function Get-PerformanceIncrementalAttestationPath {
     return Join-Path (Split-Path -Parent (Get-PerformanceBuildAttestationPath $Root $Platform $Configuration)) 'incremental.json'
 }
 
+function Remove-PerformanceBuildAttestation {
+    param([string] $Root, [string] $Platform, [string] $Configuration)
+    $paths = @(
+        (Get-PerformanceBuildAttestationPath $Root $Platform $Configuration)
+        (Get-PerformanceIncrementalAttestationPath $Root $Platform $Configuration)
+    )
+    foreach ($path in $paths) {
+        if (Test-Path -LiteralPath $path -PathType Leaf) { Remove-Item -LiteralPath $path }
+    }
+}
+
 function Get-PerformanceIntermediateIdentity {
     param([string] $Root, [ValidateSet('x64','ARM64')][string] $Platform,
         [ValidateSet('Debug','Release','ASan Debug')][string] $Configuration)
@@ -1052,8 +1063,7 @@ function Start-PerformanceBuildAttestation {
         return $state
     } finally {
         # Revoke a previous pass before any build attempt, including a pre-compilation attestation failure.
-        if (Test-Path -LiteralPath $path -PathType Leaf) { Remove-Item -LiteralPath $path }
-        if (Test-Path -LiteralPath $incrementalPath -PathType Leaf) { Remove-Item -LiteralPath $incrementalPath }
+        Remove-PerformanceBuildAttestation $Root $Platform $Configuration
     }
 }
 
@@ -1179,4 +1189,4 @@ function Test-PerformanceReceiptIdentity {
 
 Export-ModuleMember -Function Invoke-DxUiBuildPhase, Get-TrustedPerformancePolicy, Test-PerformanceReceiptIdentity, Get-PerformanceToolIdentities, Get-ResolvedCompileItemsIdentity, Get-PreprocessedProjectIdentity,
     Get-PerformanceProjectCatalog, Get-PerformanceProjectProfile, Get-PerformanceResolvedToolPaths, Get-PerformanceBuildAttestationIdentity,
-    Start-PerformanceBuildAttestation, Complete-PerformanceBuildAttestation, Assert-PerformanceBuildAttestation, Get-PerformanceMeasurementState, Assert-PerformanceMeasurementState
+    Start-PerformanceBuildAttestation, Remove-PerformanceBuildAttestation, Complete-PerformanceBuildAttestation, Assert-PerformanceBuildAttestation, Get-PerformanceMeasurementState, Assert-PerformanceMeasurementState
