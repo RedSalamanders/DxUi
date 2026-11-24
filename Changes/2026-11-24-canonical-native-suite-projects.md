@@ -1,0 +1,1 @@
+- Moved the core native suite projects to their canonical paths and preserved executable and paired-build identities.

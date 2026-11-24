@@ -38,7 +38,7 @@ Invoke-TestCase 'every library, build, benchmark and measurement path is measure
         'Directory.Build.props' = 'library input'; 'Directory.Build.targets' = 'library input'; 'vcpkg.json' = 'library input'; 'vcpkg-tool.json' = 'library input'
         'performance.ps1' = 'benchmark harness'; 'performance-paired.ps1' = 'benchmark harness'; 'Tools/Compare-Performance.ps1' = 'benchmark harness'; 'Tools/PerformanceComparison.psm1' = 'benchmark harness'
         'Tests/Embedded/Embedded.Tests.ComplexUiBenchmark.h' = 'benchmark harness'; 'Samples/ComplexUi/ComplexUiScene.h' = 'benchmark harness'
-        'Tests/Embedded/Embedded.Tests.Embedded.cpp' = 'benchmark executable'; 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' = 'benchmark executable'; 'Tests/Support/Support.Tests.TestWatchdog.h' = 'benchmark executable'
+        'Tests/Embedded/Embedded.Tests.Embedded.cpp' = 'benchmark executable'; 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' = 'benchmark executable'; 'Tests/EmbeddedTests/EmbeddedTests.vcxproj' = 'benchmark executable'; 'Tests/Support/Support.Tests.TestWatchdog.h' = 'benchmark executable'
         'Samples/EmbeddedControls/EmbeddedScene.h' = 'fixture or sample compiled into it'
         'DxUi.sln' = 'build or restore'; 'build.ps1' = 'build or restore'; 'vcpkg-install.ps1' = 'build or restore'; 'vcpkg-configuration.json' = 'build or restore'
         'Tools/VisualStudio.psm1' = 'build or restore'; 'Tools/VcpkgTriplet.psm1' = 'build or restore'; 'Tools/VcpkgRestore.psm1' = 'build or restore'; 'Tools/ScopedTesting.psm1' = 'build or restore'; 'Tools/DxUiBuildEvidence.psm1' = 'build or restore'; 'Tools/SdkLibraryInputs.psm1' = 'build or restore'; 'Tools/SdkSourceProfiles.psm1' = 'build or restore'; 'Tools/ProcessInspection.psm1' = 'build or restore'

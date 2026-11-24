@@ -113,16 +113,16 @@ Invoke-TestCase 'the public build refuses a diagnostic engine reader for product
 }
 
 Invoke-TestCase 'paired benchmark stages one measured driver without changing either library project' {
-    [xml]$project = Get-Content -Raw -LiteralPath (Join-Path $repository 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj')
+    [xml]$project = Get-Content -Raw -LiteralPath (Join-Path $repository 'Tests/EmbeddedTests/EmbeddedTests.vcxproj')
     $ns = [Xml.XmlNamespaceManager]::new($project.NameTable)
     $ns.AddNamespace('m', 'http://schemas.microsoft.com/developer/msbuild/2003')
     $paired = @($project.SelectNodes('//m:ItemGroup[@Condition="''$(DxUiPairedBenchmark)'' == ''true''"]/m:ClCompile', $ns))
     Assert-Equal 1 $paired.Count 'paired build has exactly one benchmark translation unit'
-    Assert-Equal 'Embedded.Tests.PairedBenchmark.cpp' $paired[0].Include 'paired translation unit'
+    Assert-Equal '..\Embedded\Embedded.Tests.PairedBenchmark.cpp' $paired[0].Include 'paired translation unit'
     $compilerOptions = $project.SelectSingleNode('//m:ItemDefinitionGroup/m:ClCompile/m:AdditionalOptions', $ns)
     Assert-True ($null -ne $compilerOptions -and $compilerOptions.InnerText.Contains('/bigobj')) 'paired unit keeps the shared compiler option'
     $ordinary = @($project.SelectNodes('//m:ItemGroup[@Condition="''$(DxUiPairedBenchmark)'' != ''true''"]/m:ClCompile', $ns))
-    Assert-Contains @($ordinary | ForEach-Object Include) 'Embedded.Tests.Embedded.cpp' 'ordinary functional dispatcher remains'
+    Assert-Contains @($ordinary | ForEach-Object Include) '..\Embedded\Embedded.Tests.Embedded.cpp' 'ordinary functional dispatcher remains'
     Assert-True (@($ordinary | Where-Object Include -Match 'Foundation.Tests.Failure.cpp').Count -eq 1) 'ordinary fatal tests remain'
     Assert-True (@($ordinary | Where-Object Include -Match 'FailureHost.cpp').Count -eq 1) 'ordinary application failure host remains'
     $references = @($project.SelectNodes('//m:ProjectReference', $ns) | ForEach-Object Include)
@@ -572,7 +572,7 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Assert-Contains $harness 'Tools/Validation.psm1' 'the exact solution-mapping validator is shared'
     Assert-True ('Tools/Changelog.psm1' -cnotin $harness) 'the benchmark leaves historical changelog tooling in place'
     Assert-True ('Tools/Modules/Documentation/Changelog.psm1' -cnotin $harness) 'the benchmark has no local changelog implementation dependency'
-    Assert-Contains $harness 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' 'the benchmark compiler configuration is shared'
+    Assert-Contains $harness 'Tests/EmbeddedTests/EmbeddedTests.vcxproj' 'the benchmark compiler configuration is shared'
     Assert-Equal $harness.Count @($harness | Select-Object -Unique).Count 'the effective driver harness has no duplicates'
     $target = Join-Path $root 'baseline'
     $backup = Join-Path $root 'backup'
@@ -584,7 +584,11 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     Set-FixtureFile $target 'Tools/Changelog.psm1' 'original baseline validator dependency'
     Set-FixtureFile $target 'Tools/Modules/Documentation/Changelog.psm1' 'original shared changelog implementation'
     Set-FixtureFile $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' 'original baseline benchmark project'
+    Set-FixtureFile $target 'DxUi.sln' 'Project("test-type") = "DxUi.EmbeddedTests", "Tests\Embedded\DxUi.EmbeddedTests.vcxproj", "test-project"'
     $records = @(Copy-HarnessOverlay -Source $repository -Target $target -Paths $harness -BackupDirectory $backup)
+    $copyAlias = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+        $node.Name -ceq 'Copy-PairedBenchmarkProjectAlias' }, $true).Body.GetScriptBlock()
+    $records += @(& $copyAlias -Source $repository -Target $target -RunRoot $root -BackupDirectory $backup)
     Assert-HarnessOverlay -Target $target -Records $records
     $validator = Import-Module (Join-Path $target 'Tools/Validation.psm1') -Scope Local -PassThru -ErrorAction Stop
     try {
@@ -595,7 +599,7 @@ Invoke-FixtureCase 'the paired driver overlays and restores its attestation help
     }
     Assert-Equal 'original baseline library source' ([IO.File]::ReadAllText((Join-Path $target 'src/Control.cpp'))) 'candidate library source did not enter the baseline'
     Assert-Equal 'original baseline project' ([IO.File]::ReadAllText((Join-Path $target 'src/DxUi.vcxproj'))) 'baseline compiler/project inputs stay their own'
-    Assert-Equal ([IO.File]::ReadAllText((Join-Path $repository 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) ([IO.File]::ReadAllText((Join-Path $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) 'the benchmark uses the same actual project options on both sides'
+    Assert-Equal ([IO.File]::ReadAllText((Join-Path $repository 'Tests/EmbeddedTests/EmbeddedTests.vcxproj'))) ([IO.File]::ReadAllText((Join-Path $target 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'))) 'the benchmark uses the same actual project options on both sides'
     Restore-HarnessOverlay -Target $target -Records $records -BackupDirectory $backup
     Assert-Equal 'original baseline build driver' ([IO.File]::ReadAllText((Join-Path $target 'build.ps1'))) 'the baseline build driver was restored'
     Assert-Equal 'original baseline scoped helper' ([IO.File]::ReadAllText((Join-Path $target 'Tools/DxUiBuildEvidence.psm1'))) 'the baseline scoped helper was restored'

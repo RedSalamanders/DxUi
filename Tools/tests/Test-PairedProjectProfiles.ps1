@@ -65,7 +65,7 @@ Invoke-TestCase 'real library and benchmark profiles expose the benchmark-only o
     $env:DxUiPairedBenchmark = 'true'
     try {
         # Reproduce the old operation exactly: only benchmark projects receive the common timestamp.
-        foreach($root in $roots){[IO.File]::SetLastWriteTimeUtc((Join-Path $root 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'),$stamp)}
+        foreach($root in $roots){[IO.File]::SetLastWriteTimeUtc((Join-Path $root 'Tests/EmbeddedTests/EmbeddedTests.vcxproj'),$stamp)}
         $old=@{}
         foreach($side in 0,1){foreach($project in $projects){$old["$side-$($project.role)"]=Read-ActualProfile $roots[$side] $project "benchmark-only-$side"}}
         Assert-Equal $old['0-benchmark'].profile.profileIdentity $old['1-benchmark'].profile.profileIdentity 'old operation equalizes the complete benchmark profile'

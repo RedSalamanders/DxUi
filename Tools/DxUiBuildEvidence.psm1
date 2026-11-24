@@ -188,15 +188,38 @@ function Get-ScopedBuildInputIdentity {
         (Get-ScopedDependencyIdentity -Root $Root -Platform $Platform)) -join "`n")
 }
 
-function Get-ScopedBuildProjectCatalog {
+function Get-ScopedSuiteProjectAliases {
     return [ordered]@{
+        'Tests/FoundationTests/FoundationTests.vcxproj' = 'Tests/Foundation/DxUi.FoundationTests.vcxproj'
+        'Tests/ControlTests/ControlTests.vcxproj' = 'Tests/Controls/DxUi.ControlTests.vcxproj'
+        'Tests/EmbeddedTests/EmbeddedTests.vcxproj' = 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'
+    }
+}
+
+function Get-ScopedBuildProjectCatalog {
+    param([string] $Root)
+    $catalog = [ordered]@{
         'DxUi'='src/DxUi.vcxproj'
-        'DxUi.FoundationTests'='Tests/Foundation/DxUi.FoundationTests.vcxproj'
-        'DxUi.ControlTests'='Tests/Controls/DxUi.ControlTests.vcxproj'
+        'DxUi.FoundationTests'='Tests/FoundationTests/FoundationTests.vcxproj'
+        'DxUi.ControlTests'='Tests/ControlTests/ControlTests.vcxproj'
         'DxUi.EmbeddedControls'='Samples/EmbeddedControls/DxUi.EmbeddedControls.vcxproj'
-        'DxUi.EmbeddedTests'='Tests/Embedded/DxUi.EmbeddedTests.vcxproj'
+        'DxUi.EmbeddedTests'='Tests/EmbeddedTests/EmbeddedTests.vcxproj'
         'DxUi.InteractiveLease'='Tests/InteractiveLease/DxUi.InteractiveLease.vcxproj'
     }
+    if ($Root) {
+        $solutionPath = Join-Path $Root 'DxUi.sln'
+        if (Test-Path -LiteralPath $solutionPath -PathType Leaf) {
+            $solution = [IO.File]::ReadAllText($solutionPath)
+            $aliases = Get-ScopedSuiteProjectAliases
+            foreach ($name in @($catalog.Keys)) {
+                $legacy = $aliases[$catalog[$name]]
+                if ($legacy -and $solution.Contains('"' + $legacy.Replace('/','\') + '"', [StringComparison]::OrdinalIgnoreCase)) {
+                    $catalog[$name] = $legacy
+                }
+            }
+        }
+    }
+    return $catalog
 }
 
 function Resolve-ScopedBuildProjects {
@@ -220,7 +243,7 @@ function Get-ScopedRequiredBuildProjects {
 
 function Assert-ScopedSelectedBuildGraph {
     param([string] $Root, [string] $MSBuildPath, [string] $Platform, [string] $Configuration, [string] $OutputRoot, [string[]] $Projects)
-    $catalog=Get-ScopedBuildProjectCatalog
+    $catalog=Get-ScopedBuildProjectCatalog -Root $Root
     $selected=@(Resolve-ScopedBuildProjects $Projects)
     # Evaluate actual references, including imported and conditional items. Opaque/new
     # dependencies refuse partial admission until their build/runtime contract is reviewed.
@@ -450,6 +473,7 @@ Export-ModuleMember -Function Get-ScopedSourceIdentity,
     Invoke-ScopedHarnessPreflight,
     Get-ScopedBuildProjectCatalog,
     Resolve-ScopedBuildProjects,
+    Get-ScopedSuiteProjectAliases,
     Get-ScopedRequiredBuildProjects,
     Assert-ScopedSelectedBuildGraph,
     Assert-ScopedBuildOutputs,
