@@ -616,7 +616,6 @@ void TestNativeDiagramLabelBrushRetirement()
     using namespace DxUi::RichText;
     AttachedHostWindow window;
     auto& host                = window.Host();
-    const auto foreground     = GetForegroundWindow();
     const std::wstring source = L"```mermaid\nstateDiagram-v2\ndirection LR\nDraft --> Reviewed: Review\n```\n";
     auto root                 = std::make_unique<RichTextEditor>(source);
     auto* editor              = root.get();
@@ -661,7 +660,9 @@ void TestNativeDiagramLabelBrushRetirement()
     for (std::size_t index = 0u; index + 3u < capture.bgraPixels.size(); index += 4u)
         poisonPixels += capture.bgraPixels[index] > 240u && capture.bgraPixels[index + 1u] < 16u && capture.bgraPixels[index + 2u] > 240u;
     Require(poisonPixels == 0u, "retired diagram brushes cannot paint a later source revision after host-cache eviction");
-    Require(editor->GetText() == source + L"\n" && GetForegroundWindow() == foreground, "brush retirement preserves the latest source and desktop foreground");
+    // The claim is about this host: another application may change the desktop foreground while the test runs.
+    Require(editor->GetText() == source + L"\n" && GetForegroundWindow() != window.Hwnd(),
+            "brush retirement preserves the latest source and never takes the foreground");
 }
 void TestNativeDiagramOmitsCodeBackdrop()
 {

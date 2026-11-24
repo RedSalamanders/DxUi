@@ -104,7 +104,6 @@ __declspec(noinline) void YamlAllocationOrigin()
 }
 bool VerifyChildActivationGuard(DxUi::TestSupport::ScopedWindowActivationBlocker& blocker)
 {
-    const HWND foreground = GetForegroundWindow();
     wil::unique_hwnd window(
         CreateWindowExW(0, L"STATIC", L"DxUi fatal child guard", WS_OVERLAPPED, -32000, -32000, 64, 64, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
     if (! window || ! blocker.IsActive() || blocker.ProtectedTopLevelWindowCount() == 0u ||
@@ -121,9 +120,10 @@ bool VerifyChildActivationGuard(DxUi::TestSupport::ScopedWindowActivationBlocker
     // foreground switch. Real foreground requests require the interactive lease.
     (void)SetActiveWindow(window.get());
     (void)SetFocus(window.get());
-    const HWND after = GetForegroundWindow();
-    const HWND focus = GetFocus();
-    if (after != foreground || focus == window.get() || GetActiveWindow() == window.get() || blocker.BlockedActivationCount() == 0u)
+    // The claim is about this window: another application may change the desktop foreground while the test runs.
+    const bool tookForeground = GetForegroundWindow() == window.get();
+    const HWND focus          = GetFocus();
+    if (tookForeground || focus == window.get() || GetActiveWindow() == window.get() || blocker.BlockedActivationCount() == 0u)
     {
         if (childWitness)
         {
@@ -131,7 +131,7 @@ bool VerifyChildActivationGuard(DxUi::TestSupport::ScopedWindowActivationBlocker
             InterlockedExchange(&childWitness[2], static_cast<LONG>(blocker.BlockedFocusCount()));
         }
     }
-    return after == foreground && focus != window.get() && GetActiveWindow() != window.get() && blocker.BlockedActivationCount() != 0u &&
+    return ! tookForeground && focus != window.get() && GetActiveWindow() != window.get() && blocker.BlockedActivationCount() != 0u &&
            blocker.BlockedFocusCount() != 0u;
 }
 __declspec(noinline) void ConcurrentPrimaryOrigin()

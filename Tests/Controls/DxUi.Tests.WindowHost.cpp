@@ -337,7 +337,6 @@ void TestWindowHostNonclientCaptionHoverKeepsDefaultProcessing()
     }
     window.Host().SetRoot(std::move(root));
     window.Host().SetFocusControl(field, false);
-    const auto foreground = GetForegroundWindow();
     constexpr std::array<WPARAM, 3> hits{HTMINBUTTON, HTMAXBUTTON, HTCLOSE};
     for (const UINT dpi : {96u, 144u, 192u})
     {
@@ -384,8 +383,9 @@ void TestWindowHostNonclientCaptionHoverKeepsDefaultProcessing()
             Require(! handled && ! buttons[i]->IsHovered(), "nonclient leave clears hover and retains native default processing");
         }
     }
-    Require(invoked == 0 && window.Host().GetFocusControl() == field && field->GetText() == L"retained editor" && GetForegroundWindow() == foreground &&
+    Require(invoked == 0 && window.Host().GetFocusControl() == field && field->GetText() == L"retained editor" && GetForegroundWindow() != window.Hwnd() &&
                 ! IsWindowVisible(window.Hwnd()),
+            // The claim is about this host: another application may change the desktop foreground while the test runs.
             "caption hover never invokes commands, rewrites text, or activates its hidden host");
 }
 
@@ -3367,8 +3367,7 @@ void TestWindowHostLogicalEditorFocusCanAvoidNativeActivation()
 
     AttachedHostWindow window;
     static_cast<void>(ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE));
-    const HWND foregroundBefore = GetForegroundWindow();
-    const HWND focusBefore      = GetFocus();
+    const HWND focusBefore = GetFocus();
 
     window.Host().SetTextInputBackend(TextInputBackend::Native);
     auto root       = std::make_unique<Panel>();
@@ -3385,15 +3384,16 @@ void TestWindowHostLogicalEditorFocusCanAvoidNativeActivation()
     Require(window.Host().GetFocusControl() == field && field->HasFocus(), "the editor receives logical focus without native activation");
     Require(window.Host().HasActiveTextInput() && window.Host().TryReadNativeTextInputState(field, state) && state.text == L"logical focus",
             "the logically focused editor publishes its native text-input cache while remaining nonactivating");
-    Require(GetForegroundWindow() == foregroundBefore && GetFocus() == focusBefore,
-            "suppressing native focus transfer preserves the existing foreground and thread-focus windows");
+    // The claim is about this host: another application may change the desktop foreground while the test runs.
+    Require(GetForegroundWindow() != window.Hwnd() && GetFocus() == focusBefore,
+            "suppressing native focus transfer never takes the foreground and preserves the thread-focus window");
 
     window.Host().SetFocusControl(field, false);
     window.Host().SyncTextInput(field);
     Require(window.Host().GetFocusControl() == field && field->HasFocus() && window.Host().TryReadNativeTextInputState(field, state) &&
                 state.text == L"logical focus",
             "idempotent focus and explicit text synchronization retain the active editor cache");
-    Require(GetForegroundWindow() == foregroundBefore && GetFocus() == focusBefore,
+    Require(GetForegroundWindow() != window.Hwnd() && GetFocus() == focusBefore,
             "idempotent focus and text synchronization still do not activate or focus the HWND");
 
     // Native text-service setup may already have validated these observers.

@@ -92,8 +92,7 @@ inline ImeResult ObserveMaskedImeAssociation()
     ImeContext custom(ImmCreateContext());
     ImeContext replacement(ImmCreateContext());
     ImeContext siblingContext(ImmCreateContext());
-    const HWND foreground = GetForegroundWindow();
-    const HWND focus      = GetFocus();
+    const HWND focus = GetFocus();
     wil::unique_hwnd window(CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
                                             L"STATIC",
                                             L"Synthetic masked input",
@@ -158,7 +157,8 @@ inline ImeResult ObserveMaskedImeAssociation()
     host.Detach();
     result.detachRestored   = replacementSuppressed && ReadImeContext(window.get()) == replacement.get();
     result.siblingPreserved = ReadImeContext(sibling.get()) == siblingContext.get();
-    result.focusPreserved   = GetForegroundWindow() == foreground && GetFocus() == focus;
+    // The claim is about these windows: another application may change the desktop foreground while the test runs.
+    result.focusPreserved = GetForegroundWindow() != window.get() && GetForegroundWindow() != sibling.get() && GetFocus() == focus;
     return result;
 }
 } // namespace MaskedInputPolicyTests
