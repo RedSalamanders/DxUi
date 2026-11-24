@@ -10,9 +10,9 @@ namespace MemoryMetricsTests
 // Size probes (W0.3, extended by W9.1): object sizes measured on 2026-11-14 by compiling x64 and ARM64 Release, Debug and
 // ASan Debug, which agree per configuration. A probe is a ratchet, not a budget: it fails when a type grows; lower it when
 // one shrinks. Debug STL containers carry a proxy pointer, so Debug and ASan Debug measure separately from Release.
-// The controls serve the G13 line "<= 256 B per simple control all-in" (plan section 1), which today's sizes already
-// exceed: W9.6 lowers them. ThroughputGraphSample is the graph's per-sample record (180 per graph), held at its size by
-// the same line; no plan item lowers it yet. The accessibility snapshot record is probed beside its private definition
+// The controls serve the G13 line "<= 912 B per control all-in on the FX12 10,000-control form" (plan section 1, restated
+// on 24 November 2026 from 256 B per simple control); W9.6 lowered them. ThroughputGraphSample is the graph's per-sample record (180 per graph), held at its
+// size by the same line; no plan item lowers it yet. The accessibility snapshot record is probed beside its private definition
 // (src/Controls/DxUi.Accessibility.cpp) and W9.7 lowers it.
 // W6.2 (2026-11-14) raised every control probe by 8 bytes: Control::_measureCache, the pointer to the out-of-line measure
 // cache that replaced the per-parent FlexPanel and FormField measurement records; a control never measured pays only it.

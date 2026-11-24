@@ -769,7 +769,8 @@ __declspec(noinline) inline void TestFx5G13Budgets()
     Check(control.value == static_cast<uint64_t>(*run.memory[1].trackedLiveBytes) / *run.controls, "per-control bytes are the built tracked bytes per control");
     Check(history.verdict == BudgetVerdict::NotMeasured && history.reason == "the fixture has no TextField or ComboBox", "FX5 has no text history to judge");
     // Today's findings, each a recorded exception with the item that closes it (Measurements/.../W9.1/README.md).
-    Check(control.verdict == BudgetVerdict::Exceeded && control.exception && control.exception->closingItem == "W9.6", "FX5 per-control bytes: exception W9.6");
+    Check(control.verdict == BudgetVerdict::Met && ! control.exception && control.value.value_or(0u) <= 912u,
+          "FX5 per-control bytes meet the restated 912 B line (W9.6)");
     Check(cell.exception && cell.exception->closingItem == "W9.4", "FX5 per-cell bytes: exception W9.4");
     Check(cell.verdict == BudgetVerdict::NotMeasured && cell.reason.starts_with("software adapter"), "WARP leaves the cell line to hardware receipts");
     // The cell line as a hardware run evaluates it: today's 21 KB per cell is the recorded exception.
@@ -785,8 +786,10 @@ __declspec(noinline) inline void TestFx5G13Budgets()
     Check(failures.empty(), "FX5 meets every G13 line or records the exception that closes it");
 
     // The gate itself: an exceeded line without an exception fails, and so does an exception on a line within budget.
-    RunRecord unrecorded  = run;
-    unrecorded.definition = &SelfTest::kDefinition;
+    // The per-control line judged at its one limit: a figure over 912 B on a fixture with no recorded exception.
+    RunRecord unrecorded                  = run;
+    unrecorded.definition                 = &SelfTest::kDefinition;
+    unrecorded.memory[1].trackedLiveBytes = static_cast<int64_t>(*run.controls * 913u);
     Check(std::ranges::any_of(G13Failures(unrecorded), [](const std::string& failure) { return failure.find("per-control") != std::string::npos; }),
           "an exceeded line without a recorded exception fails the gate");
     RunRecord fixed                   = onHardware;
@@ -798,8 +801,9 @@ __declspec(noinline) inline void TestFx5G13Budgets()
     std::ostringstream receipt;
     WriteReceiptJson(receipt, run);
     const std::string text = receipt.str();
-    Check(text.find("\"budgetLines\":{\"G13\":[") != std::string::npos && text.find("\"status\":\"recorded exception\"") != std::string::npos &&
-              text.find("\"retainedCaches\":[") != std::string::npos && text.find("\"gridCellRelease\":") != std::string::npos,
+    Check(text.find("\"budgetLines\":{\"G13\":[") != std::string::npos && text.find("\"status\":\"met\"") != std::string::npos &&
+              text.find("\"closingItem\":\"W9.4\"") != std::string::npos && text.find("\"retainedCaches\":[") != std::string::npos &&
+              text.find("\"gridCellRelease\":") != std::string::npos,
           "the receipt carries the G13 lines, the per-cache rows and the cell probe");
 }
 

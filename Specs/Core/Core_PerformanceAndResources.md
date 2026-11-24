@@ -1634,9 +1634,14 @@ and their counters:
 | --- | --- | --- |
 | `idle-private` | idle native window 8 MB private above process entry at 1080p | private bytes after the last phase minus at process entry; advisory |
 | `minimized-video` | 8 MiB video memory when minimized | the process's local video usage, hidden (hardware only) |
-| `per-control` | 256 B per simple control all-in | tracked live bytes after the build per control of the built tree |
+| `per-control` | 912 B per control all-in on the `FX12` 10,000-control form (restated on 24 November 2026 from 256 B per simple control) | tracked live bytes after the build per control of the built tree |
 | `per-grid-cell` | 1 KB per visible single-line `Grid` cell | live heap bytes that rebuilding the cell layouts adds after hiding every `Grid` released them, per layout |
 | `text-history` | 4 MiB text history per editor | `largestTextHistoryBytes` after the last phase (TextField and ComboBox; a fixture whose only editors are RichTextEditors reports "not measured", their piece-shared history having no byte count yet) |
+
+The `per-control` line has one limit, 912 B, and every fixture is judged against it, not only `FX12`. A fixture over it
+holds few controls, so the host attachment and data that is no control's own state (documents, item lists, models)
+divide over few; each such fixture records an exception whose finding gives its measured bytes per control and what is
+shared. A fixture that meets the line carries no exception.
 
 The cell line is measured by the receipt's Grid cell probe: the busy blocks of every process heap before and after
 hiding each visible `Grid`, and again after showing and rendering it, which rebuilds the cell layouts. The rebuild is

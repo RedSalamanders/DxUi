@@ -76,13 +76,13 @@ Invoke-TestCase 'the generated README names the scenario, every receipt and its 
 Invoke-TestCase 'the generated README lists every G13 line with its status and closing item' {
     $native = New-NativeReceipt
     $native['budgetLines'] = [ordered]@{ G13 = @(
-            [ordered]@{ line = 'per-control'; budget = '<= 256 B per simple control all-in'; counter = 'c'; limitBytes = 256; measuredBytes = 640; status = 'recorded exception'
+            [ordered]@{ line = 'per-control'; budget = '<= 912 B per control all-in on the FX12 10,000-control form'; counter = 'c'; limitBytes = 912; measuredBytes = 999; status = 'recorded exception'
                 exception = [ordered]@{ closingItem = 'W9.6'; finding = 'f' } },
             [ordered]@{ line = 'minimized-video'; budget = '<= 8 MiB video memory when minimized'; counter = 'c'; limitBytes = 8388608; measuredBytes = $null
                 status = 'not measured'; reason = 'software adapter' }) }
     $receipt = Add-PerformanceFixtureProvenance -Receipt $native -Provenance (New-Provenance) -Inputs @{}
     $text = New-PerformanceFixtureReadme -Receipts @($receipt) -FileNames @('fx5-default-embedded-warp-x64-release.json')
-    foreach ($expected in @('| `per-control` | <= 256 B per simple control all-in | 640 | recorded exception (closed by W9.6) |',
+    foreach ($expected in @('| `per-control` | <= 912 B per control all-in on the FX12 10,000-control form | 999 | recorded exception (closed by W9.6) |',
             '| `minimized-video` | <= 8 MiB video memory when minimized | not measured | not measured: software adapter |')) {
         Assert-True ($text.Contains($expected)) "README contains: $expected"
     }

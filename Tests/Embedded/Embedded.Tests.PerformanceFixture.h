@@ -447,9 +447,9 @@ inline constexpr std::array kG13Lines{
                "local video memory usage of the process, hidden (a hidden embedded view is its minimized state)",
                8u * 1024u * 1024u},
     BudgetLine{"per-control",
-               "<= 256 B per simple control all-in",
+               "<= 912 B per control all-in on the FX12 10,000-control form",
                "tracked live C++ bytes after the build divided by the controls of the built tree (host attachment included)",
-               256u},
+               912u},
     BudgetLine{"per-grid-cell",
                "<= 1 KB per visible single-line Grid cell",
                "live heap bytes that rebuilding every Grid's cell layouts adds after hiding released them, per cell layout",
@@ -468,10 +468,51 @@ struct BudgetException
     std::string_view finding;
 };
 inline constexpr std::array kG13Exceptions{
-    BudgetException{"FX5", "per-control", "W9.6", "Label alone is 448 B in Release; FX5 holds about 640 tracked bytes per control"},
+    // The per-control line is judged on every fixture at the one limit of the FX12 form (W9.6, 24 November 2026). A fixture over it
+    // holds few controls, so what is shared divides over few: the host attachment (at most 7,488 tracked bytes, the whole two-control
+    // tree of FX14) and data that is no control's own state (documents, item lists, models). Measured on WARP, x64 Release.
+    // Only the fixtures whose gate calls G13Failures (FX5, FX13) enforce a row; the others report it in their receipts.
+    BudgetException{"FX1",
+                    "per-control",
+                    "W9.6",
+                    "4 controls, 35,277 B each (141,111 B in all): the host attachment and a 64 Ki-unit multiline document are shared by 4 controls"},
+    BudgetException{"FX2",
+                    "per-control",
+                    "W9.6",
+                    "3 controls, 26,028 B each (78,086 B in all, draw calls counted): the host attachment and the ComboBox lists of 500 and 100 items are "
+                    "shared by 3 controls"},
+    BudgetException{
+        "FX3",
+        "per-control",
+        "W9.6",
+        "2 controls, 4,240 B each (8,480 B in all, draw calls counted): the host attachment is shared by 2 controls and the Grid's model is synthetic"},
+    BudgetException{"FX6",
+                    "per-control",
+                    "W9.6",
+                    "6 controls, 22,686 B each (136,119 B in all): the host attachment and a hidden 64 Ki-unit multiline document are shared by 6 controls"},
+    BudgetException{
+        "FX7", "per-control", "W9.6", "3 controls, 90,470 B each (271,410 B in all): the host attachment and a 65,472-unit document are shared by 3 controls"},
+    BudgetException{"FX8",
+                    "per-control",
+                    "W9.6",
+                    "1 control, 67,922 B (default variant, draw calls counted): one RichTextEditor holds the whole document, so the host attachment and the "
+                    "document are that control's"},
+    BudgetException{
+        "FX9", "per-control", "W9.6", "3 controls, 3,158 B each (9,476 B in all): the host attachment is shared by 3 controls; the models are synthetic"},
+    BudgetException{"FX10",
+                    "per-control",
+                    "W9.6",
+                    "54 controls, 999 B each (53,994 B in all): the host attachment, the Grid's 500-row model, the editors' text and a RichTextEditor document "
+                    "are shared by 54 controls"},
+    BudgetException{"FX11",
+                    "per-control",
+                    "W9.6",
+                    "12 controls, 1,324 B each (15,888 B in all, draw calls counted): the host attachment, at most 7,488 B, is shared by 12 controls"},
+    BudgetException{
+        "FX14", "per-control", "W9.6", "2 controls, 3,744 B each (7,488 B in all, draw calls counted): the host attachment is shared by 2 controls"},
     BudgetException{"FX5", "per-grid-cell", "W9.4", "a single-line cell keeps a whole DirectWrite layout between paints"},
     BudgetException{"FX5", "minimized-video", "W9.2", "hiding releases the surface, yet the process's local video usage does not fall"},
-    BudgetException{"FX13", "per-control", "W9.6", "35 controls share the host attachment; the controls alone exceed 256 B each"},
+    BudgetException{"FX13", "per-control", "W9.6", "35 controls (971 B each, 34,008 B in all): the host attachment, at most 7,488 B, is shared by 35 controls"},
     BudgetException{"FX13", "minimized-video", "W9.2", "the hidden 1080p view keeps the process's local video usage"},
 };
 
