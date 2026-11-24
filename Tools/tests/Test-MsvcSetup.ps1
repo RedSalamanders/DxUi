@@ -5,8 +5,16 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 $repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-if(-not $SetupScriptPath){$SetupScriptPath=Join-Path $repository '.github/actions/setup-msvc/Setup.ps1'}
 if(-not $IsWindows){Write-Host 'SKIP hosted MSVC GUI bootstrapper fixtures: Windows process semantics required.';return}
+if(-not $SetupScriptPath){
+    $engine=Join-Path $repository '.ci-engine'
+    $pin=(Get-Content -LiteralPath (Join-Path $repository '.ci/project.json') -Raw|ConvertFrom-Json).engine.ref
+    $selected=git -C $engine rev-parse HEAD
+    if($LASTEXITCODE -or $selected -cne $pin -or (git -C $engine --no-optional-locks status --porcelain)){
+        throw "Hosted MSVC setup fixtures require the clean pinned CI engine at $pin."
+    }
+    $SetupScriptPath=Join-Path $engine '.github/actions/setup-msvc/Setup.ps1'
+}
 # Retain all attempts as setup evidence.
 $packet=Join-Path $repository ('.build/msvc-setup-fixtures/'+[guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($packet)
@@ -44,13 +52,18 @@ function Invoke-SetupFixture([string]$Name,[int]$ExitCode=0,[string]$Version='14
     $fixture=Join-Path $packet $Name
     $script=Join-Path $fixture '.github/actions/setup-msvc/Setup.ps1'
     [void][IO.Directory]::CreateDirectory((Split-Path $script))
-    Copy-Item $SetupScriptPath $script
-    if($InstallerTimeout){
-        $fixtureSource=[IO.File]::ReadAllText($script).Replace('$installerTimeoutMilliseconds=1800000','$installerTimeoutMilliseconds=1500')
-        [IO.File]::WriteAllText($script,$fixtureSource)
-    }
-    [void][IO.Directory]::CreateDirectory((Join-Path $fixture 'Tools'))
-    [IO.File]::WriteAllText((Join-Path $fixture 'Tools/VisualStudio.psm1'), 'function Get-DxUiVisualStudioInstallation { Join-Path $env:DXUI_SETUP_FIXTURE "VS instance" }; Export-ModuleMember Get-DxUiVisualStudioInstallation')
+    Copy-Item -LiteralPath $SetupScriptPath -Destination $script
+    [void][IO.Directory]::CreateDirectory((Join-Path $fixture 'Tools/Modules'))
+    [IO.File]::WriteAllText((Join-Path $fixture 'Tools/Modules/Ci.VisualStudio.psm1'), @'
+function Find-CiVisualStudioInstallation { Join-Path $env:DXUI_SETUP_FIXTURE 'VS instance' }
+function Get-CiDefaultMsvcToolset([string]$Installation) {
+    $version=[IO.File]::ReadAllText((Join-Path $Installation 'VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt')).Trim()
+    if($version -notmatch '\A(14\.[0-9]+)\.[0-9]+\z'){throw 'The fixture compiler is not installed.'}
+    [pscustomobject]@{ Version=$version; MajorMinor=$Matches[1] }
+}
+function Get-CiNativeMSBuild([string]$Installation) { Join-Path $Installation 'MSBuild/Current/Bin/MSBuild.exe' }
+Export-ModuleMember -Function Find-CiVisualStudioInstallation,Get-CiDefaultMsvcToolset,Get-CiNativeMSBuild
+'@)
     [IO.File]::WriteAllText((Join-Path $fixture 'Directory.Build.props'),'<Project><PropertyGroup><RequiredMsvcToolsVersion>14.52</RequiredMsvcToolsVersion></PropertyGroup></Project>')
     $installation=Join-Path $fixture 'VS instance'
     $hostArch=if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()-eq 'Arm64'){'arm64'}else{'x64'}
@@ -62,19 +75,21 @@ function Invoke-SetupFixture([string]$Name,[int]$ExitCode=0,[string]$Version='14
     if($Ready){[IO.File]::WriteAllText((Join-Path $installation 'VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt'),'14.52.37025')}
     $wrapper=Join-Path $fixture 'Invoke.ps1'
     [IO.File]::WriteAllText($wrapper,@'
-param([switch]$VerifyOnly)
+param([switch]$VerifyOnly,[switch]$InstallerTimeout)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 function Invoke-WebRequest {param($Uri,$OutFile,$TimeoutSec) [IO.File]::WriteAllText((Join-Path $env:DXUI_SETUP_FIXTURE 'download-timeout.txt'),[string]$TimeoutSec); if($env:DXUI_DOWNLOAD_TIMEOUT -eq 'true'){throw [TimeoutException]::new('synthetic bounded download timeout')}; Copy-Item $env:DXUI_FAKE_INSTALLER $OutFile;[IO.File]::WriteAllText((Join-Path $env:DXUI_SETUP_FIXTURE 'downloaded.txt'),$Uri)}
 function Get-AuthenticodeSignature {param($LiteralPath) [pscustomobject]@{Status=$env:DXUI_FIXTURE_SIGNATURE;SignerCertificate=[pscustomobject]@{Subject='CN=Microsoft Corporation, O=Microsoft Corporation, C=US'}}}
 # Success starts with LASTEXITCODE unset, as on hosted CI. Failure has stale success.
 if($env:DXUI_FIXTURE_EXIT-ne '0'){$global:LASTEXITCODE=0}
-& (Join-Path $PSScriptRoot '.github/actions/setup-msvc/Setup.ps1') -Platform x64 -VerifyOnly:$VerifyOnly
+$timeout=if($InstallerTimeout){2}else{1800}
+& (Join-Path $PSScriptRoot '.github/actions/setup-msvc/Setup.ps1') -ProjectRoot $PSScriptRoot -Platform x64 -VerifyOnly:$VerifyOnly -InstallerTimeoutSeconds $timeout
 '@)
     $start=[Diagnostics.ProcessStartInfo]::new('pwsh')
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
     foreach($argument in @('-NoProfile','-File',$wrapper)){$start.ArgumentList.Add($argument)}
     if($VerifyOnly){$start.ArgumentList.Add('-VerifyOnly')}
+    if($InstallerTimeout){$start.ArgumentList.Add('-InstallerTimeout')}
     $start.Environment['DXUI_SETUP_FIXTURE']=$fixture;$start.Environment['DXUI_FAKE_INSTALLER']=$fake
     $start.Environment['DXUI_FIXTURE_VERSION']=$Version;$start.Environment['DXUI_FIXTURE_EXIT']=[string]$ExitCode
     $start.Environment['DXUI_FIXTURE_SLEEP']=if($InstallerTimeout){'30000'}else{'400'}
@@ -86,7 +101,9 @@ if($env:DXUI_FIXTURE_EXIT-ne '0'){$global:LASTEXITCODE=0}
     $start.Environment['RUNNER_ENVIRONMENT']='github-hosted';$start.Environment['RUNNER_TEMP']=Join-Path $fixture 'runner temp with spaces'
     if($LongTemp){$start.Environment['RUNNER_TEMP']=Join-Path $fixture ('runner-'+('p'*200))}
     $start.Environment['TEMP']=$start.Environment['RUNNER_TEMP']
+    $start.Environment['TMP']=$start.Environment['RUNNER_TEMP']
     $start.Environment['GITHUB_OUTPUT']=Join-Path $fixture 'github-output.txt'
+    $start.Environment['GITHUB_ENV']=Join-Path $fixture 'github-env.txt'
     [void][IO.Directory]::CreateDirectory($start.Environment['RUNNER_TEMP'])
     $process=[Diagnostics.Process]::new();$process.StartInfo=$start
     try{
@@ -101,6 +118,8 @@ Invoke-TestCase 'delayed GUI success waits and preserves install path with space
     $result=Invoke-SetupFixture 'success'
     Assert-Equal 0 $result.Exit $result.Text
     Assert-True (Test-Path (Join-Path $result.Root 'completed.txt')) 'GUI completed before verification'
+    $msbuild=Join-Path $result.Root 'VS instance/MSBuild/Current/Bin/MSBuild.exe'
+    Assert-True ((Get-Content -LiteralPath (Join-Path $result.Root 'github-env.txt') -Raw).Trim() -ceq "MSBUILD_EXE_PATH=$msbuild") 'the verified engine exports to the owned environment file'
     $arguments=[IO.File]::ReadAllLines((Join-Path $result.Root 'arguments.txt'))
     $index=[Array]::IndexOf($arguments,'--installPath')
     Assert-Equal (Join-Path $result.Root 'runner temp with spaces/VS-Msvc-14.52') $arguments[$index+1] 'install path remains one argument'
@@ -113,7 +132,7 @@ Invoke-TestCase 'installer timeout terminates its owned descendant and preserves
     $sentinel=[Diagnostics.Process]::Start($start)
     try {
         $result=Invoke-SetupFixture 'installer-timeout' -InstallerTimeout
-        Assert-True ($result.Exit-ne 0 -and $result.Text-match 'VS provisioning timed out after 1.5 seconds' -and $result.Text-match 'termination: confirmed') $result.Text
+        Assert-True ($result.Exit-ne 0 -and $result.Text-match 'VS provisioning timed out after 2 seconds' -and $result.Text-match 'termination: confirmed') $result.Text
         Assert-True (-not $sentinel.HasExited) 'unrelated owned sentinel remains running'
         $identity=([IO.File]::ReadAllText((Join-Path $result.Root 'child.txt'))).Split(' ')
         $deadline=[Diagnostics.Stopwatch]::StartNew()
@@ -178,6 +197,7 @@ Invoke-TestCase 'verified existing tools never download or install' {
     $result=Invoke-SetupFixture 'ready' -Ready -VerifyOnly
     Assert-Equal 0 $result.Exit $result.Text
     Assert-True (-not(Test-Path (Join-Path $result.Root 'downloaded.txt'))) 'no download'
+    Assert-True (-not(Test-Path (Join-Path $result.Root 'github-env.txt'))) 'verify-only does not export environment changes'
 }
 foreach($mode in @('VerifyOnly','Local','BadSignature')){
     Invoke-TestCase "$mode refuses before installer launch" {

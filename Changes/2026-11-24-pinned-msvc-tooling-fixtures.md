@@ -1,0 +1,1 @@
+- Exercise the reviewed CI engine's MSVC setup in the existing tooling fixtures, including direct and nested execution, refusal controls and the pinned benchmark setup path.

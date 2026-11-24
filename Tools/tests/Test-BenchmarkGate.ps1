@@ -1700,9 +1700,12 @@ Invoke-TestCase 'a native study budget cannot cut off reporting after its declar
     Assert-Throws {Assert-ManualStudyWindow ($workflow.Replace('timeout-minutes: 210','timeout-minutes: 240'))} 'a measurement consuming the enclosing budget fails'
 }
 Invoke-TestCase 'manual studies use pinned remote actions and strict canonical verdict scripts' {
+    $reviewedSetup = @('./.github/actions/setup-msvc', './.ci-engine/.github/actions/setup-msvc')
     foreach($use in [regex]::Matches($workflow,'(?m)^\s*-?\s*uses:\s*(\S+)')){
-        Assert-True ($use.Groups[1].Value -ceq './.github/actions/setup-msvc' -or $use.Groups[1].Value -cmatch '^[\w.-]+/[\w.-]+@[0-9a-f]{40}$') 'immutable action or reviewed local setup'
+        Assert-True ($use.Groups[1].Value -cin $reviewedSetup -or $use.Groups[1].Value -cmatch '^[\w.-]+/[\w.-]+@[0-9a-f]{40}$') 'immutable action or reviewed local setup'
     }
+    Assert-True ($workflow -cmatch '(?m)^\s+ref: \$\{\{ steps\.engine\.outputs\.ref \}\}\s*$' -and
+        $workflow -cmatch '(?m)^\s+path: \.ci-engine\s*$' -and $workflow.Contains("'^[a-f0-9]{40}$'")) 'shared setup is restored from the manifest commit'
     foreach($name in @('Tools/Get-BenchmarkScope.ps1','Tools/Publish-BenchmarkVerdict.ps1','Tools/BenchmarkGate.psm1')){
         $tokens=$null;$errors=$null
         [void][Management.Automation.Language.Parser]::ParseFile((Join-Path $repository $name),[ref]$tokens,[ref]$errors)
