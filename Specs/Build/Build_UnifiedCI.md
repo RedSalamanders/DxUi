@@ -179,7 +179,8 @@ grants a verdict to consumers. Main still executes both native regressions befor
 
 ### Static phase
 
-The compiler-free static adapter also runs the scoped planner's Git/recording-process controls with native builds
+The Static adapter calls `validate.ps1 -CompilerFree` with the reviewed engine and comparison base.
+This mode runs the scoped planner's Git/recording-process controls with native builds
 disabled. Local-iteration child fixtures isolate CI markers, and a separate hosted control verifies that CI executes
 fresh work and never adopts or publishes a local iteration baseline. These controls report before native build setup and
 do not satisfy native/runtime qualification or the complete tooling obligation.

@@ -334,8 +334,15 @@ Invoke-TestCase 'complete local validation remains available while PRs select th
     foreach($step in $steps){Assert-True (Test-Path -LiteralPath (Join-Path $repository $step) -PathType Leaf) "Existing step $step"}
     $adapter=[IO.File]::ReadAllText((Join-Path $repository 'Tools/Invoke-ProjectCi.ps1'))
     $static=$adapter.Substring($adapter.IndexOf("if ("+[char]36+"Phase -eq 'Static')"),$adapter.IndexOf("if ("+[char]36+"Phase -ne 'Qualification')")-$adapter.IndexOf("if ("+[char]36+"Phase -eq 'Static')"))
-    Assert-True (-not $static.Contains('Invoke-ToolingTests.ps1') -and -not $static.Contains("Run 'validate.ps1'")) 'PRs cannot enter compiler fixtures'
-    foreach($name in @('validate-skills.ps1','validate-specs.ps1','validate-dependencies.ps1','validate-test-port.ps1','validate-build-matrix.ps1')){Assert-True ($static.Contains($name)) "PR retains compiler-free $name"}
+    Assert-True ($static.Contains("'validate.ps1'") -and $static.Contains('-CompilerFree') -and
+        -not $static.Contains('Invoke-ToolingTests.ps1')) 'Static uses the compiler-free root mode'
+    $entry = [IO.File]::ReadAllText((Join-Path $repository 'validate.ps1'))
+    $start = $entry.IndexOf('if ($CompilerFree) {', [StringComparison]::Ordinal)
+    $end = $entry.IndexOf('Import-Module (Join-Path $PSScriptRoot ''Tools/Validation.psm1'')', [StringComparison]::Ordinal)
+    Assert-True ($start -ge 0 -and $end -gt $start) 'The root entry point selects the compiler-free suite before the full validator'
+    $rootStatic = $entry.Substring($start,$end-$start)
+    Assert-True (-not $rootStatic.Contains('Invoke-ToolingTests.ps1')) 'Compiler-free validation stays outside compiler fixtures'
+    foreach($name in @('validate-skills.ps1','validate-specs.ps1','validate-dependencies.ps1','validate-test-port.ps1','validate-build-matrix.ps1','Tools/tests/Test-ScopedTesting.ps1')){Assert-True ($rootStatic.Contains($name)) "PR retains compiler-free $name"}
     Assert-True ($adapter.Contains("Run 'Tools/tests/Invoke-ToolingTests.ps1'")) 'Main batch retains complete tooling'
     Assert-True ([IO.File]::ReadAllText((Join-Path $repository 'test.ps1')).Contains("'Tools/tests/Invoke-ToolingTests.ps1'")) 'Local full tests retain tooling'
 }
