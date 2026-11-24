@@ -1640,6 +1640,11 @@ struct WindowHostAccessibilityTarget final
     uintptr_t attachmentCookie = 0u;
     bool flushPosted           = false;
     bool publishing            = false;
+    // W8.2: a native window's geometry-only publication is deferred (set and cleared on the owner thread), and a client's
+    // query off the owner thread posted the flush that publishes it (set by the query, cleared when the flush runs), so a
+    // burst of queries posts once.
+    std::atomic<bool> geometryDeferredForQuery{false};
+    std::atomic<bool> queryFlushPosted{false};
     // A native window's mutations since its last publication that a client could hear (interest at the time) or not (W8.2).
     bool heardChanges   = false;
     bool unheardChanges = false;
@@ -2091,17 +2096,14 @@ struct WindowHostSnapshotChanges
         geometryOnly = geometryOnly && marks->marks[index].aspects == geometry;
         anyGeometry  = anyGeometry || (marks->marks[index].aspects & geometry) != 0u;
     }
-    // A window that is hidden or minimized presents no frame and its schedule does not wake: nothing would publish a deferral.
-    if (! host.IsEmbedded())
+    // A window host that presents no frame (hidden, minimized, presentation off, hidden through an ancestor: the frame
+    // schedule's own predicate) holds its schedule, so nothing would publish a deferral: it publishes at once.
+    if (HostPresentsNoFrame(host))
     {
-        HWND const hwnd = host.GetHwnd();
-        HWND const top  = hwnd ? GetAncestor(hwnd, GA_ROOT) : nullptr;
-        if (! hwnd || IsWindowVisible(hwnd) == FALSE || (top && IsIconic(top) != FALSE))
-        {
-            marks->geometryDeferred = false;
-            marks->geometryDue      = false;
-            return false;
-        }
+        marks->geometryDeferred = false;
+        marks->geometryDue      = false;
+        target.geometryDeferredForQuery.store(false, std::memory_order_release);
+        return false;
     }
     const uint64_t now = host.GetAnimationTickMs();
     const bool due     = std::exchange(marks->geometryDue, false);
@@ -2115,6 +2117,9 @@ struct WindowHostSnapshotChanges
         marks->geometryMarksAtDeferral = marks->geometryMarks;
         marks->geometryDeferredAtMs    = now;
         ++Detail::Work().accessibility.geometryPublicationsDeferred;
+        // A client's query off the owner thread reads the published snapshot: it asks the owner for a publication instead.
+        if (! target.embedded)
+            target.geometryDeferredForQuery.store(true, std::memory_order_release);
         if (! wasDeferred)
         {
             // An embedded view's schedule change invalidates it so the application prepares again; that repaint is declared.
@@ -2129,6 +2134,7 @@ struct WindowHostSnapshotChanges
         marks->lastGeometryPublicationMs = now;
     }
     marks->geometryDeferred = false;
+    target.geometryDeferredForQuery.store(false, std::memory_order_release);
     return false;
 }
 
@@ -2219,19 +2225,21 @@ struct WindowHostSnapshotChanges
         if ((mark.aspects & static_cast<uint8_t>(AccessibilityRecordAspect::Geometry)) != 0u)
         {
             // Every rectangle is rebuilt. Of the subtree's records (contiguous in tree order: the first at or after the path,
-            // then while it is a prefix) only those whose published content can follow their bounds are read again: a text
-            // control's selection rectangles and visible range, a grid's visible rows and columns, a tree's rows, a tab
-            // control's headers, and any range value (a splitter's position and maximum follow its extent, and its
-            // OnBoundsChanged clamps the position without marking it). A button, a label or a panel holds none: what a
-            // panel's resize changes reaches its children through their own SetBounds.
+            // then while it is a prefix) only those whose published content follows their bounds through the library's own
+            // geometry are read again: a text control's selection rectangles and visible range, a grid's visible rows and
+            // columns, a tree's rows, and the marked tab control's own headers (its header offset follows its width). A
+            // control whose record otherwise changes with its bounds marks it itself (a Splitter's range and clamped position,
+            // in its OnBoundsChanged). A button, a label, a slider or a panel holds none: what a panel's resize changes
+            // reaches its children through their own SetBounds.
             geometry   = true;
             auto first = std::ranges::lower_bound(previous.semanticControlOrder, path, AccessibilityPathPrecedes);
             for (; first != previous.semanticControlOrder.end() && AccessibilityPathStartsWith(*first, path); ++first)
             {
                 const size_t ordinal                               = static_cast<size_t>(first - previous.semanticControlOrder.begin());
                 const AccessibilityControlNavigationSnapshot& held = records[ordinal];
+                const bool marked                                  = first->depth == path.depth;
                 if (held.controlSupportsText || held.isGrid || held.isTree || held.controlRichText || held.hasPasswordRevealButton ||
-                    held.controlSupportsRangeValue || held.isTabControl)
+                    (marked && held.isTabControl))
                     ordinals.push_back(static_cast<uint32_t>(ordinal));
             }
         }
@@ -2407,13 +2415,14 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     // The marks are spent: the next ones apply to this generation. A note made during the build may not be in it.
     for (size_t index = 0u; index < marks.count; ++index)
         marks.marks[index] = {};
-    marks.count               = 0u;
-    marks.overflow            = false;
-    marks.unattested          = false;
-    marks.flushRequested      = false;
-    marks.dormant             = false;
-    marks.geometryDeferred    = false; // Whatever published carried the deferred geometry too.
-    marks.geometryDue         = false;
+    marks.count            = 0u;
+    marks.overflow         = false;
+    marks.unattested       = false;
+    marks.flushRequested   = false;
+    marks.dormant          = false;
+    marks.geometryDeferred = false; // Whatever published carried the deferred geometry too.
+    marks.geometryDue      = false;
+    target.geometryDeferredForQuery.store(false, std::memory_order_release);
     marks.wholeOwed           = marks.epoch != epoch;
     marks.baseGeneration      = generation;
     marks.interactionRevision = revisions.interaction;
@@ -2750,6 +2759,15 @@ void RequestEmbeddedAccessibility(WindowHostAccessibilityTarget& target) noexcep
         RequestEmbeddedAccessibility(*target);
     else if (target->threadId == GetCurrentThreadId())
         FlushNativeAccessibilitySnapshot(*target);
+    else if (target->geometryDeferredForQuery.load(std::memory_order_acquire) && ! target->queryFlushPosted.exchange(true, std::memory_order_acq_rel))
+    {
+        // W8.2: this query reads the bounds published before a deferred geometry-only publication; it asks the owner thread
+        // to publish now, through the window's flush (whose attachment cookie drops it after a detach), so the next read is
+        // current. Several queries in a row post it once.
+        const auto message = WndMsg::AccessibilityFlush();
+        if (! message || PostMessageW(target->hwnd, message.value, static_cast<WPARAM>(target->attachmentCookie), 0) == FALSE)
+            target->queryFlushPosted.store(false, std::memory_order_release);
+    }
 
     // Sequentially consistent, for a GetFocus that counted itself just before: see PublishAccessibilitySnapshot.
     if (auto snapshot = target->snapshot.load(std::memory_order_seq_cst))
@@ -15089,6 +15107,12 @@ AttestedInvalidation::~AttestedInvalidation()
     g_innermostAttestation = _outer;
 }
 
+void ControlModelQueryAccess::DeclaredGeometryInvalidate(const Control& owner) noexcept
+{
+    const AttestedInvalidation declared(ControlModelQueryAccess::Host(owner)); // the geometry move is marked
+    owner.RequestInvalidate();
+}
+
 void AttestedInvalidation::ForgetMarks(const Detail::AccessibilityRecordMarks* marks) noexcept
 {
     for (AttestedInvalidation* attestation = g_innermostAttestation; attestation; attestation = attestation->_outer)
@@ -15556,9 +15580,15 @@ bool TryHandleWindowHostAccessibilityMessage(HWND hwnd, UINT msg, WPARAM wp, LPA
             target.get()->flushPosted = false;
             // No mark rides on a flush that is no longer posted (W8.2).
             ControlHost* const owner = target.get()->ResolveHost();
+            // A client's query asked for this flush while a geometry-only publication waited: it publishes now (W8.2).
+            const bool queried = target.get()->queryFlushPosted.exchange(false, std::memory_order_acq_rel);
             if (owner)
                 if (Detail::AccessibilityRecordMarks* const marks = EmbeddedAccessibilityAccess::Marks(*owner))
+                {
                     marks->flushRequested = false;
+                    if (queried && marks->geometryDeferred)
+                        marks->geometryDue = true;
+                }
             // A geometry-only publication within the interval waits for the host's next frame (W8.2 coalescing).
             if (owner && target.get()->threadId == GetCurrentThreadId() && DeferGeometryOnlyPublication(*target.get(), *owner))
                 return true;

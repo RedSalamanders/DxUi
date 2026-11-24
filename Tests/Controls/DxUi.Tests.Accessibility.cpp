@@ -12143,6 +12143,10 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityIncrementalPageIndicatorBecomesPaged);
     DXUI_RUN_TEST(TestAccessibilityIncrementalNativeGeometryCoalescing);
     DXUI_RUN_TEST(TestAccessibilityAttestationOutlivesItsHost);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalNoFrameHoldsNoDeferral);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalClientQueryDuringDeferral);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalPaneOfSliders);
+    DXUI_RUN_TEST(TestAccessibilityIncrementalNestedResizes);
     DXUI_RUN_TEST(TestAccessibilityInterestedMutationsBoundFocusedPathResolution);
     DXUI_RUN_TEST(TestAccessibilityTextEventsUseIndexedOwnerValidation);
     DXUI_RUN_TEST(TestAccessibilityGetFocusDoesNotBindCapturedSnapshotToReplacementAtSamePath);

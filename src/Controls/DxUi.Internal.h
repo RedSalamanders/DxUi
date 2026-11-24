@@ -118,12 +118,16 @@ struct ControlCaptureAccess
     });
 }
 
+// Declared again, with its contract, under Incremental publication below.
+void NoteAccessibilityGeometryMove(const Control& control, uint64_t interactionBefore, uint64_t hitBefore) noexcept;
 struct ControlModelQueryAccess
 {
     [[nodiscard]] static std::wstring_view RadioGroupHeader(const RadioButtons& group) noexcept
     {
         return group._header;
     }
+    // The repaint of a model owner's geometry change, declared to UI Automation as the marked geometry move it is (W8.2).
+    static void DeclaredGeometryInvalidate(const Control& owner) noexcept;
     template <typename Owner> [[nodiscard]] static auto InvalidateGeometry(Owner& owner) noexcept
     {
         // A model owner's rows or geometry changing under a pending or shown tooltip (a Grid cell's or Tree row's) mark it for
@@ -132,7 +136,11 @@ struct ControlModelQueryAccess
         auto* const host        = owner.GetHost();
         if (host)
         {
+            const uint64_t interactionBefore = host->_interactionRevision;
             ++host->_interactionRevision;
+            // UI Automation republishes the owner's record (its rows and cells follow this geometry) and every rectangle:
+            // a marked move, which does not by itself build the whole window (W8.2).
+            NoteAccessibilityGeometryMove(owner, interactionBefore, host->_hitRevision);
             tooltipTargetStale = host->MarkTooltipTargetStale();
             // During an intrinsic arrangement, geometry the arranged branch changes about itself (a Grid clamping its scroll
             // to the bounds it was just given) is accepted like the branch's own bounds; anything outside it is foreign. Without
@@ -154,7 +162,7 @@ struct ControlModelQueryAccess
         {
             if (lifetime.expired())
                 return;
-            owner.RequestInvalidate();
+            DeclaredGeometryInvalidate(owner);
             if (tooltipTargetStale && ! lifetime.expired() && owner.GetHost() == host)
                 host->OnTooltipScheduleChanged();
         });
@@ -1157,6 +1165,10 @@ void ResetAccessibilityRecordMarks(const ControlHost& host) noexcept;
 // interval, whichever is first; an embedded view at once, which brings the application back for its next update. None when
 // nothing is deferred.
 [[nodiscard]] std::optional<uint64_t> AccessibilityGeometryWakeDueTickMs(const ControlHost& host) noexcept;
+// A window host that presents no frame, for any reason its frame schedule knows (no window, presentation turned off, hidden or
+// minimized, hidden through an ancestor, no dispatcher): its schedule is held, so it never holds a geometry deferral. False for
+// an embedded view, whose frames are the application's.
+[[nodiscard]] bool HostPresentsNoFrame(const ControlHost& host) noexcept;
 // A wake of a window host's schedule at `nowTickMs`: a deferred geometry-only publication whose layout settled (no deferral
 // for kGeometrySettleMs) or whose interval passed becomes due, and the host posts its flush; with `now`, whatever the time
 // (a wake that finds the host hidden, which then holds no wake for it). An embedded view decides at its next update.

@@ -15,7 +15,11 @@
   - Geometry-only publications are coalesced: at most one per 100 ms of the host's clock plus one when the layout
     settles, through the host's existing frame schedule (an embedded view reports an animation request due at once). A
     frame moving every control of a 2,000-control form cost about 11 ms to publish with one client; a deferred frame costs
-    under 0.01 ms. Name, value, focus, state and structure changes, and a client's queries, still publish at once.
+    under 0.01 ms. Name, value, focus, state and structure changes still publish at once. A window host that presents no
+    frame (hidden, minimized, presentation turned off, hidden through an ancestor) never holds a deferral, and a UI
+    Automation client's query during one asks the window's thread to publish, so its next read is current.
+  - A resized `Splitter` publishes its clamped position and range; a moved pane of sliders stays incremental; and a
+    `Grid`, `Tree`, `TabControl`, `FlexPanel`, `FormField` or `FormPanel` resize no longer builds the whole window.
   - A name or value change of a control that lays out its own elements (a `TabControl` title, a `Grid`, a `Tree`, a
     `ComboBox`, a masked field) rebuilds the bounding rectangles, which those elements' rectangles follow.
   - Fixed: on a window host, `Control::SetBounds`, scroll offsets and a `ComboBox` popup's placement did not republish UI

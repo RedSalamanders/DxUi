@@ -816,13 +816,20 @@ What a change marks for the next publication of its host (owner thread):
 | Name | `Control::Assign` with `SemanticName` (accessible name, help text, automation id, a label's text, a button's text) | Re-reads that control's record, and a label's mnemonic target's |
 | Value | `SemanticValue` (a slider's, progress bar's or splitter's value and range, a field's text) and the library's own value paths (`Slider` steps, a `Splitter` preview, `TextField::SetText`) | Re-reads that control's record |
 | Focus | `ControlHost::SetFocusControl` moving the keyboard focus | Re-reads the records that lost and gained focus, and the focused element |
-| Geometry | `Control::SetBounds`, every library hit-test change of a control (`Affects::Hit`, a scroll offset, a splitter's separator) and a painted assignment that declares no semantic aspect | Re-reads the records in the control's subtree whose content follows bounds (text-capable controls, rich text, grids, trees, tab controls, a field's reveal button and every range value: selection rectangles, visible ranges and rows, headers, a splitter's position and maximum) and rebuilds every bounding rectangle once |
+| Geometry | `Control::SetBounds`, every library hit-test change of a control (`Affects::Hit`, a scroll offset, a splitter's separator) and a painted assignment that declares no semantic aspect | Re-reads the records in the control's subtree whose content follows bounds through the library's geometry (text-capable controls, rich text, grids, trees and a field's reveal button: selection rectangles, visible ranges and rows), the marked tab control's own record (its header offset follows its width), and rebuilds every bounding rectangle once |
 
-What a resize changes in a library control reaches the snapshot either through a re-read record of that list or through
-the children the control lays out with `SetBounds`: every `OnBoundsChanged` override of the library is resized narrower and
-wider with a client interested, each publication compared with a whole build (`TestAccessibilityIncrementalResizeOfEveryBoundsOverride`).
-A control of an application whose `OnBoundsChanged` changes what its record publishes (a name, a value, a state) declares it
-through `Control::Assign` with the semantic aspect, as any other change of its record.
+What a resize changes in a library control reaches the snapshot through a re-read record of that list, through the
+children the control lays out with `SetBounds`, or through a mark the control makes itself: a `Splitter`'s range follows its
+extent and its `OnBoundsChanged` clamps its position, so it marks its value there. A slider's or progress bar's record does
+not follow its bounds, so a moved pane of sliders re-reads none (`TestAccessibilityIncrementalPaneOfSliders`: 8, 40 and 200
+sliders, every move incremental). The repaint a model owner makes for its own geometry (a `Grid` or `Tree` clamping its
+scroll to new bounds) is a marked geometry move of that owner, a layout request (`FlexPanel`, `FormField`, `FormPanel`)
+reaches the snapshot through its children's `SetBounds`, and a `TabControl`'s resize changes no tab, title or selection: all
+are declared, so a resize of any of them is incremental. Every `OnBoundsChanged` override of the library, and a `Grid` and
+a `Tree` with rows, is resized narrower and wider with a client interested: two incremental publications each, no whole
+build, each equal to a whole build (`TestAccessibilityIncrementalResizeOfEveryBoundsOverride`). A control of an application
+whose `OnBoundsChanged` changes what its record publishes (a name, a value, a state) declares it through `Control::Assign`
+with the semantic aspect, as any other change of its record.
 
 A control that lays out elements of its own inside its bounds (a `TabControl`'s headers, a `Grid`'s cells, a `Tree`'s rows,
 a `ComboBox`'s popup, a masked field's reveal button) moves them when its name or value changes: a retitled tab moves the
@@ -849,15 +856,29 @@ Geometry-only publications are coalesced in time. A publication that follows fro
 embedded `UpdateAccessibility`), would be incremental, and whose marks are all geometry is published at most once per 100 ms
 of the host's clock (the dispatcher's on a window host, the application's on an embedded view), plus once when the layout
 settles; the others are deferred (`accessibility.geometryPublicationsDeferred`). A name, value, focus, state or structure
-change publishes at once and carries the deferred geometry with it, and so does any publication a client's query makes. No
-timer is added: a deferral asks the host's existing frame schedule for a wake.
+change publishes at once and carries the deferred geometry with it. No timer is added: a deferral asks the host's existing
+frame schedule for a wake.
 
-- A window host defers only while its window is visible and not minimized: a hidden window presents no frame, so it
-  publishes every move at once. It wakes at the earlier of 32 ms after its last deferral (its flushes follow every frame of
-  marks, so 32 ms without one is a settled layout) and 100 ms after its last geometry publication, and posts its flush
-  then. A window hidden or minimized with a deferral pending publishes it at once (at `WM_SHOWWINDOW`, `SIZE_MINIMIZED` or
-  the first wake that finds it hidden, an ancestor's hide included) and holds no wake for it; a client's query publishes it
-  at once in any state (`TestAccessibilityIncrementalNativeGeometryCoalescing`).
+- A window host defers only while it presents frames, by the frame schedule's own predicate (`HostPresentsNoFrame`: no
+  window, presentation turned off with `SetNativePresentationVisible`, the window hidden or minimized, hidden through an
+  ancestor, no dispatcher). A host that presents no frame publishes every move at once, and one that stops presenting with
+  a deferral pending publishes it then: every way of holding the schedule ends in its dispatcher subscription, which
+  publishes a pending deferral whenever the schedule is held, and the hide, minimize and presentation-off paths publish it
+  explicitly; no wake is held for it (`TestAccessibilityIncrementalNoFrameHoldsNoDeferral`,
+  `TestAccessibilityIncrementalNativeGeometryCoalescing`). A presenting host wakes at the earlier of 32 ms after its last
+  deferral (its flushes follow every frame of marks, so 32 ms without one is a settled layout) and 100 ms after its last
+  geometry publication, and posts its flush then. A hidden window with a listening client therefore pays a publication for
+  every move the application makes (about 11 ms each at 2,000 controls with one client): it presents no frame to coalesce
+  against and its schedule does not wake, and a deferral it held would leave a client reading stale bounds for as long as
+  it stays hidden, which can be indefinitely. Moves an application makes while its window is hidden are rare (a layout
+  before the first show, a restore), so correctness wins there.
+- A client's query on the owner thread (a provider call the window's own thread answers) publishes a pending deferral
+  first and reads the current bounds. A UI Automation client's calls to a native window run off the owner thread and read
+  the published snapshot: during a deferral a query reads the bounds of the last publication, and it posts the window's
+  flush to the owner thread (once for a burst of queries, dropped after a detach by the flush's attachment cookie), which
+  publishes the deferred geometry at the owner's next message turn. A client therefore reads bounds at most 100 ms behind a
+  moving layout, and current once the owner has run one message turn after its query
+  (`TestAccessibilityIncrementalClientQueryDuringDeferral`).
 - An embedded view reports an animation request due at once while a deferral waits: the published deadline of the
   embedding contract. Its next `UpdateAccessibility` with no geometry mark since the deferral publishes, as does one 100 ms
   after the last geometry publication. Every other outcome of an update ends the wait: an update that publishes, or that
@@ -867,8 +888,8 @@ timer is added: a deferral asks the host's existing frame schedule for a wake.
   publishes carries them; until an application calls `UpdateAccessibility` again, the view keeps the bounds of its last
   publication, as for any change it has not updated.
 
-So bounds a client reads while a layout moves are at most 100 ms old, and current once the layout settles: on a visible
-window host at its next wake, on a hidden or minimized one at once, and on an embedded view at the application's next
+So bounds a client reads while a layout moves are at most 100 ms old, and current once the layout settles: on a presenting
+window host at its next wake, on one that presents no frame at once, and on an embedded view at the application's next
 `UpdateAccessibility` while a client listens or has asked (with no client, a view publishes nothing until one asks, which
 then reads the current tree) (`TestGeometryPublicationsCoalesce`). On FX12's form shape
 with one client, a frame moving every control publishes in about 11 ms at 2,000 controls and 280 to 540 ms at 10,000

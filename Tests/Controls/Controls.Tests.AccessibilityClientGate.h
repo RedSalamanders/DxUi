@@ -37,5 +37,9 @@ void TestAccessibilityIncrementalResizeOfEveryBoundsOverride();
 void TestAccessibilityIncrementalPageIndicatorBecomesPaged();
 void TestAccessibilityIncrementalNativeGeometryCoalescing();
 void TestAccessibilityAttestationOutlivesItsHost();
+void TestAccessibilityIncrementalNoFrameHoldsNoDeferral();
+void TestAccessibilityIncrementalClientQueryDuringDeferral();
+void TestAccessibilityIncrementalPaneOfSliders();
+void TestAccessibilityIncrementalNestedResizes();
 // The client process TestAccessibilityClientGateOutOfProcessQueryOnlyClientLatchesTheWindow starts; -1 when the arguments are not its own.
 int RunAccessibilityClientGateQueryChild(int argc, wchar_t** argv) noexcept;

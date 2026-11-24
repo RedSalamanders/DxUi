@@ -709,6 +709,9 @@ void Splitter::OnBoundsChanged() noexcept
 {
     Control::OnBoundsChanged();
     _positionDip = ClampPosition(_positionDip);
+    // Its range follows its extent and the clamp may move its position: what UI Automation reads of its value changed with
+    // its bounds, so the record is marked here (W8.2), as any control whose record follows its bounds declares it.
+    NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Value);
 }
 
 WindowHostCursorKind Splitter::ResolveCursorKind(ControlHost& /*host*/, D2D1_POINT_2F pointDip) const noexcept

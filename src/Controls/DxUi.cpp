@@ -1360,6 +1360,9 @@ void Control::RequestIntrinsicLayout() noexcept
         if (_host)
         {
             _host->_pendingIntrinsicLayout = true;
+            // A layout request: what the layout then changes reaches UI Automation through each child's SetBounds, which
+            // marks it (W8.2), so the repaint that asks for the layout is a declared one.
+            const AttestedInvalidation layout(_host);
             _host->Invalidate();
         }
     }

@@ -9349,7 +9349,10 @@ void TabControl::ScrollHeaderBy(float deltaDip) noexcept
     if (_headerScrollOffsetDip != oldOffset)
     {
         InvalidateTabHeaderLayoutCache();
+        // The headers' rectangles moved: a geometry change of this tab control's record, marked for UI Automation (W8.2).
+        NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Geometry);
     }
+    const AttestedInvalidation header(GetHost());
     RequestInvalidate();
 }
 
@@ -10220,7 +10223,9 @@ void TabControl::PropagateHost(ControlHost* host) noexcept
 void TabControl::OnBoundsChanged() noexcept
 {
     InvalidateTabHeaderLayoutCache();
-    static_cast<void>(SyncLayout());
+    // Not routed: a resize changes no tab, title or selection. The page's bounds are marked by its own SetBounds, the headers'
+    // rectangles and offset by the geometry mark SetBounds made for this control (W8.2), and SetBounds repaints.
+    static_cast<void>(SyncLayout(false));
 }
 
 void TabControl::OnFlowDirectionChanged() noexcept

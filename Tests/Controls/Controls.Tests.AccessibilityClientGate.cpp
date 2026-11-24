@@ -1966,6 +1966,29 @@ void TestAccessibilityIncrementalResizeOfEveryBoundsOverride()
         return combo;
     }},
         {"Tree", [](DxUi::Panel& root) -> DxUi::Control* { return root.AddChild<DxUi::Tree>(); }},
+        {"Grid (200 rows: its visible rows follow its height)",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        static ManyRowsGridModel model;
+        auto* grid = root.AddChild<DxUi::Grid>();
+        grid->SetModel(&model);
+        return grid;
+    }},
+        {"Tree (60 rows: its visible rows follow its height)",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    {
+        static MutableTreeModel model;
+        std::vector<DxUi::TreeItemData> items;
+        for (uint64_t id = 1u; id <= 60u; ++id)
+            items.push_back(DxUi::TreeItemData{.id = id, .text = std::format(L"Row {}", id)});
+        model.SetVisibleItems(std::move(items));
+        auto* tree = root.AddChild<DxUi::Tree>();
+        tree->SetModel(&model);
+        return tree;
+    }},
+        {"Label (elided when narrow)",
+         [](DxUi::Panel& root) -> DxUi::Control*
+    { return root.AddChild<DxUi::Label>(L"A label whose text is elided when the label is laid out narrower than its text"); }},
         {"TextField",
          [](DxUi::Panel& root) -> DxUi::Control*
     { return root.AddChild<DxUi::TextField>(L"A single-line field with text that scrolls when the field is narrow"); }},
@@ -1980,7 +2003,7 @@ void TestAccessibilityIncrementalResizeOfEveryBoundsOverride()
          [](DxUi::Panel& root) -> DxUi::Control*
     { return root.AddChild<DxUi::RichTextEditor>(L"Rich text long enough to wrap differently at another width."); }},
     };
-    size_t differing = 0u;
+    size_t differing = 0u, incrementalMissing = 0u;
     for (const Case& test : cases)
     {
         auto root                = std::make_unique<DxUi::Panel>();
@@ -1997,7 +2020,10 @@ void TestAccessibilityIncrementalResizeOfEveryBoundsOverride()
         const uint64_t mismatches    = DxUi::DebugGetAccessibilityIncrementalMismatchCountForTest();
         std::cerr << "    [W8.2] resize " << test.name << ": incremental publications verified " << verifiedCount << ", differences " << mismatches
                   << ", whole builds " << (Builds() - built) << '\n';
-        Require(verifiedCount + (Builds() - built) >= 2u, "both resizes publish");
+        // Incremental, so the comparison proves something: a resize marks only geometry (W8.2 round 4: a model owner's geometry
+        // change, a layout request and a tab control's resize are declared ones).
+        if (verifiedCount < 2u || Builds() != built)
+            ++incrementalMissing;
         if (mismatches != 0u)
         {
             ++differing;
@@ -2005,6 +2031,7 @@ void TestAccessibilityIncrementalResizeOfEveryBoundsOverride()
         }
     }
     Require(differing == 0u, "every bounds override's resize publishes what a whole build has");
+    Require(incrementalMissing == 0u, "every bounds override's resize publishes two incremental successors and no whole build");
 }
 
 // A PageIndicator that gains pages becomes an element (review probe): the publication equals a whole build.
@@ -2130,4 +2157,247 @@ void TestAccessibilityAttestationOutlivesItsHost()
         window.reset(); // The host and its marks are gone before the attestation ends.
     }
     Require(window == nullptr, "the host was destroyed inside the attestation");
+}
+
+namespace
+{
+template <typename Done> bool PumpUntil(AttachedHostWindow& window, Done done, ULONGLONG limitMs = 1'000u)
+{
+    const ULONGLONG started = GetTickCount64();
+    while (! done() && GetTickCount64() - started < limitMs)
+    {
+        window.PumpMessages(20u);
+        Sleep(1u);
+    }
+    return done();
+}
+
+[[nodiscard]] std::pair<std::unique_ptr<DxUi::Panel>, DxUi::TextField*> MovableField()
+{
+    auto root   = std::make_unique<DxUi::Panel>();
+    auto* field = root->AddChild<DxUi::TextField>(L"Value");
+    field->SetBounds(D2D1::RectF(8.0f, 40.0f, 240.0f, 68.0f));
+    field->SetAccessibleName(L"Entry");
+    return {std::move(root), field};
+}
+
+[[nodiscard]] bool ScheduleQuiet(AttachedHostWindow& window)
+{
+    return window.Host().DebugGetFrameScheduleWakeForTest().kind == 0u && ! window.Host().DebugHasActiveAnimationSubscription();
+}
+} // namespace
+
+// A window host that presents no frame never holds a geometry deferral (W8.2 review B2a), for each way it can stop
+// presenting: presentation turned off (SetNativePresentationVisible, before the moves or with a deferral pending), the window
+// minimized without activation, and the window hidden through an ancestor (a parent hidden without taking focus). Each
+// deferred or later move is published, no wake is left subscribed, and each publication equals a whole build.
+void TestAccessibilityIncrementalNoFrameHoldsNoDeferral()
+{
+    const SystemListeners nobody(false);
+    enum class Stop : uint8_t
+    {
+        PresentationOffBefore,
+        PresentationOffPending,
+        Minimized,
+        AncestorHidden,
+    };
+    for (const Stop stop : {Stop::PresentationOffBefore, Stop::PresentationOffPending, Stop::Minimized, Stop::AncestorHidden})
+    {
+        const char* const name = stop == Stop::PresentationOffBefore    ? "presentation off before the moves"
+                                 : stop == Stop::PresentationOffPending ? "presentation off with a deferral pending"
+                                 : stop == Stop::Minimized              ? "minimized with a deferral pending"
+                                                                        : "hidden through an ancestor with a deferral pending";
+        auto [root, field]     = MovableField();
+        InterestedWindow interested(std::move(root));
+        AttachedHostWindow& window = interested.Window();
+        wil::unique_hwnd parent;
+        if (stop == Stop::AncestorHidden)
+        {
+            parent.reset(CreateWindowExW(
+                WS_EX_NOACTIVATE, L"STATIC", L"W8.2 parent", WS_OVERLAPPED, -32000, -32000, 360, 240, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr));
+            Require(parent != nullptr, "the parent window is created");
+            SetWindowLongPtrW(window.Hwnd(), GWL_STYLE, WS_CHILD | WS_VISIBLE);
+            Require(SetParent(window.Hwnd(), parent.get()) != nullptr || GetLastError() == ERROR_SUCCESS, "the host window becomes a child");
+            SetWindowPos(window.Hwnd(), nullptr, 0, 0, 320, 200, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+            ShowWindow(parent.get(), SW_SHOWNOACTIVATE);
+            // A wake that ran while the parent was still hidden left the host held as hidden through its ancestor until its
+            // next look (at most a second): one wake now sees it visible, as that look would, and a restore releases the latch.
+            SendMessageW(window.Hwnd(), WM_SIZE, SIZE_RESTORED, MAKELPARAM(320, 200));
+            static_cast<void>(window.Host().DebugAnimationTickForTest(window.Host().GetAnimationTickMs()));
+        }
+        else
+            ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        window.PumpMessages();
+        const VerifiedPublications verified;
+        const DxUi::Detail::WorkCounterScope work;
+        if (stop == Stop::PresentationOffBefore)
+            Require(window.Host().SetNativePresentationVisible(false) == S_OK, "presentation off before the moves");
+        field->SetBounds(D2D1::RectF(8.0f, 80.0f, 240.0f, 108.0f));
+        window.PumpMessages();
+        const uint64_t afterFirst = Publications();
+        field->SetBounds(D2D1::RectF(8.0f, 120.0f, 240.0f, 148.0f));
+        window.PumpMessages();
+        const uint64_t deferred = work.Delta().accessibility.geometryPublicationsDeferred;
+        switch (stop)
+        {
+            case Stop::PresentationOffBefore: break;
+            case Stop::PresentationOffPending:
+                Require(window.Host().SetNativePresentationVisible(false) == S_OK, "presentation off with the deferral pending");
+                break;
+            case Stop::Minimized: ShowWindow(window.Hwnd(), SW_SHOWMINNOACTIVE); break;
+            case Stop::AncestorHidden: ShowWindow(parent.get(), SW_HIDE); break;
+        }
+        const bool published = PumpUntil(window, [&] { return Publications() > afterFirst; });
+        const bool quiet     = PumpUntil(window, [&] { return ScheduleQuiet(window); });
+        std::cerr << "    [W8.2] " << name << ": deferred " << deferred << ", published " << published << ", schedule quiet " << quiet << '\n';
+        if (stop == Stop::PresentationOffBefore)
+            Require(deferred == 0u, "a host whose presentation is off never defers");
+        else
+            Require(deferred >= 1u, "the second move within 100 ms on a presenting window is deferred");
+        Require(published, "the move is published while the host presents no frame");
+        Require(quiet, "and no wake is held for it");
+        verified.RequireNoDifference("the publication equals a whole build");
+        static_cast<void>(window.Host().SetNativePresentationVisible(true));
+        if (stop == Stop::AncestorHidden)
+        {
+            SetParent(window.Hwnd(), nullptr);
+            ShowWindow(window.Hwnd(), SW_HIDE);
+        }
+        else
+            ShowWindow(window.Hwnd(), SW_HIDE);
+        window.PumpMessages();
+    }
+}
+
+// A real UI Automation client of a native window queries off the owner thread and reads the published snapshot (W8.2 review
+// I1b). While a geometry-only publication is deferred (the host's clock set far ahead, so the settle wake is far away) the
+// client's first read is the last published bounds, and that read asks the owner thread to publish: the next read, after the
+// owner's next message turn, is current.
+void TestAccessibilityIncrementalClientQueryDuringDeferral()
+{
+    const SystemListeners nobody(false);
+    auto [root, field] = MovableField();
+    InterestedWindow interested(std::move(root));
+    AttachedHostWindow& window = interested.Window();
+    ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+    window.PumpMessages();
+    UiaTest::Client client(window.Hwnd(), {}, [&window] { window.PumpMessages(20u); });
+    const UiaTest::ElementId entry = FindNamed(client, client.Root(), L"Entry");
+    Require(entry != 0u, "the client finds the field");
+    window.Host().DebugSetAnimationClockForTest(GetTickCount64() + 600'000u);
+    const auto restoreClock = wil::scope_exit([&] { window.Host().DebugSetAnimationClockForTest(std::nullopt); });
+    field->SetBounds(D2D1::RectF(8.0f, 80.0f, 240.0f, 108.0f));
+    window.PumpMessages(20u);
+    const RECT first = client.Describe(entry).boundingRectangle;
+    window.Host().DebugSetAnimationClockForTest(GetTickCount64() + 600'010u);
+    const DxUi::Detail::WorkCounterScope work;
+    field->SetBounds(D2D1::RectF(8.0f, 120.0f, 240.0f, 148.0f));
+    window.PumpMessages(20u);
+    const uint64_t deferred = work.Delta().accessibility.geometryPublicationsDeferred;
+    const RECT stale        = client.Describe(entry).boundingRectangle; // posts the owner's publication
+    window.PumpMessages(20u);
+    const RECT current = client.Describe(entry).boundingRectangle;
+    const LONG shift   = std::lround(40.0f * window.Host().GetDpi() / 96.0f);
+    std::cerr << "    [W8.2] client query during a deferral: deferred " << deferred << ", top after first move " << first.top << ", first read after the "
+              << "second " << stale.top << ", next read " << current.top << " (expected " << (first.top + shift) << ")\n";
+    Require(deferred >= 1u, "the second move within 100 ms is deferred");
+    Require(current.top - first.top == shift, "a client's query during a deferral causes the publication its next read sees");
+    ShowWindow(window.Hwnd(), SW_HIDE);
+    window.PumpMessages();
+}
+
+// A pane of 8, 40 and 200 sliders moved five times (a splitter drag laying it out), beside 20 labels: incremental on every
+// move, equal to whole builds (W8.2 review A5: a slider's record does not follow its bounds, so a moved slider re-reads
+// nothing; before, every range-value record of a moved subtree was re-read and 40 sliders made every move a whole build).
+void TestAccessibilityIncrementalPaneOfSliders()
+{
+    const SystemListeners nobody(false);
+    for (const size_t sliders : {size_t{8u}, size_t{40u}, size_t{200u}})
+    {
+        auto root  = std::make_unique<DxUi::Panel>();
+        auto* pane = root->AddChild<DxUi::Panel>();
+        pane->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 2000.0f));
+        for (size_t index = 0u; index < 20u; ++index)
+            root->AddChild<DxUi::Label>(std::format(L"Outside {}", index))
+                ->SetBounds(D2D1::RectF(400.0f, 10.0f * static_cast<float>(index), 500.0f, 10.0f * static_cast<float>(index) + 9.0f));
+        std::vector<DxUi::Slider*> moved;
+        for (size_t index = 0u; index < sliders; ++index)
+        {
+            auto* slider = pane->AddChild<DxUi::Slider>();
+            slider->SetAccessibleName(std::format(L"S{}", index));
+            moved.push_back(slider);
+        }
+        const auto layout = [&moved](float left)
+        {
+            for (size_t index = 0u; index < moved.size(); ++index)
+                moved[index]->SetBounds(D2D1::RectF(left, 9.0f * static_cast<float>(index), left + 100.0f, 9.0f * static_cast<float>(index) + 8.0f));
+        };
+        layout(0.0f);
+        InterestedWindow interested(std::move(root)); // Never shown: no deferral, every flush publishes.
+        const VerifiedPublications verified;
+        const DxUi::Detail::WorkCounterScope work;
+        const uint64_t built = Builds();
+        for (size_t frame = 1u; frame <= 5u; ++frame)
+        {
+            layout(4.0f * static_cast<float>(frame));
+            interested.Window().PumpMessages();
+        }
+        const auto delta = work.Delta().accessibility;
+        std::cerr << "    [W8.2] pane of " << sliders << " sliders moved 5 times: whole builds +" << (Builds() - built) << ", incremental "
+                  << delta.incrementalPublications << ", records re-read " << delta.recordsCloned << ", verified "
+                  << DxUi::DebugGetAccessibilityIncrementalVerificationCountForTest() << '\n';
+        Require(Builds() == built && delta.incrementalPublications == 5u, "every move of the pane is an incremental publication");
+        verified.RequireNoDifference("the pane's publications equal whole builds");
+    }
+}
+
+// Range-value controls moved by a resized ancestor's layout (a StackPanel laid out narrower: a splitter and a page indicator),
+// and a scroll panel scrolled over a splitter and a field then resized so its offset clamps (W8.2 review probes): each
+// publication equals a whole build.
+void TestAccessibilityIncrementalNestedResizes()
+{
+    const SystemListeners nobody(false);
+    {
+        auto root   = std::make_unique<DxUi::Panel>();
+        auto* stack = root->AddChild<DxUi::StackPanel>();
+        stack->SetBounds(D2D1::RectF(0.0f, 0.0f, 600.0f, 300.0f));
+        auto* splitter = stack->AddChild<DxUi::Splitter>();
+        splitter->SetAccessibleName(L"Inner");
+        splitter->SetOrientation(DxUi::SplitterOrientation::Vertical);
+        splitter->SetPosition(450.0f);
+        auto* pages = stack->AddChild<DxUi::PageIndicator>();
+        pages->SetPageCount(4u);
+        stack->SetChildExtent(splitter, 100.0f);
+        stack->SetChildExtent(pages, 24.0f);
+        stack->ApplyLayout();
+        InterestedWindow interested(std::move(root));
+        const VerifiedPublications verified;
+        stack->SetBounds(D2D1::RectF(0.0f, 0.0f, 150.0f, 300.0f));
+        stack->ApplyLayout(); // The application lays the stack out for its new width.
+        interested.Window().PumpMessages();
+        std::cerr << "    [W8.2] stack resized: splitter position " << splitter->GetPosition() << ", verified "
+                  << DxUi::DebugGetAccessibilityIncrementalVerificationCountForTest() << '\n';
+        verified.RequireNoDifference("a splitter laid out by a resized stack equals a whole build");
+    }
+    {
+        auto root    = std::make_unique<DxUi::Panel>();
+        auto* scroll = root->AddChild<DxUi::ScrollPanel>();
+        scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 200.0f));
+        auto* splitter = scroll->AddChild<DxUi::Splitter>();
+        splitter->SetAccessibleName(L"Scrolled");
+        splitter->SetBounds(D2D1::RectF(0.0f, 100.0f, 280.0f, 400.0f));
+        auto* field = scroll->AddChild<DxUi::TextField>(L"Field");
+        field->SetBounds(D2D1::RectF(0.0f, 420.0f, 280.0f, 448.0f));
+        scroll->SetContentHeight(600.0f);
+        InterestedWindow interested(std::move(root));
+        const VerifiedPublications verified;
+        scroll->SetScrollOffset(250.0f);
+        interested.Window().PumpMessages();
+        scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 80.0f));
+        interested.Window().PumpMessages();
+        scroll->SetBounds(D2D1::RectF(0.0f, 0.0f, 300.0f, 590.0f));
+        interested.Window().PumpMessages();
+        std::cerr << "    [W8.2] scroll panel scrolled and resized: verified " << DxUi::DebugGetAccessibilityIncrementalVerificationCountForTest() << '\n';
+        verified.RequireNoDifference("a scrolled and resized scroll panel equals a whole build");
+    }
 }

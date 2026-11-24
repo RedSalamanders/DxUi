@@ -2081,6 +2081,8 @@ HRESULT ControlHost::SetNativePresentationVisible(bool visible) noexcept
         // text layout.
         DropPendingTooltipShowWhileHidden();
         TextLayoutCacheAccess::Release(*this);
+        // It presents no frame now: a deferred geometry-only accessibility publication is published, not held (W8.2).
+        SettleAccessibilityGeometry(*this, GetAnimationTickMs(), true);
         OnFrameScheduleChanged();
     }
     else
@@ -2369,7 +2371,20 @@ struct FrameScheduleAccess final
         auto* const self = static_cast<ControlHost*>(context);
         return (self && IsAttachedWindowHostRegistered(self)) ? ToDispatcher(self->OnScheduledWake(nowTickMs)) : Ui::AnimationDispatcher::Wake{};
     }
+
+    // The schedule's own view of whether a window host presents frames: the conditions under which OnScheduledWake and
+    // OnFrameScheduleChanged hold the schedule instead of running it.
+    [[nodiscard]] static bool PresentsNoFrame(const ControlHost& host) noexcept
+    {
+        return ! host._embedded && (! host._hwnd || host.IsScheduleSuspended() || host._hiddenThroughAncestor || ! IsHostWindowEffectivelyVisible(host._hwnd) ||
+                                    ! Ui::AnimationDispatcher::TryGetInstance());
+    }
 };
+
+bool HostPresentsNoFrame(const ControlHost& host) noexcept
+{
+    return FrameScheduleAccess::PresentsNoFrame(host);
+}
 
 void ControlHost::OnFrameScheduleChanged() noexcept
 {
@@ -2416,6 +2431,10 @@ void ControlHost::SyncDispatcherSubscription(FrameScheduleWake wake) noexcept
     // The one place a host joins, reschedules or leaves the dispatcher (Detach also leaves it): subscribed exactly while
     // its schedule waits for something. Safe during the dispatcher's own wake, which defers adds and removals. After the
     // thread's dispatcher is destroyed (thread-local destruction) there is nothing to join or leave.
+    // A host that stops presenting frames, however (every way of holding the schedule ends here), publishes a deferred
+    // geometry-only accessibility publication now instead of holding it (W8.2).
+    if (wake.kind == FrameScheduleWake::Kind::None || HostPresentsNoFrame(*this))
+        SettleAccessibilityGeometry(*this, GetAnimationTickMs(), true);
     auto* const instance = Ui::AnimationDispatcher::TryGetInstance();
     if (! instance)
     {
@@ -7487,7 +7506,7 @@ ControlHost::FrameScheduleWake ControlHost::OnScheduledWake(uint64_t nowTickMs, 
 {
     // Held, not run: a hidden host keeps its requests and does not wake until it is shown (ResumeScheduleAfterShow). A deferred
     // geometry-only accessibility publication is not held: it publishes now, so a hidden host holds no wake for it (W8.2).
-    if (! _nativePresentationVisible || (_hwnd && ! IsHostWindowEffectivelyVisible(_hwnd)))
+    if (HostPresentsNoFrame(*this))
         SettleAccessibilityGeometry(*this, nowTickMs, true);
     if (! _nativePresentationVisible)
     {
