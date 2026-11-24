@@ -64,15 +64,27 @@ $harnessRoot = $PSScriptRoot
 # use this checkout's copies, so a comparison between them rejects any fixture difference, and a revision older than
 # the PowerShell comparator still has one.
 $harness = @(Get-PairedHarness) + @('build.ps1','Tools/DxUiBuildEvidence.psm1','Tools/PairedEngineInputs.psm1','Tools/Validation.psm1',
-    'Tests/Embedded/DxUi.EmbeddedTests.vcxproj')
+    'Tests/EmbeddedTests/EmbeddedTests.vcxproj')
 
 function Get-PairedBuildChanges([object[]] $Records) {
     # The benchmark project is part of the common harness: per-item flags such as
     # /bigobj must match, while each side keeps its own library project/source.
     $changed = @(Get-OverlayCompiledChanges -Records $Records)
     $changed += @($Records | Where-Object { $_['action'] -cne 'unchanged' -and
-        $_['path'] -ceq 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' } | ForEach-Object { $_['path'] })
+        $_['path'] -cin @('Tests/EmbeddedTests/EmbeddedTests.vcxproj', 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj') } | ForEach-Object { $_['path'] })
     return @($changed | Select-Object -Unique)
+}
+
+function Copy-PairedBenchmarkProjectAlias {
+    param([string] $Source, [string] $Target, [string] $RunRoot, [string] $BackupDirectory)
+    $legacy = 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj'
+    $solution = [IO.File]::ReadAllText((Join-Path $Target 'DxUi.sln'))
+    if (-not $solution.Contains('"' + $legacy.Replace('/','\') + '"', [StringComparison]::OrdinalIgnoreCase)) { return }
+    $projection = Join-Path $RunRoot 'legacy-benchmark-project'
+    $staged = Join-Path $projection $legacy
+    [void][IO.Directory]::CreateDirectory((Split-Path $staged -Parent))
+    Copy-Item -LiteralPath (Join-Path $Source 'Tests/EmbeddedTests/EmbeddedTests.vcxproj') -Destination $staged
+    Copy-HarnessOverlay -Source $projection -Target $Target -Paths @($legacy) -BackupDirectory $BackupDirectory
 }
 
 function Set-PairedProjectStamps([string[]] $Roots, [DateTime] $StampUtc=[DateTime]::UtcNow) {
@@ -83,7 +95,7 @@ function Set-PairedProjectStamps([string[]] $Roots, [DateTime] $StampUtc=[DateTi
     $records=[Collections.Generic.List[object]]::new()
     try {
         foreach ($root in $Roots) {
-            foreach ($project in Get-PerformanceProjectCatalog) {
+            foreach ($project in Get-PerformanceProjectCatalog -Root $root) {
                 $path=Join-Path $root $project.path
                 if (-not [IO.File]::Exists($path)) { throw "Missing attested $($project.role) project: $path" }
                 $record=[ordered]@{role=$project.role;path=$path;originalUtc=[IO.File]::GetLastWriteTimeUtc($path);stagedUtc=$StampUtc.ToUniversalTime()}
@@ -292,6 +304,7 @@ try {
         # A named tree is put back afterwards, so the originals are saved; a worktree made for this run is disposable.
         $side['Backup'] = if ($side.Existing) { Join-Path $runRoot "overlay-backup/$($side.Role)" } else { '' }
         $side['Overlay'] = @(Copy-HarnessOverlay -Source $harnessRoot -Target $side.Root -Paths $harness -BackupDirectory $side.Backup)
+        $side['Overlay'] += @(Copy-PairedBenchmarkProjectAlias -Source $harnessRoot -Target $side.Root -RunRoot $runRoot -BackupDirectory $side.Backup)
         $side['EngineInputs'] = Initialize-PairedEngineInputs -Source $harnessRoot -Target $side.Root
         $side['Fingerprint'] = Get-SourceFingerprint -Root $side.Root
     }

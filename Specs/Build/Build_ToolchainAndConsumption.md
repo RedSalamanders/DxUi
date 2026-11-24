@@ -26,6 +26,11 @@ input provenance, not native/SDK/Full acceptance.
 
 ## Selected native target builds
 
+The solution registers its three ordinary suite projects beneath `Tests/FoundationTests`,
+`Tests/ControlTests` and `Tests/EmbeddedTests`. Their solution targets, project GUIDs, executable names and
+compiled source inventories stay stable. Older paired checkouts keep their solution paths and receive the
+same benchmark project at their registered location.
+
 `build.ps1 -Projects DxUi.FoundationTests,DxUi.EmbeddedTests` selects one owned project union instead of
 the full solution. Project names use their catalog spelling; unknown names refuse. The union always includes
 the static library. Evaluation checks the actual project references, output paths and target roles for the

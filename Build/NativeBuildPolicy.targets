@@ -49,9 +49,9 @@
       <DebugInformationFormat Condition="'$(Configuration)'=='ASan Debug' and '$(RSBuildCompilerDebugInformation)'!='Embedded'">ProgramDatabase</DebugInformationFormat>
       <!-- Classify only dependency headers. Canonical SDK translation units still
            compile their own public/implementation code under /Wall. -->
-      <!-- Only the six owned SDK targets get its private root. Public consumer
-           examples and application adapters keep the public include boundary. -->
-      <AdditionalIncludeDirectories Condition="'$(MSBuildProjectName)'=='DxUi' or '$(MSBuildProjectName)'=='DxUi.ControlTests' or '$(MSBuildProjectName)'=='DxUi.EmbeddedTests' or '$(MSBuildProjectName)'=='DxUi.FoundationTests' or '$(MSBuildProjectName)'=='DxUi.InteractiveLease' or '$(MSBuildProjectName)'=='DxUi.EmbeddedControls'">$(DxUiRepositoryRoot)src;$(DxUiRepositoryRoot)Tests\Support;$(DxUiRepositoryRoot)Tests\Embedded;$(DxUiRepositoryRoot)Samples\EmbeddedControls;$(DxUiRepositoryRoot)Samples\ComplexUi;$(DxUiRepositoryRoot)Samples\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <!-- Use the SDK target names so suite projects retain their private include paths
+           when their project filenames change. Consumer examples keep the public boundary. -->
+      <AdditionalIncludeDirectories Condition="'$(TargetName)'=='DxUi' or '$(TargetName)'=='DxUi.ControlTests' or '$(TargetName)'=='DxUi.EmbeddedTests' or '$(TargetName)'=='DxUi.FoundationTests' or '$(TargetName)'=='DxUi.InteractiveLease' or '$(TargetName)'=='DxUi.EmbeddedControls'">$(DxUiRepositoryRoot)src;$(DxUiRepositoryRoot)Tests\Support;$(DxUiRepositoryRoot)Tests\Embedded;$(DxUiRepositoryRoot)Samples\EmbeddedControls;$(DxUiRepositoryRoot)Samples\ComplexUi;$(DxUiRepositoryRoot)Samples\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemGroup>
 </Project>

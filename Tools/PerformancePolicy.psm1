@@ -1,6 +1,7 @@
 # Trust checks for the migrated benchmark gate. A policy introduced by a candidate is never its own trust anchor.
 Set-StrictMode -Version Latest
 $script:scopedTestingModule = Import-Module (Join-Path $PSScriptRoot 'DxUiBuildEvidence.psm1') -PassThru -ErrorAction Stop
+$script:suiteProjectAliases = Get-ScopedSuiteProjectAliases
 Import-Module (Join-Path $PSScriptRoot 'PerformanceComparison.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Validation.psm1')
 
@@ -130,14 +131,26 @@ function Normalize-PerformanceBuildPath([string] $Value, [string] $Root) {
             $Value = [regex]::Replace($Value, $pattern, '<DxUiRoot>', [Text.RegularExpressions.RegexOptions]::IgnoreCase)
         }
     }
+    # A historical paired side keeps its solution and project path. Only these known
+    # suite names are equivalent in comparisons of evaluated profiles.
+    foreach ($canonical in $script:suiteProjectAliases.Keys) {
+        $legacy = $script:suiteProjectAliases[$canonical]
+        foreach ($separator in @('/','\')) {
+            $legacyPath = '<DxUiRoot>' + $separator + $legacy.Replace('/',$separator)
+            $canonicalPath = '<DxUiRoot>' + $separator + $canonical.Replace('/',$separator)
+            $Value = $Value.Replace($legacyPath, $canonicalPath, [StringComparison]::OrdinalIgnoreCase)
+        }
+    }
     return $Value
 }
 
 function Get-PerformanceProjectCatalog {
+    param([string] $Root)
     # The projects whose complete evaluated profiles and native inputs bind the paired build.
     # Fresh-build timestamp staging consumes this same catalog; neither side substitutes library bytes.
-    return @([ordered]@{ role='library'; path='src/DxUi.vcxproj' },
-        [ordered]@{ role='benchmark'; path='Tests/Embedded/DxUi.EmbeddedTests.vcxproj' })
+    $projects = Get-ScopedBuildProjectCatalog -Root $Root
+    return @([ordered]@{ role='library'; path=$projects['DxUi'] },
+        [ordered]@{ role='benchmark'; path=$projects['DxUi.EmbeddedTests'] })
 }
 
 function Get-PreprocessedProjectIdentity {
@@ -243,7 +256,7 @@ function Get-PerformanceSolutionGlobals {
     $content = Get-PerformanceSolutionConfiguration $MSBuildPath $solutionPath $Configuration $Platform
     [xml]$xml = $content
     if ($xml.DocumentElement.LocalName -cne 'SolutionConfiguration') { throw 'MSBuild returned an invalid solution configuration.' }
-    foreach ($relative in @((Get-PerformanceProjectCatalog).path)) {
+    foreach ($relative in @((Get-PerformanceProjectCatalog -Root $Root).path)) {
         $path = [IO.Path]::GetFullPath((Join-Path $Root $relative))
         $nodes = @($xml.DocumentElement.SelectNodes('ProjectConfiguration') | Where-Object { $_.GetAttribute('AbsolutePath') -ieq $path })
         if ($nodes.Count -ne 1 -or $nodes[0].GetAttribute('BuildProjectInSolution') -cne 'True' -or
@@ -584,7 +597,8 @@ function Get-PerformanceNativeInputClosure {
     param([string] $Root, [string] $Role, [string] $Platform, [string] $Configuration,
         [Collections.IDictionary] $Properties, [Collections.IDictionary] $Items)
     $rootPath = [IO.Path]::GetFullPath($Root).TrimEnd('\','/')
-    $projectDirectory = Join-Path $rootPath $(if ($Role -eq 'library') { 'src' } else { 'Tests/Embedded' })
+    $project = Get-PerformanceProjectCatalog -Root $rootPath | Where-Object role -CEQ $Role
+    $projectDirectory = [IO.Path]::GetDirectoryName((Join-Path $rootPath $project.path))
     $projectName = if ($Role -eq 'library') { 'DxUi' } else { 'DxUi.EmbeddedTests' }
     $intDir = Join-Path $rootPath ".build/Intermediate/$Platform/$Configuration/$projectName"
     $outDir = Join-Path $rootPath ".build/$Platform/$Configuration"
@@ -617,7 +631,7 @@ function Get-PerformanceNativeInputClosure {
     $libraries = @($libraries | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\','/') } | Sort-Object -Unique)
     $triplet = if ($Platform -eq 'ARM64') { 'arm64-windows' } else { 'x64-windows' }
     $dependencyRoot = Join-Path $rootPath ".build/vcpkg_installed/$Platform/$triplet"
-    $nativeDirectories = @('src','include','Tests/Embedded','Tests/Foundation','Tests/Support','Samples/EmbeddedControls','Samples/ComplexUi','Samples/Shared',
+    $nativeDirectories = @('src','include','Tests/Embedded','Tests/EmbeddedTests','Tests/Foundation','Tests/Support','Samples/EmbeddedControls','Samples/ComplexUi','Samples/Shared',
         'ThirdParty/tomlplusplus/3.4.0','ThirdParty/rapidyaml/0.16.0','ThirdParty/libfyaml/0.9.4')
     # Reuse scoped Git discovery, but retain every byte in the supported native input trees, including extensionless files
     # and prose that could be included explicitly. Ignored inputs and reparse points cannot become invisible dependencies.
@@ -862,7 +876,7 @@ function Get-PerformanceToolIdentities {
         $resolvedProjects = [ordered]@{}
         $sdkProjects = [ordered]@{}
         $closureCache = @{}
-        foreach ($entry in Get-PerformanceProjectCatalog) {
+        foreach ($entry in Get-PerformanceProjectCatalog -Root $rootPath) {
             $role = $entry.role
             $evaluation = Get-PerformanceProjectEvaluation -MSBuildPath $msbuildPath -ProjectPath (Join-Path $rootPath $entry.path) -Configuration $Configuration -Platform $Platform -OutputRoot $buildOutputRoot -Root $rootPath -Role $role
             $properties = $evaluation['properties']

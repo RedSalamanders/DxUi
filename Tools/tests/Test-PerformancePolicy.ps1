@@ -374,7 +374,7 @@ function New-PerformanceProjectFixture([string] $Root, [string] $Role = 'library
             ExecutablePath="$Root/toolchain/bin"; FixtureFlag='/fixture0' }).GetEnumerator()) {
         $properties[$entry.Key] = $entry.Value
     }
-    $projectDirectory = Join-Path $Root $(if ($Role -eq 'library') { 'src' } else { 'Tests/Embedded' })
+    $projectDirectory = Join-Path $Root $(if ($Role -eq 'library') { 'src' } else { 'Tests/EmbeddedTests' })
     # Keep the project XML's Windows spelling while emulating evaluated items on this host filesystem.
     $clItems = @('Controls\One.cpp','Controls\Two.cpp' | ForEach-Object {
         $identity = $_.Replace('\', [IO.Path]::DirectorySeparatorChar)
@@ -630,12 +630,12 @@ Invoke-FixtureCase 'real tool identity hashing separates project topology from b
     $library = New-PerformanceProjectFixture $root
     $benchmark = New-PerformanceProjectFixture $root benchmark
     Set-FixtureFile $root 'src/DxUi.vcxproj' $library.text
-    Set-FixtureFile $root 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' $benchmark.text
+    Set-FixtureFile $root 'Tests/EmbeddedTests/EmbeddedTests.vcxproj' $benchmark.text
     foreach ($path in @('src/Controls/One.cpp','src/Controls/Two.cpp','src/Rendering/CompositeVS.hlsl','src/Rendering/CompositePS.hlsl',
-            'Tests/Embedded/Controls/One.cpp','Tests/Embedded/Controls/Two.cpp','include/owned.h')) { Set-FixtureFile $root $path "original explicit native input: $path" }
+            'Tests/EmbeddedTests/Controls/One.cpp','Tests/EmbeddedTests/Controls/Two.cpp','include/owned.h')) { Set-FixtureFile $root $path "original explicit native input: $path" }
     foreach ($fixture in @($library,$benchmark)) {
         Assert-True ($fixture.text.Contains('Include="Controls\One.cpp"')) 'the raw project retains its Windows include spelling'
-        $projectDirectory = Join-Path $root $(if ($fixture.role -eq 'library') { 'src' } else { 'Tests/Embedded' })
+        $projectDirectory = Join-Path $root $(if ($fixture.role -eq 'library') { 'src' } else { 'Tests/EmbeddedTests' })
         foreach ($item in @($fixture.items.ClCompile) + @($fixture.items.FxCompile)) {
             Assert-Equal ([IO.Path]::GetFullPath((Join-Path $projectDirectory $item.Identity))) $item.FullPath 'evaluated native item identity resolves to the same full path'
             Assert-True ([IO.File]::Exists($item.FullPath)) 'evaluated native item full paths locate the actual owned fixture bytes'
@@ -746,7 +746,7 @@ Export-ModuleMember -Function Get-DxUiVisualStudioInstallation
         Assert-Equal 'verifiable' $addedFull.identityStatus ("synthetic full identity retains all required fields after source registration: $($addedFull['identityError'])")
         Assert-Equal $originalFull.harnessIdentity $addedFull.harnessIdentity 'library project bytes belong per side and cannot change the shared measurement harness'
         Assert-Equal $originalFull.toolchainIdentity $addedFull.toolchainIdentity 'full comparison uses the stable compiler profile'
-        foreach ($path in @('src/Controls/One.cpp','Tests/Embedded/Controls/One.cpp','src/Rendering/CompositeVS.hlsl','src/Rendering/CompositePS.hlsl','include/owned.h')) {
+        foreach ($path in @('src/Controls/One.cpp','Tests/EmbeddedTests/Controls/One.cpp','src/Rendering/CompositeVS.hlsl','src/Rendering/CompositePS.hlsl','include/owned.h')) {
             $full = Join-Path $root $path
             $bytes = [IO.File]::ReadAllText($full)
             $time = [IO.File]::GetLastWriteTimeUtc($full)
@@ -1012,7 +1012,7 @@ Import-Module (Join-Path $PSScriptRoot '../DxUiBuildEvidence.psm1') -Force
 Invoke-FixtureCase 'solution globals bind the native solution XML and reject missing duplicate or fallback build mappings' {
     param($root)
     $matrix = @('Debug|x64','Release|x64','ASan Debug|x64','Debug|ARM64','Release|ARM64','ASan Debug|ARM64')
-    $projects = [ordered]@{ '{F6272096-E42A-56E7-9CCB-A8E08093E2BC}'='src\DxUi.vcxproj'; '{8B4FAB6F-83CD-48EF-A16E-21CD97073F92}'='Tests\Embedded\DxUi.EmbeddedTests.vcxproj' }
+    $projects = [ordered]@{ '{F6272096-E42A-56E7-9CCB-A8E08093E2BC}'='src\DxUi.vcxproj'; '{8B4FAB6F-83CD-48EF-A16E-21CD97073F92}'='Tests\EmbeddedTests\EmbeddedTests.vcxproj' }
     $text = "Microsoft Visual Studio Solution File, Format Version 12.00`n"
     foreach ($guid in $projects.Keys) { $text += "Project(`"{BC8A1FFA-BEE3-4634-8014-F334798102B3}`") = `"fixture`", `"$($projects[$guid])`", `"$guid`"`nEndProject`n" }
     $text += "Global`nGlobalSection(SolutionConfigurationPlatforms) = preSolution`n"
@@ -1083,7 +1083,7 @@ function Invoke-PerformanceBuildFixture([string] $Root, [scriptblock] $Body) {
     Set-FixtureFile $Root '.build/toolchain/archiver.bin' 'original resolved static library archiver'
     Set-FixtureFile $Root '.build/toolchain/resolved-project.json' '{"library":"resolved original project","benchmark":"resolved original project"}'
     Set-FixtureFile $Root 'src/DxUi.vcxproj' '<Project><ClCompile Include="Control.cpp" /></Project>'
-    Set-FixtureFile $Root 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj' '<Project><ClCompile Include="Benchmark.cpp" /></Project>'
+    Set-FixtureFile $Root 'Tests/EmbeddedTests/EmbeddedTests.vcxproj' '<Project><ClCompile Include="Benchmark.cpp" /></Project>'
     Set-FixtureFile $Root 'Directory.Build.props' '<Project><PropertyGroup><Option>original</Option></PropertyGroup></Project>'
     Set-FixtureFile $Root 'Build/Imported.targets' '<Project><Target Name="Original" /></Project>'
     foreach ($entry in @(
@@ -1128,7 +1128,7 @@ Invoke-FixtureCase 'benchmark reuse rejects stale source, toolchain, installed d
     param($root)
     Invoke-PerformanceBuildFixture $root {
         param($fixture)
-        foreach ($path in @('src/Control.cpp', 'src/DxUi.vcxproj', 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj', 'Directory.Build.props', 'Build/Imported.targets',
+        foreach ($path in @('src/Control.cpp', 'src/DxUi.vcxproj', 'Tests/EmbeddedTests/EmbeddedTests.vcxproj', 'Directory.Build.props', 'Build/Imported.targets',
                 '.build/toolchain/compiler.bin', '.build/toolchain/fxc.bin', '.build/toolchain/linker.bin', '.build/toolchain/archiver.bin', '.build/toolchain/resolved-project.json',
                 '.build/vcpkg_installed/x64/x64-windows/include/wil/resource.h',
                 '.build/vcpkg_installed/x64/x64-windows/lib/wil.lib',
@@ -1173,7 +1173,7 @@ Invoke-FixtureCase 'failed native build markers permit a guarded retry only in e
         param($fixtureRoot)
         $fixtures = @{ library=(New-PerformanceProjectFixture $fixtureRoot); benchmark=(New-PerformanceProjectFixture $fixtureRoot benchmark) }
         foreach ($path in @('src/Controls/One.cpp','src/Controls/Two.cpp','src/Rendering/CompositeVS.hlsl','src/Rendering/CompositePS.hlsl',
-                'Tests/Embedded/Controls/One.cpp','Tests/Embedded/Controls/Two.cpp','include/owned.h')) { Set-FixtureFile $fixtureRoot $path '// synthetic native input bytes' }
+                'Tests/EmbeddedTests/Controls/One.cpp','Tests/EmbeddedTests/Controls/Two.cpp','include/owned.h')) { Set-FixtureFile $fixtureRoot $path '// synthetic native input bytes' }
         $module = Get-Module PerformancePolicy
         $original = & $module { (Get-Command Get-PerformanceToolIdentities).ScriptBlock }
         try {
@@ -1581,7 +1581,7 @@ Invoke-FixtureCase 'mid-build source, dependency or compiler mutation cannot pub
     param($root)
     Invoke-PerformanceBuildFixture $root {
         param($fixture)
-        foreach ($path in @('src/Control.cpp', 'src/DxUi.vcxproj', 'Tests/Embedded/DxUi.EmbeddedTests.vcxproj', 'Directory.Build.props', 'Build/Imported.targets',
+        foreach ($path in @('src/Control.cpp', 'src/DxUi.vcxproj', 'Tests/EmbeddedTests/EmbeddedTests.vcxproj', 'Directory.Build.props', 'Build/Imported.targets',
                 '.build/toolchain/resolved-project.json', '.build/toolchain/compiler.bin', '.build/toolchain/fxc.bin', '.build/toolchain/linker.bin', '.build/toolchain/archiver.bin',
                 '.build/vcpkg_installed/x64/x64-windows/include/wil/resource.h')) {
             $before = Start-PerformanceBuildAttestation -Root $fixture -Platform x64 -Configuration Release
@@ -1661,7 +1661,7 @@ Invoke-FixtureCase 'a project or imported option changed during measurement inva
     Invoke-PerformanceBuildFixture $root {
         param($fixture)
         $module = Get-Module PerformancePolicy
-        foreach ($path in @('src/DxUi.vcxproj','Tests/Embedded/DxUi.EmbeddedTests.vcxproj','Directory.Build.props','Build/Imported.targets','.build/toolchain/resolved-project.json')) {
+        foreach ($path in @('src/DxUi.vcxproj','Tests/EmbeddedTests/EmbeddedTests.vcxproj','Directory.Build.props','Build/Imported.targets','.build/toolchain/resolved-project.json')) {
             $before = & $module { param($Root) Get-PerformanceBuildState $Root x64 Release } $fixture
             $original = [IO.File]::ReadAllText((Join-Path $fixture $path))
             Set-FixtureFile $fixture $path ($original + ' changed during native timing')

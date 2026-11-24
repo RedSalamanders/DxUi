@@ -575,6 +575,20 @@
       "reason": "owning suite source"
     },
     {
+      "pattern": "Tests/FoundationTests/FoundationTests.vcxproj",
+      "scopes": [
+        "Foundation"
+      ],
+      "reason": "foundation native project"
+    },
+    {
+      "pattern": "Tests/EmbeddedTests/EmbeddedTests.vcxproj",
+      "scopes": [
+        "Embedded"
+      ],
+      "reason": "embedded native project and benchmark"
+    },
+    {
       "pattern": "Tests/Foundation/**",
       "scopes": [
         "Foundation"
