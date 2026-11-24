@@ -378,6 +378,11 @@ separate attestation contract, so the two default-output attestation phases appl
 records add no input paths or environment values and cannot replace operation output or its original failure;
 these diagnostics are not native workload measurements or performance acceptance.
 
+`build.ps1 -Analyze` rebuilds the solution with MSVC code analysis on the selected architecture and profile.
+It restores missing analysis dependencies and retains binaries, intermediates and logs below `.build/analysis/`.
+The normal warning policy applies. Diagnostic outputs carry their own logs and do not publish default-build
+test, performance or SDK attestations.
+
 The canonical performance-build attestation admits a library C parser with explicit `CompileAsC` only when its
 remaining evaluated compiler options match the C++ profile. It still binds each source's exact language and flags;
 other heterogeneous settings fail closed as specified in [performance provenance](../Core/Core_PerformanceAndResources.md).
