@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Use the shared changelog header while preserving all published release notes.
 - Use the pinned shared vcpkg helpers for the native product restore and retain the source consumer interface.
 - Validate DxUi skill packages and guidance through the pinned shared CI engine and index every completed plan once.
 - Use the pinned shared scoped test planner and run-evidence engine while retaining DxUi's native build, SDK and benchmark attestations.
