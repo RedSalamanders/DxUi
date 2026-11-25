@@ -1,0 +1,7 @@
+<Project>
+  <!-- Import before Microsoft.Cpp.props selects the compiler and linker host. -->
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)'=='.vcxproj' and '$(PreferredToolArchitecture)'==''">
+    <PreferredToolArchitecture Condition="'$(PROCESSOR_ARCHITECTURE)'=='ARM64' or '$(PROCESSOR_ARCHITEW6432)'=='ARM64'">arm64</PreferredToolArchitecture>
+    <PreferredToolArchitecture Condition="'$(PreferredToolArchitecture)'=='' and ('$(PROCESSOR_ARCHITECTURE)'=='AMD64' or '$(PROCESSOR_ARCHITEW6432)'=='AMD64')">x64</PreferredToolArchitecture>
+  </PropertyGroup>
+</Project>
