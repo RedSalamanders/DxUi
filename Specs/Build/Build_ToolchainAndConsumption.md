@@ -243,8 +243,10 @@ selects full rather than incremental LTCG. `Tools/tests/Test-ReleaseBuildPolicy.
 project in all six profiles and rejects broken compiler/linker controls.
 
 The source build enables `NativeBuildReleaseOptimization` in the pinned `Build/NativeBuildPolicy.targets`.
-A compatible consumer may set the property to `true` before importing the targets to use the same Release
-compiler and linker metadata. Consumers retain their selected speed or size optimization and CRT policy.
+A source consumer can set the property to `true` before explicitly importing that file after
+`Microsoft.Cpp.targets`. The SDK consumer sets the property before importing `DxUi.Sdk.props`,
+which imports the bundled policy. Both routes opt in to the same Release compiler and linker metadata.
+Consumers retain their selected speed or size optimization and CRT policy.
 
 The static archive remains complete. Function elimination and cross-file optimization happen at each final EXE/DLL
 link and cannot optimize across DLL boundaries. LTO is not a guarantee of smaller or faster output; keep matched
@@ -559,7 +561,7 @@ The consumer interface is what a consumer may call or import from its pinned che
 - **Module functions**, with their parameters: `Get-DxUiConsumerBuildIdentity`, `Show-DxUiUpdateNotice`,
   `Get-DxUiVisualStudioInstallation`, `Get-DxUiDefaultToolset` and `Update-DxUiVcpkgOverlayTriplet`.
 - **MSBuild files**: `Build/DxUi.Consumer.props` and `.targets`, `Build/DxUi.AddressSanitizer.targets`,
-  `Build/NativeBuildPolicy.props` and `src/DxUi.vcxproj`.
+  `Build/NativeBuildPolicy.props` and `.targets`, and `src/DxUi.vcxproj`.
 - **Public headers**: the `include/DxUi` root.
 
 `validate-dependencies.ps1` fails if any of the following holds:

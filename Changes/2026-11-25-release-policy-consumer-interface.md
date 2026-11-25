@@ -1,0 +1,1 @@
+- Declare the pinned Release optimization targets in the consumer interface and verify the explicit source-project import.
