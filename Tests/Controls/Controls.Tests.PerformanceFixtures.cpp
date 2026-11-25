@@ -150,7 +150,7 @@ public:
             Note(std::format("UpdateWindow paints an invalid region ({},{})-({},{})", invalid.left, invalid.top, invalid.right, invalid.bottom));
         // W3.6: the paced host renders a WM_PAINT at once only while it holds a frame-latency credit, else it defers to its next
         // paced frame; taking the credit first keeps one render per step, whatever the display's timing.
-        Require(window_->Host().DebugWaitForFrameCreditForTest(1'000u), "the window fixture's host takes a frame credit");
+        Require(AwaitFrameCreditForTest(window_->Host()), "the window fixture's host takes a frame credit");
         static_cast<void>(UpdateWindow(hwnd));
     }
 

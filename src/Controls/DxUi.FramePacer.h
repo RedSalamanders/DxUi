@@ -20,6 +20,14 @@
 // finish, so a unit the wait took is harvested as a credit instead of lost; the message it posted is then stale. Teardown is
 // always cancel, drain, close the handle, then release the swap chain; the members below are declared so that destruction
 // follows the same order on every path.
+//
+// Only a Present that returned S_OK spends the credit; any other result keeps it (never more than one credit; an excess unit a
+// kept credit's frame returns is absorbed before the next present).
+//
+// Invariant (checked after each pacer transition in Debug, ControlHost's CheckFramePacerInvariant): a deferred paint always
+// has a wake, which is an armed wait (whose message may already be posted) or the paced frame rendering it now. A path that
+// takes the credit while a paint is deferred (a synchronous render, a test seam) hands the deferred region back to the
+// window's update region, where the next WM_PAINT renders it with that credit.
 #include <atomic>
 #include <cstdint>
 
@@ -102,7 +110,9 @@ public:
     FramePacer& operator=(FramePacer&&)      = delete;
     ~FramePacer()
     {
-        // At process exit the pool's threads are already gone: nothing can call back, and waiting for callbacks could hang.
+        DrainWait();
+        // At process exit the pool's threads are already gone: nothing can call back, and waiting for callbacks (the wait's
+        // own destructor waits for them) could hang.
         if (wil::ProcessShutdownInProgress())
         {
             static_cast<void>(_wait.release());
@@ -141,6 +151,7 @@ public:
     {
         DrainWait();
         _credit = false;
+        framing = false;
         _waitable.reset();
     }
 
@@ -210,12 +221,24 @@ public:
         return _credit;
     }
 
-    // Every Present or Present1 call spends the credit; one made without it is counted (the gate requires none).
-    void OnPresent() noexcept
+    // Before every Present or Present1 call: one made without a credit is counted (the gate requires none). A unit in the
+    // object while the credit is held is one too many (a credit kept for a frame that queued after all, see AfterPresent):
+    // it is taken and dropped, so at most one frame is ever queued behind the one shown.
+    void BeforePresent() noexcept
     {
         if (_waitable && ! _credit)
             ++Work().frame.presentsWithoutCredit;
-        _credit = false;
+        if (_waitable && _credit && ! _waitArmed && WaitForSingleObject(_waitable.get(), 0u) == WAIT_OBJECT_0)
+            ++Work().frame.pacerExcessUnits;
+    }
+    // After it: only S_OK spends the credit. A failure queued nothing and no unit will come back for it. A success status
+    // such as DXGI_STATUS_OCCLUDED may or may not have queued a frame: spending the credit on a frame that returns no unit
+    // would stop the window painting for good, keeping it for one that does costs one excess unit, absorbed by BeforePresent.
+    // So any result other than S_OK keeps the credit (a device loss then releases the chain, and the credit with it).
+    void AfterPresent(HRESULT result) noexcept
+    {
+        if (result == S_OK)
+            _credit = false;
     }
 
     [[nodiscard]] FrameMessage OnFrameMessage(WPARAM request) noexcept
@@ -261,6 +284,7 @@ public:
 
     // Whether the host's schedule asks for every frame and the pacer serves it.
     bool continuous       = false;
+    bool framing          = false; // a paced frame is running: a deferred paint it holds is being rendered now
     bool skipTimerArmed   = false;
     bool timelineAcquired = false;
     // The compositor's refresh period, in QPC ticks; 0 until a frame read it.
@@ -288,12 +312,21 @@ public:
     }
 
 private:
+    // Every drain passes here (Cancel, ReleaseChain, the test seams, the destructor).
     void DrainWait() noexcept
     {
         _cancelledRequest = 0u;
         if (! _waitArmed || ! _wait)
         {
             _waitArmed = false;
+            return;
+        }
+        // At process exit the pool's threads are already gone: nothing can call back, and waiting for callbacks could hang.
+        // The wait is abandoned (the destructor then releases it unclosed); a unit it may have taken is not harvested.
+        if (wil::ProcessShutdownInProgress())
+        {
+            _waitArmed    = false;
+            _armedRequest = 0u;
             return;
         }
         SetThreadpoolWait(_wait.get(), nullptr, nullptr);

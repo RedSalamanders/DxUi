@@ -31,9 +31,12 @@
     X(frame, invalidations)            /* ControlHost::Invalidate requests (a native InvalidateRect or an embedded invalidation callback), changed or not. */  \
     X(frame, pacedFrames)              /* Native paced frames (W3.6): a paced-frame message or skip timer that sampled the compositor clock and ticked. */     \
     X(frame, pacerDeferredPaints)      /* WM_PAINT a paced native host validated and deferred to its next credit instead of rendering. */                      \
+    X(frame, pacerExcessUnits)         /* Frame-latency units absorbed while the credit was held: a kept credit's frame had queued (W3.6). */                  \
+    X(frame, pacerInvariantViolations) /* Debug: pacer transitions that left a deferred paint with no wake; must stay 0 (W3.6). */                             \
     X(frame, pacerStaleFrames)         /* Paced-frame messages a native host ignored: their request was cancelled, replaced or belongs to an earlier chain. */ \
     X(frame, pacerStatsFallbacks)      /* Paced frames sampled at the current time because the compositor's frame statistics were unavailable. */              \
     X(frame, pacerSynchronousTimeouts) /* Synchronous native renders that found no credit within their bound and so did not present. */                        \
+    X(frame, pacerTargetsOutOfRange)   /* Paced frames whose compositor target lay over three periods ahead: sampled now (W3.6). */                            \
     X(frame, pacerTeardownOrderViolations) /* Swap chains released while their pacer still held a wait or the waitable object; must stay 0. */                 \
     X(frame, pacerUnavailable)             /* Native swap chains created without a frame-latency waitable object, so their host ran unpaced. */                \
     X(frame, pacerWaitTimeouts)            /* Paced waits that saw no retired frame within their timeout (a stalled compositor); the frame stays deferred. */  \
@@ -46,6 +49,7 @@
     X(frame, preparationMembershipSearches) /* IsControlInTree searches started while a host preparation pass (PreparePendingPageLayout) runs. */              \
     X(frame, preparations)                  /* EmbeddedHost::Prepare calls that painted the surface. */                                                        \
     X(frame, presents)                      /* Native swap-chain Present or Present1 calls. */                                                                 \
+    X(frame, presentStatuses)               /* Native presents that returned a success status other than S_OK (W3.6: the credit is kept). */                   \
     X(frame, presentsWithoutCredit)         /* Native presents made while the paced host held no frame-latency credit; must stay 0 (W3.6). */                  \
     X(frame, renders)                       /* Native WindowHost render passes (BeginDraw to EndDraw). */                                                      \
     X(frame, shadowPasses)                  /* Shadow effect passes drawn (DrawShadowEffectPass): popups, cards and other elevated surfaces. */                \

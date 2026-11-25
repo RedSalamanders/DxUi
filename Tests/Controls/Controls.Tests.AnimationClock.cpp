@@ -4,6 +4,7 @@
 #include "GraphicsFixture.h"
 #include "Support.Tests.FatalChildren.h"
 #include "Support/AnimationDispatcher.h"
+#include "Support/WorkCounters.h"
 
 #include <algorithm>
 #include <array>
@@ -650,7 +651,25 @@ void TestNativeTransitionStartsOnTheDispatcherTimelineAfterAStall()
 
     const double beforeValue = slider->DebugGetDisplayedValue();
     Require(slider->OnKeyDown(window.Host(), VK_RIGHT, 0) && slider->DebugGetDisplayedValue() == beforeValue, "a keyboard step starts a value animation");
-    Require(ticks.WaitForTick(), "the dispatcher ticks once more");
+    // The time the step was stamped with, read after it (the clock never reads less than a value it gave out). The shown host
+    // ticks its slider from paced frames (W3.6), not from the dispatcher's periodic timer, and a periodic tick that falls before
+    // the present time a paced frame already advanced the timeline to adds no time: waiting for one dispatcher tick observes
+    // nothing in particular. What the property means is the slider's first tick at a time after the start: it must move the
+    // thumb. Each message is dispatched alone, so the host's clock read right after the slider's tick is the time it ticked at.
+    const uint64_t startMs = window.Host().GetAnimationTickMs();
+    uint64_t tickCalls     = DxUi::Detail::Work().frame.tickCalls;
+    bool tickedLater       = false;
+    Require(DispatchMessagesUntil(
+                [&]
+    {
+        if (const uint64_t calls = DxUi::Detail::Work().frame.tickCalls; calls != tickCalls)
+        {
+            tickCalls   = calls;
+            tickedLater = window.Host().GetAnimationTickMs() > startMs;
+        }
+        return tickedLater;
+    }),
+            "the slider ticks at a time after the step started");
     Require(slider->DebugGetDisplayedValue() > beforeValue, "the next tick moves the thumb: the start and the ticks share one clock");
 }
 

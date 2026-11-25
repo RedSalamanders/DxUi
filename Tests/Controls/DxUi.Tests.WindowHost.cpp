@@ -7503,7 +7503,7 @@ void TestWindowHostRetriesAFailedRecreationWithoutInvalidation()
     const uint64_t resizes = window.Host().DebugGetResizeCount();
     Require(SetWindowPos(window.Hwnd(), nullptr, 0, 0, 360, 240, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE) != FALSE, "the window grows");
     // W3.6: a paint renders at once only with a frame-latency credit (else it defers to the next paced frame); take one first.
-    Require(window.Host().DebugWaitForFrameCreditForTest(1'000u), "the host takes a frame credit");
+    Require(AwaitFrameCreditForTest(window.Host()), "the host takes a frame credit");
     Require(UpdateWindow(window.Hwnd()) != FALSE, "the resize paints now");
     Require(window.Host().DebugGetResizeCount() == resizes + 1u, "the paint resized the swap chain");
     const uint64_t fullPresents = window.Host().DebugGetFullPresentAttemptCount();
@@ -7858,6 +7858,13 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestFramePacingSampleTimeIsTheTargetTime);
     DXUI_RUN_TEST(TestFramePacingEmbeddedHostOwnsNoPacer);
     DXUI_RUN_TEST(TestFramePacingDetachFuzz);
+    DXUI_RUN_TEST(TestFramePacingFailedPresentKeepsTheCredit);
+    DXUI_RUN_TEST(TestFramePacingSuccessStatusKeepsTheCredit);
+    DXUI_RUN_TEST(TestFramePacingOutOfRangeTargetDoesNotFreezeTime);
+    DXUI_RUN_TEST(TestFramePacingCreditSeamKeepsDeferredPaint);
+    DXUI_RUN_TEST(TestFramePacingCancelRaceKeepsTheUnit);
+    DXUI_RUN_TEST(TestFramePacingForeignMessagePumpKeepsPainting);
+    DXUI_RUN_TEST(TestFramePacingUnpresentedRenderPublishesNothing);
     DXUI_RUN_TEST(TestFramePacingSampleTimeIsTargetTimeOnHardware);
     DXUI_RUN_TEST(TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLoss);
     DXUI_RUN_TEST(TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);

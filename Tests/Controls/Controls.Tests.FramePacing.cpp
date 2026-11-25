@@ -10,6 +10,7 @@
 #pragma warning(pop)
 #include "GraphicsFixture.h"
 #include "Support/AnimationDispatcher.h"
+#include "Support/FramePacing.Tests.Hooks.h"
 #include "Support/Trace.h"
 #include "Support/WorkCounters.h"
 
@@ -232,6 +233,13 @@ public:
     LARGE_INTEGER frequency{};
     QueryPerformanceFrequency(&frequency);
     return static_cast<uint64_t>(frequency.QuadPart);
+}
+
+// Accessibility mutations raised on this thread (each tells UI Automation the window's content changed); prepared content
+// published to text services and UI Automation raises one.
+[[nodiscard]] uint64_t Mutations() noexcept
+{
+    return DxUi::Detail::Work().accessibility.mutations;
 }
 } // namespace
 
@@ -656,10 +664,10 @@ void TestFramePacingSynchronousRendersBuildNoLatency()
     PumpFor(200u);
     paced.Settle();
     // Probe the queue: take the credit, spend it on a present, and ask for a unit at once.
-    Require(host.DebugWaitForFrameCreditForTest(500u), "a credit after the frames retired");
+    Require(AwaitFrameCreditForTest(host), "a credit after the frames retired");
     host.DebugRenderDirtyRectForTest(RECT{0, 0, 40, 40});
     Require(! host.DebugWaitForFrameCreditForTest(0u), "no spare unit: a frame is in flight and nothing queued beyond it (latency bound 1)");
-    Require(host.DebugWaitForFrameCreditForTest(500u), "the in-flight frame returns its unit when it retires");
+    Require(AwaitFrameCreditForTest(host), "the in-flight frame returns its unit when it retires");
     host.DebugRenderDirtyRectForTest(RECT{0, 0, 40, 40}); // spends that credit, leaving the pacer as a paint would
     paced.Settle();
 }
@@ -782,19 +790,23 @@ void TestFramePacingSampleTimeIsTheTargetTime()
     Require(paced60 > 0u && paced144 > 0u, "a refresh-rate change is followed at the next frame");
     Require(exact * 100u >= total * 99u, "the sample equals the frame's target time in >= 99% of paced frames");
 
-    // Hitch clamp: a target 200 ms after the previous sample advances the timeline by the 50 ms clamp.
+    // Hitch clamp: a real hitch (the UI thread blocked for 200 ms in a tick) makes the next frame's target 200 ms after the
+    // previous sample; the timeline advances by the 50 ms clamp. (A target that far ahead of now is out of range instead:
+    // TestFramePacingOutOfRangeTargetDoesNotFreezeTime.)
     ticks.clear();
     paced.probe->onTick = [&ticks](DxUi::ControlHost&, uint64_t now)
     {
         ticks.push_back(now);
+        if (ticks.size() == 1u)
+            Sleep(200u);
         return ticks.size() < 2u;
     };
-    host.DebugSetCompositorStatsForTest(DxUi::WindowHost::CompositorStatsForTest{QpcNow() + frequency / 5u, frequency / 60u, S_OK});
+    host.DebugSetCompositorStatsForTest(DxUi::WindowHost::CompositorStatsForTest{QpcNow(), frequency / 60u, S_OK});
     RecordCapture clampCapture(64u);
     {
         const ScopedSink sink(clampCapture);
         host.RequestAnimation(*paced.probe);
-        Require(PumpUntil(2'000u, [&ticks] { return ticks.size() >= 1u; }), "a frame after a 200 ms jump");
+        Require(PumpUntil(2'000u, [&ticks] { return ticks.size() >= 2u; }), "a frame after a 200 ms hitch");
     }
     bool clamped = false;
     for (const Trace::Record& record : clampCapture.records)
@@ -1032,4 +1044,357 @@ void TestFramePacingSampleTimeIsTargetTimeOnHardware()
         return;
     }
     Require(matched * 100u >= total * 99u, "W3.6 gate: the animation sample equals the frame's targetTime in >= 99% of paced frames");
+}
+
+// A credit is spent by a frame that was queued, never by an attempt (review A1). A Present that fails with an error that is
+// not a device loss (here DXGI_ERROR_INVALID_CALL from a dirty rectangle beyond the buffer) queues no frame, so no unit will
+// come back for it: the host keeps its credit and presents the next requested frame, without waiting for a resize. The
+// swap chain's present count shows that the failed call queued nothing. The same holds while the host animates through
+// paced frames: a failed present there neither stops the ticks nor the presents that follow.
+void TestFramePacingFailedPresentKeepsTheCredit()
+{
+    {
+        PacedWindow paced;
+        auto& host = paced.Host();
+        paced.Settle();
+        Require(AwaitFrameCreditForTest(host), "a credit before the failing present");
+        UINT countBefore = 0u;
+        UINT countAfter  = 0u;
+        DXGI_FRAME_STATISTICS displayed{};
+        static_cast<void>(host.DebugGetPresentStatisticsForTest(countBefore, displayed));
+        const auto width = static_cast<LONG>(host.DebugGetWidthPx());
+        host.DebugRenderDirtyRectForTest(RECT{width - 10, 0, width + 50, 20});
+        const HRESULT failed = host.DebugGetLastPresentResult();
+        static_cast<void>(host.DebugGetPresentStatisticsForTest(countAfter, displayed));
+        const auto state = host.DebugGetFramePacerStateForTest();
+        std::cout << "    [W3.6] out-of-buffer dirty rectangle: Present1 0x" << std::hex << static_cast<unsigned long>(failed) << std::dec << ", present count "
+                  << countBefore << " -> " << countAfter << ", credit " << state.credit << ", armed " << state.waitArmed << '\n';
+        Require(failed == DXGI_ERROR_INVALID_CALL, "precondition: the present failed with an error that is not a device loss");
+        Require(countAfter == countBefore, "the failed call queued no frame");
+        Require(state.credit && ! state.waitArmed, "a call that queued no frame leaves the credit held and nothing waiting");
+        const WorkCounterScope after;
+        paced.probe->Repaint(host);
+        const bool presented = PumpUntil(10'000u, [&after] { return after.Delta().frame.presents >= 1u; });
+        std::cout << "    [W3.6] after the failed present: presents " << after.Delta().frame.presents << ", wait timeouts "
+                  << after.Delta().frame.pacerWaitTimeouts << ", deferred paints " << after.Delta().frame.pacerDeferredPaints << '\n';
+        Require(presented && after.Delta().frame.presentsWithoutCredit == 0u, "the next requested frame presents, with the credit the failure kept");
+        Require(after.Delta().frame.pacerDeferredPaints == 0u, "and at once: it finds the credit, nothing waits for a unit");
+        Require(after.Delta().frame.pacerInvariantViolations == 0u, "every deferred paint keeps its wake");
+        paced.Settle();
+    }
+    {
+        PacedWindow paced;
+        auto& host          = paced.Host();
+        paced.probe->onTick = [&paced](DxUi::ControlHost& tickHost, uint64_t)
+        {
+            paced.probe->Repaint(tickHost);
+            return true;
+        };
+        host.RequestAnimation(*paced.probe);
+        Require(PumpUntil(10'000u, [&paced] { return paced.probe->ticks >= 3u; }), "the animation ticks through paced frames");
+        Require(AwaitFrameCreditForTest(host), "a credit for the failing present");
+        const auto width = static_cast<LONG>(host.DebugGetWidthPx());
+        host.DebugRenderDirtyRectForTest(RECT{width - 10, 0, width + 50, 20});
+        Require(FAILED(host.DebugGetLastPresentResult()), "precondition: the present failed");
+        const size_t ticks = paced.probe->ticks;
+        const WorkCounterScope after;
+        const bool resumed = PumpUntil(10'000u, [&] { return after.Delta().frame.presents >= 5u && paced.probe->ticks >= ticks + 5u; });
+        std::cout << "    [W3.6] animating, after a failed present: " << paced.probe->ticks - ticks << " ticks, " << after.Delta().frame.presents
+                  << " presents, " << after.Delta().frame.pacerWaitTimeouts << " wait timeouts\n";
+        // A lost credit would stop the presents for good; a slow wait under load (a timeout) is not a defect.
+        Require(resumed && after.Delta().frame.presentsWithoutCredit == 0u, "an animating host keeps ticking and presenting after a failed present");
+        host.CancelAnimation(*paced.probe);
+        paced.Settle();
+    }
+}
+
+// Only S_OK spends the credit (round 2, decision 1): a success status such as DXGI_STATUS_OCCLUDED may or may not have queued a
+// frame, and a credit spent on a frame that returns no unit would leave the window never painting again. Through the private
+// seam that makes a present report another result (Support/FramePacing.Tests.Hooks.h):
+// - a test-owned object that never returns a unit (the case a spent credit could not survive): the host keeps the credit and
+//   presents the next requested frame at once;
+// - the real chain, whose frame did queue and returns its unit: the host keeps one credit (never more), presents on, and the
+//   queue is back within its bound after the next present.
+void TestFramePacingSuccessStatusKeepsTheCredit()
+{
+    {
+        PacedWindow paced;
+        auto& host = paced.Host();
+        paced.Settle();
+        wil::unique_handle units(CreateSemaphoreW(nullptr, 0, 8, nullptr));
+        host.DebugSetFramePacerWaitableForTest(units.get(), 5'000u);
+        Require(ReleaseSemaphore(units.get(), 1, nullptr) != FALSE, "one unit for the occluded present");
+        Require(host.DebugWaitForFrameCreditForTest(100u), "the host takes it");
+        DxUi::Detail::SetNextPresentResultForTest(DXGI_STATUS_OCCLUDED);
+        host.DebugRenderDirtyRectForTest(RECT{0, 0, 40, 40});
+        const auto state = host.DebugGetFramePacerStateForTest();
+        std::cout << "    [W3.6] present reporting DXGI_STATUS_OCCLUDED: last result 0x" << std::hex
+                  << static_cast<unsigned long>(host.DebugGetLastPresentResult()) << std::dec << ", credit " << state.credit << ", armed " << state.waitArmed
+                  << '\n';
+        Require(host.DebugGetLastPresentResult() == DXGI_STATUS_OCCLUDED, "precondition: the present reported DXGI_STATUS_OCCLUDED");
+        Require(state.credit && ! state.waitArmed, "a success status other than S_OK keeps the credit and waits for nothing");
+        const WorkCounterScope after;
+        paced.probe->Repaint(host);
+        const bool presented = PumpUntil(10'000u, [&after] { return after.Delta().frame.presents >= 1u; });
+        std::cout << "    [W3.6] next frame with no unit returned: presents " << after.Delta().frame.presents << ", deferred paints "
+                  << after.Delta().frame.pacerDeferredPaints << '\n';
+        host.DebugSetFramePacerWaitableForTest(nullptr);
+        Require(presented && after.Delta().frame.pacerDeferredPaints == 0u && after.Delta().frame.presentsWithoutCredit == 0u,
+                "the window presents its next frame at once although no unit came back");
+    }
+    {
+        PacedWindow paced;
+        auto& host = paced.Host();
+        paced.Settle();
+        Require(AwaitFrameCreditForTest(host), "a credit on the real chain");
+        DxUi::Detail::SetNextPresentResultForTest(DXGI_STATUS_OCCLUDED);
+        host.DebugRenderDirtyRectForTest(RECT{0, 0, 40, 40}); // queued for real, reported as occluded
+        Require(host.DebugGetFramePacerStateForTest().credit, "the credit is kept");
+        // The occluded frame retires and returns a unit the host's credit already stands for: one too many. Whenever it comes
+        // back (the next present or a later one, however loaded the machine), a present made while the credit is held absorbs it.
+        const WorkCounterScope next;
+        size_t presents = 0u;
+        while (next.Delta().frame.pacerExcessUnits == 0u && presents < 50u)
+        {
+            PumpFor(10u);
+            Require(AwaitFrameCreditForTest(host), "a credit for the next present");
+            host.DebugRenderDirtyRectForTest(RECT{0, 0, 40, 40});
+            ++presents;
+        }
+        const bool beyondBound = host.DebugWaitForFrameCreditForTest(0u);
+        std::cout << "    [W3.6] real chain after an occluded present: " << next.Delta().frame.pacerExcessUnits << " excess unit absorbed after " << presents
+                  << " present(s), a unit beyond the bound while the next frame is in flight " << beyondBound << '\n';
+        Require(next.Delta().frame.pacerExcessUnits == 1u, "the unit the occluded frame returned is absorbed, once");
+        Require(! beyondBound, "the queue is back within its bound: no unit while a frame is in flight");
+        PumpFor(150u);
+        Require(AwaitFrameCreditForTest(host), "the in-flight frame returns its unit");
+        host.DebugRenderDirtyRectForTest(RECT{0, 0, 40, 40});
+        paced.Settle();
+    }
+}
+
+// The hitch clamp keeps its meaning for a real hitch, and a target the compositor could not have meant is not accepted
+// (review E1). A sampled target is valid only after now and at most kFramePacerMaxTargetPeriods refresh periods ahead; one
+// beyond that (here 3 s ahead, a bad statistics read) samples the current time and is counted, so the timeline keeps
+// advancing at real time afterwards and its anchor never lies further ahead of real time than that bound.
+void TestFramePacingOutOfRangeTargetDoesNotFreezeTime()
+{
+    PacedWindow paced;
+    auto& host = paced.Host();
+    paced.Settle();
+    std::vector<uint64_t> ticks;
+    ticks.reserve(4096u);
+    paced.probe->onTick = [&ticks](DxUi::ControlHost&, uint64_t now)
+    {
+        ticks.push_back(now);
+        return true;
+    };
+    host.RequestAnimation(*paced.probe);
+    Require(PumpUntil(10'000u, [&ticks] { return ticks.size() >= 5u; }), "paced frames tick");
+    const uint64_t frequency = QpcFrequency();
+    RecordCapture capture(64u);
+    const WorkCounterScope outOfRange;
+    {
+        const ScopedSink sink(capture);
+        host.DebugSetCompositorStatsForTest(DxUi::WindowHost::CompositorStatsForTest{QpcNow() + 3u * frequency, frequency / 60u, S_OK});
+        const size_t before = ticks.size();
+        Require(PumpUntil(10'000u, [&] { return ticks.size() >= before + 1u; }), "a frame samples the out-of-range target");
+        host.DebugSetCompositorStatsForTest(std::nullopt);
+    }
+    bool fellBack = false;
+    for (const Trace::Record& record : capture.records)
+        fellBack = fellBack || (record.event == Trace::Event::FramePaced && record.detail == static_cast<uint8_t>(Trace::PacedSampleSource::Fallback));
+    const uint64_t sampled   = ticks.back();
+    const uint64_t realStart = GetTickCount64();
+    PumpFor(1'000u);
+    const uint64_t realMs     = GetTickCount64() - realStart;
+    const uint64_t advancedMs = ticks.back() - sampled;
+    std::cout << "    [W3.6] one target 3 s ahead: " << outOfRange.Delta().frame.pacerTargetsOutOfRange << " rejected; then " << realMs
+              << " ms of real time advanced the timeline " << advancedMs << " ms\n";
+    host.CancelAnimation(*paced.probe);
+    paced.Settle();
+    Require(outOfRange.Delta().frame.pacerTargetsOutOfRange >= 1u && fellBack, "a target beyond the bound samples the current time and is counted");
+    // Frozen, the timeline advanced 0 ms; a loaded machine may lose time to the hitch clamp, never all of it.
+    Require(advancedMs * 4u >= realMs, "the timeline keeps advancing after an out-of-range target");
+}
+
+// The test seam DebugWaitForFrameCreditForTest cancels the armed wait and takes the credit (review G1): a paint deferred before
+// it still renders. The pacer's invariant, checked after each of its transitions in Debug (frame.pacerInvariantViolations): a
+// deferred paint always has a wake (an armed wait whose message may already be posted, or the paced frame rendering it now).
+void TestFramePacingCreditSeamKeepsDeferredPaint()
+{
+    PacedWindow paced;
+    auto& host = paced.Host();
+    paced.Settle();
+    wil::unique_handle units(CreateSemaphoreW(nullptr, 0, 8, nullptr));
+    host.DebugSetFramePacerWaitableForTest(units.get(), 5'000u);
+    const WorkCounterScope seam;
+    paced.probe->Repaint(host);
+    static_cast<void>(UpdateWindow(paced.window.Hwnd()));
+    Require(host.DebugGetFramePacerStateForTest().deferred && host.DebugGetFramePacerStateForTest().waitArmed, "a paint deferred");
+    Require(ReleaseSemaphore(units.get(), 1, nullptr) != FALSE, "a frame retires");
+    Sleep(50u);
+    Require(host.DebugWaitForFrameCreditForTest(100u), "the seam takes the credit");
+    const bool presented = PumpUntil(10'000u, [&seam] { return seam.Delta().frame.presents >= 1u; });
+    const auto state     = host.DebugGetFramePacerStateForTest();
+    std::cout << "    [W3.6] deferred paint after the credit seam: presented " << presented << ", credit " << state.credit << ", armed " << state.waitArmed
+              << ", deferred " << state.deferred << ", invariant violations " << seam.Delta().frame.pacerInvariantViolations << '\n';
+    host.DebugSetFramePacerWaitableForTest(nullptr);
+    Require(presented && ! state.deferred, "a paint deferred before the credit seam is still rendered");
+    Require(seam.Delta().frame.pacerInvariantViolations == 0u, "every deferred paint keeps its wake");
+}
+
+// Cancelling a wait whose object was signaled a moment before keeps the unit, as the credit or still in the object (the
+// drain in DrainWait; review K3: without WaitForThreadpoolWaitCallbacks most rounds lose it). Random spins place the cancel
+// before, during and after the callback.
+void TestFramePacingCancelRaceKeepsTheUnit()
+{
+    PacedWindow paced;
+    auto& host = paced.Host();
+    paced.Settle();
+    wil::unique_handle units(CreateSemaphoreW(nullptr, 0, 8, nullptr));
+    size_t lost = 0u, spare = 0u, notArmed = 0u;
+    constexpr int kRounds = 400;
+    for (int round = 0; round < kRounds; ++round)
+    {
+        host.DebugSetFramePacerWaitableForTest(units.get(), 5'000u); // credit dropped, nothing armed
+        paced.probe->Repaint(host);
+        static_cast<void>(UpdateWindow(paced.window.Hwnd())); // no unit: the paint defers and arms the wait
+        if (! host.DebugGetFramePacerStateForTest().waitArmed)
+        {
+            ++notArmed;
+            continue;
+        }
+        Require(ReleaseSemaphore(units.get(), 1, nullptr) != FALSE, "a frame retires");
+        for (int spin = 0; spin < (round * 7) % 400; ++spin)
+            YieldProcessor();
+        if (! host.DebugWaitForFrameCreditForTest(0u)) // cancel (drain), then take without waiting
+            ++lost;
+        while (WaitForSingleObject(units.get(), 0u) == WAIT_OBJECT_0)
+            ++spare;
+        MSG message{};
+        while (PeekMessageW(&message, nullptr, 0u, 0u, PM_REMOVE))
+            static_cast<void>(DispatchQueuedMessageForTest(message));
+    }
+    std::cout << "    [W3.6] cancel race, " << kRounds << " rounds: lost " << lost << ", spare " << spare << ", not armed " << notArmed << '\n';
+    host.DebugSetFramePacerWaitableForTest(nullptr);
+    Require(notArmed == 0u, "every round armed the wait");
+    Require(lost == 0u && spare == 0u, "a unit taken by a satisfied wait is never lost when the wait is cancelled");
+}
+
+// A foreign message pump (a plain GetMessage/DispatchMessage loop, as the system's size/move, menu and drag loops run) keeps a
+// paced host painting: the paced frame is a message posted to the host's own window and the skip timer a WM_TIMER with a timer
+// procedure, both delivered by DispatchMessage alone; the host has no idle step a pump must run.
+void TestFramePacingForeignMessagePumpKeepsPainting()
+{
+    PacedWindow paced;
+    auto& host = paced.Host();
+    paced.Settle();
+    const auto foreignPump = [](uint64_t durationMs, auto&& done)
+    {
+        // A thread timer bounds GetMessage; nothing of DxUi's (no test helper) touches the messages.
+        const UINT_PTR timer = SetTimer(nullptr, 0u, 20u, nullptr);
+        const uint64_t end   = GetTickCount64() + durationMs;
+        MSG message{};
+        while (! done() && GetTickCount64() < end && GetMessageW(&message, nullptr, 0u, 0u) > 0)
+        {
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+        KillTimer(nullptr, timer);
+        return done();
+    };
+    // An animation that repaints every tick, then one whose ticks present nothing (the skip timer), then a deferred paint.
+    size_t skipping     = 0u;
+    paced.probe->onTick = [&paced, &skipping](DxUi::ControlHost& tickHost, uint64_t)
+    {
+        if (skipping == 0u)
+            paced.probe->Repaint(tickHost);
+        else
+            ++skipping;
+        return true;
+    };
+    const WorkCounterScope animating;
+    host.RequestAnimation(*paced.probe);
+    const bool presenting = foreignPump(10'000u, [&animating] { return animating.Delta().frame.presents >= 10u; });
+    skipping              = 1u;
+    const WorkCounterScope skipped;
+    const bool ticking = foreignPump(10'000u, [&skipping] { return skipping >= 6u; });
+    host.CancelAnimation(*paced.probe);
+    wil::unique_handle units(CreateSemaphoreW(nullptr, 0, 8, nullptr));
+    host.DebugSetFramePacerWaitableForTest(units.get(), 5'000u);
+    const WorkCounterScope deferredScope;
+    paced.probe->Repaint(host);
+    static_cast<void>(UpdateWindow(paced.window.Hwnd()));
+    const bool deferred = host.DebugGetFramePacerStateForTest().deferred;
+    Require(ReleaseSemaphore(units.get(), 1, nullptr) != FALSE, "a frame retires");
+    const bool rendered = foreignPump(10'000u, [&deferredScope] { return deferredScope.Delta().frame.presents >= 1u; });
+    std::cout << "    [W3.6] foreign pump: " << animating.Delta().frame.presents << " presents and " << animating.Delta().wakes.pacedFrame
+              << " paced frames animating, " << skipped.Delta().wakes.pacerTimer << " skip timers, deferred paint rendered " << rendered << '\n';
+    host.DebugSetFramePacerWaitableForTest(nullptr);
+    Require(presenting && animating.Delta().wakes.pacedFrame >= 10u, "paced frames reach the host through a foreign pump");
+    Require(ticking && skipped.Delta().wakes.pacerTimer >= 1u, "the skip timer reaches the host through a foreign pump");
+    Require(deferred && rendered, "a deferred paint is rendered through a foreign pump");
+}
+
+// Text services and UI Automation learn of content after its pixels were presented (review H2): a render that presented
+// nothing because no credit was available publishes nothing; the frame that presents it publishes. While the compositor is
+// stalled, a wait that times out with the frame still deferred publishes it, so a client waits at most one timeout (250 ms)
+// for geometry it would otherwise wait for until the display composes again.
+void TestFramePacingUnpresentedRenderPublishesNothing()
+{
+    PacedWindow paced;
+    auto& host = paced.Host();
+    auto* root = static_cast<DxUi::Panel*>(host.GetRoot());
+    // A rich text editor prepares its layout as content (Control::EnableContentPreparation): what PublishPreparedContent
+    // tells text services and UI Automation about.
+    auto* field = root->AddChild<DxUi::RichTextEditor>(L"Value");
+    field->SetBounds(D2D1::RectF(8.0f, 50.0f, 240.0f, 120.0f));
+    field->SetAccessibleName(L"Entry");
+    Require(DxUi::DebugSetAccessibilityMutationInterestForTest(paced.window.Hwnd(), true), "the window publishes at each mutation");
+    const auto removeInterest =
+        wil::scope_exit([&paced] { static_cast<void>(DxUi::DebugSetAccessibilityMutationInterestForTest(paced.window.Hwnd(), std::nullopt)); });
+    host.RefreshAccessibilitySnapshot();
+    PumpFor(100u);
+    paced.Settle();
+    const UINT pacedFrame = RegisterWindowMessageW(L"RedSalamanders.DxUi.WindowHost.PacedFrame.v1");
+    for (const bool stalled : {false, true})
+    {
+        wil::unique_handle units(CreateSemaphoreW(nullptr, 0, 8, nullptr));
+        host.DebugSetFramePacerWaitableForTest(units.get(), stalled ? 60u : 5'000u);
+        field->SetText(stalled ? L"A value laid out again while the compositor is stalled" : L"A longer value that the field lays out again");
+        const uint64_t before = Mutations();
+        const WorkCounterScope render;
+        static_cast<void>(host.RenderInitialFrameForShow()); // a bounded wait that finds no credit: renders, does not present
+        const uint64_t afterRender = Mutations();
+        std::cout << "    [W3.6] " << (stalled ? "stalled" : "retiring") << ": a render without a credit (" << render.Delta().frame.renders << " renders, "
+                  << render.Delta().frame.presents << " presents) published " << afterRender - before << '\n';
+        Require(render.Delta().frame.renders == 1u && render.Delta().frame.presents == 0u, "precondition: the render ran and presented nothing");
+        Require(afterRender == before, "a render that presented nothing publishes nothing");
+        if (! stalled)
+        {
+            Require(ReleaseSemaphore(units.get(), 1, nullptr) != FALSE, "a frame retires");
+            host.DebugRenderDirtyRectForTest(RECT{0, 0, 40, 40}); // takes the credit and presents
+            Require(render.Delta().frame.presents == 1u, "precondition: the frame presents");
+            Require(Mutations() > afterRender, "the frame that presents publishes the prepared content");
+        }
+        else
+        {
+            // Only the paced-frame messages are dispatched, so nothing but the pacer's timeout can publish.
+            const uint64_t end = GetTickCount64() + 10'000u;
+            while (Mutations() == afterRender && GetTickCount64() < end)
+            {
+                MSG message{};
+                while (PeekMessageW(&message, paced.window.Hwnd(), pacedFrame, pacedFrame, PM_REMOVE))
+                    DispatchMessageW(&message);
+                Sleep(5u);
+            }
+            std::cout << "    [W3.6] stalled: " << render.Delta().frame.pacerWaitTimeouts << " timeouts, published " << Mutations() - afterRender
+                      << ", presents " << render.Delta().frame.presents << '\n';
+            Require(render.Delta().frame.presents == 0u && render.Delta().frame.pacerWaitTimeouts >= 1u && Mutations() > afterRender,
+                    "a stalled compositor's first timeout publishes the deferred frame's content");
+        }
+        host.DebugSetFramePacerWaitableForTest(nullptr);
+        PumpFor(100u);
+    }
 }

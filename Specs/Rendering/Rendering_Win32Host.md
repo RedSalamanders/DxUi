@@ -143,12 +143,28 @@ not block under latency 1 but queues, and later returns a unit of its own, one m
 therefore never presents without a unit. A unit the host holds is its credit:
 
 - The credit is taken when a unit is taken: from the chain's first unit when the chain is created, without waiting when no
-  wait is armed (`WaitForSingleObject` with a zero timeout), or by the thread-pool wait below. `Present` or `Present1` spends
-  it. Releasing or recreating the chain drops it. `ResizeBuffers` keeps it.
+  wait is armed (`WaitForSingleObject` with a zero timeout), or by the thread-pool wait below. Only a present that returned
+  `S_OK` spends it; any other result keeps it, never more than one credit. A failure queued nothing (on WARP, `Present1`
+  refused with `DXGI_ERROR_INVALID_CALL` leaves the chain's present count unchanged), so no unit will come back for it. A
+  success status such as `DXGI_STATUS_OCCLUDED` may or may not have queued a frame, and the two errors are not equal: a
+  credit spent on a frame that returns no unit would leave the window never painting again, exactly where that status
+  appears (a minimized window, a locked session), while a credit kept for a frame that did queue leaves one unit too many.
+  That unit is absorbed: one credit and one queued frame account for the only unit a latency-1 chain has, so a unit found in
+  the object while the credit is held is an excess one; it is taken and dropped before the next present
+  (`frame.pacerExcessUnits`), and the queue is back within its bound one frame later at most. The host presents the next requested frame at once in every case (`TestFramePacingFailedPresentKeepsTheCredit`,
+  `TestFramePacingSuccessStatusKeepsTheCredit`, through a private seam that makes a present report another result; flip
+  chains on the supported baseline never return `DXGI_STATUS_OCCLUDED`). The host has no other handling of that status: as
+  for any result other than `S_OK`, a frame that had to be full (after a buffer reset) stays owed until a present returns
+  `S_OK`. A device loss releases the chain and the credit with it. Releasing or recreating the chain drops it.
+  `ResizeBuffers` keeps it.
 - Nothing waits on the object while the credit is held, so nothing can wait for a unit that no present will return.
-- Every present spends a credit; a present without one is counted (`frame.presentsWithoutCredit`) and does not happen on any
-  path of the host.
+- Every present is made with a credit; a present without one is counted (`frame.presentsWithoutCredit`) and does not happen
+  on any path of the host.
 - Only the attachment owner thread reads or writes the credit.
+- A deferred paint always has a wake: an armed wait (whose message may already be posted) or the paced frame rendering it
+  now. A path that takes the credit while a paint is deferred (a synchronous render, a test seam) or keeps it after a failed
+  present hands the deferred region back to the window's update region, where the next `WM_PAINT` renders it with that
+  credit. Debug builds check this after each pacer transition (`frame.pacerInvariantViolations` stays 0).
 
 When a frame is wanted (an every-frame request of the [frame schedule](#frame-schedule), or a paint that found no credit) and
 no credit is held, the host arms one thread-pool wait on the object (`SetThreadpoolWait`, re-armed per frame) in the process
@@ -161,8 +177,9 @@ whose identity is not the armed request (cancelled, an earlier chain, an earlier
 counted (`frame.pacerStaleFrames`). Cancelling a wait sets it to nothing and then waits for its callbacks without cancelling
 pending ones, so a unit a satisfied wait took becomes the credit instead of being lost. Teardown always cancels the wait,
 drains its callbacks and closes the handle before the chain is released (`frame.pacerTeardownOrderViolations` stays 0); the
-pacer is destroyed before the chain on every path, a destructor on a foreign thread included, and at process exit, when the
-pool's threads are gone, the wait is abandoned without waiting.
+pacer is destroyed before the chain on every path, a destructor on a foreign thread included. Every drain (a cancel, a chain
+release, a test seam, the pacer's destructor) passes through one function, which at process exit
+(`wil::ProcessShutdownInProgress`), when the pool's threads are gone, abandons the wait without waiting for its callbacks.
 
 A paced-frame message with its credit is one frame: while the schedule asks for every frame the host samples the animation
 time and runs the scheduled wake, then renders the paints it deferred and whatever the wake invalidated through its own
@@ -183,6 +200,12 @@ Every native render waits for a credit first or defers to the paced frame, so no
 - A diagnostic capture (`DebugCaptureBitmap`) renders and reads the back buffer and does not present: it neither takes nor
   needs a credit. A test render whose caller reads the presented result (`DebugRenderDirtyRectForTest`) waits at most 250 ms.
 - A bounded wait that finds no credit does not present (`frame.pacerSynchronousTimeouts`); the frame is deferred.
+- Text services and UI Automation learn of prepared content (new text extents) after its pixels were presented. A render
+  that presented nothing for want of a credit publishes nothing; its deferred paint publishes when it presents. The one
+  exception is a stalled compositor: the first wait timeout that finds the frame still deferred publishes its prepared
+  content before its pixels are presented, so a client waits at most one timeout (250 ms) for it rather than until the
+  display composes again. That order is acceptable only there, since a stalled compositor displays nothing. A capture,
+  which never presents, publishes as a capture did before frame pacing.
 - Latency bound: since no path presents without a credit (a synchronous render that finds none defers, a capture never
   presents), at most one frame is ever queued behind the one being shown, and the object never holds a spare unit that
   would let a later frame queue a second one. `TestFramePacingSynchronousRendersBuildNoLatency` presents twenty bounded-wait
@@ -209,8 +232,15 @@ ordinary runs on a shared machine only record the evidence. The sample advances 
 the timeline never reads less than a value it gave out, so a timeline up to one frame ahead of uptime holds the idle clock
 until uptime catches up, and between paced frames the clock runs on at real time. Caret blinks and tooltip delays stay
 deadlines on that timeline. When the statistics are unavailable (or report no period) the frame samples the current time
-(`frame.pacerStatsFallbacks`); statistics are read for every frame, so a change of refresh rate or a move to another monitor is
-followed at the next frame. Each paced frame writes a `FramePaced` trace event with its target, its sample, the period and
+(`frame.pacerStatsFallbacks`). A target is valid only after now and at most three refresh periods ahead (the confirmed frame
+targets the next vertical blank, the compositor composes at most one frame ahead of it, and one period absorbs the gap
+between the clock read and the statistics read), with a period of at most 100 ms; a frame whose target lies beyond that
+samples the current time and is counted (`frame.pacerTargetsOutOfRange`), so the hitch clamp still shortens a real hitch's
+step while the timeline's anchor never lies more than three periods ahead of real time. Statistics are read for every frame,
+so a change of the compositor clock's refresh rate is followed at the next frame. They are the compositor's global
+statistics (`DCompositionGetStatistics`; per-target statistics are not read): a window on a display whose refresh rate
+differs from the compositor clock's samples its animation time, and times its skip timer, on the compositor clock's targets
+and period, not on its own display's vertical blanks (not verified on a second display). Each paced frame writes a `FramePaced` trace event with its target, its sample, the period and
 whether it was clamped ([trace provider](../Core/Core_PerformanceAndResources.md#trace-provider)).
 
 Idle and hidden: the pacer arms only for a deferred paint or while a visible, unsuspended host holds an every-frame request.
@@ -221,11 +251,18 @@ hidden without a schedule change is observed hidden by at most one frame, as the
 Popups: the menu modal loop takes a popup's paced-frame message as early as its `WM_PAINT`, so popup feedback never waits
 behind ordinary owner traffic.
 
+Message loops: the paced frame is a message posted to the host's own window and the skip timer a `WM_TIMER` with a timer
+procedure, so any loop that dispatches the window's messages keeps a paced host painting, a foreign one included (the
+system's size/move, menu and drag loops, a plain `GetMessage`/`DispatchMessage` loop); the host has no idle step a loop must
+run (`TestFramePacingForeignMessagePumpKeepsPainting`).
+
 Gate evidence on WARP (WindowHost suite, `Controls.Tests.FramePacing.cpp`): 0 pacer wakes with nothing armed on `FX1`
 read-only; ten consecutive ticks that skip `Present` run with at most one wake per refresh period and present the next frame
 with the held credit; `FX10`'s window sweep presents only with a credit and creates one chain (0 `ResizeBuffers` failures);
 stale messages are rejected after cancel, chain recreation and re-attachment; a stalled compositor presents nothing; a detach
-fuzz holds the teardown order under ASan. The hardware clause, the sample equal to the frame's `targetTime` within the
+fuzz holds the teardown order under ASan; a failed present keeps the credit; an out-of-range target does not hold the
+timeline; a deferred paint keeps its wake through the credit seam; cancelling a just-signaled wait keeps its unit; a foreign
+message loop keeps a paced host painting; a render that presented nothing publishes nothing. The hardware clause, the sample equal to the frame's `targetTime` within the
 clock's 1 ms in at least 99% of `FX11`'s paced frames at 60 and 144 Hz, is `TestFramePacingSampleTimeIsTargetTimeOnHardware`.
 
 ### Caret clock

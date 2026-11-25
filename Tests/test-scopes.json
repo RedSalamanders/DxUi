@@ -475,6 +475,13 @@
       "reason": "retained-cache registry behind the incremental-versus-fresh oracle in both hosts"
     },
     {
+      "pattern": "src/Support/FramePacing.Tests.Hooks.h",
+      "scopes": [
+        "WindowHost"
+      ],
+      "reason": "frame-pacing present-result injection seam of the native host's pacer tests"
+    },
+    {
       "pattern": "src/Support/RetainedCaches.Tests.Hooks.h",
       "scopes": [
         "Rendering",

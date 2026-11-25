@@ -494,6 +494,10 @@ consumer, never closed by a library change.
 2. One user-settings call (`W3.5`): `ControlHost::RefreshUserSettings()` re-reads every user setting a host keeps; an
    application calls it for embedded views and for native hosts on child windows.
 
+Native frame pacing (`W3.6`) breaks no source but changes `ControlHost`'s object layout (new data members) and what
+`UpdateWindow` guarantees on a native host's window; the [upgrade guide](../../docs/upgrade.md#api-6) says what a consumer
+must know.
+
 The revision increments when a consumer built against the previous one could stop compiling, linking or behaving as before
 without a change of its own:
 - a public header, declaration, MSBuild property or file is removed or renamed;

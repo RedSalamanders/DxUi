@@ -12,6 +12,13 @@ Changes in API 6:
 1. [Embedded animation request](#embedded-animation-request)
 2. [One user-settings call](#one-user-settings-call)
 
+Not a compile break, but a consumer must know it: native frame pacing gives `ControlHost` new data members, so its object
+layout differs from revision 5's; rebuild every module that includes DxUi headers against the same headers and library.
+A native host now presents a frame only when the previous one has left the swap chain's queue, so `UpdateWindow` on its
+window no longer guarantees a presented frame when it returns (see [hosting](hosting.md#native-hwnd-host)),
+and its paced frames arrive as a registered message on its window: forward every message to `HandleMessage`, as hosting
+already requires, and keep dispatching messages.
+
 ### Embedded animation request
 
 An embedded application asks the view when it next needs the application's clock. Revision-5 code that asks

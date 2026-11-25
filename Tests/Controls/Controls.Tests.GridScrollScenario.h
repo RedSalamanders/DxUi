@@ -78,7 +78,7 @@ public:
     // renders at once instead of deferring to the host's next paced frame.
     void Paint() const noexcept
     {
-        static_cast<void>(const_cast<AttachedHostWindow&>(_window).Host().DebugWaitForFrameCreditForTest(1'000u));
+        static_cast<void>(AwaitFrameCreditForTest(const_cast<AttachedHostWindow&>(_window).Host()));
         UpdateWindow(_window.Hwnd());
     }
 

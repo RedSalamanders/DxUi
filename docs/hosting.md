@@ -358,7 +358,7 @@ reason, when a window UI Automation has seen is activated again (Alt+Tab back to
 that activation restored or focused once that turn ends, unless it announced a click of the turn already. Forward
 every message, not only input, to `HandleMessage`, including registered messages (0xC000–0xFFFF): the host posts and
 sends its own messages to its window (accessibility actions, root-provider creation for another thread, the
-process-exit detach, and the message that ends that turn). DxUi registers each of them by name with
+process-exit detach, the paced frame, and the message that ends that turn). DxUi registers each of them by name with
 `RegisterWindowMessageW` (`RedSalamanders.DxUi.<Component>.<Purpose>.v1`) and reserves no `WM_USER` or `WM_APP`
 value: the application's own messages in those ranges reach its window procedure, and `HandleMessage` neither
 consumes nor acts on them. A window procedure that never passes the turn's message on leaves a click to the system's

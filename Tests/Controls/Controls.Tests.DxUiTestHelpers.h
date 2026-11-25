@@ -10,6 +10,7 @@
 #include "Support.Tests.TestWindowActivationGuard.h"
 #include "Support/Diagnostics.h"
 #include "Support/WindowMessages.h"
+#include "Support/WorkCounters.h"
 
 #include <UIAutomation.h>
 #include <imm.h>
@@ -857,6 +858,33 @@ template <typename TAction> inline bool RetryClipboardSensitiveAction(TAction ac
 }
 
 inline std::optional<std::wstring> ReadClipboardUnicodeTextForTest(HWND ownerWindow);
+
+// W3.6: takes a frame-latency credit for a harness that paints with UpdateWindow and counts one render per step. The unit
+// comes back when the compositor retires the previous frame, which on a loaded machine or a slow CI runner can take far longer
+// than a frame, so the wait has no wall-time bound of its own: a credit that never comes (a pacer that lost its unit) ends the
+// run at the test watchdog, which names the test, after this has printed the pacer's state every 5 s. A wait longer than 1 s
+// is printed too, so a slow run says so. True when the host holds a credit or is unpaced.
+inline bool AwaitFrameCreditForTest(DxUi::ControlHost& host)
+{
+    const ULONGLONG started = GetTickCount64();
+    ULONGLONG reported      = started;
+    while (! host.DebugWaitForFrameCreditForTest(250u))
+    {
+        const ULONGLONG now = GetTickCount64();
+        if (now - reported >= 5'000u)
+        {
+            reported         = now;
+            const auto state = host.DebugGetFramePacerStateForTest();
+            std::cerr << "    [W3.6] still waiting for a frame credit after " << now - started << " ms: paced " << state.paced << ", armed " << state.waitArmed
+                      << ", deferred " << state.deferred << ", continuous " << state.continuous << '\n'
+                      << std::flush;
+        }
+    }
+    if (const ULONGLONG waited = GetTickCount64() - started; waited > 1'000u)
+        std::cerr << "    [W3.6] a frame credit came after " << waited << " ms (a loaded machine); this thread's presents so far "
+                  << DxUi::Detail::Work().frame.presents << ", with a status other than S_OK " << DxUi::Detail::Work().frame.presentStatuses << '\n';
+    return true;
+}
 
 inline bool DispatchQueuedMessageForTest(const MSG& msg)
 {

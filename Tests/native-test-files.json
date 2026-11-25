@@ -271,6 +271,7 @@
   "Tools/ConsumerApi/ConsumerApi.Tests.Revision5.cpp",
   "Tools/ConsumerApi/ConsumerApi.Tests.Revision6.cpp",
   "src/Support/Failure.Tests.Hooks.h",
+  "src/Support/FramePacing.Tests.Hooks.h",
   "src/Support/MeasureCache.Tests.Hooks.h",
   "src/Support/RetainedCaches.Tests.Hooks.h"
 ]

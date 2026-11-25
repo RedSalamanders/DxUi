@@ -83,7 +83,7 @@ public:
             static_cast<void>(DispatchQueuedMessageForTest(message));
         }
         // W3.6: with a frame-latency credit taken first, the paint renders at once instead of deferring.
-        static_cast<void>(Host().DebugWaitForFrameCreditForTest(1'000u));
+        static_cast<void>(AwaitFrameCreditForTest(Host()));
         static_cast<void>(UpdateWindow(Hwnd()));
     }
     [[nodiscard]] POINT Pixel(D2D1_POINT_2F dip) const noexcept

@@ -38,6 +38,7 @@
 #include "DxUi/FrameRuntime.h"
 #include "Support/AnimationDispatcher.h"
 #include "Support/Diagnostics.h"
+#include "Support/FramePacing.Tests.Hooks.h"
 #include "Support/NativeRendering.h"
 #include "Support/Trace.h"
 #include "Support/WindowMessages.h"
@@ -2469,6 +2470,9 @@ void ControlHost::SyncDispatcherSubscription(FrameScheduleWake wake) noexcept
     // W3.6: a paced host's every-frame requests come from its swap chain, not from the dispatcher's periodic timer; its
     // deadlines are served by those frames meanwhile. Anything else stops the pacer's every-frame work. A host driven by a
     // test's animation clock keeps the dispatcher: the test, not the display, decides when it ticks.
+    // Whether the host's schedule still wants frames, read before the pacer takes the every-frame request from the dispatcher
+    // below: a host animating through paced frames still presents them, so its geometry deferral waits for W8.2's interval.
+    const bool presentsFrames = wake.kind != FrameScheduleWake::Kind::None;
     if (_framePacer)
     {
         if (wake.kind == FrameScheduleWake::Kind::Continuous && _framePacer->IsPaced() && _hwnd && ! IsScheduleSuspended() &&
@@ -2488,7 +2492,7 @@ void ControlHost::SyncDispatcherSubscription(FrameScheduleWake wake) noexcept
     // thread's dispatcher is destroyed (thread-local destruction) there is nothing to join or leave.
     // A host that stops presenting frames, however (every way of holding the schedule ends here), publishes a deferred
     // geometry-only accessibility publication now instead of holding it (W8.2).
-    if (wake.kind == FrameScheduleWake::Kind::None || HostPresentsNoFrame(*this))
+    if (! presentsFrames || HostPresentsNoFrame(*this))
         SettleAccessibilityGeometry(*this, GetAnimationTickMs(), true);
     auto* const instance = Ui::AnimationDispatcher::TryGetInstance();
     if (! instance)
@@ -3900,6 +3904,13 @@ bool ControlHost::DebugHasActiveAnimationSubscription() const noexcept
     return _animationSubscriptionId != 0u && _dispatcherWakeKind != FrameScheduleWake::Kind::None;
 }
 
+namespace
+{
+// Defined with the frame pacing code below.
+void RestoreDeferredPaintWake(HWND hwnd, Detail::FramePacer& pacer) noexcept;
+void CheckFramePacerInvariant(const Detail::FramePacer& pacer) noexcept;
+} // namespace
+
 ControlHost::DebugFramePacerState ControlHost::DebugGetFramePacerStateForTest() const noexcept
 {
     DebugFramePacerState state{};
@@ -3925,6 +3936,7 @@ void ControlHost::DebugSetFramePacerWaitableForTest(HANDLE waitable, DWORD waitT
     _framePacer->SetWaitTimeoutForTest(waitTimeoutMs);
     if (wasContinuous)
         OnFrameScheduleChanged();
+    CheckFramePacerInvariant(*_framePacer);
 }
 
 void ControlHost::DebugSetCompositorStatsForTest(std::optional<CompositorStatsForTest> stats) noexcept
@@ -3939,7 +3951,11 @@ bool ControlHost::DebugWaitForFrameCreditForTest(DWORD timeoutMs) noexcept
 {
     if (! _framePacer || ! _framePacer->IsPaced())
         return true;
-    return _framePacer->AcquireWithin(timeoutMs);
+    const bool credit = _framePacer->AcquireWithin(timeoutMs);
+    // Taking the credit cancelled the wait a deferred paint relied on: give it its wake back (the pacer's invariant).
+    RestoreDeferredPaintWake(_hwnd, *_framePacer);
+    CheckFramePacerInvariant(*_framePacer);
+    return credit;
 }
 
 SIZE ControlHost::DebugGetSwapChainSizeForTest() const noexcept
@@ -6445,7 +6461,53 @@ constexpr UINT_PTR kPacedSkipTimerId = 0x44785053u;
     static_cast<void>(GetClientRect(hwnd, &client));
     return client;
 }
+
+// The result the next present on this thread reports instead of its own (Support/FramePacing.Tests.Hooks.h); S_OK: none.
+thread_local HRESULT t_nextPresentResultForTest = S_OK;
+
+// Gives a deferred paint that lost its wake one again (the pacer's invariant, DxUi.FramePacer.h): with the credit held, the
+// region goes back to the window's update region and the next WM_PAINT renders it with that credit; without it, the wait is
+// armed. A paced frame running now renders what it holds itself.
+void RestoreDeferredPaintWake(HWND hwnd, Detail::FramePacer& pacer) noexcept
+{
+    if (! pacer.HasDeferred() || pacer.IsWaitArmed() || pacer.framing)
+        return;
+    if (! pacer.HasCredit())
+    {
+        static_cast<void>(pacer.Arm());
+        return;
+    }
+    const RECT deferred = pacer.TakeDeferred();
+    if (hwnd)
+        static_cast<void>(InvalidateRect(hwnd, &deferred, FALSE));
+}
+
+// Debug: after a pacer transition, a deferred paint has a wake (an armed wait, or the paced frame rendering it now).
+void CheckFramePacerInvariant([[maybe_unused]] const Detail::FramePacer& pacer) noexcept
+{
+#if defined(_DEBUG)
+    if (pacer.HasDeferred() && ! pacer.IsWaitArmed() && ! pacer.framing)
+    {
+        ++Detail::Work().frame.pacerInvariantViolations;
+        Debug::Error(L"DxUi::ControlHost: a deferred paint has no wake (no armed wait, no paced frame rendering it)");
+    }
+#endif
+}
+
+// A compositor target the frame can be shown at lies after now and at most this many refresh periods ahead. The frame the
+// compositor is composing (CONFIRMED) targets the next vertical blank, at most one period away, and the compositor composes
+// at most one frame ahead of that, so a genuine target is within two periods; one more period absorbs the time between the
+// clock read and the statistics read and rounding of the reported period. A latency-1 chain adds nothing: its frame is shown
+// in the frame the target names, or later. A target beyond this, or a period longer than kFramePacerMaxPeriodMs (no display
+// composes below 10 Hz), is not one the compositor could have meant: the frame samples now instead.
+constexpr uint64_t kFramePacerMaxTargetPeriods = 3u;
+constexpr uint64_t kFramePacerMaxPeriodMs      = 100u;
 } // namespace
+
+void Detail::SetNextPresentResultForTest(HRESULT result) noexcept
+{
+    t_nextPresentResultForTest = result;
+}
 
 void ControlHost::BindFramePacer() noexcept
 {
@@ -6503,6 +6565,7 @@ bool ControlHost::PacedPaintMayRender(const RECT& paintRectPx) noexcept
     _framePacer->Defer(DeferredRegion(_hwnd, &paintRectPx));
     ++Detail::Work().frame.pacerDeferredPaints;
     static_cast<void>(_framePacer->Arm());
+    CheckFramePacerInvariant(*_framePacer);
     return false;
 }
 
@@ -6531,10 +6594,19 @@ void ControlHost::AfterPacedPresent() noexcept
     if (! _framePacer || ! _framePacer->IsPaced())
         return;
     KillPacedSkipTimer();
+    if (_framePacer->HasCredit())
+    {
+        // The present did not return S_OK and kept the credit: nothing may wait for a unit no retirement may return. A deferred
+        // paint goes back to the window's update region, and an animation ticks again a period later.
+        RestoreDeferredPaintWake(_hwnd, *_framePacer);
+        if (_framePacer->continuous)
+            ArmPacedSkipTimer();
+    }
     // The next frame: wanted while something animates or a paint waits. The present just spent the credit, so arming waits
     // for that frame to retire.
-    if (_framePacer->continuous || _framePacer->HasDeferred())
+    else if (_framePacer->continuous || _framePacer->HasDeferred())
         static_cast<void>(_framePacer->Arm());
+    CheckFramePacerInvariant(*_framePacer);
 }
 
 void ControlHost::StartPacedContinuous() noexcept
@@ -6566,6 +6638,7 @@ void ControlHost::StopPacedContinuous(bool hidden) noexcept
     // Nothing wanted: nothing stays armed. A unit the wait took is kept as the credit.
     if (! _framePacer->HasDeferred())
         _framePacer->Cancel();
+    CheckFramePacerInvariant(*_framePacer);
 }
 
 void ControlHost::ArmPacedSkipTimer() noexcept
@@ -6622,6 +6695,7 @@ void CALLBACK ControlHost::PacedSkipTimerProc(HWND hwnd, UINT, UINT_PTR timerId,
     {
         if (host->_framePacer->continuous)
             static_cast<void>(host->_framePacer->Arm());
+        CheckFramePacerInvariant(*host->_framePacer);
         return;
     }
     host->RunPacedFrame();
@@ -6645,6 +6719,11 @@ void ControlHost::OnPacedFrameMessage(WPARAM request) noexcept
             // deferred and the wait is armed again, so a pending frame costs one wake per timeout and nothing else does.
             if (_framePacer->continuous || _framePacer->HasDeferred())
                 static_cast<void>(_framePacer->Arm());
+            CheckFramePacerInvariant(*_framePacer);
+            // A frame still deferred cannot be presented while the compositor stalls: content its render prepared is published
+            // now, so text services and UI Automation wait at most one timeout for it, not until the display composes again.
+            if (_framePacer->HasDeferred())
+                PublishPreparedContent();
             return;
         case Detail::FramePacer::FrameMessage::Signaled: RunPacedFrame(); return;
     }
@@ -6658,6 +6737,9 @@ void ControlHost::RunPacedFrame() noexcept
     const bool visible = _nativePresentationVisible && ! IsScheduleSuspended() && IsHostWindowEffectivelyVisible(hwnd);
     if (! visible)
         _framePacer->DropDeferred();
+    // Until the deferred paint is handed to WM_PAINT below, this frame is its wake. A host or pacer gone meanwhile owns no flag.
+    _framePacer->framing = true;
+    const auto alive     = [this, hwnd]() noexcept { return IsAttachedWindowHostRegistered(this) && _hwnd == hwnd && _framePacer; };
     if (_framePacer->continuous)
     {
         ++Detail::Work().frame.pacedFrames;
@@ -6665,8 +6747,12 @@ void ControlHost::RunPacedFrame() noexcept
         const uint64_t nowTickMs = visible ? SamplePacedFrameTime() : GetAnimationTickMs();
         bool hostGone            = false;
         static_cast<void>(OnScheduledWake(nowTickMs, &hostGone));
-        if (hostGone || ! IsAttachedWindowHostRegistered(this) || _hwnd != hwnd || ! _framePacer)
+        if (hostGone || ! alive())
+        {
+            if (! hostGone && IsAttachedWindowHostRegistered(this) && _framePacer)
+                _framePacer->framing = false;
             return;
+        }
     }
     if (visible)
     {
@@ -6675,19 +6761,23 @@ void ControlHost::RunPacedFrame() noexcept
             const RECT deferred = _framePacer->TakeDeferred();
             static_cast<void>(InvalidateRect(hwnd, &deferred, FALSE));
         }
+        _framePacer->framing = false;
         // WM_PAINT now, with the credit held: it renders and presents.
         if (GetUpdateRect(hwnd, nullptr, FALSE) != FALSE)
             static_cast<void>(UpdateWindow(hwnd));
-        if (! IsAttachedWindowHostRegistered(this) || _hwnd != hwnd || ! _framePacer)
+        if (! alive())
             return;
     }
-    if (! _framePacer->continuous)
-        return;
-    // A tick that presented nothing keeps its credit and ticks again one period later; never waits while holding it.
-    if (_framePacer->HasCredit())
-        ArmPacedSkipTimer();
-    else
-        static_cast<void>(_framePacer->Arm());
+    _framePacer->framing = false;
+    if (_framePacer->continuous)
+    {
+        // A tick that presented nothing keeps its credit and ticks again one period later; never waits while holding it.
+        if (_framePacer->HasCredit())
+            ArmPacedSkipTimer();
+        else
+            static_cast<void>(_framePacer->Arm());
+    }
+    CheckFramePacerInvariant(*_framePacer);
 }
 
 uint64_t ControlHost::SamplePacedFrameTime() noexcept
@@ -6734,6 +6824,8 @@ uint64_t ControlHost::SamplePacedFrameTime() noexcept
     }
     Detail::Trace::PacedSampleSource source = Detail::Trace::PacedSampleSource::Compositor;
     uint64_t presentQpc                     = nowQpc;
+    LARGE_INTEGER frequency{};
+    static_cast<void>(QueryPerformanceFrequency(&frequency));
     if (FAILED(hrStats) || periodQpc == 0u || targetQpc == 0u)
     {
         // Unavailable (some remote sessions report no period): sample the current time, with the hitch clamp.
@@ -6747,11 +6839,23 @@ uint64_t ControlHost::SamplePacedFrameTime() noexcept
         presentQpc = targetQpc;
         if (presentQpc <= nowQpc)
             presentQpc += ((nowQpc - presentQpc) / periodQpc + 1u) * periodQpc;
-        targetQpc              = presentQpc;
-        _framePacer->periodQpc = periodQpc;
+        // Valid only between now and kFramePacerMaxTargetPeriods periods ahead: the timeline's anchor follows the target, so a
+        // target the compositor could not have meant would hold the timeline until real time reached it. Such a frame samples
+        // now and is counted; the anchor then never lies further ahead of real time than that bound.
+        const auto maxPeriodQpc = static_cast<uint64_t>(frequency.QuadPart) * kFramePacerMaxPeriodMs / 1'000u;
+        if (periodQpc > maxPeriodQpc || presentQpc - nowQpc > kFramePacerMaxTargetPeriods * periodQpc)
+        {
+            ++Detail::Work().frame.pacerTargetsOutOfRange;
+            source     = Detail::Trace::PacedSampleSource::Fallback;
+            targetQpc  = 0u;
+            presentQpc = nowQpc;
+        }
+        else
+        {
+            targetQpc              = presentQpc;
+            _framePacer->periodQpc = periodQpc;
+        }
     }
-    LARGE_INTEGER frequency{};
-    static_cast<void>(QueryPerformanceFrequency(&frequency));
     const uint64_t periodUs                           = (source == Detail::Trace::PacedSampleSource::Compositor && frequency.QuadPart > 0)
                                                             ? periodQpc * 1'000'000u / static_cast<uint64_t>(frequency.QuadPart)
                                                             : 0u;
@@ -7042,12 +7146,13 @@ try
     {
         FrameStageScope presentScope(frameStage, FrameStage::Present);
         const auto presentStartedAt = frameClock.Now();
-        // W3.6: a present spends the pacer's credit; without one the frame is not presented (a capture never presents).
+        // W3.6: a present that returns S_OK spends the pacer's credit and any other result keeps it; without one the frame is
+        // not presented (a capture never presents) (DxUi.FramePacer.h).
         if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && AcquirePresentCredit(isPartialDirty ? dirtyRectPx : nullptr))
         {
             presented = true;
             if (_framePacer)
-                _framePacer->OnPresent();
+                _framePacer->BeforePresent();
             if (isPartialDirty)
             {
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -7070,6 +7175,12 @@ try
                 ++Detail::Work().frame.presents;
                 hrPresent = _swapChain->Present(1u, 0u);
             }
+            if (const HRESULT injected = std::exchange(t_nextPresentResultForTest, S_OK); injected != S_OK) [[unlikely]]
+                hrPresent = injected;
+            if (hrPresent != S_OK && SUCCEEDED(hrPresent))
+                ++Detail::Work().frame.presentStatuses;
+            if (_framePacer)
+                _framePacer->AfterPresent(hrPresent);
             if (Detail::Trace::Listening()) [[unlikely]]
                 Detail::Trace::Presented(_trace, Detail::Trace::Event::Present, isPartialDirty, hrPresent);
         }
@@ -7128,7 +7239,10 @@ try
 #endif
         Debug::Error(L"DxUi::ControlHost: Present failed: 0x{:08X}", hrPresent);
     }
-    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent))
+    // Text services and UI Automation learn of content after its pixels were presented (a capture, which never presents,
+    // publishes as it did before W3.6). A render that presented nothing for want of a credit publishes nothing: its deferred
+    // paint publishes when it presents, or at the pacer's first wait timeout while the compositor stalls.
+    if (SUCCEEDED(hrDraw) && SUCCEEDED(hrBatchFlush) && SUCCEEDED(hrPresent) && (presented || _renderPresentMode == RenderPresentMode::CaptureOnly))
     {
         if (_pendingVisualPreparation)
             Invalidate();

@@ -2250,6 +2250,129 @@ void TestAccessibilityIncrementalGeometryOnAPacedHost()
     }
 }
 
+namespace
+{
+// PacedAnimator, declared hit-test-reported: a custom control the host cannot see hit-test makes every accessibility publication
+// whole (MayPublishAccessibilitySuccessor), so nothing would coalesce while it is attached.
+class ReportedAnimator final : public DxUi::Control
+{
+public:
+    ReportedAnimator() noexcept
+    {
+        DeclareHitTestReported();
+    }
+    ReportedAnimator(const ReportedAnimator&)            = delete;
+    ReportedAnimator& operator=(const ReportedAnimator&) = delete;
+    ReportedAnimator(ReportedAnimator&&)                 = delete;
+    ReportedAnimator& operator=(ReportedAnimator&&)      = delete;
+    ~ReportedAnimator() override                         = default;
+    void Paint(DxUi::ControlHost&) const override
+    {
+    }
+    bool Tick(DxUi::ControlHost& host, uint64_t) override
+    {
+        ++ticks;
+        if (repaint)
+            Invalidate(host);
+        return true;
+    }
+    size_t ticks = 0u;
+    bool repaint = true;
+};
+} // namespace
+
+// W8.2's coalescing rule on a host animating through paced frames (W3.6 review E2): over one second of a field moving every
+// 10 ms or so, geometry-only publications stay within one per 100 ms plus one when the layout settles, on a host that does not
+// animate and on one whose animation ticks every frame without repainting, paced exactly as unpaced (the dispatcher's periodic
+// timer). Each judged run proves it deferred, so the bound is not vacuous. An animation that repaints at every tick is measured
+// too and printed, not judged: there W8.2 publishes about once per tick paced and unpaced alike (its successor test fails at
+// each animated frame), which W8.2 owns.
+void TestAccessibilityIncrementalPacedAnimationCoalescesGeometry()
+{
+    const SystemListeners nobody(false);
+    struct Case
+    {
+        const char* name;
+        bool animate;
+        bool paced;
+        bool repaint;
+        bool judged;
+    };
+    constexpr std::array<Case, 5u> cases{{
+        {"still", false, true, false, true},
+        {"unpaced, ticking", true, false, false, true},
+        {"paced, ticking", true, true, false, true},
+        {"unpaced, repainting", true, false, true, false},
+        {"paced, repainting", true, true, true, false},
+    }};
+    for (const Case& test : cases)
+    {
+        auto root         = std::make_unique<DxUi::Panel>();
+        auto* field       = root->AddChild<DxUi::TextField>(L"Value");
+        auto* animator    = root->AddChild<ReportedAnimator>();
+        animator->repaint = test.repaint;
+        field->SetBounds(D2D1::RectF(8.0f, 40.0f, 240.0f, 68.0f));
+        field->SetAccessibleName(L"Entry");
+        animator->SetBounds(D2D1::RectF(250.0f, 8.0f, 270.0f, 28.0f));
+        InterestedWindow interested(std::move(root));
+        AttachedHostWindow& window = interested.Window();
+        auto& host                 = window.Host();
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        window.PumpMessages();
+        Require(host.DebugGetFramePacerStateForTest().paced, "the shown host is paced");
+        if (! test.paced)
+            host.DebugSetFramePacerWaitableForTest(nullptr); // unpaced: the dispatcher's periodic timer serves the animation
+        if (test.animate)
+            host.RequestAnimation(*animator);
+        const ULONGLONG warm = GetTickCount64();
+        while (GetTickCount64() - warm < 200u)
+            window.PumpMessages(10u);
+        Require(host.DebugGetFramePacerStateForTest().continuous == (test.animate && test.paced), "the animation is served as the case says");
+        const VerifiedPublications verified;
+        const uint64_t before = Publications();
+        const size_t ticks    = animator->ticks;
+        const DxUi::Detail::WorkCounterScope work;
+        // A pause of the moves longer than W8.2's settle time (32 ms) lets the layout settle, which publishes legitimately: each
+        // such pause is allowed one publication more.
+        LARGE_INTEGER frequency{}, last{}, now{};
+        QueryPerformanceFrequency(&frequency);
+        QueryPerformanceCounter(&last);
+        size_t moves = 0u, pauses = 0u;
+        const ULONGLONG started = GetTickCount64();
+        for (int step = 1; GetTickCount64() - started < 1'000u; ++step)
+        {
+            const float top = 40.0f + static_cast<float>((step * 40) % 200);
+            field->SetBounds(D2D1::RectF(8.0f, top, 240.0f, top + 28.0f));
+            QueryPerformanceCounter(&now);
+            pauses += (now.QuadPart - last.QuadPart) * 1'000 >= frequency.QuadPart * 30 ? 1u : 0u;
+            last = now;
+            ++moves;
+            window.PumpMessages(5u);
+        }
+        const uint64_t moving = Publications() - before;
+        // The layout settles: one more publication at most.
+        const ULONGLONG settle = GetTickCount64();
+        while (GetTickCount64() - settle < 300u)
+            window.PumpMessages(10u);
+        const uint64_t published = Publications() - before;
+        const uint64_t deferred  = work.Delta().accessibility.geometryPublicationsDeferred;
+        const size_t allowed     = 1'000u / 100u + 2u + pauses;
+        std::cerr << "    [W3.6+W8.2] " << test.name << " host, a field moving for 1 s: " << moving << " publications while moving, " << published
+                  << " with the settle (" << allowed << " allowed), " << deferred << " deferred, " << animator->ticks - ticks << " ticks, " << moves
+                  << " moves, " << pauses << " pauses over 30 ms, " << work.Delta().accessibility.undeclaredInvalidations << " undeclared invalidations, "
+                  << work.Delta().accessibility.snapshotBuilds << " whole builds, " << work.Delta().accessibility.incrementalPublications << " incremental"
+                  << (test.judged ? "" : " (not judged)") << '\n';
+        verified.RequireNoDifference("the coalesced publications equal whole builds");
+        if (test.judged)
+        {
+            Require(deferred >= 1u, "the moving layout deferred geometry-only publications");
+            Require(published <= allowed, "at most one geometry-only publication per 100 ms, plus one each time the layout settles");
+        }
+        host.CancelAnimation(*animator);
+        ShowWindow(window.Hwnd(), SW_HIDE);
+        window.PumpMessages();
+    }
+}
 // An AttestedInvalidation alive while its host is destroyed (application code run by the invalidation destroyed it) does
 // not write to the host's freed marks when it ends (W8.2 review; ASan reports the write without the guard).
 void TestAccessibilityAttestationOutlivesItsHost()

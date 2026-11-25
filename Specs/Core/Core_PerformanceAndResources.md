@@ -282,10 +282,16 @@ snapshot, delta and receipt.
 - **Frame pacing** ([window hosting](../Rendering/Rendering_Win32Host.md#frame-pacing)). `pacedFrames` counts native paced
   frames that sampled the compositor clock and ran the schedule; `presentsWithoutCredit` counts presents made without a
   frame-latency credit (0 on every path); `pacerDeferredPaints` counts `WM_PAINT` deferred to the next credit;
+  `pacerExcessUnits` units absorbed because a credit was kept for a present that returned a status other than `S_OK` whose
+  frame had queued after all; `presentStatuses` presents that returned a success status other than `S_OK` (the credit is
+  kept);
   `pacerStaleFrames` paced-frame messages ignored because their request was cancelled or belongs to an earlier chain or
   attachment; `pacerWaitTimeouts` waits that saw no retired frame within their timeout (a stalled compositor);
   `pacerSynchronousTimeouts` synchronous renders that found no credit within their bound and did not present;
-  `pacerStatsFallbacks` frames sampled at the current time for want of compositor statistics; `pacerUnavailable` chains
+  `pacerStatsFallbacks` frames sampled at the current time for want of compositor statistics; `pacerTargetsOutOfRange`
+  frames sampled at the current time because the compositor's target lay more than three periods ahead (or its period was
+  implausible); `pacerInvariantViolations` (Debug) pacer transitions that left a deferred paint with no wake (0 on every
+  path); `pacerUnavailable` chains
   without a waitable object; `pacerTeardownOrderViolations` chains released while their pacer still held its wait or
   handle (0 on every path).
 - **Wakes by source.** `animationTimer` (the animation dispatcher's periodic `WM_TIMER`), `deadlineTimer` (its one-shot
