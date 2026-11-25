@@ -7,11 +7,13 @@ function Initialize-PairedEngineInputs {
        harness reader is a separate frozen input, never copied into a historical engine. #>
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$Source,[Parameter(Mandatory)][string]$Target)
-    if(-not(Test-Path -LiteralPath (Join-Path $Target '.ci/project.json') -PathType Leaf)){return $null}
     $reader=Join-Path $Source '.ci-engine'
     Import-Module (Join-Path $Source '.ci-engine/Tools/Modules/Ci.SourceInputs.psm1') -ErrorAction Stop
     Import-Module (Join-Path $Source '.ci-engine/Tools/Modules/Ci.Policy.psm1') -ErrorAction Stop
     $readerIdentity=Get-CiPinnedEngineInputsIdentity -Root $Source -EngineRoot $reader
+    if(-not(Test-Path -LiteralPath (Join-Path $Target '.ci/project.json') -PathType Leaf)){
+        return [ordered]@{ReaderRoot=$reader;ReaderInputsIdentity=$readerIdentity;ActualInputsIdentity=$null;ActualPin=$null;Created=$false}
+    }
     $project=Read-CiProject $Target
     $engine=Assert-CiContainedPath $Target (Join-Path $Target '.ci-engine')
     $created=$false
@@ -44,7 +46,12 @@ function Assert-PairedEngineInputs {
     $reader=$Context['ReaderRoot']
     Import-Module (Join-Path (Split-Path $reader -Parent) '.ci-engine/Tools/Modules/Ci.SourceInputs.psm1') -ErrorAction Stop
     $currentReader=Get-CiPinnedEngineInputsIdentity -Root (Split-Path $reader -Parent) -EngineRoot $reader
-    $currentSide=Get-CiPinnedEngineInputsIdentity -Root $Target -EngineRoot (Join-Path $Target '.ci-engine')
+    $currentSide=$null
+    if($Context['ActualPin']){
+        $currentSide=Get-CiPinnedEngineInputsIdentity -Root $Target -EngineRoot (Join-Path $Target '.ci-engine')
+    }elseif(Test-Path -LiteralPath (Join-Path $Target '.ci/project.json')){
+        throw 'The side engine requirement changed after paired preparation.'
+    }
     if($currentReader -cne $Context['ReaderInputsIdentity'] -or $currentSide -cne $Context['ActualInputsIdentity']){
         throw 'Actual side or common reader engine inputs changed during the paired study.'
     }

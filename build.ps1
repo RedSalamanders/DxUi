@@ -61,15 +61,19 @@ if ($Analyze) {
     $OutputRoot = Assert-CiContainedPath -Root $buildRoot -Path (Join-Path $buildRoot '.build/analysis')
 }
 $buildEvidencePath = Join-Path $PSScriptRoot 'Tools/DxUiBuildEvidence.psm1'
+$consoleModule = Join-Path $PSScriptRoot 'Build/BuildConsole.psm1'
 if ($ToolingEngineRoot) {
     $readerRoot = [IO.Path]::GetFullPath($ToolingEngineRoot).TrimEnd('\','/')
     Import-Module (Join-Path $readerRoot 'Tools/Modules/Ci.EngineBinding.psm1') -Scope Local -ErrorAction Stop
-    $scopedPath = Resolve-CiPinnedEngineModule -ProjectRoot (Split-Path $readerRoot -Parent) -Name 'ScopedTesting.psm1'
-} elseif (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.ci/project.json')) {
-    $scopedPath = Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1'
-} else {
-    # A paired overlay on a pre-CI source tree retains the standalone profile lease.
+    $consoleModule = Resolve-CiPinnedEngineModule -ProjectRoot (Split-Path $readerRoot -Parent) -Name 'BuildConsole.psm1'
+}
+if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.ci/project.json') -PathType Leaf)) {
+    # Paired overlays on pre-CI sources retain the standalone profile lease.
     $scopedPath = $buildEvidencePath
+} elseif ($ToolingEngineRoot) {
+    $scopedPath = Resolve-CiPinnedEngineModule -ProjectRoot (Split-Path $readerRoot -Parent) -Name 'ScopedTesting.psm1'
+} else {
+    $scopedPath = Join-Path $PSScriptRoot 'Tools/ScopedTesting.psm1'
 }
 $profileScope = Import-Module $scopedPath -Scope Local -PassThru -ErrorAction Stop
 Import-Module $buildEvidencePath -Scope Local -ErrorAction Stop
@@ -101,7 +105,7 @@ Import-Module (Join-Path $PSScriptRoot 'Tools/Validation.psm1') -Force
 $mappingErrors=@(Test-DxUiSolutionConfigurations (Join-Path $buildRoot 'DxUi.sln'))
 if ($mappingErrors.Count) { throw "Invalid native solution coverage: $($mappingErrors -join '; ')" }
 $nativeEntryElapsed = [Diagnostics.Stopwatch]::StartNew()
-Import-Module (Join-Path $PSScriptRoot 'Build/BuildConsole.psm1') -ErrorAction Stop
+Import-Module $consoleModule -ErrorAction Stop
 
 function Test-DxUiInteractiveTerminal {
     try {
@@ -350,7 +354,7 @@ Invoke-DxUiBuildPhase -Phase MSBuild -Body {
         throw "DxUi build failed. Log: $log"
     }
 }
-Assert-NativeBuildDiagnostics -LogPath $log
+Assert-NativeBuildDiagnostics -LogPath $log -RequireBuildSummary
 if ($Clean) {
     Write-Host "Cleaned DxUi first-party outputs for $Platform $Configuration. Log: $log"
     $buildCompleted=$true
@@ -390,7 +394,7 @@ $library=Join-Path $profileOutput 'DxUi.lib'
 $sample=Join-Path $profileOutput 'DxUi.EmbeddedControls.exe'
 if ($ProductionOnly) { $sample = '' }
 if ($partialBuild -and 'DxUi.EmbeddedControls' -cnotin $selectedProjects) { $sample='' }
-Write-NativeBuildResult -Project DxUi -Platform $Platform -Configuration $Configuration -LogPath $log -Artifacts @($library) -Executable $sample -Duration $nativeEntryElapsed.Elapsed
+Write-NativeBuildResult -Project DxUi -Platform $Platform -Configuration $Configuration -LogPath $log -Artifacts @($library) -Executable $sample -Duration $nativeEntryElapsed.Elapsed -RequireBuildSummary
 $buildCompleted=$true
 } finally {
     try {

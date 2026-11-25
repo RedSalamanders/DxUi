@@ -166,7 +166,7 @@ try {
     $producerPdbGuard=[IO.File]::Open($libraryPdb,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
     & $msbuild $projectPath /nologo /m /v:normal /p:Configuration=Release "/p:Platform=$Platform" "/p:VCToolsVersion=$($identity.Identity.vcToolsVersion)" 2>&1 | Tee-Object -FilePath $smokeLog | ForEach-Object {Write-Host $_}
     if($LASTEXITCODE -ne 0){throw 'Extracted SDK-only consumer failed to compile/link.'}
-    Assert-NativeBuildDiagnostics -LogPath $smokeLog
+    Assert-NativeBuildDiagnostics -LogPath $smokeLog -RequireBuildSummary
 
     # The same consumer must expose LNK4099 when the packaged PDB is absent.
     # Only this fresh extracted copy moves, and its positive outputs stay intact.
@@ -180,11 +180,11 @@ try {
             ('/p:IntDir='+(Join-Path $smoke 'missing-pdb-obj')+'\'),('/p:OutDir='+(Join-Path $smoke 'missing-pdb-bin')+'\'))
         & $msbuild @missingArguments 2>&1 | Tee-Object -FilePath $missingLog | ForEach-Object {Write-Host $_}
         if($LASTEXITCODE -ne 0){throw 'SDK missing-PDB control must link successfully.'}
-        $missingDiagnostics=Get-NativeBuildDiagnostics -LogPath $missingLog
+        $missingDiagnostics=Get-NativeBuildDiagnostics -LogPath $missingLog -IncludeBuildSummary
         if($missingDiagnostics.WarningCount -lt 1 -or $missingDiagnostics.ErrorCount -ne 0 -or
             [IO.File]::ReadAllText($missingLog) -notmatch '\bLNK4099\b'){throw 'SDK missing-PDB control did not expose the missing debug database.'}
         $missingRefused=$false
-        try { Assert-NativeBuildDiagnostics -LogPath $missingLog } catch { $missingRefused=$_.Exception.Message -like 'Zero-warning build validation failed:*' }
+        try { Assert-NativeBuildDiagnostics -LogPath $missingLog -RequireBuildSummary } catch { $missingRefused=$_.Exception.Message -like 'Zero-warning build validation failed:*' }
         if(-not $missingRefused){throw 'SDK missing-PDB control did not fail zero-warning validation.'}
     } finally {
         Move-Item -LiteralPath $heldPdb -Destination $extractedPdb
@@ -225,11 +225,11 @@ $warningArguments=@($warningProject,'/nologo','/m','/v:normal','/p:Configuration
     ('/p:IntDir='+(Join-Path $smoke 'warning-obj')+'\'),('/p:OutDir='+(Join-Path $smoke 'warning-bin')+'\'))
 & $msbuild @warningArguments 2>&1 | Tee-Object -FilePath $warningLog | ForEach-Object {Write-Host $_}
 if($LASTEXITCODE -ne 0){throw 'SDK warning control must compile successfully with /WX disabled.'}
-$diagnostics=Get-NativeBuildDiagnostics -LogPath $warningLog
+$diagnostics=Get-NativeBuildDiagnostics -LogPath $warningLog -IncludeBuildSummary
 if($diagnostics.WarningCount -lt 1 -or $diagnostics.ErrorCount -ne 0 -or
     [IO.File]::ReadAllText($warningLog) -notmatch '\bC4189\b'){throw 'SDK integration hid the first-party warning control.'}
 $refused=$false
-try { Assert-NativeBuildDiagnostics -LogPath $warningLog } catch { $refused=$_.Exception.Message -like 'Zero-warning build validation failed:*' }
+try { Assert-NativeBuildDiagnostics -LogPath $warningLog -RequireBuildSummary } catch { $refused=$_.Exception.Message -like 'Zero-warning build validation failed:*' }
 if(-not $refused){throw 'SDK first-party warning did not fail zero-warning validation.'}
 # A concurrent producer replacement cannot be certified as the staged library/PDB pair.
 foreach($entry in @(@($library,$libraryHash),@($libraryPdb,$libraryPdbHash),@($extractedLibrary,$libraryHash),@($extractedPdb,$libraryPdbHash))){

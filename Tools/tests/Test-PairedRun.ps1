@@ -84,14 +84,20 @@ Invoke-FixtureCase 'historical sides keep their pin while the independently veri
     Assert-True ((Get-ScopedSourceIdentity -Root $target -CompiledOnly -ToolingEngineRoot $reader) -cne (Get-ScopedSourceIdentity -Root $target -CompiledOnly)) 'external-reader diagnostic proof cannot be reused by the default qualification reader'
 }
 
-Invoke-FixtureCase 'legacy paired sides do not acquire an engine and changing that requirement refuses' {
+Invoke-FixtureCase 'legacy paired sides bind the common diagnostic reader without acquiring an engine' {
     param($root)
-    $context=Initialize-PairedEngineInputs -Source (Join-Path $root 'absent-source') -Target $root
-    Assert-True ($null -eq $context) 'pre-CI source needs no engine reader'
+    Import-Module (Join-Path $repository 'Tools/DxUiBuildEvidence.psm1')
+    $null=Invoke-CiGit $root @('init','--quiet')
+    Set-FixtureFile $root 'source.cpp' 'synthetic pre-CI source'
+    $context=Initialize-PairedEngineInputs -Source $repository -Target $root
+    Assert-True ($context.ReaderInputsIdentity -and !$context.ActualPin) 'pre-CI source binds only the diagnostic reader'
     Assert-True (-not(Test-Path -LiteralPath (Join-Path $root '.ci-engine'))) 'no unrelated checkout is created'
-    Assert-PairedEngineInputs -Target $root -Context $null
+    Assert-PairedEngineInputs -Target $root -Context $context
+    $ordinary=Get-ScopedSourceIdentity -Root $root -CompiledOnly
+    $paired=Get-ScopedSourceIdentity -Root $root -CompiledOnly -ToolingEngineRoot $context.ReaderRoot
+    Assert-True ($ordinary -cne $paired) 'the pre-CI reader identity belongs in the paired build key'
     Set-FixtureFile $root '.ci/project.json' '{}'
-    Assert-True ((Get-ErrorMessage {Assert-PairedEngineInputs -Target $root -Context $null}) -like '*requirement changed*') 'new engine requirements cannot enter an old study silently'
+    Assert-True ((Get-ErrorMessage {Assert-PairedEngineInputs -Target $root -Context $context}) -like '*requirement changed*') 'new engine requirements cannot enter an old study silently'
 }
 
 Invoke-TestCase 'the public build refuses a diagnostic engine reader for production and external-source SDK roles before imports' {
@@ -890,12 +896,14 @@ Invoke-FixtureCase 'an older tree imports the staged build console and retains i
     $tokens=$null;$parseErrors=$null
     $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'build.ps1'),[ref]$tokens,[ref]$parseErrors)
     Assert-Equal 0 $parseErrors.Count 'the real build driver parses'
-    $imports=@($ast.FindAll({param($node)
-        $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Import-Module' -and
-        $node.Extent.Text.Contains('Build/BuildConsole.psm1')
+    $consoleSetup=@($ast.FindAll({param($node)
+        $node -is [Management.Automation.Language.IfStatementAst] -and $node.Extent.Text.StartsWith('if ($ToolingEngineRoot) {') -and
+        $node.Extent.Text.Contains("-Name 'BuildConsole.psm1'")
     },$true))
-    Assert-Equal 1 $imports.Count 'the probe executes the real console import statement'
-    $probe='param([string]$LogPath)'+"`n"+'$ErrorActionPreference=''Stop'''+"`n"+$imports[0].Extent.Text+"`n"+'Assert-NativeBuildDiagnostics -LogPath $LogPath'+"`n"
+    Assert-Equal 1 $consoleSetup.Count 'the probe executes the real console binding'
+    $probe='param([string]$LogPath,[string]$ToolingEngineRoot)'+"`n"+'$ErrorActionPreference=''Stop'''+"`n"+
+        '$consoleModule=Join-Path $PSScriptRoot ''Build/BuildConsole.psm1'''+"`n"+$consoleSetup[0].Extent.Text+"`n"+
+        'Import-Module $consoleModule -ErrorAction Stop'+"`n"+'Assert-NativeBuildDiagnostics -LogPath $LogPath -RequireBuildSummary'+"`n"
     Set-FixtureFile $target 'Probe.ps1' $probe
     $engine=Join-Path $PSHOME $(if($IsWindows){'pwsh.exe'}else{'pwsh'})
     $probePath=Join-Path $target 'Probe.ps1'
@@ -904,9 +912,10 @@ Invoke-FixtureCase 'an older tree imports the staged build console and retains i
     $paths=@('build.ps1')+@(Get-PairedHarness|Where-Object{$_ -ceq 'Build/BuildConsole.psm1'})
     Assert-Equal 2 $paths.Count 'the paired overlay owns the driver and its console dependency'
     $records=@(Copy-HarnessOverlay -Source $repository -Target $target -Paths $paths -BackupDirectory $backup)
-    & $engine -NoProfile -File $probePath -LogPath (Join-Path $target 'clean.log') *> (Join-Path $root 'clean-import.log')
-    Assert-Equal 0 $LASTEXITCODE 'an old tree imports and executes the staged real module'
-    & $engine -NoProfile -File $probePath -LogPath (Join-Path $target 'warning.log') *> (Join-Path $root 'warning-refusal.log')
+    $reader=Join-Path $repository '.ci-engine'
+    & $engine -NoProfile -File $probePath -ToolingEngineRoot $reader -LogPath (Join-Path $target 'clean.log') *> (Join-Path $root 'clean-import.log')
+    Assert-Equal 0 $LASTEXITCODE 'an old tree uses the pinned shared diagnostics through its verified reader'
+    & $engine -NoProfile -File $probePath -ToolingEngineRoot $reader -LogPath (Join-Path $target 'warning.log') *> (Join-Path $root 'warning-refusal.log')
     Assert-True ($LASTEXITCODE -ne 0) 'staging preserves zero-warning refusal'
     Assert-Equal 'original library source' ([IO.File]::ReadAllText((Join-Path $target 'src/Library.cpp'))) 'the baseline implementation is retained'
     Assert-Equal 'original library project' ([IO.File]::ReadAllText((Join-Path $target 'DxUi.vcxproj'))) 'the baseline compiler/linker project is retained'

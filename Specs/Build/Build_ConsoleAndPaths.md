@@ -34,10 +34,14 @@ dependency fingerprints; an old archive cannot reuse the changed policy's output
 
 ## Successful terminal output
 
-Build/BuildConsole.psm1 implements the common result/diagnostic/link contract.
+`Build/BuildConsole.psm1` binds the shared result, diagnostic and link module from the reviewed engine pin.
 A native success summary is green only after native exit success, zero logged
 warnings/errors and the entrypoint's existing provenance/attestation checks.
-The MSBuild file log must contain an ordered completed success footer with explicit zero warning and error counts and elapsed time; diagnostic matching is bounded. Consumer qualification scans the logs of its initial library/consumer compile and subsequent module builds. Non-default and production-only outputs rebuild because no matching complete native receipt protects incremental reuse.
+DxUi uses `-RequireBuildSummary` for its native build, relocated consumer and extracted SDK smoke logs.
+The MSBuild file log must contain an ordered completed success footer with explicit zero warning and error counts
+and elapsed time. Consumer qualification scans its initial library and consumer compile and subsequent module
+builds using the pinned driver. Non-default and production-only outputs rebuild when the ordinary build receipt
+cannot establish incremental reuse.
 Structured nonzero `ExceptionCode = <eight hexadecimal digits>` dumps from child
 tools also reject the build, including optional `0x` spelling and MSBuild node
 prefixes. A later successful footer or zero process exit cannot override an

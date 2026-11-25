@@ -19,11 +19,11 @@ function Refuses([scriptblock]$Body,[string]$Pattern){
 }
 $clean=Join-Path $ScratchRoot 'clean.log'
 [IO.File]::WriteAllText($clean,"Build succeeded.`n`n    0 Warning(s)`n    0 Error(s)`n`nTime Elapsed 00:00:01.00`n")
-Assert-NativeBuildDiagnostics -LogPath $clean
+Assert-NativeBuildDiagnostics -RequireBuildSummary -LogPath $clean
 foreach($incomplete in @('', 'Build succeeded.', '0 Warning(s) 0 Error(s)', 'Build succeeded. 0 Warning(s)', 'Build FAILED. 0 Warning(s) 0 Error(s)', 'Build succeeded. 1 Warning(s) 0 Error(s)')){
     $partial=Join-Path $ScratchRoot 'incomplete.log'
     [IO.File]::WriteAllText($partial,$incomplete)
-    Refuses {Assert-NativeBuildDiagnostics -LogPath $partial} 'Zero-warning'
+    Refuses {Assert-NativeBuildDiagnostics -RequireBuildSummary -LogPath $partial} 'Zero-warning'
 }
 foreach($imposter in @(
     "message Build succeeded.`n0 Warning(s)`n0 Error(s)`nTime Elapsed 00:00:01.00",
@@ -33,12 +33,12 @@ foreach($imposter in @(
     "Build succeeded.`n0 Warning(s)`n0 Error(s)`nTime Elapsed 00:00:01.00`nBuild FAILED."
 )){
     [IO.File]::WriteAllText($clean,$imposter)
-    Refuses {Assert-NativeBuildDiagnostics -LogPath $clean} 'Zero-warning'
+    Refuses {Assert-NativeBuildDiagnostics -RequireBuildSummary -LogPath $clean} 'Zero-warning'
 }
 [IO.File]::WriteAllText($clean,"Build succeeded.`n`n    0 Warning(s)`n    0 Error(s)`n`nTime Elapsed 00:00:01.00`n")
 $long=Join-Path $ScratchRoot 'long.log'
 [IO.File]::WriteAllText($long,('a' * 250000))
-try { Require ((Get-NativeBuildDiagnostics -LogPath $long).WarningCount -eq 0) 'Long ordinary output was classified as a warning.' }
+try { Require ((Get-NativeBuildDiagnostics -IncludeBuildSummary -LogPath $long).WarningCount -eq 0) 'Long ordinary output was classified as a warning.' }
 catch [System.Text.RegularExpressions.RegexMatchTimeoutException] { Write-Host 'Bounded matcher rejected oversized input on this runtime.' }
 foreach($diagnostic in @(
     'source.cpp(4): warning C4100: unused parameter',
@@ -50,33 +50,33 @@ foreach($diagnostic in @(
 )){
     $warn=Join-Path $ScratchRoot 'warning.log'
     [IO.File]::WriteAllText($warn,$diagnostic)
-    $facts=Get-NativeBuildDiagnostics -LogPath $warn
+    $facts=Get-NativeBuildDiagnostics -IncludeBuildSummary -LogPath $warn
     Require ($facts.WarningCount-eq 1 -and $facts.ErrorCount-eq 0) "Missed diagnostic: $diagnostic"
-    Refuses {Assert-NativeBuildDiagnostics -LogPath $warn} 'Zero-warning'
+    Refuses {Assert-NativeBuildDiagnostics -RequireBuildSummary -LogPath $warn} 'Zero-warning'
     $message=''
-    try { Assert-NativeBuildDiagnostics -LogPath $warn } catch { $message=$_.Exception.Message }
+    try { Assert-NativeBuildDiagnostics -RequireBuildSummary -LogPath $warn } catch { $message=$_.Exception.Message }
     Require ($message.Contains($diagnostic)) 'The failure must retain the actual diagnostic when the original build log is unavailable to the caller.'
 }
 $errorLog=Join-Path $ScratchRoot 'error.log'
 $many=Join-Path $ScratchRoot 'many-diagnostics.log'
 $lines=@(1..20|ForEach-Object {"source.cpp($_): warning C4100: actual diagnostic $_ "+('x'*3000)})
 [IO.File]::WriteAllLines($many,$lines)
-$facts=Get-NativeBuildDiagnostics -LogPath $many
+$facts=Get-NativeBuildDiagnostics -IncludeBuildSummary -LogPath $many
 Require ($facts.WarningCount -eq 20 -and $facts.DiagnosticDetails.Count -eq 16) 'Bounded detail retention must still count every actual diagnostic.'
 Require (@($facts.DiagnosticDetails|Where-Object Length -gt 2048).Count -eq 0) 'A single diagnostic must not make the retained failure message unbounded.'
 [IO.File]::WriteAllText($errorLog,'file.cpp(1): fatal error C1083: missing header')
-Refuses {Assert-NativeBuildDiagnostics -LogPath $errorLog} 'Zero-warning'
-Refuses {Assert-NativeBuildDiagnostics -LogPath (Join-Path $ScratchRoot 'missing.log')} 'missing'
+Refuses {Assert-NativeBuildDiagnostics -RequireBuildSummary -LogPath $errorLog} 'Zero-warning'
+Refuses {Assert-NativeBuildDiagnostics -RequireBuildSummary -LogPath (Join-Path $ScratchRoot 'missing.log')} 'missing'
 $crashLog=Join-Path $ScratchRoot 'tool-exception.log'
 foreach($dump in @('  ExceptionCode = C0000006','3> ExceptionCode = c0000005',' ExceptionCode = 0xE06D7363')){
     [IO.File]::WriteAllText($crashLog,$dump+"`n    ExceptionInformation[ 2] = C000007F`n"+[IO.File]::ReadAllText($clean))
-    $facts=Get-NativeBuildDiagnostics -LogPath $crashLog
+    $facts=Get-NativeBuildDiagnostics -IncludeBuildSummary -LogPath $crashLog
     Require ($facts.ToolExceptionCount-eq 1 -and $facts.WarningCount-eq 0 -and $facts.ErrorCount-eq 0 -and $facts.BuildSucceeded) 'Structured child exception must survive a clean MSBuild footer.'
-    Refuses {Assert-NativeBuildDiagnostics -LogPath $crashLog} 'tool process exception'
+    Refuses {Assert-NativeBuildDiagnostics -RequireBuildSummary -LogPath $crashLog} 'tool process exception'
 }
 foreach($ordinary in @('source.cpp: text ExceptionCode = C0000006','ExceptionCode = 00000000','ExceptionCode = not-a-code')){
     [IO.File]::WriteAllText($crashLog,$ordinary+"`n"+[IO.File]::ReadAllText($clean))
-    Assert-NativeBuildDiagnostics -LogPath $crashLog
+    Assert-NativeBuildDiagnostics -RequireBuildSummary -LogPath $crashLog
 }
 $binary=Join-Path $ScratchRoot "synthetic # app's É.exe"
 # Deliberately not executable: writing a result must never launch it.
@@ -91,16 +91,16 @@ if($plain -match '^[a-zA-Z]:[\\/]'){
     Require ($link -ceq $plain) 'Non-Windows paths must retain their literal fallback in the Windows build formatter.'
 }
 Refuses {ConvertTo-NativeBuildLink -LiteralPath ('unsafe'+[char]27+'path') -HyperlinkMode Always} 'control characters'
-$records=@(Write-NativeBuildResult -Project Fixture -Platform x64 -Configuration Release -LogPath $clean -Artifacts @($binary) -Executable $binary -ColorMode Always -HyperlinkMode Always 6>&1)
+$records=@(Write-NativeBuildResult -RequireBuildSummary -Project Fixture -Platform x64 -Configuration Release -LogPath $clean -Artifacts @($binary) -Executable $binary -ColorMode Always -HyperlinkMode Always 6>&1)
 $messages=@($records|ForEach-Object{[string]$_.MessageData})
 Require (@($messages|Where-Object{$_ -like 'BUILD SUCCEEDED:*'}).Count-eq 1) 'Common success header missing.'
 Require (@($messages|Where-Object{$_ -like 'Run:*'}).Count-eq 1) 'Executable link missing.'
 Require (@($messages|Where-Object{$_ -like "& *''*"}).Count-eq 1) 'Quoted executable fallback must escape apostrophes.'
 foreach($record in $records){Require ([string]$record.MessageData.ForegroundColor -eq 'Green') 'Successful result line is not green.'}
-Refuses {Write-NativeBuildResult -Project Fixture -Platform x64 -Configuration Release -LogPath $errorLog -Artifacts @($binary)} 'Zero-warning'
+Refuses {Write-NativeBuildResult -RequireBuildSummary -Project Fixture -Platform x64 -Configuration Release -LogPath $errorLog -Artifacts @($binary)} 'Zero-warning'
 [IO.File]::WriteAllText($crashLog,"ExceptionCode = C0000006`n"+[IO.File]::ReadAllText($clean))
-Refuses {Write-NativeBuildResult -Project Fixture -Platform x64 -Configuration Release -LogPath $crashLog -Artifacts @($binary)} 'tool process exception'
-Refuses {Write-NativeBuildResult -Project Fixture -Platform x64 -Configuration Release -LogPath $clean -Artifacts @((Join-Path $ScratchRoot 'absent.exe'))} 'missing'
+Refuses {Write-NativeBuildResult -RequireBuildSummary -Project Fixture -Platform x64 -Configuration Release -LogPath $crashLog -Artifacts @($binary)} 'tool process exception'
+Refuses {Write-NativeBuildResult -RequireBuildSummary -Project Fixture -Platform x64 -Configuration Release -LogPath $clean -Artifacts @((Join-Path $ScratchRoot 'absent.exe'))} 'missing'
 
 $paths=if(Test-Path -LiteralPath (Join-Path $Root 'Build/DxUiPaths.psm1')){'Build/DxUiPaths.psm1'}
        elseif(Test-Path -LiteralPath (Join-Path $Root 'Tools/Modules/Build/DxUiPaths.psm1')){'Tools/Modules/Build/DxUiPaths.psm1'}else{''}
