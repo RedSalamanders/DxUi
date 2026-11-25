@@ -198,19 +198,19 @@ bool Detail::DecodeMarkdownCharacterReference(std::wstring_view input, std::size
 
 MarkdownSyntax::MarkdownSyntax(
     std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, MarkdownExtensions extensions, std::optional<MarkdownSourceRegion> sourceRegion)
-    : source_(source),
-      revision_(revision),
-      profile_(profile),
-      extensions_(extensions),
-      blocks_(0u),
-      lexemes_(0u),
-      nodes_(0u),
-      emptyLines_(0u),
-      inlines_(0u),
-      diagnostics_(0u),
-      footnotes_(0u),
-      footnoteReferences_(0u),
-      sourceRegionRequest_(sourceRegion)
+    : _source(source),
+      _revision(revision),
+      _profile(profile),
+      _extensions(extensions),
+      _blocks(0u),
+      _lexemes(0u),
+      _nodes(0u),
+      _emptyLines(0u),
+      _inlines(0u),
+      _diagnostics(0u),
+      _footnotes(0u),
+      _footnoteReferences(0u),
+      _sourceRegionRequest(sourceRegion)
 {
 }
 MarkdownSyntax::MarkdownSyntax(std::shared_ptr<const MarkdownSyntax> parsedDataOwner,
@@ -218,104 +218,104 @@ MarkdownSyntax::MarkdownSyntax(std::shared_ptr<const MarkdownSyntax> parsedDataO
                                MarkdownProfile profile,
                                MarkdownExtensions extensions,
                                std::uint64_t documentIdentity)
-    : source_(0u, L'\0'),
-      revision_(revision),
-      profile_(profile),
-      extensions_(extensions),
-      blocks_(0u),
-      lexemes_(0u),
-      nodes_(0u),
-      emptyLines_(0u),
-      inlines_(0u),
-      diagnostics_(0u),
-      footnotes_(0u),
-      footnoteReferences_(0u),
-      documentIdentity_(documentIdentity),
-      sourceRegionRequest_(std::nullopt),
-      parsedDataOwner_(std::move(parsedDataOwner))
+    : _source(0u, L'\0'),
+      _revision(revision),
+      _profile(profile),
+      _extensions(extensions),
+      _blocks(0u),
+      _lexemes(0u),
+      _nodes(0u),
+      _emptyLines(0u),
+      _inlines(0u),
+      _diagnostics(0u),
+      _footnotes(0u),
+      _footnoteReferences(0u),
+      _documentIdentity(documentIdentity),
+      _sourceRegionRequest(std::nullopt),
+      _parsedDataOwner(std::move(parsedDataOwner))
 {
 }
 const MarkdownSyntax& MarkdownSyntax::ParsedData() const noexcept
 {
-    return parsedDataOwner_ ? *parsedDataOwner_ : *this;
+    return _parsedDataOwner ? *_parsedDataOwner : *this;
 }
 std::wstring_view MarkdownSyntax::Source() const noexcept
 {
-    return ParsedData().source_;
+    return ParsedData()._source;
 }
 std::optional<MarkdownSourceRegion> MarkdownSyntax::SourceRegion() const noexcept
 {
-    if (! sourceRegionRequest_)
+    if (! _sourceRegionRequest)
         return std::nullopt;
-    if (sourceRegionRequest_->kind == MarkdownSourceRegionKind::Inline)
-        return sourceRegionRequest_;
-    if (sourceRegionNode_ == MarkdownNoNode)
+    if (_sourceRegionRequest->kind == MarkdownSourceRegionKind::Inline)
+        return _sourceRegionRequest;
+    if (_sourceRegionNode == MarkdownNoNode)
         return std::nullopt;
-    return MarkdownSourceRegion{nodes_[sourceRegionNode_].block.source, sourceRegionRequest_->session};
+    return MarkdownSourceRegion{_nodes[_sourceRegionNode].block.source, _sourceRegionRequest->session};
 }
 std::size_t MarkdownSyntax::SourceRegionNode() const noexcept
 {
-    return sourceRegionNode_;
+    return _sourceRegionNode;
 }
 std::uint64_t MarkdownSyntax::Revision() const noexcept
 {
-    return revision_;
+    return _revision;
 }
 MarkdownProfile MarkdownSyntax::Profile() const noexcept
 {
-    return profile_;
+    return _profile;
 }
 MarkdownExtensions MarkdownSyntax::Extensions() const noexcept
 {
-    return extensions_;
+    return _extensions;
 }
 const std::vector<MarkdownBlock>& MarkdownSyntax::Blocks() const noexcept
 {
-    return ParsedData().blocks_;
+    return ParsedData()._blocks;
 }
 const std::vector<MarkdownNode>& MarkdownSyntax::Nodes() const noexcept
 {
-    return ParsedData().nodes_;
+    return ParsedData()._nodes;
 }
 std::span<const MarkdownEmptyLine> MarkdownSyntax::EmptyLines() const noexcept
 {
-    return ParsedData().emptyLines_;
+    return ParsedData()._emptyLines;
 }
 std::uint64_t MarkdownSyntax::DocumentIdentity() const noexcept
 {
-    return documentIdentity_;
+    return _documentIdentity;
 }
 MarkdownBlockStatistics MarkdownSyntax::BlockStatistics() const noexcept
 {
-    return ParsedData().blockStatistics_;
+    return ParsedData()._blockStatistics;
 }
 MarkdownInlineStatistics MarkdownSyntax::InlineStatistics() const noexcept
 {
-    return ParsedData().inlineStatistics_;
+    return ParsedData()._inlineStatistics;
 }
 const std::vector<MarkdownLexeme>& MarkdownSyntax::Lexemes() const noexcept
 {
-    return ParsedData().lexemes_;
+    return ParsedData()._lexemes;
 }
 const std::vector<MarkdownInline>& MarkdownSyntax::Inlines() const noexcept
 {
-    return ParsedData().inlines_;
+    return ParsedData()._inlines;
 }
 std::span<const MarkdownDiagnostic> MarkdownSyntax::Diagnostics() const noexcept
 {
-    return ParsedData().diagnostics_;
+    return ParsedData()._diagnostics;
 }
 std::span<const MarkdownFootnote> MarkdownSyntax::Footnotes() const noexcept
 {
-    return ParsedData().footnotes_;
+    return ParsedData()._footnotes;
 }
 std::span<const MarkdownFootnoteReference> MarkdownSyntax::FootnoteReferences() const noexcept
 {
-    return ParsedData().footnoteReferences_;
+    return ParsedData()._footnoteReferences;
 }
 const MarkdownFootnoteReference* MarkdownSyntax::FootnoteReferenceFor(std::size_t inlineNode) const noexcept
 {
-    const auto& references = ParsedData().footnoteReferences_;
+    const auto& references = ParsedData()._footnoteReferences;
     const auto found =
         std::lower_bound(references.begin(), references.end(), inlineNode, [](const auto& reference, auto wanted) { return reference.inlineNode < wanted; });
     return found != references.end() && found->inlineNode == inlineNode ? &*found : nullptr;
@@ -330,11 +330,11 @@ SourceResult MarkdownSyntax::TrySlice(MarkdownRange range, std::wstring_view& ou
 }
 SourceResult MarkdownSyntax::TryLexemeValue(std::size_t index, std::wstring_view& output) const noexcept
 {
-    if (parsedDataOwner_)
-        return parsedDataOwner_->TryLexemeValue(index, output);
-    if (index >= lexemes_.size())
+    if (_parsedDataOwner)
+        return _parsedDataOwner->TryLexemeValue(index, output);
+    if (index >= _lexemes.size())
         return SourceResult::InvalidRange;
-    const auto& token = lexemes_[index];
+    const auto& token = _lexemes[index];
     if (token.kind == MarkdownLexemeKind::Text)
         return TrySlice(token.source, output);
     if (token.valueLength > token.value.size())
@@ -344,12 +344,12 @@ SourceResult MarkdownSyntax::TryLexemeValue(std::size_t index, std::wstring_view
 }
 SourceResult MarkdownSyntax::TryLexemeSourceAnchor(std::size_t index, std::size_t valueOffset, bool trailing, std::size_t& output) const noexcept
 {
-    if (parsedDataOwner_)
-        return parsedDataOwner_->TryLexemeSourceAnchor(index, valueOffset, trailing, output);
+    if (_parsedDataOwner)
+        return _parsedDataOwner->TryLexemeSourceAnchor(index, valueOffset, trailing, output);
     std::wstring_view value;
     if (TryLexemeValue(index, value) != SourceResult::Success)
         return SourceResult::InvalidRange;
-    const auto& token = lexemes_[index];
+    const auto& token = _lexemes[index];
     const auto length = value.size();
     if (valueOffset > length)
         return SourceResult::InvalidRange;
@@ -412,7 +412,7 @@ struct MarkdownParser::Preparation
         std::shared_ptr<MarkdownSyntax> created(new MarkdownSyntax(owned ? std::wstring_view{} : source, revision, profile, extensions, sourceRegion),
                                                 SyntaxDeleter{std::move(state)});
         if (owned)
-            created->source_.swap(*owned);
+            created->_source.swap(*owned);
         return created;
     }
     // MarkdownParser::BeginSource, with an optional owned copy of source to adopt instead of copying it.
@@ -428,45 +428,45 @@ struct MarkdownParser::Preparation
         const auto same = [&](const auto& syntax)
         {
             return syntax && syntax->Revision() == revision && syntax->Profile() == profile && syntax->Extensions() == extensions &&
-                   syntax->Source() == source && syntax->sourceRegionRequest_ == sourceRegion;
+                   syntax->Source() == source && syntax->_sourceRegionRequest == sourceRegion;
         };
         const auto sameChange = [](const auto& a, const auto& b)
         {
             return (! a && ! b) || (a && b && a->kind == b->kind && a->begin == b->begin && a->previousEnd == b->previousEnd && a->currentEnd == b->currentEnd);
         };
-        if (parser.preparation_ && same(parser.preparation_->syntax) && sameChange(parser.preparation_->change, change))
+        if (parser._preparation && same(parser._preparation->syntax) && sameChange(parser._preparation->change, change))
             return;
-        if (same(parser.published_) && (! change || change->kind == SourceChangeKind::Unchanged))
+        if (same(parser._published) && (! change || change->kind == SourceChangeKind::Unchanged))
         {
             parser.Cancel();
             return;
         }
-        const auto borrowed     = parser.published_ && parser.published_->parsedDataOwner_;
+        const auto borrowed     = parser._published && parser._published->_parsedDataOwner;
         const auto document     = borrowed                   ? nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed)
-                                  : parser.documentIdentity_ ? parser.documentIdentity_
+                                  : parser._documentIdentity ? parser._documentIdentity
                                                              : nextDocumentIdentity.fetch_add(1u, std::memory_order_relaxed);
-        const auto nextIdentity = borrowed ? 1u : parser.nextNodeIdentity_;
+        const auto nextIdentity = borrowed ? 1u : parser._nextNodeIdentity;
         const auto units        = source.size();
         auto staged             = std::make_unique<Preparation>(source, revision, profile, extensions, sourceRegion, owned);
         ++::DxUi::Detail::Work().rich.markdownParses;
         ::DxUi::Detail::Work().rich.markdownSourceUnitsCopied += units;
         staged->change = change;
-        staged->SetPrevious(borrowed ? std::shared_ptr<const MarkdownSyntax>{} : parser.published_, document, nextIdentity);
-        parser.preparation_      = std::move(staged);
-        parser.documentIdentity_ = document;
-        parser.nextNodeIdentity_ = nextIdentity;
+        staged->SetPrevious(borrowed ? std::shared_ptr<const MarkdownSyntax>{} : parser._published, document, nextIdentity);
+        parser._preparation      = std::move(staged);
+        parser._documentIdentity = document;
+        parser._nextNodeIdentity = nextIdentity;
     }
     static std::optional<std::wstring> BlockSource(const MarkdownSyntax& syntax)
     {
-        if (! syntax.sourceRegionRequest_ || syntax.sourceRegionRequest_->kind != MarkdownSourceRegionKind::Inline)
+        if (! syntax._sourceRegionRequest || syntax._sourceRegionRequest->kind != MarkdownSourceRegionKind::Inline)
             return std::nullopt;
-        std::wstring source(syntax.source_);
-        std::fill(source.begin() + static_cast<std::ptrdiff_t>(syntax.sourceRegionRequest_->source.first),
-                  source.begin() + static_cast<std::ptrdiff_t>(syntax.sourceRegionRequest_->source.last),
+        std::wstring source(syntax._source);
+        std::fill(source.begin() + static_cast<std::ptrdiff_t>(syntax._sourceRegionRequest->source.first),
+                  source.begin() + static_cast<std::ptrdiff_t>(syntax._sourceRegionRequest->source.last),
                   L'x');
         // A deleted object between delimiter runs must not turn its containing
         // paragraph into a thematic break before inline parsing.
-        const auto range = syntax.sourceRegionRequest_->source;
+        const auto range = syntax._sourceRegionRequest->source;
         if (range.first == range.last && ! source.empty())
         {
             const auto before = range.first ? source.find_last_of(L"\r\n", range.first - 1u) : std::wstring::npos;
@@ -481,7 +481,7 @@ struct MarkdownParser::Preparation
     }
     std::shared_ptr<MarkdownSyntax> syntax;
     std::optional<std::wstring> blockSourceStorage = BlockSource(*syntax);
-    std::wstring_view blockSource                  = blockSourceStorage ? std::wstring_view(*blockSourceStorage) : std::wstring_view(syntax->source_);
+    std::wstring_view blockSource                  = blockSourceStorage ? std::wstring_view(*blockSourceStorage) : std::wstring_view(syntax->_source);
     std::shared_ptr<const MarkdownSyntax> previous;
     std::optional<SourceSnapshot> snapshot;
     std::optional<SourceChangeRange> change;
@@ -533,7 +533,7 @@ struct MarkdownParser::Preparation
     }
     void SetPrevious(std::shared_ptr<const MarkdownSyntax> old, std::uint64_t document, std::uint64_t next)
     {
-        syntax->documentIdentity_ = document;
+        syntax->_documentIdentity = document;
         previous                  = std::move(old);
         nextIdentity              = next;
         if (previous && previous->Profile() != syntax->Profile())
@@ -568,7 +568,7 @@ struct MarkdownParser::Preparation
         }
         previousState = ReuseOf(previous);
         reuse =
-            envelope && previousState && previous->Extensions() == syntax->Extensions() && ! previous->sourceRegionRequest_ && ! syntax->sourceRegionRequest_;
+            envelope && previousState && previous->Extensions() == syntax->Extensions() && ! previous->_sourceRegionRequest && ! syntax->_sourceRegionRequest;
         if (reuse)
         {
             // Physical lines of the unchanged prefix and suffix are the previous publication's; count the window only.
@@ -626,7 +626,7 @@ struct MarkdownParser::Preparation
         for (; found != diagnostics.end() && found->source.first == content.first; ++found)
             if (found->node == oldIndex && found->code != MarkdownDiagnosticCode::UnclosedFrontMatter &&
                 found->code != MarkdownDiagnosticCode::DuplicateFootnoteDefinition && found->code != MarkdownDiagnosticCode::UndefinedFootnote)
-                syntax->diagnostics_.push_back({found->code, node.block.content, nodeIndex});
+                syntax->_diagnostics.push_back({found->code, node.block.content, nodeIndex});
         ++::DxUi::Detail::Work().rich.markdownFrontMatterValidationsReused;
     }
     void IdentityUnit()
@@ -648,16 +648,16 @@ struct MarkdownParser::Preparation
             ++::DxUi::Detail::Work().rich.identityMapNodes;
             return;
         }
-        if (identityCursor == syntax->nodes_.size())
+        if (identityCursor == syntax->_nodes.size())
         {
-            std::sort(syntax->diagnostics_.begin(), syntax->diagnostics_.end(), [](const auto& a, const auto& b) {
+            std::sort(syntax->_diagnostics.begin(), syntax->_diagnostics.end(), [](const auto& a, const auto& b) {
                 return std::tie(a.source.first, a.source.last, a.code) < std::tie(b.source.first, b.source.last, b.code);
             });
             identitiesComplete = true;
             return;
         }
         const auto nodeIndex = identityCursor++;
-        auto& node           = syntax->nodes_[nodeIndex];
+        auto& node           = syntax->_nodes[nodeIndex];
         // The old node an imported subtree copied this node from (W7.2).
         auto carried = MarkdownNoNode;
         while (identitySubtree < importedSubtrees.size() && importedSubtrees[identitySubtree].first + importedSubtrees[identitySubtree].count <= nodeIndex)
@@ -665,11 +665,11 @@ struct MarkdownParser::Preparation
         if (identitySubtree < importedSubtrees.size() && importedSubtrees[identitySubtree].first <= nodeIndex)
             carried = importedSubtrees[identitySubtree].oldFirst + (nodeIndex - importedSubtrees[identitySubtree].first);
         if (node.block.kind == MarkdownBlockKind::SourceEditor)
-            syntax->sourceRegionNode_ = nodeIndex;
+            syntax->_sourceRegionNode = nodeIndex;
         // Reuse the existing resumable final-node pass; never rescan all nodes
         // on a host input/read path just to discover incomplete envelopes.
         if (node.block.kind == MarkdownBlockKind::FrontMatter && ! node.block.closed)
-            syntax->diagnostics_.push_back({MarkdownDiagnosticCode::UnclosedFrontMatter, node.block.info, nodeIndex});
+            syntax->_diagnostics.push_back({MarkdownDiagnosticCode::UnclosedFrontMatter, node.block.info, nodeIndex});
         else if (node.block.kind == MarkdownBlockKind::FrontMatter && carried != MarkdownNoNode)
             CarryFrontMatterResult(node, nodeIndex, carried);
         else if (node.block.kind == MarkdownBlockKind::FrontMatter && node.frontMatterKind == MarkdownFrontMatterKind::Toml)
@@ -678,7 +678,7 @@ struct MarkdownParser::Preparation
             const auto issue =
                 Detail::ValidateTomlMetadata(syntax->Source().substr(node.block.content.first, node.block.content.last - node.block.content.first));
             if (issue != Detail::MetadataIssue::None)
-                syntax->diagnostics_.push_back({issue == Detail::MetadataIssue::Capacity ? MarkdownDiagnosticCode::TomlFrontMatterCapacity
+                syntax->_diagnostics.push_back({issue == Detail::MetadataIssue::Capacity ? MarkdownDiagnosticCode::TomlFrontMatterCapacity
                                                                                          : MarkdownDiagnosticCode::InvalidTomlFrontMatter,
                                                 node.block.content,
                                                 nodeIndex});
@@ -694,7 +694,7 @@ struct MarkdownParser::Preparation
                                   : issue == Detail::MetadataIssue::DuplicateKey    ? MarkdownDiagnosticCode::DuplicateYamlKey
                                   : issue == Detail::MetadataIssue::UnresolvedAlias ? MarkdownDiagnosticCode::UnresolvedYamlAlias
                                                                                     : MarkdownDiagnosticCode::InvalidYamlFrontMatter;
-                syntax->diagnostics_.push_back({code, node.block.content, nodeIndex});
+                syntax->_diagnostics.push_back({code, node.block.content, nodeIndex});
             }
         }
         if (identityCursor == 1u && previous)
@@ -709,8 +709,8 @@ struct MarkdownParser::Preparation
         }
         auto first = node.block.source.first, last = node.block.source.last;
         bool mapped = previous && ! discardOldIdentities;
-        if (node.block.kind == MarkdownBlockKind::SourceEditor && (! previous || ! previous->sourceRegionRequest_ || ! syntax->sourceRegionRequest_ ||
-                                                                   previous->sourceRegionRequest_->session != syntax->sourceRegionRequest_->session))
+        if (node.block.kind == MarkdownBlockKind::SourceEditor && (! previous || ! previous->_sourceRegionRequest || ! syntax->_sourceRegionRequest ||
+                                                                   previous->_sourceRegionRequest->session != syntax->_sourceRegionRequest->session))
             mapped = false;
         // Only unchanged prefix/suffix and a single enclosing edited node map.
         // The ancestry check prevents identities migrating between containers.
@@ -728,7 +728,7 @@ struct MarkdownParser::Preparation
             mapped = false;
         if (mapped)
         {
-            const auto parentIdentity = node.parent == MarkdownNoNode ? 0u : syntax->nodes_[node.parent].identity;
+            const auto parentIdentity = node.parent == MarkdownNoNode ? 0u : syntax->_nodes[node.parent].identity;
             const auto reuseIdentity  = [&](std::size_t candidateFirst, std::size_t candidateLast)
             {
                 const auto found = oldNodes.find(NodeKey{parentIdentity, candidateFirst, candidateLast, node.block.kind});
@@ -737,7 +737,7 @@ struct MarkdownParser::Preparation
                 const auto& old   = previous->Nodes()[found->second];
                 const bool parent = node.parent == MarkdownNoNode
                                         ? old.parent == MarkdownNoNode
-                                        : old.parent != MarkdownNoNode && syntax->nodes_[node.parent].identity == previous->Nodes()[old.parent].identity;
+                                        : old.parent != MarkdownNoNode && syntax->_nodes[node.parent].identity == previous->Nodes()[old.parent].identity;
                 if (! parent)
                     return std::uint64_t{};
                 const auto identity = old.identity;
@@ -757,26 +757,26 @@ struct MarkdownParser::Preparation
     }
     Detail::MarkdownBlocks blocks{
         blockSource,
-        syntax->profile_,
-        syntax->nodes_,
-        syntax->emptyLines_,
-        syntax->extensions_,
-        syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Block ? syntax->sourceRegionRequest_ : std::nullopt,
-        syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Inline && syntax->source_.empty(),
+        syntax->_profile,
+        syntax->_nodes,
+        syntax->_emptyLines,
+        syntax->_extensions,
+        syntax->_sourceRegionRequest && syntax->_sourceRegionRequest->kind == MarkdownSourceRegionKind::Block ? syntax->_sourceRegionRequest : std::nullopt,
+        syntax->_sourceRegionRequest && syntax->_sourceRegionRequest->kind == MarkdownSourceRegionKind::Inline && syntax->_source.empty(),
         false};
-    Detail::MarkdownInlines inlines{syntax->sourceRegionRequest_ && syntax->sourceRegionRequest_->kind == MarkdownSourceRegionKind::Inline &&
-                                            syntax->sourceRegionRequest_->source.first == syntax->sourceRegionRequest_->source.last
-                                        ? std::wstring_view(syntax->source_)
+    Detail::MarkdownInlines inlines{syntax->_sourceRegionRequest && syntax->_sourceRegionRequest->kind == MarkdownSourceRegionKind::Inline &&
+                                            syntax->_sourceRegionRequest->source.first == syntax->_sourceRegionRequest->source.last
+                                        ? std::wstring_view(syntax->_source)
                                         : blockSource,
-                                    syntax->source_,
-                                    syntax->sourceRegionRequest_,
-                                    syntax->profile_,
-                                    syntax->extensions_,
-                                    syntax->nodes_,
-                                    syntax->inlines_,
-                                    syntax->footnotes_,
-                                    syntax->footnoteReferences_,
-                                    syntax->diagnostics_,
+                                    syntax->_source,
+                                    syntax->_sourceRegionRequest,
+                                    syntax->_profile,
+                                    syntax->_extensions,
+                                    syntax->_nodes,
+                                    syntax->_inlines,
+                                    syntax->_footnotes,
+                                    syntax->_footnoteReferences,
+                                    syntax->_diagnostics,
                                     CharacterReference};
     std::size_t cursor{}, lineFirst{}, lexicalCursor{}, literalFirst{}, rootCursor{}, rootNode = MarkdownNoNode;
     std::size_t reusableRootIndex = 1u;
@@ -1041,8 +1041,8 @@ struct MarkdownParser::Preparation
                 return; // A final row's generated cells must finish before compaction.
             }
             blocks.Finish();
-            syntax->blockStatistics_ = blocks.Statistics();
-            rootNode                 = syntax->nodes_[0].firstChild;
+            syntax->_blockStatistics = blocks.Statistics();
+            rootNode                 = syntax->_nodes[0].firstChild;
             blocksComplete           = true;
             return;
         }
@@ -1062,26 +1062,26 @@ struct MarkdownParser::Preparation
     }
     void RootUnit()
     {
-        auto& roots = syntax->blocks_;
-        if (rootNode != MarkdownNoNode && rootCursor == syntax->nodes_[rootNode].block.source.first)
+        auto& roots = syntax->_blocks;
+        if (rootNode != MarkdownNoNode && rootCursor == syntax->_nodes[rootNode].block.source.first)
         {
             // Locate each imported subtree in the compacted tree (W7.2): imports and roots are both in source order.
-            const auto& root = syntax->nodes_[rootNode];
+            const auto& root = syntax->_nodes[rootNode];
             while (importedRootCursor < importedSubtrees.size() && importedSubtrees[importedRootCursor].newSource < root.block.source.first)
                 ++importedRootCursor;
             if (importedRootCursor < importedSubtrees.size() && importedSubtrees[importedRootCursor].newSource == root.block.source.first &&
                 previous->Nodes()[importedSubtrees[importedRootCursor].oldFirst].block.kind == root.block.kind &&
-                rootNode + importedSubtrees[importedRootCursor].count <= syntax->nodes_.size())
+                rootNode + importedSubtrees[importedRootCursor].count <= syntax->_nodes.size())
                 importedSubtrees[importedRootCursor++].first = rootNode;
             while (freshCursor < freshLines.size() && freshLines[freshCursor] < root.block.source.first)
                 ++freshCursor;
             if (freshCursor < freshLines.size() && freshLines[freshCursor] == root.block.source.first)
                 freshRoots.push_back(root.block.source.first);
-            roots.push_back(syntax->nodes_[rootNode].block);
+            roots.push_back(syntax->_nodes[rootNode].block);
             rootCursor = roots.back().source.last;
-            rootNode   = syntax->nodes_[rootNode].nextSibling;
+            rootNode   = syntax->_nodes[rootNode].nextSibling;
         }
-        else if (rootCursor < syntax->source_.size())
+        else if (rootCursor < syntax->_source.size())
         {
             const auto first = rootCursor;
             // An unchanged trivia line keeps its previous partition entry, shifted (W7.2): no unit of it is read.
@@ -1093,7 +1093,7 @@ struct MarkdownParser::Preparation
                     oldRoots.begin(), oldRoots.end(), oldFirst, [](const auto& block, auto position) { return block.source.first < position; });
                 if (old != oldRoots.end() && old->kind == MarkdownBlockKind::BlankLine && old->source.first == oldFirst && old->source.last > oldFirst &&
                     (first >= reuseNewEnd || LineEndsBefore(old->source.last)) &&
-                    (rootNode == MarkdownNoNode || first + (old->source.last - oldFirst) <= syntax->nodes_[rootNode].block.source.first))
+                    (rootNode == MarkdownNoNode || first + (old->source.last - oldFirst) <= syntax->_nodes[rootNode].block.source.first))
                 {
                     rootCursor = first + (old->source.last - oldFirst);
                     roots.push_back({MarkdownBlockKind::BlankLine, {first, rootCursor}, {first, first + (old->content.last - oldFirst)}});
@@ -1103,11 +1103,11 @@ struct MarkdownParser::Preparation
             do
             {
                 ++rootCursor;
-            } while (rootCursor < syntax->source_.size() && syntax->source_[rootCursor - 1u] != L'\r' && syntax->source_[rootCursor - 1u] != L'\n');
-            if (syntax->source_[rootCursor - 1u] == L'\r' && rootCursor < syntax->source_.size() && syntax->source_[rootCursor] == L'\n')
+            } while (rootCursor < syntax->_source.size() && syntax->_source[rootCursor - 1u] != L'\r' && syntax->_source[rootCursor - 1u] != L'\n');
+            if (syntax->_source[rootCursor - 1u] == L'\r' && rootCursor < syntax->_source.size() && syntax->_source[rootCursor] == L'\n')
                 ++rootCursor;
             auto bodyEnd = rootCursor;
-            while (bodyEnd > first && (syntax->source_[bodyEnd - 1u] == L'\r' || syntax->source_[bodyEnd - 1u] == L'\n'))
+            while (bodyEnd > first && (syntax->_source[bodyEnd - 1u] == L'\r' || syntax->_source[bodyEnd - 1u] == L'\n'))
                 --bodyEnd;
             ::DxUi::Detail::Work().rich.markdownRootTriviaUnitsScanned += rootCursor - first;
             roots.push_back({MarkdownBlockKind::BlankLine, {first, rootCursor}, {first, bodyEnd}});
@@ -1123,17 +1123,17 @@ struct MarkdownParser::Preparation
     void FlushLiteral(std::size_t end)
     {
         if (literalFirst < end)
-            syntax->lexemes_.push_back({MarkdownLexemeKind::Text, {literalFirst, end}});
+            syntax->_lexemes.push_back({MarkdownLexemeKind::Text, {literalFirst, end}});
     }
     void ScanLexicalUnit()
     {
-        const auto& source = syntax->source_;
+        const auto& source = syntax->_source;
         if (previous && lexicalPrefixIndex < previous->Lexemes().size())
         {
             const auto& token = previous->Lexemes()[lexicalPrefixIndex];
             if (token.source.first == lexicalCursor && token.source.last <= lexicalPrefixLimit)
             {
-                syntax->lexemes_.push_back(token);
+                syntax->_lexemes.push_back(token);
                 lexicalCursor = literalFirst = token.source.last;
                 ++lexicalPrefixIndex;
                 return;
@@ -1152,7 +1152,7 @@ struct MarkdownParser::Preparation
                 auto token         = old[lexicalSuffixIndex++];
                 token.source.first = commonNewEnd + (token.source.first - commonOldEnd);
                 token.source.last  = commonNewEnd + (token.source.last - commonOldEnd);
-                syntax->lexemes_.push_back(token);
+                syntax->_lexemes.push_back(token);
                 lexicalCursor = literalFirst = token.source.last;
                 return;
             }
@@ -1192,7 +1192,7 @@ struct MarkdownParser::Preparation
         }
         ::DxUi::Detail::Work().rich.markdownLexicalUnitsScanned += lexicalCursor - first;
         FlushLiteral(first);
-        syntax->lexemes_.push_back(token);
+        syntax->_lexemes.push_back(token);
         literalFirst = lexicalCursor;
     }
 };
@@ -1201,34 +1201,34 @@ struct MarkdownParser::Preparation
 MarkdownParser::MarkdownParser() noexcept  = default;
 MarkdownParser::~MarkdownParser() noexcept = default;
 MarkdownParser::MarkdownParser(MarkdownParser&& other) noexcept
-    : preparation_(std::move(other.preparation_)),
-      published_(std::move(other.published_)),
-      documentIdentity_(std::exchange(other.documentIdentity_, 0u)),
-      nextNodeIdentity_(std::exchange(other.nextNodeIdentity_, 1u)),
-      publishedSource_(std::move(other.publishedSource_))
+    : _preparation(std::move(other._preparation)),
+      _published(std::move(other._published)),
+      _documentIdentity(std::exchange(other._documentIdentity, 0u)),
+      _nextNodeIdentity(std::exchange(other._nextNodeIdentity, 1u)),
+      _publishedSource(std::move(other._publishedSource))
 {
-    other.publishedSource_.reset();
+    other._publishedSource.reset();
 }
 MarkdownParser& MarkdownParser::operator=(MarkdownParser&& other) noexcept
 {
     if (this != &other)
     {
-        preparation_      = std::move(other.preparation_);
-        published_        = std::move(other.published_);
-        documentIdentity_ = std::exchange(other.documentIdentity_, 0u);
-        nextNodeIdentity_ = std::exchange(other.nextNodeIdentity_, 1u);
-        publishedSource_  = std::move(other.publishedSource_);
-        other.publishedSource_.reset();
+        _preparation      = std::move(other._preparation);
+        _published        = std::move(other._published);
+        _documentIdentity = std::exchange(other._documentIdentity, 0u);
+        _nextNodeIdentity = std::exchange(other._nextNodeIdentity, 1u);
+        _publishedSource  = std::move(other._publishedSource);
+        other._publishedSource.reset();
     }
     return *this;
 }
 bool MarkdownParser::HasPendingPreparation() const noexcept
 {
-    return static_cast<bool>(preparation_);
+    return static_cast<bool>(_preparation);
 }
 std::shared_ptr<const MarkdownSyntax> MarkdownParser::Published() const noexcept
 {
-    return published_;
+    return _published;
 }
 bool MarkdownParser::TryAdoptParsedSnapshot(const SourceSnapshot& source,
                                             std::uint64_t revision,
@@ -1239,15 +1239,15 @@ bool MarkdownParser::TryAdoptParsedSnapshot(const SourceSnapshot& source,
     Failure::Scope failureScope;
     MarkdownExtensions resolved{};
     if (! syntax || ! TryResolveExtensions(profile, extensions, resolved) || syntax->Profile() != profile || syntax->Extensions() != resolved ||
-        syntax->sourceRegionRequest_)
+        syntax->_sourceRegionRequest)
         return false;
 
-    const auto& canonical = syntax->parsedDataOwner_ ? syntax->parsedDataOwner_ : syntax;
-    if (canonical->parsedDataOwner_ || canonical->sourceRegionRequest_ || canonical->Profile() != profile || canonical->Extensions() != resolved)
+    const auto& canonical = syntax->_parsedDataOwner ? syntax->_parsedDataOwner : syntax;
+    if (canonical->_parsedDataOwner || canonical->_sourceRegionRequest || canonical->Profile() != profile || canonical->Extensions() != resolved)
         return false;
 
-    if (published_ && published_->parsedDataOwner_ && published_->Revision() == revision && published_->Profile() == profile &&
-        published_->Extensions() == resolved && publishedSource_ && publishedSource_->IsSameRevision(source) && published_->parsedDataOwner_ == canonical)
+    if (_published && _published->_parsedDataOwner && _published->Revision() == revision && _published->Profile() == profile &&
+        _published->Extensions() == resolved && _publishedSource && _publishedSource->IsSameRevision(source) && _published->_parsedDataOwner == canonical)
     {
         // The exact immutable source revision was already validated against this
         // canonical parse. Retire later staged work without walking its pieces.
@@ -1263,24 +1263,24 @@ bool MarkdownParser::TryAdoptParsedSnapshot(const SourceSnapshot& source,
     // All potentially throwing validation/allocation completed. Commit only
     // no-throw ownership and scalar updates so a refused/failed adoption keeps
     // the old staged and published state intact.
-    preparation_.reset();
-    published_        = std::move(staged);
-    documentIdentity_ = identity;
-    nextNodeIdentity_ = 1u;
-    publishedSource_  = source;
+    _preparation.reset();
+    _published        = std::move(staged);
+    _documentIdentity = identity;
+    _nextNodeIdentity = 1u;
+    _publishedSource  = source;
     return true;
 }
 void MarkdownParser::Cancel() noexcept
 {
-    preparation_.reset();
+    _preparation.reset();
 }
 void MarkdownParser::Clear() noexcept
 {
     Cancel();
-    published_.reset();
-    documentIdentity_ = 0u;
-    nextNodeIdentity_ = 1u;
-    publishedSource_.reset();
+    _published.reset();
+    _documentIdentity = 0u;
+    _nextNodeIdentity = 1u;
+    _publishedSource.reset();
 }
 void MarkdownParser::Begin(std::wstring_view source, std::uint64_t revision, MarkdownProfile profile, std::optional<MarkdownExtensions> extensions)
 {
@@ -1311,25 +1311,25 @@ MarkdownResult MarkdownParser::TryBegin(const SourceSnapshot& source,
     MarkdownExtensions enabled{};
     if (! TryResolveExtensions(profile, extensions, enabled))
         return MarkdownResult::InvalidProfile;
-    const auto change = publishedSource_ ? std::optional(source.ChangedRangeFrom(*publishedSource_)) : std::nullopt;
-    if (change && change->kind == SourceChangeKind::Unchanged && published_ && published_->Revision() == revision && published_->Profile() == profile &&
-        published_->Extensions() == enabled && ! published_->sourceRegionRequest_)
+    const auto change = _publishedSource ? std::optional(source.ChangedRangeFrom(*_publishedSource)) : std::nullopt;
+    if (change && change->kind == SourceChangeKind::Unchanged && _published && _published->Revision() == revision && _published->Profile() == profile &&
+        _published->Extensions() == enabled && ! _published->_sourceRegionRequest)
     {
         Cancel();
-        publishedSource_ = source;
+        _publishedSource = source;
         return MarkdownResult::Success;
     }
     std::wstring flat(0u, L' ');
-    if (! ComposeSource(source, published_, change, flat))
+    if (! ComposeSource(source, _published, change, flat))
     {
         flat = source.Text();
         ::DxUi::Detail::Work().rich.markdownSourceUnitsMaterialized += flat.size();
     }
     Preparation::Begin(*this, flat, revision, profile, enabled, change, std::nullopt, &flat);
-    if (preparation_)
-        preparation_->snapshot = source;
+    if (_preparation)
+        _preparation->snapshot = source;
     else
-        publishedSource_ = source;
+        _publishedSource = source;
     return MarkdownResult::Success;
 }
 void MarkdownParser::BeginSourceRegion(
@@ -1353,18 +1353,18 @@ MarkdownResult MarkdownParser::TryBeginSourceRegion(
     MarkdownExtensions enabled{};
     if (! TryResolveExtensions(profile, extensions, enabled))
         return MarkdownResult::InvalidProfile;
-    const auto change = publishedSource_ ? std::optional(source.ChangedRangeFrom(*publishedSource_)) : std::nullopt;
+    const auto change = _publishedSource ? std::optional(source.ChangedRangeFrom(*_publishedSource)) : std::nullopt;
     std::wstring flat(0u, L' ');
-    if (! ComposeSource(source, published_, change, flat))
+    if (! ComposeSource(source, _published, change, flat))
     {
         flat = source.Text();
         ::DxUi::Detail::Work().rich.markdownSourceUnitsMaterialized += flat.size();
     }
     Preparation::Begin(*this, flat, revision, profile, enabled, change, region, &flat);
-    if (preparation_)
-        preparation_->snapshot = source;
+    if (_preparation)
+        _preparation->snapshot = source;
     else
-        publishedSource_ = source;
+        _publishedSource = source;
     return MarkdownResult::Success;
 }
 void MarkdownParser::BeginSource(std::wstring_view source,
@@ -1379,10 +1379,10 @@ void MarkdownParser::BeginSource(std::wstring_view source,
 MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
 {
     Failure::Scope failureScope;
-    if (! preparation_)
-        return {published_ ? MarkdownPreparationStatus::Complete : MarkdownPreparationStatus::Idle};
+    if (! _preparation)
+        return {_published ? MarkdownPreparationStatus::Complete : MarkdownPreparationStatus::Idle};
     MarkdownAdvance result{MarkdownPreparationStatus::Pending};
-    auto& pending = *preparation_;
+    auto& pending = *_preparation;
     while (result.workUnits < maximumWorkUnits)
     {
         ++result.workUnits;
@@ -1396,7 +1396,7 @@ MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
         {
             pending.inlinesComplete = pending.inlines.Step();
             if (pending.inlinesComplete)
-                pending.syntax->inlineStatistics_ = {
+                pending.syntax->_inlineStatistics = {
                     pending.inlines.AutolinkInspectionUnits(), pending.inlines.AutolinkDecodedUnits(), pending.inlines.WikiInspectionUnits()};
         }
         else if (! pending.identitiesComplete)
@@ -1410,16 +1410,16 @@ MarkdownAdvance MarkdownParser::Advance(std::size_t maximumWorkUnits)
                 deleter->state->physicalLines = pending.sourceLines;
                 deleter->state->freshRoots.swap(pending.freshRoots);
             }
-            nextNodeIdentity_ = pending.nextIdentity;
-            publishedSource_  = std::move(pending.snapshot);
-            published_        = std::move(pending.syntax);
-            preparation_.reset();
+            _nextNodeIdentity = pending.nextIdentity;
+            _publishedSource  = std::move(pending.snapshot);
+            _published        = std::move(pending.syntax);
+            _preparation.reset();
             result.status = MarkdownPreparationStatus::Complete;
             break;
         }
         if (pending.blocks.CapacityExceeded() || pending.inlines.CapacityExceeded())
         {
-            preparation_.reset();
+            _preparation.reset();
             result.status = MarkdownPreparationStatus::Failed;
             result.result = MarkdownResult::CapacityExceeded;
             break;

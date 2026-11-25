@@ -87,62 +87,62 @@ class ObjectScene final
 public:
     explicit ObjectScene(ID3D11Device* device)
     {
-        Hr(DxUi::GraphicsDevice::Create(device, graphics_), "object scene graphics");
-        Hr(view_.Attach(graphics_, StoppedTestClock()), "object scene view");
+        Hr(DxUi::GraphicsDevice::Create(device, _graphics), "object scene graphics");
+        Hr(_view.Attach(_graphics, StoppedTestClock()), "object scene view");
         auto owned = std::make_unique<DxUi::RichTextEditor>(L"Intro paragraph.\n\n$$\nx + y\n$$\n\n```mermaid\nflowchart TD\nA[Start]-->B[Stop]\nstyle A "
                                                             L"fill:#204080,color:#ffffff\n```\n\nInline $a^2$ formula.\n\n"
                                                             L"![raster](picture.png)\n\n![vector](shape.svg)\n\nLast paragraph.\n");
-        editor_    = owned.get();
-        editor_->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
-        editor_->SetMarkdownRenderingEnabled(true);
-        editor_->SetDocumentFilePath(L"C:\\fixture\\objects.md"); // resolves relative image sources; never opened
-        editor_->SetSvgImagesEnabled(true);
-        view_.Controls().SetRoot(std::move(owned));
-        view_.Controls().SetFocusControl(editor_, false);
+        _editor    = owned.get();
+        _editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
+        _editor->SetMarkdownRenderingEnabled(true);
+        _editor->SetDocumentFilePath(L"C:\\fixture\\objects.md"); // resolves relative image sources; never opened
+        _editor->SetSvgImagesEnabled(true);
+        _view.Controls().SetRoot(std::move(owned));
+        _view.Controls().SetFocusControl(_editor, false);
         Prepare();
         Prepare(); // the second preparation draws the completed images
     }
     ~ObjectScene()
     {
-        view_.Detach();
+        _view.Detach();
     }
     ObjectScene(const ObjectScene&)            = delete;
     ObjectScene& operator=(const ObjectScene&) = delete;
     [[nodiscard]] DxUi::EmbeddedHost& View() noexcept
     {
-        return view_;
+        return _view;
     }
     [[nodiscard]] DxUi::RichTextEditor& Editor() noexcept
     {
-        return *editor_;
+        return *_editor;
     }
     void Prepare()
     {
-        Hr(PrepareRichEmbeddedContent(view_, kWidth, kHeight), "object scene preparation");
+        Hr(PrepareRichEmbeddedContent(_view, kWidth, kHeight), "object scene preparation");
         std::vector<DxUi::RichText::RichImageRequest> requests;
-        editor_->TakePendingImageRequests(requests);
+        _editor->TakePendingImageRequests(requests);
         for (const auto& request : requests)
-            static_cast<void>(editor_->CompleteImageRequest(request,
+            static_cast<void>(_editor->CompleteImageRequest(request,
                                                             request.Source().ends_with(L".svg") ? IncrementalParity::RichObjectPictures().vector
                                                                                                 : IncrementalParity::RichObjectPictures().raster));
         if (! requests.empty())
-            Hr(PrepareRichEmbeddedContent(view_, kWidth, kHeight), "object scene preparation with completed images");
+            Hr(PrepareRichEmbeddedContent(_view, kWidth, kHeight), "object scene preparation with completed images");
     }
     // One prose character typed at the end of the intro paragraph, prepared; returns the object work it took.
     ObjectWork TypeInProse()
     {
         const DxUi::Detail::WorkCounterScope scope;
-        const auto text = editor_->GetText();
+        const auto text = _editor->GetText();
         const auto at   = text.find(L"Intro paragraph") + 15u;
-        editor_->SetSelection({at, at});
-        Check(editor_->ReplaceSelection(L"x"), "object scene prose edit");
+        _editor->SetSelection({at, at});
+        Check(_editor->ReplaceSelection(L"x"), "object scene prose edit");
         Prepare();
         return Objects(scope.Delta());
     }
     [[nodiscard]] std::vector<uint8_t> Surface()
     {
         DxUi::WindowHostBitmapCapture surface;
-        Hr(view_.DebugReadSurfaceForTest(surface), "object scene surface read");
+        Hr(_view.DebugReadSurfaceForTest(surface), "object scene surface read");
         return std::move(surface.bgraPixels);
     }
     // The surface of a fresh preparation of the same document: every retained cache dropped and nothing carried.
@@ -150,16 +150,16 @@ public:
     {
         DxUi::Detail::SetFreshPreparationForTest(true);
         const auto restore = wil::scope_exit([] { DxUi::Detail::SetFreshPreparationForTest(false); });
-        view_.DebugDropRetainedStateForTest();
-        Hr(PrepareRichEmbeddedContent(view_, kWidth, kHeight), "object scene fresh preparation");
+        _view.DebugDropRetainedStateForTest();
+        Hr(PrepareRichEmbeddedContent(_view, kWidth, kHeight), "object scene fresh preparation");
         return Surface();
     }
     static constexpr UINT kWidth = 640u, kHeight = 720u;
 
 private:
-    std::shared_ptr<DxUi::GraphicsDevice> graphics_;
-    DxUi::EmbeddedHost view_;
-    DxUi::RichTextEditor* editor_ = nullptr;
+    std::shared_ptr<DxUi::GraphicsDevice> _graphics;
+    DxUi::EmbeddedHost _view;
+    DxUi::RichTextEditor* _editor = nullptr;
 };
 
 // A device replacement between two edits: the resource generation changes, so no bitmap, SVG raster, target-bound palette

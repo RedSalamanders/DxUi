@@ -31,34 +31,34 @@ public:
     View& operator=(View&&)      = delete;
     bool Open(const std::wstring& path) noexcept
     {
-        file_.reset(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+        _file.reset(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
         LARGE_INTEGER length{};
-        if (! file_ || ! GetFileSizeEx(file_.get(), &length) || length.QuadPart < static_cast<LONGLONG>(sizeof(MINIDUMP_HEADER)) ||
+        if (! _file || ! GetFileSizeEx(_file.get(), &length) || length.QuadPart < static_cast<LONGLONG>(sizeof(MINIDUMP_HEADER)) ||
             length.QuadPart > 1024ll * 1024ll * 1024ll)
             return false;
-        size_ = static_cast<size_t>(length.QuadPart);
-        mapping_.reset(CreateFileMappingW(file_.get(), nullptr, PAGE_READONLY, 0, 0, nullptr));
-        if (! mapping_)
+        _size = static_cast<size_t>(length.QuadPart);
+        _mapping.reset(CreateFileMappingW(_file.get(), nullptr, PAGE_READONLY, 0, 0, nullptr));
+        if (! _mapping)
             return false;
-        view_.reset(MapViewOfFile(mapping_.get(), FILE_MAP_READ, 0, 0, 0));
+        _view.reset(MapViewOfFile(_mapping.get(), FILE_MAP_READ, 0, 0, 0));
         const auto* header = At<MINIDUMP_HEADER>(0);
-        return header && header->Signature == MINIDUMP_SIGNATURE && header->StreamDirectoryRva <= size_ &&
-               header->NumberOfStreams <= (size_ - header->StreamDirectoryRva) / sizeof(MINIDUMP_DIRECTORY);
+        return header && header->Signature == MINIDUMP_SIGNATURE && header->StreamDirectoryRva <= _size &&
+               header->NumberOfStreams <= (_size - header->StreamDirectoryRva) / sizeof(MINIDUMP_DIRECTORY);
     }
     template <class T> const T* At(uint64_t offset, size_t count = 1u) const noexcept
     {
-        if (! view_ || offset > size_ || count > (size_ - static_cast<size_t>(offset)) / sizeof(T))
+        if (! _view || offset > _size || count > (_size - static_cast<size_t>(offset)) / sizeof(T))
             return nullptr;
-        return reinterpret_cast<const T*>(static_cast<const std::byte*>(view_.get()) + static_cast<size_t>(offset));
+        return reinterpret_cast<const T*>(static_cast<const std::byte*>(_view.get()) + static_cast<size_t>(offset));
     }
     template <class T> const T* Stream(ULONG kind, ULONG& bytes) const noexcept
     {
         PMINIDUMP_DIRECTORY directory{};
         void* data{};
-        if (! MiniDumpReadDumpStream(view_.get(), kind, &directory, &data, &bytes) || bytes < sizeof(T))
+        if (! MiniDumpReadDumpStream(_view.get(), kind, &directory, &data, &bytes) || bytes < sizeof(T))
             return nullptr;
-        const auto address = reinterpret_cast<uintptr_t>(data), start = reinterpret_cast<uintptr_t>(view_.get());
-        if (address < start || address - start > size_ || bytes > size_ - (address - start))
+        const auto address = reinterpret_cast<uintptr_t>(data), start = reinterpret_cast<uintptr_t>(_view.get());
+        if (address < start || address - start > _size || bytes > _size - (address - start))
             return nullptr;
         return static_cast<const T*>(data);
     }
@@ -126,13 +126,13 @@ public:
     }
     void AddImage(HANDLE file, uint64_t base, uint64_t size)
     {
-        images_.push_back({file, base, size});
+        _images.push_back({file, base, size});
     }
     bool ReadImage(uint64_t address, void* output, DWORD count) const noexcept
     {
         if (! output || ! count)
             return false;
-        for (const auto& image : images_)
+        for (const auto& image : _images)
         {
             if (address < image.base || address - image.base >= image.size || count > image.size - (address - image.base))
                 continue;
@@ -191,11 +191,11 @@ private:
         std::memcpy(output, input, count);
         return true;
     }
-    wil::unique_hfile file_;
-    wil::unique_handle mapping_;
-    wil::unique_mapview_ptr<void> view_;
-    size_t size_{};
-    std::vector<Image> images_;
+    wil::unique_hfile _file;
+    wil::unique_handle _mapping;
+    wil::unique_mapview_ptr<void> _view;
+    size_t _size{};
+    std::vector<Image> _images;
 };
 inline thread_local const View* activeView{};
 inline thread_local unsigned functionTableRequests{}, missingFunctionTables{};

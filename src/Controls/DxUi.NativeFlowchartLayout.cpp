@@ -1668,23 +1668,23 @@ SourceResult NativeFlowchartLayout::Begin(std::shared_ptr<const FlowchartModel> 
         if (! Valid(value))
             return SourceResult::InvalidArgument;
     auto next    = std::make_unique<Preparation>(std::move(graph), nodeLabels, edgeLabels, fromCardinalities, toCardinalities, groupLabels);
-    preparation_ = std::move(next);
+    _preparation = std::move(next);
     return SourceResult::Success;
 }
 MarkdownAdvance NativeFlowchartLayout::Advance(std::size_t maximumWorkUnits)
 {
     const Failure::Scope failureScope;
-    if (! preparation_)
+    if (! _preparation)
         return {MarkdownPreparationStatus::Idle, 0u};
     std::size_t work{};
     while (work < maximumWorkUnits)
     {
-        preparation_->Step();
+        _preparation->Step();
         ++work;
-        if (preparation_->done)
+        if (_preparation->done)
         {
-            published_ = preparation_->plan;
-            preparation_.reset();
+            _published = _preparation->plan;
+            _preparation.reset();
             return {MarkdownPreparationStatus::Complete, work};
         }
     }
@@ -1692,19 +1692,19 @@ MarkdownAdvance NativeFlowchartLayout::Advance(std::size_t maximumWorkUnits)
 }
 bool NativeFlowchartLayout::HasPendingPreparation() const noexcept
 {
-    return ! ! preparation_;
+    return ! ! _preparation;
 }
 std::shared_ptr<const FlowchartLayoutPlan> NativeFlowchartLayout::Published() const noexcept
 {
-    return published_;
+    return _published;
 }
 void NativeFlowchartLayout::Cancel() noexcept
 {
-    preparation_.reset();
+    _preparation.reset();
 }
 void NativeFlowchartLayout::Clear() noexcept
 {
     Cancel();
-    published_.reset();
+    _published.reset();
 }
 } // namespace DxUi::RichText::Detail

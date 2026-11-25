@@ -89,29 +89,29 @@ public:
                                 IDWriteInlineObject* positioning,
                                 UINT32 textOffset,
                                 std::wstring_view requestedFamily = {}) noexcept
-        : target_(target),
-          expectedText_(expectedText),
-          drawing_(drawing),
-          positioning_(positioning),
-          textOffset_(textOffset),
-          requestedFamily_(requestedFamily)
+        : _target(target),
+          _expectedText(expectedText),
+          _drawing(drawing),
+          _positioning(positioning),
+          _textOffset(textOffset),
+          _requestedFamily(requestedFamily)
     {
     }
     std::span<const SourceInkRunDiagnostic> Runs() const noexcept
     {
-        return std::span(runs_).first(runCount_);
+        return std::span(_runs).first(_runCount);
     }
     bool InlineIdentity() const noexcept
     {
-        return inlineIdentity_;
+        return _inlineIdentity;
     }
     UINT32 Underlines() const noexcept
     {
-        return underlines_;
+        return _underlines;
     }
     UINT32 Strikes() const noexcept
     {
-        return strikes_;
+        return _strikes;
     }
     HRESULT STDMETHODCALLTYPE IsPixelSnappingDisabled(void*, BOOL* disabled) noexcept override
     {
@@ -125,7 +125,7 @@ public:
         if (! transform)
             return E_POINTER;
         D2D1_MATRIX_3X2_F current{};
-        target_->GetTransform(&current);
+        _target->GetTransform(&current);
         *transform = {current._11, current._12, current._21, current._22, current._31, current._32};
         return S_OK;
     }
@@ -134,7 +134,7 @@ public:
         if (! pixelsPerDip)
             return E_POINTER;
         FLOAT x{}, y{};
-        target_->GetDpi(&x, &y);
+        _target->GetDpi(&x, &y);
         if (x != y || x <= 0.0f)
             return E_NOTIMPL;
         *pixelsPerDip = x / 96.0f;
@@ -148,9 +148,9 @@ public:
                                            const DWRITE_GLYPH_RUN_DESCRIPTION* description,
                                            IUnknown* effect) noexcept override
     {
-        if (runCount_ == runs_.size())
+        if (_runCount == _runs.size())
             return E_BOUNDS;
-        auto& output  = runs_[runCount_++];
+        auto& output  = _runs[_runCount++];
         output.effect = effect != nullptr;
         if (! run || ! description)
             return S_OK;
@@ -160,11 +160,11 @@ public:
         output.stringLength = description->stringLength;
         output.bidiLevel    = run->bidiLevel;
         output.sideways     = run->isSideways != FALSE;
-        if (description->string && description->textPosition >= textOffset_)
+        if (description->string && description->textPosition >= _textOffset)
         {
-            const auto local = static_cast<std::size_t>(description->textPosition - textOffset_);
-            output.textMatch = local <= expectedText_.size() && description->stringLength <= expectedText_.size() - local &&
-                               std::wstring_view(description->string, description->stringLength) == expectedText_.substr(local, description->stringLength);
+            const auto local = static_cast<std::size_t>(description->textPosition - _textOffset);
+            output.textMatch = local <= _expectedText.size() && description->stringLength <= _expectedText.size() - local &&
+                               std::wstring_view(description->string, description->stringLength) == _expectedText.substr(local, description->stringLength);
             output.cjkText   = std::ranges::any_of(std::wstring_view(description->string, description->stringLength),
                                                    [](wchar_t character) { return character >= 0x4e00 && character <= 0x9fff; });
         }
@@ -174,7 +174,7 @@ public:
             wil::com_ptr<IDWriteFontFace2> face2;
             output.monospaced = SUCCEEDED(run->fontFace->QueryInterface(IID_PPV_ARGS(face1.put()))) && face1->IsMonospacedFont();
             output.colorFont  = SUCCEEDED(run->fontFace->QueryInterface(IID_PPV_ARGS(face2.put()))) && face2->IsColorFont();
-            if (! requestedFamily_.empty())
+            if (! _requestedFamily.empty())
             {
                 wil::com_ptr<IDWriteFontFace3> face3;
                 if (SUCCEEDED(run->fontFace->QueryInterface(IID_PPV_ARGS(face3.put()))) && face3)
@@ -199,8 +199,8 @@ public:
                                 {
                                     const int comparison   = CompareStringOrdinal(family.data(),
                                                                                   static_cast<int>(family.size()),
-                                                                                  requestedFamily_.data(),
-                                                                                  static_cast<int>(requestedFamily_.size()),
+                                                                                  _requestedFamily.data(),
+                                                                                  static_cast<int>(_requestedFamily.size()),
                                                                                   TRUE);
                                     output.familyKnown     = comparison != 0;
                                     output.requestedFamily = comparison == CSTR_EQUAL;
@@ -219,12 +219,12 @@ public:
         for (UINT32 unit = 0; unit < description->stringLength; ++unit)
         {
             const auto glyph    = description->clusterMap[unit];
-            const auto position = drawing_->displayOrigin + description->textPosition + unit - textOffset_;
+            const auto position = _drawing->displayOrigin + description->textPosition + unit - _textOffset;
             int role            = -1;
-            for (const auto& ink : drawing_->inkRanges)
+            for (const auto& ink : _drawing->inkRanges)
             {
                 const auto roleIndex = static_cast<size_t>(ink.role);
-                if (ink.display.first <= position && position < ink.display.last && roleIndex < drawing_->inkBrushes.size() && drawing_->inkBrushes[roleIndex])
+                if (ink.display.first <= position && position < ink.display.last && roleIndex < _drawing->inkBrushes.size() && _drawing->inkBrushes[roleIndex])
                     role = static_cast<int>(roleIndex);
             }
             if (glyph >= run->glyphCount || (clusterRoles[glyph] != -2 && clusterRoles[glyph] != role))
@@ -255,30 +255,30 @@ public:
     }
     HRESULT STDMETHODCALLTYPE DrawUnderline(void*, FLOAT, FLOAT, const DWRITE_UNDERLINE*, IUnknown*) noexcept override
     {
-        ++underlines_;
+        ++_underlines;
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE DrawStrikethrough(void*, FLOAT, FLOAT, const DWRITE_STRIKETHROUGH*, IUnknown*) noexcept override
     {
-        ++strikes_;
+        ++_strikes;
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE DrawInlineObject(void*, FLOAT, FLOAT, IDWriteInlineObject* object, BOOL, BOOL, IUnknown*) noexcept override
     {
-        inlineIdentity_ = inlineIdentity_ || object == positioning_;
+        _inlineIdentity = _inlineIdentity || object == _positioning;
         return S_OK;
     }
 
 private:
-    ID2D1RenderTarget* target_{};
-    std::wstring_view expectedText_;
-    const LinkDrawing* drawing_{};
-    IDWriteInlineObject* positioning_{};
-    UINT32 textOffset_{};
-    std::wstring_view requestedFamily_;
-    std::array<SourceInkRunDiagnostic, 32> runs_{};
-    UINT32 runCount_{}, underlines_{}, strikes_{};
-    bool inlineIdentity_{};
+    ID2D1RenderTarget* _target{};
+    std::wstring_view _expectedText;
+    const LinkDrawing* _drawing{};
+    IDWriteInlineObject* _positioning{};
+    UINT32 _textOffset{};
+    std::wstring_view _requestedFamily;
+    std::array<SourceInkRunDiagnostic, 32> _runs{};
+    UINT32 _runCount{}, _underlines{}, _strikes{};
+    bool _inlineIdentity{};
 };
 #pragma warning(pop)
 

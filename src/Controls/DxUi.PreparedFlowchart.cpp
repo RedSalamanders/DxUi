@@ -460,7 +460,7 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
     const Failure::Scope failureScope;
     const auto refuse = [this](HRESULT error)
     {
-        result_ = error;
+        _result = error;
         return LayoutPreparationStatus::Failed;
     };
     if (! write || ! drawing || ! graph || graph->outcome != FlowchartOutcome::Prepared || graph->nodes.size() > NativeFlowchartParser::MaximumNodes ||
@@ -473,13 +473,13 @@ LayoutPreparationStatus PreparedFlowchart::Begin(IDWriteFactory* write,
         return refuse(E_INVALIDARG);
     if (! ValidFlowchartModel(*graph))
         return refuse(E_INVALIDARG);
-    result_ = S_OK;
-    if (next_ && next_->state->Matches(write, drawing, graph, typography, resourceEpoch))
+    _result = S_OK;
+    if (_next && _next->state->Matches(write, drawing, graph, typography, resourceEpoch))
         return LayoutPreparationStatus::Pending;
-    if (! next_ && valid_ && state_ && state_->Matches(write, drawing, graph, typography, resourceEpoch))
+    if (! _next && _valid && _state && _state->Matches(write, drawing, graph, typography, resourceEpoch))
         return LayoutPreparationStatus::Complete;
     auto next = std::make_unique<Preparation>(write, drawing, std::move(graph), typography, resourceEpoch);
-    next_     = std::move(next);
+    _next     = std::move(next);
     return LayoutPreparationStatus::Pending;
 }
 LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
@@ -488,24 +488,24 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
     LayoutAdvance result;
     const auto fail = [&](HRESULT error)
     {
-        next_.reset();
-        result_       = error;
+        _next.reset();
+        _result       = error;
         result.status = LayoutPreparationStatus::Failed;
         result.result = error;
         return result;
     };
-    if (! next_)
+    if (! _next)
         return result;
     // A refused Begin does not cancel the previous pending request. Its
     // admission error belongs to that call, not to this resumed stage.
-    result_       = S_OK;
+    _result       = S_OK;
     result.status = LayoutPreparationStatus::Pending;
     if (! budget.maximumLayouts || ! budget.maximumBlockSteps)
         return result;
     {
         while (result.blockSteps < budget.maximumBlockSteps)
         {
-            auto& work  = *next_;
+            auto& work  = *_next;
             auto& state = *work.state;
             switch (work.stage)
             {
@@ -681,10 +681,10 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                     {
                         const auto& slice = state.geometry->nodes[work.cursor];
                         if (slice.pieEnd > slice.pieStart)
-                            state.nodePaths[work.cursor] = PiePath(state.drawing.get(), state.geometry->pieCircle, slice.pieStart, slice.pieEnd, result_);
+                            state.nodePaths[work.cursor] = PiePath(state.drawing.get(), state.geometry->pieCircle, slice.pieStart, slice.pieEnd, _result);
                     }
                     else if (state.geometry->nodes[work.cursor].shape == FlowchartShape::Cylinder)
-                        state.nodePaths[work.cursor] = CylinderPath(state.drawing.get(), state.geometry->nodes[work.cursor].bounds, result_);
+                        state.nodePaths[work.cursor] = CylinderPath(state.drawing.get(), state.geometry->nodes[work.cursor].bounds, _result);
                     else if (state.geometry->nodes[work.cursor].shape == FlowchartShape::Diamond)
                     {
                         const auto rect                             = state.geometry->nodes[work.cursor].bounds;
@@ -692,7 +692,7 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                                                                         {rect.x + rect.width, rect.y + rect.height / 2.0},
                                                                         {rect.x + rect.width / 2.0, rect.y + rect.height},
                                                                         {rect.x, rect.y + rect.height / 2.0}}};
-                        state.nodePaths[work.cursor]                = Path(state.drawing.get(), points, result_);
+                        state.nodePaths[work.cursor]                = Path(state.drawing.get(), points, _result);
                     }
                     else if (state.geometry->nodes[work.cursor].shape == FlowchartShape::Hexagon)
                     {
@@ -703,7 +703,7 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                                                                         {rect.x + rect.width * .75, rect.y + rect.height},
                                                                         {rect.x + rect.width * .25, rect.y + rect.height},
                                                                         {rect.x, rect.y + rect.height * .5}}};
-                        state.nodePaths[work.cursor]                = Path(state.drawing.get(), points, result_);
+                        state.nodePaths[work.cursor]                = Path(state.drawing.get(), points, _result);
                     }
                     else if (state.geometry->nodes[work.cursor].shape >= FlowchartShape::Asymmetric &&
                              state.geometry->nodes[work.cursor].shape <= FlowchartShape::ReverseTrapezoid)
@@ -714,7 +714,7 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                         if (node.shape == FlowchartShape::Asymmetric)
                         {
                             const std::array points{point(0.0, 0.0), point(.75, 0.0), point(1.0, .5), point(.75, 1.0), point(0.0, 1.0)};
-                            state.nodePaths[work.cursor] = Path(state.drawing.get(), points, result_);
+                            state.nodePaths[work.cursor] = Path(state.drawing.get(), points, _result);
                         }
                         else
                         {
@@ -724,7 +724,7 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                                 node.shape == FlowchartShape::ReverseParallelogram || node.shape == FlowchartShape::ReverseTrapezoid ? .25 : 0.0;
                             const auto bottomRight = node.shape == FlowchartShape::Parallelogram || node.shape == FlowchartShape::ReverseTrapezoid ? .75 : 1.0;
                             const std::array points{point(topLeft, 0.0), point(topRight, 0.0), point(bottomRight, 1.0), point(bottomLeft, 1.0)};
-                            state.nodePaths[work.cursor] = Path(state.drawing.get(), points, result_);
+                            state.nodePaths[work.cursor] = Path(state.drawing.get(), points, _result);
                         }
                     }
                     ++work.cursor;
@@ -739,9 +739,9 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                     {
                         const auto& edge = state.geometry->edges[work.cursor];
                         if (edge.relation == FlowchartRelation::Aggregation || edge.relation == FlowchartRelation::Composition)
-                            state.arrowPaths[work.cursor] = Path(state.drawing.get(), edge.diamond, result_);
+                            state.arrowPaths[work.cursor] = Path(state.drawing.get(), edge.diamond, _result);
                         else
-                            state.arrowPaths[work.cursor] = Path(state.drawing.get(), edge.arrow, result_);
+                            state.arrowPaths[work.cursor] = Path(state.drawing.get(), edge.arrow, _result);
                     }
                     {
                         const auto& edge        = state.geometry->edges[work.cursor];
@@ -763,16 +763,16 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
                     ++work.cursor;
                     break;
                 case Preparation::Stage::Publish:
-                    state_ = std::move(work.state);
-                    next_.reset();
-                    valid_ = true;
-                    ++generation_;
+                    _state = std::move(work.state);
+                    _next.reset();
+                    _valid = true;
+                    ++_generation;
                     result.status = LayoutPreparationStatus::Complete;
                     ++result.blockSteps;
                     return result;
             }
-            if (FAILED(result_))
-                return fail(result_);
+            if (FAILED(_result))
+                return fail(_result);
             ++result.blockSteps;
         }
     }
@@ -780,37 +780,37 @@ LayoutAdvance PreparedFlowchart::Advance(LayoutWorkBudget budget)
 }
 void PreparedFlowchart::Cancel() noexcept
 {
-    next_.reset();
+    _next.reset();
 }
 void PreparedFlowchart::Invalidate() noexcept
 {
     Cancel();
-    valid_ = false;
+    _valid = false;
 }
 void PreparedFlowchart::Clear() noexcept
 {
     Invalidate();
-    state_.reset();
+    _state.reset();
 }
 bool PreparedFlowchart::Pending() const noexcept
 {
-    return ! ! next_;
+    return ! ! _next;
 }
 bool PreparedFlowchart::Ready() const noexcept
 {
-    return valid_ && state_ && state_->geometry && state_->geometry->issue == FlowchartLayoutIssue::None;
+    return _valid && _state && _state->geometry && _state->geometry->issue == FlowchartLayoutIssue::None;
 }
 std::uint64_t PreparedFlowchart::Generation() const noexcept
 {
-    return generation_;
+    return _generation;
 }
 std::uint64_t PreparedFlowchart::Revision() const noexcept
 {
-    return state_ ? state_->graph->revision : 0u;
+    return _state ? _state->graph->revision : 0u;
 }
 std::shared_ptr<const FlowchartLayoutPlan> PreparedFlowchart::Geometry() const noexcept
 {
-    return state_ ? state_->geometry : nullptr;
+    return _state ? _state->geometry : nullptr;
 }
 bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
                              ID2D1Brush* text,
@@ -825,9 +825,9 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
         return false;
     wil::com_ptr<ID2D1Factory> drawing;
     target->GetFactory(drawing.put());
-    if (drawing.get() != state_->drawing.get())
+    if (drawing.get() != _state->drawing.get())
         return false;
-    if (palette && (! palette->Ready() || ! palette->Matches(state_->graph.get(), target)))
+    if (palette && (! palette->Ready() || ! palette->Matches(_state->graph.get(), target)))
         return false;
     // Contrast against a translucent surface depends on its unknown backdrop.
     // Keep theme brushes until the caller supplies an opaque surface.
@@ -837,7 +837,7 @@ bool PreparedFlowchart::Draw(ID2D1RenderTarget* target,
     target->GetTransform(&previous);
     const auto restore = wil::scope_exit([&]() noexcept { target->SetTransform(previous); });
     target->SetTransform(D2D1::Matrix3x2F::Translation(origin.x, origin.y) * previous);
-    const auto& state = *state_;
+    const auto& state = *_state;
     const auto& plan  = *state.geometry;
     const auto label  = [&](const FlowchartLabel& prepared, FlowchartRect bounds, ID2D1Brush* labelBrush = nullptr) noexcept
     {

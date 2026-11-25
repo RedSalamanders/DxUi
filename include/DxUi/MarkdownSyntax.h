@@ -330,28 +330,28 @@ private:
                             MarkdownProfile profile,
                             MarkdownExtensions extensions,
                             std::uint64_t documentIdentity);
-    std::wstring source_;
-    std::uint64_t revision_{};
-    MarkdownProfile profile_{};
-    MarkdownExtensions extensions_{};
-    std::vector<MarkdownBlock> blocks_;
-    std::vector<MarkdownLexeme> lexemes_;
-    std::vector<MarkdownNode> nodes_;
-    std::vector<MarkdownEmptyLine> emptyLines_;
-    std::vector<MarkdownInline> inlines_;
-    std::vector<MarkdownDiagnostic> diagnostics_;
-    std::vector<MarkdownFootnote> footnotes_;
-    std::vector<MarkdownFootnoteReference> footnoteReferences_;
-    std::uint64_t documentIdentity_{};
-    MarkdownBlockStatistics blockStatistics_;
-    MarkdownInlineStatistics inlineStatistics_;
-    std::optional<MarkdownSourceRegion> sourceRegionRequest_;
+    std::wstring _source;
+    std::uint64_t _revision{};
+    MarkdownProfile _profile{};
+    MarkdownExtensions _extensions{};
+    std::vector<MarkdownBlock> _blocks;
+    std::vector<MarkdownLexeme> _lexemes;
+    std::vector<MarkdownNode> _nodes;
+    std::vector<MarkdownEmptyLine> _emptyLines;
+    std::vector<MarkdownInline> _inlines;
+    std::vector<MarkdownDiagnostic> _diagnostics;
+    std::vector<MarkdownFootnote> _footnotes;
+    std::vector<MarkdownFootnoteReference> _footnoteReferences;
+    std::uint64_t _documentIdentity{};
+    MarkdownBlockStatistics _blockStatistics;
+    MarkdownInlineStatistics _inlineStatistics;
+    std::optional<MarkdownSourceRegion> _sourceRegionRequest;
     // A borrowed parse wrapper owns no AST/string data. Its sole owner is an
     // original parsed result, never another wrapper; revision and document
     // identity remain local to the adopting parser.
-    std::shared_ptr<const MarkdownSyntax> parsedDataOwner_;
+    std::shared_ptr<const MarkdownSyntax> _parsedDataOwner;
     [[nodiscard]] const MarkdownSyntax& ParsedData() const noexcept;
-    std::size_t sourceRegionNode_ = MarkdownNoNode;
+    std::size_t _sourceRegionNode = MarkdownNoNode;
     friend class MarkdownParser;
 };
 
@@ -449,10 +449,10 @@ public:
 
 private:
     struct Preparation;
-    std::unique_ptr<Preparation> preparation_;
-    std::shared_ptr<const MarkdownSyntax> published_;
-    std::uint64_t documentIdentity_{}, nextNodeIdentity_ = 1u;
-    std::optional<SourceSnapshot> publishedSource_;
+    std::unique_ptr<Preparation> _preparation;
+    std::shared_ptr<const MarkdownSyntax> _published;
+    std::uint64_t _documentIdentity{}, _nextNodeIdentity = 1u;
+    std::optional<SourceSnapshot> _publishedSource;
     void BeginSource(std::wstring_view source,
                      std::uint64_t revision,
                      MarkdownProfile profile,

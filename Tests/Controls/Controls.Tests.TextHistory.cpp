@@ -83,14 +83,14 @@ constexpr UINT kShift = MK_SHIFT;
 template <typename ControlType> class ScriptTarget
 {
 public:
-    explicit ScriptTarget(DxUi::WindowHost& host) : host_(host)
+    explicit ScriptTarget(DxUi::WindowHost& host) : _host(host)
     {
-        control_.SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 28.0f));
+        _control.SetBounds(D2D1::RectF(0.0f, 0.0f, 320.0f, 28.0f));
         if constexpr (std::is_same_v<ControlType, ScriptComboBox>)
         {
-            control_.SetEditable(true);
-            control_.SetAutoOpenOnTextInput(false);
-            control_.SetItems({{L"alpha", L"alpha"}, {L"alphabet", L"alphabet"}, {L"beta", L"beta"}, {L"gamma \U0001F600", L"gamma \U0001F600"}});
+            _control.SetEditable(true);
+            _control.SetAutoOpenOnTextInput(false);
+            _control.SetItems({{L"alpha", L"alpha"}, {L"alphabet", L"alphabet"}, {L"beta", L"beta"}, {L"gamma \U0001F600", L"gamma \U0001F600"}});
         }
     }
     ScriptTarget(const ScriptTarget&)            = delete;
@@ -102,31 +102,31 @@ public:
     [[nodiscard]] ScriptState State()
     {
         DxUi::TextInputState exported;
-        Require(control_.ExportTextInputState(exported), "the script control exports its text input state");
+        Require(_control.ExportTextInputState(exported), "the script control exports its text input state");
         return ScriptState{exported.text, exported.caretIndex, exported.selectionAnchorIndex};
     }
     void SetText(std::wstring text)
     {
-        control_.SetText(std::move(text));
+        _control.SetText(std::move(text));
     }
     bool Type(wchar_t character)
     {
-        return control_.OnChar(host_, character, 0u);
+        return _control.OnChar(_host, character, 0u);
     }
     bool Key(UINT virtualKey, UINT modifiers)
     {
-        return control_.OnKeyDown(host_, virtualKey, modifiers);
+        return _control.OnKeyDown(_host, virtualKey, modifiers);
     }
     void Select(size_t anchor, size_t caret)
     {
         if constexpr (std::is_same_v<ControlType, ScriptComboBox>)
-            control_.SetEditableSelectionRange(anchor, caret);
+            _control.SetEditableSelectionRange(anchor, caret);
         else
-            control_.SetSelectionRange(anchor, caret);
+            _control.SetSelectionRange(anchor, caret);
     }
     bool Paste(std::wstring_view text)
     {
-        Require(host_.CopyTextToClipboard(text), "the script clipboard accepts the paste text");
+        Require(_host.CopyTextToClipboard(text), "the script clipboard accepts the paste text");
         return Key('V', kCtrl);
     }
     // TextField: the programmatic replacement an application makes; the ComboBox has none and pastes instead.
@@ -136,18 +136,18 @@ public:
             return Paste(text);
         else
         {
-            control_.ReplaceSelectionAndNotify(text);
+            _control.ReplaceSelectionAndNotify(text);
             return true;
         }
     }
     bool Import(const ScriptState& state, bool notify)
     {
         DxUi::TextInputState imported;
-        Require(control_.ExportTextInputState(imported), "the script control exports before an import");
+        Require(_control.ExportTextInputState(imported), "the script control exports before an import");
         imported.text                 = state.text;
         imported.caretIndex           = state.caret;
         imported.selectionAnchorIndex = state.anchor;
-        return control_.ImportTextInputState(host_, imported, notify);
+        return _control.ImportTextInputState(_host, imported, notify);
     }
     // An IME composition as a host commits it: previews that create no history, the composition-entry text restored, then the
     // committed text as one notifying import.
@@ -188,8 +188,8 @@ public:
     }
 
 private:
-    DxUi::WindowHost& host_;
-    ControlType control_;
+    DxUi::WindowHost& _host;
+    ControlType _control;
 };
 
 struct ScriptRecord

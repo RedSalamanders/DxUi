@@ -102,7 +102,7 @@ public:
     [[nodiscard]] size_t GetVisibleItemCount() const noexcept override
     {
         size_t count = kFolders;
-        for (const bool open : expanded_)
+        for (const bool open : _expanded)
             count += open ? kChildren : 0u;
         return count;
     }
@@ -116,11 +116,11 @@ public:
                 item.id          = FolderId(folder);
                 item.text        = L"Folder " + std::to_wstring(folder + 1u);
                 item.hasChildren = true;
-                item.expanded    = expanded_[folder];
+                item.expanded    = _expanded[folder];
                 return;
             }
             --visibleIndex;
-            if (! expanded_[folder])
+            if (! _expanded[folder])
                 continue;
             if (visibleIndex < kChildren)
             {
@@ -137,13 +137,13 @@ public:
     {
         for (size_t folder = 0u; folder < kFolders; ++folder)
             if (FolderId(folder) == itemId)
-                expanded_[folder] = expanded;
-        if (tree_)
-            tree_->NotifyDataChanged();
+                _expanded[folder] = expanded;
+        if (_tree)
+            _tree->NotifyDataChanged();
     }
     void Bind(DxUi::Tree* tree) noexcept
     {
-        tree_ = tree;
+        _tree = tree;
     }
 
 private:
@@ -151,8 +151,8 @@ private:
     {
         return 100u * (folder + 1u);
     }
-    std::array<bool, kFolders> expanded_{false, true, true};
-    DxUi::Tree* tree_ = nullptr;
+    std::array<bool, kFolders> _expanded{false, true, true};
+    DxUi::Tree* _tree = nullptr;
 };
 
 class Scene final : public Scenario
@@ -161,32 +161,32 @@ public:
     HRESULT Build(Context& context) override
     {
         auto root  = std::make_unique<DxUi::Panel>();
-        pageHost_  = root->AddChild<DxUi::PageHost>();
-        tree_      = root->AddChild<DxUi::Tree>();
-        toggle_    = root->AddChild<DxUi::Toggle>(L"Wi-Fi");
-        checkbox_  = root->AddChild<DxUi::Checkbox>(L"Remember");
-        slider_    = root->AddChild<DxUi::Slider>();
-        comboBox_  = root->AddChild<DxUi::ComboBox>();
+        _pageHost  = root->AddChild<DxUi::PageHost>();
+        _tree      = root->AddChild<DxUi::Tree>();
+        _toggle    = root->AddChild<DxUi::Toggle>(L"Wi-Fi");
+        _checkbox  = root->AddChild<DxUi::Checkbox>(L"Remember");
+        _slider    = root->AddChild<DxUi::Slider>();
+        _comboBox  = root->AddChild<DxUi::ComboBox>();
         auto* note = root->AddChild<DxUi::Label>(L"Motion fixture");
-        pageHost_->SetBounds(D2D1::RectF(8.0f, 8.0f, 232.0f, 168.0f));
-        tree_->SetBounds(D2D1::RectF(240.0f, 8.0f, 472.0f, 352.0f));
-        toggle_->SetBounds(D2D1::RectF(8.0f, 176.0f, 232.0f, 204.0f));
-        checkbox_->SetBounds(D2D1::RectF(8.0f, 208.0f, 232.0f, 236.0f));
-        slider_->SetBounds(D2D1::RectF(8.0f, 240.0f, 232.0f, 268.0f));
-        comboBox_->SetBounds(D2D1::RectF(8.0f, 272.0f, 232.0f, 300.0f));
+        _pageHost->SetBounds(D2D1::RectF(8.0f, 8.0f, 232.0f, 168.0f));
+        _tree->SetBounds(D2D1::RectF(240.0f, 8.0f, 472.0f, 352.0f));
+        _toggle->SetBounds(D2D1::RectF(8.0f, 176.0f, 232.0f, 204.0f));
+        _checkbox->SetBounds(D2D1::RectF(8.0f, 208.0f, 232.0f, 236.0f));
+        _slider->SetBounds(D2D1::RectF(8.0f, 240.0f, 232.0f, 268.0f));
+        _comboBox->SetBounds(D2D1::RectF(8.0f, 272.0f, 232.0f, 300.0f));
         note->SetBounds(D2D1::RectF(8.0f, 320.0f, 232.0f, 344.0f));
-        tree_->SetModel(&model_);
-        tree_->SetDelegate(&model_);
-        model_.Bind(tree_);
-        slider_->SetMinimum(0.0);
-        slider_->SetMaximum(100.0);
-        slider_->SetValue(20.0);
+        _tree->SetModel(&_model);
+        _tree->SetDelegate(&_model);
+        _model.Bind(_tree);
+        _slider->SetMinimum(0.0);
+        _slider->SetMaximum(100.0);
+        _slider->SetValue(20.0);
         std::vector<DxUi::ComboBox::Item> items;
         for (size_t index = 0u; index < 6u; ++index)
             items.push_back({L"v" + std::to_wstring(index), L"Choice " + std::to_wstring(index + 1u)});
-        comboBox_->SetItems(std::move(items));
-        comboBox_->SetSelectedIndex(0u);
-        pageHost_->SetPage(MakePage(false));
+        _comboBox->SetItems(std::move(items));
+        _comboBox->SetSelectedIndex(0u);
+        _pageHost->SetPage(MakePage(false));
         context.controls.SetRoot(std::move(root));
         return S_OK;
     }
@@ -203,9 +203,9 @@ public:
             if (step > 0u)
                 context.port.AdvanceTime(FrameTimeMs(60u, step) - FrameTimeMs(60u, step - 1u));
             if (step == 0u)
-                pageHost_->SetPage(MakePage(true));
+                _pageHost->SetPage(MakePage(true));
             else if (step == (kProgressSteps - 1u) / 2u)
-                pageHost_->SetPage(MakePage(false));
+                _pageHost->SetPage(MakePage(false));
             return;
         }
         const size_t rateIndex = ((phase - 1u) / kTransitions) % kRates.size();
@@ -220,17 +220,17 @@ public:
         }
         switch (transition)
         {
-            case Transition::PageSlide: pageHost_->SetPage(MakePage(false)); break;
-            case Transition::TreeExpand: static_cast<void>(tree_->RequestExpandedState(0u, true)); break;
-            case Transition::TreeCollapse: static_cast<void>(tree_->RequestExpandedState(0u, false)); break;
-            case Transition::ToggleOn: toggle_->SetChecked(true); break;
-            case Transition::ToggleOff: toggle_->SetChecked(false); break;
-            case Transition::CheckboxOn: checkbox_->SetChecked(true); break;
-            case Transition::CheckboxOff: checkbox_->SetChecked(false); break;
-            case Transition::SliderUp: static_cast<void>(slider_->RequestValue(context.controls, 80.0)); break;
-            case Transition::SliderDown: static_cast<void>(slider_->RequestValue(context.controls, 20.0)); break;
+            case Transition::PageSlide: _pageHost->SetPage(MakePage(false)); break;
+            case Transition::TreeExpand: static_cast<void>(_tree->RequestExpandedState(0u, true)); break;
+            case Transition::TreeCollapse: static_cast<void>(_tree->RequestExpandedState(0u, false)); break;
+            case Transition::ToggleOn: _toggle->SetChecked(true); break;
+            case Transition::ToggleOff: _toggle->SetChecked(false); break;
+            case Transition::CheckboxOn: _checkbox->SetChecked(true); break;
+            case Transition::CheckboxOff: _checkbox->SetChecked(false); break;
+            case Transition::SliderUp: static_cast<void>(_slider->RequestValue(context.controls, 80.0)); break;
+            case Transition::SliderDown: static_cast<void>(_slider->RequestValue(context.controls, 20.0)); break;
             case Transition::PopupOpen: // F4 through the control's own key handler: opens without focus.
-            case Transition::PopupClose: static_cast<void>(comboBox_->OnKeyDown(context.controls, VK_F4, 0u)); break;
+            case Transition::PopupClose: static_cast<void>(_comboBox->OnKeyDown(context.controls, VK_F4, 0u)); break;
             case Transition::Count:
             default: break;
         }
@@ -241,7 +241,7 @@ private:
     std::unique_ptr<DxUi::Control> MakePage(bool progress)
     {
         auto page = std::make_unique<DxUi::Panel>();
-        page->AddChild<DxUi::Label>(L"Page " + std::to_wstring(++pages_))->SetBounds(D2D1::RectF(8.0f, 8.0f, 216.0f, 32.0f));
+        page->AddChild<DxUi::Label>(L"Page " + std::to_wstring(++_pages))->SetBounds(D2D1::RectF(8.0f, 8.0f, 216.0f, 32.0f));
         page->AddChild<DxUi::Label>(L"Slides in from the trailing side")->SetBounds(D2D1::RectF(8.0f, 40.0f, 216.0f, 64.0f));
         page->AddChild<DxUi::Button>(L"Continue")->SetBounds(D2D1::RectF(8.0f, 72.0f, 120.0f, 104.0f));
         if (progress)
@@ -254,14 +254,14 @@ private:
     }
 
     // The model outlives the tree that borrows it: the runner destroys the host first.
-    MotionTreeModel model_;
-    DxUi::PageHost* pageHost_ = nullptr;
-    DxUi::Tree* tree_         = nullptr;
-    DxUi::Toggle* toggle_     = nullptr;
-    DxUi::Checkbox* checkbox_ = nullptr;
-    DxUi::Slider* slider_     = nullptr;
-    DxUi::ComboBox* comboBox_ = nullptr;
-    size_t pages_             = 0u;
+    MotionTreeModel _model;
+    DxUi::PageHost* _pageHost = nullptr;
+    DxUi::Tree* _tree         = nullptr;
+    DxUi::Toggle* _toggle     = nullptr;
+    DxUi::Checkbox* _checkbox = nullptr;
+    DxUi::Slider* _slider     = nullptr;
+    DxUi::ComboBox* _comboBox = nullptr;
+    size_t _pages             = 0u;
 };
 
 inline constexpr std::array kSources{std::string_view("Tests/Embedded/Embedded.Tests.PerformanceFixtureFx11.h")};

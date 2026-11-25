@@ -38,18 +38,18 @@ struct GlyphOrigin
 class GlyphOriginRecorder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteTextRenderer>
 {
 public:
-    GlyphOriginRecorder(std::span<GlyphOrigin> storage, bool snapping) noexcept : storage_(storage), snapping_(snapping)
+    GlyphOriginRecorder(std::span<GlyphOrigin> storage, bool snapping) noexcept : _storage(storage), _snapping(snapping)
     {
     }
     std::span<const GlyphOrigin> Recorded() const noexcept
     {
-        return storage_.first(count_);
+        return _storage.first(_count);
     }
     HRESULT STDMETHODCALLTYPE IsPixelSnappingDisabled(void*, BOOL* disabled) noexcept override
     {
         if (! disabled)
             return E_POINTER;
-        *disabled = ! snapping_;
+        *disabled = ! _snapping;
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE GetCurrentTransform(void*, DWRITE_MATRIX* transform) noexcept override
@@ -74,10 +74,10 @@ public:
                                            const DWRITE_GLYPH_RUN_DESCRIPTION* description,
                                            IUnknown*) noexcept override
     {
-        if (! run || ! description || count_ == storage_.size())
+        if (! run || ! description || _count == _storage.size())
             return E_BOUNDS;
         // Storage is allocated before Draw. No exception/allocation crosses COM.
-        auto& event       = storage_[count_++];
+        auto& event       = _storage[_count++];
         event.position    = description->textPosition;
         event.glyphCount  = run->glyphCount;
         event.x           = x;
@@ -102,9 +102,9 @@ public:
     }
 
 private:
-    std::span<GlyphOrigin> storage_;
-    std::size_t count_{};
-    bool snapping_{};
+    std::span<GlyphOrigin> _storage;
+    std::size_t _count{};
+    bool _snapping{};
 };
 #pragma warning(pop)
 // Stack-only rounding/observation barrier; no inter-thread synchronization or memory-mapped I/O.
@@ -124,7 +124,7 @@ inline float Add(float first, float second) noexcept
 class InvisibleLinePrefix final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
 {
 public:
-    explicit InvisibleLinePrefix(float height) noexcept : height_(height)
+    explicit InvisibleLinePrefix(float height) noexcept : _height(height)
     {
     }
     HRESULT STDMETHODCALLTYPE Draw(void*, IDWriteTextRenderer*, FLOAT, FLOAT, BOOL, BOOL, IUnknown*) noexcept override
@@ -135,7 +135,7 @@ public:
     {
         if (! metrics)
             return E_POINTER;
-        *metrics = {0.0f, height_, height_ * 0.5f, FALSE};
+        *metrics = {0.0f, _height, _height * 0.5f, FALSE};
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE GetOverhangMetrics(DWRITE_OVERHANG_METRICS* metrics) noexcept override
@@ -154,7 +154,7 @@ public:
     }
 
 private:
-    float height_{};
+    float _height{};
 };
 #pragma warning(pop)
 void RunRawLineOrigins()

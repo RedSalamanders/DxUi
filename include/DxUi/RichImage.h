@@ -48,10 +48,10 @@ public:
     const std::atomic_bool* Cancellation() const noexcept;
 
 private:
-    explicit RichImageRequest(std::shared_ptr<Detail::RichImageRequestState> state) noexcept : state_(std::move(state))
+    explicit RichImageRequest(std::shared_ptr<Detail::RichImageRequestState> state) noexcept : _state(std::move(state))
     {
     }
-    std::shared_ptr<Detail::RichImageRequestState> state_;
+    std::shared_ptr<Detail::RichImageRequestState> _state;
     friend class Detail::RichImageResources;
 };
 struct RichImageResourceStatistics
@@ -67,27 +67,27 @@ public:
     static constexpr unsigned MaximumSvgBytes = 262144u, MaximumSvgElements = 2048u, MaximumSvgDepth = 64u, MaximumSvgPathUnits = 65536u;
     unsigned Width() const noexcept
     {
-        return width_;
+        return _width;
     }
     unsigned Height() const noexcept
     {
-        return height_;
+        return _height;
     }
     unsigned Stride() const noexcept
     {
-        return width_ * 4u;
+        return _width * 4u;
     }
     std::span<const std::byte> Pixels() const noexcept
     {
-        return pixels_;
+        return _pixels;
     }
     std::span<const std::byte> SvgBytes() const noexcept
     {
-        return svg_;
+        return _svg;
     }
     std::size_t RetainedBytes() const noexcept
     {
-        return pixels_.size() + svg_.size();
+        return _pixels.size() + _svg.size();
     }
     // Explicit opt-in. Only the bounded, non-referencing SVG profile is accepted.
     // The caller supplies nominal dimensions and initializes COM before this call.
@@ -125,9 +125,9 @@ public:
 private:
     RichImage(unsigned width, unsigned height);
     RichImage(unsigned width, unsigned height, std::span<const std::byte> svg);
-    unsigned width_, height_;
-    std::vector<std::byte> pixels_;
-    std::vector<std::byte> svg_;
+    unsigned _width, _height;
+    std::vector<std::byte> _pixels;
+    std::vector<std::byte> _svg;
     friend class Detail::RichImageDecoder;
 };
 } // namespace DxUi::RichText

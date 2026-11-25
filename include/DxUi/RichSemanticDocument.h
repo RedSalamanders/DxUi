@@ -131,47 +131,47 @@ public:
     SemanticDocument& operator=(const SemanticDocument&) = delete;
     const std::shared_ptr<const MarkdownSyntax>& Syntax() const noexcept
     {
-        return syntax_;
+        return _syntax;
     }
     const std::shared_ptr<const AccessibilityLabels>& AccessibilityLabelSet() const noexcept
     {
-        return labels_;
+        return _labels;
     }
     // Process-local publication identity, distinct even when the same syntax
     // is rendered again after disabling/re-enabling semantic presentation.
     std::uint64_t Identity() const noexcept
     {
-        return identity_;
+        return _identity;
     }
     const SourceDisplayMap& Map() const noexcept
     {
-        return *map_;
+        return *_map;
     }
     bool HasCallouts() const noexcept
     {
-        return hasCallouts_;
+        return _hasCallouts;
     }
     bool HasPropertiesBody() const noexcept
     {
-        return hasPropertiesBody_;
+        return _hasPropertiesBody;
     }
     std::span<const SemanticElement> Elements() const noexcept
     {
-        return elements_;
+        return _elements;
     }
     std::span<const SemanticParagraph> Paragraphs() const noexcept
     {
-        return paragraphs_;
+        return _paragraphs;
     }
     std::span<const SemanticHeading> Headings() const noexcept
     {
-        return headings_;
+        return _headings;
     }
     // Accepts a leading # and percent-encoded UTF-8; # alone addresses document start.
     std::optional<MarkdownRange> ResolveHeadingFragment(std::wstring_view fragment) const;
     std::span<const SemanticNavigation> Navigation() const noexcept
     {
-        return navigation_;
+        return _navigation;
     }
     std::optional<MarkdownRange> NavigationTarget(std::size_t element) const noexcept;
     // Visible source-bearing code/HTML/metadata leaf, or the active opaque
@@ -187,39 +187,39 @@ public:
     // MarkdownNoNode denotes the ordinary semantic presentation.
     std::size_t SourceBlock() const noexcept
     {
-        return sourceBlock_;
+        return _sourceBlock;
     }
     std::span<const StyleRun> Runs() const noexcept
     {
-        return runs_;
+        return _runs;
     }
     // Complete source partition for accessibility Format units. Hidden syntax
     // has Regular style; transformed values retain their complete raw owner.
     // Generated/repeated display text never invents another source interval.
     std::span<const StyleRun> SourceRuns() const noexcept
     {
-        return sourceRuns_;
+        return _sourceRuns;
     }
 
 private:
     explicit SemanticDocument(std::shared_ptr<const MarkdownSyntax> syntax);
-    std::shared_ptr<const MarkdownSyntax> syntax_;
-    std::shared_ptr<const AccessibilityLabels> labels_;
-    std::uint64_t identity_{};
-    bool hasCallouts_{}, hasPropertiesBody_{};
-    std::shared_ptr<const SourceDisplayMap> map_;
-    std::vector<SemanticElement> elements_;
-    std::vector<SemanticParagraph> paragraphs_;
-    std::vector<SemanticNavigation> navigation_;
-    std::vector<SemanticHeading> headings_;
-    std::vector<StyleRun> runs_, sourceRuns_;
+    std::shared_ptr<const MarkdownSyntax> _syntax;
+    std::shared_ptr<const AccessibilityLabels> _labels;
+    std::uint64_t _identity{};
+    bool _hasCallouts{}, _hasPropertiesBody{};
+    std::shared_ptr<const SourceDisplayMap> _map;
+    std::vector<SemanticElement> _elements;
+    std::vector<SemanticParagraph> _paragraphs;
+    std::vector<SemanticNavigation> _navigation;
+    std::vector<SemanticHeading> _headings;
+    std::vector<StyleRun> _runs, _sourceRuns;
     // Optional document-level state keeps native graphs out of ordinary inline
     // values and unrelated controls. No SDK/host resource belongs to semantics.
-    std::shared_ptr<Detail::SemanticExtensions> extensions_;
+    std::shared_ptr<Detail::SemanticExtensions> _extensions;
     // Where each top-level block's output starts, so the next revision can
     // reuse unchanged blocks. Library-private; never part of the published values.
-    std::shared_ptr<const Detail::SemanticProjectionIndex> projection_;
-    std::size_t sourceBlock_ = MarkdownNoNode;
+    std::shared_ptr<const Detail::SemanticProjectionIndex> _projection;
+    std::size_t _sourceBlock = MarkdownNoNode;
     friend class SemanticBuilder;
     friend struct Detail::SemanticExtensionAccess;
 };
@@ -263,7 +263,7 @@ public:
     [[nodiscard]] SourceResult TrySetSoftBreakPolicy(SoftBreakPolicy policy);
     const std::shared_ptr<const AccessibilityLabels>& AccessibilityLabelSet() const noexcept
     {
-        return labels_;
+        return _labels;
     }
     void Begin(std::shared_ptr<const MarkdownSyntax> syntax);
     [[nodiscard]] SourceResult TryBegin(std::shared_ptr<const MarkdownSyntax> syntax);
@@ -290,10 +290,10 @@ private:
                                                            std::span<const Detail::NativeSourceFallback> sourceObjects,
                                                            std::span<const Detail::DisclosureOverride> disclosures = {});
     struct Preparation;
-    std::unique_ptr<Preparation> next_;
-    std::shared_ptr<const SemanticDocument> published_;
-    std::shared_ptr<const AccessibilityLabels> labels_;
-    SoftBreakPolicy softBreakPolicy_ = SoftBreakPolicy::Space;
+    std::unique_ptr<Preparation> _next;
+    std::shared_ptr<const SemanticDocument> _published;
+    std::shared_ptr<const AccessibilityLabels> _labels;
+    SoftBreakPolicy _softBreakPolicy = SoftBreakPolicy::Space;
     friend struct Detail::SemanticExtensionAccess;
 };
 } // namespace DxUi::RichText

@@ -13,13 +13,13 @@ namespace DxUi::RichText::Detail
 // OpenType MATH offsets are untrusted font bytes. These helpers never allocate or read outside the supplied table.
 class MathFontTable final
 {
-    std::span<const std::uint8_t> bytes;
+    std::span<const std::uint8_t> _bytes;
 
     [[nodiscard]] std::optional<std::uint16_t> U16(std::size_t offset) const noexcept
     {
-        if (offset > bytes.size() || bytes.size() - offset < 2u)
+        if (offset > _bytes.size() || _bytes.size() - offset < 2u)
             return std::nullopt;
-        return static_cast<std::uint16_t>((static_cast<unsigned>(bytes[offset]) << 8u) | bytes[offset + 1u]);
+        return static_cast<std::uint16_t>((static_cast<unsigned>(_bytes[offset]) << 8u) | _bytes[offset + 1u]);
     }
     [[nodiscard]] std::optional<std::size_t> Coverage(std::size_t offset, std::uint16_t glyph) const noexcept
     {
@@ -27,7 +27,7 @@ class MathFontTable final
         if (! format || ! count)
             return std::nullopt;
         const std::size_t stride = format.value() == 1u ? 2u : format.value() == 2u ? 6u : 0u;
-        if (stride == 0u || offset > bytes.size() || bytes.size() - offset < 4u || count.value() > (bytes.size() - offset - 4u) / stride)
+        if (stride == 0u || offset > _bytes.size() || _bytes.size() - offset < 4u || count.value() > (_bytes.size() - offset - 4u) / stride)
             return std::nullopt;
         // OpenType coverage is sorted. Binary search bounds work even for a very large or malformed table.
         std::size_t first = 0u, last = count.value();
@@ -55,13 +55,13 @@ class MathFontTable final
     [[nodiscard]] std::optional<std::size_t> HeaderOffset(std::size_t field) const noexcept
     {
         const auto major = U16(0u), minor = U16(2u), offset = U16(field);
-        if (! major || ! minor || ! offset || major.value() != 1u || minor.value() != 0u || offset.value() == 0u || offset.value() >= bytes.size())
+        if (! major || ! minor || ! offset || major.value() != 1u || minor.value() != 0u || offset.value() == 0u || offset.value() >= _bytes.size())
             return std::nullopt;
         return offset.value();
     }
 
 public:
-    explicit MathFontTable(std::span<const std::uint8_t> source) noexcept : bytes(source)
+    explicit MathFontTable(std::span<const std::uint8_t> source) noexcept : _bytes(source)
     {
     }
     struct ValueRecord
@@ -71,14 +71,14 @@ public:
     };
     [[nodiscard]] std::optional<ValueRecord> Value(std::size_t parent, std::size_t offset) const noexcept
     {
-        if (offset > bytes.size() || parent > bytes.size() - offset)
+        if (offset > _bytes.size() || parent > _bytes.size() - offset)
             return std::nullopt;
-        if (bytes.size() - (parent + offset) < 4u)
+        if (_bytes.size() - (parent + offset) < 4u)
             return std::nullopt;
         const auto value = U16(parent + offset), device = U16(parent + offset + 2u);
         if (! value || ! device)
             return std::nullopt;
-        const auto absolute = device.value() ? (device.value() > bytes.size() - parent ? bytes.size() : parent + device.value()) : 0u;
+        const auto absolute = device.value() ? (device.value() > _bytes.size() - parent ? _bytes.size() : parent + device.value()) : 0u;
         return ValueRecord{static_cast<std::int16_t>(value.value()), absolute};
     }
     [[nodiscard]] std::optional<ValueRecord> MathConstant(std::size_t offset) const noexcept
@@ -90,7 +90,7 @@ public:
     {
         if (! offset)
             return std::int16_t{0};
-        if (offset > bytes.size() || bytes.size() - offset < 6u)
+        if (offset > _bytes.size() || _bytes.size() - offset < 6u)
             return std::nullopt;
         const auto first = U16(offset), last = U16(offset + 2u), format = U16(offset + 4u);
         if (! first || ! last || ! format || first.value() > last.value() || format.value() < 1u || format.value() > 3u)
@@ -99,7 +99,7 @@ public:
         const auto perWord = 16u / bits;
         const auto count   = static_cast<std::size_t>(last.value() - first.value()) + 1u;
         const auto words   = (count + perWord - 1u) / perWord;
-        if (words > (bytes.size() - offset - 6u) / 2u)
+        if (words > (_bytes.size() - offset - 6u) / 2u)
             return std::nullopt;
         if (ppem < first.value() || ppem > last.value())
             return std::int16_t{0};
@@ -163,23 +163,23 @@ public:
         if (! glyphInfo)
             return std::nullopt;
         const auto relative = U16(glyphInfo.value() + 6u);
-        if (! relative || ! relative.value() || relative.value() > bytes.size() - glyphInfo.value())
+        if (! relative || ! relative.value() || relative.value() > _bytes.size() - glyphInfo.value())
             return std::nullopt;
         const auto info     = glyphInfo.value() + relative.value();
         const auto coverage = U16(info), count = U16(info + 2u);
-        if (! coverage || ! coverage.value() || ! count || info > bytes.size() || bytes.size() - info < 4u || count.value() > (bytes.size() - info - 4u) / 8u ||
-            coverage.value() > bytes.size() - info)
+        if (! coverage || ! coverage.value() || ! count || info > _bytes.size() || _bytes.size() - info < 4u ||
+            count.value() > (_bytes.size() - info - 4u) / 8u || coverage.value() > _bytes.size() - info)
             return std::nullopt;
         const auto item = Coverage(info + coverage.value(), glyph);
         if (! item || item.value() >= count.value())
             return std::nullopt;
         const auto relativeKern = U16(info + 4u + item.value() * 8u + static_cast<unsigned>(corner) * 2u);
-        if (! relativeKern || ! relativeKern.value() || relativeKern.value() > bytes.size() - info)
+        if (! relativeKern || ! relativeKern.value() || relativeKern.value() > _bytes.size() - info)
             return std::nullopt;
         const auto table   = info + relativeKern.value();
         const auto heights = U16(table);
-        if (! heights || heights.value() > 256u || table > bytes.size() || bytes.size() - table < 2u ||
-            (static_cast<std::size_t>(heights.value()) * 2u + 1u) > (bytes.size() - table - 2u) / 4u)
+        if (! heights || heights.value() > 256u || table > _bytes.size() || _bytes.size() - table < 2u ||
+            (static_cast<std::size_t>(heights.value()) * 2u + 1u) > (_bytes.size() - table - 2u) / 4u)
             return std::nullopt;
         std::size_t selected{};
         float previous = -std::numeric_limits<float>::infinity();
@@ -253,7 +253,7 @@ public:
         const auto variants = U16(construction + 2u);
         if (! variants)
             return std::nullopt;
-        if (construction > bytes.size() || bytes.size() - construction < 4u || variants.value() > (bytes.size() - construction - 4u) / 4u)
+        if (construction > _bytes.size() || _bytes.size() - construction < 4u || variants.value() > (_bytes.size() - construction - 4u) / 4u)
             return std::nullopt;
         std::size_t first = 0u, last = variants.value();
         while (first < last)
@@ -292,8 +292,8 @@ public:
         const auto overlap  = U16(variants.value());
         const auto assembly = construction + relative.value();
         const auto count    = U16(assembly + 4u);
-        if (! overlap || ! count || count.value() == 0u || count.value() > 32u || assembly > bytes.size() || bytes.size() - assembly < 6u ||
-            count.value() > (bytes.size() - assembly - 6u) / 10u)
+        if (! overlap || ! count || count.value() == 0u || count.value() > 32u || assembly > _bytes.size() || _bytes.size() - assembly < 6u ||
+            count.value() > (_bytes.size() - assembly - 6u) / 10u)
             return std::nullopt;
         std::array<AssemblyPart, 32u> parts{};
         bool hasExtender{};

@@ -247,44 +247,44 @@ PreparedProjection::PreparedProjection(PreparedProjection&&) noexcept           
 PreparedProjection& PreparedProjection::operator=(PreparedProjection&&) noexcept = default;
 bool PreparedProjection::Ready() const noexcept
 {
-    return static_cast<bool>(state_);
+    return static_cast<bool>(_state);
 }
 std::uint64_t PreparedProjection::Revision() const noexcept
 {
-    return state_ ? state_->revision : 0u;
+    return _state ? _state->revision : 0u;
 }
 ViewMode PreparedProjection::Mode() const noexcept
 {
-    return state_ ? state_->mode : ViewMode::Source;
+    return _state ? _state->mode : ViewMode::Source;
 }
 std::size_t PreparedProjection::SourceLength() const noexcept
 {
-    return state_ ? state_->source.Length() : 0u;
+    return _state ? _state->source.Length() : 0u;
 }
 std::size_t PreparedProjection::DisplayLength() const noexcept
 {
-    return state_ ? state_->displayLength : 0u;
+    return _state ? _state->displayLength : 0u;
 }
 ProjectionPreparation PreparedProjection::LastPreparation() const noexcept
 {
-    return state_ ? state_->last : ProjectionPreparation{};
+    return _state ? _state->last : ProjectionPreparation{};
 }
 const std::vector<ProjectionBlock>& PreparedProjection::Blocks() const
 {
-    if (! state_)
+    if (! _state)
         Failure::FailContract(E_UNEXPECTED);
-    return state_->blocks;
+    return _state->blocks;
 }
 void PreparedProjection::Clear() noexcept
 {
-    state_.reset();
+    _state.reset();
 }
 PreparedProjection PreparedProjection::Clone() const
 {
     Failure::Scope failureScope;
     PreparedProjection copy;
-    if (state_)
-        copy.state_ = std::make_unique<State>(*state_);
+    if (_state)
+        copy._state = std::make_unique<State>(*_state);
     return copy;
 }
 void PreparedProjection::Prepare(SourceSnapshot source, std::uint64_t revision, ViewMode mode)
@@ -298,49 +298,49 @@ SourceResult PreparedProjection::TryPrepare(SourceSnapshot source, std::uint64_t
     Failure::Scope failureScope;
     if (mode != ViewMode::Source && mode != ViewMode::Rich)
         return SourceResult::InvalidSource;
-    const auto change = state_ ? source.ChangedRangeFrom(state_->source) : SourceChangeRange{};
-    if (state_ && state_->mode == mode && change.kind == SourceChangeKind::Unchanged)
+    const auto change = _state ? source.ChangedRangeFrom(_state->source) : SourceChangeRange{};
+    if (_state && _state->mode == mode && change.kind == SourceChangeKind::Unchanged)
     {
-        state_->source   = std::move(source);
-        state_->revision = revision;
-        state_->last     = {0u, state_->blocks.size(), 0u};
+        _state->source   = std::move(source);
+        _state->revision = revision;
+        _state->last     = {0u, _state->blocks.size(), 0u};
         return SourceResult::Success;
     }
     auto next         = std::make_unique<State>();
     next->source      = source;
     next->revision    = revision;
     next->mode        = mode;
-    std::size_t first = 0u, last = state_ ? state_->blocks.size() : 0u;
+    std::size_t first = 0u, last = _state ? _state->blocks.size() : 0u;
     std::size_t sourceBegin = 0u, sourceEnd = source.Length();
-    if (state_ && state_->mode == mode && change.kind == SourceChangeKind::TrackedEdits)
+    if (_state && _state->mode == mode && change.kind == SourceChangeKind::TrackedEdits)
     {
         const auto containing = [&](std::size_t offset)
         {
-            const auto found = std::upper_bound(state_->blocks.begin(), state_->blocks.end(), offset, [](std::size_t position, const ProjectionBlock& block) {
+            const auto found = std::upper_bound(_state->blocks.begin(), _state->blocks.end(), offset, [](std::size_t position, const ProjectionBlock& block) {
                 return position < block.sourceStart;
             });
-            return found == state_->blocks.begin() ? 0u : static_cast<std::size_t>(found - state_->blocks.begin() - 1);
+            return found == _state->blocks.begin() ? 0u : static_cast<std::size_t>(found - _state->blocks.begin() - 1);
         };
         first = containing(change.begin);
         if (first)
             --first;
-        last              = std::min(state_->blocks.size(), containing(change.previousEnd) + 2u);
-        sourceBegin       = state_->blocks[first].sourceStart;
-        const auto oldEnd = last < state_->blocks.size() ? state_->blocks[last].sourceStart : state_->source.Length();
-        sourceEnd         = source.Length() - (state_->source.Length() - oldEnd);
+        last              = std::min(_state->blocks.size(), containing(change.previousEnd) + 2u);
+        sourceBegin       = _state->blocks[first].sourceStart;
+        const auto oldEnd = last < _state->blocks.size() ? _state->blocks[last].sourceStart : _state->source.Length();
+        sourceEnd         = source.Length() - (_state->source.Length() - oldEnd);
         // The context consists of whole physical lines and one neighbor on
         // either side. A future grammar with spanning blocks needs its own
         // semantic widening rule; it cannot reuse this v0 rule unchanged.
         if (! source.IsBoundary(sourceBegin) || ! source.IsBoundary(sourceEnd))
         {
             first       = 0u;
-            last        = state_->blocks.size();
+            last        = _state->blocks.size();
             sourceBegin = 0u;
             sourceEnd   = source.Length();
         }
     }
-    if (state_)
-        next->blocks.insert(next->blocks.end(), state_->blocks.begin(), state_->blocks.begin() + static_cast<std::ptrdiff_t>(first));
+    if (_state)
+        next->blocks.insert(next->blocks.end(), _state->blocks.begin(), _state->blocks.begin() + static_cast<std::ptrdiff_t>(first));
     next->last.reusedBlocks       = first;
     next->last.rebuiltSourceUnits = sourceEnd - sourceBegin;
     const auto changedText        = source.Slice(sourceBegin, sourceEnd);
@@ -369,10 +369,10 @@ SourceResult PreparedProjection::TryPrepare(SourceSnapshot source, std::uint64_t
         ++next->last.rebuiltBlocks;
         begin = end;
     }
-    if (state_)
+    if (_state)
     {
-        next->blocks.insert(next->blocks.end(), state_->blocks.begin() + static_cast<std::ptrdiff_t>(last), state_->blocks.end());
-        next->last.reusedBlocks += state_->blocks.size() - last;
+        next->blocks.insert(next->blocks.end(), _state->blocks.begin() + static_cast<std::ptrdiff_t>(last), _state->blocks.end());
+        next->last.reusedBlocks += _state->blocks.size() - last;
     }
     if (next->blocks.empty())
     {
@@ -389,14 +389,14 @@ SourceResult PreparedProjection::TryPrepare(SourceSnapshot source, std::uint64_t
     }
     if (sourceOffset != source.Length())
         Failure::FailContract(E_UNEXPECTED);
-    state_.swap(next);
+    _state.swap(next);
     return SourceResult::Success;
 }
 SourceResult PreparedProjection::TryToDisplay(std::size_t offset, std::size_t& output) const noexcept
 {
-    if (! state_ || offset > SourceLength() || state_->blocks.empty())
+    if (! _state || offset > SourceLength() || _state->blocks.empty())
         return SourceResult::InvalidRange;
-    const auto& blocks = state_->blocks;
+    const auto& blocks = _state->blocks;
     const auto end =
         std::upper_bound(blocks.begin(), blocks.end(), offset, [](std::size_t position, const ProjectionBlock& block) { return position < block.sourceStart; });
     const auto& block = end == blocks.begin() ? blocks.front() : *std::prev(end);
@@ -408,9 +408,9 @@ SourceResult PreparedProjection::TryToDisplay(std::size_t offset, std::size_t& o
 }
 SourceResult PreparedProjection::TryToSource(std::size_t offset, bool trailing, std::size_t& output) const noexcept
 {
-    if (! state_ || offset > DisplayLength() || state_->blocks.empty())
+    if (! _state || offset > DisplayLength() || _state->blocks.empty())
         return SourceResult::InvalidRange;
-    const auto& blocks = state_->blocks;
+    const auto& blocks = _state->blocks;
     if (! DisplayLength())
     {
         output = SourceLength();

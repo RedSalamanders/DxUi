@@ -63,7 +63,7 @@ inline constexpr const wchar_t* kNotes =
 class Scene final : public Scenario
 {
 public:
-    Scene() : list_(kListRows)
+    Scene() : _list(kListRows)
     {
     }
     HRESULT Build(Context& context) override
@@ -109,7 +109,7 @@ public:
         RETURN_IF_FAILED(body->SetChildOptions(form, DxUi::FlexChildOptions{.constraints = {.minimumDip = D2D1::SizeF(320.0f, 0.0f)}, .grow = 1.0f}));
 
         auto* list = body->AddChild<DxUi::Grid>();
-        list->SetModel(&list_);
+        list->SetModel(&_list);
         RETURN_IF_FAILED(body->SetChildOptions(list, DxUi::FlexChildOptions{.explicitSizeDip = D2D1::SizeF(320.0f, 200.0f), .grow = 2.0f}));
 
         auto* notes = body->AddChild<DxUi::RichTextEditor>(kNotes);
@@ -142,7 +142,7 @@ public:
     }
 
 private:
-    Fx9::SyntheticGridModel list_;
+    Fx9::SyntheticGridModel _list;
 };
 
 inline constexpr Definition kDefinition{

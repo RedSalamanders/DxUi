@@ -161,71 +161,71 @@ public:
     MarkdownCommandPlan(const MarkdownCommandPlan&)            = default;
     MarkdownCommandPlan& operator=(const MarkdownCommandPlan&) = default;
     MarkdownCommandPlan(MarkdownCommandPlan&& other)
-        : source_(other.source_),
-          revision_(other.revision_),
-          syntax_(other.syntax_),
-          before_(other.before_),
-          after_(other.after_),
-          edits_(0u),
-          afterCell_(other.afterCell_),
-          applicable_(other.applicable_)
+        : _source(other._source),
+          _revision(other._revision),
+          _syntax(other._syntax),
+          _before(other._before),
+          _after(other._after),
+          _edits(0u),
+          _afterCell(other._afterCell),
+          _applicable(other._applicable)
     {
-        edits_.swap(other.edits_);
+        _edits.swap(other._edits);
     }
     MarkdownCommandPlan& operator=(MarkdownCommandPlan&& other) noexcept
     {
-        source_   = std::move(other.source_);
-        revision_ = other.revision_;
-        syntax_   = std::move(other.syntax_);
-        before_   = other.before_;
-        after_    = other.after_;
-        edits_.swap(other.edits_);
-        afterCell_  = other.afterCell_;
-        applicable_ = other.applicable_;
+        _source   = std::move(other._source);
+        _revision = other._revision;
+        _syntax   = std::move(other._syntax);
+        _before   = other._before;
+        _after    = other._after;
+        _edits.swap(other._edits);
+        _afterCell  = other._afterCell;
+        _applicable = other._applicable;
         return *this;
     }
     bool IsApplicable() const noexcept
     {
-        return applicable_;
+        return _applicable;
     }
     const SourceSnapshot& ExpectedSource() const noexcept
     {
-        return source_;
+        return _source;
     }
     std::uint64_t ExpectedRevision() const noexcept
     {
-        return revision_;
+        return _revision;
     }
     const std::shared_ptr<const MarkdownSyntax>& Syntax() const noexcept
     {
-        return syntax_;
+        return _syntax;
     }
     Selection Before() const noexcept
     {
-        return before_;
+        return _before;
     }
     Selection After() const noexcept
     {
-        return after_;
+        return _after;
     }
     std::size_t AfterCell() const noexcept
     {
-        return afterCell_;
+        return _afterCell;
     }
     std::span<const MarkdownCommandEdit> Edits() const noexcept
     {
-        return edits_;
+        return _edits;
     }
 
 private:
     MarkdownCommandPlan(const SourceSnapshot& source, std::uint64_t revision, std::shared_ptr<const MarkdownSyntax> syntax, Selection before);
-    SourceSnapshot source_;
-    std::uint64_t revision_{};
-    std::shared_ptr<const MarkdownSyntax> syntax_;
-    Selection before_, after_;
-    std::vector<MarkdownCommandEdit> edits_;
-    std::size_t afterCell_ = MarkdownNoNode;
-    bool applicable_{};
+    SourceSnapshot _source;
+    std::uint64_t _revision{};
+    std::shared_ptr<const MarkdownSyntax> _syntax;
+    Selection _before, _after;
+    std::vector<MarkdownCommandEdit> _edits;
+    std::size_t _afterCell = MarkdownNoNode;
+    bool _applicable{};
     friend struct Detail::MarkdownCommandPlanner;
 };
 MarkdownCommandPlan BuildMarkdownCommand(const SourceSnapshot& source,

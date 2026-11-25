@@ -28,8 +28,8 @@ public:
     HRESULT Build(Context& context) override
     {
         auto root = std::make_unique<DxUi::Panel>();
-        label_    = root->AddChild<DxUi::Label>(L"Value 0");
-        label_->SetBounds(D2D1::RectF(8.0f, 8.0f, 160.0f, 32.0f));
+        _label    = root->AddChild<DxUi::Label>(L"Value 0");
+        _label->SetBounds(D2D1::RectF(8.0f, 8.0f, 160.0f, 32.0f));
         root->AddChild<DxUi::Button>(L"Hover")->SetBounds(D2D1::RectF(8.0f, 48.0f, 120.0f, 80.0f));
         context.controls.SetRoot(std::move(root));
         return S_OK;
@@ -46,14 +46,14 @@ public:
                 static_cast<void>(context.port.Pointer({DxUi::PointerAction::Move, x, y}));
                 break;
             }
-            case kText: label_->SetText(L"Value " + std::to_wstring(step + 1u)); break;
+            case kText: _label->SetText(L"Value " + std::to_wstring(step + 1u)); break;
             case kTime: context.port.AdvanceTime(16u); break;
             default: break;
         }
     }
 
 private:
-    DxUi::Label* label_ = nullptr;
+    DxUi::Label* _label = nullptr;
 };
 
 inline constexpr Definition kDefinition{

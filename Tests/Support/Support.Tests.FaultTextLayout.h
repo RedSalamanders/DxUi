@@ -29,22 +29,22 @@ class FaultTextLayout final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL
 {
 public:
     using Base = Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteTextLayout1>;
-    FaultTextLayout(IDWriteTextLayout* real, LayoutFaultState* state) noexcept : real_(real), state_(state)
+    FaultTextLayout(IDWriteTextLayout* real, LayoutFaultState* state) noexcept : _real(real), _state(state)
     {
     }
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** result) noexcept override
     {
         if (riid == __uuidof(IDWriteTextLayout1))
         {
-            ++state_->layout1Queries;
-            if (state_->failLayout1Query)
+            ++_state->layout1Queries;
+            if (_state->failLayout1Query)
             {
                 if (result)
                     *result = nullptr;
-                return state_->layout1Failure;
+                return _state->layout1Failure;
             }
             wil::com_ptr<IDWriteTextLayout1> native;
-            const HRESULT hr = wil::com_query_to_nothrow(real_.get(), native.put());
+            const HRESULT hr = wil::com_query_to_nothrow(_real.get(), native.put());
             if (FAILED(hr))
             {
                 if (result)
@@ -65,299 +65,299 @@ public:
     HRESULT STDMETHODCALLTYPE SetPairKerning(BOOL enabled, DWRITE_TEXT_RANGE range) noexcept override
     {
         wil::com_ptr<IDWriteTextLayout1> native;
-        const HRESULT hr = wil::com_query_to_nothrow(real_.get(), native.put());
+        const HRESULT hr = wil::com_query_to_nothrow(_real.get(), native.put());
         return FAILED(hr) ? hr : native->SetPairKerning(enabled, range);
     }
     HRESULT STDMETHODCALLTYPE GetPairKerning(UINT32 position, BOOL* enabled, DWRITE_TEXT_RANGE* range) noexcept override
     {
         wil::com_ptr<IDWriteTextLayout1> native;
-        const HRESULT hr = wil::com_query_to_nothrow(real_.get(), native.put());
+        const HRESULT hr = wil::com_query_to_nothrow(_real.get(), native.put());
         return FAILED(hr) ? hr : native->GetPairKerning(position, enabled, range);
     }
     HRESULT STDMETHODCALLTYPE SetCharacterSpacing(FLOAT leading, FLOAT trailing, FLOAT minimum, DWRITE_TEXT_RANGE range) noexcept override
     {
         wil::com_ptr<IDWriteTextLayout1> native;
-        const HRESULT hr = wil::com_query_to_nothrow(real_.get(), native.put());
+        const HRESULT hr = wil::com_query_to_nothrow(_real.get(), native.put());
         return FAILED(hr) ? hr : native->SetCharacterSpacing(leading, trailing, minimum, range);
     }
     HRESULT STDMETHODCALLTYPE GetCharacterSpacing(UINT32 position, FLOAT* leading, FLOAT* trailing, FLOAT* minimum, DWRITE_TEXT_RANGE* range) noexcept override
     {
         wil::com_ptr<IDWriteTextLayout1> native;
-        const HRESULT hr = wil::com_query_to_nothrow(real_.get(), native.put());
+        const HRESULT hr = wil::com_query_to_nothrow(_real.get(), native.put());
         return FAILED(hr) ? hr : native->GetCharacterSpacing(position, leading, trailing, minimum, range);
     }
     HRESULT STDMETHODCALLTYPE SetTextAlignment(DWRITE_TEXT_ALIGNMENT textAlignment) noexcept override
     {
-        return real_->SetTextAlignment(textAlignment);
+        return _real->SetTextAlignment(textAlignment);
     }
     HRESULT STDMETHODCALLTYPE SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT paragraphAlignment) noexcept override
     {
-        return real_->SetParagraphAlignment(paragraphAlignment);
+        return _real->SetParagraphAlignment(paragraphAlignment);
     }
     HRESULT STDMETHODCALLTYPE SetWordWrapping(DWRITE_WORD_WRAPPING wordWrapping) noexcept override
     {
-        return real_->SetWordWrapping(wordWrapping);
+        return _real->SetWordWrapping(wordWrapping);
     }
     HRESULT STDMETHODCALLTYPE SetReadingDirection(DWRITE_READING_DIRECTION readingDirection) noexcept override
     {
-        return real_->SetReadingDirection(readingDirection);
+        return _real->SetReadingDirection(readingDirection);
     }
     HRESULT STDMETHODCALLTYPE SetFlowDirection(DWRITE_FLOW_DIRECTION flowDirection) noexcept override
     {
-        return real_->SetFlowDirection(flowDirection);
+        return _real->SetFlowDirection(flowDirection);
     }
     HRESULT STDMETHODCALLTYPE SetIncrementalTabStop(FLOAT incrementalTabStop) noexcept override
     {
-        return real_->SetIncrementalTabStop(incrementalTabStop);
+        return _real->SetIncrementalTabStop(incrementalTabStop);
     }
     HRESULT STDMETHODCALLTYPE SetTrimming(DWRITE_TRIMMING const* trimmingOptions, IDWriteInlineObject* trimmingSign) noexcept override
     {
-        return real_->SetTrimming(trimmingOptions, trimmingSign);
+        return _real->SetTrimming(trimmingOptions, trimmingSign);
     }
     HRESULT STDMETHODCALLTYPE SetLineSpacing(DWRITE_LINE_SPACING_METHOD lineSpacingMethod, FLOAT lineSpacing, FLOAT baseline) noexcept override
     {
-        return real_->SetLineSpacing(lineSpacingMethod, lineSpacing, baseline);
+        return _real->SetLineSpacing(lineSpacingMethod, lineSpacing, baseline);
     }
     DWRITE_TEXT_ALIGNMENT STDMETHODCALLTYPE GetTextAlignment() noexcept override
     {
-        return real_->GetTextAlignment();
+        return _real->GetTextAlignment();
     }
     DWRITE_PARAGRAPH_ALIGNMENT STDMETHODCALLTYPE GetParagraphAlignment() noexcept override
     {
-        return real_->GetParagraphAlignment();
+        return _real->GetParagraphAlignment();
     }
     DWRITE_WORD_WRAPPING STDMETHODCALLTYPE GetWordWrapping() noexcept override
     {
-        return real_->GetWordWrapping();
+        return _real->GetWordWrapping();
     }
     DWRITE_READING_DIRECTION STDMETHODCALLTYPE GetReadingDirection() noexcept override
     {
-        return real_->GetReadingDirection();
+        return _real->GetReadingDirection();
     }
     DWRITE_FLOW_DIRECTION STDMETHODCALLTYPE GetFlowDirection() noexcept override
     {
-        return real_->GetFlowDirection();
+        return _real->GetFlowDirection();
     }
     FLOAT STDMETHODCALLTYPE GetIncrementalTabStop() noexcept override
     {
-        return real_->GetIncrementalTabStop();
+        return _real->GetIncrementalTabStop();
     }
     HRESULT STDMETHODCALLTYPE GetTrimming(DWRITE_TRIMMING* trimmingOptions, IDWriteInlineObject** trimmingSign) noexcept override
     {
-        return real_->GetTrimming(trimmingOptions, trimmingSign);
+        return _real->GetTrimming(trimmingOptions, trimmingSign);
     }
     HRESULT STDMETHODCALLTYPE GetLineSpacing(DWRITE_LINE_SPACING_METHOD* lineSpacingMethod, FLOAT* lineSpacing, FLOAT* baseline) noexcept override
     {
-        return real_->GetLineSpacing(lineSpacingMethod, lineSpacing, baseline);
+        return _real->GetLineSpacing(lineSpacingMethod, lineSpacing, baseline);
     }
     HRESULT STDMETHODCALLTYPE GetFontCollection(IDWriteFontCollection** fontCollection) noexcept override
     {
-        return real_->GetFontCollection(fontCollection);
+        return _real->GetFontCollection(fontCollection);
     }
     UINT32 STDMETHODCALLTYPE GetFontFamilyNameLength() noexcept override
     {
-        return real_->GetFontFamilyNameLength();
+        return _real->GetFontFamilyNameLength();
     }
     HRESULT STDMETHODCALLTYPE GetFontFamilyName(WCHAR* fontFamilyName, UINT32 nameSize) noexcept override
     {
-        return real_->GetFontFamilyName(fontFamilyName, nameSize);
+        return _real->GetFontFamilyName(fontFamilyName, nameSize);
     }
     DWRITE_FONT_WEIGHT STDMETHODCALLTYPE GetFontWeight() noexcept override
     {
-        return real_->GetFontWeight();
+        return _real->GetFontWeight();
     }
     DWRITE_FONT_STYLE STDMETHODCALLTYPE GetFontStyle() noexcept override
     {
-        return real_->GetFontStyle();
+        return _real->GetFontStyle();
     }
     DWRITE_FONT_STRETCH STDMETHODCALLTYPE GetFontStretch() noexcept override
     {
-        return real_->GetFontStretch();
+        return _real->GetFontStretch();
     }
     FLOAT STDMETHODCALLTYPE GetFontSize() noexcept override
     {
-        return real_->GetFontSize();
+        return _real->GetFontSize();
     }
     UINT32 STDMETHODCALLTYPE GetLocaleNameLength() noexcept override
     {
-        return real_->GetLocaleNameLength();
+        return _real->GetLocaleNameLength();
     }
     HRESULT STDMETHODCALLTYPE GetLocaleName(WCHAR* localeName, UINT32 nameSize) noexcept override
     {
-        return real_->GetLocaleName(localeName, nameSize);
+        return _real->GetLocaleName(localeName, nameSize);
     }
     HRESULT STDMETHODCALLTYPE SetMaxWidth(FLOAT maxWidth) noexcept override
     {
-        return real_->SetMaxWidth(maxWidth);
+        return _real->SetMaxWidth(maxWidth);
     }
     HRESULT STDMETHODCALLTYPE SetMaxHeight(FLOAT maxHeight) noexcept override
     {
-        return real_->SetMaxHeight(maxHeight);
+        return _real->SetMaxHeight(maxHeight);
     }
     HRESULT STDMETHODCALLTYPE SetFontCollection(IDWriteFontCollection* fontCollection, DWRITE_TEXT_RANGE textRange) noexcept override
     {
-        return real_->SetFontCollection(fontCollection, textRange);
+        return _real->SetFontCollection(fontCollection, textRange);
     }
     HRESULT STDMETHODCALLTYPE SetFontFamilyName(WCHAR const* fontFamilyName, DWRITE_TEXT_RANGE textRange) noexcept override
     {
-        return real_->SetFontFamilyName(fontFamilyName, textRange);
+        return _real->SetFontFamilyName(fontFamilyName, textRange);
     }
     HRESULT STDMETHODCALLTYPE SetFontWeight(DWRITE_FONT_WEIGHT fontWeight, DWRITE_TEXT_RANGE textRange) noexcept override
     {
-        return real_->SetFontWeight(fontWeight, textRange);
+        return _real->SetFontWeight(fontWeight, textRange);
     }
     HRESULT STDMETHODCALLTYPE SetFontStyle(DWRITE_FONT_STYLE fontStyle, DWRITE_TEXT_RANGE textRange) noexcept override
     {
-        return real_->SetFontStyle(fontStyle, textRange);
+        return _real->SetFontStyle(fontStyle, textRange);
     }
     HRESULT STDMETHODCALLTYPE SetFontStretch(DWRITE_FONT_STRETCH fontStretch, DWRITE_TEXT_RANGE textRange) noexcept override
     {
-        return real_->SetFontStretch(fontStretch, textRange);
+        return _real->SetFontStretch(fontStretch, textRange);
     }
     HRESULT STDMETHODCALLTYPE SetFontSize(FLOAT fontSize, DWRITE_TEXT_RANGE textRange) noexcept override
     {
-        return real_->SetFontSize(fontSize, textRange);
+        return _real->SetFontSize(fontSize, textRange);
     }
     HRESULT STDMETHODCALLTYPE SetUnderline(BOOL hasUnderline, DWRITE_TEXT_RANGE textRange) noexcept override
     {
-        const auto call = state_->underlineCalls++;
-        if (call == state_->failUnderlineAt || call == state_->failUnderlineAt2)
+        const auto call = _state->underlineCalls++;
+        if (call == _state->failUnderlineAt || call == _state->failUnderlineAt2)
         {
-            if (state_->mutateBeforeFailure && call == state_->failUnderlineAt)
-                (void)real_->SetUnderline(hasUnderline, textRange);
-            return state_->failure;
+            if (_state->mutateBeforeFailure && call == _state->failUnderlineAt)
+                (void)_real->SetUnderline(hasUnderline, textRange);
+            return _state->failure;
         }
-        return real_->SetUnderline(hasUnderline, textRange);
+        return _real->SetUnderline(hasUnderline, textRange);
     }
     HRESULT STDMETHODCALLTYPE SetStrikethrough(BOOL hasStrikethrough, DWRITE_TEXT_RANGE textRange) noexcept override
     {
-        return real_->SetStrikethrough(hasStrikethrough, textRange);
+        return _real->SetStrikethrough(hasStrikethrough, textRange);
     }
     HRESULT STDMETHODCALLTYPE SetDrawingEffect(IUnknown* drawingEffect, DWRITE_TEXT_RANGE textRange) noexcept override
     {
-        const auto call = state_->effectCalls++;
-        if (call == state_->failEffectAt || call == state_->failEffectAt2)
+        const auto call = _state->effectCalls++;
+        if (call == _state->failEffectAt || call == _state->failEffectAt2)
         {
-            if (state_->mutateBeforeFailure && call == state_->failEffectAt)
-                (void)real_->SetDrawingEffect(drawingEffect, textRange);
-            return state_->failure;
+            if (_state->mutateBeforeFailure && call == _state->failEffectAt)
+                (void)_real->SetDrawingEffect(drawingEffect, textRange);
+            return _state->failure;
         }
-        return real_->SetDrawingEffect(drawingEffect, textRange);
+        return _real->SetDrawingEffect(drawingEffect, textRange);
     }
     HRESULT STDMETHODCALLTYPE SetInlineObject(IDWriteInlineObject* inlineObject, DWRITE_TEXT_RANGE textRange) noexcept override
     {
-        return real_->SetInlineObject(inlineObject, textRange);
+        return _real->SetInlineObject(inlineObject, textRange);
     }
     HRESULT STDMETHODCALLTYPE SetTypography(IDWriteTypography* typography, DWRITE_TEXT_RANGE textRange) noexcept override
     {
-        return real_->SetTypography(typography, textRange);
+        return _real->SetTypography(typography, textRange);
     }
     HRESULT STDMETHODCALLTYPE SetLocaleName(WCHAR const* localeName, DWRITE_TEXT_RANGE textRange) noexcept override
     {
-        return real_->SetLocaleName(localeName, textRange);
+        return _real->SetLocaleName(localeName, textRange);
     }
     FLOAT STDMETHODCALLTYPE GetMaxWidth() noexcept override
     {
-        return real_->GetMaxWidth();
+        return _real->GetMaxWidth();
     }
     FLOAT STDMETHODCALLTYPE GetMaxHeight() noexcept override
     {
-        return real_->GetMaxHeight();
+        return _real->GetMaxHeight();
     }
     HRESULT STDMETHODCALLTYPE GetFontCollection(UINT32 currentPosition, IDWriteFontCollection** fontCollection, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetFontCollection(currentPosition, fontCollection, textRange);
+        return _real->GetFontCollection(currentPosition, fontCollection, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetFontFamilyNameLength(UINT32 currentPosition, UINT32* nameLength, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetFontFamilyNameLength(currentPosition, nameLength, textRange);
+        return _real->GetFontFamilyNameLength(currentPosition, nameLength, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetFontFamilyName(UINT32 currentPosition, WCHAR* fontFamilyName, UINT32 nameSize, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetFontFamilyName(currentPosition, fontFamilyName, nameSize, textRange);
+        return _real->GetFontFamilyName(currentPosition, fontFamilyName, nameSize, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetFontWeight(UINT32 currentPosition, DWRITE_FONT_WEIGHT* fontWeight, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetFontWeight(currentPosition, fontWeight, textRange);
+        return _real->GetFontWeight(currentPosition, fontWeight, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetFontStyle(UINT32 currentPosition, DWRITE_FONT_STYLE* fontStyle, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetFontStyle(currentPosition, fontStyle, textRange);
+        return _real->GetFontStyle(currentPosition, fontStyle, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetFontStretch(UINT32 currentPosition, DWRITE_FONT_STRETCH* fontStretch, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetFontStretch(currentPosition, fontStretch, textRange);
+        return _real->GetFontStretch(currentPosition, fontStretch, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetFontSize(UINT32 currentPosition, FLOAT* fontSize, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetFontSize(currentPosition, fontSize, textRange);
+        return _real->GetFontSize(currentPosition, fontSize, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetUnderline(UINT32 currentPosition, BOOL* hasUnderline, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetUnderline(currentPosition, hasUnderline, textRange);
+        return _real->GetUnderline(currentPosition, hasUnderline, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetStrikethrough(UINT32 currentPosition, BOOL* hasStrikethrough, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetStrikethrough(currentPosition, hasStrikethrough, textRange);
+        return _real->GetStrikethrough(currentPosition, hasStrikethrough, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetDrawingEffect(UINT32 currentPosition, IUnknown** drawingEffect, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetDrawingEffect(currentPosition, drawingEffect, textRange);
+        return _real->GetDrawingEffect(currentPosition, drawingEffect, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetInlineObject(UINT32 currentPosition, IDWriteInlineObject** inlineObject, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetInlineObject(currentPosition, inlineObject, textRange);
+        return _real->GetInlineObject(currentPosition, inlineObject, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetTypography(UINT32 currentPosition, IDWriteTypography** typography, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetTypography(currentPosition, typography, textRange);
+        return _real->GetTypography(currentPosition, typography, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetLocaleNameLength(UINT32 currentPosition, UINT32* nameLength, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetLocaleNameLength(currentPosition, nameLength, textRange);
+        return _real->GetLocaleNameLength(currentPosition, nameLength, textRange);
     }
     HRESULT STDMETHODCALLTYPE GetLocaleName(UINT32 currentPosition, WCHAR* localeName, UINT32 nameSize, DWRITE_TEXT_RANGE* textRange) noexcept override
     {
-        return real_->GetLocaleName(currentPosition, localeName, nameSize, textRange);
+        return _real->GetLocaleName(currentPosition, localeName, nameSize, textRange);
     }
     HRESULT STDMETHODCALLTYPE Draw(void* clientDrawingContext, IDWriteTextRenderer* renderer, FLOAT originX, FLOAT originY) noexcept override
     {
-        return real_->Draw(clientDrawingContext, renderer, originX, originY);
+        return _real->Draw(clientDrawingContext, renderer, originX, originY);
     }
     HRESULT STDMETHODCALLTYPE GetLineMetrics(DWRITE_LINE_METRICS* lineMetrics, UINT32 maxLineCount, UINT32* actualLineCount) noexcept override
     {
-        if (! lineMetrics && state_->failLineMetrics)
+        if (! lineMetrics && _state->failLineMetrics)
         {
-            ++state_->lineFailures;
-            return state_->failure;
+            ++_state->lineFailures;
+            return _state->failure;
         }
-        return real_->GetLineMetrics(lineMetrics, maxLineCount, actualLineCount);
+        return _real->GetLineMetrics(lineMetrics, maxLineCount, actualLineCount);
     }
     HRESULT STDMETHODCALLTYPE GetMetrics(DWRITE_TEXT_METRICS* textMetrics) noexcept override
     {
-        return real_->GetMetrics(textMetrics);
+        return _real->GetMetrics(textMetrics);
     }
     HRESULT STDMETHODCALLTYPE GetOverhangMetrics(DWRITE_OVERHANG_METRICS* overhangs) noexcept override
     {
-        return real_->GetOverhangMetrics(overhangs);
+        return _real->GetOverhangMetrics(overhangs);
     }
     HRESULT STDMETHODCALLTYPE GetClusterMetrics(DWRITE_CLUSTER_METRICS* clusterMetrics, UINT32 maxClusterCount, UINT32* actualClusterCount) noexcept override
     {
-        return real_->GetClusterMetrics(clusterMetrics, maxClusterCount, actualClusterCount);
+        return _real->GetClusterMetrics(clusterMetrics, maxClusterCount, actualClusterCount);
     }
     HRESULT STDMETHODCALLTYPE DetermineMinWidth(FLOAT* minWidth) noexcept override
     {
-        return real_->DetermineMinWidth(minWidth);
+        return _real->DetermineMinWidth(minWidth);
     }
     HRESULT STDMETHODCALLTYPE
     HitTestPoint(FLOAT pointX, FLOAT pointY, BOOL* isTrailingHit, BOOL* isInside, DWRITE_HIT_TEST_METRICS* hitTestMetrics) noexcept override
     {
-        return real_->HitTestPoint(pointX, pointY, isTrailingHit, isInside, hitTestMetrics);
+        return _real->HitTestPoint(pointX, pointY, isTrailingHit, isInside, hitTestMetrics);
     }
     HRESULT STDMETHODCALLTYPE
     HitTestTextPosition(UINT32 textPosition, BOOL isTrailingHit, FLOAT* pointX, FLOAT* pointY, DWRITE_HIT_TEST_METRICS* hitTestMetrics) noexcept override
     {
-        return real_->HitTestTextPosition(textPosition, isTrailingHit, pointX, pointY, hitTestMetrics);
+        return _real->HitTestTextPosition(textPosition, isTrailingHit, pointX, pointY, hitTestMetrics);
     }
     HRESULT STDMETHODCALLTYPE HitTestTextRange(UINT32 textPosition,
                                                UINT32 textLength,
@@ -367,12 +367,12 @@ public:
                                                UINT32 maxHitTestMetricsCount,
                                                UINT32* actualHitTestMetricsCount) noexcept override
     {
-        return real_->HitTestTextRange(textPosition, textLength, originX, originY, hitTestMetrics, maxHitTestMetricsCount, actualHitTestMetricsCount);
+        return _real->HitTestTextRange(textPosition, textLength, originX, originY, hitTestMetrics, maxHitTestMetricsCount, actualHitTestMetricsCount);
     }
 
 private:
-    wil::com_ptr<IDWriteTextLayout> real_;
-    LayoutFaultState* state_; // Borrowed; the fixture outlives every layout.
+    wil::com_ptr<IDWriteTextLayout> _real;
+    LayoutFaultState* _state; // Borrowed; the fixture outlives every layout.
 };
 #pragma warning(pop)
 inline HRESULT WrapFaultLayout(void* context, IDWriteTextLayout* original, IDWriteTextLayout** output) noexcept

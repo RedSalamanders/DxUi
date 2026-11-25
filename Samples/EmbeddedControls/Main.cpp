@@ -594,60 +594,60 @@ struct App
             class Receiver final : public DxUi::RichFileDropReceiver
             {
             public:
-                explicit Receiver(App& owner) noexcept : app(&owner)
+                explicit Receiver(App& owner) noexcept : _app(&owner)
                 {
                 }
                 bool Preview(POINTL screen) noexcept override
                 {
                     POINT client{screen.x, screen.y};
-                    if (! app->window || ! ScreenToClient(app->window.get(), &client) || app->dpi <= 0.f)
+                    if (! _app->window || ! ScreenToClient(_app->window.get(), &client) || _app->dpi <= 0.f)
                         return false;
-                    return app->View().PreviewFileDrop(D2D1::Point2F(float(client.x) * 96.f / app->dpi, float(client.y) * 96.f / app->dpi));
+                    return _app->View().PreviewFileDrop(D2D1::Point2F(float(client.x) * 96.f / _app->dpi, float(client.y) * 96.f / _app->dpi));
                 }
                 bool Drop(POINTL screen, IDataObject& data, DxUi::RichFileDropGuard guard) noexcept override
                 {
                     POINT client{screen.x, screen.y};
-                    if (! app->window || ! ScreenToClient(app->window.get(), &client) || app->dpi <= 0.f)
+                    if (! _app->window || ! ScreenToClient(_app->window.get(), &client) || _app->dpi <= 0.f)
                         return false;
-                    const bool committed = app->View().CommitFileDrop(
-                        D2D1::Point2F(float(client.x) * 96.f / app->dpi, float(client.y) * 96.f / app->dpi), data, guard.current, guard.context);
+                    const bool committed = _app->View().CommitFileDrop(
+                        D2D1::Point2F(float(client.x) * 96.f / _app->dpi, float(client.y) * 96.f / _app->dpi), data, guard.current, guard.context);
                     if (committed)
-                        app->RefreshText();
+                        _app->RefreshText();
                     return committed;
                 }
                 bool PreviewText(POINTL screen) noexcept override
                 {
-                    if (! app->textDragMove || ! app->textDragData || ! app->textDragMove->IsOwnerAlive() || ! app->scene.rich || ! app->window ||
-                        app->dpi <= 0.f)
+                    if (! _app->textDragMove || ! _app->textDragData || ! _app->textDragMove->IsOwnerAlive() || ! _app->scene.rich || ! _app->window ||
+                        _app->dpi <= 0.f)
                         return false;
                     POINT client{screen.x, screen.y};
-                    if (! ScreenToClient(app->window.get(), &client))
+                    if (! ScreenToClient(_app->window.get(), &client))
                         return false;
-                    const auto point = D2D1::Point2F(float(client.x) * 96.f / app->dpi, float(client.y) * 96.f / app->dpi);
-                    if (! app->View().PreviewFileDrop(point) || ! app->textDragMove || ! app->textDragMove->IsOwnerAlive())
+                    const auto point = D2D1::Point2F(float(client.x) * 96.f / _app->dpi, float(client.y) * 96.f / _app->dpi);
+                    if (! _app->View().PreviewFileDrop(point) || ! _app->textDragMove || ! _app->textDragMove->IsOwnerAlive())
                         return false;
-                    const auto position = app->scene.rich->HitTestSourceDropPoint(app->View().Controls(), point);
+                    const auto position = _app->scene.rich->HitTestSourceDropPoint(_app->View().Controls(), point);
                     if (! position)
                         return false;
-                    const auto selected = app->scene.rich->GetSelection();
+                    const auto selected = _app->scene.rich->GetSelection();
                     return *position < selected.Start() || *position > selected.End();
                 }
                 bool DropText(POINTL screen, IDataObject& data, DxUi::RichFileDropGuard guard) noexcept override
                 {
-                    if (&data != app->textDragData.get() || ! PreviewText(screen) || ! app->textDragMove || ! app->textDragMove->IsOwnerAlive() ||
+                    if (&data != _app->textDragData.get() || ! PreviewText(screen) || ! _app->textDragMove || ! _app->textDragMove->IsOwnerAlive() ||
                         (guard.current && ! guard.current(guard.context)))
                         return false;
                     POINT client{screen.x, screen.y};
-                    if (! ScreenToClient(app->window.get(), &client))
+                    if (! ScreenToClient(_app->window.get(), &client))
                         return false;
-                    const auto position = app->scene.rich->HitTestSourceDropPoint(
-                        app->View().Controls(), D2D1::Point2F(float(client.x) * 96.f / app->dpi, float(client.y) * 96.f / app->dpi));
-                    if (! position || (guard.current && ! guard.current(guard.context)) || ! app->textDragMove || ! app->textDragMove->IsOwnerAlive())
+                    const auto position = _app->scene.rich->HitTestSourceDropPoint(
+                        _app->View().Controls(), D2D1::Point2F(float(client.x) * 96.f / _app->dpi, float(client.y) * 96.f / _app->dpi));
+                    if (! position || (guard.current && ! guard.current(guard.context)) || ! _app->textDragMove || ! _app->textDragMove->IsOwnerAlive())
                         return false;
                     try
                     {
-                        app->textDragMoved = app->scene.rich->MoveSelectedSource(*app->textDragMove, *position);
-                        return app->textDragMoved;
+                        _app->textDragMoved = _app->scene.rich->MoveSelectedSource(*_app->textDragMove, *position);
+                        return _app->textDragMoved;
                     }
                     catch (const std::bad_alloc&)
                     {
@@ -660,7 +660,7 @@ struct App
                 }
 
             private:
-                App* app; // Borrowed; the application retires the adapter before destroying its window or view.
+                App* _app; // Borrowed; the application retires the adapter before destroying its window or view.
             };
             {
                 const DxUi::Failure::Scope construction;

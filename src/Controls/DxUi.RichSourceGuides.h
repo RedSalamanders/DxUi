@@ -41,7 +41,7 @@ public:
         float x{}, y{}, width{}, height{};
         wchar_t kind{};
     };
-    RichSourceGuides() : numbers_(0u), marks_(0u)
+    RichSourceGuides() : _numbers(0u), _marks(0u)
     {
     }
     RichSourceGuides(const RichSourceGuides&)            = delete;
@@ -50,41 +50,41 @@ public:
     RichSourceGuides& operator=(RichSourceGuides&&)      = delete;
     void Clear() noexcept
     {
-        next_.reset();
-        numbers_.clear();
-        marks_.clear();
-        revision_ = generation_ = 0u;
-        published_              = false;
+        _next.reset();
+        _numbers.clear();
+        _marks.clear();
+        _revision = _generation = 0u;
+        _published              = false;
     }
     void CancelPending() noexcept
     {
-        next_.reset();
+        _next.reset();
     }
     bool HasPublication(std::uint64_t generation, bool numbers, bool marks) const noexcept
     {
         // Old viewport decoration remains valid while scrolling. A replacement
         // geometry makes its positions unknown, so omit it until publication.
-        return published_ && generation_ == generation && numbersEnabled_ == numbers && marksEnabled_ == marks;
+        return _published && _generation == generation && _numbersEnabled == numbers && _marksEnabled == marks;
     }
     bool Covers(float top, float bottom, float left, float right) const noexcept
     {
-        return published_ && window_.top <= top && window_.bottom >= bottom && window_.left <= left && window_.right >= right;
+        return _published && _window.top <= top && _window.bottom >= bottom && _window.left <= left && _window.right >= right;
     }
     bool Current(std::uint64_t revision, std::uint64_t generation, bool numbers, bool marks) const noexcept
     {
-        return ! next_ && revision_ == revision && generation_ == generation && numbersEnabled_ == numbers && marksEnabled_ == marks;
+        return ! _next && _revision == revision && _generation == generation && _numbersEnabled == numbers && _marksEnabled == marks;
     }
     bool Pending() const noexcept
     {
-        return static_cast<bool>(next_);
+        return static_cast<bool>(_next);
     }
     std::size_t LastWork() const noexcept
     {
-        return lastWork_;
+        return _lastWork;
     }
     std::size_t LastLayouts() const noexcept
     {
-        return lastLayouts_;
+        return _lastLayouts;
     }
     void Begin(const SourceSnapshot& source,
                std::uint64_t revision,
@@ -104,8 +104,8 @@ public:
             --desired.first;
         while (desired.last < source.Length() && ! source.IsBoundary(desired.last))
             ++desired.last;
-        if (next_ && next_->revision == revision && next_->generation == generation && next_->numbers == numbers && next_->marks == marks &&
-            next_->window == desired)
+        if (_next && _next->revision == revision && _next->generation == generation && _next->numbers == numbers && _next->marks == marks &&
+            _next->window == desired)
             return;
         auto staged                   = std::make_unique<Stage>();
         staged->source                = source;
@@ -122,17 +122,17 @@ public:
         staged->options.widthDip      = std::max(1.0f, gutterWidth - 8.0f);
         staged->options.textAlignment = DWRITE_TEXT_ALIGNMENT_TRAILING;
         staged->options.wrap          = false;
-        next_.swap(staged);
+        _next.swap(staged);
     }
     HRESULT Advance(IDWriteFactory* factory, const RichEditorLayout& geometry)
     {
         const Failure::Scope failureScope;
-        lastWork_ = lastLayouts_ = 0u;
-        if (! next_)
+        _lastWork = _lastLayouts = 0u;
+        if (! _next)
             return S_OK;
-        auto& stage   = *next_;
-        auto& work    = lastWork_;
-        auto& layouts = lastLayouts_;
+        auto& stage   = *_next;
+        auto& work    = _lastWork;
+        auto& layouts = _lastLayouts;
         while (work < 256u)
         {
             if (stage.numberNeeded)
@@ -161,15 +161,15 @@ public:
             }
             if (stage.cursor == stage.window.last)
             {
-                numbers_.swap(stage.stagedNumbers);
-                marks_.swap(stage.stagedMarks);
-                revision_       = stage.revision;
-                generation_     = stage.generation;
-                numbersEnabled_ = stage.numbers;
-                marksEnabled_   = stage.marks;
-                window_         = stage.window;
-                published_      = true;
-                next_.reset();
+                _numbers.swap(stage.stagedNumbers);
+                _marks.swap(stage.stagedMarks);
+                _revision       = stage.revision;
+                _generation     = stage.generation;
+                _numbersEnabled = stage.numbers;
+                _marksEnabled   = stage.marks;
+                _window         = stage.window;
+                _published      = true;
+                _next.reset();
                 return S_OK;
             }
             const auto required = (std::min)(std::size_t{2u}, stage.window.last - stage.cursor);
@@ -217,11 +217,11 @@ public:
     }
     std::span<const Number> Numbers() const noexcept
     {
-        return numbers_;
+        return _numbers;
     }
     std::span<const Mark> Marks() const noexcept
     {
-        return marks_;
+        return _marks;
     }
 
 private:
@@ -240,13 +240,13 @@ private:
         std::size_t cursor{}, numberAt{}, unitsFirst{}, line = 1u;
         bool numbers{}, marks{}, numberNeeded = true;
     };
-    std::unique_ptr<Stage> next_;
-    std::vector<Number> numbers_;
-    std::vector<Mark> marks_;
-    std::uint64_t revision_{}, generation_{};
-    bool numbersEnabled_{}, marksEnabled_{};
-    bool published_{};
-    Window window_;
-    std::size_t lastWork_{}, lastLayouts_{};
+    std::unique_ptr<Stage> _next;
+    std::vector<Number> _numbers;
+    std::vector<Mark> _marks;
+    std::uint64_t _revision{}, _generation{};
+    bool _numbersEnabled{}, _marksEnabled{};
+    bool _published{};
+    Window _window;
+    std::size_t _lastWork{}, _lastLayouts{};
 };
 } // namespace DxUi::RichText::Detail

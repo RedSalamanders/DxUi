@@ -284,16 +284,16 @@ std::size_t CountWords(const SemanticDocument& document)
     return VisitSemanticWords(document, {0u, document.Map().Display().size()}, nullptr, nullptr);
 }
 SemanticDocument::SemanticDocument(std::shared_ptr<const MarkdownSyntax> syntax)
-    : syntax_(std::move(syntax)),
-      elements_(0u),
-      paragraphs_(0u),
-      navigation_(0u),
-      headings_(0u),
-      runs_(0u),
-      sourceRuns_(0u)
+    : _syntax(std::move(syntax)),
+      _elements(0u),
+      _paragraphs(0u),
+      _navigation(0u),
+      _headings(0u),
+      _runs(0u),
+      _sourceRuns(0u)
 {
     static std::atomic<std::uint64_t> nextIdentity{1u};
-    identity_ = nextIdentity.fetch_add(1u, std::memory_order_relaxed);
+    _identity = nextIdentity.fetch_add(1u, std::memory_order_relaxed);
 }
 std::optional<MarkdownRange> SemanticDocument::ResolveHeadingFragment(std::wstring_view fragment) const
 {
@@ -304,8 +304,8 @@ std::optional<MarkdownRange> SemanticDocument::ResolveHeadingFragment(std::wstri
     std::wstring wanted(0u, L' ');
     if (! Detail::DecodeHeadingFragment(fragment, wanted))
         return std::nullopt;
-    const auto found = std::ranges::find(headings_, wanted, &SemanticHeading::slug);
-    return found == headings_.end() ? std::nullopt : std::optional(found->target);
+    const auto found = std::ranges::find(_headings, wanted, &SemanticHeading::slug);
+    return found == _headings.end() ? std::nullopt : std::optional(found->target);
 }
 SourceResult TryBuildHeadingTableOfContents(const SemanticDocument& document, std::wstring& output)
 {
@@ -393,17 +393,17 @@ std::wstring BuildHeadingTableOfContents(const SemanticDocument& document)
 }
 std::optional<MarkdownRange> SemanticDocument::NavigationTarget(std::size_t element) const noexcept
 {
-    const auto found = std::lower_bound(navigation_.begin(), navigation_.end(), element, [](const auto& item, auto index) { return item.element < index; });
-    return found != navigation_.end() && found->element == element ? std::optional(found->target) : std::nullopt;
+    const auto found = std::lower_bound(_navigation.begin(), _navigation.end(), element, [](const auto& item, auto index) { return item.element < index; });
+    return found != _navigation.end() && found->element == element ? std::optional(found->target) : std::nullopt;
 }
 std::optional<std::size_t> SemanticDocument::SourceEditingNode(std::size_t element) const noexcept
 {
-    if (element >= elements_.size())
+    if (element >= _elements.size())
         return std::nullopt;
-    const auto node = elements_[element].syntaxNode;
-    if (node == MarkdownNoNode || node >= syntax_->Nodes().size())
+    const auto node = _elements[element].syntaxNode;
+    if (node == MarkdownNoNode || node >= _syntax->Nodes().size())
         return std::nullopt;
-    const auto& value = syntax_->Nodes()[node];
+    const auto& value = _syntax->Nodes()[node];
     if (value.firstChild != MarkdownNoNode)
         return std::nullopt;
     switch (value.block.kind)
@@ -433,30 +433,30 @@ std::optional<std::size_t> SemanticDocument::SourceEditingNode(std::size_t eleme
 
 std::optional<MarkdownRange> SemanticDocument::SourceEditingRange(std::size_t element) const noexcept
 {
-    if (element >= elements_.size())
+    if (element >= _elements.size())
         return std::nullopt;
-    if (elements_[element].role == SemanticRole::Math ||
-        (! elements_[element].nativeHtml && (elements_[element].role == SemanticRole::Link || elements_[element].role == SemanticRole::Image)))
-        return elements_[element].source;
+    if (_elements[element].role == SemanticRole::Math ||
+        (! _elements[element].nativeHtml && (_elements[element].role == SemanticRole::Link || _elements[element].role == SemanticRole::Image)))
+        return _elements[element].source;
     const auto node = SourceEditingNode(element);
-    return node ? std::optional(syntax_->Nodes()[*node].block.source) : std::nullopt;
+    return node ? std::optional(_syntax->Nodes()[*node].block.source) : std::nullopt;
 }
 bool SemanticDocument::IsSourceEditingElement(std::size_t element) const noexcept
 {
     const auto range  = SourceEditingRange(element);
-    const auto region = syntax_->SourceRegion();
+    const auto region = _syntax->SourceRegion();
     if (! range || ! region)
         return false;
     if (region->kind == MarkdownSourceRegionKind::Inline)
-        return *range == region->source && ((region->inlineKind == MarkdownInlineSourceKind::Math && elements_[element].role == SemanticRole::Math) ||
-                                            (region->inlineKind == MarkdownInlineSourceKind::Link && elements_[element].role == SemanticRole::Link) ||
-                                            (region->inlineKind == MarkdownInlineSourceKind::Image && elements_[element].role == SemanticRole::Image));
+        return *range == region->source && ((region->inlineKind == MarkdownInlineSourceKind::Math && _elements[element].role == SemanticRole::Math) ||
+                                            (region->inlineKind == MarkdownInlineSourceKind::Link && _elements[element].role == SemanticRole::Link) ||
+                                            (region->inlineKind == MarkdownInlineSourceKind::Image && _elements[element].role == SemanticRole::Image));
     const auto node = SourceEditingNode(element);
     return node && *node == SourceBlock();
 }
 std::span<const SemanticDiagnostic> SemanticDocument::Diagnostics() const noexcept
 {
-    return extensions_ ? std::span<const SemanticDiagnostic>(extensions_->diagnostics) : std::span<const SemanticDiagnostic>{};
+    return _extensions ? std::span<const SemanticDiagnostic>(_extensions->diagnostics) : std::span<const SemanticDiagnostic>{};
 }
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
@@ -513,10 +513,10 @@ struct SemanticBuilder::Preparation
                          SoftBreakPolicy softBreakPolicyValue,
                          std::shared_ptr<const SemanticDocument> previousPublication)
         : document(new SemanticDocument(std::move(syntax))),
-          output(document->runs_),
+          output(document->_runs),
           visits(0u),
           tails(0u),
-          ordinals(document->syntax_->Nodes().size(), 0u),
+          ordinals(document->_syntax->Nodes().size(), 0u),
           footerByNode(0u),
           footerOrder(0u),
           abbreviations(0u),
@@ -524,15 +524,15 @@ struct SemanticBuilder::Preparation
           projection(std::make_shared<Detail::SemanticProjectionIndex>()),
           topNodes(0u)
     {
-        document->sourceBlock_ = sourceBlock;
+        document->_sourceBlock = sourceBlock;
         if (! sourceObjects.empty())
             Extensions().sourceObjects.assign(sourceObjects.begin(), sourceObjects.end());
         if (! disclosureStates.empty())
             Extensions().disclosures.assign(disclosureStates.begin(), disclosureStates.end());
-        const auto notes = document->syntax_->Footnotes();
+        const auto notes = document->_syntax->Footnotes();
         if (std::ranges::any_of(notes, [](const auto& note) { return note.ordinal != 0u; }))
         {
-            footerByNode.assign(document->syntax_->Nodes().size(), MarkdownNoNode);
+            footerByNode.assign(document->_syntax->Nodes().size(), MarkdownNoNode);
             footerOrder.assign(notes.size(), MarkdownNoNode);
             std::size_t count{};
             for (std::size_t index = 0u; index < notes.size(); ++index)
@@ -544,7 +544,7 @@ struct SemanticBuilder::Preparation
                 }
             footerOrder.resize(count);
         }
-        abbreviationPending = HasMarkdownExtension(document->syntax_->Extensions(), MarkdownExtensions::Abbreviations);
+        abbreviationPending = HasMarkdownExtension(document->_syntax->Extensions(), MarkdownExtensions::Abbreviations);
         visits.push_back({});
         PlanReuse(std::move(previousPublication));
     }
@@ -655,18 +655,18 @@ struct SemanticBuilder::Preparation
     }
     std::size_t Objects() const noexcept
     {
-        const auto* extensions = document->extensions_.get();
+        const auto* extensions = document->_extensions.get();
         return extensions ? extensions->images.size() + extensions->maths.size() + extensions->diagrams.size() : 0u;
     }
     void PlanReuse(std::shared_ptr<const SemanticDocument> candidate)
     {
-        const auto& syntax = *document->syntax_;
-        if (! candidate || ! candidate->projection_ || candidate->projection_->blocks.empty() || candidate->syntax_->Profile() != syntax.Profile() ||
-            candidate->syntax_->Extensions() != syntax.Extensions())
+        const auto& syntax = *document->_syntax;
+        if (! candidate || ! candidate->_projection || candidate->_projection->blocks.empty() || candidate->_syntax->Profile() != syntax.Profile() ||
+            candidate->_syntax->Extensions() != syntax.Extensions())
             return CountFullBuild(FullBuild::NoPrevious);
         const auto& old       = *candidate;
-        const auto& oldSyntax = *old.syntax_;
-        if (old.sourceBlock_ != MarkdownNoNode || document->sourceBlock_ != MarkdownNoNode || oldSyntax.SourceRegion() || syntax.SourceRegion() ||
+        const auto& oldSyntax = *old._syntax;
+        if (old._sourceBlock != MarkdownNoNode || document->_sourceBlock != MarkdownNoNode || oldSyntax.SourceRegion() || syntax.SourceRegion() ||
             ! Detail::SemanticExtensionAccess::SourceObjects(old).empty() || ! Detail::SemanticExtensionAccess::SourceObjects(*document).empty() ||
             ! std::ranges::equal(Detail::SemanticExtensionAccess::Disclosures(old), Detail::SemanticExtensionAccess::Disclosures(*document)))
             return CountFullBuild(FullBuild::Presentation);
@@ -676,8 +676,8 @@ struct SemanticBuilder::Preparation
         if (! Detail::SemanticExtensionAccess::AbbreviationNodes(old).empty())
             return CountFullBuild(FullBuild::Abbreviations);
         const bool definitionLists = HasMarkdownExtension(syntax.Extensions(), MarkdownExtensions::DefinitionLists);
-        if (old.projection_->admissionRefused ||
-            (definitionLists && oldSyntax.Nodes().size() + old.paragraphs_.size() + DefinitionListMargin > SemanticDocument::MaximumParagraphs))
+        if (old._projection->admissionRefused ||
+            (definitionLists && oldSyntax.Nodes().size() + old._paragraphs.size() + DefinitionListMargin > SemanticDocument::MaximumParagraphs))
             return CountFullBuild(FullBuild::Capacity);
         // Edit envelope: the unchanged prefix and suffix of the two sources.
         const auto a = oldSyntax.Source(), b = syntax.Source();
@@ -690,7 +690,7 @@ struct SemanticBuilder::Preparation
             topNodes.push_back(child);
         // Pair blocks by range: identical leading blocks inside the prefix and
         // trailing blocks inside the suffix, shifted by the length change.
-        const auto& cuts    = old.projection_->blocks;
+        const auto& cuts    = old._projection->blocks;
         const auto oldCount = cuts.size() - 1u;
         const auto newCount = topNodes.size();
         const auto delta    = b.size() - a.size();
@@ -728,7 +728,7 @@ struct SemanticBuilder::Preparation
             if (! abbreviations.empty())
             {
                 abbreviations.clear();
-                document->extensions_->abbreviationNodes.clear();
+                document->_extensions->abbreviationNodes.clear();
                 return CountFullBuild(FullBuild::Abbreviations);
             }
         }
@@ -737,8 +737,8 @@ struct SemanticBuilder::Preparation
         reusePrefix                  = leading;
         reuseSuffix                  = trailing;
         incremental                  = true;
-        document->hasPropertiesBody_ = previous->hasPropertiesBody_;
-        projection->previousIdentity = previous->identity_;
+        document->_hasPropertiesBody = previous->_hasPropertiesBody;
+        projection->previousIdentity = previous->_identity;
     }
     // Abandon reuse and build from the beginning, counting why.
     void RestartFull(FullBuild cause)
@@ -747,17 +747,17 @@ struct SemanticBuilder::Preparation
         incremental = false;
         previous.reset();
         auto& value = *document;
-        value.elements_.clear();
-        value.paragraphs_.clear();
-        value.navigation_.clear();
-        value.headings_.clear();
-        value.runs_.clear();
-        value.sourceRuns_.clear();
-        value.hasCallouts_       = false;
-        value.hasPropertiesBody_ = false;
-        if (value.extensions_)
+        value._elements.clear();
+        value._paragraphs.clear();
+        value._navigation.clear();
+        value._headings.clear();
+        value._runs.clear();
+        value._sourceRuns.clear();
+        value._hasCallouts       = false;
+        value._hasPropertiesBody = false;
+        if (value._extensions)
         {
-            auto& extensions = *value.extensions_;
+            auto& extensions = *value._extensions;
             extensions.diagrams.clear();
             extensions.maths.clear();
             extensions.diagnostics.clear();
@@ -775,7 +775,7 @@ struct SemanticBuilder::Preparation
         abbreviations.clear();
         abbreviationWork.reset();
         abbreviationCursor  = 1u;
-        abbreviationPending = HasMarkdownExtension(value.syntax_->Extensions(), MarkdownExtensions::Abbreviations);
+        abbreviationPending = HasMarkdownExtension(value._syntax->Extensions(), MarkdownExtensions::Abbreviations);
         diagram.reset();
         html.Reset();
         htmlDisplayFirst = 0u;
@@ -789,7 +789,7 @@ struct SemanticBuilder::Preparation
     }
     void RecordCut(std::size_t node)
     {
-        const auto& syntax = *document->syntax_;
+        const auto& syntax = *document->_syntax;
         auto& cut          = projection->blocks.emplace_back();
         cut.node           = node;
         if (node == MarkdownNoNode)
@@ -800,10 +800,10 @@ struct SemanticBuilder::Preparation
             cut.kind   = syntax.Nodes()[node].block.kind;
         }
         cut.display   = output.text.size();
-        cut.element   = document->elements_.size();
-        cut.paragraph = document->paragraphs_.size();
-        cut.heading   = document->headings_.size();
-        if (const auto* extensions = document->extensions_.get())
+        cut.element   = document->_elements.size();
+        cut.paragraph = document->_paragraphs.size();
+        cut.heading   = document->_headings.size();
+        if (const auto* extensions = document->_extensions.get())
         {
             cut.maths       = extensions->maths.size();
             cut.images      = extensions->images.size();
@@ -836,8 +836,8 @@ struct SemanticBuilder::Preparation
     {
         if (oldNode == MarkdownNoNode)
             return MarkdownNoNode;
-        const auto& oldNodes = previous->syntax_->Nodes();
-        const auto& newNodes = document->syntax_->Nodes();
+        const auto& oldNodes = previous->_syntax->Nodes();
+        const auto& newNodes = document->_syntax->Nodes();
         const auto paired    = oldNode + nodeDelta;
         if (oldNode >= oldNodes.size() || paired >= newNodes.size() || oldNodes[oldNode].block.kind != newNodes[paired].block.kind ||
             Shift(oldNodes[oldNode].block.source, sourceDelta) != newNodes[paired].block.source)
@@ -850,8 +850,8 @@ struct SemanticBuilder::Preparation
     // apart from the uniform source shift and node index offset.
     void VerifyReusedSubtree(std::size_t oldRoot, std::size_t newRoot, std::size_t sourceDelta) const
     {
-        const auto& oldSyntax = *previous->syntax_;
-        const auto& newSyntax = *document->syntax_;
+        const auto& oldSyntax = *previous->_syntax;
+        const auto& newSyntax = *document->_syntax;
         std::vector<std::pair<std::size_t, std::size_t>> pending(1u, {oldRoot, newRoot});
         while (! pending.empty())
         {
@@ -881,8 +881,8 @@ struct SemanticBuilder::Preparation
     }
     void VerifyReusedInline(std::size_t left, std::size_t right, std::size_t sourceDelta) const
     {
-        const auto& a = previous->syntax_->Inlines()[left];
-        const auto& b = document->syntax_->Inlines()[right];
+        const auto& a = previous->_syntax->Inlines()[left];
+        const auto& b = document->_syntax->Inlines()[right];
         if (a.kind != b.kind || Shift(a.source, sourceDelta) != b.source || a.value != b.value || a.destination != b.destination || a.title != b.title ||
             a.wiki != b.wiki || (a.firstChild == MarkdownNoNode) != (b.firstChild == MarkdownNoNode))
             Failure::FailContract(E_UNEXPECTED);
@@ -891,8 +891,8 @@ struct SemanticBuilder::Preparation
             if (x == MarkdownNoNode || y == MarkdownNoNode)
                 Failure::FailContract(E_UNEXPECTED);
             VerifyReusedInline(x, y, sourceDelta);
-            x = previous->syntax_->Inlines()[x].nextSibling;
-            y = document->syntax_->Inlines()[y].nextSibling;
+            x = previous->_syntax->Inlines()[x].nextSibling;
+            y = document->_syntax->Inlines()[y].nextSibling;
         }
     }
 #endif
@@ -902,16 +902,16 @@ struct SemanticBuilder::Preparation
     bool CopyBlocks(std::size_t oldFirst, std::size_t oldLast, std::size_t newFirst, bool trailing)
     {
         const auto& old           = *previous;
-        const auto& oldCuts       = old.projection_->blocks;
+        const auto& oldCuts       = old._projection->blocks;
         const auto& from          = oldCuts[oldFirst];
         const auto& to            = oldCuts[oldLast];
-        const auto& newNodes      = document->syntax_->Nodes();
+        const auto& newNodes      = document->_syntax->Nodes();
         const auto sourceDelta    = newNodes[topNodes[newFirst]].block.source.first - from.source.first;
-        auto& elements            = document->elements_;
-        auto& paragraphs          = document->paragraphs_;
+        auto& elements            = document->_elements;
+        auto& paragraphs          = document->_paragraphs;
         const auto oldElements    = old.Elements();
         const auto oldParagraphs  = old.Paragraphs();
-        const auto* oldExtensions = old.extensions_.get();
+        const auto* oldExtensions = old._extensions.get();
         // Admission: equal to what a fresh build would accept or refuse.
         if (to.element - from.element > SemanticDocument::MaximumElements - elements.size() ||
             to.paragraph - from.paragraph > SemanticDocument::MaximumParagraphs - paragraphs.size())
@@ -921,11 +921,11 @@ struct SemanticBuilder::Preparation
         }
         if (trailing)
         {
-            const auto* extensions     = document->extensions_.get();
+            const auto* extensions     = document->_extensions.get();
             const auto records         = (extensions ? extensions->records : 0u) + (to.records - from.records);
             const auto candidates      = (extensions ? extensions->candidates : 0u) + (to.candidates - from.candidates);
             const auto objects         = Objects() + (to.maths - from.maths) + (to.images - from.images) + (to.diagrams - from.diagrams);
-            const bool definitionLists = HasMarkdownExtension(document->syntax_->Extensions(), MarkdownExtensions::DefinitionLists);
+            const bool definitionLists = HasMarkdownExtension(document->_syntax->Extensions(), MarkdownExtensions::DefinitionLists);
             if (admissionRefused || objects > Detail::SemanticExtensions::MaximumObjects || records > Detail::SemanticExtensions::MaximumRecords ||
                 candidates > Detail::SemanticExtensions::MaximumObjects ||
                 (definitionLists && newNodes.size() + paragraphs.size() + (oldCuts.back().paragraph - from.paragraph) + DefinitionListMargin >
@@ -935,7 +935,7 @@ struct SemanticBuilder::Preparation
                 return false;
             }
         }
-        else if (HasMarkdownExtension(document->syntax_->Extensions(), MarkdownExtensions::DefinitionLists) &&
+        else if (HasMarkdownExtension(document->_syntax->Extensions(), MarkdownExtensions::DefinitionLists) &&
                  newNodes.size() + to.paragraph + DefinitionListMargin > SemanticDocument::MaximumParagraphs)
         {
             RestartFull(FullBuild::Capacity);
@@ -944,7 +944,7 @@ struct SemanticBuilder::Preparation
         const auto displayDelta   = output.text.size() - from.display;
         const auto elementDelta   = elements.size() - from.element;
         const auto paragraphDelta = paragraphs.size() - from.paragraph;
-        const auto headingDelta   = document->headings_.size() - from.heading;
+        const auto headingDelta   = document->_headings.size() - from.heading;
         const auto lastTop        = tails.empty() ? MarkdownNoNode : tails[0u];
         std::uint64_t copied{}; // Bytes copied besides the display text (semanticBytesCopied).
         // Display text, then spans and runs clipped to the copied range.
@@ -996,7 +996,7 @@ struct SemanticBuilder::Preparation
             cut.callouts           = callouts + (oldCut.callouts - from.callouts);
             cut.lastTop            = oldCut.lastTop != MarkdownNoNode && oldCut.lastTop >= from.element ? oldCut.lastTop + elementDelta : lastTop;
             cut.reusedFrom         = block;
-            const auto* extensions = document->extensions_.get();
+            const auto* extensions = document->_extensions.get();
             cut.maths              = (extensions ? extensions->maths.size() : 0u) + (oldCut.maths - from.maths);
             cut.images             = (extensions ? extensions->images.size() : 0u) + (oldCut.images - from.images);
             cut.diagrams           = (extensions ? extensions->diagrams.size() : 0u) + (oldCut.diagrams - from.diagrams);
@@ -1071,12 +1071,12 @@ struct SemanticBuilder::Preparation
             tails[0u] = to.lastTop + elementDelta;
         for (auto index = from.heading; index < to.heading; ++index)
         {
-            auto heading = old.headings_[index];
+            auto heading = old._headings[index];
             heading.element += elementDelta;
             heading.source = Shift(heading.source, sourceDelta);
             heading.target = Shift(heading.target, sourceDelta);
             copied += sizeof(SemanticHeading) + (heading.name.size() + heading.slug.size()) * sizeof(wchar_t);
-            document->headings_.push_back(std::move(heading));
+            document->_headings.push_back(std::move(heading));
         }
         if (oldExtensions && (to.maths != from.maths || to.images != from.images || to.diagrams != from.diagrams || to.diagnostics != from.diagnostics ||
                               to.candidates != from.candidates))
@@ -1102,10 +1102,10 @@ struct SemanticBuilder::Preparation
                 graph.sourceEnd += sourceDelta;
                 // A fresh build parses the body at the new syntax revision; the
                 // copied model carries it too (bounded by the diagram admission).
-                if (graph.graph && graph.graph->revision != document->syntax_->Revision())
+                if (graph.graph && graph.graph->revision != document->_syntax->Revision())
                 {
                     auto model      = std::make_shared<Detail::FlowchartModel>(*graph.graph);
-                    model->revision = document->syntax_->Revision();
+                    model->revision = document->_syntax->Revision();
                     graph.graph     = std::move(model);
                 }
                 copied += sizeof(Detail::SemanticDiagram) + graph.bodyUnits.size() * sizeof(Detail::SemanticValueUnit);
@@ -1123,7 +1123,7 @@ struct SemanticBuilder::Preparation
             extensions.candidates += to.candidates - from.candidates;
         }
         callouts += to.callouts - from.callouts;
-        document->hasCallouts_ = callouts != 0u;
+        document->_hasCallouts = callouts != 0u;
         auto& work             = ::DxUi::Detail::Work().rich;
         work.semanticBlocksReused += oldLast - oldFirst;
         work.semanticElementsCopied += to.element - from.element;
@@ -1134,12 +1134,12 @@ struct SemanticBuilder::Preparation
     // node's, or for a task marker the owning list item's.
     std::uint64_t ReusedIdentity(const SemanticElement& element) const noexcept
     {
-        const auto& nodes = document->syntax_->Nodes();
+        const auto& nodes = document->_syntax->Nodes();
         if (element.role != SemanticRole::Task)
             return element.syntaxNode < nodes.size() ? nodes[element.syntaxNode].identity : 0u;
-        if (element.parent >= document->elements_.size())
+        if (element.parent >= document->_elements.size())
             return 0u;
-        for (auto node = document->elements_[element.parent].syntaxNode; node < nodes.size(); node = nodes[node].parent)
+        for (auto node = document->_elements[element.parent].syntaxNode; node < nodes.size(); node = nodes[node].parent)
             if (nodes[node].block.kind == MarkdownBlockKind::ListItem)
                 return nodes[node].identity;
         return 0u;
@@ -1150,7 +1150,7 @@ struct SemanticBuilder::Preparation
     {
         if (incremental)
         {
-            const auto oldCount = previous->projection_->blocks.size() - 1u;
+            const auto oldCount = previous->_projection->blocks.size() - 1u;
             if (topCursor == 0u && reusePrefix)
             {
                 if (! CopyBlocks(0u, reusePrefix, 0u, false))
@@ -1162,7 +1162,7 @@ struct SemanticBuilder::Preparation
             }
             if (reuseSuffix && topCursor == topNodes.size() - reuseSuffix)
             {
-                if (SameBoundary(previous->projection_->blocks[oldCount - reuseSuffix]))
+                if (SameBoundary(previous->_projection->blocks[oldCount - reuseSuffix]))
                 {
                     if (CopyBlocks(oldCount - reuseSuffix, oldCount, topCursor, true))
                         topCursor = topNodes.size();
@@ -1181,19 +1181,19 @@ struct SemanticBuilder::Preparation
     {
         if (! incremental)
             return;
-        const auto& oldCuts = previous->projection_->blocks;
+        const auto& oldCuts = previous->_projection->blocks;
         const auto& newCuts = projection->blocks;
         const auto oldCount = oldCuts.size() - 1u, newCount = newCuts.size() - 1u;
         const auto oldFirst = oldCuts[reusePrefix].heading, oldLast = oldCuts[oldCount - reuseSuffix].heading;
         const auto newFirst = newCuts[reusePrefix].heading, newLast = newCuts[newCount - reuseSuffix].heading;
-        auto& headings = document->headings_;
+        auto& headings = document->_headings;
         bool same      = oldLast - oldFirst == newLast - newFirst;
         for (std::size_t index = 0u; same && index < newLast - newFirst; ++index)
-            same = HeadingBase(previous->headings_[oldFirst + index].name) == HeadingBase(headings[newFirst + index].name);
+            same = HeadingBase(previous->_headings[oldFirst + index].name) == HeadingBase(headings[newFirst + index].name);
         if (same)
         {
             for (std::size_t index = 0u; index < newLast - newFirst; ++index)
-                headings[newFirst + index].slug = previous->headings_[oldFirst + index].slug;
+                headings[newFirst + index].slug = previous->_headings[oldFirst + index].slug;
             return;
         }
         headingCache.reset();
@@ -1207,10 +1207,10 @@ struct SemanticBuilder::Preparation
     }
     void PrepareAbbreviation(std::size_t index)
     {
-        const auto& node = document->syntax_->Nodes()[index];
+        const auto& node = document->_syntax->Nodes()[index];
         if (node.parent != 0u || node.block.kind != MarkdownBlockKind::Paragraph || node.lines.size() != 1u || node.lines.front().leadingSpaces)
             return;
-        const auto source = document->syntax_->Source();
+        const auto source = document->_syntax->Source();
         auto line         = node.lines.front().source;
         while (line.last > line.first && (source[line.last - 1u] == L'\r' || source[line.last - 1u] == L'\n'))
             --line.last;
@@ -1298,7 +1298,7 @@ struct SemanticBuilder::Preparation
             if (exact)
             {
                 const auto raw      = MarkdownRange{value.units[first].source.first, value.units[last - 1u].source.last};
-                const auto source   = document->syntax_->Source();
+                const auto source   = document->_syntax->Source();
                 const auto boundary = [](wchar_t character) noexcept
                 {
                     return character < 0x80 && ! AbbreviationCharacter(character) &&
@@ -1314,7 +1314,7 @@ struct SemanticBuilder::Preparation
                     return;
                 output.Emit(word, raw, DisplaySpanKind::Source, work.flags, work.heading);
                 CloseElement(element);
-                document->elements_[element].title.assign(found->title);
+                document->_elements[element].title.assign(found->title);
             }
             else
                 for (auto index = first; index < last; ++index)
@@ -1333,14 +1333,14 @@ struct SemanticBuilder::Preparation
     };
     std::optional<CalloutHeader> FindCallout(const MarkdownNode& quote) const
     {
-        if (document->syntax_->Profile() != MarkdownProfile::RichMarkdown || quote.block.kind != MarkdownBlockKind::BlockQuote ||
+        if (document->_syntax->Profile() != MarkdownProfile::RichMarkdown || quote.block.kind != MarkdownBlockKind::BlockQuote ||
             quote.firstChild == MarkdownNoNode)
             return std::nullopt;
-        const auto& nodes     = document->syntax_->Nodes();
+        const auto& nodes     = document->_syntax->Nodes();
         const auto& paragraph = nodes[quote.firstChild];
         if (paragraph.block.kind != MarkdownBlockKind::Paragraph)
             return std::nullopt;
-        const auto source = document->syntax_->Source();
+        const auto source = document->_syntax->Source();
         const auto first  = paragraph.block.content.first;
         auto end          = source.find_first_of(L"\r\n", first);
         if (end == source.npos || end > paragraph.block.source.last)
@@ -1394,7 +1394,7 @@ struct SemanticBuilder::Preparation
         if (skip < source.size() && source[skip] == L'\n')
             ++skip;
         // Never hide the leading part of a cross-line inline object/style.
-        const auto& inlines = document->syntax_->Inlines();
+        const auto& inlines = document->_syntax->Inlines();
         for (auto item = paragraph.firstInline; item != MarkdownNoNode; item = inlines[item].nextSibling)
             if (inlines[item].source.first < skip && inlines[item].source.last > skip)
                 return std::nullopt;
@@ -1419,11 +1419,11 @@ struct SemanticBuilder::Preparation
     }
     std::wstring_view Label(AccessibilityTextId id) const noexcept
     {
-        return AccessibilityLabels::Text(document->labels_.get(), id);
+        return AccessibilityLabels::Text(document->_labels.get(), id);
     }
     std::wstring NamedNumber(AccessibilityTextId id, std::size_t number, std::size_t second = 0u) const
     {
-        return AccessibilityLabels::Number(document->labels_.get(), id, number, second);
+        return AccessibilityLabels::Number(document->_labels.get(), id, number, second);
     }
     static std::wstring NumberLabel(std::wstring_view prefix, std::size_t number, std::wstring_view suffix = {})
     {
@@ -1436,7 +1436,7 @@ struct SemanticBuilder::Preparation
 
     std::size_t Element(SemanticRole role, MarkdownRange source, std::size_t parent, std::uint64_t identity = 0u)
     {
-        auto& elements = document->elements_;
+        auto& elements = document->_elements;
         if (elements.size() == SemanticDocument::MaximumElements)
         {
             capacityExceeded = true;
@@ -1516,7 +1516,7 @@ struct SemanticBuilder::Preparation
     }
     std::wstring HeadingBase(std::wstring_view name) const
     {
-        const auto folded = Detail::NormalizeMarkdownLabel(name, document->syntax_->Profile());
+        const auto folded = Detail::NormalizeMarkdownLabel(name, document->_syntax->Profile());
         std::wstring base(0u, L' ');
         for (const auto unit : folded)
         {
@@ -1548,12 +1548,12 @@ struct SemanticBuilder::Preparation
     }
     void RecordHeading(std::size_t index)
     {
-        const auto& element = document->elements_[index];
-        auto& heading       = document->headings_.emplace_back();
+        const auto& element = document->_elements[index];
+        auto& heading       = document->_headings.emplace_back();
         heading.element     = index;
         heading.level       = element.heading;
         heading.source      = element.source;
-        heading.target = element.syntaxNode < document->syntax_->Nodes().size() ? document->syntax_->Nodes()[element.syntaxNode].block.content : element.source;
+        heading.target = element.syntaxNode < document->_syntax->Nodes().size() ? document->_syntax->Nodes()[element.syntaxNode].block.content : element.source;
         heading.name.assign(element.name);
         // An incremental build assigns slugs once the reused headings around
         // the rebuilt ones are known (FinishHeadings).
@@ -1562,7 +1562,7 @@ struct SemanticBuilder::Preparation
     }
     void CloseElement(std::size_t index)
     {
-        auto& element        = document->elements_[index];
+        auto& element        = document->_elements[index];
         element.display.last = output.text.size();
         switch (element.role)
         {
@@ -1608,7 +1608,7 @@ struct SemanticBuilder::Preparation
         std::vector<std::size_t> pending(0u);
         if (image.firstChild != MarkdownNoNode)
             pending.push_back(image.firstChild);
-        const auto& inlines = document->syntax_->Inlines();
+        const auto& inlines = document->_syntax->Inlines();
         while (! pending.empty())
         {
             const auto index = pending.back();
@@ -1647,7 +1647,7 @@ struct SemanticBuilder::Preparation
             value.append(L": ").append(alternative);
         value.push_back(L']');
         output.Emit(value, source, DisplaySpanKind::Object, flags, heading);
-        auto& image        = document->elements_[element];
+        auto& image        = document->_elements[element];
         image.display.last = output.text.size();
         image.name         = alternative;
         auto& extensions   = Extensions();
@@ -1670,13 +1670,13 @@ struct SemanticBuilder::Preparation
             const auto element = Element(SemanticRole::Image, tag.source, owner);
             if (element == MarkdownNoNode)
                 return;
-            document->elements_[element].destination = tag.destination;
-            document->elements_[element].title       = tag.title;
-            document->elements_[element].nativeHtml  = true;
-            document->elements_[element].imageWidth  = tag.imageWidth;
-            document->elements_[element].imageHeight = tag.imageHeight;
-            if (tag.alignment != MarkdownAlignment::None && ! document->paragraphs_.empty())
-                document->paragraphs_.back().alignment = tag.alignment;
+            document->_elements[element].destination = tag.destination;
+            document->_elements[element].title       = tag.title;
+            document->_elements[element].nativeHtml  = true;
+            document->_elements[element].imageWidth  = tag.imageWidth;
+            document->_elements[element].imageHeight = tag.imageHeight;
+            if (tag.alignment != MarkdownAlignment::None && ! document->_paragraphs.empty())
+                document->_paragraphs.back().alignment = tag.alignment;
             CompleteImage(element, tag.source, tag.alternative, flags | html.flags, html.heading ? html.heading : heading);
             if (! tag.caption.empty())
             {
@@ -1698,8 +1698,8 @@ struct SemanticBuilder::Preparation
                 const auto element = Element(SemanticRole::Link, {tag.source.first, html.tags[tag.mate].source.last}, parent);
                 if (element == MarkdownNoNode)
                     return;
-                document->elements_[element].destination = tag.destination;
-                document->elements_[element].title       = tag.title;
+                document->_elements[element].destination = tag.destination;
+                document->_elements[element].title       = tag.title;
                 html.linkElement                         = element;
             }
         }
@@ -1712,7 +1712,7 @@ struct SemanticBuilder::Preparation
     {
         if (html.wrapper == Detail::NativeHtmlKind::Details)
         {
-            const auto identity    = document->syntax_->Nodes()[visit.node].identity;
+            const auto identity    = document->_syntax->Nodes()[visit.node].identity;
             const auto disclosures = Detail::SemanticExtensionAccess::Disclosures(*document);
             const auto found =
                 std::lower_bound(disclosures.begin(), disclosures.end(), identity, [](const auto& value, auto key) { return value.identity < key; });
@@ -1723,8 +1723,8 @@ struct SemanticBuilder::Preparation
             if (summary == MarkdownNoNode)
                 return;
             output.Generated(expanded ? L"\u25be " : L"\u25b8 ", opening->source.first, visit.flags, visit.heading);
-            document->elements_[summary].syntaxNode         = visit.node;
-            document->elements_[summary].disclosureExpanded = expanded;
+            document->_elements[summary].syntaxNode         = visit.node;
+            document->_elements[summary].disclosureExpanded = expanded;
             auto at                                         = opening->last;
             for (auto tag = opening + 1; tag != closing; ++tag)
             {
@@ -1738,7 +1738,7 @@ struct SemanticBuilder::Preparation
             if (at < closing->first)
                 Detail::NativeHtmlText(normalized, at, closing->first, output, visit.flags | html.flags, html.heading ? html.heading : visit.heading);
             CloseElement(summary);
-            document->elements_[summary].name.erase(0u, 2u); // Generated disclosure glyph is not the authored accessible name.
+            document->_elements[summary].name.erase(0u, 2u); // Generated disclosure glyph is not the authored accessible name.
             if (expanded)
             {
                 auto first = closing->last;
@@ -1785,7 +1785,7 @@ struct SemanticBuilder::Preparation
     }
     void Inline(Visit visit)
     {
-        const auto& node = document->syntax_->Inlines()[visit.node];
+        const auto& node = document->_syntax->Inlines()[visit.node];
         if (! visit.close && visit.clipLast != MarkdownNoNode && node.source.first >= visit.clipLast)
             return;
         if (visit.close)
@@ -1796,10 +1796,10 @@ struct SemanticBuilder::Preparation
         std::optional<ImagePresentation> presentation;
         std::size_t presentationEnd = node.source.last;
         bool literalPresentation    = false;
-        if (node.kind == MarkdownInlineKind::Image && document->syntax_->Profile() == MarkdownProfile::RichMarkdown && node.nextSibling != MarkdownNoNode)
+        if (node.kind == MarkdownInlineKind::Image && document->_syntax->Profile() == MarkdownProfile::RichMarkdown && node.nextSibling != MarkdownNoNode)
         {
-            const auto& suffix = document->syntax_->Inlines()[node.nextSibling];
-            const auto source  = document->syntax_->Source();
+            const auto& suffix = document->_syntax->Inlines()[node.nextSibling];
+            const auto source  = document->_syntax->Source();
             if (suffix.source.first == node.source.last && suffix.source.first < source.size() && source[suffix.source.first] == L'{' &&
                 ! normalized.units.empty() && suffix.source.first < normalized.units.back().source.last &&
                 (visit.clipLast == MarkdownNoNode || suffix.source.first < visit.clipLast))
@@ -1819,9 +1819,9 @@ struct SemanticBuilder::Preparation
                 presentationEnd    = closing == std::wstring_view::npos ? suffix.source.first + available : suffix.source.first + closing + 1u;
                 // Never split any non-text sibling crossed by the candidate.
                 // Such a node may span a soft break but cannot leave this leaf.
-                for (auto sibling = node.nextSibling; sibling != MarkdownNoNode; sibling = document->syntax_->Inlines()[sibling].nextSibling)
+                for (auto sibling = node.nextSibling; sibling != MarkdownNoNode; sibling = document->_syntax->Inlines()[sibling].nextSibling)
                 {
-                    const auto& item = document->syntax_->Inlines()[sibling];
+                    const auto& item = document->_syntax->Inlines()[sibling];
                     if (item.source.first >= presentationEnd)
                         break;
                     if (item.kind != MarkdownInlineKind::Text && item.source.last > presentationEnd)
@@ -1837,7 +1837,7 @@ struct SemanticBuilder::Preparation
                 std::size_t suffixNodes{};
                 while (suffixNode != MarkdownNoNode && suffixEnd < presentationEnd && suffixNodes++ < 512u)
                 {
-                    const auto& item       = document->syntax_->Inlines()[suffixNode];
+                    const auto& item       = document->_syntax->Inlines()[suffixNode];
                     const bool captionNode = parsed && parsed->caption.first < parsed->caption.last && item.source.first >= parsed->caption.first &&
                                              item.source.last <= parsed->caption.last && item.kind != MarkdownInlineKind::SourceEditor &&
                                              item.kind != MarkdownInlineKind::HardBreak && item.kind != MarkdownInlineKind::SoftBreak;
@@ -1847,10 +1847,10 @@ struct SemanticBuilder::Preparation
                     suffixEnd  = item.source.last;
                     suffixNode = item.nextSibling;
                 }
-                const bool standalone = ! document->paragraphs_.empty() && document->paragraphs_.back().element == visit.parent &&
-                                        document->paragraphs_.back().syntaxNode < document->syntax_->Nodes().size() &&
-                                        document->syntax_->Nodes()[document->paragraphs_.back().syntaxNode].block.kind == MarkdownBlockKind::Paragraph &&
-                                        document->syntax_->Nodes()[document->paragraphs_.back().syntaxNode].firstInline == visit.node &&
+                const bool standalone = ! document->_paragraphs.empty() && document->_paragraphs.back().element == visit.parent &&
+                                        document->_paragraphs.back().syntaxNode < document->_syntax->Nodes().size() &&
+                                        document->_syntax->Nodes()[document->_paragraphs.back().syntaxNode].block.kind == MarkdownBlockKind::Paragraph &&
+                                        document->_syntax->Nodes()[document->_paragraphs.back().syntaxNode].firstInline == visit.node &&
                                         suffixEnd == presentationEnd && suffixNode == MarkdownNoNode;
                 if (standalone && parsed)
                     presentation = parsed;
@@ -1867,7 +1867,7 @@ struct SemanticBuilder::Preparation
                 sibling.skipUntil = presentationEnd;
                 sibling.clipFirst = std::max(sibling.clipFirst, presentationEnd);
                 if (sibling.clipLast == MarkdownNoNode)
-                    sibling.clipLast = document->syntax_->Source().size();
+                    sibling.clipLast = document->_syntax->Source().size();
             }
             visits.push_back(sibling);
         }
@@ -1906,15 +1906,15 @@ struct SemanticBuilder::Preparation
         auto parent = visit.parent;
         if (node.kind == MarkdownInlineKind::SourceEditor)
         {
-            const auto region  = document->syntax_->SourceRegion();
+            const auto region  = document->_syntax->SourceRegion();
             const auto role    = region && region->inlineKind == MarkdownInlineSourceKind::Link    ? SemanticRole::Link
                                  : region && region->inlineKind == MarkdownInlineSourceKind::Image ? SemanticRole::Image
                                                                                                    : SemanticRole::Math;
             const auto element = Element(role, node.source, parent);
             if (element == MarkdownNoNode)
                 return;
-            output.Emit(document->syntax_->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
-            auto& formula        = document->elements_[element];
+            output.Emit(document->_syntax->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
+            auto& formula        = document->_elements[element];
             formula.display.last = output.text.size();
             formula.name         = node.value;
             formula.title        = Label(role == SemanticRole::Math ? AccessibilityTextId::EditingEquation : AccessibilityTextId::ExitSource);
@@ -1938,13 +1938,13 @@ struct SemanticBuilder::Preparation
                 return result;
             };
             const auto records = expression ? count(count, expression->root) : 0u;
-            const auto raw     = document->syntax_->Slice(node.source);
+            const auto raw     = document->_syntax->Slice(node.source);
             const bool display = raw.starts_with(L"$$") || raw.starts_with(L"\\[");
             if (expression && *expression && (display || (expression->root.text != L"tag" && ! rowTags)) && extensions.CanAdmitRecords(records) &&
                 extensions.CanAdmitObject())
             {
                 output.Emit(L"\ufffc", node.source, DisplaySpanKind::Object, flags, visit.heading);
-                auto& formula        = document->elements_[element];
+                auto& formula        = document->_elements[element];
                 formula.display.last = output.text.size();
                 formula.name         = node.value;
                 formula.title        = Label(AccessibilityTextId::Equation);
@@ -1960,12 +1960,12 @@ struct SemanticBuilder::Preparation
                                                       (*expression && (! extensions.CanAdmitRecords(records) || ! extensions.CanAdmitObject()))));
                 extensions.diagnostics.push_back(
                     {capacity ? SemanticDiagnosticKind::MathCapacity : SemanticDiagnosticKind::UnsupportedMath, node.source, element});
-                auto& formula = document->elements_[element];
+                auto& formula = document->_elements[element];
                 formula.name  = node.value;
                 formula.title = capacity         ? Label(AccessibilityTextId::EquationCapacity)
                                 : sourceFallback ? Label(AccessibilityTextId::EquationViewFallback)
                                                  : Label(AccessibilityTextId::UnsupportedEquation);
-                output.Emit(document->syntax_->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
+                output.Emit(document->_syntax->Slice(node.source), node.source, DisplaySpanKind::Source, flags | Code, visit.heading);
                 formula.display.last = output.text.size();
             }
             return;
@@ -1973,7 +1973,7 @@ struct SemanticBuilder::Preparation
         if (literalPresentation)
         {
             const MarkdownRange raw{node.source.first, presentationEnd};
-            output.Emit(document->syntax_->Slice(raw), raw, DisplaySpanKind::Source, flags | Code, visit.heading);
+            output.Emit(document->_syntax->Slice(raw), raw, DisplaySpanKind::Source, flags | Code, visit.heading);
             return;
         }
         if (node.kind == MarkdownInlineKind::Link || node.kind == MarkdownInlineKind::Image)
@@ -1986,9 +1986,9 @@ struct SemanticBuilder::Preparation
             const auto element     = Element(node.kind == MarkdownInlineKind::Link ? SemanticRole::Link : SemanticRole::Image, ownedSource, owner);
             if (element == MarkdownNoNode)
                 return;
-            document->elements_[element].destination = node.destination;
-            document->elements_[element].title       = node.title;
-            document->elements_[element].wiki        = node.wiki;
+            document->_elements[element].destination = node.destination;
+            document->_elements[element].title       = node.title;
+            document->_elements[element].wiki        = node.wiki;
             if (node.kind == MarkdownInlineKind::Image)
             {
                 const auto alternative = ImageAlternative(node);
@@ -1996,16 +1996,16 @@ struct SemanticBuilder::Preparation
                     return;
                 if (presentation)
                 {
-                    document->elements_[element].imageWidth  = presentation->width;
-                    document->elements_[element].imageHeight = presentation->height;
+                    document->_elements[element].imageWidth  = presentation->width;
+                    document->_elements[element].imageHeight = presentation->height;
                     if (presentation->alignment != MarkdownAlignment::None)
-                        document->paragraphs_.back().alignment = presentation->alignment;
+                        document->_paragraphs.back().alignment = presentation->alignment;
                 }
                 CompleteImage(element, ownedSource, alternative, flags, visit.heading);
                 if (presentation && presentation->caption.first != presentation->caption.last)
                 {
                     output.Generated(L"\n", presentation->caption.first, flags, visit.heading);
-                    output.Generated(document->syntax_->Slice(presentation->caption), presentation->caption.first, flags, visit.heading);
+                    output.Generated(document->_syntax->Slice(presentation->caption), presentation->caption.first, flags, visit.heading);
                 }
                 return;
             }
@@ -2034,17 +2034,17 @@ struct SemanticBuilder::Preparation
                         visit.heading);
         else if (node.kind == MarkdownInlineKind::FootnoteReference)
         {
-            const auto* binding = document->syntax_->FootnoteReferenceFor(visit.node);
+            const auto* binding = document->_syntax->FootnoteReferenceFor(visit.node);
             if (binding && binding->footnote != MarkdownNoNode && binding->occurrence)
             {
-                const auto& note   = document->syntax_->Footnotes()[binding->footnote];
+                const auto& note   = document->_syntax->Footnotes()[binding->footnote];
                 const auto element = Element(SemanticRole::FootnoteReference, node.source, parent);
                 if (element == MarkdownNoNode)
                     return;
-                const auto insertion = document->syntax_->Nodes()[note.definition].block.content.first;
-                document->navigation_.push_back({element, {insertion, insertion}});
+                const auto insertion = document->_syntax->Nodes()[note.definition].block.content.first;
+                document->_navigation.push_back({element, {insertion, insertion}});
                 output.Emit(Number(note.ordinal, true), node.source, DisplaySpanKind::Transformed, flags | Link, visit.heading);
-                auto& target        = document->elements_[element];
+                auto& target        = document->_elements[element];
                 target.display.last = output.text.size();
                 target.name.assign(NamedNumber(AccessibilityTextId::FootnoteName, note.ordinal));
                 target.title.assign(NamedNumber(AccessibilityTextId::GoToFootnote, note.ordinal));
@@ -2055,7 +2055,7 @@ struct SemanticBuilder::Preparation
         else if (! node.value.empty())
         {
             Detail::SemanticValue value;
-            Detail::ResolveSemanticValue(*document->syntax_, normalized, node, value);
+            Detail::ResolveSemanticValue(*document->_syntax, normalized, node, value);
             if (visit.clipLast != MarkdownNoNode && (node.source.first < visit.clipFirst || node.source.last > visit.clipLast))
             {
                 if (node.kind != MarkdownInlineKind::Text)
@@ -2082,7 +2082,7 @@ struct SemanticBuilder::Preparation
     }
     std::optional<MarkdownRange> DefinitionRange(const MarkdownNode& node, std::size_t index) const
     {
-        const auto source = document->syntax_->Source();
+        const auto source = document->_syntax->Source();
         const auto& line  = node.lines[index];
         if (line.leadingSpaces)
             return std::nullopt;
@@ -2106,7 +2106,7 @@ struct SemanticBuilder::Preparation
     }
     bool DefinitionList(const Visit& visit)
     {
-        const auto& syntax = *document->syntax_;
+        const auto& syntax = *document->_syntax;
         const auto& node   = syntax.Nodes()[visit.node];
         if (! HasMarkdownExtension(syntax.Extensions(), MarkdownExtensions::DefinitionLists) || visit.skipUntil ||
             node.block.kind != MarkdownBlockKind::Paragraph || node.lines.size() < 2u || node.lines.size() > 17u)
@@ -2115,8 +2115,8 @@ struct SemanticBuilder::Preparation
         // generated owners. An unsafe expansion stays an ordinary paragraph.
         constexpr std::size_t reserve = 16u;
         const auto maximum            = SemanticDocument::MaximumParagraphs;
-        if (syntax.Nodes().size() > maximum - reserve || document->paragraphs_.size() > maximum - reserve - syntax.Nodes().size() ||
-            node.lines.size() > maximum - reserve - syntax.Nodes().size() - document->paragraphs_.size())
+        if (syntax.Nodes().size() > maximum - reserve || document->_paragraphs.size() > maximum - reserve - syntax.Nodes().size() ||
+            node.lines.size() > maximum - reserve - syntax.Nodes().size() - document->_paragraphs.size())
             return false;
         std::array<MarkdownRange, 17u> ranges{};
         std::array<std::size_t, 17u> starts{};
@@ -2157,7 +2157,7 @@ struct SemanticBuilder::Preparation
         const auto list = Element(SemanticRole::DefinitionList, node.block.source, visit.parent, node.identity);
         if (list == MarkdownNoNode)
             return true;
-        document->elements_[list].syntaxNode = visit.node;
+        document->_elements[list].syntaxNode = visit.node;
         auto close                           = visit;
         close.close                          = true;
         close.element                        = list;
@@ -2175,13 +2175,13 @@ struct SemanticBuilder::Preparation
     }
     void DefinitionPart(Visit visit)
     {
-        const auto& node   = document->syntax_->Nodes()[visit.node];
+        const auto& node   = document->_syntax->Nodes()[visit.node];
         const auto range   = *DefinitionRange(node, visit.definitionLine);
         const auto owned   = visit.definitionLine ? MarkdownRange{node.lines[visit.definitionLine].source.first, range.last} : range;
         const auto element = Element(visit.definitionLine ? SemanticRole::DefinitionDescription : SemanticRole::DefinitionTerm, owned, visit.parent);
         if (element == MarkdownNoNode)
             return;
-        document->elements_[element].syntaxNode = visit.node;
+        document->_elements[element].syntaxNode = visit.node;
         auto paragraphVisit                     = visit;
         if (visit.definitionLine)
             ++paragraphVisit.indent;
@@ -2217,19 +2217,19 @@ struct SemanticBuilder::Preparation
     }
     void FinishDefinitionPart(Visit visit)
     {
-        document->paragraphs_[visit.paragraph].display.last = output.text.size();
+        document->_paragraphs[visit.paragraph].display.last = output.text.size();
         CloseElement(visit.element);
         output.Generated(L"\n", visit.clipLast, visit.flags, visit.heading);
     }
     std::size_t Paragraph(const Visit& visit, std::size_t element)
     {
-        if (document->paragraphs_.size() == SemanticDocument::MaximumParagraphs)
+        if (document->_paragraphs.size() == SemanticDocument::MaximumParagraphs)
         {
             capacityExceeded = true;
             return MarkdownNoNode;
         }
-        const auto index = document->paragraphs_.size();
-        document->paragraphs_.push_back(
+        const auto index = document->_paragraphs.size();
+        document->_paragraphs.push_back(
             {{output.text.size(), output.text.size()},
              element,
              visit.node,
@@ -2240,9 +2240,9 @@ struct SemanticBuilder::Preparation
              visit.indent,
              visit.flags,
              visit.heading,
-             document->syntax_->Nodes()[visit.node].block.kind == MarkdownBlockKind::HtmlBlock && document->elements_[element].nativeHtml
-                 ? document->elements_[element].alignment
-                 : document->syntax_->Nodes()[visit.node].alignment});
+             document->_syntax->Nodes()[visit.node].block.kind == MarkdownBlockKind::HtmlBlock && document->_elements[element].nativeHtml
+                 ? document->_elements[element].alignment
+                 : document->_syntax->Nodes()[visit.node].alignment});
         return index;
     }
     static std::size_t FirstVisibleChild(const std::vector<MarkdownNode>& nodes, const MarkdownNode& owner)
@@ -2265,7 +2265,7 @@ struct SemanticBuilder::Preparation
     }
     void Marker(std::size_t itemIndex, std::size_t anchor, unsigned flags, unsigned heading)
     {
-        const auto& nodes = document->syntax_->Nodes();
+        const auto& nodes = document->_syntax->Nodes();
         const auto& item  = nodes[itemIndex];
         const auto& list  = nodes[item.parent];
         if (list.listMarker == L'.' || list.listMarker == L')')
@@ -2288,7 +2288,7 @@ struct SemanticBuilder::Preparation
     }
     void Prefix(const Visit& visit, std::size_t element)
     {
-        const auto& nodes = document->syntax_->Nodes();
+        const auto& nodes = document->_syntax->Nodes();
         auto child        = visit.node;
         // The first visible descendant carries its note number. Following
         // paragraphs retain the definition's indentation without another label.
@@ -2300,7 +2300,7 @@ struct SemanticBuilder::Preparation
             if (row != MarkdownNoNode)
             {
                 output.Generated(
-                    NumberLabel({}, document->syntax_->Footnotes()[row].ordinal, L". "), nodes[visit.node].block.content.first, visit.flags, visit.heading);
+                    NumberLabel({}, document->_syntax->Footnotes()[row].ordinal, L". "), nodes[visit.node].block.content.first, visit.flags, visit.heading);
                 break;
             }
         }
@@ -2317,7 +2317,7 @@ struct SemanticBuilder::Preparation
             if (SeparateMarker(nodes, owner))
                 break;
             const auto& leaf  = nodes[visit.node];
-            const auto anchor = leaf.firstInline == MarkdownNoNode ? leaf.block.content.last : document->syntax_->Inlines()[leaf.firstInline].source.first;
+            const auto anchor = leaf.firstInline == MarkdownNoNode ? leaf.block.content.last : document->_syntax->Inlines()[leaf.firstInline].source.first;
             const bool hasTaskMarker = owner.task != MarkdownTask::None && normalized.units.size() >= 3u;
             const auto markerKind    = nodes[owner.parent].listMarker;
             if (! hasTaskMarker || markerKind == L'.' || markerKind == L')')
@@ -2328,7 +2328,7 @@ struct SemanticBuilder::Preparation
                 const auto task = Element(SemanticRole::Task, marker, element, owner.identity);
                 if (task == MarkdownNoNode)
                     return;
-                auto& target      = document->elements_[task];
+                auto& target      = document->_elements[task];
                 target.task       = owner.task;
                 target.taskMarker = marker;
                 output.Emit(owner.task == MarkdownTask::Checked ? L"\u2611" : L"\u2610", marker, DisplaySpanKind::Object, visit.flags, visit.heading);
@@ -2343,11 +2343,11 @@ struct SemanticBuilder::Preparation
         Prefix(visit, element);
         if (capacityExceeded)
             return;
-        auto& paragraph = document->paragraphs_[paragraphIndex];
+        auto& paragraph = document->_paragraphs[paragraphIndex];
         if (output.text.size() <= paragraph.display.first)
             return;
         paragraph.markerEnd = output.text.size();
-        const auto& nodes   = document->syntax_->Nodes();
+        const auto& nodes   = document->_syntax->Nodes();
         for (auto owner = nodes[visit.node].parent; owner != MarkdownNoNode; owner = nodes[owner].parent)
         {
             if (Footer(owner) != MarkdownNoNode)
@@ -2361,9 +2361,9 @@ struct SemanticBuilder::Preparation
     }
     Detail::SemanticExtensions& Extensions()
     {
-        if (! document->extensions_)
-            document->extensions_ = std::make_shared<Detail::SemanticExtensions>();
-        return *document->extensions_;
+        if (! document->_extensions)
+            document->_extensions = std::make_shared<Detail::SemanticExtensions>();
+        return *document->_extensions;
     }
     void DiagramDiagnostic(Visit visit, SemanticDiagnosticKind kind, MarkdownRange source, std::wstring_view message)
     {
@@ -2374,11 +2374,11 @@ struct SemanticBuilder::Preparation
             return;
         }
         extensions.diagnostics.push_back({kind, source, visit.element});
-        document->elements_[visit.element].title.assign(message);
+        document->_elements[visit.element].title.assign(message);
     }
     bool StartDiagram(Visit visit)
     {
-        const auto& syntax = *document->syntax_;
+        const auto& syntax = *document->_syntax;
         const auto& node   = syntax.Nodes()[visit.node];
         if (syntax.Profile() != MarkdownProfile::RichMarkdown || node.block.kind != MarkdownBlockKind::FencedCode)
             return false;
@@ -2429,7 +2429,7 @@ struct SemanticBuilder::Preparation
         if (body.first == body.last)
         {
             const auto at = body.first < normalized.units.size() ? normalized.units[body.first].source.first
-                                                                 : document->syntax_->Nodes()[diagram->visit.node].block.content.last;
+                                                                 : document->_syntax->Nodes()[diagram->visit.node].block.content.last;
             return {at, at};
         }
         return {normalized.units[body.first].source.first, normalized.units[body.last - 1u].source.last};
@@ -2437,14 +2437,14 @@ struct SemanticBuilder::Preparation
     bool DiagramAlternative(std::initializer_list<std::wstring_view> pieces)
     {
         constexpr std::size_t maximum = 32768u;
-        auto& alternative             = document->elements_[diagram->visit.element].name;
+        auto& alternative             = document->_elements[diagram->visit.element].name;
         auto available                = maximum - alternative.size();
         for (const auto piece : pieces)
         {
             if (piece.size() > available)
             {
                 RejectDiagram(SemanticDiagnosticKind::DiagramCapacity,
-                              document->elements_[diagram->visit.element].source,
+                              document->_elements[diagram->visit.element].source,
                               Label(AccessibilityTextId::DiagramAlternativeCapacity));
                 return false;
             }
@@ -2458,7 +2458,7 @@ struct SemanticBuilder::Preparation
     {
         using Phase      = DiagramWork::Phase;
         auto& work       = *diagram;
-        const auto& node = document->syntax_->Nodes()[work.visit.node];
+        const auto& node = document->_syntax->Nodes()[work.visit.node];
         if (work.phase == Phase::Parse)
         {
             const auto advance = work.parser.Advance(1u);
@@ -2713,7 +2713,7 @@ struct SemanticBuilder::Preparation
         result.bodyUnits.assign(normalized.units.begin(), normalized.units.end());
         result.sourceEnd = node.block.content.last;
         extensions.records += graph.nodes.size() + graph.edges.size() + graph.groups.size();
-        auto& element = document->elements_[work.visit.element];
+        auto& element = document->_elements[work.visit.element];
         element.role  = SemanticRole::Diagram;
         element.title = graph.family == Detail::NativeDiagramFamily::State                ? Label(AccessibilityTextId::StateDiagramHelp)
                         : graph.family == Detail::NativeDiagramFamily::Class              ? Label(AccessibilityTextId::ClassDiagramHelp)
@@ -2758,17 +2758,17 @@ struct SemanticBuilder::Preparation
     }
     void LeafBlock(Visit visit, bool analyzeNative = true)
     {
-        const auto& syntax = *document->syntax_;
+        const auto& syntax = *document->_syntax;
         const auto& node   = syntax.Nodes()[visit.node];
         auto close         = visit;
-        if (document->sourceBlock_ == visit.node)
+        if (document->_sourceBlock == visit.node)
         {
             // A scoped editor needs the original envelope, not a reconstructed
             // or normalized body. One linear span keeps all Unicode source
             // ACPs, container prefixes and CRLF pairs directly addressable.
             visit.flags     = Code;
             visit.heading   = 0u;
-            auto& element   = document->elements_[visit.element];
+            auto& element   = document->_elements[visit.element];
             element.role    = SemanticRole::Code;
             element.heading = 0u;
             element.title   = Label(AccessibilityTextId::EditingBlock);
@@ -2789,8 +2789,8 @@ struct SemanticBuilder::Preparation
             const auto header   = Element(SemanticRole::Disclosure, node.block.source, visit.element, node.identity);
             if (header == MarkdownNoNode)
                 return;
-            document->elements_[header].syntaxNode         = visit.node;
-            document->elements_[header].disclosureExpanded = expanded;
+            document->_elements[header].syntaxNode         = visit.node;
+            document->_elements[header].disclosureExpanded = expanded;
             auto headerVisit                               = visit;
             headerVisit.flags &= ~Code;
             const auto paragraph = Paragraph(headerVisit, header);
@@ -2798,16 +2798,16 @@ struct SemanticBuilder::Preparation
                 return;
             output.Generated(expanded ? L"\u25be " : L"\u25b8 ", node.block.content.first, headerVisit.flags, 0u);
             output.Generated(Label(AccessibilityTextId::Properties), node.block.content.first, headerVisit.flags | Bold, 0u);
-            document->paragraphs_[paragraph].display.last = output.text.size();
+            document->_paragraphs[paragraph].display.last = output.text.size();
             CloseElement(header);
-            document->elements_[header].name.assign(Label(AccessibilityTextId::Properties));
+            document->_elements[header].name.assign(Label(AccessibilityTextId::Properties));
             output.Generated(L"\n", node.block.content.first, headerVisit.flags, 0u);
             if (expanded)
             {
                 Detail::NormalizeSemanticLeaf(syntax, visit.node, normalized);
                 Detail::SemanticValue content;
                 Detail::SliceSemanticValue(normalized, node.block.content, content);
-                document->hasPropertiesBody_ = ! content.text.empty();
+                document->_hasPropertiesBody = ! content.text.empty();
                 close                        = BeginLeafParagraph(visit);
                 if (capacityExceeded)
                     return;
@@ -2843,7 +2843,7 @@ struct SemanticBuilder::Preparation
             const bool capacity = NativeCapacityFallback(node.block.source) ||
                                   (expression && (expression->issue == MathIssue::Capacity ||
                                                   (*expression && (! extensions.CanAdmitRecords(records) || ! extensions.CanAdmitObject()))));
-            auto& formula       = document->elements_[visit.element];
+            auto& formula       = document->_elements[visit.element];
             formula.role        = SemanticRole::Math;
             formula.name        = normalized.text;
             const bool prepared = expression && *expression && ! capacity;
@@ -2899,7 +2899,7 @@ struct SemanticBuilder::Preparation
             html.Inline(syntax, node, normalized);
         else
             html.Reset();
-        document->elements_[visit.element].nativeHtml = html.valid;
+        document->_elements[visit.element].nativeHtml = html.valid;
         if (analyzeNative && StartDiagram(visit))
             return;
         if (capacityExceeded)
@@ -2915,21 +2915,21 @@ struct SemanticBuilder::Preparation
                     for (const auto& tag : html.tags)
                         if (tag.kind == kind && ! tag.closing)
                         {
-                            document->elements_[visit.element].alignment = tag.alignment;
+                            document->_elements[visit.element].alignment = tag.alignment;
                             break;
                         }
                 if (Detail::HtmlHeading(kind))
                 {
                     visit.heading                              = Detail::HtmlHeading(kind);
-                    document->elements_[visit.element].role    = SemanticRole::Heading;
-                    document->elements_[visit.element].heading = visit.heading;
+                    document->_elements[visit.element].role    = SemanticRole::Heading;
+                    document->_elements[visit.element].heading = visit.heading;
                 }
                 else if (kind == Detail::NativeHtmlKind::Pre)
-                    document->elements_[visit.element].role = SemanticRole::Code;
+                    document->_elements[visit.element].role = SemanticRole::Code;
                 else if (kind == Detail::NativeHtmlKind::Hr)
-                    document->elements_[visit.element].role = SemanticRole::Rule;
+                    document->_elements[visit.element].role = SemanticRole::Rule;
                 else
-                    document->elements_[visit.element].role = SemanticRole::Paragraph;
+                    document->_elements[visit.element].role = SemanticRole::Paragraph;
             }
         }
         close = BeginLeafParagraph(visit);
@@ -2971,7 +2971,7 @@ struct SemanticBuilder::Preparation
     }
     void Block(Visit visit)
     {
-        const auto& syntax = *document->syntax_;
+        const auto& syntax = *document->_syntax;
         const auto& nodes  = syntax.Nodes();
         const auto& node   = nodes[visit.node];
         if (visit.close)
@@ -2988,7 +2988,7 @@ struct SemanticBuilder::Preparation
             }
             if (visit.paragraph != MarkdownNoNode)
             {
-                auto& paragraph = document->paragraphs_[visit.paragraph];
+                auto& paragraph = document->_paragraphs[visit.paragraph];
                 if (html.valid && output.text.size() == htmlDisplayFirst)
                 {
                     paragraph.emptyInsertion = html.emptyInsertion;
@@ -3033,14 +3033,14 @@ struct SemanticBuilder::Preparation
                                      node.identity);
         if (visit.element == MarkdownNoNode)
             return;
-        document->elements_[visit.element].syntaxNode  = visit.node;
-        document->elements_[visit.element].heading     = node.block.heading;
-        document->elements_[visit.element].alignment   = node.alignment;
-        document->elements_[visit.element].tableHeader = node.tableHeader;
-        document->elements_[visit.element].task        = node.task;
+        document->_elements[visit.element].syntaxNode  = visit.node;
+        document->_elements[visit.element].heading     = node.block.heading;
+        document->_elements[visit.element].alignment   = node.alignment;
+        document->_elements[visit.element].tableHeader = node.tableHeader;
+        document->_elements[visit.element].task        = node.task;
         if (visit.footerRoot)
         {
-            document->elements_[visit.element].name.assign(NamedNumber(AccessibilityTextId::FootnoteName, syntax.Footnotes()[Footer(visit.node)].ordinal));
+            document->_elements[visit.element].name.assign(NamedNumber(AccessibilityTextId::FootnoteName, syntax.Footnotes()[Footer(visit.node)].ordinal));
             ++visit.indent;
         }
         if (node.block.kind == MarkdownBlockKind::ListItem || node.block.kind == MarkdownBlockKind::BlockQuote)
@@ -3050,7 +3050,7 @@ struct SemanticBuilder::Preparation
             node.block.kind == MarkdownBlockKind::FrontMatter || (node.block.kind == MarkdownBlockKind::FootnoteDefinition && ! visit.footerRoot))
             visit.flags |= Code;
         if (node.block.kind == MarkdownBlockKind::FrontMatter && ! node.block.closed)
-            document->elements_[visit.element].title =
+            document->_elements[visit.element].title =
                 node.frontMatterKind == MarkdownFrontMatterKind::Yaml ? Label(AccessibilityTextId::UnclosedYaml) : Label(AccessibilityTextId::UnclosedToml);
         if (node.block.kind == MarkdownBlockKind::FrontMatter && node.block.closed && node.frontMatterKind == MarkdownFrontMatterKind::Toml)
         {
@@ -3059,9 +3059,9 @@ struct SemanticBuilder::Preparation
                 if (issue.node != visit.node)
                     continue;
                 if (issue.code == MarkdownDiagnosticCode::InvalidTomlFrontMatter)
-                    document->elements_[visit.element].title = Label(AccessibilityTextId::InvalidToml);
+                    document->_elements[visit.element].title = Label(AccessibilityTextId::InvalidToml);
                 else if (issue.code == MarkdownDiagnosticCode::TomlFrontMatterCapacity)
-                    document->elements_[visit.element].title = Label(AccessibilityTextId::TomlCapacity);
+                    document->_elements[visit.element].title = Label(AccessibilityTextId::TomlCapacity);
             }
         }
         if (node.block.kind == MarkdownBlockKind::FrontMatter && node.block.closed && node.frontMatterKind == MarkdownFrontMatterKind::Yaml)
@@ -3073,16 +3073,16 @@ struct SemanticBuilder::Preparation
                 switch (issue.code)
                 {
                     case MarkdownDiagnosticCode::InvalidYamlFrontMatter:
-                        document->elements_[visit.element].title = Label(AccessibilityTextId::InvalidYaml);
+                        document->_elements[visit.element].title = Label(AccessibilityTextId::InvalidYaml);
                         break;
                     case MarkdownDiagnosticCode::DuplicateYamlKey:
-                        document->elements_[visit.element].title = Label(AccessibilityTextId::YamlDuplicateKey);
+                        document->_elements[visit.element].title = Label(AccessibilityTextId::YamlDuplicateKey);
                         break;
                     case MarkdownDiagnosticCode::UnresolvedYamlAlias:
-                        document->elements_[visit.element].title = Label(AccessibilityTextId::YamlUnresolvedAlias);
+                        document->_elements[visit.element].title = Label(AccessibilityTextId::YamlUnresolvedAlias);
                         break;
                     case MarkdownDiagnosticCode::YamlFrontMatterCapacity:
-                        document->elements_[visit.element].title = Label(AccessibilityTextId::YamlCapacity);
+                        document->_elements[visit.element].title = Label(AccessibilityTextId::YamlCapacity);
                         break;
                     case MarkdownDiagnosticCode::UnclosedFrontMatter:
                     case MarkdownDiagnosticCode::DuplicateFootnoteDefinition:
@@ -3101,10 +3101,10 @@ struct SemanticBuilder::Preparation
             if (node.firstChild != MarkdownNoNode)
                 for (auto cell = nodes[node.firstChild].firstChild; cell != MarkdownNoNode; cell = nodes[cell].nextSibling)
                     ++visit.columns;
-            document->elements_[visit.element].columns = visit.columns;
+            document->_elements[visit.element].columns = visit.columns;
         }
         if (node.block.kind == MarkdownBlockKind::TableRow && visit.table != MarkdownNoNode)
-            visit.row = document->elements_[visit.table].rows++;
+            visit.row = document->_elements[visit.table].rows++;
         if (node.block.kind == MarkdownBlockKind::List)
         {
             auto number = node.listStart;
@@ -3117,15 +3117,15 @@ struct SemanticBuilder::Preparation
             if (paragraph == MarkdownNoNode)
                 return;
             Marker(visit.node, node.block.content.first, visit.flags, visit.heading);
-            document->paragraphs_[paragraph].display.last = output.text.size();
-            document->paragraphs_[paragraph].markerEnd    = output.text.size();
-            document->paragraphs_[paragraph].markerOwner  = visit.node;
+            document->_paragraphs[paragraph].display.last = output.text.size();
+            document->_paragraphs[paragraph].markerEnd    = output.text.size();
+            document->_paragraphs[paragraph].markerOwner  = visit.node;
             output.Generated(L"\n", node.block.content.first);
         }
         bool calloutExpanded = true;
         if (callout)
         {
-            document->hasCallouts_ = true;
+            document->_hasCallouts = true;
             ++callouts;
             const auto states = Detail::SemanticExtensionAccess::Disclosures(*document);
             const auto found  = std::lower_bound(states.begin(), states.end(), node.identity, [](const auto& value, auto key) { return value.identity < key; });
@@ -3134,8 +3134,8 @@ struct SemanticBuilder::Preparation
             const auto header = Element(role, callout->marker, visit.element, node.identity);
             if (header == MarkdownNoNode)
                 return;
-            document->elements_[header].syntaxNode         = visit.node;
-            document->elements_[header].disclosureExpanded = calloutExpanded;
+            document->_elements[header].syntaxNode         = visit.node;
+            document->_elements[header].disclosureExpanded = calloutExpanded;
             auto headingVisit                              = visit;
             headingVisit.node                              = callout->paragraph;
             const auto paragraph                           = Paragraph(headingVisit, header);
@@ -3149,10 +3149,10 @@ struct SemanticBuilder::Preparation
                 output.Generated(calloutExpanded ? L"\u25be " : L"\u25b8 ", callout->marker.first, Bold, 0u);
             output.Generated(L"! ", callout->marker.first, Bold, 0u);
             output.Emit(syntax.Slice(callout->label), callout->label, DisplaySpanKind::Source, Bold, 0u);
-            document->paragraphs_[paragraph].display.last = output.text.size();
+            document->_paragraphs[paragraph].display.last = output.text.size();
             CloseElement(header);
-            document->elements_[header].name.assign(syntax.Slice(callout->label));
-            document->elements_[visit.element].name.assign(syntax.Slice(callout->label));
+            document->_elements[header].name.assign(syntax.Slice(callout->label));
+            document->_elements[visit.element].name.assign(syntax.Slice(callout->label));
             output.Generated(L"\n", callout->marker.last, visit.flags, 0u);
         }
         auto close  = visit;
@@ -3162,9 +3162,9 @@ struct SemanticBuilder::Preparation
             const auto paragraph = Paragraph(visit, visit.element);
             if (paragraph == MarkdownNoNode)
                 return;
-            document->paragraphs_[paragraph].emptyInsertion = node.block.content.first;
+            document->_paragraphs[paragraph].emptyInsertion = node.block.content.first;
             output.Generated(NumberLabel({}, syntax.Footnotes()[Footer(visit.node)].ordinal, L". "), node.block.content.first);
-            document->paragraphs_[paragraph].display.last = output.text.size();
+            document->_paragraphs[paragraph].display.last = output.text.size();
             output.Generated(L"\n", node.block.content.last);
         }
         else if (Leaf(node.block.kind) && ! visit.footerRoot)
@@ -3192,8 +3192,8 @@ struct SemanticBuilder::Preparation
     }
     void Backlink(Visit visit)
     {
-        const auto& note       = document->syntax_->Footnotes()[visit.node];
-        const auto& definition = document->syntax_->Nodes()[note.definition];
+        const auto& note       = document->_syntax->Footnotes()[visit.node];
+        const auto& definition = document->_syntax->Nodes()[note.definition];
         const auto anchor      = definition.block.source.last;
         if (! visit.column)
         {
@@ -3205,7 +3205,7 @@ struct SemanticBuilder::Preparation
             visit.paragraph     = Paragraph(paragraphVisit, visit.element);
             if (visit.paragraph == MarkdownNoNode)
                 return;
-            document->paragraphs_[visit.paragraph].emptyInsertion = anchor;
+            document->_paragraphs[visit.paragraph].emptyInsertion = anchor;
         }
         if (visit.column < note.references.size())
         {
@@ -3214,9 +3214,9 @@ struct SemanticBuilder::Preparation
             const auto element = Element(SemanticRole::FootnoteBacklink, {anchor, anchor}, visit.element);
             if (element == MarkdownNoNode)
                 return;
-            document->navigation_.push_back({element, document->syntax_->Inlines()[note.references[visit.column]].source});
+            document->_navigation.push_back({element, document->_syntax->Inlines()[note.references[visit.column]].source});
             output.Generated(NumberLabel(L"\u21a9", visit.column + 1u), anchor, Link);
-            auto& target        = document->elements_[element];
+            auto& target        = document->_elements[element];
             target.display.last = output.text.size();
             target.name.assign(NamedNumber(AccessibilityTextId::ReturnToReference, visit.column + 1u, note.ordinal));
             target.title.assign(NamedNumber(AccessibilityTextId::ReturnToReferenceHelp, visit.column + 1u, note.ordinal));
@@ -3224,7 +3224,7 @@ struct SemanticBuilder::Preparation
             visits.push_back(visit);
             return;
         }
-        document->paragraphs_[visit.paragraph].display.last = output.text.size();
+        document->_paragraphs[visit.paragraph].display.last = output.text.size();
         CloseElement(visit.element);
         output.Generated(L"\n", anchor);
         CloseElement(visit.parent);
@@ -3238,7 +3238,7 @@ struct SemanticBuilder::Preparation
         }
         if (abbreviationPending)
         {
-            if (abbreviationCursor < document->syntax_->Nodes().size() && abbreviations.size() < 128u)
+            if (abbreviationCursor < document->_syntax->Nodes().size() && abbreviations.size() < 128u)
             {
                 PrepareAbbreviation(abbreviationCursor++);
                 return false;
@@ -3257,7 +3257,7 @@ struct SemanticBuilder::Preparation
             if (nextFooter < footerOrder.size())
             {
                 Visit footer;
-                footer.node       = document->syntax_->Footnotes()[footerOrder[nextFooter++]].definition;
+                footer.node       = document->_syntax->Footnotes()[footerOrder[nextFooter++]].definition;
                 footer.parent     = 0u;
                 footer.footerRoot = true;
                 visits.push_back(footer);
@@ -3270,7 +3270,7 @@ struct SemanticBuilder::Preparation
 #endif
             // The map lends the immutable syntax source instead of copying it.
             const auto mapResult = Detail::SourceDisplayMapAccess::TryBuildBorrowed(
-                document->syntax_, document->syntax_->Source(), std::move(output.text), std::move(output.spans), document->map_);
+                document->_syntax, document->_syntax->Source(), std::move(output.text), std::move(output.spans), document->_map);
             if (mapResult == SourceResult::CapacityExceeded)
             {
                 capacityExceeded = true;
@@ -3280,7 +3280,7 @@ struct SemanticBuilder::Preparation
                 Failure::FailContract(E_UNEXPECTED);
             PrepareSourceFormats();
             projection->admissionRefused = admissionRefused;
-            document->projection_        = projection;
+            document->_projection        = projection;
             if (incremental)
                 ++::DxUi::Detail::Work().rich.semanticIncrementalBuilds;
             return true;
@@ -3310,7 +3310,7 @@ struct SemanticBuilder::Preparation
     }
     void PrepareSourceFormats()
     {
-        const auto source = document->syntax_->Source();
+        const auto source = document->_syntax->Source();
         if (! incremental)
         {
             SourceFormats(0u, document->Map().Display().size(), 0u, source.size());
@@ -3320,7 +3320,7 @@ struct SemanticBuilder::Preparation
         // between top-level blocks belongs to no block, so the converted window
         // runs from the end of the last leading block (inside the unchanged
         // prefix) to the start of the first trailing block.
-        const auto& oldCuts = previous->projection_->blocks;
+        const auto& oldCuts = previous->_projection->blocks;
         const auto& newCuts = projection->blocks;
         const auto oldCount = oldCuts.size() - 1u, newCount = newCuts.size() - 1u;
         const auto& first    = newCuts[reusePrefix];
@@ -3329,11 +3329,11 @@ struct SemanticBuilder::Preparation
         const auto prefixEnd = reusePrefix ? newCuts[reusePrefix - 1u].source.last : 0u;
         CopySourceFormats(0u, prefixEnd, 0u);
         SourceFormats(first.display, last.display, prefixEnd, last.source.first);
-        CopySourceFormats(oldLast.source.first, previous->syntax_->Source().size(), last.source.first - oldLast.source.first);
+        CopySourceFormats(oldLast.source.first, previous->_syntax->Source().size(), last.source.first - oldLast.source.first);
     }
     void AppendSourceFormat(std::size_t first, std::size_t last, unsigned flags, unsigned heading)
     {
-        auto& result = document->sourceRuns_;
+        auto& result = document->_sourceRuns;
         if (first == last)
             return;
         if (! result.empty() && result.back().start + result.back().length == first && result.back().flags == flags && result.back().heading == heading)
@@ -3384,7 +3384,7 @@ struct SemanticBuilder::Preparation
             }
         }
         std::ranges::sort(mapped, {}, &StyleRun::start);
-        auto& result       = document->sourceRuns_;
+        auto& result       = document->_sourceRuns;
         const auto append  = [&](std::size_t first, std::size_t last, unsigned flags, unsigned heading) { AppendSourceFormat(first, last, flags, heading); };
         std::size_t cursor = sourceFirst;
         for (const auto& run : mapped)
@@ -3418,20 +3418,20 @@ SourceResult SemanticBuilder::TrySetSoftBreakPolicy(SoftBreakPolicy policy)
 {
     if (policy != SoftBreakPolicy::Space && policy != SoftBreakPolicy::LineBreak)
         return SourceResult::InvalidSource;
-    if (softBreakPolicy_ == policy)
+    if (_softBreakPolicy == policy)
         return SourceResult::Success;
     Clear();
-    softBreakPolicy_ = policy;
+    _softBreakPolicy = policy;
     return SourceResult::Success;
 }
 void SemanticBuilder::SetAccessibilityLabels(std::shared_ptr<const AccessibilityLabels> labels) noexcept
 {
-    if (labels_ == labels)
+    if (_labels == labels)
         return;
     // Keep a caller-owned custom deleter alive until all member work is complete.
-    [[maybe_unused]] auto previous = std::move(labels_);
+    [[maybe_unused]] auto previous = std::move(_labels);
     Clear();
-    labels_ = std::move(labels);
+    _labels = std::move(labels);
 }
 void SemanticBuilder::Begin(std::shared_ptr<const MarkdownSyntax> syntax)
 {
@@ -3568,18 +3568,18 @@ SourceResult SemanticBuilder::TryBeginWithNativeFallbacks(std::shared_ptr<const 
         return std::ranges::equal(Detail::SemanticExtensionAccess::SourceObjects(document), sourceObjects) &&
                std::ranges::equal(Detail::SemanticExtensionAccess::Disclosures(document), disclosures);
     };
-    if (next_ && next_->document->syntax_ == syntax && next_->document->sourceBlock_ == sourceBlock && sameFallbacks(*next_->document))
+    if (_next && _next->document->_syntax == syntax && _next->document->_sourceBlock == sourceBlock && sameFallbacks(*_next->document))
         return SourceResult::Success;
-    if (published_ && published_->syntax_ == syntax && published_->sourceBlock_ == sourceBlock && sameFallbacks(*published_))
+    if (_published && _published->_syntax == syntax && _published->_sourceBlock == sourceBlock && sameFallbacks(*_published))
     {
-        next_.reset();
+        _next.reset();
         return SourceResult::Success;
     }
     // The current publication, when compatible, lends its unchanged blocks.
     auto next = std::make_unique<Preparation>(
-        std::move(syntax), sourceBlock, sourceObjects, disclosures, softBreakPolicy_, IsFreshPreparationForTest() ? nullptr : published_);
-    next->document->labels_ = labels_;
-    next_.swap(next);
+        std::move(syntax), sourceBlock, sourceObjects, disclosures, _softBreakPolicy, IsFreshPreparationForTest() ? nullptr : _published);
+    next->document->_labels = _labels;
+    _next.swap(next);
     return SourceResult::Success;
 }
 MarkdownAdvance SemanticBuilder::Advance(std::size_t maximumEvents)
@@ -3587,22 +3587,22 @@ MarkdownAdvance SemanticBuilder::Advance(std::size_t maximumEvents)
     Failure::Scope failureScope;
     if (! maximumEvents)
         return {MarkdownPreparationStatus::Failed, 0u, MarkdownResult::InvalidRange};
-    if (! next_)
+    if (! _next)
         return {};
     std::size_t work = 0u;
     while (work < maximumEvents)
     {
         ++work;
-        const bool complete = next_->Step();
-        if (next_->capacityExceeded || next_->output.capacityExceeded)
+        const bool complete = _next->Step();
+        if (_next->capacityExceeded || _next->output.capacityExceeded)
         {
-            next_.reset();
+            _next.reset();
             return {MarkdownPreparationStatus::Failed, work, MarkdownResult::CapacityExceeded};
         }
         if (complete)
         {
-            published_ = next_->document;
-            next_.reset();
+            _published = _next->document;
+            _next.reset();
             return {MarkdownPreparationStatus::Complete, work};
         }
     }
@@ -3610,19 +3610,19 @@ MarkdownAdvance SemanticBuilder::Advance(std::size_t maximumEvents)
 }
 void SemanticBuilder::Cancel() noexcept
 {
-    next_.reset();
+    _next.reset();
 }
 void SemanticBuilder::Clear() noexcept
 {
-    next_.reset();
-    published_.reset();
+    _next.reset();
+    _published.reset();
 }
 bool SemanticBuilder::HasPendingPreparation() const noexcept
 {
-    return static_cast<bool>(next_);
+    return static_cast<bool>(_next);
 }
 std::shared_ptr<const SemanticDocument> SemanticBuilder::Published() const noexcept
 {
-    return published_;
+    return _published;
 }
 } // namespace DxUi::RichText

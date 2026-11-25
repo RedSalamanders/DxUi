@@ -82,11 +82,11 @@ private:
     // source start is nondecreasing in display order; otherwise it lists the
     // primary spans in source order. It is also kept when more than 16 non-primary
     // spans follow one another, so every source lookup is O(log n + 16) span visits.
-    std::wstring ownedSource_, display_;
-    std::wstring_view source_;
-    std::shared_ptr<const void> sourceOwner_;
-    std::vector<DisplaySpan> spans_;
-    std::vector<std::uint32_t> primaryOrder_;
+    std::wstring _ownedSource, _display;
+    std::wstring_view _source;
+    std::shared_ptr<const void> _sourceOwner;
+    std::vector<DisplaySpan> _spans;
+    std::vector<std::uint32_t> _primaryOrder;
     friend struct Detail::SourceDisplayMapAccess;
 };
 

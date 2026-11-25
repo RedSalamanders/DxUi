@@ -98,7 +98,7 @@ class Scene final : public Scenario
 public:
     HRESULT Build(Context& context) override
     {
-        search_ = BuildApplication(context.controls);
+        _search = BuildApplication(context.controls);
         return S_OK;
     }
     void Step(Context& context, size_t phase, size_t step) override
@@ -108,7 +108,7 @@ public:
             case kNothingArmed: context.port.AdvanceTime(kIdleStepMs); break;
             case kCaret:
                 if (step == 0u)
-                    context.controls.SetFocusControl(search_, false);
+                    context.controls.SetFocusControl(_search, false);
                 context.port.AdvanceTime(kIdleStepMs);
                 break;
             case kCaretPeriod: context.port.AdvanceTime(kTimerPeriodMs); break;
@@ -117,7 +117,7 @@ public:
     }
 
 private:
-    DxUi::TextField* search_ = nullptr;
+    DxUi::TextField* _search = nullptr;
 };
 
 inline constexpr Definition kDefinition{

@@ -160,69 +160,69 @@ struct Entry
 class History
 {
 public:
-    explicit History(std::wstring text) : text_(DxUi::MakeSharedText(std::move(text)))
+    explicit History(std::wstring text) : _text(DxUi::MakeSharedText(std::move(text)))
     {
     }
     // One recorded edit: [start, end) of the text replaced by `with`.
     void Edit(size_t start, size_t end, std::wstring_view with)
     {
-        DxUi::TextEditHistory::Record(undo_, redo_, *text_, Entry{text_, 0u, 0u, false, start}, kMaxEntries);
-        std::wstring next = *text_;
+        DxUi::TextEditHistory::Record(_undo, _redo, *_text, Entry{_text, 0u, 0u, false, start}, kMaxEntries);
+        std::wstring next = *_text;
         next.replace(start, end - start, with);
-        text_ = DxUi::MakeSharedText(std::move(next));
+        _text = DxUi::MakeSharedText(std::move(next));
     }
     [[nodiscard]] bool Undo()
     {
         Entry applied;
         bool changed = false;
-        return DxUi::TextEditHistory::Undo(undo_, redo_, text_, Entry{text_, 0u, 0u, false, 0u}, kMaxEntries, applied, changed);
+        return DxUi::TextEditHistory::Undo(_undo, _redo, _text, Entry{_text, 0u, 0u, false, 0u}, kMaxEntries, applied, changed);
     }
     [[nodiscard]] bool Redo()
     {
         Entry applied;
         bool changed = false;
-        return DxUi::TextEditHistory::Redo(undo_, redo_, text_, Entry{text_, 0u, 0u, false, 0u}, kMaxEntries, applied, changed);
+        return DxUi::TextEditHistory::Redo(_undo, _redo, _text, Entry{_text, 0u, 0u, false, 0u}, kMaxEntries, applied, changed);
     }
     [[nodiscard]] uint64_t Bytes() const noexcept
     {
-        return DxUi::TextEditHistory::Bytes(undo_, redo_, text_.get());
+        return DxUi::TextEditHistory::Bytes(_undo, _redo, _text.get());
     }
     [[nodiscard]] uint64_t BudgetedBytes() const noexcept
     {
-        return DxUi::TextEditHistory::BudgetedBytes(undo_, redo_);
+        return DxUi::TextEditHistory::BudgetedBytes(_undo, _redo);
     }
     [[nodiscard]] const std::wstring& Text() const noexcept
     {
-        return *text_;
+        return *_text;
     }
     [[nodiscard]] size_t UndoCount() const noexcept
     {
-        return undo_.size();
+        return _undo.size();
     }
     [[nodiscard]] size_t RedoCount() const noexcept
     {
-        return redo_.size();
+        return _redo.size();
     }
     [[nodiscard]] const Entry& UndoTop() const noexcept
     {
-        return undo_.back();
+        return _undo.back();
     }
     [[nodiscard]] const Entry& RedoTop() const noexcept
     {
-        return redo_.back();
+        return _redo.back();
     }
     // Storage of both stacks, which every entry counts against the budget.
     [[nodiscard]] uint64_t SlotBytes() const noexcept
     {
-        return uint64_t(undo_.capacity() + redo_.capacity()) * sizeof(Entry);
+        return uint64_t(_undo.capacity() + _redo.capacity()) * sizeof(Entry);
     }
 
     static constexpr size_t kMaxEntries = 64u;
 
 private:
-    DxUi::SharedText text_;
-    std::vector<Entry> undo_;
-    std::vector<Entry> redo_;
+    DxUi::SharedText _text;
+    std::vector<Entry> _undo;
+    std::vector<Entry> _redo;
 };
 
 [[nodiscard]] inline std::wstring Words(size_t units, wchar_t first)

@@ -88,7 +88,7 @@ public:
     // counters from different documents. Does not walk or materialize source.
     bool IsSameRevision(const SourceSnapshot& other) const noexcept
     {
-        return state_ == other.state_;
+        return _state == other._state;
     }
     // Inspect UTF-16 offsets without materializing a whole revision. Tree lookup
     // is logarithmic; Slice visits only intersecting pieces after that lookup.
@@ -115,8 +115,8 @@ public:
 private:
     struct PieceTreeNode;
     struct Revision;
-    std::shared_ptr<const Revision> state_;
-    explicit SourceSnapshot(std::shared_ptr<const Revision> state) : state_(std::move(state))
+    std::shared_ptr<const Revision> _state;
+    explicit SourceSnapshot(std::shared_ptr<const Revision> state) : _state(std::move(state))
     {
     }
     wchar_t CharacterAt(std::size_t offset) const noexcept;
@@ -140,23 +140,23 @@ public:
     explicit Document(std::wstring_view text = {});
     SourceSnapshot Snapshot() const noexcept
     {
-        return source_;
+        return _source;
     }
     std::wstring Text() const
     {
-        return source_.Text();
+        return _source.Text();
     }
     std::size_t Length() const noexcept
     {
-        return source_.Length();
+        return _source.Length();
     }
     std::uint64_t Revision() const noexcept
     {
-        return revision_;
+        return _revision;
     }
     Selection GetSelection() const noexcept
     {
-        return selection_;
+        return _selection;
     }
     // A refusal leaves the document, selection and history unchanged.
     [[nodiscard]] SourceResult TryReset(std::wstring_view text);
@@ -183,11 +183,11 @@ public:
     bool Redo();
     bool CanUndo() const noexcept
     {
-        return ! transientEntry_ && ! undo_.Empty();
+        return ! _transientEntry && ! _undo.Empty();
     }
     bool CanRedo() const noexcept
     {
-        return ! transientEntry_ && ! redo_.Empty();
+        return ! _transientEntry && ! _redo.Empty();
     }
 
 private:
@@ -196,13 +196,13 @@ private:
         SourceSnapshot source;
         Selection selection;
     };
-    std::optional<History> transientEntry_;
-    SourceSnapshot source_;
-    Selection selection_{};
-    std::uint64_t revision_{};
-    std::uint64_t selectionEpoch_{}; // Detect selection moves even when a later move returns to the same ACP.
+    std::optional<History> _transientEntry;
+    SourceSnapshot _source;
+    Selection _selection{};
+    std::uint64_t _revision{};
+    std::uint64_t _selectionEpoch{}; // Detect selection moves even when a later move returns to the same ACP.
     // Work counters only: a RichTextEditor marks its own document so copies of it count apart from other Documents'.
-    bool editorSource_{};
+    bool _editorSource{};
     void CountAsEditorSource() noexcept;
     friend class ::DxUi::RichTextEditor;
     [[nodiscard]] bool AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selection selection) noexcept;
@@ -226,7 +226,7 @@ private:
         std::vector<History> entries;
         std::size_t first{}, count{};
     };
-    HistoryRing undo_, redo_;
+    HistoryRing _undo, _redo;
     bool ReplaceImpl(std::size_t begin, std::size_t end, std::wstring_view text, Selection after, bool recordHistory, bool coalesceHistory = false);
     bool ReplaceWholeTextImpl(std::wstring_view text, Selection after, bool recordHistory);
     [[nodiscard]] SourceResult TryReplaceImpl(

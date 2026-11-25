@@ -156,32 +156,32 @@ class Scene final : public Scenario
 public:
     HRESULT Build(Context& context) override
     {
-        width_  = context.variant.width;
-        height_ = context.variant.height;
+        _width  = context.variant.width;
+        _height = context.variant.height;
         RETURN_IF_FAILED(DecodeImages());
         const DocumentShape& shape = ShapeOf(context.variant);
-        fenceLine_                 = L"\nv" + std::to_wstring(shape.fenceLines / 2u) + L";";
+        _fenceLine                 = L"\nv" + std::to_wstring(shape.fenceLines / 2u) + L";";
         auto owned                 = std::make_unique<DxUi::RichTextEditor>(BuildSource(shape));
-        editor_                    = owned.get();
-        editor_->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
+        _editor                    = owned.get();
+        _editor->SetMarkdownAnalysisProfile(DxUi::RichText::MarkdownProfile::RichMarkdown);
         const Presentation presentation = PresentationOf(context.variant);
-        editor_->SetMarkdownRenderingEnabled(presentation == Presentation::Semantic);
-        auto appearance                 = editor_->GetAppearance();
+        _editor->SetMarkdownRenderingEnabled(presentation == Presentation::Semantic);
+        auto appearance                 = _editor->GetAppearance();
         appearance.markdownPresentation = DxUi::RichText::MarkdownPresentationStyle::Subtle; // numbered fences, measured tables
         if (presentation == Presentation::Multiplier)
             appearance.lineHeightMultiplier = 1.5f;
-        editor_->SetAppearance(appearance);
+        _editor->SetAppearance(appearance);
         if (presentation == Presentation::Source)
-            editor_->SetViewMode(DxUi::RichText::ViewMode::Source);
-        editor_->SetDocumentFilePath(L"C:\\fixture\\fx8.md"); // resolves relative image sources; never opened
-        editor_->SetSvgImagesEnabled(true);
+            _editor->SetViewMode(DxUi::RichText::ViewMode::Source);
+        _editor->SetDocumentFilePath(L"C:\\fixture\\fx8.md"); // resolves relative image sources; never opened
+        _editor->SetSvgImagesEnabled(true);
         context.controls.SetRoot(std::move(owned));
-        context.controls.SetFocusControl(editor_, false);
-        const std::wstring text = editor_->GetText();
+        context.controls.SetFocusControl(_editor, false);
+        const std::wstring text = _editor->GetText();
         const size_t prose      = text.find(L" extend.");
         if (prose == std::wstring::npos)
             return E_UNEXPECTED;
-        editor_->SetSelection({prose + 7u, prose + 7u});
+        _editor->SetSelection({prose + 7u, prose + 7u});
         return S_OK;
     }
 
@@ -208,12 +208,12 @@ public:
                 static_cast<void>(context.port.Key(key, false));
                 break;
             }
-            case kSeekFence: Seek(fenceLine_, fenceLine_.size() - 1u); break; // before the line's ';'
+            case kSeekFence: Seek(_fenceLine, _fenceLine.size() - 1u); break; // before the line's ';'
             case kSeekTable: Seek(kAfterTableMarker, 0u); break;
             case kResize:
             {
-                const UINT narrower = static_cast<UINT>(((action % kResizeSteps) + 1u) * (width_ / 64u));
-                context.port.Resize(width_ - narrower, height_, context.variant.dpi);
+                const UINT narrower = static_cast<UINT>(((action % kResizeSteps) + 1u) * (_width / 64u));
+                context.port.Resize(_width - narrower, _height, context.variant.dpi);
                 break;
             }
             default: break;
@@ -222,7 +222,7 @@ public:
 
     [[nodiscard]] DxUi::RichTextEditor& Editor() const noexcept
     {
-        return *editor_;
+        return *_editor;
     }
 
 private:
@@ -239,42 +239,42 @@ private:
         RETURN_IF_FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(factory.put())));
         const auto scenarios = RichImageTests::DecodeScenarios(factory.get());
         // The W7.8 PNG and the first EXIF-oriented JPEG.
-        RETURN_IF_FAILED(RichImageTests::Decode(factory.get(), scenarios.at(0u).encoded, png_));
-        RETURN_IF_FAILED(RichImageTests::Decode(factory.get(), scenarios.at(1u).encoded, jpeg_));
+        RETURN_IF_FAILED(RichImageTests::Decode(factory.get(), scenarios.at(0u).encoded, _png));
+        RETURN_IF_FAILED(RichImageTests::Decode(factory.get(), scenarios.at(1u).encoded, _jpeg));
         constexpr std::string_view svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 30'><rect width='40' height='30' fill='#2060c0'/>"
                                          "<circle cx='20' cy='15' r='9' fill='#f0c020'/></svg>";
-        return DxUi::RichText::RichImage::CreateSvg(80u, 60u, std::as_bytes(std::span(svg)), svg_);
+        return DxUi::RichText::RichImage::CreateSvg(80u, 60u, std::as_bytes(std::span(svg)), _svg);
     }
     CATCH_RETURN();
 
     // The application's half of image loading: completes every request the last preparation exposed.
     void ServiceImages()
     {
-        requests_.clear();
-        editor_->TakePendingImageRequests(requests_);
-        for (const DxUi::RichText::RichImageRequest& request : requests_)
+        _requests.clear();
+        _editor->TakePendingImageRequests(_requests);
+        for (const DxUi::RichText::RichImageRequest& request : _requests)
         {
             const std::wstring_view source = request.Source();
-            const auto image               = source.ends_with(L"first.png") ? png_ : source.ends_with(L"second.jpg") ? jpeg_ : svg_;
-            static_cast<void>(editor_->CompleteImageRequest(request, image));
+            const auto image               = source.ends_with(L"first.png") ? _png : source.ends_with(L"second.jpg") ? _jpeg : _svg;
+            static_cast<void>(_editor->CompleteImageRequest(request, image));
         }
     }
 
     // Places the caret at `offset` units into the first occurrence of `marker`.
     void Seek(std::wstring_view marker, size_t offset)
     {
-        const std::wstring text = editor_->GetText();
+        const std::wstring text = _editor->GetText();
         const size_t at         = text.find(marker);
         if (at != std::wstring::npos)
-            editor_->SetSelection({at + offset, at + offset});
+            _editor->SetSelection({at + offset, at + offset});
     }
 
-    DxUi::RichTextEditor* editor_ = nullptr;
-    std::shared_ptr<const DxUi::RichText::RichImage> png_, jpeg_, svg_;
-    std::vector<DxUi::RichText::RichImageRequest> requests_;
-    std::wstring fenceLine_;
-    UINT width_  = 0u;
-    UINT height_ = 0u;
+    DxUi::RichTextEditor* _editor = nullptr;
+    std::shared_ptr<const DxUi::RichText::RichImage> _png, _jpeg, _svg;
+    std::vector<DxUi::RichText::RichImageRequest> _requests;
+    std::wstring _fenceLine;
+    UINT _width  = 0u;
+    UINT _height = 0u;
 };
 
 inline constexpr std::array kSources{std::string_view("Tests/Embedded/Embedded.Tests.PerformanceFixtureFx8.h"),

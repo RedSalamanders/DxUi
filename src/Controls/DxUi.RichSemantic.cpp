@@ -158,22 +158,22 @@ SourceResult SourceDisplayMap::TryBuild(std::wstring_view source,
     return SourceResult::Success;
 }
 SourceDisplayMap::SourceDisplayMap(std::wstring_view source, std::wstring_view display, std::span<const DisplaySpan> spans, SourceResult& result)
-    : ownedSource_(source),
-      display_(display),
-      source_(ownedSource_),
-      spans_(spans.begin(), spans.end()),
-      primaryOrder_(0u)
+    : _ownedSource(source),
+      _display(display),
+      _source(_ownedSource),
+      _spans(spans.begin(), spans.end()),
+      _primaryOrder(0u)
 {
     IndexPrimary(result);
 }
 SourceDisplayMap::SourceDisplayMap(
     std::shared_ptr<const void> sourceOwner, std::wstring_view source, std::wstring&& display, std::vector<DisplaySpan>&& spans, SourceResult& result) noexcept
-    : ownedSource_(),
-      display_(std::move(display)),
-      source_(source),
-      sourceOwner_(std::move(sourceOwner)),
-      spans_(std::move(spans)),
-      primaryOrder_()
+    : _ownedSource(),
+      _display(std::move(display)),
+      _source(source),
+      _sourceOwner(std::move(sourceOwner)),
+      _spans(std::move(spans)),
+      _primaryOrder()
 {
     result = SourceResult::Success;
 }
@@ -188,36 +188,36 @@ void SourceDisplayMap::IndexPrimary(SourceResult& result)
     constexpr std::size_t MaximumSecondaryRun = 16u;
     bool monotonic                            = true;
     std::size_t primaries = 0u, run = 0u;
-    for (std::size_t i = 0u; i < spans_.size(); ++i)
+    for (std::size_t i = 0u; i < _spans.size(); ++i)
     {
-        if (i && spans_[i].source.first < spans_[i - 1u].source.first)
+        if (i && _spans[i].source.first < _spans[i - 1u].source.first)
             monotonic = false;
-        run = spans_[i].primary ? 0u : run + 1u;
+        run = _spans[i].primary ? 0u : run + 1u;
         if (run > MaximumSecondaryRun)
             monotonic = false;
-        if (spans_[i].primary)
+        if (_spans[i].primary)
             ++primaries;
     }
     if (! monotonic)
     {
-        primaryOrder_.reserve(primaries);
-        for (std::size_t i = 0u; i < spans_.size(); ++i)
-            if (spans_[i].primary)
-                primaryOrder_.push_back(static_cast<std::uint32_t>(i));
-        std::sort(primaryOrder_.begin(), primaryOrder_.end(), [&](auto a, auto b) { return spans_[a].source.first < spans_[b].source.first; });
+        _primaryOrder.reserve(primaries);
+        for (std::size_t i = 0u; i < _spans.size(); ++i)
+            if (_spans[i].primary)
+                _primaryOrder.push_back(static_cast<std::uint32_t>(i));
+        std::sort(_primaryOrder.begin(), _primaryOrder.end(), [&](auto a, auto b) { return _spans[a].source.first < _spans[b].source.first; });
     }
     std::size_t sourceEnd = 0u;
     const auto ordered    = [&](auto&& visit)
     {
         if (monotonic)
         {
-            for (const auto& span : spans_)
+            for (const auto& span : _spans)
                 if (span.primary && ! visit(span))
                     return;
         }
         else
-            for (const auto index : primaryOrder_)
-                if (! visit(spans_[index]))
+            for (const auto index : _primaryOrder)
+                if (! visit(_spans[index]))
                     return;
     };
     ordered([&](const DisplaySpan& span)
@@ -232,7 +232,7 @@ void SourceDisplayMap::IndexPrimary(SourceResult& result)
     });
     if (result != SourceResult::Success)
         return;
-    for (const auto& span : spans_)
+    for (const auto& span : _spans)
     {
         if (span.primary || span.kind == DisplaySpanKind::Generated)
             continue;
@@ -251,16 +251,16 @@ void SourceDisplayMap::IndexPrimary(SourceResult& result)
 void SourceDisplayMap::FindPrimary(std::size_t offset, const DisplaySpan*& previous, const DisplaySpan*& current, const DisplaySpan*& next) const noexcept
 {
     previous = current = next = nullptr;
-    if (primaryOrder_.empty())
+    if (_primaryOrder.empty())
     {
-        const auto found = std::upper_bound(spans_.begin(), spans_.end(), offset, [](auto value, const auto& span) { return value < span.source.first; });
-        for (auto at = found; at != spans_.end(); ++at)
+        const auto found = std::upper_bound(_spans.begin(), _spans.end(), offset, [](auto value, const auto& span) { return value < span.source.first; });
+        for (auto at = found; at != _spans.end(); ++at)
             if (at->primary)
             {
                 next = &*at;
                 break;
             }
-        for (auto at = found; at != spans_.begin();)
+        for (auto at = found; at != _spans.begin();)
         {
             --at;
             if (! at->primary)
@@ -276,30 +276,30 @@ void SourceDisplayMap::FindPrimary(std::size_t offset, const DisplaySpan*& previ
         return;
     }
     const auto found =
-        std::upper_bound(primaryOrder_.begin(), primaryOrder_.end(), offset, [&](auto value, auto index) { return value < spans_[index].source.first; });
-    const auto position = static_cast<std::size_t>(found - primaryOrder_.begin());
-    if (position < primaryOrder_.size())
-        next = spans_.data() + primaryOrder_[position];
+        std::upper_bound(_primaryOrder.begin(), _primaryOrder.end(), offset, [&](auto value, auto index) { return value < _spans[index].source.first; });
+    const auto position = static_cast<std::size_t>(found - _primaryOrder.begin());
+    if (position < _primaryOrder.size())
+        next = _spans.data() + _primaryOrder[position];
     if (position >= 1u)
-        current = spans_.data() + primaryOrder_[position - 1u];
+        current = _spans.data() + _primaryOrder[position - 1u];
     if (position >= 2u)
-        previous = spans_.data() + primaryOrder_[position - 2u];
+        previous = _spans.data() + _primaryOrder[position - 2u];
 }
 std::wstring_view SourceDisplayMap::Source() const noexcept
 {
-    return source_;
+    return _source;
 }
 std::wstring_view SourceDisplayMap::Display() const noexcept
 {
-    return display_;
+    return _display;
 }
 std::span<const DisplaySpan> SourceDisplayMap::Spans() const noexcept
 {
-    return spans_;
+    return _spans;
 }
 SourceResult SourceDisplayMap::TryToDisplay(std::size_t offset, MappingAffinity affinity, std::size_t& output) const noexcept
 {
-    if (! ValidAffinity(affinity) || ! ValidRange(source_, {offset, offset}))
+    if (! ValidAffinity(affinity) || ! ValidRange(_source, {offset, offset}))
         return SourceResult::InvalidRange;
     // Source order gives the next primary ownership the leading side of a
     // shared boundary and the previous ownership its trailing side. Hidden
@@ -314,7 +314,7 @@ SourceResult SourceDisplayMap::TryToDisplay(std::size_t offset, MappingAffinity 
         return span.display.first + offset - span.source.first;
     };
     if (affinity == MappingAffinity::Leading)
-        output = current && offset <= current->source.last ? inside(*current) : next ? next->display.first : display_.size();
+        output = current && offset <= current->source.last ? inside(*current) : next ? next->display.first : _display.size();
     else if (current && current->source.first < offset && offset <= current->source.last)
         output = Atomic(current->kind) ? current->display.last : current->display.first + offset - current->source.first;
     else if (current && current->source.first == offset)
@@ -332,16 +332,16 @@ std::size_t SourceDisplayMap::ToDisplay(std::size_t offset, MappingAffinity affi
 }
 SourceResult SourceDisplayMap::TryToSource(std::size_t offset, MappingAffinity affinity, std::size_t& output) const noexcept
 {
-    if (! ValidAffinity(affinity) || ! ValidRange(display_, {offset, offset}))
+    if (! ValidAffinity(affinity) || ! ValidRange(_display, {offset, offset}))
         return SourceResult::InvalidRange;
-    if (spans_.empty())
-        output = affinity == MappingAffinity::Leading ? source_.size() : 0u;
+    if (_spans.empty())
+        output = affinity == MappingAffinity::Leading ? _source.size() : 0u;
     else
     {
-        auto found = std::upper_bound(spans_.begin(), spans_.end(), offset, [](auto value, const auto& span) { return value < span.display.last; });
-        if (found == spans_.end())
-            found = std::prev(spans_.end());
-        else if (affinity == MappingAffinity::Trailing && offset == found->display.first && found != spans_.begin())
+        auto found = std::upper_bound(_spans.begin(), _spans.end(), offset, [](auto value, const auto& span) { return value < span.display.last; });
+        if (found == _spans.end())
+            found = std::prev(_spans.end());
+        else if (affinity == MappingAffinity::Trailing && offset == found->display.first && found != _spans.begin())
             --found;
         if (found->kind == DisplaySpanKind::Generated)
             output = found->source.first;
@@ -365,11 +365,11 @@ std::size_t SourceDisplayMap::ToSource(std::size_t offset, MappingAffinity affin
 SourceResult SourceDisplayMap::TryDisplayRanges(MarkdownRange source, std::vector<MarkdownRange>& output) const
 {
     const Failure::Scope failureScope;
-    if (! ValidRange(source_, source))
+    if (! ValidRange(_source, source))
         return SourceResult::InvalidRange;
     std::vector<MarkdownRange> result(0u);
     if (source.first != source.last)
-        for (const auto& span : spans_)
+        for (const auto& span : _spans)
         {
             const auto first = std::max(source.first, span.source.first), last = std::min(source.last, span.source.last);
             if (span.kind == DisplaySpanKind::Generated || first >= last)
@@ -392,11 +392,11 @@ std::vector<MarkdownRange> SourceDisplayMap::DisplayRanges(MarkdownRange source)
 SourceResult SourceDisplayMap::TrySourceRanges(MarkdownRange display, std::vector<MarkdownRange>& output) const
 {
     const Failure::Scope failureScope;
-    if (! ValidRange(display_, display))
+    if (! ValidRange(_display, display))
         return SourceResult::InvalidRange;
     std::vector<MarkdownRange> ranges(0u);
     if (display.first != display.last)
-        for (const auto& span : spans_)
+        for (const auto& span : _spans)
         {
             const auto first = std::max(display.first, span.display.first), last = std::min(display.last, span.display.last);
             if (span.kind == DisplaySpanKind::Generated || first >= last)
@@ -422,14 +422,14 @@ std::vector<MarkdownRange> SourceDisplayMap::SourceRanges(MarkdownRange display)
 }
 SourceResult SourceDisplayMap::TrySnapDisplayBoundary(std::size_t offset, MappingAffinity affinity, std::size_t& output) const noexcept
 {
-    if (! ValidAffinity(affinity) || offset > display_.size())
+    if (! ValidAffinity(affinity) || offset > _display.size())
         return SourceResult::InvalidRange;
-    const auto found = std::upper_bound(spans_.begin(), spans_.end(), offset, [](auto position, const auto& span) { return position < span.display.last; });
-    if (found != spans_.end() && Atomic(found->kind) && offset > found->display.first)
+    const auto found = std::upper_bound(_spans.begin(), _spans.end(), offset, [](auto position, const auto& span) { return position < span.display.last; });
+    if (found != _spans.end() && Atomic(found->kind) && offset > found->display.first)
         output = affinity == MappingAffinity::Leading ? found->display.first : found->display.last;
     else
     {
-        while (! IsEditBoundary(display_, offset))
+        while (! IsEditBoundary(_display, offset))
             offset = affinity == MappingAffinity::Leading ? offset - 1u : offset + 1u;
         output = offset;
     }
@@ -467,13 +467,13 @@ SourceResult Detail::SourceDisplayMapAccess::TryBuildBorrowed(std::shared_ptr<co
 }
 std::size_t Detail::SourceDisplayMapAccess::Bytes(const SourceDisplayMap& map) noexcept
 {
-    return map.ownedSource_.size() * sizeof(wchar_t) + map.display_.size() * sizeof(wchar_t) + map.spans_.size() * sizeof(DisplaySpan) +
-           map.primaryOrder_.size() * sizeof(std::uint32_t);
+    return map._ownedSource.size() * sizeof(wchar_t) + map._display.size() * sizeof(wchar_t) + map._spans.size() * sizeof(DisplaySpan) +
+           map._primaryOrder.size() * sizeof(std::uint32_t);
 }
 std::size_t Detail::SourceDisplayMapAccess::ReservedBytes(const SourceDisplayMap& map) noexcept
 {
-    return map.ownedSource_.capacity() * sizeof(wchar_t) + map.display_.capacity() * sizeof(wchar_t) + map.spans_.capacity() * sizeof(DisplaySpan) +
-           map.primaryOrder_.capacity() * sizeof(std::uint32_t);
+    return map._ownedSource.capacity() * sizeof(wchar_t) + map._display.capacity() * sizeof(wchar_t) + map._spans.capacity() * sizeof(DisplaySpan) +
+           map._primaryOrder.capacity() * sizeof(std::uint32_t);
 }
 
 SourceResult TryApplySourceEdits(

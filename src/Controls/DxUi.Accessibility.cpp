@@ -14750,10 +14750,12 @@ void FlushRichSemanticStateChanges(WindowHostAccessibilityTarget& target) noexce
         if (found == elements.end())
             continue;
         const auto element = static_cast<size_t>(found - elements.begin());
-        const LONG state   = hint.role == RichText::SemanticRole::Task ? (found->task == RichText::MarkdownTask::Checked ? ToggleState_On : ToggleState_Off)
-                             : (hint.role == RichText::SemanticRole::Disclosure ? found->disclosureExpanded : document->IsSourceEditingElement(element))
-                                 ? ExpandCollapseState_Expanded
-                                 : ExpandCollapseState_Collapsed;
+        const LONG state =
+            hint.role == RichText::SemanticRole::Task
+                ? static_cast<LONG>(found->task == RichText::MarkdownTask::Checked ? ToggleState_On : ToggleState_Off)
+                : static_cast<LONG>((hint.role == RichText::SemanticRole::Disclosure ? found->disclosureExpanded : document->IsSourceEditingElement(element))
+                                        ? ExpandCollapseState_Expanded
+                                        : ExpandCollapseState_Collapsed);
         if (state != hint.current)
             continue;
         // The acted peer has retired. Raise from the exact current successor, with no old graph in the queue.

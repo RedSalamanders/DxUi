@@ -16,7 +16,7 @@ namespace DxUi::RichText::Detail
 class RichSourceInk final
 {
 public:
-    RichSourceInk() : events_(0u), mergeBuffer_(0u), ranges_(0u)
+    RichSourceInk() : _events(0u), _mergeBuffer(0u), _ranges(0u)
     {
     }
     RichSourceInk(const RichSourceInk&)            = delete;
@@ -24,10 +24,10 @@ public:
     void Clear() noexcept
     {
         ResetStaging();
-        ranges_.clear();
-        publishedSyntax_.reset();
-        publishedWindow_ = {};
-        published_       = false;
+        _ranges.clear();
+        _publishedSyntax.reset();
+        _publishedWindow = {};
+        _published       = false;
     }
     void CancelPending() noexcept
     {
@@ -35,21 +35,21 @@ public:
     }
     void ResetStaging() noexcept
     {
-        syntax_.reset();
-        window_ = {};
-        events_.clear();
-        mergeBuffer_.clear();
-        if (stagedRanges_)
-            stagedRanges_->clear();
-        node_ = inline_ = event_ = previous_ = 0u;
-        counts_                              = {};
-        inlinePhase_                         = InlinePhase::None;
-        childCursor_ = scanPosition_ = markerCount_ = linkLast_ = destinationFirst_ = destinationPosition_ = destinationDepth_ = 0u;
-        destinationAngle_ = destinationEscaped_ = false;
-        sortWidth_ = mergeStart_ = mergeLeft_ = mergeMiddle_ = mergeRight_ = mergeLeftCursor_ = mergeRightCursor_ = mergeOutput_ = 0u;
-        mergeRunActive_ = mergePickReady_ = mergePickLeft_ = false;
-        sorted_ = complete_ = overflow_ = false;
-        lastWork_                       = 0u;
+        _syntax.reset();
+        _window = {};
+        _events.clear();
+        _mergeBuffer.clear();
+        if (_stagedRanges)
+            _stagedRanges->clear();
+        _node = _inlineIndex = _event = _previous = 0u;
+        _counts                                   = {};
+        _inlinePhase                              = InlinePhase::None;
+        _childCursor = _scanPosition = _markerCount = _linkLast = _destinationFirst = _destinationPosition = _destinationDepth = 0u;
+        _destinationAngle = _destinationEscaped = false;
+        _sortWidth = _mergeStart = _mergeLeft = _mergeMiddle = _mergeRight = _mergeLeftCursor = _mergeRightCursor = _mergeOutput = 0u;
+        _mergeRunActive = _mergePickReady = _mergePickLeft = false;
+        _sorted = _complete = _overflow = false;
+        _lastWork                       = 0u;
     }
     template <typename Map> bool Advance(const std::shared_ptr<const MarkdownSyntax>& syntax, Map&& map, std::optional<MarkdownRange> window = std::nullopt)
     {
@@ -70,7 +70,7 @@ public:
         const auto size = syntax ? syntax->Source().size() : 0u;
         if (window && (window->first > window->last || window->last > size))
             return E_INVALIDARG;
-        lastWork_               = 0u;
+        _lastWork               = 0u;
         HRESULT mappingResult   = S_OK;
         const bool nextComplete = AdvanceCore(syntax, std::forward<Map>(map), window, mappingResult);
         if (FAILED(mappingResult))
@@ -83,23 +83,23 @@ public:
     }
     std::span<const TextInkRange> Ranges() const noexcept
     {
-        return ranges_;
+        return _ranges;
     }
     bool Pending() const noexcept
     {
-        return syntax_ && ! complete_;
+        return _syntax && ! _complete;
     }
     bool Current(const std::shared_ptr<const MarkdownSyntax>& syntax) const noexcept
     {
-        return syntax ? published_ && publishedSyntax_.lock() == syntax : ! published_ && ! syntax_;
+        return syntax ? _published && _publishedSyntax.lock() == syntax : ! _published && ! _syntax;
     }
     bool Covers(std::size_t first, std::size_t last) const noexcept
     {
-        return published_ && first <= last && publishedWindow_.first <= first && publishedWindow_.last >= last;
+        return _published && first <= last && _publishedWindow.first <= first && _publishedWindow.last >= last;
     }
     size_t LastWork() const noexcept
     {
-        return lastWork_;
+        return _lastWork;
     }
     static constexpr size_t WorkPerTurn = 256u;
 
@@ -120,26 +120,26 @@ private:
         int delta;
     };
     static constexpr size_t MaximumEvents = 65536u;
-    std::shared_ptr<const MarkdownSyntax> syntax_;
-    MarkdownRange window_;
+    std::shared_ptr<const MarkdownSyntax> _syntax;
+    MarkdownRange _window;
     // Publication retains its own ranges, but need not keep an old syntax tree
     // alive after its owner retires it while a replacement window is staging.
-    std::weak_ptr<const MarkdownSyntax> publishedSyntax_;
-    MarkdownRange publishedWindow_;
-    std::vector<Event> events_;
-    std::vector<Event> mergeBuffer_;
-    std::vector<TextInkRange> ranges_;
-    std::unique_ptr<std::vector<TextInkRange>> stagedRanges_;
-    size_t node_{}, inline_{}, event_{}, previous_{};
-    std::array<int, 3> counts_{};
-    InlinePhase inlinePhase_{InlinePhase::None};
-    size_t childCursor_{}, scanPosition_{}, markerCount_{}, linkLast_{}, destinationFirst_{}, destinationPosition_{}, destinationDepth_{};
-    wchar_t marker_{};
-    bool destinationAngle_{}, destinationEscaped_{};
-    size_t sortWidth_{}, mergeStart_{}, mergeLeft_{}, mergeMiddle_{}, mergeRight_{}, mergeLeftCursor_{}, mergeRightCursor_{}, mergeOutput_{};
-    bool mergeRunActive_{}, mergePickReady_{}, mergePickLeft_{};
-    bool sorted_{}, complete_{}, overflow_{}, published_{};
-    size_t lastWork_{};
+    std::weak_ptr<const MarkdownSyntax> _publishedSyntax;
+    MarkdownRange _publishedWindow;
+    std::vector<Event> _events;
+    std::vector<Event> _mergeBuffer;
+    std::vector<TextInkRange> _ranges;
+    std::unique_ptr<std::vector<TextInkRange>> _stagedRanges;
+    size_t _node{}, _inlineIndex{}, _event{}, _previous{};
+    std::array<int, 3> _counts{};
+    InlinePhase _inlinePhase{InlinePhase::None};
+    size_t _childCursor{}, _scanPosition{}, _markerCount{}, _linkLast{}, _destinationFirst{}, _destinationPosition{}, _destinationDepth{};
+    wchar_t _marker{};
+    bool _destinationAngle{}, _destinationEscaped{};
+    size_t _sortWidth{}, _mergeStart{}, _mergeLeft{}, _mergeMiddle{}, _mergeRight{}, _mergeLeftCursor{}, _mergeRightCursor{}, _mergeOutput{};
+    bool _mergeRunActive{}, _mergePickReady{}, _mergePickLeft{};
+    bool _sorted{}, _complete{}, _overflow{}, _published{};
+    size_t _lastWork{};
 
     template <typename Map>
     bool AdvanceCore(const std::shared_ptr<const MarkdownSyntax>& syntax, Map&& map, std::optional<MarkdownRange> window, HRESULT& mappingResult)
@@ -151,78 +151,78 @@ private:
             Clear();
             return true;
         }
-        if (published_ && publishedSyntax_.lock() == syntax && publishedWindow_.first <= desired.first && publishedWindow_.last >= desired.last)
+        if (_published && _publishedSyntax.lock() == syntax && _publishedWindow.first <= desired.first && _publishedWindow.last >= desired.last)
         {
             ResetStaging();
             return true;
         }
-        if (syntax_ != syntax || desired.first < window_.first || desired.last > window_.last)
+        if (_syntax != syntax || desired.first < _window.first || desired.last > _window.last)
         {
             ResetStaging();
-            syntax_ = syntax;
-            window_ = desired;
+            _syntax = syntax;
+            _window = desired;
         }
-        if (complete_)
+        if (_complete)
             return true;
-        if (! stagedRanges_)
-            stagedRanges_ = std::make_unique<std::vector<TextInkRange>>(0u);
-        const auto& nodes   = syntax_->Nodes();
-        const auto& inlines = syntax_->Inlines();
-        while (lastWork_ < WorkPerTurn)
+        if (! _stagedRanges)
+            _stagedRanges = std::make_unique<std::vector<TextInkRange>>(0u);
+        const auto& nodes   = _syntax->Nodes();
+        const auto& inlines = _syntax->Inlines();
+        while (_lastWork < WorkPerTurn)
         {
-            if (overflow_)
+            if (_overflow)
             {
                 // Capacity fallback is the exact ordinary source view, never a
                 // partially colored/stale revision or a repeated failed request.
-                events_.clear();
-                mergeBuffer_.clear();
-                ranges_.clear();
-                stagedRanges_->clear();
-                publishedSyntax_ = syntax_;
-                publishedWindow_ = window_;
-                published_       = true;
-                complete_        = true;
+                _events.clear();
+                _mergeBuffer.clear();
+                _ranges.clear();
+                _stagedRanges->clear();
+                _publishedSyntax = _syntax;
+                _publishedWindow = _window;
+                _published       = true;
+                _complete        = true;
                 return true;
             }
-            if (node_ < nodes.size())
+            if (_node < nodes.size())
             {
-                AddNode(nodes[node_++]);
-                ++lastWork_;
+                AddNode(nodes[_node++]);
+                ++_lastWork;
                 continue;
             }
-            if (inline_ < inlines.size())
+            if (_inlineIndex < inlines.size())
             {
-                const auto& item = inlines[inline_];
-                if (inlinePhase_ == InlinePhase::None)
+                const auto& item = inlines[_inlineIndex];
+                if (_inlinePhase == InlinePhase::None)
                 {
                     StartInline(item);
-                    ++lastWork_;
+                    ++_lastWork;
                     continue;
                 }
-                if (inlinePhase_ == InlinePhase::Finished)
+                if (_inlinePhase == InlinePhase::Finished)
                 {
-                    ++inline_;
-                    inlinePhase_ = InlinePhase::None;
+                    ++_inlineIndex;
+                    _inlinePhase = InlinePhase::None;
                     continue;
                 }
                 AdvanceInline(item);
                 continue;
             }
-            if (! sorted_)
+            if (! _sorted)
             {
                 AdvanceMerge();
                 continue;
             }
-            if (event_ < events_.size())
+            if (_event < _events.size())
             {
-                const auto next = events_[event_].position;
-                for (size_t role = counts_.size(); role > 0u; --role)
-                    if (counts_[role - 1u] != 0)
+                const auto next = _events[_event].position;
+                for (size_t role = _counts.size(); role > 0u; --role)
+                    if (_counts[role - 1u] != 0)
                     {
                         std::size_t first{}, last{};
-                        if constexpr (requires { map(previous_, first); })
+                        if constexpr (requires { map(_previous, first); })
                         {
-                            mappingResult = map(previous_, first);
+                            mappingResult = map(_previous, first);
                             if (FAILED(mappingResult))
                                 return false;
                             mappingResult = map(next, last);
@@ -231,53 +231,53 @@ private:
                         }
                         else
                         {
-                            first = map(previous_);
+                            first = map(_previous);
                             last  = map(next);
                         }
                         Append({first, last}, static_cast<TextInkRole>(role - 1u));
                         break;
                     }
-                previous_         = next;
-                const auto& event = events_[event_++];
-                counts_[static_cast<size_t>(event.role)] += event.delta;
-                ++lastWork_;
+                _previous         = next;
+                const auto& event = _events[_event++];
+                _counts[static_cast<size_t>(event.role)] += event.delta;
+                ++_lastWork;
                 continue;
             }
             Publish();
             break;
         }
-        if (node_ == nodes.size() && inline_ == inlines.size() && sorted_ && event_ == events_.size())
-            if (! complete_)
+        if (_node == nodes.size() && _inlineIndex == inlines.size() && _sorted && _event == _events.size())
+            if (! _complete)
                 Publish();
-        return complete_;
+        return _complete;
     }
     void Publish() noexcept
     {
-        ranges_.swap(*stagedRanges_);
-        publishedSyntax_ = syntax_;
-        publishedWindow_ = window_;
-        published_       = true;
-        complete_        = true;
+        _ranges.swap(*_stagedRanges);
+        _publishedSyntax = _syntax;
+        _publishedWindow = _window;
+        _published       = true;
+        _complete        = true;
     }
     void Add(MarkdownRange range, TextInkRole role)
     {
-        range.first = (std::max)(range.first, window_.first);
-        range.last  = (std::min)(range.last, window_.last);
-        if (range.first >= range.last || range.last > syntax_->Source().size() || overflow_)
+        range.first = (std::max)(range.first, _window.first);
+        range.last  = (std::min)(range.last, _window.last);
+        if (range.first >= range.last || range.last > _syntax->Source().size() || _overflow)
             return;
-        if (events_.size() > MaximumEvents - 2u)
+        if (_events.size() > MaximumEvents - 2u)
         {
-            overflow_ = true;
+            _overflow = true;
             return;
         }
-        events_.push_back({range.first, role, 1});
-        events_.push_back({range.last, role, -1});
+        _events.push_back({range.first, role, 1});
+        _events.push_back({range.last, role, -1});
     }
     void Append(MarkdownRange range, TextInkRole role)
     {
         if (range.first == range.last)
             return;
-        auto& ranges = *stagedRanges_;
+        auto& ranges = *_stagedRanges;
         if (! ranges.empty() && ranges.back().role == role && ranges.back().display.last == range.first)
             ranges.back().display.last = range.last;
         else
@@ -286,7 +286,7 @@ private:
     void AddNode(const MarkdownNode& node)
     {
         const auto& block = node.block;
-        if (block.source.last <= window_.first || block.source.first >= window_.last)
+        if (block.source.last <= _window.first || block.source.first >= _window.last)
             return;
         switch (block.kind)
         {
@@ -323,11 +323,11 @@ private:
     }
     void StartInline(const MarkdownInline& item)
     {
-        const auto source = syntax_->Source();
+        const auto source = _syntax->Source();
         const auto range  = item.source;
-        if (range.first >= range.last || range.last > source.size() || range.last <= window_.first || range.first >= window_.last)
+        if (range.first >= range.last || range.last > source.size() || range.last <= _window.first || range.first >= _window.last)
         {
-            inlinePhase_ = InlinePhase::Finished;
+            _inlinePhase = InlinePhase::Finished;
             return;
         }
         if (item.kind == MarkdownInlineKind::Math && range.last - range.first >= 2u && source[range.first] == L'\\' &&
@@ -337,7 +337,7 @@ private:
             const auto close = source[range.first + 1u] == L'(' ? L')' : L']';
             if (range.last - range.first >= 4u && source[range.last - 2u] == L'\\' && source[range.last - 1u] == close)
                 Add({range.last - 2u, range.last}, TextInkRole::Subtle);
-            inlinePhase_ = InlinePhase::Finished;
+            _inlinePhase = InlinePhase::Finished;
             return;
         }
         switch (item.kind)
@@ -352,205 +352,205 @@ private:
             case MarkdownInlineKind::Inserted:
             case MarkdownInlineKind::SourceEditor:
             case MarkdownInlineKind::Math:
-                marker_       = source[range.first];
-                markerCount_  = 0u;
-                scanPosition_ = range.first;
-                inlinePhase_  = InlinePhase::MarkerRun;
+                _marker       = source[range.first];
+                _markerCount  = 0u;
+                _scanPosition = range.first;
+                _inlinePhase  = InlinePhase::MarkerRun;
                 break;
             case MarkdownInlineKind::Link:
             case MarkdownInlineKind::Image:
-                linkLast_    = std::min(range.last, range.first + (item.kind == MarkdownInlineKind::Image ? 2u : 1u));
-                childCursor_ = item.firstChild;
-                inlinePhase_ = InlinePhase::LinkChildren;
+                _linkLast    = std::min(range.last, range.first + (item.kind == MarkdownInlineKind::Image ? 2u : 1u));
+                _childCursor = item.firstChild;
+                _inlinePhase = InlinePhase::LinkChildren;
                 break;
             case MarkdownInlineKind::Html:
                 Add(range, TextInkRole::Subtle);
-                inlinePhase_ = InlinePhase::Finished;
+                _inlinePhase = InlinePhase::Finished;
                 break;
             case ::DxUi::RichText::MarkdownInlineKind::FootnoteReference:
             case ::DxUi::RichText::MarkdownInlineKind::HardBreak:
             case ::DxUi::RichText::MarkdownInlineKind::SoftBreak:
             case ::DxUi::RichText::MarkdownInlineKind::Text:
-            default: inlinePhase_ = InlinePhase::Finished; break;
+            default: _inlinePhase = InlinePhase::Finished; break;
         }
     }
     void FinishMarkerRun(const MarkdownInline& item)
     {
-        if (markerCount_ != 0u)
+        if (_markerCount != 0u)
         {
-            Add({item.source.first, item.source.first + markerCount_}, TextInkRole::Subtle);
-            if (item.source.last >= item.source.first + markerCount_ * 2u)
-                Add({item.source.last - markerCount_, item.source.last}, TextInkRole::Subtle);
+            Add({item.source.first, item.source.first + _markerCount}, TextInkRole::Subtle);
+            if (item.source.last >= item.source.first + _markerCount * 2u)
+                Add({item.source.last - _markerCount, item.source.last}, TextInkRole::Subtle);
         }
-        inlinePhase_ = InlinePhase::Finished;
+        _inlinePhase = InlinePhase::Finished;
     }
     void FinishLinkLabel(const MarkdownInline& item)
     {
         const auto range  = item.source;
-        const auto source = syntax_->Source();
+        const auto source = _syntax->Source();
         if (item.kind == MarkdownInlineKind::Link && source[range.first] != L'[' && source[range.first] != L'<')
         {
             Add(range, TextInkRole::Link);
-            inlinePhase_ = InlinePhase::Finished;
+            _inlinePhase = InlinePhase::Finished;
             return;
         }
-        linkLast_ = std::min(linkLast_, range.last);
+        _linkLast = std::min(_linkLast, range.last);
         Add({range.first, std::min(range.last, range.first + (item.kind == MarkdownInlineKind::Image ? 2u : 1u))}, TextInkRole::Subtle);
-        Add({linkLast_, range.last}, TextInkRole::Subtle);
-        if (linkLast_ + 1u < range.last && source[linkLast_] == L']' && source[linkLast_ + 1u] == L'(')
+        Add({_linkLast, range.last}, TextInkRole::Subtle);
+        if (_linkLast + 1u < range.last && source[_linkLast] == L']' && source[_linkLast + 1u] == L'(')
         {
-            destinationPosition_ = linkLast_ + 2u;
-            inlinePhase_         = InlinePhase::LinkWhitespace;
+            _destinationPosition = _linkLast + 2u;
+            _inlinePhase         = InlinePhase::LinkWhitespace;
             return;
         }
         if (source[range.first] == L'<' && source[range.last - 1u] == L'>')
             Add({range.first + 1u, range.last - 1u}, TextInkRole::Link);
-        inlinePhase_ = InlinePhase::Finished;
+        _inlinePhase = InlinePhase::Finished;
     }
     void FinishLinkDestination(size_t end)
     {
-        Add({destinationFirst_, end}, TextInkRole::Link);
-        inlinePhase_ = InlinePhase::Finished;
+        Add({_destinationFirst, end}, TextInkRole::Link);
+        _inlinePhase = InlinePhase::Finished;
     }
     void AdvanceInline(const MarkdownInline& item)
     {
-        const auto source = syntax_->Source();
-        switch (inlinePhase_)
+        const auto source = _syntax->Source();
+        switch (_inlinePhase)
         {
             case InlinePhase::MarkerRun:
-                if (scanPosition_ < item.source.last && source[scanPosition_] == marker_)
+                if (_scanPosition < item.source.last && source[_scanPosition] == _marker)
                 {
-                    ++scanPosition_;
-                    ++markerCount_;
-                    ++lastWork_;
+                    ++_scanPosition;
+                    ++_markerCount;
+                    ++_lastWork;
                 }
                 else
                     FinishMarkerRun(item);
                 return;
             case InlinePhase::LinkChildren:
-                if (childCursor_ != MarkdownNoNode)
+                if (_childCursor != MarkdownNoNode)
                 {
-                    const auto& child = syntax_->Inlines()[childCursor_];
-                    linkLast_         = std::max(linkLast_, child.source.last);
-                    childCursor_      = child.nextSibling;
-                    ++lastWork_;
+                    const auto& child = _syntax->Inlines()[_childCursor];
+                    _linkLast         = std::max(_linkLast, child.source.last);
+                    _childCursor      = child.nextSibling;
+                    ++_lastWork;
                 }
                 else
                     FinishLinkLabel(item);
                 return;
             case InlinePhase::LinkWhitespace:
-                if (destinationPosition_ < item.source.last && (source[destinationPosition_] == L' ' || source[destinationPosition_] == L'\t' ||
-                                                                source[destinationPosition_] == L'\r' || source[destinationPosition_] == L'\n'))
+                if (_destinationPosition < item.source.last && (source[_destinationPosition] == L' ' || source[_destinationPosition] == L'\t' ||
+                                                                source[_destinationPosition] == L'\r' || source[_destinationPosition] == L'\n'))
                 {
-                    ++destinationPosition_;
-                    ++lastWork_;
+                    ++_destinationPosition;
+                    ++_lastWork;
                     return;
                 }
-                destinationAngle_    = destinationPosition_ < item.source.last && source[destinationPosition_] == L'<';
-                destinationFirst_    = destinationPosition_ + (destinationAngle_ ? 1u : 0u);
-                destinationPosition_ = destinationFirst_;
-                destinationDepth_    = 0u;
-                destinationEscaped_  = false;
-                inlinePhase_         = InlinePhase::LinkBody;
+                _destinationAngle    = _destinationPosition < item.source.last && source[_destinationPosition] == L'<';
+                _destinationFirst    = _destinationPosition + (_destinationAngle ? 1u : 0u);
+                _destinationPosition = _destinationFirst;
+                _destinationDepth    = 0u;
+                _destinationEscaped  = false;
+                _inlinePhase         = InlinePhase::LinkBody;
                 return;
             case InlinePhase::LinkBody:
-                if (destinationPosition_ >= item.source.last)
+                if (_destinationPosition >= item.source.last)
                 {
-                    FinishLinkDestination(destinationPosition_);
+                    FinishLinkDestination(_destinationPosition);
                     return;
                 }
                 {
-                    const auto value = source[destinationPosition_];
-                    ++lastWork_;
-                    if (destinationEscaped_)
-                        destinationEscaped_ = false;
-                    else if (value == L'\\' && destinationPosition_ + 1u < item.source.last)
-                        destinationEscaped_ = true;
-                    else if (destinationAngle_ && value == L'>')
+                    const auto value = source[_destinationPosition];
+                    ++_lastWork;
+                    if (_destinationEscaped)
+                        _destinationEscaped = false;
+                    else if (value == L'\\' && _destinationPosition + 1u < item.source.last)
+                        _destinationEscaped = true;
+                    else if (_destinationAngle && value == L'>')
                     {
-                        FinishLinkDestination(destinationPosition_);
+                        FinishLinkDestination(_destinationPosition);
                         return;
                     }
-                    else if (! destinationAngle_)
+                    else if (! _destinationAngle)
                     {
-                        if ((value == L')' && destinationDepth_ == 0u) || value == L' ' || value == L'\t' || value == L'\r' || value == L'\n')
+                        if ((value == L')' && _destinationDepth == 0u) || value == L' ' || value == L'\t' || value == L'\r' || value == L'\n')
                         {
-                            FinishLinkDestination(destinationPosition_);
+                            FinishLinkDestination(_destinationPosition);
                             return;
                         }
                         if (value == L'(')
-                            ++destinationDepth_;
-                        else if (value == L')' && destinationDepth_ > 0u)
-                            --destinationDepth_;
+                            ++_destinationDepth;
+                        else if (value == L')' && _destinationDepth > 0u)
+                            --_destinationDepth;
                     }
-                    ++destinationPosition_;
+                    ++_destinationPosition;
                 }
                 return;
             case ::DxUi::RichText::Detail::RichSourceInk::InlinePhase::Finished:
             case ::DxUi::RichText::Detail::RichSourceInk::InlinePhase::None:
-            default: inlinePhase_ = InlinePhase::Finished; return;
+            default: _inlinePhase = InlinePhase::Finished; return;
         }
     }
     void AdvanceMerge()
     {
-        const auto count = events_.size();
+        const auto count = _events.size();
         if (count < 2u)
         {
-            sorted_ = true;
+            _sorted = true;
             return;
         }
-        if (sortWidth_ == 0u)
+        if (_sortWidth == 0u)
         {
-            mergeBuffer_.reserve(count);
-            sortWidth_ = 1u;
+            _mergeBuffer.reserve(count);
+            _sortWidth = 1u;
         }
-        if (! mergeRunActive_)
+        if (! _mergeRunActive)
         {
-            if (mergeStart_ >= count)
+            if (_mergeStart >= count)
             {
-                events_.swap(mergeBuffer_);
-                if (sortWidth_ >= count - sortWidth_)
+                _events.swap(_mergeBuffer);
+                if (_sortWidth >= count - _sortWidth)
                 {
-                    sorted_ = true;
+                    _sorted = true;
                     return;
                 }
-                sortWidth_ *= 2u;
-                mergeStart_ = 0u;
-                mergeBuffer_.clear();
+                _sortWidth *= 2u;
+                _mergeStart = 0u;
+                _mergeBuffer.clear();
                 return;
             }
-            mergeLeft_        = mergeStart_;
-            mergeMiddle_      = std::min(count, mergeLeft_ + sortWidth_);
-            mergeRight_       = std::min(count, mergeMiddle_ + sortWidth_);
-            mergeLeftCursor_  = mergeLeft_;
-            mergeRightCursor_ = mergeMiddle_;
-            mergeOutput_      = mergeLeft_;
-            mergeRunActive_   = true;
+            _mergeLeft        = _mergeStart;
+            _mergeMiddle      = std::min(count, _mergeLeft + _sortWidth);
+            _mergeRight       = std::min(count, _mergeMiddle + _sortWidth);
+            _mergeLeftCursor  = _mergeLeft;
+            _mergeRightCursor = _mergeMiddle;
+            _mergeOutput      = _mergeLeft;
+            _mergeRunActive   = true;
         }
-        if (mergePickReady_)
+        if (_mergePickReady)
         {
-            mergeBuffer_.push_back(events_[mergePickLeft_ ? mergeLeftCursor_++ : mergeRightCursor_++]);
-            ++mergeOutput_;
-            mergePickReady_ = false;
-            ++lastWork_;
+            _mergeBuffer.push_back(_events[_mergePickLeft ? _mergeLeftCursor++ : _mergeRightCursor++]);
+            ++_mergeOutput;
+            _mergePickReady = false;
+            ++_lastWork;
         }
-        else if (mergeLeftCursor_ < mergeMiddle_ && mergeRightCursor_ < mergeRight_)
+        else if (_mergeLeftCursor < _mergeMiddle && _mergeRightCursor < _mergeRight)
         {
-            mergePickLeft_  = events_[mergeLeftCursor_].position <= events_[mergeRightCursor_].position;
-            mergePickReady_ = true;
-            ++lastWork_;
+            _mergePickLeft  = _events[_mergeLeftCursor].position <= _events[_mergeRightCursor].position;
+            _mergePickReady = true;
+            ++_lastWork;
         }
-        else if (mergeLeftCursor_ < mergeMiddle_ || mergeRightCursor_ < mergeRight_)
+        else if (_mergeLeftCursor < _mergeMiddle || _mergeRightCursor < _mergeRight)
         {
-            const bool left = mergeLeftCursor_ < mergeMiddle_;
-            mergeBuffer_.push_back(events_[left ? mergeLeftCursor_++ : mergeRightCursor_++]);
-            ++mergeOutput_;
-            ++lastWork_;
+            const bool left = _mergeLeftCursor < _mergeMiddle;
+            _mergeBuffer.push_back(_events[left ? _mergeLeftCursor++ : _mergeRightCursor++]);
+            ++_mergeOutput;
+            ++_lastWork;
         }
-        if (mergeOutput_ == mergeRight_)
+        if (_mergeOutput == _mergeRight)
         {
-            mergeStart_     = mergeRight_;
-            mergeRunActive_ = false;
+            _mergeStart     = _mergeRight;
+            _mergeRunActive = false;
         }
     }
 };

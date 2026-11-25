@@ -24,7 +24,7 @@ class RichImageResources
 {
 public:
     static constexpr std::size_t MaximumSources = 32u, MaximumPlacements = 128u, MaximumDecodedBytes = 67108864u;
-    RichImageResources() : entries_(0u), bindings_(0u)
+    RichImageResources() : _entries(0u), _bindings(0u)
     {
     }
     ~RichImageResources()
@@ -35,22 +35,22 @@ public:
     RichImageResources& operator=(const RichImageResources&) = delete;
     bool Current(const std::shared_ptr<const SemanticDocument>& document, std::uint64_t location, std::uint64_t binding) const noexcept
     {
-        return ! next_ && ! policyChanged_ && ! suspended_ && document_ == document && location_ == location && binding_ == binding;
+        return ! _next && ! _policyChanged && ! _suspended && _document == document && _location == location && _binding == binding;
     }
     bool CurrentForCompletion(const std::shared_ptr<const SemanticDocument>& document, std::uint64_t location, std::uint64_t binding) const noexcept
     {
         // A privacy-only rebuild retains local jobs already held by the caller.
         // Its current local completion must remain admissible before/while the
         // next bounded preparation turn republishes image placements.
-        return document_ == document && location_ == location && binding_ == binding;
+        return _document == document && _location == location && _binding == binding;
     }
     bool RemoteImagesEnabled() const noexcept
     {
-        return remoteEnabled_;
+        return _remoteEnabled;
     }
     void SetRemoteImagesEnabled(bool enabled)
     {
-        if (remoteEnabled_ == enabled)
+        if (_remoteEnabled == enabled)
             return;
         if (! enabled)
             RetireMatching([](const Entry& entry)
@@ -58,50 +58,50 @@ public:
         // Staged jobs were not exposed to the application. Their ownership list
         // excludes retained published local jobs, so this retires remote work
         // without canceling a local decode already held by the application.
-        next_.reset();
-        for (auto& entry : entries_)
+        _next.reset();
+        for (auto& entry : _entries)
             entry.failed = false;
-        remoteEnabled_ = enabled;
-        policyChanged_ = true;
+        _remoteEnabled = enabled;
+        _policyChanged = true;
     }
     bool DataImagesEnabled() const noexcept
     {
-        return dataEnabled_;
+        return _dataEnabled;
     }
     void SetDataImagesEnabled(bool enabled)
     {
-        if (dataEnabled_ == enabled)
+        if (_dataEnabled == enabled)
             return;
         if (! enabled)
             RetireMatching([](const Entry& entry) { return entry.request->sourceKind == RichImageSourceKind::Data; });
-        next_.reset();
-        for (auto& entry : entries_)
+        _next.reset();
+        for (auto& entry : _entries)
             entry.failed = false;
-        dataEnabled_   = enabled;
-        policyChanged_ = true;
+        _dataEnabled   = enabled;
+        _policyChanged = true;
     }
     bool SvgImagesEnabled() const noexcept
     {
-        return svgEnabled_;
+        return _svgEnabled;
     }
     void SetSvgImagesEnabled(bool enabled)
     {
-        if (svgEnabled_ == enabled)
+        if (_svgEnabled == enabled)
             return;
         if (! enabled)
             RetireMatching([](const Entry& entry) { return entry.image && ! entry.image->SvgBytes().empty(); });
-        next_.reset();
-        for (auto& entry : entries_)
+        _next.reset();
+        for (auto& entry : _entries)
             entry.failed = false;
-        svgEnabled_    = enabled;
-        policyChanged_ = true;
+        _svgEnabled    = enabled;
+        _policyChanged = true;
     }
     // Retain only jobs with at least one source occurrence outside the tracked
     // edit. Their results remain private until new semantics confirms ownership.
     void SuspendForEdit(const SourceSnapshot& current, const SourceSnapshot& previous) noexcept
     {
-        next_.reset();
-        if (! document_)
+        _next.reset();
+        if (! _document)
         {
             Cancel();
             return;
@@ -112,13 +112,13 @@ public:
             Cancel();
             return;
         }
-        const auto elements = document_->Elements();
-        for (std::size_t index = 0u; index < entries_.size(); ++index)
+        const auto elements = _document->Elements();
+        for (std::size_t index = 0u; index < _entries.size(); ++index)
         {
-            auto& entry = entries_[index];
+            auto& entry = _entries[index];
             if (! entry.pending)
                 continue;
-            const bool unaffected = std::ranges::any_of(bindings_,
+            const bool unaffected = std::ranges::any_of(_bindings,
                                                         [&](const auto& binding)
             {
                 if (binding.entry != index || binding.element >= elements.size())
@@ -129,30 +129,30 @@ public:
             if (! unaffected)
                 entry.request->cancelled.store(true, std::memory_order_relaxed);
         }
-        suspended_ = true;
+        _suspended = true;
     }
     bool CanCompleteSuspended(std::uint64_t location, std::uint64_t binding) const noexcept
     {
-        return suspended_ && document_ && location_ == location && binding_ == binding;
+        return _suspended && _document && _location == location && _binding == binding;
     }
     void Cancel() noexcept
     {
-        next_.reset();
-        for (auto& entry : entries_)
+        _next.reset();
+        for (auto& entry : _entries)
             if (entry.pending)
                 entry.request->cancelled.store(true, std::memory_order_relaxed);
-        document_.reset();
-        suspended_ = false;
+        _document.reset();
+        _suspended = false;
     }
     void Clear() noexcept
     {
         Cancel();
-        entries_.clear();
-        bindings_.clear();
-        snapshot_.reset();
-        decodedBytes_  = 0u;
-        policyChanged_ = false;
-        snapshotDirty_ = false;
+        _entries.clear();
+        _bindings.clear();
+        _snapshot.reset();
+        _decodedBytes  = 0u;
+        _policyChanged = false;
+        _snapshotDirty = false;
     }
     bool Begin(std::shared_ptr<const SemanticDocument> document, std::wstring_view base, std::uint64_t location, std::uint64_t binding)
     {
@@ -160,23 +160,23 @@ public:
             Failure::FailContract(E_INVALIDARG);
         if (Current(document, location, binding))
             return true;
-        if (next_ && next_->document == document && next_->location == location && next_->binding == binding)
+        if (_next && _next->document == document && _next->location == location && _next->binding == binding)
             return false;
         if (SemanticExtensionAccess::Images(*document).empty())
         {
             Clear();
-            document_ = std::move(document);
-            location_ = location;
-            binding_  = binding;
+            _document = std::move(document);
+            _location = location;
+            _binding  = binding;
             return true;
         }
-        const bool preserveLocal = (suspended_ || (policyChanged_ && document_ == document)) && location_ == location && binding_ == binding;
-        auto staging             = std::make_unique<Stage>(std::move(document), base, location, binding, remoteEnabled_, dataEnabled_);
+        const bool preserveLocal = (_suspended || (_policyChanged && _document == document)) && _location == location && _binding == binding;
+        auto staging             = std::make_unique<Stage>(std::move(document), base, location, binding, _remoteEnabled, _dataEnabled);
         if (preserveLocal)
-            next_.reset();
+            _next.reset();
         else
             Cancel();
-        next_.swap(staging);
+        _next.swap(staging);
         return false;
     }
     bool Advance(std::size_t* workUnits = nullptr)
@@ -185,9 +185,9 @@ public:
         Failure::Scope failureScope;
         if (workUnits)
             *workUnits = 0u;
-        if (! next_)
+        if (! _next)
             return true;
-        auto& stage       = *next_;
+        auto& stage       = *_next;
         const auto images = SemanticExtensionAccess::Images(*stage.document);
         // Match the existing native-object ceiling with diagrams already
         // admitted by the semantic builder; excess images retain their alt.
@@ -244,20 +244,20 @@ public:
             {
                 if (stage.entries.size() == MaximumSources)
                     continue;
-                const auto held = std::ranges::find_if(entries_,
+                const auto held = std::ranges::find_if(_entries,
                                                        [&](const auto& entry)
                 {
-                    return (entry.image || (entry.failed && location_ == stage.location && binding_ == stage.binding) ||
+                    return (entry.image || (entry.failed && _location == stage.location && _binding == stage.binding) ||
                             (entry.pending && ! entry.request->cancelled.load(std::memory_order_relaxed))) &&
                            sameSource(entry);
                 });
-                if (held != entries_.end())
+                if (held != _entries.end())
                     stage.entries.push_back(*held);
                 else
                 {
-                    if (nextId_ == std::numeric_limits<std::uint64_t>::max())
+                    if (_nextId == std::numeric_limits<std::uint64_t>::max())
                         Failure::FailContract(E_BOUNDS);
-                    auto request = std::make_shared<RichImageRequestState>(*path, ++nextId_, kind);
+                    auto request = std::make_shared<RichImageRequestState>(*path, ++_nextId, kind);
                     stage.introduced.push_back(request);
                     stage.entries.push_back({std::move(request), {}, true, false, false});
                 }
@@ -269,18 +269,18 @@ public:
             return false;
         auto snapshot = MakeSnapshot(stage.entries, stage.bindings);
         CancelPublishedExcept(stage.entries);
-        entries_.swap(stage.entries);
-        bindings_.swap(stage.bindings);
-        document_      = stage.document;
-        location_      = stage.location;
-        binding_       = stage.binding;
-        snapshot_      = std::move(snapshot);
-        snapshotDirty_ = false;
+        _entries.swap(stage.entries);
+        _bindings.swap(stage.bindings);
+        _document      = stage.document;
+        _location      = stage.location;
+        _binding       = stage.binding;
+        _snapshot      = std::move(snapshot);
+        _snapshotDirty = false;
         UpdateDecodedBytes();
-        policyChanged_  = false;
-        suspended_      = false;
+        _policyChanged  = false;
+        _suspended      = false;
         stage.committed = true;
-        next_.reset();
+        _next.reset();
         return true;
     }
     catch (const std::bad_alloc&)
@@ -293,72 +293,72 @@ public:
     }
     void Take(std::vector<RichImageRequest>& requests)
     {
-        if (! document_ || next_ || std::none_of(entries_.begin(), entries_.end(), [](const auto& entry) { return entry.pending && ! entry.dispatched; }))
+        if (! _document || _next || std::none_of(_entries.begin(), _entries.end(), [](const auto& entry) { return entry.pending && ! entry.dispatched; }))
         {
             requests.clear();
             return;
         }
         std::vector<RichImageRequest> staged(0u);
-        if (document_ && ! next_)
+        if (_document && ! _next)
         {
-            staged.reserve(entries_.size());
-            for (const auto& entry : entries_)
+            staged.reserve(_entries.size());
+            for (const auto& entry : _entries)
                 if (entry.pending && ! entry.dispatched)
                     staged.push_back(RichImageRequest(entry.request));
         }
         requests.swap(staged);
         // No fallible work follows publication of the caller-owned list.
-        for (auto& entry : entries_)
+        for (auto& entry : _entries)
             if (entry.pending)
                 entry.dispatched = true;
     }
     bool Complete(const RichImageRequest& request, std::shared_ptr<const RichImage> image)
     {
-        if (! document_ || ! request.state_ || request.Cancelled() || (image && ! image->SvgBytes().empty() && ! svgEnabled_))
+        if (! _document || ! request._state || request.Cancelled() || (image && ! image->SvgBytes().empty() && ! _svgEnabled))
             return false;
-        const auto found = std::ranges::find(entries_, request.state_, &Entry::request);
-        if (found == entries_.end() || ! found->pending || ! found->dispatched)
+        const auto found = std::ranges::find(_entries, request._state, &Entry::request);
+        if (found == _entries.end() || ! found->pending || ! found->dispatched)
             return false;
         const auto additional =
-            image && std::none_of(entries_.begin(), entries_.end(), [&](const auto& entry) { return entry.image == image; }) ? image->RetainedBytes() : 0u;
-        const bool fits = image && additional <= MaximumDecodedBytes - decodedBytes_;
+            image && std::none_of(_entries.begin(), _entries.end(), [&](const auto& entry) { return entry.image == image; }) ? image->RetainedBytes() : 0u;
+        const bool fits = image && additional <= MaximumDecodedBytes - _decodedBytes;
         found->pending  = false;
 
         found->failed = ! fits;
         found->request->cancelled.store(true, std::memory_order_relaxed);
         if (fits)
         {
-            decodedBytes_ += additional;
+            _decodedBytes += additional;
             found->image   = std::move(image);
-            snapshotDirty_ = true;
+            _snapshotDirty = true;
         }
-        if (next_)
+        if (_next)
         {
-            const auto staged = std::ranges::find(next_->entries, found->request, &Entry::request);
-            if (staged != next_->entries.end())
+            const auto staged = std::ranges::find(_next->entries, found->request, &Entry::request);
+            if (staged != _next->entries.end())
                 *staged = *found;
         }
         return true;
     }
     bool HasUnpublished() const noexcept
     {
-        return snapshotDirty_;
+        return _snapshotDirty;
     }
     bool ReplaceFrame(const RichImageRequest& request, const std::shared_ptr<const RichImage>& image) noexcept
     {
-        if (! document_ || next_ || ! request.state_ || ! image || (! image->SvgBytes().empty() && ! svgEnabled_))
+        if (! _document || _next || ! request._state || ! image || (! image->SvgBytes().empty() && ! _svgEnabled))
             return false;
-        const auto found = std::ranges::find(entries_, request.state_, &Entry::request);
-        if (found == entries_.end() || found->pending || ! found->image)
+        const auto found = std::ranges::find(_entries, request._state, &Entry::request);
+        if (found == _entries.end() || found->pending || ! found->image)
             return false;
         std::size_t bytes{};
-        for (auto entry = entries_.begin(); entry != entries_.end(); ++entry)
+        for (auto entry = _entries.begin(); entry != _entries.end(); ++entry)
         {
             const auto& pixels = entry == found ? image : entry->image;
             if (! pixels)
                 continue;
             bool duplicate = false;
-            for (auto prior = entries_.begin(); prior != entry; ++prior)
+            for (auto prior = _entries.begin(); prior != entry; ++prior)
                 if ((prior == found ? image : prior->image) == pixels)
                 {
                     duplicate = true;
@@ -374,31 +374,31 @@ public:
         if (found->image != image)
         {
             found->image   = image;
-            decodedBytes_  = bytes;
-            snapshotDirty_ = true;
+            _decodedBytes  = bytes;
+            _snapshotDirty = true;
         }
         return true;
     }
     void Publish()
     {
-        if (! snapshotDirty_)
+        if (! _snapshotDirty)
             return;
-        auto next      = MakeSnapshot(entries_, bindings_);
-        snapshot_      = std::move(next);
-        snapshotDirty_ = false;
+        auto next      = MakeSnapshot(_entries, _bindings);
+        _snapshot      = std::move(next);
+        _snapshotDirty = false;
     }
     std::shared_ptr<const RichImageResourceSet> Snapshot() const noexcept
     {
-        return snapshot_;
+        return _snapshot;
     }
     bool Pending() const noexcept
     {
-        return static_cast<bool>(next_);
+        return static_cast<bool>(_next);
     }
     RichImageResourceStatistics Statistics() const noexcept
     {
-        RichImageResourceStatistics result{.imageElements = bindings_.size(), .requestedSources = entries_.size(), .decodedBytes = decodedBytes_};
-        for (const auto& entry : entries_)
+        RichImageResourceStatistics result{.imageElements = _bindings.size(), .requestedSources = _entries.size(), .decodedBytes = _decodedBytes};
+        for (const auto& entry : _entries)
         {
             if (entry.image)
                 ++result.readySources;
@@ -425,11 +425,11 @@ private:
     {
         std::vector<Entry> retained(0u);
         std::vector<Binding> bindings(0u);
-        retained.reserve(entries_.size());
-        bindings.reserve(bindings_.size());
-        for (const auto& binding : bindings_)
+        retained.reserve(_entries.size());
+        bindings.reserve(_bindings.size());
+        for (const auto& binding : _bindings)
         {
-            const auto& entry = entries_[binding.entry];
+            const auto& entry = _entries[binding.entry];
             if (predicate(entry))
                 continue;
             auto found = std::ranges::find(retained, entry.request, &Entry::request);
@@ -442,10 +442,10 @@ private:
         }
         auto snapshot = MakeSnapshot(retained, bindings);
         CancelPublishedExcept(retained);
-        entries_.swap(retained);
-        bindings_.swap(bindings);
-        snapshot_      = std::move(snapshot);
-        snapshotDirty_ = false;
+        _entries.swap(retained);
+        _bindings.swap(bindings);
+        _snapshot      = std::move(snapshot);
+        _snapshotDirty = false;
         UpdateDecodedBytes();
     }
     struct Stage
@@ -496,32 +496,32 @@ private:
     }
     void CancelPublished() noexcept
     {
-        for (auto& entry : entries_)
+        for (auto& entry : _entries)
             if (entry.pending)
                 entry.request->cancelled.store(true, std::memory_order_relaxed);
     }
     void CancelPublishedExcept(const std::vector<Entry>& retained) noexcept
     {
-        for (auto& entry : entries_)
+        for (auto& entry : _entries)
             if (entry.pending && std::ranges::find(retained, entry.request, &Entry::request) == retained.end())
                 entry.request->cancelled.store(true, std::memory_order_relaxed);
     }
     void UpdateDecodedBytes() noexcept
     {
-        decodedBytes_ = 0u;
-        for (std::size_t index = 0u; index < entries_.size(); ++index)
-            if (entries_[index].image && std::none_of(entries_.begin(), entries_.begin() + static_cast<std::ptrdiff_t>(index), [&](const auto& prior) {
-                return prior.image == entries_[index].image;
+        _decodedBytes = 0u;
+        for (std::size_t index = 0u; index < _entries.size(); ++index)
+            if (_entries[index].image && std::none_of(_entries.begin(), _entries.begin() + static_cast<std::ptrdiff_t>(index), [&](const auto& prior) {
+                return prior.image == _entries[index].image;
             }))
-                decodedBytes_ += entries_[index].image->RetainedBytes();
+                _decodedBytes += _entries[index].image->RetainedBytes();
     }
-    std::vector<Entry> entries_;
-    std::vector<Binding> bindings_;
-    std::shared_ptr<const SemanticDocument> document_;
-    std::shared_ptr<const RichImageResourceSet> snapshot_;
-    std::unique_ptr<Stage> next_;
-    std::uint64_t location_{}, binding_{}, nextId_{};
-    std::size_t decodedBytes_{};
-    bool remoteEnabled_{}, dataEnabled_{}, svgEnabled_{}, policyChanged_{}, snapshotDirty_{}, suspended_{};
+    std::vector<Entry> _entries;
+    std::vector<Binding> _bindings;
+    std::shared_ptr<const SemanticDocument> _document;
+    std::shared_ptr<const RichImageResourceSet> _snapshot;
+    std::unique_ptr<Stage> _next;
+    std::uint64_t _location{}, _binding{}, _nextId{};
+    std::size_t _decodedBytes{};
+    bool _remoteEnabled{}, _dataEnabled{}, _svgEnabled{}, _policyChanged{}, _snapshotDirty{}, _suspended{};
 };
 } // namespace DxUi::RichText::Detail

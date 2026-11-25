@@ -173,12 +173,12 @@ __declspec(noinline) inline void TestFormatBrushCacheGates(GraphicsFixture& gpu)
 class FormatProbe final : public DxUi::Control
 {
 public:
-    FormatProbe(float sizeDip, DWRITE_FONT_WEIGHT weight) noexcept : sizeDip_(sizeDip), weight_(weight)
+    FormatProbe(float sizeDip, DWRITE_FONT_WEIGHT weight) noexcept : _sizeDip(sizeDip), _weight(weight)
     {
     }
     void Paint(DxUi::ControlHost& host) const override
     {
-        auto* const format = host.GetTextFormat(DxUi::FontRole::Body, sizeDip_, weight_, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, false);
+        auto* const format = host.GetTextFormat(DxUi::FontRole::Body, _sizeDip, _weight, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR, false);
         auto* const dc     = host.GetDeviceContext();
         auto* const brush  = host.GetSolidBrush(D2D1::ColorF(0.9f, 0.9f, 0.9f, 1.0f));
         if (format && dc && brush)
@@ -186,8 +186,8 @@ public:
     }
 
 private:
-    float sizeDip_             = 12.0f;
-    DWRITE_FONT_WEIGHT weight_ = DWRITE_FONT_WEIGHT_NORMAL;
+    float _sizeDip             = 12.0f;
+    DWRITE_FONT_WEIGHT _weight = DWRITE_FONT_WEIGHT_NORMAL;
 };
 #pragma warning(pop)
 

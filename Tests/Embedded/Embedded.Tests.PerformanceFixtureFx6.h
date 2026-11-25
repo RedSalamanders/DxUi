@@ -118,50 +118,50 @@ class Scene final : public Scenario
 public:
     ~Scene() override
     {
-        range_.reset();
-        if (site_)
-            site_->root = nullptr;
-        provider_.reset();
-        DxUi::DebugCompletePendingAccessibilityNotificationsForTest(view_.Controls());
-        view_.DisconnectAccessibility();
+        _range.reset();
+        if (_site)
+            _site->root = nullptr;
+        _provider.reset();
+        DxUi::DebugCompletePendingAccessibilityNotificationsForTest(_view.Controls());
+        _view.DisconnectAccessibility();
         DxUi::DebugSetAccessibilityNotificationDeliveryManualForTest(false);
-        DxUi::DebugSetAccessibilitySystemListenersForTest(outerListeners_);
+        DxUi::DebugSetAccessibilitySystemListenersForTest(_outerListeners);
     }
     DxUi::EmbeddedHost* AttachOwnEmbeddedHost(ID3D11Device* device, HRESULT& result) override
     {
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         result = DxUi::GraphicsDevice::Create(device, graphics);
         if (SUCCEEDED(result))
-            result = view_.Attach(std::move(graphics), StoppedTestClock());
+            result = _view.Attach(std::move(graphics), StoppedTestClock());
         if (FAILED(result))
             return nullptr;
         auto theme          = DxUi::MakeDefaultThemePalette(true);
         theme.reducedMotion = true;
-        view_.Controls().SetTheme(theme);
-        return &view_;
+        _view.Controls().SetTheme(theme);
+        return &_view;
     }
     HRESULT Build(Context& context) override
     {
         auto root = std::make_unique<DxUi::Panel>();
-        label_    = root->AddChild<DxUi::Label>(L"Status");
-        label_->SetBounds(D2D1::RectF(8.0f, 8.0f, 240.0f, 32.0f));
-        field_ = root->AddChild<DxUi::TextField>(L"Value");
-        field_->SetBounds(D2D1::RectF(8.0f, 40.0f, 240.0f, 68.0f));
-        field_->SetAccessibleName(L"Entry");
-        slider_ = root->AddChild<DxUi::Slider>();
-        slider_->SetBounds(D2D1::RectF(8.0f, 76.0f, 240.0f, 112.0f));
-        slider_->SetAccessibleName(L"Level");
-        slider_->SetMinimum(0.0);
-        slider_->SetMaximum(200.0);
+        _label    = root->AddChild<DxUi::Label>(L"Status");
+        _label->SetBounds(D2D1::RectF(8.0f, 8.0f, 240.0f, 32.0f));
+        _field = root->AddChild<DxUi::TextField>(L"Value");
+        _field->SetBounds(D2D1::RectF(8.0f, 40.0f, 240.0f, 68.0f));
+        _field->SetAccessibleName(L"Entry");
+        _slider = root->AddChild<DxUi::Slider>();
+        _slider->SetBounds(D2D1::RectF(8.0f, 76.0f, 240.0f, 112.0f));
+        _slider->SetAccessibleName(L"Level");
+        _slider->SetMinimum(0.0);
+        _slider->SetMaximum(200.0);
         auto* splitter = root->AddChild<DxUi::Splitter>();
         splitter->SetBounds(D2D1::RectF(8.0f, 120.0f, 632.0f, 232.0f));
         splitter->SetAccessibleName(L"Panes");
         splitter->SetPosition(100.0f);
-        document_ = root->AddChild<DxUi::TextField>(MakeDocument());
-        document_->SetMultiline(true);
-        document_->SetBounds(D2D1::RectF(8.0f, 240.0f, 632.0f, 472.0f));
-        document_->SetAccessibleName(L"Document");
-        document_->SetVisible(false); // shown for the word walk only, so the other phases neither paint nor copy it
+        _document = root->AddChild<DxUi::TextField>(MakeDocument());
+        _document->SetMultiline(true);
+        _document->SetBounds(D2D1::RectF(8.0f, 240.0f, 632.0f, 472.0f));
+        _document->SetAccessibleName(L"Document");
+        _document->SetVisible(false); // shown for the word walk only, so the other phases neither paint nor copy it
         context.controls.SetRoot(std::move(root));
         return S_OK;
     }
@@ -180,11 +180,11 @@ public:
                 {
                     DxUi::DebugSetAccessibilitySystemListenersForTest(false);
                     DxUi::DebugSetAccessibilityNotificationDeliveryManualForTest(true);
-                    site_ = std::make_shared<Site>();
-                    Succeed(view_.AttachAccessibility(site_, 0x4658360000000001ull, Placement()));
-                    Succeed(view_.GetAccessibilityProvider(provider_.put()));
-                    site_->root = provider_.get();
-                    context.controls.SetFocusControl(slider_, false);
+                    _site = std::make_shared<Site>();
+                    Succeed(_view.AttachAccessibility(_site, 0x4658360000000001ull, Placement()));
+                    Succeed(_view.GetAccessibilityProvider(_provider.put()));
+                    _site->root = _provider.get();
+                    context.controls.SetFocusControl(_slider, false);
                 }
                 break;
             case kMutationsNoClient:
@@ -219,7 +219,7 @@ public:
             }
             case kWordWalk:
                 if (step == 0u)
-                    document_->SetVisible(true);
+                    _document->SetVisible(true);
                 else if (step <= kWordSteps)
                     WordStep();
                 break;
@@ -234,27 +234,27 @@ private:
     }
     void Publish()
     {
-        if (! provider_)
+        if (! _provider)
             return;
         // The previous step's notifications are complete before this publication, as if their delivery always finished
         // first; nothing reaches UI Automation, so counters do not depend on that work item or on the desktop's clients.
-        DxUi::DebugCompletePendingAccessibilityNotificationsForTest(view_.Controls());
-        Succeed(view_.UpdateAccessibility(Placement()));
+        DxUi::DebugCompletePendingAccessibilityNotificationsForTest(_view.Controls());
+        Succeed(_view.UpdateAccessibility(Placement()));
     }
     void Mutate(size_t index) const
     {
         switch (index % 3u)
         {
-            case 0u: label_->SetText(L"Status " + std::to_wstring(index)); break;
-            case 1u: field_->SetText(L"Value " + std::to_wstring(index)); break;
-            default: slider_->SetValue(static_cast<double>(index)); break;
+            case 0u: _label->SetText(L"Status " + std::to_wstring(index)); break;
+            case 1u: _field->SetText(L"Value " + std::to_wstring(index)); break;
+            default: _slider->SetValue(static_cast<double>(index)); break;
         }
     }
     // The document's element, found as a client finds it: by name among the root's children.
     [[nodiscard]] wil::com_ptr_nothrow<ITextRangeProvider> DocumentRange() const
     {
         wil::com_ptr_nothrow<IRawElementProviderFragment> root;
-        Succeed(provider_.query_to(root.put()));
+        Succeed(_provider.query_to(root.put()));
         wil::com_ptr_nothrow<IRawElementProviderFragment> child;
         Succeed(root->Navigate(NavigateDirection_FirstChild, child.put()));
         while (child)
@@ -283,26 +283,26 @@ private:
     }
     void WordStep()
     {
-        if (! range_)
-            range_ = DocumentRange();
+        if (! _range)
+            _range = DocumentRange();
         int moved = 0;
-        Succeed(range_->Move(TextUnit_Character, kWordStride, &moved));
-        Succeed(range_->Move(TextUnit_Word, 1, &moved));
-        Succeed(range_->ExpandToEnclosingUnit(TextUnit_Word));
+        Succeed(_range->Move(TextUnit_Character, kWordStride, &moved));
+        Succeed(_range->Move(TextUnit_Word, 1, &moved));
+        Succeed(_range->ExpandToEnclosingUnit(TextUnit_Word));
         wil::unique_bstr word;
-        Succeed(range_->GetText(-1, word.put()));
+        Succeed(_range->GetText(-1, word.put()));
     }
 
     // Declared first, so the controls and the attachment outlive everything that borrows them.
-    DxUi::EmbeddedHost view_;
-    std::shared_ptr<Site> site_;
-    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> provider_;
-    wil::com_ptr_nothrow<ITextRangeProvider> range_;
-    std::optional<bool> outerListeners_ = DxUi::DebugGetAccessibilitySystemListenersForTest();
-    DxUi::Label* label_                 = nullptr;
-    DxUi::TextField* field_             = nullptr;
-    DxUi::Slider* slider_               = nullptr;
-    DxUi::TextField* document_          = nullptr;
+    DxUi::EmbeddedHost _view;
+    std::shared_ptr<Site> _site;
+    wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> _provider;
+    wil::com_ptr_nothrow<ITextRangeProvider> _range;
+    std::optional<bool> _outerListeners = DxUi::DebugGetAccessibilitySystemListenersForTest();
+    DxUi::Label* _label                 = nullptr;
+    DxUi::TextField* _field             = nullptr;
+    DxUi::Slider* _slider               = nullptr;
+    DxUi::TextField* _document          = nullptr;
 };
 
 inline constexpr Definition kDefinition{
