@@ -4,6 +4,8 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Match real pointer fixture moves to their cursor queries by client point and hit revision.
+- Verify that the slider advances on the dispatcher timeline within the measured logical interval after a stall.
 - Enable the common MSVC parallel compilation setting and apply the requested worker count to MSBuild and the compiler.
 - Declare the pinned Release optimization targets in the consumer interface and verify the explicit source-project import.
 - Share DxUi's Release compiler and linker settings through an explicit native build policy opt-in.

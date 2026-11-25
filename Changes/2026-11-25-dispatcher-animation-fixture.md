@@ -1,1 +1,0 @@
-- Verify that the slider advances on the dispatcher timeline within the measured logical interval after a stall.
