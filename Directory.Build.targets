@@ -45,7 +45,6 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <Target Name="ValidateDxUiBuildConfiguration" BeforeTargets="PrepareForBuild">
-    <Error Condition="!$([System.String]::Copy('$(VCToolsVersion)').StartsWith('$(RequiredMsvcToolsVersion).'))" Text="DxUi requires MSVC build tools $(RequiredMsvcToolsVersion).x; selected $(VCToolsVersion). Install the required C++ tools and select that default toolset." />
     <Error Condition="'$(DxUiDisableStlAnnotations)'!='true' and '$(DxUiDisableStlAnnotations)'!='false'" Text="DxUiDisableStlAnnotations must be true or false and match the consumer." />
     <Error Condition="'$(Platform)'!='x64' and '$(Platform)'!='ARM64'" Text="DxUi supports x64 and ARM64." />
     <Error Condition="'$(Configuration)'!='Debug' and '$(Configuration)'!='Release' and '$(Configuration)'!='ASan Debug'" Text="DxUi supports Debug, Release and ASan Debug." />

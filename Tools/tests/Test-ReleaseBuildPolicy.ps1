@@ -191,6 +191,30 @@ foreach($readOnly in @($true,$false)){
 }
 Write-Host 'PASS CI toolchain verification and missing-family/local-install refusal controls.'
 
+$guardProject = Join-Path $scratch 'MsvcPolicyProbe.vcxproj'
+$guardXml = @'
+<Project>
+    <Import Project="{0}" />
+    <Target Name="PrepareForBuild" />
+</Project>
+'@
+[IO.File]::WriteAllText($guardProject, ($guardXml -f [Security.SecurityElement]::Escape($nativePolicyFile)))
+foreach ($control in @(
+    @{name='matching-family';required='14.52';selected='14.52.37025';accept=$true},
+    @{name='wrong-family';required='14.52';selected='14.51.36900';accept=$false},
+    @{name='wrong-prefix';required='14.52';selected='14.520.1';accept=$false},
+    @{name='no-declared-family';required='';selected='14.51.36900';accept=$true}
+)) {
+    $log = Join-Path $scratch ("msvc-policy-" + $control.name + '.log')
+    & $msbuild $guardProject /nologo /nr:false /t:PrepareForBuild "/p:RequiredMsvcToolsVersion=$($control.required)" "/p:VCToolsVersion=$($control.selected)" *> $log
+    $succeeded = $LASTEXITCODE -eq 0
+    if ($succeeded -ne $control.accept -or
+        (! $control.accept -and ! (Select-String -LiteralPath $log -SimpleMatch "requires MSVC build tools $($control.required).x" -Quiet))) {
+        throw "Unexpected shared MSVC policy result for $($control.name). See $log"
+    }
+}
+Write-Host 'PASS shared MSVC toolset guard and explicit-family controls.'
+
 # Independently broken real metadata must not pass because LTO settings are valid.
 foreach($control in @(
     @{name='warning';configuration='Release';metadata='<ClCompile Update="@(ClCompile)"><WarningLevel>Level4</WarningLevel></ClCompile>';message='/Wall without /WX'},
