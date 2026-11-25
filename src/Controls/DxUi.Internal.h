@@ -662,6 +662,7 @@ struct PaintExtentAccess final
         bool clipSuspended    = false; // the control is undeclared: the clip below is unbounded
         bool outerClipBounded = false;
     };
+#if DXUI_ENABLE_DIAGNOSTICS
     // The frame verifier's reference paint (test programs only; RetainedCaches.Tests.Hooks.h). While it lives, culling and ink
     // escape are off, and the host's retained caches (brushes, formats, text layouts, transition brushes), its paint region, its
     // new-escape note, the paint observer and the work counters are set aside; its end puts each back exactly as the frame left
@@ -693,6 +694,7 @@ struct PaintExtentAccess final
         std::vector<wil::com_ptr<ID2D1SolidColorBrush>> _transitionBrushes;
         size_t _transitionBrushesUsed = 0u;
     };
+#endif
     // Brackets one control's PaintOverlay: the overlay pass follows the culling rule of the paint pass, so below an undeclared
     // control (which may draw its overlay content anywhere) the paint clip is unbounded.
     struct OverlayScope final
@@ -711,8 +713,14 @@ namespace Detail
 // culled: the same-binary comparison of W4.10 (test seam, RetainedCaches.Tests.Hooks.h).
 [[nodiscard]] bool PaintRegionsEnabled() noexcept;
 // Set only while the frame verifier of a test program (RetainedCaches.Tests.Hooks.h) paints its whole reference frame: that
-// paint keeps no ink escape (PaintingScope) and changes no state a frame leaves behind.
+// paint keeps no ink escape (PaintingScope) and changes no state a frame leaves behind. Only a diagnostics build has the
+// verifier (src/Rendering/Embedded.cpp); without diagnostics the name is a compile-time false, so every reader compiles
+// unchanged and its branch folds away.
+#if DXUI_ENABLE_DIAGNOSTICS
 inline thread_local bool g_paintVerificationActive = false;
+#else
+inline constexpr bool g_paintVerificationActive = false;
+#endif
 } // namespace Detail
 struct safearray_deleter
 {

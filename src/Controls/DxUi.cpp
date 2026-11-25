@@ -1939,6 +1939,7 @@ PaintExtentAccess::OverlayScope::~OverlayScope()
         host._paintClipBounded = true;
 }
 
+#if DXUI_ENABLE_DIAGNOSTICS
 PaintExtentAccess::VerificationScope::VerificationScope(ControlHost& host) noexcept
     : _host(host),
       _work(Detail::Work()),
@@ -1989,6 +1990,7 @@ PaintExtentAccess::VerificationScope::~VerificationScope()
     Detail::SetPaintObserverForTest(_observer, _observerContext);
     Detail::Work() = _work;
 }
+#endif
 
 Control::~Control()
 {
