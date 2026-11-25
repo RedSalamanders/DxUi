@@ -1,1 +1,0 @@
-- Keep Alt+Enter under application control in native HWND swap-chain hosts.
