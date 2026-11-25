@@ -1,0 +1,1 @@
+- Build the Windows image path in one reserved string and keep every decode allocation observation in the failure log.

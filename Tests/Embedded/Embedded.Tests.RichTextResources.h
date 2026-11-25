@@ -1790,7 +1790,8 @@ static void TestRichImageDecodeMemory()
     for (const auto& scenario : scenarios)
         measure(scenario, false);
     measure(scenarios.back(), true);
-    // Every scenario is reported before the first verdict.
+    // Flush every observation before a failed assertion can end the process.
+    std::cout.flush();
     for (const auto& [pointer, fromFile, observation, image] : measured)
     {
         const auto& scenario = *pointer;

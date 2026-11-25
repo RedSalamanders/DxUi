@@ -85,6 +85,15 @@ template <typename Check> inline void Paths(Check&& check)
               ! SameLocalImagePath(L"C:\\Docs\\a.png", L"C:\\docs\\a.png"),
           "resource keys coalesce Windows roots while preserving case-sensitive file/directory spelling");
     check(NormalizeDocumentFilePath(L"C:/docs/../note.md") == L"C:\\note.md", "document metadata uses a lexical canonical absolute spelling");
+    std::wstring nativePath;
+    check(TryNormalizeDocumentFilePath(L"C:/docs/../note.md", nativePath, true) == DxUi::RichText::SourceResult::Success && nativePath == L"\\\\?\\C:\\note.md",
+          "native file opens use the same normalized drive path with its extended prefix");
+    check(TryNormalizeDocumentFilePath(L"\\\\?\\UNC\\Server\\Share\\a.png", nativePath, true) == DxUi::RichText::SourceResult::Success &&
+              nativePath == L"\\\\?\\UNC\\Server\\Share\\a.png",
+          "native file opens preserve the extended UNC server, share and component spellings");
+    check(TryNormalizeDocumentFilePath(L"\\\\?\\C:\\docs\\..\\a.png", nativePath, true) == DxUi::RichText::SourceResult::InvalidSource &&
+              nativePath == L"\\\\?\\UNC\\Server\\Share\\a.png",
+          "ambiguous extended paths preserve the previous native path");
     std::wstring retainedPath = L"retained";
     check(TryNormalizeDocumentFilePath(L"relative/file.md", retainedPath) == DxUi::RichText::SourceResult::InvalidSource && retainedPath == L"retained",
           "invalid document location preserves the previous canonical path");
