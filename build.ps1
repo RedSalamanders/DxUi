@@ -7,7 +7,7 @@ milliseconds diagnose build orchestration; they are not native workload measurem
 .PARAMETER OutputRoot Optional isolated output root; defaults to this checkout's .build directory.
 .PARAMETER Clean Clean first-party artifacts for the selected profile without requiring dependency restore.
 .PARAMETER Rebuild Clean and compile the selected profile.
-.PARAMETER MaxCpuCount Bound MSBuild's worker processes. Zero uses the existing tool default.
+.PARAMETER MaxCpuCount Bound MSBuild workers and compiler processes per project. Zero uses each tool's default.
 .PARAMETER Analyze Runs MSVC code analysis on the checkout's solution under .build/analysis.
 .PARAMETER ProductionOnly Build only the Release library target; excludes test executables from the production role.
 .PARAMETER Projects Optional union of owned native project names. Builds their library dependency too and publishes only selected-target evidence. Omit for a full solution build.
@@ -308,9 +308,20 @@ $logDirectory = Join-Path $output 'logs'
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 $log = Join-Path $logDirectory ("build-$Platform-$Configuration-" + [guid]::NewGuid().ToString('N') + '.log')
 $workerArgument = if ($MaxCpuCount) { "/m:$MaxCpuCount" } else { '/m' }
-$arguments = @((Join-Path $buildRoot 'DxUi.sln'), $workerArgument, '/nologo', '/verbosity:minimal', "/t:$target",
-    "/p:Configuration=$Configuration", "/p:Platform=$Platform", "/p:DxUiOutputRoot=$output",
-    "/flp:logfile=$log;verbosity=normal;encoding=UTF-8")
+$arguments = @(
+    (Join-Path $buildRoot 'DxUi.sln')
+    $workerArgument
+    '/nologo'
+    '/verbosity:minimal'
+    "/t:$target"
+    "/p:Configuration=$Configuration"
+    "/p:Platform=$Platform"
+    "/p:DxUiOutputRoot=$output"
+    "/flp:logfile=$log;verbosity=normal;encoding=UTF-8"
+    if ($MaxCpuCount) {
+        "/p:CL_MPCount=$MaxCpuCount"
+    }
+)
 if ($ProductionOnly) {
     if ($Configuration -ne 'Release') { throw 'ProductionOnly requires Release.' }
     $arguments[4] = if ($target -eq 'Build') { '/t:DxUi' } else { "/t:DxUi:$target" }

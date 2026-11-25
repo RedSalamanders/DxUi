@@ -1291,6 +1291,7 @@ Invoke-FixtureCase 'default build entrypoint rebuilds stale inputs and preserves
         $clean = & $stage x64 Release $false $false -Clean -MaxCpuCount 2 6>$null
         Assert-Contains $clean.arguments '/t:Clean' 'the standalone clean keeps its target'
         Assert-Contains $clean.arguments '/m:2' 'the requested MSBuild worker count is forwarded'
+        Assert-Contains $clean.arguments '/p:CL_MPCount=2' 'the requested compiler worker count is forwarded'
         Assert-True ($null -eq $clean.state) 'the Clean route publishes no build attestation'
         $path = Join-Path $fixture '.build/toolchain/compiler.bin'
         [IO.File]::WriteAllText($path, 'changed compiler bytes')
