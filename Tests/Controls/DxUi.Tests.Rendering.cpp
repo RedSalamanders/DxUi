@@ -3050,22 +3050,28 @@ void TestAttachedHostInitialRootChildBatchFlushFailuresRecover()
     Require(window.Host().DebugCaptureBitmap(recoveredFrame), "a later full capture recovers after an ordinary flush failure");
     Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 9u, "recovery resubmits at most eight batches from the beginning");
 
-    window.Host().DebugSimulateDeviceLoss();
-    window.Host().DebugSetNextInitialRootChildBatchFlushResultForTest(D2DERR_RECREATE_TARGET);
-    WindowHostBitmapCapture lostFrame;
-    Require(! window.Host().DebugCaptureBitmap(lostFrame), "a device-loss HRESULT from Flush rejects the capture");
-    WindowHostBitmapCapture afterLoss;
-    Require(window.Host().DebugCaptureBitmap(afterLoss), "the next full frame recreates device resources and recovers");
-    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 18u,
-            "device-loss Flush failure stops the current batch sequence and recovery receives a fresh quota");
+    for (const HRESULT failure : {D2DERR_RECREATE_TARGET, DXGI_ERROR_DRIVER_INTERNAL_ERROR})
+    {
+        window.Host().DebugSimulateDeviceLoss();
+        const uint64_t beforeLoss = window.Host().DebugGetInitialRootChildBatchFlushCount();
+        window.Host().DebugSetNextInitialRootChildBatchFlushResultForTest(failure);
+        WindowHostBitmapCapture lostFrame;
+        Require(! window.Host().DebugCaptureBitmap(lostFrame), "a device-loss HRESULT from Flush rejects the capture");
+        Require(! window.Host().DebugHasD2DContext(), "the failed Flush discards the device context before retrying");
+        WindowHostBitmapCapture afterLoss;
+        Require(window.Host().DebugCaptureBitmap(afterLoss), "the next full frame recreates device resources and recovers");
+        Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeLoss + 9u,
+                "device-loss Flush failure stops the current batch sequence and recovery receives a fresh quota");
+    }
 
     window.Host().DebugSimulateDeviceLoss();
+    const uint64_t beforeEndDrawFailure = window.Host().DebugGetInitialRootChildBatchFlushCount();
     window.Host().DebugSetNextInitialRootChildBatchEndDrawResultForTest(E_FAIL);
     WindowHostBitmapCapture failedEndDrawFrame;
     Require(! window.Host().DebugCaptureBitmap(failedEndDrawFrame), "an EndDraw failure after successful batches rejects capture");
     WindowHostBitmapCapture afterEndDrawFailure;
     Require(window.Host().DebugCaptureBitmap(afterEndDrawFailure), "a later full frame recovers after EndDraw failure");
-    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == 34u,
+    Require(window.Host().DebugGetInitialRootChildBatchFlushCount() == beforeEndDrawFailure + 16u,
             "EndDraw failure preserves the successful flush sequence and recovery receives a fresh quota");
 }
 
