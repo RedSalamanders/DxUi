@@ -9,6 +9,7 @@
 #include "Support.Tests.FailureHost.h"
 #include "Support.Tests.FailureReports.h"
 #include "Support.Tests.ForegroundThief.h"
+#include "Support.Tests.FrameVerifier.h"
 #include "Support.Tests.PerformanceCapture.h"
 #include "Support.Tests.PreparedTreeSemanticFixture.h"
 #include <optional>
@@ -578,6 +579,10 @@ int wmain(int argc, wchar_t** argv)
         uint64_t verifiedBefore = 0u, mismatchesBefore = 0u;
         DxUi::DebugGetAccessibilityIncrementalVerificationTotalsForTest(verifiedBefore, mismatchesBefore);
         DxUi::DebugSetAccessibilityIncrementalVerificationForTest(true);
+        // W4.10: every embedded preparation that paints a region or culls is checked against a whole repaint (DXUI_FRAME_VERIFY).
+        const FrameVerifier::Totals framesBefore = FrameVerifier::Read();
+        std::optional<FrameVerifier::Scope> frameVerifier;
+        frameVerifier.emplace();
 #endif
         {
             std::optional<DxUi::TestSupport::ScopedTestDeadline> fixtureDeadline;
@@ -586,6 +591,13 @@ int wmain(int argc, wchar_t** argv)
             suite();
         }
 #if DXUI_ENABLE_DIAGNOSTICS && defined(_DEBUG)
+        frameVerifier.reset();
+        const FrameVerifier::Totals framesAfter = FrameVerifier::Read();
+        std::cerr << "[W4.10-VERIFY] " << name << ": verified " << (framesAfter.verified - framesBefore.verified) << ", mismatches "
+                  << (framesAfter.mismatches - framesBefore.mismatches) << '\n'
+                  << std::flush;
+        Require(framesAfter.mismatches == framesBefore.mismatches,
+                "W4.10: every region or culled frame equals the same scene painted whole with regions and culling off");
         DxUi::DebugSetAccessibilityIncrementalVerificationForTest(false);
         uint64_t verifiedAfter = 0u, mismatchesAfter = 0u;
         DxUi::DebugGetAccessibilityIncrementalVerificationTotalsForTest(verifiedAfter, mismatchesAfter);

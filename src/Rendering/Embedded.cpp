@@ -5,6 +5,7 @@
 #include "Controls/DxUi.TextEditHistory.h"
 #include "Support/Diagnostics.h"
 #include "Support/NativeRendering.h"
+#include "Support/RetainedCaches.Tests.Hooks.h"
 #include "Support/Trace.h"
 #include <DxUi/Embedded.h>
 #include <DxUi/FrameRuntime.h>
@@ -12,10 +13,16 @@
 #include <DxUiCompositePS.h>
 #include <DxUiCompositeVS.h>
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <cstring>
+#include <format>
 #include <limits>
 #include <new>
+#include <string>
+#include <typeinfo>
 #include <utility>
+#include <vector>
 #include <wil/result.h>
 
 namespace DxUi
@@ -568,6 +575,205 @@ EmbeddedAnimationRequest EmbeddedHost::AdvanceAnimation(uint64_t tick) noexcept
     // A Tick may have hidden, detached or destroyed this view's tree: the request is read again from what is left.
     return ReportRequest();
 }
+#if DXUI_ENABLE_DIAGNOSTICS
+namespace
+{
+// The frame verifier of paint regions and culling (W4.10): a test hook, dormant until a test program turns it on
+// (RetainedCaches.Tests.Hooks.h). It owns nothing between preparations: its scratch surface is made and released per check.
+std::atomic<bool> g_paintRegionVerification{false};
+std::atomic<uint64_t> g_paintRegionVerified{0u};
+std::atomic<uint64_t> g_paintRegionMismatches{0u};
+std::atomic<Detail::PaintRegionMismatchObserver> g_paintRegionMismatchObserver{nullptr};
+
+[[nodiscard]] HRESULT ReadTexturePixels(ID3D11Device& device, ID3D11Texture2D& texture, std::vector<uint8_t>& pixels) noexcept
+{
+    try
+    {
+        D3D11_TEXTURE2D_DESC desc{};
+        texture.GetDesc(&desc);
+        desc.BindFlags      = 0u;
+        desc.MiscFlags      = 0u;
+        desc.Usage          = D3D11_USAGE_STAGING;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        wil::com_ptr_nothrow<ID3D11Texture2D> staging;
+        RETURN_IF_FAILED(device.CreateTexture2D(&desc, nullptr, staging.put()));
+        wil::com_ptr_nothrow<ID3D11DeviceContext> context;
+        device.GetImmediateContext(context.put());
+        context->CopyResource(staging.get(), &texture);
+        D3D11_MAPPED_SUBRESOURCE mapped{};
+        RETURN_IF_FAILED(context->Map(staging.get(), 0u, D3D11_MAP_READ, 0u, &mapped));
+        const auto unmap = wil::scope_exit([&]() noexcept { context->Unmap(staging.get(), 0u); });
+        pixels.resize(static_cast<size_t>(desc.Width) * desc.Height * 4u);
+        for (UINT row = 0u; row < desc.Height; ++row)
+            std::copy_n(static_cast<const uint8_t*>(mapped.pData) + static_cast<size_t>(mapped.RowPitch) * row,
+                        static_cast<size_t>(desc.Width) * 4u,
+                        pixels.data() + static_cast<size_t>(row) * desc.Width * 4u);
+        return S_OK;
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+}
+
+// The path of class names to the deepest visible control whose bounds hold `point` (DIPs of `parent`'s children's space),
+// through scroll offsets: a mismatch report's hint at what drew the first differing pixel.
+void DescribeControlAt(const Control& control, D2D1_POINT_2F point, std::string& path)
+{
+    const D2D1_RECT_F bounds = control.GetBounds();
+    if (! control.IsVisible() || point.x < bounds.left || point.y < bounds.top || point.x >= bounds.right || point.y >= bounds.bottom)
+        return;
+    path += path.empty() ? "" : " > ";
+    path += typeid(control).name();
+    if (const auto* scroll = dynamic_cast<const ScrollPanel*>(&control))
+        point.y += scroll->GetScrollOffset();
+    for (size_t index = control.GetLogicalChildCount(); index-- > 0u;)
+        if (const Control* child = control.GetLogicalChild(index))
+        {
+            const size_t before = path.size();
+            DescribeControlAt(*child, point, path);
+            if (path.size() != before)
+                return;
+        }
+}
+
+// Paints the scene again, whole, with regions and culling off, into a scratch surface of the same size and DPI, and compares
+// it with the frame `surface` holds. `paintWhole` is the preparation's own paint of the whole view.
+template <typename Region, typename PaintWhole>
+void VerifyPaintedFrame(ControlHost& host,
+                        ID2D1DeviceContext& dc,
+                        ID3D11Device& device,
+                        ID3D11Texture2D* surface,
+                        ID2D1Bitmap1* target,
+                        float dpi,
+                        const Region& region,
+                        bool regionFrame,
+                        const PaintWhole& paintWhole) noexcept
+{
+    if (! surface || ! target)
+        return;
+    // Neither its allocations nor its creations are the frame's (the test program's allocation counts leave it out).
+    if (const auto observer = Detail::verificationScopeObserver)
+        observer(true);
+    const auto leave = wil::scope_exit([]() noexcept
+    {
+        if (const auto observer = Detail::verificationScopeObserver)
+            observer(false);
+    });
+    try
+    {
+        std::vector<uint8_t> frame, reference;
+        D3D11_TEXTURE2D_DESC desc{};
+        surface->GetDesc(&desc);
+        {
+            const PaintExtentAccess::VerificationScope verifying(host);
+            wil::com_ptr_nothrow<ID3D11Texture2D> scratch;
+            if (FAILED(device.CreateTexture2D(&desc, nullptr, scratch.put())))
+                return;
+            wil::com_ptr_nothrow<IDXGISurface> scratchSurface;
+            if (FAILED(scratch->QueryInterface(IID_PPV_ARGS(scratchSurface.put()))))
+                return;
+            const auto properties = D2D1::BitmapProperties1(
+                D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW, D2D1::PixelFormat(desc.Format, D2D1_ALPHA_MODE_PREMULTIPLIED), dpi, dpi);
+            wil::com_ptr_nothrow<ID2D1Bitmap1> bitmap;
+            if (FAILED(CountedCreateBitmapFromDxgiSurface(&dc, scratchSurface.get(), &properties, bitmap.put())))
+                return;
+            dc.SetTarget(bitmap.get());
+            const auto restoreTarget = wil::scope_exit([&]() noexcept { dc.SetTarget(target); });
+            dc.BeginDraw();
+            dc.SetTransform(D2D1::Matrix3x2F::Identity());
+            const bool painted = paintWhole();
+            if (FAILED(Detail::EndDrawNative(&dc)) || ! painted)
+                return;
+            if (FAILED(ReadTexturePixels(device, *surface, frame)) || FAILED(ReadTexturePixels(device, *scratch, reference)))
+                return;
+        }
+        g_paintRegionVerified.fetch_add(1u, std::memory_order_relaxed);
+        if (frame.size() != reference.size())
+            return;
+        uint64_t differing = 0u;
+        UINT left = desc.Width, top = desc.Height, right = 0u, bottom = 0u;
+        size_t first = 0u;
+        for (size_t offset = 0u; offset + 4u <= frame.size(); offset += 4u)
+        {
+            if (std::memcmp(&frame[offset], &reference[offset], 4u) == 0)
+                continue;
+            const UINT x = static_cast<UINT>((offset / 4u) % desc.Width), y = static_cast<UINT>((offset / 4u) / desc.Width);
+            if (differing++ == 0u)
+                first = offset;
+            left   = (std::min)(left, x);
+            top    = (std::min)(top, y);
+            right  = (std::max)(right, x + 1u);
+            bottom = (std::max)(bottom, y + 1u);
+        }
+        if (differing == 0u)
+            return;
+        g_paintRegionMismatches.fetch_add(1u, std::memory_order_relaxed);
+        std::string rects;
+        if (regionFrame)
+            for (size_t index = 0u; index < region.count; ++index)
+                rects +=
+                    std::format(" [{},{},{},{})", region.rects[index].left, region.rects[index].top, region.rects[index].right, region.rects[index].bottom);
+        const auto bgra = [](const std::vector<uint8_t>& pixels, size_t offset)
+        { return std::format("{:02X}{:02X}{:02X}{:02X}", pixels[offset], pixels[offset + 1u], pixels[offset + 2u], pixels[offset + 3u]); };
+        std::string under;
+        if (const Control* root = host.GetRoot())
+            DescribeControlAt(*root,
+                              D2D1::Point2F((static_cast<float>((first / 4u) % desc.Width) + 0.5f) * 96.0f / dpi,
+                                            (static_cast<float>((first / 4u) / desc.Width) + 0.5f) * 96.0f / dpi),
+                              under);
+        const std::string description =
+            std::format("W4.10 frame verifier: {} pixels differ inside [{},{},{},{}) of a {}x{} frame at {} DPI ({}{}); first ({},{}) frame {} whole {}, "
+                        "under {}",
+                        differing,
+                        left,
+                        top,
+                        right,
+                        bottom,
+                        desc.Width,
+                        desc.Height,
+                        dpi,
+                        regionFrame ? "region frame, rectangles" : "whole frame with culling",
+                        rects,
+                        (first / 4u) % desc.Width,
+                        (first / 4u) / desc.Width,
+                        bgra(frame, first),
+                        bgra(reference, first),
+                        under.empty() ? std::string("no control") : under);
+        if (const auto observer = g_paintRegionMismatchObserver.load(std::memory_order_acquire))
+            observer(description.c_str());
+    }
+    catch (const std::bad_alloc&)
+    {
+        Failure::FailAllocation();
+    }
+    catch (const std::exception&)
+    {
+        Failure::FailUnexpected();
+    }
+}
+} // namespace
+namespace Detail
+{
+void SetPaintRegionVerificationForTest(bool verify) noexcept
+{
+    g_paintRegionVerification.store(verify, std::memory_order_release);
+}
+bool GetPaintRegionVerificationForTest() noexcept
+{
+    return g_paintRegionVerification.load(std::memory_order_acquire);
+}
+void GetPaintRegionVerificationTotalsForTest(uint64_t& verified, uint64_t& mismatches) noexcept
+{
+    verified   = g_paintRegionVerified.load(std::memory_order_relaxed);
+    mismatches = g_paintRegionMismatches.load(std::memory_order_relaxed);
+}
+void SetPaintRegionMismatchObserverForTest(PaintRegionMismatchObserver observer) noexcept
+{
+    g_paintRegionMismatchObserver.store(observer, std::memory_order_release);
+}
+} // namespace Detail
+#endif
 HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
 {
     const Failure::Scope failureScope;
@@ -718,6 +924,7 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         const bool dpiChanged = s.dpi != dpi;
         s.dpi                 = dpi;
         _host._dpi            = static_cast<UINT>(dpi);
+        _host._paintDpi       = dpi; // the region and the cull snap with the DPI the surface is painted at (W4.10)
         _host._widthPx        = width;
         _host._heightPx       = height;
         _host._d2dContext->SetDpi(dpi, dpi);
@@ -825,7 +1032,10 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
                 }
                 if (! treeStillCurrent())
                     return false;
-                _host._root->PaintOverlay(_host);
+                {
+                    const PaintExtentAccess::OverlayScope overlay(_host, *_host._root);
+                    _host._root->PaintOverlay(_host);
+                }
                 if (! treeStillCurrent())
                     return false;
             }
@@ -840,6 +1050,11 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         const D2D1_RECT_F surfaceDip = D2D1::RectF(0.0f, 0.0f, float(width) * 96.0f / dpi, float(height) * 96.0f / dpi);
         _host._paintInkEscapedNew    = false;
         bool paintedWhole            = ! partial;
+#if DXUI_ENABLE_DIAGNOSTICS
+        // What the frame verifier needs to know of this paint (a test hook; RetainedCaches.Tests.Hooks.h).
+        const uint64_t culledBefore       = Detail::Work().frame.paintCulled;
+        const uint64_t clipsSkippedBefore = Detail::Work().frame.clipPushesSkipped;
+#endif
         if (partial)
         {
             const float toDip = 96.0f / dpi;
@@ -866,6 +1081,23 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         RETURN_IF_FAILED(tracedResult);
         if (! preparationIsCurrent())
             return E_ABORT;
+#if DXUI_ENABLE_DIAGNOSTICS
+        // The frame verifier of a test program (W4.10): a frame that painted a region, culled a child or skipped a clip equals the
+        // same scene painted whole with regions and culling off.
+        if (g_paintRegionVerification.load(std::memory_order_acquire)) [[unlikely]]
+        {
+            const auto& frameWork = Detail::Work().frame;
+            const bool culled     = frameWork.paintCulled != culledBefore || frameWork.clipPushesSkipped != clipsSkippedBefore;
+            if ((partial && ! paintedWhole) || culled)
+            {
+                VerifyPaintedFrame(_host, *dc, *g.device, s.texture.get(), s.bitmap.get(), dpi, region, partial && ! paintedWhole, [&]() {
+                    return paintArea(surfaceDip, false);
+                });
+                if (! preparationIsCurrent())
+                    return E_ABORT;
+            }
+        }
+#endif
         regionLost.release();
         s.preparedResourceGeneration  = _host._resourceGeneration;
         s.preparedInteractionRevision = interactionRevision;

@@ -7091,6 +7091,7 @@ try
         }
         if (_root)
         {
+            const PaintExtentAccess::OverlayScope overlay(*this, *_root);
             _root->PaintOverlay(*this);
         }
         if (! treeStillCurrent())
@@ -7915,7 +7916,7 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
             Control* const oldHover                   = _hoveredControl;
             const std::weak_ptr<int> oldHoverLifetime = oldHover->GetLifetimeToken();
             // W4.10: hover is painted state no control invalidates for: the region takes the old and the new hovered control.
-            PaintExtentAccess::AddToRegion(*this, *oldHover, true);
+            PaintExtentAccess::AddHoverChange(*this, *oldHover);
             static_cast<void>(TryControlCallback([&] { oldHover->OnHoverChanged(*this, false); }));
             if (_interactionRevision != interactionRevision)
                 return;
@@ -7936,7 +7937,7 @@ void ControlHost::UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept
             if (_interactionRevision != interactionRevision)
                 return;
             if (_hoveredControl)
-                PaintExtentAccess::AddToRegion(*this, *_hoveredControl, true);
+                PaintExtentAccess::AddHoverChange(*this, *_hoveredControl);
         }
         hoverChanged = true;
     }

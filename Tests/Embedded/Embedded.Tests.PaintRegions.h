@@ -379,8 +379,8 @@ __declspec(noinline) inline void TestEnclosedClipIsNotPushed(GraphicsFixture& gp
               << changed.frame.paintExecutions << " paints, " << changed.frame.paintCulled << " culled\n";
     Check(changed.frame.paintRegionRects == 1u && changed.frame.paintRegionFull == 0u, "the changed row repaints a region");
     Check(changed.frame.clipPushesSkipped == 1u, "W4.10: the ScrollPanel pushes no clip when the region lies inside its viewport (0 inner pushes)");
-    // The root, the ScrollPanel and the changed row; at most its neighbours touching the snapped rectangle.
-    Check(changed.frame.paintExecutions <= 5u, "W4.10: the region paints the changed row and its ancestors");
+    // The ScrollPanel, the changed row and the rows whose extent (3 DIP reach) meets its snapped rectangle: 5, measured.
+    Check(changed.frame.paintExecutions == 5u, "W4.10: the region paints the changed row, its ancestors and the rows its rectangle meets");
     std::cout << "PASS W4.10 enclosed clips emit no inner PushAxisAlignedClip\n";
 }
 
@@ -443,17 +443,20 @@ __declspec(noinline) inline void TestUndeclaredControlsRepaintTheWholeView(Graph
 // extent is unbounded in a state (an open ComboBox popup, text that escaped) has nothing to bound and is counted apart.
 // Not covered here: TooltipLayer (the host's own layer, never in a tree; the host repaints the whole view for every
 // tooltip change), PageHost during a transition (unbounded by declaration) and the ComboBox popup and Menu popups (W2.4).
-__declspec(noinline) inline void TestDeclaredReachCoversEveryPixel(GraphicsFixture& gpu)
+// Tree and Grid borrow a model the probe keeps alive.
+using ReachAdd = DxUi::Control* (*)(DxUi::Panel&, std::vector<std::shared_ptr<void>>&);
+struct ReachCase final
 {
-    // Tree and Grid borrow a model the probe keeps alive.
-    using Add = DxUi::Control* (*)(DxUi::Panel&, std::vector<std::shared_ptr<void>>&);
-    struct Case final
-    {
-        const char* name;
-        Add add;
-        D2D1_SIZE_F size;
-    };
-    const std::vector<Case> cases{
+    const char* name;
+    ReachAdd add;
+    D2D1_SIZE_F size;
+};
+// Every library control kind at its usual size and at the sizes that maximise its reach (the reach verifier's cases, also
+// sampled mid-animation by TestReachMidAnimation).
+[[nodiscard]] inline std::vector<ReachCase> ReachCases()
+{
+    using Case = ReachCase;
+    return std::vector<Case>{
         {"Label", [](DxUi::Panel& r, auto&) -> DxUi::Control* { return r.AddChild<DxUi::Label>(L"Label text gjpqy"); }, {120, 24}},
         {"Label (wrapped, overflowing)",
          [](DxUi::Panel& r, auto&) -> DxUi::Control*
@@ -669,6 +672,12 @@ __declspec(noinline) inline void TestDeclaredReachCoversEveryPixel(GraphicsFixtu
     },
          {160, 60}},
     };
+}
+
+__declspec(noinline) inline void TestDeclaredReachCoversEveryPixel(GraphicsFixture& gpu)
+{
+    using Case                    = ReachCase;
+    const std::vector<Case> cases = ReachCases();
     enum class State : uint8_t
     {
         Normal,
@@ -1046,5 +1055,718 @@ inline void Run(GraphicsFixture& gpu)
     TestUndeclaredComposingPanelsCullNothing(gpu);
     TestSmallColorPickerStaysRight(gpu);
     TestRegionParityScripts(gpu);
+}
+} // namespace PaintRegionTests
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The second review's findings (W4.10 round 3), each a test that failed before its fix, and the reach verifier's coverage of
+// the states the first one left out (every Button variant and appearance, every TabControl selection with focus, motion
+// mid-flight, right-to-left flow and high contrast). The frame verifier (Support.Tests.FrameVerifier.h) checks every region
+// and culled frame these tests make as well.
+namespace PaintRegionReview
+{
+using EmbeddedParity::EmbeddedParityScene;
+using IncrementalParity::CenterOf;
+using IncrementalParity::NoteStep;
+using IncrementalParity::ParityPointer;
+using IncrementalParity::Rng;
+using PaintRegionScript::Patch;
+using PaintRegionTests::RegionsSwitch;
+using PaintRegionTests::SmallView;
+
+inline constexpr std::array<uint64_t, 1u> kSeed{0x0410'0003u};
+inline constexpr std::string_view kReplay = "DxUi.EmbeddedTests.exe --test-paint-regions";
+
+// The number and box of differing BGRA pixels, or an empty string.
+[[nodiscard]] inline std::string DiffPixels(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b, UINT width)
+{
+    if (a.size() != b.size())
+        return std::format("sizes differ {} {}", a.size(), b.size());
+    size_t differing = 0u;
+    UINT left = UINT_MAX, top = UINT_MAX, right = 0u, bottom = 0u;
+    for (size_t offset = 0u; offset + 4u <= a.size(); offset += 4u)
+    {
+        if (std::memcmp(&a[offset], &b[offset], 4u) == 0)
+            continue;
+        const UINT x = static_cast<UINT>((offset / 4u) % width), y = static_cast<UINT>((offset / 4u) / width);
+        ++differing;
+        left   = (std::min)(left, x);
+        top    = (std::min)(top, y);
+        right  = (std::max)(right, x);
+        bottom = (std::max)(bottom, y);
+    }
+    if (differing == 0u)
+        return {};
+    return std::format("{} pixels differ inside ({},{})-({},{})", differing, left, top, right, bottom);
+}
+
+// --- E1: a Selector button focused with focus visible; a Patch 3.5 DIP to its right flips (a region frame that culled the
+// button, whose ring reaches 4.5 DIP).
+inline void BuildSelectorNeighbour(EmbeddedParityScene& scene)
+{
+    scene.Host().SetTheme(IncrementalParity::ParityTheme(false));
+    auto root    = std::make_unique<DxUi::Panel>();
+    auto* button = root->AddChild<DxUi::Button>(L"Selector");
+    button->SetVariant(DxUi::ButtonVariant::Selector);
+    button->SetBounds(D2D1::RectF(100, 100, 220, 132));
+    auto* patch = root->AddChild<Patch>();
+    patch->SetBounds(D2D1::RectF(223.5f, 100, 260, 132));
+    scene.slots[0] = root.get();
+    scene.slots[1] = button;
+    scene.slots[2] = patch;
+    scene.SetRoot(std::move(root));
+}
+inline void StepFocusThenFlip(EmbeddedParityScene& scene, Rng&, size_t step)
+{
+    if (step == 1u)
+    {
+        NoteStep("focus slot 1, focus visible");
+        scene.Host().SetFocusControl(scene.slots[1], false);
+        scene.Key(VK_SHIFT);
+        return;
+    }
+    NoteStep("the Patch beside it flips");
+    static_cast<Patch*>(scene.slots[2])->Flip();
+}
+
+// --- H1 / E1 in whole frames: a Selector whose declared 3 DIP extent ended outside the view while its ring reached into it.
+inline void BuildSelectorOffView(EmbeddedParityScene& scene)
+{
+    scene.Host().SetTheme(IncrementalParity::ParityTheme(false));
+    auto root    = std::make_unique<DxUi::Panel>();
+    auto* button = root->AddChild<DxUi::Button>(L"Selector");
+    button->SetVariant(DxUi::ButtonVariant::Selector);
+    button->SetBounds(D2D1::RectF(-120, 100, -3.5f, 132));
+    auto* patch = root->AddChild<Patch>();
+    patch->SetBounds(D2D1::RectF(0.0f, 90.0f, 40.0f, 140.0f));
+    scene.slots[0] = root.get();
+    scene.slots[1] = button;
+    scene.slots[2] = patch;
+    scene.SetRoot(std::move(root));
+}
+
+// --- E2: a focused TabControl whose one tab title is far wider than the control; a Patch where its ring landed flips.
+inline void BuildTabRing(EmbeddedParityScene& scene)
+{
+    scene.Host().SetTheme(IncrementalParity::ParityTheme(false));
+    auto root  = std::make_unique<DxUi::Panel>();
+    auto* tabs = root->AddChild<DxUi::TabControl>();
+    tabs->AddTab<DxUi::Label>(L"A very long piece of text that cannot fit the box at all WWWWWWWW", L"Page");
+    tabs->SetBounds(D2D1::RectF(140.3f, 100.6f, 220.3f, 200.6f));
+    auto* patch = root->AddChild<Patch>();
+    patch->SetBounds(D2D1::RectF(0.0f, 90.0f, 40.0f, 140.0f));
+    scene.slots[0] = root.get();
+    scene.slots[1] = tabs;
+    scene.slots[2] = patch;
+    scene.SetRoot(std::move(root));
+}
+
+// --- B1: the pointer moves straight onto a TagPicker's input box (its inner ComboBox) and away: TagPicker::Paint draws its
+// whole frame in the hover colours of that ComboBox.
+inline void BuildTagPicker(EmbeddedParityScene& scene)
+{
+    scene.Host().SetTheme(IncrementalParity::ParityTheme(false));
+    auto root  = std::make_unique<DxUi::Panel>();
+    auto* tags = root->AddChild<DxUi::TagPicker>();
+    tags->SetOptions(L"All", {L"Red", L"Green", L"Blue", L"Cyan"});
+    tags->SetSelectedValues({L"Red", L"Green"});
+    tags->SetBounds(D2D1::RectF(40, 40, 440, 110));
+    scene.slots[0] = root.get();
+    scene.slots[1] = tags;
+    scene.slots[2] = tags->DebugGetEmbeddedCombo();
+    scene.SetRoot(std::move(root));
+}
+inline void StepTagPicker(EmbeddedParityScene& scene, Rng&, size_t step)
+{
+    if (step % 2u == 1u)
+    {
+        NoteStep("pointer onto the TagPicker's input box (its inner ComboBox)");
+        scene.Pointer(ParityPointer::Move, CenterOf(*scene.slots[2]));
+    }
+    else
+    {
+        NoteStep("pointer away from the TagPicker");
+        scene.Pointer(ParityPointer::Move, D2D1::Point2F(600.0f, 440.0f));
+    }
+}
+// The same TagPicker inside a ScrollPanel: the inner hover a ScrollPanel tracks.
+inline void BuildScrolledTagPicker(EmbeddedParityScene& scene)
+{
+    scene.Host().SetTheme(IncrementalParity::ParityTheme(false));
+    auto root    = std::make_unique<DxUi::Panel>();
+    auto* scroll = root->AddChild<DxUi::ScrollPanel>();
+    auto* tags   = scroll->AddChild<DxUi::TagPicker>();
+    tags->SetOptions(L"All", {L"Red", L"Green", L"Blue", L"Cyan"});
+    tags->SetSelectedValues({L"Red"});
+    tags->SetBounds(D2D1::RectF(40, 40, 440, 110));
+    scroll->SetContentHeight(400.0f);
+    scroll->SetBounds(D2D1::RectF(20, 20, 470, 300));
+    scene.slots[0] = root.get();
+    scene.slots[1] = tags;
+    scene.slots[2] = tags->DebugGetEmbeddedCombo();
+    scene.SetRoot(std::move(root));
+}
+
+// --- B3: a PopupLayer inside a ScrollPanel: its overlay child, below the ScrollPanel's bounds, moves when the panel scrolls.
+inline void BuildScrolledPopup(EmbeddedParityScene& scene)
+{
+    scene.Host().SetTheme(IncrementalParity::ParityTheme(false));
+    auto root    = std::make_unique<DxUi::Panel>();
+    auto* scroll = root->AddChild<DxUi::ScrollPanel>();
+    for (int index = 0; index < 20; ++index)
+        scroll->AddChild<DxUi::Button>(std::format(L"Row {}", index))
+            ->SetBounds(D2D1::RectF(30, 26.0f + 30.0f * static_cast<float>(index), 200, 52.0f + 30.0f * static_cast<float>(index)));
+    auto* layer = scroll->AddChild<DxUi::PopupLayer>();
+    layer->SetBounds(D2D1::RectF(40, 180, 260, 300));
+    layer->AddChild<DxUi::Button>(L"Popup below the panel")->SetBounds(D2D1::RectF(40, 180, 260, 300));
+    scroll->SetContentHeight(30.0f * 20.0f + 8.0f);
+    scroll->SetBounds(D2D1::RectF(20, 20, 300, 200));
+    scene.slots[0] = root.get();
+    scene.slots[1] = scroll;
+    scene.slots[2] = layer;
+    scene.SetRoot(std::move(root));
+}
+inline void StepScrolledPopup(EmbeddedParityScene& scene, Rng&, size_t step)
+{
+    const D2D1_POINT_2F point = D2D1::Point2F(120.0f, 60.0f);
+    switch (step % 4u)
+    {
+        case 1u:
+        case 2u:
+            NoteStep("wheel over the ScrollPanel (its PopupLayer child moves with the content)");
+            scene.Pointer(ParityPointer::Move, point);
+            scene.Pointer(ParityPointer::Wheel, point, step % 4u == 1u ? -120.0f : 120.0f);
+            break;
+        case 3u:
+            NoteStep("ScrollPanel::SetScrollOffset");
+            static_cast<DxUi::ScrollPanel*>(scene.slots[1])->SetScrollOffset(45.5f);
+            break;
+        default:
+            NoteStep("the PopupLayer hides and shows");
+            scene.slots[2]->SetVisible(! scene.slots[2]->IsVisible());
+            break;
+    }
+}
+
+__declspec(noinline) inline void TestReviewScripts(GraphicsFixture& gpu)
+{
+    const auto make = [&] { return std::make_unique<EmbeddedParityScene>(gpu.device.get()); };
+    using Script    = IncrementalParity::ParityScript<EmbeddedParityScene>;
+    const DxUi::Detail::WorkCounterScope scope;
+    RunParityScript(Script{"selector-neighbour", kSeed, 3u, &BuildSelectorNeighbour, &StepFocusThenFlip}, make, "embedded", kReplay);
+    RunParityScript(Script{"selector-off-view", kSeed, 3u, &BuildSelectorOffView, &StepFocusThenFlip}, make, "embedded", kReplay);
+    RunParityScript(Script{"tabcontrol-ring", kSeed, 3u, &BuildTabRing, &StepFocusThenFlip}, make, "embedded", kReplay);
+    RunParityScript(Script{"tagpicker-hover", kSeed, 6u, &BuildTagPicker, &StepTagPicker}, make, "embedded", kReplay);
+    RunParityScript(Script{"scrolled-tagpicker-hover", kSeed, 6u, &BuildScrolledTagPicker, &StepTagPicker}, make, "embedded", kReplay);
+    RunParityScript(Script{"scrolled-popup-layer", kSeed, 8u, &BuildScrolledPopup, &StepScrolledPopup}, make, "embedded", kReplay);
+    Check(scope.Delta().frame.paintRegionRects > 0u, "W4.10: the review scripts compare region frames");
+    std::cout << "PASS W4.10 review round 3 scripts: Selector focus ring (E1, H1), TabControl ring outside the control (E2), TagPicker inner "
+                 "hover (B1), a PopupLayer in a scrolled ScrollPanel (B3), 0 differences\n";
+}
+
+// --- A1: a fractional DPI. The region and the cull snap with the DPI the surface is painted at, not an integer rounding of it.
+__declspec(noinline) inline void TestFractionalDpiRegions(GraphicsFixture& gpu)
+{
+    for (const float dpi : {120.75f, 150.5f, 144.0f})
+    {
+        SmallView incremental(gpu), fresh(gpu);
+        Patch* patches[2]{};
+        SmallView* views[2]{&incremental, &fresh};
+        for (int index = 0; index < 2; ++index)
+        {
+            auto root = std::make_unique<DxUi::Panel>();
+            root->AddChild<DxUi::Label>(L"Fractional scale")->SetBounds(D2D1::RectF(10, 10, 200, 34));
+            patches[index] = root->AddChild<Patch>();
+            patches[index]->SetBounds(D2D1::RectF(100.3f, 60.7f, 250.6f, 150.2f));
+            views[index]->view.Controls().SetRoot(std::move(root));
+            static_cast<void>(views[index]->Frame(dpi));
+        }
+        for (int flip = 0; flip < 2; ++flip)
+        {
+            patches[0]->Flip();
+            patches[1]->Flip();
+            const DxUi::Detail::WorkCounters work = incremental.Frame(dpi);
+            {
+                const RegionsSwitch off(false);
+                fresh.view.Controls().Invalidate();
+                static_cast<void>(fresh.Frame(dpi));
+            }
+            DxUi::WindowHostBitmapCapture a, b;
+            Hr(incremental.view.DebugReadSurfaceForTest(a), "W4.10 fractional DPI region surface");
+            Hr(fresh.view.DebugReadSurfaceForTest(b), "W4.10 fractional DPI whole surface");
+            const std::string difference = DiffPixels(a.bgraPixels, b.bgraPixels, a.widthPx);
+            std::cout << "  " << dpi << " DPI, flip " << flip + 1 << ": " << work.frame.paintRegionRects << " region rectangle, "
+                      << (difference.empty() ? std::string("0 differences") : difference) << '\n';
+            Check(work.frame.paintRegionRects == 1u && work.frame.paintRegionFull == 0u, "W4.10: a flip at a fractional DPI repaints its region");
+            Check(difference.empty(), "W4.10 (A1): at a fractional DPI the region frame equals the whole repaint");
+        }
+    }
+    std::cout << "PASS W4.10 fractional DPI: regions at 120.75, 150.5 and 144 DPI equal whole repaints\n";
+}
+
+// --- D1, F1, H1: whole frames with regions and culling on equal the same scene with them off.
+inline std::string OnOff(GraphicsFixture& gpu, void (*build)(DxUi::Panel&, std::vector<DxUi::Control*>&), float dpi, uint64_t& culled, uint64_t& skipped)
+{
+    const auto render = [&](bool regions) -> DxUi::WindowHostBitmapCapture
+    {
+        const RegionsSwitch regionsSwitch(regions);
+        SmallView probe(gpu);
+        probe.width  = static_cast<UINT>(std::lround(480.0f * dpi / 96.0f));
+        probe.height = static_cast<UINT>(std::lround(320.0f * dpi / 96.0f));
+        auto root    = std::make_unique<DxUi::Panel>();
+        std::vector<DxUi::Control*> focus;
+        build(*root, focus);
+        probe.view.Controls().SetRoot(std::move(root));
+        DxUi::Detail::WorkCounters work = probe.Frame(dpi);
+        if (! focus.empty())
+        {
+            probe.view.Controls().SetFocusControl(focus[0], false);
+            static_cast<void>(probe.view.DispatchKey(VK_SHIFT, true));
+            static_cast<void>(probe.view.DispatchKey(VK_SHIFT, false));
+            probe.view.Controls().Invalidate();
+            work = probe.Frame(dpi);
+        }
+        if (regions)
+        {
+            culled  = work.frame.paintCulled;
+            skipped = work.frame.clipPushesSkipped;
+        }
+        DxUi::WindowHostBitmapCapture surface;
+        Hr(probe.view.DebugReadSurfaceForTest(surface), "W4.10 regions on/off surface");
+        return surface;
+    };
+    // The verifier would report the same difference first: this test names it itself.
+    const DxUi::WindowHostBitmapCapture on = [&]
+    {
+        const bool verifying = DxUi::Detail::GetPaintRegionVerificationForTest();
+        DxUi::Detail::SetPaintRegionVerificationForTest(false);
+        auto surface = render(true);
+        DxUi::Detail::SetPaintRegionVerificationForTest(verifying);
+        return surface;
+    }();
+    const DxUi::WindowHostBitmapCapture off = render(false);
+    return DiffPixels(on.bgraPixels, off.bgraPixels, on.widthPx);
+}
+// D1: the inner viewport encloses the outer one on three sides and ends 0.1 DIP above it: after the outer antialiased clip, the
+// paint clip's last row is partly covered, and the inner clip must be pushed to cover it less.
+inline void BuildNestedScroll(DxUi::Panel& root, std::vector<DxUi::Control*>&)
+{
+    auto* outer = root.AddChild<DxUi::ScrollPanel>();
+    outer->SetBounds(D2D1::RectF(10, 10, 300, 200.3f));
+    auto* inner = outer->AddChild<DxUi::ScrollPanel>();
+    inner->SetBounds(D2D1::RectF(5, 5, 310, 200.2f));
+    inner->AddChild<Patch>()->SetBounds(D2D1::RectF(0, 0, 320, 260));
+}
+// A whole pixel-aligned viewport inside the view: the inner clip is still skipped where it changes nothing.
+inline void BuildAlignedNestedScroll(DxUi::Panel& root, std::vector<DxUi::Control*>&)
+{
+    auto* outer = root.AddChild<DxUi::ScrollPanel>();
+    outer->SetBounds(D2D1::RectF(0, 0, 480, 320));
+    auto* inner = outer->AddChild<DxUi::ScrollPanel>();
+    inner->SetBounds(D2D1::RectF(-5, -5, 490, 330));
+    inner->AddChild<Patch>()->SetBounds(D2D1::RectF(0, 0, 320, 260));
+}
+// F1: an undeclared consumer panel that composes its overlay pass through a command list drawn 200 DIP lower; a PopupLayer
+// below it holds a Button above the view.
+class OverlayImagePanel final : public DxUi::Panel
+{
+public:
+    OverlayImagePanel()                                    = default;
+    OverlayImagePanel(const OverlayImagePanel&)            = delete;
+    OverlayImagePanel& operator=(const OverlayImagePanel&) = delete;
+    OverlayImagePanel(OverlayImagePanel&&)                 = delete;
+    OverlayImagePanel& operator=(OverlayImagePanel&&)      = delete;
+    ~OverlayImagePanel() override                          = default;
+    void PaintOverlay(DxUi::ControlHost& host) const override
+    {
+        auto* dc = host.GetDeviceContext();
+        if (! dc)
+            return;
+        wil::com_ptr<ID2D1CommandList> list;
+        if (FAILED(dc->CreateCommandList(list.put())))
+            return;
+        wil::com_ptr<ID2D1Image> previous;
+        dc->GetTarget(previous.put());
+        dc->SetTarget(list.get());
+        DxUi::Panel::PaintOverlay(host);
+        dc->SetTarget(previous.get());
+        if (FAILED(list->Close()))
+            return;
+        dc->DrawImage(list.get(), D2D1::Point2F(0.0f, 200.0f));
+    }
+};
+inline void BuildOverlayImage(DxUi::Panel& root, std::vector<DxUi::Control*>&)
+{
+    auto* panel = root.AddChild<OverlayImagePanel>();
+    panel->SetBounds(D2D1::RectF(0, 0, 400, 300));
+    auto* layer = panel->AddChild<DxUi::PopupLayer>();
+    layer->SetBounds(D2D1::RectF(0, -200, 400, 300));
+    layer->AddChild<DxUi::Button>(L"Overlay above the view")->SetBounds(D2D1::RectF(20, -150, 200, -118));
+}
+inline void BuildSelectorOffViewPanel(DxUi::Panel& root, std::vector<DxUi::Control*>& focus)
+{
+    auto* button = root.AddChild<DxUi::Button>(L"Selector");
+    button->SetVariant(DxUi::ButtonVariant::Selector);
+    button->SetBounds(D2D1::RectF(-120, 100, -3.5f, 132));
+    focus.push_back(button);
+}
+
+__declspec(noinline) inline void TestWholeFramesEqualRegionsOff(GraphicsFixture& gpu)
+{
+    struct Case final
+    {
+        const char* name;
+        void (*build)(DxUi::Panel&, std::vector<DxUi::Control*>&);
+        float dpi;
+    };
+    constexpr std::array<Case, 6u> cases{{{"D1 nested viewports, 96 DPI", &BuildNestedScroll, 96.0f},
+                                          {"D1 nested viewports, 168 DPI", &BuildNestedScroll, 168.0f},
+                                          {"D1 nested viewports, 150.5 DPI", &BuildNestedScroll, 150.5f},
+                                          {"aligned nested viewports", &BuildAlignedNestedScroll, 96.0f},
+                                          {"F1 undeclared overlay composer", &BuildOverlayImage, 96.0f},
+                                          {"E1/H1 focused Selector outside the view", &BuildSelectorOffViewPanel, 96.0f}}};
+    for (const Case& kind : cases)
+    {
+        uint64_t culled = 0u, skipped = 0u;
+        const std::string difference = OnOff(gpu, kind.build, kind.dpi, culled, skipped);
+        std::cout << "  " << kind.name << ": " << culled << " culled, " << skipped << " clips skipped, "
+                  << (difference.empty() ? std::string("0 differences") : difference) << " against regions and culling off\n";
+        Check(difference.empty(), "W4.10: a whole frame with culling equals the same scene with regions and culling off");
+        if (kind.build == &BuildAlignedNestedScroll)
+            Check(skipped == 2u, "W4.10: viewports that enclose a whole-pixel paint clip (the outer one and the inner one) are still not pushed");
+    }
+    std::cout << "PASS W4.10 whole frames with culling equal regions off (nested fractional viewports, an undeclared overlay composer, a "
+                 "focused Selector outside the view)\n";
+}
+
+// The reach check of one control painted alone in the view; returns the failure text or an empty string.
+[[nodiscard]] inline std::string ReachOutside(SmallView& probe, const DxUi::Control& control, float dpi)
+{
+    DxUi::WindowHostBitmapCapture surface;
+    Hr(probe.view.DebugReadSurfaceForTest(surface), "W4.10 reach surface");
+    D2D1_RECT_F extent{};
+    if (! DxUi::PaintExtentAccess::Extent(probe.view.Controls(), control, extent))
+        return {};
+    std::string where = PaintReach::InkOutsideExtent(surface, extent, dpi);
+    if (! where.empty())
+    {
+        DxUi::PaintOverhang drawn{};
+        static_cast<void>(PaintReach::MeasureInkReach(surface, control.GetBounds(), dpi, drawn));
+        where += std::format(" (ink reaches left {:.2f} top {:.2f} right {:.2f} bottom {:.2f} DIP)", drawn.left, drawn.top, drawn.right, drawn.bottom);
+    }
+    return where;
+}
+
+// --- E1: every Button variant and appearance, normal, hovered, pressed and focused with focus visible.
+__declspec(noinline) inline void TestButtonVariantReach(GraphicsFixture& gpu)
+{
+    constexpr std::array<std::pair<DxUi::ButtonVariant, const char*>, 8u> variants{{{DxUi::ButtonVariant::Standard, "Standard"},
+                                                                                    {DxUi::ButtonVariant::DropDown, "DropDown"},
+                                                                                    {DxUi::ButtonVariant::Selector, "Selector"},
+                                                                                    {DxUi::ButtonVariant::Split, "Split"},
+                                                                                    {DxUi::ButtonVariant::Hyperlink, "Hyperlink"},
+                                                                                    {DxUi::ButtonVariant::IconOnly, "IconOnly"},
+                                                                                    {DxUi::ButtonVariant::Disclosure, "Disclosure"},
+                                                                                    {DxUi::ButtonVariant::Repeat, "Repeat"}}};
+    constexpr std::array<std::pair<DxUi::ButtonAppearance, const char*>, 6u> appearances{{{DxUi::ButtonAppearance::Filled, "Filled"},
+                                                                                          {DxUi::ButtonAppearance::Subtle, "Subtle"},
+                                                                                          {DxUi::ButtonAppearance::Outline, "Outline"},
+                                                                                          {DxUi::ButtonAppearance::Tab, "Tab"},
+                                                                                          {DxUi::ButtonAppearance::Caption, "Caption"},
+                                                                                          {DxUi::ButtonAppearance::CaptionClose, "CaptionClose"}}};
+    size_t checked = 0u;
+    for (const float dpi : {96.0f, 120.0f, 168.0f})
+        for (const auto& [variant, variantName] : variants)
+            for (const auto& [appearance, appearanceName] : appearances)
+                for (int state = 0; state < 4; ++state)
+                {
+                    SmallView probe(gpu);
+                    probe.width              = static_cast<UINT>(std::lround(480.0f * dpi / 96.0f));
+                    probe.height             = static_cast<UINT>(std::lround(320.0f * dpi / 96.0f));
+                    auto root                = std::make_unique<DxUi::Panel>();
+                    auto* button             = root->AddChild<DxUi::Button>(L"Choose");
+                    const D2D1_RECT_F bounds = D2D1::RectF(140.3f, 100.6f, 260.3f, 132.6f);
+                    button->SetVariant(variant);
+                    button->SetAppearance(appearance);
+                    button->SetBounds(bounds);
+                    probe.view.Controls().SetRoot(std::move(root));
+                    static_cast<void>(probe.Frame(dpi));
+                    const auto point = D2D1::Point2F(std::round(200.3f * dpi / 96.0f), std::round(116.6f * dpi / 96.0f));
+                    if (state == 3)
+                    {
+                        probe.view.Controls().SetFocusControl(button, false);
+                        static_cast<void>(probe.view.DispatchKey(VK_SHIFT, true));
+                        static_cast<void>(probe.view.DispatchKey(VK_SHIFT, false));
+                    }
+                    else if (state != 0)
+                    {
+                        static_cast<void>(probe.view.DispatchPointer(DxUi::PointerEvent{DxUi::PointerAction::Move, point.x, point.y}));
+                        if (state == 2)
+                            static_cast<void>(probe.view.DispatchPointer(DxUi::PointerEvent{DxUi::PointerAction::Down, point.x, point.y}));
+                    }
+                    static_cast<void>(probe.view.Controls().ClearTooltip());
+                    static_cast<void>(probe.Frame(dpi));
+                    const std::string where = ReachOutside(probe, *button, dpi);
+                    if (state == 2)
+                        static_cast<void>(probe.view.DispatchPointer(DxUi::PointerEvent{DxUi::PointerAction::Up, point.x, point.y}));
+                    if (! where.empty())
+                        std::cerr << "  Button " << variantName << ' ' << appearanceName << " state " << state << " at " << dpi << " DPI: " << where << '\n';
+                    Check(where.empty(), "W4.10 (E1): every Button variant and appearance draws only within its painted extent");
+                    ++checked;
+                }
+    std::cout << "PASS W4.10 Button reach: " << checked << " cases (8 variants, 6 appearances, normal, hovered, pressed, focus visible; 96, 120 and 168 DPI)\n";
+}
+
+// --- E2: a TabControl focused with focus visible, at every selection, with more tabs than fit and with one long title.
+__declspec(noinline) inline void TestTabControlFocusReach(GraphicsFixture& gpu)
+{
+    size_t checked = 0u;
+    for (const float dpi : {96.0f, 120.0f, 168.0f})
+        for (int layout = 0; layout < 3; ++layout)
+        {
+            const size_t count = layout == 0 ? 8u : (layout == 1 ? 3u : 1u);
+            for (size_t selected = 0u; selected < count; ++selected)
+            {
+                SmallView probe(gpu);
+                probe.width              = static_cast<UINT>(std::lround(480.0f * dpi / 96.0f));
+                probe.height             = static_cast<UINT>(std::lround(320.0f * dpi / 96.0f));
+                auto root                = std::make_unique<DxUi::Panel>();
+                auto* tabs               = root->AddChild<DxUi::TabControl>();
+                const D2D1_RECT_F bounds = layout == 2 ? D2D1::RectF(140.3f, 100.6f, 220.3f, 200.6f) : D2D1::RectF(140.3f, 100.6f, 300.3f, 200.6f);
+                for (size_t index = 0u; index < count; ++index)
+                    tabs->AddTab<DxUi::Label>(layout == 2 ? std::wstring(L"A very long piece of text that cannot fit the box at all WWWWWWWW")
+                                                          : std::format(L"Tab title {}", index),
+                                              L"Page");
+                tabs->SetBounds(bounds);
+                tabs->SetSelectedIndex(selected);
+                probe.view.Controls().SetRoot(std::move(root));
+                static_cast<void>(probe.Frame(dpi));
+                probe.view.Controls().SetFocusControl(tabs, false);
+                static_cast<void>(probe.view.DispatchKey(VK_SHIFT, true));
+                static_cast<void>(probe.view.DispatchKey(VK_SHIFT, false));
+                static_cast<void>(probe.view.Controls().ClearTooltip());
+                static_cast<void>(probe.Frame(dpi));
+                const std::string where = ReachOutside(probe, *tabs, dpi);
+                if (! where.empty())
+                    std::cerr << "  TabControl layout " << layout << " tab " << selected << " at " << dpi << " DPI: " << where << '\n';
+                Check(where.empty(), "W4.10 (E2): a focused TabControl draws its selected tab's ring only within its painted extent");
+                ++checked;
+            }
+        }
+    std::cout << "PASS W4.10 TabControl focus reach: " << checked << " cases (every selection of 8 tabs in 160 DIP and of 3, one long title)\n";
+}
+
+// --- Motion: every library control kind with motion on, sampled mid-flight after each transition, and the reach verifier's
+// modes of right-to-left flow and high contrast. The frame verifier checks every region frame the samples make.
+__declspec(noinline) inline void TestReachMidAnimation(GraphicsFixture& gpu)
+{
+    const std::vector<PaintRegionTests::ReachCase> cases = PaintRegionTests::ReachCases();
+    enum class Mode : uint8_t
+    {
+        Motion,
+        RightToLeft,
+        HighContrast,
+    };
+    size_t checked = 0u, unbounded = 0u;
+    for (const auto& [mode, modeName] :
+         {std::pair{Mode::Motion, "motion"}, std::pair{Mode::RightToLeft, "right to left, motion"}, std::pair{Mode::HighContrast, "high contrast"}})
+        for (const PaintRegionTests::ReachCase& kind : cases)
+            for (const float dpi : {96.0f, 144.0f})
+            {
+                std::vector<std::shared_ptr<void>> models;
+                SmallView probe(gpu);
+                probe.width              = static_cast<UINT>(std::lround(480.0f * dpi / 96.0f));
+                probe.height             = static_cast<UINT>(std::lround(360.0f * dpi / 96.0f));
+                DxUi::ThemePalette theme = IncrementalParity::ParityTheme(false);
+                theme.reducedMotion      = mode == Mode::HighContrast;
+                theme.highContrast       = mode == Mode::HighContrast;
+                probe.view.Controls().SetTheme(theme);
+                auto root = std::make_unique<DxUi::Panel>();
+                if (mode == Mode::RightToLeft)
+                    root->SetFlowDirection(DxUi::FlowDirection::RightToLeft);
+                DxUi::Control* control   = kind.add(*root, models);
+                const D2D1_RECT_F bounds = D2D1::RectF(140.3f, 100.6f, 140.3f + kind.size.width, 100.6f + kind.size.height);
+                control->SetBounds(bounds);
+                probe.view.Controls().SetRoot(std::move(root));
+                uint64_t now = 1'000u;
+                static_cast<void>(probe.view.AdvanceAnimation(now));
+                static_cast<void>(probe.Frame(dpi));
+                const auto point =
+                    D2D1::Point2F(std::round((bounds.left + bounds.right) * 0.5f * dpi / 96.0f), std::round((bounds.top + bounds.bottom) * 0.5f * dpi / 96.0f));
+                const auto pointer = [&](DxUi::PointerAction action)
+                { static_cast<void>(probe.view.DispatchPointer(DxUi::PointerEvent{action, point.x, point.y})); };
+                // Each transition, then samples at 16, 48, 96, 160 and 400 ms after it: mid-flight and at rest.
+                const std::array<void (*)(SmallView&, DxUi::Control&, const std::function<void(DxUi::PointerAction)>&), 6u> transitions{
+                    [](SmallView&, DxUi::Control&, const std::function<void(DxUi::PointerAction)>& move) { move(DxUi::PointerAction::Move); },
+                    [](SmallView&, DxUi::Control&, const std::function<void(DxUi::PointerAction)>& move) { move(DxUi::PointerAction::Down); },
+                    [](SmallView&, DxUi::Control&, const std::function<void(DxUi::PointerAction)>& move) { move(DxUi::PointerAction::Up); },
+                    [](SmallView& view, DxUi::Control&, const std::function<void(DxUi::PointerAction)>&)
+                { static_cast<void>(view.view.DispatchPointer(DxUi::PointerEvent{DxUi::PointerAction::Move, 2.0f, 2.0f})); },
+                    [](SmallView& view, DxUi::Control& target, const std::function<void(DxUi::PointerAction)>&)
+                {
+                    view.view.Controls().SetFocusControl(&target, false);
+                    static_cast<void>(view.view.DispatchKey(VK_SHIFT, true));
+                    static_cast<void>(view.view.DispatchKey(VK_SHIFT, false));
+                },
+                    [](SmallView& view, DxUi::Control&, const std::function<void(DxUi::PointerAction)>&)
+                { view.view.Controls().SetFocusControl(nullptr, false); },
+                };
+                const std::function<void(DxUi::PointerAction)> move = pointer;
+                for (const auto& transition : transitions)
+                {
+                    transition(probe, *control, move);
+                    uint64_t sampled = now;
+                    for (const uint64_t after : {16u, 48u, 96u, 160u, 400u})
+                    {
+                        sampled = now + after;
+                        static_cast<void>(probe.view.AdvanceAnimation(sampled));
+                        static_cast<void>(probe.view.Controls().ClearTooltip());
+                        static_cast<void>(probe.Frame(dpi));
+                        D2D1_RECT_F extent{};
+                        if (! DxUi::PaintExtentAccess::Extent(probe.view.Controls(), *control, extent))
+                        {
+                            ++unbounded;
+                            continue;
+                        }
+                        const std::string where = ReachOutside(probe, *control, dpi);
+                        if (! where.empty())
+                            std::cerr << "  " << kind.name << ' ' << modeName << " at " << dpi << " DPI, " << after << " ms after a transition: " << where
+                                      << '\n';
+                        Check(where.empty(), "W4.10: a library control draws only within its painted extent mid-animation too");
+                        ++checked;
+                    }
+                    now = sampled;
+                }
+            }
+    std::cout << "PASS W4.10 reach mid-animation, right to left and in high contrast: " << checked << " samples of " << cases.size() << " control kinds ("
+              << unbounded << " unbounded samples skipped)\n";
+}
+
+// --- The states the first review did not reach, as region frames the frame verifier checks: a FlexPanel that wraps and one
+// in right-to-left flow, a FormPanel, an italic and an emoji label, a hyperlink's underline, high contrast and motion.
+template <bool HighContrast> void BuildUncoveredStates(EmbeddedParityScene& scene)
+{
+    DxUi::ThemePalette theme = IncrementalParity::ParityTheme(false);
+    theme.highContrast       = HighContrast;
+    theme.reducedMotion      = HighContrast;
+    scene.Host().SetTheme(theme);
+    auto root  = std::make_unique<DxUi::Panel>();
+    auto* flex = root->AddChild<DxUi::FlexPanel>();
+    Check(SUCCEEDED(flex->SetWrap(true)) && SUCCEEDED(flex->SetGap(4.0f)), "flex options");
+    flex->SetFlowDirection(DxUi::FlowDirection::RightToLeft);
+    for (int index = 0; index < 7; ++index)
+        flex->AddChild<DxUi::Button>(std::format(L"Wrapped {}", index));
+    flex->SetBounds(D2D1::RectF(10, 10, 250, 150));
+    auto* form = root->AddChild<DxUi::FormPanel>();
+    form->AddChild<DxUi::FormField>(L"name", L"Name");
+    form->AddChild<DxUi::FormField>(L"mail", L"Mail");
+    form->SetBounds(D2D1::RectF(260, 10, 470, 150));
+    auto* emoji = root->AddChild<DxUi::Label>(L"Emoji \U0001F600\U0001F680 text");
+    emoji->SetBounds(D2D1::RectF(10, 160, 200, 184));
+    auto* link = root->AddChild<DxUi::Button>(L"A hyperlink");
+    link->SetVariant(DxUi::ButtonVariant::Hyperlink);
+    link->SetBounds(D2D1::RectF(210, 160, 330, 190));
+    auto* field = root->AddChild<DxUi::TextField>(L"Field");
+    field->SetBounds(D2D1::RectF(10, 200, 200, 232));
+    auto* toggle = root->AddChild<DxUi::Toggle>(L"Toggle");
+    toggle->SetBounds(D2D1::RectF(210, 200, 360, 228));
+    scene.slots[0] = root.get();
+    scene.slots[1] = flex;
+    scene.slots[2] = emoji;
+    scene.slots[3] = link;
+    scene.slots[4] = field;
+    scene.slots[5] = toggle;
+    scene.slots[6] = form;
+    scene.SetRoot(std::move(root));
+}
+inline void StepUncoveredStates(EmbeddedParityScene& scene, Rng& rng, size_t step)
+{
+    switch (rng.Below(7u))
+    {
+        case 0u:
+            NoteStep("hover a random control");
+            scene.Pointer(ParityPointer::Move, CenterOf(*scene.slots[1u + rng.Below(6u)]));
+            break;
+        case 1u:
+            NoteStep("the emoji label's text");
+            static_cast<DxUi::Label*>(scene.slots[2])->SetText(step % 2u == 0u ? L"Emoji \U0001F600 text" : L"Emoji \U0001F680\U0001F600\U0001F680 more");
+            break;
+        case 2u:
+            NoteStep("focus the hyperlink, focus visible");
+            scene.Host().SetFocusControl(scene.slots[3], false);
+            scene.Key(VK_SHIFT);
+            break;
+        case 3u:
+            NoteStep("press the toggle");
+            scene.Pointer(ParityPointer::Move, CenterOf(*scene.slots[5]));
+            scene.Pointer(ParityPointer::Down, CenterOf(*scene.slots[5]));
+            scene.Pointer(ParityPointer::Up, CenterOf(*scene.slots[5]));
+            break;
+        case 4u:
+            NoteStep("type into the field");
+            scene.Host().SetFocusControl(scene.slots[4], false);
+            scene.Character(L'x');
+            break;
+        case 5u:
+            NoteStep("advance the clock 40 ms (mid-animation)");
+            scene.Advance(40u);
+            break;
+        default:
+            NoteStep("move the flex panel by a fractional amount");
+            scene.slots[1]->SetBounds(D2D1::RectF(10.5f, 10.25f, step % 2u == 0u ? 230.0f : 250.0f, 150));
+            break;
+    }
+}
+inline constexpr std::array<uint64_t, 2u> kUncoveredSeeds{0x0410'3001u, 0x0410'3002u};
+
+__declspec(noinline) inline void TestUncoveredStates(GraphicsFixture& gpu)
+{
+    const auto make = [&] { return std::make_unique<EmbeddedParityScene>(gpu.device.get()); };
+    using Script    = IncrementalParity::ParityScript<EmbeddedParityScene>;
+    const DxUi::Detail::WorkCounterScope scope;
+    RunParityScript(Script{"uncovered-states", kUncoveredSeeds, 24u, &BuildUncoveredStates<false>, &StepUncoveredStates}, make, "embedded", kReplay);
+    RunParityScript(
+        Script{"uncovered-states-high-contrast", kUncoveredSeeds, 24u, &BuildUncoveredStates<true>, &StepUncoveredStates}, make, "embedded", kReplay);
+    const DxUi::Detail::WorkCounters work = scope.Delta();
+    std::cout << "  uncovered states: " << work.frame.paintRegionRects << " region rectangles, " << work.frame.paintCulled << " culled, "
+              << work.frame.inkEscapes << " ink escapes\n";
+    Check(work.frame.paintRegionRects > 0u, "W4.10: the uncovered-states scripts compare region frames");
+    std::cout << "PASS W4.10 right-to-left wrapped flex, form, emoji, hyperlink underline, text field, high contrast and motion: 0 differences\n";
+}
+
+// --- X1: a PageHost's pages follow the culling rules of a panel's children (an undeclared page culls nothing below it, a
+// declared page's child whose reach meets the clip is painted, a transition in flight stays right); the native suite runs
+// the same script (TestNativeIncrementalParityPageHostCulling).
+__declspec(noinline) inline void TestPageHostCulling(GraphicsFixture& gpu)
+{
+    const auto make = [&] { return std::make_unique<EmbeddedParityScene>(gpu.device.get()); };
+    const DxUi::Detail::WorkCounterScope scope;
+    RunParityScript(PaintRegionScript::PageHostCullingScript<EmbeddedParityScene>(), make, "embedded", kReplay);
+    const DxUi::Detail::WorkCounters work = scope.Delta();
+    std::cout << "  page-host culling: " << work.frame.paintRegionRects << " region rectangles, " << work.frame.paintCulled << " culled\n";
+    Check(work.frame.paintCulled > 0u, "W4.10: the page-host script compares frames that culled a child");
+    std::cout << "PASS W4.10 PageHost pages follow the culling rules (undeclared page, a reach into the view, a transition in flight)\n";
+}
+
+inline void Run(GraphicsFixture& gpu)
+{
+    TestReviewScripts(gpu);
+    TestPageHostCulling(gpu);
+    TestFractionalDpiRegions(gpu);
+    TestWholeFramesEqualRegionsOff(gpu);
+    TestButtonVariantReach(gpu);
+    TestTabControlFocusReach(gpu);
+    TestReachMidAnimation(gpu);
+    TestUncoveredStates(gpu);
+}
+} // namespace PaintRegionReview
+
+namespace PaintRegionTests
+{
+// Every paint-regions test: the gates and the first review's (Run), then the second review's.
+inline void RunAll(GraphicsFixture& gpu)
+{
+    Run(gpu);
+    PaintRegionReview::Run(gpu);
 }
 } // namespace PaintRegionTests

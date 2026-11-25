@@ -2237,6 +2237,7 @@ private:
         uint32_t topology = 0u;
         bool valid        = false;
         bool unbounded    = false;
+        bool overlay      = false; // the subtree holds overlay content (a PopupLayer), drawn through no ScrollPanel viewport
     };
     mutable PaintExtent _paintExtent;
     friend struct PaintExtentAccess;
@@ -7339,6 +7340,9 @@ private:
     const Control* _paintingControl = nullptr;
     D2D1_RECT_F _paintingLimitDip   = D2D1::RectF();
     uint32_t _paintTopologyRevision = 1u;
+    // The DPI the paint region and the cull snap to device pixels with: an embedded view's own float DPI (its integer _dpi
+    // rounds 150.5 down), 0 on a window host, whose DPI is an integer.
+    float _paintDpi = 0.0f;
     friend struct PaintExtentAccess;
     // Requests a frame for the region alone (the region was added to first); InvalidateFor marks it full.
     void RequestRegionFrame() const noexcept;

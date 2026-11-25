@@ -14,3 +14,16 @@
     Controls derived outside the library repaint the whole view and are never skipped until their own constructor
     declares, and nothing below an undeclared control is skipped, so they paint exactly as before, even when they draw their
     children into a command list or another target. Plan item `W4.10`; the receipt is `Measurements/PerformanceAndMotion_2026-11-13/W4.10/`.
+  - Correctness is a frame painted whole with regions and culling off. A frame verifier in the Debug and ASan Debug test
+    programs repaints every embedded region or culled frame that way and compares it exactly, and the
+    incremental-versus-fresh oracle's fresh scene paints with culling off on both hosts (and its native scene now dispatches
+    the mouse leave Windows posts after a synthesized move within the step, which under load had decided a hover). Fixed against it: a `TagPicker`
+    repaints when hover moves onto or off its inner `ComboBox`; overlay content (a `PopupLayer`'s children) is part of a
+    `ScrollPanel`'s extent and is repainted where a scroll moves it from and to; nothing is culled below an undeclared
+    control in the overlay pass or below an undeclared `PageHost` page; a `Selector` button declares its 4.5 DIP focus ring;
+    the region and the cull snap with an embedded view's own fractional DPI; a `ScrollPanel` keeps its viewport clip once an
+    outer viewport made the paint clip fractional (wrong in whole frames too before); and, found by the verifier, a control
+    whose content or visual preparation completes (an adopted parsed rich document) adds its extent to the region.
+  - Pixel change against frames painted with regions and culling off, and against the commit before `W4.10`: the focus
+    ring of a `TabControl`'s selected tab that lies outside the control (one long title, more tabs than fit) is clipped to
+    the control's bounds plus 3 DIP, snapped outward to whole device pixels. Every other frame keeps its pixels.

@@ -1620,6 +1620,8 @@ void Panel::PaintOverlay(ControlHost& host) const
     {
         if (child.IsVisible())
         {
+            // W4.10: below an undeclared control the overlay pass culls nothing either (it may draw its overlay anywhere).
+            const PaintExtentAccess::OverlayScope overlay(host, child);
             child.PaintOverlay(host);
         }
     });
@@ -1872,6 +1874,7 @@ void PageHost::PaintPage(ControlHost& host, const Control* page, float opacity, 
     {
         dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
         Detail::NotePaintDispatch();
+        const PaintExtentAccess::PaintingScope painting(host, *page);
         page->Paint(host);
         return;
     }
@@ -1883,6 +1886,7 @@ void PageHost::PaintPage(ControlHost& host, const Control* page, float opacity, 
     dc->PushLayer(layerParameters, layer.get());
     auto restoreLayer = wil::scope_exit([dc] { dc->PopLayer(); });
     Detail::NotePaintDispatch();
+    const PaintExtentAccess::PaintingScope painting(host, *page);
     page->Paint(host);
 }
 
@@ -1928,6 +1932,8 @@ void PageHost::Paint(ControlHost& host) const
     if (! state.active)
     {
         Detail::NotePaintDispatch();
+        // W4.10: a page paints under its own painting scope, as a panel's child does: below an undeclared page nothing is culled.
+        const PaintExtentAccess::PaintingScope painting(host, *current);
         current->Paint(host);
         return;
     }
@@ -1976,6 +1982,7 @@ void PageHost::PaintOverlay(ControlHost& host) const
     auto* dc         = host.GetDeviceContext();
     if (! state.active)
     {
+        const PaintExtentAccess::OverlayScope overlay(host, *current);
         current->PaintOverlay(host);
         return;
     }
@@ -2007,6 +2014,7 @@ void PageHost::PaintOverlay(ControlHost& host) const
         if (FAILED(CountedCreateLayer(dc, layer.addressof())) || ! layer)
         {
             dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
+            const PaintExtentAccess::OverlayScope overlay(host, *page);
             page->PaintOverlay(host);
             static_cast<void>(validatePages());
             return;
@@ -2017,6 +2025,7 @@ void PageHost::PaintOverlay(ControlHost& host) const
         dc->SetTransform(D2D1::Matrix3x2F::Translation(offsetXDip, 0.0f) * previousTransform);
         dc->PushLayer(layerParameters, layer.get());
         auto restoreLayer = wil::scope_exit([dc] { dc->PopLayer(); });
+        const PaintExtentAccess::OverlayScope overlay(host, *page);
         page->PaintOverlay(host);
         static_cast<void>(validatePages());
     };
@@ -2549,7 +2558,12 @@ bool ControlHost::PreparePendingPageLayout() noexcept
                 }
             }
             if (content == S_OK)
+            {
                 _contentGeometryChanged = true;
+                // W4.10: prepared content is what the control paints next (an adopted rich document, a parsed snapshot): its
+                // painted extent joins the region, which an embedded preparation takes after this pass.
+                PaintExtentAccess::AddToRegion(*this, control, true);
+            }
         }
         if (visible && control._visualPreparationEnabled && (prepareAllVisual || control._visualPreparationPending))
         {
@@ -2558,6 +2572,8 @@ bool ControlHost::PreparePendingPageLayout() noexcept
             // Visual preparation is optional and cannot reject the current geometry or input pass.
             if (lifetime.expired() || ! rootCurrent() || control.GetHost() != this)
                 return;
+            // W4.10: so is what it prepares to paint.
+            PaintExtentAccess::AddToRegion(*this, control, true);
         }
         const size_t visitBudget = control.GetLogicalChildCount();
         if (lifetime.expired() || ! rootCurrent())
@@ -3568,6 +3584,12 @@ std::optional<bool> Button::GetToggleState() const noexcept
 
 void Button::SetVariant(ButtonVariant variant) noexcept
 {
+    // W4.10: a Selector's focus ring reaches farther (GetPaintOverhang); the button as drawn now leaves the view with the change.
+    if (ControlHost* const host = GetHost(); host && variant != _variant)
+    {
+        PaintExtentAccess::AddToRegion(*host, *this, false);
+        PaintExtentAccess::ExtentChanged(*this);
+    }
     Assign(_variant,
            variant,
            Affects::Layout | Affects::Paint,
@@ -9978,7 +10000,21 @@ void TabControl::Paint(ControlHost& host) const
 
     if (HasFocus() && host.IsKeyboardFocusVisible() && _selectedIndex.has_value())
     {
-        PaintFocusRing(host, GetTabRect(_selectedIndex.value()), 6.0f);
+        // W4.10: a selected tab can lie outside the control (one long title, or more tabs than fit); its ring is clipped to the
+        // control's painted extent (its bounds plus the library's 3 DIP reach, snapped outward to whole device pixels, so a ring
+        // inside it keeps every pixel), instead of declaring a reach of hundreds of DIP. A pixel change, named in the changelog.
+        const D2D1_RECT_F tab     = GetTabRect(_selectedIndex.value());
+        const D2D1_RECT_F control = GetBounds();
+        D2D1_MATRIX_3X2_F transform{};
+        dc->GetTransform(&transform);
+        const bool outside = tab.left < control.left || tab.top < control.top || tab.right > control.right || tab.bottom > control.bottom;
+        const bool clip    = outside && transform._12 == 0.0f && transform._21 == 0.0f;
+        if (clip)
+            dc->PushAxisAlignedClip(PaintExtentAccess::SnapOutward(host, transform, InflateRect(control, kLibraryPaintReachDip, kLibraryPaintReachDip)),
+                                    D2D1_ANTIALIAS_MODE_ALIASED);
+        PaintFocusRing(host, tab, 6.0f);
+        if (clip)
+            dc->PopAxisAlignedClip();
     }
 
     Panel::Paint(host);
@@ -11071,9 +11107,9 @@ void ScrollPanel::SetInnerHovered(Control* child) noexcept
     {
         // Only a child that is still alive and in this panel (LiveInnerHovered's test, which itself clears through here).
         if (_innerHoveredChild && ! _innerHoveredLifetime.expired() && IsControlInTree(this, _innerHoveredChild))
-            PaintExtentAccess::AddToRegion(*host, *_innerHoveredChild, true);
+            PaintExtentAccess::AddHoverChange(*host, *_innerHoveredChild);
         if (child)
-            PaintExtentAccess::AddToRegion(*host, *child, true);
+            PaintExtentAccess::AddHoverChange(*host, *child);
     }
     _innerHoveredChild    = child;
     _innerHoveredLifetime = child ? child->GetLifetimeToken() : std::weak_ptr<int>{};
@@ -11362,7 +11398,11 @@ bool ScrollPanel::NotifyScrollChanged(float previousOffsetDip) noexcept
 {
     // Every offset change comes here: content moved under a still pointer (an open popup of a scrolled child included).
     if (_scrollOffsetDip != previousOffsetDip)
+    {
         NoteHitTestChange(*this, HitRevisionSite::ScrollOffset);
+        // W4.10: overlay content below it (a PopupLayer's children) is drawn through no viewport and moved with the offset.
+        PaintExtentAccess::ScrollMoved(*this, previousOffsetDip);
+    }
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
     if (_scrollOffsetDip != previousOffsetDip && _onScrollChanged)
     {

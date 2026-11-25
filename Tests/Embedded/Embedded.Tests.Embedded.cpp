@@ -9,6 +9,7 @@
 #include "Support.Tests.EmbeddedClock.h"
 #include "Support.Tests.FailureHost.h"
 #include "Support.Tests.FailureReports.h"
+#include "Support.Tests.FrameVerifier.h"
 #include "Support.Tests.MarkdownSourceCorrelation.h"
 #include "Support.Tests.RichTextStateReplacement.h"
 #include "Support.Tests.SemanticSourceBlock.h"
@@ -1613,6 +1614,9 @@ struct Report final
     ~Report()
     {
         DxUi::DebugSetAccessibilityIncrementalVerificationForTest(false);
+        // W4.10: the frame verifier's totals (each difference already failed the test that made it, unless DXUI_FRAME_VERIFY=report).
+        const FrameVerifier::Totals frames = FrameVerifier::Read();
+        std::cout << "[W4.10-VERIFY] Embedded: verified " << frames.verified << ", mismatches " << frames.mismatches << '\n';
         DxUi::Detail::verificationScopeObserver = nullptr;
         uint64_t verified = 0u, mismatches = 0u;
         DxUi::DebugGetAccessibilityIncrementalVerificationTotalsForTest(verified, mismatches);
@@ -1620,7 +1624,10 @@ struct Report final
         if (mismatches != 0u)
             std::wcerr << L"[W8.2-VERIFY] first difference from a whole build: " << DxUi::DebugGetAccessibilityFirstProgramMismatchForTest() << L'\n';
         Check(mismatches == 0u, "every incremental publication equals a whole build of the same tree");
+        Check(frames.mismatches == 0u, "W4.10: every region or culled frame equals the same scene painted whole with regions and culling off");
     }
+    // W4.10: every embedded preparation that paints a region or culls is checked against a whole repaint (DXUI_FRAME_VERIFY).
+    FrameVerifier::Scope frameVerifier;
     Report(const Report&)            = delete;
     Report& operator=(const Report&) = delete;
     Report(Report&&)                 = delete;
@@ -2198,10 +2205,10 @@ __declspec(noinline) static int RunFunctionalTests()
     }
     if (__argc >= 3 && std::wstring_view(__wargv[1]) == L"--paint-region-cull-bench")
         return PaintRegionTests::RunCullBench(__argc, __wargv);
-    // Plan W4.10 alone: paint regions and culling (gates, the reach verifier and the regions oracle).
+    // Plan W4.10 alone: paint regions and culling (gates, the reach verifier, the regions oracle and the reviews' findings).
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-paint-regions")
     {
-        PaintRegionTests::Run(gpu);
+        PaintRegionTests::RunAll(gpu);
         return 0;
     }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")
@@ -2418,7 +2425,7 @@ __declspec(noinline) static int RunFunctionalTests()
     ComboBoxPopupLayoutTests::Run(gpu);
     TextFieldPaintTests::Run(gpu);
     RetainedTextLayoutTests::Run(gpu);
-    PaintRegionTests::Run(gpu);
+    PaintRegionTests::RunAll(gpu);
     EmbeddedPointerHit::TestPointerHitFx14AndFx2HitTestOncePerMove();
     EmbeddedPointerHit::TestPointerHitFx10PreparesNoPlainLabelAndSearchesNoTree();
     EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);

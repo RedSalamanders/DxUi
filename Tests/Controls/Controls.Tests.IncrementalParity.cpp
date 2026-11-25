@@ -92,6 +92,16 @@ struct NativeParityScene final
                 break;
             case ParityPointer::Leave: SendMessageW(hwnd, WM_MOUSELEAVE, 0u, 0); break;
         }
+        DispatchSystemLeave();
+    }
+    // A move makes the host call TrackMouseEvent; the real cursor is never over this off-screen window, so Windows posts a
+    // WM_MOUSELEAVE. It belongs to the step that moved: dispatched now, not by whichever later pump reaches it first (a
+    // capture's pump stops at its time bound, so under load one scene would show a hover the other had lost).
+    void DispatchSystemLeave()
+    {
+        MSG leave{};
+        while (PeekMessageW(&leave, window.Hwnd(), WM_MOUSELEAVE, WM_MOUSELEAVE, PM_REMOVE) != FALSE)
+            static_cast<void>(DispatchQueuedMessageForTest(leave));
     }
     void Key(UINT virtualKey)
     {
@@ -249,6 +259,40 @@ void TestNativeIncrementalParityPaintRegions()
     Require(work.frame.paintCulled > 0u, "W4.10: the native regions oracle compares frames that culled children");
 }
 
+// W4.10 round 3 (X1): a PageHost's pages follow the culling rules of a panel's children on the window host, whose whole frames
+// cull against the window: nothing below an undeclared page is culled, a declared page's child whose reach meets the window is
+// painted, and a page transition in flight stays right. The fresh scene paints with culling off.
+void TestNativeIncrementalParityPageHostCulling()
+{
+    const DxUi::Detail::WorkCounterScope scope;
+    RunParityScript(PaintRegionScript::PageHostCullingScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+    Require(scope.Delta().frame.paintCulled > 0u, "W4.10: the native page-host script compares frames that culled a child");
+}
+
+// The scene's pointer input is complete when Pointer returns. A synthesized WM_MOUSEMOVE makes the host call TrackMouseEvent
+// (TME_LEAVE); the real cursor is never over the off-screen parity window, so Windows posts WM_MOUSELEAVE to the thread's
+// queue. Left there, it was dispatched by whichever capture pumped first, and under load a capture's pump can stop at its
+// 50 ms bound before reaching it: one scene then showed the hover the other had already lost (the interaction script, seed
+// 0x5EED00B1, step 28, a Tree row on an 87 % loaded machine). After Pointer, no leave of the window may still be queued.
+void TestNativeParityPointerInputCompletesInItsStep()
+{
+    NativeParityScene scene;
+    scene.Host().SetTheme(ParityTheme(false));
+    auto root   = std::make_unique<Panel>();
+    auto* field = root->AddChild<Button>(L"Hover target");
+    field->SetBounds(D2D1::RectF(20, 20, 200, 52));
+    scene.SetRoot(std::move(root));
+    static_cast<void>(scene.Capture(false));
+    const HWND hwnd = scene.window.Hwnd();
+    scene.Pointer(ParityPointer::Move, CenterOf(*field));
+    MSG pending{};
+    const bool leaveQueued = PeekMessageW(&pending, hwnd, WM_MOUSELEAVE, WM_MOUSELEAVE, PM_NOREMOVE) != FALSE;
+    std::cout << "  pointer move: WM_MOUSELEAVE " << (leaveQueued ? "still queued" : "dispatched") << " when Pointer returns, hovered "
+              << (scene.Host().DebugGetHoveredControl() != nullptr) << '\n';
+    Require(! leaveQueued, "W4.10 round 3: a parity scene's pointer input, the system's leave included, is dispatched within its step");
+    scene.window.PumpMessages(50u);
+}
+
 // The gate's negative control: a cache that forgets one invalidation must show as a difference, at that control.
 void TestNativeIncrementalParityDetectsAStaleCache()
 {
@@ -323,6 +367,7 @@ public:
                 break;
             }
         }
+        scene_.DispatchSystemLeave();
         return true;
     }
     bool Key(UINT virtualKey, bool down, UINT) override
@@ -500,4 +545,6 @@ void RunIncrementalParityTests()
     DXUI_RUN_TEST(TestNativeIncrementalParityFx12DenseScreen);
     DXUI_RUN_TEST(TestNativeIncrementalParityTextField);
     DXUI_RUN_TEST(TestNativeIncrementalParityPaintRegions);
+    DXUI_RUN_TEST(TestNativeIncrementalParityPageHostCulling);
+    DXUI_RUN_TEST(TestNativeParityPointerInputCompletesInItsStep);
 }

@@ -1,0 +1,3 @@
+[W4.10-VERIFY] W4.10 frame verifier: 124 pixels differ inside [139,103,238,134) of a 480x360 frame at 96 DPI (region frame, rectangles [140,100,241,133)); first (139,103) frame 00000000 whole 211F1B2C, under class DxUi::Panel
+FAILED: W4.10 frame verifier: a frame painted with regions and culling differs from the same scene painted whole with regions and culling off
+FAIL: W4.10: the region paints the changed row, its ancestors and the rows its rectangle meets

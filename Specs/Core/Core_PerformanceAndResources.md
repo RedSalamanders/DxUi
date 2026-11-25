@@ -1277,17 +1277,20 @@ exactly the positions `DrawTextLayout` draws at the translated origin.
 
 Plan item `W4.10` ([receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W4.10/README.md)). A host keeps a paint
 region: at most eight rectangles in device pixels of its view, each snapped outward to the whole pixels its extent touches
-(antialiased coverage never leaves the pixels a shape's geometry touches), in fixed storage, so adding, merging and clearing do no heap work. A rectangle that
+(antialiased coverage never leaves the pixels a shape's geometry touches) at the scale the view is painted at (an embedded
+view's own DPI, fractional ones included), in fixed storage, so adding, merging and clearing do no heap work. A rectangle that
 touches or overlaps another merges with it; a ninth merges with the stored one whose union grows least; above half the
 view, or on any invalidation it cannot attribute, the region is the whole view. What enters it:
 
 - an attributed invalidation (`Assign` with `Affects::Paint`, `Control::Invalidate`, `RequestInvalidate`,
   `InvalidateMeasure`) adds the control's [painted extent](../UI/UI_ControlsAndLayout.md#painted-extent), a panel's with its
   descendants, mapped through its ancestors to the view: translated by each `ScrollPanel`'s offset and clipped to its
-  viewport (not for the overlay children of a `PopupLayer`, which no viewport clips), then clipped to the view, so an
-  invalidation of a control scrolled out of view adds nothing;
+  viewport (not for overlay content, a `PopupLayer`'s children or a panel that holds some, which no viewport clips), then
+  clipped to the view, so an invalidation of a control scrolled out of view adds nothing;
 - `SetBounds` adds the control's extent at its old bounds and at its new ones; a hover change adds the old and the new
-  hovered control (the host's, and a `ScrollPanel`'s inner hover), which no control invalidates for;
+  hovered control (the host's, and a `ScrollPanel`'s inner hover), which no control invalidates for, and every ancestor of
+  them whose `Paint` draws a hover below it (`TagPicker`, from its inner `ComboBox`); a `ScrollPanel`'s offset change adds
+  its overlay content at the old and the new offset;
 - the whole view: `ControlHost::Invalidate` (an application's, and every host-level change: theme, DPI, typography, text
   rendering, focus visibility, tooltip, default button), a tree change (a control joins, leaves or moves), an undeclared or
   unbounded extent anywhere on the control's ancestor chain, a `ComboBox` popup closing and a page transition ending.
@@ -1315,6 +1318,11 @@ or resumes a transition (`Button`'s disclosure, `ProgressBar`'s indeterminate sw
 does so only as a resume after a hidden period: a request held by a visible control keeps ticking whether or not the
 control is painted, its ticks invalidate it, and those invalidations bring it into the next region. No library `Paint`
 stores geometry that hit testing or accessibility reads.
+
+The definition of correct is a frame painted whole with regions and culling off: a frame painted with them equals it, pixel
+for pixel on WARP. The Debug test programs check every embedded region or culled frame against that reference as it is
+made (the frame verifier, [Testing_Validation.md](../Testing/Testing_Validation.md#frame-verifier)), and the
+incremental-versus-fresh oracle paints its fresh scene with regions and culling off on both hosts.
 
 The switch `DxUi::Detail::SetPaintRegionsEnabledForTest` (private, present in every configuration; `DxUi.EmbeddedTests.exe`
 reads `DXUI_PAINT_REGIONS=0`, which `performance-timing.ps1 -CandidateEnvironment` sets for one role) turns regions and culling off, which repaints whole frames as before, for same-binary

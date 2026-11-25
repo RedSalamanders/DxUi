@@ -1281,6 +1281,17 @@ PaintOverhang Control::GetPaintOverhang(const ControlHost& /*host*/) const noexc
             return {kLibraryPaintReachDip, kLibraryPaintReachDip, kLibraryPaintReachDip, kLibraryPaintReachDip};
         }
         case PaintKind::Library:
+        {
+            // A Selector button's ring is drawn at its 6 DIP corner radius, and DrawRawFocusRing scales the ring's offset and
+            // stroke by radius / 4: the outer stroke's outside edge lies 3 x 1.5 = 4.5 DIP out (the review's E1).
+            const auto* button = dynamic_cast<const Button*>(this);
+            if (button && button->GetVariant() == ButtonVariant::Selector)
+            {
+                constexpr float reach = 3.0f * (6.0f / kButtonCornerRadiusDip);
+                return {reach, reach, reach, reach};
+            }
+            break;
+        }
         case PaintKind::Panel:
         case PaintKind::ScrollPanel:
         case PaintKind::PopupLayer: break;
@@ -1376,7 +1387,11 @@ void PaintExtentAccess::Resolve(Control& control) noexcept
     // Only the library classes themselves: a subclass may draw text of its own outside the clip.
     const bool clipsText = type == typeid(Tree) || type == typeid(Grid) || type == typeid(TextField) || type == typeid(ComboBox) ||
                            type == typeid(RichTextEditor) || type == typeid(TabControl);
-    control._paintFlags = static_cast<uint8_t>((control._paintFlags & ~(kDeclared | kClipsText)) | (declared ? kDeclared : 0u) | (clipsText ? kClipsText : 0u));
+    // TagPicker draws its field's frame in the hover colours of its inner ComboBox (the review's B1; the sweep found no other
+    // library Paint that reads another control's hover).
+    const bool paintsInnerHover = dynamic_cast<const TagPicker*>(&control) != nullptr;
+    control._paintFlags         = static_cast<uint8_t>((control._paintFlags & ~(kDeclared | kClipsText | kPaintsInnerHover)) | (declared ? kDeclared : 0u) |
+                                                       (clipsText ? kClipsText : 0u) | (paintsInnerHover ? kPaintsInnerHover : 0u));
 }
 
 bool PaintExtentAccess::OwnExtent(const ControlHost& host, const Control& control, D2D1_RECT_F& extent) noexcept
@@ -1410,6 +1425,9 @@ bool PaintExtentAccess::Extent(const ControlHost& host, const Control& control, 
     }
     D2D1_RECT_F rect = D2D1::RectF();
     bool unbounded   = ! OwnExtent(host, control, rect);
+    bool overlay     = kind == PaintKind::PopupLayer;
+    // A ScrollPanel's content is drawn translated by its offset: its overlay content (below) is mapped by it.
+    const float offset = kind == PaintKind::ScrollPanel ? static_cast<const ScrollPanel&>(control).GetScrollOffset() : 0.0f;
     for (const std::unique_ptr<Control>& child : panel._children)
     {
         if (unbounded)
@@ -1418,29 +1436,35 @@ bool PaintExtentAccess::Extent(const ControlHost& host, const Control& control, 
             continue;
         D2D1_RECT_F childExtent{};
         if (! Extent(host, *child, childExtent))
+        {
             unbounded = true;
-        // A ScrollPanel clips its content to its own bounds; its children only decide whether it is bounded.
-        else if (kind != PaintKind::ScrollPanel && ! IsEmptyExtent(childExtent))
+            break;
+        }
+        const PaintKind childKind = Kind(*child);
+        const bool childOverlay   = (childKind == PaintKind::Panel || childKind == PaintKind::ScrollPanel || childKind == PaintKind::PopupLayer) &&
+                                    static_cast<const Panel&>(*child)._paintExtent.overlay;
+        overlay                   = overlay || childOverlay;
+        if (IsEmptyExtent(childExtent))
+            continue;
+        // A ScrollPanel clips its content to its viewport, except overlay content (a PopupLayer's children, drawn by the overlay
+        // pass through no viewport): a child that holds some extends it, at the content's offset.
+        if (kind != PaintKind::ScrollPanel)
             rect = UnionRect(rect, childExtent);
+        else if (childOverlay)
+            rect = UnionRect(rect, D2D1::RectF(childExtent.left, childExtent.top - offset, childExtent.right, childExtent.bottom - offset));
     }
     cached.rect      = rect;
     cached.unbounded = unbounded;
+    cached.overlay   = overlay;
     cached.topology  = host._paintTopologyRevision;
     cached.valid     = true;
     extent           = rect;
     return ! unbounded;
 }
 
-bool PaintExtentAccess::ViewExtent(const ControlHost& host, const Control& control, bool subtree, D2D1_RECT_F& extent) noexcept
+bool PaintExtentAccess::MapToView(const ControlHost& host, const Control* ancestor, bool overlay, D2D1_RECT_F& rect) noexcept
 {
-    if (! Detail::PaintRegionsEnabled() || control._host != &host)
-        return false;
-    D2D1_RECT_F rect{};
-    if (! (subtree ? Extent(host, control, rect) : OwnExtent(host, control, rect)))
-        return false;
-    // Overlay content (a PopupLayer's children) is not clipped by the viewports it is drawn through.
-    bool overlay = Kind(control) == PaintKind::PopupLayer;
-    for (const Control* ancestor = control._parent; ancestor; ancestor = ancestor->_parent)
+    for (; ancestor; ancestor = ancestor->_parent)
     {
         if (! IsDeclared(*ancestor))
             return false;
@@ -1479,8 +1503,27 @@ bool PaintExtentAccess::ViewExtent(const ControlHost& host, const Control& contr
     }
     // A control in another tree than the host's root (a detached branch) is never drawn by it.
     const D2D1_RECT_F view = host.GetClientBoundsDip();
-    extent =
+    rect =
         D2D1::RectF((std::max)(rect.left, view.left), (std::max)(rect.top, view.top), (std::min)(rect.right, view.right), (std::min)(rect.bottom, view.bottom));
+    return true;
+}
+
+bool PaintExtentAccess::ViewExtent(const ControlHost& host, const Control& control, bool subtree, D2D1_RECT_F& extent) noexcept
+{
+    if (! Detail::PaintRegionsEnabled() || control._host != &host)
+        return false;
+    D2D1_RECT_F rect{};
+    if (! (subtree ? Extent(host, control, rect) : OwnExtent(host, control, rect)))
+        return false;
+    // Overlay content (a PopupLayer's children) is not clipped by the viewports it is drawn through. A panel that holds some
+    // has its overlay content in its extent already (Extent), and the viewports above it must not clip that part either: its
+    // subtree extent is mapped as overlay (conservative: its other content is not clipped by them either).
+    const PaintKind kind = Kind(control);
+    const bool overlay   = kind == PaintKind::PopupLayer ||
+                           (subtree && (kind == PaintKind::Panel || kind == PaintKind::ScrollPanel) && static_cast<const Panel&>(control)._paintExtent.overlay);
+    if (! MapToView(host, control._parent, overlay, rect))
+        return false;
+    extent = rect;
     return true;
 }
 
@@ -1530,6 +1573,79 @@ void PaintExtentAccess::Invalidate(ControlHost& host, const Control& control) no
     host.RequestRegionFrame();
 }
 
+void PaintExtentAccess::AddHoverChange(ControlHost& host, const Control& control) noexcept
+{
+    AddToRegion(host, control, true);
+    for (const Control* ancestor = control._parent; ancestor; ancestor = ancestor->_parent)
+        if ((ancestor->_paintFlags & kPaintsInnerHover) != 0u)
+            AddToRegion(host, *ancestor, false);
+}
+
+void PaintExtentAccess::ScrollMoved(const ScrollPanel& panel, float previousOffset) noexcept
+{
+    ControlHost* const host = panel._host;
+    if (! host)
+        return;
+    // Its cached extent holds its overlay content at the old offset; every panel above it is stale with it.
+    ExtentChanged(panel);
+    if (host->_paintRegion.full || ! Detail::PaintRegionsEnabled())
+        return;
+    // The overlay content below it, in its content coordinates. Its viewport content is in its own extent, which the scroll's
+    // own invalidation adds; overlay content is drawn wherever the offset puts it.
+    D2D1_RECT_F content = D2D1::RectF();
+    bool overlay        = false;
+    for (const std::unique_ptr<Control>& child : panel._children)
+    {
+        if (! child || ! child->_visible)
+            continue;
+        const PaintKind childKind = Kind(*child);
+        if (childKind != PaintKind::Panel && childKind != PaintKind::ScrollPanel && childKind != PaintKind::PopupLayer)
+            continue;
+        D2D1_RECT_F childExtent{};
+        if (! Extent(*host, *child, childExtent))
+        {
+            MarkFull(*host);
+            return;
+        }
+        if (static_cast<const Panel&>(*child)._paintExtent.overlay && ! IsEmptyExtent(childExtent))
+        {
+            content = overlay ? UnionRect(content, childExtent) : childExtent;
+            overlay = true;
+        }
+    }
+    if (! overlay)
+        return;
+    for (const float offset : {previousOffset, panel.GetScrollOffset()})
+    {
+        D2D1_RECT_F rect = D2D1::RectF(content.left, content.top - offset, content.right, content.bottom - offset);
+        if (! MapToView(*host, panel._parent, true, rect))
+        {
+            MarkFull(*host);
+            return;
+        }
+        if (! IsEmptyExtent(rect))
+            AddDip(*host, rect);
+    }
+}
+
+float PaintExtentAccess::PixelScale(const ControlHost& host) noexcept
+{
+    return (host._paintDpi > 0.0f ? host._paintDpi : host.GetDpi()) / 96.0f;
+}
+
+D2D1_RECT_F PaintExtentAccess::SnapOutward(const ControlHost& host, const D2D1_MATRIX_3X2_F& transform, const D2D1_RECT_F& rect) noexcept
+{
+    const float scale     = PixelScale(host);
+    const D2D1_RECT_F box = TransformBox(transform, rect);
+    const D2D1_RECT_F px  = D2D1::RectF(std::floor(box.left * scale), std::floor(box.top * scale), std::ceil(box.right * scale), std::ceil(box.bottom * scale));
+    // Back through the translation and scale of the transform (it neither rotates nor skews).
+    const float sx = transform._11 != 0.0f ? transform._11 : 1.0f;
+    const float sy = transform._22 != 0.0f ? transform._22 : 1.0f;
+    const float x0 = (px.left / scale - transform._31) / sx, x1 = (px.right / scale - transform._31) / sx;
+    const float y0 = (px.top / scale - transform._32) / sy, y1 = (px.bottom / scale - transform._32) / sy;
+    return D2D1::RectF((std::min)(x0, x1), (std::min)(y0, y1), (std::max)(x0, x1), (std::max)(y0, y1));
+}
+
 namespace Detail
 {
 void NoteFullRegionForTest() noexcept;
@@ -1556,8 +1672,9 @@ void PaintExtentAccess::AddDip(ControlHost& host, const D2D1_RECT_F& rectDip) no
         return;
     }
     // Snapped outward to device pixels: every pixel the extent touches, partly or wholly. Antialiased coverage never reaches
-    // beyond the pixels a shape's geometry touches, and a text extent is its glyphs' ink (overhang metrics).
-    const float scale  = static_cast<float>(host.GetDpi()) / 96.0f;
+    // beyond the pixels a shape's geometry touches, and a text extent is its glyphs' ink (overhang metrics). The scale is the one
+    // the frame paints with (an embedded view's float DPI), so the rectangle is the pixels the paint clip later covers.
+    const float scale  = PixelScale(host);
     const auto clampPx = [](float value, UINT limit) noexcept { return static_cast<LONG>(std::clamp(value, 0.0f, static_cast<float>(limit))); };
     RECT rect{clampPx(std::floor(rectDip.left * scale), width),
               clampPx(std::floor(rectDip.top * scale), height),
@@ -1642,14 +1759,22 @@ bool PaintExtentAccess::ClipEnclosedBy(const ControlHost& host, const D2D1_MATRI
 {
     if (! host._paintClipBounded || transform._12 != 0.0f || transform._21 != 0.0f)
         return false;
-    // The clip's pixels must each lie wholly inside the rectangle, where an antialiased clip to it covers them fully.
-    const float scale      = static_cast<float>(host.GetDpi()) / 96.0f;
+    // The clip's pixels must each lie wholly inside the rectangle, where an antialiased clip to it covers them fully. That holds
+    // only while the paint clip is whole pixels (a region rectangle, the surface): after an outer viewport narrowed it to a
+    // fractional edge, its edge pixels are partly covered, and an inner antialiased clip covers them less again (the review's
+    // D1), so the inner clip is pushed.
+    const float scale      = PixelScale(host);
     const D2D1_RECT_F box  = TransformBox(transform, rect);
     const D2D1_RECT_F clip = host._paintClipDip;
-    const float left       = std::floor(clip.left * scale + 0.5f);
-    const float top        = std::floor(clip.top * scale + 0.5f);
-    const float right      = std::floor(clip.right * scale + 0.5f);
-    const float bottom     = std::floor(clip.bottom * scale + 0.5f);
+    const auto pixel       = [scale](float dip, float& snapped) noexcept
+    {
+        const float px = dip * scale;
+        snapped        = std::round(px);
+        return std::abs(px - snapped) <= 1.0f / 1024.0f;
+    };
+    float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
+    if (! pixel(clip.left, left) || ! pixel(clip.top, top) || ! pixel(clip.right, right) || ! pixel(clip.bottom, bottom))
+        return false;
     return left >= std::ceil(box.left * scale) && top >= std::ceil(box.top * scale) && right <= std::floor(box.right * scale) &&
            bottom <= std::floor(box.bottom * scale);
 }
@@ -1727,7 +1852,7 @@ void PaintExtentAccess::SetClip(ControlHost& host, const D2D1_RECT_F& clipDip) n
 {
     // With regions off nothing is culled, as before W4.10.
     host._paintClipDip     = clipDip;
-    host._paintClipBounded = Detail::PaintRegionsEnabled();
+    host._paintClipBounded = Detail::PaintRegionsEnabled() && ! Detail::g_paintVerificationActive;
 }
 
 PaintExtentAccess::PaintingScope::PaintingScope(ControlHost& paintingHost, const Control& control) noexcept
@@ -1747,6 +1872,12 @@ PaintExtentAccess::PaintingScope::PaintingScope(ControlHost& paintingHost, const
         clipSuspended          = true;
         outerClipBounded       = true;
         host._paintClipBounded = false;
+    }
+    // The frame verifier's reference paint keeps no ink escape: a control the frame culled must not change state through it.
+    if (Detail::g_paintVerificationActive) [[unlikely]]
+    {
+        host._paintingLimitBounded = false;
+        return;
     }
     // The limit is the control's bounds plus its declared reach; an undeclared or unbounded control escapes nothing.
     const bool wasEscaped      = (control._paintFlags & kInkEscaped) != 0u;
@@ -1780,6 +1911,72 @@ PaintExtentAccess::PaintingScope::~PaintingScope()
     host._paintingLimitDip     = outerLimit;
     host._paintingLimitBounded = outerBounded;
     host._paintingInkEscaped   = outerEscaped;
+}
+
+PaintExtentAccess::OverlayScope::OverlayScope(ControlHost& overlayHost, const Control& control) noexcept : host(overlayHost)
+{
+    if (! IsDeclared(control) && host._paintClipBounded)
+    {
+        clipSuspended          = true;
+        host._paintClipBounded = false;
+    }
+}
+
+PaintExtentAccess::OverlayScope::~OverlayScope()
+{
+    if (clipSuspended)
+        host._paintClipBounded = true;
+}
+
+PaintExtentAccess::VerificationScope::VerificationScope(ControlHost& host) noexcept
+    : _host(host),
+      _work(Detail::Work()),
+      _region(host._paintRegion),
+      _inkEscapedNew(host._paintInkEscapedNew),
+      _brushAges(),
+      _formatAges(),
+      _layouts(),
+      _transitionBrushes(0u),
+      _transitionBrushesUsed(host._transitionBrushesUsed)
+{
+    _observer = Detail::GetPaintObserverForTest(_observerContext);
+    Detail::SetPaintObserverForTest(nullptr, nullptr);
+    // Swapped, not copied: the reference paint finds empty caches and fills its own, which the end releases.
+    _brushAges.reserve(host._brushCache.size());
+    for (const auto& [key, entry] : host._brushCache)
+        _brushAges.emplace_back(key, entry.lastUse);
+    std::ranges::sort(_brushAges);
+    _formatAges.reserve(host._configuredTextFormats.size());
+    for (const auto& [key, entry] : host._configuredTextFormats)
+        _formatAges.emplace_back(key, entry.lastUse);
+    _layouts.swap(host._textLayoutCache);
+    _transitionBrushes.swap(host._transitionBrushes);
+    host._transitionBrushesUsed       = 0u;
+    Detail::g_paintVerificationActive = true;
+}
+
+PaintExtentAccess::VerificationScope::~VerificationScope()
+{
+    Detail::g_paintVerificationActive = false;
+    std::erase_if(_host._brushCache,
+                  [this](auto& entry)
+    {
+        const auto found = std::ranges::lower_bound(_brushAges, entry.first, {}, &std::pair<uint32_t, uint64_t>::first);
+        if (found == _brushAges.end() || found->first != entry.first)
+            return true;
+        entry.second.lastUse = found->second;
+        return false;
+    });
+    for (const auto& [key, lastUse] : _formatAges)
+        if (const auto found = _host._configuredTextFormats.find(key); found != _host._configuredTextFormats.end())
+            found->second.lastUse = lastUse;
+    _host._textLayoutCache.swap(_layouts);
+    _host._transitionBrushes.swap(_transitionBrushes);
+    _host._transitionBrushesUsed = _transitionBrushesUsed;
+    _host._paintRegion           = _region;
+    _host._paintInkEscapedNew    = _inkEscapedNew;
+    Detail::SetPaintObserverForTest(_observer, _observerContext);
+    Detail::Work() = _work;
 }
 
 Control::~Control()

@@ -88,7 +88,8 @@ embedded `Embedded.Tests.IncrementalParity.h`). Two identical scenes run one see
 the incremental scene draws with what it retained; the fresh scene first calls `DebugDropRetainedStateForTest()` (on
 `ControlHost` and `EmbeddedHost`), every registered cache MUST then report 0 entries, and it draws from scratch. Its
 build, steps and captures also run with the private fresh-preparation seam (`SetFreshPreparationForTest`), under which
-preparation never reuses a previous publication's values (the semantic builder's unchanged blocks). The
+preparation never reuses a previous publication's values (the semantic builder's unchanged blocks), and with paint regions
+and culling off (`SetPaintRegionsEnabledForTest(false)`), so a cull that is wrong even in a whole frame differs. The
 two frames MUST agree exactly in premultiplied BGRA on WARP, in the bounds, visibility, enabled, focus and hover state of
 every control, and in the UI Automation tree (control type, name, automation id, state, value, toggle, expand, selection,
 range value, help text and bounding rectangle per element). A failure names the script, seed, step, first differing
@@ -109,11 +110,32 @@ effects run at the library's own optimization mode in both scenes. The negative 
 through a private test seam (`src/Support/RetainedCaches.Tests.Hooks.h`, declared in no public header) and MUST yield a
 nonzero BGRA difference at that label.
 
+A step ends with its input complete: the native scene dispatches the `WM_MOUSELEAVE` that Windows posts after a
+synthesized move (the host tracks the leave, and the real cursor is never over the off-screen window) before the step
+returns, so a capture's time-bounded pump never decides whether a scene still shows a hover.
+
 The embedded oracle reads the view's surface texture (`EmbeddedHost::DebugReadSurfaceForTest`). The native oracle reads the
 back buffer of a full frame (`DebugCaptureBitmap`), which equals the presented frame only while every native frame is full.
 A partial native frame leaves older pixels outside its dirty rectangle in the back buffer until `Present1`, so partial-frame
 scripts MUST read the presented image of the presented-frame truth test (`W0.6`) through the reader seam in
 `Controls.Tests.IncrementalParity.cpp`; until it exists, the oracle does not qualify native partial frames.
+
+### Frame verifier
+
+Plan item `W4.10`. The oracle checks the scripts written for it; the frame verifier makes every embedded test the oracle of
+paint regions and culling. While a test program turns it on (`SetPaintRegionVerificationForTest`, private, in
+`src/Support/RetainedCaches.Tests.Hooks.h`), every `EmbeddedHost::Prepare` that painted a region, culled a child or skipped a
+viewport clip paints the same scene again at the same time, whole and with regions and culling off, into a scratch surface it
+creates and releases on the spot, and compares the two frames exactly in premultiplied BGRA. The reference paint changes
+nothing a test reads: the work counters, the host's brush, format and text layout caches and their ages, the paint
+observer, ink escape, the paint region and the program's allocation counts (through `verificationScopeObserver`) are as
+the frame left them. A difference fails the running test at once with the count and bounding box of the differing pixels,
+the region's rectangles and the first pixel (`Tests/Support/Support.Tests.FrameVerifier.h`). It is on in every suite of
+the Debug and ASan Debug test programs (`DxUi.EmbeddedTests.exe`, and per suite in `DxUi.ControlTests.exe`), which
+report `[W4.10-VERIFY] <program or suite>: verified N, mismatches M`; `DXUI_FRAME_VERIFY=report` logs every difference and
+runs on, `DXUI_FRAME_VERIFY=0` turns it off. Release builds the hook dormant, and outside a test program the embedded host
+owns nothing more. The window host, which paints whole frames but culls, is checked by the oracle, whose fresh scene paints
+with culling off.
 
 ## Earlier review regression contracts
 

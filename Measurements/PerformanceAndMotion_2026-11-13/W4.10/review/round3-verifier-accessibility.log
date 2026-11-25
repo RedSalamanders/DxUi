@@ -1,0 +1,4 @@
+[W4.10-VERIFY] W4.10 frame verifier: 1344 pixels differ inside [8,13,230,226) of a 480x240 frame at 96 DPI (region frame, rectangles); first (11,13) frame 535353FF whole DE9231FF, under class `anonymous namespace'::RichAccessibilityEditor
+[W4.10-VERIFY] W4.10 frame verifier: 315 pixels differ inside [20,152,85,227) of a 480x240 frame at 96 DPI (region frame, rectangles); first (22,152) frame 535353FF whole 858585FF, under class `anonymous namespace'::RichAccessibilityEditor
+[W4.10-VERIFY] W4.10 frame verifier: 819 pixels differ inside [20,14,85,227) of a 480x240 frame at 96 DPI (region frame, rectangles); first (22,14) frame 535353FF whole 858585FF, under class `anonymous namespace'::RichAccessibilityEditor
+[W4.10-VERIFY] Accessibility: verified 769, mismatches 3

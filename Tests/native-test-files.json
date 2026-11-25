@@ -228,6 +228,7 @@
   "Tests/Support/Support.Tests.FlowchartLayout.h",
   "Tests/Support/Support.Tests.Footnotes.h",
   "Tests/Support/Support.Tests.ForegroundThief.h",
+  "Tests/Support/Support.Tests.FrameVerifier.h",
   "Tests/Support/Support.Tests.GpuEngineTime.h",
   "Tests/Support/Support.Tests.HeapDiagnostic.h",
   "Tests/Support/Support.Tests.IncrementalParity.h",

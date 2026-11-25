@@ -1,0 +1,2 @@
+  pointer move: WM_MOUSELEAVE still queued when Pointer returns, hovered 1
+FAILED: W4.10 round 3: a parity scene's pointer input, the system's leave included, is dispatched within its step

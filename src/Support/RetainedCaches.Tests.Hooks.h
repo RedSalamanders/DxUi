@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 namespace DxUi
 {
 class Control;
@@ -24,4 +25,17 @@ void SetFreshPreparationForTest(bool enabled) noexcept;
 // (-CandidateEnvironment DXUI_PAINT_REGIONS=0, read by the test executables) and the oracle's reference use it. Set it on the UI
 // thread before attaching hosts, not while a frame paints.
 void SetPaintRegionsEnabledForTest(bool enabled) noexcept;
+// The frame verifier of paint regions and culling (W4.10), dormant until a test program turns it on (the Debug test programs
+// do, for every suite). While on, every embedded preparation that painted a region, culled a child or skipped a clip paints
+// the same scene again, at the same time, whole and with regions and culling off, into a scratch surface it creates and
+// releases on the spot, and compares the two exactly. The second paint changes nothing a test can see: work counters, the
+// host's retained caches and their ages, the paint observer, ink escape, the paint region and allocation counts (through
+// verificationScopeObserver) are as the first left them. A mismatch is counted, described (count, bounding box, first pixel)
+// and passed to the observer, which a test program uses to fail the running test.
+using PaintRegionMismatchObserver = void (*)(const char* description) noexcept;
+void SetPaintRegionVerificationForTest(bool verify) noexcept;
+[[nodiscard]] bool GetPaintRegionVerificationForTest() noexcept;
+// Totals since the process started, never reset: what a test program verified and how many differed.
+void GetPaintRegionVerificationTotalsForTest(uint64_t& verified, uint64_t& mismatches) noexcept;
+void SetPaintRegionMismatchObserverForTest(PaintRegionMismatchObserver observer) noexcept;
 } // namespace DxUi::Detail

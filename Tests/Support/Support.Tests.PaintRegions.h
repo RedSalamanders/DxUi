@@ -493,4 +493,87 @@ template <typename Scene> [[nodiscard]] ParityScript<Scene> ThinSliderScript()
 {
     return {"thin-slider", kProbeSeed, 6u, &BuildThinSlider<Scene>, &StepThinSlider<Scene>};
 }
+
+// Script "page-host-culling" (W4.10 round 3, X1): what a PageHost paints follows the culling rules of a panel's children.
+// - An undeclared consumer page that paints its children into a command list and draws it 200 DIP lower: its Button above
+//   the view (outside every paint clip) is drawn inside it and must not be culled; nothing below an undeclared page is.
+// - A second PageHost with a library Panel page: an EdgeInk outside the view whose 2 DIP reach reaches 1 DIP into it must not
+//   be culled, and one wholly outside is.
+// - A page change with motion on, its transition frozen half way (the translated, faded pages), and a change beside it.
+class CommandListPage final : public DxUi::Panel
+{
+public:
+    CommandListPage()                                  = default;
+    CommandListPage(const CommandListPage&)            = delete;
+    CommandListPage& operator=(const CommandListPage&) = delete;
+    CommandListPage(CommandListPage&&)                 = delete;
+    CommandListPage& operator=(CommandListPage&&)      = delete;
+    ~CommandListPage() override                        = default;
+    void Paint(DxUi::ControlHost& host) const override
+    {
+        auto* dc = host.GetDeviceContext();
+        if (! dc)
+            return;
+        wil::com_ptr<ID2D1CommandList> list;
+        if (FAILED(dc->CreateCommandList(list.put())))
+            return;
+        wil::com_ptr<ID2D1Image> previous;
+        dc->GetTarget(previous.put());
+        dc->SetTarget(list.get());
+        DxUi::Panel::Paint(host);
+        dc->SetTarget(previous.get());
+        if (FAILED(list->Close()))
+            return;
+        dc->DrawImage(list.get(), D2D1::Point2F(0.0f, 200.0f));
+    }
+};
+[[nodiscard]] inline std::unique_ptr<DxUi::Control> MakeCommandListPage(const wchar_t* text)
+{
+    auto page = std::make_unique<CommandListPage>();
+    page->AddChild<DxUi::Button>(text)->SetBounds(D2D1::RectF(20, -150, 160, -118));
+    page->AddChild<DxUi::Label>(L"Drawn where it is, 200 DIP lower")->SetBounds(D2D1::RectF(20, 10, 220, 34));
+    return page;
+}
+template <typename Scene> void BuildPageHostCulling(Scene& scene)
+{
+    scene.Host().SetTheme(ParityTheme(false));
+    auto root   = std::make_unique<DxUi::Panel>();
+    auto* pages = root->AddChild<DxUi::PageHost>();
+    pages->SetBounds(D2D1::RectF(0, 0, 300, 300));
+    pages->SetPage(MakeCommandListPage(L"Above the view"));
+    auto* declared = root->AddChild<DxUi::PageHost>();
+    declared->SetBounds(D2D1::RectF(-100, 100, 400, 200));
+    auto page     = std::make_unique<DxUi::Panel>();
+    auto* reaches = page->AddChild<EdgeInk>();
+    reaches->SetBounds(D2D1::RectF(-60, 120, -1, 150));                    // its reach ends 1 DIP inside the view
+    page->AddChild<EdgeInk>()->SetBounds(D2D1::RectF(-60, 160, -10, 190)); // wholly outside it
+    declared->SetPage(std::move(page));
+    auto* patch = root->AddChild<Patch>();
+    patch->SetBounds(D2D1::RectF(420, 10, 460, 40));
+    scene.slots[0] = root.get();
+    scene.slots[1] = pages;
+    scene.slots[2] = patch;
+    scene.slots[3] = declared;
+    scene.SetRoot(std::move(root));
+}
+template <typename Scene> void StepPageHostCulling(Scene& scene, Rng&, size_t step)
+{
+    if (step == 3u)
+    {
+        NoteStep("motion on, a new page, its transition frozen half way");
+        DxUi::ThemePalette theme = ParityTheme(false);
+        theme.reducedMotion      = false;
+        scene.Host().SetTheme(theme);
+        auto* pages = static_cast<DxUi::PageHost*>(scene.slots[1]);
+        pages->SetPage(MakeCommandListPage(L"The next page"));
+        pages->DebugFreezeTransitionProgress(0.5f);
+        return;
+    }
+    NoteStep("a Patch beside the pages flips");
+    static_cast<Patch*>(scene.slots[2])->Flip();
+}
+template <typename Scene> [[nodiscard]] ParityScript<Scene> PageHostCullingScript()
+{
+    return {"page-host-culling", kProbeSeed, 5u, &BuildPageHostCulling<Scene>, &StepPageHostCulling<Scene>};
+}
 } // namespace PaintRegionScript

@@ -375,10 +375,14 @@ template <typename Scene, typename Make>
     std::unique_ptr<Scene> fresh       = make();
     // The fresh scene also prepares without reusing a previous publication (W7.1: the semantic builder's unchanged
     // blocks), which the cache drop alone cannot reach.
+    // It paints with paint regions and culling off (W4.10): a cull that is wrong even in a whole frame then differs from it.
     const auto freshly = [](auto&& operation)
     {
+        const bool regions = DxUi::Detail::PaintRegionsEnabled();
         DxUi::Detail::SetFreshPreparationForTest(true);
+        DxUi::Detail::SetPaintRegionsEnabledForTest(false);
         operation();
+        DxUi::Detail::SetPaintRegionsEnabledForTest(regions);
         DxUi::Detail::SetFreshPreparationForTest(false);
     };
     // Every incremental UI Automation publication of either scene is also checked against a whole build of the same tree (W8.2).

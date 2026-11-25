@@ -1,0 +1,35 @@
+PROBE E3-narrow-content-reach: TabControl one long title 80x100 focus visible at 96 DPI: pixel (0, 101) alpha 96 outside [137, 97, 224, 204) (ink reaches l 140.30 t 0.60 r 0.70 b 0.40 DIP)
+PROBE E3-narrow-content-reach: TabControl one long title 80x100 focus visible at 168 DPI: pixel (391, 177) alpha 64 outside [240, 170, 391, 357) (ink reaches l 0.87 t 0.03 r 259.70 b -0.03 DIP)
+PROBE E3-narrow-content-reach: 2 of 74 bounded cases draw outside their extent (34 unbounded)
+PROBE E1-button-variant-reach: Button Selector Filled focus visible at 96 DPI: pixel (142, 96) alpha 36 outside [137, 97, 264, 136) (ink reaches left 5.30 top 4.60 right 4.70 bottom 5.40 DIP; declared 3)
+PROBE E1-button-variant-reach: Button Selector Subtle focus visible at 96 DPI: pixel (142, 96) alpha 36 outside [137, 97, 264, 136) (ink reaches left 5.30 top 4.60 right 4.70 bottom 5.40 DIP; declared 3)
+PROBE E1-button-variant-reach: Button Selector Outline focus visible at 96 DPI: pixel (142, 96) alpha 36 outside [137, 97, 264, 136) (ink reaches left 5.30 top 4.60 right 4.70 bottom 5.40 DIP; declared 3)
+PROBE E1-button-variant-reach: Button Selector Tab focus visible at 96 DPI: pixel (142, 96) alpha 36 outside [137, 97, 264, 136) (ink reaches left 5.30 top 4.60 right 4.70 bottom 5.40 DIP; declared 3)
+PROBE E1-button-variant-reach: Button Selector Caption focus visible at 96 DPI: pixel (142, 96) alpha 36 outside [137, 97, 264, 136) (ink reaches left 5.30 top 4.60 right 4.70 bottom 5.40 DIP; declared 3)
+PROBE E1-button-variant-reach: Button Selector CaptionClose focus visible at 96 DPI: pixel (142, 96) alpha 36 outside [137, 97, 264, 136) (ink reaches left 5.30 top 4.60 right 4.70 bottom 5.40 DIP; declared 3)
+PROBE E1-button-variant-reach: Button Selector Filled focus visible at 168 DPI: pixel (251, 168) alpha 40 outside [240, 170, 461, 238) (ink reaches left 4.87 top 4.60 right 4.84 bottom 4.54 DIP; declared 3)
+PROBE E1-button-variant-reach: Button Selector Subtle focus visible at 168 DPI: pixel (251, 168) alpha 40 outside [240, 170, 461, 238) (ink reaches left 4.87 top 4.60 right 4.84 bottom 4.54 DIP; declared 3)
+PROBE E1-button-variant-reach: Button Selector Outline focus visible at 168 DPI: pixel (251, 168) alpha 40 outside [240, 170, 461, 238) (ink reaches left 4.87 top 4.60 right 4.84 bottom 4.54 DIP; declared 3)
+PROBE E1-button-variant-reach: Button Selector Tab focus visible at 168 DPI: pixel (251, 168) alpha 40 outside [240, 170, 461, 238) (ink reaches left 4.87 top 4.60 right 4.84 bottom 4.54 DIP; declared 3)
+PROBE E1-button-variant-reach: Button Selector Caption focus visible at 168 DPI: pixel (251, 168) alpha 40 outside [240, 170, 461, 238) (ink reaches left 4.87 top 4.60 right 4.84 bottom 4.54 DIP; declared 3)
+PROBE E1-button-variant-reach: Button Selector CaptionClose focus visible at 168 DPI: pixel (251, 168) alpha 40 outside [240, 170, 461, 238) (ink reaches left 4.87 top 4.60 right 4.84 bottom 4.54 DIP; declared 3)
+PROBE E1-button-variant-reach: 12 of 288 Button variant/appearance/state cases draw outside their extent
+PROBE E2-tabcontrol-last-tab-focus: 96 DPI: pixel (0, 101) alpha 96 outside [137, 97, 304, 204) (ink reach l 140.30 t 0.60 r 0.70 b 0.40)
+PROBE E2-tabcontrol-last-tab-focus: 168 DPI: inside extent (ink reach l 0.87 t 0.03 r 0.84 b -0.03)
+PROBE E1-selector-neighbour: step 2 (the Patch 3.5 DIP right of the focused Selector flips): 56 BGRA pixels differ inside (223,101)-(224,130); first at (223,101): incremental 0817454D fresh 08174590; control root/1 (class PaintRegionScript::Patch) [1 region rects, 5 whole repaints, 1 culled]
+PROBE E2-tabcontrol-ring-scene: step 2 (a Patch where the TabControl's focus ring is drawn flips): 280 BGRA pixels differ inside (0,101)-(39,135); first at (0,101): incremental 0F2E8A99 fresh 0F2E8ABF; control root/1 (class PaintRegionScript::Patch) [1 region rects, 5 whole repaints, 1 culled]
+PROBE B1-tagpicker-hover: step 1 (pointer onto the TagPicker's input box (its inner ComboBox)): 18156 BGRA pixels differ inside (39,39)-(440,110); first at (42,39): incremental 2020202C fresh 211D182C; control root (class DxUi::Panel) [1 region rects, 3 whole repaints, 0 culled]
+PROBE B2-clear-children (regions on): 0 differences [2 region rects, 6 whole repaints, 2 culled]
+PROBE B2-clear-children (regions off): 0 differences [0 region rects, 8 whole repaints, 0 culled]
+PROBE B2b-take-child (regions on): 0 differences [2 region rects, 6 whole repaints, 2 culled]
+PROBE B2b-take-child (regions off): 0 differences [0 region rects, 8 whole repaints, 0 culled]
+PROBE B3-scrolled-popup-layer: step 1 (wheel over the ScrollPanel (its PopupLayer child moves with the content)): 9549 BGRA pixels differ inside (40,203)-(259,299); first at (85,203): incremental FAFAFAFF fresh 141414FF; control root/0/20/0 (class DxUi::Button) [1 region rects, 3 whole repaints, 54 culled]
+PROBE B3-scrolled-popup-layer (regions off): 0 differences [0 region rects, 8 whole repaints, 0 culled]
+PROBE A1-fractional-dpi: dpi 144: flip 1: 1 region rects, 0 differences;  flip 2: 1 region rects, 0 differences; 
+PROBE A1-fractional-dpi: dpi 150.5: flip 1: 1 region rects, 376 pixels differ inside (157,95)-(392,235); first (392,95) 18521875 vs 0B236A75;  flip 2: 1 region rects, 0 differences; 
+PROBE A1-fractional-dpi: dpi 120.75: flip 1: 1 region rects, 414 pixels differ inside (126,76)-(315,188); first (314,76) 1343135F vs 091D565F;  flip 2: 1 region rects, 0 differences; 
+PROBE D1-nested-scroll-clip-skip (whole frame, regions on vs off): 290 pixels differ inside (10,200)-(299,200); first (10,200) 0920092E vs 02060209
+PROBE D1-nested-scroll-clip-skip 168 DPI: 0 differences
+PROBE H1-selector-off-view (whole frame, regions on vs off): 30 pixels differ inside (0,101)-(0,130); first (0,101) 00000000 vs 00000008
+PROBE H1-selector-off-view in RunParityScriptOnce (same scene): 0 differences [2 region rects, 6 whole repaints, 8 culled]
+PROBE F1-undeclared-overlay-composer (whole frame, regions on vs off): 5756 pixels differ inside (20,50)-(199,81); first (21,50) 00000000 vs 1B1B1B1C

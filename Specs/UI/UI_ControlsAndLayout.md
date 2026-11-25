@@ -224,7 +224,10 @@ configuration (focus ring, elevation, glow, the sampling reach of a shadow or bl
 state: one value covers every state, so a hover, press or focus change needs no memory of what was painted before. The
 default is the reach of the library class a control derives from (zero for a direct `Control` subclass). A library
 control declares at least 3 DIP, the outer edge of `PaintFocusRing`'s 2 DIP ring 2 DIP outside the control, and more where
-it draws farther: a `PageIndicator` with more pages than its width holds draws its row of dots centred on the bounds, past
+it draws farther: a `Button` of variant `Selector` draws its focus ring at its 6 DIP corner radius, whose offset and stroke
+scale by 6/4, and declares 4.5 DIP (changing the variant adds the old extent first); a `TabControl` draws the ring of its
+selected tab, which can lie far outside the control (one long title, more tabs than fit), clipped to the control's bounds
+plus 3 DIP snapped outward to whole device pixels, so a ring inside that keeps every pixel; a `PageIndicator` with more pages than its width holds draws its row of dots centred on the bounds, past
 both ends, and declares that row (with the selected dot's focus ring); a `Slider` draws its hovered thumb (20 DIP) and its
 tick marks (9 DIP from the track's centre line) centred across the track whatever its cross size, and declares what passes
 a short slider's edges; a `ColorPicker` keeps the sizes of its field, hue strip and swatches in a smaller box and declares
@@ -252,23 +255,41 @@ declaration covers exactly that class: a subclass of `Button` that does not decl
 `Button`'s reach, because its `Paint` may draw more. Declaring promises that the class's `Paint`, apart from the children
 it paints through `Panel::Paint`, draws only within its bounds plus `GetPaintOverhang`, applies no transform to those
 children, and changes its pixels only through its own invalidation (`Assign`, `Invalidate`, `RequestInvalidate`,
-`InvalidateMeasure`), and draws those children into the frame's own target. A declared class that draws a shadow or blur, `PaintTransientSurface` included, adds the effect's
+`InvalidateMeasure`), and draws those children into the frame's own target. Its `Paint` therefore reads no state of another
+control (a child's hover, focus, press, value or text) that changes without invalidating it; a host-level change (focus,
+focus visibility, the default button) repaints the whole view, and the library's one reader of a child's hover, `TagPicker`
+(its field's frame follows its inner `ComboBox`'s hover), is added to the region with every hover change below it. A declared class that draws a shadow or blur, `PaintTransientSurface` included, adds the effect's
 sampling reach (its offset plus three standard deviations) to its overhang. Any invalidation of an undeclared control, or of
 a control below one, repaints the whole view; an undeclared control is never culled, and nothing below it is culled
-either (the paint clip is unbounded while its `Paint` runs), because its `Paint` may draw its children into a command list,
+either (the paint clip is unbounded while its `Paint` runs, and while its `PaintOverlay` runs), because its `Paint` or
+`PaintOverlay` may draw its children into a command list,
 an effect input or another target, or at a place the world transform does not say. So an application control written
 before the declaration existed paints exactly as before, a library panel below it included. A class that draws its
 children anywhere but the frame's target must not declare: a subclass of a library panel that redirects them is
 undeclared by default and stays correct, and declaring it would let its children be culled against a clip that does not
 apply to them. The library itself draws child controls only into the frame's target (a `PageHost` transition draws its
-pages through a layer and a translation on that target, which culling maps through the world transform).
+pages through a layer and a translation on that target, which culling maps through the world transform). A `PageHost`
+paints and overlays its pages under the same rules as a panel's children: nothing below an undeclared page is culled.
 
-A panel's painted extent also covers its visible descendants, except a `ScrollPanel`'s, whose `Paint` clips its content to
-its viewport inside its own bounds; it is unbounded when any of them is undeclared or unbounded. A `Panel` (and so a
-`CardPanel`, `StackPanel`, `FlexPanel`, `FormPanel` and every other library panel) does not paint a visible child whose
-extent, mapped through the transform it is drawn with, misses the paint clip, and a `ScrollPanel` pushes no clip of its
-viewport when every device pixel of the paint clip already lies inside it. Painting the children that remain under the clip
-reproduces exactly what painting all of them would. What these extents and the paint region do on each host is
+Overlay content is what a control draws in the overlay pass (`PaintOverlay`): the children of a `PopupLayer` and an open
+`ComboBox` popup. The overlay pass runs after the paint pass over the whole tree, under the same transforms (a
+`ScrollPanel` translates it by its offset) but under no viewport clip, so overlay content is wherever its bounds and the
+offsets above it put it. It follows the paint pass's rules: a `PopupLayer` culls its children against the paint clip as a
+panel does, nothing is culled below an undeclared control in either pass, and overlay content belongs to the painted
+extent of every ancestor.
+
+A panel's painted extent also covers its visible descendants. A `ScrollPanel`'s `Paint` clips its viewport content to its
+viewport inside its own bounds, so its extent covers its own bounds and reach and, of its children, only those that hold
+overlay content, moved by its scroll offset (a child that holds a `PopupLayer` counts whole); a change of the offset adds
+that overlay content at the old and the new offset to the region. A panel's extent is unbounded when any descendant is
+undeclared or unbounded (an open `ComboBox` popup). A `Panel` (and so a `CardPanel`, `StackPanel`, `FlexPanel`, `FormPanel`
+and every other library panel) does not paint a visible child whose extent, mapped through the transform it is drawn with,
+misses the paint clip, and a `ScrollPanel` pushes no clip of its viewport when the paint clip is whole device pixels and
+every one of them lies inside the viewport. After an outer viewport has narrowed the clip to a fractional edge, the inner
+clip is pushed: its edge pixels are partly covered, and an inner antialiased clip covers them less again. Painting the
+children that remain under the clip reproduces exactly what painting all of them with no culling would. The device pixels
+are those of the scale the frame paints at: an embedded view's own DPI, fractional ones included (`Prepare` accepts any
+from 48 to 768). What these extents and the paint region do on each host is
 [Core_PerformanceAndResources.md](../Core/Core_PerformanceAndResources.md), "Paint region".
 
 ## Opt-in intrinsic measurement and flow

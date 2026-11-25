@@ -556,6 +556,9 @@ struct PaintExtentAccess final
     // A library control whose Paint draws all its text under an axis-aligned clip inside its bounds (Tree, Grid, TextField,
     // ComboBox, RichTextEditor, TabControl's headers): its text cannot escape, so its ink is not checked.
     static constexpr uint8_t kClipsText = 4u;
+    // A library control whose Paint draws the hover of a control inside it (TagPicker draws its field's frame from its inner
+    // ComboBox's hover): a hover change below it adds its own extent too (AddHoverChange).
+    static constexpr uint8_t kPaintsInnerHover = 8u;
     // Resolves kind and declaration when a control joins a host (PropagateHost).
     static void Resolve(Control& control) noexcept;
     [[nodiscard]] static bool IsDeclared(const Control& control) noexcept
@@ -574,6 +577,9 @@ struct PaintExtentAccess final
     // The extent mapped through its ancestors to DIPs of the view and clipped to it; false when the whole view must repaint.
     // An empty result (scrolled out, off the view) adds nothing.
     [[nodiscard]] static bool ViewExtent(const ControlHost& host, const Control& control, bool subtree, D2D1_RECT_F& extent) noexcept;
+    // Maps `rect` from the coordinates `ancestor`'s children are drawn in to DIPs of the view, through `ancestor` and every
+    // control above it (scroll offsets, viewports unless `overlay`), clipped to the view; false when the whole view must repaint.
+    [[nodiscard]] static bool MapToView(const ControlHost& host, const Control* ancestor, bool overlay, D2D1_RECT_F& rect) noexcept;
     // The control's painted extent may have changed (bounds, visibility, reach, ink escape): its ancestors' cached extents are
     // stale. Walks up to the first one already stale.
     static void ExtentChanged(const Control& control) noexcept;
@@ -581,6 +587,18 @@ struct PaintExtentAccess final
     static void AddToRegion(ControlHost& host, const Control& control, bool subtree) noexcept;
     // The attributed invalidation: AddToRegion, then a frame request.
     static void Invalidate(ControlHost& host, const Control& control) noexcept;
+    // Hover moved onto or off `control` (it and what it paints below it), and every ancestor that paints the hover of a
+    // control inside it (kPaintsInnerHover). Requests no frame.
+    static void AddHoverChange(ControlHost& host, const Control& control) noexcept;
+    // A ScrollPanel's offset moved from `previousOffset`: the overlay content below it (drawn through no viewport) moved with
+    // it, so its extent at the old and the new offset joins the region, and the panels above extend again.
+    static void ScrollMoved(const ScrollPanel& panel, float previousOffset) noexcept;
+    // The scale from DIPs to device pixels of the paint region and the cull: the embedded host's own float DPI (not the integer
+    // GetDpi() rounds it to), the window host's DPI otherwise.
+    [[nodiscard]] static float PixelScale(const ControlHost& host) noexcept;
+    // `rect` (world space under `transform`, which must not rotate or skew) grown to the device pixels it touches, in world
+    // space again: an aliased axis-aligned clip to it keeps exactly those pixels.
+    [[nodiscard]] static D2D1_RECT_F SnapOutward(const ControlHost& host, const D2D1_MATRIX_3X2_F& transform, const D2D1_RECT_F& rect) noexcept;
     // Adds a rectangle in DIPs of the view.
     static void AddDip(ControlHost& host, const D2D1_RECT_F& rectDip) noexcept;
     static void MarkFull(const ControlHost& host) noexcept;
@@ -631,12 +649,57 @@ struct PaintExtentAccess final
         bool clipSuspended    = false; // the control is undeclared: the clip below is unbounded
         bool outerClipBounded = false;
     };
+    // The frame verifier's reference paint (test programs only; RetainedCaches.Tests.Hooks.h). While it lives, culling and ink
+    // escape are off, and the host's retained caches (brushes, formats, text layouts, transition brushes), its paint region, its
+    // new-escape note, the paint observer and the work counters are set aside; its end puts each back exactly as the frame left
+    // it, so the reference paint changes nothing a test reads (what it created is released with it).
+    class VerificationScope final
+    {
+    public:
+        explicit VerificationScope(ControlHost& host) noexcept;
+        ~VerificationScope();
+        VerificationScope(const VerificationScope&)            = delete;
+        VerificationScope& operator=(const VerificationScope&) = delete;
+        VerificationScope(VerificationScope&&)                 = delete;
+        VerificationScope& operator=(VerificationScope&&)      = delete;
+
+    private:
+        ControlHost& _host;
+        Detail::WorkCounters _work;
+        void* _observerContext                            = nullptr;
+        void (*_observer)(const Control&, void*) noexcept = nullptr;
+        ControlHost::PaintRegion _region;
+        bool _inkEscapedNew = false;
+        // Brushes and formats are shared, not set aside: a brush key draws the exact color it was first asked for, and controls
+        // keep layouts made from a format by its identity, so caches of the reference paint's own would paint or lay out
+        // differently. Their ages are put back, and the brush keys the reference paint added are removed (nothing holds a
+        // keyed brush across frames); a format it added stays, as a whole frame's would.
+        std::vector<std::pair<uint32_t, uint64_t>> _brushAges;
+        std::vector<std::pair<uint64_t, uint64_t>> _formatAges;
+        std::vector<ControlHost::RetainedTextLayout> _layouts;
+        std::vector<wil::com_ptr<ID2D1SolidColorBrush>> _transitionBrushes;
+        size_t _transitionBrushesUsed = 0u;
+    };
+    // Brackets one control's PaintOverlay: the overlay pass follows the culling rule of the paint pass, so below an undeclared
+    // control (which may draw its overlay content anywhere) the paint clip is unbounded.
+    struct OverlayScope final
+    {
+        OverlayScope(ControlHost& host, const Control& control) noexcept;
+        ~OverlayScope();
+        OverlayScope(const OverlayScope&)            = delete;
+        OverlayScope& operator=(const OverlayScope&) = delete;
+        ControlHost& host;
+        bool clipSuspended = false;
+    };
 };
 namespace Detail
 {
 // Whether paint regions and culling are on (default). Off, every invalidation repaints the whole view and nothing is
 // culled: the same-binary comparison of W4.10 (test seam, RetainedCaches.Tests.Hooks.h).
 [[nodiscard]] bool PaintRegionsEnabled() noexcept;
+// Set only while the frame verifier of a test program (RetainedCaches.Tests.Hooks.h) paints its whole reference frame: that
+// paint keeps no ink escape (PaintingScope) and changes no state a frame leaves behind.
+inline thread_local bool g_paintVerificationActive = false;
 } // namespace Detail
 struct safearray_deleter
 {
