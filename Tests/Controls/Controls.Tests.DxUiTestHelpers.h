@@ -1205,10 +1205,10 @@ public:
 #if DXUI_ENABLE_DIAGNOSTICS
         // W3.6: a paint that found no frame-latency credit is rendered by the host's next paced frame, a message a pool wait
         // posts once the previous frame retires (within a refresh interval). Wait for that frame too, bounded, so a pump after
-        // UpdateWindow still leaves the window painted.
+        // UpdateWindow still leaves the window painted. A pointer move waiting for that frame (W3.7) is dispatched by it too.
         const ULONGLONG pacedDeadline = GetTickCount64() + 500u;
-        while (_host.DebugGetFramePacerStateForTest().deferred && GetTickCount64() < pacedDeadline &&
-               (maximumDurationMs == INFINITE || GetTickCount64() - started < maximumDurationMs))
+        while ((_host.DebugGetFramePacerStateForTest().deferred || _host.DebugGetFramePacerStateForTest().pointerMovePending) &&
+               GetTickCount64() < pacedDeadline && (maximumDurationMs == INFINITE || GetTickCount64() - started < maximumDurationMs))
         {
             static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, 20u, QS_ALLINPUT, MWMO_INPUTAVAILABLE));
             while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE) != FALSE)

@@ -53,6 +53,15 @@ struct RegisteredMessage final
     return message;
 }
 
+// Posted by a native host whose pending pointer move lost the pacer wait that would have dispatched it (its swap chain was
+// released: a resize, a device loss) (W3.7). Its dispatch dispatches the pending move, if one is still pending. wParam and
+// lParam are 0. It carries no payload.
+[[nodiscard]] inline RegisteredMessage WindowHostPointerMoveFlush() noexcept
+{
+    static const RegisteredMessage message = Register(L"RedSalamanders.DxUi.WindowHost.PointerMoveFlush.v1");
+    return message;
+}
+
 // Sent by ShutdownAllWindowHostsForProcessExit to detach a host on its own thread.
 [[nodiscard]] inline RegisteredMessage WindowHostProcessExitDetach() noexcept
 {

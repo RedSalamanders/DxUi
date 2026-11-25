@@ -166,6 +166,8 @@ void TestRichSemanticNativeTitleTooltips()
                          WM_MOUSEMOVE,
                          modifiers,
                          MAKELPARAM(static_cast<int>(std::lround(point.x * scale)), static_cast<int>(std::lround(point.y * scale))));
+            // W3.7: a move that arrived while a frame was in flight is dispatched once that frame retires (the frame credit).
+            Require(AwaitFrameCreditForTest(window.Host()), "the move is dispatched by the next frame");
         },
                                                       [&](bool down) { SendMessageW(window.Hwnd(), down ? WM_KEYDOWN : WM_KEYUP, VK_CONTROL, 0); });
     });
@@ -190,6 +192,8 @@ void TestRichHoverIndexNativeGate()
                          WM_MOUSEMOVE,
                          modifiers,
                          MAKELPARAM(static_cast<int>(std::lround(point.x * scale)), static_cast<int>(std::lround(point.y * scale))));
+            // W3.7: a move that arrived while a frame was in flight is dispatched once that frame retires (the frame credit).
+            Require(AwaitFrameCreditForTest(host), "the move is dispatched by the next frame");
             return host.DebugGetInvalidateCount() != before;
         },
                                        [&]
@@ -217,6 +221,8 @@ void TestRichHoverIndexNativeStaleness()
                          WM_MOUSEMOVE,
                          modifiers,
                          MAKELPARAM(static_cast<int>(std::lround(point.x * scale)), static_cast<int>(std::lround(point.y * scale))));
+            // W3.7: a move that arrived while a frame was in flight is dispatched once that frame retires (the frame credit).
+            Require(AwaitFrameCreditForTest(host), "the move is dispatched by the next frame");
             return true;
         },
                                             [&] { return host.DebugAnimationTickForTest(host.GetAnimationTickMs() + 1u); });

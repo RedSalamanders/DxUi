@@ -800,7 +800,7 @@ something is due, and pace native animation frames to the display. Exit: `G1` me
     60/144 Hz on hardware: animation sample time equals the frame's `targetTime` in ≥ 99% of frames (`W0.8` trace).
   - **Needs**: `W3.1`, `W0.2`, `W0.8`. **Size**: L.
 
-- [ ] **W3.7 Input latency.**
+- [x] **W3.7 Input latency.**
   - **Why**: every control invalidation is full-window (`InvalidateRect(_hwnd, nullptr, FALSE)`,
     `DxUi.WindowHost.cpp:1912`) and each `WM_MOUSEMOVE` is dispatched and hit-tested on arrival; input to present is
     not measured (`G8`).

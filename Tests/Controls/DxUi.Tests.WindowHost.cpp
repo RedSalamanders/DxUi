@@ -3,6 +3,7 @@
 #include "Controls.Tests.FramePacing.h"
 #include "Controls.Tests.HostControlRegressions.h"
 #include "Controls.Tests.NativeDevicePolicy.h"
+#include "Controls.Tests.PointerPacing.h"
 #include "Controls.Tests.PresentedFrame.h"
 #include "Controls.Tests.TextInputSyncOnce.h"
 #include "Controls/DxUi.Typography.h"
@@ -2443,6 +2444,9 @@ void TestWindowHostMouseLeaveOverForeignPopupClearsHover()
 
     constexpr LONG kHoverX = 32;
     constexpr LONG kHoverY = 32;
+    // W3.7: a move that arrives while the pump's frame is still in flight waits for the next frame; the window is idle once
+    // that frame retired, and an idle window dispatches the move at once.
+    Require(AwaitFrameCreditForTest(window.Host()), "window host mouse-leave popup test waits until no frame is in flight");
     static_cast<void>(SendMessageW(window.Hwnd(), WM_MOUSEMOVE, 0, MAKELPARAM(kHoverX, kHoverY)));
     Require(controlState.hoverEnterCount == 1u, "window host mouse-leave popup test starts with a hovered control");
 
@@ -7866,6 +7870,18 @@ void RunWindowHostTests()
     DXUI_RUN_TEST(TestFramePacingForeignMessagePumpKeepsPainting);
     DXUI_RUN_TEST(TestFramePacingUnpresentedRenderPublishesNothing);
     DXUI_RUN_TEST(TestFramePacingSampleTimeIsTargetTimeOnHardware);
+    DXUI_RUN_TEST(TestPointerPacingIdleMoveDispatchesAtOnce);
+    DXUI_RUN_TEST(TestPointerPacingAtMostOneDispatchPerPresentedFrame);
+    DXUI_RUN_TEST(TestPointerPacingSecondMoveRendersTheOwedFrameFirst);
+    DXUI_RUN_TEST(TestPointerPacingPendingMoveIsDispatchedBeforeTick);
+    DXUI_RUN_TEST(TestPointerPacingEveryFlushingMessageSeesTheLatestPosition);
+    DXUI_RUN_TEST(TestPointerPacingButtonDownSeesTheLatestPosition);
+    DXUI_RUN_TEST(TestPointerPacingCursorAnswersTheLatestPoint);
+    DXUI_RUN_TEST(TestPointerPacingUnpacedHiddenAndStalledHostsBoundTheWait);
+    DXUI_RUN_TEST(TestPointerPacingNestedDeliveryNeverRendersReentrantly);
+    DXUI_RUN_TEST(TestPointerPacingReleasedChainFlushesByIdentity);
+    DXUI_RUN_TEST(TestPointerPacingKeyboardIsNotCoalesced);
+    DXUI_RUN_TEST(TestPointerPacingInputToPresentOnHardware);
     DXUI_RUN_TEST(TestWindowHostExplicitWarpPolicyRejectsConflictsAndSurvivesDeviceLoss);
     DXUI_RUN_TEST(TestDxUiTypographyMapsFontRolesToSegoeUiVariableFamilies);
     DXUI_RUN_TEST(TestWindowHostKeyboardInputMarksFocusVisible);

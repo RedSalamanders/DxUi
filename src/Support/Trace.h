@@ -29,15 +29,16 @@ inline constexpr uint64_t kKeywordWake  = 0x4u;
 
 enum class Event : uint8_t
 {
-    InputReceived  = 1u,
-    FrameRequested = 2u,
-    PrepareBegin   = 3u,
-    PrepareEnd     = 4u,
-    Present        = 5u,
-    Composite      = 6u,
-    Wake           = 7u,
-    HitReuseOff    = 8u, // A host stops reusing pointer hit results: an unreported control attached (W2.9).
-    FramePaced     = 9u, // A native paced frame's animation sample against the compositor's target time (W3.6).
+    InputReceived   = 1u,
+    FrameRequested  = 2u,
+    PrepareBegin    = 3u,
+    PrepareEnd      = 4u,
+    Present         = 5u,
+    Composite       = 6u,
+    Wake            = 7u,
+    HitReuseOff     = 8u,  // A host stops reusing pointer hit results: an unreported control attached (W2.9).
+    FramePaced      = 9u,  // A native paced frame's animation sample against the compositor's target time (W3.6).
+    InputDispatched = 10u, // A native host dispatched a pointer move to its controls, alone or for the moves it absorbed (W3.7).
 };
 
 enum class InputKind : uint8_t
@@ -99,6 +100,13 @@ struct Record final
     uint64_t sampleQpc    = 0u;    // FramePaced: the time the animation sample stands for; targetQpc unless clamped or fallen back.
     uint64_t periodQpc    = 0u;    // FramePaced: the compositor's refresh period (0 when unknown).
     bool clamped          = false; // FramePaced: the hitch clamp shortened this frame's step.
+    // InputDispatched (W3.7): `input` is the latest move dispatched; these name the first move it absorbed, when the first and the
+    // latest arrived (QueryPerformanceCounter ticks), how many moves it stands for and whether it left a frame owed.
+    uint64_t firstInput      = 0u;
+    uint64_t firstArrivalQpc = 0u;
+    uint64_t lastArrivalQpc  = 0u;
+    uint32_t moves           = 0u;
+    bool owesFrame           = false;
 };
 
 // A test-only observer of every record, on the thread that writes it.
@@ -203,6 +211,28 @@ void FramePaced(Correlation& correlation, PacedSampleSource source, uint64_t tar
                  .sampleQpc = sampleQpc,
                  .periodQpc = periodQpc,
                  .clamped   = clamped});
+}
+// A native pointer-move dispatch (W3.7): the moves it stands for, from the first absorbed to the latest. Input to present for a
+// coalesced dispatch is judged from firstArrivalQpc, so the wait for a frame in flight is counted.
+template <typename Correlation>
+void InputDispatched(Correlation& correlation,
+                     uint64_t firstInput,
+                     uint64_t lastInput,
+                     uint64_t firstArrivalQpc,
+                     uint64_t lastArrivalQpc,
+                     uint32_t moves,
+                     bool owesFrame) noexcept
+{
+    Write(Record{.event           = Event::InputDispatched,
+                 .detail          = uint8_t(InputKind::PointerMove),
+                 .hostId          = HostIdOf(correlation),
+                 .frame           = correlation.frameSequence + 1u,
+                 .input           = lastInput,
+                 .firstInput      = firstInput,
+                 .firstArrivalQpc = firstArrivalQpc,
+                 .lastArrivalQpc  = lastArrivalQpc,
+                 .moves           = moves,
+                 .owesFrame       = owesFrame});
 }
 inline void Wake(WakeSource source, uint32_t hostId = 0u) noexcept
 {

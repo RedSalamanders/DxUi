@@ -93,6 +93,9 @@ public:
     }
     void Step(size_t phase, size_t step)
     {
+        // W3.7: a step's input reaches the host while it holds its frame-latency credit, as an idle window's input does, so a
+        // pointer move is dispatched at once whatever the display's timing and two runs make the same dispatches.
+        Require(AwaitFrameCreditForTest(window_->Host()), "the window fixture's host takes a frame credit before the step's input");
         scenario_->Step(*context_, phase, step);
     }
     void Frame()

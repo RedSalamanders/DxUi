@@ -144,6 +144,22 @@ void WriteEvent(const Record& record) noexcept
                               TraceLoggingBoolean(record.clamped ? TRUE : FALSE, "Clamped"),
                               TraceLoggingUInt64(qpc, "Qpc"));
             break;
+        case Event::InputDispatched:
+            TraceLoggingWrite(g_dxuiTraceProvider,
+                              "InputDispatched",
+                              TraceLoggingLevel(kLevel),
+                              TraceLoggingKeyword(kKeywordInput),
+                              TraceLoggingUInt32(record.hostId, "HostId"),
+                              TraceLoggingUInt64(record.frame, "Frame"),
+                              TraceLoggingUInt64(record.input, "Input"),
+                              TraceLoggingUInt8(record.detail, "Kind"),
+                              TraceLoggingUInt64(record.firstInput, "FirstInput"),
+                              TraceLoggingUInt32(record.moves, "Moves"),
+                              TraceLoggingBoolean(record.owesFrame ? TRUE : FALSE, "OwesFrame"),
+                              TraceLoggingUInt64(record.firstArrivalQpc, "FirstArrivalQpc"),
+                              TraceLoggingUInt64(record.lastArrivalQpc, "LastArrivalQpc"),
+                              TraceLoggingUInt64(qpc, "Qpc"));
+            break;
         case Event::HitReuseOff:
             TraceLoggingWrite(g_dxuiTraceProvider,
                               "HitReuseOff",

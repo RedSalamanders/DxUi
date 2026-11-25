@@ -557,6 +557,7 @@ The ETW header adds the process, thread and session time. Fields are written in 
 | `Composite` | frame | `Frame`, `Input`, `Qpc` | An `EmbeddedHost::Composite` draws the prepared surface. |
 | `Wake` | wake | `Source` (UInt8), `Qpc` | DxUi takes a turn on the owner thread because something woke it. |
 | `HitReuseOff` | input | `Qpc` | A host stops reusing pointer hit results: the first control whose hit testing it cannot see attached (`ControlHost::DebugGetFirstUnreportedHitControlType` names it). |
+| `InputDispatched` | input | `Frame` (UInt64), `Input` (UInt64), `Kind` (UInt8), `FirstInput` (UInt64), `Moves` (UInt32), `OwesFrame` (Boolean), `FirstArrivalQpc` (UInt64), `LastArrivalQpc` (UInt64), `Qpc` | A `WindowHost` dispatches a pointer move to its controls ([pointer-move pacing](../Specs/Rendering/Rendering_Win32Host.md#pointer-move-pacing)): `Input` is the latest move dispatched, `FirstInput` the first move it absorbed while a frame was in flight, `Moves` how many moves it stands for, `FirstArrivalQpc` and `LastArrivalQpc` when the first and the latest arrived, `OwesFrame` whether it left a frame to render. `Frame` is the host's next frame. |
 | `FramePaced` | frame | `Frame` (UInt64), `Source` (UInt8), `TargetQpc` (UInt64), `SampleQpc` (UInt64), `PeriodQpc` (UInt64), `Clamped` (Boolean), `Qpc` | A paced `WindowHost` frame samples its animation time ([frame pacing](../Specs/Rendering/Rendering_Win32Host.md#frame-pacing)): `TargetQpc` is the compositor's target time the frame's present is predicted for (0 without statistics), `SampleQpc` the time the animation sample stands for (the target unless clamped or fallen back), `PeriodQpc` the refresh period, `Clamped` whether the hitch clamp shortened the step. `Frame` is the frame the sample is for. |
 
 `Kind`: 1 pointer move, 2 pointer down (any button, double clicks included), 3 pointer up, 4 wheel, 5 key down, 6 key up,
@@ -575,6 +576,23 @@ preparation records the newest input the host had received when it began, and it
 `Composite` carry that number. So the present that first shows input *N* is the first `Present` (or `Composite`) on the
 same host whose `Input` is at least *N*, and input-to-present is the difference of their `Qpc` values divided by the
 `QueryPerformanceFrequency`. `FrameRequested.Frame` names the frame that will satisfy the request.
+
+A paced `WindowHost` dispatches at most one pointer move per presented frame: moves that arrive while a frame is in flight
+are merged into one dispatch at the next frame. For pointer moves, measure from `InputDispatched`: the present that shows it
+is the first `Present` whose `Input` reaches its `Input`, and input-to-present is taken from its `FirstArrivalQpc`, the first
+move it absorbed, so the wait for the frame in flight is counted (from `LastArrivalQpc` it would be hidden). Counting
+`InputDispatched` events with `OwesFrame` between consecutive `Present` events checks the one-per-frame rule.
+
+The hardware measurement (plan item W3.7, budget `G8`) runs the `FX3` grid in a `WindowHost` under a stream of pointer moves
+and writes `.build/w37/input-to-present-<refresh>hz.json` with the p50 and p99 from the first and from the latest move. On a
+quiet machine with a hardware adapter, at each refresh rate to judge (60 and 144 Hz):
+
+```powershell
+$env:DXUI_W37_HARDWARE_GATE = '1'
+.\test.ps1 -Configuration Release -Suites WindowHost -Tests TestPointerPacingInputToPresentOnHardware
+```
+
+Without the variable the test records the evidence and judges nothing; on WARP it reports a capability skip.
 
 Numbers advance only while something listens, so a second session in the same process continues where the first one
 stopped; compare numbers within one host and one session. An embedded

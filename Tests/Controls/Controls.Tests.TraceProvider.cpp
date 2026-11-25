@@ -360,6 +360,17 @@ void WINAPI OnEtwEvent(PEVENT_RECORD event) noexcept
         static_cast<void>(reader.Read<uint64_t>()); // PeriodQpc
         static_cast<void>(reader.Read<uint8_t>());  // Clamped
     }
+    else if (record.name == "InputDispatched")
+    {
+        record.frame  = reader.Read<uint64_t>();
+        record.input  = reader.Read<uint64_t>();
+        record.detail = reader.Read<uint8_t>();
+        static_cast<void>(reader.Read<uint64_t>()); // FirstInput
+        static_cast<void>(reader.Read<uint32_t>()); // Moves
+        static_cast<void>(reader.Read<uint8_t>());  // OwesFrame
+        static_cast<void>(reader.Read<uint64_t>()); // FirstArrivalQpc
+        static_cast<void>(reader.Read<uint64_t>()); // LastArrivalQpc
+    }
     record.qpc = reader.Read<uint64_t>();
     const std::lock_guard guard(consumer.lock);
     if (! reader.Complete())
@@ -390,6 +401,7 @@ void WINAPI OnEtwEvent(PEVENT_RECORD event) noexcept
         case Trace::Event::Wake: return "Wake";
         case Trace::Event::HitReuseOff: return "HitReuseOff";
         case Trace::Event::FramePaced: return "FramePaced";
+        case Trace::Event::InputDispatched: return "InputDispatched";
         default: return "";
     }
 }
@@ -498,6 +510,8 @@ void TestTraceProviderEventsReadBackThroughEtw()
             scenario.Paint();
         }
         scenario.Key(VK_DOWN);
+        scenario.Paint();
+        scenario.Move(3, 2); // W3.7: an InputDispatched event with its documented payload
         scenario.Paint();
     }
     Require(EnableTraceEx2(session.Handle(), &Trace::kProviderId, EVENT_CONTROL_CODE_DISABLE_PROVIDER, 0u, 0ull, 0ull, 0u, nullptr) == ERROR_SUCCESS,

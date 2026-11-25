@@ -265,6 +265,79 @@ timeline; a deferred paint keeps its wake through the credit seam; cancelling a 
 message loop keeps a paced host painting; a render that presented nothing publishes nothing. The hardware clause, the sample equal to the frame's `targetTime` within the
 clock's 1 ms in at least 99% of `FX11`'s paced frames at 60 and 144 Hz, is `TestFramePacingSampleTimeIsTargetTimeOnHardware`.
 
+### Pointer-move pacing
+
+Status: implemented (performance and motion plan item W3.7, 25 November 2026) for the native host. The embedded host is
+unchanged: the application owns input pacing, and nested input already coalesces to one wake
+([embedded contract](Rendering_EmbeddedD3D11.md)). Keyboard input is never coalesced.
+
+A paced native host (see [frame pacing](#frame-pacing)) dispatches a client `WM_MOUSEMOVE` (hover, `OnMouseMove`, the
+supplemental tooltip target) at most once per presented frame, without delaying an idle window:
+
+- A move that arrives while the host holds its frame-latency credit, or can take one without waiting, and owes no frame is
+  dispatched at once. The frame it asks for renders at the next `WM_PAINT`, as soon as the window retrieves it, and presents
+  at the next vertical blank; nothing waits for a paced frame, a timer or an animation tick.
+- A move that arrives while a frame is in flight (no credit, or a wait already armed) is kept: the host stores the latest
+  position, merges later moves into it and arms the pacer's wait. The next paced frame dispatches it first, before the
+  schedule's wake runs any `Tick` and before the frame renders.
+- A move that arrives while the credit is held but the previous dispatched move's frame has not rendered yet (`WM_PAINT`
+  ranks below input) first renders that owed frame with the credit (`frame.pointerMoveOwedRenders`), then waits for the next
+  frame as above. It never renders from inside a handler that pumps: while a render of this host is on the stack (a paint
+  walk, the initial root-child batch), during a paced frame or a tick wake, or while another handler of this host runs (the
+  host counts its nested `HandleMessage` frames), the move is kept with a wake instead.
+- A move that changes nothing visible leaves no frame owed. The next move is then dispatched at once too, so a run of such
+  moves makes several dispatches and no frame: each costs one hit test and no paint. Those dispatches are counted apart
+  (`frame.pointerMovesNoFrame`). The guarantee is therefore at most one frame-owing pointer-move dispatch per
+  presented frame, and none waits while the credit is held and no frame is owed.
+- A host that is unpaced (`frame.pacerUnavailable`, or no frame-latency object), hidden, zero-sized or not presenting
+  dispatches every move at once: it has no frame to wait for.
+
+A pending move always has a wake, the same invariant as a deferred paint (`frame.pacerInvariantViolations` stays 0): the
+armed wait, the paced frame dispatching it now, or a posted `WindowHost.PointerMoveFlush` message. That message is posted
+when the move cannot wait on the chain: the credit is held while the host may not render, or the chain that owned the wait
+was released (a resize, a device loss). It carries an identity from the pacer's process-wide counter, never a pointer; one
+that arrives after the move was dispatched, after a detach or a re-attachment of the same window, or for a window already
+destroyed dispatches nothing (`frame.pointerFlushesStale`). If the message cannot be posted, the move is dispatched at once.
+Bounds: a paced visible host dispatches a pending move at the next retired frame (within one refresh interval on a composing
+desktop) or, under a stalled compositor (display off, a locked or disconnected session, a suspended schedule), at the pacer's
+first wait timeout, 250 ms, without presenting. An unpaced or hidden host waits 0. A move is never lost and never waits for
+unrelated input. Detach drops a pending move rather than dispatching it into a tree being torn down.
+
+Before they are handled, these dispatch a pending move, so every handler sees the latest position and the order of events
+is kept: every mouse button down, up and double click, both wheels, `WM_MOUSEHOVER`, `WM_MOUSELEAVE`, `WM_NCMOUSEMOVE`,
+`WM_NCMOUSELEAVE`, non-client button downs, `WM_CONTEXTMENU`, `WM_CAPTURECHANGED`, `WM_CANCELMODE`, every key and character
+message (`WM_KEYFIRST` to `WM_KEYLAST`), IME composition messages and `WM_IME_CHAR`, `WM_SETFOCUS`, `WM_KILLFOCUS`,
+`WM_ACTIVATE`, `WM_ACTIVATEAPP`, `WM_ENTERMENULOOP`, `WM_ENTERSIZEMOVE`, `WM_SHOWWINDOW` hiding, `WM_SIZE` minimizing,
+pointer, touch and gesture messages, the paced frame, a pacer wait timeout, every scheduled wake (`RunScheduledTicks`, so a
+deadline wake's `Tick` and the tooltip's resolution read the latest position), and every synchronous render whose caller
+reads the result (`RenderInitialFrameForShow`, `DebugRenderDirtyRectForTest`, `DebugCaptureBitmap`, and
+`DebugWaitForFrameCreditForTest` once it holds the credit).
+
+`WM_SETCURSOR` does not dispatch a pending move. Windows sends it before every uncaptured move, so flushing there would end
+coalescing. Its cursor query is answered at its own point (the delivery's `WM_NCHITTEST` point), with its own hit test, and
+every control's cursor depends only on that point and on state that changes under capture, when Windows sends no cursor
+query. The cursor therefore always follows the latest point, while the hover state may lag it by less than a frame. For the
+same reason, reads of hover state (`Control::IsHovered`, `DebugGetHoveredControl`) and programmatic capture
+(`CaptureMouse`, `ReleaseMouseCapture`) dispatch nothing: a read runs no control callback, and a move dispatched after a
+capture reaches the captured control as a move arriving after it would.
+
+Trace: an `InputDispatched` event ([trace provider](../Core/Core_PerformanceAndResources.md#trace-provider)) names each
+pointer-move dispatch, the first and the latest move it absorbed with their arrival times, the number of moves and whether it
+left a frame owed. Input to present for a coalesced dispatch is judged from the first move it absorbed, so the wait this
+pacing adds while a frame is in flight is counted.
+
+Gate evidence on WARP (WindowHost suite, `Controls.Tests.PointerPacing.cpp`, through the pacer's test-owned frame-latency
+object): an idle move is dispatched and presented without any wake; moves posted to a non-activated window while a frame is
+in flight make one dispatch per presented frame at the latest position (also read from the trace); a second move renders the
+owed frame first; a pending move is dispatched before the paced frame's `Tick`; each flushing message dispatches the pending
+move before its own handling; a button down sees the latest position; the cursor follows the latest point of a coalesced
+sequence; unpaced and hidden hosts dispatch at once and a stalled one at the first wait timeout; moves delivered from inside a
+control callback and from inside a render cause no nested render and are dispatched afterwards; a flush survives a device loss
+and is ignored after a detach or a destroy; keys are not coalesced. The hardware clause (input to present within one refresh
+interval at p99, at 60 and 144 Hz) is `TestPointerPacingInputToPresentOnHardware`, judged with `DXUI_W37_HARDWARE_GATE=1`.
+Menu popups route their pointer moves through the menu controller first; the same host rule applies only to what it leaves to
+the popup host, inside the modal menu loop that only the focus-taking suites exercise.
+
 ### Caret clock
 
 Status: implemented (performance and motion plan item W3.2, 15 November 2026) for both hosts.

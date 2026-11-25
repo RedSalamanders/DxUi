@@ -259,6 +259,61 @@ template <typename Correlation> void TraceWindowHostInput(Correlation& correlati
     Detail::Trace::InputReceived(correlation, kind);
 }
 
+// W3.7: the messages that dispatch a pending pointer move before they are handled (Rendering_Win32Host.md, "Pointer-move
+// pacing"). WM_SETCURSOR is not one: its cursor query is answered at its own point, and it precedes every uncaptured move.
+[[nodiscard]] bool FlushesPendingPointerMove(UINT msg, WPARAM wp) noexcept
+{
+    if (msg >= WM_KEYFIRST && msg <= WM_KEYLAST)
+        return true; // key down and up, system keys, characters, dead characters
+    if (msg >= WM_IME_STARTCOMPOSITION && msg <= WM_IME_KEYLAST)
+        return true; // IME composition start, change and end
+    switch (msg)
+    {
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONUP:
+        case WM_LBUTTONDBLCLK:
+        case WM_RBUTTONDOWN:
+        case WM_RBUTTONUP:
+        case WM_RBUTTONDBLCLK:
+        case WM_MBUTTONDOWN:
+        case WM_MBUTTONUP:
+        case WM_MBUTTONDBLCLK:
+        case WM_XBUTTONDOWN:
+        case WM_XBUTTONUP:
+        case WM_XBUTTONDBLCLK:
+        case WM_MOUSEWHEEL:
+        case WM_MOUSEHWHEEL:
+        case WM_MOUSEHOVER:
+        case WM_MOUSELEAVE:
+        case WM_NCMOUSEMOVE:
+        case WM_NCMOUSELEAVE:
+        case WM_NCLBUTTONDOWN:
+        case WM_NCRBUTTONDOWN:
+        case WM_NCMBUTTONDOWN:
+        case WM_CONTEXTMENU:
+        case WM_CAPTURECHANGED:
+        case WM_CANCELMODE:
+        case WM_SETFOCUS:
+        case WM_KILLFOCUS:
+        case WM_ACTIVATE:
+        case WM_ACTIVATEAPP:
+        case WM_ENTERMENULOOP:
+        case WM_ENTERSIZEMOVE:
+        case WM_IME_CHAR:
+        case WM_IME_REQUEST:
+        case WM_POINTERDOWN:
+        case WM_POINTERUP:
+        case WM_POINTERUPDATE:
+        case WM_POINTERLEAVE:
+        case WM_POINTERCAPTURECHANGED:
+        case WM_TOUCH:
+        case WM_GESTURE: return true;
+        case WM_SHOWWINDOW: return wp == FALSE;
+        case WM_SIZE: return wp == SIZE_MINIMIZED;
+        default: return false;
+    }
+}
+
 [[nodiscard]] wchar_t NormalizeMnemonicChar(wchar_t ch) noexcept
 {
     return static_cast<wchar_t>(std::towupper(static_cast<wint_t>(ch)));
@@ -1641,6 +1696,9 @@ void ControlHost::Detach(bool processExit) noexcept
     }
     CancelRecoveryRetry();
     KillPacedSkipTimer();
+    // W3.7: a move still pending is dropped, never dispatched into a tree being torn down; a flush still queued is stale.
+    DropPendingPointerMove();
+    _pointerMoveOwesFrame     = false;
     _recoveryRetryNextDelayMs = 0u;
     _attachmentOwnerThreadId  = 0u;
     _hwnd                     = nullptr;
@@ -2143,6 +2201,10 @@ bool ControlHost::PrimeForShow() noexcept
 bool ControlHost::RenderInitialFrameForShow() noexcept
 {
     const Failure::Scope failureScope;
+    if (! _nativePresentationVisible)
+        return false;
+    // W3.7: the frame the caller shows next includes the latest pointer position.
+    FlushPendingPointerMove();
     if (! _nativePresentationVisible)
         return false;
     const auto presentationRevision = _nativePresentationRevision;
@@ -3874,6 +3936,8 @@ void ControlHost::DebugRenderDirtyRectForTest(const RECT& dirtyRectPx) noexcept
 {
     if (_hwnd)
     {
+        // W3.7: a render whose caller reads the result shows the latest pointer position.
+        FlushPendingPointerMove();
         // The test reads what this render presented: a bounded wait for a credit (W3.6).
         const RenderPresentMode previousMode = std::exchange(_renderPresentMode, RenderPresentMode::WaitForCredit);
         const auto restoreMode               = wil::scope_exit([&]() noexcept { _renderPresentMode = previousMode; });
@@ -3884,6 +3948,9 @@ void ControlHost::DebugRenderDirtyRectForTest(const RECT& dirtyRectPx) noexcept
 bool ControlHost::DebugRenderDirtyRectForTest(const RECT& dirtyRectPx, WindowHostBitmapCapture& prePresentBackBuffer) noexcept
 {
     prePresentBackBuffer = {};
+    if (! _hwnd)
+        return false;
+    FlushPendingPointerMove(); // W3.7, as above
     if (! _hwnd)
         return false;
     const RenderPresentMode previousMode = std::exchange(_renderPresentMode, RenderPresentMode::WaitForCredit);
@@ -3916,13 +3983,14 @@ ControlHost::DebugFramePacerState ControlHost::DebugGetFramePacerStateForTest() 
     DebugFramePacerState state{};
     if (! _framePacer)
         return state;
-    state.paced          = _framePacer->IsPaced();
-    state.credit         = _framePacer->HasCredit();
-    state.waitArmed      = _framePacer->IsWaitArmed();
-    state.continuous     = _framePacer->continuous;
-    state.deferred       = _framePacer->HasDeferred();
-    state.skipTimerArmed = _framePacer->skipTimerArmed;
-    state.armedRequest   = _framePacer->ArmedRequestForTest();
+    state.paced              = _framePacer->IsPaced();
+    state.credit             = _framePacer->HasCredit();
+    state.waitArmed          = _framePacer->IsWaitArmed();
+    state.continuous         = _framePacer->continuous;
+    state.deferred           = _framePacer->HasDeferred();
+    state.skipTimerArmed     = _framePacer->skipTimerArmed;
+    state.armedRequest       = _framePacer->ArmedRequestForTest();
+    state.pointerMovePending = _framePacer->pointerMovePending;
     return state;
 }
 
@@ -3930,6 +3998,8 @@ void ControlHost::DebugSetFramePacerWaitableForTest(HANDLE waitable, DWORD waitT
 {
     if (! _framePacer)
         return;
+    // W3.7: the wait a pending move relies on is about to be replaced: the move is dispatched first.
+    FlushPendingPointerMove();
     const bool wasContinuous = _framePacer->continuous;
     StopPacedContinuous(true);
     _framePacer->ReplaceWaitableForTest(waitable);
@@ -3954,7 +4024,14 @@ bool ControlHost::DebugWaitForFrameCreditForTest(DWORD timeoutMs) noexcept
     const bool credit = _framePacer->AcquireWithin(timeoutMs);
     // Taking the credit cancelled the wait a deferred paint relied on: give it its wake back (the pacer's invariant).
     RestoreDeferredPaintWake(_hwnd, *_framePacer);
-    CheckFramePacerInvariant(*_framePacer);
+    // W3.7: a pending pointer move is dispatched once the credit is held, as one arriving now would be; without a credit its
+    // wait is armed again.
+    if (credit)
+        FlushPendingPointerMove();
+    else
+        EnsurePendingPointerMoveWake();
+    if (_framePacer)
+        CheckFramePacerInvariant(*_framePacer);
     return credit;
 }
 
@@ -4172,6 +4249,10 @@ bool ControlHost::DebugCaptureBitmap(WindowHostBitmapCapture& out, bool allowHid
     {
         return false;
     }
+    // W3.7: the capture shows the latest pointer position.
+    FlushPendingPointerMove();
+    if (! _hwnd)
+        return false;
 
     // A capture reads the back buffer before presentation and does not present: it neither takes nor needs a credit
     // (W3.6), so it never waits and never queues a frame.
@@ -4327,6 +4408,9 @@ try
     }
     if (Detail::Trace::Listening()) [[unlikely]]
         TraceWindowHostInput(_trace, msg);
+    // W3.7: whether a handler of this host is pumping messages (a pending move then never renders its owed frame from here).
+    ++_messageDepth;
+    const auto leaveMessage = wil::scope_exit([this]() noexcept { --_messageDepth; });
 
     // A pointer event lasts from a client-area WM_SETCURSOR for this window to the end of the next message this host
     // handles, which is the client mouse message Windows delivers with it: any other message this host handles, and that one
@@ -4375,6 +4459,17 @@ try
         // W3.6: a paced-frame message from the pacer's thread-pool wait; its request identity rejects a stale one.
         handled = true;
         OnPacedFrameMessage(wp);
+        return 0;
+    }
+    if (WndMsg::WindowHostPointerMoveFlush().Matches(msg))
+    {
+        // W3.7: posted when a pending move lost its pacer wait. Only the flush this host posted for the move still pending
+        // dispatches it; one that outlived a detach, a re-attach or an earlier flush is ignored by its identity.
+        handled = true;
+        if (wp != 0u && _framePacer && _framePacer->pointerMovePending && static_cast<uint64_t>(wp) == _pendingPointerMove.flushRequest)
+            FlushPendingPointerMove();
+        else
+            ++Detail::Work().frame.pointerFlushesStale;
         return 0;
     }
     if (WndMsg::NativeTextStoreDeferredWork().Matches(msg))
@@ -4439,6 +4534,11 @@ try
         handled = true;
         return accessibilityResult;
     }
+
+    // W3.7: input other than a client move, and every change of capture, focus, activation, mode or visibility, sees the latest
+    // position: a pending move is dispatched first, so the order of events is kept.
+    if (_framePacer && _framePacer->pointerMovePending && FlushesPendingPointerMove(msg, wp))
+        FlushPendingPointerMove();
 
     // The trace's arguments (an extra hit test, WindowFromPoint, class names) are gathered only while a sink listens:
     // otherwise every pointer message paid for them.
@@ -4682,7 +4782,22 @@ try
             tme.dwFlags   = TME_LEAVE | (nonClient ? TME_NONCLIENT : 0u);
             tme.hwndTrack = hwnd;
             TrackMouseEvent(&tme);
-            UpdateHover(point, nonClient ? 0u : static_cast<UINT>(wp));
+            if (nonClient)
+            {
+                UpdateHover(point, 0u);
+                return 0;
+            }
+            // W3.7: while a frame is in flight the move waits for the next paced frame, merged with any move already waiting.
+            if (DeferPointerMove(wp, lp))
+                return 0;
+            uint64_t arrivalQpc = 0u;
+            if (Detail::Trace::Listening()) [[unlikely]]
+            {
+                LARGE_INTEGER now{};
+                QueryPerformanceCounter(&now);
+                arrivalQpc = static_cast<uint64_t>(now.QuadPart);
+            }
+            DispatchPointerMove(wp, lp, _trace.inputSequence, _trace.inputSequence, arrivalQpc, arrivalQpc, 1u);
             return 0;
         }
         case WM_SETCURSOR:
@@ -6491,6 +6606,12 @@ void CheckFramePacerInvariant([[maybe_unused]] const Detail::FramePacer& pacer) 
         ++Detail::Work().frame.pacerInvariantViolations;
         Debug::Error(L"DxUi::ControlHost: a deferred paint has no wake (no armed wait, no paced frame rendering it)");
     }
+    // W3.7: so does a pending pointer move (or a flush posted for it).
+    if (pacer.pointerMovePending && ! pacer.IsWaitArmed() && ! pacer.framing && ! pacer.pointerFlushPosted)
+    {
+        ++Detail::Work().frame.pacerInvariantViolations;
+        Debug::Error(L"DxUi::ControlHost: a pending pointer move has no wake (no armed wait, no paced frame, no posted flush)");
+    }
 #endif
 }
 
@@ -6547,6 +6668,15 @@ void ControlHost::ReleaseFramePacerChain() noexcept
         ++Detail::Work().frame.pacerTeardownOrderViolations;
         Debug::Error(L"DxUi::ControlHost: frame pacer still holds its wait or waitable object at swap-chain release");
     }
+    // W3.7: a pending move lost its wait (this may run inside a render): it is dispatched from a posted flush, or dropped by a
+    // detach.
+    if (_framePacer->pointerMovePending)
+    {
+        if (_detachInProgress.load(std::memory_order_acquire) || ! _hwnd)
+            DropPendingPointerMove();
+        else
+            EnsurePendingPointerMoveWake();
+    }
     // Until a new chain binds, every-frame requests go back to the dispatcher's periodic timer.
     if (wasContinuous && _hwnd && ! _detachInProgress.load(std::memory_order_acquire))
         OnFrameScheduleChanged();
@@ -6567,6 +6697,150 @@ bool ControlHost::PacedPaintMayRender(const RECT& paintRectPx) noexcept
     static_cast<void>(_framePacer->Arm());
     CheckFramePacerInvariant(*_framePacer);
     return false;
+}
+
+// W3.7, pointer-move pacing (Rendering_Win32Host.md, "Pointer-move pacing").
+bool ControlHost::MayRenderOwedFrameForPointerMove() const noexcept
+{
+    // Never from inside a render, a paced frame, a tick wake or another handler of this host (one that pumps messages: a modal
+    // loop a click opened, a drag loop, a foreign pump): the move then waits with a wake instead of rendering here.
+    return _messageDepth <= 1u && _textLayoutPaintDepth == 0u && ! _tickWakeFrame && ! _initialRootChildBatchFrame && _framePacer && ! _framePacer->framing;
+}
+
+bool ControlHost::DeferPointerMove(WPARAM wParam, LPARAM lParam) noexcept
+{
+    const bool presentable =
+        _framePacer && _framePacer->IsPaced() && _hwnd && _nativePresentationVisible && IsSwapChainActiveHostWindow(_hwnd, _widthPx, _heightPx);
+    if (! presentable)
+    {
+        // Unpaced, hidden or zero-sized: there is no frame to wait for. A move still pending from before goes first.
+        FlushPendingPointerMove();
+        return false;
+    }
+    const bool merging = _framePacer->pointerMovePending;
+    // A move delivered while this host renders (a control's paint that pumps or sends) is never dispatched into that render.
+    const bool rendering = _textLayoutPaintDepth != 0u || _initialRootChildBatchFrame;
+    if (! merging && ! rendering)
+    {
+        bool credit = _framePacer->TryAcquire();
+        // The credit is held, but the previous move's frame has not rendered yet (WM_PAINT ranks below input): that frame
+        // renders now, with the credit, and this move waits for the next one. At most one dispatch per presented frame.
+        if (credit && _pointerMoveOwesFrame && GetUpdateRect(_hwnd, nullptr, FALSE) != FALSE)
+        {
+            if (MayRenderOwedFrameForPointerMove())
+            {
+                ++Detail::Work().frame.pointerMoveOwedRenders;
+                const HWND hwnd = _hwnd;
+                static_cast<void>(UpdateWindow(hwnd));
+                if (! IsAttachedWindowHostRegistered(this) || _hwnd != hwnd || ! _framePacer)
+                    return true; // the host went away with the frame; the move with it
+                credit = _framePacer->TryAcquire();
+            }
+            else
+                credit = false;
+        }
+        if (credit)
+            return false;
+    }
+    ++Detail::Work().frame.pointerMovesCoalesced;
+    auto& pending  = _pendingPointerMove;
+    pending.wParam = wParam;
+    pending.lParam = lParam;
+    pending.device = _pointerDevice;
+    pending.moves  = merging ? pending.moves + 1u : 1u;
+    if (Detail::Trace::Listening()) [[unlikely]]
+    {
+        LARGE_INTEGER now{};
+        QueryPerformanceCounter(&now);
+        if (! merging || pending.firstArrival == 0u)
+        {
+            pending.firstInput   = _trace.inputSequence;
+            pending.firstArrival = static_cast<uint64_t>(now.QuadPart);
+        }
+        pending.lastInput   = _trace.inputSequence;
+        pending.lastArrival = static_cast<uint64_t>(now.QuadPart);
+    }
+    _framePacer->pointerMovePending = true;
+    EnsurePendingPointerMoveWake();
+    if (_framePacer)
+        CheckFramePacerInvariant(*_framePacer);
+    return true;
+}
+
+void ControlHost::DispatchPointerMove(
+    WPARAM wParam, LPARAM lParam, uint64_t firstInput, uint64_t lastInput, uint64_t firstArrivalQpc, uint64_t lastArrivalQpc, uint32_t moves) noexcept
+{
+    ++Detail::Work().frame.pointerMoveDispatches;
+    const HWND hwnd  = _hwnd;
+    const auto point = D2D1::Point2F(PixelsToDip(static_cast<float>(GET_X_LPARAM(lParam))), PixelsToDip(static_cast<float>(GET_Y_LPARAM(lParam))));
+    UpdateHover(point, static_cast<UINT>(wParam));
+    if (! hwnd || _hwnd != hwnd)
+        return;
+    const bool paced     = _framePacer && _framePacer->IsPaced();
+    const bool listening = Detail::Trace::Listening();
+    if (! paced && ! listening)
+        return;
+    // Whether the move left a frame owed: the window's update region, or a paint the pacer deferred.
+    const bool owesFrame = GetUpdateRect(hwnd, nullptr, FALSE) != FALSE || (_framePacer && _framePacer->HasDeferred());
+    if (owesFrame)
+        _pointerMoveOwesFrame = true;
+    else
+        ++Detail::Work().frame.pointerMovesNoFrame;
+    if (listening) [[unlikely]]
+        Detail::Trace::InputDispatched(_trace, firstInput, lastInput, firstArrivalQpc, lastArrivalQpc, moves, owesFrame);
+}
+
+void ControlHost::FlushPendingPointerMove() noexcept
+{
+    if (! _framePacer || ! _framePacer->pointerMovePending)
+        return;
+    const PendingPointerMove move   = _pendingPointerMove;
+    _pendingPointerMove             = {};
+    _framePacer->pointerMovePending = false;
+    _framePacer->pointerFlushPosted = false;
+    // The move's own device while it is dispatched; then the device of the message being handled, if any, again.
+    const PointerDevice current = _pointerDevice;
+    SetPointerDevice(move.device);
+    DispatchPointerMove(move.wParam, move.lParam, move.firstInput, move.lastInput, move.firstArrival, move.lastArrival, move.moves);
+    if (IsAttachedWindowHostRegistered(this))
+        SetPointerDevice(current);
+}
+
+void ControlHost::DropPendingPointerMove() noexcept
+{
+    _pendingPointerMove = {};
+    if (_framePacer)
+    {
+        _framePacer->pointerMovePending = false;
+        _framePacer->pointerFlushPosted = false;
+    }
+}
+
+void ControlHost::EnsurePendingPointerMoveWake() noexcept
+{
+    if (! _framePacer || ! _framePacer->pointerMovePending || _framePacer->IsWaitArmed() || _framePacer->pointerFlushPosted)
+        return;
+    // The next retired frame, when no credit is held; otherwise (the credit is held while this host may not render here, or the
+    // chain is gone) a posted flush.
+    if (_framePacer->IsPaced() && ! _framePacer->HasCredit() && _framePacer->Arm())
+        return;
+    PostPointerMoveFlush();
+}
+
+void ControlHost::PostPointerMoveFlush() noexcept
+{
+    const WndMsg::RegisteredMessage message = WndMsg::WindowHostPointerMoveFlush();
+    // Identities come from the pacer's process-wide counter: never reused, never 0.
+    const uint64_t request = Detail::FramePacerRequestCounter().fetch_add(1u, std::memory_order_relaxed) + 1u;
+    if (_hwnd && message && PostMessageW(_hwnd, message.value, static_cast<WPARAM>(request), 0) != FALSE)
+    {
+        _pendingPointerMove.flushRequest = request;
+        _framePacer->pointerFlushPosted  = true;
+        return;
+    }
+    // A move is never lost: without a posted wake it is dispatched now.
+    Debug::Error(L"DxUi::ControlHost: posting the pointer-move flush failed: {}", GetLastError());
+    FlushPendingPointerMove();
 }
 
 bool ControlHost::AcquirePresentCredit(const RECT* dirtyRectPx) noexcept
@@ -6604,8 +6878,14 @@ void ControlHost::AfterPacedPresent() noexcept
     }
     // The next frame: wanted while something animates or a paint waits. The present just spent the credit, so arming waits
     // for that frame to retire.
-    else if (_framePacer->continuous || _framePacer->HasDeferred())
-        static_cast<void>(_framePacer->Arm());
+    else
+    {
+        // W3.7: the frame a dispatched move owed is presented; the next move waits for this one to retire.
+        _pointerMoveOwesFrame = false;
+        if (_framePacer->continuous || _framePacer->HasDeferred() || _framePacer->pointerMovePending)
+            static_cast<void>(_framePacer->Arm());
+    }
+    EnsurePendingPointerMoveWake();
     CheckFramePacerInvariant(*_framePacer);
 }
 
@@ -6635,8 +6915,9 @@ void ControlHost::StopPacedContinuous(bool hidden) noexcept
     // A hidden host paints nothing; its show repaints the whole window.
     if (hidden)
         _framePacer->DropDeferred();
-    // Nothing wanted: nothing stays armed. A unit the wait took is kept as the credit.
-    if (! _framePacer->HasDeferred())
+    // Nothing wanted: nothing stays armed. A unit the wait took is kept as the credit. A pending pointer move (W3.7) wants the
+    // next frame.
+    if (! _framePacer->HasDeferred() && ! _framePacer->pointerMovePending)
         _framePacer->Cancel();
     CheckFramePacerInvariant(*_framePacer);
 }
@@ -6715,6 +6996,18 @@ void ControlHost::OnPacedFrameMessage(WPARAM request) noexcept
     {
         case Detail::FramePacer::FrameMessage::Stale: return;
         case Detail::FramePacer::FrameMessage::TimedOut:
+        {
+            // W3.7: a pending pointer move waits at most one timeout: it is dispatched now, without a present; the frame it
+            // asks for defers like any other paint.
+            if (_framePacer->pointerMovePending)
+            {
+                const HWND hwnd      = _hwnd;
+                _framePacer->framing = true;
+                FlushPendingPointerMove();
+                if (! IsAttachedWindowHostRegistered(this) || _hwnd != hwnd || ! _framePacer)
+                    return;
+                _framePacer->framing = false;
+            }
             // A stalled compositor: nothing is presented into a full queue and the UI thread never waits. The frame stays
             // deferred and the wait is armed again, so a pending frame costs one wake per timeout and nothing else does.
             if (_framePacer->continuous || _framePacer->HasDeferred())
@@ -6725,6 +7018,7 @@ void ControlHost::OnPacedFrameMessage(WPARAM request) noexcept
             if (_framePacer->HasDeferred())
                 PublishPreparedContent();
             return;
+        }
         case Detail::FramePacer::FrameMessage::Signaled: RunPacedFrame(); return;
     }
 }
@@ -6740,6 +7034,13 @@ void ControlHost::RunPacedFrame() noexcept
     // Until the deferred paint is handed to WM_PAINT below, this frame is its wake. A host or pacer gone meanwhile owns no flag.
     _framePacer->framing = true;
     const auto alive     = [this, hwnd]() noexcept { return IsAttachedWindowHostRegistered(this) && _hwnd == hwnd && _framePacer; };
+    // W3.7: the pointer move that waited for this frame is dispatched first, before any Tick and before the frame renders.
+    if (_framePacer->pointerMovePending)
+    {
+        FlushPendingPointerMove();
+        if (! alive())
+            return;
+    }
     if (_framePacer->continuous)
     {
         ++Detail::Work().frame.pacedFrames;
@@ -8233,6 +8534,15 @@ bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
     });
     const uint64_t presentationRevision = _nativePresentationRevision;
     const auto interrupted              = [&]() noexcept { return frame.abandoned || _nativePresentationRevision != presentationRevision; };
+
+    // W3.7: a pending pointer move is dispatched before any Tick (a paced frame already did; a deadline wake does it here), so
+    // every Tick and the tooltip's resolution read the latest position.
+    if (! _embedded && _framePacer && _framePacer->pointerMovePending)
+    {
+        FlushPendingPointerMove();
+        if (frame.abandoned)
+            return false;
+    }
 
     // A tooltip's target is resolved again only when a change marked it (MarkTooltipTargetStale), a Ctrl change asked for
     // the supplemental one, or the supplemental tooltip's own deadline is due: a wake for anything else, or an embedded

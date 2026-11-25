@@ -48,6 +48,8 @@
   "Tests/Controls/Controls.Tests.PerformanceFixtures.h",
   "Tests/Controls/Controls.Tests.PointerHit.cpp",
   "Tests/Controls/Controls.Tests.PointerHit.h",
+  "Tests/Controls/Controls.Tests.PointerPacing.cpp",
+  "Tests/Controls/Controls.Tests.PointerPacing.h",
   "Tests/Controls/Controls.Tests.PreparedTreeAccessibilityEvents.h",
   "Tests/Controls/Controls.Tests.PresentedFrame.h",
   "Tests/Controls/Controls.Tests.RetainedTextLayouts.cpp",

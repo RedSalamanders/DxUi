@@ -294,6 +294,12 @@ snapshot, delta and receipt.
   path); `pacerUnavailable` chains
   without a waitable object; `pacerTeardownOrderViolations` chains released while their pacer still held its wait or
   handle (0 on every path).
+- **Pointer-move pacing** ([window hosting](../Rendering/Rendering_Win32Host.md#pointer-move-pacing)).
+  `pointerMoveDispatches` counts native client pointer moves dispatched to the controls, at once or after waiting;
+  `pointerMovesNoFrame` those that left no frame owed; `pointerMovesCoalesced` moves a paced host kept pending
+  or merged into the pending one; `pointerMoveOwedRenders` renders a second move brought forward (the frame the previous
+  move owed); `pointerFlushesStale` posted pointer-move flushes ignored by their identity. `pacerInvariantViolations` also
+  counts a pending move left without a wake.
 - **Wakes by source.** `animationTimer` (the animation dispatcher's periodic `WM_TIMER`), `deadlineTimer` (its one-shot
   wake for the earliest deadline), `menuHoverTimer`, `paintMessage`
   (`WM_PAINT`), `pacedFrame` (a paced-frame message from the pacer's thread-pool wait, stale ones included), `pacerTimer`
@@ -484,7 +490,9 @@ private.
   (an embedded composition), wake by source, hit reuse off (a host stops reusing pointer hit results because a control
   whose hit testing it cannot see attached), and frame paced (a native paced frame's animation sample against the
   compositor's target time, its refresh period and whether the hitch clamp applied;
-  [frame pacing](../Rendering/Rendering_Win32Host.md#frame-pacing)). Each event site sits beside the work counter of the
+  [frame pacing](../Rendering/Rendering_Win32Host.md#frame-pacing)), and input dispatched (a native pointer-move dispatch
+  with the first and the latest move it absorbed, their arrival times, the number of moves and whether it left a frame owed;
+  [pointer-move pacing](../Rendering/Rendering_Win32Host.md#pointer-move-pacing)). Each event site sits beside the work counter of the
   same moment where one exists: renders and preparations, presents, composites, paced frames and every wake source.
 - **Correlation and clock.** Every event carries a process-unique host number and a `QueryPerformanceCounter` timestamp.
   Each host numbers its inputs and its preparations; a preparation records the newest input received before it began, and
@@ -501,7 +509,9 @@ present exactly one present event (equal to the present counter), and each notch
 frame request and present (`TestTraceProviderPairsEveryGridScrollInputWithItsPresent`, Rendering suite). Where the desktop
 session may start a real-time ETW session, the same scenario's events read back through ETW equal the sink's records
 field for field (`TestTraceProviderEventsReadBackThroughEtw`); where it may not, that test records a capability skip.
-Input-to-present timing on hardware against `G8` is a separate, hardware-gated measurement.
+Input-to-present timing on hardware against `G8` is a separate, hardware-gated measurement
+(`TestPointerPacingInputToPresentOnHardware`, `DXUI_W37_HARDWARE_GATE=1`), judged for pointer moves from the first move a
+dispatch absorbed.
 
 ## Mandatory performance policy
 

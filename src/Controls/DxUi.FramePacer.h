@@ -27,7 +27,8 @@
 // Invariant (checked after each pacer transition in Debug, ControlHost's CheckFramePacerInvariant): a deferred paint always
 // has a wake, which is an armed wait (whose message may already be posted) or the paced frame rendering it now. A path that
 // takes the credit while a paint is deferred (a synchronous render, a test seam) hands the deferred region back to the
-// window's update region, where the next WM_PAINT renders it with that credit.
+// window's update region, where the next WM_PAINT renders it with that credit. A pending pointer move (W3.7) is held to the
+// same invariant: it has an armed wait, the paced frame dispatching it now, or a posted pointer-move flush.
 #include <atomic>
 #include <cstdint>
 
@@ -287,6 +288,11 @@ public:
     bool framing          = false; // a paced frame is running: a deferred paint it holds is being rendered now
     bool skipTimerArmed   = false;
     bool timelineAcquired = false;
+    // W3.7: a pointer move that arrived while no credit was free waits for the next paced frame. Like a deferred paint it
+    // always has a wake: the armed wait, the paced frame dispatching it now, or a posted pointer-move flush (pointerFlushPosted)
+    // when the chain that owned the wait was released.
+    bool pointerMovePending = false;
+    bool pointerFlushPosted = false;
     // The compositor's refresh period, in QPC ticks; 0 until a frame read it.
     uint64_t periodQpc  = 0u;
     uint64_t lastSample = 0u; // the QPC time the last paced sample stands for

@@ -7063,13 +7063,14 @@ public:
     // wait armed, serves every-frame requests, holds a deferred paint and has its skip timer armed.
     struct DebugFramePacerState final
     {
-        bool paced            = false;
-        bool credit           = false;
-        bool waitArmed        = false;
-        bool continuous       = false;
-        bool deferred         = false;
-        bool skipTimerArmed   = false;
-        uint64_t armedRequest = 0u;
+        bool paced              = false;
+        bool credit             = false;
+        bool waitArmed          = false;
+        bool continuous         = false;
+        bool deferred           = false;
+        bool skipTimerArmed     = false;
+        uint64_t armedRequest   = 0u;
+        bool pointerMovePending = false; // W3.7: a pointer move waits for the next paced frame
     };
     [[nodiscard]] DebugFramePacerState DebugGetFramePacerStateForTest() const noexcept;
     // Tests only. Replaces the frame-latency object the pacer waits on with a test-owned one (duplicated; nullptr makes the
@@ -7476,6 +7477,17 @@ private:
     [[nodiscard]] WindowHostCursorKind ResolveCursorKindForPoint(D2D1_POINT_2F pointDip) noexcept;
     [[nodiscard]] HCURSOR ResolveCursorHandle(WindowHostCursorKind cursorKind) const noexcept;
     void UpdateHover(D2D1_POINT_2F pointDip, UINT modifiers) noexcept;
+    // Pointer-move pacing (W3.7; Specs/Rendering/Rendering_Win32Host.md, "Pointer-move pacing"): a paced native host keeps
+    // the latest move that arrived while no frame-latency credit was free and dispatches it at the next paced frame, or
+    // first, when any other input, a tick or a synchronous render comes before that frame.
+    [[nodiscard]] bool DeferPointerMove(WPARAM wParam, LPARAM lParam) noexcept;
+    void DispatchPointerMove(
+        WPARAM wParam, LPARAM lParam, uint64_t firstInput, uint64_t lastInput, uint64_t firstArrivalQpc, uint64_t lastArrivalQpc, uint32_t moves) noexcept;
+    void FlushPendingPointerMove() noexcept;
+    void DropPendingPointerMove() noexcept;
+    void EnsurePendingPointerMoveWake() noexcept;
+    void PostPointerMoveFlush() noexcept;
+    [[nodiscard]] bool MayRenderOwedFrameForPointerMove() const noexcept;
     void ClearPendingPointerDoubleClick() noexcept;
     [[nodiscard]] bool ShouldTreatButtonDownAsDoubleClick(Control* target, UINT buttonDownMessage, LPARAM lp) const noexcept;
     [[nodiscard]] bool ShouldTreatPointerDownAsDoubleClick(Control* target, D2D1_POINT_2F pointDip) const noexcept;
@@ -7933,6 +7945,25 @@ private:
     Button* _defaultButton = nullptr;
     Button* _cancelButton  = nullptr;
     PointerDoubleClickCandidate _pendingPointerDoubleClick;
+    // W3.7: the latest client pointer move a paced native host has not dispatched yet (pending while the frame pacer's
+    // pointerMovePending is set), and what the trace reports of the moves it stands for.
+    struct PendingPointerMove final
+    {
+        WPARAM wParam         = 0u;
+        LPARAM lParam         = 0;
+        PointerDevice device  = PointerDevice::Mouse;
+        uint64_t firstInput   = 0u; // trace input numbers of the first and the latest move it absorbed (0: nothing listened)
+        uint64_t lastInput    = 0u;
+        uint64_t firstArrival = 0u; // and their arrival times, QueryPerformanceCounter ticks (0: nothing listened)
+        uint64_t lastArrival  = 0u;
+        uint32_t moves        = 0u;
+        uint64_t flushRequest = 0u; // identity of the posted WindowHost.PointerMoveFlush message; 0 when none is posted
+    };
+    PendingPointerMove _pendingPointerMove;
+    // A dispatched move left a frame owed since the last present: a second move before that frame renders it first.
+    bool _pointerMoveOwesFrame = false;
+    // HandleMessage frames of this host on the stack: above 1, a handler of this host is pumping messages.
+    uint32_t _messageDepth = 0u;
     std::shared_ptr<const std::function<bool(bool reverse)>> _onTabBoundary;
     std::shared_ptr<const std::function<bool()>> _onEscape;
     std::shared_ptr<const std::function<void(Control* control)>> _onFocusChanged;

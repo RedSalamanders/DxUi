@@ -32,7 +32,7 @@
     X(frame, pacedFrames)              /* Native paced frames (W3.6): a paced-frame message or skip timer that sampled the compositor clock and ticked. */     \
     X(frame, pacerDeferredPaints)      /* WM_PAINT a paced native host validated and deferred to its next credit instead of rendering. */                      \
     X(frame, pacerExcessUnits)         /* Frame-latency units absorbed while the credit was held: a kept credit's frame had queued (W3.6). */                  \
-    X(frame, pacerInvariantViolations) /* Debug: pacer transitions that left a deferred paint with no wake; must stay 0 (W3.6). */                             \
+    X(frame, pacerInvariantViolations) /* Debug: pacer transitions that left a deferred paint or pending move without a wake (0). */                           \
     X(frame, pacerStaleFrames)         /* Paced-frame messages a native host ignored: their request was cancelled, replaced or belongs to an earlier chain. */ \
     X(frame, pacerStatsFallbacks)      /* Paced frames sampled at the current time because the compositor's frame statistics were unavailable. */              \
     X(frame, pacerSynchronousTimeouts) /* Synchronous native renders that found no credit within their bound and so did not present. */                        \
@@ -46,6 +46,11 @@
     X(frame, paintRegionRects)       /* Region rectangles embedded preparations repainted alone, each cleared and painted under its own clip (W4.10). */       \
     X(frame, pixelsPainted)          /* Device pixels inside the area a preparation or render cleared and repainted. */                                        \
     X(frame, plainLabelPreparations) /* Label::PrepareVisualContent calls on a Label with neither a typography override nor a mnemonic. */                     \
+    X(frame, pointerFlushesStale)    /* Posted pointer-move flushes a native host ignored: no move pending, or another flush's identity (W3.7). */             \
+    X(frame, pointerMoveDispatches)  /* Native client pointer moves dispatched to the controls (hover, OnMouseMove), at once or after waiting (W3.7). */       \
+    X(frame, pointerMoveOwedRenders) /* Renders a second move brought forward: the frame the previous move owed, rendered before it (W3.7). */                 \
+    X(frame, pointerMovesCoalesced)  /* Native pointer moves a paced host kept pending or merged into the pending one instead of dispatching (W3.7). */        \
+    X(frame, pointerMovesNoFrame)    /* Pointer-move dispatches that left no frame owed: no update region and no deferred paint (W3.7). */                     \
     X(frame, preparationMembershipSearches) /* IsControlInTree searches started while a host preparation pass (PreparePendingPageLayout) runs. */              \
     X(frame, preparations)                  /* EmbeddedHost::Prepare calls that painted the surface. */                                                        \
     X(frame, presents)                      /* Native swap-chain Present or Present1 calls. */                                                                 \

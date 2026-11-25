@@ -85,6 +85,9 @@ public:
         // W3.6: with a frame-latency credit taken first, the paint renders at once instead of deferring.
         static_cast<void>(AwaitFrameCreditForTest(Host()));
         static_cast<void>(UpdateWindow(Hwnd()));
+        // W3.7: and the scene is left idle, the frame retired and its credit held, so the next cursor query and the move it
+        // announces are dispatched at once, in one pointer event.
+        static_cast<void>(AwaitFrameCreditForTest(Host()));
     }
     [[nodiscard]] POINT Pixel(D2D1_POINT_2F dip) const noexcept
     {
@@ -101,9 +104,12 @@ public:
     {
         return Host().DebugResolveCursorKindForPoint(Snap(dip));
     }
+    // A move, then its frame (W3.7): on an idle window a move owes a frame, and a second move before that frame renders would
+    // render it first and wait for the next one; the scene renders it after every move, as an idle window does between moves.
     void Move(D2D1_POINT_2F dip)
     {
         Send(WM_MOUSEMOVE, 0u, dip);
+        Frame();
     }
     void Down(D2D1_POINT_2F dip)
     {
@@ -515,6 +521,7 @@ void TestPointerHitWindowCursorQueryUsesTheDeliveredPoint()
         SendMessageW(scene.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(static_cast<short>(client.x), static_cast<short>(client.y)));
         const auto work = counters.Delta().frame;
         Require(work.hitTests == 1u && work.hitTestReuses == 1u, "the move reuses the hit test of the cursor query its WM_NCHITTEST located");
+        scene.Frame(); // W3.7: the move's frame renders and retires before the next move, as on an idle window
     }
     const POINT client{101, 41};
     POINT screen = client;
@@ -525,6 +532,7 @@ void TestPointerHitWindowCursorQueryUsesTheDeliveredPoint()
         SendMessageW(scene.Hwnd(), WM_MOUSEMOVE, 0u, MAKELPARAM(static_cast<short>(client.x), static_cast<short>(client.y)));
         Require(counters.Delta().frame.hitTestReuses == 0u, "a non-client cursor query opens no event");
     }
+    scene.Frame();
     {
         const WorkCounterScope counters;
         SendCursorQuery(scene.Hwnd(), child, HTCLIENT, screen);
