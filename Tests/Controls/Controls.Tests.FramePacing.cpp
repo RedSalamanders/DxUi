@@ -305,7 +305,7 @@ void TestFramePacingWaitableSemanticsOnWarp()
             for (int frame = 0; frame < 3; ++frame)
             {
                 RequireSucceeded(chain->Present(1u, 0u), "a present");
-                Require(WaitForSingleObject(waitable.get(), 1'000u) == WAIT_OBJECT_0, "each retired present returns one unit, shown or hidden");
+                Require(WaitForSingleObject(waitable.get(), INFINITE) == WAIT_OBJECT_0, "each retired present returns one unit, shown or hidden");
                 Require(WaitForSingleObject(waitable.get(), 0u) == WAIT_TIMEOUT, "and only one");
             }
             // ResizeBuffers while the unit is held: neither adds nor removes one.
@@ -313,15 +313,27 @@ void TestFramePacingWaitableSemanticsOnWarp()
             Require(WaitForSingleObject(waitable.get(), 0u) == WAIT_TIMEOUT, "ResizeBuffers adds no unit while one is held");
             Require(chain->ResizeBuffers(0u, 210u, 130u, DXGI_FORMAT_UNKNOWN, 0u) == E_INVALIDARG, "ResizeBuffers without the waitable flag is refused");
             RequireSucceeded(chain->Present(1u, 0u), "a present after the resize");
-            Require(WaitForSingleObject(waitable.get(), 1'000u) == WAIT_OBJECT_0, "the frame presented after a resize retires");
-            // Presents without a unit do not block: they queue, and each returns a unit when it retires.
-            const uint64_t before = QpcNow();
-            for (int frame = 0; frame < 3; ++frame)
-                RequireSucceeded(chain->Present(1u, 0u), "an unwaited present");
-            const uint64_t blockedUs = (QpcNow() - before) * 1'000'000u / QpcFrequency();
+            Require(WaitForSingleObject(waitable.get(), INFINITE) == WAIT_OBJECT_0, "the frame presented after a resize retires");
+            // Presents without a unit do not block: they queue, and each returns a unit when it retires. "Does not block" is a claim
+            // about the call, not about the machine: a present that blocks for a vertical blank takes that long in every batch, while
+            // a busy machine preempts a batch only some of the time. So the claim is judged by the fastest of up to eight batches,
+            // each collected before the next so every batch starts from the same state. The minimum is the statistic that load cannot
+            // inflate in every batch at once, and that a blocking present cannot get under the bound in any batch.
+            uint64_t blockedUs = UINT64_MAX;
+            for (int batch = 0; batch < 8 && blockedUs >= 8'000u; ++batch)
+            {
+                const uint64_t before = QpcNow();
+                for (int frame = 0; frame < 3; ++frame)
+                    RequireSucceeded(chain->Present(1u, 0u), "an unwaited present");
+                blockedUs = std::min(blockedUs, (QpcNow() - before) * 1'000'000u / QpcFrequency());
+                // The batch's three units are awaited as a condition (no wall-time bound but the test watchdog); then a zero wait
+                // shows there is no fourth.
+                for (int unit = 0; unit < 3; ++unit)
+                    Require(WaitForSingleObject(waitable.get(), INFINITE) == WAIT_OBJECT_0, "every queued present returns its own unit when it retires");
+                Require(WaitForSingleObject(waitable.get(), 0u) == WAIT_TIMEOUT,
+                        "every queued present returns its own unit: a present without a credit leaves one unit too many");
+            }
             Require(blockedUs < 8'000u, "presents without a unit do not block under latency 1: they queue");
-            Sleep(150u);
-            Require(available() == 3, "every queued present returns its own unit: a present without a credit leaves one unit too many");
             std::cout << "    [W3.6] spike " << (composition ? "composition" : "hwnd") << (hidden ? " hidden" : " shown")
                       << ": initial 1 unit, 1 per retired present, ResizeBuffers neutral, flags 0 refused, 3 unwaited presents took " << blockedUs << " us\n";
         }
