@@ -341,6 +341,26 @@ Invoke-TestCase 'conditions name every pass whose frames did no work or whose ho
     Assert-True (-not $busy.met -and $busy.problems[0].Contains('25.0% busy')) 'busy pass refused'
 }
 
+Invoke-TestCase 'runner: host observations of exactly one sample are one sample, not the key count of a lone hashtable' {
+    # The runner's functions are taken from its own text (the script runs a measurement when invoked); nothing of it executes.
+    $parsed = [Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'performance-attribution.ps1'), [ref]$null, [ref]$null)
+    $functions = $parsed.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in @('Get-HostSamples', 'Get-HostLoad') }, $true)
+    Assert-Equal 2 @($functions).Count 'the host observation functions are found'
+    Import-Module (Join-Path $repository 'Tools/FrameTiming.psm1') -Force -Global
+    $script:ObserverSamples = [Collections.Generic.List[object]]::new()
+    foreach ($function in $functions) { . ([scriptblock]::Create($function.Extent.Text)) }
+    $now = [DateTime]::UtcNow
+    $one = @{ utc = $now; idle100ns = 10; kernelIncludingIdle100ns = 100; user100ns = 0; own = @() }
+    $script:ObserverSamples.Add($one)
+    $window = @(Get-HostSamples $now.AddSeconds(-1) $now.AddSeconds(1))
+    Assert-Equal 1 $window.Count 'one sample in the window'
+    $load = Get-HostLoad $now.AddSeconds(1) $now.AddSeconds(1)
+    Assert-Equal 1 $load.samples 'one observed sample is reported as one'
+    Assert-True ($null -eq $load.busyPercent -and $null -eq $load.othersBusyPercent) 'a lone sample gives no busy share'
+    $script:ObserverSamples.Add(@{ utc = $now.AddMilliseconds(500); idle100ns = 20; kernelIncludingIdle100ns = 200; user100ns = 0; own = @() })
+    Assert-Equal 2 (Get-HostLoad $now.AddSeconds(1) $now.AddSeconds(1)).samples 'two samples are two'
+}
+
 Invoke-FixtureCase 'runner: a receipt whose frames did no work is never published and the run fails' {
     param($root)
     New-AttributionRunnerFixture $root

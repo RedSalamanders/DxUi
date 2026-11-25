@@ -192,7 +192,8 @@ function Get-HostSamples([datetime] $From, [datetime] $To) {
 function Get-HostLoad([datetime] $From, [datetime] $To) {
     <# Whole-host busy share while a child ran, and what is left after this run's own CPU (the measured child, the observer and
        this runner, from the observer's process snapshots): the other processes' load. #>
-    $window = Get-HostSamples $From.AddSeconds(-1) $To.AddSeconds(1)
+    # A function's output of one sample is the sample itself, not an array: wrapped, Count and the indexes mean samples.
+    $window = @(Get-HostSamples $From.AddSeconds(-1) $To.AddSeconds(1))
     if ($window.Count -lt 2) { return [ordered]@{ samples = $window.Count; busyPercent = $null; ownPercent = $null; othersBusyPercent = $null } }
     $busy = Get-FrameTimingHostBusyPercent -Samples $window
     $total = ([double]$window[-1]['kernelIncludingIdle100ns'] - [double]$window[0]['kernelIncludingIdle100ns']) + ([double]$window[-1]['user100ns'] - [double]$window[0]['user100ns'])
@@ -216,7 +217,7 @@ function Wait-HostQuiet([string] $Path, [int] $MaximumSeconds) {
         $from = [DateTime]::UtcNow
         Start-Sleep -Seconds $PreflightSeconds
         Update-HostObservations $Path
-        $window = Get-HostSamples $from ([DateTime]::UtcNow)
+        $window = @(Get-HostSamples $from ([DateTime]::UtcNow))
         $check = if ($window.Count -ge 2) { Test-FrameTimingPreflight -Samples $window -Rule $rule -LogicalProcessors $logicalProcessors } else { $null }
         if ($check -and $check.admitted) { break }
     } while (([DateTime]::UtcNow - $started).TotalSeconds -lt $MaximumSeconds)
