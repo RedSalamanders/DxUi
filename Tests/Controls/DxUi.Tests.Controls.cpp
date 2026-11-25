@@ -2110,6 +2110,9 @@ void TestThroughputGraphHonorsMotionRainbowAndHighContrastContracts()
     graph->SetRainbowMode(true);
     graph->SetPerStreamBands(true);
     host.SetRoot(std::move(root));
+    // A transition starts on the host's clock (W3.4), here pinned to the first tick below.
+    host.DebugSetAnimationClockForTest(100u);
+    const auto releaseClock = wil::scope_exit([&host]() noexcept { host.DebugSetAnimationClockForTest(std::nullopt); });
 
     std::array<ThroughputGraphSample, 2u> samples{};
     samples[0].value          = 10.0;

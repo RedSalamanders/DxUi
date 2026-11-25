@@ -973,6 +973,33 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
             // failure is reported distinctly and stays dirty without a retry loop.
             return FAILED(_host._contentPreparationFailure) ? _host._contentPreparationFailure : E_ABORT;
         }
+        // Unseen motion shown again (a scroll, a reselected page, the view shown) is ticked to the view's time before it paints:
+        // preparing a frame may advance held library motion to the frame's time (W3.4). What it asks for next reaches the
+        // application through this preparation's request, not through an invalidation that declares nothing.
+        bool caughtUp      = false;
+        const auto catchUp = MotionScheduleAccess::CatchUp(_host, &caughtUp);
+        if (catchUp == MotionScheduleAccess::CatchUpResult::HostGone || ! preparationIsCurrent())
+            return E_ABORT;
+        if (caughtUp)
+        {
+            const ControlHost::FrameScheduleWake wake = _host.GetFrameScheduleWake();
+            if (ControlHost::IsEarlierWake(wake, _host._embeddedPublishedWake))
+            {
+                // As ControlHost::OnFrameScheduleChanged: nothing ticked the view while it was idle, so its next tick sets the
+                // baseline instead of counting the gap.
+                if (_host._embeddedPublishedWake.kind == ControlHost::FrameScheduleWake::Kind::None)
+                    _host._animationTimelineRebase = true;
+                _host._embeddedPublishedWake = wake;
+                requestAfterPreparation      = true;
+            }
+        }
+        if (catchUp == MotionScheduleAccess::CatchUpResult::LayoutPending)
+        {
+            s.contentPending             = _host._contentPreparationContinues;
+            s.contentInteractionRevision = _host._interactionRevision;
+            requestAfterPreparation      = true;
+            return s.contentPending ? S_FALSE : E_ABORT;
+        }
         ID3D11ShaderResourceView* empty = nullptr;
         _host._d3dContext->PSSetShaderResources(0, 1, &empty);
         _host._d3dContext->OMSetRenderTargets(0, nullptr, nullptr);
@@ -1127,7 +1154,8 @@ HRESULT EmbeddedHost::Prepare(UINT width, UINT height, float dpi) noexcept
         s.dirty    = s.revision != revision;
         // Optional visual continuation requests another owner turn while the
         // current coherent surface and content/input readiness remain usable.
-        requestAfterPreparation = s.dirty || _host._pendingVisualPreparation;
+        // Shown motion caught up above may need the application again too (W3.4).
+        requestAfterPreparation = requestAfterPreparation || s.dirty || _host._pendingVisualPreparation;
         if (! s.coherent)
             return E_ABORT;
         return S_OK;

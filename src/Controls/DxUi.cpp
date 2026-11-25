@@ -2186,6 +2186,69 @@ bool PaintExtentAccess::ViewExtent(const ControlHost& host, const Control& contr
     return true;
 }
 
+void MotionScheduleAccess::Request(ControlHost& host, const Control& control, uint64_t settleTickMs) noexcept
+{
+    // Exact library classes only: a derived class may override Tick with code of its own, which is never held.
+    if (! IsLibraryControlType(typeid(control)))
+    {
+        host.RequestAnimation(control);
+        return;
+    }
+    host.AddScheduleRequest(control, ControlHost::TickRequestKind::Continuous, 0u, true, settleTickMs);
+}
+
+bool MotionScheduleAccess::IsSeen(const ControlHost& host, const Control& control) noexcept
+{
+    // The oracle's fresh scene holds nothing, so it shows the motion it ticked all along (Testing_Validation.md,
+    // "Incremental-versus-fresh oracle").
+    if (host._motionHoldOffForTest || control._host != &host)
+        return true;
+    // The mapping below the paint region (ViewExtent without its switch): turning regions off changes painting only.
+    D2D1_RECT_F rect{};
+    if (! PaintExtentAccess::OwnExtent(host, control, rect))
+        return true;
+    const D2D1_RECT_F view = host.GetClientBoundsDip();
+    if (! (view.right > view.left) || ! (view.bottom > view.top))
+        return true;
+    if (! PaintExtentAccess::MapToView(host, control._parent, false, rect))
+        return true;
+    return rect.right > rect.left && rect.bottom > rect.top;
+}
+
+namespace Detail
+{
+namespace
+{
+thread_local bool g_motionCatchUpDisabledForTest = false;
+} // namespace
+void SetMotionCatchUpDisabledForTest(bool disabled) noexcept
+{
+    g_motionCatchUpDisabledForTest = disabled;
+}
+bool IsMotionCatchUpDisabledForTest() noexcept
+{
+    return g_motionCatchUpDisabledForTest;
+}
+} // namespace Detail
+
+MotionScheduleAccess::CatchUpResult MotionScheduleAccess::CatchUp(ControlHost& host, bool* ticked) noexcept
+{
+    if (ticked)
+        *ticked = false;
+    if (Detail::IsMotionCatchUpDisabledForTest()) [[unlikely]]
+        return CatchUpResult::Ready;
+    bool any = false;
+    if (! host.CatchUpShownMotion(&any))
+        return CatchUpResult::HostGone;
+    if (ticked)
+        *ticked = any;
+    if (! any || ! (host._pendingPageLayout || host._pendingIntrinsicLayout || host._pendingContentPreparation || host._pendingVisualPreparation))
+        return CatchUpResult::Ready;
+    // Library motion changes no layout; a catch-up that did is laid out once more, never in a loop.
+    ++Detail::Work().frame.catchUpLayoutRepeats;
+    return host.PreparePendingPageLayout() ? CatchUpResult::Ready : CatchUpResult::LayoutPending;
+}
+
 void PaintExtentAccess::ExtentChanged(const Control& control) noexcept
 {
     // The control's own cached extent (a panel's) and every one above it, up to the first already stale: a stale extent's

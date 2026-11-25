@@ -2122,6 +2122,7 @@ private:
     uint8_t _hitTestReporting                = 0u;
     friend struct PaintExtentAccess;
     friend struct LayoutScopeAccess;
+    friend struct MotionScheduleAccess;
     [[nodiscard]] bool IsHitTestReported() const noexcept;
     // A plain Label (no mnemonic, no typography override, exactly class Label) has no visual preparation; anything else
     // derived from Label keeps it. Called when a mnemonic or override changes and when the control attaches.
@@ -2593,14 +2594,12 @@ private:
 
     struct DisclosureTransitionState final
     {
-        float progress      = 0.0f;
-        float startProgress = 0.0f;
-        float target        = 0.0f;
-        uint64_t elapsedMs  = 0u; // Animated time: a gap between ticks counts for one bounded step (see the tick).
-        uint64_t lastTickMs = 0u;
-        bool anchored       = false; // The first tick anchors the clock, so the rotation starts when it can show.
-        bool initialized    = false;
-        bool active         = false;
+        float progress       = 0.0f;
+        float startProgress  = 0.0f;
+        float target         = 0.0f;
+        uint64_t startTickMs = 0u; // The rotation runs on the host's animation clock from here (W3.4).
+        bool initialized     = false;
+        bool active          = false;
     };
 
     void UpdateInteractionTransition(ControlHost& host, InteractionTransitionState& transition, float target) noexcept;
@@ -2853,7 +2852,10 @@ private:
     bool _animationPaused               = false;
     float _trackHeightDip               = 0.0f;
     mutable float _animationPhase       = 0.0f;
-    uint64_t _lastTickMs                = 0;
+    // The loop's phase is computed from the clock (W3.4): the animation time at which it was at phase 0, while seeded.
+    uint64_t _phaseEpochMs = 0u;
+    bool _phaseSeeded      = false;
+    void SeedPhase(uint64_t nowTickMs) noexcept;
     [[msvc::no_unique_address]] Detail::AccessibilityKindTag _accessibilityKindTag{*this, Detail::AccessibilityControlKind::ProgressBar};
 };
 #pragma warning(pop)
@@ -3032,12 +3034,15 @@ private:
     uint64_t _transitionStartTickMs             = 0u;
     uint64_t _currentValueTransitionStartTickMs = 0u;
     uint64_t _transitionDurationMs              = 160u;
-    bool _rainbowMode                           = false;
-    bool _perStreamBands                        = false;
-    bool _transitionActive                      = false;
-    bool _currentValueTransitionActive          = false;
-    mutable bool _lastReducedMotion             = false;
-    mutable bool _lastHighContrast              = false;
+    // The value a transition shows at `nowTickMs` on the host's clock (W3.4); `displayed` when none runs.
+    [[nodiscard]] double ResolveTransitionValueAt(
+        double startValue, double targetValue, uint64_t startTickMs, double displayed, bool active, uint64_t nowTickMs) const noexcept;
+    bool _rainbowMode                  = false;
+    bool _perStreamBands               = false;
+    bool _transitionActive             = false;
+    bool _currentValueTransitionActive = false;
+    mutable bool _lastReducedMotion    = false;
+    mutable bool _lastHighContrast     = false;
     mutable ThroughputGraphBandPaintMetrics _lastBandPaintMetrics{};
     [[msvc::no_unique_address]] Detail::AccessibilityKindTag _accessibilityKindTag{*this, Detail::AccessibilityControlKind::ThroughputGraph};
 };
@@ -5801,6 +5806,12 @@ private:
     };
     std::vector<ExpanderAnimationState> _expanderAnimations{};
     std::optional<TreeExpansionAnimationState> _treeExpansionAnimation;
+    // Unseen motion inside the Tree (W3.4): whether the last paint drew a row whose chevron still turns. A chevron of a row
+    // collapsed away or scrolled out of the Tree's viewport asks for no frames; the paint that shows it again asks for them.
+    mutable bool _paintedTurningChevron = false;
+    // The ticks of the Tree's motion: chevrons, the rows' expansion slide and the scrollbar, landing when the last settles.
+    void RequestMotionTicks(ControlHost& host) const noexcept;
+    friend struct MotionScheduleAccess;
     friend struct RetainedCacheAccess;
     mutable std::vector<TreeBadgeWidthCacheEntry> _badgeWidthCache;
     mutable TreeTooltipOverflowCache _tooltipOverflowCache;
@@ -7195,6 +7206,9 @@ public:
     // Tests only. A native host's animation clock reads nowTickMs until reset with nullopt, while ticks still carry the time a
     // test passes; an embedded host's clock jumps to nowTickMs and its next ticks continue from there.
     void DebugSetAnimationClockForTest(std::optional<uint64_t> nowTickMs) noexcept;
+    // Tests only. While true, a native host with a test clock is ticked by its dispatcher's wakes at that clock too, never at
+    // the dispatcher's real time: pumping messages then advances nothing (the incremental-versus-fresh oracle with motion on).
+    void DebugSetAnimationClockOwnsWakesForTest(bool owns) noexcept;
     [[nodiscard]] IRawElementProviderFragmentRoot* DebugCreateAccessibilityProvider() const noexcept;
     void DebugSimulateDeviceLoss() noexcept;
     // Stage 1 = swap-chain creation, 2 = back buffer, 3 = target bitmap, 4 = ResizeBuffers. An embedded host applies stage 3
@@ -7609,6 +7623,12 @@ private:
         std::weak_ptr<int> lifetime;
         uint64_t dueTickMs   = 0u;
         TickRequestKind kind = TickRequestKind::Deadline;
+        // Unseen motion (W3.4; Specs/Rendering/Rendering_Win32Host.md, "Unseen motion"): a library control's pure visual
+        // motion, which lands at motionSettleTickMs (UINT64_MAX: a loop that never settles). While its control is unseen or
+        // hidden (motionHeld) it costs no frame: a transition is ticked once at its settle time, a loop not at all.
+        uint64_t motionSettleTickMs = 0u;
+        bool motion                 = false;
+        bool motionHeld             = false;
     };
     struct TickWakeFrame final
     {
@@ -7628,6 +7648,39 @@ private:
         uint64_t dueTickMs = 0u;
     };
     void AddTickRequest(const Control& control, TickRequestKind kind, uint64_t dueTickMs) noexcept;
+    // Adds or merges a request; `motion` tags it as pure visual motion settling at `motionSettleTickMs` (W3.4).
+    void AddScheduleRequest(
+        const Control& control, TickRequestKind kind, uint64_t dueTickMs, bool motion, uint64_t motionSettleTickMs, const bool* knownHeld = nullptr) noexcept;
+    // Puts back a request a wake took but did not tick, keeping its motion tag.
+    void RestoreTickRequest(const TickRequest& request) noexcept;
+    // Unseen motion (W3.4): whether the control's pixels can reach the view (MotionScheduleAccess::IsSeen), tested again for
+    // every motion request only when something that can change it moved (MotionSeenSignature). Returns whether it tested.
+    bool RefreshMotionSeen(bool collectShown) noexcept;
+    // Ticks, before a frame paints, every motion request that RefreshMotionSeen found shown again; false when the host was
+    // destroyed or detached meanwhile. `ticked` reports whether any Tick ran.
+    [[nodiscard]] bool CatchUpShownMotion(bool* ticked) noexcept;
+    enum class DueTicksOutcome : uint8_t
+    {
+        Done,
+        Interrupted, // the host was hidden or its presentation changed: what is left waits, held
+        Abandoned,   // the host was destroyed or detached
+    };
+    // Ticks the snapshot in _tickDue (a wake's due requests, or the catch-up's shown motion).
+    [[nodiscard]] DueTicksOutcome TickDueSnapshot(uint64_t nowTickMs, const TickWakeFrame& frame, uint64_t presentationRevision) noexcept;
+    struct MotionSeenSignature final
+    {
+        uint64_t interactionRevision = 0u;
+        uint64_t hitRevision         = 0u;
+        uint64_t topologyRevision    = 0u;
+        UINT widthPx                 = 0u;
+        UINT heightPx                = 0u;
+        bool valid                   = false;
+    };
+    MotionSeenSignature _motionSeenSignature;
+    // Test seam: a host whose root the oracle's fresh scene installed (SetRoot under IsFreshPreparationForTest) holds no motion for its life,
+    // even when another window's pump renders it while the seam is off.
+    mutable bool _motionHoldOffForTest = false;
+    friend struct MotionScheduleAccess;
     // One tick on the next frame (the rich editor restarting its caret blink).
     void RequestAnimationOnce(const Control& control) noexcept;
     // Removes the control's request; true when it held one (a request or an entry of the wake in progress).
@@ -8077,7 +8130,8 @@ private:
     // Moves the embedded timeline to the application's current time, as an advance at that tick would, ticking nothing.
     void FollowEmbeddedApplicationClock() const noexcept;
     std::optional<uint64_t> _animationClockForTest;
-    bool _animationSuspendedWhileHidden = false;
+    bool _animationClockOwnsWakesForTest = false;
+    bool _animationSuspendedWhileHidden  = false;
     // Seen hidden only through an ancestor at a wake (W3.2 review): the first wake that finds the window visible again resumes
     // as a show does (the caret restarts, held deadlines are counted).
     bool _hiddenThroughAncestor     = false;

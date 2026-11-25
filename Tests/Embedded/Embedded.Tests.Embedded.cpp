@@ -122,6 +122,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.TraceProvider.h"
 #include "Embedded.Tests.TreeDataPaths.h"
 #include "Embedded.Tests.UiaTextProvider.h"
+#include "Embedded.Tests.UnseenMotion.h"
 #include "Embedded.Tests.WorkCounters.h"
 #include "Support.Tests.RichHoverIndex.h"
 #include "Support.Tests.RichSemantic.h"
@@ -2153,6 +2154,14 @@ __declspec(noinline) static int RunFunctionalTests()
         PerformanceFixtures::TestApplicationWakeGatesOnFixtures();
         return 0;
     }
+    // Plan W3.4 alone: unseen motion, its FX11 gate and its oracle script.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-unseen-motion")
+    {
+        GraphicsFixture gpu;
+        Hr(gpu.Create(true), "unseen motion WARP device");
+        UnseenMotionTests::RunAll(gpu);
+        return 0;
+    }
     // Plan W2.9 alone: the pointer hit result gates, differential and lifetime on WARP.
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-pointer-hit")
     {
@@ -2440,6 +2449,7 @@ __declspec(noinline) static int RunFunctionalTests()
     PerformanceFixtures::TestCaretClockGatesOnFx1();
     EmbeddedAnimationRequestTests::Run();
     PerformanceFixtures::TestApplicationWakeGatesOnFixtures();
+    UnseenMotionTests::RunAll(gpu);
     SemanticProjectionFx8::TestFx8RebuildsOnlyTheEditedBlock();
     RichReuseAcrossEditsEmbedded::TestFx8CarriesObjectsAcrossEdits();
     RichReuseAcrossEditsEmbedded::TestEmbeddedCarryAcrossDeviceReplacement(gpu);

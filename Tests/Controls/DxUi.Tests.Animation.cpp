@@ -3,6 +3,7 @@
 #include "Controls.Tests.DxUiTestHelpers.h"
 #include "Controls.Tests.FrameSchedule.h"
 #include "Controls.Tests.HostControlRegressions.h"
+#include "Controls.Tests.UnseenMotion.h"
 #include "DxUi/FrameRuntime.h"
 #include "Support.Tests.PerformanceCapture.h"
 #include "Support/AnimationDispatcher.h"
@@ -1695,6 +1696,9 @@ void RunAnimationTests()
     DXUI_RUN_TEST(TestFrameScheduleLifetimeFuzzThroughDispatcher);
     DXUI_RUN_TEST(TestFrameScheduleTimerRearmsAfterTheFailureHostReturns);
     DXUI_RUN_TEST(TestFrameScheduleHostOutlivingItsThreadDispatcherDetachesSafely);
+    DXUI_RUN_TEST(TestUnseenMotionNativeLoopHoldsAndCatchesUpBeforePaint);
+    DXUI_RUN_TEST(TestUnseenMotionNativeDisclosureDoesNotJumpOnAHitchWhileSeen);
+    DXUI_RUN_TEST(TestUnseenMotionNativeCostOfUnseenWork);
     DXUI_RUN_TEST(TestCaretClockSettingsCases);
     DXUI_RUN_TEST(TestCaretClockServesEveryCaretOwner);
     DXUI_RUN_TEST(TestCaretClockReadOnlyCaretIsSteady);

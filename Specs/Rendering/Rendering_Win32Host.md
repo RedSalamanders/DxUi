@@ -102,7 +102,8 @@ by one of its own `Tick`s holds what that wake had not yet done.
 
 A hidden control, or a control below a hidden one, keeps its request: it is neither ticked nor counted in the next wake
 (it costs no wake) until it is shown, and from its show it is ticked again, so a transition left part-way lands or
-resumes with no further input. A control that leaves a host while holding a request is ticked once by the host it joins.
+resumes with no further input; a library control's visual motion is ticked before the frame that shows it paints, and is
+also held while it is outside every viewport ([unseen motion](#unseen-motion)). A control that leaves a host while holding a request is ticked once by the host it joins.
 One wake ticks a control at most once (a control the compatibility walk ticked is not ticked again for its request); a
 control cancelled, forgotten or moved earlier in the same wake is not ticked, and a control cancelled or moved during
 its own `Tick` does not re-arm by returning true. A `Tick` that runs a modal loop gets the dispatcher's nested wakes
@@ -124,6 +125,63 @@ API revision 6), and `AdvanceAnimation` ticks only the due requests. The clock r
 its requests on a timeline that does not count the hidden time. When the schedule empties outside a wake (a blurred
 caret, a cancelled or forgotten request), the next request is a new start: it wakes the application and the next
 advance sets the timeline's baseline instead of counting the idle time.
+
+### Unseen motion
+
+Status: implemented (performance and motion plan item W3.4, 25 November 2026) for both hosts.
+
+Motion nobody can see costs no frames. A library control's pure visual motion is a tagged request of the
+[frame schedule](#frame-schedule): a transition names the time it settles, a loop never settles. Tagged, on both hosts:
+the indeterminate `ProgressBar` (a loop), `Slider` value and hover, press and touch transitions, `ThroughputGraph` value
+transitions, the hover and focus transitions and the disclosure chevron of `Button`, `Toggle`, `Checkbox` and
+`RadioButton`, `Tree` chevrons and expansion slides, `Grid` spinners, busy headers and sort glyph (a loop), and the
+scrollbar transitions of `Tree` and `Grid`. Only an exact library class is tagged (a derived class may override `Tick`), and
+only a `Tick` that changes pixels and runs no application code: model reads that the control's `Paint` also makes are the
+one exception (`Grid`). Untagged, and ticked as before whether seen or not: application controls, `PageHost` slides (the
+slide's end destroys the outgoing page, application controls included), carets (their [clock](#caret-clock) is unchanged),
+the rich editor's middle-button scrolling (it moves content and calls back), the menu popup's slider and the tooltip layer.
+
+Seen: a control is seen unless it is known not to be: it and every ancestor are visible, and its own painted extent (bounds
+plus declared reach, [painted extent](../UI/UI_ControlsAndLayout.md#painted-extent)), mapped through its ancestors' scroll
+offsets and clipped by every `ScrollPanel` viewport above it and by the view, is not empty. Unknown is seen: an undeclared
+control or ancestor, an unbounded reach, a `PageHost` in transition (both of its pages, for the whole slide), an unresolved
+control or a view of no size. The test is the paint region's own mapping, independent of the paint-region switch, so turning
+regions off changes painting, never scheduling. It is O(depth) per motion request and runs when a request starts, and again
+for every motion request only when a revision that can change it moved: a control's bounds, visibility or parent (the
+interaction revision), a scroll offset, page transition, size or scale (the hit revision), the tree or a declared reach (the
+paint topology) or the view's size. Between such changes no frame and no wake tests anything.
+
+While its control is unseen or hidden, tagged motion is held: a transition wakes the host once, at its settle time, and that
+one `Tick` lands it (one invalidation, which adds nothing to the paint region of an unseen control), so whatever its landing
+does happens when it would have; a loop wakes nothing. A host whose only motion is held requests nothing: a native host leaves
+its dispatcher and pacer, an embedded view reports `None`. A `Tick` at or after the settle time that still asks for more has
+landed; what is left of it is held like a loop.
+
+Catch-up: tagged motion is computed from its start on the host's animation clock, not accumulated from the ticks it received,
+so a loop resumes in phase and a transition is where the clock puts it, finished or part way, never back at its start. When
+held motion is shown again by something other than its own change (a scroll, a reselected `TabControl` page, an ancestor or
+the host shown), the frame that shows it ticks it first, at the frame's animation time, after the frame's layout and before
+its paint region is taken: never one frame late. Preparing or rendering a frame may so advance held library motion to the
+frame's time; nothing else runs in it. A catch-up `Tick` that leaves layout pending is laid out once more, never in a loop
+(`frame.catchUpLayoutRepeats`, 0 for the library's motion). What the shown motion asks for next reaches the scheduler from the
+same frame: a native host joins its dispatcher or pacer for the next frame; an embedded view asks its application for the
+next preparation and reports the request, with the baseline rule of the [embedded contract](Rendering_EmbeddedD3D11.md). A
+capture renders through the same frame, so whatever it shows is caught up; an unseen control is culled from it. A native
+host that presents no frame (hidden, minimized, presentation off) holds its whole schedule, so a capture of it catches
+nothing up and shows what it last ticked; its first frame after the show catches up.
+
+Inside a `Tree`, a chevron whose row the last paint did not draw (collapsed away, or scrolled out of the Tree's viewport)
+keeps no frames; the paint that draws its row again asks for them.
+
+Hosts: a native host's "visible" is the [frame schedule](#frame-schedule)'s (minimized, hidden, hidden through an ancestor
+or `SetNativePresentationVisible(false)` hold everything, and a settle that comes due meanwhile fires once on show); a window
+covered by another window is seen. An embedded view is visible while `SetVisible(true)` and sized. The native clock runs while
+nothing is requested, so a loop shown again is in phase with one that ticked all along; an embedded view's clock is its
+timeline, which does not run while nothing is requested, so a loop that was the view's only motion continues from where the
+timeline stood.
+
+Work counters: `frame.tickHeldUnseen` (motion requests found unseen), `frame.tickCatchUps` (catch-up ticks before a frame
+paints), `frame.motionSeenRefreshes` (tests of every motion request after a revision moved), `frame.catchUpLayoutRepeats`.
 
 ### Frame pacing
 

@@ -16,22 +16,24 @@
 
 // Frames and hosts: what one preparation, render or composition did.
 #define DXUI_WORK_COUNTERS_FRAME(X)                                                                                                                            \
-    X(frame, brushColorReuses)         /* Transition brushes a host served again by SetColor instead of creating a brush (W2.8). */                            \
-    X(frame, brushEvictions)           /* Keyed solid brushes ControlHost::TrimCaches released, unused by the last two frames, above the bound. */             \
-    X(frame, clipPushesSkipped)        /* Inner clips a ScrollPanel did not push because the paint clip already lay inside its viewport (W4.10). */            \
-    X(frame, composites)               /* EmbeddedHost::Composite calls that drew the prepared surface. */                                                     \
-    X(frame, compositionDevices)       /* DirectComposition devices a thread's shared native device stack created (DCompositionCreateDevice2). */              \
-    X(frame, d2dDevices)               /* Direct2D devices a thread's shared native device stack created (ID2D1Factory1::CreateDevice). */                     \
-    X(frame, drawCalls)                /* Direct2D draw calls seen by a test executable's counting wrappers; 0 wherever none is installed. */                  \
-    X(frame, fullVisualPreparations)   /* Preparation passes that prepared every visible control's visual content, not only the pending ones. */               \
-    X(frame, hitRevisionMoves)         /* Moves of a host's pointer hit revision (ControlHost::AdvanceHitRevision): InvalidateHitTest and the named sites. */  \
-    X(frame, hitTestReuses)            /* Pointer hit tests a host answered from the hit result of the same pointer event, client point and hit revision. */   \
-    X(frame, hitTests)                 /* Host hit tests that walked the control tree (overlays, then children) to find the control under a point. */          \
-    X(frame, inkEscapes)               /* Controls whose paint first drew text beyond their bounds plus reach (W4.10): their extent becomes unbounded. */      \
-    X(frame, invalidations)            /* ControlHost::Invalidate requests (a native InvalidateRect or an embedded invalidation callback), changed or not. */  \
-    X(frame, pacedFrames)              /* Native paced frames (W3.6): a paced-frame message or skip timer that sampled the compositor clock and ticked. */     \
-    X(frame, pacerDeferredPaints)      /* WM_PAINT a paced native host validated and deferred to its next credit instead of rendering. */                      \
-    X(frame, pacerExcessUnits)         /* Frame-latency units absorbed while the credit was held: a kept credit's frame had queued (W3.6). */                  \
+    X(frame, brushColorReuses)       /* Transition brushes a host served again by SetColor instead of creating a brush (W2.8). */                              \
+    X(frame, brushEvictions)         /* Keyed solid brushes ControlHost::TrimCaches released, unused by the last two frames, above the bound. */               \
+    X(frame, catchUpLayoutRepeats)   /* Layout passes a frame ran again because a catch-up Tick of shown motion left layout pending (W3.4); 0 expected. */     \
+    X(frame, clipPushesSkipped)      /* Inner clips a ScrollPanel did not push because the paint clip already lay inside its viewport (W4.10). */              \
+    X(frame, composites)             /* EmbeddedHost::Composite calls that drew the prepared surface. */                                                       \
+    X(frame, compositionDevices)     /* DirectComposition devices a thread's shared native device stack created (DCompositionCreateDevice2). */                \
+    X(frame, d2dDevices)             /* Direct2D devices a thread's shared native device stack created (ID2D1Factory1::CreateDevice). */                       \
+    X(frame, drawCalls)              /* Direct2D draw calls seen by a test executable's counting wrappers; 0 wherever none is installed. */                    \
+    X(frame, fullVisualPreparations) /* Preparation passes that prepared every visible control's visual content, not only the pending ones. */                 \
+    X(frame, hitRevisionMoves)       /* Moves of a host's pointer hit revision (ControlHost::AdvanceHitRevision): InvalidateHitTest and the named sites. */    \
+    X(frame, hitTestReuses)          /* Pointer hit tests a host answered from the hit result of the same pointer event, client point and hit revision. */     \
+    X(frame, hitTests)               /* Host hit tests that walked the control tree (overlays, then children) to find the control under a point. */            \
+    X(frame, inkEscapes)             /* Controls whose paint first drew text beyond their bounds plus reach (W4.10): their extent becomes unbounded. */        \
+    X(frame, invalidations)          /* ControlHost::Invalidate requests (a native InvalidateRect or an embedded invalidation callback), changed or not. */    \
+    X(frame, motionSeenRefreshes) /* Tests of whether every motion request's control can be seen, run because a revision that can change it moved (W3.4). */   \
+    X(frame, pacedFrames)         /* Native paced frames (W3.6): a paced-frame message or skip timer that sampled the compositor clock and ticked. */          \
+    X(frame, pacerDeferredPaints) /* WM_PAINT a paced native host validated and deferred to its next credit instead of rendering. */                           \
+    X(frame, pacerExcessUnits)    /* Frame-latency units absorbed while the credit was held: a kept credit's frame had queued (W3.6). */                       \
     X(frame, pacerInvariantViolations) /* Debug: pacer transitions that left a deferred paint or pending move without a wake (0). */                           \
     X(frame, pacerStaleFrames)         /* Paced-frame messages a native host ignored: their request was cancelled, replaced or belongs to an earlier chain. */ \
     X(frame, pacerStatsFallbacks)      /* Paced frames sampled at the current time because the compositor's frame statistics were unavailable. */              \
@@ -61,19 +63,22 @@
     X(frame, showPaintsValidated)           /* WM_PAINTs at a show validated without a render: the frame presented for the show was current (W2.4). */         \
     X(frame, swapChains)                    /* Swap chains native hosts created, for composition or for a window. */                                           \
     X(frame, tickCalls)                     /* Control::Tick calls the frame schedule made for due requests (whole-tree walks excluded). */                    \
-    X(frame, tickDiscoveryWalks)            /* Whole-tree ticks an embedded root installation asked for, so controls can claim ticks. */                       \
-    X(frame, tickHeldWhileHidden)           /* Requests that came due while their native host was hidden and waited for its show. */                           \
-    X(frame, tickLegacyTreeWalks)           /* Whole-tree ticks an anonymous RequestAnimation() asked for; the library's own controls never do. */             \
-    X(frame, tickRequesters)                /* Due requests the frame schedule found at its wakes, one per requesting control. */                              \
-    X(frame, tooltipDeadlineTicks)          /* Host tooltip-layer Ticks at a reached show or hide deadline; never between deadlines. */                        \
-    X(frame, tooltipShowsDropped)           /* Pending tooltip shows a host dropped because it was hidden before they came due. */                             \
-    X(frame, tooltipTargetMarks)            /* Changes that marked a pending or shown supplemental tooltip's target for re-resolution at the next wake. */     \
-    X(frame, tooltipTargetValidations)      /* Wakes that resolved the supplemental tooltip's target again: marked, or at the tooltip's own deadline. */       \
-    X(frame, treeVisitsHitTest)             /* Controls a hit test examined: the root and each child a container offered to it. */                             \
-    X(frame, treeVisitsPaint)               /* Controls a paint walk examined, visible or not. */                                                              \
-    X(frame, treeVisitsPreparation)         /* Controls a host preparation pass (PreparePendingPageLayout) entered, visible or not (W6.3). */                  \
-    X(frame, treeVisitsStatistics)          /* Controls an EmbeddedHost::GetStatistics retained-resource walk examined. */                                     \
-    X(frame, treeVisitsTick)                /* Controls an animation tick walk examined, visible or not. */
+    X(frame, tickCatchUps)       /* Ticks before a frame paints of motion whose control was shown again by something else: scroll, show, reselect (W3.4). */   \
+    X(frame, tickDiscoveryWalks) /* Whole-tree ticks an embedded root installation asked for, so controls can claim ticks. */                                  \
+    X(frame,                                                                                                                                                   \
+      tickHeldUnseen) /* Motion requests found unseen (outside every viewport clip, or off the view) and held: no frame until seen or settled (W3.4). */       \
+    X(frame, tickHeldWhileHidden)      /* Requests that came due while their native host was hidden and waited for its show. */                                \
+    X(frame, tickLegacyTreeWalks)      /* Whole-tree ticks an anonymous RequestAnimation() asked for; the library's own controls never do. */                  \
+    X(frame, tickRequesters)           /* Due requests the frame schedule found at its wakes or a frame caught up (W3.4), one per control. */                  \
+    X(frame, tooltipDeadlineTicks)     /* Host tooltip-layer Ticks at a reached show or hide deadline; never between deadlines. */                             \
+    X(frame, tooltipShowsDropped)      /* Pending tooltip shows a host dropped because it was hidden before they came due. */                                  \
+    X(frame, tooltipTargetMarks)       /* Changes that marked a pending or shown supplemental tooltip's target for re-resolution at the next wake. */          \
+    X(frame, tooltipTargetValidations) /* Wakes that resolved the supplemental tooltip's target again: marked, or at the tooltip's own deadline. */            \
+    X(frame, treeVisitsHitTest)        /* Controls a hit test examined: the root and each child a container offered to it. */                                  \
+    X(frame, treeVisitsPaint)          /* Controls a paint walk examined, visible or not. */                                                                   \
+    X(frame, treeVisitsPreparation)    /* Controls a host preparation pass (PreparePendingPageLayout) entered, visible or not (W6.3). */                       \
+    X(frame, treeVisitsStatistics)     /* Controls an EmbeddedHost::GetStatistics retained-resource walk examined. */                                          \
+    X(frame, treeVisitsTick)           /* Controls an animation tick walk examined, visible or not. */
 
 // Wakes by source: each turn DxUi takes on the owner thread because something woke it.
 #define DXUI_WORK_COUNTERS_WAKES(X)                                                                                                                            \

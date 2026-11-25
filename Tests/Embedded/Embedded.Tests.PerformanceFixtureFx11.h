@@ -8,8 +8,11 @@
 // Shape: one measured phase per (transition, rate), named "<transition>-<rate>hz". Step 0 applies the state change and its
 // frame; step k >= 1 advances the clock to FrameTimeMs(rate, k) (whole milliseconds, rounded from k * 1000 / rate, so 144 and
 // 240 Hz alternate 6/7 and 4/5 ms) and renders. Each window lasts kWindowMs, beyond the longest transition today (Tree rows,
-// 320 ms), so its last steps show what happens after settle. A last phase slides a page holding an indeterminate ProgressBar
-// out at 60 Hz (the W3.4 case).
+// 320 ms), so its last steps show what happens after settle. A phase slides a page holding an indeterminate ProgressBar
+// out at 60 Hz (the W3.4 case). A last phase (W3.4) adds a ScrollPanel holding an indeterminate ProgressBar and a Slider whose
+// value animates, scrolls them out of view half way through the Slider's transition, holds them out for 400 ms and scrolls
+// them back: unseen, the loop ticks 0 times and the transition once, when it settles. Its controls exist only from that
+// phase on, so the phases before it measure what they measured before.
 //
 // State changes go through the controls' own requests, never real input: PageHost::SetPage, Tree::RequestExpandedState with
 // a delegate that publishes the model change, Toggle and Checkbox SetChecked, Slider::RequestValue (the committed user edit),
@@ -56,6 +59,14 @@ inline constexpr size_t kWarm        = 0u;
 // The first phase of each rate block is 1 + rateIndex * kTransitions; the ProgressBar phase comes last.
 inline constexpr size_t kProgressSlide = 1u + kRates.size() * kTransitions;
 inline constexpr size_t kProgressSteps = 1u + static_cast<size_t>(2u * kWindowMs * 60u / 1000u);
+// The first step of progress-slide-60hz after the slide out settled (the slide starts at step 24 and lasts kPageTransition).
+inline constexpr size_t kProgressSettledStep = 41u;
+// W3.4: unseen-60hz. Step 0 adds the scrolled panel and starts the Slider's 167 ms value animation; step kUnseenOutStep (100
+// ms) scrolls the panel's content out of view; step kUnseenBackStep (500 ms) scrolls it back; the rest show it running.
+inline constexpr size_t kUnseen         = kProgressSlide + 1u;
+inline constexpr size_t kUnseenOutStep  = 6u;
+inline constexpr size_t kUnseenBackStep = 30u;
+inline constexpr size_t kUnseenSteps    = 49u;
 
 #define DXUI_FX11_RATE_PHASES(rate)                                                                                                                            \
     Phase{"page-slide-" #rate "hz", WindowSteps(rate), PhaseKind::Measured, "PageHost::SetPage to a new page"},                                                \
@@ -80,9 +91,14 @@ inline constexpr std::array kPhases{
           kProgressSteps,
           PhaseKind::Measured,
           "60 Hz: a page holding an indeterminate ProgressBar slides in at step 0, slides out at step 24 (400 ms); ticks after step 40 come from what remains"},
+    Phase{"unseen-60hz",
+          kUnseenSteps,
+          PhaseKind::Measured,
+          "60 Hz (W3.4): a ScrollPanel with an indeterminate ProgressBar and a Slider animating its value is added at step 0, scrolled out of view at step 6 "
+          "(100 ms), held out for 400 ms and scrolled back at step 30"},
 };
 #undef DXUI_FX11_RATE_PHASES
-static_assert(kPhases.size() == kProgressSlide + 1u);
+static_assert(kPhases.size() == kUnseen + 1u);
 
 // The phase index of a transition at a rate (kRates index).
 [[nodiscard]] constexpr size_t PhaseIndex(size_t rateIndex, Transition transition) noexcept
@@ -161,6 +177,7 @@ public:
     HRESULT Build(Context& context) override
     {
         auto root  = std::make_unique<DxUi::Panel>();
+        root_      = root.get();
         pageHost_  = root->AddChild<DxUi::PageHost>();
         tree_      = root->AddChild<DxUi::Tree>();
         toggle_    = root->AddChild<DxUi::Toggle>(L"Wi-Fi");
@@ -196,6 +213,32 @@ public:
         if (phase == kWarm)
         {
             context.port.AdvanceTime(16u);
+            return;
+        }
+        if (phase == kUnseen)
+        {
+            if (step > 0u)
+                context.port.AdvanceTime(FrameTimeMs(60u, step) - FrameTimeMs(60u, step - 1u));
+            if (step == 0u)
+            {
+                // Over the left column (the page host, toggle, checkbox, slider and combo box keep their places below it).
+                unseenScroll_ = root_->AddChild<DxUi::ScrollPanel>();
+                unseenScroll_->SetBounds(D2D1::RectF(8.0f, 176.0f, 232.0f, 300.0f));
+                auto* bar = unseenScroll_->AddChild<DxUi::ProgressBar>();
+                bar->SetBounds(D2D1::RectF(16.0f, 184.0f, 216.0f, 200.0f));
+                bar->SetIndeterminate(true);
+                auto* slider = unseenScroll_->AddChild<DxUi::Slider>();
+                slider->SetBounds(D2D1::RectF(16.0f, 212.0f, 216.0f, 240.0f));
+                slider->SetMinimum(0.0);
+                slider->SetMaximum(100.0);
+                slider->SetValue(20.0);
+                unseenScroll_->SetContentHeight(1'200.0f);
+                static_cast<void>(slider->RequestValue(context.controls, 80.0));
+            }
+            else if (step == kUnseenOutStep)
+                unseenScroll_->SetScrollOffset(900.0f);
+            else if (step == kUnseenBackStep)
+                unseenScroll_->SetScrollOffset(0.0f);
             return;
         }
         if (phase == kProgressSlide)
@@ -255,13 +298,15 @@ private:
 
     // The model outlives the tree that borrows it: the runner destroys the host first.
     MotionTreeModel model_;
-    DxUi::PageHost* pageHost_ = nullptr;
-    DxUi::Tree* tree_         = nullptr;
-    DxUi::Toggle* toggle_     = nullptr;
-    DxUi::Checkbox* checkbox_ = nullptr;
-    DxUi::Slider* slider_     = nullptr;
-    DxUi::ComboBox* comboBox_ = nullptr;
-    size_t pages_             = 0u;
+    DxUi::Panel* root_               = nullptr;
+    DxUi::ScrollPanel* unseenScroll_ = nullptr;
+    DxUi::PageHost* pageHost_        = nullptr;
+    DxUi::Tree* tree_                = nullptr;
+    DxUi::Toggle* toggle_            = nullptr;
+    DxUi::Checkbox* checkbox_        = nullptr;
+    DxUi::Slider* slider_            = nullptr;
+    DxUi::ComboBox* comboBox_        = nullptr;
+    size_t pages_                    = 0u;
 };
 
 inline constexpr std::array kSources{std::string_view("Tests/Embedded/Embedded.Tests.PerformanceFixtureFx11.h")};

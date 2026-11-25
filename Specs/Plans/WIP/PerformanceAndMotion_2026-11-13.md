@@ -749,7 +749,7 @@ something is due, and pace native animation frames to the display. Exit: `G1` me
   - **Gate**: `FX14`: wakes from the tooltip ≤ 2 per show (one show, one hide); 0 `Tick` calls between deadlines.
   - **Needs**: `W3.1`, `W1.6`. **Size**: S.
 
-- [ ] **W3.4 Unseen motion.**
+- [x] **W3.4 Unseen motion.**
   - **Why**: `Panel::Tick` tests only `IsVisible` (`DxUi.Controls.cpp:1571-1585`), so a control scrolled out of a
     viewport or on a page slid away keeps ticking; phase loops (`ProgressBar`, `DxUi.Controls.cpp:5418-5445`) request
     frames for as long as they exist.

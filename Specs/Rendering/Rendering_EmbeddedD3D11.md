@@ -262,6 +262,20 @@ The view owns no timer or worker; the application decides when to call. Rules:
    An application that sleeps until the last request it read is therefore never left asleep; it reads the request after
    the callback. A callback raised inside an advance sees the due requests being ticked and uses the request that
    advance returns.
+6. Unseen motion ([Win32 host contract](Rendering_Win32Host.md#unseen-motion)): library motion that cannot be seen (scrolled
+   out of every viewport, hidden) is held. A held transition is a `Deadline` at its settle time; a held loop requests
+   nothing, so a view whose only motion is held reports `None` and the application sleeps. `Prepare` may advance held library
+   motion to the view's time: the preparation that shows it again ticks it first, before it paints, and when that makes the
+   schedule need the application sooner than the request it last reported, the preparation calls `requestPreparation` once
+   it returns (no invalidation that declares nothing to UI Automation); the next request is then a new start, whose first
+   advance takes the baseline.
+7. The view's clock is its timeline, and the application's clock is the motion clock: every library transition and loop
+   is computed from its start on that timeline. The timeline moves only with the advances the view asked for and with the
+   stamps taken between them at the application's current time (rule 3), so a loop that was the view's only motion
+   continues, when it is seen again, from the view's time at that preparation, not from where it would be on a clock that
+   ran all along; and the view clamps no hitch: a
+   long delta between two advances moves every transition, the disclosure chevron included, by the whole delta. An
+   application that wants hitch protection clamps the deltas it passes.
 
 A new root gets one `Continuous` request for its discovery tick of the whole visible tree. A hidden view holds its
 requests and its timeline does not count the hidden time; a held deadline therefore keeps its remaining time across a

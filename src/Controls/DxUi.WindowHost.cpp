@@ -1,6 +1,7 @@
 #include <DxUi/Failure.h>
 
 #include "DxUi.Internal.h"
+#include "DxUi.RetainedCaches.h"
 #include "TextClipboard.h"
 #include "TextStoreTarget.h"
 
@@ -1861,6 +1862,10 @@ const ThemePalette& ControlHost::GetTheme() const noexcept
 void ControlHost::SetRoot(std::unique_ptr<Control> root)
 {
     const Failure::Scope failureScope;
+    // Test seam: the oracle's fresh scene installs its root under IsFreshPreparationForTest; that host holds no motion for the
+    // rest of its life (W3.4), even when another window's pump renders it while the seam is off.
+    if (IsFreshPreparationForTest())
+        _motionHoldOffForTest = true;
     const bool wasReplacingRoot = std::exchange(_replacingRoot, true);
     const auto endReplacingRoot = wil::scope_exit([this, wasReplacingRoot]() noexcept { _replacingRoot = wasReplacingRoot; });
     // A promoted child still points at its original parent. Reset callbacks may replace or detach that tree,
@@ -2353,6 +2358,12 @@ void ControlHost::BlankDueControl(const Control& control) noexcept
 
 void ControlHost::AddTickRequest(const Control& control, TickRequestKind kind, uint64_t dueTickMs) noexcept
 {
+    AddScheduleRequest(control, kind, dueTickMs, false, 0u);
+}
+
+void ControlHost::AddScheduleRequest(
+    const Control& control, TickRequestKind kind, uint64_t dueTickMs, bool motion, uint64_t motionSettleTickMs, const bool* knownHeld) noexcept
+{
     // A detaching host and a control of another host take no requests: the schedule names only this host's controls.
     if (_detachInProgress.load(std::memory_order_acquire) || control.GetHost() != this || ! IsScheduleCallerOnOwnerThread())
         return;
@@ -2367,9 +2378,23 @@ void ControlHost::AddTickRequest(const Control& control, TickRequestKind kind, u
         if (request.lifetime.expired())
         {
             // A destroyed control's request at a reused address: it belongs to the new control now, as a fresh request.
-            request.lifetime  = control.GetLifetimeToken();
-            request.kind      = TickRequestKind::Deadline;
-            request.dueTickMs = UINT64_MAX;
+            request.lifetime           = control.GetLifetimeToken();
+            request.kind               = TickRequestKind::Deadline;
+            request.dueTickMs          = UINT64_MAX;
+            request.motion             = motion;
+            request.motionSettleTickMs = motion ? motionSettleTickMs : 0u;
+            request.motionHeld         = motion && ! MotionScheduleAccess::IsTickableAndSeen(*this, control);
+        }
+        else if (request.motion && motion)
+        {
+            // Two motions of one control: it lands when the later one settles.
+            request.motionSettleTickMs = (std::max)(request.motionSettleTickMs, motionSettleTickMs);
+        }
+        else if (request.motion)
+        {
+            // Anything else the control asks for is ticked as asked, seen or not (W3.4: unknown work is never held).
+            request.motion     = false;
+            request.motionHeld = false;
         }
         if (rank(kind) >= rank(request.kind))
         {
@@ -2380,8 +2405,31 @@ void ControlHost::AddTickRequest(const Control& control, TickRequestKind kind, u
         return;
     }
     // The vector keeps its capacity: requests reuse it, bounded by the controls that animate at once.
-    _tickRequests.push_back(TickRequest{const_cast<Control*>(&control), control.GetLifetimeToken(), kind == TickRequestKind::Deadline ? dueTickMs : 0u, kind});
+    TickRequest added{const_cast<Control*>(&control), control.GetLifetimeToken(), kind == TickRequestKind::Deadline ? dueTickMs : 0u, kind};
+    if (motion)
+    {
+        added.motion             = true;
+        added.motionSettleTickMs = motionSettleTickMs;
+        // A motion that starts unseen costs nothing from its start (W3.4). A request a wake puts back keeps what that wake
+        // found, without testing again.
+        if (knownHeld)
+            added.motionHeld = *knownHeld;
+        else
+        {
+            added.motionHeld = ! MotionScheduleAccess::IsTickableAndSeen(*this, control);
+            if (added.motionHeld && IsControlTickable(control))
+                ++Detail::Work().frame.tickHeldUnseen;
+        }
+    }
+    _tickRequests.push_back(std::move(added));
     OnFrameScheduleChanged();
+}
+
+void ControlHost::RestoreTickRequest(const TickRequest& request) noexcept
+{
+    if (! request.control || request.lifetime.expired() || request.control->GetHost() != this)
+        return;
+    AddScheduleRequest(*request.control, request.kind, request.dueTickMs, request.motion, request.motionSettleTickMs, &request.motionHeld);
 }
 
 bool ControlHost::ForgetControl(const Control& control) noexcept
@@ -2480,9 +2528,18 @@ ControlHost::FrameScheduleWake ControlHost::GetFrameScheduleWake() const noexcep
         // A request of a hidden control (or one below a hidden control) is held and costs no wake until it is shown.
         if (request.lifetime.expired() || request.control->GetHost() != this || ! IsControlTickable(*request.control))
             continue;
-        if (request.kind == TickRequestKind::Continuous)
+        uint64_t due = 0u;
+        if (request.motion && request.motionHeld)
+        {
+            // Unseen motion (W3.4): a loop wakes nothing; a transition wakes once, when it settles.
+            if (request.motionSettleTickMs == UINT64_MAX)
+                continue;
+            due = request.kind == TickRequestKind::Deadline ? (std::max)(request.dueTickMs, request.motionSettleTickMs) : request.motionSettleTickMs;
+        }
+        else if (request.kind == TickRequestKind::Continuous)
             return {Kind::Continuous, 0u};
-        const uint64_t due = request.kind == TickRequestKind::Once ? 0u : request.dueTickMs;
+        else
+            due = request.kind == TickRequestKind::Once ? 0u : request.dueTickMs;
         if (! hasDeadline || due < earliestDue)
         {
             hasDeadline = true;
@@ -2543,7 +2600,12 @@ struct FrameScheduleAccess final
     static Ui::AnimationDispatcher::Wake Wake(void* context, uint64_t nowTickMs) noexcept
     {
         auto* const self = static_cast<ControlHost*>(context);
-        return (self && IsAttachedWindowHostRegistered(self)) ? ToDispatcher(self->OnScheduledWake(nowTickMs)) : Ui::AnimationDispatcher::Wake{};
+        if (! self || ! IsAttachedWindowHostRegistered(self))
+            return {};
+        // A test whose clock owns the wakes (the oracle's native scenes) never sees a tick at the dispatcher's real time.
+        const uint64_t wakeTickMs =
+            self->_animationClockOwnsWakesForTest && self->_animationClockForTest.has_value() ? *self->_animationClockForTest : nowTickMs;
+        return ToDispatcher(self->OnScheduledWake(wakeTickMs));
     }
 
     // The schedule's own view of whether a window host presents frames: the conditions under which OnScheduledWake and
@@ -4187,6 +4249,11 @@ void ControlHost::DebugSetAnimationClockForTest(std::optional<uint64_t> nowTickM
         return;
     }
     _animationClockForTest = nowTickMs;
+}
+
+void ControlHost::DebugSetAnimationClockOwnsWakesForTest(bool owns) noexcept
+{
+    _animationClockOwnsWakesForTest = owns;
 }
 
 IRawElementProviderFragmentRoot* ControlHost::DebugCreateAccessibilityProvider() const noexcept
@@ -7367,6 +7434,20 @@ try
             EmitPendingNativeTextInputPaintMetric(E_ABORT);
             return;
         }
+        // Unseen motion shown again (a scroll, a reselected page, the host shown) is ticked to this frame's time before it
+        // paints, so the first frame that shows it is never one frame late (W3.4).
+        const auto catchUp = MotionScheduleAccess::CatchUp(*this);
+        if (catchUp == MotionScheduleAccess::CatchUpResult::HostGone)
+            return;
+        if (catchUp == MotionScheduleAccess::CatchUpResult::LayoutPending || ! _nativePresentationVisible ||
+            _nativePresentationRevision != presentationRevision)
+        {
+            if (_contentPreparationContinues)
+                InvalidateFor(static_cast<uint8_t>(Detail::Trace::FrameReason::Continuation));
+            paintPerf.SetHr(E_ABORT);
+            EmitPendingNativeTextInputPaintMetric(E_ABORT);
+            return;
+        }
     }
 
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -8626,7 +8707,6 @@ bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
             _tickWakeFrame = nullptr;
     });
     const uint64_t presentationRevision = _nativePresentationRevision;
-    const auto interrupted              = [&]() noexcept { return frame.abandoned || _nativePresentationRevision != presentationRevision; };
 
     // W3.7: a pending pointer move is dispatched before any Tick (a paced frame already did; a deadline wake does it here), so
     // every Tick and the tooltip's resolution read the latest position.
@@ -8664,10 +8744,14 @@ bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
     // A deferred geometry-only accessibility publication whose layout settled, or whose interval passed, becomes due (W8.2).
     SettleAccessibilityGeometry(*this, nowTickMs);
 
+    // Unseen motion (W3.4): whether each motion request's control can be seen, tested again only when something that can
+    // change it moved since the last test.
+    static_cast<void>(RefreshMotionSeen(false));
+
     // Snapshot the due requests; a request made from now on (a Tick re-arming) lands in the schedule for a later wake.
     _tickDue.clear();
     std::erase_if(_tickRequests,
-                  [this, nowTickMs](const TickRequest& request) noexcept
+                  [this, nowTickMs](TickRequest& request) noexcept
     {
         // The token is checked before the address is used: a destroyed control is dropped unread.
         if (request.lifetime.expired() || request.control->GetHost() != this)
@@ -8676,6 +8760,13 @@ bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
             return false;
         // A hidden control keeps its request without being ticked; it is ticked when it is shown again.
         if (! IsControlTickable(*request.control))
+        {
+            request.motionHeld = request.motion;
+            return false;
+        }
+        // Unseen motion waits for its control to be seen (the catch-up before the frame that shows it), or for the time it
+        // settles, when one Tick lands it; a loop never settles.
+        if (request.motion && request.motionHeld && request.motionSettleTickMs > nowTickMs)
             return false;
         _tickDue.push_back(request);
         return true;
@@ -8689,11 +8780,7 @@ bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
     const auto holdRemaining = [&](size_t firstDue, bool treePending) noexcept
     {
         for (size_t index = firstDue; index < _tickDue.size(); ++index)
-        {
-            const TickRequest& held = _tickDue[index];
-            if (held.control && ! held.lifetime.expired() && held.control->GetHost() == this)
-                AddTickRequest(*held.control, held.kind, held.dueTickMs);
-        }
+            RestoreTickRequest(_tickDue[index]);
         _tickTreeRequested = _tickTreeRequested || treePending;
         _tickTreeDiscovery = _tickTreeDiscovery || (treePending && discover);
         _tickDue.clear();
@@ -8712,35 +8799,12 @@ bool ControlHost::RunScheduledTicks(uint64_t nowTickMs) noexcept
         }
     }
 
-    for (size_t index = 0u; index < _tickDue.size(); ++index)
+    switch (TickDueSnapshot(nowTickMs, frame, presentationRevision))
     {
-        // Copy what the Tick needs: ForgetControl may blank this entry while the Tick runs.
-        Control* const control            = _tickDue[index].control;
-        const std::weak_ptr<int> lifetime = _tickDue[index].lifetime;
-        if (! control || lifetime.expired() || control->GetHost() != this)
-            continue;
-        if (! IsControlTickable(*control))
-        {
-            // Hidden by an earlier Tick of this wake: held like any hidden control's request.
-            AddTickRequest(*control, _tickDue[index].kind, _tickDue[index].dueTickMs);
-            continue;
-        }
-        ++Detail::Work().frame.tickCalls;
-        bool again = false;
-        static_cast<void>(TryControlCallback([&] { again = control->Tick(*this, nowTickMs); }));
-        if (frame.abandoned)
-            return false;
-        // Whatever the request was, true asks for the next frame, unless the control was cancelled, forgotten or moved
-        // during its own Tick (its snapshot entry is blanked then).
-        if (again && _tickDue[index].control == control && ! lifetime.expired() && control->GetHost() == this)
-            AddTickRequest(*control, TickRequestKind::Continuous, 0u);
-        if (interrupted())
-        {
-            holdRemaining(index + 1u, false);
-            return true;
-        }
+        case DueTicksOutcome::Abandoned: return false;
+        case DueTicksOutcome::Interrupted: return true;
+        case DueTicksOutcome::Done: break;
     }
-    _tickDue.clear();
 
     // The tooltip's deadline, read now rather than at the start of the wake: a Tick above may have dismissed, replaced or
     // re-armed it, and a deadline whose waiting mode has ended is gone with it. The layer is ticked only when it is due;
@@ -8866,5 +8930,131 @@ void MarkRetainedSharedDeviceStackLostForTest(DWORD threadId) noexcept
     auto& resourcesByThread = GetSharedWindowHostGraphicsResourcesByThread();
     if (const auto it = resourcesByThread.find(threadId); it != resourcesByThread.end())
         it->second.lostForTest = true;
+}
+
+ControlHost::DueTicksOutcome ControlHost::TickDueSnapshot(uint64_t nowTickMs, const TickWakeFrame& frame, uint64_t presentationRevision) noexcept
+{
+    for (size_t index = 0u; index < _tickDue.size(); ++index)
+    {
+        // Copy what the Tick needs: ForgetControl may blank this entry while the Tick runs.
+        Control* const control            = _tickDue[index].control;
+        const std::weak_ptr<int> lifetime = _tickDue[index].lifetime;
+        if (! control || lifetime.expired() || control->GetHost() != this)
+            continue;
+        if (! IsControlTickable(*control))
+        {
+            // Hidden by an earlier Tick of this wake: held like any hidden control's request.
+            TickRequest held = _tickDue[index];
+            held.motionHeld  = held.motion;
+            RestoreTickRequest(held);
+            continue;
+        }
+        ++Detail::Work().frame.tickCalls;
+        const bool motion           = _tickDue[index].motion;
+        const uint64_t settleTickMs = _tickDue[index].motionSettleTickMs;
+        bool again                  = false;
+        static_cast<void>(TryControlCallback([&] { again = control->Tick(*this, nowTickMs); }));
+        if (frame.abandoned)
+            return DueTicksOutcome::Abandoned;
+        // Whatever the request was, true asks for the next frame, unless the control was cancelled, forgotten or moved
+        // during its own Tick (its snapshot entry is blanked then). A motion Tick at or after its settle time that asks for
+        // more (a final repaint) has landed: what is left of it is held like a loop while unseen, never woken for again, and
+        // caught up when seen (W3.4: an unseen transition costs one Tick, at its settle time).
+        if (again && _tickDue[index].control == control && ! lifetime.expired() && control->GetHost() == this)
+        {
+            const bool held           = motion && _tickDue[index].motionHeld;
+            const uint64_t nextSettle = settleTickMs > nowTickMs ? settleTickMs : kMotionLoop;
+            AddScheduleRequest(*control, TickRequestKind::Continuous, 0u, motion, nextSettle, motion ? &held : nullptr);
+        }
+        if (frame.abandoned || _nativePresentationRevision != presentationRevision)
+        {
+            for (size_t remaining = index + 1u; remaining < _tickDue.size(); ++remaining)
+                RestoreTickRequest(_tickDue[remaining]);
+            _tickDue.clear();
+            return frame.abandoned ? DueTicksOutcome::Abandoned : DueTicksOutcome::Interrupted;
+        }
+    }
+    _tickDue.clear();
+    return DueTicksOutcome::Done;
+}
+
+bool ControlHost::RefreshMotionSeen(bool collectShown) noexcept
+{
+    bool anyMotion = false;
+    for (const TickRequest& request : _tickRequests)
+        anyMotion = anyMotion || request.motion;
+    if (! anyMotion)
+        return false;
+    // Gated (W3.4): whether a control can be seen changes only with its bounds, visibility or parent (the interaction
+    // revision), a scroll offset, page transition, size or scale (the hit revision), the tree or a declared reach (the paint
+    // topology), or the view's size. Between such changes the last answers stand, so a frame tests nothing.
+    const MotionSeenSignature signature{_interactionRevision, _hitRevision, _paintTopologyRevision, _widthPx, _heightPx, true};
+    const MotionSeenSignature& last = _motionSeenSignature;
+    if (last.valid && last.interactionRevision == signature.interactionRevision && last.hitRevision == signature.hitRevision &&
+        last.topologyRevision == signature.topologyRevision && last.widthPx == signature.widthPx && last.heightPx == signature.heightPx)
+        return false;
+    _motionSeenSignature = signature;
+    ++Detail::Work().frame.motionSeenRefreshes;
+    bool collected = false;
+    for (TickRequest& request : _tickRequests)
+    {
+        if (! request.motion || request.lifetime.expired() || request.control->GetHost() != this)
+            continue;
+        const bool tickable = IsControlTickable(*request.control);
+        const bool held     = ! (tickable && MotionScheduleAccess::IsSeen(*this, *request.control));
+        if (held && ! request.motionHeld && tickable)
+            ++Detail::Work().frame.tickHeldUnseen;
+        if (! held && request.motionHeld && collectShown)
+        {
+            // Shown again by something other than its own change: ticked before the frame that shows it paints.
+            request.motionHeld = false;
+            _tickDue.push_back(request);
+            request.control = nullptr; // taken into the snapshot; erased below
+            collected       = true;
+            continue;
+        }
+        request.motionHeld = held;
+    }
+    if (collected)
+        std::erase_if(_tickRequests, [](const TickRequest& request) noexcept { return request.control == nullptr; });
+    return true;
+}
+
+bool ControlHost::CatchUpShownMotion(bool* ticked) noexcept
+{
+    if (ticked)
+        *ticked = false;
+    // A frame painted from inside a wake (a Tick that renders) leaves the shown motion to the wake's own next turn.
+    if (_tickWakeFrame || _detachInProgress.load(std::memory_order_acquire))
+        return true;
+    // A native host that presents no frame (hidden, minimized, its presentation off) holds its whole schedule, motion included:
+    // a capture of it shows what it last ticked, and its first frame after the show catches up.
+    if (! _embedded && HostPresentsNoFrame(*this))
+        return true;
+    _tickDue.clear();
+    if (! RefreshMotionSeen(true) || _tickDue.empty())
+        return true;
+    const Failure::Scope failureScope;
+    // The frame's time: the time the frame's own wake ticked at, or the clock a stamp outside a wake reads.
+    const uint64_t nowTickMs = GetAnimationTickMs();
+    // Each is a due request of this frame (W3.1's count of requesters), found shown again before it paints.
+    Detail::Work().frame.tickCatchUps += _tickDue.size();
+    Detail::Work().frame.tickRequesters += _tickDue.size();
+    if (ticked)
+        *ticked = true;
+    {
+        TickWakeFrame frame;
+        _tickWakeFrame     = &frame;
+        const auto outcome = TickDueSnapshot(nowTickMs, frame, _nativePresentationRevision);
+        if (outcome == DueTicksOutcome::Abandoned || frame.abandoned)
+            return false;
+        _tickWakeFrame = nullptr;
+    }
+    // What the shown motion asks for next reaches the scheduler now: a native host arms its dispatcher or pacer for the next
+    // frame. An embedded host tells its application from the preparation (EmbeddedHost::Prepare), never by an undeclared
+    // invalidation.
+    if (! _embedded)
+        OnFrameScheduleChanged();
+    return true;
 }
 } // namespace DxUi

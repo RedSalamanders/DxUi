@@ -100,8 +100,11 @@ void DropRetainedAccessibilitySnapshot(ControlHost& host) noexcept;
 // difference. Nothing outside the native test executables can set it: the setter is declared in no public header.
 [[nodiscard]] bool IsStaleLabelLayoutInjectedForTest() noexcept;
 
-// Test seam: true only while the oracle prepares its fresh scene (RetainedCaches.Tests.Hooks.h). Preparation that reuses
-// the previous publication of a model-derived value (the semantic builder's unchanged blocks) builds from scratch instead,
-// so the fresh frame never inherits incremental state that the drop cannot reach.
+// Test seam: true only while the oracle prepares its fresh scene (RetainedCaches.Tests.Hooks.h). It has three uses:
+// preparation that reuses the previous publication of a model-derived value (the semantic builder's unchanged blocks,
+// carried semantic geometry) builds from scratch instead; the code-fence layout cache is bypassed; and unseen motion is
+// never held (W3.4, MotionScheduleAccess::IsSeen), so the fresh scene ticks all along what the incremental scene holds and
+// catches up. The fresh frame never inherits incremental state that the drop cannot reach. It is read on the frame
+// schedule's path, never on the per-control paint path.
 [[nodiscard]] bool IsFreshPreparationForTest() noexcept;
 } // namespace DxUi

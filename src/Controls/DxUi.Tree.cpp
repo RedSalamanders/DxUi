@@ -1404,6 +1404,14 @@ void Tree::Paint(ControlHost& host) const
     // Reduced motion schedules no frames, so it never paints a transition: the rows stand in their final places at once.
     const bool animateTreeExpansion                 = ! theme.reducedMotion && HasActiveTreeExpansionAnimation();
     const std::optional<size_t> hoveredVisibleIndex = _hoveredVisibleIndex;
+    // Whether this paint draws a row whose chevron still turns (W3.4): only those keep the Tree's ticks.
+    bool paintedTurningChevron = false;
+    const auto isTurning       = [this, nowTickMs, &theme](uint64_t itemId) noexcept
+    {
+        return ! theme.reducedMotion && std::ranges::any_of(_expanderAnimations, [itemId, nowTickMs](const ExpanderAnimationState& animation) noexcept {
+            return animation.itemId == itemId && ElapsedTickMs(animation.startTickMs, nowTickMs) < _treeExpanderAnimationDurationMs;
+        });
+    };
     TreeItemData item;
     const VisibleSpan span =
         ComputeVisibleSpan(static_cast<uint64_t>(itemCount), _rowHeightDip, _verticalScrollDip, (std::max)(1.0f, contentRect.bottom - contentRect.top));
@@ -1469,6 +1477,7 @@ void Tree::Paint(ControlHost& host) const
         const bool hovered           = hoveredVisibleIndex && hoveredVisibleIndex.value() == static_cast<size_t>(visibleIndex);
         const bool keyboardFocused   = current && HasFocus() && host.IsKeyboardFocusVisible();
         const float expanderProgress = theme.reducedMotion ? (item.expanded ? 1.0f : 0.0f) : GetExpanderProgress(item.id, item.expanded, nowTickMs);
+        paintedTurningChevron        = paintedTurningChevron || isTurning(item.id);
         DrawTreeRow(host,
                     theme,
                     layout,
@@ -1518,6 +1527,7 @@ void Tree::Paint(ControlHost& host) const
                 const bool current           = _focusedItemId && _focusedItemId.value() == removedItem.id;
                 const bool keyboardFocused   = current && HasFocus() && host.IsKeyboardFocusVisible();
                 const float expanderProgress = theme.reducedMotion ? 0.0f : GetExpanderProgress(removedItem.id, false, nowTickMs);
+                paintedTurningChevron        = paintedTurningChevron || isTurning(removedItem.id);
                 DrawTreeRow(host,
                             theme,
                             layout,
@@ -1539,6 +1549,9 @@ void Tree::Paint(ControlHost& host) const
     {
         dc->PopAxisAlignedClip();
     }
+    // A turning chevron shown again (its row scrolled back or expanded into view) asks for the ticks it went without.
+    if (std::exchange(_paintedTurningChevron, paintedTurningChevron) != paintedTurningChevron && paintedTurningChevron)
+        RequestMotionTicks(host);
 
     if (_reorderDrop.has_value() && dc)
     {
@@ -1585,6 +1598,20 @@ void Tree::Paint(ControlHost& host) const
     }
 }
 
+void Tree::RequestMotionTicks(ControlHost& host) const noexcept
+{
+    // Every Tree motion is computed from its start on the host's clock and changes pixels only (W3.4): it lands when the last
+    // of them settles.
+    uint64_t settleTickMs = host.GetAnimationTickMs();
+    for (const ExpanderAnimationState& animation : _expanderAnimations)
+        settleTickMs = (std::max)(settleTickMs, animation.startTickMs + _treeExpanderAnimationDurationMs);
+    if (HasActiveTreeExpansionAnimation())
+        settleTickMs = (std::max)(settleTickMs, _treeExpansionAnimation->startTickMs + _treeExpansionAnimationDurationMs);
+    if (_verticalScrollbarAnimation.active)
+        settleTickMs = (std::max)(settleTickMs, ScrollbarAnimationSettleTickMs(host, _verticalScrollbarAnimation));
+    MotionScheduleAccess::Request(host, *this, settleTickMs);
+}
+
 bool Tree::Tick(ControlHost& host, uint64_t nowTickMs)
 {
     if (host.GetTheme().reducedMotion)
@@ -1596,19 +1623,22 @@ bool Tree::Tick(ControlHost& host, uint64_t nowTickMs)
 
     bool hasActiveAnimation = false;
     bool needsFinalRepaint  = false;
-    auto animationIt        = _expanderAnimations.begin();
+    // A chevron the last paint did not draw (its row collapsed away or scrolled out of the viewport) needs no frames (W3.4):
+    // it is computed from its stamp, and the paint that shows its row again asks for ticks if it still turns.
+    const bool chevronsPainted = _paintedTurningChevron;
+    auto animationIt           = _expanderAnimations.begin();
     while (animationIt != _expanderAnimations.end())
     {
         // A chevron turns for its whole duration from its stamp. The tick at its start (the first after a pause in ticking)
         // shows its first frame rather than ending it.
         if (ElapsedTickMs(animationIt->startTickMs, nowTickMs) < _treeExpanderAnimationDurationMs)
         {
-            hasActiveAnimation = true;
+            hasActiveAnimation = hasActiveAnimation || chevronsPainted;
             ++animationIt;
             continue;
         }
 
-        needsFinalRepaint = true;
+        needsFinalRepaint = needsFinalRepaint || chevronsPainted;
         animationIt       = _expanderAnimations.erase(animationIt);
     }
 
@@ -1939,7 +1969,7 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
             return true;
         if (! host.GetTheme().reducedMotion)
         {
-            host.RequestAnimation(*this);
+            RequestMotionTicks(host);
             if (! guard.IsCurrent())
                 return true;
         }
@@ -2047,7 +2077,7 @@ bool Tree::OnMouseDoubleClick(ControlHost& host, D2D1_POINT_2F point, bool right
             return true;
         if (! host.GetTheme().reducedMotion)
         {
-            host.RequestAnimation(*this);
+            RequestMotionTicks(host);
             if (! guard.IsCurrent())
                 return true;
         }
@@ -2413,7 +2443,7 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                     return true;
                 if (! host.GetTheme().reducedMotion)
                 {
-                    host.RequestAnimation(*this);
+                    RequestMotionTicks(host);
                     if (! guard.IsCurrent())
                         return true;
                 }
@@ -2443,7 +2473,7 @@ bool Tree::OnKeyDown(ControlHost& host, UINT virtualKey, UINT modifiers)
                     return true;
                 if (! host.GetTheme().reducedMotion)
                 {
-                    host.RequestAnimation(*this);
+                    RequestMotionTicks(host);
                     if (! guard.IsCurrent())
                         return true;
                 }
@@ -3803,8 +3833,15 @@ void Tree::StartExpanderAnimation(uint64_t itemId, bool fromExpanded, bool toExp
     {
         Failure::FailAllocation();
     }
-    // Every path that turns a chevron asks for ticks, a UI Automation Expand included.
-    host->RequestAnimation(*this);
+    // Every path that turns a chevron asks for ticks, a UI Automation Expand included. Its row is taken as drawn until a
+    // paint says otherwise.
+    _paintedTurningChevron = true;
+    RequestMotionTicks(*host);
+}
+
+void MotionScheduleAccess::RequestTree(ControlHost& host, const Tree& tree) noexcept
+{
+    tree.RequestMotionTicks(host);
 }
 
 float Tree::GetExpanderProgress(uint64_t itemId, bool expanded, uint64_t nowTickMs) const noexcept
@@ -3896,7 +3933,7 @@ try
     animation.removedItems.swap(before.descendants);
     Detail::Work().lists.treeExpansionRecords += animation.removedItems.size();
     // Every path that slides the rows asks for ticks, a UI Automation Expand included.
-    host->RequestAnimation(*this);
+    RequestMotionTicks(*host);
 }
 catch (const std::bad_alloc&)
 {

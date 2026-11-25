@@ -194,6 +194,15 @@ can wake you early. Read the request after that callback; reading costs nothing 
 can only make your request later or `None` (hiding the view, a cancel) needs no callback: sleeping on the old request
 then costs at most one wake that ticks nothing, which reading the request after your own call avoids. Inside an
 advance, a callback that advance raises sees the due requests being ticked: use the request `AdvanceAnimation` returns.
+
+Motion nobody can see costs you nothing: a library control scrolled out of every viewport, or hidden, holds its motion. A
+transition then asks for one deadline, when it settles; an indeterminate progress bar asks for nothing, so a view whose
+only motion is unseen reports `None` and you sleep. When it is seen again (a scroll, a tab selected again), `Prepare`
+ticks it to the view's time before painting it and calls `requestPreparation` if it needs frames again, so the first frame
+that shows it is never late and you never poll for it ([unseen motion](../Specs/Rendering/Rendering_Win32Host.md#unseen-motion)).
+Your clock is the motion clock, hitches included: a long gap between two advances moves every transition by the whole gap.
+To protect your users from a jump after a stall, clamp the delta you pass (for example to 50 ms, as the native host does).
+
 Three loops are enough, with `now` your clock in milliseconds:
 
 ```cpp

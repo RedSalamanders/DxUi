@@ -14956,7 +14956,7 @@ HRESULT AccessibilityProvider::ExecuteExpandOnWindowThread(bool expanded)
     // The expansion animates in the Tree that changed: it asks for its own ticks.
     if (stateChanged && ! host->GetTheme().reducedMotion && ! lifetime.expired())
     {
-        host->RequestAnimation(*tree);
+        MotionScheduleAccess::RequestTree(*host, *tree);
     }
     if (lifetime.expired())
         return UIA_E_ELEMENTNOTAVAILABLE;

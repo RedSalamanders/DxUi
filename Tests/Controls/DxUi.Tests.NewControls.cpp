@@ -198,8 +198,9 @@ void TestButtonDisclosureChevronAnimatesAndHonorsReducedMotion()
             "reduced motion snaps disclosure chevrons directly to the collapsed state");
 }
 
-// A disclosure changed while its panel is hidden receives no animation ticks. When the panel shows again the chevron
-// rotates from where it rested, instead of keeping its old orientation or jumping to the end of an elapsed rotation.
+// A disclosure changed while its panel is hidden receives no animation ticks. When the panel shows again the chevron is
+// where the host's clock puts the rotation (W3.4): part way when shown during it, at its end when shown after it; never
+// back at its start, and never at its old orientation.
 void TestButtonDisclosureChevronAnimatesAfterAHiddenChange()
 {
     using namespace DxUi;
@@ -208,6 +209,8 @@ void TestButtonDisclosureChevronAnimatesAfterAHiddenChange()
     ThemePalette palette{};
     palette.reducedMotion = false;
     host.SetTheme(palette);
+    host.DebugSetAnimationClockForTest(10'000u);
+    const auto releaseClock = wil::scope_exit([&host]() noexcept { host.DebugSetAnimationClockForTest(std::nullopt); });
 
     auto root    = std::make_unique<Panel>();
     auto* holder = root->AddChild<Panel>();
@@ -218,31 +221,35 @@ void TestButtonDisclosureChevronAnimatesAfterAHiddenChange()
     host.SetRoot(std::move(root));
 
     holder->SetVisible(false);
-    button->SetDisclosureExpanded(true);
-    const uint64_t hiddenAt = GetTickCount64();
-    static_cast<void>(host.DebugAnimationTickForTest(hiddenAt + 1000u));
-    Require(button->DebugGetDisclosureAnimationProgress() == 0.0f, "a disclosure in a hidden panel keeps its chevron at rest");
+    button->SetDisclosureExpanded(true); // the rotation starts at 10,000 on the host's clock
+    static_cast<void>(host.DebugAnimationTickForTest(10'100u));
+    Require(button->DebugGetDisclosureAnimationProgress() == 0.0f, "a disclosure in a hidden panel is not ticked");
     Require(! host.DebugHasActiveAnimationSubscription(), "a disclosure in a hidden panel keeps no animation ticking");
 
     holder->SetVisible(true);
-    button->Paint(host); // The next paint resumes the pending rotation's ticks.
-    Require(host.DebugHasActiveAnimationSubscription(), "painting the shown button resumes its rotation's ticks");
-    const uint64_t shownAt = hiddenAt + 5000u;
-    static_cast<void>(button->Tick(host, shownAt));
-    Require(button->DebugIsDisclosureAnimationActive() && button->DebugGetDisclosureAnimationProgress() == 0.0f,
-            "showing the panel starts the rotation from rest rather than from an elapsed clock");
-    static_cast<void>(button->Tick(host, shownAt + 100u));
-    Require(button->DebugGetDisclosureAnimationProgress() > 0.0f && button->DebugGetDisclosureAnimationProgress() < 1.0f,
-            "the chevron rotates after the panel shows");
-    static_cast<void>(button->Tick(host, shownAt + 200u));
-    static_cast<void>(button->Tick(host, shownAt + 300u));
+    button->Paint(host); // a paint keeps the running rotation's request
+    Require(host.DebugHasActiveAnimationSubscription(), "painting the shown button keeps its rotation's ticks");
+    static_cast<void>(button->Tick(host, 10'100u));
+    const float shownDuring = button->DebugGetDisclosureAnimationProgress();
+    Require(button->DebugIsDisclosureAnimationActive() && shownDuring > 0.0f && shownDuring < 1.0f,
+            "shown during the rotation, the chevron is part way, where the clock puts it");
+    static_cast<void>(button->Tick(host, 10'300u));
     Require(! button->DebugIsDisclosureAnimationActive() && button->DebugGetDisclosureAnimationProgress() == 1.0f,
             "the rotation completes with the chevron pointing down");
+
+    holder->SetVisible(false);
+    host.DebugSetAnimationClockForTest(11'000u);
+    button->SetDisclosureExpanded(false); // starts at 11,000
+    holder->SetVisible(true);
+    static_cast<void>(button->Tick(host, 12'000u));
+    Require(! button->DebugIsDisclosureAnimationActive() && button->DebugGetDisclosureAnimationProgress() == 0.0f,
+            "shown after the rotation would have ended, the chevron is at its end at once");
 }
 
-// Ticks that stop mid-rotation (the button was hidden, or the thread stalled) pause the rotation: the next tick
-// resumes it where it was instead of jumping to the end of the time that passed.
-void TestButtonDisclosureChevronPausesAcrossATickGap()
+// A gap in the ticks while the chevron is seen (the thread stalled) does not hold the rotation back: it is where the host's
+// clock puts it (W3.4). The clock itself absorbs a native stall (the dispatcher's hitch clamp, tested in the Animation
+// suite); an embedded application's clock is the motion clock.
+void TestButtonDisclosureChevronFollowsTheClockAcrossATickGap()
 {
     using namespace DxUi;
 
@@ -250,24 +257,25 @@ void TestButtonDisclosureChevronPausesAcrossATickGap()
     ThemePalette palette{};
     palette.reducedMotion = false;
     host.SetTheme(palette);
-    auto root    = std::make_unique<Panel>();
-    auto* button = root->AddChild<Button>();
+    host.DebugSetAnimationClockForTest(20'000u);
+    const auto releaseClock = wil::scope_exit([&host]() noexcept { host.DebugSetAnimationClockForTest(std::nullopt); });
+    auto root               = std::make_unique<Panel>();
+    auto* button            = root->AddChild<Button>();
     button->SetBounds(D2D1::RectF(0.0f, 0.0f, 32.0f, 28.0f));
     button->SetDisclosureExpanded(false);
     host.SetRoot(std::move(root));
 
     button->SetDisclosureExpanded(true);
-    const uint64_t start = GetTickCount64();
-    static_cast<void>(button->Tick(host, start));
-    static_cast<void>(button->Tick(host, start + 60u));
+    static_cast<void>(button->Tick(host, 20'000u));
+    static_cast<void>(button->Tick(host, 20'060u));
     const float beforeGap = button->DebugGetDisclosureAnimationProgress();
     Require(beforeGap > 0.0f && beforeGap < 1.0f, "the rotation is under way before the gap");
-    static_cast<void>(button->Tick(host, start + 60u + 5000u));
-    const float afterGap = button->DebugGetDisclosureAnimationProgress();
-    Require(button->DebugIsDisclosureAnimationActive() && afterGap > beforeGap && afterGap < 1.0f,
-            "a five-second gap advances the rotation one bounded step, not to its end");
+    static_cast<void>(button->Tick(host, 20'120u));
+    const float stepped = button->DebugGetDisclosureAnimationProgress();
+    static_cast<void>(button->Tick(host, 25'060u));
+    Require(! button->DebugIsDisclosureAnimationActive() && button->DebugGetDisclosureAnimationProgress() == 1.0f && stepped > beforeGap,
+            "a five-second gap lands the rotation where the clock puts it: at its end");
 }
-
 void TestButtonChromeLayoutDifferentiatesSelectorDropDownAndSplit()
 {
     using namespace DxUi;
@@ -1113,24 +1121,27 @@ void TestProgressBarIndeterminateTickSurvivesClockReset()
     auto* bar = root->AddChild<ProgressBar>();
     bar->SetBounds(D2D1::RectF(0.0f, 0.0f, 200.0f, 6.0f));
     host.SetRoot(std::move(root));
+    // The loop's phase comes from the host's clock (W3.4): it starts at the clock when the bar starts it, so the clock is pinned.
+    host.DebugSetAnimationClockForTest(5'000'000u);
+    const auto releaseClock = wil::scope_exit([&host]() noexcept { host.DebugSetAnimationClockForTest(std::nullopt); });
     bar->SetIndeterminate(true);
     const ThemePalette& theme = host.GetTheme();
 
-    Require(bar->Tick(host, 5'000'000u), "the first tick seeds the indeterminate loop");
+    Require(bar->Tick(host, 5'000'000u), "the first tick shows the indeterminate loop at its start");
     Require(bar->DebugGetIndeterminateSegmentRect(theme).right <= 0.0f, "a seeded loop starts with the segment before the track");
     Require(bar->Tick(host, 5'000'500u), "a quarter loop advances the indeterminate segment");
     RequireFloatNear(bar->DebugGetIndeterminateSegmentRect(theme).right, 70.0f, 0.01f, "a quarter loop shows the segment's leading 70 DIP");
 
     // A tick clock that restarts behind the previous tick re-seeds instead of wrapping to a huge elapsed time.
-    Require(bar->Tick(host, 300u), "a backwards tick keeps the indeterminate loop running");
+    Require(bar->Tick(host, 1'300u), "a backwards tick keeps the indeterminate loop running");
     RequireFloatNear(bar->DebugGetIndeterminateSegmentRect(theme).right, 70.0f, 0.01f, "a backwards tick leaves the segment in place");
-    Require(bar->Tick(host, 800u), "the re-seeded loop advances from the new clock");
+    Require(bar->Tick(host, 1'800u), "the re-seeded loop advances from the new clock");
     const D2D1_RECT_F centered = bar->DebugGetIndeterminateSegmentRect(theme);
     RequireFloatNear(centered.left, 60.0f, 0.01f, "half a loop centers the segment's leading edge");
     RequireFloatNear(centered.right, 140.0f, 0.01f, "half a loop centers the segment's trailing edge");
 
     // Whole loops drop out of any gap, however long.
-    Require(bar->Tick(host, 800u + (uint64_t{2000u} * 1'000'000'000'000u) + 500u), "a very long gap keeps the loop running");
+    Require(bar->Tick(host, 1'800u + (uint64_t{2000u} * 1'000'000'000'000u) + 500u), "a very long gap keeps the loop running");
     const D2D1_RECT_F late = bar->DebugGetIndeterminateSegmentRect(theme);
     RequireFloatNear(late.left, 130.0f, 0.01f, "a very long gap advances only by its remainder");
     RequireFloatNear(late.right, 200.0f, 0.01f, "the segment clips at the end of the track");
@@ -2964,7 +2975,7 @@ void RunNewControlTests()
     DXUI_RUN_TEST(TestButtonVariantPaintPathsHandleMissingDeviceContext);
     DXUI_RUN_TEST(TestButtonDisclosureChevronAnimatesAndHonorsReducedMotion);
     DXUI_RUN_TEST(TestButtonDisclosureChevronAnimatesAfterAHiddenChange);
-    DXUI_RUN_TEST(TestButtonDisclosureChevronPausesAcrossATickGap);
+    DXUI_RUN_TEST(TestButtonDisclosureChevronFollowsTheClockAcrossATickGap);
     DXUI_RUN_TEST(TestButtonChromeLayoutDifferentiatesSelectorDropDownAndSplit);
     DXUI_RUN_TEST(TestSelectorButtonChromeUsesStableCurrentValueTreatment);
     DXUI_RUN_TEST(TestButtonChromeCustomStylePreservesOverlayMetrics);

@@ -86,10 +86,23 @@ void UpdateScrollbarAnimation(
         return;
     }
 
-    animation.lastTickMs = 0u;
-    animation.anchored   = false;
+    // Anchored now on the host's clock (W3.4): a transition that waits unseen lands where the clock says, not later.
+    animation.lastTickMs = host.GetAnimationTickMs();
+    animation.anchored   = true;
     animation.active     = true;
-    host.RequestAnimation(owner);
+    MotionScheduleAccess::Request(host, owner, ScrollbarAnimationSettleTickMs(host, animation));
+}
+
+uint64_t ScrollbarAnimationSettleTickMs(const ControlHost& host, const ScrollbarAnimationState& animation) noexcept
+{
+    // Linear at one full span per duration from its last tick: it settles when the longer distance left has run, a
+    // millisecond later for rounding.
+    if (! animation.active)
+        return host.GetAnimationTickMs();
+    const float distance   = (std::max)(std::fabs(animation.targetTrack - animation.trackProgress), std::fabs(animation.targetThumb - animation.thumbProgress));
+    const auto remainingMs = static_cast<uint64_t>(std::ceil(distance * static_cast<float>(kScrollbarInteractionAnimationDurationMs))) + 1u;
+    const uint64_t fromMs  = animation.anchored ? animation.lastTickMs : host.GetAnimationTickMs();
+    return fromMs + remainingMs;
 }
 
 [[nodiscard]] bool AdvanceScrollbarAnimation(const ControlHost& host, ScrollbarAnimationState& animation, uint64_t nowTickMs) noexcept

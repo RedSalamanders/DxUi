@@ -62,6 +62,13 @@ blinking view stop waking the application. The view remembers the request it las
 `requestPreparation` when it needs you sooner, so sleeping until the last request you read is safe; read the request
 after that callback. `DXUI_HAS_EMBEDDED_APPLICATION_CLOCK` marks headers that require the clock.
 
+Behavior changes with unseen motion (no code change needed): library motion scrolled out of view or hidden is held, so
+a view whose only motion is unseen reports `None`; the preparation that shows it again catches it up and calls
+`requestPreparation` when it needs frames again. A `Button` disclosure chevron now follows your clock from the state
+change like every other transition: after a hidden period or a pause in advances it shows where the clock puts it (it no
+longer resumes where it stopped), and a long delta you pass while it is seen moves it by the whole delta. If you want
+hitch protection, clamp the deltas you pass to `AdvanceAnimation`. See [hosting](hosting.md#input-dpi-and-animation).
+
 ### One user-settings call
 
 When your window receives `WM_SETTINGCHANGE`, call `view.Controls().RefreshUserSettings()` for each embedded view, and

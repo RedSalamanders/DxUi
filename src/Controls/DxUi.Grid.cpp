@@ -4935,7 +4935,8 @@ void Grid::Paint(ControlHost& host) const
 
         if (needsAnimation)
         {
-            host.RequestAnimation(*this);
+            // Spinners and busy headers loop (W3.4): an unseen Grid asks for no frames; the frame that shows it catches up.
+            MotionScheduleAccess::Request(host, *this, kMotionLoop);
         }
 
         const D2D1_RECT_F verticalScrollbar = GetVerticalScrollbarRect();

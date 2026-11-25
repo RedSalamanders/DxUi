@@ -601,6 +601,44 @@ struct LayoutScopeAccess final
     // restores it, so its whole layout stays invisible to the tests that count (DxUi.Layout.cpp).
     [[nodiscard]] static uint64_t* DebugMeasureCount(Control& control) noexcept;
 };
+// Unseen motion (W3.4; Specs/Rendering/Rendering_Win32Host.md, "Unseen motion"). A library control asks for the ticks of its
+// pure visual motion here instead of RequestAnimation: a transition names when it settles, a loop kMotionLoop. Motion that
+// cannot be seen (its control or an ancestor hidden, or its painted extent outside every viewport clip above it and the
+// view) costs no frame: a transition is ticked once at its settle time, a loop not at all, and both are ticked before the
+// frame that shows them again. Only a Tick that changes pixels and runs no application code may take the tag; a class
+// outside the library (a derived control may override Tick) is asked plain ticks.
+inline constexpr uint64_t kMotionLoop = UINT64_MAX;
+struct MotionScheduleAccess final
+{
+    static void Request(ControlHost& host, const Control& control, uint64_t settleTickMs) noexcept;
+    // A Tree's motion (chevrons, expansion slide, scrollbar), landing when the last of them settles.
+    static void RequestTree(ControlHost& host, const Tree& tree) noexcept;
+    // Whether the control's own painted extent, mapped through its ancestors, meets the view. Unknown means seen: an
+    // undeclared control or ancestor, an unbounded reach, a page in transition, an unresolved control or a view of no size.
+    // Independent of the paint-region switch, which changes painting only. Always true in the oracle's fresh scene
+    // (IsFreshPreparationForTest), which so ticks motion all along.
+    [[nodiscard]] static bool IsSeen(const ControlHost& host, const Control& control) noexcept;
+    [[nodiscard]] static bool IsTickableAndSeen(const ControlHost& host, const Control& control) noexcept
+    {
+        return host.IsControlTickable(control) && IsSeen(host, control);
+    }
+    // Before a frame paints, after its layout: ticks the motion shown again since the last test (ControlHost::
+    // CatchUpShownMotion) and lays out once more, never twice, if a catch-up Tick left layout pending.
+    enum class CatchUpResult : uint8_t
+    {
+        Ready,         // paint
+        LayoutPending, // the repeated layout did not complete: handled as the frame's own layout would be
+        HostGone,      // the host was destroyed or detached by a Tick: touch nothing
+    };
+    [[nodiscard]] static CatchUpResult CatchUp(ControlHost& host, bool* ticked = nullptr) noexcept;
+};
+namespace Detail
+{
+// Test seam (the oracle's negative control): while set, frames do not catch up motion shown again, which then shows one frame
+// late. Thread-local; declared here only, set by tests alone.
+void SetMotionCatchUpDisabledForTest(bool disabled) noexcept;
+[[nodiscard]] bool IsMotionCatchUpDisabledForTest() noexcept;
+} // namespace Detail
 
 // Painted extent, paint region and culling (W4.10; Core_PerformanceAndResources.md, "Paint region"; UI_ControlsAndLayout.md,
 // "Painted extent"). A control's painted extent is its bounds plus its reach (Control::GetPaintOverhang); a panel's also covers
@@ -1789,6 +1827,8 @@ struct ScrollbarAnimationTargets
 [[nodiscard]] ScrollbarAnimationTargets ResolveScrollbarAnimationTargets(bool trackHovered, bool thumbHovered, bool thumbDragging) noexcept;
 void UpdateScrollbarAnimation(
     ControlHost& host, const Control& owner, ScrollbarAnimationState& animation, bool trackHovered, bool thumbHovered, bool thumbDragging) noexcept;
+// When a scrollbar transition reaches its targets on the host's clock (W3.4); now when none runs.
+[[nodiscard]] uint64_t ScrollbarAnimationSettleTickMs(const ControlHost& host, const ScrollbarAnimationState& animation) noexcept;
 [[nodiscard]] bool AdvanceScrollbarAnimation(const ControlHost& host, ScrollbarAnimationState& animation, uint64_t nowTickMs) noexcept;
 
 [[nodiscard]] float ComputeScrollbarPageStepDip(const D2D1_RECT_F& trackRect,

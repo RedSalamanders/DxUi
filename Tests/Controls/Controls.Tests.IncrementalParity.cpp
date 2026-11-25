@@ -10,6 +10,7 @@
 #include "Support.Tests.LayoutScopes.h"
 #include "Support.Tests.PaintRegions.h"
 #include "Support.Tests.TextFieldPaint.h"
+#include "Support.Tests.UnseenMotion.h"
 #include "Support/LayoutScopes.Tests.Hooks.h"
 #include "Support/RetainedCaches.Tests.Hooks.h"
 // Scenarios are never copied. Owner: DxUi maintainers; review: 2027-01-31.
@@ -57,9 +58,13 @@ struct NativeParityScene final
     {
         DxUiTestMoved::ConfigureHostPlace(window, 96u, false, Density::Standard, kSceneDip);
         Host().DebugSetAnimationClockForTest(clock);
+        // A capture pumps both scenes' windows: their dispatcher wakes must tick at the scene's clock, never at real time, or a
+        // script with motion on (unseen-motion) would see each scene advanced by whatever the pumps happened to deliver.
+        Host().DebugSetAnimationClockOwnsWakesForTest(true);
     }
     ~NativeParityScene()
     {
+        Host().DebugSetAnimationClockOwnsWakesForTest(false);
         Host().DebugSetAnimationClockForTest(std::nullopt);
     }
     NativeParityScene(const NativeParityScene&)            = delete;
@@ -120,6 +125,12 @@ struct NativeParityScene final
         // ConfigureHostPlace applies its own theme; restore the scene's pinned one.
         Host().SetTheme(ParityTheme(Host().GetTheme().dark));
     }
+    // W3.4's script ticks motion, which a hidden host holds: its window is shown, off screen and without activation.
+    void ShowWithoutActivation()
+    {
+        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+        window.PumpMessages(50u);
+    }
     void Advance(uint64_t milliseconds)
     {
         clock += milliseconds;
@@ -135,7 +146,10 @@ struct NativeParityScene final
             RetainedCacheAccess::Count(Host(), counts);
             RequireRetainedCachesEmpty(counts, "native drop");
         }
-        window.PumpMessages(50u);
+        // The pump delivers the host's own wake, which ticks motion that became seen: a negative control without the catch-up
+        // before paint (W3.4) reads the frame without it, or the wake would stand in for the catch-up.
+        if (! Detail::IsMotionCatchUpDisabledForTest())
+            window.PumpMessages(50u);
         WindowHostBitmapCapture capture;
         bool read = false;
         for (int attempt = 0; attempt < 64 && ! read; ++attempt)
@@ -318,6 +332,23 @@ void TestNativeIncrementalParityPageHostCulling()
     Require(scope.Delta().frame.paintCulled > 0u, "W4.10: the native page-host script compares frames that culled a child");
 }
 
+// W3.4: motion held while unseen (scrolled out, an unselected tab) against a fresh scene that ticked it every frame on the same
+// clock: the first frame that shows it again is at its clock-correct state. Negative control: without the catch-up before
+// paint, the incremental scene shows it one frame late and the oracle must see a difference.
+void TestNativeIncrementalParityUnseenMotion()
+{
+    const DxUi::Detail::WorkCounterScope scope;
+    RunParityScript(UnseenMotionScript::UnseenMotionScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+    const DxUi::Detail::WorkCounters work = scope.Delta();
+    std::cout << "  native unseen-motion oracle: " << work.frame.tickHeldUnseen << " held, " << work.frame.tickCatchUps << " caught up\n";
+    Require(work.frame.tickHeldUnseen > 0u && work.frame.tickCatchUps > 0u, "W3.4: the native oracle compares frames that held and caught up motion");
+    DxUi::Detail::SetMotionCatchUpDisabledForTest(true);
+    const auto restore = wil::scope_exit([]() noexcept { DxUi::Detail::SetMotionCatchUpDisabledForTest(false); });
+    const std::string difference =
+        RunParityScriptOnce(UnseenMotionScript::UnseenMotionScript<NativeParityScene>(), UnseenMotionScript::kUnseenMotionSeeds[0], MakeNativeScene);
+    std::cout << "  native unseen-motion negative control: " << difference << '\n';
+    Require(difference.find("pixels differ") != std::string::npos, "W3.4: motion shown one frame late differs from a scene that ticked it all along");
+}
 // The scene's pointer input is complete when Pointer returns. A synthesized WM_MOUSEMOVE makes the host call TrackMouseEvent
 // (TME_LEAVE); the real cursor is never over the off-screen parity window, so Windows posts WM_MOUSELEAVE to the thread's
 // queue. Left there, it was dispatched by whichever capture pumped first, and under load a capture's pump can stop at its
@@ -597,5 +628,6 @@ void RunIncrementalParityTests()
     DXUI_RUN_TEST(TestNativeIncrementalParityPageHostCulling);
     DXUI_RUN_TEST(TestNativeIncrementalParityLayoutScopes);
     DXUI_RUN_TEST(TestNativeIncrementalParityLayoutScopesDetectsAWrongCutoff);
+    DXUI_RUN_TEST(TestNativeIncrementalParityUnseenMotion);
     DXUI_RUN_TEST(TestNativeParityPointerInputCompletesInItsStep);
 }

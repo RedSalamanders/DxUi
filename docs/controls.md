@@ -263,8 +263,10 @@ A Button with `SetDisclosureExpanded(bool)` exposes UIA ExpandCollapse as well a
 requests for the already acknowledged state do nothing. A changed request invokes the normal click
 callback; the application updates the state, content visibility and focus. `GetDisclosureExpanded()`
 returns that acknowledged optional state; `ClearDisclosureState()` removes the pattern. Disabled
-buttons reject UIA state changes. The chevron's rotation starts at its first animation tick, so a state changed while
-the button (or its panel) is hidden rotates when it is shown again, and a pause in the ticks pauses the rotation.
+buttons reject UIA state changes. The chevron rotates on the host's animation clock from the state change, so a button
+hidden or scrolled out of view while it turns shows, when seen again, where the clock puts it (finished, or part way); a
+native stall moves it by at most the host's hitch clamp, and an embedded application's clock moves it by whatever delta
+the application passes.
 Embedded hosts publish the new snapshot after preparation, using
 their existing accessibility update path. Retained providers disconnect when their control is removed.
 

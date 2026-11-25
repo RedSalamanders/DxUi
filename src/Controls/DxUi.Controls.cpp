@@ -300,10 +300,8 @@ bool DrawShadowEffectPass(ControlHost& host, const D2D1_RECT_F& targetRect, floa
     return true;
 }
 
-constexpr std::wstring_view kFluentCheckGlyph   = L"\uE73E";
-constexpr std::wstring_view kFallbackCheckGlyph = L"\u2713";
-// The most one tick advances a disclosure rotation: a longer gap means the ticks stopped, and pauses it.
-constexpr uint64_t kDisclosureMaxTickStepMs      = 100u;
+constexpr std::wstring_view kFluentCheckGlyph    = L"\uE73E";
+constexpr std::wstring_view kFallbackCheckGlyph  = L"\u2713";
 constexpr float kTooltipOffsetXDip               = 14.0f;
 constexpr float kTooltipOffsetYDip               = 18.0f;
 constexpr float kTooltipViewportMarginDip        = 8.0f;
@@ -3798,8 +3796,7 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
         _disclosureTransition.progress      = target;
         _disclosureTransition.startProgress = target;
         _disclosureTransition.target        = target;
-        _disclosureTransition.elapsedMs     = 0u;
-        _disclosureTransition.anchored      = false;
+        _disclosureTransition.startTickMs   = 0u;
         _disclosureTransition.initialized   = true;
         _disclosureTransition.active        = false;
         const auto lifetime                 = GetLifetimeToken();
@@ -3827,18 +3824,26 @@ void Button::SetDisclosureExpanded(bool expanded) noexcept
 
     const auto lifetime     = GetLifetimeToken();
     ControlHost* const host = GetHost();
-    // The rotation runs on its own ticks: it starts at the first one, so a button hidden now (it gets none until it
-    // paints again) rotates when it shows, and a pause in them pauses it instead of skipping to the end.
+    // The rotation runs on the host's animation clock from now (W3.4): hidden, unseen or not ticked meanwhile, it shows where
+    // the clock puts it when it is seen again. The clock, not the rotation, absorbs a hitch (the native timeline's clamp; an
+    // embedded application's clock is the motion clock).
+    // A rotation still running (held while unseen, or not yet ticked) is reversed from where the clock puts it.
+    if (_disclosureTransition.active && host && ! host->GetTheme().reducedMotion)
+    {
+        const uint64_t elapsedMs = ElapsedTickMs(_disclosureTransition.startTickMs, host->GetAnimationTickMs());
+        const float linear       = std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(_disclosureAnimationDurationMs), 0.0f, 1.0f);
+        _disclosureTransition.progress =
+            std::lerp(_disclosureTransition.startProgress, _disclosureTransition.target, EvaluateEasing(EasingCurve::PointToPoint, linear));
+    }
     _disclosureExpanded                 = expanded;
     _disclosureTransition.startProgress = _disclosureTransition.progress;
     _disclosureTransition.target        = target;
-    _disclosureTransition.elapsedMs     = 0u;
-    _disclosureTransition.anchored      = false;
     _disclosureTransition.initialized   = true;
     _disclosureTransition.active        = host && ! host->GetTheme().reducedMotion;
     if (_disclosureTransition.active)
     {
-        host->RequestAnimation(*this);
+        _disclosureTransition.startTickMs = host->GetAnimationTickMs();
+        MotionScheduleAccess::Request(*host, *this, _disclosureTransition.startTickMs + _disclosureAnimationDurationMs);
         if (lifetime.expired() || GetHost() != host)
             return;
     }
@@ -3939,10 +3944,10 @@ void Button::Paint(ControlHost& host) const
     // A hover or focus blend in progress draws its colors through the host's transition brushes (W2.8).
     const TransitionBrushScope transition(
         host, IsColorTransitionProgress(ResolveHoverAnimationProgress(host)) || IsColorTransitionProgress(ResolveFocusAnimationProgress(host)));
-    // A disclosure rotation left pending while the button was hidden resumes ticking when it paints again.
+    // A disclosure rotation still running when it paints keeps its ticks (a request lost with a move between hosts).
     if (_disclosureTransition.active)
     {
-        host.RequestAnimation(*this);
+        MotionScheduleAccess::Request(host, *this, _disclosureTransition.startTickMs + _disclosureAnimationDurationMs);
     }
     const FlowDirection flowDirection = GetFlowDirection();
     const bool caption                = _appearance == ButtonAppearance::Caption || _appearance == ButtonAppearance::CaptionClose;
@@ -4578,6 +4583,9 @@ void Button::OnHoverChanged(ControlHost& host, bool hovered)
 
 void Button::UpdateInteractionTransition(ControlHost& host, InteractionTransitionState& transition, float target) noexcept
 {
+    // A transition held while unseen is retargeted from where the clock puts it (W3.4).
+    if (transition.active && transition.anchored && ! host.GetTheme().reducedMotion)
+        static_cast<void>(AdvanceInteractionTransition(host, transition, host.GetAnimationTickMs()));
     const float clampedTarget = std::clamp(target, 0.0f, 1.0f);
     transition.target         = clampedTarget;
 
@@ -4598,7 +4606,11 @@ void Button::UpdateInteractionTransition(ControlHost& host, InteractionTransitio
     transition.active               = true;
     const auto lifetime             = GetLifetimeToken();
     ControlHost* const originalHost = GetHost();
-    host.RequestAnimation(*this);
+    // Linear at one full span per duration: it reaches its target when the distance left has run (W3.4), a millisecond later
+    // for rounding.
+    const auto remainingMs =
+        static_cast<uint64_t>(std::ceil(std::fabs(clampedTarget - transition.progress) * static_cast<float>(_interactionAnimationDurationMs))) + 1u;
+    MotionScheduleAccess::Request(host, *this, transition.lastTickMs + remainingMs);
     if (! lifetime.expired() && GetHost() == originalHost)
         Invalidate(host);
 }
@@ -4663,21 +4675,9 @@ bool Button::AdvanceDisclosureTransition(ControlHost& host, uint64_t nowTickMs) 
     {
         return false;
     }
-    if (! _disclosureTransition.anchored)
-    {
-        // The first frame shows where the rotation starts; time runs from here.
-        _disclosureTransition.anchored   = true;
-        _disclosureTransition.lastTickMs = nowTickMs;
-        Invalidate(host);
-        return true;
-    }
-    // A longer gap than kDisclosureMaxTickStepMs means the ticks stopped (the button was hidden, or the thread
-    // stalled): it advances the rotation by one such step, so the chevron resumes where it was.
-    const uint64_t stepMs            = nowTickMs > _disclosureTransition.lastTickMs ? nowTickMs - _disclosureTransition.lastTickMs : 0u;
-    _disclosureTransition.lastTickMs = nowTickMs;
-    _disclosureTransition.elapsedMs += (std::min)(stepMs, kDisclosureMaxTickStepMs);
-    const float linearProgress =
-        std::clamp(static_cast<float>(_disclosureTransition.elapsedMs) / static_cast<float>(_disclosureAnimationDurationMs), 0.0f, 1.0f);
+    // Where the clock puts the rotation (W3.4): a hidden or unseen period, or a pause in ticking, does not hold it back.
+    const uint64_t elapsedMs       = ElapsedTickMs(_disclosureTransition.startTickMs, nowTickMs);
+    const float linearProgress     = std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(_disclosureAnimationDurationMs), 0.0f, 1.0f);
     const float easedProgress      = EvaluateEasing(EasingCurve::PointToPoint, linearProgress);
     _disclosureTransition.progress = std::lerp(_disclosureTransition.startProgress, _disclosureTransition.target, easedProgress);
     if (linearProgress >= 1.0f)
@@ -5383,13 +5383,25 @@ void ProgressBar::SetIndeterminate(bool indeterminate) noexcept
            [this, indeterminate]() noexcept
     {
         _animationPhase = 0.0f;
-        _lastTickMs     = 0u;
+        _phaseSeeded    = false;
         if (indeterminate && ! _animationPaused && IsEnabled() && IsVisible())
         {
             if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
-                host->RequestAnimation(*this);
+            {
+                // The loop starts now on the host's clock, seen or not (W3.4).
+                SeedPhase(host->GetAnimationTickMs());
+                MotionScheduleAccess::Request(*host, *this, kMotionLoop);
+            }
         }
     });
+}
+
+void ProgressBar::SeedPhase(uint64_t nowTickMs) noexcept
+{
+    // The epoch at which the loop was at phase 0, keeping the phase it shows now.
+    const auto offsetMs = static_cast<uint64_t>(std::clamp(_animationPhase, 0.0f, 1.0f) * static_cast<float>(kIndeterminateLoopMs));
+    _phaseEpochMs       = nowTickMs >= offsetMs ? nowTickMs - offsetMs : 0u;
+    _phaseSeeded        = true;
 }
 
 bool ProgressBar::IsIndeterminate() const noexcept
@@ -5404,11 +5416,15 @@ void ProgressBar::SetAnimationPaused(bool paused) noexcept
            Affects::Paint,
            [this, paused]() noexcept
     {
-        _lastTickMs = 0u;
+        // A pause keeps the phase it shows; the loop resumes from it.
+        _phaseSeeded = false;
         if (! paused && _indeterminate && IsEnabled() && IsVisible())
         {
             if (ControlHost* host = GetHost(); host && ! host->GetTheme().reducedMotion)
-                host->RequestAnimation(*this);
+            {
+                SeedPhase(host->GetAnimationTickMs());
+                MotionScheduleAccess::Request(*host, *this, kMotionLoop);
+            }
         }
     });
 }
@@ -5469,7 +5485,7 @@ void ProgressBar::Paint(ControlHost& host) const
     // Reduced motion paints a resting segment and requests no ticks.
     if (_indeterminate && ! _animationPaused && IsEnabled() && IsVisible() && ! theme.reducedMotion && bounds.right > bounds.left && bounds.bottom > bounds.top)
     {
-        host.RequestAnimation(*this);
+        MotionScheduleAccess::Request(host, *this, kMotionLoop);
     }
 
     const ProgressTrack progressTrack = ComputeProgressTrack(bounds, _indeterminate, _trackHeightDip);
@@ -5547,24 +5563,18 @@ bool ProgressBar::Tick(ControlHost& host, uint64_t nowTickMs)
     if (! _indeterminate || _animationPaused || ! IsEnabled() || ! IsVisible() || host.GetTheme().reducedMotion || ! (bounds.right > bounds.left) ||
         ! (bounds.bottom > bounds.top))
     {
-        _lastTickMs = 0u;
+        // A stopped loop keeps the phase it shows and resumes from it.
+        _phaseSeeded = false;
         return false;
     }
 
-    // The first tick seeds the loop. A clock that moves backwards re-seeds it instead of wrapping the elapsed time.
-    if (_lastTickMs == 0 || nowTickMs < _lastTickMs)
-    {
-        _lastTickMs = nowTickMs;
-    }
-    const uint64_t elapsed = nowTickMs - _lastTickMs;
-    _lastTickMs            = nowTickMs;
-
-    // Whole loops are dropped before converting, so any elapsed time advances the phase by less than one loop.
-    _animationPhase += static_cast<float>(elapsed % kIndeterminateLoopMs) / static_cast<float>(kIndeterminateLoopMs);
-    if (_animationPhase >= 1.0f)
-    {
-        _animationPhase -= 1.0f;
-    }
+    // The phase comes from the clock, not from the ticks it received (W3.4): a loop held while unseen resumes in phase. A loop
+    // not yet seeded (no host when it started, or a pause) starts from the phase it shows; a clock that moves backwards
+    // re-seeds it instead of wrapping the elapsed time.
+    if (! _phaseSeeded || nowTickMs < _phaseEpochMs)
+        SeedPhase(nowTickMs);
+    const uint64_t elapsed = nowTickMs - _phaseEpochMs;
+    _animationPhase        = static_cast<float>(elapsed % kIndeterminateLoopMs) / static_cast<float>(kIndeterminateLoopMs);
     Invalidate(host);
     return true;
 }
@@ -6219,10 +6229,14 @@ void ThroughputGraph::SetSamples(std::span<const ThroughputGraphSample> samples)
         const bool targetChanged = previousTarget != _targetLatestValue;
         if (host && ! host->GetTheme().reducedMotion && ! _samples.empty() && targetChanged)
         {
-            _transitionStartValue  = _displayedLatestValue;
-            _transitionStartTickMs = 0u;
+            // Stamped now on the host's clock, so a transition that starts unseen lands where the clock says, and retargeted from
+            // where the clock puts the one still running, held while unseen or not (W3.4).
+            const uint64_t nowTickMs = host->GetAnimationTickMs();
+            _transitionStartValue =
+                ResolveTransitionValueAt(_transitionStartValue, previousTarget, _transitionStartTickMs, _displayedLatestValue, _transitionActive, nowTickMs);
+            _transitionStartTickMs = nowTickMs;
             _transitionActive      = true;
-            host->RequestAnimation(*this);
+            MotionScheduleAccess::Request(*host, *this, _transitionStartTickMs + _transitionDurationMs);
         }
         else if (! _transitionActive || ! host || host->GetTheme().reducedMotion || _samples.empty())
         {
@@ -6260,10 +6274,16 @@ void ThroughputGraph::SetCurrentValueMarker(double value, std::wstring label, st
         const bool targetChanged = previousTarget != _targetCurrentValue;
         if (host && ! host->GetTheme().reducedMotion && targetChanged)
         {
-            _currentValueTransitionStart       = _displayedCurrentValue;
-            _currentValueTransitionStartTickMs = 0u;
+            const uint64_t nowTickMs           = host->GetAnimationTickMs();
+            _currentValueTransitionStart       = ResolveTransitionValueAt(_currentValueTransitionStart,
+                                                                          previousTarget,
+                                                                          _currentValueTransitionStartTickMs,
+                                                                          _displayedCurrentValue,
+                                                                          _currentValueTransitionActive,
+                                                                          nowTickMs);
+            _currentValueTransitionStartTickMs = nowTickMs;
             _currentValueTransitionActive      = true;
-            host->RequestAnimation(*this);
+            MotionScheduleAccess::Request(*host, *this, _currentValueTransitionStartTickMs + _transitionDurationMs);
         }
         else if (! _currentValueTransitionActive || ! host || host->GetTheme().reducedMotion)
         {
@@ -6493,6 +6513,16 @@ void ThroughputGraph::Paint(ControlHost& host) const
             }
         }
     }
+}
+
+double ThroughputGraph::ResolveTransitionValueAt(
+    double startValue, double targetValue, uint64_t startTickMs, double displayed, bool active, uint64_t nowTickMs) const noexcept
+{
+    if (! active || startTickMs == 0u)
+        return displayed;
+    const uint64_t elapsed = nowTickMs >= startTickMs ? nowTickMs - startTickMs : 0u;
+    const double linear    = std::clamp(static_cast<double>(elapsed) / static_cast<double>(_transitionDurationMs), 0.0, 1.0);
+    return startValue + (targetValue - startValue) * (1.0 - std::pow(1.0 - linear, 3.0));
 }
 
 bool ThroughputGraph::Tick(ControlHost& host, uint64_t nowTickMs)
@@ -6764,7 +6794,8 @@ void Slider::BeginValueAnimation(ControlHost& host, double fromValue, double toV
     _valueAnimationActive           = true;
     const auto lifetime             = GetLifetimeToken();
     ControlHost* const originalHost = GetHost();
-    host.RequestAnimation(*this);
+    // Pure visual motion (W3.4): the committed value and its notifications happened before; the display lands when it settles.
+    MotionScheduleAccess::Request(host, *this, _valueAnimationStartTickMs + _valueAnimationDurationMs);
     if (! lifetime.expired() && GetHost() == originalHost)
         Invalidate(host);
 }
@@ -6801,6 +6832,9 @@ bool Slider::AdvanceValueAnimation(ControlHost& host, uint64_t nowTickMs) noexce
 
 void Slider::BeginVisualTransition(ControlHost& host, VisualTransitionState& transition, float target) noexcept
 {
+    // A transition held while unseen is retargeted from where the clock puts it (W3.4).
+    if (transition.active && ! host.GetTheme().reducedMotion)
+        static_cast<void>(AdvanceVisualTransition(transition, host.GetAnimationTickMs(), EasingCurve::FastDecelerate));
     const float clampedTarget = std::clamp(target, 0.0f, 1.0f);
     if (host.GetTheme().reducedMotion || ! IsEnabled() || ! IsVisible() || std::fabs(transition.progress - clampedTarget) <= 0.0001f)
     {
@@ -6819,7 +6853,7 @@ void Slider::BeginVisualTransition(ControlHost& host, VisualTransitionState& tra
     transition.active               = true;
     const auto lifetime             = GetLifetimeToken();
     ControlHost* const originalHost = GetHost();
-    host.RequestAnimation(*this);
+    MotionScheduleAccess::Request(host, *this, transition.startTickMs + _interactionAnimationDurationMs);
     if (! lifetime.expired() && GetHost() == originalHost)
         Invalidate(host);
 }
@@ -6905,8 +6939,17 @@ void Slider::SetValueInternal(ControlHost* host, double value, bool notifyChange
     }
 
     const std::weak_ptr<int> lifetime = GetLifetimeToken();
-    const double previousDisplayed    = _displayedValue;
-    _value                            = clamped;
+    // Where the thumb is now on the clock, not where its last tick left it: a transition held while unseen (W3.4) is
+    // retargeted from its clock-correct place.
+    double previousDisplayed = _displayedValue;
+    if (_valueAnimationActive && host && ! host->GetTheme().reducedMotion)
+    {
+        const uint64_t elapsedMs   = ElapsedTickMs(_valueAnimationStartTickMs, host->GetAnimationTickMs());
+        const float linearProgress = std::clamp(static_cast<float>(elapsedMs) / static_cast<float>(_valueAnimationDurationMs), 0.0f, 1.0f);
+        previousDisplayed =
+            std::lerp(_valueAnimationStart, _valueAnimationTarget, static_cast<double>(EvaluateEasing(EasingCurve::PointToPoint, linearProgress)));
+    }
+    _value = clamped;
     if (_dragging || ! animatePosition || ! host || host->GetTheme().reducedMotion)
     {
         SnapDisplayedValue();

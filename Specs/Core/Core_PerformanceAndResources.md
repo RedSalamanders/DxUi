@@ -278,7 +278,11 @@ snapshot, delta and receipt.
   `RequestAnimation()` asked for, which the library's own controls never make, and `tickDiscoveryWalks` those an embedded
   root installation asked for; `tickHeldWhileHidden` counts requests that came due while their native host was hidden
   and fired once on its show; `tooltipTargetValidations` counts the wakes that resolved a tooltip's target again (a
-  hit-test walk and a title lookup, not a `Tick`).
+  hit-test walk and a title lookup, not a `Tick`). [Unseen motion](../Rendering/Rendering_Win32Host.md#unseen-motion):
+  `tickHeldUnseen` counts motion requests found outside every viewport and held, `tickCatchUps` the `Tick` calls a frame
+  made before painting for motion shown again (each also counted in `tickRequesters` and `tickCalls`), `motionSeenRefreshes` the tests of every motion request after a revision
+  that can show or hide a control moved (none while nothing such moved), and `catchUpLayoutRepeats` the layout passes a
+  catch-up `Tick` made a frame repeat (0 for the library's motion).
 - **Frame pacing** ([window hosting](../Rendering/Rendering_Win32Host.md#frame-pacing)). `pacedFrames` counts native paced
   frames that sampled the compositor clock and ran the schedule; `presentsWithoutCredit` counts presents made without a
   frame-latency credit (0 on every path); `pacerDeferredPaints` counts `WM_PAINT` deferred to the next credit;
