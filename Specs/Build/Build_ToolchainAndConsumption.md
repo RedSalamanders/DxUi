@@ -231,6 +231,11 @@ The pinned `Build/NativeBuildPolicy.targets` checks the declared `RequiredMsvcTo
 `PrepareForBuild` in VC++ projects. Source and SDK consumers can use the same guard by setting the
 property with a compatible policy pin.
 
+The source checkout imports `Build/NativeBuildPolicy.props` through `Directory.Build.props` before
+MSVC resolves the tool executables. It defaults to the native x64 or ARM64 compiler host for either target
+architecture and preserves an explicit `PreferredToolArchitecture`. Consumers can adopt the early
+import from a pin that contains it. The SDK archive leaves the consumer's own compiler-host selection in place.
+
 Release translation units explicitly enable `/Gy` and `/GL`. Final executable/DLL links explicitly enable `/OPT:REF`
 and full `/LTCG`, with ordinary incremental linking disabled. Debug and ASan Debug retain their existing diagnostic
 optimization policy. Full LTCG is selected after project-local defaults; do not assume that the WPO checkbox alone

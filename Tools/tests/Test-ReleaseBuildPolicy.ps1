@@ -9,7 +9,11 @@ if(-not $IsWindows){Write-Host 'SKIP Release build-policy evaluation: Windows MS
 $vswhere=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
 $installation=(& $vswhere -latest -prerelease -products '*' -requires Microsoft.Component.MSBuild -property installationPath).Trim()
 $msbuild=Join-Path $installation 'MSBuild/Current/Bin/amd64/MSBuild.exe'
-if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()-eq 'Arm64'){$msbuild=Join-Path $installation 'MSBuild/Current/Bin/arm64/MSBuild.exe'}
+$nativeToolArchitecture='Native64Bit'
+if([Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()-eq 'Arm64'){
+    $msbuild=Join-Path $installation 'MSBuild/Current/Bin/arm64/MSBuild.exe'
+    $nativeToolArchitecture='NativeARM64'
+}
 if(-not(Test-Path -LiteralPath $msbuild)){throw 'Install Visual Studio 2026 with MSVC 14.52 C++ tools.'}
 $scratch=Join-Path $Root ('.build/ReleaseBuildPolicy/'+[guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($scratch)
@@ -38,7 +42,7 @@ function Read-Profile([string]$Project,[string]$Configuration,[string]$Platform,
         $ProbePath=$chainPath
         $Extra=@($Extra|Where-Object{$_ -notlike '/p:ForceImportAfterCppTargets=*'})
     }
-    $arguments=@($Project,'/nologo',"/p:Configuration=$Configuration","/p:Platform=$Platform","/p:ForceImportAfterCppTargets=$ProbePath",'-getItem:ClCompile,Link,ProjectReference','-getProperty:ConfigurationType,VCToolsVersion,WholeProgramOptimization,LinkIncremental,Platform')+$Extra
+    $arguments=@($Project,'/nologo',"/p:Configuration=$Configuration","/p:Platform=$Platform","/p:ForceImportAfterCppTargets=$ProbePath",'-getItem:ClCompile,Link,ProjectReference','-getProperty:ConfigurationType,VCToolsVersion,WholeProgramOptimization,LinkIncremental,Platform,VCToolArchitecture')+$Extra
     if($dependencySource){$arguments+="/p:DxUiRoot=$dependencySource"}
     $output=@(& $msbuild @arguments 2>&1)
     if($LASTEXITCODE-ne 0){throw "Evaluation failed: $Project $Configuration $Platform`n$($output -join "`n")"}
@@ -86,6 +90,9 @@ foreach($relative in $projects){
     foreach($configuration in 'Debug','Release','ASan Debug'){foreach($platform in 'x64','ARM64'){
         $value=Read-Profile $path $configuration $platform
         Assert-Profile $value $configuration "$relative $platform $configuration"
+        if(-not $env:PreferredToolArchitecture -and $value.Properties.VCToolArchitecture -cne $nativeToolArchitecture){
+            throw "$relative $platform $configuration resolved $($value.Properties.VCToolArchitecture) instead of $nativeToolArchitecture."
+        }
         if($configuration-eq 'Release' -and $platform-eq 'x64' -and -not $first){$first=$path}
         foreach($reference in $value.Items.ProjectReference){
             if($reference.Identity-notmatch '[\\/]src[\\/]DxUi[.]vcxproj$'){continue}
@@ -110,6 +117,11 @@ foreach($relative in $projects){
     }}
 }
 if(-not $first){throw 'No native Release profile was evaluated.'}
+$explicitHost=Read-Profile $first 'Release' 'x64' -Extra @('/p:PreferredToolArchitecture=x86')
+if($explicitHost.Properties.VCToolArchitecture -cne 'Native32Bit'){
+    throw "The explicit x86 compiler host resolved as $($explicitHost.Properties.VCToolArchitecture)."
+}
+Write-Host 'PASS native compiler host defaults and explicit x86 override.'
 # An external consumer must obtain ASan's non-incremental link from the public
 # import. Disable repository inheritance so this cannot accidentally pass through
 # the first-party project policy. Start with the conflicting user/default value.

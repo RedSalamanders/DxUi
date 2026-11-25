@@ -1,0 +1,1 @@
+- Use the native MSVC compiler host for DxUi source builds on x64 and ARM64 Windows while preserving explicit overrides.
