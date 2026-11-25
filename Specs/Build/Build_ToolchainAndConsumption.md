@@ -242,6 +242,10 @@ optimization policy. Full LTCG is selected after project-local defaults; do not 
 selects full rather than incremental LTCG. `Tools/tests/Test-ReleaseBuildPolicy.ps1` evaluates every actual native
 project in all six profiles and rejects broken compiler/linker controls.
 
+The source build enables `NativeBuildReleaseOptimization` in the pinned `Build/NativeBuildPolicy.targets`.
+A compatible consumer may set the property to `true` before importing the targets to use the same Release
+compiler and linker metadata. Consumers retain their selected speed or size optimization and CRT policy.
+
 The static archive remains complete. Function elimination and cross-file optimization happen at each final EXE/DLL
 link and cannot optimize across DLL boundaries. LTO is not a guarantee of smaller or faster output; keep matched
 fixture/source/toolchain identities, frozen baseline images, actual image/section sizes, link/build duration and

@@ -1,19 +1,8 @@
 <Project>
   <Import Project="$(MSBuildThisFileDirectory)Build/DxUi.AddressSanitizer.targets" />
-  <PropertyGroup Condition="'$(Configuration)'=='Release'">
-    <WholeProgramOptimization>true</WholeProgramOptimization>
+  <PropertyGroup>
+    <NativeBuildReleaseOptimization>true</NativeBuildReleaseOptimization>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
-    <ClCompile>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <WholeProgramOptimization>true</WholeProgramOptimization>
-    </ClCompile>
-    <Link>
-      <OptimizeReferences>true</OptimizeReferences>
-      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-    </Link>
-    <Lib><LinkTimeCodeGeneration>true</LinkTimeCodeGeneration></Lib>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='ASan Debug'">
     <ClCompile>
       <EnableASAN>true</EnableASAN>

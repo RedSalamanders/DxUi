@@ -159,6 +159,11 @@ foreach($platform in 'x64','ARM64'){
     }
 }
 Write-Host 'PASS public consumer ASan non-incremental linking on both architectures and independent missing-import controls.'
+foreach($platform in 'x64','ARM64'){
+    $value=Read-Profile $consumerProject 'Release' $platform -Extra @('/p:NativeBuildReleaseOptimization=true')
+    Assert-Profile $value 'Release' "Opted-in public consumer $platform"
+}
+Write-Host 'PASS explicit shared Release optimization for both consumer targets.'
 $negative=Join-Path $scratch 'Broken.targets'
 $negativeXml='<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><Import Project="{0}" Condition="&apos;$(NativeBuildPolicyImported)&apos;!=&apos;true&apos;"/><ItemGroup><ClCompile Update="@(ClCompile)"><WholeProgramOptimization>false</WholeProgramOptimization></ClCompile><Link Include="ReleasePolicyLinkProbe"><OptimizeReferences>false</OptimizeReferences></Link></ItemGroup></Project>'
 [IO.File]::WriteAllText($negative,($negativeXml -f [Security.SecurityElement]::Escape($nativePolicyFile)))

@@ -1,0 +1,1 @@
+- Share DxUi's Release compiler and linker settings through an explicit native build policy opt-in.
