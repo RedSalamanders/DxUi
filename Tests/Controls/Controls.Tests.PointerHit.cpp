@@ -119,13 +119,13 @@ public:
     {
         Send(WM_MBUTTONUP, 0u, dip);
     }
-    void Wheel(D2D1_POINT_2F dip, float delta)
+    void Wheel(D2D1_POINT_2F dip, float delta, UINT keys = 0u)
     {
         POINT screen = Pixel(dip);
         static_cast<void>(ClientToScreen(Hwnd(), &screen));
         SendMessageW(Hwnd(),
                      WM_MOUSEWHEEL,
-                     MAKEWPARAM(0u, static_cast<short>(std::lround(delta))),
+                     MAKEWPARAM(keys, static_cast<short>(std::lround(delta))),
                      MAKELPARAM(static_cast<short>(screen.x), static_cast<short>(screen.y)));
     }
     void Leave()
@@ -145,6 +145,20 @@ private:
         SendMessageW(Hwnd(), message, keys, MAKELPARAM(static_cast<short>(pixel.x), static_cast<short>(pixel.y)));
     }
     AttachedHostWindow _window;
+};
+
+class WheelModifierProbe final : public DxUi::Button
+{
+public:
+    using DxUi::Button::Button;
+
+    bool OnMouseWheel(DxUi::ControlHost&, D2D1_POINT_2F, float, UINT modifiers) override
+    {
+        observedModifiers = modifiers;
+        return true;
+    }
+
+    std::optional<UINT> observedModifiers;
 };
 
 // A recorder that removes and destroys itself from inside its own move callback.
@@ -272,6 +286,30 @@ void TestPointerHitWindowDifferentialMatchesTheUncachedHitTest()
                 Require(reuses == 0u, "an unreported control in the tree turns reuse off");
         }
     }
+}
+
+void TestPointerHitWheelUsesDeliveredModifierState()
+{
+    NativeHitScene scene(true);
+    auto root   = std::make_unique<DxUi::Panel>();
+    auto* probe = root->AddChild<WheelModifierProbe>(L"Wheel modifier probe");
+    probe->SetBounds(D2D1::RectF(20.0f, 20.0f, 200.0f, 80.0f));
+    scene.SetRoot(std::move(root));
+    scene.Frame();
+    Require(GetFocus() != scene.Hwnd(), "the wheel probe does not take native focus");
+
+    const D2D1_POINT_2F point = CenterOf(*probe);
+    const auto checkWheel     = [&](UINT keys, UINT expected)
+    {
+        probe->observedModifiers.reset();
+        scene.Wheel(point, static_cast<float>(WHEEL_DELTA), keys);
+        Require(probe->observedModifiers == expected, "the wheel target receives the message keys and host-owned Alt state");
+    };
+    checkWheel(MK_SHIFT | MK_CONTROL | MK_RBUTTON, MK_SHIFT | MK_CONTROL | MK_RBUTTON);
+    SendMessageW(scene.Hwnd(), WM_SYSKEYDOWN, VK_MENU, 1);
+    checkWheel(MK_LBUTTON, MK_LBUTTON | DxUi::kModifierAlt);
+    SendMessageW(scene.Hwnd(), WM_SYSKEYUP, VK_MENU, static_cast<LPARAM>(0xC0000001u));
+    checkWheel(MK_MBUTTON, 0u);
 }
 
 // The hit result never outlives its control: removal between the cursor query and its move, removal from inside the

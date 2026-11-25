@@ -6,6 +6,7 @@
 void TestPointerHitFx14WindowHitTestsOncePerMove();
 void TestPointerHitFx10WindowPreparesNoPlainLabelAndSearchesNoTree();
 void TestPointerHitWindowDifferentialMatchesTheUncachedHitTest();
+void TestPointerHitWheelUsesDeliveredModifierState();
 void TestPointerHitWindowResultNeverOutlivesItsControl();
 void TestPointerHitWindowUnreportedControlIsNeverReused();
 void TestPointerHitPlainLabelsAreNotPrepared();

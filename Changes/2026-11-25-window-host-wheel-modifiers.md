@@ -1,0 +1,1 @@
+- Preserve modifiers from the delivered wheel message and its owning window host.
