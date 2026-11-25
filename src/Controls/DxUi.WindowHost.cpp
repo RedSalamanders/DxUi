@@ -5646,6 +5646,17 @@ bool ControlHost::EnsureSizeDependentResources(const bool allowHidden) noexcept
             recoverDeviceLoss(hrSwapChain);
             return false;
         }
+        if (_presentationMode == PresentationMode::HwndSwapChain)
+        {
+            const HRESULT association = shared.dxgiFactory->MakeWindowAssociation(_hwnd, DXGI_MWA_NO_ALT_ENTER);
+            if (FAILED(association))
+            {
+                Debug::Error(L"DxUi::ControlHost: MakeWindowAssociation failed: 0x{:08X}", association);
+                _swapChain.reset();
+                recoverDeviceLoss(association);
+                return false;
+            }
+        }
         ++Detail::Work().frame.swapChains;
 
         _swapChainWidthPx  = desc.Width;
