@@ -1291,6 +1291,10 @@ measure runs once per key, and a layout pass visits only dirty subtrees and stop
 `W6.1`–`W6.4` gates met on `FX10` and `FX12`; `W6.5` entered on its profile or recorded as not entered.
 
 - [ ] **W6.1 Width-change reuse.**
+  - **Closed unbuilt** (25 November 2026): on this Windows build DirectWrite redoes a layout's whole analysis after any
+    change to its box, so `SetMaxWidth` plus metrics costs 0.98 to 1.03 of re-creating the layout
+    (`Measurements/PerformanceAndMotion_2026-11-13/W6.1/`). Semantic boxes and v0 chunks are shared with the publication
+    that stays observable during preparation; `Label`'s retained layout alone is eligible and gains nothing.
   - **Why**: `SameLayoutOptions` includes `widthDip` (`DxUi.RichLayoutOptions.h:15`), so v0 reuse fails on any width
     change (`DxUi.RichDocumentLayout.cpp:306-321`) and semantic geometry gets `previous == nullptr`
     (`DxUi.RichSemanticGeometry.cpp:2445-2446`): every resize step re-shapes the whole document, up to 65,536 units

@@ -1,0 +1,13 @@
+script,units,reps,create_med_Mcyc_per_step,inplace_med_Mcyc_per_step,ratio_create_over_inplace,create_lines_last,inplace_lines_last,metrics_equal
+  decomposition Mcyc: create=0.0021 firstMetrics=0.0863 metricsAgain=0.0009 sameWidth=0.0009 heightOnly=0.0871 width+11=0.0873
+latin,200,400,0.0867,0.0867,1.00,3,3,yes
+  decomposition Mcyc: create=0.0026 firstMetrics=1.3803 metricsAgain=0.0009 sameWidth=0.0009 heightOnly=1.3906 width+11=1.3900
+latin,4096,60,1.4129,1.4333,0.99,43,43,yes
+  decomposition Mcyc: create=0.1979 firstMetrics=25.3670 metricsAgain=0.0026 sameWidth=0.0017 heightOnly=25.3777 width+11=24.5975
+latin,65536,9,30.1771,29.2762,1.03,678,678,yes
+  decomposition Mcyc: create=0.0069 firstMetrics=1.4797 metricsAgain=0.0013 sameWidth=0.0009 heightOnly=1.0696 width+11=1.0286
+mixed,200,400,1.0125,1.0121,1.00,3,3,yes
+  decomposition Mcyc: create=0.0348 firstMetrics=32.1254 metricsAgain=0.0030 sameWidth=0.0021 heightOnly=31.3578 width+11=31.3337
+mixed,4096,60,22.4130,22.5388,0.99,49,49,yes
+  decomposition Mcyc: create=0.0854 firstMetrics=705.4022 metricsAgain=0.0039 sameWidth=0.0021 heightOnly=703.9451 width+11=732.5856
+mixed,65536,9,695.2396,699.6336,0.99,784,784,yes

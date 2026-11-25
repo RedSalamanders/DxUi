@@ -1,0 +1,7 @@
+script,units,reps,create_med_Mcyc_per_step,inplace_med_Mcyc_per_step,ratio_create_over_inplace,create_lines_last,inplace_lines_last,metrics_equal
+latin,200,400,0.0858,0.0858,1.00,3,3,yes
+latin,4096,60,1.4526,1.4556,1.00,43,43,yes
+latin,65536,9,29.0259,29.4830,0.98,678,678,yes
+mixed,200,400,1.5464,1.5438,1.00,3,3,yes
+mixed,4096,60,31.8640,32.0012,1.00,49,49,yes
+mixed,65536,9,667.5807,674.5176,0.99,784,784,yes
