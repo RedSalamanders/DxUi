@@ -288,7 +288,10 @@ supplemental tooltip target) at most once per presented frame, without delaying 
 - A move that changes nothing visible leaves no frame owed. The next move is then dispatched at once too, so a run of such
   moves makes several dispatches and no frame: each costs one hit test and no paint. Those dispatches are counted apart
   (`frame.pointerMovesNoFrame`). The guarantee is therefore at most one frame-owing pointer-move dispatch per
-  presented frame, and none waits while the credit is held and no frame is owed.
+  presented frame from moves alone, and none waits while the credit is held and no frame is owed. An event of the list
+  below that falls between two frames (other input, a scheduled wake) dispatches the pending move early; a move that
+  arrives after it, before that frame retires, is dispatched at the next paced frame, so two frame-owing dispatches can
+  precede one present. That keeps the order of events and costs one more hit test and hover update.
 - A host that is unpaced (`frame.pacerUnavailable`, or no frame-latency object), hidden, zero-sized or not presenting
   dispatches every move at once: it has no frame to wait for.
 
