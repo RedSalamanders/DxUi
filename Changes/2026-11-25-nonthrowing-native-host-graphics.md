@@ -1,0 +1,1 @@
+- Use nonthrowing WIL owners for native window graphics and presentation interfaces while retaining their checked HRESULT paths.
