@@ -67,9 +67,10 @@ inline constexpr DocumentShape kSmallShape{8192u - 256u, 250u, 25u};
 
 // How the editor lays the document out. "default" and "full" are the rendered semantic view (Rich mode, Markdown
 // rendering, Subtle presentation): semantic geometry, no v0 chunks. W7.3 is about the v0 document layout, which runs only
-// without a semantic document: "source" is Source mode, laid out in v0 chunks of about 1,024 units with absolute origins;
-// "multiplier" is Rich mode without Markdown rendering and a line-height multiplier of 1.5, where the v0 layout skips
-// chunks and builds one whole-document layout (rich.wholeLayoutsLaid). Each comes suite-sized and full-sized.
+// without a semantic document: "source" is Source mode, laid out in v0 chunks of about 1,024 units at their own origins;
+// "multiplier" is Rich mode without Markdown rendering and a line-height multiplier of 1.5, laid out in the same v0
+// chunks, spaced uniformly with the whole document's inputs (no whole-document layout since W7.3). Each comes suite-sized
+// and full-sized.
 enum class Presentation : uint8_t
 {
     Semantic,
@@ -288,7 +289,7 @@ inline constexpr Definition kDefinition{
                   "presentation, embedded host; each step is one action settled through every owner turn of its preparation. Variant full is the plan's document "
                   "(65,280 units); default keeps every object and action at 7,936 units, a 250-line fence and a 25-row table. Variants source and "
                   "multiplier (each with a -full form) lay the same document out through the v0 document layout: Source mode in chunks, and Rich mode "
-                  "without Markdown rendering at line height 1.5 as one whole layout.",
+                  "without Markdown rendering at line height 1.5, also in chunks.",
     .budgets    = kBudgets,
     .hosts      = kEmbedded,
     .variants   = kVariants,

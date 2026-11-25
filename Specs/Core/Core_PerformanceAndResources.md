@@ -1953,32 +1953,49 @@ and any whole-layout work remain separately reported.
 
 Viewport-first preparation (W7.3): an owner gives its current viewport to every advance
 (a library-internal argument; the public `AdvancePreparation` takes none and publishes only
-complete results). On each advance the chunks whose estimated placement meets the viewport,
-with one viewport height of overscan above and below (centred on the caret the owner will
-reveal after an edit), are laid before any other chunk; then the document publishes a
-partial publication and lays the rest, publishing again when complete. The advance that
-publishes goes on laying within its budget, so a document whose rest fits that advance
-completes in it; an advance publishes at most one partial publication. Every chunk not yet
-laid has a stand-in, so the viewport is always published before any off-screen chunk is
-laid: in order, the previous chunk of the same unchanged blocks (laid with other options or
-before an edit), a stale chunk of an earlier partial publication (it stands in again but is
-never reused), or an estimated placeholder with no geometry. Estimate rule: a placeholder is
-as tall as its source units times the height per unit of the plan's chunks whose heights are
-known (laid, reused or stand-in); before any is known, the previous publication's height per
-unit; without one, 0. A partial publication is not `Ready()`: every query refuses it as a
-pending preparation would, and the editor treats its layout as not current, so input that
-needs geometry, caret and selection rectangles, scrolling and reveal, find, UI Automation and
-text-service rectangles wait for completion or answer pending; only painting draws the laid
-chunks, never a stale chunk or a placeholder. Both hosts still withhold every frame while
-any control's content preparation is pending (no partial surface is composed), so no host
-frame shows a partial publication yet: the gain is the order of the work, and the drawing
-path waits for a host policy that presents one. The owner anchors a reflow on its first visible
-source line so that the partial and the complete publication show it at the same place. Work
-units are the existing layout and block-step budgets; no time budget exists; the viewport is
-read on every advance, so a scroll during preparation moves the window. A partial publication
-shares chunk geometry with the previous publication, which stays alive while its chunks stand
-in; the 127 chunk plus one whole-layout bound holds for each graph and for old and staged
-graphs together.
+complete results). On each advance the chunks whose estimated placement meets the viewport
+window (the viewport with one viewport height of overscan above and below, centred on the
+caret the owner will reveal after an edit) are laid before any other chunk; once none is left
+unlaid, the document publishes a partial publication, lays the rest and publishes again when
+complete. A partial publication is made only when a chunk meeting the window was laid since
+the last one: an edit outside the window whose window chunks are all reused publishes nothing
+partial. The advance that publishes goes on laying within its budget, so a document whose
+rest fits that advance completes in it; an advance publishes at most one partial
+publication. Every chunk not yet laid has a stand-in: in order, the previous chunk of the
+same unchanged blocks (laid with other options or before an edit), a stale chunk of an
+earlier partial publication (it stands in again but is never reused), or an estimated
+placeholder with no geometry. Estimate rule: a placeholder is as tall as its source units
+times the height per unit of the plan's chunks whose heights are known (laid, reused or
+stand-in); before any is known, the previous publication's height per unit; without one (a
+first load, or after `Clear`) and with the viewport away from the document's top, one sample
+layout of the document's first blocks (at least one, about 512 display units, never above
+4,096) measures the average line height and the units a wrapped line holds, and each chunk is
+its physical lines, each wrapped at that capacity, times that line height (counted as
+`rich.estimateSampleLayouts`; a first block above 4,096 units uses the uniform line height,
+or 1.25 em, and half an em per unit instead). At the top no sample is needed: the first chunk
+meets the window. `rich.offscreenChunksLaidFirst` counts, against the window as estimated when
+each chunk is laid and independently of how the chunk was chosen, every chunk laid outside
+the window while a chunk meeting it is still not laid; viewport-first preparation keeps it 0.
+A partial publication is not `Ready()`: every query refuses it as a pending preparation
+would, and the editor treats its layout as not current, so input that needs geometry, caret
+and selection rectangles, scrolling and reveal, find, UI Automation and text-service
+rectangles wait for completion or answer pending; only painting draws the laid chunks, never
+a stale chunk or a placeholder. Both hosts still withhold every frame while any control's
+content preparation is pending (no partial surface is composed), so no host frame shows a
+partial publication yet: the gain is the order of the work, and the drawing path waits for a
+host policy that presents one. The owner anchors a reflow on its first visible source line so
+that the partial and the complete publication show it at the same place. Work units are the
+existing layout and block-step budgets; no time budget exists; the viewport is read on every
+advance, so a scroll during preparation moves the window. A partial publication keeps the
+last complete publication alive until a newer complete one replaces it: a preparation whose
+inputs (factory, mode, options, source) equal that publication's restores it at once and
+lays nothing, as a width step and back during a live resize does. Retention bound: each graph
+holds at most 127 chunks plus one whole layout; during a preparation at most four graphs are
+alive (the publication, the last complete publication a partial one keeps, the partial
+publication the preparation began from, and the staged graph, whose laid chunks an interim
+publication shares), and they hold at most 3 x 127 distinct chunk layouts and 2 whole
+layouts. Old and staged graphs together can therefore exceed 127 chunks: a width step of a
+90-chunk document keeps the 90 old chunks while it lays up to 90 new ones.
 Count whole-layout work separately from chunk reuse. Owner preparation may construct that cache; cached
 embedded composition must allocate and prepare nothing. `PreparedDocumentLayout::Draw`
 uses only published reference/chunk layouts and never creates a compatibility layout,

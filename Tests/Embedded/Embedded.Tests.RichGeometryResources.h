@@ -612,9 +612,11 @@ static void TestSourceGuideAllocationAtomicity(bool fatalChild = false)
     RichSourceGuides windowed;
     for (const auto offset : {std::size_t{0u}, std::size_t{32768u}, std::size_t{65535u}})
     {
-        const auto caret   = largeGeometry.SourceCaret(offset);
-        const auto bottom  = caret.y + caret.height * 3.0f;
-        const auto visible = largeGeometry.VisibleSourceRange(caret.y, bottom);
+        const auto caret  = largeGeometry.SourceCaret(offset);
+        const auto bottom = caret.y + caret.height * 3.0f;
+        // From inside the line: at its exact top, the line above can reach an ulp below it once both are rounded from the
+        // double-precision placement, and a placed caret box that meets the viewport is visible (W7.3).
+        const auto visible = largeGeometry.VisibleSourceRange(caret.y + caret.height * 0.5f, bottom);
         const RichSourceGuides::Window window{visible.first, visible.second, caret.y, bottom, -8.0f, 40.0f};
         const auto oldNumbers = windowed.Numbers().size(), oldMarks = windowed.Marks().size();
         windowed.Begin(manyLines.Snapshot(), manyLines.Revision(), largeGeometry.Generation(), true, true, options, 44.0f, window);

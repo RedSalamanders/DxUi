@@ -7,13 +7,14 @@ timing). Each step is one action with every owner turn of preparation it causes.
 - **Before**: the `FX8` receipts committed before this item (source `8630870b4`, clean tree, recorded 2026-11-14). The v0
   document layout they measure (`src/Controls/DxUi.RichDocumentLayout.cpp`, `src/Controls/DxUi.RichTextLayout.cpp`) was
   unchanged from that source to this item's base.
-- **After**: the six regenerated receipts in [FX8](../FX8/), measured on a clean tree at commit `c10c2244c` (this item
-  rebased on the integration branch at `02063cb85`; the final commit adds only these receipts and this README to that
-  tree), x64 Release, WARP 10.0.26100.9818 (as each receipt records), command
+- **After**: the six regenerated receipts in [FX8](../FX8/), measured on a clean tree at commit `3800356ba` (this item's
+  round-3 fixes on the integration branch at `72f897e4d`), x64 Release, WARP 10.0.26100.9818 (as each receipt records),
+  command
   `performance-fixtures.ps1 -Fixture FX8 -Adapter Warp -FixtureHost Embedded -Configuration Release -Platform x64 -CountDrawCalls -SkipBuild -Replace`.
-  Against the receipts first taken for this item (at `2a98cfa66`), of the work counters only owner turns changed, each by one turn fewer: the suite-sized
-  `source` warm step (3 to 2) and `multiplier` warm (12 to 11) and resize steps (3 to 2); the advance that publishes the
-  viewport now goes on laying within its budget. Every full-size counter in the tables below is unchanged.
+  The commit that carries them is `3800356ba` amended with only the six receipts, the FX8 README and this README.
+  Against the receipts of round 2 (at `c10c2244c`), every counter in the tables below is unchanged, and so is every
+  owner-turn and allocation series; the receipts gain the new `rich.estimateSampleLayouts` counter (0 in every step:
+  each first load starts at the top, where no sample is needed) and the accessibility counters the base added.
 - **Scenario**: the `FX8` definition (`Tests/Embedded/Embedded.Tests.PerformanceFixtureFx8.h`). `source*` lays the
   document out in Source mode; `multiplier*` in Rich mode without Markdown rendering at line height 1.5. `default` and
   `full` use semantic geometry, which lays no v0 chunk.
@@ -37,6 +38,10 @@ timing). Each step is one action with every owner turn of preparation it causes.
 
 ## Viewport first (after; the counters are new)
 
+`rich.offscreenChunksLaidFirst` counts, against the viewport window as estimated when each chunk is laid, every chunk
+laid outside the window while a chunk meeting it is not laid yet (counted independently of how the chunk was chosen:
+laying in document order instead makes it 30 over the 30 suite-sized `multiplier` resize steps, and the FX8 gate fails).
+
 | Variant | Phase | `rich.viewportPublications` per step | `rich.offscreenChunksLaidFirst` per step |
 | --- | --- | --- | --- |
 | `source-full`, `multiplier-full` | warm (first load) | 1 (the first step: the viewport's chunks, placeholders for the rest) | 0 |
@@ -45,7 +50,7 @@ timing). Each step is one action with every owner turn of preparation it causes.
 
 Live resizes (several width steps inside one viewport-first window) and edits during that window are not in `FX8`; the
 `TestRichDocumentLayoutViewportFirstAcrossWidthSteps` and `TestRichDocumentLayoutEditsDuringViewportFirst` tests count
-them: every width step publishes its viewport after at most 8 chunks with 0 off-screen chunks, and an insert, an Enter
+them: every width step publishes its viewport after exactly 4 chunks with 0 off-screen chunks, and an insert, an Enter
 and a 308-unit paste each lay 1 chunk before their publication.
 
 ## Other per-step counters, full size

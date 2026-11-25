@@ -3,7 +3,8 @@
 // the embedded host, on the fixture's v0 variants: "source" (Source mode, chunks) and "multiplier" (Rich mode without
 // Markdown rendering at line height 1.5, which laid one whole layout per keystroke before this item).
 //   - chunks laid per one-character insert at most 2, per Enter at most 2, none per arrow key; no whole-document layout;
-//   - before a preparation's first publication no chunk outside the viewport (and its one-viewport overscan) is laid, and
+//   - no chunk outside the viewport window (the viewport and one viewport of overscan) is laid while a chunk meeting it is
+//     not laid yet (rich.offscreenChunksLaidFirst, counted against the window itself), and
 //     each width step publishes its viewport while the rest of the chunks are laid after it.
 // Included by Embedded.Tests.Embedded.cpp after Embedded.Tests.PerformanceFixtures.h; uses its Check.
 #include "Embedded.Tests.PerformanceFixtures.h"
@@ -25,9 +26,10 @@ inline void TestFx8ChunksPerEditAndViewportFirst()
             // The first load (warm) also publishes its viewport first: chunks without previous geometry are placeholders.
             const auto offscreen = PerformanceFixtures::Summarize(run.Phase("warm"), "rich.offscreenChunksLaidFirst");
             const auto published = PerformanceFixtures::Summarize(run.Phase("warm"), "rich.viewportPublications");
-            std::cout << "  FX8 " << variant.name << " warm: off-screen chunks before the first publication " << offscreen.total << ", viewport publications "
-                      << published.total << '\n';
-            Check(offscreen.total == 0u && published.total >= 1u, "an FX8 first load publishes its viewport before any off-screen chunk");
+            std::cout << "  FX8 " << variant.name << " warm: chunks laid outside an incomplete viewport window " << offscreen.total
+                      << ", viewport publications " << published.total << '\n';
+            Check(offscreen.total == 0u && published.total >= 1u,
+                  "an FX8 first load lays no chunk outside the viewport window while a chunk meeting it is not laid");
         }
         for (const std::string_view phase : {"prose-insert", "enter", "arrow", "fence-insert", "table-insert", "resize"})
         {
@@ -35,10 +37,10 @@ inline void TestFx8ChunksPerEditAndViewportFirst()
             const auto laid = summarize("rich.chunksLaid"), whole = summarize("rich.wholeLayoutsLaid"), offscreen = summarize("rich.offscreenChunksLaidFirst"),
                        published = summarize("rich.viewportPublications");
             std::cout << "  FX8 " << variant.name << ' ' << phase << " per step: chunks laid " << laid.minimum << ".." << laid.maximum << ", whole layouts "
-                      << whole.maximum << ", off-screen chunks before the first publication " << offscreen.total << ", viewport publications "
+                      << whole.maximum << ", chunks laid outside an incomplete viewport window " << offscreen.total << ", viewport publications "
                       << published.minimum << ".." << published.maximum << '\n';
             Check(whole.maximum == 0u, "an FX8 v0 step lays no whole-document layout");
-            Check(offscreen.total == 0u, "no FX8 v0 step lays a chunk outside the viewport before it publishes the viewport");
+            Check(offscreen.total == 0u, "no FX8 v0 step lays a chunk outside the viewport window while a chunk meeting it is not laid");
             if (phase == "arrow")
                 Check(laid.maximum == 0u, "an FX8 arrow key lays no chunk");
             else if (phase == "resize")

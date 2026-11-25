@@ -147,6 +147,9 @@ struct PreparedDocumentLayout::State
     bool partial{};
     float height{}, width{};
     LayoutPreparation last;
+    // A partial publication keeps the last complete publication alive until a newer complete one replaces it: a
+    // preparation back to that publication's inputs restores it and lays nothing (W7.3).
+    std::unique_ptr<State> lastComplete;
 };
 #pragma warning(pop)
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -168,9 +171,12 @@ struct PreparedDocumentLayout::Preparation
     {
     }
     std::unique_ptr<State> next;
-    // The publication this preparation started from, once a viewport-first publication replaced it. The raw pointers
-    // below borrow its immutable chunks until this preparation publishes or is cancelled.
-    std::unique_ptr<State> previous;
+    // The publication this preparation started from (begun), once a viewport-first publication replaced it. The raw
+    // pointers below borrow its immutable chunks until this preparation publishes or is cancelled. A complete one lives on
+    // as the interim publication's lastComplete; a partial one is owned here.
+    const State* begun{};
+    bool replaced{};
+    std::unique_ptr<State> previousOwned;
     SourceChangeRange change;
     // Per block: the previous chunk whose blocks start here unchanged. Reused when the options are compatible, a
     // viewport-first stand-in otherwise.
@@ -184,15 +190,23 @@ struct PreparedDocumentLayout::Preparation
     Detail::DocumentViewport viewport;
     // The previous publication's height per source unit: the placeholder estimate until a chunk's height is known.
     double fallbackPerUnit{};
+    // Without either (a first load, or after Clear): per planned chunk, its physical lines, each wrapped at the measured
+    // capacity of a sample layout, times the sample's line height. Empty until sampled.
+    std::vector<double> sampled;
+    bool sampleTried{};
     Phase phase = Phase::Plan;
     bool compatible{}, matching{}, compact{}, exactPlacement = true, fresh{};
-    // publishedOnce: a partial publication of this preparation happened; windowCurrent: the latest one shows every chunk
-    // meeting the current viewport window.
-    bool publishedOnce{}, windowCurrent{};
+    // A chunk meeting the viewport window was laid since the last publication: only then does a partial publication
+    // show something new.
+    bool windowLaid{};
 
     [[nodiscard]] const State& Previous(const State& current) const noexcept
     {
-        return previous ? *previous : current;
+        return replaced && begun ? *begun : current;
+    }
+    [[nodiscard]] const State* PreviousOrNull(const State* current) const noexcept
+    {
+        return replaced ? begun : current;
     }
     const ChunkPlacement* Candidate(const State& previousState, std::size_t block) const
     {
@@ -238,7 +252,7 @@ struct PreparedDocumentLayout::Preparation
     }
     // Estimate rule (W7.3): a chunk not laid and without a stand-in is as tall as its source units times the height per
     // unit of the plan's chunks whose heights are known (laid, reused or stand-in); before any is known, the previous
-    // publication's height per unit; without one, 0.
+    // publication's height per unit; without one, its sampled estimate (see `sampled`). Negative: no height per unit.
     [[nodiscard]] double PerUnit() const noexcept
     {
         double height = 0.0, known = 0.0;
@@ -248,14 +262,16 @@ struct PreparedDocumentLayout::Preparation
                 height += geometry->HeightAt(index + 1u == plan.size());
                 known += static_cast<double>(EntryUnits(plan[index]));
             }
-        return known > 0.0 ? height / known : fallbackPerUnit;
+        return known > 0.0 ? height / known : fallbackPerUnit > 0.0 ? fallbackPerUnit : -1.0;
     }
     [[nodiscard]] double EstimatedHeight(std::size_t index, double perUnit) const noexcept
     {
         const auto& entry = plan[index];
         if (const auto* geometry = entry.geometry ? entry.geometry.get() : entry.standIn ? entry.standIn->geometry.get() : nullptr)
             return geometry->HeightAt(index + 1u == plan.size());
-        return perUnit * static_cast<double>(EntryUnits(entry));
+        if (perUnit >= 0.0)
+            return perUnit * static_cast<double>(EntryUnits(entry));
+        return index < sampled.size() ? sampled[index] : 0.0;
     }
     // The viewport with one viewport height of overscan above and below, centered on the focus when one is given.
     [[nodiscard]] std::pair<double, double> Window(double perUnit) const noexcept
@@ -403,7 +419,31 @@ LayoutPreparationStatus PreparedDocumentLayout::BeginPreparation(
         source.ChangedRangeFrom(pending_->next->source).kind == SourceChangeKind::Unchanged)
         return LayoutPreparationStatus::Pending;
     // The incremental-versus-fresh oracle's fresh scene prepares without any previous publication.
-    const bool fresh      = IsFreshPreparationForTest();
+    const bool fresh = IsFreshPreparationForTest();
+    // Back to the inputs of the last complete publication while a partial one is shown (a width step and back during a
+    // live resize): restore that publication; nothing is laid.
+    if (! fresh && state_ && state_->partial && state_->lastComplete)
+    {
+        auto& complete = *state_->lastComplete;
+        if (complete.factory.get() == factory && complete.projection.Mode() == mode && SameOptions(complete.options, options) &&
+            source.ChangedRangeFrom(complete.source).kind == SourceChangeKind::Unchanged)
+        {
+            if (const auto status = complete.projection.TryPrepare(source, revision, mode); status != SourceResult::Success)
+            {
+                result_ = status == SourceResult::CapacityExceeded ? E_BOUNDS : E_INVALIDARG;
+                return LayoutPreparationStatus::Failed;
+            }
+            auto restored = std::move(state_->lastComplete);
+            // The pending preparation borrows the partial publication's chunks: retire it before that publication.
+            CancelPreparation();
+            state_         = std::move(restored);
+            state_->source = std::move(source);
+            state_->last   = {0u, state_->chunks.size(), 0u, 0u, state_->reference ? 1u : 0u, 0u};
+            ready_         = true;
+            ++generation_;
+            return LayoutPreparationStatus::Complete;
+        }
+    }
     const bool sameEngine = ! fresh && state_ && state_->factory.get() == factory && state_->projection.Mode() == mode;
     bool compatible       = sameEngine && SameOptions(state_->options, options);
     const auto change     = state_ ? source.ChangedRangeFrom(state_->source) : SourceChangeRange{};
@@ -510,7 +550,7 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
             const bool final    = index + 1u == request.plan.size();
             const bool stale    = ! entry.geometry && entry.standIn;
             const auto geometry = entry.geometry ? entry.geometry : entry.standIn ? entry.standIn->geometry : std::shared_ptr<const GeometryChunk>{};
-            const auto height   = geometry ? geometry->HeightAt(final) : perUnit * static_cast<double>(request.EntryUnits(entry));
+            const auto height   = geometry ? geometry->HeightAt(final) : request.EstimatedHeight(index, perUnit);
             target.partial      = target.partial || ! entry.geometry;
             auto top            = running;
 #if DXUI_ENABLE_DIAGNOSTICS
@@ -532,6 +572,69 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
         }
         target.height = static_cast<float>(running);
         return std::isfinite(target.height);
+    };
+    // The sampled estimate (no height known yet): a layout of the document's first blocks (at least one, about 512 display
+    // units, never above 4,096) at the document's options measures the average line height and the units a wrapped line
+    // holds. Each planned chunk is then its physical lines, each wrapped at that capacity, times that line height. Without
+    // a sample (a first block above 4,096 units), the uniform line height and half an em per unit stand in.
+    const auto sample = [&]() -> HRESULT
+    {
+        const auto& options = next.options;
+        const auto size     = static_cast<double>(next.spacing.size);
+        double lineHeight   = options.lineHeightMultiplier > 0.0f || next.spacing.scripts
+                                  ? std::max(size * static_cast<double>(options.lineHeightMultiplier), size * (next.spacing.scripts ? 1.45 : 1.0))
+                                  : 1.25 * static_cast<double>(options.fontSizeDip);
+        double capacity     = std::max(1.0, static_cast<double>(options.widthDip) / (0.5 * static_cast<double>(options.fontSizeDip)));
+        std::size_t end = 0u, units = 0u;
+        while (end < blocks.size() && (end == 0u || units < 512u) && units + blocks[end].content->text.size() <= 4096u)
+            units += blocks[end++].content->text.size();
+        if (end)
+        {
+            Projection joined{
+                std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)};
+            JoinBlocks(joined, blocks, 0u, end, next.projection.Mode());
+            PreparedLayout measured;
+            RETURN_IF_FAILED(
+                Detail::PreparedLayoutAccess::Prepare(measured, next.factory.get(), joined, options, false, false, nullptr, 0u, {}, false, &next.spacing));
+            const auto& text   = measured.Content().text;
+            const auto metrics = measured.LineMetrics();
+            const auto counted = ! text.empty() && text.back() == L'\n' && ! metrics.empty() ? metrics.size() - 1u : metrics.size();
+            double heights = 0.0, wrappedUnits = 0.0;
+            std::size_t wrapped = 0u, longest = 0u;
+            for (std::size_t line = 0u; line < counted; ++line)
+            {
+                heights += metrics[line].height;
+                longest = std::max<std::size_t>(longest, metrics[line].length - metrics[line].newlineLength);
+                if (metrics[line].newlineLength == 0u && line + 1u < counted)
+                {
+                    wrappedUnits += metrics[line].length;
+                    ++wrapped;
+                }
+            }
+            if (counted && heights > 0.0)
+                lineHeight = heights / static_cast<double>(counted);
+            capacity = wrapped ? std::max(1.0, wrappedUnits / static_cast<double>(wrapped)) : std::max(capacity, static_cast<double>(longest));
+        }
+        request.sampled.assign(request.plan.size(), 0.0);
+        for (std::size_t index = 0u; index < request.plan.size(); ++index)
+        {
+            const auto& entry = request.plan[index];
+            double lines = 0.0, run = 0.0;
+            for (auto block = entry.first; block < entry.end; ++block)
+                for (const auto unit : blocks[block].content->text)
+                    if (unit == L'\n')
+                    {
+                        lines += std::max(1.0, std::ceil(run / capacity));
+                        run = 0.0;
+                    }
+                    else
+                        ++run;
+            // A nonfinal chunk's terminal LF opens the next chunk's first line; the final chunk keeps its last line.
+            if (run > 0.0 || index + 1u == request.plan.size())
+                lines += std::max(1.0, std::ceil(run / capacity));
+            request.sampled[index] = lines * lineHeight;
+        }
+        return S_OK;
     };
     for (;;)
     {
@@ -642,11 +745,35 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                 const auto perUnit  = request.PerUnit();
                 const bool windowed = request.viewport.active && ! request.fresh;
                 const auto none     = request.plan.size();
+                if (windowed && perUnit < 0.0 && ! request.sampleTried)
+                {
+                    // No height is known (a first load, or after Clear). Away from the document's top, every estimate of 0
+                    // would put every chunk at 0 and none in the window: one sample layout first measures the line height
+                    // and the wrapping capacity, so the window is found by a real estimate before any chunk is laid.
+                    const auto& front      = request.plan.front();
+                    const bool awayFromTop = request.viewport.top > 0.0f || (request.viewport.focus != Detail::DocumentViewport::NoFocus &&
+                                                                             request.viewport.focus >= request.EntryUnits(front));
+                    if (request.plan.size() > 1u && awayFromTop)
+                    {
+                        if (result.layoutsPrepared == budget.maximumLayouts)
+                            return leave(LayoutPreparationStatus::Pending);
+                        if (const auto status = sample(); FAILED(status))
+                            return fail(status);
+                        ++result.layoutsPrepared;
+                        ++work.estimateSampleLayouts;
+                    }
+                    request.sampleTried = true;
+                    continue;
+                }
                 std::size_t chosen = none, firstUnlaid = none;
+                // windowOpen: a chunk meeting the window is not laid yet. It is found by the walk independently of the
+                // choice, so the off-screen counter below checks the choice rather than restate it.
+                bool windowOpen = false;
+                std::pair<double, double> window{};
                 if (windowed)
                 {
-                    const auto window = request.Window(perUnit);
-                    double top        = 0.0;
+                    window     = request.Window(perUnit);
+                    double top = 0.0;
                     for (std::size_t index = 0u; index < request.plan.size(); ++index)
                     {
                         const auto height = request.EstimatedHeight(index, perUnit);
@@ -654,8 +781,12 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                         {
                             if (firstUnlaid == none)
                                 firstUnlaid = index;
-                            if (chosen == none && top <= window.second && top + height >= window.first)
-                                chosen = index;
+                            if (top <= window.second && top + height >= window.first)
+                            {
+                                windowOpen = true;
+                                if (chosen == none)
+                                    chosen = index;
+                            }
                         }
                         top += height;
                     }
@@ -664,18 +795,18 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                     for (std::size_t index = 0u; index < request.plan.size() && firstUnlaid == none; ++index)
                         if (! request.plan[index].geometry)
                             firstUnlaid = index;
-                const bool inWindow = chosen != none;
-                if (! inWindow)
+                if (chosen == none)
                 {
                     if (firstUnlaid == none)
                     {
                         request.phase = Preparation::Phase::Place;
                         continue;
                     }
-                    if (windowed && ! request.windowCurrent && ! publishedThisAdvance)
+                    if (windowed && request.windowLaid && ! publishedThisAdvance)
                     {
-                        // Viewport first: every chunk meeting the window is laid. Publish it now; every other chunk has a
-                        // stand-in or an estimated placeholder, so no chunk outside the window is laid before this.
+                        // Viewport first: every chunk meeting the window is laid, and one of them since the last
+                        // publication. Publish it now; every other chunk has a stand-in or an estimated placeholder, so no
+                        // chunk outside the window is laid before this. A window with nothing new laid publishes nothing.
                         auto interim        = std::make_unique<State>();
                         interim->projection = next.projection.Clone();
                         interim->source     = next.source;
@@ -685,13 +816,29 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                         interim->last       = next.last;
                         if (! place(*interim, perUnit))
                             return fail(E_BOUNDS);
-                        // The previous publication stays alive: the plan borrows its chunks.
-                        if (! request.previous)
-                            request.previous = std::move(state_);
+                        // The plan borrows the chunks of the publication this preparation began from: a partial one stays
+                        // owned here, a complete one lives on as lastComplete. An earlier interim of this preparation
+                        // only hands its lastComplete on.
+                        auto shown = std::move(state_);
+                        if (! request.replaced)
+                        {
+                            request.replaced = true;
+                            request.begun    = shown.get();
+                            if (shown && shown->partial)
+                            {
+                                interim->lastComplete = std::move(shown->lastComplete);
+                                request.previousOwned = std::move(shown);
+                            }
+                            else
+                                interim->lastComplete = std::move(shown);
+                        }
+                        else if (shown)
+                            interim->lastComplete = std::move(shown->lastComplete);
                         state_ = std::move(interim);
                         ready_ = true;
                         ++generation_;
-                        request.publishedOnce = request.windowCurrent = publishedThisAdvance = true;
+                        request.windowLaid   = false;
+                        publishedThisAdvance = true;
                         ++work.viewportPublications;
                         // The advance goes on within its budget: a document whose rest fits this turn completes in it,
                         // so a first frame is never withheld for an extra turn only because the window was published. A
@@ -702,6 +849,15 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                 }
                 if (result.layoutsPrepared == budget.maximumLayouts)
                     return leave(LayoutPreparationStatus::Pending);
+                // Whether the chosen chunk meets the window, from its own estimated placement.
+                bool meets = false;
+                if (windowed)
+                {
+                    double top = 0.0;
+                    for (std::size_t index = 0u; index < chosen; ++index)
+                        top += request.EstimatedHeight(index, perUnit);
+                    meets = top <= window.second && top + request.EstimatedHeight(chosen, perUnit) >= window.first;
+                }
                 auto& entry   = request.plan[chosen];
                 auto geometry = std::make_shared<GeometryChunk>();
                 Projection joined{
@@ -728,11 +884,12 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
                 }
                 if (! std::isfinite(geometry->finalHeight) || ! std::isfinite(geometry->continuationHeight))
                     return fail(E_BOUNDS);
-                // Counted from the request's own viewport, whatever the call: by construction this stays 0.
-                if (windowed && ! inWindow && ! request.publishedOnce)
+                // Counted against the request's own viewport window: a chunk outside it laid while a chunk meeting it is
+                // still not laid. Viewport-first preparation keeps this 0.
+                if (meets)
+                    request.windowLaid = true; // a new window chunk: publish the window again once it is complete
+                else if (windowOpen)
                     ++work.offscreenChunksLaidFirst;
-                if (inWindow)
-                    request.windowCurrent = false; // a new window chunk: publish the window again once it is complete
                 entry.geometry = std::move(geometry);
                 next.last.preparedSourceUnits += request.EntryUnits(entry);
                 ++next.last.preparedChunks;
@@ -756,7 +913,7 @@ LayoutAdvance PreparedDocumentLayout::AdvancePreparation(const LayoutWorkBudget&
             }
             case Preparation::Phase::Reference:
             {
-                const State* previous = request.previous ? request.previous.get() : state_.get();
+                const State* previous = request.PreviousOrNull(state_.get());
                 if (! request.exactPlacement)
                 {
                     if (result.layoutsPrepared == budget.maximumLayouts || result.blockSteps == budget.maximumBlockSteps)
@@ -1136,37 +1293,42 @@ HRESULT PreparedDocumentLayout::TryVisibleRange(float top, float bottom, std::pa
         return state.reference->TryVisibleRange(top, bottom, output);
     std::optional<std::size_t> first;
     std::size_t last = 0u;
-    for (const auto& chunk : state.chunks)
+    for (std::size_t index = 0u; index < state.chunks.size(); ++index)
     {
+        const auto& chunk = state.chunks[index];
         if (chunk.y >= bottom)
             break;
-        if (chunk.y + chunk.height <= top)
+        // A margin of one DIP: whether a line near the chunk's end is visible is decided below, by its placed caret box.
+        if (chunk.top + static_cast<double>(chunk.height) + 1.0 <= static_cast<double>(top))
             continue;
-        // The chunk's lines in document coordinates (its placement plus each line's chunk-local caret), as a whole
-        // layout's VisibleRange tests them.
-        const auto& layout     = chunk.geometry->layout;
-        const auto chunkBottom = std::min(bottom, chunk.y + chunk.height);
-        std::size_t lineStart  = 0u;
+        // The chunk's lines as the caret places them (each line's top rounded once from the double-precision placement,
+        // plus its height): a line is visible when that placed box meets the viewport, the rule of the geometry oracle.
+        const auto& layout    = chunk.geometry->layout;
+        const auto& text      = layout.Content().text;
+        std::size_t lineStart = 0u;
         std::optional<std::size_t> chunkFirst;
         std::size_t chunkLast  = 0u;
         const auto lineMetrics = layout.LineMetrics();
-        // Line starts plus the final end offset, as PreparedLayout::VisibleRange walks them.
-        for (std::size_t line = 0u; line <= lineMetrics.size(); ++line)
+        // Line starts plus the final end offset, as PreparedLayout::VisibleRange walks them. A nonfinal chunk's empty line
+        // after its terminal LF, and its end offset, are the next chunk's first line.
+        const bool final  = index + 1u == state.chunks.size();
+        const auto walked = final                                                             ? lineMetrics.size() + 1u
+                            : ! text.empty() && text.back() == L'\n' && ! lineMetrics.empty() ? lineMetrics.size() - 1u
+                                                                                              : lineMetrics.size();
+        for (std::size_t line = 0u; line < walked; ++line)
         {
             CaretGeometry caret{};
             if (const auto status = layout.TryCaret(lineStart, caret); FAILED(status))
                 return status;
             const auto lineTop = static_cast<float>(chunk.top + caret.y);
-            if (lineTop >= chunkBottom)
+            if (lineTop >= bottom)
                 break;
-            const auto lineEnd = line < lineMetrics.size() ? lineStart + lineMetrics[line].length : layout.Content().text.size();
-            // Both edges rounded once from the double-precision placement, as the caret reports them: a line ending where the
-            // next begins is not visible from that next line's top.
-            if (static_cast<float>(chunk.top + caret.y + caret.height) > top)
+            const auto lineEnd = line < lineMetrics.size() ? lineStart + lineMetrics[line].length : text.size();
+            if (lineTop + caret.height > top)
             {
                 if (! chunkFirst)
                     chunkFirst = lineStart;
-                chunkLast = line < lineMetrics.size() ? lineEnd : layout.Content().text.size();
+                chunkLast = line < lineMetrics.size() ? lineEnd : text.size();
             }
             lineStart = lineEnd;
         }
@@ -1282,6 +1444,44 @@ HRESULT Detail::PreparedDocumentLayoutAccess::PartialSourceTop(const PreparedDoc
         return status;
     y = static_cast<float>(chunk.top + caret.y);
     return S_OK;
+}
+Detail::PreparedDocumentLayoutAccess::Retention Detail::PreparedDocumentLayoutAccess::Retained(const PreparedDocumentLayout& layout)
+{
+    Retention retention;
+    std::vector<const void*> chunks, wholes;
+    const auto graph = [&](std::size_t count) { ++retention.graphs, retention.largestGraphChunks = std::max(retention.largestGraphChunks, count); };
+    const auto add   = [&](const PreparedDocumentLayout::State* state)
+    {
+        if (! state)
+            return;
+        graph(state->chunks.size());
+        for (const auto& chunk : state->chunks)
+            if (chunk.geometry)
+                chunks.push_back(chunk.geometry.get());
+        if (state->reference)
+            wholes.push_back(state->reference.get());
+    };
+    add(layout.state_.get());
+    if (layout.state_)
+        add(layout.state_->lastComplete.get());
+    if (layout.pending_)
+    {
+        add(layout.pending_->previousOwned.get());
+        graph(layout.pending_->plan.size());
+        for (const auto& entry : layout.pending_->plan)
+            if (entry.geometry)
+                chunks.push_back(entry.geometry.get());
+        if (layout.pending_->next->reference)
+            wholes.push_back(layout.pending_->next->reference.get());
+    }
+    for (auto* list : {&chunks, &wholes})
+    {
+        std::sort(list->begin(), list->end());
+        list->erase(std::unique(list->begin(), list->end()), list->end());
+    }
+    retention.chunkLayouts = chunks.size();
+    retention.wholeLayouts = wholes.size();
+    return retention;
 }
 std::vector<std::size_t> Detail::PreparedDocumentLayoutAccess::ChunkDisplayStarts(const PreparedDocumentLayout& layout)
 {

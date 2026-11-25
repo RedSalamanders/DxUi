@@ -141,7 +141,8 @@
     X(rich, markdownSourceUnitsMaterialized) /* Of those, units read out of the document's piece tree rather than the previous parse's source. */              \
     X(rich, mathPreparations)                /* Prepared math formulas built (beside the testRichMathPreparations seam). */                                    \
     X(rich, otherDocumentBytesCopied)        /* Bytes copied out of any other RichText::Document (code-fence line numbers, labels, scratch documents). */      \
-    X(rich, offscreenChunksLaidFirst)        /* v0 chunks outside the preparation viewport laid before that preparation's first publication (W7.3). */         \
+    X(rich, offscreenChunksLaidFirst)        /* v0 chunks laid outside the viewport window while a chunk meeting it was not laid yet (W7.3). */                \
+    X(rich, estimateSampleLayouts)           /* Sample layouts measuring line height and wrapping before any v0 chunk height is known (W7.3). */               \
     X(rich, otherDocumentFlattens)           /* Copies of such a whole non-empty other Document (a subset of otherDocumentBytesCopied). */                     \
     X(rich, preparationTurns)                /* RichTextEditor::PrepareContent calls: owner turns of cooperative rich-content preparation. */                  \
     X(rich, semanticBlocksReused)            /* Top-level semantic blocks a SemanticBuilder copied from its previous publication instead of building. */       \

@@ -37,6 +37,13 @@ struct PreparedDocumentLayoutAccess
     // The display offsets where the published chunks start (empty for whole geometry): tests bound DirectWrite's own
     // single-precision accumulation inside each chunk with them.
     [[nodiscard]] static std::vector<std::size_t> ChunkDisplayStarts(const PreparedDocumentLayout& layout);
+    // What the layout keeps alive: its graphs (the publication, the last complete publication a partial one keeps, the
+    // partial publication a preparation began from, the staged graph) and the distinct chunk and whole layouts they hold.
+    struct Retention
+    {
+        std::size_t graphs{}, chunkLayouts{}, wholeLayouts{}, largestGraphChunks{};
+    };
+    [[nodiscard]] static Retention Retained(const PreparedDocumentLayout& layout);
 };
 #if DXUI_ENABLE_DIAGNOSTICS
 // The incremental-versus-fresh oracle's "same chunking" (W7.3): while testRichRecordChunkPlan is set, every completed v0

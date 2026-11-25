@@ -17,8 +17,11 @@
   viewport of overscan) are laid and published before any off-screen chunk, on a first load, a reflow, a live resize or
   an edit during one. No host frame shows that partial publication yet: both hosts withhold the frame until content
   preparation completes. Every chunk not laid yet stands in as its previous or stale geometry or an estimated
-  placeholder (its source units times the known height per unit). Until the rest is laid the layout is not current:
-  input that needs geometry, caret and selection, find, scrolling, UI Automation and text-service rectangles wait or
-  answer pending, and a reflow keeps the first visible line in place. A width step with the multiplier now lays every
-  chunk (61 at full size) instead of one whole layout. New work counters `rich.offscreenChunksLaidFirst` and
-  `rich.viewportPublications`.
+  placeholder (its source units times the known height per unit; on a first load away from the top, one sample layout
+  measures line height and wrapping first). A partial publication is made only when a window chunk was laid since the
+  last one, and stepping back to the last complete publication's width during a live resize restores it without laying
+  a chunk. Until the rest is laid the layout is not current: input that needs geometry, caret and selection, find,
+  scrolling, UI Automation and text-service rectangles wait or answer pending, and a reflow keeps the first visible line
+  in place. A visible range at a chunk seam follows the placed caret boxes, as the geometry oracle states. A width step
+  with the multiplier now lays every chunk (61 at full size) instead of one whole layout. New work counters
+  `rich.offscreenChunksLaidFirst`, `rich.viewportPublications` and `rich.estimateSampleLayouts`.
