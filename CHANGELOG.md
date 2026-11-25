@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Keep Alt+Enter under application control in native HWND swap-chain hosts.
 - Build the Windows image path in one reserved string and keep every decode allocation observation in the failure log.
 - Use nonthrowing WIL owners for native window graphics and presentation interfaces while retaining their checked HRESULT paths.
 - Size the native parity fixture independently of the runner desktop and retry a real pointer delivery inside the same button in the hosted Menu regression.
