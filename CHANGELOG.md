@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Use nonthrowing WIL owners for native window graphics and presentation interfaces while retaining their checked HRESULT paths.
 - Size the native parity fixture independently of the runner desktop and retry a real pointer delivery inside the same button in the hosted Menu regression.
 - Moved the core native suite projects to their canonical paths and preserved executable and paired-build identities.
 - Added guarded profile cleanup and a configurable MSBuild worker limit to the root DxUi build.
