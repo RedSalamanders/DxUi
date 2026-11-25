@@ -2904,6 +2904,7 @@ const Control* Separator::HitTest(D2D1_POINT_2F /*point*/) const
 // non-plain and disable it when it is plain again; a subclass keeps it from attachment (RefreshLabelVisualPreparation).
 Label::Label(std::wstring text) : _text(std::move(text))
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::Label);
 }
 void Label::InvalidateTypographyPreparation() noexcept
 {
@@ -3155,6 +3156,7 @@ bool Label::OnMnemonic(ControlHost& host)
 
 Button::Button(std::wstring text) : _text(std::move(text))
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::Button);
     SetFocusable(true);
 }
 
@@ -4563,6 +4565,7 @@ float Button::ResolveFocusAnimationProgress(const ControlHost& host) const noexc
 
 Toggle::Toggle(std::wstring text) : Button(std::move(text))
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::Toggle);
 }
 
 void Toggle::SetChecked(bool checked) noexcept
@@ -4739,6 +4742,7 @@ void Toggle::ApplyCheckedState(ControlHost& host, bool checked, bool notify)
 
 Checkbox::Checkbox(std::wstring text) : Toggle(std::move(text))
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::Checkbox);
 }
 
 bool Checkbox::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, UINT modifiers)
@@ -4860,6 +4864,7 @@ void Checkbox::Paint(ControlHost& host) const
 
 RadioButton::RadioButton(std::wstring text) : Button(std::move(text))
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::RadioButton);
 }
 
 bool RadioButton::AssignChecked(bool checked) noexcept
@@ -5446,6 +5451,7 @@ D2D1_RECT_F ProgressBar::DebugGetIndeterminateSegmentRect(const ThemePalette& th
 
 PageIndicator::PageIndicator()
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::PageIndicator);
     SetFocusable(true);
 }
 
@@ -5695,6 +5701,7 @@ void PageIndicator::PublishAccessibility() const noexcept
 
 Slider::Slider()
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::Slider);
     SetFocusable(true);
 }
 
@@ -8733,6 +8740,7 @@ void MenuBar::InvalidateIfInteractive(ControlHost& host) noexcept
 
 TabControl::TabControl()
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::TabControl);
     EnableVisualContentPreparation();
     SetFocusable(true);
 }
@@ -10704,6 +10712,7 @@ void StatusStrip::Paint(ControlHost& host) const
 
 ColorSwatch::ColorSwatch(std::optional<uint32_t> swatchArgb) : _swatchArgb(swatchArgb)
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::ColorSwatch);
 }
 
 void ColorSwatch::SetOnClick(std::function<void()> onClick)
@@ -11818,17 +11827,21 @@ bool ScrollPanel::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT modif
         const D2D1_RECT_F thumb = GetScrollbarThumbHitRect();
         const float thumbHeight = thumb.bottom - thumb.top;
         const float available   = (std::max)(0.0f, (track.bottom - track.top) - thumbHeight);
+        bool scrolled           = false;
         if (available > 0.0f)
         {
             const float previousOffset = _scrollOffsetDip;
             const float thumbTop       = (std::clamp)(point.y - _dragThumbOffsetDip, track.top, track.bottom - thumbHeight);
             _scrollOffsetDip           = ((thumbTop - track.top) / available) * GetScrollableExtent();
             ClampScrollOffset();
+            scrolled = _scrollOffsetDip != previousOffset;
             if (! NotifyScrollChanged(previousOffset))
             {
                 return true;
             }
         }
+        // A thumb that moved the content repaints what its scroll mark declared (W8.3); one that did not is undeclared, as before.
+        const AttestedInvalidation declared(GetHost(), scrolled);
         RequestInvalidate();
         return true;
     }
@@ -12063,7 +12076,11 @@ bool ScrollPanel::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float whe
         // At the bound nothing moves: repaint nothing and leave the wheel to an enclosing scroller.
         return false;
     }
-    RequestInvalidate();
+    {
+        // A declared repaint: the scroll is marked for UI Automation as this panel's scroll scope moving (W8.3).
+        const AttestedInvalidation declared(GetHost());
+        RequestInvalidate();
+    }
     static_cast<void>(NotifyScrollChanged(previousOffset));
     return true;
 }

@@ -546,6 +546,7 @@ void Tree::UpdateReorderDrop(ControlHost& host, D2D1_POINT_2F point) noexcept
 
 Tree::Tree()
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::Tree);
     SetFocusable(true);
 }
 
@@ -2250,6 +2251,10 @@ bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta
         if (! guard.IsCurrent())
             return true;
     }
+    // The rows on screen are the Tree's UI Automation rows: marked as this Tree's scroll (W8.3), so the repaint is a declared one
+    // and the next publication, at once, re-reads this one record instead of building the whole window.
+    NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Scroll);
+    const AttestedInvalidation declared(&host);
     Invalidate(host);
     return true;
 }

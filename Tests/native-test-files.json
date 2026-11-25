@@ -120,6 +120,7 @@
   "Tests/Controls/DxUi.Tests.Tooltip.cpp",
   "Tests/Controls/DxUi.Tests.Tree.cpp",
   "Tests/Controls/DxUi.Tests.WindowHost.cpp",
+  "Tests/Embedded/Embedded.Tests.AccessibilityBuildCost.h",
   "Tests/Embedded/Embedded.Tests.AnimationRequest.h",
   "Tests/Embedded/Embedded.Tests.AssignSetters.h",
   "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h",

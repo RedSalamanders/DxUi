@@ -17,7 +17,7 @@ void CompleteRichSemanticStateChange(WindowHostAccessibilityTarget&, uint64_t, b
                                                                 const AccessibilityControlNavigationSnapshot& record,
                                                                 size_t element) noexcept
 {
-    auto bounds     = record.controlRichText->bounds[element];
+    auto bounds     = record.Text().controlRichText->bounds[element];
     const auto clip = FindSnapshotFragmentBounds(snapshot, AccessibilityFragmentKind::Control, record.path, 0u, 0u, 0u);
     if (! bounds || ! clip)
         return std::nullopt;
@@ -133,7 +133,7 @@ public:
             *failure = UIA_E_ELEMENTNOTAVAILABLE;
         HoldAccessibilityPeerCreationForTest(hwnd);
         if (! target || ! record.HasCurrentRichSemantic() || element == 0u || element >= record.RichSemantic()->Elements().size() ||
-            (codeCopy && (element >= record.controlRichText->copyBounds.size() || ! record.controlRichText->copyBounds[element])))
+            (codeCopy && (element >= record.Text().controlRichText->copyBounds.size() || ! record.Text().controlRichText->copyBounds[element])))
             return result;
         if (failure)
             *failure = E_OUTOFMEMORY;
@@ -228,7 +228,7 @@ public:
         const auto& semantic  = record->RichSemantic()->Elements()[element_];
         const auto role       = semantic.role;
         const bool linkAction = role == RichText::SemanticRole::Link && ! record->RichSemantic()->IsSourceEditingElement(element_) &&
-                                ((! semantic.wiki && semantic.destination.starts_with(L'#')) || record->controlRichText->externalLinkActivationEnabled);
+                                ((! semantic.wiki && semantic.destination.starts_with(L'#')) || record->Text().controlRichText->externalLinkActivationEnabled);
         const bool inlineSource =
             (role == RichText::SemanticRole::Link || role == RichText::SemanticRole::Image) && record->RichSemantic()->SourceEditingRange(element_).has_value();
         if (id == UIA_InvokePatternId && (codeCopy_ || linkAction || record->RichSemantic()->NavigationTarget(element_) ||
@@ -268,7 +268,7 @@ public:
             switch (id)
             {
                 case UIA_ControlTypePropertyId: *result = VariantFromInt(UIA_ButtonControlTypeId); return S_OK;
-                case UIA_NamePropertyId: return SetVariantFromString(result, record->controlRichText->copyName);
+                case UIA_NamePropertyId: return SetVariantFromString(result, record->Text().controlRichText->copyName);
                 case UIA_AcceleratorKeyPropertyId: return SetVariantFromString(result, L"Ctrl+Shift+C");
                 case UIA_IsControlElementPropertyId:
                 case UIA_IsContentElementPropertyId: *result = VariantFromBool(true); return S_OK;
@@ -355,7 +355,7 @@ public:
         size_t target       = RichText::MarkdownNoNode;
         bool targetCopy     = false;
         const auto hasCopy  = [&](size_t owner)
-        { return owner < record->controlRichText->copyBounds.size() && bool(record->controlRichText->copyBounds[owner]); };
+        { return owner < record->Text().controlRichText->copyBounds.size() && bool(record->Text().controlRichText->copyBounds[owner]); };
         if (codeCopy_)
         {
             if (direction == NavigateDirection_Parent)
@@ -404,7 +404,7 @@ public:
                 default: return E_INVALIDARG;
             }
         if (target == RichText::MarkdownNoNode && ! codeCopy_ && direction == NavigateDirection_NextSibling && element.parent == 0u &&
-            ! record->controlRichText->annotations.empty())
+            ! record->Text().controlRichText->annotations.empty())
         {
             auto peer = CreateFirstAnnotation(target_, hwnd_, *record);
             return peer ? peer.query_to(result) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
@@ -520,7 +520,7 @@ public:
             return UIA_E_NOTSUPPORTED;
         if (! record->controlEnabled)
             return UIA_E_ELEMENTNOTENABLED;
-        if (record->controlValueReadOnly && ! record->controlRichText->readOnlyTasksInteractive)
+        if (record->controlValueReadOnly && ! record->Text().controlRichText->readOnlyTasksInteractive)
             return UIA_E_INVALIDOPERATION;
         auto* host   = target_->ResolveHost();
         auto* editor = host ? Detail::RichEditorAccessibilityAccess::As(ResolveIdentifiedControlAtPath(host->GetRoot(), path_, identity_)) : nullptr;
@@ -574,9 +574,9 @@ public:
         const auto* record = Record(snapshot);
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
-        const auto& semantic    = record->RichSemantic()->Elements()[element_];
-        const bool linkAction   = semantic.role == RichText::SemanticRole::Link && ! record->RichSemantic()->IsSourceEditingElement(element_) &&
-                                  ((! semantic.wiki && semantic.destination.starts_with(L'#')) || record->controlRichText->externalLinkActivationEnabled);
+        const auto& semantic  = record->RichSemantic()->Elements()[element_];
+        const bool linkAction = semantic.role == RichText::SemanticRole::Link && ! record->RichSemantic()->IsSourceEditingElement(element_) &&
+                                ((! semantic.wiki && semantic.destination.starts_with(L'#')) || record->Text().controlRichText->externalLinkActivationEnabled);
         const bool inlineSource = (semantic.role == RichText::SemanticRole::Link || semantic.role == RichText::SemanticRole::Image) &&
                                   record->RichSemantic()->SourceEditingRange(element_).has_value();
         if (! codeCopy_ && ! linkAction && ! record->RichSemantic()->NavigationTarget(element_) &&
@@ -870,11 +870,11 @@ private:
     [[nodiscard]] std::optional<D2D1_RECT_F> CopyBounds(const AccessibilitySnapshot& snapshot,
                                                         const AccessibilityControlNavigationSnapshot& record) const noexcept
     {
-        if (element_ >= record.controlRichText->copyBounds.size())
+        if (element_ >= record.Text().controlRichText->copyBounds.size())
             return std::nullopt;
-        auto bounds      = record.controlRichText->copyBounds[element_];
+        auto bounds      = record.Text().controlRichText->copyBounds[element_];
         const auto clip  = FindSnapshotFragmentBounds(snapshot, AccessibilityFragmentKind::Control, record.path, 0u, 0u, 0u);
-        const auto frame = record.controlRichText->bounds[element_];
+        const auto frame = record.Text().controlRichText->bounds[element_];
         if (! bounds || ! clip || ! frame)
             return std::nullopt;
         bounds->left   = std::max({bounds->left, clip->left, frame->left});
@@ -887,8 +887,8 @@ private:
     {
         const auto snapshot = GuardedElementSnapshot(target_, hwnd_, {}, &path_, identity_);
         const auto* record  = snapshot ? FindControlNavigationRecord(*snapshot, path_) : nullptr;
-        return record && Matches(*record) && element_ < record->controlRichText->bounds.size() &&
-                       (! codeCopy_ || (element_ < record->controlRichText->copyBounds.size() && record->controlRichText->copyBounds[element_]))
+        return record && Matches(*record) && element_ < record->Text().controlRichText->bounds.size() &&
+                       (! codeCopy_ || (element_ < record->Text().controlRichText->copyBounds.size() && record->Text().controlRichText->copyBounds[element_]))
                    ? snapshot
                    : nullptr;
     }

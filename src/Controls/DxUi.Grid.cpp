@@ -1460,6 +1460,7 @@ GridSelectionBufferDebugState GridSelectionModel::DebugGetBuffers() const noexce
 
 Grid::Grid()
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::Grid);
     SetFocusable(true);
 }
 
@@ -6311,6 +6312,11 @@ bool Grid::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelD
     _wheelDrawnScrollDip = _verticalScrollDip;
     if (std::fabs(_verticalScrollDip - beforeScrollDip) > kVisibleBoundaryEpsilonDip)
     {
+        // The rows on screen are the Grid's UI Automation rows and cells: its own record and rectangles follow the scroll, marked
+        // as this Grid's scroll (W8.3), so the repaint is a declared one and the next publication, at once, re-reads this one
+        // record and rebuilds the rectangles instead of building the whole window.
+        NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Scroll);
+        const AttestedInvalidation declared(&host);
         Invalidate(host);
     }
     return true;

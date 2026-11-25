@@ -1124,6 +1124,11 @@ SharedText MaterializeSharedText(const RichText::SourceSnapshot& source)
     return MakeSharedText(std::move(text));
 }
 
+const SharedText& SharedTextInputAccess::Text(const TextField& field) noexcept
+{
+    return field._text;
+}
+
 bool SharedTextInputAccess::Shares(const Control& control) noexcept
 {
     if (const auto* field = dynamic_cast<const TextField*>(&control))
@@ -1238,6 +1243,7 @@ bool TextField::KeepsDefaultTextInputState() const noexcept
 }
 TextField::TextField(std::wstring text) : _text(text.empty() ? EmptySharedText() : MakeSharedText(std::move(text)))
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::TextField);
     _caretIndex = _text->size();
     SetFocusable(true);
 }

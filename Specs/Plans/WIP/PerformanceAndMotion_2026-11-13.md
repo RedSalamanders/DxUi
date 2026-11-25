@@ -1567,7 +1567,7 @@ the document at most once per lock. Exit: `G9` met; the `FX6` and `FX7` gates be
     events equal to a full rebuild's (`W0.5`); the 200 px `Splitter` drag adds 1 build and ≤ 1 property event per frame.
   - **Needs**: `W8.1`, `W2.10`. **Size**: L.
 
-- [ ] **W8.3 Build cost.**
+- [x] **W8.3 Build cost.**
   - **Why**: for every unnamed control `FindAssociatedLabelText` walks from the root with a `dynamic_cast` per node
     (`DxUi.Accessibility.cpp:4092-4121`, fall-through `:4184`): 5×10^5 casts per build for 500 unnamed controls in
     1,000 nodes. Cast chains (`:5205-5323`) cost about 45 casts per `Label`. Each text control is copied twice per build

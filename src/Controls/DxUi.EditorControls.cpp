@@ -311,6 +311,7 @@ std::wstring FormatHexColor(uint32_t argb)
 
 Splitter::Splitter()
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::Splitter);
     SetFocusable(true);
 }
 

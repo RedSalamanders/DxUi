@@ -1059,6 +1059,17 @@ void Control::InvalidateHitTest() noexcept
     }
 }
 
+void ControlModelQueryAccess::InvalidateHitTestForScroll(Control& control) noexcept
+{
+    if (ControlHost* const host = control._host)
+    {
+        const uint64_t hitBefore         = host->_hitRevision;
+        const uint64_t interactionBefore = host->_interactionRevision;
+        host->AdvanceHitRevision();
+        NoteAccessibilityScrollMove(control, interactionBefore, hitBefore);
+    }
+}
+
 void Control::RouteAffects(Affects affects) noexcept
 {
     RouteAffectsAt(affects, static_cast<uint8_t>(HitRevisionSite::Assign));

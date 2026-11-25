@@ -2034,6 +2034,219 @@ void TestAccessibilityIncrementalResizeOfEveryBoundsOverride()
     Require(incrementalMissing == 0u, "every bounds override's resize publishes two incremental successors and no whole build");
 }
 
+// W8.3 sweep: every library control class UI Automation tells apart, inside a ScrollPanel (and some inside two nested ones),
+// with a client interested. A resize of the control, a scroll of each panel and a change of the control's value or name each
+// publish what a whole build of the same tree has. The resize and the scrolls publish incrementally, and a scroll re-reads no
+// record and rebuilds no rectangle: it moves its panel's scroll scope (container-relative bounds).
+void TestAccessibilityRecordSweepEveryControl()
+{
+    const SystemListeners nobody(false);
+    static ManyRowsGridModel gridModel;
+    static MutableTreeModel treeModel;
+    if (treeModel.GetVisibleItemCount() == 0u)
+    {
+        std::vector<DxUi::TreeItemData> items;
+        for (uint64_t id = 1u; id <= 40u; ++id)
+            items.push_back(DxUi::TreeItemData{.id = id, .text = std::format(L"Row {}", id)});
+        treeModel.SetVisibleItems(std::move(items));
+    }
+    struct Case
+    {
+        const char* name;
+        std::function<DxUi::Control*(DxUi::Panel&)> make;
+        std::function<void(DxUi::Control&)> change;
+        bool nested = false;
+    };
+    const auto rename = [](DxUi::Control& control) { control.SetAccessibleName(L"Renamed"); };
+    const std::vector<Case> cases{
+        {"Label",
+         [](DxUi::Panel& host) -> DxUi::Control* { return host.AddChild<DxUi::Label>(L"A label"); },
+         [](DxUi::Control& control) { static_cast<DxUi::Label&>(control).SetText(L"Another label"); }},
+        {"Button",
+         [](DxUi::Panel& host) -> DxUi::Control* { return host.AddChild<DxUi::Button>(L"A button"); },
+         [](DxUi::Control& control) { static_cast<DxUi::Button&>(control).SetText(L"Another button"); }},
+        {"Toggle",
+         [](DxUi::Panel& host) -> DxUi::Control* { return host.AddChild<DxUi::Toggle>(L"A toggle"); },
+         [](DxUi::Control& control) { static_cast<DxUi::Toggle&>(control).SetChecked(true); }},
+        {"Checkbox",
+         [](DxUi::Panel& host) -> DxUi::Control* { return host.AddChild<DxUi::Checkbox>(L"A check box"); },
+         [](DxUi::Control& control) { static_cast<DxUi::Checkbox&>(control).SetChecked(true); }},
+        {"RadioButtons",
+         [](DxUi::Panel& host) -> DxUi::Control*
+    {
+        auto* group = host.AddChild<DxUi::RadioButtons>();
+        static_cast<void>(group->AddItem(L"One"));
+        static_cast<void>(group->AddItem(L"Two"));
+        return group;
+    },
+         [](DxUi::Control& control) { static_cast<DxUi::RadioButtons&>(control).SetSelectedIndex(1); }},
+        {"ProgressBar",
+         [](DxUi::Panel& host) -> DxUi::Control* { return host.AddChild<DxUi::ProgressBar>(); },
+         [](DxUi::Control& control) { static_cast<DxUi::ProgressBar&>(control).SetValue(40.0); }},
+        {"PageIndicator",
+         [](DxUi::Panel& host) -> DxUi::Control*
+    {
+        auto* pages = host.AddChild<DxUi::PageIndicator>();
+        pages->SetPageCount(4u);
+        return pages;
+    },
+         [](DxUi::Control& control) { static_cast<DxUi::PageIndicator&>(control).SetSelectedIndex(2u); }},
+        {"ThroughputGraph", [](DxUi::Panel& host) -> DxUi::Control* { return host.AddChild<DxUi::ThroughputGraph>(); }, rename},
+        {"Slider",
+         [](DxUi::Panel& host) -> DxUi::Control* { return host.AddChild<DxUi::Slider>(); },
+         [](DxUi::Control& control) { static_cast<DxUi::Slider&>(control).SetValue(30.0); }},
+        {"TabControl",
+         [](DxUi::Panel& host) -> DxUi::Control*
+    {
+        auto* tabs = host.AddChild<DxUi::TabControl>();
+        static_cast<void>(tabs->AddTab<DxUi::Panel>(L"First"));
+        static_cast<void>(tabs->AddTab<DxUi::Panel>(L"Second"));
+        return tabs;
+    },
+         [](DxUi::Control& control) { static_cast<DxUi::TabControl&>(control).SetSelectedIndex(1u); }},
+        {"ColorSwatch", [](DxUi::Panel& host) -> DxUi::Control* { return host.AddChild<DxUi::ColorSwatch>(0xFF336699u); }, rename},
+        {"RichTextEditor",
+         [](DxUi::Panel& host) -> DxUi::Control* { return host.AddChild<DxUi::RichTextEditor>(L"Rich text long enough to wrap."); },
+         [](DxUi::Control& control) { static_cast<DxUi::RichTextEditor&>(control).SetText(L"Other rich text."); }},
+        {"TextField",
+         [](DxUi::Panel& host) -> DxUi::Control* { return host.AddChild<DxUi::TextField>(L"Field text"); },
+         [](DxUi::Control& control) { static_cast<DxUi::TextField&>(control).SetText(L"Other field text"); }},
+        {"TextField (nested scroll scopes)",
+         [](DxUi::Panel& host) -> DxUi::Control* { return host.AddChild<DxUi::TextField>(L"Nested field"); },
+         [](DxUi::Control& control) { static_cast<DxUi::TextField&>(control).SetText(L"Other nested text"); },
+         true},
+        {"TextField (masked)",
+         [](DxUi::Panel& host) -> DxUi::Control*
+    {
+        auto* field = host.AddChild<DxUi::TextField>(L"secret");
+        field->SetMasked(true);
+        return field;
+    },
+         [](DxUi::Control& control) { static_cast<DxUi::TextField&>(control).SetText(L"another secret"); }},
+        {"TextField (multiline)",
+         [](DxUi::Panel& host) -> DxUi::Control*
+    {
+        auto* field = host.AddChild<DxUi::TextField>(L"A multiline field\nwith lines\nthat wrap");
+        field->SetMultiline(true);
+        return field;
+    },
+         [](DxUi::Control& control) { static_cast<DxUi::TextField&>(control).SetText(L"Other\nlines"); }},
+        {"ComboBox",
+         [](DxUi::Panel& host) -> DxUi::Control*
+    {
+        auto* combo = host.AddChild<DxUi::ComboBox>();
+        combo->SetItems({{L"a", L"Alpha"}, {L"b", L"Beta"}});
+        combo->SetSelectedIndex(0u);
+        return combo;
+    },
+         [](DxUi::Control& control) { static_cast<DxUi::ComboBox&>(control).SetSelectedIndex(1u); }},
+        {"ComboBox (editable)",
+         [](DxUi::Panel& host) -> DxUi::Control*
+    {
+        auto* combo = host.AddChild<DxUi::ComboBox>();
+        combo->SetEditable(true);
+        combo->SetItems({{L"a", L"Alpha"}, {L"b", L"Beta"}});
+        combo->SetText(L"Al");
+        return combo;
+    },
+         [](DxUi::Control& control) { static_cast<DxUi::ComboBox&>(control).SetText(L"Beta"); }},
+        {"Tree",
+         [](DxUi::Panel& host) -> DxUi::Control*
+    {
+        auto* tree = host.AddChild<DxUi::Tree>();
+        tree->SetModel(&treeModel);
+        return tree;
+    },
+         rename},
+        {"Grid",
+         [](DxUi::Panel& host) -> DxUi::Control*
+    {
+        auto* grid = host.AddChild<DxUi::Grid>();
+        grid->SetModel(&gridModel);
+        return grid;
+    },
+         rename},
+        {"Grid (nested scroll scopes)",
+         [](DxUi::Panel& host) -> DxUi::Control*
+    {
+        auto* grid = host.AddChild<DxUi::Grid>();
+        grid->SetModel(&gridModel);
+        return grid;
+    },
+         rename,
+         true},
+        {"Splitter",
+         [](DxUi::Panel& host) -> DxUi::Control*
+    {
+        auto* splitter = host.AddChild<DxUi::Splitter>();
+        splitter->SetPosition(120.0f);
+        return splitter;
+    },
+         [](DxUi::Control& control) { static_cast<DxUi::Splitter&>(control).SetPosition(160.0f); }},
+    };
+    size_t differing = 0u, incrementalMissing = 0u, scrollsThatReread = 0u;
+    for (const Case& test : cases)
+    {
+        auto root   = std::make_unique<DxUi::Panel>();
+        auto* outer = root->AddChild<DxUi::ScrollPanel>();
+        outer->SetBounds(D2D1::RectF(8.0f, 8.0f, 640.0f, 440.0f));
+        DxUi::Panel* host        = outer;
+        DxUi::ScrollPanel* inner = nullptr;
+        if (test.nested)
+        {
+            inner = outer->AddChild<DxUi::ScrollPanel>();
+            inner->SetBounds(D2D1::RectF(8.0f, 40.0f, 600.0f, 400.0f));
+            host = inner;
+        }
+        host->AddChild<DxUi::Button>(L"Above")->SetBounds(D2D1::RectF(8.0f, 8.0f, 108.0f, 36.0f));
+        DxUi::Control* const control = test.make(*host);
+        control->SetBounds(D2D1::RectF(8.0f, 60.0f, 400.0f, 260.0f));
+        host->AddChild<DxUi::Label>(L"Below")->SetBounds(D2D1::RectF(8.0f, 900.0f, 108.0f, 928.0f));
+        if (inner)
+            inner->SetContentHeight(1200.0f);
+        outer->SetContentHeight(2000.0f);
+        InterestedWindow interested(std::move(root));
+        const VerifiedPublications verified;
+        const uint64_t built = Builds();
+        control->SetBounds(D2D1::RectF(8.0f, 60.0f, 160.0f, 120.0f));
+        interested.Window().PumpMessages();
+        control->SetBounds(D2D1::RectF(8.0f, 60.0f, 420.0f, 280.0f));
+        interested.Window().PumpMessages();
+        const uint64_t resizeBuilds = Builds() - built;
+        const DxUi::Detail::WorkCounterScope scrolls;
+        outer->SetScrollOffset(100.0f);
+        interested.Window().PumpMessages();
+        if (inner)
+        {
+            inner->SetScrollOffset(60.0f);
+            interested.Window().PumpMessages();
+        }
+        outer->SetScrollOffset(0.0f);
+        interested.Window().PumpMessages();
+        const auto scrolled         = scrolls.Delta().accessibility;
+        const uint64_t scrollBuilds = Builds() - built - resizeBuilds;
+        test.change(*control);
+        interested.Window().PumpMessages();
+        const uint64_t verifiedCount = DxUi::DebugGetAccessibilityIncrementalVerificationCountForTest();
+        const uint64_t mismatches    = DxUi::DebugGetAccessibilityIncrementalMismatchCountForTest();
+        std::cerr << "    [W8.3] " << test.name << ": resize, scroll and change verified " << verifiedCount << ", differences " << mismatches
+                  << "; whole builds: resize " << resizeBuilds << ", scroll " << scrollBuilds << "; scroll records re-read " << scrolled.recordsCloned
+                  << ", rectangle rebuilds " << scrolled.pointHitRebuilds << ", scroll scope updates " << scrolled.scrollScopeUpdates << '\n';
+        if (resizeBuilds != 0u || scrollBuilds != 0u || verifiedCount < (inner ? 5u : 4u) || scrolled.scrollScopeUpdates < (inner ? 3u : 2u))
+            ++incrementalMissing;
+        if (scrolled.recordsCloned != 0u || scrolled.pointHitRebuilds != 0u)
+            ++scrollsThatReread;
+        if (mismatches != 0u)
+        {
+            ++differing;
+            std::wcerr << L"      first difference: " << DxUi::DebugGetAccessibilityFirstIncrementalMismatchForTest() << L'\n';
+        }
+    }
+    Require(differing == 0u, "every control's resize, scroll and change publish what a whole build has");
+    Require(incrementalMissing == 0u, "every control's resize and every scroll publish incrementally");
+    Require(scrollsThatReread == 0u, "a scroll moves its scroll scope: no record re-read and no rectangle rebuilt");
+}
+
 // A PageIndicator that gains pages becomes an element (review probe): the publication equals a whole build.
 void TestAccessibilityIncrementalPageIndicatorBecomesPaged()
 {
@@ -2054,7 +2267,11 @@ void TestAccessibilityIncrementalPageIndicatorBecomesPaged()
 // Native coalescing of geometry-only publications (W8.2 reviews F3c, B2), on a window shown without activation: a second
 // move within 100 ms is deferred and published once the layout settles, with nothing left waking; a client's query
 // publishes a deferred move at once; a host hidden with a deferral pending publishes it at its next wake and holds no
-// wake; a hidden window never defers.
+// wake; a hidden window never defers. The host's animation clock is held still, 10 minutes ahead of the dispatcher's, so
+// the 100 ms interval and the settle are the test's to advance: a loaded machine slowing the test thread cannot let the
+// deferral's wake come due on its own (it did, under load, before the clock was the test's), and the dispatcher's own
+// timer, 10 minutes away, never fires during the test. Each case's checks are made after its window is destroyed: a
+// failed check exits the process, and one made while a host lives fails the process's failure host as it shuts down.
 void TestAccessibilityIncrementalNativeGeometryCoalescing()
 {
     const SystemListeners nobody(false);
@@ -2082,48 +2299,66 @@ void TestAccessibilityIncrementalNativeGeometryCoalescing()
         Query,
         Hide,
     };
+    // A wake past both the settle and the interval of a deferral made at the held time.
+    constexpr uint64_t kPastDue = 1'000u;
     for (const Then then : {Then::Settle, Then::Query, Then::Hide})
     {
-        auto [root, field] = build();
-        InterestedWindow interested(std::move(root));
-        AttachedHostWindow& window = interested.Window();
-        ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
-        window.PumpMessages();
-        const VerifiedPublications verified;
-        const DxUi::Detail::WorkCounterScope work;
-        field->SetBounds(D2D1::RectF(8.0f, 80.0f, 240.0f, 108.0f));
-        window.PumpMessages();
-        const uint64_t afterFirst = Publications();
-        field->SetBounds(D2D1::RectF(8.0f, 120.0f, 240.0f, 148.0f));
-        window.PumpMessages();
-        const uint64_t deferred = work.Delta().accessibility.geometryPublicationsDeferred;
-        const bool waiting      = Publications() == afterFirst;
-        if (then == Then::Query)
+        uint64_t deferred = 0u, mismatches = 0u;
+        bool waiting = false, queried = true, queryPublished = true, published = false, quiet = false;
         {
-            wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> owner;
-            owner.attach(window.Host().DebugCreateAccessibilityProvider());
-            wil::com_ptr_nothrow<IRawElementProviderFragment> fragment, first;
-            Require(owner && SUCCEEDED(owner.query_to(fragment.put())) && SUCCEEDED(fragment->Navigate(NavigateDirection_FirstChild, first.put())),
-                    "a client queries the window");
-            Require(Publications() > afterFirst, "a client's query publishes the deferred move at once");
+            auto [root, field] = build();
+            InterestedWindow interested(std::move(root));
+            AttachedHostWindow& window = interested.Window();
+            ShowWindow(window.Hwnd(), SW_SHOWNOACTIVATE);
+            window.PumpMessages();
+            DxUi::WindowHost& host  = window.Host();
+            const uint64_t held     = GetTickCount64() + 600'000u;
+            const auto restoreClock = wil::scope_exit([&] { host.DebugSetAnimationClockForTest(std::nullopt); });
+            host.DebugSetAnimationClockForTest(held);
+            const VerifiedPublications verified;
+            const DxUi::Detail::WorkCounterScope work;
+            field->SetBounds(D2D1::RectF(8.0f, 80.0f, 240.0f, 108.0f));
+            window.PumpMessages();
+            const uint64_t afterFirst = Publications();
+            field->SetBounds(D2D1::RectF(8.0f, 120.0f, 240.0f, 148.0f));
+            window.PumpMessages();
+            // Read before anything advances the clock: the move waits, and the schedule holds the deferral's wake.
+            deferred = work.Delta().accessibility.geometryPublicationsDeferred;
+            waiting  = Publications() == afterFirst && host.DebugGetFrameScheduleWakeForTest().kind != 0u;
+            if (then == Then::Query)
+            {
+                wil::com_ptr_nothrow<IRawElementProviderFragmentRoot> owner;
+                owner.attach(host.DebugCreateAccessibilityProvider());
+                wil::com_ptr_nothrow<IRawElementProviderFragment> fragment, first;
+                queried        = owner && SUCCEEDED(owner.query_to(fragment.put())) && SUCCEEDED(fragment->Navigate(NavigateDirection_FirstChild, first.put()));
+                queryPublished = Publications() > afterFirst; // At once: the clock has not moved.
+            }
+            else if (then == Then::Hide)
+                ShowWindow(window.Hwnd(), SW_HIDE);
+            // The deferral's wake, past its due time: it publishes a settled layout, and after a query or a hide finds nothing
+            // left to do and leaves.
+            host.DebugSetAnimationClockForTest(held + kPastDue);
+            static_cast<void>(host.DebugAnimationTickForTest(held + kPastDue));
+            published  = pumpUntil(window, [&] { return Publications() > afterFirst; });
+            quiet      = pumpUntil(window, [&] { return host.DebugGetFrameScheduleWakeForTest().kind == 0u && ! host.DebugHasActiveAnimationSubscription(); });
+            mismatches = DxUi::DebugGetAccessibilityIncrementalMismatchCountForTest();
+            if (mismatches != 0u)
+                std::wcerr << L"    [W8.2] first difference from a whole build: " << DxUi::DebugGetAccessibilityFirstIncrementalMismatchForTest() << L'\n';
         }
-        else if (then == Then::Hide)
-            ShowWindow(window.Hwnd(), SW_HIDE);
-        const bool published = pumpUntil(window, [&] { return Publications() > afterFirst; });
-        // A query that published early leaves the dispatcher's entry for the deferral's wake, which then finds nothing to do and
-        // leaves it.
-        const bool quiet = pumpUntil(
-            window, [&] { return window.Host().DebugGetFrameScheduleWakeForTest().kind == 0u && ! window.Host().DebugHasActiveAnimationSubscription(); });
         std::cerr << "    [W8.2] native coalescing ("
                   << (then == Then::Settle  ? "settle"
                       : then == Then::Query ? "query"
                                             : "hide")
                   << "): deferred " << deferred << ", waiting " << waiting << ", published " << published << ", schedule quiet " << quiet << '\n';
         Require(deferred >= 1u && waiting, "a second move within 100 ms on a shown window is deferred");
+        Require(queried, "a client queries the window");
+        Require(queryPublished, "a client's query publishes the deferred move at once");
         Require(published, "the deferred move is published");
         Require(quiet, "nothing keeps the host's schedule awake afterwards");
-        verified.RequireNoDifference("the coalesced publication equals a whole build");
+        Require(mismatches == 0u, "the coalesced publication equals a whole build");
     }
+    uint64_t hiddenDeferred = 0u, hiddenPublications = 0u;
+    bool hiddenQuiet = false;
     {
         auto [root, field] = build();
         InterestedWindow interested(std::move(root));
@@ -2134,12 +2369,14 @@ void TestAccessibilityIncrementalNativeGeometryCoalescing()
         window.PumpMessages();
         field->SetBounds(D2D1::RectF(8.0f, 120.0f, 240.0f, 148.0f));
         window.PumpMessages();
-        Require(work.Delta().accessibility.geometryPublicationsDeferred == 0u && Publications() == before + 2u,
-                "a hidden window publishes every move at once: it presents no frame that could publish a deferral");
-        Require(window.Host().DebugGetFrameScheduleWakeForTest().kind == 0u, "and holds no wake");
+        hiddenDeferred     = work.Delta().accessibility.geometryPublicationsDeferred;
+        hiddenPublications = Publications() - before;
+        hiddenQuiet        = window.Host().DebugGetFrameScheduleWakeForTest().kind == 0u;
     }
+    Require(hiddenDeferred == 0u && hiddenPublications == 2u,
+            "a hidden window publishes every move at once: it presents no frame that could publish a deferral");
+    Require(hiddenQuiet, "and holds no wake");
 }
-
 namespace
 {
 // A control that animates every frame and repaints, so its host is paced (W3.6) while it holds the request.

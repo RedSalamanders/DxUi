@@ -2081,6 +2081,9 @@ private:
     // reach. Both bytes sit in the padding after the one-byte role, so sizeof(Control) does not grow.
     uint8_t _paintKind          = 0u;
     mutable uint8_t _paintFlags = 0u;
+    // Library-internal (ControlModelQueryAccess): the library control class this object is or derives from, set by that
+    // class's constructor, which UI Automation reads in place of type tests. Fills padding: the object does not grow.
+    uint8_t _accessibilityKind = 0u;
     std::shared_ptr<const std::function<HRESULT(ControlHost&)>> _onAccessibleInvoke;
     std::shared_ptr<const std::function<void(POINT screenPoint, bool keyboardInvocation)>> _onContextMenu;
     std::shared_ptr<int> _lifetimeToken = std::make_shared<int>(0);
@@ -2129,6 +2132,42 @@ private:
 {
     return control.Measure(context, constraints, result);
 }
+
+namespace Detail
+{
+// Library-internal, not API: the library control class an object is or derives from (Control::_accessibilityKind), which UI
+// Automation reads in place of type tests. A class's family is contiguous: Button covers Button to RadioButton, Toggle covers
+// Toggle and Checkbox. Other means no class UI Automation tells apart.
+enum class AccessibilityControlKind : uint8_t
+{
+    Other,
+    Label,
+    Button,
+    Toggle,
+    Checkbox,
+    RadioButton,
+    RadioButtons,
+    ProgressBar,
+    PageIndicator,
+    ThroughputGraph,
+    Slider,
+    TabControl,
+    ColorSwatch,
+    RichTextEditor,
+    TextField,
+    ComboBox,
+    ScrollPanel,
+    Tree,
+    Grid,
+    Splitter,
+};
+// A storage-free member of a library control class whose constructor is defaulted or defined elsewhere, which records that
+// class's kind when the object is built (after its bases, so a derived class's kind wins).
+struct AccessibilityKindTag final
+{
+    AccessibilityKindTag(Control& owner, AccessibilityControlKind kind) noexcept;
+};
+} // namespace Detail
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
 // Preserve aggregate and overload behavior. Owner: DxUi maintainers; review: 2027-01-31.
@@ -2760,6 +2799,7 @@ private:
     std::shared_ptr<const std::function<void(int)>> _onSelectionChanged;
     std::wstring _header;
     int _selectedIndex = -1;
+    [[msvc::no_unique_address]] Detail::AccessibilityKindTag _accessibilityKindTag{*this, Detail::AccessibilityControlKind::RadioButtons};
 };
 #pragma warning(pop)
 
@@ -2810,6 +2850,7 @@ private:
     float _trackHeightDip               = 0.0f;
     mutable float _animationPhase       = 0.0f;
     uint64_t _lastTickMs                = 0;
+    [[msvc::no_unique_address]] Detail::AccessibilityKindTag _accessibilityKindTag{*this, Detail::AccessibilityControlKind::ProgressBar};
 };
 #pragma warning(pop)
 
@@ -2994,6 +3035,7 @@ private:
     mutable bool _lastReducedMotion             = false;
     mutable bool _lastHighContrast              = false;
     mutable ThroughputGraphBandPaintMetrics _lastBandPaintMetrics{};
+    [[msvc::no_unique_address]] Detail::AccessibilityKindTag _accessibilityKindTag{*this, Detail::AccessibilityControlKind::ThroughputGraph};
 };
 #pragma warning(pop)
 
@@ -4069,6 +4111,7 @@ private:
     void RetireSemanticAccessibility() const noexcept;
     struct State;
     std::unique_ptr<State> _state;
+    [[msvc::no_unique_address]] Detail::AccessibilityKindTag _accessibilityKindTag{*this, Detail::AccessibilityControlKind::RichTextEditor};
     [[nodiscard]] D2D1_RECT_F TextViewport() const noexcept;
     [[nodiscard]] bool LayoutIsCurrent(const ControlHost& host) const noexcept;
     [[nodiscard]] RichText::SourceResult TryBuildCurrentMarkdownCommand(const RichText::MarkdownCommandRequest& request,
@@ -5281,6 +5324,7 @@ private:
     void UpdateInnerHover(ControlHost& host, D2D1_POINT_2F viewportPoint);
 
     std::shared_ptr<const std::function<void(float)>> _onScrollChanged;
+    [[msvc::no_unique_address]] Detail::AccessibilityKindTag _accessibilityKindTag{*this, Detail::AccessibilityControlKind::ScrollPanel};
 };
 #pragma warning(pop)
 

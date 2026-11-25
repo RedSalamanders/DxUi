@@ -12140,6 +12140,7 @@ void RunAccessibilityTests()
     DXUI_RUN_TEST(TestAccessibilityIncrementalMarksWithoutClientStayCurrent);
     DXUI_RUN_TEST(TestAccessibilityIncrementalSplitterResizeRange);
     DXUI_RUN_TEST(TestAccessibilityIncrementalResizeOfEveryBoundsOverride);
+    DXUI_RUN_TEST(TestAccessibilityRecordSweepEveryControl);
     DXUI_RUN_TEST(TestAccessibilityIncrementalPageIndicatorBecomesPaged);
     DXUI_RUN_TEST(TestAccessibilityIncrementalNativeGeometryCoalescing);
     DXUI_RUN_TEST(TestAccessibilityIncrementalGeometryOnAPacedHost);

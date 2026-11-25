@@ -816,7 +816,8 @@ What a change marks for the next publication of its host (owner thread):
 | Name | `Control::Assign` with `SemanticName` (accessible name, help text, automation id, a label's text, a button's text) | Re-reads that control's record, and a label's mnemonic target's |
 | Value | `SemanticValue` (a slider's, progress bar's or splitter's value and range, a field's text) and the library's own value paths (`Slider` steps, a `Splitter` preview, `TextField::SetText`) | Re-reads that control's record |
 | Focus | `ControlHost::SetFocusControl` moving the keyboard focus | Re-reads the records that lost and gained focus, and the focused element |
-| Geometry | `Control::SetBounds`, every library hit-test change of a control (`Affects::Hit`, a scroll offset, a splitter's separator) and a painted assignment that declares no semantic aspect | Re-reads the records in the control's subtree whose content follows bounds through the library's geometry (text-capable controls, rich text, grids, trees and a field's reveal button: selection rectangles, visible ranges and rows), the marked tab control's own record (its header offset follows its width), and rebuilds every bounding rectangle once |
+| Geometry | `Control::SetBounds`, every library hit-test change of a control (`Affects::Hit`, a splitter's separator) and a painted assignment that declares no semantic aspect | Re-reads the records in the control's subtree whose content follows bounds through the library's geometry (text-capable controls, rich text, grids, trees and a field's reveal button: selection rectangles, visible ranges and rows), the marked tab control's own record (its header offset follows its width), and rebuilds every bounding rectangle and scroll scope once |
+| Scroll | A `ScrollPanel`'s scroll offset, a `Grid`'s or `Tree`'s wheel scroll (`W8.3`) | For a `ScrollPanel` that is a scroll scope of the published generation: recomputes the scroll scopes' translations and clips, re-reads no record and shares every rectangle. On any other control, or together with a geometry mark, it is that control's geometry (a `Grid`'s or `Tree`'s record, whose rows follow its scroll, and every rectangle). Never coalesced: published at the next flush or update |
 
 What a resize changes in a library control reaches the snapshot through a re-read record of that list, through the
 children the control lays out with `SetBounds`, or through a mark the control makes itself: a `Splitter`'s range follows its
@@ -939,6 +940,48 @@ heard and unheard changes keeps the baseline, and the drain raises both, the unh
 A composition previewed in a field publishes the previewed text: the composition string is part of the field's document
 and value while it is composed, as in a Windows edit control, and the active composition range reads its span of that
 text; the commit publishes the committed text (`TestCompositionPreviewPublishesThePreviewText`).
+
+#### Record build cost
+
+What a build reads per control is bounded by that control (performance plan `W8.3`):
+
+- Labels. The walk that counts a build's records also indexes every `Label` with a mnemonic target, by target, in tree order,
+  over the controls the label lookup always searched: every control from the root to 16 levels below it, hidden ones
+  included. A record's name reads the first such label with text from that index; no build walks the tree per control. A
+  successor uses the index of the generation it shares its structure with: a label's new target is a whole-window change, and
+  a label's text change re-reads its target's record, which reads the label's current text.
+- Control types. Each library control class records its kind when it is constructed (a class derived outside the library
+  carries the kind of the library class it derives from), and UI Automation tests that kind where it used `dynamic_cast`.
+- Text. A record publishes a text control's own immutable buffer (the shared text of the IME copies item, `W8.5`): a
+  `TextField`'s and an editable `ComboBox`'s value and TextPattern text, and the focused control's native text-input cache,
+  are borrowed, never copied. Only a `RichTextEditor`'s source, which lives in its piece tree, is flattened into a copy.
+- Record parts. A record is a hot core (identity, path, names, states and flags) plus a part for each kind of content its
+  control has: text and selection, range values, a grid's rows and cells, a tree's rows, a tab control's tabs. A label, a
+  button or a check box carries no part. Parts are written only while their record is built and shared with it afterwards.
+- Container-relative bounds. A fragment's rectangle is kept in the content coordinates of its scroll scope, the content of
+  the nearest `ScrollPanel` around it (scope 0 is the window), as its control reports it. Each scope holds the translation from
+  its content to the window and the clip of every viewport around it, as the build met them. A client's bounding rectangle,
+  hit test and offscreen state resolve the rectangle through its scope when they are read; a scope scrolled or clipped out of
+  view resolves to none, exactly as the build left such a rectangle out before. A scroll marks its panel's scroll (see the
+  table above): the next publication recomputes the scopes from the panels' current offsets and viewports and shares every
+  record and rectangle. A scroll is published at once, never held by the coalescing of geometry-only publications: it costs
+  the scope table alone, and a `Grid`'s or `Tree`'s wheel scroll one record and the rectangles.
+- Paths. A successor reaches each control it re-reads down that record's path by child index, as a whole build reaches
+  it, and finds a marked control that holds a record by its address in the previous generation, then down its path; only a
+  marked control without a record (a plain panel) is found by searching upward. It reads the depth of each control it
+  resolves, not its siblings, so an incremental publication never reads more of the tree than a whole build of it
+  (`accessibility.pathChildReads`): on `FX12`'s form shape a layout moving every control reads 831 children at 2,000
+  controls and 4,031 at 10,000, where the upward search before it read 430,911 and 10,154,911.
+
+The verification of every incremental publication compares the record parts, the label index, the scopes and every
+rectangle both as stored and as resolved. On `FX12`'s 10,000-control form with one client a build makes no label walk, no
+`dynamic_cast` and no text copy (work counters `accessibility.labelLookupWalks`, `dynamicCasts`, `textCopies`), where the reads
+before `W8.3` (`DebugSetAccessibilityLegacyRecordReadsForTest`) make 6,000 walks of the 10,000 controls, about 6 x 10^7 casts
+and 4,000 copies; a wheel notch over the form publishes with no whole build and re-reads no record
+(`accessibility.scrollScopeUpdates`). `FX3`'s 100 wheel notches over its `Grid` publish incrementally, re-reading the grid's
+record alone (`TestFx3WheelBuildCost`, `TestFx12FormBuildCost`, `TestLayoutSuccessorPathReads`, `TestAccessibilityRecordSweepEveryControl`;
+[receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W8.3/README.md)). A window host still builds the whole window
+after a handled wheel message.
 
 Buttons with acknowledged disclosure state expose ExpandCollapse, consistent state properties and
 state-change notifications. Expand/Collapse requests are idempotent against current acknowledged state,

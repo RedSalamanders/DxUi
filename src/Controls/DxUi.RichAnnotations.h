@@ -48,7 +48,7 @@ public:
         const Failure::Scope outerFailureScope;
         wil::com_ptr_nothrow<IRawElementProviderSimple> result;
         HoldAccessibilityPeerCreationForTest(hwnd);
-        if (! target || ! record.HasCurrentRichSemantic() || index >= record.controlRichText->annotations.size())
+        if (! target || ! record.HasCurrentRichSemantic() || index >= record.Text().controlRichText->annotations.size())
             return result;
         result.attach(new (std::nothrow) RichAnnotationProvider(target, hwnd, record, index));
         if (result && ! static_cast<RichAnnotationProvider*>(result.get())->CaptureSnapshot())
@@ -129,7 +129,7 @@ public:
         const auto* record  = Record(snapshot);
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
-        const auto& annotation = record->controlRichText->annotations[index_];
+        const auto& annotation = record->Text().controlRichText->annotations[index_];
         switch (id)
         {
             case UIA_ControlTypePropertyId: *result = VariantFromInt(UIA_TextControlTypeId); break;
@@ -163,7 +163,7 @@ public:
         wil::com_ptr_nothrow<IRawElementProviderSimple> peer;
         if (direction == NavigateDirection_Parent)
             peer = CreateControlElement(target_.get(), hwnd_, path_, identity_);
-        else if (direction == NavigateDirection_NextSibling && index_ + 1u < record->controlRichText->annotations.size())
+        else if (direction == NavigateDirection_NextSibling && index_ + 1u < record->Text().controlRichText->annotations.size())
             peer = Create(target_.get(), hwnd_, *record, index_ + 1u);
         else if (direction == NavigateDirection_PreviousSibling)
         {
@@ -276,7 +276,7 @@ public:
         const auto* record  = Record(snapshot);
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
-        *result = AnnotationType(record->controlRichText->annotations[index_].kind);
+        *result = AnnotationType(record->Text().controlRichText->annotations[index_].kind);
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE get_AnnotationTypeName(BSTR* result) noexcept override
@@ -289,7 +289,7 @@ public:
         const auto* record  = Record(snapshot);
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
-        const auto text = AnnotationName(*record, record->controlRichText->annotations[index_].kind);
+        const auto text = AnnotationName(*record, record->Text().controlRichText->annotations[index_].kind);
         *result         = SysAllocStringLen(text.data(), static_cast<UINT>(text.size()));
         return *result ? S_OK : E_OUTOFMEMORY;
     }
@@ -320,11 +320,11 @@ public:
         const auto document = document_.lock();
         return record.HasCurrentRichSemantic() && document && document == record.RichSemantic() && revision_ == record.RichSemanticRevision() &&
                SameControlIdentity(identity_, CaptureControlIdentity(record)) && AreControlPathsEqual(path_, record.path) &&
-               index_ < record.controlRichText->annotations.size();
+               index_ < record.Text().controlRichText->annotations.size();
     }
     [[nodiscard]] RichText::MarkdownRange Source(const AccessibilityControlNavigationSnapshot& record) const noexcept
     {
-        return record.controlRichText->annotations[index_].source;
+        return record.Text().controlRichText->annotations[index_].source;
     }
     [[nodiscard]] bool BelongsTo(WindowHostAccessibilityTarget* target, HWND hwnd, const AccessibilityControlNavigationSnapshot& record) const noexcept
     {
@@ -354,7 +354,7 @@ private:
     }
     std::optional<D2D1_RECT_F> Bounds(const AccessibilitySnapshot& snapshot, const AccessibilityControlNavigationSnapshot& record) const noexcept
     {
-        auto bounds     = record.controlRichText->annotations[index_].bounds;
+        auto bounds     = record.Text().controlRichText->annotations[index_].bounds;
         const auto clip = FindSnapshotFragmentBounds(snapshot, AccessibilityFragmentKind::Control, path_, 0u, 0u, 0u);
         if (! bounds || ! clip)
             return std::nullopt;
@@ -383,7 +383,7 @@ wil::com_ptr_nothrow<IRawElementProviderSimple> CreateFirstAnnotation(WindowHost
 {
     if (range.start == range.end)
         return false;
-    for (const auto& annotation : record.controlRichText->annotations)
+    for (const auto& annotation : record.Text().controlRichText->annotations)
         if (annotation.source.first < range.end && annotation.source.last > range.start &&
             (annotation.source.first > range.start || annotation.source.last < range.end))
             return true;
@@ -391,7 +391,7 @@ wil::com_ptr_nothrow<IRawElementProviderSimple> CreateFirstAnnotation(WindowHost
 }
 unsigned AnnotationMaskAt(const AccessibilityControlNavigationSnapshot& record, size_t position) noexcept
 {
-    const auto& runs = record.controlRichText->annotationTypes;
+    const auto& runs = record.Text().controlRichText->annotationTypes;
     const auto found = std::lower_bound(runs.begin(), runs.end(), position, [](const auto& run, auto offset) { return run.source.last <= offset; });
     return found == runs.end() ? 0u : found->mask;
 }
@@ -425,7 +425,7 @@ HRESULT AnnotationAttribute(WindowHostAccessibilityTarget* target,
     {
         count           = AnnotationTypesAt(record, range.start, types);
         const auto mask = AnnotationMaskAt(record, range.start);
-        for (const auto& run : record.controlRichText->annotationTypes)
+        for (const auto& run : record.Text().controlRichText->annotationTypes)
             if (run.source.first < range.end && run.source.last > range.start && run.mask != mask)
             {
                 result->vt = VT_UNKNOWN;
@@ -437,7 +437,7 @@ HRESULT AnnotationAttribute(WindowHostAccessibilityTarget* target,
     }
     std::array<wil::com_ptr_nothrow<IRawElementProviderSimple>, 256u> owners{};
     std::array<IRawElementProviderSimple*, 256u> raw{};
-    const auto& annotations = record.controlRichText->annotations;
+    const auto& annotations = record.Text().controlRichText->annotations;
     for (size_t index = 0u; index < annotations.size(); ++index)
         if (annotations[index].source.first <= range.start && range.start < annotations[index].source.last)
         {

@@ -99,6 +99,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.MathPaintAllocations.h"
 #include "Embedded.Tests.PointerHit.h"
 // After the performance fixtures: the W2.1 gate drives FX5.
+#include "Embedded.Tests.AccessibilityBuildCost.h"
 #include "Embedded.Tests.IncrementalPublication.h"
 #include "Embedded.Tests.PaintRegions.h"
 #include "Embedded.Tests.RetainedTextLayouts.h"
@@ -1906,6 +1907,12 @@ __declspec(noinline) static int RunFunctionalTests()
         IncrementalPublication::Run();
         return 0;
     }
+    // The UI Automation build cost gate alone (W8.3); the Embedded suite also runs it.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-accessibility-build-cost")
+    {
+        AccessibilityBuildCost::Run();
+        return 0;
+    }
     // The publication cost of a layout that moves every control (W8.2), at 2,000 and 10,000 controls; Release for its figures.
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--measure-incremental-publication")
     {
@@ -2499,6 +2506,7 @@ __declspec(noinline) static int RunFunctionalTests()
     RichTextInputCopies::RunBehaviour(gpu);
     AccessibilityTextProvider::Run();
     IncrementalPublication::Run();
+    AccessibilityBuildCost::Run();
     TestRichFlatProjectionFailureAtomicity();
     TestRichProjectionPreparationAllocationFailureAtomicity();
     TestRichProjectionRetainedStorageBudget();

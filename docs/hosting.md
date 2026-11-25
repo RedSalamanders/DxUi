@@ -386,7 +386,11 @@ bounds (or defers once more if the layout moved again). Whatever that update doe
 stays due with nothing to publish. A window host does this itself through its frame schedule. Structure, state and
 model changes, and changes the host cannot account for (a hover or animation of another control between publications),
 still rebuild the whole window. The [input and accessibility contract](../Specs/UI/UI_InputAndAccessibility.md#incremental-publication)
-lists what each change republishes.
+lists what each change republishes. Bounding rectangles are kept relative to the `ScrollPanel` around them, so scrolling a
+panel (by wheel, scrollbar or `SetScrollOffset`) republishes no record and no rectangle, and a `Grid` or `Tree` wheel scroll
+re-reads that control's record alone. A whole build reads each control once: labels come from an index built while the
+tree is counted, and a field's text is shared with the field, not copied
+([record build cost](../Specs/UI/UI_InputAndAccessibility.md#record-build-cost)).
 
 Without a requested provider or UIA listener, native mutations retain dirty state without walking focus paths or
 posting new publication work. The next owner-thread provider query sees the latest state, and a flush already

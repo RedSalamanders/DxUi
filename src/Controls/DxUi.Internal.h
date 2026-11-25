@@ -126,6 +126,19 @@ struct ControlModelQueryAccess
     {
         return group._header;
     }
+    // The library control class `control` is or derives from (W8.3), as its constructor recorded it.
+    [[nodiscard]] static Detail::AccessibilityControlKind AccessibilityKind(const Control& control) noexcept
+    {
+        return static_cast<Detail::AccessibilityControlKind>(control._accessibilityKind);
+    }
+    // Called by a library control class's constructor, after its bases': the most derived library class wins.
+    static void SetAccessibilityKind(Control& control, Detail::AccessibilityControlKind kind) noexcept
+    {
+        control._accessibilityKind = static_cast<uint8_t>(kind);
+    }
+    // Control::InvalidateHitTest for a scroll offset that moved (HitRevisionSite::ScrollOffset): the hit revision moves, and UI
+    // Automation is told of a scroll (NoteAccessibilityScrollMove) rather than of a geometry change.
+    static void InvalidateHitTestForScroll(Control& control) noexcept;
     // The repaint of a model owner's geometry change, declared to UI Automation as the marked geometry move it is (W8.2).
     static void DeclaredGeometryInvalidate(const Control& owner) noexcept;
     template <typename Owner> [[nodiscard]] static auto InvalidateGeometry(Owner& owner) noexcept
@@ -882,6 +895,10 @@ struct SharedTextInputAccess
     static void Materialize(const Control* control, SharedTextInputState& state);
     // Whether the live control shows exactly `text`. Compares in place; a control holding that buffer answers without reading.
     [[nodiscard]] static bool ShowsText(const Control& control, const SharedText& text) noexcept;
+    // The control's own buffer, what its GetText reads (an editable ComboBox's), shared without a copy: a UI Automation record
+    // borrows it (W8.3). Never null.
+    [[nodiscard]] static const SharedText& Text(const TextField& field) noexcept;
+    [[nodiscard]] static const SharedText& Text(const ComboBox& comboBox) noexcept;
     // Test observation: the RichTextEditor's retained text-input copy (null when it holds none) and the revision it copies.
     [[nodiscard]] static SharedText RetainedRichTextInputCopy(const Control& control, std::optional<RichText::SourceSnapshot>* source = nullptr) noexcept;
     // May throw what the control's import and its notifications throw.
@@ -1157,10 +1174,13 @@ inline thread_local constinit HitRevisionSite g_suppressedHitRevisionSiteForTest
 inline void NoteHitTestChange(Control& control, HitRevisionSite site) noexcept
 
 {
-    if (HitRevisionSiteLive(site))
-
+    if (! HitRevisionSiteLive(site))
+        return;
+    // A scroll offset moves content under its viewport and nothing in it (W8.3): UI Automation moves that scroll scope alone.
+    if (site == HitRevisionSite::ScrollOffset)
+        ControlModelQueryAccess::InvalidateHitTestForScroll(control);
+    else
         control.InvalidateHitTest();
-
 } // Control::Assign's equality (AssignEquality::Same) for the public value types the library's setters store that have no
 // operator==: every member, so that an unchanged value routes nothing and a changed one is stored. One inline definition
 // here, found by argument-dependent lookup wherever the library instantiates Same for these types.
@@ -1269,13 +1289,17 @@ struct AccessibilityRaisedEventForTest final
 using AccessibilityEventRecorderForTest = void (*)(const AccessibilityRaisedEventForTest& event, void* context) noexcept;
 // Incremental publication (W8.2; UI_InputAndAccessibility.md, "Incremental publication"). What a precise change asks of the
 // next publication of its control's record: its name or value (the record alone, and a label's mnemonic target), its keyboard
-// focus (the record and the focused element), or its geometry (the records of its subtree and every bounding rectangle).
+// focus (the record and the focused element), or its geometry (the records of its subtree and every bounding rectangle). A
+// scroll (W8.3) is a control's content moving under its viewport: for a ScrollPanel nothing in its content changed, so the
+// publication moves that scroll scope and shares every record and rectangle; for a Grid or Tree it counts as geometry of that
+// control. A scroll is published at once, never coalesced with geometry.
 enum class AccessibilityRecordAspect : uint8_t
 {
     Name     = 1u,
     Value    = 2u,
     Focus    = 4u,
     Geometry = 8u,
+    Scroll   = 16u,
 };
 namespace Detail
 {
@@ -1323,6 +1347,8 @@ void NoteAccessibilityRecordChange(const Control& control, AccessibilityRecordAs
 // The host's interaction or hit revision just moved from `before` for `control`'s geometry (SetBounds, a named hit site):
 // marked as a geometry change, so the move is accounted for and does not force a whole build.
 void NoteAccessibilityGeometryMove(const Control& control, uint64_t interactionBefore, uint64_t hitBefore) noexcept;
+// As NoteAccessibilityGeometryMove, for a ScrollPanel whose scroll offset alone moved (AccessibilityRecordAspect::Scroll).
+void NoteAccessibilityScrollMove(const Control& control, uint64_t interactionBefore, uint64_t hitBefore) noexcept;
 struct AccessibilityRevisions final
 {
     uint64_t interaction = 0u;
@@ -1408,6 +1434,15 @@ void DebugSetAccessibilityEventRecorderForTest(AccessibilityEventRecorderForTest
 // Verification: after every incremental publication the owner also builds the whole window, unpublished and uncounted, and
 // compares it field by field; the mismatches are counted and the first is described (on the publishing thread).
 void DebugSetAccessibilityWholePublicationForTest(bool whole) noexcept;
+// W8.3, process-wide: the record reads before W8.3 (a dynamic_cast per type test, a tree walk per label lookup, a copy of each
+// text control's document), counted in the same work counters, so a test shows its gate failing on the old path.
+void DebugSetAccessibilityLegacyRecordReadsForTest(bool legacy) noexcept;
+// W8.3: the bytes of a record's hot core and of each part a record may hold (text, range, grid, tree, tab control).
+struct AccessibilityRecordBytesForTest final
+{
+    size_t core = 0u, text = 0u, range = 0u, grid = 0u, tree = 0u, tabs = 0u;
+};
+[[nodiscard]] AccessibilityRecordBytesForTest DebugGetAccessibilityRecordBytesForTest() noexcept;
 void DebugSetAccessibilityIncrementalVerificationForTest(bool verify) noexcept;
 [[nodiscard]] bool DebugGetAccessibilityIncrementalVerificationForTest() noexcept;
 // Since the program started, never reset: verified incremental publications and those that differed from a whole build.

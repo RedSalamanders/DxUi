@@ -34,6 +34,7 @@ void TestAccessibilityIncrementalFlushRequestAcrossReattach();
 void TestAccessibilityIncrementalMarksWithoutClientStayCurrent();
 void TestAccessibilityIncrementalSplitterResizeRange();
 void TestAccessibilityIncrementalResizeOfEveryBoundsOverride();
+void TestAccessibilityRecordSweepEveryControl();
 void TestAccessibilityIncrementalPageIndicatorBecomesPaged();
 void TestAccessibilityIncrementalNativeGeometryCoalescing();
 void TestAccessibilityIncrementalGeometryOnAPacedHost();

@@ -457,6 +457,7 @@ void PaintComboBoxPopupMaterialSurface(ControlHost& host,
 
 ComboBox::ComboBox() : _text(EmptySharedText())
 {
+    ControlModelQueryAccess::SetAccessibilityKind(*this, Detail::AccessibilityControlKind::ComboBox);
     SetFocusable(true);
 }
 
@@ -804,6 +805,11 @@ std::wstring_view ComboBox::GetText() const noexcept
     }
 
     return GetSelectedValue();
+}
+
+const SharedText& SharedTextInputAccess::Text(const ComboBox& comboBox) noexcept
+{
+    return comboBox._text;
 }
 
 void ComboBox::SetPlaceholder(std::wstring text)
