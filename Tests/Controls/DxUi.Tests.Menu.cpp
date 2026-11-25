@@ -24,6 +24,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <windowsx.h>
 // Windows SDK WRL owns its interlocked/volatile implementation and target semantics.
 // Scope is this system header only. Owner: DxUi maintainers; review: 2027-01-31.
 #pragma warning(push)
@@ -12629,37 +12630,93 @@ void TestDescribedMenuChoosesContentWidthBelowItsMaximum()
             "the prepared primary/description layout matches the width actually painted");
 }
 
-// The messages a real pointer move delivers to the window, counted by the host window's message observer.
 struct RealPointerMessageCounts
 {
-    size_t mouseMoves   = 0u;
-    size_t setCursors   = 0u;
-    size_t nonClientHit = 0u;
+    size_t mouseMoves          = 0u;
+    size_t setCursors          = 0u;
+    size_t nonClientHit        = 0u;
+    size_t clientCursorQueries = 0u;
+    size_t pairedMoves         = 0u;
+    size_t differentPoint      = 0u;
+    size_t differentRevision   = 0u;
+    bool pointConversionFailed = false;
 };
 
-bool CountRealPointerMessage(void* context, UINT message, WPARAM /*wParam*/, LPARAM /*lParam*/)
+struct RealPointerMessages
 {
-    auto& counts = *static_cast<RealPointerMessageCounts*>(context);
-    if (message == WM_MOUSEMOVE)
-        ++counts.mouseMoves;
-    else if (message == WM_SETCURSOR)
+    struct CursorQuery
+    {
+        POINT clientPoint;
+        uint64_t interactionRevision;
+        uint64_t hitRevision;
+    };
+
+    AttachedHostWindow* window = nullptr;
+    RealPointerMessageCounts counts{};
+    std::optional<POINT> hitTestScreenPoint;
+    std::optional<CursorQuery> cursorQuery;
+};
+
+bool ObserveRealPointerMessage(void* context, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    auto& messages   = *static_cast<RealPointerMessages*>(context);
+    auto& counts     = messages.counts;
+    const auto& host = messages.window->Host();
+    const HWND hwnd  = messages.window->Hwnd();
+    if (message == WM_SETCURSOR)
+    {
         ++counts.setCursors;
-    else if (message == WM_NCHITTEST)
+        if (LOWORD(lParam) != HTCLIENT)
+            return false;
+        ++counts.clientCursorQueries;
+        messages.cursorQuery.reset();
+        if (reinterpret_cast<HWND>(wParam) == hwnd)
+        {
+            const DWORD last = GetMessagePos();
+            POINT point      = messages.hitTestScreenPoint.value_or(POINT{GET_X_LPARAM(last), GET_Y_LPARAM(last)});
+            if (ScreenToClient(hwnd, &point) != FALSE)
+                messages.cursorQuery = RealPointerMessages::CursorQuery{point, host.GetInteractionRevision(), host.DebugGetHitRevision()};
+            else
+                counts.pointConversionFailed = true;
+        }
+        messages.hitTestScreenPoint.reset();
+        return false;
+    }
+
+    messages.hitTestScreenPoint.reset();
+    if (message == WM_NCHITTEST)
+    {
         ++counts.nonClientHit;
+        messages.hitTestScreenPoint = POINT{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+    }
+    if (message == WM_MOUSEMOVE)
+    {
+        ++counts.mouseMoves;
+        if (const auto& query = messages.cursorQuery)
+        {
+            if (query->clientPoint.x != GET_X_LPARAM(lParam) || query->clientPoint.y != GET_Y_LPARAM(lParam))
+                ++counts.differentPoint;
+            else if (query->interactionRevision != host.GetInteractionRevision() || query->hitRevision != host.DebugGetHitRevision())
+                ++counts.differentRevision;
+            else
+                ++counts.pairedMoves;
+        }
+    }
+    // Another host message or the completion of a pointer message ends the pair.
+    messages.cursorQuery.reset();
     return false;
 }
 
-// W2.9 with real input (interactive Menu suite only: the desktop lease restores the pointer; run by a person who agreed to
-// the time). Real pointer moves over a non-activating window: Windows sends WM_NCHITTEST and WM_SETCURSOR before each
-// WM_MOUSEMOVE, and the move reuses the cursor query's hit test, so each move walks the tree once. How many moves one
-// step produces is up to Windows and a person's mouse, so the test counts the WM_MOUSEMOVE messages the window receives
-// and requires one walk and one reuse per move. A missing delivery gets two bounded retries inside the same button.
+// W2.9 uses the desktop lease. Check the client point and revisions of each delivered move against its preceding
+// cursor query. Windows may deliver coalesced work or interleave another host message during a pump. Check every
+// walk and require eligible cursor/move pairs in at least ten distinct steps.
 void TestPointerHitRealInputReusesTheCursorQuery()
 {
     using namespace DxUi;
-    RealPointerMessageCounts messages;
+    RealPointerMessages messages;
     AttachedHostWindow window(WindowHost::PresentationMode::HwndSwapChain, true);
-    window.SetMessageObserver(CountRealPointerMessage, &messages);
+    messages.window = &window;
+    window.SetMessageObserver(ObserveRealPointerMessage, &messages);
     Require(SetWindowPos(window.Hwnd(), HWND_TOPMOST, 240, 200, 480, 200, SWP_NOACTIVATE | SWP_SHOWWINDOW) != FALSE, "the window is placed on the desktop");
     auto root = std::make_unique<Panel>();
     for (int index = 0; index < 6; ++index)
@@ -12677,28 +12734,35 @@ void TestPointerHitRealInputReusesTheCursorQuery()
             // Each attempt requests a distinct physical move while staying inside the step's original button.
             POINT screen{20 + 35 * step + 3 * attempt, 40};
             Require(ClientToScreen(window.Hwnd(), &screen) != FALSE, "client to screen");
-            messages = {};
+            messages.counts = {};
             const Detail::WorkCounterScope counters;
             Require(pointer.AlignCursor(screen, window.Hwnd()), "the real pointer reaches the point");
             window.PumpMessages(100u);
-            const auto work = counters.Delta().frame;
-            std::printf("W2.9 real move %d attempt %d: mouseMoves=%zu setCursors=%zu nonClientHitTests=%zu hitTests=%llu hitTestReuses=%llu\n",
+            const auto work      = counters.Delta().frame;
+            const auto& observed = messages.counts;
+            std::printf("W2.9 real move %d attempt %d: mouseMoves=%zu setCursors=%zu nonClientHitTests=%zu clientCursorQueries=%zu pairedMoves=%zu "
+                        "differentPoint=%zu differentRevision=%zu hitTests=%llu hitTestReuses=%llu\n",
                         step,
                         attempt + 1,
-                        messages.mouseMoves,
-                        messages.setCursors,
-                        messages.nonClientHit,
+                        observed.mouseMoves,
+                        observed.setCursors,
+                        observed.nonClientHit,
+                        observed.clientCursorQueries,
+                        observed.pairedMoves,
+                        observed.differentPoint,
+                        observed.differentRevision,
                         static_cast<unsigned long long>(work.hitTests),
                         static_cast<unsigned long long>(work.hitTestReuses));
-            if (messages.mouseMoves == 0u)
+            Require(! observed.pointConversionFailed, "the cursor query maps its screen point to the host client");
+            Require(work.hitTests == observed.clientCursorQueries + observed.mouseMoves - observed.pairedMoves && work.hitTestReuses == observed.pairedMoves,
+                    "the same-point stable pairs reuse the cursor walk and the remaining mouse moves each walk once");
+            if (observed.pairedMoves == 0u)
                 continue;
             ++steps;
-            Require(work.hitTests == messages.mouseMoves && work.hitTestReuses == messages.mouseMoves,
-                    "a real move walks the tree once and reuses its cursor query's hit test");
             break;
         }
     }
-    Require(steps >= 10u, "real moves reached the window");
+    Require(steps >= 10u, "real same-point cursor and mouse-move pairs reached the window");
 }
 } // namespace
 
