@@ -971,12 +971,6 @@ void ResetAllSharedWindowHostGraphicsResourcesForProcessExit() noexcept
     }
 }
 
-[[nodiscard]] UINT ComputeModifierMask() noexcept
-{
-    const auto isDown = [](int virtualKey) noexcept { return (GetKeyState(virtualKey) & 0x8000) != 0; };
-    return ComposeModifierMask(isDown(VK_SHIFT), isDown(VK_CONTROL), isDown(VK_MENU), isDown(VK_LBUTTON), isDown(VK_RBUTTON));
-}
-
 [[nodiscard]] bool IsWindowOrDescendant(HWND root, HWND candidate) noexcept
 {
     return root && candidate && (root == candidate || IsChild(root, candidate) != FALSE);
@@ -4788,7 +4782,16 @@ try
             }
             if (target)
             {
-                handled = target->OnMouseWheel(*this, point, static_cast<float>(GET_WHEEL_DELTA_WPARAM(wp)), ComputeModifierMask());
+                constexpr UINT kWheelKeys = MK_SHIFT | MK_CONTROL | MK_LBUTTON | MK_RBUTTON;
+                const UINT wheelKeys      = GET_KEYSTATE_WPARAM(wp) & kWheelKeys;
+                bool alt                  = ModifiersContainAlt(GetModifierState());
+                if (IsWindowOrDescendant(hwnd, GetFocus()))
+                {
+                    // The wheel message has no Alt bit. The focused host can use the native input queue's Alt state.
+                    alt = GetKeyState(VK_MENU) < 0;
+                }
+                const UINT modifiers = wheelKeys | (alt ? kModifierAlt : 0u);
+                handled              = target->OnMouseWheel(*this, point, static_cast<float>(GET_WHEEL_DELTA_WPARAM(wp)), modifiers);
                 // A scroll moves what the window shows: bounds, offscreen state and point hits are published again.
                 if (handled)
                     RefreshWindowHostAccessibilitySnapshot(_hwnd, this);

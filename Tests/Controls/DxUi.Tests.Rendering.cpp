@@ -3270,6 +3270,7 @@ void RunRenderingTests()
     DXUI_RUN_TEST(TestPointerHitFx14WindowHitTestsOncePerMove);
     DXUI_RUN_TEST(TestPointerHitFx10WindowPreparesNoPlainLabelAndSearchesNoTree);
     DXUI_RUN_TEST(TestPointerHitWindowDifferentialMatchesTheUncachedHitTest);
+    DXUI_RUN_TEST(TestPointerHitWheelUsesDeliveredModifierState);
     DXUI_RUN_TEST(TestPointerHitWindowResultNeverOutlivesItsControl);
     DXUI_RUN_TEST(TestPointerHitWindowUnreportedControlIsNeverReused);
     DXUI_RUN_TEST(TestPointerHitPlainLabelsAreNotPrepared);

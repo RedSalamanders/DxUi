@@ -50,6 +50,9 @@ deterministic harness capture without showing, activating or reading the desktop
 reflect current control state on their first frame, including caption hover at simulated DPI.
 Changing non-text logical focus on a hidden or zero-size host never activates its HWND; visible, positively sized
 hosts retain the requested native-transfer policy. See the [input contract](../UI/UI_InputAndAccessibility.md).
+The wheel message supplies its Shift, Control and primary-button state. The host takes Alt from its focused
+native input queue or from its own modifier state when it has no native focus. Hidden fixtures can deliver
+both wheel and key messages to their owned host without changing desktop keyboard state.
 
 The window host chooses its text antialias mode from the user's font-smoothing setting and binds its monitor's DirectWrite
 rendering parameters. `WM_SETTINGCHANGE` re-reads the setting (one existing case also refreshes wheel lines) and repaints

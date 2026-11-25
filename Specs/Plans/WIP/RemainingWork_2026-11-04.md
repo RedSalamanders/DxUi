@@ -467,14 +467,14 @@ pull request with its `Changes/` fragment; the merge gate is RedHome decision D2
 six profiles build with zero warnings, with tests recorded as "tests deferred (D21)" until the global test pass.
 No consumer lock moves.
 
-- [ ] **H-19 device-loss results.** `IsDeviceLossHResult` lacks `DXGI_ERROR_DRIVER_INTERNAL_ERROR`, which the
-  RedXe and RedPrism renderers treat as device loss. Target: the union `DXGI_ERROR_DEVICE_REMOVED`,
-  `DXGI_ERROR_DEVICE_RESET`, `DXGI_ERROR_DEVICE_HUNG`, `DXGI_ERROR_DRIVER_INTERNAL_ERROR` and `D2DERR_RECREATE_TARGET`.
-- [ ] **H-18 Alt+Enter.** `ControlHost` makes no window association, so a `CreateSwapChainForHwnd` host keeps DXGI's
-  default Alt+Enter handling. Target: `MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER)` on every HWND swap
-  chain. A composition swap chain has no window association to change.
-- [ ] **H-03 COM smart pointer.** `ControlHost` (`src/Controls/DxUi.WindowHost.cpp`) holds its shared device,
-  factories and surfaces in `wil::com_ptr<T>` inside `noexcept` functions. Target: `wil::com_ptr_nothrow<T>` there.
+- [x] **H-19 device-loss results.** The attached host recovers from `DXGI_ERROR_DRIVER_INTERNAL_ERROR` alongside
+  the other device-loss results. Six builds and the three x64 recovery replays passed. Native ARM64 and hardware
+  replay remain in the RedHome D21 ledger. [#333](https://github.com/RedSalamanders/DxUi/pull/333)
+- [x] **H-18 Alt+Enter.** The HWND swap chain calls `MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER)` on its
+  creating factory. Six builds and the three x64 hidden recovery replays passed. The native and leased replays
+  remain in the RedHome D21 ledger. [#331](https://github.com/RedSalamanders/DxUi/pull/331)
+- [x] **H-03 COM smart pointer.** The native graphics and presentation owners use `wil::com_ptr_nothrow<T>`.
+  Six builds and the three x64 attached-host device-recovery runs passed. [#327](https://github.com/RedSalamanders/DxUi/pull/327)
 - [x] **H-17 adapter selection.** `ControlHost` creates one device per owner thread on the default adapter, then
   WARP; RedXe and RedPrism pick the adapter of the window's monitor. Target: the monitor-matched adapter, unless the
   [window-hosting contract](../../Rendering/Rendering_Win32Host.md) records why the shared device stays on the
@@ -482,9 +482,11 @@ No consumer lock moves.
 - [x] **H-20 flip-model occlusion.** The window-hosting contract states that Windows does not return
   `DXGI_STATUS_OCCLUDED` for flip-model swap chains; RedXe and RedPrism act on it. Target: one statement, settled by
   a measured flip-model `Present` on the supported Windows 11 baseline; whichever text is wrong is corrected.
-- [ ] **H-23 keyboard state under hidden self-tests.** `ControlHost` already tracks modifiers from its own key
-  messages (`UpdateModifierStateForKey`), but `ComputeModifierMask`, `TextInputServices`, `Menu` and `FileDrop` read
-  `GetKeyState` directly. Target: host-owned keyboard state wherever a hidden self-test drives keys.
+- [x] **H-23 keyboard state under hidden self-tests.** `ControlHost` tracks keyboard modifiers from the messages
+  delivered to its window. The wheel route uses the delivered Shift, Control and button bits and takes Alt from
+  that host when it has no native focus. The hidden Rendering fixture exercises both wheel and key messages.
+  Focused TSF, popup input and OLE drop retain their native input contracts. Run the leased input replays on
+  the admitted native Release source under D21.
 
 Rows already at their target in DxUi: H-05 (`DxUi::Debug`) and H-14 (`PostedPayload.h`) are the owner's chosen
 families. Both are private (`src/Support/`), so consumers can adopt them only after DxUi publishes them; that is
