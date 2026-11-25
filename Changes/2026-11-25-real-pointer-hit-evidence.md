@@ -1,1 +1,0 @@
-- Match real pointer fixture moves to their cursor queries by client point and hit revision.
