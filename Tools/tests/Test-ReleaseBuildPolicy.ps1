@@ -42,7 +42,7 @@ function Read-Profile([string]$Project,[string]$Configuration,[string]$Platform,
         $ProbePath=$chainPath
         $Extra=@($Extra|Where-Object{$_ -notlike '/p:ForceImportAfterCppTargets=*'})
     }
-    $arguments=@($Project,'/nologo',"/p:Configuration=$Configuration","/p:Platform=$Platform","/p:ForceImportAfterCppTargets=$ProbePath",'-getItem:ClCompile,Link,ProjectReference','-getProperty:ConfigurationType,VCToolsVersion,WholeProgramOptimization,LinkIncremental,Platform,VCToolArchitecture')+$Extra
+    $arguments=@($Project,'/nologo',"/p:Configuration=$Configuration","/p:Platform=$Platform","/p:ForceImportAfterCppTargets=$ProbePath",'-getItem:ClCompile,Link,ProjectReference','-getProperty:ConfigurationType,VCToolsVersion,WholeProgramOptimization,LinkIncremental,Platform,VCToolArchitecture,NativeBuildPolicyImported')+$Extra
     if($dependencySource){$arguments+="/p:DxUiRoot=$dependencySource"}
     $output=@(& $msbuild @arguments 2>&1)
     if($LASTEXITCODE-ne 0){throw "Evaluation failed: $Project $Configuration $Platform`n$($output -join "`n")"}
@@ -159,11 +159,28 @@ foreach($platform in 'x64','ARM64'){
     }
 }
 Write-Host 'PASS public consumer ASan non-incremental linking on both architectures and independent missing-import controls.'
+# Observe the explicit public import without supplying the policy through the test hook.
+$consumerObserver=Join-Path $scratch 'ObserveConsumerLink.targets'
+[IO.File]::WriteAllText($consumerObserver,'<Project><ItemGroup><Link Include="ReleasePolicyLinkProbe"/></ItemGroup></Project>')
+$releaseConsumer=Join-Path $scratch 'ReleasePolicyConsumer.vcxproj'
+$policyImport='<Import Project="{0}" />' -f [Security.SecurityElement]::Escape($nativePolicyFile)
+[IO.File]::WriteAllText($releaseConsumer,$consumerXml.Replace('</Project>',"$policyImport</Project>"))
 foreach($platform in 'x64','ARM64'){
-    $value=Read-Profile $consumerProject 'Release' $platform -Extra @('/p:NativeBuildReleaseOptimization=true')
-    Assert-Profile $value 'Release' "Opted-in public consumer $platform"
+    $arguments=@('/p:NativeBuildReleaseOptimization=true')
+    $withoutImport=Read-Profile $consumerProject 'Release' $platform $consumerObserver -Extra $arguments
+    if($withoutImport.Properties.NativeBuildPolicyImported -eq 'true' -or
+        $withoutImport.Items.ClCompile[0]['WholeProgramOptimization'] -eq 'true'){
+        throw "$platform source consumer acquired Release optimization without the public policy import."
+    }
+    $withoutOptIn=Read-Profile $releaseConsumer 'Release' $platform $consumerObserver
+    if($withoutOptIn.Properties.NativeBuildPolicyImported -ne 'true' -or
+        $withoutOptIn.Items.ClCompile[0]['WholeProgramOptimization'] -eq 'true'){
+        throw "$platform source consumer did not preserve its Release optimization defaults."
+    }
+    $optedIn=Read-Profile $releaseConsumer 'Release' $platform $consumerObserver -Extra $arguments
+    Assert-Profile $optedIn 'Release' "Opted-in public consumer $platform"
 }
-Write-Host 'PASS explicit shared Release optimization for both consumer targets.'
+Write-Host 'PASS explicit source consumer Release optimization import and opt-in on both targets.'
 $negative=Join-Path $scratch 'Broken.targets'
 $negativeXml='<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><Import Project="{0}" Condition="&apos;$(NativeBuildPolicyImported)&apos;!=&apos;true&apos;"/><ItemGroup><ClCompile Update="@(ClCompile)"><WholeProgramOptimization>false</WholeProgramOptimization></ClCompile><Link Include="ReleasePolicyLinkProbe"><OptimizeReferences>false</OptimizeReferences></Link></ItemGroup></Project>'
 [IO.File]::WriteAllText($negative,($negativeXml -f [Security.SecurityElement]::Escape($nativePolicyFile)))
