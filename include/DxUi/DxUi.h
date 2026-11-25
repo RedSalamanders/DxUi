@@ -5647,6 +5647,8 @@ private:
     [[nodiscard]] D2D1_RECT_F GetVerticalScrollbarRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetVerticalThumbRect() const noexcept;
     [[nodiscard]] D2D1_RECT_F GetVerticalThumbHitRect() const noexcept;
+    // A declared scrollbar repaint, marking the scroll when the offset moved (W8.3).
+    void InvalidateScrollbar(ControlHost& host, bool scrolled) noexcept;
     void InvalidateTreeTextMeasurementCaches() const noexcept;
     [[nodiscard]] float MeasureCachedBadgeTextWidthDip(const ControlHost& host, std::wstring_view badgeText) const noexcept;
     [[nodiscard]] std::wstring ResolveCachedTreeTooltipText(const ControlHost& host,
@@ -6082,6 +6084,8 @@ private:
     [[nodiscard]] HitInfo HitTestPoint(PointDip pointDip) const noexcept;
     [[nodiscard]] static bool IsSameHitTarget(const HitInfo& before, const HitInfo& after) noexcept;
     void ClampScrollOffsets(bool normalizeVertical = true) noexcept;
+    // A declared scrollbar repaint, marking the scroll when an offset moved (W8.3).
+    void InvalidateScrollbar(ControlHost& host, bool scrolled) noexcept;
     void EnsureColumnWidths() const;
     // False when the selection's delegate, or the accessibility publish that follows it, destroyed this grid, which its
     // caller then leaves alone.

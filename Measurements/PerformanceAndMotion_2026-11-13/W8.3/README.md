@@ -30,6 +30,12 @@ Plan item W8.3 of the [performance and motion plan](../../../Specs/Plans/WIP/Per
 | Records re-read per publication (one scroll scope: the Grid) | — (whole) | **1** |
 | Incremental publications verified against a whole build | — | 100, 0 differences |
 
+What the FX3 clause "records touched ≤ scroll scopes" measures: the records each publication re-reads (`accessibility.recordsCloned`),
+held to at most 1, the one scroll scope (the Grid) the wheel moves; it is asserted as that 1, not counted from the scope table, and
+it does not count the rectangles: a Grid's scroll rebuilds every rectangle once (`accessibility.pointHitRebuilds`), as its rows and
+cells follow the scroll. The legacy seam (`DebugSetAccessibilityLegacyRecordReadsForTest`) reproduces only the reads the three
+FX12 counters and `pathChildReads` count; the count pass and its label index stay the current code's.
+
 `FX12`'s wheel phase over its `ScrollPanel`: after the first notch, which also moves the pointer off the button the warm
 phase hovered (that button's hover repaint declares nothing, so that publication is whole under the W8.2 rules), each
 notch publishes incrementally, re-reads no record, rebuilds no rectangle and recomputes the one scroll scope.
@@ -91,6 +97,22 @@ A record of a label, button, check box, toggle or radio button is the core alone
 size plus one shared-pointer control block. The size probe beside the definition is lowered to 376 B (Release) and 408 B
 (Debug).
 
+## Round 2 (review findings)
+
+Measured on the round-2 commit in x64 Debug and Release (WARP, one client), each against the same tests run on the code with
+the fix reverted (hooks and tests kept, Debug; log `r2-before-gate-debug.log`):
+
+| Finding | Before | After |
+| --- | --- | --- |
+| A whole build of a window whose names need no label, with a hidden page of 2,000 controls: children read below the hidden control (`accessibility.hiddenLabelReads`) | 2,001 (2,002) | **0 (0)** |
+| The same with an unnamed field labelled on the hidden page | 2,001 | 2,001, the same name |
+| Scrollbar gestures, whole builds: ScrollPanel page step, thumb drag; Grid vertical page step, vertical thumb drag, horizontal page step; Tree page step, thumb drag | 1, 2; 1, 3, 1; 1, 3 | **0 each** |
+| A PopupLayer item past its ScrollPanel's viewport: found at a point there, rectangle, offscreen | the root, none, — | **the item, 180 x 30 unclipped, no** |
+| A generation's reported bytes against the bytes the heap frees when it goes (Release; Debug in brackets) | — (82,992 against 125,763) | **106,475 against 106,475** (112,931 against 125,763: Debug container proxies) |
+| Allocations reading the five parts of a record without parts, first read of the process | 13 (Debug) | **0** |
+
+A scrollbar gesture on a focused control also refreshed the whole window from the press: a focus request for the control that
+already has the focus republished without a mark. It now marks that record's focus (`ControlHost::SetFocusControl`).
 ## Logs
 
 Under `.build/w83` of the worker's tree (not archived): `gate-{Debug,Release,ASanDebug}.log`, `sweep-*.log`,

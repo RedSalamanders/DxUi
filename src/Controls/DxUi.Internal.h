@@ -1443,7 +1443,9 @@ void DebugSetAccessibilityEventRecorderForTest(AccessibilityEventRecorderForTest
 // compares it field by field; the mismatches are counted and the first is described (on the publishing thread).
 void DebugSetAccessibilityWholePublicationForTest(bool whole) noexcept;
 // W8.3, process-wide: the record reads before W8.3 (a dynamic_cast per type test, a tree walk per label lookup, a copy of each
-// text control's document), counted in the same work counters, so a test shows its gate failing on the old path.
+// text control's document), counted in the same work counters, so a test shows its gate failing on the old path; and the
+// upward path search a successor made per control it resolved (accessibility.pathChildReads). Only those reads: everything else,
+// the count pass and its label index among it, is the current code's.
 void DebugSetAccessibilityLegacyRecordReadsForTest(bool legacy) noexcept;
 // W8.3: the bytes of a record's hot core and of each part a record may hold (text, range, grid, tree, tab control).
 struct AccessibilityRecordBytesForTest final
@@ -1465,6 +1467,13 @@ void DebugResetAccessibilityIncrementalVerificationForTest() noexcept;
 // one line per record (name, value, range value, focus), and count the records two held snapshots share.
 [[nodiscard]] std::shared_ptr<const void> DebugHoldAccessibilitySnapshotForTest(ControlHost& host) noexcept;
 void DebugDescribeAccessibilitySnapshotForTest(const std::shared_ptr<const void>& held, std::vector<std::wstring>& lines);
+// W8.3: a record without parts, and a read of each of its five parts as a UI Automation read makes one (Part(), noexcept),
+// returning how many items they hold. Reading a part a record does not have allocates nothing, from the program's start.
+// W8.3: a whole build of an embedded view's tree that is never published, held, and the bytes AccessibilitySnapshotHeapBytes
+// reports for it (what RetainedAccessibilitySnapshotBytes and accessibility.snapshotBytes count for a generation).
+[[nodiscard]] std::shared_ptr<const void> DebugBuildUnpublishedAccessibilitySnapshotForTest(ControlHost& host, uint64_t& reportedBytes);
+[[nodiscard]] std::shared_ptr<const void> DebugMakeEmptyAccessibilityRecordForTest();
+[[nodiscard]] size_t DebugReadAccessibilityRecordPartsForTest(const std::shared_ptr<const void>& record) noexcept;
 [[nodiscard]] size_t DebugCountSharedAccessibilityRecordsForTest(const std::shared_ptr<const void>& first, const std::shared_ptr<const void>& second) noexcept;
 // Owner-thread-only deterministic failure at the rich snapshot font query.
 void DebugSetRichAccessibilityFontFailureForTest(HRESULT failure) noexcept;

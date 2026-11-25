@@ -1654,6 +1654,7 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         const float thumbHeight = (std::max)(0.0f, thumb.bottom - thumb.top);
         const float available   = (std::max)(0.0f, (track.bottom - track.top) - thumbHeight);
         const float extent      = GetVerticalScrollableExtent();
+        const float scrollStart = _verticalScrollDip;
         if (! guard.IsCurrent())
             return false;
         if (available > 0.0f && extent > 0.0f)
@@ -1668,7 +1669,7 @@ bool Tree::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         host.ClearTooltip();
         if (! guard.IsCurrent())
             return true;
-        Invalidate(host);
+        InvalidateScrollbar(host, _verticalScrollDip != scrollStart);
         return true;
     }
 
@@ -1852,6 +1853,7 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
 
     if (hit.zone == HitZone::VerticalScrollbar)
     {
+        const float scrollStart = _verticalScrollDip;
         if (hit.onScrollbarThumb)
         {
             const D2D1_RECT_F thumb = GetVerticalThumbHitRect();
@@ -1880,7 +1882,7 @@ bool Tree::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
         }
         if (! guard.IsCurrent())
             return true;
-        Invalidate(host);
+        InvalidateScrollbar(host, _verticalScrollDip != scrollStart);
         return true;
     }
 
@@ -2149,7 +2151,7 @@ bool Tree::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         return wasDragging;
     if (wasDragging)
     {
-        Invalidate(host);
+        InvalidateScrollbar(host, false);
         if (! guard.IsCurrent())
             return true;
     }
@@ -2202,6 +2204,17 @@ void Tree::OnCaptureLost(ControlHost& host)
             return;
         Invalidate(host);
     }
+}
+
+// A repaint of the scrollbar (W8.3): a moved offset is marked as this Tree's scroll, whose record and rectangles the next
+// publication reads again at once; the scrollbar's own hot, pressed and dragging state is not published. Either way the
+// repaint is declared, so a scrollbar gesture never builds the whole window.
+void Tree::InvalidateScrollbar(ControlHost& host, bool scrolled) noexcept
+{
+    if (scrolled)
+        NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Scroll);
+    const AttestedInvalidation declared(&host);
+    Invalidate(host);
 }
 
 bool Tree::OnMouseWheel(ControlHost& host, D2D1_POINT_2F point, float wheelDelta, UINT /*modifiers*/)

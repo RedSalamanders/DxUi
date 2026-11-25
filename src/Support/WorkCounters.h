@@ -187,6 +187,7 @@
     X(accessibility, dynamicCasts)                 /* Control type tests answered by dynamic_cast instead of the control's accessibility kind (W8.3: none). */ \
     X(accessibility, geometryMarksCollapsed)       /* Times geometry marks filled their capacity and became one mark on their common ancestor (W8.2). */       \
     X(accessibility, geometryPublicationsDeferred) /* Geometry-only publications held for the 100 ms interval or the layout's settle (W8.2). */                \
+    X(accessibility, hiddenLabelReads)        /* Controls a whole build read below a hidden control for labels, only for a name that looked one up (W8.3). */  \
     X(accessibility, incrementalPublications) /* Publications that shared the previous generation's records instead of building the whole window (W8.2). */    \
     X(accessibility, labelLookupWalks)        /* Tree walks that searched for a control's mnemonic label; a build reads its label index instead (W8.3). */     \
     X(accessibility, marksWhileDormant)       /* Marks on a dirty native window no client listens to, noted without a refresh (W8.2). */                       \
@@ -197,7 +198,7 @@
     X(accessibility, recordsMarked)      /* Record marks noted for the next publication (name, value, focus or geometry; W8.2). */                             \
     X(accessibility, scrollScopeUpdates) /* Successor generations that only moved their scroll scopes for a scroll, sharing every rectangle (W8.3). */         \
     X(accessibility, snapshotBuilds)     /* Whole-window UI Automation snapshot builds that reached the tree walk. */                                          \
-    X(accessibility, snapshotBytes)      /* Bytes reserved by those snapshots' per-control record arrays (excluding owned strings). */                         \
+    X(accessibility, snapshotBytes)      /* Heap bytes those snapshots hold, records, parts, tables and indexes (AccessibilitySnapshotHeapBytes; W8.3). */     \
     X(accessibility, snapshotNodes)      /* Control records those snapshots hold. */                                                                           \
     X(accessibility, spineBytes)         /* Bytes a successor generation copied: its record spine and the chunks it cloned (W8.2). */                          \
     X(accessibility, textCopies)         /* A text control's document copied into a record; records borrow the control's shared text instead (W8.3). */        \

@@ -19,6 +19,13 @@ window no longer guarantees a presented frame when it returns (see [hosting](hos
 and its paced frames arrive as a registered message on its window: forward every message to `HandleMessage`, as hosting
 already requires, and keep dispatching messages.
 
+UI Automation reads the kind each library control class records when it is constructed. `RadioButtons`, `ProgressBar`,
+`ThroughputGraph`, `ScrollPanel` and `RichTextEditor` record it through a member whose initializer runs where the code that
+constructs them is compiled, so a module compiled against revision-5 headers makes these controls with no kind: the radio
+group, the progress bar and the graph publish no UI Automation element, a `ScrollPanel` is no scroll scope (its scrolls then
+build the whole window), and a `RichTextEditor` is not published as a rich text editor. Rebuilding against the revision-6 headers, which every
+module needs anyway, gives every control its kind.
+
 ### Embedded animation request
 
 An embedded application asks the view when it next needs the application's clock. Revision-5 code that asks

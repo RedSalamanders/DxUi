@@ -2949,9 +2949,14 @@ void ControlHost::SetFocusControl(Control* control, bool transferNativeFocus) no
             if (! isCurrentRequest())
                 return;
         }
-        RefreshWindowHostAccessibilitySnapshot(_hwnd, this);
+        // The focus stays where it was (a click on the focused control, W8.3): its record's focus is marked, as a move marks
+        // the two records below, so the republish is incremental and the scroll or change the click makes is not a whole build.
+        if (_focusedControl)
+            NoteAccessibilityRecordChange(*_focusedControl, AccessibilityRecordAspect::Focus);
+        RefreshWindowHostAccessibilitySnapshot(_hwnd, this, AccessibilityMutationKind::MarkedFocus);
         if (restoredFocus)
         {
+            const AttestedInvalidation focusVisual(this);
             Invalidate();
         }
         return;

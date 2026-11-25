@@ -805,22 +805,50 @@ struct AccessibilityPointHitBuildContext
 };
 
 // A scroll scope (W8.3): the content of a ScrollPanel. Scope 0 is the window. A scope's context takes its content to window
-// coordinates and clips it by every viewport around it; a scope that is not shown (its viewport clipped out) shows nothing.
+// coordinates and clips it by every viewport it is drawn through; a scope that is not shown (its viewport clipped out) shows
+// nothing. An overlay scope is a PopupLayer's content: the overlay pass draws it with the offsets of the ScrollPanels around
+// it but through none of their viewports, so its context translates and does not clip, and it shows while it is drawn.
 // Rectangles inside a scope are kept relative to it, so a scroll recomputes the contexts and shares every rectangle.
 struct AccessibilityScrollScope
 {
-    ControlPath path{}; // the ScrollPanel's, by which the owner finds it again on a scroll
+    ControlPath path{}; // the ScrollPanel's (the PopupLayer's), by which the owner finds it again on a scroll
     uint32_t parent = 0u;
     bool shown      = true;
+    bool overlay    = false;
     AccessibilityPointHitBuildContext context{};
 };
 
-// A Label with a mnemonic target (W8.3), indexed by its target. Read on the owner thread only, while the label is alive.
+// A Label with a mnemonic target (W8.3), indexed by its target, then in tree order (`order`: the position of the visible
+// control the count pass met it at, in the high half, and its position inside a deferred subtree, in the low half). Read on
+// the owner thread only, while the label is alive.
 struct AccessibilityLabelLink
 {
     uintptr_t target   = 0u;
     const Label* label = nullptr;
     std::weak_ptr<int> lifetime;
+    uint64_t order = 0u;
+};
+
+// A subtree the count pass does not enter (W8.3): below a hidden control, or a path too wide for a record. Its labels join
+// the index only when a record's name looks a label up (CompleteAccessibilityLabelIndex), so a build whose records are all
+// named reads nothing below a hidden control.
+struct AccessibilityDeferredLabelRoot
+{
+    const Control* control = nullptr;
+    std::weak_ptr<int> lifetime;
+    uint32_t depth = 0u;
+    uint64_t order = 0u;
+};
+
+// The label index a build looks names up in (W8.3). A whole build's is its snapshot's own, completed on its first lookup
+// when the count pass deferred subtrees; a successor's is the previous generation's, and a lookup in it while incomplete
+// makes the publication whole (`incompleteMet`).
+struct AccessibilityLabelIndexBuild
+{
+    std::vector<AccessibilityLabelLink>* building = nullptr; // whole build only
+    std::vector<AccessibilityDeferredLabelRoot> deferred;
+    bool complete      = true;
+    bool incompleteMet = false;
 };
 
 struct AccessibilityTreeItemSnapshotRecord
@@ -1069,8 +1097,7 @@ template <typename T> class AccessibilityRecordPart final
 public:
     [[nodiscard]] const T& Part() const noexcept
     {
-        static const T empty{};
-        return _part ? *_part : empty;
+        return _part ? *_part : kEmpty;
     }
     [[nodiscard]] T& Building()
     {
@@ -1086,6 +1113,10 @@ public:
     }
 
 private:
+    // The part a record without one reads, made when the program starts: Part(), on any thread, then never allocates (a
+    // standard container allocates even when empty in Debug), so no read can meet an allocation failure.
+    static inline const T kEmpty{};
+
     std::shared_ptr<T> _part;
 };
 
@@ -1261,6 +1292,34 @@ struct AccessibilityGridCellSnapshotRecord
     size_t columnIndex                                          = 0u;
 };
 
+// What a generation's storage asks the heap for (W8.3 accounting, RetainedAccessibilitySnapshotBytes): a standard
+// allocator's block (one of 4096 bytes or more carries MSVC's alignment header), and an object std::make_shared allocates
+// beside its reference counts. Debug containers' proxies are not counted: they are an artifact of _ITERATOR_DEBUG_LEVEL.
+[[nodiscard]] constexpr uint64_t AccessibilityAllocationBytes(uint64_t bytes) noexcept
+{
+#if defined(_DEBUG)
+    constexpr uint64_t header = 2u * sizeof(void*) + 31u;
+#else
+    constexpr uint64_t header = sizeof(void*) + 31u;
+#endif
+    return bytes == 0u ? 0u : bytes >= 4096u ? bytes + header : bytes;
+}
+constexpr uint64_t kAccessibilitySharedCountsBytes = sizeof(void*) + 2u * sizeof(long);
+[[nodiscard]] constexpr uint64_t AccessibilitySharedObjectBytes(uint64_t objectBytes) noexcept
+{
+    return kAccessibilitySharedCountsBytes + objectBytes;
+}
+[[nodiscard]] uint64_t AccessibilityStringBytes(const std::wstring& value) noexcept
+{
+    const auto* object = reinterpret_cast<const unsigned char*>(&value);
+    const auto* data   = reinterpret_cast<const unsigned char*>(value.data());
+    return data >= object && data < object + sizeof(std::wstring) ? 0u : AccessibilityAllocationBytes((uint64_t(value.capacity()) + 1u) * sizeof(wchar_t));
+}
+template <typename T> [[nodiscard]] uint64_t AccessibilityVectorBytes(const std::vector<T>& value) noexcept
+{
+    return AccessibilityAllocationBytes(uint64_t(value.capacity()) * sizeof(T));
+}
+
 // A hash table of record ordinals. The caller hashes a key; probing steps from the slot that hash picks (by growing
 // strides, which visit every slot of a power-of-two table without the clusters that unit strides build) until the
 // caller's test accepts a record (its whole key matches) or a slot is empty. It is sized once, to a power of two of at
@@ -1325,6 +1384,11 @@ public:
     {
         return _table ? _table->size() * sizeof(uint32_t) : 0u;
     }
+    // The table's heap storage: its shared vector and the slots (W8.3 accounting).
+    [[nodiscard]] uint64_t HeapBytes() const noexcept
+    {
+        return _table ? AccessibilitySharedObjectBytes(sizeof(std::vector<uint32_t>)) + AccessibilityVectorBytes(*_table) : 0u;
+    }
 
 private:
     std::shared_ptr<std::vector<uint32_t>> _table; // A record's ordinal plus one; zero marks an empty slot.
@@ -1385,6 +1449,20 @@ public:
     [[nodiscard]] bool SharedWith(const AccessibilitySharedVector& other) const noexcept
     {
         return _items && _items == other._items;
+    }
+    // The shared vector and its elements' storage; `element` adds what each element owns (W8.3 accounting).
+    template <typename ElementBytes> [[nodiscard]] uint64_t HeapBytes(const ElementBytes& element) const noexcept
+    {
+        if (! _items)
+            return 0u;
+        uint64_t bytes = AccessibilitySharedObjectBytes(sizeof(std::vector<T>)) + AccessibilityVectorBytes(*_items);
+        for (const T& item : *_items)
+            bytes += element(item);
+        return bytes;
+    }
+    [[nodiscard]] uint64_t HeapBytes() const noexcept
+    {
+        return HeapBytes([](const T&) noexcept { return uint64_t{0u}; });
     }
 
 private:
@@ -1506,6 +1584,7 @@ public:
             return;
         const auto block = std::make_shared<const std::vector<Record>>(std::move(_building));
         _building        = {};
+        _block           = block;
         _size            = block->size();
         _chunks.reserve((_size + kChunkSize - 1u) / kChunkSize);
         for (size_t first = 0u; first < _size; first += kChunkSize)
@@ -1526,6 +1605,7 @@ public:
         successor._sealed = true;
         successor._size   = _size;
         successor._chunks = _chunks;
+        successor._block  = _block;
         cost.bytes += _chunks.size() * sizeof(std::shared_ptr<const Chunk>);
         size_t clonedIndex = (std::numeric_limits<size_t>::max)();
         std::shared_ptr<Chunk> cloned; // Owned by the successor alone until it is published.
@@ -1562,10 +1642,36 @@ public:
     {
         return _chunks.capacity() * sizeof(std::shared_ptr<const Chunk>) + _chunks.size() * sizeof(Chunk);
     }
+    // A sealed array's heap storage (W8.3 accounting), each block once: the spine, every chunk, the whole build's block of
+    // records and each record a successor allocated on its own; `record` adds what each record owns.
+    template <typename RecordBytes> [[nodiscard]] uint64_t HeapBytes(const RecordBytes& record) const noexcept
+    {
+        if (! _sealed)
+            return 0u;
+        uint64_t bytes = AccessibilityVectorBytes(_chunks);
+        if (_block)
+            bytes += AccessibilitySharedObjectBytes(sizeof(std::vector<Record>)) + AccessibilityVectorBytes(*_block);
+        const Record* const blockBegin = _block ? _block->data() : nullptr;
+        const Record* const blockEnd   = _block ? _block->data() + _block->size() : nullptr;
+        for (const std::shared_ptr<const Chunk>& chunk : _chunks)
+        {
+            bytes += AccessibilitySharedObjectBytes(sizeof(Chunk));
+            for (const std::shared_ptr<const Record>& held : chunk->records)
+            {
+                if (! held)
+                    continue;
+                if (std::less<const Record*>{}(held.get(), blockBegin) || ! std::less<const Record*>{}(held.get(), blockEnd))
+                    bytes += AccessibilitySharedObjectBytes(sizeof(Record));
+                bytes += record(*held);
+            }
+        }
+        return bytes;
+    }
 
 private:
     std::vector<Record> _building;
     std::vector<std::shared_ptr<const Chunk>> _chunks;
+    std::shared_ptr<const std::vector<Record>> _block; // the whole build's records, shared by its successors
     size_t _size = 0u;
     bool _sealed = false;
 };
@@ -1595,8 +1701,10 @@ struct AccessibilitySnapshot
     // first; a scope after the one around it). A scroll replaces the scopes alone.
     AccessibilitySharedVector<AccessibilityPointHitSnapshot> pointHitRecords;
     AccessibilitySharedVector<AccessibilityScrollScope> scrollScopes;
-    // The mnemonic labels a build looked names up in (W8.3), by target address: owner thread only.
+    // The mnemonic labels a build looked names up in (W8.3), by target address: owner thread only. Incomplete when the count
+    // pass deferred subtrees and no record's name looked a label up: their labels are not in it.
     AccessibilitySharedVector<AccessibilityLabelLink> labelLinks;
+    bool labelIndexComplete = true;
     // semanticControlOrder[i] is the path of controlNavigationRecords[i], both in tree order.
     AccessibilitySharedVector<ControlPath> semanticControlOrder;
     AccessibilityRecordArray controlNavigationRecords;
@@ -1648,9 +1756,8 @@ struct AccessibilitySnapshot
 [[nodiscard]] std::optional<uint32_t> FindControlRecordOrdinal(const AccessibilitySnapshot& snapshot, const ControlPath& path) noexcept;
 void IndexAccessibilitySnapshot(AccessibilitySnapshot& snapshot);
 void IndexAccessibilityPointHits(AccessibilitySnapshot& snapshot);
-[[nodiscard]] std::wstring_view GetControlAccessibleName(const AccessibilitySharedVector<AccessibilityLabelLink>* labels,
-                                                         const Control* root,
-                                                         const Control* control) noexcept;
+struct AccessibilitySnapshotBuild;
+[[nodiscard]] std::wstring_view GetControlAccessibleName(const AccessibilitySnapshotBuild& build, const Control* root, const Control* control);
 [[nodiscard]] std::wstring_view GetControlAccessibleValue(const Control* control) noexcept;
 [[nodiscard]] std::wstring GetControlAccessibleTextRangeText(const Control* control);
 [[nodiscard]] TextRangeSpan GetControlAccessibleSelectionRange(const ControlHost* host, const Control* control, size_t textLength) noexcept;
@@ -1690,8 +1797,9 @@ template <typename TControl> [[nodiscard]] TControl* ResolveControlAtPath(TContr
                                                                     uint32_t parent,
                                                                     const ScrollPanel& panel,
                                                                     const ControlPath& path) noexcept;
+[[nodiscard]] AccessibilityScrollScope MakeAccessibilityOverlayScope(const AccessibilityScrollScope& outer, uint32_t parent, const ControlPath& path) noexcept;
 [[nodiscard]] size_t CountAccessibilitySnapshotNavigation(
-    const Control* current, const ControlPath& basePath, uint32_t depth, bool counted, std::vector<AccessibilityLabelLink>& labels);
+    const Control* current, const ControlPath& basePath, uint32_t depth, AccessibilityLabelIndexBuild& labels, uint64_t& sequence);
 [[nodiscard]] bool AppendAccessibilitySnapshotNavigation(ControlHost& host,
                                                          const Control* root,
                                                          const Control* current,
@@ -2015,8 +2123,10 @@ struct AccessibilitySnapshotBuild
     std::weak_ptr<int> rootLifetime;
     uint64_t revision;
     HRESULT& failure;
-    // The label index a record's name is looked up in (W8.3): the whole build's own, or the one a successor shares.
+    // The label index a record's name is looked up in (W8.3): the whole build's own, or the one a successor shares, and its
+    // completion state.
     const AccessibilitySharedVector<AccessibilityLabelLink>* labels = nullptr;
+    AccessibilityLabelIndexBuild* labelIndex                        = nullptr;
 
     [[nodiscard]] bool IsCurrent() const noexcept
     {
@@ -2278,11 +2388,16 @@ struct WindowHostSnapshotChanges
     snapshot->hasRetainedRoot  = root != nullptr;
     // Sized once: a menu's rows make thousands of records, which growing vectors would move again and again. The same walk
     // indexes the mnemonic labels every record's name is looked up in (W8.3), in tree order, then by target.
-    std::vector<AccessibilityLabelLink>& labels = snapshot->labelLinks.Building();
-    const size_t semanticControls               = CountAccessibilitySnapshotNavigation(root, ControlPath{}, 0u, true, labels);
-    std::ranges::stable_sort(labels, {}, &AccessibilityLabelLink::target);
+    AccessibilityLabelIndexBuild labels{.building = &snapshot->labelLinks.Building()};
+    uint64_t sequence             = 0u;
+    const size_t semanticControls = CountAccessibilitySnapshotNavigation(root, ControlPath{}, 0u, labels, sequence);
+    labels.complete               = labels.deferred.empty();
+    std::ranges::stable_sort(*labels.building, {}, &AccessibilityLabelLink::target);
+    // Runs after "return snapshot" has moved the pointer out: it writes through the object, which the result then owns.
+    AccessibilitySnapshot* const built = snapshot.get();
+    const auto keepCompletion          = wil::scope_exit([&]() noexcept { built->labelIndexComplete = labels.complete; });
     const AccessibilitySnapshotBuild build{
-        target, host, root, root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{}, revision, buildFailure, &snapshot->labelLinks};
+        target, host, root, root ? GetControlLifetimeToken(*root) : std::weak_ptr<int>{}, revision, buildFailure, &snapshot->labelLinks, &labels};
     snapshot->semanticControlOrder.Building().reserve(semanticControls);
     snapshot->controlsByAddress.Building().reserve(semanticControls);
     snapshot->controlNavigationRecords.Building().reserve(semanticControls);
@@ -2306,9 +2421,6 @@ struct WindowHostSnapshotChanges
     {
         auto& accessibilityWork = Detail::Work().accessibility;
         accessibilityWork.snapshotNodes += snapshot->controlNavigationRecords.size();
-        accessibilityWork.snapshotBytes += snapshot->controlNavigationRecords.capacity() * sizeof(AccessibilityControlNavigationSnapshot) +
-                                           snapshot->semanticControlOrder.capacity() * sizeof(ControlPath) +
-                                           snapshot->controlsByAddress.capacity() * sizeof(AccessibilityControlAddress);
     }
     if (! ResolveAccessibilityFocusedFragment(host, root, *snapshot, build))
         return nullptr;
@@ -2327,6 +2439,84 @@ struct WindowHostSnapshotChanges
     if (! build.IsCurrent())
         return nullptr;
     return snapshot;
+}
+
+// Everything a generation holds on the heap (W8.3), each block once: the snapshot object, its records (the whole build's
+// block, each record a successor allocated, the chunks and spine) with every string and part a record owns and the parts'
+// own storage, the rectangles, the scope table, the label index, the paths, the address and ordinal tables and the window's
+// name. A text buffer counts only where this generation alone holds it: one its control still shows is the control's, and a
+// value and a text that are the same buffer count once. A rich editor's semantic document and a tree's prepared rows belong
+// to their controls; a rich record's own tables count.
+[[nodiscard]] uint64_t AccessibilitySnapshotHeapBytes(const AccessibilitySnapshot& snapshot) noexcept
+{
+    const auto shared = [](const SharedText& buffer, long holders) noexcept -> uint64_t
+    {
+        if (! buffer || buffer.use_count() != holders)
+            return 0u;
+        return 3u * sizeof(void*) + sizeof(std::wstring) + AccessibilityStringBytes(*buffer);
+    };
+    const auto record = [&](const AccessibilityControlNavigationSnapshot& held) noexcept
+    {
+        uint64_t bytes          = AccessibilityStringBytes(held.controlAccessibleName) + AccessibilityStringBytes(held.controlAccessibleHelpText) +
+                                  AccessibilityStringBytes(held.controlAccessibleItemStatus) + AccessibilityStringBytes(held.controlAutomationId);
+        const SharedText& value = held.controlAccessibleValue.Shared();
+        const SharedText& text  = held.Text().controlAccessibleText.Shared();
+        if (value && value == text)
+            bytes += shared(value, 2);
+        else
+            bytes += shared(value, 1) + shared(text, 1);
+        if (held.radioGroup)
+            bytes += AccessibilitySharedObjectBytes(sizeof(RadioGroupSnapshot)) + AccessibilityVectorBytes(held.radioGroup->childPaths) +
+                     AccessibilityVectorBytes(held.radioGroup->selectedPaths);
+        if (held.text.Present())
+        {
+            const AccessibilityTextRecord& part = held.Text();
+            bytes += AccessibilitySharedObjectBytes(sizeof(AccessibilityTextRecord)) + AccessibilityVectorBytes(part.controlTextSelectionBoundsDip) +
+                     AccessibilityStringBytes(part.passwordRevealButtonAccessibleName);
+            if (const auto& rich = part.controlRichText)
+                bytes += AccessibilitySharedObjectBytes(sizeof(AccessibilityRichTextSnapshot)) + AccessibilityVectorBytes(rich->bounds) +
+                         AccessibilityVectorBytes(rich->copyBounds) + AccessibilityVectorBytes(rich->underlinedLinks) +
+                         AccessibilityVectorBytes(rich->annotations) + AccessibilityVectorBytes(rich->annotationTypes) +
+                         AccessibilityVectorBytes(rich->formatRuns) + AccessibilityStringBytes(rich->bodyFont) + AccessibilityStringBytes(rich->codeFont) +
+                         AccessibilityStringBytes(rich->copyName);
+        }
+        if (held.range.Present())
+            bytes += AccessibilitySharedObjectBytes(sizeof(AccessibilityRangeRecord));
+        if (held.grid.Present())
+        {
+            const AccessibilityGridRecord& part = held.Grid();
+            bytes += AccessibilitySharedObjectBytes(sizeof(AccessibilityGridRecord)) + AccessibilityVectorBytes(part.gridHeaders) +
+                     AccessibilityVectorBytes(part.gridRows) + AccessibilityVectorBytes(part.gridCells) + AccessibilityVectorBytes(part.gridVisibleColumns) +
+                     AccessibilityVectorBytes(part.gridColumnDisplayOrder) + AccessibilityVectorBytes(part.gridVisibleRows) +
+                     AccessibilityVectorBytes(part.gridVisibleRowIds) + AccessibilityVectorBytes(part.selectedGridRowIds);
+            for (const auto& header : part.gridHeaders)
+                bytes += AccessibilityStringBytes(header.gridHeaderName);
+            for (const auto& row : part.gridRows)
+                bytes += AccessibilityStringBytes(row.gridRowAccessibleName);
+            for (const auto& cell : part.gridCells)
+                bytes += AccessibilityStringBytes(cell.gridCellAccessibleText) + AccessibilityStringBytes(cell.gridCellHelpText);
+        }
+        if (held.tree.Present())
+        {
+            const AccessibilityTreeRecord& part = held.Tree();
+            bytes += AccessibilitySharedObjectBytes(sizeof(AccessibilityTreeRecord)) + AccessibilityVectorBytes(part.selectedTreeItemIds) +
+                     AccessibilityVectorBytes(part.treeItems);
+            for (const auto& item : part.treeItems)
+                bytes += AccessibilityStringBytes(item.text) + AccessibilityStringBytes(item.badgeText);
+        }
+        if (held.tabs.Present())
+        {
+            const AccessibilityTabRecord& part = held.Tabs();
+            bytes += AccessibilitySharedObjectBytes(sizeof(AccessibilityTabRecord)) + AccessibilityVectorBytes(part.tabItems);
+            for (const auto& item : part.tabItems)
+                bytes += AccessibilityStringBytes(item.title);
+        }
+        return bytes;
+    };
+    return AccessibilitySharedObjectBytes(sizeof(AccessibilitySnapshot)) + AccessibilityStringBytes(snapshot.windowName) +
+           snapshot.controlNavigationRecords.HeapBytes(record) + snapshot.pointHitRecords.HeapBytes() + snapshot.scrollScopes.HeapBytes() +
+           snapshot.labelLinks.HeapBytes() + snapshot.semanticControlOrder.HeapBytes() + snapshot.controlsByAddress.HeapBytes() +
+           snapshot.controlRecordsByPath.HeapBytes() + snapshot.pointHitsByFragment.HeapBytes();
 }
 
 // Whether the next publication may be a successor of `previous` that shares its unmarked records (W8.2): the host's marks
@@ -2538,8 +2728,18 @@ std::optional<uint32_t> FindControlRecordOrdinalByAddress(const AccessibilitySna
             scopes.push_back(was);
             continue;
         }
+        if (was.parent >= index)
+            return false;
+        if (was.overlay)
+        {
+            const Control* const layer = ResolveControlAtPath(root, was.path);
+            if (! layer || PaintExtentAccess::Kind(*layer) != PaintKind::PopupLayer)
+                return false;
+            scopes.push_back(MakeAccessibilityOverlayScope(scopes[was.parent], was.parent, was.path));
+            continue;
+        }
         const auto* panel = AccessibilityAs<ScrollPanel>(ResolveControlAtPath(root, was.path));
-        if (! panel || was.parent >= index)
+        if (! panel)
             return false;
         scopes.push_back(MakeAccessibilityScrollScope(scopes[was.parent], was.parent, *panel, was.path));
     }
@@ -2564,7 +2764,8 @@ std::optional<uint32_t> FindControlRecordOrdinalByAddress(const AccessibilitySna
     buildFailure              = S_OK;
     const Control* const root = host.GetRoot();
     // The label index is the previous generation's: a successor shares its structure, and a label's new target builds whole.
-    const AccessibilitySnapshotBuild build{target, host, root, GetControlLifetimeToken(*root), revision, buildFailure, &previous.labelLinks};
+    AccessibilityLabelIndexBuild labels{.complete = previous.labelIndexComplete};
+    const AccessibilitySnapshotBuild build{target, host, root, GetControlLifetimeToken(*root), revision, buildFailure, &previous.labelLinks, &labels};
     const auto& records = previous.controlNavigationRecords;
     std::vector<uint32_t> ordinals;
     ordinals.reserve(marks.count * 2u);
@@ -2664,6 +2865,9 @@ std::optional<uint32_t> FindControlRecordOrdinalByAddress(const AccessibilitySna
             whole = false;
             return nullptr;
         }
+        // Its name looked a label up in an index without the deferred subtrees' labels: the whole build completes it.
+        if (labels.incompleteMet)
+            return nullptr;
         if (target.embedded && ! target.placement.hasKeyboardFocus)
             record->controlHasFocus = false;
         replacements.push_back({ordinal, std::move(record)});
@@ -2684,6 +2888,7 @@ std::optional<uint32_t> FindControlRecordOrdinalByAddress(const AccessibilitySna
     successor->controlRecordsByPath     = previous.controlRecordsByPath;
     successor->controlNavigationRecords = records.WithReplaced(replacements, cost);
     successor->labelLinks               = previous.labelLinks;
+    successor->labelIndexComplete       = previous.labelIndexComplete;
     if (geometry)
     {
         // A move rebuilds every rectangle and scroll scope, once, with no record.
@@ -2763,6 +2968,8 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
     }
     snapshot->controlNavigationRecords.Seal();
     snapshot->generation = NextAccessibilitySnapshotGeneration();
+    if (whole)
+        Detail::Work().accessibility.snapshotBytes += AccessibilitySnapshotHeapBytes(*snapshot);
 #if DXUI_ENABLE_DIAGNOSTICS
     g_accessibilityPublicationCount.fetch_add(1u, std::memory_order_relaxed);
 #endif
@@ -3021,7 +3228,8 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
                (! x.clipRectDip || SameAccessibilityRect(*x.clipRectDip, *y.clipRectDip));
     };
     if (! std::ranges::equal(successor.scrollScopes, whole.scrollScopes, [&](const AccessibilityScrollScope& x, const AccessibilityScrollScope& y) {
-        return AreControlPathsEqual(x.path, y.path) && x.parent == y.parent && x.shown == y.shown && sameContext(x.context, y.context);
+        return AreControlPathsEqual(x.path, y.path) && x.parent == y.parent && x.shown == y.shown && x.overlay == y.overlay &&
+               sameContext(x.context, y.context);
     }))
         return L"scrollScopes";
     for (size_t index = 0u; index < whole.pointHitRecords.size(); ++index)
@@ -3031,9 +3239,15 @@ WindowHostSnapshotChanges PublishWindowHostAccessibilitySnapshot(WindowHostAcces
         if (x.has_value() != y.has_value() || (x && ! SameAccessibilityRect(*x, *y)))
             return std::format(L"bounding rectangle {} (resolved)", index);
     }
-    if (! std::ranges::equal(successor.labelLinks, whole.labelLinks, [](const AccessibilityLabelLink& x, const AccessibilityLabelLink& y) {
-        return x.target == y.target && x.label == y.label;
-    }))
+    // The same labels in the same order; a successor sharing a completed index may hold the deferred subtrees' labels a whole
+    // build of a tree whose names need no label leaves out (W8.3), never fewer.
+    const auto sameLink = [](const AccessibilityLabelLink& x, const AccessibilityLabelLink& y) noexcept
+    { return x.target == y.target && x.label == y.label && x.order == y.order; };
+    const auto linkPrecedes = [](const AccessibilityLabelLink& x, const AccessibilityLabelLink& y) noexcept
+    { return x.target != y.target ? x.target < y.target : x.order < y.order; };
+    if (successor.labelIndexComplete == whole.labelIndexComplete
+            ? ! std::ranges::equal(successor.labelLinks, whole.labelLinks, sameLink)
+            : ! successor.labelIndexComplete || ! std::ranges::includes(successor.labelLinks, whole.labelLinks, linkPrecedes))
         return L"labelLinks";
     if (! std::ranges::equal(successor.controlsByAddress, whole.controlsByAddress, [](const auto& x, const auto& y) {
         return x.address == y.address && x.ordinal == y.ordinal;
@@ -3495,22 +3709,32 @@ std::optional<D2D1_RECT_F> ResolveAccessibilityHitRect(const AccessibilitySnapsh
     return ApplyAccessibilityPointHitContext(hit.hitRectDip, scopes[hit.scope].context);
 }
 
-// The context of a ScrollPanel's content inside `outer`: what the build passed its children before W8.3.
+// The context of a ScrollPanel's content inside `outer`: its offset added to the translation, its viewport (as `outer` shows
+// it) the clip. The translation is kept for a scope not shown, which an overlay scope inside it still draws through.
 [[nodiscard]] AccessibilityScrollScope MakeAccessibilityScrollScope(const AccessibilityScrollScope& outer,
                                                                     uint32_t parent,
                                                                     const ScrollPanel& panel,
                                                                     const ControlPath& path) noexcept
 {
     AccessibilityScrollScope scope{.path = path, .parent = parent, .shown = false};
+    scope.context.translationDip = outer.context.translationDip;
+    scope.context.translationDip.y -= panel.GetScrollOffset();
     if (! outer.shown)
         return scope;
     const std::optional<D2D1_RECT_F> viewport = ApplyAccessibilityPointHitContext(panel.GetViewportRect(), outer.context);
     if (! viewport)
         return scope;
     scope.shown               = true;
-    scope.context             = outer.context;
     scope.context.clipRectDip = viewport.value();
-    scope.context.translationDip.y -= panel.GetScrollOffset();
+    return scope;
+}
+
+// The context of a PopupLayer's content inside `outer` (W8.3): the translation of every ScrollPanel around it and no clip, as
+// the overlay pass draws it (PaintExtentAccess maps overlay content the same way).
+[[nodiscard]] AccessibilityScrollScope MakeAccessibilityOverlayScope(const AccessibilityScrollScope& outer, uint32_t parent, const ControlPath& path) noexcept
+{
+    AccessibilityScrollScope scope{.path = path, .parent = parent, .shown = true, .overlay = true};
+    scope.context.translationDip = outer.context.translationDip;
     return scope;
 }
 [[nodiscard]] bool AppendTreeAccessibilityPointHits(
@@ -3667,6 +3891,14 @@ bool AppendAccessibilitySnapshotPointHits(ControlHost& host,
         const AccessibilityScrollScope inner          = MakeAccessibilityScrollScope(scopes[scope], scope, *scrollPanel, basePath);
         childScope                                    = static_cast<uint32_t>(scopes.size());
         scopes.push_back(inner);
+    }
+    else if (PaintExtentAccess::Kind(*current) == PaintKind::PopupLayer && scope != 0u)
+    {
+        // Overlay content inside a ScrollPanel: drawn through none of the viewports around it (outside any, it is scope 0's).
+        std::vector<AccessibilityScrollScope>& scopes = snapshot.scrollScopes.Building();
+        const AccessibilityScrollScope overlay        = MakeAccessibilityOverlayScope(scopes[scope], scope, basePath);
+        childScope                                    = static_cast<uint32_t>(scopes.size());
+        scopes.push_back(overlay);
     }
 
     for (size_t index = current->GetLogicalChildCount(); index-- > 0u;)
@@ -3904,34 +4136,72 @@ std::optional<D2D1_RECT_F> FindSnapshotFragmentBounds(const AccessibilitySnapsho
 }
 
 // The records AppendAccessibilitySnapshotNavigation makes: the same visibility, semantic and path-depth rules. The same walk
-// indexes every Label with a mnemonic target (W8.3), where the label lookup it replaces looked: every control from the root to
-// kAccessibilityMaxDepth levels below it, hidden ones included, in tree order. `counted` is false below a hidden control or a
-// path too deep or too wide for a record, where only labels are looked for.
+// indexes every Label with a mnemonic target (W8.3) among the controls it enters, in tree order. A hidden control, or a child
+// whose path is too wide for a record, is not entered: it is kept as a deferred root, with its tree-order position, when it
+// is less than kAccessibilityMaxDepth levels below the root, where the label lookup the index replaced also looked
+// (hidden controls included). `sequence` numbers the controls met, in tree order.
 size_t CountAccessibilitySnapshotNavigation(
-    const Control* current, const ControlPath& basePath, uint32_t depth, bool counted, std::vector<AccessibilityLabelLink>& labels)
+    const Control* current, const ControlPath& basePath, uint32_t depth, AccessibilityLabelIndexBuild& labels, uint64_t& sequence)
 {
     if (! current)
         return 0u;
-    counted = counted && current->IsVisible();
+    const uint64_t order = ++sequence << 32u;
+    if (! current->IsVisible())
+    {
+        if (depth < kAccessibilityMaxDepth)
+            labels.deferred.push_back(AccessibilityDeferredLabelRoot{current, GetControlLifetimeToken(*current), depth, order});
+        return 0u;
+    }
     if (depth < kAccessibilityMaxDepth)
         if (const auto* label = AccessibilityAs<Label>(current); label && label->GetMnemonicTarget())
-            labels.push_back(AccessibilityLabelLink{reinterpret_cast<uintptr_t>(label->GetMnemonicTarget()), label, GetControlLifetimeToken(*label)});
-    size_t count = counted && IsSemanticAccessibilityControl(current) ? 1u : 0u;
-    if (! counted && depth + 1u >= kAccessibilityMaxDepth)
-        return count;
+            labels.building->push_back(
+                AccessibilityLabelLink{reinterpret_cast<uintptr_t>(label->GetMnemonicTarget()), label, GetControlLifetimeToken(*label), order});
+    size_t count = IsSemanticAccessibilityControl(current) ? 1u : 0u;
     for (size_t index = 0u; index < current->GetLogicalChildCount(); ++index)
     {
         const Control* child = current->GetLogicalChild(index);
         if (! child)
             continue;
         ControlPath childPath{};
-        const bool childCounted = counted && TryAppendPathIndex(basePath, index, childPath);
-        if (childCounted || depth + 1u < kAccessibilityMaxDepth)
-            count += CountAccessibilitySnapshotNavigation(child, childPath, depth + 1u, childCounted, labels);
+        if (TryAppendPathIndex(basePath, index, childPath))
+            count += CountAccessibilitySnapshotNavigation(child, childPath, depth + 1u, labels, sequence);
+        else if (depth + 1u < kAccessibilityMaxDepth)
+            labels.deferred.push_back(AccessibilityDeferredLabelRoot{child, GetControlLifetimeToken(*child), depth + 1u, ++sequence << 32u});
     }
     return count;
 }
 
+// The labels of a deferred subtree, in tree order below its root's position, read the first time a record's name looks a
+// label up (W8.3); each control read counts in accessibility.hiddenLabelReads.
+void IndexDeferredAccessibilityLabels(const Control* current, uint32_t depth, uint64_t major, uint64_t& minor, std::vector<AccessibilityLabelLink>& links)
+{
+    if (! current)
+        return;
+    ++Detail::Work().accessibility.hiddenLabelReads;
+    const uint64_t order = major | minor++;
+    if (const auto* label = AccessibilityAs<Label>(current); label && label->GetMnemonicTarget())
+        links.push_back(AccessibilityLabelLink{reinterpret_cast<uintptr_t>(label->GetMnemonicTarget()), label, GetControlLifetimeToken(*label), order});
+    if (depth + 1u >= kAccessibilityMaxDepth)
+        return;
+    for (size_t index = 0u; index < current->GetLogicalChildCount(); ++index)
+        IndexDeferredAccessibilityLabels(current->GetLogicalChild(index), depth + 1u, major, minor, links);
+}
+
+void CompleteAccessibilityLabelIndex(AccessibilityLabelIndexBuild& labels)
+{
+    for (const AccessibilityDeferredLabelRoot& root : labels.deferred)
+    {
+        if (root.lifetime.expired())
+            continue; // A callback changed the tree: the build is not current and is dropped.
+        uint64_t minor = 0u;
+        IndexDeferredAccessibilityLabels(root.control, root.depth, root.order, minor, *labels.building);
+    }
+    labels.deferred.clear();
+    std::ranges::sort(*labels.building, [](const AccessibilityLabelLink& x, const AccessibilityLabelLink& y) noexcept {
+        return x.target != y.target ? x.target < y.target : x.order < y.order;
+    });
+    labels.complete = true;
+}
 // The text of `target`'s mnemonic label: the first Label in tree order whose target it is and whose text is not empty, as
 // the label index of the build holds them (W8.3). Owner thread; a label is read only while it is alive.
 [[nodiscard]] std::wstring_view FindIndexedLabelText(const AccessibilitySharedVector<AccessibilityLabelLink>& labels, const Control* target) noexcept
@@ -4046,7 +4316,7 @@ bool FillAccessibilityControlRecord(ControlHost& host,
         record.controlLifetime             = GetControlLifetimeToken(*current);
         record.controlIdentity             = ControlIdentityOf(record.controlLifetime);
         record.controlTypeId               = GetControlTypeId(current);
-        record.controlAccessibleName       = std::wstring(GetControlAccessibleName(build.labels, root, current));
+        record.controlAccessibleName       = std::wstring(GetControlAccessibleName(build, root, current));
         record.controlAccessibleHelpText   = current->GetAccessibleHelpText();
         record.controlAccessibleItemStatus = current->GetAccessibleItemStatus();
         if (const auto* label = current->GetAccessibleLabelledBy())
@@ -5842,21 +6112,28 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
 
 // A control's label text: from the build's label index (W8.3), or, on the legacy test path or with no index, by the tree walk
 // the index replaced, counted.
-[[nodiscard]] std::wstring_view FindLabelText(const AccessibilitySharedVector<AccessibilityLabelLink>* labels,
-                                              const Control* root,
-                                              const Control* target) noexcept
+// A whole build's index is completed with its deferred subtrees' labels at its first lookup; a successor whose shared index is
+// incomplete notes that its publication must be whole.
+[[nodiscard]] std::wstring_view FindLabelText(const AccessibilitySnapshotBuild& build, const Control* root, const Control* target)
 {
-    if (! labels || AccessibilityLegacyRecordReads())
+    if (! build.labels || AccessibilityLegacyRecordReads())
     {
         ++Detail::Work().accessibility.labelLookupWalks;
         return FindAssociatedLabelText(root, target);
     }
-    return FindIndexedLabelText(*labels, target);
+    if (AccessibilityLabelIndexBuild* const index = build.labelIndex; index && ! index->complete)
+    {
+        if (! index->building)
+        {
+            index->incompleteMet = true;
+            return {};
+        }
+        CompleteAccessibilityLabelIndex(*index);
+    }
+    return FindIndexedLabelText(*build.labels, target);
 }
 
-[[nodiscard]] std::wstring_view GetControlAccessibleName(const AccessibilitySharedVector<AccessibilityLabelLink>* labels,
-                                                         const Control* root,
-                                                         const Control* control) noexcept
+[[nodiscard]] std::wstring_view GetControlAccessibleName(const AccessibilitySnapshotBuild& build, const Control* root, const Control* control)
 {
     if (! control)
     {
@@ -5875,7 +6152,7 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
     }
     if (const auto* toggle = AccessibilityAs<Toggle>(control))
     {
-        if (const std::wstring_view labelText = FindLabelText(labels, root, toggle); ! labelText.empty())
+        if (const std::wstring_view labelText = FindLabelText(build, root, toggle); ! labelText.empty())
         {
             return labelText;
         }
@@ -5892,13 +6169,13 @@ std::optional<AccessibilityNavigationTarget> ResolveSnapshotNavigationTarget(con
     // A TextField or ComboBox is named by its label or stays unnamed: its content is its Value and Text, never its Name.
     if (const auto* slider = AccessibilityAs<Slider>(control))
     {
-        if (const std::wstring_view labelText = FindLabelText(labels, root, slider); ! labelText.empty())
+        if (const std::wstring_view labelText = FindLabelText(build, root, slider); ! labelText.empty())
         {
             return labelText;
         }
     }
 
-    return FindLabelText(labels, root, control);
+    return FindLabelText(build, root, control);
 }
 
 [[nodiscard]] std::wstring_view GetControlAccessibleValue(const Control* control) noexcept
@@ -16086,28 +16363,7 @@ uint64_t RetainedAccessibilitySnapshotBytes(const ControlHost& host) noexcept
         snapshot = target->snapshot.load(std::memory_order_acquire);
     if (! snapshot)
         return 0u;
-    // MSVC keeps up to 7 UTF-16 units inside a std::wstring; a longer one owns capacity() + 1 units on the heap.
-    const auto text = [](const std::wstring& value) noexcept { return value.capacity() > 7u ? uint64_t(value.capacity() + 1u) * sizeof(wchar_t) : 0u; };
-    uint64_t bytes  = uint64_t(snapshot->controlNavigationRecords.capacity()) * sizeof(AccessibilityControlNavigationSnapshot) +
-                      uint64_t(snapshot->pointHitRecords.capacity()) * sizeof(AccessibilityPointHitSnapshot) +
-                      uint64_t(snapshot->semanticControlOrder.capacity()) * sizeof(ControlPath);
-    // Shared text (W8.3) counts only where the snapshot alone keeps the buffer: one its control still shows is the control's.
-    const auto shared = [](const AccessibilityRecordText& value) noexcept
-    {
-        const SharedText& buffer = value.Shared();
-        return buffer && buffer.use_count() == 1 ? uint64_t(buffer->capacity() + 1u) * sizeof(wchar_t) : 0u;
-    };
-    for (const AccessibilityControlNavigationSnapshot& record : snapshot->controlNavigationRecords)
-    {
-        bytes += text(record.controlAccessibleName) + text(record.controlAccessibleHelpText) + text(record.controlAccessibleItemStatus) +
-                 text(record.controlAutomationId) + shared(record.controlAccessibleValue);
-        // The parts a record has (W8.3), with the text they own.
-        if (record.text.Present())
-            bytes += sizeof(AccessibilityTextRecord) + shared(record.Text().controlAccessibleText) + text(record.Text().passwordRevealButtonAccessibleName);
-        bytes += (record.range.Present() ? sizeof(AccessibilityRangeRecord) : 0u) + (record.grid.Present() ? sizeof(AccessibilityGridRecord) : 0u) +
-                 (record.tree.Present() ? sizeof(AccessibilityTreeRecord) : 0u) + (record.tabs.Present() ? sizeof(AccessibilityTabRecord) : 0u);
-    }
-    return bytes;
+    return AccessibilitySnapshotHeapBytes(*snapshot);
 }
 
 LRESULT ReturnWindowHostAccessibilityProvider(HWND hwnd, WPARAM wp, LPARAM lp) noexcept
@@ -17657,6 +17913,34 @@ void DebugDescribeAccessibilitySnapshotForTest(const std::shared_ptr<const void>
     for (const AccessibilityPointHitSnapshot& hit : snapshot->pointHitRecords)
         if (const std::optional<D2D1_RECT_F> rect = ResolveAccessibilityHitRect(*snapshot, hit))
             lines.push_back(std::format(L"hit {:.2f},{:.2f},{:.2f},{:.2f}", rect->left, rect->top, rect->right, rect->bottom));
+}
+
+std::shared_ptr<const void> DebugBuildUnpublishedAccessibilitySnapshotForTest(ControlHost& host, uint64_t& reportedBytes)
+{
+    reportedBytes      = 0u;
+    auto* const target = static_cast<WindowHostAccessibilityTarget*>(EmbeddedAccessibilityAccess::Target(host));
+    if (! target)
+        return nullptr;
+    HRESULT failure = S_OK;
+    auto snapshot   = BuildWholeAccessibilitySnapshot(*target, host, target->dirtyRevision, {}, false, failure);
+    if (! snapshot)
+        return nullptr;
+    snapshot->controlNavigationRecords.Seal();
+    reportedBytes = AccessibilitySnapshotHeapBytes(*snapshot);
+    return snapshot;
+}
+std::shared_ptr<const void> DebugMakeEmptyAccessibilityRecordForTest()
+{
+    return std::make_shared<const AccessibilityControlNavigationSnapshot>();
+}
+
+size_t DebugReadAccessibilityRecordPartsForTest(const std::shared_ptr<const void>& record) noexcept
+{
+    const auto* const held = static_cast<const AccessibilityControlNavigationSnapshot*>(record.get());
+    if (! held)
+        return 0u;
+    return held->Text().controlTextSelectionBoundsDip.size() + held->Grid().gridRows.size() + held->Tree().treeItems.size() + held->Tabs().tabItems.size() +
+           (held->Range().controlRangeMaximum != 0.0 ? 1u : 0u);
 }
 
 size_t DebugCountSharedAccessibilityRecordsForTest(const std::shared_ptr<const void>& first, const std::shared_ptr<const void>& second) noexcept

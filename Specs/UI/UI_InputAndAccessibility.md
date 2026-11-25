@@ -817,7 +817,7 @@ What a change marks for the next publication of its host (owner thread):
 | Value | `SemanticValue` (a slider's, progress bar's or splitter's value and range, a field's text) and the library's own value paths (`Slider` steps, a `Splitter` preview, `TextField::SetText`) | Re-reads that control's record |
 | Focus | `ControlHost::SetFocusControl` moving the keyboard focus | Re-reads the records that lost and gained focus, and the focused element |
 | Geometry | `Control::SetBounds`, every library hit-test change of a control (`Affects::Hit`, a splitter's separator) and a painted assignment that declares no semantic aspect | Re-reads the records in the control's subtree whose content follows bounds through the library's geometry (text-capable controls, rich text, grids, trees and a field's reveal button: selection rectangles, visible ranges and rows), the marked tab control's own record (its header offset follows its width), and rebuilds every bounding rectangle and scroll scope once |
-| Scroll | A `ScrollPanel`'s scroll offset, a `Grid`'s or `Tree`'s wheel scroll (`W8.3`) | For a `ScrollPanel` that is a scroll scope of the published generation: recomputes the scroll scopes' translations and clips, re-reads no record and shares every rectangle. On any other control, or together with a geometry mark, it is that control's geometry (a `Grid`'s or `Tree`'s record, whose rows follow its scroll, and every rectangle). Never coalesced: published at the next flush or update |
+| Scroll | A `ScrollPanel`'s scroll offset, a `Grid`'s or `Tree`'s wheel scroll, and the scrollbar gestures of all three: a page step, a thumb drag, their press and release (`W8.3`) | For a `ScrollPanel` that is a scroll scope of the published generation: recomputes the scroll scopes' translations and clips, re-reads no record and shares every rectangle. On any other control, or together with a geometry mark, it is that control's geometry (a `Grid`'s or `Tree`'s record, whose rows follow its scroll, and every rectangle). Never coalesced: published at the next flush or update. A scrollbar's own hot, pressed and dragging state is not published: its repaint declares nothing, and a press on the control that already has the focus marks that record's focus. Left out: a `Grid`'s or `Tree`'s keyboard navigation, which moves the focus or the selection and scrolls it into view, publishes as that focus and selection change |
 
 What a resize changes in a library control reaches the snapshot through a re-read record of that list, through the
 children the control lays out with `SetBounds`, or through a mark the control makes itself: a `Splitter`'s range follows its
@@ -945,11 +945,16 @@ text; the commit publishes the committed text (`TestCompositionPreviewPublishesT
 
 What a build reads per control is bounded by that control (performance plan `W8.3`):
 
-- Labels. The walk that counts a build's records also indexes every `Label` with a mnemonic target, by target, in tree order,
-  over the controls the label lookup always searched: every control from the root to 16 levels below it, hidden ones
-  included. A record's name reads the first such label with text from that index; no build walks the tree per control. A
-  successor uses the index of the generation it shares its structure with: a label's new target is a whole-window change, and
-  a label's text change re-reads its target's record, which reads the label's current text.
+- Labels. The walk that counts a build's records also indexes every `Label` with a mnemonic target among the controls it
+  enters, by target, in tree order. It does not enter a hidden control, nor a child whose path is too wide for a record: such
+  a subtree less than 16 levels below the root is kept with its place in tree order, and its labels join the index the first
+  time a record's name looks a label up in that build. A whole build therefore reads below a hidden control only when some
+  record's name lookup would have searched there, and then each such subtree once (`accessibility.hiddenLabelReads`); a build
+  whose names need no label reads nothing below one. The name a lookup finds is the one the label walk found: the first label
+  with text, in tree order, from the root to 16 levels below it, hidden labels included; no build walks the tree per control.
+  A successor uses the index of the generation it shares its structure with, and builds whole when a name it reads looks a
+  label up in an index without the hidden labels. A label's new target is a whole-window change, and a label's text change
+  re-reads its target's record, which reads the label's current text.
 - Control types. Each library control class records its kind when it is constructed (a class derived outside the library
   carries the kind of the library class it derives from), and UI Automation tests that kind where it used `dynamic_cast`.
 - Text. A record publishes a text control's own immutable buffer (the shared text of the IME copies item, `W8.5`): a
@@ -958,9 +963,21 @@ What a build reads per control is bounded by that control (performance plan `W8.
 - Record parts. A record is a hot core (identity, path, names, states and flags) plus a part for each kind of content its
   control has: text and selection, range values, a grid's rows and cells, a tree's rows, a tab control's tabs. A label, a
   button or a check box carries no part. Parts are written only while their record is built and shared with it afterwards.
+  A record without a part reads an empty part made when the program starts, so a read, on any thread, allocates nothing.
+- Memory. `accessibility.snapshotBytes` (per whole build) and the retained-cache row `Accessibility.snapshot` (per published
+  generation) count everything a generation holds on the heap, each block once: the snapshot, its records (the whole build's
+  block, each record a successor allocated on its own, the chunks and their spine) with the strings and parts each owns and
+  the parts' own storage, the rectangles, the scope table, the label index, the paths and the address and ordinal tables. A
+  text buffer counts where the generation alone holds it (one its control still shows is the control's), a buffer two fields
+  of a record share once; a rich editor's semantic document and a tree's prepared rows are their controls'. On x64 Release the
+  count equals the bytes the heap frees when the generation goes; Debug containers add their proxies, which it leaves out.
 - Container-relative bounds. A fragment's rectangle is kept in the content coordinates of its scroll scope, the content of
   the nearest `ScrollPanel` around it (scope 0 is the window), as its control reports it. Each scope holds the translation from
-  its content to the window and the clip of every viewport around it, as the build met them. A client's bounding rectangle,
+  its content to the window and the clip of every viewport it is drawn through, as the build met them. A `PopupLayer`'s
+  content is overlay content: the overlay pass draws it with the offsets of the `ScrollPanel`s around it but through none of
+  their viewports, so its scope translates by those offsets, clips by none and shows while the layer is drawn. An open
+  `ComboBox`'s popup is not such a scope: it is part of the combo box's own rectangle, which the viewport around the box
+  clips with it, so the part of an open popup past that viewport is published clipped (open). A client's bounding rectangle,
   hit test and offscreen state resolve the rectangle through its scope when they are read; a scope scrolled or clipped out of
   view resolves to none, exactly as the build left such a rectangle out before. A scroll marks its panel's scroll (see the
   table above): the next publication recomputes the scopes from the panels' current offsets and viewports and shares every
@@ -979,7 +996,9 @@ rectangle both as stored and as resolved. On `FX12`'s 10,000-control form with o
 before `W8.3` (`DebugSetAccessibilityLegacyRecordReadsForTest`) make 6,000 walks of the 10,000 controls, about 6 x 10^7 casts
 and 4,000 copies; a wheel notch over the form publishes with no whole build and re-reads no record
 (`accessibility.scrollScopeUpdates`). `FX3`'s 100 wheel notches over its `Grid` publish incrementally, re-reading the grid's
-record alone (`TestFx3WheelBuildCost`, `TestFx12FormBuildCost`, `TestLayoutSuccessorPathReads`, `TestAccessibilityRecordSweepEveryControl`;
+record alone (`TestFx3WheelBuildCost`, `TestFx12FormBuildCost`, `TestLayoutSuccessorPathReads`, `TestHiddenSubtreeReadOnlyForALabel`,
+`TestScrollbarGesturesPublishAsScrolls`, `TestOverlayContentInsideAScrollPanel`, `TestSnapshotBytesMatchTheHeap`,
+`TestEmptyPartReadAllocatesNothing`, `TestAccessibilityRecordSweepEveryControl`;
 [receipt](../../Measurements/PerformanceAndMotion_2026-11-13/W8.3/README.md)). A window host still builds the whole window
 after a handled wheel message.
 

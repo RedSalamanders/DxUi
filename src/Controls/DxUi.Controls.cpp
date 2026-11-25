@@ -11765,6 +11765,9 @@ bool ScrollPanel::DispatchPress(ControlHost& host, D2D1_POINT_2F point, bool rig
                     return true;
                 }
             }
+            // A page step marked its scroll (NotifyScrollChanged); a thumb press changes the scrollbar alone, which UI Automation
+            // does not publish: either repaint is declared (W8.3).
+            const AttestedInvalidation declared(GetHost());
             RequestInvalidate();
             return true;
         }
@@ -11977,6 +11980,8 @@ bool ScrollPanel::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightBu
         {
             _scrollbarHotPart = HotPart::None;
         }
+        // The end of a thumb drag repaints the scrollbar alone: declared (W8.3).
+        const AttestedInvalidation declared(GetHost());
         RequestInvalidate();
         return true;
     }

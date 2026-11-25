@@ -5450,7 +5450,8 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         {
             return true;
         }
-        const float available = std::max(0.0f, (track.bottom - track.top) - (thumb.bottom - thumb.top));
+        const float available   = std::max(0.0f, (track.bottom - track.top) - (thumb.bottom - thumb.top));
+        const float scrollStart = _verticalScrollDip;
         if (available > 0.0f)
         {
             const float thumbTop = std::clamp(point.y - _dragThumbOffsetDip, track.top, track.bottom - (thumb.bottom - thumb.top));
@@ -5464,7 +5465,7 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         }
         UpdateScrollbarHotState(HitInfo{.zone = HitZone::VerticalScrollbar, .onScrollbarThumb = true});
         SyncScrollbarAnimation(host);
-        Invalidate(host);
+        InvalidateScrollbar(host, _verticalScrollDip != scrollStart);
         return true;
     }
 
@@ -5480,7 +5481,8 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         {
             return true;
         }
-        const float available = std::max(0.0f, (track.right - track.left) - (thumb.right - thumb.left));
+        const float available   = std::max(0.0f, (track.right - track.left) - (thumb.right - thumb.left));
+        const float scrollStart = _horizontalScrollDip;
         if (available > 0.0f)
         {
             const float thumbLeft     = std::clamp(point.x - _dragThumbOffsetDip, track.left, track.right - (thumb.right - thumb.left));
@@ -5495,7 +5497,7 @@ bool Grid::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT /*modifiers*
         }
         UpdateScrollbarHotState(HitInfo{.zone = HitZone::HorizontalScrollbar, .onScrollbarThumb = true});
         SyncScrollbarAnimation(host);
-        Invalidate(host);
+        InvalidateScrollbar(host, _horizontalScrollDip != scrollStart);
         return true;
     }
 
@@ -5876,7 +5878,7 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
                     _dragThumbOffsetDip = point.y - thumb.top;
                     UpdateScrollbarHotState(HitInfo{.zone = HitZone::VerticalScrollbar, .onScrollbarThumb = true});
                     SyncScrollbarAnimation(host);
-                    Invalidate(host);
+                    InvalidateScrollbar(host, false);
                 }
                 else
                 {
@@ -5887,12 +5889,13 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
                     {
                         return true;
                     }
-                    const float pageStep = ComputeScrollbarPageStepDip(hit.rectDip, ScrollbarOrientation::Vertical, viewportDip, viewportDip + extent);
+                    const float pageStep    = ComputeScrollbarPageStepDip(hit.rectDip, ScrollbarOrientation::Vertical, viewportDip, viewportDip + extent);
+                    const float scrollStart = _verticalScrollDip;
                     _verticalScrollDip += (point.y < thumb.top) ? -pageStep : pageStep;
                     ClampScrollOffsets();
                     UpdateScrollbarHotState(HitInfo{.zone = HitZone::VerticalScrollbar, .onScrollbarThumb = false});
                     SyncScrollbarAnimation(host);
-                    Invalidate(host);
+                    InvalidateScrollbar(host, _verticalScrollDip != scrollStart);
                 }
                 return true;
             }
@@ -5911,7 +5914,7 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
                     _dragThumbOffsetDip  = point.x - thumb.left;
                     UpdateScrollbarHotState(HitInfo{.zone = HitZone::HorizontalScrollbar, .onScrollbarThumb = true});
                     SyncScrollbarAnimation(host);
-                    Invalidate(host);
+                    InvalidateScrollbar(host, false);
                 }
                 else
                 {
@@ -5924,11 +5927,12 @@ bool Grid::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool rightButton,
                     }
                     const float pageStep       = ComputeScrollbarPageStepDip(hit.rectDip, ScrollbarOrientation::Horizontal, viewportDip, viewportDip + extent);
                     const bool pageTowardStart = IsRightToLeft() ? point.x > thumb.right : point.x < thumb.left;
+                    const float scrollStart    = _horizontalScrollDip;
                     _horizontalScrollDip += pageTowardStart ? -pageStep : pageStep;
                     ClampScrollOffsets();
                     UpdateScrollbarHotState(HitInfo{.zone = HitZone::HorizontalScrollbar, .onScrollbarThumb = false});
                     SyncScrollbarAnimation(host);
-                    Invalidate(host);
+                    InvalidateScrollbar(host, _horizontalScrollDip != scrollStart);
                 }
                 return true;
             }
@@ -6191,12 +6195,13 @@ bool Grid::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
     SyncScrollbarAnimation(host);
     if (hadThumbDrag)
     {
+        const float verticalStart = _verticalScrollDip, horizontalStart = _horizontalScrollDip;
         ClampScrollOffsets();
         if (! guard.IsCurrent())
         {
             return true;
         }
-        Invalidate(host);
+        InvalidateScrollbar(host, _verticalScrollDip != verticalStart || _horizontalScrollDip != horizontalStart);
     }
 
     if (_dragReorderColumn)
@@ -6269,6 +6274,17 @@ bool Grid::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool rightButton, U
         }
     }
     return hadDrag;
+}
+
+// A repaint of the scrollbars (W8.3): a moved offset is marked as this Grid's scroll, whose record and rectangles the next
+// publication reads again at once; the scrollbar's own hot, pressed and dragging state is not published. Either way the
+// repaint is declared, so a scrollbar gesture never builds the whole window.
+void Grid::InvalidateScrollbar(ControlHost& host, bool scrolled) noexcept
+{
+    if (scrolled)
+        NoteAccessibilityRecordChange(*this, AccessibilityRecordAspect::Scroll);
+    const AttestedInvalidation declared(&host);
+    Invalidate(host);
 }
 
 bool Grid::OnMouseWheel(ControlHost& host, D2D1_POINT_2F /*point*/, float wheelDelta, UINT /*modifiers*/)

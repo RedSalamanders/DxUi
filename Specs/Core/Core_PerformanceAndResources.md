@@ -373,7 +373,8 @@ snapshot, delta and receipt.
   boxes inserted into an identity map to pair one revision with the next: the parser's old-node map (until incremental
   parse reuse replaces it); semantic projection and semantic geometry pair by block range and order and add none.
 - **UI Automation.** Each whole-window snapshot build counts `snapshotBuilds`, its control records (`snapshotNodes`) and
-  the bytes its per-control record arrays reserve (`snapshotBytes`, owned strings excluded). It counts the same builds as
+  the heap bytes the snapshot holds (`snapshotBytes`: everything a generation holds, each block once, as UI_InputAndAccessibility's
+  record build cost describes; the retained-cache row `Accessibility.snapshot` counts the same). It counts the same builds as
   the diagnostic `DebugGetAccessibilitySnapshotBuildCountForTest`, which remains. Text-range movement by word counts the
   UTF-16 units it steps over (`wordUnitsVisited`), the enclosing-word search's walk from offset 0 included.
 - **Layout.** Each `Control::Measure` with valid input counts a `measureCacheHits` (answered from the control's
