@@ -1,1 +1,0 @@
-- Recreate native host graphics resources when a Direct3D driver reports an internal device error.
