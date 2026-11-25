@@ -90,6 +90,14 @@ foreach($relative in $projects){
     foreach($configuration in 'Debug','Release','ASan Debug'){foreach($platform in 'x64','ARM64'){
         $value=Read-Profile $path $configuration $platform
         Assert-Profile $value $configuration "$relative $platform $configuration"
+        if (-not $env:CL_MP) {
+            $serialItems = $value.Items.ClCompile | Where-Object {
+                $_['ExcludedFromBuild'] -ne 'true' -and $_['MultiProcessorCompilation'] -ne 'true'
+            }
+            if ($serialItems) {
+                throw "$relative $platform $configuration did not select parallel compilation."
+            }
+        }
         if(-not $env:PreferredToolArchitecture -and $value.Properties.VCToolArchitecture -cne $nativeToolArchitecture){
             throw "$relative $platform $configuration resolved $($value.Properties.VCToolArchitecture) instead of $nativeToolArchitecture."
         }
@@ -122,6 +130,21 @@ if($explicitHost.Properties.VCToolArchitecture -cne 'Native32Bit'){
     throw "The explicit x86 compiler host resolved as $($explicitHost.Properties.VCToolArchitecture)."
 }
 Write-Host 'PASS native compiler host defaults and explicit x86 override.'
+foreach ($platform in 'x64', 'ARM64') {
+    $bounded = Read-Profile $first 'Release' $platform -Extra @('/p:CL_MP=true', '/p:CL_MPCount=2')
+    $unbounded = $bounded.Items.ClCompile | Where-Object {
+        $_['ExcludedFromBuild'] -ne 'true' -and
+            ($_['MultiProcessorCompilation'] -ne 'true' -or $_['ProcessorNumber'] -ne '2')
+    }
+    if ($unbounded) {
+        throw "$platform did not apply the requested compiler process limit."
+    }
+    $serial = Read-Profile $first 'Release' $platform -Extra @('/p:CL_MP=false')
+    if ($serial.Items.ClCompile | Where-Object { $_['MultiProcessorCompilation'] -eq 'true' }) {
+        throw "$platform did not honor the explicit serial compiler selection."
+    }
+}
+Write-Host 'PASS compiler worker limits and explicit serial selection for x64 and ARM64.'
 # An external consumer must obtain ASan's non-incremental link from the public
 # import. Disable repository inheritance so this cannot accidentally pass through
 # the first-party project policy. Start with the conflicting user/default value.

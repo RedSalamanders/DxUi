@@ -405,8 +405,10 @@ these diagnostics are not native workload measurements or performance acceptance
 dependencies. It revokes scoped test, performance and applicable SDK build receipts and checks the
 evaluated output and tracking paths before MSBuild cleans them. `-ProductionOnly` selects the Release
 library. `-Projects` selects owned targets and their library dependency. Use `-Rebuild` to clean and
-compile the selected profile. `-MaxCpuCount` sets the MSBuild worker limit for these commands and
-ordinary builds. By default, MSBuild selects its worker count.
+compile the selected profile. Native projects use MSVC's parallel compilation by default.
+`-MaxCpuCount` sets the MSBuild worker limit and the compiler process limit for each project.
+With zero, both tools select their defaults. A direct MSBuild invocation can set `CL_MP=false` for
+serial compilation within each project.
 
 `build.ps1 -Analyze` rebuilds the solution with MSVC code analysis on the selected architecture and profile.
 It restores missing analysis dependencies and retains binaries, intermediates and logs below `.build/analysis/`.
