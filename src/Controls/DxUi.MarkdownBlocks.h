@@ -19,18 +19,18 @@ namespace DxUi::RichText::Detail
 class MarkdownBlocks
 {
     using Kind = MarkdownBlockKind;
-    std::wstring_view source_;
-    std::vector<MarkdownNode>& nodes_;
-    std::vector<MarkdownEmptyLine>& emptyLines_;
-    unsigned containerIndent_{};
-    unsigned activeFootnotes_{};
-    std::vector<std::size_t> open_, tails_, previousSibling_;
-    std::vector<bool> blank_;
-    std::size_t leaf_ = MarkdownNoNode;
-    std::size_t lineFirst_{}, lineEnd_{};
-    std::size_t acceptedEnd_{};
-    std::array<std::size_t, 3> lastOtherMarker_{};
-    MarkdownBlockStatistics statistics_;
+    std::wstring_view _source;
+    std::vector<MarkdownNode>& _nodes;
+    std::vector<MarkdownEmptyLine>& _emptyLines;
+    unsigned _containerIndent{};
+    unsigned _activeFootnotes{};
+    std::vector<std::size_t> _open, _tails, _previousSibling;
+    std::vector<bool> _blank;
+    std::size_t _leaf = MarkdownNoNode;
+    std::size_t _lineFirst{}, _lineEnd{};
+    std::size_t _acceptedEnd{};
+    std::array<std::size_t, 3> _lastOtherMarker{};
+    MarkdownBlockStatistics _statistics;
     struct TableRowPreparation
     {
         TableRowPreparation() : alignment(0u), cells(0u)
@@ -40,20 +40,20 @@ class MarkdownBlocks
         std::vector<MarkdownAlignment> alignment;
         std::vector<MarkdownRange> cells;
     };
-    std::optional<TableRowPreparation> tableRow_;
-    std::optional<MarkdownSourceRegion> sourceRegion_;
-    bool sourceRegionStarted_{};
-    bool emptyInlineRegion_{};
-    bool capacityExceeded_{};
+    std::optional<TableRowPreparation> _tableRow;
+    std::optional<MarkdownSourceRegion> _sourceRegion;
+    bool _sourceRegionStarted{};
+    bool _emptyInlineRegion{};
+    bool _capacityExceeded{};
 
     void StartSourceRegion(std::size_t bodyEnd)
     {
         CloseLeaf();
-        leaf_ = Add(Kind::SourceEditor, open_.back());
-        if (leaf_ == MarkdownNoNode)
+        _leaf = Add(Kind::SourceEditor, _open.back());
+        if (_leaf == MarkdownNoNode)
             return;
-        sourceRegionStarted_ = true;
-        Content(leaf_, Cursor{source_, lineFirst_, bodyEnd}, bodyEnd);
+        _sourceRegionStarted = true;
+        Content(_leaf, Cursor{_source, _lineFirst, bodyEnd}, bodyEnd);
         Extend();
     }
 
@@ -151,7 +151,7 @@ class MarkdownBlocks
     };
     FootnotePrefix FootnoteAt(Cursor cursor, bool interruptProbe = false) const
     {
-        if (sourceProfile_ != MarkdownProfile::RichMarkdown || (! interruptProbe && activeFootnotes_) || cursor.Indent() > 3u)
+        if (_sourceProfile != MarkdownProfile::RichMarkdown || (! interruptProbe && _activeFootnotes) || cursor.Indent() > 3u)
             return {};
         cursor.Trim();
         const auto first = cursor.offset;
@@ -179,7 +179,7 @@ class MarkdownBlocks
                 return {};
         }
         const auto last = cursor.offset;
-        if (cursor.Empty() || ! ValidFootnoteLabel(source_.substr(label, last - label)))
+        if (cursor.Empty() || ! ValidFootnoteLabel(_source.substr(label, last - label)))
             return {};
         cursor.Take();
         if (cursor.Empty() || cursor.Peek() != L':')
@@ -311,7 +311,7 @@ class MarkdownBlocks
     }
     bool DisplayMathFence(Cursor cursor) const
     {
-        if (sourceProfile_ != MarkdownProfile::RichMarkdown || cursor.Indent() > 3u)
+        if (_sourceProfile != MarkdownProfile::RichMarkdown || cursor.Indent() > 3u)
             return false;
         cursor.Trim();
         const auto rest = cursor.Rest();
@@ -410,7 +410,7 @@ class MarkdownBlocks
             return 3u;
         if (Starts(text, L"<![CDATA["))
             return 5u;
-        if (text.size() > 2u && Starts(text, L"<!") && (sourceProfile_ == MarkdownProfile::Gfm029 ? (text[2] >= L'A' && text[2] <= L'Z') : Letter(text[2])))
+        if (text.size() > 2u && Starts(text, L"<!") && (_sourceProfile == MarkdownProfile::Gfm029 ? (text[2] >= L'A' && text[2] <= L'Z') : Letter(text[2])))
             return 4u;
         if (text.size() < 2u || text[0] != L'<')
             return 0;
@@ -420,7 +420,7 @@ class MarkdownBlocks
         const auto name     = text.substr(first, end - first);
         const bool boundary = end == text.size() || Space(text[end]) || text[end] == L'>';
         const bool rawName  = EqualAscii(name, L"pre") || EqualAscii(name, L"script") || EqualAscii(name, L"style") ||
-                              (sourceProfile_ != MarkdownProfile::Gfm029 && EqualAscii(name, L"textarea"));
+                              (_sourceProfile != MarkdownProfile::Gfm029 && EqualAscii(name, L"textarea"));
         if (first == 1u && rawName)
         {
             // Type 7 excludes these opening tag names, even when a complete
@@ -438,7 +438,7 @@ class MarkdownBlocks
             L"tfoot",   L"th",       L"thead",    L"title",  L"tr",       L"track",      L"ul"};
         if (boundary || (end + 1u < text.size() && text[end] == L'/' && text[end + 1u] == L'>'))
             for (const auto known : names)
-                if (EqualAscii(name, known) && (known != L"search" || sourceProfile_ != MarkdownProfile::Gfm029))
+                if (EqualAscii(name, known) && (known != L"search" || _sourceProfile != MarkdownProfile::Gfm029))
                     return 6u;
         return ! paragraph && Tag(text) ? 7u : 0u;
     }
@@ -448,7 +448,7 @@ class MarkdownBlocks
         {
             for (std::size_t i = 0; i < text.size(); ++i)
                 for (const auto tag : {L"</pre>", L"</script>", L"</style>", L"</textarea>"})
-                    if ((sourceProfile_ != MarkdownProfile::Gfm029 || std::wstring_view(tag) != L"</textarea>") &&
+                    if ((_sourceProfile != MarkdownProfile::Gfm029 || std::wstring_view(tag) != L"</textarea>") &&
                         i + std::wstring_view(tag).size() <= text.size() && EqualAscii(text.substr(i, std::wstring_view(tag).size()), tag))
                         return true;
             return false;
@@ -456,47 +456,47 @@ class MarkdownBlocks
         const std::wstring_view end = type == 2u ? L"-->" : type == 3u ? L"?>" : type == 4u ? L">" : L"]]>";
         return type <= 5u && text.find(end) != std::wstring_view::npos;
     }
-    MarkdownProfile sourceProfile_;
-    MarkdownExtensions extensions_;
+    MarkdownProfile _sourceProfile;
+    MarkdownExtensions _extensions;
     std::vector<MarkdownRange> Cells(MarkdownRange line) const
     {
-        return MarkdownTableCells(source_, line);
+        return MarkdownTableCells(_source, line);
     }
     void TableRow(std::size_t table, MarkdownContentLine line, const std::vector<MarkdownAlignment>& alignment, bool header)
     {
         // Padded cells amplify short sparse rows. Admit the complete row and
         // all its columns against the remaining document budget before any row
         // or cell allocation; subtraction avoids overflow in large products.
-        if (alignment.size() >= MarkdownSyntax::MaximumNodeRecords - nodes_.size())
+        if (alignment.size() >= MarkdownSyntax::MaximumNodeRecords - _nodes.size())
         {
-            capacityExceeded_ = true;
+            _capacityExceeded = true;
             return;
         }
         const auto row = Add(Kind::TableRow, table);
         if (row == MarkdownNoNode)
             return;
-        nodes_[row].tableHeader   = header;
-        nodes_[row].block.source  = {header ? nodes_[table].block.source.first : lineFirst_, line.source.last};
-        nodes_[row].block.content = line.source;
+        _nodes[row].tableHeader   = header;
+        _nodes[row].block.source  = {header ? _nodes[table].block.source.first : _lineFirst, line.source.last};
+        _nodes[row].block.content = line.source;
         const auto cells          = Cells(line.source);
-        tableRow_.emplace();
-        tableRow_->row = row;
-        tableRow_->alignment.assign(alignment.begin(), alignment.end());
-        tableRow_->cells.assign(cells.begin(), cells.end());
+        _tableRow.emplace();
+        _tableRow->row = row;
+        _tableRow->alignment.assign(alignment.begin(), alignment.end());
+        _tableRow->cells.assign(cells.begin(), cells.end());
     }
     bool StartTable(Cursor cursor, std::size_t bodyEnd)
     {
-        if (! HasMarkdownExtension(extensions_, MarkdownExtensions::Tables) || leaf_ == MarkdownNoNode || nodes_[leaf_].block.kind != Kind::Paragraph ||
+        if (! HasMarkdownExtension(_extensions, MarkdownExtensions::Tables) || _leaf == MarkdownNoNode || _nodes[_leaf].block.kind != Kind::Paragraph ||
             cursor.Indent() > 3u)
             return false;
         const auto rest = cursor.Rest();
         if (rest.find_first_not_of(L" |:-\t") != std::wstring_view::npos || rest.find(L'-') == std::wstring_view::npos)
             return false;
-        if (nodes_[leaf_].lines.empty())
+        if (_nodes[_leaf].lines.empty())
             return false;
-        const auto candidateHeader = nodes_[leaf_].lines.back();
+        const auto candidateHeader = _nodes[_leaf].lines.back();
         if (rest.find(L'|') == std::wstring_view::npos &&
-            source_.substr(candidateHeader.source.first, candidateHeader.source.last - candidateHeader.source.first).find(L'|') == std::wstring_view::npos)
+            _source.substr(candidateHeader.source.first, candidateHeader.source.last - candidateHeader.source.first).find(L'|') == std::wstring_view::npos)
             return false;
         const auto delimiter = Cells({cursor.offset, bodyEnd});
         if (Cells(candidateHeader.source).size() != delimiter.size())
@@ -504,7 +504,7 @@ class MarkdownBlocks
         std::vector<MarkdownAlignment> alignment(0u);
         for (const auto range : delimiter)
         {
-            auto text       = source_.substr(range.first, range.last - range.first);
+            auto text       = _source.substr(range.first, range.last - range.first);
             const bool left = text.starts_with(L':'), right = text.ends_with(L':');
             if (left)
                 text.remove_prefix(1u);
@@ -518,133 +518,133 @@ class MarkdownBlocks
         }
         // A rejected delimiter must not re-flatten the growing paragraph.
         // Only a viable header can need reference extraction.
-        References(leaf_);
-        if (capacityExceeded_)
+        References(_leaf);
+        if (_capacityExceeded)
             return true;
-        if (nodes_[leaf_].parent == MarkdownNoNode)
+        if (_nodes[_leaf].parent == MarkdownNoNode)
         {
-            leaf_ = MarkdownNoNode;
+            _leaf = MarkdownNoNode;
             return false;
         }
-        if (nodes_[leaf_].lines.empty())
+        if (_nodes[_leaf].lines.empty())
             return false;
-        const auto header = nodes_[leaf_].lines.back();
-        auto table        = leaf_;
-        if (nodes_[leaf_].lines.size() > 1u)
+        const auto header = _nodes[_leaf].lines.back();
+        auto table        = _leaf;
+        if (_nodes[_leaf].lines.size() > 1u)
         {
-            const auto preceding = nodes_[leaf_].lines[nodes_[leaf_].lines.size() - 2u].source.last;
+            const auto preceding = _nodes[_leaf].lines[_nodes[_leaf].lines.size() - 2u].source.last;
             auto contentEnd      = preceding;
-            if (contentEnd > nodes_[leaf_].block.source.first && source_[contentEnd - 1u] == L'\n')
+            if (contentEnd > _nodes[_leaf].block.source.first && _source[contentEnd - 1u] == L'\n')
                 --contentEnd;
-            if (contentEnd > nodes_[leaf_].block.source.first && source_[contentEnd - 1u] == L'\r')
+            if (contentEnd > _nodes[_leaf].block.source.first && _source[contentEnd - 1u] == L'\r')
                 --contentEnd;
-            const auto parent = nodes_[leaf_].parent;
-            nodes_[leaf_].lines.pop_back();
-            nodes_[leaf_].block.source.last  = preceding;
-            nodes_[leaf_].block.content.last = contentEnd;
+            const auto parent = _nodes[_leaf].parent;
+            _nodes[_leaf].lines.pop_back();
+            _nodes[_leaf].block.source.last  = preceding;
+            _nodes[_leaf].block.content.last = contentEnd;
             table                            = Add(Kind::Table, parent);
             if (table == MarkdownNoNode)
                 return true;
-            nodes_[table].block.source.first  = preceding;
-            nodes_[table].block.content.first = header.source.first;
-            nodes_[table].lines.push_back(header);
-            leaf_ = table;
+            _nodes[table].block.source.first  = preceding;
+            _nodes[table].block.content.first = header.source.first;
+            _nodes[table].lines.push_back(header);
+            _leaf = table;
         }
-        nodes_[table].block.kind         = Kind::Table;
-        nodes_[table].block.source.last  = lineEnd_;
-        nodes_[table].block.content.last = bodyEnd;
+        _nodes[table].block.kind         = Kind::Table;
+        _nodes[table].block.source.last  = _lineEnd;
+        _nodes[table].block.content.last = bodyEnd;
         TableRow(table, header, alignment, true);
         return true;
     }
     void ContinueTable(Cursor cursor)
     {
         std::vector<MarkdownAlignment> alignment(0u);
-        const auto header = nodes_[leaf_].firstChild;
-        for (auto cell = nodes_[header].firstChild; cell != MarkdownNoNode; cell = nodes_[cell].nextSibling)
-            alignment.push_back(nodes_[cell].alignment);
-        TableRow(leaf_, {{cursor.offset, lineEnd_}, cursor.remaining}, alignment, false);
-        if (capacityExceeded_)
+        const auto header = _nodes[_leaf].firstChild;
+        for (auto cell = _nodes[header].firstChild; cell != MarkdownNoNode; cell = _nodes[cell].nextSibling)
+            alignment.push_back(_nodes[cell].alignment);
+        TableRow(_leaf, {{cursor.offset, _lineEnd}, cursor.remaining}, alignment, false);
+        if (_capacityExceeded)
             return;
-        nodes_[leaf_].block.source.last  = lineEnd_;
-        nodes_[leaf_].block.content.last = lineEnd_;
+        _nodes[_leaf].block.source.last  = _lineEnd;
+        _nodes[_leaf].block.content.last = _lineEnd;
     }
     std::size_t Add(Kind kind, std::size_t parent)
     {
-        if (capacityExceeded_ || nodes_.size() >= MarkdownSyntax::MaximumNodeRecords)
+        if (_capacityExceeded || _nodes.size() >= MarkdownSyntax::MaximumNodeRecords)
         {
-            capacityExceeded_ = true;
+            _capacityExceeded = true;
             return MarkdownNoNode;
         }
-        const auto index = nodes_.size();
-        nodes_.emplace_back();
-        tails_.push_back(MarkdownNoNode);
-        previousSibling_.push_back(parent == MarkdownNoNode ? MarkdownNoNode : tails_[parent]);
-        blank_.push_back(false);
-        auto& node         = nodes_.back();
+        const auto index = _nodes.size();
+        _nodes.emplace_back();
+        _tails.push_back(MarkdownNoNode);
+        _previousSibling.push_back(parent == MarkdownNoNode ? MarkdownNoNode : _tails[parent]);
+        _blank.push_back(false);
+        auto& node         = _nodes.back();
         node.block.kind    = kind;
-        node.block.source  = {lineFirst_, lineEnd_};
-        node.block.content = {lineFirst_, lineEnd_};
+        node.block.source  = {_lineFirst, _lineEnd};
+        node.block.content = {_lineFirst, _lineEnd};
         node.parent        = parent;
         if (parent != MarkdownNoNode)
         {
-            if (tails_[parent] != MarkdownNoNode)
-                nodes_[tails_[parent]].nextSibling = index;
+            if (_tails[parent] != MarkdownNoNode)
+                _nodes[_tails[parent]].nextSibling = index;
             else
-                nodes_[parent].firstChild = index;
-            tails_[parent] = index;
-            if (kind != Kind::ListItem && blank_[parent] && nodes_[parent].block.kind == Kind::ListItem && previousSibling_[index] != MarkdownNoNode)
-                nodes_[nodes_[parent].parent].tight = false;
-            blank_[parent] = false;
+                _nodes[parent].firstChild = index;
+            _tails[parent] = index;
+            if (kind != Kind::ListItem && _blank[parent] && _nodes[parent].block.kind == Kind::ListItem && _previousSibling[index] != MarkdownNoNode)
+                _nodes[_nodes[parent].parent].tight = false;
+            _blank[parent] = false;
         }
         return index;
     }
     void Content(std::size_t node, Cursor cursor, std::size_t bodyEnd, bool newline = true)
     {
-        nodes_[node].lines.push_back({{cursor.offset, newline ? lineEnd_ : bodyEnd}, cursor.remaining});
-        auto& block = nodes_[node].block;
-        if (nodes_[node].lines.size() == 1u)
+        _nodes[node].lines.push_back({{cursor.offset, newline ? _lineEnd : bodyEnd}, cursor.remaining});
+        auto& block = _nodes[node].block;
+        if (_nodes[node].lines.size() == 1u)
             block.content.first = cursor.offset;
         block.content.last = bodyEnd;
         if (block.kind == Kind::FencedCode || block.kind == Kind::IndentedCode || block.kind == Kind::HtmlBlock || block.kind == Kind::FrontMatter ||
             block.kind == Kind::SourceEditor)
-            block.content.last = lineEnd_;
-        block.source.last = lineEnd_;
+            block.content.last = _lineEnd;
+        block.source.last = _lineEnd;
     }
     void Extend()
     {
         // Open containers share this accepted boundary. Updating every ancestor
         // on each lazy paragraph line would multiply depth by line count.
-        acceptedEnd_ = lineEnd_;
+        _acceptedEnd = _lineEnd;
     }
     void PopContainer()
     {
-        const auto closing = open_.back();
-        if (nodes_[closing].block.kind == Kind::BlockQuote || nodes_[closing].block.kind == Kind::ListItem)
-            --containerIndent_;
-        if (nodes_[closing].block.kind == Kind::FootnoteDefinition)
+        const auto closing = _open.back();
+        if (_nodes[closing].block.kind == Kind::BlockQuote || _nodes[closing].block.kind == Kind::ListItem)
+            --_containerIndent;
+        if (_nodes[closing].block.kind == Kind::FootnoteDefinition)
         {
-            --activeFootnotes_;
-            --containerIndent_;
-            nodes_[closing].block.content.last = acceptedEnd_;
+            --_activeFootnotes;
+            --_containerIndent;
+            _nodes[closing].block.content.last = _acceptedEnd;
         }
-        open_.pop_back();
-        nodes_[closing].block.source.last = acceptedEnd_;
-        ++statistics_.containerFinalizations;
-        if (blank_[closing] && nodes_[closing].block.kind != Kind::BlockQuote)
-            blank_[open_.back()] = true;
+        _open.pop_back();
+        _nodes[closing].block.source.last = _acceptedEnd;
+        ++_statistics.containerFinalizations;
+        if (_blank[closing] && _nodes[closing].block.kind != Kind::BlockQuote)
+            _blank[_open.back()] = true;
     }
     void CloseLeaf()
     {
-        if (leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::Paragraph)
-            References(leaf_);
-        if (leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::IndentedCode)
+        if (_leaf != MarkdownNoNode && _nodes[_leaf].block.kind == Kind::Paragraph)
+            References(_leaf);
+        if (_leaf != MarkdownNoNode && _nodes[_leaf].block.kind == Kind::IndentedCode)
         {
-            auto& node    = nodes_[leaf_];
+            auto& node    = _nodes[_leaf];
             auto retained = node.lines.size();
             while (retained)
             {
                 const auto& line = node.lines[retained - 1u];
-                auto text        = source_.substr(line.source.first, line.source.last - line.source.first);
+                auto text        = _source.substr(line.source.first, line.source.last - line.source.first);
                 if (text.find_first_not_of(L" \t\r\n") != std::wstring_view::npos)
                     break;
                 --retained;
@@ -656,34 +656,34 @@ class MarkdownBlocks
             {
                 const auto range = node.lines[index].source;
                 auto first = range.first, bodyEnd = range.last;
-                while (first && source_[first - 1u] != L'\r' && source_[first - 1u] != L'\n')
+                while (first && _source[first - 1u] != L'\r' && _source[first - 1u] != L'\n')
                     --first;
-                while (bodyEnd > first && (source_[bodyEnd - 1u] == L'\r' || source_[bodyEnd - 1u] == L'\n'))
+                while (bodyEnd > first && (_source[bodyEnd - 1u] == L'\r' || _source[bodyEnd - 1u] == L'\n'))
                     --bodyEnd;
-                emptyLines_.push_back({{first, range.last}, bodyEnd, node.parent, containerIndent_});
+                _emptyLines.push_back({{first, range.last}, bodyEnd, node.parent, _containerIndent});
             }
             node.lines.resize(retained);
         }
-        leaf_ = MarkdownNoNode;
+        _leaf = MarkdownNoNode;
     }
     bool FrontMatterLine(std::size_t first, std::size_t bodyEnd, std::size_t end)
     {
-        if (sourceProfile_ != MarkdownProfile::RichMarkdown)
+        if (_sourceProfile != MarkdownProfile::RichMarkdown)
             return false;
-        const auto body = source_.substr(first, bodyEnd - first);
-        if (leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::FrontMatter)
+        const auto body = _source.substr(first, bodyEnd - first);
+        if (_leaf != MarkdownNoNode && _nodes[_leaf].block.kind == Kind::FrontMatter)
         {
-            auto& node        = nodes_[leaf_];
+            auto& node        = _nodes[_leaf];
             const bool closes = node.frontMatterKind == MarkdownFrontMatterKind::Yaml ? body == L"---" || body == L"..." : body == L"+++";
             if (closes)
             {
                 node.block.source.last  = end;
                 node.block.content.last = first;
                 node.block.closed       = true;
-                leaf_                   = MarkdownNoNode;
+                _leaf                   = MarkdownNoNode;
             }
             else
-                Content(leaf_, Cursor{source_, first, bodyEnd}, bodyEnd);
+                Content(_leaf, Cursor{_source, first, bodyEnd}, bodyEnd);
             Extend();
             return true;
         }
@@ -695,10 +695,10 @@ class MarkdownBlocks
         const auto marker = body.substr(bom);
         if (marker != L"---" && marker != L"+++")
             return false;
-        leaf_ = Add(Kind::FrontMatter, 0u);
-        if (leaf_ == MarkdownNoNode)
+        _leaf = Add(Kind::FrontMatter, 0u);
+        if (_leaf == MarkdownNoNode)
             return true;
-        auto& node           = nodes_[leaf_];
+        auto& node           = _nodes[_leaf];
         node.frontMatterKind = marker == L"---" ? MarkdownFrontMatterKind::Yaml : MarkdownFrontMatterKind::Toml;
         node.block.content   = {end, end};
         node.block.info      = {bom, bodyEnd};
@@ -708,7 +708,7 @@ class MarkdownBlocks
     }
     bool ReferenceSpace(wchar_t c) const noexcept
     {
-        return Space(c) || c == L'\r' || c == L'\n' || (sourceProfile_ == MarkdownProfile::Gfm029 && (c == L'\v' || c == L'\f'));
+        return Space(c) || c == L'\r' || c == L'\n' || (_sourceProfile == MarkdownProfile::Gfm029 && (c == L'\v' || c == L'\f'));
     }
     // Reference syntax is resolved only at the beginning of a paragraph. Keep
     // exact source spans; global Unicode folding/link resolution follows blocks.
@@ -726,7 +726,7 @@ class MarkdownBlocks
             return {};
         // RichMarkdown reserves this namespace even inside a definition, where
         // another note opener is literal rather than a nested/global link.
-        if (sourceProfile_ == MarkdownProfile::RichMarkdown && i < text.size() && text[i] == L'^')
+        if (_sourceProfile == MarkdownProfile::RichMarkdown && i < text.size() && text[i] == L'^')
             return {};
         result.labelFirst = i;
         unsigned count    = 0;
@@ -859,9 +859,9 @@ class MarkdownBlocks
     {
         // Flatten only this bounded paragraph's prefix-stripped spelling, never
         // the document. The offset oracle keeps CRLF and container prefixes exact.
-        const auto& original = nodes_[paragraph];
+        const auto& original = _nodes[paragraph];
         if (original.lines.empty() || original.lines.front().source.first >= original.lines.front().source.last ||
-            original.lines.front().source.first >= source_.size() || source_[original.lines.front().source.first] != L'[')
+            original.lines.front().source.first >= _source.size() || _source[original.lines.front().source.first] != L'[')
             return;
         std::wstring text(0u, L' ');
         std::vector<std::size_t> offsets(0u);
@@ -872,23 +872,23 @@ class MarkdownBlocks
             for (auto i = line.source.first; i < line.source.last; ++i)
             {
                 offsets.push_back(i);
-                if (source_[i] == L'\r')
+                if (_source[i] == L'\r')
                 {
                     text.push_back(L'\n');
-                    if (i + 1u < line.source.last && source_[i + 1u] == L'\n')
+                    if (i + 1u < line.source.last && _source[i + 1u] == L'\n')
                         ++i;
                 }
                 else
-                    text.push_back(source_[i]);
+                    text.push_back(_source[i]);
             }
         }
         offsets.push_back(original.block.source.last);
         const auto parent  = original.parent;
         std::size_t cursor = 0, previous = MarkdownNoNode, lineCursor = 0u;
-        const auto before           = previousSibling_[paragraph];
+        const auto before           = _previousSibling[paragraph];
         const auto physicalBoundary = [&](std::size_t offset)
         {
-            const auto& lines = nodes_[paragraph].lines;
+            const auto& lines = _nodes[paragraph].lines;
             const auto line   = std::lower_bound(lines.begin(), lines.end(), offset, [](const auto& entry, auto value) { return entry.source.first < value; });
             return line != lines.begin() && line != lines.end() && line->source.first == offset ? std::prev(line)->source.last : offset;
         };
@@ -899,39 +899,39 @@ class MarkdownBlocks
                 break;
             // Reference extraction splices before the paragraph rather than using Add's tail linkage.
             // It must still share the complete block/inline graph admission ceiling.
-            if (nodes_.size() >= MarkdownSyntax::MaximumNodeRecords)
+            if (_nodes.size() >= MarkdownSyntax::MaximumNodeRecords)
             {
-                capacityExceeded_ = true;
+                _capacityExceeded = true;
                 return;
             }
-            const auto index = nodes_.size();
-            nodes_.emplace_back();
-            tails_.push_back(MarkdownNoNode);
-            previousSibling_.push_back(previous == MarkdownNoNode ? before : previous);
-            blank_.push_back(false);
-            auto& node         = nodes_.back();
+            const auto index = _nodes.size();
+            _nodes.emplace_back();
+            _tails.push_back(MarkdownNoNode);
+            _previousSibling.push_back(previous == MarkdownNoNode ? before : previous);
+            _blank.push_back(false);
+            auto& node         = _nodes.back();
             node.parent        = parent;
             node.block.kind    = Kind::ReferenceDefinition;
-            node.block.source  = {cursor ? physicalBoundary(offsets[cursor]) : nodes_[paragraph].block.source.first, physicalBoundary(offsets[reference.end])};
+            node.block.source  = {cursor ? physicalBoundary(offsets[cursor]) : _nodes[paragraph].block.source.first, physicalBoundary(offsets[reference.end])};
             node.block.content = node.block.source;
             node.label         = {offsets[reference.labelFirst], offsets[reference.labelEnd]};
             node.destination   = {offsets[reference.destinationFirst], offsets[reference.destinationEnd]};
             node.title         = {offsets[reference.titleFirst], offsets[reference.titleEnd]};
-            while (lineCursor < nodes_[paragraph].lines.size() && nodes_[paragraph].lines[lineCursor].source.last <= node.block.source.first)
+            while (lineCursor < _nodes[paragraph].lines.size() && _nodes[paragraph].lines[lineCursor].source.last <= node.block.source.first)
                 ++lineCursor;
-            while (lineCursor < nodes_[paragraph].lines.size() && nodes_[paragraph].lines[lineCursor].source.first < node.block.source.last)
+            while (lineCursor < _nodes[paragraph].lines.size() && _nodes[paragraph].lines[lineCursor].source.first < node.block.source.last)
             {
-                auto line         = nodes_[paragraph].lines[lineCursor++];
+                auto line         = _nodes[paragraph].lines[lineCursor++];
                 line.source.first = std::max(line.source.first, node.block.source.first);
                 line.source.last  = std::min(line.source.last, node.block.source.last);
                 node.lines.push_back(line);
             }
             if (previous != MarkdownNoNode)
-                nodes_[previous].nextSibling = index;
+                _nodes[previous].nextSibling = index;
             else if (before != MarkdownNoNode)
-                nodes_[before].nextSibling = index;
+                _nodes[before].nextSibling = index;
             else
-                nodes_[parent].firstChild = index;
+                _nodes[parent].firstChild = index;
             previous = index;
             cursor   = reference.end;
         }
@@ -939,19 +939,19 @@ class MarkdownBlocks
             return;
         if (cursor == text.size())
         {
-            nodes_[previous].nextSibling = nodes_[paragraph].nextSibling;
-            if (nodes_[paragraph].nextSibling != MarkdownNoNode)
-                previousSibling_[nodes_[paragraph].nextSibling] = previous;
-            if (tails_[parent] == paragraph)
-                tails_[parent] = previous;
+            _nodes[previous].nextSibling = _nodes[paragraph].nextSibling;
+            if (_nodes[paragraph].nextSibling != MarkdownNoNode)
+                _previousSibling[_nodes[paragraph].nextSibling] = previous;
+            if (_tails[parent] == paragraph)
+                _tails[parent] = previous;
             // Retired staging slots are not exposed; compaction follows at EOF.
-            nodes_[paragraph].parent = MarkdownNoNode;
+            _nodes[paragraph].parent = MarkdownNoNode;
         }
         else
         {
-            nodes_[previous].nextSibling = paragraph;
-            previousSibling_[paragraph]  = previous;
-            auto& node                   = nodes_[paragraph];
+            _nodes[previous].nextSibling = paragraph;
+            _previousSibling[paragraph]  = previous;
+            auto& node                   = _nodes[paragraph];
             node.block.source.first      = physicalBoundary(offsets[cursor]);
             node.block.content.first     = offsets[cursor];
             const auto firstLine = std::find_if(node.lines.begin(), node.lines.end(), [&](const auto& line) { return line.source.last > offsets[cursor]; });
@@ -962,31 +962,31 @@ class MarkdownBlocks
 public:
     bool CapacityExceeded() const noexcept
     {
-        return capacityExceeded_;
+        return _capacityExceeded;
     }
     bool AdvanceTableCell()
     {
-        if (! tableRow_)
+        if (! _tableRow)
             return false;
-        auto& pending = *tableRow_;
+        auto& pending = *_tableRow;
         if (pending.column == pending.alignment.size())
         {
-            tableRow_.reset();
+            _tableRow.reset();
             return true;
         }
         const auto column = pending.column++;
         const auto row    = pending.row;
-        const auto end    = nodes_[row].block.content.last;
+        const auto end    = _nodes[row].block.content.last;
         const auto range  = column < pending.cells.size() ? pending.cells[column] : MarkdownRange{end, end};
         const auto cell   = Add(Kind::TableCell, row);
         if (cell == MarkdownNoNode)
             return true;
-        nodes_[cell].alignment    = pending.alignment[column];
-        nodes_[cell].tableHeader  = nodes_[row].tableHeader;
-        nodes_[cell].block.source = nodes_[cell].block.content = range;
-        nodes_[cell].lines.push_back({range, 0u});
+        _nodes[cell].alignment    = pending.alignment[column];
+        _nodes[cell].tableHeader  = _nodes[row].tableHeader;
+        _nodes[cell].block.source = _nodes[cell].block.content = range;
+        _nodes[cell].lines.push_back({range, 0u});
         if (pending.column == pending.alignment.size())
-            tableRow_.reset();
+            _tableRow.reset();
         return true;
     }
     MarkdownBlocks(std::wstring_view source,
@@ -997,17 +997,17 @@ public:
                    std::optional<MarkdownSourceRegion> sourceRegion = std::nullopt,
                    bool emptyInlineRegion                           = false,
                    bool reserveLines                                = true)
-        : source_(source),
-          nodes_(nodes),
-          emptyLines_(emptyLines),
-          open_(0u),
-          tails_(0u),
-          previousSibling_(0u),
-          blank_(0u),
-          sourceRegion_(sourceRegion),
-          emptyInlineRegion_(emptyInlineRegion),
-          sourceProfile_(profile),
-          extensions_(extensions)
+        : _source(source),
+          _nodes(nodes),
+          _emptyLines(emptyLines),
+          _open(0u),
+          _tails(0u),
+          _previousSibling(0u),
+          _blank(0u),
+          _sourceRegion(sourceRegion),
+          _emptyInlineRegion(emptyInlineRegion),
+          _sourceProfile(profile),
+          _extensions(extensions)
     {
         // Reserve a physical-line upper bound once so old/new publications cannot
         // incur geometric empty-line vector growth peaks during replacement. CRLF
@@ -1022,43 +1022,43 @@ public:
                     if (source[i] == L'\r' && i + 1u < source.size() && source[i + 1u] == L'\n')
                         ++i;
                 }
-            emptyLines_.reserve(physicalLines);
+            _emptyLines.reserve(physicalLines);
         }
         Add(Kind::Document, MarkdownNoNode);
-        nodes_[0].block.source  = {0u, source.size()};
-        nodes_[0].block.content = nodes_[0].block.source;
-        open_.push_back(0u);
+        _nodes[0].block.source  = {0u, source.size()};
+        _nodes[0].block.content = _nodes[0].block.source;
+        _open.push_back(0u);
     }
     void ReserveEmptyLines(std::size_t physicalLines)
     {
-        emptyLines_.reserve(physicalLines);
+        _emptyLines.reserve(physicalLines);
     }
     // W7.2: a line starting here starts a top-level block exactly as it would with nothing open. Open containers do not
     // matter: a line that starts a top-level block matched none of them and closed them first. A document-level leaf or
     // table row does: the line could continue it, underline it or become its table header.
     bool StartsFresh() const noexcept
     {
-        return ! sourceRegion_ && (open_.size() > 1u || (leaf_ == MarkdownNoNode && ! tableRow_));
+        return ! _sourceRegion && (_open.size() > 1u || (_leaf == MarkdownNoNode && ! _tableRow));
     }
     bool CanImportClosedRoot() const noexcept
     {
-        return ! sourceRegion_ && open_.size() == 1u && leaf_ == MarkdownNoNode && ! tableRow_;
+        return ! _sourceRegion && _open.size() == 1u && _leaf == MarkdownNoNode && ! _tableRow;
     }
     bool CanImportNodeCount(std::size_t count) const noexcept
     {
-        return count <= MarkdownSyntax::MaximumNodeRecords - nodes_.size();
+        return count <= MarkdownSyntax::MaximumNodeRecords - _nodes.size();
     }
     std::size_t ImportClosedNode(const MarkdownNode& old, std::size_t parent, std::size_t oldFirst, std::size_t currentFirst)
     {
         const auto shift = [&](std::size_t at) noexcept { return currentFirst + (at - oldFirst); };
         const auto range = [&](MarkdownRange value) noexcept
         { return value.first == 0u && value.last == 0u ? value : MarkdownRange{shift(value.first), shift(value.last)}; };
-        lineFirst_       = currentFirst;
-        lineEnd_         = currentFirst + (old.block.source.last - oldFirst);
+        _lineFirst       = currentFirst;
+        _lineEnd         = currentFirst + (old.block.source.last - oldFirst);
         const auto index = Add(old.block.kind, parent);
         if (index == MarkdownNoNode)
             return MarkdownNoNode;
-        auto& node           = nodes_[index];
+        auto& node           = _nodes[index];
         node.block           = old.block;
         node.block.source    = {shift(old.block.source.first), shift(old.block.source.last)};
         node.block.content   = {shift(old.block.content.first), shift(old.block.content.last)};
@@ -1081,11 +1081,11 @@ public:
     }
     void ImportClosedLine(std::size_t node, const MarkdownContentLine& old, std::size_t oldFirst, std::size_t currentFirst)
     {
-        nodes_[node].lines.push_back({{currentFirst + (old.source.first - oldFirst), currentFirst + (old.source.last - oldFirst)}, old.leadingSpaces});
+        _nodes[node].lines.push_back({{currentFirst + (old.source.first - oldFirst), currentFirst + (old.source.last - oldFirst)}, old.leadingSpaces});
     }
     void ImportClosedEmptyLine(const MarkdownEmptyLine& old, std::size_t owner, std::size_t oldFirst, std::size_t currentFirst)
     {
-        emptyLines_.push_back({{currentFirst + (old.source.first - oldFirst), currentFirst + (old.source.last - oldFirst)},
+        _emptyLines.push_back({{currentFirst + (old.source.first - oldFirst), currentFirst + (old.source.last - oldFirst)},
                                currentFirst + (old.insertion - oldFirst),
                                owner,
                                old.indent});
@@ -1095,17 +1095,17 @@ public:
     void ImportDocumentBlankLine(const MarkdownEmptyLine& old, std::size_t oldFirst, std::size_t currentFirst)
     {
         const auto shift = [&](std::size_t at) noexcept { return currentFirst + (at - oldFirst); };
-        lineFirst_       = shift(old.source.first);
-        lineEnd_         = shift(old.source.last);
-        lastOtherMarker_.fill(MarkdownNoNode);
-        emptyLines_.push_back({{lineFirst_, lineEnd_}, shift(old.insertion), 0u, containerIndent_});
-        blank_[0] = true;
+        _lineFirst       = shift(old.source.first);
+        _lineEnd         = shift(old.source.last);
+        _lastOtherMarker.fill(MarkdownNoNode);
+        _emptyLines.push_back({{_lineFirst, _lineEnd}, shift(old.insertion), 0u, _containerIndent});
+        _blank[0] = true;
         Extend();
     }
     void FinishClosedRoot(std::size_t end) noexcept
     {
-        acceptedEnd_ = end;
-        ++statistics_.reusedClosedRoots;
+        _acceptedEnd = end;
+        ++_statistics.reusedClosedRoots;
     }
     void ImportClosedRootParagraph(const MarkdownNode& old, std::size_t currentFirst)
     {
@@ -1116,8 +1116,8 @@ public:
         const auto shift      = [&](std::size_t position) { return currentFirst + (position - oldFirst); };
         const auto shiftRange = [&](MarkdownRange range)
         { return range.first == 0u && range.last == 0u ? range : MarkdownRange{shift(range.first), shift(range.last)}; };
-        lineFirst_       = currentFirst;
-        lineEnd_         = shift(old.block.source.last);
+        _lineFirst       = currentFirst;
+        _lineEnd         = shift(old.block.source.last);
         const auto index = Add(Kind::Paragraph, 0u);
         if (index == MarkdownNoNode)
             return;
@@ -1132,49 +1132,49 @@ public:
             line.source = shiftRange(line.source);
         copy.parent     = 0u;
         copy.firstChild = copy.nextSibling = copy.firstInline = MarkdownNoNode;
-        nodes_[index]                                         = copy;
-        acceptedEnd_                                          = lineEnd_;
-        ++statistics_.reusedClosedRoots;
+        _nodes[index]                                         = copy;
+        _acceptedEnd                                          = _lineEnd;
+        ++_statistics.reusedClosedRoots;
     }
     void Line(std::size_t first, std::size_t bodyEnd, std::size_t end)
     {
-        lineFirst_ = first;
-        lineEnd_   = end;
+        _lineFirst = first;
+        _lineEnd   = end;
         // The editing envelope takes precedence over every grammar rule,
         // including its first line. Preserve the already open surrounding
         // containers, but never interpret typed fences, prefixes, definitions
         // or metadata inside the raw scope. A broken fence must stay repairable.
-        if (leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::SourceEditor)
+        if (_leaf != MarkdownNoNode && _nodes[_leaf].block.kind == Kind::SourceEditor)
         {
-            if (first < sourceRegion_->source.last)
+            if (first < _sourceRegion->source.last)
             {
-                Content(leaf_, Cursor{source_, first, bodyEnd}, bodyEnd);
+                Content(_leaf, Cursor{_source, first, bodyEnd}, bodyEnd);
                 Extend();
                 return;
             }
             CloseLeaf();
         }
-        const bool startsSourceRegion = sourceRegion_ && ! sourceRegionStarted_ && sourceRegion_->source.first >= first &&
-                                        (sourceRegion_->source.first < end || (sourceRegion_->source.first == end && end == source_.size() && bodyEnd == end));
+        const bool startsSourceRegion = _sourceRegion && ! _sourceRegionStarted && _sourceRegion->source.first >= first &&
+                                        (_sourceRegion->source.first < end || (_sourceRegion->source.first == end && end == _source.size() && bodyEnd == end));
         if (! startsSourceRegion && FrontMatterLine(first, bodyEnd, end))
             return;
-        lastOtherMarker_.fill(MarkdownNoNode);
+        _lastOtherMarker.fill(MarkdownNoNode);
         constexpr wchar_t markers[] = {L'-', L'*', L'_'};
         for (auto offset = first; offset < bodyEnd; ++offset)
         {
-            ++statistics_.prefixInspectionUnits;
-            if (! Space(source_[offset]))
+            ++_statistics.prefixInspectionUnits;
+            if (! Space(_source[offset]))
                 for (std::size_t marker = 0u; marker < 3u; ++marker)
-                    if (source_[offset] != markers[marker])
-                        lastOtherMarker_[marker] = offset;
+                    if (_source[offset] != markers[marker])
+                        _lastOtherMarker[marker] = offset;
         }
-        Cursor cursor{source_, first, bodyEnd};
-        cursor.inspections     = &statistics_.prefixInspectionUnits;
-        cursor.lastOtherMarker = &lastOtherMarker_;
+        Cursor cursor{_source, first, bodyEnd};
+        cursor.inspections     = &_statistics.prefixInspectionUnits;
+        cursor.lastOtherMarker = &_lastOtherMarker;
         std::size_t matched    = 1u;
-        for (; matched < open_.size(); ++matched)
+        for (; matched < _open.size(); ++matched)
         {
-            const auto& node = nodes_[open_[matched]];
+            const auto& node = _nodes[_open[matched]];
             if (node.block.kind == Kind::List)
                 continue;
             if (node.block.kind == Kind::BlockQuote)
@@ -1207,26 +1207,26 @@ public:
         auto trimmed = cursor;
         trimmed.Trim();
         const bool empty     = trimmed.Empty();
-        const bool paragraph = leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::Paragraph;
-        if (matched < open_.size())
+        const bool paragraph = _leaf != MarkdownNoNode && _nodes[_leaf].block.kind == Kind::Paragraph;
+        if (matched < _open.size())
         {
             const auto marker = ListMarker(cursor);
             // Missing prefixes continue only an existing paragraph, and only
             // when this line cannot start an interrupting block in its own right.
             // The pinned GFM reference closes the unmatched quote before a
             // type-seven HTML block; CommonMark 0.31.2 keeps it lazy.
-            const bool listSibling = marker.valid && matched > 1u && nodes_[open_[matched - 1u]].block.kind == Kind::List;
-            const bool interrupts  = listSibling || Thematic(cursor) || HtmlStart(cursor, sourceProfile_ != MarkdownProfile::Gfm029) ||
+            const bool listSibling = marker.valid && matched > 1u && _nodes[_open[matched - 1u]].block.kind == Kind::List;
+            const bool interrupts  = listSibling || Thematic(cursor) || HtmlStart(cursor, _sourceProfile != MarkdownProfile::Gfm029) ||
                                      (cursor.Indent() <= 3u && trimmed.Peek() == L'>') || Atx(cursor) || Fence(cursor) || DisplayMathFence(cursor) ||
                                      FootnoteAt(cursor, true).valid || marker.valid;
             if (paragraph && ! empty && ! interrupts && ! startsSourceRegion)
             {
-                Content(leaf_, trimmed, bodyEnd);
+                Content(_leaf, trimmed, bodyEnd);
                 Extend();
                 return;
             }
             CloseLeaf();
-            while (open_.size() > matched)
+            while (_open.size() > matched)
                 PopContainer();
         }
         if (startsSourceRegion)
@@ -1234,14 +1234,14 @@ public:
             CloseLeaf();
             // Only containers whose prefixes matched this physical line can
             // own an opaque editor. A leftover list shell has no current item.
-            while (nodes_[open_.back()].block.kind == Kind::List)
+            while (_nodes[_open.back()].block.kind == Kind::List)
                 PopContainer();
             StartSourceRegion(bodyEnd);
             return;
         }
-        if (leaf_ != MarkdownNoNode)
+        if (_leaf != MarkdownNoNode)
         {
-            auto& node = nodes_[leaf_];
+            auto& node = _nodes[_leaf];
             if (node.block.kind == Kind::FencedCode)
             {
                 auto candidate    = cursor;
@@ -1258,12 +1258,12 @@ public:
                         node.block.source.last  = end;
                         node.block.content.last = first;
                         node.block.closed       = true;
-                        leaf_                   = MarkdownNoNode;
+                        _leaf                   = MarkdownNoNode;
                     }
                     else
                     {
                         cursor.Spaces(std::min(cursor.Indent(), node.block.fenceIndent));
-                        Content(leaf_, cursor, bodyEnd);
+                        Content(_leaf, cursor, bodyEnd);
                     }
                     Extend();
                     return;
@@ -1280,12 +1280,12 @@ public:
                     node.block.source.last  = end;
                     node.block.content.last = first;
                     node.block.closed       = true;
-                    leaf_                   = MarkdownNoNode;
+                    _leaf                   = MarkdownNoNode;
                 }
                 else
                 {
                     cursor.Spaces(std::min(cursor.Indent(), node.block.fenceIndent));
-                    Content(leaf_, cursor, bodyEnd);
+                    Content(_leaf, cursor, bodyEnd);
                 }
                 Extend();
                 return;
@@ -1296,19 +1296,19 @@ public:
                     CloseLeaf();
                 else
                 {
-                    Content(leaf_, cursor, bodyEnd);
+                    Content(_leaf, cursor, bodyEnd);
                     if (HtmlEnd(node.htmlType, cursor.Rest()))
-                        leaf_ = MarkdownNoNode;
+                        _leaf = MarkdownNoNode;
                     Extend();
                     return;
                 }
             }
-            if (leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::IndentedCode)
+            if (_leaf != MarkdownNoNode && _nodes[_leaf].block.kind == Kind::IndentedCode)
             {
                 if (empty || cursor.Indent() >= 4u)
                 {
                     cursor.Spaces(4u);
-                    Content(leaf_, cursor, bodyEnd);
+                    Content(_leaf, cursor, bodyEnd);
                     Extend();
                     return;
                 }
@@ -1318,12 +1318,12 @@ public:
         if (empty)
         {
             CloseLeaf();
-            emptyLines_.push_back({{first, end}, bodyEnd, open_.back(), containerIndent_});
-            blank_[open_.back()] = true;
+            _emptyLines.push_back({{first, end}, bodyEnd, _open.back(), _containerIndent});
+            _blank[_open.back()] = true;
             Extend();
             return;
         }
-        if (leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::Table)
+        if (_leaf != MarkdownNoNode && _nodes[_leaf].block.kind == Kind::Table)
         {
             const auto marker = ListMarker(cursor);
             if (Thematic(cursor) || Atx(cursor) || Fence(cursor) || DisplayMathFence(cursor) || HtmlStart(cursor, false) ||
@@ -1336,7 +1336,7 @@ public:
                 return;
             }
         }
-        if (StartTable(cursor, bodyEnd) || capacityExceeded_)
+        if (StartTable(cursor, bodyEnd) || _capacityExceeded)
         {
             Extend();
             return;
@@ -1348,11 +1348,11 @@ public:
             if (cursor.Indent() <= 3u && trimmed.Peek() == L'>')
             {
                 CloseLeaf();
-                const auto quote = Add(Kind::BlockQuote, open_.back());
+                const auto quote = Add(Kind::BlockQuote, _open.back());
                 if (quote == MarkdownNoNode)
                     return;
-                open_.push_back(quote);
-                ++containerIndent_;
+                _open.push_back(quote);
+                ++_containerIndent;
                 cursor = trimmed;
                 cursor.Take();
                 if (! cursor.Empty() && Space(cursor.Peek()))
@@ -1360,39 +1360,39 @@ public:
                 continue;
             }
             const auto marker      = ListMarker(cursor);
-            const bool inParagraph = leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::Paragraph;
+            const bool inParagraph = _leaf != MarkdownNoNode && _nodes[_leaf].block.kind == Kind::Paragraph;
             if (marker.valid && ! Thematic(cursor) && (! inParagraph || (! marker.empty && (! marker.ordered || marker.start == 1u))))
             {
                 CloseLeaf();
-                auto parent = open_.back();
-                if (nodes_[parent].block.kind != Kind::List || nodes_[parent].listMarker != marker.symbol)
+                auto parent = _open.back();
+                if (_nodes[parent].block.kind != Kind::List || _nodes[parent].listMarker != marker.symbol)
                 {
-                    if (nodes_[parent].block.kind == Kind::List)
+                    if (_nodes[parent].block.kind == Kind::List)
                     {
                         PopContainer();
-                        parent = open_.back();
+                        parent = _open.back();
                     }
                     const auto list = Add(Kind::List, parent);
                     if (list == MarkdownNoNode)
                         return;
-                    nodes_[list].listMarker = marker.symbol;
-                    nodes_[list].listStart  = marker.ordered ? marker.start : 0u;
-                    open_.push_back(list);
+                    _nodes[list].listMarker = marker.symbol;
+                    _nodes[list].listStart  = marker.ordered ? marker.start : 0u;
+                    _open.push_back(list);
                 }
-                const auto list = open_.back();
-                if (blank_[list] && nodes_[list].firstChild != MarkdownNoNode)
-                    nodes_[list].tight = false;
+                const auto list = _open.back();
+                if (_blank[list] && _nodes[list].firstChild != MarkdownNoNode)
+                    _nodes[list].tight = false;
                 const auto item = Add(Kind::ListItem, list);
                 if (item == MarkdownNoNode)
                     return;
-                nodes_[item].block.info    = marker.source;
-                nodes_[item].contentIndent = marker.indent;
-                open_.push_back(item);
-                ++containerIndent_;
+                _nodes[item].block.info    = marker.source;
+                _nodes[item].contentIndent = marker.indent;
+                _open.push_back(item);
+                ++_containerIndent;
                 cursor = marker.content;
                 continue;
             }
-            if (nodes_[open_.back()].block.kind == Kind::List)
+            if (_nodes[_open.back()].block.kind == Kind::List)
             {
                 PopContainer();
                 continue;
@@ -1400,16 +1400,16 @@ public:
             if (const auto note = FootnoteAt(cursor); note.valid)
             {
                 CloseLeaf();
-                const auto index = Add(Kind::FootnoteDefinition, open_.back());
+                const auto index = Add(Kind::FootnoteDefinition, _open.back());
                 if (index == MarkdownNoNode)
                     return;
-                nodes_[index].label         = note.label;
-                nodes_[index].block.info    = note.marker;
-                nodes_[index].block.content = {note.content.offset, end};
-                nodes_[index].contentIndent = 4u;
-                open_.push_back(index);
-                ++activeFootnotes_;
-                ++containerIndent_;
+                _nodes[index].label         = note.label;
+                _nodes[index].block.info    = note.marker;
+                _nodes[index].block.content = {note.content.offset, end};
+                _nodes[index].contentIndent = 4u;
+                _open.push_back(index);
+                ++_activeFootnotes;
+                ++_containerIndent;
                 cursor = note.content;
                 continue;
             }
@@ -1419,30 +1419,30 @@ public:
         trimmed.Trim();
         if (trimmed.Empty())
         {
-            emptyLines_.push_back({{first, end}, bodyEnd, open_.back(), containerIndent_});
+            _emptyLines.push_back({{first, end}, bodyEnd, _open.back(), _containerIndent});
             Extend();
             return;
         }
-        const bool continuing = leaf_ != MarkdownNoNode && nodes_[leaf_].block.kind == Kind::Paragraph;
+        const bool continuing = _leaf != MarkdownNoNode && _nodes[_leaf].block.kind == Kind::Paragraph;
         if (continuing)
         {
             if (const auto heading = Setext(cursor))
             {
                 // Definitions precede setext interpretation; an all-definition
                 // paragraph cannot turn the underline into a heading.
-                References(leaf_);
-                if (capacityExceeded_)
+                References(_leaf);
+                if (_capacityExceeded)
                     return;
-                if (nodes_[leaf_].parent != MarkdownNoNode)
+                if (_nodes[_leaf].parent != MarkdownNoNode)
                 {
-                    nodes_[leaf_].block.kind        = Kind::SetextHeading;
-                    nodes_[leaf_].block.heading     = heading;
-                    nodes_[leaf_].block.source.last = end;
-                    leaf_                           = MarkdownNoNode;
+                    _nodes[_leaf].block.kind        = Kind::SetextHeading;
+                    _nodes[_leaf].block.heading     = heading;
+                    _nodes[_leaf].block.source.last = end;
+                    _leaf                           = MarkdownNoNode;
                     Extend();
                     return;
                 }
-                leaf_ = MarkdownNoNode;
+                _leaf = MarkdownNoNode;
             }
         }
         const auto indent = cursor.Indent();
@@ -1452,10 +1452,10 @@ public:
             if (DisplayMathFence(cursor))
             {
                 CloseLeaf();
-                leaf_ = Add(Kind::FencedCode, open_.back());
-                if (leaf_ == MarkdownNoNode)
+                _leaf = Add(Kind::FencedCode, _open.back());
+                if (_leaf == MarkdownNoNode)
                     return;
-                auto& block       = nodes_[leaf_].block;
+                auto& block       = _nodes[_leaf].block;
                 block.fenceMarker = rest[0u] == L'$' ? L'$' : L'[';
                 block.fenceLength = 2u;
                 block.fenceIndent = indent;
@@ -1471,139 +1471,139 @@ public:
             if (symbol == L'#' && run <= 6u && (run == rest.size() || Space(rest[run])))
             {
                 CloseLeaf();
-                const auto node = Add(Kind::AtxHeading, open_.back());
+                const auto node = Add(Kind::AtxHeading, _open.back());
                 if (node == MarkdownNoNode)
                     return;
-                nodes_[node].block.heading = static_cast<unsigned>(run);
+                _nodes[node].block.heading = static_cast<unsigned>(run);
                 for (std::size_t i = 0; i < run; ++i)
                     trimmed.Take();
                 trimmed.Trim();
                 auto last = bodyEnd;
-                while (last > trimmed.offset && Space(source_[last - 1u]))
+                while (last > trimmed.offset && Space(_source[last - 1u]))
                     --last;
                 auto hashes = last;
-                while (hashes > trimmed.offset && source_[hashes - 1u] == L'#')
+                while (hashes > trimmed.offset && _source[hashes - 1u] == L'#')
                     --hashes;
-                if (hashes < last && (hashes == trimmed.offset || Space(source_[hashes - 1u])))
+                if (hashes < last && (hashes == trimmed.offset || Space(_source[hashes - 1u])))
                 {
                     last = hashes;
-                    while (last > trimmed.offset && Space(source_[last - 1u]))
+                    while (last > trimmed.offset && Space(_source[last - 1u]))
                         --last;
                 }
-                nodes_[node].block.content = {trimmed.offset, last};
-                nodes_[node].lines.push_back({{trimmed.offset, last}, 0u});
+                _nodes[node].block.content = {trimmed.offset, last};
+                _nodes[node].lines.push_back({{trimmed.offset, last}, 0u});
                 Extend();
                 return;
             }
             if (Thematic(cursor))
             {
                 CloseLeaf();
-                Add(Kind::ThematicBreak, open_.back());
+                Add(Kind::ThematicBreak, _open.back());
                 Extend();
                 return;
             }
             if ((symbol == L'`' || symbol == L'~') && run >= 3u && (symbol == L'~' || rest.substr(run).find(L'`') == std::wstring_view::npos))
             {
                 CloseLeaf();
-                leaf_ = Add(Kind::FencedCode, open_.back());
-                if (leaf_ == MarkdownNoNode)
+                _leaf = Add(Kind::FencedCode, _open.back());
+                if (_leaf == MarkdownNoNode)
                     return;
-                auto& block       = nodes_[leaf_].block;
+                auto& block       = _nodes[_leaf].block;
                 block.fenceMarker = symbol;
                 block.fenceLength = run;
                 block.fenceIndent = indent;
                 block.closed      = false;
                 block.content     = {end, end};
                 auto infoFirst = trimmed.offset + run, infoLast = bodyEnd;
-                while (infoFirst < infoLast && Space(source_[infoFirst]))
+                while (infoFirst < infoLast && Space(_source[infoFirst]))
                     ++infoFirst;
-                while (infoLast > infoFirst && Space(source_[infoLast - 1u]))
+                while (infoLast > infoFirst && Space(_source[infoLast - 1u]))
                     --infoLast;
                 block.info = {infoFirst, infoLast};
                 Extend();
                 return;
             }
-            if (const auto html = HtmlStart(cursor, leaf_ != MarkdownNoNode))
+            if (const auto html = HtmlStart(cursor, _leaf != MarkdownNoNode))
             {
                 CloseLeaf();
-                leaf_ = Add(Kind::HtmlBlock, open_.back());
-                if (leaf_ == MarkdownNoNode)
+                _leaf = Add(Kind::HtmlBlock, _open.back());
+                if (_leaf == MarkdownNoNode)
                     return;
-                nodes_[leaf_].htmlType = html;
-                Content(leaf_, cursor, bodyEnd);
+                _nodes[_leaf].htmlType = html;
+                Content(_leaf, cursor, bodyEnd);
                 if (HtmlEnd(html, cursor.Rest()))
-                    leaf_ = MarkdownNoNode;
+                    _leaf = MarkdownNoNode;
                 Extend();
                 return;
             }
         }
-        if (leaf_ != MarkdownNoNode)
+        if (_leaf != MarkdownNoNode)
         {
-            Content(leaf_, trimmed, bodyEnd);
+            Content(_leaf, trimmed, bodyEnd);
             Extend();
             return;
         }
         if (indent >= 4u)
         {
-            leaf_ = Add(Kind::IndentedCode, open_.back());
-            if (leaf_ == MarkdownNoNode)
+            _leaf = Add(Kind::IndentedCode, _open.back());
+            if (_leaf == MarkdownNoNode)
                 return;
             cursor.Spaces(4u);
-            Content(leaf_, cursor, bodyEnd);
+            Content(_leaf, cursor, bodyEnd);
         }
         else
         {
-            leaf_ = Add(Kind::Paragraph, open_.back());
-            if (leaf_ == MarkdownNoNode)
+            _leaf = Add(Kind::Paragraph, _open.back());
+            if (_leaf == MarkdownNoNode)
                 return;
-            Content(leaf_, trimmed, bodyEnd);
+            Content(_leaf, trimmed, bodyEnd);
         }
         Extend();
     }
     void Finish()
     {
-        if (emptyInlineRegion_ && source_.empty())
+        if (_emptyInlineRegion && _source.empty())
         {
-            lineFirst_ = lineEnd_ = 0u;
-            leaf_                 = Add(Kind::Paragraph, open_.back());
-            if (leaf_ == MarkdownNoNode)
+            _lineFirst = _lineEnd = 0u;
+            _leaf                 = Add(Kind::Paragraph, _open.back());
+            if (_leaf == MarkdownNoNode)
                 return;
-            Content(leaf_, Cursor{source_, 0u, 0u}, 0u);
+            Content(_leaf, Cursor{_source, 0u, 0u}, 0u);
             Extend();
         }
-        if (sourceRegion_ && ! sourceRegionStarted_)
+        if (_sourceRegion && ! _sourceRegionStarted)
         {
             // Empty documents and the insertion line after a final EOL have
             // no Line event. Retain a real zero-span editable leaf at EOF.
-            lineFirst_ = lineEnd_ = source_.size();
-            StartSourceRegion(source_.size());
+            _lineFirst = _lineEnd = _source.size();
+            StartSourceRegion(_source.size());
         }
         bool trailingInLeaf =
-            leaf_ != MarkdownNoNode && nodes_[leaf_].block.content.last == source_.size() &&
-            (nodes_[leaf_].block.kind == Kind::FencedCode || nodes_[leaf_].block.kind == Kind::IndentedCode || nodes_[leaf_].block.kind == Kind::HtmlBlock ||
-             nodes_[leaf_].block.kind == Kind::FrontMatter || nodes_[leaf_].block.kind == Kind::SourceEditor);
+            _leaf != MarkdownNoNode && _nodes[_leaf].block.content.last == _source.size() &&
+            (_nodes[_leaf].block.kind == Kind::FencedCode || _nodes[_leaf].block.kind == Kind::IndentedCode || _nodes[_leaf].block.kind == Kind::HtmlBlock ||
+             _nodes[_leaf].block.kind == Kind::FrontMatter || _nodes[_leaf].block.kind == Kind::SourceEditor);
         CloseLeaf();
-        if (! emptyLines_.empty() && emptyLines_.back().source.last == source_.size() && emptyLines_.back().source.first < source_.size())
+        if (! _emptyLines.empty() && _emptyLines.back().source.last == _source.size() && _emptyLines.back().source.first < _source.size())
             trailingInLeaf = false;
-        for (const auto container : open_)
+        for (const auto container : _open)
         {
-            nodes_[container].block.source.last = acceptedEnd_;
-            if (nodes_[container].block.kind == Kind::FootnoteDefinition)
-                nodes_[container].block.content.last = acceptedEnd_;
-            ++statistics_.containerFinalizations;
+            _nodes[container].block.source.last = _acceptedEnd;
+            if (_nodes[container].block.kind == Kind::FootnoteDefinition)
+                _nodes[container].block.content.last = _acceptedEnd;
+            ++_statistics.containerFinalizations;
         }
         // Reference extraction retires a staging paragraph only after its
         // replacements exist. Compact once; published indices never change.
-        std::vector<std::size_t> remap(nodes_.size(), MarkdownNoNode);
+        std::vector<std::size_t> remap(_nodes.size(), MarkdownNoNode);
         std::size_t count = 0;
-        for (std::size_t i = 0; i < nodes_.size(); ++i)
-            if (! i || nodes_[i].parent != MarkdownNoNode)
+        for (std::size_t i = 0; i < _nodes.size(); ++i)
+            if (! i || _nodes[i].parent != MarkdownNoNode)
                 remap[i] = count++;
-        for (std::size_t i = 0; i < nodes_.size(); ++i)
+        for (std::size_t i = 0; i < _nodes.size(); ++i)
         {
             if (remap[i] == MarkdownNoNode)
                 continue;
-            auto& node = nodes_[i];
+            auto& node = _nodes[i];
             if (node.parent != MarkdownNoNode)
                 node.parent = remap[node.parent];
             if (node.firstChild != MarkdownNoNode)
@@ -1611,19 +1611,19 @@ public:
             if (node.nextSibling != MarkdownNoNode)
                 node.nextSibling = remap[node.nextSibling];
             if (remap[i] != i)
-                nodes_[remap[i]] = node;
+                _nodes[remap[i]] = node;
         }
-        nodes_.resize(count);
-        for (auto& line : emptyLines_)
+        _nodes.resize(count);
+        for (auto& line : _emptyLines)
             line.owner = remap[line.owner];
         // The final source insertion line is real even when no block node owns
         // text there. Do not copy code-body blank lines: Content handled those.
-        if (! trailingInLeaf && (source_.empty() || source_.back() == L'\r' || source_.back() == L'\n'))
-            emptyLines_.push_back({{source_.size(), source_.size()}, source_.size(), 0u, 0u});
+        if (! trailingInLeaf && (_source.empty() || _source.back() == L'\r' || _source.back() == L'\n'))
+            _emptyLines.push_back({{_source.size(), _source.size()}, _source.size(), 0u, 0u});
     }
     MarkdownBlockStatistics Statistics() const noexcept
     {
-        return statistics_;
+        return _statistics;
     }
 };
 #pragma warning(pop)

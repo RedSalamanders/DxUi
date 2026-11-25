@@ -124,16 +124,16 @@ public:
     void Clear() noexcept;
     const Projection& Content() const noexcept
     {
-        return projection_;
+        return _projection;
     }
     bool Ready() const noexcept
     {
-        return static_cast<bool>(state_);
+        return static_cast<bool>(_state);
     }
     float Height() const noexcept;
     std::uint64_t Generation() const noexcept
     {
-        return generation_;
+        return _generation;
     }
     // Mouse and Previous/NextCluster use Unicode 17 default extended graphemes,
     // independent of the font's glyph clusters. Movement is in logical order.
@@ -177,9 +177,9 @@ private:
     bool PositionedExactly() const noexcept;
     struct State;
     // Keep the returned member object stable across preparation and retirement.
-    Projection projection_;
-    std::unique_ptr<State> state_;
-    std::uint64_t generation_{};
+    Projection _projection;
+    std::unique_ptr<State> _state;
+    std::uint64_t _generation{};
 };
 struct LayoutPreparation
 {
@@ -228,7 +228,7 @@ public:
     [[nodiscard]] HRESULT TryPrepare(IDWriteFactory* factory, SourceSnapshot source, std::uint64_t revision, ViewMode mode, const LayoutOptions& options);
     HRESULT Result() const noexcept
     {
-        return result_;
+        return _result;
     }
     // Owner-thread staging. Begin coalesces the previous request only after its
     // replacement is staged successfully. Projection/index construction is still
@@ -295,11 +295,11 @@ private:
     struct Preparation;
     const State& Prepared() const;
     std::size_t ChunkAt(std::size_t position) const;
-    std::unique_ptr<State> state_;
-    std::unique_ptr<Preparation> pending_;
-    std::uint64_t generation_{};
-    bool ready_{};
-    HRESULT result_ = S_OK;
+    std::unique_ptr<State> _state;
+    std::unique_ptr<Preparation> _pending;
+    std::uint64_t _generation{};
+    bool _ready{};
+    HRESULT _result = S_OK;
 };
 
 } // namespace DxUi::RichText

@@ -206,7 +206,7 @@ inline void ResolveSemanticValue(const MarkdownSyntax& syntax, const SemanticVal
 class SemanticOutput
 {
 public:
-    SemanticOutput(std::vector<StyleRun>& runs) : text(0u, L' '), spans(0u), runs_(runs)
+    SemanticOutput(std::vector<StyleRun>& runs) : text(0u, L' '), spans(0u), _runs(runs)
     {
     }
     std::wstring text;
@@ -243,10 +243,10 @@ public:
         }
         text.append(value);
         ::DxUi::Detail::Work().rich.displayUnitsWritten += value.size();
-        if (! runs_.empty() && runs_.back().start + runs_.back().length == first && runs_.back().flags == flags && runs_.back().heading == heading)
-            runs_.back().length += value.size();
+        if (! _runs.empty() && _runs.back().start + _runs.back().length == first && _runs.back().flags == flags && _runs.back().heading == heading)
+            _runs.back().length += value.size();
         else
-            runs_.push_back({first, value.size(), flags, heading});
+            _runs.push_back({first, value.size(), flags, heading});
     }
     // Reused-block copies. Text is appended first; then each clipped span and
     // run of the copied display range is re-merged with Emit's exact rule, so a
@@ -285,10 +285,10 @@ public:
     }
     void AppendRun(const StyleRun& run)
     {
-        if (! runs_.empty() && runs_.back().start + runs_.back().length == run.start && runs_.back().flags == run.flags && runs_.back().heading == run.heading)
-            runs_.back().length += run.length;
+        if (! _runs.empty() && _runs.back().start + _runs.back().length == run.start && _runs.back().flags == run.flags && _runs.back().heading == run.heading)
+            _runs.back().length += run.length;
         else
-            runs_.push_back(run);
+            _runs.push_back(run);
     }
     void Value(const SemanticValue& value, unsigned flags, unsigned heading)
     {
@@ -310,7 +310,7 @@ public:
     }
 
 private:
-    std::vector<StyleRun>& runs_;
+    std::vector<StyleRun>& _runs;
 };
 #pragma warning(pop)
 } // namespace DxUi::RichText::Detail

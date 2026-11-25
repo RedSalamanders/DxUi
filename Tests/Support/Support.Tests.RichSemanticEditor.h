@@ -351,13 +351,13 @@ inline HRESULT PrepareUntilSettled(DirectPrepareRichTextEditor& editor, ControlH
 class SemanticWriteFactoryOverride final
 {
 public:
-    explicit SemanticWriteFactoryOverride(ControlHost& host) : previous_(RichText::Detail::testRichSemanticWriteFactory)
+    explicit SemanticWriteFactoryOverride(ControlHost& host) : _previous(RichText::Detail::testRichSemanticWriteFactory)
     {
         const auto wrapped = Microsoft::WRL::Make<NativeTextTests::CountingWriteFactory>(host.GetWriteFactory());
         if (! wrapped)
             throw std::bad_alloc();
-        wrapped_                                       = wrapped.Get();
-        RichText::Detail::testRichSemanticWriteFactory = wrapped_.get();
+        _wrapped                                       = wrapped.Get();
+        RichText::Detail::testRichSemanticWriteFactory = _wrapped.get();
     }
     SemanticWriteFactoryOverride(const SemanticWriteFactoryOverride&)            = delete;
     SemanticWriteFactoryOverride& operator=(const SemanticWriteFactoryOverride&) = delete;
@@ -365,16 +365,16 @@ public:
     SemanticWriteFactoryOverride& operator=(SemanticWriteFactoryOverride&&)      = delete;
     ~SemanticWriteFactoryOverride()
     {
-        RichText::Detail::testRichSemanticWriteFactory = previous_;
+        RichText::Detail::testRichSemanticWriteFactory = _previous;
     }
     NativeTextTests::CountingWriteFactory* Get() const noexcept
     {
-        return wrapped_.get();
+        return _wrapped.get();
     }
 
 private:
-    wil::com_ptr<NativeTextTests::CountingWriteFactory> wrapped_;
-    IDWriteFactory* previous_{};
+    wil::com_ptr<NativeTextTests::CountingWriteFactory> _wrapped;
+    IDWriteFactory* _previous{};
 };
 #endif
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -383,7 +383,7 @@ private:
 #pragma warning(disable : 4625 4626 5026 5027)
 struct RetiringTabEditor final : RichTextEditor
 {
-    explicit RetiringTabEditor(Button*& successor) : RichTextEditor(L"retiring"), successor_(&successor)
+    explicit RetiringTabEditor(Button*& successor) : RichTextEditor(L"retiring"), _successor(&successor)
     {
     }
     bool OnKeyDown(ControlHost& host, UINT key, UINT) noexcept override
@@ -396,7 +396,7 @@ struct RetiringTabEditor final : RichTextEditor
             auto* first = root->AddChild<Button>(L"first");
             first->SetBounds(D2D1::RectF(8, 8, 160, 40));
             root->AddChild<Button>(L"second")->SetBounds(D2D1::RectF(8, 48, 160, 80));
-            auto* output = successor_;
+            auto* output = _successor;
             *output      = first;
             host.SetRoot(std::move(root)); // Retires this object. Only locals follow.
             host.SetFocusControl(first, false);
@@ -413,7 +413,7 @@ struct RetiringTabEditor final : RichTextEditor
     }
 
 private:
-    Button** successor_;
+    Button** _successor;
 };
 #pragma warning(pop)
 template <typename Prepare, typename Key, typename Character> void StructuralHostRouting(ControlHost& host, Prepare&& prepare, Key&& key, Character&& character)

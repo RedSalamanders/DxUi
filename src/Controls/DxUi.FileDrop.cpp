@@ -25,7 +25,7 @@ namespace DxUi
 class RichTextDragData final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDataObject>
 {
 public:
-    explicit RichTextDragData(std::wstring_view text) : text_(text)
+    explicit RichTextDragData(std::wstring_view text) : _text(text)
     {
     }
     HRESULT STDMETHODCALLTYPE QueryGetData(FORMATETC* format) noexcept override
@@ -41,7 +41,7 @@ public:
         *medium = {};
         if (QueryGetData(format) != S_OK)
             return DV_E_FORMATETC;
-        wil::unique_hglobal memory(GlobalAlloc(GMEM_MOVEABLE, (text_.size() + 1u) * sizeof(wchar_t)));
+        wil::unique_hglobal memory(GlobalAlloc(GMEM_MOVEABLE, (_text.size() + 1u) * sizeof(wchar_t)));
         if (! memory)
             return E_OUTOFMEMORY;
         void* destination = GlobalLock(memory.get());
@@ -49,7 +49,7 @@ public:
             return E_OUTOFMEMORY;
         {
             const auto unlock = wil::scope_exit([&] noexcept { static_cast<void>(GlobalUnlock(memory.get())); });
-            std::memcpy(destination, text_.c_str(), (text_.size() + 1u) * sizeof(wchar_t));
+            std::memcpy(destination, _text.c_str(), (_text.size() + 1u) * sizeof(wchar_t));
         }
         medium->tymed   = TYMED_HGLOBAL;
         medium->hGlobal = memory.release();
@@ -94,7 +94,7 @@ public:
     }
 
 private:
-    std::wstring text_;
+    std::wstring _text;
 };
 class RichTextDragSource final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDropSource>
 {

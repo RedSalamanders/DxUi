@@ -44,12 +44,12 @@ private:
     DWORD Worker() noexcept;
     HRESULT WriteEvidence() noexcept;
 
-    std::array<wchar_t, 1024> prefix_{};
-    DxUi::Failure::ProcessHooks hooks_;
-    wil::unique_hmodule dumpPsApi_;
-    wil::unique_handle request_, stop_, done_, thread_;
-    DxUi::Failure::Record record_{};
-    std::atomic<LONG> reporting_{};
-    HRESULT result_{E_PENDING};
+    std::array<wchar_t, 1024> _prefix{};
+    DxUi::Failure::ProcessHooks _hooks;
+    wil::unique_hmodule _dumpPsApi;
+    wil::unique_handle _request, _stop, _done, _thread;
+    DxUi::Failure::Record _record{};
+    std::atomic<LONG> _reporting{};
+    HRESULT _result{E_PENDING};
 };
 } // namespace DxUiSample::FailureHost

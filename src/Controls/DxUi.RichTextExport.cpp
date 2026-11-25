@@ -130,19 +130,19 @@ bool ExtensionLeaf(SemanticRole role) noexcept
 }
 class Serializer
 {
-    const SemanticDocument& document;
-    std::wstring_view display;
-    MarkdownRange selected;
-    std::vector<const SemanticElement*> links, objects, abbreviations;
-    std::vector<const SemanticElement*> blockedFragments;
-    std::vector<std::wstring_view> headingIds;
-    std::vector<const SemanticHeading*> headingsBySlug;
-    std::vector<std::size_t> markerEnds;
+    const SemanticDocument& _document;
+    std::wstring_view _display;
+    MarkdownRange _selected;
+    std::vector<const SemanticElement*> _links, _objects, _abbreviations;
+    std::vector<const SemanticElement*> _blockedFragments;
+    std::vector<std::wstring_view> _headingIds;
+    std::vector<const SemanticHeading*> _headingsBySlug;
+    std::vector<std::size_t> _markerEnds;
     std::wstring_view Alternative(const SemanticElement& element) const
     {
         if (element.role == SemanticRole::Rule)
             return L"---";
-        return element.role == SemanticRole::Diagram ? document.Syntax()->Slice(element.source) : std::wstring_view(element.name);
+        return element.role == SemanticRole::Diagram ? _document.Syntax()->Slice(element.source) : std::wstring_view(element.name);
     }
     const SemanticElement* Find(const std::vector<const SemanticElement*>& entries, std::size_t offset) const noexcept
     {
@@ -189,7 +189,7 @@ class Serializer
     }
     void Inline(BoundedOutput& output, MarkdownRange range, bool insidePre = false) const
     {
-        if (range.first > range.last || range.last > display.size())
+        if (range.first > range.last || range.last > _display.size())
             Failure::FailContract(E_UNEXPECTED);
         std::vector<std::size_t> boundaries(0u);
         boundaries.push_back(range.first);
@@ -202,11 +202,11 @@ class Serializer
                 boundaries.push_back(std::min(span.last, range.last));
             }
         };
-        auto runs = document.Runs();
+        auto runs = _document.Runs();
         auto run  = std::lower_bound(runs.begin(), runs.end(), range.first, [](const auto& item, std::size_t at) { return item.start + item.length <= at; });
         for (auto item = run; item != runs.end() && item->start < range.last; ++item)
             add({item->start, item->start + item->length});
-        for (const auto& entries : {&links, &objects, &abbreviations})
+        for (const auto& entries : {&_links, &_objects, &_abbreviations})
         {
             auto item =
                 std::lower_bound(entries->begin(), entries->end(), range.first, [](const auto* entry, std::size_t at) { return entry->display.last <= at; });
@@ -221,8 +221,8 @@ class Serializer
             while (run != runs.end() && run->start + run->length <= first)
                 ++run;
             const auto flags  = (run != runs.end() && run->start <= first ? run->flags : Regular) & (insidePre ? ~Code : ~0u);
-            const auto* link  = Find(links, first);
-            const bool anchor = link && ! IsUnresolvedWiki(*link) && SafeLink(link->destination) && ! std::ranges::binary_search(blockedFragments, link);
+            const auto* link  = Find(_links, first);
+            const bool anchor = link && ! IsUnresolvedWiki(*link) && SafeLink(link->destination) && ! std::ranges::binary_search(_blockedFragments, link);
             if (anchor)
             {
                 Append(output, L"<a href=\"");
@@ -236,7 +236,7 @@ class Serializer
                 }
                 Append(output, L">");
             }
-            const auto* abbreviation = Find(abbreviations, first);
+            const auto* abbreviation = Find(_abbreviations, first);
             if (abbreviation)
             {
                 Append(output, L"<abbr title=\"");
@@ -254,7 +254,7 @@ class Serializer
             for (const auto& style : styles)
                 if (flags & style.first)
                     Open(output, style.second);
-            const auto* object = Find(objects, first);
+            const auto* object = Find(_objects, first);
             if (object && first == object->display.first && last == object->display.last)
             {
                 if (! insidePre)
@@ -264,9 +264,9 @@ class Serializer
                     Close(output, L"code");
             }
             else if (insidePre)
-                Escape(output, display.substr(first, last - first));
+                Escape(output, _display.substr(first, last - first));
             else
-                EscapeInline(output, display.substr(first, last - first));
+                EscapeInline(output, _display.substr(first, last - first));
             for (auto style = std::rbegin(styles); style != std::rend(styles); ++style)
                 if (flags & style->first)
                     Close(output, style->second);
@@ -283,87 +283,87 @@ public:
     Serializer(Serializer&&)                 = delete;
     Serializer& operator=(Serializer&&)      = delete;
     explicit Serializer(const SemanticDocument& value, MarkdownRange range)
-        : document(value),
-          display(value.Map().Display()),
-          selected(range),
-          links(0u),
-          objects(0u),
-          abbreviations(0u),
-          blockedFragments(0u),
-          headingIds(value.Elements().size()),
-          headingsBySlug(0u),
-          markerEnds(value.Elements().size(), 0u)
+        : _document(value),
+          _display(value.Map().Display()),
+          _selected(range),
+          _links(0u),
+          _objects(0u),
+          _abbreviations(0u),
+          _blockedFragments(0u),
+          _headingIds(value.Elements().size()),
+          _headingsBySlug(0u),
+          _markerEnds(value.Elements().size(), 0u)
     {
-        if (range.first > range.last || range.last > display.size() || ! IsEditBoundary(display, range.first) || ! IsEditBoundary(display, range.last))
+        if (range.first > range.last || range.last > _display.size() || ! IsEditBoundary(_display, range.first) || ! IsEditBoundary(_display, range.last))
             Failure::FailContract(E_INVALIDARG);
-        for (const auto& heading : document.Headings())
+        for (const auto& heading : _document.Headings())
         {
-            if (heading.element < headingIds.size())
+            if (heading.element < _headingIds.size())
             {
-                headingIds[heading.element] = heading.slug;
-                headingsBySlug.push_back(&heading);
+                _headingIds[heading.element] = heading.slug;
+                _headingsBySlug.push_back(&heading);
             }
         }
-        std::ranges::sort(headingsBySlug, {}, [](const auto* heading) { return std::wstring_view(heading->slug); });
-        for (const auto& paragraph : document.Paragraphs())
-            if (paragraph.element < markerEnds.size())
-                markerEnds[paragraph.element] = std::max(markerEnds[paragraph.element], paragraph.markerEnd);
-        for (std::size_t index = 0u; index < document.Elements().size(); ++index)
+        std::ranges::sort(_headingsBySlug, {}, [](const auto* heading) { return std::wstring_view(heading->slug); });
+        for (const auto& paragraph : _document.Paragraphs())
+            if (paragraph.element < _markerEnds.size())
+                _markerEnds[paragraph.element] = std::max(_markerEnds[paragraph.element], paragraph.markerEnd);
+        for (std::size_t index = 0u; index < _document.Elements().size(); ++index)
         {
-            const auto& element = document.Elements()[index];
-            if (document.IsSourceEditingElement(index))
+            const auto& element = _document.Elements()[index];
+            if (_document.IsSourceEditingElement(index))
                 continue;
             if (element.role == SemanticRole::Link && element.display.first < element.display.last)
             {
-                links.push_back(&element);
+                _links.push_back(&element);
                 if (element.destination.starts_with(L'#'))
                 {
-                    bool included = element.destination == L"#" && selected.first == 0u;
+                    bool included = element.destination == L"#" && _selected.first == 0u;
                     if (! included && element.destination != L"#")
                     {
                         std::wstring wanted(0u, L' ');
                         if (Detail::DecodeHeadingFragment(element.destination, wanted))
                         {
                             const auto found = std::ranges::lower_bound(
-                                headingsBySlug, std::wstring_view(wanted), {}, [](const auto* heading) { return std::wstring_view(heading->slug); });
-                            if (found != headingsBySlug.end() && (*found)->slug == wanted)
+                                _headingsBySlug, std::wstring_view(wanted), {}, [](const auto* heading) { return std::wstring_view(heading->slug); });
+                            if (found != _headingsBySlug.end() && (*found)->slug == wanted)
                             {
-                                const auto headingDisplay = document.Elements()[(*found)->element].display;
-                                included                  = headingDisplay.first < selected.last && headingDisplay.last > selected.first;
+                                const auto headingDisplay = _document.Elements()[(*found)->element].display;
+                                included                  = headingDisplay.first < _selected.last && headingDisplay.last > _selected.first;
                             }
                         }
                     }
                     if (! included)
-                        blockedFragments.push_back(&element);
+                        _blockedFragments.push_back(&element);
                 }
             }
             if ((element.role == SemanticRole::Math || element.role == SemanticRole::Diagram || element.role == SemanticRole::Rule) &&
-                element.display.last == element.display.first + 1u && element.display.last <= display.size() && display[element.display.first] == L'\ufffc')
-                objects.push_back(&element);
+                element.display.last == element.display.first + 1u && element.display.last <= _display.size() && _display[element.display.first] == L'\ufffc')
+                _objects.push_back(&element);
             if (IsAbbreviation(element.role) && ! element.title.empty() && element.display.first < element.display.last)
-                abbreviations.push_back(&element);
+                _abbreviations.push_back(&element);
         }
         const auto order = [](const auto* left, const auto* right)
         { return left->display.first < right->display.first || (left->display.first == right->display.first && left->display.last > right->display.last); };
-        std::sort(links.begin(), links.end(), order);
-        std::sort(objects.begin(), objects.end(), order);
-        std::sort(abbreviations.begin(), abbreviations.end(), order);
-        std::ranges::sort(blockedFragments);
+        std::sort(_links.begin(), _links.end(), order);
+        std::sort(_objects.begin(), _objects.end(), order);
+        std::sort(_abbreviations.begin(), _abbreviations.end(), order);
+        std::ranges::sort(_blockedFragments);
     }
     void Text(BoundedOutput& result) const
     {
-        std::size_t first = selected.first;
-        for (const auto* object : objects)
+        std::size_t first = _selected.first;
+        for (const auto* object : _objects)
         {
             if (result.exceeded)
                 return;
-            if (object->display.last <= selected.first || object->display.first >= selected.last)
+            if (object->display.last <= _selected.first || object->display.first >= _selected.last)
                 continue;
-            Append(result, display.substr(first, object->display.first - first));
+            Append(result, _display.substr(first, object->display.first - first));
             Append(result, Alternative(*object));
             first = object->display.last;
         }
-        Append(result, display.substr(first, selected.last - first));
+        Append(result, _display.substr(first, _selected.last - first));
     }
     void Html(BoundedOutput& result) const
     {
@@ -373,17 +373,17 @@ public:
             bool close;
         };
         std::vector<Visit> pending{{0u, false}};
-        const auto elements = document.Elements();
-        if (selected.first == selected.last)
+        const auto elements = _document.Elements();
+        if (_selected.first == _selected.last)
             return;
         // Browsers supply list markers. A partial generated marker must be
         // exported as text rather than combined with another browser marker.
-        for (const auto& paragraph : document.Paragraphs())
+        for (const auto& paragraph : _document.Paragraphs())
         {
             const auto first = paragraph.display.first;
             const auto last  = paragraph.markerEnd;
-            if (paragraph.markerOwner != MarkdownNoNode && first < last && selected.first < last && selected.last > first &&
-                (selected.first > first || selected.last < last))
+            if (paragraph.markerOwner != MarkdownNoNode && first < last && _selected.first < last && _selected.last > first &&
+                (_selected.first > first || _selected.last < last))
             {
                 std::wstring text(0u, L' ');
                 BoundedOutput plain{text};
@@ -408,7 +408,7 @@ public:
             auto tag            = Tag(element.role, element.heading);
             if (element.role == SemanticRole::List)
             {
-                const auto nodes = document.Syntax()->Nodes();
+                const auto nodes = _document.Syntax()->Nodes();
                 tag = element.syntaxNode < nodes.size() && (nodes[element.syntaxNode].listMarker == L'.' || nodes[element.syntaxNode].listMarker == L')')
                           ? L"ol"
                           : L"ul";
@@ -432,19 +432,19 @@ public:
             }
             if (element.nextSibling != MarkdownNoNode)
                 pending.push_back({element.nextSibling, false});
-            if (element.display.last <= selected.first || element.display.first >= selected.last)
+            if (element.display.last <= _selected.first || element.display.first >= _selected.last)
                 continue;
             if (element.role == SemanticRole::Rule)
             {
                 Append(result, L"<hr />\n");
                 continue;
             }
-            if (tag == L"ol" && element.syntaxNode < document.Syntax()->Nodes().size())
+            if (tag == L"ol" && element.syntaxNode < _document.Syntax()->Nodes().size())
             {
-                auto start = document.Syntax()->Nodes()[element.syntaxNode].listStart;
+                auto start = _document.Syntax()->Nodes()[element.syntaxNode].listStart;
                 for (auto child = element.firstChild; child != MarkdownNoNode; child = elements[child].nextSibling)
                 {
-                    if (elements[child].display.last > selected.first)
+                    if (elements[child].display.last > _selected.first)
                         break;
                     if (elements[child].role == SemanticRole::ListItem)
                         ++start;
@@ -460,13 +460,13 @@ public:
                 Append(result, std::wstring_view(digits.data() + at, digits.size() - at));
                 Append(result, L"\">");
             }
-            else if ((element.role == SemanticRole::Heading || (element.role == SemanticRole::Html && element.heading)) && visit.element < headingIds.size() &&
-                     ! headingIds[visit.element].empty())
+            else if ((element.role == SemanticRole::Heading || (element.role == SemanticRole::Html && element.heading)) && visit.element < _headingIds.size() &&
+                     ! _headingIds[visit.element].empty())
             {
                 Append(result, L"<");
                 Append(result, tag);
                 Append(result, L" id=\"");
-                Escape(result, headingIds[visit.element]);
+                Escape(result, _headingIds[visit.element]);
                 Append(result, L"\">");
             }
             else if (! tag.empty())
@@ -475,9 +475,9 @@ public:
                               element.role == SemanticRole::Cell || element.role == SemanticRole::Html || ExtensionLeaf(element.role);
             if (leaf)
             {
-                auto range = MarkdownRange{std::max(element.display.first, selected.first), std::min(element.display.last, selected.last)};
-                if (markerEnds[visit.element] > range.first && markerEnds[visit.element] <= range.last)
-                    range.first = markerEnds[visit.element];
+                auto range = MarkdownRange{std::max(element.display.first, _selected.first), std::min(element.display.last, _selected.last)};
+                if (_markerEnds[visit.element] > range.first && _markerEnds[visit.element] <= range.last)
+                    range.first = _markerEnds[visit.element];
                 if (literal)
                     Open(result, L"code");
                 Inline(result, range, literal);
@@ -496,7 +496,7 @@ public:
                 if (element.firstChild != MarkdownNoNode)
                     pending.push_back({element.firstChild, false});
                 else if (tag.empty() && element.display.first < element.display.last)
-                    Inline(result, {std::max(element.display.first, selected.first), std::min(element.display.last, selected.last)});
+                    Inline(result, {std::max(element.display.first, _selected.first), std::min(element.display.last, _selected.last)});
             }
         }
     }

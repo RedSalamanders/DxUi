@@ -230,11 +230,11 @@ class FixtureParityPort final : public PerformanceFixtures::HostPort
 {
 public:
     FixtureParityPort(NativeParityScene& scene, const PerformanceFixtures::Definition& definition, const PerformanceFixtures::Variant& variant)
-        : scene_(scene),
-          definition_(definition),
-          scenario_(definition.create())
+        : _scene(scene),
+          _definition(definition),
+          _scenario(definition.create())
     {
-        context_.emplace(PerformanceFixtures::Context{PerformanceFixtures::Host::Window, variant, scene.Host(), *this});
+        _context.emplace(PerformanceFixtures::Context{PerformanceFixtures::Host::Window, variant, scene.Host(), *this});
     }
     FixtureParityPort(const FixtureParityPort&)            = delete;
     FixtureParityPort& operator=(const FixtureParityPort&) = delete;
@@ -243,21 +243,21 @@ public:
     ~FixtureParityPort() override                          = default;
     void Build()
     {
-        scene_.window.AllowOuterSizeBeyondDesktop(SIZE{8192, 8192});
-        Resize(context_->variant.width, context_->variant.height, context_->variant.dpi);
-        RequireSucceeded(scenario_->Build(*context_), "the fixture builds on the oracle scene");
+        _scene.window.AllowOuterSizeBeyondDesktop(SIZE{8192, 8192});
+        Resize(_context->variant.width, _context->variant.height, _context->variant.dpi);
+        RequireSucceeded(_scenario->Build(*_context), "the fixture builds on the oracle scene");
     }
     void Step(size_t index)
     {
-        const auto at = PerformanceFixtures::StepAt(definition_, index);
+        const auto at = PerformanceFixtures::StepAt(_definition, index);
         Require(at.has_value(), "the oracle step is a fixture step");
-        NoteStep(definition_.phases[at->phase].name);
-        scenario_->Step(*context_, at->phase, at->step);
+        NoteStep(_definition.phases[at->phase].name);
+        _scenario->Step(*_context, at->phase, at->step);
     }
     bool Pointer(const PointerEvent& event) override
     {
         const LPARAM at = MAKELPARAM(static_cast<short>(std::lround(event.xPixels)), static_cast<short>(std::lround(event.yPixels)));
-        const HWND hwnd = scene_.window.Hwnd();
+        const HWND hwnd = _scene.window.Hwnd();
         switch (event.action)
         {
             case PointerAction::Move: SendMessageW(hwnd, WM_MOUSEMOVE, 0u, at); break;
@@ -282,38 +282,38 @@ public:
     }
     bool Key(UINT virtualKey, bool down, UINT) override
     {
-        SendMessageW(scene_.window.Hwnd(), down ? WM_KEYDOWN : WM_KEYUP, virtualKey, down ? 1 : static_cast<LPARAM>(0xC0000001u));
+        SendMessageW(_scene.window.Hwnd(), down ? WM_KEYDOWN : WM_KEYUP, virtualKey, down ? 1 : static_cast<LPARAM>(0xC0000001u));
         return true;
     }
     bool Character(wchar_t character, UINT) override
     {
-        scene_.Character(character);
+        _scene.Character(character);
         return true;
     }
     void AdvanceTime(uint64_t milliseconds) override
     {
-        scene_.Advance(milliseconds);
+        _scene.Advance(milliseconds);
     }
     void Resize(UINT width, UINT height, float dpi) override
     {
         const float scale = dpi / 96.0f;
-        DxUiTestMoved::ConfigureHostPlace(scene_.window,
+        DxUiTestMoved::ConfigureHostPlace(_scene.window,
                                           static_cast<UINT>(std::lround(dpi)),
                                           true,
                                           Density::Standard,
                                           D2D1::SizeF(static_cast<float>(width) / scale, static_cast<float>(height) / scale));
-        scene_.Host().SetTheme(ParityTheme(true));
+        _scene.Host().SetTheme(ParityTheme(true));
     }
     [[nodiscard]] uint64_t NowMs() const noexcept override
     {
-        return scene_.clock;
+        return _scene.clock;
     }
 
 private:
-    NativeParityScene& scene_;
-    const PerformanceFixtures::Definition& definition_;
-    std::unique_ptr<PerformanceFixtures::Scenario> scenario_;
-    std::optional<PerformanceFixtures::Context> context_;
+    NativeParityScene& _scene;
+    const PerformanceFixtures::Definition& _definition;
+    std::unique_ptr<PerformanceFixtures::Scenario> _scenario;
+    std::optional<PerformanceFixtures::Context> _context;
 };
 
 // Runs a fixture variant through the oracle: after every step the incremental scene (warm measure caches and every other

@@ -138,7 +138,7 @@ AccessibilityLabels::AccessibilityLabels(std::span<const AccessibilityTextOverri
     if (ValidateLabels(entries) != SourceResult::Success)
         Failure::FailContract(E_INVALIDARG);
     for (const auto& entry : entries)
-        values_[static_cast<std::size_t>(entry.id)].emplace(entry.text);
+        _values[static_cast<std::size_t>(entry.id)].emplace(entry.text);
 }
 SourceResult AccessibilityLabels::TryCreate(std::span<const AccessibilityTextOverride> entries, std::shared_ptr<const AccessibilityLabels>& output)
 {
@@ -158,7 +158,7 @@ std::wstring_view AccessibilityLabels::Default(Id id) noexcept
 std::wstring_view AccessibilityLabels::Get(Id id) const noexcept
 {
     const auto index = static_cast<std::size_t>(id);
-    return index < values_.size() && values_[index] ? std::wstring_view(values_[index].value()) : Default(id);
+    return index < _values.size() && _values[index] ? std::wstring_view(_values[index].value()) : Default(id);
 }
 std::wstring_view AccessibilityLabels::Text(const AccessibilityLabels* labels, Id id) noexcept
 {

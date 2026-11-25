@@ -122,6 +122,6 @@ public:
         const AccessibilityLabels* labels, AccessibilityTextId id, std::size_t number, std::size_t second, std::wstring& output);
 
 private:
-    std::array<std::optional<std::wstring>, static_cast<std::size_t>(AccessibilityTextId::Count)> values_{};
+    std::array<std::optional<std::wstring>, static_cast<std::size_t>(AccessibilityTextId::Count)> _values{};
 };
 } // namespace DxUi::RichText

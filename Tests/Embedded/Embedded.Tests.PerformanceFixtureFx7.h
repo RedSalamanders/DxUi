@@ -79,35 +79,35 @@ class Session final
 public:
     void Begin(DxUi::ControlHost& host, DxUi::Control& control)
     {
-        store_.attach(DxUi::CreateNativeTextInputTextStore(host, control, false));
-        if (! store_)
+        _store.attach(DxUi::CreateNativeTextInputTextStore(host, control, false));
+        if (! _store)
             DxUi::Failure::FailContract(E_UNEXPECTED);
-        Succeed(store_.query_to(owner_.put()));
-        Succeed(store_->AdviseSink(__uuidof(ITextStoreACPSink), &sink_, TS_AS_ALL_SINKS));
-        composition_.range.start  = static_cast<LONG>(kCaretUnits);
-        composition_.range.length = 0;
+        Succeed(_store.query_to(_owner.put()));
+        Succeed(_store->AdviseSink(__uuidof(ITextStoreACPSink), &_sink, TS_AS_ALL_SINKS));
+        _composition.range.start  = static_cast<LONG>(kCaretUnits);
+        _composition.range.length = 0;
         // A text service asks for the caret's extent when a composition starts, so the control's layout exists.
         Lock(TS_LF_READ,
              [&]() noexcept -> HRESULT
         {
             RECT extent{};
             BOOL clipped     = FALSE;
-            const HRESULT hr = store_->GetTextExt(1u, kStart, kStart, &extent, &clipped);
+            const HRESULT hr = _store->GetTextExt(1u, kStart, kStart, &extent, &clipped);
             return hr == TS_E_NOLAYOUT ? S_OK : hr;
         });
     }
     void End() noexcept
     {
-        if (! store_)
+        if (! _store)
             return;
-        static_cast<void>(store_->UnadviseSink(&sink_));
-        owner_.reset();
-        store_.reset();
+        static_cast<void>(_store->UnadviseSink(&_sink));
+        _owner.reset();
+        _store.reset();
     }
     // Lock `step` of the 21 (kLockSteps); later steps do nothing.
     void Step(size_t step)
     {
-        if (! store_ || step >= kLockSteps)
+        if (! _store || step >= kLockSteps)
             return;
         if (step + 1u == kLockSteps)
         {
@@ -116,9 +116,9 @@ public:
                  [&]() noexcept -> HRESULT
             {
                 TS_TEXTCHANGE change{};
-                HRESULT hr = store_->SetText(0u, kStart, end, kSyllables.data(), static_cast<ULONG>(kSyllables.size()), &change);
+                HRESULT hr = _store->SetText(0u, kStart, end, kSyllables.data(), static_cast<ULONG>(kSyllables.size()), &change);
                 if (SUCCEEDED(hr))
-                    hr = owner_->OnEndComposition(&composition_);
+                    hr = _owner->OnEndComposition(&_composition);
                 return hr;
             });
             return;
@@ -142,14 +142,14 @@ private:
     template <typename Body> void Lock(DWORD flags, Body&& body)
     {
         HRESULT bodyResult = S_OK;
-        sink_.onLock       = [&]() noexcept
+        _sink.onLock       = [&]() noexcept
         {
             bodyResult = body();
             return bodyResult;
         };
         HRESULT session         = E_FAIL;
-        const HRESULT requested = store_->RequestLock(flags | TS_LF_SYNC, &session);
-        sink_.onLock            = nullptr;
+        const HRESULT requested = _store->RequestLock(flags | TS_LF_SYNC, &session);
+        _sink.onLock            = nullptr;
         Succeed(requested);
         Succeed(session);
         Succeed(bodyResult);
@@ -159,39 +159,39 @@ private:
     {
         TS_SELECTION_ACP selection{};
         ULONG fetched    = 0u;
-        HRESULT hr       = store_->GetSelection(TS_DEFAULT_SELECTION, 1u, &selection, &fetched);
+        HRESULT hr       = _store->GetSelection(TS_DEFAULT_SELECTION, 1u, &selection, &fetched);
         LONG documentEnd = 0;
         if (SUCCEEDED(hr))
-            hr = store_->GetEndACP(&documentEnd);
+            hr = _store->GetEndACP(&documentEnd);
         TS_TEXTCHANGE change{};
         if (SUCCEEDED(hr) && syllable == 1u)
         {
             LONG first                = 0;
             LONG last                 = 0;
-            hr                        = store_->InsertTextAtSelection(0u, kSyllables.data(), 1u, &first, &last, &change);
-            composition_.range.length = 1;
+            hr                        = _store->InsertTextAtSelection(0u, kSyllables.data(), 1u, &first, &last, &change);
+            _composition.range.length = 1;
             BOOL accepted             = FALSE;
             if (SUCCEEDED(hr))
-                hr = owner_->OnStartComposition(&composition_, &accepted);
+                hr = _owner->OnStartComposition(&_composition, &accepted);
             if (SUCCEEDED(hr) && ! accepted)
                 hr = E_FAIL;
         }
         else if (SUCCEEDED(hr))
         {
-            hr                        = store_->SetText(0u, kStart, end - 1, kSyllables.data(), static_cast<ULONG>(syllable), &change);
-            composition_.range.length = static_cast<LONG>(syllable);
+            hr                        = _store->SetText(0u, kStart, end - 1, kSyllables.data(), static_cast<ULONG>(syllable), &change);
+            _composition.range.length = static_cast<LONG>(syllable);
             if (SUCCEEDED(hr))
-                hr = owner_->OnUpdateComposition(&composition_, &composition_.range);
+                hr = _owner->OnUpdateComposition(&_composition, &_composition.range);
             const TS_SELECTION_ACP caretAtEnd{end, end, {TS_AE_END, FALSE}};
             if (SUCCEEDED(hr))
-                hr = store_->SetSelection(1u, &caretAtEnd);
+                hr = _store->SetSelection(1u, &caretAtEnd);
         }
         std::array<WCHAR, 16u> text{};
         ULONG copied = 0u;
         ULONG runs   = 0u;
         LONG next    = 0;
         if (SUCCEEDED(hr))
-            hr = store_->GetText(kStart, end, text.data(), static_cast<ULONG>(text.size()), &copied, nullptr, 0u, &runs, &next);
+            hr = _store->GetText(kStart, end, text.data(), static_cast<ULONG>(text.size()), &copied, nullptr, 0u, &runs, &next);
         return hr;
     }
     // The read lock a candidate window makes after each syllable. A range the view does not show has no extent
@@ -200,15 +200,15 @@ private:
     {
         TS_SELECTION_ACP selection{};
         ULONG fetched    = 0u;
-        HRESULT hr       = store_->GetSelection(TS_DEFAULT_SELECTION, 1u, &selection, &fetched);
+        HRESULT hr       = _store->GetSelection(TS_DEFAULT_SELECTION, 1u, &selection, &fetched);
         LONG documentEnd = 0;
         if (SUCCEEDED(hr))
-            hr = store_->GetEndACP(&documentEnd);
+            hr = _store->GetEndACP(&documentEnd);
         RECT extent{};
         BOOL clipped = FALSE;
         if (SUCCEEDED(hr))
         {
-            hr = store_->GetTextExt(1u, kStart, end, &extent, &clipped);
+            hr = _store->GetTextExt(1u, kStart, end, &extent, &clipped);
             if (hr == TS_E_NOLAYOUT)
                 hr = S_OK;
         }
@@ -217,14 +217,14 @@ private:
         ULONG runs   = 0u;
         LONG next    = 0;
         if (SUCCEEDED(hr))
-            hr = store_->GetText(kStart, end, text.data(), static_cast<ULONG>(text.size()), &copied, nullptr, 0u, &runs, &next);
+            hr = _store->GetText(kStart, end, text.data(), static_cast<ULONG>(text.size()), &copied, nullptr, 0u, &runs, &next);
         return hr;
     }
 
-    TsfDoubles::Sink sink_;
-    TsfDoubles::Composition composition_;
-    wil::com_ptr_nothrow<ITextStoreACP> store_;
-    wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> owner_;
+    TsfDoubles::Sink _sink;
+    TsfDoubles::Composition _composition;
+    wil::com_ptr_nothrow<ITextStoreACP> _store;
+    wil::com_ptr_nothrow<ITfContextOwnerCompositionSink> _owner;
 };
 
 class Scene final : public Scenario
@@ -233,31 +233,31 @@ public:
     ~Scene() override
     {
         // The store borrows the host and the control: release it first.
-        session_.End();
+        _session.End();
     }
     DxUi::EmbeddedHost* AttachOwnEmbeddedHost(ID3D11Device* device, HRESULT& result) override
     {
         std::shared_ptr<DxUi::GraphicsDevice> graphics;
         result = DxUi::GraphicsDevice::Create(device, graphics);
         if (SUCCEEDED(result))
-            result = view_.Attach(std::move(graphics), StoppedTestClock());
+            result = _view.Attach(std::move(graphics), StoppedTestClock());
         if (FAILED(result))
             return nullptr;
         auto theme          = DxUi::MakeDefaultThemePalette(true);
         theme.reducedMotion = true;
-        view_.Controls().SetTheme(theme);
-        return &view_;
+        _view.Controls().SetTheme(theme);
+        return &_view;
     }
     HRESULT Build(Context& context) override
     {
         const std::wstring document = MakeDocument();
         auto root                   = std::make_unique<DxUi::Panel>();
-        field_                      = root->AddChild<DxUi::TextField>(document);
-        field_->SetBounds(D2D1::RectF(8.0f, 8.0f, 632.0f, 40.0f));
-        field_->SetSelectionRange(kCaretUnits, kCaretUnits);
-        editor_ = root->AddChild<DxUi::RichTextEditor>(document);
-        editor_->SetBounds(D2D1::RectF(8.0f, 48.0f, 632.0f, 472.0f));
-        editor_->SetSelection(DxUi::RichText::Selection{kCaretUnits, kCaretUnits});
+        _field                      = root->AddChild<DxUi::TextField>(document);
+        _field->SetBounds(D2D1::RectF(8.0f, 8.0f, 632.0f, 40.0f));
+        _field->SetSelectionRange(kCaretUnits, kCaretUnits);
+        _editor = root->AddChild<DxUi::RichTextEditor>(document);
+        _editor->SetBounds(D2D1::RectF(8.0f, 48.0f, 632.0f, 472.0f));
+        _editor->SetSelection(DxUi::RichText::Selection{kCaretUnits, kCaretUnits});
         context.controls.SetRoot(std::move(root));
         return S_OK;
     }
@@ -268,30 +268,30 @@ public:
             case 0u:
                 if (step == 1u)
                 {
-                    context.controls.SetFocusControl(field_, false);
-                    session_.Begin(context.controls, *field_);
+                    context.controls.SetFocusControl(_field, false);
+                    _session.Begin(context.controls, *_field);
                 }
                 break;
-            case kTextField: session_.Step(step); break;
+            case kTextField: _session.Step(step); break;
             case 2u:
                 if (step == 0u)
                 {
-                    session_.End();
-                    context.controls.SetFocusControl(editor_, false);
-                    editor_->SetSelection(DxUi::RichText::Selection{kCaretUnits, kCaretUnits});
-                    session_.Begin(context.controls, *editor_);
+                    _session.End();
+                    context.controls.SetFocusControl(_editor, false);
+                    _editor->SetSelection(DxUi::RichText::Selection{kCaretUnits, kCaretUnits});
+                    _session.Begin(context.controls, *_editor);
                 }
                 break;
-            case kRichEditor: session_.Step(step); break;
+            case kRichEditor: _session.Step(step); break;
             case kHistory:
                 if (context.variant.name != "history")
                     break;
                 if (step == 0u)
                 {
-                    history_.reserve(TextHistoryEdits::kEdits);
-                    context.controls.SetFocusControl(field_, false);
+                    _history.reserve(TextHistoryEdits::kEdits);
+                    context.controls.SetFocusControl(_field, false);
                 }
-                TextHistoryEdits::Apply(context, *field_, step, history_);
+                TextHistoryEdits::Apply(context, *_field, step, _history);
                 break;
             default: break;
         }
@@ -299,20 +299,20 @@ public:
     // The history variant's edits, in order (W9.3 gate).
     [[nodiscard]] const std::vector<TextHistoryEdits::Record>& History() const noexcept
     {
-        return history_;
+        return _history;
     }
     [[nodiscard]] DxUi::TextField& Field() const noexcept
     {
-        return *field_;
+        return *_field;
     }
 
 private:
     // Declared before the session, which is destroyed (and, in the destructor, released) first.
-    DxUi::EmbeddedHost view_;
-    DxUi::TextField* field_       = nullptr;
-    DxUi::RichTextEditor* editor_ = nullptr;
-    std::vector<TextHistoryEdits::Record> history_;
-    Session session_;
+    DxUi::EmbeddedHost _view;
+    DxUi::TextField* _field       = nullptr;
+    DxUi::RichTextEditor* _editor = nullptr;
+    std::vector<TextHistoryEdits::Record> _history;
+    Session _session;
 };
 
 inline constexpr Definition kDefinition{

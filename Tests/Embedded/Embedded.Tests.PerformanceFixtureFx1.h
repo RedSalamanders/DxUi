@@ -85,17 +85,17 @@ public:
         // never read from the desktop that runs the fixture. Motion is on (the definition), so the editable caret blinks.
         context.controls.DebugSetCaretBlinkSettingsForTest(kCaretSettings);
         auto root = std::make_unique<DxUi::Panel>();
-        editable_ = root->AddChild<DxUi::TextField>();
-        editable_->SetText(L"Editable field");
-        editable_->SetBounds(D2D1::RectF(16.0f, 16.0f, 336.0f, 48.0f));
-        readOnly_ = root->AddChild<DxUi::TextField>();
-        readOnly_->SetText(L"Read-only field");
-        readOnly_->SetReadOnly(true);
-        readOnly_->SetBounds(D2D1::RectF(16.0f, 64.0f, 336.0f, 96.0f));
-        multiline_ = root->AddChild<DxUi::TextField>();
-        multiline_->SetMultiline(true);
-        multiline_->SetText(MultilineText());
-        multiline_->SetBounds(D2D1::RectF(16.0f, 112.0f, 776.0f, 584.0f));
+        _editable = root->AddChild<DxUi::TextField>();
+        _editable->SetText(L"Editable field");
+        _editable->SetBounds(D2D1::RectF(16.0f, 16.0f, 336.0f, 48.0f));
+        _readOnly = root->AddChild<DxUi::TextField>();
+        _readOnly->SetText(L"Read-only field");
+        _readOnly->SetReadOnly(true);
+        _readOnly->SetBounds(D2D1::RectF(16.0f, 64.0f, 336.0f, 96.0f));
+        _multiline = root->AddChild<DxUi::TextField>();
+        _multiline->SetMultiline(true);
+        _multiline->SetText(MultilineText());
+        _multiline->SetBounds(D2D1::RectF(16.0f, 112.0f, 776.0f, 584.0f));
         context.controls.SetRoot(std::move(root));
         return S_OK;
     }
@@ -105,23 +105,23 @@ public:
         {
             case kWarm:
                 if (step == 0u)
-                    context.controls.SetFocusControl(editable_, false);
+                    context.controls.SetFocusControl(_editable, false);
                 break;
             case kEditable: context.port.AdvanceTime(kStepMs); break;
             case kReadOnly:
                 if (step == 0u)
-                    context.controls.SetFocusControl(readOnly_, false);
+                    context.controls.SetFocusControl(_readOnly, false);
                 context.port.AdvanceTime(kStepMs);
                 break;
             case kMultiline:
                 if (step == 0u)
-                    context.controls.SetFocusControl(multiline_, false);
+                    context.controls.SetFocusControl(_multiline, false);
                 context.port.AdvanceTime(kMultilineStepMs);
                 break;
             case kMultilineWheel:
             {
                 // Over the field's centre, in device pixels of the variant.
-                const D2D1_RECT_F bounds = multiline_->GetBounds();
+                const D2D1_RECT_F bounds = _multiline->GetBounds();
                 const float scale        = context.variant.dpi / 96.0f;
                 static_cast<void>(context.port.Pointer(
                     {DxUi::PointerAction::Wheel, (bounds.left + bounds.right) * 0.5f * scale, (bounds.top + bounds.bottom) * 0.5f * scale, 0u, kWheelDelta}));
@@ -136,9 +136,9 @@ public:
     }
 
 private:
-    DxUi::TextField* editable_  = nullptr;
-    DxUi::TextField* readOnly_  = nullptr;
-    DxUi::TextField* multiline_ = nullptr;
+    DxUi::TextField* _editable  = nullptr;
+    DxUi::TextField* _readOnly  = nullptr;
+    DxUi::TextField* _multiline = nullptr;
 };
 
 inline constexpr Definition kDefinition{

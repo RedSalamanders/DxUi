@@ -67,79 +67,79 @@ public:
     // log is never grown during a counted step's allocations).
     void SetApplicationLoop(ApplicationLoop loop, std::vector<ApplicationAdvance>* log = nullptr) noexcept
     {
-        loop_ = loop;
-        log_  = log;
+        _loop = loop;
+        _log  = log;
     }
     // Advances logged from now on carry this phase (a gate's own steps after the fixture's phases).
     void SetLoggedPhase(size_t phase) noexcept
     {
-        phase_ = phase;
-        step_  = 0u;
+        _phase = phase;
+        _step  = 0u;
     }
     // Creates the scenario object (and any model it owns) without attaching anything.
     void Instantiate(const Definition& definition)
     {
-        definition_ = &definition;
-        scenario_   = definition.create();
+        _definition = &definition;
+        _scenario   = definition.create();
     }
     // Attaches the host on `device` and builds the scene at `variant`. The scenario's own host is used when it has one.
     HRESULT Create(ID3D11Device* device, const Variant& variant)
     {
-        variant_       = &variant;
-        width_         = variant.width;
-        height_        = variant.height;
-        dpi_           = variant.dpi;
+        _variant       = &variant;
+        _width         = variant.width;
+        _height        = variant.height;
+        _dpi           = variant.dpi;
         HRESULT result = S_OK;
-        view_          = scenario_->AttachOwnEmbeddedHost(device, result);
+        _view          = _scenario->AttachOwnEmbeddedHost(device, result);
         RETURN_IF_FAILED(result);
-        if (! view_)
+        if (! _view)
         {
             std::shared_ptr<DxUi::GraphicsDevice> graphics;
             RETURN_IF_FAILED(DxUi::GraphicsDevice::Create(device, graphics));
-            ownedView_ = std::make_unique<DxUi::EmbeddedHost>();
+            _ownedView = std::make_unique<DxUi::EmbeddedHost>();
             // The application's clock is the fixture clock, and its preparation callback is how the view wakes the simulated
             // application that sleeps until its request (W3.5 review F4).
-            RETURN_IF_FAILED(ownedView_->Attach(std::move(graphics), DxUi::EmbeddedCallbacks{this, &WakeThunk, &NowThunk}));
+            RETURN_IF_FAILED(_ownedView->Attach(std::move(graphics), DxUi::EmbeddedCallbacks{this, &WakeThunk, &NowThunk}));
             auto theme          = DxUi::MakeDefaultThemePalette(true);
-            theme.reducedMotion = definition_->reducedMotion;
-            ownedView_->Controls().SetTheme(theme);
-            view_ = ownedView_.get();
+            theme.reducedMotion = _definition->reducedMotion;
+            _ownedView->Controls().SetTheme(theme);
+            _view = _ownedView.get();
         }
-        context_.emplace(Context{Host::Embedded, variant, view_->Controls(), *this});
-        return scenario_->Build(*context_);
+        _context.emplace(Context{Host::Embedded, variant, _view->Controls(), *this});
+        return _scenario->Build(*_context);
     }
     [[nodiscard]] DxUi::EmbeddedHost& View() noexcept
     {
-        return *view_;
+        return *_view;
     }
     [[nodiscard]] Context& GetContext() noexcept
     {
-        return *context_;
+        return *_context;
     }
     // The live scene, for a gate that reads what its fixture recorded (W9.3's text-history edits).
     [[nodiscard]] Scenario& GetScenario() noexcept
     {
-        return *scenario_;
+        return *_scenario;
     }
     void Step(size_t phase, size_t step)
     {
-        phase_ = phase;
-        step_  = step;
-        scenario_->Step(*context_, phase, step);
+        _phase = phase;
+        _step  = step;
+        _scenario->Step(*_context, phase, step);
     }
     HRESULT Prepare() noexcept
     {
-        return view_->Prepare(width_, height_, dpi_);
+        return _view->Prepare(_width, _height, _dpi);
     }
     // One frame: preparation, then composition onto the fixture's target, resized to the host size when a step resized it.
     HRESULT Frame(GraphicsFixture& gpu)
     {
-        if (gpu.width != width_ || gpu.height != height_)
-            RETURN_IF_FAILED(gpu.Resize(width_, height_));
+        if (gpu.width != _width || gpu.height != _height)
+            RETURN_IF_FAILED(gpu.Resize(_width, _height));
         const HRESULT prepared = Prepare();
         RETURN_IF_FAILED(prepared);
         gpu.Bind();
-        RETURN_IF_FAILED(view_->Composite(gpu.context.get(), gpu.Viewport()));
+        RETURN_IF_FAILED(_view->Composite(gpu.context.get(), gpu.Viewport()));
         // The frame ends as an application's does, which presents or flushes it: WARP keeps unflushed immediate-context
         // work in process heap memory, so a frame loop that never flushes grows private bytes by the queued work of every
         // frame (about 80-90 KB per composited frame at 640x480 and 1080p), which a hardware driver flushes on its own.
@@ -149,24 +149,24 @@ public:
 
     bool Pointer(const DxUi::PointerEvent& event) override
     {
-        return view_->DispatchPointer(event);
+        return _view->DispatchPointer(event);
     }
     bool Key(UINT virtualKey, bool down, UINT modifiers) override
     {
-        return view_->DispatchKey(virtualKey, down, modifiers);
+        return _view->DispatchKey(virtualKey, down, modifiers);
     }
     bool Character(wchar_t character, UINT modifiers) override
     {
-        return view_->DispatchCharacter(character, modifiers);
+        return _view->DispatchCharacter(character, modifiers);
     }
     void AdvanceTime(uint64_t milliseconds) override
     {
         using Kind         = DxUi::EmbeddedAnimationRequest::Kind;
-        const uint64_t end = now_ + milliseconds;
-        if (loop_ == ApplicationLoop::PollEveryStep)
+        const uint64_t end = _now + milliseconds;
+        if (_loop == ApplicationLoop::PollEveryStep)
         {
-            now_ = end;
-            if (const auto request = view_->GetAnimationRequest(); request.kind != Kind::None)
+            _now = end;
+            if (const auto request = _view->GetAnimationRequest(); request.kind != Kind::None)
                 Advance(request.kind, false);
             return;
         }
@@ -177,70 +177,70 @@ public:
         for (size_t pass = 0u;; ++pass)
         {
             Check(pass < 100'000u, "the simulated application settles within one fixture step");
-            if (std::exchange(woken_, false))
-                sleepingOn_ = view_->GetAnimationRequest();
-            const DxUi::EmbeddedAnimationRequest request = sleepingOn_;
+            if (std::exchange(_woken, false))
+                _sleepingOn = _view->GetAnimationRequest();
+            const DxUi::EmbeddedAnimationRequest request = _sleepingOn;
             if (request.kind == Kind::None)
                 break;
             if (request.kind == Kind::Continuous)
             {
                 // Every frame: one frame at the end of the step, as the fixture renders one frame per step.
-                now_        = end;
-                sleepingOn_ = Advance(request.kind, true);
+                _now        = end;
+                _sleepingOn = Advance(request.kind, true);
                 break;
             }
             if (request.dueTickMs > end)
                 break;
-            const bool slept = request.dueTickMs > now_;
-            now_             = slept ? request.dueTickMs : now_;
-            sleepingOn_      = Advance(request.kind, slept);
+            const bool slept = request.dueTickMs > _now;
+            _now             = slept ? request.dueTickMs : _now;
+            _sleepingOn      = Advance(request.kind, slept);
         }
-        now_ = end;
+        _now = end;
     }
     // The simulated application made a call that can only make its request later or None (hiding the view): it reads the
     // request again, as the hosting guide advises, instead of waking once more for nothing at the request it slept on.
     void ApplicationChangedView() noexcept
     {
-        woken_ = true;
+        _woken = true;
     }
     // Calls of the view's requestPreparation callback since the simulation started.
     [[nodiscard]] size_t ApplicationCallbacks() const noexcept
     {
-        return callbacks_;
+        return _callbacks;
     }
     void Resize(UINT width, UINT height, float dpi) override
     {
-        width_  = width;
-        height_ = height;
-        dpi_    = dpi;
+        _width  = width;
+        _height = height;
+        _dpi    = dpi;
     }
     [[nodiscard]] uint64_t NowMs() const noexcept override
     {
-        return now_;
+        return _now;
     }
 
 private:
     static void WakeThunk(void* context) noexcept
     {
         auto* const self = static_cast<EmbeddedInstance*>(context);
-        self->woken_     = true;
-        ++self->callbacks_;
+        self->_woken     = true;
+        ++self->_callbacks;
     }
     static uint64_t NowThunk(void* context) noexcept
     {
-        return static_cast<EmbeddedInstance*>(context)->now_;
+        return static_cast<EmbeddedInstance*>(context)->_now;
     }
     DxUi::EmbeddedAnimationRequest Advance(DxUi::EmbeddedAnimationRequest::Kind request, bool woke)
     {
         const DxUi::Detail::WorkCounterScope scope;
-        const DxUi::EmbeddedAnimationRequest next = view_->AdvanceAnimation(now_);
-        if (! log_)
+        const DxUi::EmbeddedAnimationRequest next = _view->AdvanceAnimation(_now);
+        if (! _log)
             return next;
-        Check(log_->size() < log_->capacity(), "the advance log was reserved for the run");
+        Check(_log->size() < _log->capacity(), "the advance log was reserved for the run");
         const DxUi::Detail::WorkCounters work = scope.Delta();
-        log_->push_back(ApplicationAdvance{phase_,
-                                           step_,
-                                           now_,
+        _log->push_back(ApplicationAdvance{_phase,
+                                           _step,
+                                           _now,
                                            woke,
                                            request,
                                            work.frame.tickCalls,
@@ -252,24 +252,24 @@ private:
     }
 
     // The simulated application's view of the schedule: the last request it read, and whether the callback has woken it.
-    DxUi::EmbeddedAnimationRequest sleepingOn_{};
-    bool woken_                           = true; // an application reads the request once when it starts
-    size_t callbacks_                     = 0u;
-    ApplicationLoop loop_                 = ApplicationLoop::PollEveryStep;
-    std::vector<ApplicationAdvance>* log_ = nullptr;
-    size_t phase_                         = 0u;
-    size_t step_                          = 0u;
-    const Definition* definition_         = nullptr;
-    const Variant* variant_               = nullptr;
+    DxUi::EmbeddedAnimationRequest _sleepingOn{};
+    bool _woken                           = true; // an application reads the request once when it starts
+    size_t _callbacks                     = 0u;
+    ApplicationLoop _loop                 = ApplicationLoop::PollEveryStep;
+    std::vector<ApplicationAdvance>* _log = nullptr;
+    size_t _phase                         = 0u;
+    size_t _step                          = 0u;
+    const Definition* _definition         = nullptr;
+    const Variant* _variant               = nullptr;
     // Declared before the host it may own models for, so the host is destroyed first.
-    std::unique_ptr<Scenario> scenario_;
-    std::unique_ptr<DxUi::EmbeddedHost> ownedView_;
-    DxUi::EmbeddedHost* view_ = nullptr;
-    std::optional<Context> context_;
-    UINT width_   = 0u;
-    UINT height_  = 0u;
-    float dpi_    = 96.0f;
-    uint64_t now_ = kClockOriginMs;
+    std::unique_ptr<Scenario> _scenario;
+    std::unique_ptr<DxUi::EmbeddedHost> _ownedView;
+    DxUi::EmbeddedHost* _view = nullptr;
+    std::optional<Context> _context;
+    UINT _width   = 0u;
+    UINT _height  = 0u;
+    float _dpi    = 96.0f;
+    uint64_t _now = kClockOriginMs;
 };
 
 inline AdapterRecord DescribeAdapter(ID3D11Device* device)
@@ -1188,45 +1188,45 @@ class CatalogTimingFixture final : public FrameTiming::Fixture
 {
 public:
     CatalogTimingFixture(const Definition& definition, const Variant& variant)
-        : definition_(definition),
-          variant_(variant),
-          name_(variant.name == definition.variants.front().name ? std::string(definition.id) : std::string(definition.id) + '@' + std::string(variant.name)),
-          timedPhase_(definition.FindPhase(definition.timedPhase).value_or(0u))
+        : _definition(definition),
+          _variant(variant),
+          _name(variant.name == definition.variants.front().name ? std::string(definition.id) : std::string(definition.id) + '@' + std::string(variant.name)),
+          _timedPhase(definition.FindPhase(definition.timedPhase).value_or(0u))
     {
     }
     std::string_view Name() const noexcept override
     {
-        return name_;
+        return _name;
     }
     std::string_view Description() const noexcept override
     {
-        return definition_.title;
+        return _definition.title;
     }
     UINT Width() const noexcept override
     {
-        return variant_.width;
+        return _variant.width;
     }
     UINT Height() const noexcept override
     {
-        return variant_.height;
+        return _variant.height;
     }
     float Dpi() const noexcept override
     {
-        return variant_.dpi;
+        return _variant.dpi;
     }
     // Builds the scene and plays the phases before the timed phase (prepared, not composited). BeforeFrame runs it again.
     HRESULT Initialize(ID3D11Device* device) override
     {
-        device_ = device;
-        instance_.reset(); // first: a scene's teardown can undo a process-wide test setting that the next Build sets
-        instance_.emplace();
-        instance_->Instantiate(definition_);
-        RETURN_IF_FAILED(instance_->Create(device, variant_));
-        for (size_t phase = 0u; phase < timedPhase_; ++phase)
-            for (size_t step = 0u; step < definition_.phases[phase].steps; ++step)
+        _device = device;
+        _instance.reset(); // first: a scene's teardown can undo a process-wide test setting that the next Build sets
+        _instance.emplace();
+        _instance->Instantiate(_definition);
+        RETURN_IF_FAILED(_instance->Create(device, _variant));
+        for (size_t phase = 0u; phase < _timedPhase; ++phase)
+            for (size_t step = 0u; step < _definition.phases[phase].steps; ++step)
             {
-                instance_->Step(phase, step);
-                RETURN_IF_FAILED(instance_->Prepare());
+                _instance->Step(phase, step);
+                RETURN_IF_FAILED(_instance->Prepare());
             }
         return S_OK;
     }
@@ -1236,41 +1236,41 @@ public:
         const size_t steps = TimedSteps();
         if (phase == FrameTiming::Phase::Dirty && steps != 0u && frame != 0u && frame % steps == 0u)
         {
-            Hr(Initialize(device_), "frame timing rebuilds the fixture before its timed phase repeats");
-            ++rebuilds_;
+            Hr(Initialize(_device), "frame timing rebuilds the fixture before its timed phase repeats");
+            ++_rebuilds;
         }
     }
     void Update(size_t frame, FrameTiming::Phase phase) override
     {
         const size_t steps = TimedSteps();
         if (phase == FrameTiming::Phase::Dirty)
-            instance_->Step(timedPhase_, steps == 0u ? frame : frame % steps);
+            _instance->Step(_timedPhase, steps == 0u ? frame : frame % steps);
     }
     HRESULT Prepare() override
     {
-        return instance_->Prepare();
+        return _instance->Prepare();
     }
     HRESULT Composite(ID3D11DeviceContext* context, const D3D11_VIEWPORT& viewport) override
     {
-        return instance_->View().Composite(context, viewport);
+        return _instance->View().Composite(context, viewport);
     }
     size_t TimedSteps() const noexcept override
     {
-        return definition_.timedPhaseRepeats ? 0u : definition_.phases[timedPhase_].steps;
+        return _definition.timedPhaseRepeats ? 0u : _definition.phases[_timedPhase].steps;
     }
     size_t Rebuilds() const noexcept override
     {
-        return rebuilds_;
+        return _rebuilds;
     }
 
 private:
-    const Definition& definition_;
-    const Variant& variant_;
-    std::string name_;
-    size_t timedPhase_    = 0u;
-    ID3D11Device* device_ = nullptr; // the timing harness's device, alive for every frame of the run
-    size_t rebuilds_      = 0u;
-    std::optional<EmbeddedInstance> instance_;
+    const Definition& _definition;
+    const Variant& _variant;
+    std::string _name;
+    size_t _timedPhase    = 0u;
+    ID3D11Device* _device = nullptr; // the timing harness's device, alive for every frame of the run
+    size_t _rebuilds      = 0u;
+    std::optional<EmbeddedInstance> _instance;
 };
 } // namespace PerformanceFixtures
 

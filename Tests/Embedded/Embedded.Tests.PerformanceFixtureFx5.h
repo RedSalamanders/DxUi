@@ -34,8 +34,8 @@ class Scene final : public Scenario
 public:
     DxUi::EmbeddedHost* AttachOwnEmbeddedHost(ID3D11Device* device, HRESULT& result) override
     {
-        result = scene_.Initialize(device);
-        return SUCCEEDED(result) ? &scene_.view : nullptr;
+        result = _scene.Initialize(device);
+        return SUCCEEDED(result) ? &_scene.view : nullptr;
     }
     HRESULT Build(Context&) override
     {
@@ -44,9 +44,9 @@ public:
     void Step(Context& context, size_t phase, size_t step) override
     {
         if (phase == 0u)
-            scene_.Update(step);
+            _scene.Update(step);
         else if (phase == 2u)
-            scene_.Update(kWarmSteps + step);
+            _scene.Update(kWarmSteps + step);
         else if (phase == kHover)
         {
             // The toggle of card 0 or card 1 (each card holds its label, toggle, slider and progress bar in that order).
@@ -63,7 +63,7 @@ public:
     }
 
 private:
-    ComplexUiScene scene_;
+    ComplexUiScene _scene;
 };
 
 inline constexpr Definition kDefinition{

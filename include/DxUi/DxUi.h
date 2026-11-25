@@ -311,12 +311,12 @@ struct MenuFlyoutItem
         std::wstring text = std::wstring(0u, L' ');
         int commandId     = 0;
     };
-    std::vector<SliderStop> sliderStops  = std::vector<SliderStop>(0u);
-    uint32_t sliderValue                 = 0u;
-    bool enabled                         = true;
-    bool checked                         = false;
-    int commandId                        = 0;
-    std::vector<MenuFlyoutItem> children = std::vector<MenuFlyoutItem>(0u); // Non-empty → has submenu
+    std::vector<SliderStop> sliderStops = std::vector<SliderStop>(0u);
+    uint32_t sliderValue                = 0u;
+    bool enabled                        = true;
+    bool checked                        = false;
+    int commandId                       = 0;
+    std::vector<MenuFlyoutItem> children{}; // Non-empty → has submenu
     // Optional literal description below the primary label. Standard/Toggle/Radio/Info
     // rows wrap both fields at the available menu width and grow to fit their text.
     std::wstring secondaryText = std::wstring(0u, L' ');
@@ -1634,16 +1634,16 @@ class RichTextSourceMove final
 public:
     [[nodiscard]] bool IsOwnerAlive() const noexcept
     {
-        return owner_ && ! lifetime_.expired();
+        return _owner && ! _lifetime.expired();
     }
 
 private:
     friend class RichTextEditor;
-    const RichTextEditor* owner_ = nullptr;
-    std::weak_ptr<int> lifetime_;
-    RichText::SourceSnapshot source_;
-    RichText::Selection selection_;
-    uint64_t revision_ = 0, selectionEpoch_ = 0, binding_ = 0, gestureEpoch_ = 0;
+    const RichTextEditor* _owner = nullptr;
+    std::weak_ptr<int> _lifetime;
+    RichText::SourceSnapshot _source;
+    RichText::Selection _selection;
+    uint64_t _revision = 0, _selectionEpoch = 0, _binding = 0, _gestureEpoch = 0;
 };
 
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.

@@ -82,7 +82,7 @@ public:
     bool Ready() const noexcept;
     HRESULT Result() const noexcept
     {
-        return result_;
+        return _result;
     }
     std::uint64_t Generation() const noexcept;
     std::uint64_t Revision() const noexcept;
@@ -104,10 +104,10 @@ public:
 private:
     struct State;
     struct Preparation;
-    std::unique_ptr<State> state_;
-    std::unique_ptr<Preparation> next_;
-    std::uint64_t generation_{};
-    bool valid_{};
-    HRESULT result_ = S_OK;
+    std::unique_ptr<State> _state;
+    std::unique_ptr<Preparation> _next;
+    std::uint64_t _generation{};
+    bool _valid{};
+    HRESULT _result = S_OK;
 };
 } // namespace DxUi::RichText::Detail

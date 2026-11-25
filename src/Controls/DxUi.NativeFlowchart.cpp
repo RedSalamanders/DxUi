@@ -2302,30 +2302,30 @@ FlowchartAdmission NativeFlowchartParser::Begin(std::wstring_view source, std::u
             return FlowchartAdmission::InvalidSource;
     }
     const auto same = [&](const auto& result) { return result && result->revision == revision && result->source == source; };
-    if (preparation_ && same(preparation_->model))
+    if (_preparation && same(_preparation->model))
         return FlowchartAdmission::Accepted;
-    if (! preparation_ && same(published_))
+    if (! _preparation && same(_published))
         return FlowchartAdmission::Accepted;
     auto next    = std::make_unique<Preparation>(source, revision);
-    preparation_ = std::move(next);
+    _preparation = std::move(next);
     return FlowchartAdmission::Accepted;
 }
 MarkdownAdvance NativeFlowchartParser::Advance(std::size_t maximumWorkUnits)
 {
     const Failure::Scope failureScope;
-    if (! preparation_)
+    if (! _preparation)
         return {MarkdownPreparationStatus::Idle, 0u};
     std::size_t work{};
     try
     {
         while (work < maximumWorkUnits)
         {
-            preparation_->Step();
+            _preparation->Step();
             ++work;
-            if (preparation_->done)
+            if (_preparation->done)
             {
-                published_ = preparation_->model;
-                preparation_.reset();
+                _published = _preparation->model;
+                _preparation.reset();
                 return {MarkdownPreparationStatus::Complete, work};
             }
         }
@@ -2342,19 +2342,19 @@ MarkdownAdvance NativeFlowchartParser::Advance(std::size_t maximumWorkUnits)
 }
 bool NativeFlowchartParser::HasPendingPreparation() const noexcept
 {
-    return ! ! preparation_;
+    return ! ! _preparation;
 }
 std::shared_ptr<const FlowchartModel> NativeFlowchartParser::Published() const noexcept
 {
-    return published_;
+    return _published;
 }
 void NativeFlowchartParser::Cancel() noexcept
 {
-    preparation_.reset();
+    _preparation.reset();
 }
 void NativeFlowchartParser::Clear() noexcept
 {
     Cancel();
-    published_.reset();
+    _published.reset();
 }
 } // namespace DxUi::RichText::Detail

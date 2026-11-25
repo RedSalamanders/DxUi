@@ -95,7 +95,7 @@ public:
 
 private:
     struct State;
-    std::unique_ptr<State> state_;
+    std::unique_ptr<State> _state;
 };
 
 bool ToggleMarker(Document& document, std::wstring_view marker);

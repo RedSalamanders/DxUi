@@ -266,16 +266,16 @@ inline DecodeScenario EncodedCapScenario(IWICImagingFactory* factory)
 class FileReadFixture
 {
 public:
-    FileReadFixture() noexcept : previous_(DxUi::RichText::Detail::testRichImageFileCalls), previousFixture_(active_)
+    FileReadFixture() noexcept : _previous(DxUi::RichText::Detail::testRichImageFileCalls), _previousFixture(active_)
     {
-        calls_.read                                    = &Read;
+        _calls.read                                    = &Read;
         active_                                        = this;
-        DxUi::RichText::Detail::testRichImageFileCalls = &calls_;
+        DxUi::RichText::Detail::testRichImageFileCalls = &_calls;
     }
     ~FileReadFixture()
     {
-        DxUi::RichText::Detail::testRichImageFileCalls = previous_;
-        active_                                        = previousFixture_;
+        DxUi::RichText::Detail::testRichImageFileCalls = _previous;
+        active_                                        = _previousFixture;
     }
     FileReadFixture(const FileReadFixture&)            = delete;
     FileReadFixture& operator=(const FileReadFixture&) = delete;
@@ -303,9 +303,9 @@ private:
             active_->cancel->store(true, std::memory_order_relaxed);
         return result;
     }
-    DxUi::RichText::Detail::RichImageFileCalls calls_;
-    const DxUi::RichText::Detail::RichImageFileCalls* previous_;
-    FileReadFixture* previousFixture_;
+    DxUi::RichText::Detail::RichImageFileCalls _calls;
+    const DxUi::RichText::Detail::RichImageFileCalls* _previous;
+    FileReadFixture* _previousFixture;
     inline static thread_local FileReadFixture* active_{};
 };
 template <typename Check> inline void Files(IWICImagingFactory* factory, std::span<const BYTE> encoded, Check&& check)

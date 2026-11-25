@@ -132,28 +132,28 @@ public:
     ~Fx4Application()
     {
         Abort();
-        view_.reset();
+        _view.reset();
     }
 
     [[nodiscard]] std::string Build(const Definition& definition, const Variant& variant)
     {
         if (! RegisterFx4OwnerClass())
             return "the application window class could not be registered";
-        if (FAILED(gpu_.Create(true)) || FAILED(DxUi::GraphicsDevice::Create(gpu_.device.get(), graphics_)))
+        if (FAILED(_gpu.Create(true)) || FAILED(DxUi::GraphicsDevice::Create(_gpu.device.get(), _graphics)))
             return "the application's WARP device could not be created";
-        theme_               = DxUi::MakeDefaultThemePalette(true);
-        theme_.reducedMotion = definition.reducedMotion;
-        view_                = std::make_unique<DxUi::EmbeddedHost>();
-        if (FAILED(view_->Attach(graphics_, StoppedTestClock())))
+        _theme               = DxUi::MakeDefaultThemePalette(true);
+        _theme.reducedMotion = definition.reducedMotion;
+        _view                = std::make_unique<DxUi::EmbeddedHost>();
+        if (FAILED(_view->Attach(_graphics, StoppedTestClock())))
             return "the application's EmbeddedHost could not attach";
-        view_->Controls().SetTheme(theme_);
+        _view->Controls().SetTheme(_theme);
         auto root = std::make_unique<DxUi::Panel>();
         root->AddChild<DxUi::Label>(L"Embedded-only application")->SetBounds(D2D1::RectF(16.0f, 16.0f, 400.0f, 48.0f));
-        view_->Controls().SetRoot(std::move(root));
-        if (FAILED(PrepareEmbeddedContentForTests(*view_, variant.width, variant.height, variant.dpi)))
+        _view->Controls().SetRoot(std::move(root));
+        if (FAILED(PrepareEmbeddedContentForTests(*_view, variant.width, variant.height, variant.dpi)))
             return "the application's view could not be prepared";
-        rows_        = MakeRows(Fx4::kRows, L"Row");
-        sessionRows_ = MakeRows(Fx4::kSessionRows, L"Session item");
+        _rows        = MakeRows(Fx4::kRows, L"Row");
+        _sessionRows = MakeRows(Fx4::kSessionRows, L"Session item");
 
         // The half of the primary monitor's work area that does not hold the pointer. The pointer is only read, never moved.
         MONITORINFO monitor{};
@@ -166,7 +166,7 @@ public:
         const LONG centerX = work.left + (work.right - work.left) / 2;
         const LONG left    = pointer.x < centerX ? centerX + kWorkAreaMarginPx : work.left + kWorkAreaMarginPx;
         const LONG top     = work.top + kWorkAreaMarginPx;
-        owner_.reset(CreateWindowExW(WS_EX_TOOLWINDOW,
+        _owner.reset(CreateWindowExW(WS_EX_TOOLWINDOW,
                                      kOwnerClass,
                                      L"DxUi FX4 embedded-only application",
                                      WS_POPUP | WS_BORDER,
@@ -178,13 +178,13 @@ public:
                                      nullptr,
                                      GetModuleHandleW(nullptr),
                                      nullptr));
-        if (! owner_)
+        if (! _owner)
             return "the application window could not be created";
-        anchor_ = POINT{left, top + kOwnerHeightPx};
-        ShowWindow(owner_.get(), SW_SHOWNOACTIVATE);
+        _anchor = POINT{left, top + kOwnerHeightPx};
+        ShowWindow(_owner.get(), SW_SHOWNOACTIVATE);
         Pump();
         const char* stage = "";
-        if (! TryActivateDxUiTestWindow(owner_.get(), 2000u, &stage))
+        if (! TryActivateDxUiTestWindow(_owner.get(), 2000u, &stage))
             return std::format("blocked activation: the application window could not take the foreground (stage {}); FX4 runs only in an "
                                "interactive run under the desktop lease",
                                stage);
@@ -197,13 +197,13 @@ public:
         switch (phase)
         {
             case Fx4::kWarm:
-            case Fx4::kCycle: return step == 0u ? Open(rows_) : Close();
-            case Fx4::kOpen: return Open(rows_);
+            case Fx4::kCycle: return step == 0u ? Open(_rows) : Close();
+            case Fx4::kOpen: return Open(_rows);
             case Fx4::kKeyboard: return Key(VK_DOWN);
             case Fx4::kClose: return Close();
             case Fx4::kSession:
             {
-                std::string failure = Open(sessionRows_);
+                std::string failure = Open(_sessionRows);
                 return failure.empty() ? Close() : failure;
             }
             default: return "the step names no FX4 phase";
@@ -216,10 +216,10 @@ public:
         if (phase != Fx4::kOpen && phase != Fx4::kKeyboard && ! (phase == Fx4::kCycle && step == 0u) && ! (phase == Fx4::kWarm && step == 0u))
             return {};
         DxUi::ContextMenuPopupDebugState state{};
-        if (! DxUi::DebugGetContextMenuPopupState(popup_, state))
+        if (! DxUi::DebugGetContextMenuPopupState(_popup, state))
             return "the popup's state could not be read";
         RECT window{};
-        static_cast<void>(GetWindowRect(popup_, &window));
+        static_cast<void>(GetWindowRect(_popup, &window));
         if (window.left != state.windowRectPx.left || window.top != state.windowRectPx.top || window.right != state.windowRectPx.right ||
             window.bottom != state.windowRectPx.bottom)
             return std::format("blocked activation: the popup window ({},{})-({},{}) is not its layout rectangle ({},{})-({},{})",
@@ -238,32 +238,32 @@ public:
             return std::format("input other than the fixture's reached the menu: the keyboard row is {}, expected {}",
                                state.keyboardIndex ? std::to_string(*state.keyboardIndex) : std::string("none"),
                                expected);
-        popupDpi_ = state.dpi;
+        _popupDpi = state.dpi;
         return {};
     }
 
     void Hide() noexcept
     {
-        view_->SetVisible(false);
+        _view->SetVisible(false);
     }
     [[nodiscard]] UINT PopupDpi() const noexcept
     {
-        return popupDpi_;
+        return _popupDpi;
     }
     [[nodiscard]] RECT PopupRect() const noexcept
     {
-        return popupRect_;
+        return _popupRect;
     }
 
     // Leaves the desktop as the run found it as far as this application can: any open menu is closed.
     void Abort() noexcept
     {
-        if (popup_ && IsWindow(popup_) != FALSE && ! closed_)
+        if (_popup && IsWindow(_popup) != FALSE && ! _closed)
         {
-            static_cast<void>(SendMessageW(popup_, WM_KEYDOWN, VK_ESCAPE, 1));
+            static_cast<void>(SendMessageW(_popup, WM_KEYDOWN, VK_ESCAPE, 1));
             Pump();
         }
-        popup_ = nullptr;
+        _popup = nullptr;
     }
 
 private:
@@ -301,22 +301,22 @@ private:
 
     [[nodiscard]] std::string Open(std::span<const DxUi::MenuFlyoutItem> items)
     {
-        if (popup_)
+        if (_popup)
             return "a menu was already open";
         DxUi::ContextMenuSessionCallbacks callbacks{};
         callbacks.focusFirstNavigableItem = true;
         callbacks.maxRootHeightDip        = Fx4::kMaxHeightDip;
         callbacks.minRootWidthDip         = Fx4::kMinWidthDip;
-        closed_                           = false;
-        if (! DxUi::ContextMenu::ShowAsync(owner_.get(), anchor_, items, theme_, [this](std::optional<int>) noexcept { closed_ = true; }, callbacks))
+        _closed                           = false;
+        if (! DxUi::ContextMenu::ShowAsync(_owner.get(), _anchor, items, _theme, [this](std::optional<int>) noexcept { _closed = true; }, callbacks))
         {
-            closed_ = true;
+            _closed = true;
             return "the menu did not open";
         }
-        PopupSearch search{owner_.get(), nullptr};
+        PopupSearch search{_owner.get(), nullptr};
         static_cast<void>(EnumThreadWindows(GetCurrentThreadId(), FindPopupWindow, reinterpret_cast<LPARAM>(&search)));
-        popup_ = search.popup;
-        if (! popup_)
+        _popup = search.popup;
+        if (! _popup)
             return "the menu's popup window was not found";
         Pump();
         return CheckActivated();
@@ -324,18 +324,18 @@ private:
 
     [[nodiscard]] std::string CheckActivated()
     {
-        if (closed_ || IsWindow(popup_) == FALSE)
+        if (_closed || IsWindow(_popup) == FALSE)
             return "the menu was dismissed as it opened: another window took the foreground";
         RECT window{};
-        static_cast<void>(GetWindowRect(popup_, &window));
-        popupRect_ = window;
+        static_cast<void>(GetWindowRect(_popup, &window));
+        _popupRect = window;
         if (window.right - window.left <= 1 || window.bottom - window.top <= 1)
             return std::format("blocked activation: the popup window is {} by {} pixels", window.right - window.left, window.bottom - window.top);
-        if (GetForegroundWindow() != popup_)
+        if (GetForegroundWindow() != _popup)
             return "blocked activation: the popup is not the foreground window";
-        if (GetFocus() != popup_)
+        if (GetFocus() != _popup)
             return "blocked activation: the popup does not hold keyboard focus";
-        if (GetCapture() != popup_)
+        if (GetCapture() != _popup)
             return "blocked activation: the popup does not hold mouse capture";
         POINT pointer{};
         if (GetCursorPos(&pointer) != FALSE && PtInRect(&window, pointer) != FALSE) // getcursorpos-allow: the menu must not open under the pointer
@@ -345,40 +345,40 @@ private:
 
     [[nodiscard]] std::string Key(UINT virtualKey)
     {
-        if (! popup_ || closed_ || IsWindow(popup_) == FALSE)
+        if (! _popup || _closed || IsWindow(_popup) == FALSE)
             return "the menu was dismissed during the keyboard steps: another window took the foreground";
-        static_cast<void>(SendMessageW(popup_, WM_KEYDOWN, virtualKey, 1));
+        static_cast<void>(SendMessageW(_popup, WM_KEYDOWN, virtualKey, 1));
         Pump();
-        if (closed_ || GetForegroundWindow() != popup_)
+        if (_closed || GetForegroundWindow() != _popup)
             return "the menu lost the foreground during the keyboard steps";
         return {};
     }
 
     [[nodiscard]] std::string Close()
     {
-        if (! popup_ || closed_ || IsWindow(popup_) == FALSE)
+        if (! _popup || _closed || IsWindow(_popup) == FALSE)
             return "the menu was dismissed before the fixture closed it: another window took the foreground";
-        static_cast<void>(SendMessageW(popup_, WM_KEYDOWN, VK_ESCAPE, 1));
+        static_cast<void>(SendMessageW(_popup, WM_KEYDOWN, VK_ESCAPE, 1));
         Pump();
-        const HWND closing = popup_;
-        popup_             = nullptr;
-        if (! closed_ || IsWindow(closing) != FALSE)
+        const HWND closing = _popup;
+        _popup             = nullptr;
+        if (! _closed || IsWindow(closing) != FALSE)
             return "Escape did not end the menu session";
         return {};
     }
 
-    GraphicsFixture gpu_;
-    std::shared_ptr<DxUi::GraphicsDevice> graphics_;
-    std::unique_ptr<DxUi::EmbeddedHost> view_;
-    DxUi::ThemePalette theme_{};
-    wil::unique_hwnd owner_;
-    std::vector<DxUi::MenuFlyoutItem> rows_;
-    std::vector<DxUi::MenuFlyoutItem> sessionRows_;
-    POINT anchor_{};
-    HWND popup_     = nullptr;
-    bool closed_    = true;
-    UINT popupDpi_  = 0u;
-    RECT popupRect_ = {};
+    GraphicsFixture _gpu;
+    std::shared_ptr<DxUi::GraphicsDevice> _graphics;
+    std::unique_ptr<DxUi::EmbeddedHost> _view;
+    DxUi::ThemePalette _theme{};
+    wil::unique_hwnd _owner;
+    std::vector<DxUi::MenuFlyoutItem> _rows;
+    std::vector<DxUi::MenuFlyoutItem> _sessionRows;
+    POINT _anchor{};
+    HWND _popup     = nullptr;
+    bool _closed    = true;
+    UINT _popupDpi  = 0u;
+    RECT _popupRect = {};
 };
 
 struct Fx4Run

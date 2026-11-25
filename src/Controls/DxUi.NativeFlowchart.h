@@ -508,8 +508,8 @@ public:
 
 private:
     struct Preparation;
-    std::unique_ptr<Preparation> preparation_;
-    std::shared_ptr<const FlowchartModel> published_;
+    std::unique_ptr<Preparation> _preparation;
+    std::shared_ptr<const FlowchartModel> _published;
 };
 // Parser publication and both layout/paint services share model-only admission.
 // Typography, factories and measurements remain service-specific view contracts.

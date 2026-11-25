@@ -18,37 +18,37 @@ namespace DxUi::RichText
 {
 std::uint64_t RichImageRequest::Id() const noexcept
 {
-    return state_ ? state_->id : 0u;
+    return _state ? _state->id : 0u;
 }
 std::wstring_view RichImageRequest::FilePath() const noexcept
 {
-    return state_ && state_->sourceKind == RichImageSourceKind::LocalFile ? std::wstring_view(state_->filePath) : std::wstring_view{};
+    return _state && _state->sourceKind == RichImageSourceKind::LocalFile ? std::wstring_view(_state->filePath) : std::wstring_view{};
 }
 RichImageSourceKind RichImageRequest::SourceKind() const noexcept
 {
-    return state_ ? state_->sourceKind : RichImageSourceKind::LocalFile;
+    return _state ? _state->sourceKind : RichImageSourceKind::LocalFile;
 }
 std::wstring_view RichImageRequest::Source() const noexcept
 {
-    return state_ ? std::wstring_view(state_->filePath) : std::wstring_view{};
+    return _state ? std::wstring_view(_state->filePath) : std::wstring_view{};
 }
 bool RichImageRequest::Cancelled() const noexcept
 {
-    return ! state_ || state_->cancelled.load(std::memory_order_relaxed);
+    return ! _state || _state->cancelled.load(std::memory_order_relaxed);
 }
 const std::atomic_bool* RichImageRequest::Cancellation() const noexcept
 {
     static const std::atomic_bool empty{true};
-    return state_ ? &state_->cancelled : &empty;
+    return _state ? &_state->cancelled : &empty;
 }
-RichImage::RichImage(unsigned width, unsigned height) : width_(width), height_(height), pixels_(static_cast<std::size_t>(width) * height * 4u), svg_(0u)
+RichImage::RichImage(unsigned width, unsigned height) : _width(width), _height(height), _pixels(static_cast<std::size_t>(width) * height * 4u), _svg(0u)
 {
 }
 RichImage::RichImage(unsigned width, unsigned height, std::span<const std::byte> svg)
-    : width_(width),
-      height_(height),
-      pixels_(0u),
-      svg_(svg.begin(), svg.end())
+    : _width(width),
+      _height(height),
+      _pixels(0u),
+      _svg(svg.begin(), svg.end())
 {
 }
 namespace Detail
@@ -234,7 +234,7 @@ public:
                         break;
                     default: break;
                 }
-                std::memcpy(staged->pixels_.data() + (static_cast<std::size_t>(dy) * staged->width_ + dx) * 4u,
+                std::memcpy(staged->_pixels.data() + (static_cast<std::size_t>(dy) * staged->_width + dx) * 4u,
                             input.data() + (static_cast<std::size_t>(y) * width + x) * 4u,
                             4u);
             }
@@ -349,8 +349,8 @@ public:
         const std::size_t offset = canvas ? (static_cast<std::size_t>(placement.top) * placement.canvasWidth + placement.left) * 4u : 0u;
         RETURN_IF_FAILED(converter->CopyPixels(nullptr,
                                                (canvas ? placement.canvasWidth : width) * 4u,
-                                               static_cast<UINT>(staged->pixels_.size() - offset),
-                                               reinterpret_cast<BYTE*>(staged->pixels_.data() + offset)));
+                                               static_cast<UINT>(staged->_pixels.size() - offset),
+                                               reinterpret_cast<BYTE*>(staged->_pixels.data() + offset)));
         if (Cancelled(cancellation))
             return HRESULT_FROM_WIN32(ERROR_CANCELLED);
         // A placement failure is reported where composition reported it before: after the frame's pixels decoded.
@@ -358,23 +358,23 @@ public:
             return placed;
         if (canvas)
         {
-            RETURN_IF_FAILED(ComposeGifCanvas(staged->pixels_, width, height, placement, cancellation));
+            RETURN_IF_FAILED(ComposeGifCanvas(staged->_pixels, width, height, placement, cancellation));
             width  = placement.canvasWidth;
             height = placement.canvasHeight;
         }
         if (orientation != 1u)
         {
-            const HRESULT oriented = OrientInPlace(staged->pixels_, width, height, orientation, cancellation);
+            const HRESULT oriented = OrientInPlace(staged->_pixels, width, height, orientation, cancellation);
             if (FAILED(oriented))
                 return oriented;
             // A transposing orientation of a non-square image needs the one additional decoded-size buffer.
             if (oriented == S_FALSE)
-                return Orient(staged->pixels_, width, height, orientation, output, cancellation);
+                return Orient(staged->_pixels, width, height, orientation, output, cancellation);
         }
         if (Cancelled(cancellation))
             return HRESULT_FROM_WIN32(ERROR_CANCELLED);
-        staged->width_  = width;
-        staged->height_ = height;
+        staged->_width  = width;
+        staged->_height = height;
         output          = std::move(staged);
         return S_OK;
     }

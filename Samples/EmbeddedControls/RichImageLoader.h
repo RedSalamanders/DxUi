@@ -49,7 +49,7 @@ public:
             return HRESULT_FROM_WIN32(GetLastError());
         Shutdown();
         WaitForRetiredWork();
-        state_ = std::move(state);
+        _state = std::move(state);
         return S_OK;
     }
     catch (const std::bad_alloc&)
@@ -58,19 +58,19 @@ public:
     }
     void Shutdown() noexcept
     {
-        if (! state_)
+        if (! _state)
             return;
         {
-            std::lock_guard lock(state_->mutex);
-            state_->closing  = true;
-            state_->window   = nullptr;
-            state_->jobCount = 0u;
-            for (auto& job : state_->jobs)
+            std::lock_guard lock(_state->mutex);
+            _state->closing  = true;
+            _state->window   = nullptr;
+            _state->jobCount = 0u;
+            for (auto& job : _state->jobs)
                 job = {};
-            for (auto& result : state_->results)
+            for (auto& result : _state->results)
                 result = {};
-            state_->resultCount = state_->resultBytes = 0u;
-            state_->hasResults.store(false, std::memory_order_release);
+            _state->resultCount = _state->resultBytes = 0u;
+            _state->hasResults.store(false, std::memory_order_release);
         }
         // An active callback retains only State and its owned job. It checks
         // cancellation and cannot call the view/editor or post after closure.
@@ -80,27 +80,27 @@ public:
     // Borrowed handles must remain valid through final worker retirement.
     void SetDecoderGateForTests(HANDLE entered, HANDLE release) noexcept
     {
-        std::lock_guard lock(state_->mutex);
-        state_->decoderEntered = entered;
-        state_->decoderRelease = release;
+        std::lock_guard lock(_state->mutex);
+        _state->decoderEntered = entered;
+        _state->decoderRelease = release;
     }
 #endif
     HRESULT Submit(std::span<const DxUi::RichText::RichImageRequest> requests) noexcept
     {
-        if (! state_)
+        if (! _state)
             return E_UNEXPECTED;
-        std::lock_guard lock(state_->mutex);
-        if (state_->closing)
+        std::lock_guard lock(_state->mutex);
+        if (_state->closing)
             return HRESULT_FROM_WIN32(ERROR_CANCELLED);
         std::array<DxUi::RichText::RichImageRequest, State::MaximumJobs> staged{};
         std::size_t count{};
-        for (std::size_t index = 0u; index < state_->jobCount; ++index)
-            if (! state_->jobs[index].Cancelled())
-                staged[count++] = state_->jobs[index];
+        for (std::size_t index = 0u; index < _state->jobCount; ++index)
+            if (! _state->jobs[index].Cancelled())
+                staged[count++] = _state->jobs[index];
         for (const auto& request : requests)
         {
-            if (request == state_->current || std::any_of(state_->results.begin(),
-                                                          state_->results.begin() + static_cast<std::ptrdiff_t>(state_->resultCount),
+            if (request == _state->current || std::any_of(_state->results.begin(),
+                                                          _state->results.begin() + static_cast<std::ptrdiff_t>(_state->resultCount),
                                                           [&](const auto& result) { return result.request == request; }))
                 continue;
             if (request.Cancelled() ||
@@ -110,43 +110,43 @@ public:
                 return HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW);
             staged[count++] = request;
         }
-        state_->jobs.swap(staged);
-        state_->jobCount = count;
-        state_->Schedule(state_);
+        _state->jobs.swap(staged);
+        _state->jobCount = count;
+        _state->Schedule(_state);
         return S_OK;
     }
     bool HasResults() const noexcept
     {
-        return state_ && state_->hasResults.load(std::memory_order_acquire);
+        return _state && _state->hasResults.load(std::memory_order_acquire);
     }
     void DiscardCancelled() noexcept
     {
-        if (! state_)
+        if (! _state)
             return;
-        std::lock_guard lock(state_->mutex);
+        std::lock_guard lock(_state->mutex);
         std::size_t count{};
-        for (std::size_t index = 0u; index < state_->jobCount; ++index)
-            if (! state_->jobs[index].Cancelled())
-                state_->jobs[count++] = state_->jobs[index];
-        for (std::size_t index = count; index < state_->jobCount; ++index)
-            state_->jobs[index] = {};
-        state_->jobCount    = count;
+        for (std::size_t index = 0u; index < _state->jobCount; ++index)
+            if (! _state->jobs[index].Cancelled())
+                _state->jobs[count++] = _state->jobs[index];
+        for (std::size_t index = count; index < _state->jobCount; ++index)
+            _state->jobs[index] = {};
+        _state->jobCount    = count;
         count               = 0u;
-        state_->resultBytes = 0u;
-        for (std::size_t index = 0u; index < state_->resultCount; ++index)
-            if (! state_->results[index].request.Cancelled())
+        _state->resultBytes = 0u;
+        for (std::size_t index = 0u; index < _state->resultCount; ++index)
+            if (! _state->results[index].request.Cancelled())
             {
-                if (state_->results[index].image)
-                    state_->resultBytes += state_->results[index].image->Pixels().size();
-                state_->results[count++] = state_->results[index];
+                if (_state->results[index].image)
+                    _state->resultBytes += _state->results[index].image->Pixels().size();
+                _state->results[count++] = _state->results[index];
             }
-        for (std::size_t index = count; index < state_->resultCount; ++index)
-            state_->results[index] = {};
-        state_->resultCount = count;
-        state_->hasResults.store(count != 0u, std::memory_order_release);
+        for (std::size_t index = count; index < _state->resultCount; ++index)
+            _state->results[index] = {};
+        _state->resultCount = count;
+        _state->hasResults.store(count != 0u, std::memory_order_release);
         // Pruning can free the completion reservation that stopped the worker.
         // Still-valid queued requests need the same event-driven wake as Drain.
-        state_->Schedule(state_);
+        _state->Schedule(_state);
     }
     void Drain(std::vector<Result>& output)
     {
@@ -156,24 +156,24 @@ public:
     }
     std::size_t Drain(std::span<Result> output) noexcept
     {
-        if (! state_)
+        if (! _state)
             return 0u;
-        std::lock_guard lock(state_->mutex);
-        const auto count = std::min(output.size(), state_->resultCount);
+        std::lock_guard lock(_state->mutex);
+        const auto count = std::min(output.size(), _state->resultCount);
         for (std::size_t index = 0u; index < count; ++index)
-            output[index] = state_->results[index];
-        for (std::size_t index = count; index < state_->resultCount; ++index)
-            state_->results[index - count] = state_->results[index];
-        const auto remaining = state_->resultCount - count;
-        for (std::size_t index = remaining; index < state_->resultCount; ++index)
-            state_->results[index] = {};
-        state_->resultCount = remaining;
-        state_->resultBytes = 0u;
+            output[index] = _state->results[index];
+        for (std::size_t index = count; index < _state->resultCount; ++index)
+            _state->results[index - count] = _state->results[index];
+        const auto remaining = _state->resultCount - count;
+        for (std::size_t index = remaining; index < _state->resultCount; ++index)
+            _state->results[index] = {};
+        _state->resultCount = remaining;
+        _state->resultBytes = 0u;
         for (std::size_t index = 0u; index < remaining; ++index)
-            if (state_->results[index].image)
-                state_->resultBytes += state_->results[index].image->Pixels().size();
-        state_->hasResults.store(remaining != 0u, std::memory_order_release);
-        state_->Schedule(state_);
+            if (_state->results[index].image)
+                _state->resultBytes += _state->results[index].image->Pixels().size();
+        _state->hasResults.store(remaining != 0u, std::memory_order_release);
+        _state->Schedule(_state);
         return count;
     }
 
@@ -314,16 +314,16 @@ private:
     // waits so the process failure host outlives every worker scope.
     void WaitForRetiredWork() noexcept
     {
-        if (state_)
+        if (_state)
         {
-            const auto wait = WaitForSingleObject(state_->retired.get(), 10000u);
+            const auto wait = WaitForSingleObject(_state->retired.get(), 10000u);
             if (wait == WAIT_TIMEOUT)
                 DxUi::Failure::FailContract(HRESULT_FROM_WIN32(ERROR_TIMEOUT));
             if (wait != WAIT_OBJECT_0)
                 DxUi::Failure::FailContract(wait == WAIT_FAILED ? HRESULT_FROM_WIN32(GetLastError()) : E_UNEXPECTED);
-            WaitForThreadpoolWorkCallbacks(state_->work.get(), FALSE);
-            state_.reset();
+            WaitForThreadpoolWorkCallbacks(_state->work.get(), FALSE);
+            _state.reset();
         }
     }
-    std::shared_ptr<State> state_;
+    std::shared_ptr<State> _state;
 };

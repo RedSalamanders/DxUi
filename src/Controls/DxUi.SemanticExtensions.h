@@ -128,19 +128,19 @@ struct SemanticExtensionAccess
 {
     static const SemanticProjectionIndex* ProjectionIndex(const SemanticDocument& document) noexcept
     {
-        return document.projection_.get();
+        return document._projection.get();
     }
     static std::span<const NativeSourceFallback> SourceObjects(const SemanticDocument& document) noexcept
     {
-        return document.extensions_ ? std::span<const NativeSourceFallback>(document.extensions_->sourceObjects) : std::span<const NativeSourceFallback>{};
+        return document._extensions ? std::span<const NativeSourceFallback>(document._extensions->sourceObjects) : std::span<const NativeSourceFallback>{};
     }
     static std::span<const std::size_t> AbbreviationNodes(const SemanticDocument& document) noexcept
     {
-        return document.extensions_ ? std::span<const std::size_t>(document.extensions_->abbreviationNodes) : std::span<const std::size_t>{};
+        return document._extensions ? std::span<const std::size_t>(document._extensions->abbreviationNodes) : std::span<const std::size_t>{};
     }
     static std::span<const DisclosureOverride> Disclosures(const SemanticDocument& document) noexcept
     {
-        return document.extensions_ ? std::span<const DisclosureOverride>(document.extensions_->disclosures) : std::span<const DisclosureOverride>{};
+        return document._extensions ? std::span<const DisclosureOverride>(document._extensions->disclosures) : std::span<const DisclosureOverride>{};
     }
     static void BeginWithNativeFallbacks(SemanticBuilder& builder, std::shared_ptr<const MarkdownSyntax> syntax, std::span<const MarkdownRange> sourceObjects)
     {
@@ -178,22 +178,22 @@ struct SemanticExtensionAccess
     }
     static std::span<const SemanticExtensions::Formula> Maths(const SemanticDocument& document) noexcept
     {
-        return document.extensions_ ? std::span<const SemanticExtensions::Formula>(document.extensions_->maths)
+        return document._extensions ? std::span<const SemanticExtensions::Formula>(document._extensions->maths)
                                     : std::span<const SemanticExtensions::Formula>{};
     }
     static std::span<const std::size_t> Images(const SemanticDocument& document) noexcept
     {
-        return document.extensions_ ? std::span<const std::size_t>(document.extensions_->images) : std::span<const std::size_t>{};
+        return document._extensions ? std::span<const std::size_t>(document._extensions->images) : std::span<const std::size_t>{};
     }
     static std::span<const SemanticDiagram> Diagrams(const SemanticDocument& document) noexcept
     {
-        return document.extensions_ ? std::span<const SemanticDiagram>(document.extensions_->diagrams) : std::span<const SemanticDiagram>{};
+        return document._extensions ? std::span<const SemanticDiagram>(document._extensions->diagrams) : std::span<const SemanticDiagram>{};
     }
     static const SemanticDiagram* Diagram(const SemanticDocument& document, std::size_t element) noexcept
     {
-        if (! document.extensions_)
+        if (! document._extensions)
             return nullptr;
-        const auto& diagrams = document.extensions_->diagrams;
+        const auto& diagrams = document._extensions->diagrams;
         const auto found = std::lower_bound(diagrams.begin(), diagrams.end(), element, [](const auto& diagram, auto index) { return diagram.element < index; });
         return found != diagrams.end() && found->element == element ? &*found : nullptr;
     }

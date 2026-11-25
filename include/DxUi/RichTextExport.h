@@ -18,33 +18,33 @@ public:
     ExportContent& operator=(const ExportContent&) = default;
     // Size constructors keep Debug STL proxy allocation out of a noexcept move;
     // payload storage itself is transferred by swap.
-    ExportContent(ExportContent&& other) : text_(0u, L' '), html_(0u, L' ')
+    ExportContent(ExportContent&& other) : _text(0u, L' '), _html(0u, L' ')
     {
-        text_.swap(other.text_);
-        html_.swap(other.html_);
+        _text.swap(other._text);
+        _html.swap(other._html);
     }
     ExportContent& operator=(ExportContent&& other) noexcept
     {
-        text_.swap(other.text_);
-        html_.swap(other.html_);
+        _text.swap(other._text);
+        _html.swap(other._html);
         return *this;
     }
     std::wstring_view Text() const noexcept
     {
-        return text_;
+        return _text;
     }
     std::wstring_view HtmlFragment() const noexcept
     {
-        return html_;
+        return _html;
     }
 
 private:
-    ExportContent(std::wstring&& text, std::wstring&& html) : text_(0u, L' '), html_(0u, L' ')
+    ExportContent(std::wstring&& text, std::wstring&& html) : _text(0u, L' '), _html(0u, L' ')
     {
-        text_.swap(text);
-        html_.swap(html);
+        _text.swap(text);
+        _html.swap(html);
     }
-    std::wstring text_, html_;
+    std::wstring _text, _html;
     friend ExportContent ExportSemanticDocument(const SemanticDocument& document);
     friend ExportContent ExportSemanticDocument(const SemanticDocument& document, MarkdownRange displayRange);
     friend SourceResult TryExportSemanticDocument(const SemanticDocument& document, MarkdownRange displayRange, std::optional<ExportContent>& output);

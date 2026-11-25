@@ -55,20 +55,20 @@ class MarkdownInlines
 {
     using Kind             = MarkdownInlineKind;
     using ReferenceDecoder = bool (*)(std::wstring_view, std::size_t, MarkdownLexeme&) noexcept;
-    std::wstring_view source_;
-    std::wstring_view rawSource_;
-    std::optional<MarkdownSourceRegion> sourceRegion_;
-    bool sourceRegionEmitted_{};
-    std::size_t wikiClose_   = MarkdownNoNode;
-    std::size_t wikiScanned_ = 0u;
-    MarkdownProfile profile_;
-    MarkdownExtensions extensions_;
-    std::vector<MarkdownNode>& blocks_;
-    std::vector<MarkdownInline>& nodes_;
-    std::vector<MarkdownFootnote>& footnotes_;
-    std::vector<MarkdownFootnoteReference>& footnoteReferences_;
-    std::vector<MarkdownDiagnostic>& diagnostics_;
-    ReferenceDecoder referenceDecoder_;
+    std::wstring_view _source;
+    std::wstring_view _rawSource;
+    std::optional<MarkdownSourceRegion> _sourceRegion;
+    bool _sourceRegionEmitted{};
+    std::size_t _wikiClose   = MarkdownNoNode;
+    std::size_t _wikiScanned = 0u;
+    MarkdownProfile _profile;
+    MarkdownExtensions _extensions;
+    std::vector<MarkdownNode>& _blocks;
+    std::vector<MarkdownInline>& _nodes;
+    std::vector<MarkdownFootnote>& _footnotes;
+    std::vector<MarkdownFootnoteReference>& _footnoteReferences;
+    std::vector<MarkdownDiagnostic>& _diagnostics;
+    ReferenceDecoder _referenceDecoder;
     struct Reference
     {
         Reference() : label(0u, L' '), destination(0u, L' '), title(0u, L' ')
@@ -111,42 +111,42 @@ class MarkdownInlines
         std::size_t node{};
         bool inlineNode{}, definitionRoot{}, followSibling = true;
     };
-    std::vector<Reference> references_;
-    std::vector<Delimiter> delimiters_;
-    std::vector<Bracket> brackets_;
-    std::vector<AutolinkVisit> autolinkWalk_;
-    std::vector<AutolinkFacts> autolinkFacts_;
-    std::optional<AutolinkRegion> autolinkRegion_;
-    std::size_t autolinkFactsCursor_{};
-    unsigned autolinkFactsPhase_{};
-    std::size_t autolinkInspectionUnits_{}, autolinkDecodedUnits_{}, wikiInspectionUnits_{};
-    std::vector<FootnoteVisit> footnoteWalk_;
-    std::vector<std::size_t> reachableDefinitions_;
-    std::vector<std::size_t> previous_, offsets_, backtickNext_;
-    std::vector<std::array<std::uint32_t, 9u>> htmlNext_;
-    std::array<std::size_t, 4u> htmlLast_{};
-    std::wstring text_;
+    std::vector<Reference> _references;
+    std::vector<Delimiter> _delimiters;
+    std::vector<Bracket> _brackets;
+    std::vector<AutolinkVisit> _autolinkWalk;
+    std::vector<AutolinkFacts> _autolinkFacts;
+    std::optional<AutolinkRegion> _autolinkRegion;
+    std::size_t _autolinkFactsCursor{};
+    unsigned _autolinkFactsPhase{};
+    std::size_t _autolinkInspectionUnits{}, _autolinkDecodedUnits{}, _wikiInspectionUnits{};
+    std::vector<FootnoteVisit> _footnoteWalk;
+    std::vector<std::size_t> _reachableDefinitions;
+    std::vector<std::size_t> _previous, _offsets, _backtickNext;
+    std::vector<std::array<std::uint32_t, 9u>> _htmlNext;
+    std::array<std::size_t, 4u> _htmlLast{};
+    std::wstring _text;
     // Incremental reuse (W7.2): this parse's effective definitions and per-leaf staging (both carried to the next
     // parse), the subtree walk of a copied leaf, and the staging copied leaves stand for beyond the nodes they copy.
-    std::vector<MarkdownReferenceValue> effectiveReferences_;
-    std::vector<std::uint32_t> leafStaging_;
-    std::vector<std::size_t> copyStack_;
-    std::optional<MarkdownInlineReuse> reuse_;
-    std::size_t reuseCursor_{}, virtualStaging_{}, leafStart_{};
-    bool reuseActive_{};
-    std::size_t blockCursor_{}, referenceCursor_{}, cursor_{}, root_ = MarkdownNoNode, tail_ = MarkdownNoNode;
-    std::size_t delimiterTail_ = MarkdownNoNode, delimiterHead_ = MarkdownNoNode;
-    std::size_t lastLiteral_ = MarkdownNoNode, compactCursor_{}, compactCount_{};
-    unsigned compactPhase_{};
-    std::size_t inlineFirst_{}, inlineLimit_{};
-    std::size_t autolinkDelimiter_ = MarkdownNoNode, underscoreOpen_{};
-    bool autolinkBoundary_{}, emailBoundary_{};
-    bool referencesComplete_{}, leafActive_{}, autolinksActive_{};
-    bool referencesSorted_{}, compactComplete_{}, footnoteWalkStarted_{};
-    bool footnoteReferencesFinal_{};
-    bool capacityExceeded_{};
-    std::size_t footnoteReferenceCursor_{}, footnoteReferenceCount_{};
-    std::size_t footnoteUniqueCursor_{}, footnoteUniqueCount_{}, footnoteOrdinal_{}, footnoteQueueHead_{};
+    std::vector<MarkdownReferenceValue> _effectiveReferences;
+    std::vector<std::uint32_t> _leafStaging;
+    std::vector<std::size_t> _copyStack;
+    std::optional<MarkdownInlineReuse> _reuse;
+    std::size_t _reuseCursor{}, _virtualStaging{}, _leafStart{};
+    bool _reuseActive{};
+    std::size_t _blockCursor{}, _referenceCursor{}, _cursor{}, _root = MarkdownNoNode, _tail = MarkdownNoNode;
+    std::size_t _delimiterTail = MarkdownNoNode, _delimiterHead = MarkdownNoNode;
+    std::size_t _lastLiteral = MarkdownNoNode, _compactCursor{}, _compactCount{};
+    unsigned _compactPhase{};
+    std::size_t _inlineFirst{}, _inlineLimit{};
+    std::size_t _autolinkDelimiter = MarkdownNoNode, _underscoreOpen{};
+    bool _autolinkBoundary{}, _emailBoundary{};
+    bool _referencesComplete{}, _leafActive{}, _autolinksActive{};
+    bool _referencesSorted{}, _compactComplete{}, _footnoteWalkStarted{};
+    bool _footnoteReferencesFinal{};
+    bool _capacityExceeded{};
+    std::size_t _footnoteReferenceCursor{}, _footnoteReferenceCount{};
+    std::size_t _footnoteUniqueCursor{}, _footnoteUniqueCount{}, _footnoteOrdinal{}, _footnoteQueueHead{};
 
     static bool AsciiLetter(wchar_t c) noexcept
     {
@@ -170,7 +170,7 @@ class MarkdownInlines
     }
     bool GrammarSpace(wchar_t c) const noexcept
     {
-        return SourceSpace(c) || (profile_ == MarkdownProfile::Gfm029 && (c == L'\v' || c == L'\f'));
+        return SourceSpace(c) || (_profile == MarkdownProfile::Gfm029 && (c == L'\v' || c == L'\f'));
     }
     template <std::size_t N> static bool Contains(const MarkdownUnicodeData::Range (&ranges)[N], std::uint32_t scalar) noexcept
     {
@@ -193,7 +193,7 @@ class MarkdownInlines
         // CommonMark 0.31.2 added Unicode symbols; strict GFM retains its older
         // wording: ASCII punctuation plus Unicode general category P.
         return Contains(MarkdownUnicodeData::kPunctuation, c) &&
-               (profile_ != MarkdownProfile::Gfm029 || c < 128u || ! Contains(MarkdownUnicodeData::kSymbol, c));
+               (_profile != MarkdownProfile::Gfm029 || c < 128u || ! Contains(MarkdownUnicodeData::kSymbol, c));
     }
     static void AppendScalar(std::wstring& result, std::uint32_t scalar)
     {
@@ -208,7 +208,7 @@ class MarkdownInlines
     }
     std::wstring FoldLabel(std::wstring_view text) const
     {
-        return NormalizeMarkdownLabel(text, profile_);
+        return NormalizeMarkdownLabel(text, _profile);
     }
     std::wstring Decode(std::wstring_view input) const
     {
@@ -216,7 +216,7 @@ class MarkdownInlines
         for (std::size_t i = 0; i < input.size();)
         {
             MarkdownLexeme entity;
-            if (input[i] == L'&' && referenceDecoder_(input, i, entity))
+            if (input[i] == L'&' && _referenceDecoder(input, i, entity))
             {
                 result.append(entity.value.data(), entity.valueLength);
                 i = entity.source.last;
@@ -240,35 +240,35 @@ class MarkdownInlines
         for (const auto& line : block.lines)
             for (auto i = std::max(line.source.first, range.first); i < std::min(line.source.last, range.last); ++i)
             {
-                if (source_[i] == L'\r')
+                if (_source[i] == L'\r')
                 {
                     result.push_back(L'\n');
-                    if (i + 1u < line.source.last && source_[i + 1u] == L'\n')
+                    if (i + 1u < line.source.last && _source[i + 1u] == L'\n')
                         ++i;
                 }
                 else
-                    result.push_back(source_[i]);
+                    result.push_back(_source[i]);
             }
         return result;
     }
     void CollectReference()
     {
-        const auto& block = blocks_[referenceCursor_++];
+        const auto& block = _blocks[_referenceCursor++];
         if (block.block.kind == MarkdownBlockKind::ReferenceDefinition || block.block.kind == MarkdownBlockKind::FootnoteDefinition)
             ::DxUi::Detail::Work().rich.markdownReferenceUnitsRead +=
                 (block.label.last - block.label.first) + (block.destination.last - block.destination.first) + (block.title.last - block.title.first);
         if (block.block.kind == MarkdownBlockKind::FootnoteDefinition)
         {
-            footnotes_.emplace_back();
-            auto& note      = footnotes_.back();
-            note.label      = FoldLabel(source_.substr(block.label.first, block.label.last - block.label.first));
-            note.definition = referenceCursor_ - 1u;
+            _footnotes.emplace_back();
+            auto& note      = _footnotes.back();
+            note.label      = FoldLabel(_source.substr(block.label.first, block.label.last - block.label.first));
+            note.definition = _referenceCursor - 1u;
             return;
         }
         if (block.block.kind != MarkdownBlockKind::ReferenceDefinition)
             return;
-        references_.emplace_back();
-        auto& reference       = references_.back();
+        _references.emplace_back();
+        auto& reference       = _references.back();
         reference.label       = FoldLabel(Fragment(block, block.label));
         reference.destination = Decode(Fragment(block, block.destination));
         reference.title       = Decode(Fragment(block, block.title));
@@ -286,79 +286,79 @@ class MarkdownInlines
         if (folded.empty())
             return nullptr;
         const auto entry = std::lower_bound(
-            references_.begin(), references_.end(), folded, [](const auto& reference, const auto& wanted) { return reference.label < wanted; });
-        return entry != references_.end() && entry->label == folded ? &*entry : nullptr;
+            _references.begin(), _references.end(), folded, [](const auto& reference, const auto& wanted) { return reference.label < wanted; });
+        return entry != _references.end() && entry->label == folded ? &*entry : nullptr;
     }
     MarkdownRange Range(std::size_t first, std::size_t last) const noexcept
     {
-        return {offsets_[first],
-                last > first ? offsets_[last - 1u] + (((text_[last - 1u] == L'\n' && source_[offsets_[last - 1u]] == L'\r') ||
-                                                       (text_[last - 1u] == L'|' && source_[offsets_[last - 1u]] == L'\\')) &&
-                                                              offsets_[last - 1u] + 1u < source_.size() && source_[offsets_[last - 1u] + 1u] == text_[last - 1u]
+        return {_offsets[first],
+                last > first ? _offsets[last - 1u] + (((_text[last - 1u] == L'\n' && _source[_offsets[last - 1u]] == L'\r') ||
+                                                       (_text[last - 1u] == L'|' && _source[_offsets[last - 1u]] == L'\\')) &&
+                                                              _offsets[last - 1u] + 1u < _source.size() && _source[_offsets[last - 1u] + 1u] == _text[last - 1u]
                                                           ? 2u
                                                           : 1u)
-                             : offsets_[first]};
+                             : _offsets[first]};
     }
     // Staging records for node-capacity admission: the nodes staged so far plus, for each copied leaf, the shells its
     // parse would have staged beyond the nodes it published, so a copy admits exactly what a full parse admits.
     std::size_t Staged() const noexcept
     {
-        return nodes_.size() + virtualStaging_;
+        return _nodes.size() + _virtualStaging;
     }
     void FinishLeafStaging(std::size_t staging) noexcept
     {
-        if (blockCursor_ < leafStaging_.size())
-            leafStaging_[blockCursor_] = static_cast<std::uint32_t>(staging);
+        if (_blockCursor < _leafStaging.size())
+            _leafStaging[_blockCursor] = static_cast<std::uint32_t>(staging);
     }
     // W7.2: once the definitions are known, copying is admitted when they resolve every label as the previous parse did.
     void DecideReuse()
     {
-        leafStaging_.assign(blocks_.size(), 0u);
-        for (const auto& reference : references_)
-            if (effectiveReferences_.empty() || effectiveReferences_.back().label != reference.label)
+        _leafStaging.assign(_blocks.size(), 0u);
+        for (const auto& reference : _references)
+            if (_effectiveReferences.empty() || _effectiveReferences.back().label != reference.label)
             {
-                effectiveReferences_.emplace_back();
-                effectiveReferences_.back().label       = reference.label;
-                effectiveReferences_.back().destination = reference.destination;
-                effectiveReferences_.back().title       = reference.title;
+                _effectiveReferences.emplace_back();
+                _effectiveReferences.back().label       = reference.label;
+                _effectiveReferences.back().destination = reference.destination;
+                _effectiveReferences.back().title       = reference.title;
             }
-        if (! reuse_ || reuse_->subtrees->empty())
+        if (! _reuse || _reuse->subtrees->empty())
             return;
-        reuseActive_ = *reuse_->oldReferences == effectiveReferences_;
-        if (! reuseActive_)
+        _reuseActive = *_reuse->oldReferences == _effectiveReferences;
+        if (! _reuseActive)
             ++::DxUi::Detail::Work().rich.markdownInlineFullReparses;
     }
     // W7.2: the current block lies in an imported subtree whose old leaf can be copied: returns its old node index.
     std::size_t ImportedOldBlock() noexcept
     {
-        if (! reuseActive_)
+        if (! _reuseActive)
             return MarkdownNoNode;
-        const auto& subtrees = *reuse_->subtrees;
-        while (reuseCursor_ < subtrees.size() && subtrees[reuseCursor_].first + subtrees[reuseCursor_].count <= blockCursor_)
-            ++reuseCursor_;
-        if (reuseCursor_ == subtrees.size() || subtrees[reuseCursor_].first > blockCursor_)
+        const auto& subtrees = *_reuse->subtrees;
+        while (_reuseCursor < subtrees.size() && subtrees[_reuseCursor].first + subtrees[_reuseCursor].count <= _blockCursor)
+            ++_reuseCursor;
+        if (_reuseCursor == subtrees.size() || subtrees[_reuseCursor].first > _blockCursor)
             return MarkdownNoNode;
-        return subtrees[reuseCursor_].oldFirst + (blockCursor_ - subtrees[reuseCursor_].first);
+        return subtrees[_reuseCursor].oldFirst + (_blockCursor - subtrees[_reuseCursor].first);
     }
     // W7.2: copies the unchanged leaf's inline forest from the previous parse, shifted, instead of scanning its text.
     // Refuses (the leaf is parsed) for a forest with a footnote reference or source editor, or one that is not a single
     // contiguous index range of the old dense forest. Indivisible, proportional to the leaf's nodes.
     bool CopyLeaf(std::size_t oldIndex)
     {
-        const auto& oldBlocks  = *reuse_->oldBlocks;
-        const auto& oldInlines = *reuse_->oldInlines;
-        if (oldIndex >= oldBlocks.size() || oldBlocks[oldIndex].block.kind != blocks_[blockCursor_].block.kind || oldIndex >= reuse_->oldLeafStaging->size())
+        const auto& oldBlocks  = *_reuse->oldBlocks;
+        const auto& oldInlines = *_reuse->oldInlines;
+        if (oldIndex >= oldBlocks.size() || oldBlocks[oldIndex].block.kind != _blocks[_blockCursor].block.kind || oldIndex >= _reuse->oldLeafStaging->size())
             return false;
-        const auto& subtree = (*reuse_->subtrees)[reuseCursor_];
+        const auto& subtree = (*_reuse->subtrees)[_reuseCursor];
         const auto root     = oldBlocks[oldIndex].firstInline;
         std::size_t low = root, high = root, count = 0u;
-        copyStack_.clear();
+        _copyStack.clear();
         if (root != MarkdownNoNode)
-            copyStack_.push_back(root);
-        while (! copyStack_.empty())
+            _copyStack.push_back(root);
+        while (! _copyStack.empty())
         {
-            const auto index = copyStack_.back();
-            copyStack_.pop_back();
+            const auto index = _copyStack.back();
+            _copyStack.pop_back();
             if (index >= oldInlines.size() || count == oldInlines.size())
                 return false;
             const auto& node = oldInlines[index];
@@ -368,26 +368,26 @@ class MarkdownInlines
             low  = (std::min)(low, index);
             high = (std::max)(high, index);
             if (node.firstChild != MarkdownNoNode)
-                copyStack_.push_back(node.firstChild);
+                _copyStack.push_back(node.firstChild);
             if (node.nextSibling != MarkdownNoNode)
-                copyStack_.push_back(node.nextSibling);
+                _copyStack.push_back(node.nextSibling);
         }
         if (count && high - low + 1u != count)
             return false;
-        const std::size_t staging = (std::max)(static_cast<std::size_t>((*reuse_->oldLeafStaging)[oldIndex]), count);
+        const std::size_t staging = (std::max)(static_cast<std::size_t>((*_reuse->oldLeafStaging)[oldIndex]), count);
         // A full parse of this leaf stages `staging` records; it fails exactly when they do not all fit.
-        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() + staging > MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+        if (_blocks.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() + staging > MarkdownSyntax::MaximumNodeRecords - _blocks.size())
         {
-            capacityExceeded_ = true;
+            _capacityExceeded = true;
             return true;
         }
-        const auto base  = nodes_.size();
+        const auto base  = _nodes.size();
         const auto shift = [&](std::size_t at) noexcept { return subtree.newSource + (at - subtree.oldSource); };
         for (std::size_t index = low; count && index <= high; ++index)
         {
-            nodes_.push_back(oldInlines[index]);
-            previous_.push_back(MarkdownNoNode);
-            auto& node        = nodes_.back();
+            _nodes.push_back(oldInlines[index]);
+            _previous.push_back(MarkdownNoNode);
+            auto& node        = _nodes.back();
             node.source.first = shift(node.source.first);
             node.source.last  = shift(node.source.last);
             if (node.firstChild != MarkdownNoNode)
@@ -395,10 +395,10 @@ class MarkdownInlines
             if (node.nextSibling != MarkdownNoNode)
                 node.nextSibling = base + (node.nextSibling - low);
         }
-        virtualStaging_ += staging - count;
+        _virtualStaging += staging - count;
         FinishLeafStaging(staging);
-        blocks_[blockCursor_].firstInline = count ? base + (root - low) : MarkdownNoNode;
-        ++blockCursor_;
+        _blocks[_blockCursor].firstInline = count ? base + (root - low) : MarkdownNoNode;
+        ++_blockCursor;
         auto& work = ::DxUi::Detail::Work().rich;
         ++work.markdownInlineLeavesCopied;
         work.markdownNodesCopied += count;
@@ -407,37 +407,37 @@ class MarkdownInlines
     std::size_t Append(Kind kind, std::size_t first, std::size_t last, std::wstring_view value = {}, bool mergeText = true)
     {
         const auto range = Range(first, last);
-        if (kind == Kind::Text && mergeText && tail_ != MarkdownNoNode && tail_ == lastLiteral_ && nodes_[tail_].source.last == range.first)
+        if (kind == Kind::Text && mergeText && _tail != MarkdownNoNode && _tail == _lastLiteral && _nodes[_tail].source.last == range.first)
         {
-            nodes_[tail_].value.append(value);
-            nodes_[tail_].source.last = range.last;
-            return tail_;
+            _nodes[_tail].value.append(value);
+            _nodes[_tail].source.last = range.last;
+            return _tail;
         }
-        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+        if (_blocks.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - _blocks.size())
         {
-            capacityExceeded_ = true;
+            _capacityExceeded = true;
             return MarkdownNoNode;
         }
-        const auto index = nodes_.size();
-        nodes_.emplace_back();
-        previous_.push_back(tail_);
-        auto& node  = nodes_.back();
+        const auto index = _nodes.size();
+        _nodes.emplace_back();
+        _previous.push_back(_tail);
+        auto& node  = _nodes.back();
         node.kind   = kind;
         node.source = range;
         node.value  = value;
-        if (tail_ == MarkdownNoNode)
-            root_ = index;
+        if (_tail == MarkdownNoNode)
+            _root = index;
         else
-            nodes_[tail_].nextSibling = index;
-        tail_        = index;
-        lastLiteral_ = kind == Kind::Text && mergeText ? index : MarkdownNoNode;
+            _nodes[_tail].nextSibling = index;
+        _tail        = index;
+        _lastLiteral = kind == Kind::Text && mergeText ? index : MarkdownNoNode;
         return index;
     }
     void FilterHtml(std::size_t index)
     {
-        if (! HasMarkdownExtension(extensions_, MarkdownExtensions::TagFilter))
+        if (! HasMarkdownExtension(_extensions, MarkdownExtensions::TagFilter))
             return;
-        auto& node                               = nodes_[index];
+        auto& node                               = _nodes[index];
         const auto raw                           = std::wstring_view(node.value);
         constexpr std::wstring_view disallowed[] = {L"title", L"textarea", L"style", L"xmp", L"iframe", L"noembed", L"noframes", L"script", L"plaintext"};
         for (std::size_t i = 0u; i < raw.size(); ++i)
@@ -476,18 +476,18 @@ class MarkdownInlines
     }
     void OpaqueHtmlBlock()
     {
-        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+        if (_blocks.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - _blocks.size())
         {
-            capacityExceeded_ = true;
+            _capacityExceeded = true;
             return;
         }
-        const auto index = nodes_.size();
-        nodes_.emplace_back();
-        previous_.push_back(MarkdownNoNode);
+        const auto index = _nodes.size();
+        _nodes.emplace_back();
+        _previous.push_back(MarkdownNoNode);
         FinishLeafStaging(1u);
-        auto& block       = blocks_[blockCursor_++];
+        auto& block       = _blocks[_blockCursor++];
         block.firstInline = index;
-        auto& node        = nodes_[index];
+        auto& node        = _nodes[index];
         node.kind         = Kind::Html;
         node.source       = block.block.source;
         ++::DxUi::Detail::Work().rich.markdownInlineLeavesParsed;
@@ -497,14 +497,14 @@ class MarkdownInlines
             node.value.append(line.leadingSpaces, L' ');
             for (auto i = line.source.first; i < line.source.last; ++i)
             {
-                if (source_[i] == L'\r')
+                if (_source[i] == L'\r')
                 {
                     node.value.push_back(L'\n');
-                    if (i + 1u < line.source.last && source_[i + 1u] == L'\n')
+                    if (i + 1u < line.source.last && _source[i + 1u] == L'\n')
                         ++i;
                 }
                 else
-                    node.value.push_back(source_[i] ? source_[i] : L'\ufffd');
+                    node.value.push_back(_source[i] ? _source[i] : L'\ufffd');
             }
         }
         if (! node.value.empty() && node.value.back() != L'\n')
@@ -515,116 +515,116 @@ class MarkdownInlines
     {
         // Delimiter/bracket shells are staging only. Publish a dense semantic
         // forest; each marking, index and copy transition is separately budgeted.
-        if (! compactPhase_)
+        if (! _compactPhase)
         {
-            previous_.assign(nodes_.size(), MarkdownNoNode);
-            offsets_.clear();
-            compactCursor_ = 0u;
-            compactPhase_  = 1u;
+            _previous.assign(_nodes.size(), MarkdownNoNode);
+            _offsets.clear();
+            _compactCursor = 0u;
+            _compactPhase  = 1u;
         }
-        else if (compactPhase_ == 1u)
+        else if (_compactPhase == 1u)
         {
-            if (compactCursor_ < blocks_.size())
+            if (_compactCursor < _blocks.size())
             {
-                const auto root = blocks_[compactCursor_++].firstInline;
+                const auto root = _blocks[_compactCursor++].firstInline;
                 if (root != MarkdownNoNode)
-                    offsets_.push_back(root);
+                    _offsets.push_back(root);
             }
             else
             {
-                compactPhase_  = 2u;
-                compactCursor_ = 0u;
+                _compactPhase  = 2u;
+                _compactCursor = 0u;
             }
         }
-        else if (compactPhase_ == 2u)
+        else if (_compactPhase == 2u)
         {
-            if (! offsets_.empty())
+            if (! _offsets.empty())
             {
-                const auto index = offsets_.back();
-                offsets_.pop_back();
-                if (previous_[index] != MarkdownNoNode)
+                const auto index = _offsets.back();
+                _offsets.pop_back();
+                if (_previous[index] != MarkdownNoNode)
                     DxUi::Failure::FailContract(E_UNEXPECTED);
-                previous_[index] = 0u;
-                if (nodes_[index].firstChild != MarkdownNoNode)
-                    offsets_.push_back(nodes_[index].firstChild);
-                if (nodes_[index].nextSibling != MarkdownNoNode)
-                    offsets_.push_back(nodes_[index].nextSibling);
+                _previous[index] = 0u;
+                if (_nodes[index].firstChild != MarkdownNoNode)
+                    _offsets.push_back(_nodes[index].firstChild);
+                if (_nodes[index].nextSibling != MarkdownNoNode)
+                    _offsets.push_back(_nodes[index].nextSibling);
             }
             else
-                compactPhase_ = 3u;
+                _compactPhase = 3u;
         }
-        else if (compactPhase_ == 3u)
+        else if (_compactPhase == 3u)
         {
-            if (compactCursor_ < nodes_.size())
+            if (_compactCursor < _nodes.size())
             {
-                auto& entry = previous_[compactCursor_++];
+                auto& entry = _previous[_compactCursor++];
                 if (entry != MarkdownNoNode)
-                    entry = compactCount_++;
+                    entry = _compactCount++;
             }
             else
             {
-                compactPhase_  = 4u;
-                compactCursor_ = 0u;
+                _compactPhase  = 4u;
+                _compactCursor = 0u;
             }
         }
-        else if (compactPhase_ == 4u)
+        else if (_compactPhase == 4u)
         {
-            if (compactCursor_ < blocks_.size())
+            if (_compactCursor < _blocks.size())
             {
-                auto& root = blocks_[compactCursor_++].firstInline;
+                auto& root = _blocks[_compactCursor++].firstInline;
                 if (root != MarkdownNoNode)
-                    root = previous_[root];
+                    root = _previous[root];
             }
             else
             {
-                compactPhase_  = 5u;
-                compactCursor_ = 0u;
+                _compactPhase  = 5u;
+                _compactCursor = 0u;
             }
         }
-        else if (compactCursor_ < nodes_.size())
+        else if (_compactCursor < _nodes.size())
         {
-            const auto index = compactCursor_++, target = previous_[index];
+            const auto index = _compactCursor++, target = _previous[index];
             if (target == MarkdownNoNode)
                 return false;
             if (target != index)
-                nodes_[target] = nodes_[index];
-            auto& node = nodes_[target];
+                _nodes[target] = _nodes[index];
+            auto& node = _nodes[target];
             if (node.firstChild != MarkdownNoNode)
-                node.firstChild = previous_[node.firstChild];
+                node.firstChild = _previous[node.firstChild];
             if (node.nextSibling != MarkdownNoNode)
-                node.nextSibling = previous_[node.nextSibling];
+                node.nextSibling = _previous[node.nextSibling];
         }
         else
         {
-            nodes_.resize(compactCount_);
+            _nodes.resize(_compactCount);
             return true;
         }
         return false;
     }
     void Remove(std::size_t index)
     {
-        const auto next = nodes_[index].nextSibling, previous = previous_[index];
+        const auto next = _nodes[index].nextSibling, previous = _previous[index];
         if (previous == MarkdownNoNode)
-            root_ = next;
+            _root = next;
         else
-            nodes_[previous].nextSibling = next;
+            _nodes[previous].nextSibling = next;
         if (next == MarkdownNoNode)
-            tail_ = previous;
+            _tail = previous;
         else
-            previous_[next] = previous;
-        nodes_[index].nextSibling = MarkdownNoNode;
+            _previous[next] = previous;
+        _nodes[index].nextSibling = MarkdownNoNode;
     }
     void RemoveDelimiter(std::size_t index) noexcept
     {
-        auto& delimiter = delimiters_[index];
+        auto& delimiter = _delimiters[index];
         if (delimiter.previous != MarkdownNoNode)
-            delimiters_[delimiter.previous].next = delimiter.next;
+            _delimiters[delimiter.previous].next = delimiter.next;
         else
-            delimiterHead_ = delimiter.next;
+            _delimiterHead = delimiter.next;
         if (delimiter.next != MarkdownNoNode)
-            delimiters_[delimiter.next].previous = delimiter.previous;
+            _delimiters[delimiter.next].previous = delimiter.previous;
         else
-            delimiterTail_ = delimiter.previous;
+            _delimiterTail = delimiter.previous;
     }
     void Emphasis(std::size_t bottom)
     {
@@ -634,10 +634,10 @@ class MarkdownInlines
         std::array<std::array<std::size_t, 6>, 6> lower;
         for (auto& marker : lower)
             marker.fill(bottom);
-        auto closer = bottom == MarkdownNoNode ? delimiterHead_ : delimiters_[bottom].next;
+        auto closer = bottom == MarkdownNoNode ? _delimiterHead : _delimiters[bottom].next;
         while (closer != MarkdownNoNode)
         {
-            const auto close = delimiters_[closer];
+            const auto close = _delimiters[closer];
             if (! close.close)
             {
                 closer = close.next;
@@ -658,7 +658,7 @@ class MarkdownInlines
                     opener = bottom;
                     break;
                 }
-                const auto& open = delimiters_[opener];
+                const auto& open = _delimiters[opener];
                 const bool odd = (close.marker == L'*' || close.marker == L'_') && (close.open || open.close) &&
                                  (close.originalLength + open.originalLength) % 3u == 0u && (close.originalLength % 3u != 0u || open.originalLength % 3u != 0u);
                 if (open.marker == close.marker && open.open && ! odd && ((close.marker == L'*' || close.marker == L'_') || open.length == close.length))
@@ -674,168 +674,168 @@ class MarkdownInlines
                     RemoveDelimiter(index);
                 continue;
             }
-            auto& open          = delimiters_[opener];
+            auto& open          = _delimiters[opener];
             const auto use      = close.marker != L'*' && close.marker != L'_' ? close.length : open.length >= 2u && close.length >= 2u ? 2u : 1u;
             const auto openNode = open.node, closeNode = close.node;
-            const auto first = nodes_[openNode].nextSibling, last = previous_[closeNode];
-            const auto wrapper = nodes_.size();
-            if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+            const auto first = _nodes[openNode].nextSibling, last = _previous[closeNode];
+            const auto wrapper = _nodes.size();
+            if (_blocks.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - _blocks.size())
             {
-                capacityExceeded_ = true;
+                _capacityExceeded = true;
                 return;
             }
-            nodes_.emplace_back();
-            previous_.push_back(openNode);
-            nodes_[wrapper].kind         = close.marker == L'~'   ? (use == 2u ? Kind::Strikethrough : Kind::Subscript)
+            _nodes.emplace_back();
+            _previous.push_back(openNode);
+            _nodes[wrapper].kind         = close.marker == L'~'   ? (use == 2u ? Kind::Strikethrough : Kind::Subscript)
                                            : close.marker == L'^' ? Kind::Superscript
                                            : close.marker == L'=' ? Kind::Highlight
                                            : close.marker == L'+' ? Kind::Inserted
                                            : use == 2u            ? Kind::Strong
                                                                   : Kind::Emphasis;
-            nodes_[wrapper].source       = {nodes_[openNode].source.last - use, nodes_[closeNode].source.first + use};
-            nodes_[wrapper].firstChild   = first;
-            nodes_[wrapper].nextSibling  = closeNode;
-            nodes_[openNode].nextSibling = wrapper;
-            previous_[closeNode]         = wrapper;
-            previous_[first]             = MarkdownNoNode;
-            nodes_[last].nextSibling     = MarkdownNoNode;
+            _nodes[wrapper].source       = {_nodes[openNode].source.last - use, _nodes[closeNode].source.first + use};
+            _nodes[wrapper].firstChild   = first;
+            _nodes[wrapper].nextSibling  = closeNode;
+            _nodes[openNode].nextSibling = wrapper;
+            _previous[closeNode]         = wrapper;
+            _previous[first]             = MarkdownNoNode;
+            _nodes[last].nextSibling     = MarkdownNoNode;
             auto between                 = open.next;
             while (between != closer)
             {
-                const auto next = delimiters_[between].next;
+                const auto next = _delimiters[between].next;
                 RemoveDelimiter(between);
                 between = next;
             }
             open.length -= use;
-            delimiters_[closer].length -= use;
-            nodes_[openNode].value.resize(open.length);
-            nodes_[openNode].source.last -= use;
-            nodes_[closeNode].value.erase(0u, use);
-            nodes_[closeNode].source.first += use;
+            _delimiters[closer].length -= use;
+            _nodes[openNode].value.resize(open.length);
+            _nodes[openNode].source.last -= use;
+            _nodes[closeNode].value.erase(0u, use);
+            _nodes[closeNode].source.first += use;
             if (! open.length)
             {
                 Remove(openNode);
                 RemoveDelimiter(opener);
             }
-            if (! delimiters_[closer].length)
+            if (! _delimiters[closer].length)
             {
-                const auto next = delimiters_[closer].next;
+                const auto next = _delimiters[closer].next;
                 Remove(closeNode);
                 RemoveDelimiter(closer);
                 closer = next;
             }
         }
-        auto remove = bottom == MarkdownNoNode ? delimiterTail_ : delimiters_[bottom].next;
+        auto remove = bottom == MarkdownNoNode ? _delimiterTail : _delimiters[bottom].next;
         if (bottom == MarkdownNoNode)
             while (remove != MarkdownNoNode)
             {
-                const auto previous = delimiters_[remove].previous;
+                const auto previous = _delimiters[remove].previous;
                 RemoveDelimiter(remove);
                 remove = previous;
             }
         else
             while (remove != MarkdownNoNode)
             {
-                const auto next = delimiters_[remove].next;
+                const auto next = _delimiters[remove].next;
                 RemoveDelimiter(remove);
                 remove = next;
             }
     }
     void StartLeaf()
     {
-        const auto& block = blocks_[blockCursor_];
-        text_.clear();
-        wikiClose_   = MarkdownNoNode;
-        wikiScanned_ = 0u;
-        offsets_.clear();
-        delimiters_.clear();
-        brackets_.clear();
-        cursor_ = 0u;
-        root_ = tail_ = delimiterTail_ = delimiterHead_ = lastLiteral_ = MarkdownNoNode;
-        leafStart_                                                     = Staged();
+        const auto& block = _blocks[_blockCursor];
+        _text.clear();
+        _wikiClose   = MarkdownNoNode;
+        _wikiScanned = 0u;
+        _offsets.clear();
+        _delimiters.clear();
+        _brackets.clear();
+        _cursor = 0u;
+        _root = _tail = _delimiterTail = _delimiterHead = _lastLiteral = MarkdownNoNode;
+        _leafStart                                                     = Staged();
         ++::DxUi::Detail::Work().rich.markdownInlineLeavesParsed;
         for (const auto& line : block.lines)
         {
             ::DxUi::Detail::Work().rich.markdownInlineUnitsScanned += line.source.last - line.source.first;
             for (unsigned space = 0; space < line.leadingSpaces; ++space)
             {
-                text_.push_back(L' ');
-                offsets_.push_back(line.source.first);
+                _text.push_back(L' ');
+                _offsets.push_back(line.source.first);
             }
             for (auto i = line.source.first; i < line.source.last; ++i)
             {
                 // Table row splitting precedes inline parsing: an escaped pipe
                 // loses its backslash even inside a code span.
-                offsets_.push_back(i);
-                if (block.block.kind == MarkdownBlockKind::TableCell && source_[i] == L'\\' && i + 1u < line.source.last && source_[i + 1u] == L'|')
+                _offsets.push_back(i);
+                if (block.block.kind == MarkdownBlockKind::TableCell && _source[i] == L'\\' && i + 1u < line.source.last && _source[i + 1u] == L'|')
                     ++i;
-                if (source_[i] == L'\r')
+                if (_source[i] == L'\r')
                 {
-                    text_.push_back(L'\n');
-                    if (i + 1u < line.source.last && source_[i + 1u] == L'\n')
+                    _text.push_back(L'\n');
+                    if (i + 1u < line.source.last && _source[i + 1u] == L'\n')
                         ++i;
                 }
                 else
-                    text_.push_back(source_[i] ? source_[i] : L'\ufffd');
+                    _text.push_back(_source[i] ? _source[i] : L'\ufffd');
             }
         }
         const bool taskWhitespace =
-            text_.size() > 3u && GfmSpace(text_[3]) && (text_[3] != L'\n' || text_.find_first_not_of(L" \t\r\n", 4u) != std::wstring::npos);
-        while (! text_.empty() && SourceSpace(text_.back()))
+            _text.size() > 3u && GfmSpace(_text[3]) && (_text[3] != L'\n' || _text.find_first_not_of(L" \t\r\n", 4u) != std::wstring::npos);
+        while (! _text.empty() && SourceSpace(_text.back()))
         {
-            text_.pop_back();
-            offsets_.pop_back();
+            _text.pop_back();
+            _offsets.pop_back();
         }
         // A zero-length active interval still needs a token boundary: without
         // one, a delimiter run on either side could consume the insertion site.
-        if (! sourceRegionEmitted_ && sourceRegion_ && sourceRegion_->kind == MarkdownSourceRegionKind::Inline &&
-            sourceRegion_->source.first == sourceRegion_->source.last && sourceRegion_->source.first >= block.block.content.first &&
-            sourceRegion_->source.first <= block.block.content.last)
+        if (! _sourceRegionEmitted && _sourceRegion && _sourceRegion->kind == MarkdownSourceRegionKind::Inline &&
+            _sourceRegion->source.first == _sourceRegion->source.last && _sourceRegion->source.first >= block.block.content.first &&
+            _sourceRegion->source.first <= block.block.content.last)
         {
-            const auto found = std::lower_bound(offsets_.begin(), offsets_.end(), sourceRegion_->source.first);
-            const auto index = static_cast<std::size_t>(found - offsets_.begin());
-            offsets_.insert(found, sourceRegion_->source.first);
-            text_.insert(text_.begin() + static_cast<std::ptrdiff_t>(index), L'\ufffc');
+            const auto found = std::lower_bound(_offsets.begin(), _offsets.end(), _sourceRegion->source.first);
+            const auto index = static_cast<std::size_t>(found - _offsets.begin());
+            _offsets.insert(found, _sourceRegion->source.first);
+            _text.insert(_text.begin() + static_cast<std::ptrdiff_t>(index), L'\ufffc');
         }
-        offsets_.push_back(block.block.content.last);
+        _offsets.push_back(block.block.content.last);
         // The math ownership probes share one leaf-local index. Multiple
         // unmatched openers must never each search the remaining leaf anew.
-        htmlNext_.clear();
-        htmlLast_.fill(std::wstring::npos);
-        const bool htmlTerminators = text_.find(L'<') != std::wstring::npos;
-        AccountMarkdownWork(&MarkdownWorkCounts::htmlIndexUnits, text_.size());
+        _htmlNext.clear();
+        _htmlLast.fill(std::wstring::npos);
+        const bool htmlTerminators = _text.find(L'<') != std::wstring::npos;
+        AccountMarkdownWork(&MarkdownWorkCounts::htmlIndexUnits, _text.size());
         constexpr auto none = std::numeric_limits<std::uint32_t>::max();
         std::array<std::uint32_t, 9u> next{{none, none, none, none, none, none, none, none, none}};
-        if (profile_ == MarkdownProfile::RichMarkdown && text_.find_first_of(L"$\\") != std::wstring::npos)
+        if (_profile == MarkdownProfile::RichMarkdown && _text.find_first_of(L"$\\") != std::wstring::npos)
         {
-            if (text_.size() >= none)
+            if (_text.size() >= none)
             {
-                capacityExceeded_ = true;
+                _capacityExceeded = true;
                 return;
             }
-            htmlNext_.resize(text_.size() + 1u);
-            htmlNext_.back() = next;
+            _htmlNext.resize(_text.size() + 1u);
+            _htmlNext.back() = next;
             std::size_t slashes{};
-            for (std::size_t i = 0u; i < text_.size(); ++i)
+            for (std::size_t i = 0u; i < _text.size(); ++i)
             {
                 std::uint32_t flags{};
                 const bool escaped = slashes % 2u != 0u;
-                if (! escaped && text_[i] == L'\\' && i + 1u < text_.size())
+                if (! escaped && _text[i] == L'\\' && i + 1u < _text.size())
                 {
-                    if (text_[i + 1u] == L')')
+                    if (_text[i + 1u] == L')')
                         flags |= 1u;
-                    if (text_[i + 1u] == L']')
+                    if (_text[i + 1u] == L']')
                         flags |= 2u;
                 }
-                if (! escaped && text_[i] == L'$')
+                if (! escaped && _text[i] == L'$')
                 {
-                    if (i && ! SourceSpace(text_[i - 1u]) && (i + 1u == text_.size() || ! Digit(text_[i + 1u])))
+                    if (i && ! SourceSpace(_text[i - 1u]) && (i + 1u == _text.size() || ! Digit(_text[i + 1u])))
                         flags |= 4u;
-                    if (i + 1u < text_.size() && text_[i + 1u] == L'$')
+                    if (i + 1u < _text.size() && _text[i + 1u] == L'$')
                         flags |= 8u;
                 }
-                htmlNext_[i][4] = flags;
-                slashes         = text_[i] == L'\\' ? slashes + 1u : 0u;
+                _htmlNext[i][4] = flags;
+                slashes         = _text[i] == L'\\' ? slashes + 1u : 0u;
 #if DXUI_ENABLE_DIAGNOSTICS
                 ++testMathOwnershipProbeWork;
 #endif
@@ -843,70 +843,70 @@ class MarkdownInlines
         }
         const auto indexTerminator = [&](std::size_t i)
         {
-            if (! htmlTerminators && htmlNext_.empty())
+            if (! htmlTerminators && _htmlNext.empty())
                 return;
             AccountMarkdownWork(&MarkdownWorkCounts::htmlIndexUnits);
             const auto remember = [&](std::size_t slot)
             {
-                if (htmlLast_[slot] == std::wstring::npos)
-                    htmlLast_[slot] = i;
+                if (_htmlLast[slot] == std::wstring::npos)
+                    _htmlLast[slot] = i;
                 next[slot] = static_cast<std::uint32_t>(i);
             };
-            if (text_[i] == L'>')
+            if (_text[i] == L'>')
                 remember(0u);
-            if (i + 2u < text_.size() && text_[i] == L'-' && text_[i + 1u] == L'-' && text_[i + 2u] == L'>')
+            if (i + 2u < _text.size() && _text[i] == L'-' && _text[i + 1u] == L'-' && _text[i + 2u] == L'>')
                 remember(1u);
-            if (i + 1u < text_.size() && text_[i] == L'?' && text_[i + 1u] == L'>')
+            if (i + 1u < _text.size() && _text[i] == L'?' && _text[i + 1u] == L'>')
                 remember(2u);
-            if (i + 2u < text_.size() && text_[i] == L']' && text_[i + 1u] == L']' && text_[i + 2u] == L'>')
+            if (i + 2u < _text.size() && _text[i] == L']' && _text[i + 1u] == L']' && _text[i + 2u] == L'>')
                 remember(3u);
-            if (htmlNext_.empty())
+            if (_htmlNext.empty())
                 return;
 #if DXUI_ENABLE_DIAGNOSTICS
             ++testMathOwnershipProbeWork;
 #endif
-            const auto flags = htmlNext_[i][4];
+            const auto flags = _htmlNext[i][4];
             for (std::size_t bit = 0u; bit < 4u; ++bit)
                 if ((flags & (1u << bit)) != 0u)
                     next[4u + bit] = static_cast<std::uint32_t>(i);
-            if (text_[i] == L'\n')
+            if (_text[i] == L'\n')
                 next[8] = static_cast<std::uint32_t>(i);
-            htmlNext_[i] = next;
+            _htmlNext[i] = next;
         };
         // Index equal-length backtick runs once, so unmatched runs cannot cause
         // repeated scans over an entire paragraph.
-        backtickNext_.assign(text_.size(), MarkdownNoNode);
-        std::vector<std::size_t> last(text_.size() + 1u, MarkdownNoNode);
-        for (std::size_t end = text_.size(); end > 0u;)
+        _backtickNext.assign(_text.size(), MarkdownNoNode);
+        std::vector<std::size_t> last(_text.size() + 1u, MarkdownNoNode);
+        for (std::size_t end = _text.size(); end > 0u;)
         {
-            if (text_[end - 1u] != L'`')
+            if (_text[end - 1u] != L'`')
             {
                 indexTerminator(end - 1u);
                 --end;
                 continue;
             }
             auto first = end - 1u;
-            while (first > 0u && text_[first - 1u] == L'`')
+            while (first > 0u && _text[first - 1u] == L'`')
                 --first;
             for (auto i = end; i > first; --i)
                 indexTerminator(i - 1u);
             const auto length    = end - first;
-            backtickNext_[first] = last[length];
+            _backtickNext[first] = last[length];
             last[length]         = first;
             end                  = first;
         }
         // GFM task markers apply only to the first paragraph of a list item.
-        if (HasMarkdownExtension(extensions_, MarkdownExtensions::TaskLists) && block.block.kind == MarkdownBlockKind::Paragraph &&
-            block.parent != MarkdownNoNode && blocks_[block.parent].block.kind == MarkdownBlockKind::ListItem &&
-            blocks_[block.parent].firstChild == blockCursor_ && text_.size() >= 3u && text_[0] == L'[' && text_[2] == L']' &&
-            (GfmSpace(text_[1]) || text_[1] == L'x' || text_[1] == L'X') && taskWhitespace)
+        if (HasMarkdownExtension(_extensions, MarkdownExtensions::TaskLists) && block.block.kind == MarkdownBlockKind::Paragraph &&
+            block.parent != MarkdownNoNode && _blocks[block.parent].block.kind == MarkdownBlockKind::ListItem &&
+            _blocks[block.parent].firstChild == _blockCursor && _text.size() >= 3u && _text[0] == L'[' && _text[2] == L']' &&
+            (GfmSpace(_text[1]) || _text[1] == L'x' || _text[1] == L'X') && taskWhitespace)
         {
-            blocks_[block.parent].task = GfmSpace(text_[1]) ? MarkdownTask::Unchecked : MarkdownTask::Checked;
-            cursor_                    = 3u;
-            while (cursor_ < text_.size() && GfmSpace(text_[cursor_]))
-                ++cursor_;
+            _blocks[block.parent].task = GfmSpace(_text[1]) ? MarkdownTask::Unchecked : MarkdownTask::Checked;
+            _cursor                    = 3u;
+            while (_cursor < _text.size() && GfmSpace(_text[_cursor]))
+                ++_cursor;
         }
-        leafActive_ = true;
+        _leafActive = true;
     }
     void SkipSpace(std::wstring_view text, std::size_t& i) const noexcept
     {
@@ -916,36 +916,36 @@ class MarkdownInlines
     bool InlineLink(std::size_t& end, std::wstring& destination, std::wstring& title) const
     {
         auto i = end;
-        if (i == text_.size() || text_[i++] != L'(')
+        if (i == _text.size() || _text[i++] != L'(')
             return false;
-        SkipSpace(text_, i);
+        SkipSpace(_text, i);
         auto first = i;
-        if (i < text_.size() && text_[i] == L'<')
+        if (i < _text.size() && _text[i] == L'<')
         {
             first = ++i;
-            while (i < text_.size() && text_[i] != L'>')
+            while (i < _text.size() && _text[i] != L'>')
             {
-                if (text_[i] == L'\n' || text_[i] == L'<')
+                if (_text[i] == L'\n' || _text[i] == L'<')
                     return false;
-                if (text_[i] == L'\\' && i + 1u < text_.size() && AsciiPunctuation(text_[i + 1u]))
+                if (_text[i] == L'\\' && i + 1u < _text.size() && AsciiPunctuation(_text[i + 1u]))
                     ++i;
                 ++i;
             }
-            if (i == text_.size())
+            if (i == _text.size())
                 return false;
-            destination = Decode(std::wstring_view(text_).substr(first, i - first));
+            destination = Decode(std::wstring_view(_text).substr(first, i - first));
             ++i;
         }
         else
         {
             unsigned depth = 0;
-            while (i < text_.size())
+            while (i < _text.size())
             {
                 AccountMarkdownWork(&MarkdownWorkCounts::linkDestinationUnits);
-                const auto c = text_[i];
+                const auto c = _text[i];
                 if (c <= L' ' || c == 127)
                     break;
-                if (c == L'\\' && i + 1u < text_.size() && AsciiPunctuation(text_[i + 1u]))
+                if (c == L'\\' && i + 1u < _text.size() && AsciiPunctuation(_text[i + 1u]))
                 {
                     i += 2u;
                     continue;
@@ -965,29 +965,29 @@ class MarkdownInlines
             }
             if (depth)
                 return false;
-            destination = Decode(std::wstring_view(text_).substr(first, i - first));
+            destination = Decode(std::wstring_view(_text).substr(first, i - first));
         }
         const auto afterDestination = i;
-        SkipSpace(text_, i);
-        if (i > afterDestination && i < text_.size() && (text_[i] == L'\'' || text_[i] == L'"' || text_[i] == L'('))
+        SkipSpace(_text, i);
+        if (i > afterDestination && i < _text.size() && (_text[i] == L'\'' || _text[i] == L'"' || _text[i] == L'('))
         {
-            const auto open = text_[i++], close = open == L'(' ? L')' : open;
+            const auto open = _text[i++], close = open == L'(' ? L')' : open;
             first = i;
-            while (i < text_.size() && text_[i] != close)
+            while (i < _text.size() && _text[i] != close)
             {
-                if (open == L'(' && text_[i] == L'(')
+                if (open == L'(' && _text[i] == L'(')
                     return false;
-                if (text_[i] == L'\\' && i + 1u < text_.size() && AsciiPunctuation(text_[i + 1u]))
+                if (_text[i] == L'\\' && i + 1u < _text.size() && AsciiPunctuation(_text[i + 1u]))
                     ++i;
                 ++i;
             }
-            if (i == text_.size())
+            if (i == _text.size())
                 return false;
-            title = Decode(std::wstring_view(text_).substr(first, i - first));
+            title = Decode(std::wstring_view(_text).substr(first, i - first));
             ++i;
-            SkipSpace(text_, i);
+            SkipSpace(_text, i);
         }
-        if (i == text_.size() || text_[i] != L')')
+        if (i == _text.size() || _text[i] != L')')
             return false;
         end = i + 1u;
         return true;
@@ -996,15 +996,15 @@ class MarkdownInlines
     {
         const auto label = FoldLabel(rawLabel);
         const auto found =
-            std::lower_bound(footnotes_.begin(), footnotes_.end(), label, [](const auto& note, const auto& wanted) { return note.label < wanted; });
-        return found != footnotes_.end() && found->label == label ? static_cast<std::size_t>(found - footnotes_.begin()) : MarkdownNoNode;
+            std::lower_bound(_footnotes.begin(), _footnotes.end(), label, [](const auto& note, const auto& wanted) { return note.label < wanted; });
+        return found != _footnotes.end() && found->label == label ? static_cast<std::size_t>(found - _footnotes.begin()) : MarkdownNoNode;
     }
     bool Footnote(const Bracket& bracket, std::size_t end)
     {
-        if (profile_ != MarkdownProfile::RichMarkdown || bracket.image || bracket.nested || ! brackets_.empty())
+        if (_profile != MarkdownProfile::RichMarkdown || bracket.image || bracket.nested || ! _brackets.empty())
             return false;
         const auto range = Range(bracket.offset, end);
-        const auto raw   = source_.substr(range.first, range.last - range.first);
+        const auto raw   = _source.substr(range.first, range.last - range.first);
         if (raw.size() < 4u || ! raw.starts_with(L"[^") || raw.back() != L']')
             return false;
         const auto label = raw.substr(2u, raw.size() - 3u);
@@ -1012,52 +1012,52 @@ class MarkdownInlines
             return false;
         const auto binding = FootnoteFor(label);
         Emphasis(bracket.delimiter);
-        if (capacityExceeded_)
+        if (_capacityExceeded)
             return true;
-        auto& node  = nodes_[bracket.node];
+        auto& node  = _nodes[bracket.node];
         node.kind   = Kind::FootnoteReference;
         node.source = range;
         node.value.assign(raw);
         node.firstChild = node.nextSibling = MarkdownNoNode;
-        footnoteReferences_.push_back({bracket.node, binding, 0u});
-        tail_        = bracket.node;
-        lastLiteral_ = MarkdownNoNode;
-        cursor_      = end;
+        _footnoteReferences.push_back({bracket.node, binding, 0u});
+        _tail        = bracket.node;
+        _lastLiteral = MarkdownNoNode;
+        _cursor      = end;
         if (binding == MarkdownNoNode)
-            diagnostics_.push_back({MarkdownDiagnosticCode::UndefinedFootnote, range, blockCursor_});
+            _diagnostics.push_back({MarkdownDiagnosticCode::UndefinedFootnote, range, _blockCursor});
         return true;
     }
     bool CloseBracket()
     {
-        if (brackets_.empty())
+        if (_brackets.empty())
             return false;
-        const auto bracket = brackets_.back();
-        brackets_.pop_back();
+        const auto bracket = _brackets.back();
+        _brackets.pop_back();
         if (! bracket.active)
             return false;
-        auto end = cursor_ + 1u;
+        auto end = _cursor + 1u;
         std::wstring destination(0u, L' '), title(0u, L' ');
         bool found = InlineLink(end, destination, title);
         if (! found)
         {
-            end                        = cursor_ + 1u;
+            end                        = _cursor + 1u;
             const Reference* reference = nullptr;
             bool explicitLabel         = false;
-            if (end < text_.size() && text_[end] == L'[')
+            if (end < _text.size() && _text[end] == L'[')
             {
                 auto last = end + 1u;
-                while (last < text_.size() && text_[last] != L']' && text_[last] != L'[')
+                while (last < _text.size() && _text[last] != L']' && _text[last] != L'[')
                 {
-                    if (text_[last] == L'\\' && last + 1u < text_.size() && AsciiPunctuation(text_[last + 1u]))
+                    if (_text[last] == L'\\' && last + 1u < _text.size() && AsciiPunctuation(_text[last + 1u]))
                         ++last;
                     ++last;
                 }
-                if (last < text_.size() && text_[last] == L']')
+                if (last < _text.size() && _text[last] == L']')
                 {
                     explicitLabel    = last > end + 1u;
-                    const auto label = explicitLabel ? std::wstring_view(text_).substr(end + 1u, last - end - 1u)
-                                                     : std::wstring_view(text_).substr(bracket.offset + (bracket.image ? 2u : 1u),
-                                                                                       cursor_ - bracket.offset - (bracket.image ? 2u : 1u));
+                    const auto label = explicitLabel ? std::wstring_view(_text).substr(end + 1u, last - end - 1u)
+                                                     : std::wstring_view(_text).substr(bracket.offset + (bracket.image ? 2u : 1u),
+                                                                                       _cursor - bracket.offset - (bracket.image ? 2u : 1u));
                     reference        = Lookup(label);
                     if (reference)
                         end = last + 1u;
@@ -1065,7 +1065,7 @@ class MarkdownInlines
             }
             if (! reference && ! explicitLabel && ! bracket.nested)
                 reference =
-                    Lookup(std::wstring_view(text_).substr(bracket.offset + (bracket.image ? 2u : 1u), cursor_ - bracket.offset - (bracket.image ? 2u : 1u)));
+                    Lookup(std::wstring_view(_text).substr(bracket.offset + (bracket.image ? 2u : 1u), _cursor - bracket.offset - (bracket.image ? 2u : 1u)));
             if (reference)
             {
                 destination = reference->destination;
@@ -1073,22 +1073,22 @@ class MarkdownInlines
                 found       = true;
             }
         }
-        if (! found && Footnote(bracket, cursor_ + 1u))
+        if (! found && Footnote(bracket, _cursor + 1u))
             return true;
-        if (! brackets_.empty())
-            brackets_.back().nested = true;
+        if (! _brackets.empty())
+            _brackets.back().nested = true;
         if (! found)
             return false;
         Emphasis(bracket.delimiter);
-        if (capacityExceeded_)
+        if (_capacityExceeded)
             return true;
-        const auto first = nodes_[bracket.node].nextSibling;
+        const auto first = _nodes[bracket.node].nextSibling;
         if (first != MarkdownNoNode)
         {
-            nodes_[tail_].nextSibling = MarkdownNoNode;
-            previous_[first]          = MarkdownNoNode;
+            _nodes[_tail].nextSibling = MarkdownNoNode;
+            _previous[first]          = MarkdownNoNode;
         }
-        auto& node = nodes_[bracket.node];
+        auto& node = _nodes[bracket.node];
         node.kind  = bracket.image ? Kind::Image : Kind::Link;
         node.value.clear();
         node.destination = destination;
@@ -1096,12 +1096,12 @@ class MarkdownInlines
         node.firstChild  = first;
         node.nextSibling = MarkdownNoNode;
         node.source      = Range(bracket.offset, end);
-        tail_            = bracket.node;
+        _tail            = bracket.node;
         if (! bracket.image)
-            for (auto& earlier : brackets_)
+            for (auto& earlier : _brackets)
                 if (! earlier.image)
                     earlier.active = false;
-        cursor_ = end;
+        _cursor = end;
         return true;
     }
     static bool Email(std::wstring_view text, bool extended, std::size_t* work = nullptr) noexcept
@@ -1147,11 +1147,11 @@ class MarkdownInlines
         auto end = knownEnd.value_or(std::wstring::npos);
         if (! knownEnd)
         {
-            for (auto i = start + 1u; i < text_.size(); ++i)
+            for (auto i = start + 1u; i < _text.size(); ++i)
             {
                 if (work)
                     ++*work;
-                const auto c = text_[i];
+                const auto c = _text[i];
                 if (c == L'>')
                 {
                     end = i;
@@ -1163,7 +1163,7 @@ class MarkdownInlines
         }
         if (end == std::wstring::npos)
             return std::nullopt;
-        const auto content = std::wstring_view(text_).substr(start + 1u, end - start - 1u);
+        const auto content = std::wstring_view(_text).substr(start + 1u, end - start - 1u);
         if (work)
             *work += std::min(content.size(), size_t{33u});
         const auto colon = content.substr(0u, 33u).find(L':');
@@ -1198,32 +1198,32 @@ class MarkdownInlines
     }
     bool AngleAutolink()
     {
-        const auto found = AngleAutolinkEnd(cursor_, std::nullopt, &autolinkInspectionUnits_);
+        const auto found = AngleAutolinkEnd(_cursor, std::nullopt, &_autolinkInspectionUnits);
         if (! found)
             return false;
         const auto end     = found.value();
-        const auto content = std::wstring_view(text_).substr(cursor_ + 1u, end - cursor_ - 1u);
+        const auto content = std::wstring_view(_text).substr(_cursor + 1u, end - _cursor - 1u);
         const bool email   = content.find(L':') == std::wstring_view::npos;
-        const auto link    = Append(Kind::Link, cursor_, end + 1u);
+        const auto link    = Append(Kind::Link, _cursor, end + 1u);
         if (link == MarkdownNoNode)
             return true;
-        nodes_[link].destination = email ? std::wstring(L"mailto:") + std::wstring(content) : std::wstring(content);
-        const auto child         = nodes_.size();
-        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+        _nodes[link].destination = email ? std::wstring(L"mailto:") + std::wstring(content) : std::wstring(content);
+        const auto child         = _nodes.size();
+        if (_blocks.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - _blocks.size())
         {
-            capacityExceeded_ = true;
+            _capacityExceeded = true;
             return true;
         }
-        nodes_.emplace_back();
-        previous_.push_back(MarkdownNoNode);
-        nodes_[child].kind      = Kind::Text;
-        nodes_[child].source    = Range(cursor_ + 1u, end);
-        nodes_[child].value     = content;
-        nodes_[link].firstChild = child;
-        for (auto& bracket : brackets_)
+        _nodes.emplace_back();
+        _previous.push_back(MarkdownNoNode);
+        _nodes[child].kind      = Kind::Text;
+        _nodes[child].source    = Range(_cursor + 1u, end);
+        _nodes[child].value     = content;
+        _nodes[link].firstChild = child;
+        for (auto& bracket : _brackets)
             if (! bracket.image)
                 bracket.active = false;
-        cursor_ = end + 1u;
+        _cursor = end + 1u;
         return true;
     }
     struct HtmlLookahead
@@ -1234,9 +1234,9 @@ class MarkdownInlines
     {
         // Last-occurrence facts reject impossible searches in constant work;
         // successful searches consume the complete resulting HTML node.
-        if (htmlLast_[slot] == std::wstring::npos || htmlLast_[slot] < start + first)
+        if (_htmlLast[slot] == std::wstring::npos || _htmlLast[slot] < start + first)
             return std::wstring::npos;
-        const auto input = std::wstring_view(text_).substr(start);
+        const auto input = std::wstring_view(_text).substr(start);
         const auto end   = input.find(suffix, first);
         AccountMarkdownWork(&MarkdownWorkCounts::htmlSearchedUnits,
                             first > input.size()             ? 0u
@@ -1246,7 +1246,7 @@ class MarkdownInlines
     }
     std::size_t HtmlEnd(std::size_t start, const HtmlLookahead* lookahead = nullptr, std::size_t* work = nullptr) const noexcept
     {
-        const auto input = std::wstring_view(text_).substr(start);
+        const auto input = std::wstring_view(_text).substr(start);
         const auto tick  = [&]() noexcept
         {
             if (work)
@@ -1288,7 +1288,7 @@ class MarkdownInlines
             return terminated(L"<?", L"?>");
         if (input.starts_with(L"<![CDATA["))
             return terminated(L"<![CDATA[", L"]]>");
-        if (profile_ != MarkdownProfile::Gfm029 && input.size() > 2u && input[1] == L'!' && AsciiLetter(input[2]))
+        if (_profile != MarkdownProfile::Gfm029 && input.size() > 2u && input[1] == L'!' && AsciiLetter(input[2]))
         {
             const auto end = lookahead ? (lookahead->angle == std::wstring::npos ? std::wstring_view::npos : lookahead->angle - start)
                                        : FindHtmlTerminator(start, L">", 3u, 0u);
@@ -1380,8 +1380,8 @@ class MarkdownInlines
     }
     bool ExtendedAutolink()
     {
-        const auto rest     = std::wstring_view(text_).substr(cursor_, inlineLimit_ - cursor_);
-        const bool boundary = autolinkBoundary_;
+        const auto rest     = std::wstring_view(_text).substr(_cursor, _inlineLimit - _cursor);
+        const bool boundary = _autolinkBoundary;
         const auto starts   = [&](std::wstring_view scheme)
         {
             if (rest.size() < scheme.size())
@@ -1412,17 +1412,17 @@ class MarkdownInlines
         bool email         = false;
         if (scheme)
         {
-            const auto hostFirst  = cursor_ + (scheme == 4u ? 0u : scheme);
-            const auto hostEnd    = std::min(inlineLimit_, autolinkFacts_[hostFirst].hostEnd);
-            const auto domainEnd  = std::max(hostFirst, autolinkFacts_[hostEnd].nonDotEnd);
-            const auto dot        = autolinkFacts_[domainEnd].previousDot;
-            const auto prior      = dot == MarkdownNoNode ? dot : autolinkFacts_[dot].previousDot;
+            const auto hostFirst  = _cursor + (scheme == 4u ? 0u : scheme);
+            const auto hostEnd    = std::min(_inlineLimit, _autolinkFacts[hostFirst].hostEnd);
+            const auto domainEnd  = std::max(hostFirst, _autolinkFacts[hostEnd].nonDotEnd);
+            const auto dot        = _autolinkFacts[domainEnd].previousDot;
+            const auto prior      = dot == MarkdownNoNode ? dot : _autolinkFacts[dot].previousDot;
             const auto lastLabels = prior == MarkdownNoNode ? hostFirst : std::max(hostFirst, prior + 1u);
-            ++autolinkInspectionUnits_;
-            if (domainEnd == hostFirst || dot == MarkdownNoNode || dot < hostFirst || text_[hostFirst] == L'.' ||
-                autolinkFacts_[hostFirst].nextDoubleDot < domainEnd - 1u || autolinkFacts_[domainEnd].underscores != autolinkFacts_[lastLabels].underscores)
+            ++_autolinkInspectionUnits;
+            if (domainEnd == hostFirst || dot == MarkdownNoNode || dot < hostFirst || _text[hostFirst] == L'.' ||
+                _autolinkFacts[hostFirst].nextDoubleDot < domainEnd - 1u || _autolinkFacts[domainEnd].underscores != _autolinkFacts[lastLabels].underscores)
                 return false;
-            length = hostEnd - cursor_;
+            length = hostEnd - _cursor;
             while (length < rest.size() && ! White(Scalar(rest, length)) && rest[length] != L'<')
                 ++length;
             while (length && std::wstring_view(L"?!.,:*_~").find(rest[length - 1u]) != std::wstring_view::npos)
@@ -1454,50 +1454,50 @@ class MarkdownInlines
         }
         else
         {
-            if (! emailBoundary_)
+            if (! _emailBoundary)
                 return false;
-            auto end = std::min(inlineLimit_, autolinkFacts_[cursor_].emailEnd);
-            end      = std::max(cursor_, autolinkFacts_[end].nonDotEnd);
-            if (underscoreOpen_)
-                end = std::max(cursor_, autolinkFacts_[end].nonUnderscoreEnd);
-            const auto at = autolinkFacts_[cursor_].nextAt;
-            ++autolinkInspectionUnits_;
-            if (at == MarkdownNoNode || at <= cursor_ || at + 1u >= end || autolinkFacts_[at + 1u].nextAt < end)
+            auto end = std::min(_inlineLimit, _autolinkFacts[_cursor].emailEnd);
+            end      = std::max(_cursor, _autolinkFacts[end].nonDotEnd);
+            if (_underscoreOpen)
+                end = std::max(_cursor, _autolinkFacts[end].nonUnderscoreEnd);
+            const auto at = _autolinkFacts[_cursor].nextAt;
+            ++_autolinkInspectionUnits;
+            if (at == MarkdownNoNode || at <= _cursor || at + 1u >= end || _autolinkFacts[at + 1u].nextAt < end)
                 return false;
             // The suffix index already proves the complete local-part alphabet.
             // Validate the domain once per '@', rather than rescanning every
             // failed suffix of a long a@a@... candidate.
-            if (! Email(std::wstring_view(text_).substr(at - 1u, end - at + 1u), true))
+            if (! Email(std::wstring_view(_text).substr(at - 1u, end - at + 1u), true))
                 return false;
-            length = end - cursor_;
+            length = end - _cursor;
             email  = true;
         }
         if (! length)
             return false;
-        const auto link = Append(Kind::Link, cursor_, cursor_ + length);
+        const auto link = Append(Kind::Link, _cursor, _cursor + length);
         if (link == MarkdownNoNode)
             return true;
-        nodes_[link].destination = email          ? std::wstring(L"mailto:") + std::wstring(rest.substr(0u, length))
+        _nodes[link].destination = email          ? std::wstring(L"mailto:") + std::wstring(rest.substr(0u, length))
                                    : scheme == 4u ? std::wstring(L"http://") + std::wstring(rest.substr(0u, length))
                                                   : std::wstring(rest.substr(0u, length));
-        const auto child         = nodes_.size();
-        if (blocks_.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - blocks_.size())
+        const auto child         = _nodes.size();
+        if (_blocks.size() >= MarkdownSyntax::MaximumNodeRecords || Staged() >= MarkdownSyntax::MaximumNodeRecords - _blocks.size())
         {
-            capacityExceeded_ = true;
+            _capacityExceeded = true;
             return true;
         }
-        nodes_.emplace_back();
-        previous_.push_back(MarkdownNoNode);
-        nodes_[child].kind      = Kind::Text;
-        nodes_[child].value     = rest.substr(0u, length);
-        nodes_[child].source    = Range(cursor_, cursor_ + length);
-        nodes_[link].firstChild = child;
-        cursor_ += length;
+        _nodes.emplace_back();
+        _previous.push_back(MarkdownNoNode);
+        _nodes[child].kind      = Kind::Text;
+        _nodes[child].value     = rest.substr(0u, length);
+        _nodes[child].source    = Range(_cursor, _cursor + length);
+        _nodes[link].firstChild = child;
+        _cursor += length;
         return true;
     }
     std::size_t NormalizedOffset(std::size_t raw) const noexcept
     {
-        return static_cast<std::size_t>(std::lower_bound(offsets_.begin(), offsets_.end(), raw) - offsets_.begin());
+        return static_cast<std::size_t>(std::lower_bound(_offsets.begin(), _offsets.end(), raw) - _offsets.begin());
     }
     void DelimiterHistory(std::size_t raw, std::optional<MarkdownRange> consumed = std::nullopt)
     {
@@ -1505,12 +1505,12 @@ class MarkdownInlines
         // Runs outside a URL remain on the ordinary emphasis stack. The small
         // underscore balance permits _mail@example.org_ without accepting an
         // otherwise invalid email domain ending in an unmatched underscore.
-        while (autolinkDelimiter_ != MarkdownNoNode && nodes_[delimiters_[autolinkDelimiter_].node].source.last <= raw)
+        while (_autolinkDelimiter != MarkdownNoNode && _nodes[_delimiters[_autolinkDelimiter].node].source.last <= raw)
         {
-            const auto index     = autolinkDelimiter_;
-            const auto delimiter = delimiters_[index];
-            const auto range     = nodes_[delimiter.node].source;
-            autolinkDelimiter_   = delimiter.next;
+            const auto index     = _autolinkDelimiter;
+            const auto delimiter = _delimiters[index];
+            const auto range     = _nodes[delimiter.node].source;
+            _autolinkDelimiter   = delimiter.next;
             if (consumed && range.first >= consumed->first && range.last <= consumed->last)
             {
                 RemoveDelimiter(index);
@@ -1521,61 +1521,61 @@ class MarkdownInlines
             auto remaining = delimiter.length;
             if (delimiter.close)
             {
-                const auto used = std::min(underscoreOpen_, remaining);
-                underscoreOpen_ -= used;
+                const auto used = std::min(_underscoreOpen, remaining);
+                _underscoreOpen -= used;
                 remaining -= used;
             }
             if (delimiter.open && remaining)
             {
-                underscoreOpen_ += remaining;
+                _underscoreOpen += remaining;
                 if (range.last == raw)
-                    emailBoundary_ = true;
+                    _emailBoundary = true;
             }
         }
     }
     void DecodeAutolinkSuffix()
     {
-        auto& deferred = autolinkRegion_->deferred;
+        auto& deferred = _autolinkRegion->deferred;
         if (deferred == MarkdownNoNode)
             return;
-        auto& node       = nodes_[deferred];
+        auto& node       = _nodes[deferred];
         const auto first = NormalizedOffset(node.source.first), last = NormalizedOffset(node.source.last);
-        node.value = Decode(std::wstring_view(text_).substr(first, last - first));
-        autolinkDecodedUnits_ += last - first;
+        node.value = Decode(std::wstring_view(_text).substr(first, last - first));
+        _autolinkDecodedUnits += last - first;
         deferred = MarkdownNoNode;
     }
     void AutolinkSplice(std::size_t link, std::size_t first, std::size_t last, std::size_t& current, std::size_t parent)
     {
-        const auto range = nodes_[link].source;
-        if (autolinkRegion_->deferred != MarkdownNoNode && nodes_[autolinkRegion_->deferred].source.last <= range.first)
+        const auto range = _nodes[link].source;
+        if (_autolinkRegion->deferred != MarkdownNoNode && _nodes[_autolinkRegion->deferred].source.last <= range.first)
             DecodeAutolinkSuffix();
-        while (nodes_[current].source.last <= range.first)
-            current = nodes_[current].nextSibling;
+        while (_nodes[current].source.last <= range.first)
+            current = _nodes[current].nextSibling;
         const auto beginNode = current;
         // A deferred node containing this URL is about to become a final prefix
         // or be unlinked. It must not be decoded again at region completion.
-        if (autolinkRegion_->deferred == beginNode)
-            autolinkRegion_->deferred = MarkdownNoNode;
+        if (_autolinkRegion->deferred == beginNode)
+            _autolinkRegion->deferred = MarkdownNoNode;
         auto endNode = current;
-        while (nodes_[endNode].source.last < range.last)
-            endNode = nodes_[endNode].nextSibling;
-        const auto oldFirst = nodes_[beginNode].source.first, oldLast = nodes_[endNode].source.last;
-        const auto before = previous_[beginNode], after = nodes_[endNode].nextSibling;
+        while (_nodes[endNode].source.last < range.last)
+            endNode = _nodes[endNode].nextSibling;
+        const auto oldFirst = _nodes[beginNode].source.first, oldLast = _nodes[endNode].source.last;
+        const auto before = _previous[beginNode], after = _nodes[endNode].nextSibling;
         auto prefix = before;
         if (oldFirst < range.first)
         {
-            nodes_[beginNode].value = Decode(std::wstring_view(text_).substr(NormalizedOffset(oldFirst), first - NormalizedOffset(oldFirst)));
-            autolinkDecodedUnits_ += first - NormalizedOffset(oldFirst);
-            nodes_[beginNode].source.last = range.first;
+            _nodes[beginNode].value = Decode(std::wstring_view(_text).substr(NormalizedOffset(oldFirst), first - NormalizedOffset(oldFirst)));
+            _autolinkDecodedUnits += first - NormalizedOffset(oldFirst);
+            _nodes[beginNode].source.last = range.first;
             prefix                        = beginNode;
         }
         if (prefix != MarkdownNoNode)
-            nodes_[prefix].nextSibling = link;
+            _nodes[prefix].nextSibling = link;
         else if (parent != MarkdownNoNode)
-            nodes_[parent].firstChild = link;
+            _nodes[parent].firstChild = link;
         else
-            blocks_[blockCursor_].firstInline = link;
-        previous_[link] = prefix;
+            _blocks[_blockCursor].firstInline = link;
+        _previous[link] = prefix;
         current         = after;
         if (range.last < oldLast)
         {
@@ -1586,54 +1586,54 @@ class MarkdownInlines
             current = Append(Kind::Text, last, end);
             if (current == MarkdownNoNode)
                 return;
-            autolinkRegion_->deferred = current;
+            _autolinkRegion->deferred = current;
         }
-        nodes_[tail_].nextSibling = after;
+        _nodes[_tail].nextSibling = after;
         if (after != MarkdownNoNode)
-            previous_[after] = tail_;
+            _previous[after] = _tail;
     }
     void PrepareAutolinkFactsUnit()
     {
-        if (! autolinkFactsPhase_)
+        if (! _autolinkFactsPhase)
         {
-            autolinkFacts_.assign(text_.size() + 1u, AutolinkFacts{});
-            autolinkFactsCursor_ = 0u;
-            autolinkFactsPhase_  = 1u;
+            _autolinkFacts.assign(_text.size() + 1u, AutolinkFacts{});
+            _autolinkFactsCursor = 0u;
+            _autolinkFactsPhase  = 1u;
         }
-        else if (autolinkFactsPhase_ == 1u)
+        else if (_autolinkFactsPhase == 1u)
         {
-            if (autolinkFactsCursor_ == text_.size())
+            if (_autolinkFactsCursor == _text.size())
             {
-                autolinkFacts_.back().hostEnd = autolinkFacts_.back().emailEnd = text_.size();
-                autolinkFactsPhase_                                            = 2u;
+                _autolinkFacts.back().hostEnd = _autolinkFacts.back().emailEnd = _text.size();
+                _autolinkFactsPhase                                            = 2u;
                 return;
             }
-            const auto at         = autolinkFactsCursor_++;
-            const auto& prior     = autolinkFacts_[at];
-            auto& next            = autolinkFacts_[at + 1u];
-            next.previousDot      = text_[at] == L'.' ? at : prior.previousDot;
-            next.nonDotEnd        = text_[at] == L'.' ? prior.nonDotEnd : at + 1u;
-            next.nonUnderscoreEnd = text_[at] == L'_' ? prior.nonUnderscoreEnd : at + 1u;
-            next.underscores      = prior.underscores + (text_[at] == L'_' ? 1u : 0u);
-            ++autolinkInspectionUnits_;
+            const auto at         = _autolinkFactsCursor++;
+            const auto& prior     = _autolinkFacts[at];
+            auto& next            = _autolinkFacts[at + 1u];
+            next.previousDot      = _text[at] == L'.' ? at : prior.previousDot;
+            next.nonDotEnd        = _text[at] == L'.' ? prior.nonDotEnd : at + 1u;
+            next.nonUnderscoreEnd = _text[at] == L'_' ? prior.nonUnderscoreEnd : at + 1u;
+            next.underscores      = prior.underscores + (_text[at] == L'_' ? 1u : 0u);
+            ++_autolinkInspectionUnits;
         }
-        else if (autolinkFactsCursor_)
+        else if (_autolinkFactsCursor)
         {
-            const auto at       = --autolinkFactsCursor_;
-            auto& facts         = autolinkFacts_[at];
-            const auto& next    = autolinkFacts_[at + 1u];
-            const auto scalar   = Scalar(text_, IsUtf16TrailSurrogate(text_[at]) && at ? at - 1u : at);
+            const auto at       = --_autolinkFactsCursor;
+            auto& facts         = _autolinkFacts[at];
+            const auto& next    = _autolinkFacts[at + 1u];
+            const auto scalar   = Scalar(_text, IsUtf16TrailSurrogate(_text[at]) && at ? at - 1u : at);
             const bool host     = Contains(MarkdownUnicodeData::kAlphanumeric, scalar) || scalar == L'_' || scalar == L'-' || scalar == L'.';
-            const auto c        = text_[at];
+            const auto c        = _text[at];
             const bool email    = AsciiLetter(c) || Digit(c) || std::wstring_view(L".-_+@").find(c) != std::wstring_view::npos;
             facts.hostEnd       = host ? next.hostEnd : at;
             facts.emailEnd      = email ? next.emailEnd : at;
             facts.nextAt        = c == L'@' ? at : next.nextAt;
-            facts.nextDoubleDot = c == L'.' && at + 1u < text_.size() && text_[at + 1u] == L'.' ? at : next.nextDoubleDot;
-            ++autolinkInspectionUnits_;
+            facts.nextDoubleDot = c == L'.' && at + 1u < _text.size() && _text[at + 1u] == L'.' ? at : next.nextDoubleDot;
+            ++_autolinkInspectionUnits;
         }
         else
-            autolinkFactsPhase_ = 3u;
+            _autolinkFactsPhase = 3u;
     }
     std::optional<std::size_t> ResolveAutolinks(AutolinkVisit visit)
     {
@@ -1641,124 +1641,124 @@ class MarkdownInlines
         // whole contiguous text region BEFORE emphasis: www.example.org*a*
         // belongs to the URL through its interior '*a', with only the trailing
         // '*' excluded. Splice links while preserving untouched delimiter nodes.
-        if (! autolinkRegion_)
-            autolinkRegion_.emplace(AutolinkRegion{visit, visit.node, MarkdownNoNode, visit.node});
-        auto& region = autolinkRegion_.value();
+        if (! _autolinkRegion)
+            _autolinkRegion.emplace(AutolinkRegion{visit, visit.node, MarkdownNoNode, visit.node});
+        auto& region = _autolinkRegion.value();
         if (! region.scanning)
         {
-            const auto next = nodes_[region.end].nextSibling;
-            if (next != MarkdownNoNode && nodes_[next].kind == Kind::Text)
+            const auto next = _nodes[region.end].nextSibling;
+            if (next != MarkdownNoNode && _nodes[next].kind == Kind::Text)
             {
                 region.end = next;
-                ++autolinkInspectionUnits_;
+                ++_autolinkInspectionUnits;
                 return std::nullopt;
             }
             region.next      = next;
-            const auto first = NormalizedOffset(nodes_[visit.node].source.first);
-            inlineFirst_ = cursor_ = first;
-            inlineLimit_           = NormalizedOffset(nodes_[region.end].source.last);
-            autolinkBoundary_      = ! first || White(Scalar(text_, StepToPreviousCodePoint(text_, first))) ||
-                                     std::wstring_view(L"*_~(").find(text_[first - 1u]) != std::wstring_view::npos;
-            emailBoundary_         = true;
+            const auto first = NormalizedOffset(_nodes[visit.node].source.first);
+            _inlineFirst = _cursor = first;
+            _inlineLimit           = NormalizedOffset(_nodes[region.end].source.last);
+            _autolinkBoundary      = ! first || White(Scalar(_text, StepToPreviousCodePoint(_text, first))) ||
+                                     std::wstring_view(L"*_~(").find(_text[first - 1u]) != std::wstring_view::npos;
+            _emailBoundary         = true;
             region.scanning        = true;
             return std::nullopt;
         }
-        if (cursor_ < inlineLimit_)
+        if (_cursor < _inlineLimit)
         {
-            ++autolinkInspectionUnits_;
-            DelimiterHistory(offsets_[cursor_]);
-            const auto at = cursor_;
-            root_ = tail_ = lastLiteral_ = MarkdownNoNode;
+            ++_autolinkInspectionUnits;
+            DelimiterHistory(_offsets[_cursor]);
+            const auto at = _cursor;
+            _root = _tail = _lastLiteral = MarkdownNoNode;
             if (ExtendedAutolink())
             {
-                if (capacityExceeded_)
+                if (_capacityExceeded)
                     return std::nullopt;
-                const auto link = root_;
-                AutolinkSplice(link, at, cursor_, region.current, visit.parent);
-                if (capacityExceeded_)
+                const auto link = _root;
+                AutolinkSplice(link, at, _cursor, region.current, visit.parent);
+                if (_capacityExceeded)
                     return std::nullopt;
-                DelimiterHistory(nodes_[link].source.last, nodes_[link].source);
-                autolinkBoundary_ = emailBoundary_ = false;
+                DelimiterHistory(_nodes[link].source.last, _nodes[link].source);
+                _autolinkBoundary = _emailBoundary = false;
                 return std::nullopt;
             }
             MarkdownLexeme entity;
-            std::uint32_t previous = Scalar(text_, cursor_);
-            if (text_[cursor_] == L'&' && referenceDecoder_(text_, cursor_, entity))
+            std::uint32_t previous = Scalar(_text, _cursor);
+            if (_text[_cursor] == L'&' && _referenceDecoder(_text, _cursor, entity))
             {
                 previous = entity.valueLength >= 2u && IsUtf16TrailSurrogate(entity.value[entity.valueLength - 1u])
                                ? Scalar(std::wstring_view(entity.value.data(), entity.valueLength), entity.valueLength - 2u)
                                : entity.value[entity.valueLength - 1u];
-                cursor_  = entity.source.last;
+                _cursor  = entity.source.last;
             }
-            else if (text_[cursor_] == L'\\' && cursor_ + 1u < inlineLimit_ && AsciiPunctuation(text_[cursor_ + 1u]))
+            else if (_text[_cursor] == L'\\' && _cursor + 1u < _inlineLimit && AsciiPunctuation(_text[_cursor + 1u]))
             {
-                previous = text_[cursor_ + 1u];
-                cursor_ += 2u;
+                previous = _text[_cursor + 1u];
+                _cursor += 2u;
             }
             else
-                cursor_ = StepToNextCodePoint(text_, cursor_);
-            autolinkBoundary_ =
+                _cursor = StepToNextCodePoint(_text, _cursor);
+            _autolinkBoundary =
                 White(previous) || (previous < 128u && std::wstring_view(L"*_~(").find(static_cast<wchar_t>(previous)) != std::wstring_view::npos);
-            emailBoundary_ = previous >= 128u || (! AsciiLetter(static_cast<wchar_t>(previous)) && ! Digit(static_cast<wchar_t>(previous)) &&
+            _emailBoundary = previous >= 128u || (! AsciiLetter(static_cast<wchar_t>(previous)) && ! Digit(static_cast<wchar_t>(previous)) &&
                                                   std::wstring_view(L".-_+").find(static_cast<wchar_t>(previous)) == std::wstring_view::npos);
             return std::nullopt;
         }
         DecodeAutolinkSuffix();
         const auto next = region.next;
-        autolinkRegion_.reset();
+        _autolinkRegion.reset();
         return next;
     }
     void Scan()
     {
-        const auto first = cursor_;
-        const auto c     = text_[first];
-        if (profile_ == MarkdownProfile::RichMarkdown && std::wstring_view(text_).substr(first, 2u) == L"$$")
+        const auto first = _cursor;
+        const auto c     = _text[first];
+        if (_profile == MarkdownProfile::RichMarkdown && std::wstring_view(_text).substr(first, 2u) == L"$$")
         {
-            cursor_ += 2u;
-            Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first, 2u));
+            _cursor += 2u;
+            Append(Kind::Text, first, _cursor, std::wstring_view(_text).substr(first, 2u));
             return;
         }
-        if (profile_ == MarkdownProfile::RichMarkdown && (c == L'$' || (c == L'\\' && first + 1u < text_.size() && text_[first + 1u] == L'(')))
+        if (_profile == MarkdownProfile::RichMarkdown && (c == L'$' || (c == L'\\' && first + 1u < _text.size() && _text[first + 1u] == L'(')))
         {
             const bool dollars = c == L'$';
-            const auto width   = dollars && std::wstring_view(text_).substr(first, 2u) != L"$$" ? 1u : 2u;
-            const bool display = width == 2u && (dollars || text_[first + 1u] == L'[');
-            const auto closer  = dollars ? (width == 1u ? L"$" : L"$$") : text_[first + 1u] == L'(' ? L"\\)" : L"\\]";
+            const auto width   = dollars && std::wstring_view(_text).substr(first, 2u) != L"$$" ? 1u : 2u;
+            const bool display = width == 2u && (dollars || _text[first + 1u] == L'[');
+            const auto closer  = dollars ? (width == 1u ? L"$" : L"$$") : _text[first + 1u] == L'(' ? L"\\)" : L"\\]";
             const auto content = first + width;
-            if (content < text_.size() && (! dollars || display || ! SourceSpace(text_[content])))
+            if (content < _text.size() && (! dollars || display || ! SourceSpace(_text[content])))
             {
                 bool endedLine         = false;
                 std::size_t* probeWork = nullptr;
 #if DXUI_ENABLE_DIAGNOSTICS
                 probeWork = &testMathOwnershipProbeWork;
 #endif
-                const auto limit         = std::min(text_.size(), content + MathMaximumSourceUnits + 1u);
+                const auto limit         = std::min(_text.size(), content + MathMaximumSourceUnits + 1u);
                 const auto slot          = dollars ? (display ? 7u : 6u) : (display ? 5u : 4u);
-                const auto candidate     = htmlNext_[content + 1u][slot];
-                const auto newline       = htmlNext_[content][8];
+                const auto candidate     = _htmlNext[content + 1u][slot];
+                const auto newline       = _htmlNext[content][8];
                 const bool endsAtNewline = ! display && newline != std::numeric_limits<std::uint32_t>::max() && newline < limit;
                 const bool noCandidate =
                     candidate == std::numeric_limits<std::uint32_t>::max() || candidate >= limit || (endsAtNewline && candidate >= newline);
                 // A failed opener below capacity, or before a physical newline,
                 // cannot own an opaque fallback. The shared index proves the
                 // absence of any eligible closer without rescanning its suffix.
-                if (noCandidate && (endsAtNewline || text_.size() - content <= MathMaximumSourceUnits))
+                if (noCandidate && (endsAtNewline || _text.size() - content <= MathMaximumSourceUnits))
                     endedLine = true;
                 for (auto end = content; ! endedLine && end < limit; ++end)
                 {
                     if (probeWork)
                         ++*probeWork;
-                    if (! display && text_[end] == L'\n')
+                    if (! display && _text[end] == L'\n')
                     {
                         endedLine = true;
                         break;
                     }
-                    if (text_[end] == L'`' || text_[end] == L'<')
+                    if (_text[end] == L'`' || _text[end] == L'<')
                     {
                         HtmlLookahead htmlLookahead{std::wstring::npos, std::wstring::npos, std::wstring::npos, std::wstring::npos};
-                        if (text_[end] == L'<')
+                        if (_text[end] == L'<')
                         {
-                            const auto& next  = htmlNext_[end];
+                            const auto& next  = _htmlNext[end];
                             const auto offset = [](std::uint32_t value) -> std::size_t
                             { return value == std::numeric_limits<std::uint32_t>::max() ? std::wstring::npos : value; };
                             htmlLookahead = {offset(next[0]), offset(next[1]), offset(next[2]), offset(next[3])};
@@ -1766,36 +1766,36 @@ class MarkdownInlines
                                 *probeWork += 4u;
                         }
                         std::size_t slashes{};
-                        for (auto index = end; index > content && text_[index - 1u] == L'\\'; --index)
+                        for (auto index = end; index > content && _text[index - 1u] == L'\\'; --index)
                             ++slashes;
-                        if (slashes % 2u == 0u && ((text_[end] == L'`' && backtickNext_[end] != MarkdownNoNode) ||
-                                                   (text_[end] == L'<' && htmlLookahead.angle != std::wstring::npos &&
+                        if (slashes % 2u == 0u && ((_text[end] == L'`' && _backtickNext[end] != MarkdownNoNode) ||
+                                                   (_text[end] == L'<' && htmlLookahead.angle != std::wstring::npos &&
                                                     (HtmlEnd(end, &htmlLookahead, probeWork) || AngleAutolinkEnd(end, htmlLookahead.angle, probeWork)))))
                         {
                             endedLine = true; // Let the regular inline scanner own this opaque token.
                             break;
                         }
                     }
-                    if (std::wstring_view(text_).substr(end, width) != closer)
+                    if (std::wstring_view(_text).substr(end, width) != closer)
                         continue;
                     std::size_t slashes{};
-                    for (auto index = end; index > content && text_[index - 1u] == L'\\'; --index)
+                    for (auto index = end; index > content && _text[index - 1u] == L'\\'; --index)
                         ++slashes;
                     if (slashes % 2u || end == content ||
-                        (dollars && ! display && (SourceSpace(text_[end - 1u]) || (end + width < text_.size() && Digit(text_[end + width])))))
+                        (dollars && ! display && (SourceSpace(_text[end - 1u]) || (end + width < _text.size() && Digit(_text[end + width])))))
                         continue;
-                    cursor_ = end + width;
-                    Append(Kind::Math, first, cursor_, std::wstring_view(text_).substr(content, end - content));
+                    _cursor = end + width;
+                    Append(Kind::Math, first, _cursor, std::wstring_view(_text).substr(content, end - content));
                     return;
                 }
-                if (! endedLine && text_.size() - content > MathMaximumSourceUnits)
+                if (! endedLine && _text.size() - content > MathMaximumSourceUnits)
                 {
                     // Conservative capacity fallback: retain the remaining line
                     // (display: leaf) as one opaque source owner. Do not resume
                     // Markdown emphasis/link parsing inside oversized notation.
-                    const auto end = display ? text_.size() : text_.find(L'\n', content + MathMaximumSourceUnits + 1u);
-                    cursor_        = end == std::wstring::npos ? text_.size() : end;
-                    Append(Kind::Math, first, cursor_, std::wstring_view(text_).substr(content, cursor_ - content));
+                    const auto end = display ? _text.size() : _text.find(L'\n', content + MathMaximumSourceUnits + 1u);
+                    _cursor        = end == std::wstring::npos ? _text.size() : end;
+                    Append(Kind::Math, first, _cursor, std::wstring_view(_text).substr(content, _cursor - content));
                     return;
                 }
             }
@@ -1803,97 +1803,97 @@ class MarkdownInlines
         if (c == L'`')
         {
             auto end = first;
-            while (end < text_.size() && text_[end] == L'`')
+            while (end < _text.size() && _text[end] == L'`')
                 ++end;
-            const auto close = backtickNext_[first];
+            const auto close = _backtickNext[first];
             if (close != MarkdownNoNode)
             {
-                auto value = text_.substr(end, close - end);
+                auto value = _text.substr(end, close - end);
                 std::replace(value.begin(), value.end(), L'\n', L' ');
                 if (value.size() >= 2u && value.front() == L' ' && value.back() == L' ' && value.find_first_not_of(L' ') != std::wstring::npos)
                     value = value.substr(1u, value.size() - 2u);
-                cursor_ = close + end - first;
-                Append(Kind::Code, first, cursor_, value);
+                _cursor = close + end - first;
+                Append(Kind::Code, first, _cursor, value);
                 return;
             }
-            cursor_ = end;
-            Append(Kind::Text, first, end, std::wstring_view(text_).substr(first, end - first));
+            _cursor = end;
+            Append(Kind::Text, first, end, std::wstring_view(_text).substr(first, end - first));
             return;
         }
         if (c == L'<' && AngleAutolink())
             return;
         if (c == L'<')
-            if (const auto length = HtmlEnd(cursor_))
+            if (const auto length = HtmlEnd(_cursor))
             {
-                cursor_ += length;
-                const auto node = Append(Kind::Html, first, cursor_, std::wstring_view(text_).substr(first, length));
+                _cursor += length;
+                const auto node = Append(Kind::Html, first, _cursor, std::wstring_view(_text).substr(first, length));
                 if (node == MarkdownNoNode)
                     return;
                 FilterHtml(node);
                 return;
             }
-        if (c == L'\\' && first + 1u < text_.size())
+        if (c == L'\\' && first + 1u < _text.size())
         {
-            if (AsciiPunctuation(text_[first + 1u]))
+            if (AsciiPunctuation(_text[first + 1u]))
             {
-                cursor_ += 2u;
-                Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first + 1u, 1u));
+                _cursor += 2u;
+                Append(Kind::Text, first, _cursor, std::wstring_view(_text).substr(first + 1u, 1u));
                 return;
             }
-            if (text_[first + 1u] == L'\n')
+            if (_text[first + 1u] == L'\n')
             {
-                cursor_ += 2u;
-                Append(Kind::HardBreak, first, cursor_);
+                _cursor += 2u;
+                Append(Kind::HardBreak, first, _cursor);
                 return;
             }
         }
         if (c == L'&')
         {
             MarkdownLexeme entity;
-            if (referenceDecoder_(text_, first, entity))
+            if (_referenceDecoder(_text, first, entity))
             {
-                cursor_ = entity.source.last;
-                Append(Kind::Text, first, cursor_, std::wstring_view(entity.value.data(), entity.valueLength));
+                _cursor = entity.source.last;
+                Append(Kind::Text, first, _cursor, std::wstring_view(entity.value.data(), entity.valueLength));
                 return;
             }
         }
         if (c == L'\n')
         {
             auto start = first;
-            while (start && (text_[start - 1u] == L' ' || text_[start - 1u] == L'\t'))
+            while (start && (_text[start - 1u] == L' ' || _text[start - 1u] == L'\t'))
                 --start;
             auto spaces = first;
-            while (spaces && text_[spaces - 1u] == L' ')
+            while (spaces && _text[spaces - 1u] == L' ')
                 --spaces;
-            if (tail_ != MarkdownNoNode && nodes_[tail_].kind == Kind::Text && nodes_[tail_].source.last > offsets_[start])
+            if (_tail != MarkdownNoNode && _nodes[_tail].kind == Kind::Text && _nodes[_tail].source.last > _offsets[start])
             {
-                auto& node      = nodes_[tail_];
-                const auto trim = node.source.last - std::max(node.source.first, offsets_[start]);
+                auto& node      = _nodes[_tail];
+                const auto trim = node.source.last - std::max(node.source.first, _offsets[start]);
                 node.value.resize(node.value.size() - trim);
                 node.source.last -= trim;
                 if (node.value.empty())
-                    Remove(tail_);
+                    Remove(_tail);
             }
-            ++cursor_;
-            Append(first - spaces >= 2u ? Kind::HardBreak : Kind::SoftBreak, start, cursor_);
+            ++_cursor;
+            Append(first - spaces >= 2u ? Kind::HardBreak : Kind::SoftBreak, start, _cursor);
             return;
         }
-        const bool wikiImage = c == L'!' && first + 2u < text_.size() && text_[first + 1u] == L'[' && text_[first + 2u] == L'[';
-        const bool wikiLink  = c == L'[' && first + 1u < text_.size() && text_[first + 1u] == L'[';
-        if ((wikiImage || wikiLink) && HasMarkdownExtension(extensions_, MarkdownExtensions::WikiLinks))
+        const bool wikiImage = c == L'!' && first + 2u < _text.size() && _text[first + 1u] == L'[' && _text[first + 2u] == L'[';
+        const bool wikiLink  = c == L'[' && first + 1u < _text.size() && _text[first + 1u] == L'[';
+        if ((wikiImage || wikiLink) && HasMarkdownExtension(_extensions, MarkdownExtensions::WikiLinks))
         {
             const auto body = first + (wikiImage ? 3u : 2u);
-            if (wikiClose_ != MarkdownNoNode && wikiClose_ < body)
-                wikiClose_ = MarkdownNoNode;
-            const auto limit = (std::min)(text_.size(), body + (std::min)(std::size_t{4098u}, text_.size() - body));
-            if (wikiClose_ == MarkdownNoNode && wikiScanned_ < limit)
+            if (_wikiClose != MarkdownNoNode && _wikiClose < body)
+                _wikiClose = MarkdownNoNode;
+            const auto limit = (std::min)(_text.size(), body + (std::min)(std::size_t{4098u}, _text.size() - body));
+            if (_wikiClose == MarkdownNoNode && _wikiScanned < limit)
             {
-                const auto start = (std::max)(body, wikiScanned_ ? wikiScanned_ - 1u : 0u);
+                const auto start = (std::max)(body, _wikiScanned ? _wikiScanned - 1u : 0u);
                 auto found       = MarkdownNoNode;
                 for (auto at = start; at + 1u < limit; ++at)
                 {
-                    ++wikiInspectionUnits_;
-                    if (text_[at] == L']' && text_[at + 1u] == L']')
+                    ++_wikiInspectionUnits;
+                    if (_text[at] == L']' && _text[at + 1u] == L']')
                     {
                         found = at;
                         break;
@@ -1901,184 +1901,184 @@ class MarkdownInlines
                 }
                 if (found != MarkdownNoNode)
                 {
-                    wikiClose_   = found;
-                    wikiScanned_ = wikiClose_ + 2u;
+                    _wikiClose   = found;
+                    _wikiScanned = _wikiClose + 2u;
                 }
                 else
-                    wikiScanned_ = limit;
+                    _wikiScanned = limit;
             }
-            if (wikiClose_ != MarkdownNoNode && wikiClose_ >= body && wikiClose_ - body <= 4096u)
+            if (_wikiClose != MarkdownNoNode && _wikiClose >= body && _wikiClose - body <= 4096u)
             {
-                auto separator = wikiClose_;
-                bool valid     = body < wikiClose_;
-                for (auto at = body; valid && at < wikiClose_; ++at)
+                auto separator = _wikiClose;
+                bool valid     = body < _wikiClose;
+                for (auto at = body; valid && at < _wikiClose; ++at)
                 {
-                    ++wikiInspectionUnits_;
-                    const auto value = text_[at];
+                    ++_wikiInspectionUnits;
+                    const auto value = _text[at];
                     if (value == L'[' || value == L']' || value == L'\\' || value == L'`' || value == L'<' || value < 0x20u || value == 0x7fu)
                         valid = false;
                     else if (value == L'|')
                     {
-                        if (separator != wikiClose_)
+                        if (separator != _wikiClose)
                             valid = false;
                         else
                             separator = at;
                     }
                 }
-                const auto labelFirst = separator == wikiClose_ ? body : separator + 1u;
-                valid                 = valid && separator > body && labelFirst < wikiClose_ && separator - body <= 2048u && wikiClose_ - labelFirst <= 2048u;
-                if (valid && sourceRegion_ && sourceRegion_->kind == MarkdownSourceRegionKind::Inline)
+                const auto labelFirst = separator == _wikiClose ? body : separator + 1u;
+                valid                 = valid && separator > body && labelFirst < _wikiClose && separator - body <= 2048u && _wikiClose - labelFirst <= 2048u;
+                if (valid && _sourceRegion && _sourceRegion->kind == MarkdownSourceRegionKind::Inline)
                 {
-                    const auto envelope = Range(first, wikiClose_ + 2u);
-                    valid               = envelope.last <= sourceRegion_->source.first || envelope.first >= sourceRegion_->source.last;
+                    const auto envelope = Range(first, _wikiClose + 2u);
+                    valid               = envelope.last <= _sourceRegion->source.first || envelope.first >= _sourceRegion->source.last;
                 }
                 if (valid)
                 {
-                    const auto owner = Append(wikiImage ? Kind::Image : Kind::Link, first, wikiClose_ + 2u, {}, false);
+                    const auto owner = Append(wikiImage ? Kind::Image : Kind::Link, first, _wikiClose + 2u, {}, false);
                     if (owner == MarkdownNoNode)
                         return;
-                    nodes_[owner].wiki = true;
-                    nodes_[owner].destination.assign(text_.data() + body, separator - body);
-                    const auto child = Append(Kind::Text, labelFirst, wikiClose_, std::wstring_view(text_).substr(labelFirst, wikiClose_ - labelFirst), false);
+                    _nodes[owner].wiki = true;
+                    _nodes[owner].destination.assign(_text.data() + body, separator - body);
+                    const auto child = Append(Kind::Text, labelFirst, _wikiClose, std::wstring_view(_text).substr(labelFirst, _wikiClose - labelFirst), false);
                     if (child == MarkdownNoNode)
                         return;
                     Remove(child);
-                    previous_[child]         = MarkdownNoNode;
-                    nodes_[owner].firstChild = child;
-                    cursor_                  = wikiClose_ + 2u;
+                    _previous[child]         = MarkdownNoNode;
+                    _nodes[owner].firstChild = child;
+                    _cursor                  = _wikiClose + 2u;
                     if (! wikiImage)
-                        for (auto& earlier : brackets_)
+                        for (auto& earlier : _brackets)
                             if (! earlier.image)
                                 earlier.active = false;
                     return;
                 }
             }
         }
-        if (c == L'[' || (c == L'!' && first + 1u < text_.size() && text_[first + 1u] == L'['))
+        if (c == L'[' || (c == L'!' && first + 1u < _text.size() && _text[first + 1u] == L'['))
         {
             const bool image = c == L'!';
-            cursor_ += image ? 2u : 1u;
-            const auto node = Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first, cursor_ - first), false);
+            _cursor += image ? 2u : 1u;
+            const auto node = Append(Kind::Text, first, _cursor, std::wstring_view(_text).substr(first, _cursor - first), false);
             if (node == MarkdownNoNode)
                 return;
-            brackets_.push_back({node, first, delimiterTail_, image});
+            _brackets.push_back({node, first, _delimiterTail, image});
             return;
         }
         if (c == L']' && CloseBracket())
             return;
         if (c == L'*' || c == L'_' ||
             (c == L'~' &&
-             (HasMarkdownExtension(extensions_, MarkdownExtensions::Strikethrough) || HasMarkdownExtension(extensions_, MarkdownExtensions::Subscript))) ||
-            (c == L'^' && HasMarkdownExtension(extensions_, MarkdownExtensions::Superscript)) ||
-            (c == L'=' && HasMarkdownExtension(extensions_, MarkdownExtensions::Highlight)) ||
-            (c == L'+' && HasMarkdownExtension(extensions_, MarkdownExtensions::Inserted)))
+             (HasMarkdownExtension(_extensions, MarkdownExtensions::Strikethrough) || HasMarkdownExtension(_extensions, MarkdownExtensions::Subscript))) ||
+            (c == L'^' && HasMarkdownExtension(_extensions, MarkdownExtensions::Superscript)) ||
+            (c == L'=' && HasMarkdownExtension(_extensions, MarkdownExtensions::Highlight)) ||
+            (c == L'+' && HasMarkdownExtension(_extensions, MarkdownExtensions::Inserted)))
         {
-            while (cursor_ < text_.size() && text_[cursor_] == c)
-                ++cursor_;
-            const auto length = cursor_ - first;
-            const auto node   = Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first, length), false);
+            while (_cursor < _text.size() && _text[_cursor] == c)
+                ++_cursor;
+            const auto length = _cursor - first;
+            const auto node   = Append(Kind::Text, first, _cursor, std::wstring_view(_text).substr(first, length), false);
             if (node == MarkdownNoNode)
                 return;
-            if ((c == L'~' && ! ((length == 2u && HasMarkdownExtension(extensions_, MarkdownExtensions::Strikethrough)) ||
-                                 (length == 1u && HasMarkdownExtension(extensions_, MarkdownExtensions::Subscript)))) ||
+            if ((c == L'~' && ! ((length == 2u && HasMarkdownExtension(_extensions, MarkdownExtensions::Strikethrough)) ||
+                                 (length == 1u && HasMarkdownExtension(_extensions, MarkdownExtensions::Subscript)))) ||
                 (c == L'^' && length != 1u) || ((c == L'=' || c == L'+') && length != 2u))
                 return;
-            const auto before = first ? Scalar(text_, StepToPreviousCodePoint(text_, first)) : 0u;
-            const auto after  = cursor_ < text_.size() ? Scalar(text_, cursor_) : 0u;
+            const auto before = first ? Scalar(_text, StepToPreviousCodePoint(_text, first)) : 0u;
+            const auto after  = _cursor < _text.size() ? Scalar(_text, _cursor) : 0u;
             const bool left   = ! White(after) && (! Punctuation(after) || White(before) || Punctuation(before));
             const bool right  = ! White(before) && (! Punctuation(before) || White(after) || Punctuation(after));
             const bool open   = c == L'_' ? left && (! right || Punctuation(before)) : left;
             const bool close  = c == L'_' ? right && (! left || Punctuation(after)) : right;
-            const auto index  = delimiters_.size();
-            delimiters_.push_back({node, length, delimiterTail_, MarkdownNoNode, c, open, close, length});
-            if (delimiterTail_ != MarkdownNoNode)
-                delimiters_[delimiterTail_].next = index;
+            const auto index  = _delimiters.size();
+            _delimiters.push_back({node, length, _delimiterTail, MarkdownNoNode, c, open, close, length});
+            if (_delimiterTail != MarkdownNoNode)
+                _delimiters[_delimiterTail].next = index;
             else
-                delimiterHead_ = index;
-            delimiterTail_ = index;
+                _delimiterHead = index;
+            _delimiterTail = index;
             return;
         }
-        cursor_ = StepToNextCodePoint(text_, first);
-        Append(Kind::Text, first, cursor_, std::wstring_view(text_).substr(first, cursor_ - first));
+        _cursor = StepToNextCodePoint(_text, first);
+        Append(Kind::Text, first, _cursor, std::wstring_view(_text).substr(first, _cursor - first));
     }
 
     bool ResolveFootnoteStep()
     {
-        if (! footnoteReferencesFinal_)
+        if (! _footnoteReferencesFinal)
         {
-            if (footnoteReferenceCursor_ < footnoteReferences_.size())
+            if (_footnoteReferenceCursor < _footnoteReferences.size())
             {
-                auto reference       = footnoteReferences_[footnoteReferenceCursor_++];
-                reference.inlineNode = previous_[reference.inlineNode];
+                auto reference       = _footnoteReferences[_footnoteReferenceCursor++];
+                reference.inlineNode = _previous[reference.inlineNode];
                 if (reference.inlineNode != MarkdownNoNode)
-                    footnoteReferences_[footnoteReferenceCount_++] = reference;
+                    _footnoteReferences[_footnoteReferenceCount++] = reference;
                 return false;
             }
-            footnoteReferences_.resize(footnoteReferenceCount_);
-            std::sort(footnoteReferences_.begin(), footnoteReferences_.end(), [](const auto& a, const auto& b) { return a.inlineNode < b.inlineNode; });
-            footnoteReferencesFinal_ = true;
+            _footnoteReferences.resize(_footnoteReferenceCount);
+            std::sort(_footnoteReferences.begin(), _footnoteReferences.end(), [](const auto& a, const auto& b) { return a.inlineNode < b.inlineNode; });
+            _footnoteReferencesFinal = true;
             return false;
         }
-        if (footnotes_.empty())
+        if (_footnotes.empty())
             return true;
-        if (! footnoteWalkStarted_)
+        if (! _footnoteWalkStarted)
         {
-            footnoteWalkStarted_ = true;
-            footnoteWalk_.push_back({0u, false, false, false});
+            _footnoteWalkStarted = true;
+            _footnoteWalk.push_back({0u, false, false, false});
             return false;
         }
-        if (! footnoteWalk_.empty())
+        if (! _footnoteWalk.empty())
         {
-            const auto visit = footnoteWalk_.back();
-            footnoteWalk_.pop_back();
+            const auto visit = _footnoteWalk.back();
+            _footnoteWalk.pop_back();
             if (visit.inlineNode)
             {
-                auto& node = nodes_[visit.node];
+                auto& node = _nodes[visit.node];
                 if (node.nextSibling != MarkdownNoNode)
-                    footnoteWalk_.push_back({node.nextSibling, true});
+                    _footnoteWalk.push_back({node.nextSibling, true});
                 if (node.kind == Kind::FootnoteReference)
                 {
                     const auto reference =
-                        std::lower_bound(footnoteReferences_.begin(), footnoteReferences_.end(), visit.node, [](const auto& binding, auto wanted) {
+                        std::lower_bound(_footnoteReferences.begin(), _footnoteReferences.end(), visit.node, [](const auto& binding, auto wanted) {
                         return binding.inlineNode < wanted;
                     });
-                    if (reference == footnoteReferences_.end() || reference->inlineNode != visit.node)
+                    if (reference == _footnoteReferences.end() || reference->inlineNode != visit.node)
                         DxUi::Failure::FailContract(E_UNEXPECTED);
                     if (reference->footnote != MarkdownNoNode)
                     {
-                        auto& note = footnotes_[reference->footnote];
+                        auto& note = _footnotes[reference->footnote];
                         if (! note.ordinal)
                         {
-                            note.ordinal = ++footnoteOrdinal_;
-                            reachableDefinitions_.push_back(note.definition);
+                            note.ordinal = ++_footnoteOrdinal;
+                            _reachableDefinitions.push_back(note.definition);
                         }
                         note.references.push_back(visit.node);
                         reference->occurrence = note.references.size();
                     }
                 }
                 if (node.firstChild != MarkdownNoNode)
-                    footnoteWalk_.push_back({node.firstChild, true});
+                    _footnoteWalk.push_back({node.firstChild, true});
             }
             else
             {
-                const auto& block = blocks_[visit.node];
+                const auto& block = _blocks[visit.node];
                 if (visit.followSibling && block.nextSibling != MarkdownNoNode)
-                    footnoteWalk_.push_back({block.nextSibling});
+                    _footnoteWalk.push_back({block.nextSibling});
                 // Main content never gets numbered by a definition's original
                 // source position. Only a newly reachable primary body enters
                 // the queue, once, so chains and cycles have a finite traversal.
                 if (block.block.kind == MarkdownBlockKind::FootnoteDefinition && ! visit.definitionRoot)
                     return false;
                 if (block.firstChild != MarkdownNoNode)
-                    footnoteWalk_.push_back({block.firstChild});
+                    _footnoteWalk.push_back({block.firstChild});
                 if (block.firstInline != MarkdownNoNode)
-                    footnoteWalk_.push_back({block.firstInline, true});
+                    _footnoteWalk.push_back({block.firstInline, true});
             }
             return false;
         }
-        if (footnoteQueueHead_ < reachableDefinitions_.size())
+        if (_footnoteQueueHead < _reachableDefinitions.size())
         {
-            footnoteWalk_.push_back({reachableDefinitions_[footnoteQueueHead_++], false, true, false});
+            _footnoteWalk.push_back({_reachableDefinitions[_footnoteQueueHead++], false, true, false});
             return false;
         }
         return true;
@@ -2087,7 +2087,7 @@ class MarkdownInlines
 public:
     bool CapacityExceeded() const noexcept
     {
-        return capacityExceeded_;
+        return _capacityExceeded;
     }
     MarkdownInlines(std::wstring_view source,
                     std::wstring_view rawSource,
@@ -2100,117 +2100,117 @@ public:
                     std::vector<MarkdownFootnoteReference>& footnoteReferences,
                     std::vector<MarkdownDiagnostic>& diagnostics,
                     ReferenceDecoder decoder)
-        : source_(source),
-          rawSource_(rawSource),
-          sourceRegion_(sourceRegion),
-          profile_(profile),
-          extensions_(extensions),
-          blocks_(blocks),
-          nodes_(inlines),
-          footnotes_(footnotes),
-          footnoteReferences_(footnoteReferences),
-          diagnostics_(diagnostics),
-          referenceDecoder_(decoder),
-          references_(0u),
-          delimiters_(0u),
-          brackets_(0u),
-          autolinkWalk_(0u),
-          autolinkFacts_(0u),
-          footnoteWalk_(0u),
-          reachableDefinitions_(0u),
-          previous_(0u),
-          offsets_(0u),
-          backtickNext_(0u),
-          htmlNext_(0u),
-          text_(0u, L' '),
-          effectiveReferences_(0u),
-          leafStaging_(0u),
-          copyStack_(0u)
+        : _source(source),
+          _rawSource(rawSource),
+          _sourceRegion(sourceRegion),
+          _profile(profile),
+          _extensions(extensions),
+          _blocks(blocks),
+          _nodes(inlines),
+          _footnotes(footnotes),
+          _footnoteReferences(footnoteReferences),
+          _diagnostics(diagnostics),
+          _referenceDecoder(decoder),
+          _references(0u),
+          _delimiters(0u),
+          _brackets(0u),
+          _autolinkWalk(0u),
+          _autolinkFacts(0u),
+          _footnoteWalk(0u),
+          _reachableDefinitions(0u),
+          _previous(0u),
+          _offsets(0u),
+          _backtickNext(0u),
+          _htmlNext(0u),
+          _text(0u, L' '),
+          _effectiveReferences(0u),
+          _leafStaging(0u),
+          _copyStack(0u)
     {
     }
     // W7.2: the previous parse this one may copy unchanged leaves from. Call before the first Step.
     void EnableReuse(const MarkdownInlineReuse& reuse) noexcept
     {
-        reuse_ = reuse;
+        _reuse = reuse;
     }
     // Carried to the next parse with the publication (swapped out; the parser holds no further use for them).
     void TakeReuseState(std::vector<MarkdownReferenceValue>& references, std::vector<std::uint32_t>& leafStaging) noexcept
     {
-        references.swap(effectiveReferences_);
-        leafStaging.swap(leafStaging_);
+        references.swap(_effectiveReferences);
+        leafStaging.swap(_leafStaging);
     }
     [[nodiscard]] std::size_t AutolinkInspectionUnits() const noexcept
     {
-        return autolinkInspectionUnits_;
+        return _autolinkInspectionUnits;
     }
     [[nodiscard]] std::size_t AutolinkDecodedUnits() const noexcept
     {
-        return autolinkDecodedUnits_;
+        return _autolinkDecodedUnits;
     }
     [[nodiscard]] std::size_t WikiInspectionUnits() const noexcept
     {
-        return wikiInspectionUnits_;
+        return _wikiInspectionUnits;
     }
     bool Step()
     {
-        if (! referencesComplete_)
+        if (! _referencesComplete)
         {
-            if (referenceCursor_ < blocks_.size())
+            if (_referenceCursor < _blocks.size())
                 CollectReference();
-            else if (! referencesSorted_)
+            else if (! _referencesSorted)
             {
-                std::sort(references_.begin(), references_.end(), [](const auto& a, const auto& b) {
+                std::sort(_references.begin(), _references.end(), [](const auto& a, const auto& b) {
                     return a.label != b.label ? a.label < b.label : a.source < b.source;
                 });
-                std::sort(footnotes_.begin(),
-                          footnotes_.end(),
+                std::sort(_footnotes.begin(),
+                          _footnotes.end(),
                           [&](const auto& a, const auto& b)
                 {
                     if (a.label != b.label)
                         return a.label < b.label;
-                    const auto first = blocks_[a.definition].block.source.first, second = blocks_[b.definition].block.source.first;
+                    const auto first = _blocks[a.definition].block.source.first, second = _blocks[b.definition].block.source.first;
                     return first != second ? first < second : a.definition < b.definition;
                 });
-                referencesSorted_ = true;
+                _referencesSorted = true;
             }
-            else if (footnoteUniqueCursor_ < footnotes_.size())
+            else if (_footnoteUniqueCursor < _footnotes.size())
             {
-                const auto index = footnoteUniqueCursor_++;
-                const auto& note = footnotes_[index];
-                if (footnoteUniqueCount_ && footnotes_[footnoteUniqueCount_ - 1u].label == note.label)
-                    diagnostics_.push_back({MarkdownDiagnosticCode::DuplicateFootnoteDefinition, blocks_[note.definition].label, note.definition});
+                const auto index = _footnoteUniqueCursor++;
+                const auto& note = _footnotes[index];
+                if (_footnoteUniqueCount && _footnotes[_footnoteUniqueCount - 1u].label == note.label)
+                    _diagnostics.push_back({MarkdownDiagnosticCode::DuplicateFootnoteDefinition, _blocks[note.definition].label, note.definition});
                 else
                 {
-                    if (index != footnoteUniqueCount_)
-                        footnotes_[footnoteUniqueCount_] = note;
-                    ++footnoteUniqueCount_;
+                    if (index != _footnoteUniqueCount)
+                        _footnotes[_footnoteUniqueCount] = note;
+                    ++_footnoteUniqueCount;
                 }
             }
             else
             {
-                footnotes_.resize(footnoteUniqueCount_);
+                _footnotes.resize(_footnoteUniqueCount);
                 DecideReuse();
-                referencesComplete_ = true;
+                _referencesComplete = true;
             }
             return false;
         }
-        if (leafActive_)
+        if (_leafActive)
         {
-            if (autolinksActive_)
+            if (_autolinksActive)
             {
-                if (autolinkFactsPhase_ < 3u)
+                if (_autolinkFactsPhase < 3u)
                 {
                     PrepareAutolinkFactsUnit();
                     return false;
                 }
-                if (autolinkRegion_ || ! autolinkWalk_.empty())
+                if (_autolinkRegion || ! _autolinkWalk.empty())
                 {
-                    const auto visit = autolinkRegion_ ? autolinkRegion_->visit : autolinkWalk_.back();
-                    if (! autolinkRegion_)
-                        autolinkWalk_.pop_back();
-                    auto next        = nodes_[visit.node].nextSibling;
-                    const auto child = nodes_[visit.node].firstChild;
-                    const auto kind  = nodes_[visit.node].kind;
+                    const auto visit = _autolinkRegion ? _autolinkRegion->visit : _autolinkWalk.back();
+                    if (! _autolinkRegion)
+                        _autolinkWalk.pop_back();
+                    auto next        = _nodes[visit.node].nextSibling;
+                    const auto child = _nodes[visit.node].firstChild;
+                    const auto kind  = _nodes[visit.node].kind;
                     if (kind == Kind::Text)
                     {
                         const auto resolved = ResolveAutolinks(visit);
@@ -2219,83 +2219,83 @@ public:
                         next = resolved.value();
                     }
                     if (next != MarkdownNoNode)
-                        autolinkWalk_.push_back({next, visit.parent});
+                        _autolinkWalk.push_back({next, visit.parent});
                     if (child != MarkdownNoNode && (kind == Kind::Emphasis || kind == Kind::Strong || kind == Kind::Strikethrough || kind == Kind::Highlight ||
                                                     kind == Kind::Superscript || kind == Kind::Subscript || kind == Kind::Inserted))
-                        autolinkWalk_.push_back({child, visit.node});
+                        _autolinkWalk.push_back({child, visit.node});
                 }
                 else
                 {
-                    root_ = blocks_[blockCursor_].firstInline;
-                    tail_ = root_;
-                    if (tail_ != MarkdownNoNode)
-                        while (nodes_[tail_].nextSibling != MarkdownNoNode)
-                            tail_ = nodes_[tail_].nextSibling;
+                    _root = _blocks[_blockCursor].firstInline;
+                    _tail = _root;
+                    if (_tail != MarkdownNoNode)
+                        while (_nodes[_tail].nextSibling != MarkdownNoNode)
+                            _tail = _nodes[_tail].nextSibling;
                     Emphasis(MarkdownNoNode);
-                    blocks_[blockCursor_].firstInline = root_;
-                    FinishLeafStaging(Staged() - leafStart_);
-                    ++blockCursor_;
-                    leafActive_ = autolinksActive_ = false;
+                    _blocks[_blockCursor].firstInline = _root;
+                    FinishLeafStaging(Staged() - _leafStart);
+                    ++_blockCursor;
+                    _leafActive = _autolinksActive = false;
                 }
             }
-            else if (! sourceRegionEmitted_ && sourceRegion_ && sourceRegion_->kind == MarkdownSourceRegionKind::Inline &&
-                     offsets_[cursor_] == sourceRegion_->source.first && sourceRegion_->source.last <= offsets_.back())
+            else if (! _sourceRegionEmitted && _sourceRegion && _sourceRegion->kind == MarkdownSourceRegionKind::Inline &&
+                     _offsets[_cursor] == _sourceRegion->source.first && _sourceRegion->source.last <= _offsets.back())
             {
-                const auto first = cursor_;
-                cursor_          = static_cast<std::size_t>(
-                    std::lower_bound(offsets_.begin() + static_cast<std::ptrdiff_t>(cursor_), offsets_.end(), sourceRegion_->source.last) - offsets_.begin());
+                const auto first = _cursor;
+                _cursor          = static_cast<std::size_t>(
+                    std::lower_bound(_offsets.begin() + static_cast<std::ptrdiff_t>(_cursor), _offsets.end(), _sourceRegion->source.last) - _offsets.begin());
                 // A zero-width source owner has a synthetic U+FFFC boundary in
                 // this private scan buffer. Consume that sentinel here; if it
                 // is scanned again as text it aliases the next real source
                 // unit and can detach or corrupt the empty editable owner.
-                if (sourceRegion_->source.first == sourceRegion_->source.last && cursor_ == first && cursor_ < text_.size() && text_[cursor_] == L'\ufffc')
-                    ++cursor_;
+                if (_sourceRegion->source.first == _sourceRegion->source.last && _cursor == first && _cursor < _text.size() && _text[_cursor] == L'\ufffc')
+                    ++_cursor;
                 const auto index = Append(Kind::SourceEditor,
                                           first,
-                                          cursor_,
-                                          rawSource_.substr(sourceRegion_->source.first, sourceRegion_->source.last - sourceRegion_->source.first));
+                                          _cursor,
+                                          _rawSource.substr(_sourceRegion->source.first, _sourceRegion->source.last - _sourceRegion->source.first));
                 if (index == MarkdownNoNode)
                     return false;
-                nodes_[index].source = sourceRegion_->source;
-                sourceRegionEmitted_ = true;
+                _nodes[index].source = _sourceRegion->source;
+                _sourceRegionEmitted = true;
             }
-            else if (cursor_ < text_.size())
+            else if (_cursor < _text.size())
                 Scan();
             else
             {
-                blocks_[blockCursor_].firstInline = root_;
-                if (HasMarkdownExtension(extensions_, MarkdownExtensions::Autolinks))
+                _blocks[_blockCursor].firstInline = _root;
+                if (HasMarkdownExtension(_extensions, MarkdownExtensions::Autolinks))
                 {
-                    autolinksActive_    = true;
-                    autolinkFactsPhase_ = 0u;
-                    autolinkRegion_.reset();
-                    autolinkWalk_.clear();
-                    autolinkDelimiter_ = delimiterHead_;
-                    underscoreOpen_    = 0u;
-                    if (root_ != MarkdownNoNode)
-                        autolinkWalk_.push_back({root_, MarkdownNoNode});
+                    _autolinksActive    = true;
+                    _autolinkFactsPhase = 0u;
+                    _autolinkRegion.reset();
+                    _autolinkWalk.clear();
+                    _autolinkDelimiter = _delimiterHead;
+                    _underscoreOpen    = 0u;
+                    if (_root != MarkdownNoNode)
+                        _autolinkWalk.push_back({_root, MarkdownNoNode});
                 }
                 else
                 {
                     Emphasis(MarkdownNoNode);
-                    blocks_[blockCursor_].firstInline = root_;
-                    FinishLeafStaging(Staged() - leafStart_);
-                    ++blockCursor_;
-                    leafActive_ = false;
+                    _blocks[_blockCursor].firstInline = _root;
+                    FinishLeafStaging(Staged() - _leafStart);
+                    ++_blockCursor;
+                    _leafActive = false;
                 }
             }
             return false;
         }
-        if (blockCursor_ == blocks_.size())
+        if (_blockCursor == _blocks.size())
         {
-            if (! compactComplete_)
+            if (! _compactComplete)
             {
-                compactComplete_ = Compact();
+                _compactComplete = Compact();
                 return false;
             }
             return ResolveFootnoteStep();
         }
-        const auto kind = blocks_[blockCursor_].block.kind;
+        const auto kind = _blocks[_blockCursor].block.kind;
         if (kind == MarkdownBlockKind::HtmlBlock || kind == MarkdownBlockKind::Paragraph || kind == MarkdownBlockKind::AtxHeading ||
             kind == MarkdownBlockKind::SetextHeading || kind == MarkdownBlockKind::TableCell)
             if (const auto old = ImportedOldBlock(); old != MarkdownNoNode && CopyLeaf(old))
@@ -2309,7 +2309,7 @@ public:
             kind == MarkdownBlockKind::TableCell)
             StartLeaf();
         else
-            ++blockCursor_;
+            ++_blockCursor;
         return false;
     }
 };

@@ -66,7 +66,9 @@ public:
         std::vector<std::wstring> cells;
     };
 
-    MutableTextGridModel(std::vector<Row> rows, std::vector<Column> columns = {{L"value", L"Value"}}) : _rows(std::move(rows)), _columns(std::move(columns))
+    MutableTextGridModel(std::vector<Row> rows, std::vector<Column> columns = {{L"value", L"Value", 180.0f}})
+        : _rows(std::move(rows)),
+          _columns(std::move(columns))
     {
     }
 
@@ -3504,18 +3506,18 @@ void TestGridHeaderClickMovesSortGlyphToClickedColumn()
     class ApplyingSortDelegate final : public RecordingGridDelegate
     {
     public:
-        explicit ApplyingSortDelegate(Grid& targetGrid) noexcept : grid(&targetGrid)
+        explicit ApplyingSortDelegate(Grid& targetGrid) noexcept : _grid(&targetGrid)
         {
         }
 
         void OnGridSortRequested(const GridSortSpec& sortSpec) override
         {
             RecordingGridDelegate::OnGridSortRequested(sortSpec);
-            grid->SetSortSpec(sortSpec);
+            _grid->SetSortSpec(sortSpec);
         }
 
     private:
-        Grid* grid = nullptr;
+        Grid* _grid = nullptr;
     } delegate(grid);
 
     grid.SetModel(&model);

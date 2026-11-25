@@ -24,18 +24,18 @@
 }
 class RichAnnotationProvider final : public IRawElementProviderSimple, public IRawElementProviderFragment, public IAnnotationProvider
 {
-    Failure::ObjectLifetime failureLifetime_;
+    Failure::ObjectLifetime _failureLifetime;
 
 public:
     RichAnnotationProvider(WindowHostAccessibilityTarget* target, HWND hwnd, const AccessibilityControlNavigationSnapshot& record, size_t index) noexcept
-        : target_(target),
-          hwnd_(hwnd),
-          path_(record.path),
-          identity_(CaptureControlIdentity(record)),
-          document_(record.RichSemantic()),
-          publication_(record.RichSemantic()->Identity()),
-          revision_(record.RichSemanticRevision()),
-          index_(index)
+        : _target(target),
+          _hwnd(hwnd),
+          _path(record.path),
+          _identity(CaptureControlIdentity(record)),
+          _document(record.RichSemantic()),
+          _publication(record.RichSemantic()->Identity()),
+          _revision(record.RichSemanticRevision()),
+          _index(index)
     {
     }
     RichAnnotationProvider(const RichAnnotationProvider&)            = delete;
@@ -73,11 +73,11 @@ public:
     }
     ULONG STDMETHODCALLTYPE AddRef() noexcept override
     {
-        return references_.fetch_add(1u, std::memory_order_relaxed) + 1u;
+        return _references.fetch_add(1u, std::memory_order_relaxed) + 1u;
     }
     ULONG STDMETHODCALLTYPE Release() noexcept override
     {
-        const auto remaining = references_.fetch_sub(1u, std::memory_order_acq_rel) - 1u;
+        const auto remaining = _references.fetch_sub(1u, std::memory_order_acq_rel) - 1u;
         if (! remaining)
         {
             const Failure::Scope retirementScope{std::nothrow};
@@ -91,7 +91,7 @@ public:
         if (! result)
             return E_POINTER;
         *result =
-            target_->embedded
+            _target->embedded
                 ? static_cast<ProviderOptions>(ProviderOptions_ServerSideProvider | ProviderOptions_UseComThreading | ProviderOptions_ProviderOwnsSetFocus)
                 : ProviderOptions_ServerSideProvider;
         return CaptureSnapshot() ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
@@ -129,7 +129,7 @@ public:
         const auto* record  = Record(snapshot);
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
-        const auto& annotation = record->controlRichText->annotations[index_];
+        const auto& annotation = record->controlRichText->annotations[_index];
         switch (id)
         {
             case UIA_ControlTypePropertyId: *result = VariantFromInt(UIA_TextControlTypeId); break;
@@ -162,13 +162,13 @@ public:
             return UIA_E_ELEMENTNOTAVAILABLE;
         wil::com_ptr_nothrow<IRawElementProviderSimple> peer;
         if (direction == NavigateDirection_Parent)
-            peer = CreateControlElement(target_.get(), hwnd_, path_, identity_);
-        else if (direction == NavigateDirection_NextSibling && index_ + 1u < record->controlRichText->annotations.size())
-            peer = Create(target_.get(), hwnd_, *record, index_ + 1u);
+            peer = CreateControlElement(_target.get(), _hwnd, _path, _identity);
+        else if (direction == NavigateDirection_NextSibling && _index + 1u < record->controlRichText->annotations.size())
+            peer = Create(_target.get(), _hwnd, *record, _index + 1u);
         else if (direction == NavigateDirection_PreviousSibling)
         {
-            if (index_)
-                peer = Create(target_.get(), hwnd_, *record, index_ - 1u);
+            if (_index)
+                peer = Create(_target.get(), _hwnd, *record, _index - 1u);
             else
             {
                 const auto elements = record->RichSemantic()->Elements();
@@ -177,7 +177,7 @@ public:
                 {
                     while (elements[child].nextSibling != RichText::MarkdownNoNode)
                         child = elements[child].nextSibling;
-                    peer = RichSemanticElementProvider::Create(target_.get(), hwnd_, *record, child);
+                    peer = RichSemanticElementProvider::Create(_target.get(), _hwnd, *record, child);
                 }
             }
         }
@@ -196,14 +196,14 @@ public:
         RuntimeIdValueBuffer values{};
         size_t count{};
         if (! (AppendRuntimeIdValue(values, count, UiaAppendRuntimeId) && AppendRuntimeIdValue(values, count, 1008) &&
-               AppendRuntimeIdValue(values, count, static_cast<LONG>(target_->runtimeId)) &&
-               AppendRuntimeIdValue(values, count, static_cast<LONG>(target_->runtimeId >> 32u)) && AppendControlPathRuntimeIdPrefix(values, count, path_) &&
-               AppendRuntimeIdValue(values, count, static_cast<LONG>(identity_.value)) &&
-               AppendRuntimeIdValue(values, count, static_cast<LONG>(identity_.value >> 32u)) &&
-               AppendRuntimeIdValue(values, count, static_cast<LONG>(publication_)) &&
-               AppendRuntimeIdValue(values, count, static_cast<LONG>(publication_ >> 32u)) &&
-               AppendRuntimeIdValue(values, count, static_cast<LONG>(revision_)) && AppendRuntimeIdValue(values, count, static_cast<LONG>(revision_ >> 32u)) &&
-               AppendRuntimeIdValue(values, count, static_cast<LONG>(index_))))
+               AppendRuntimeIdValue(values, count, static_cast<LONG>(_target->runtimeId)) &&
+               AppendRuntimeIdValue(values, count, static_cast<LONG>(_target->runtimeId >> 32u)) && AppendControlPathRuntimeIdPrefix(values, count, _path) &&
+               AppendRuntimeIdValue(values, count, static_cast<LONG>(_identity.value)) &&
+               AppendRuntimeIdValue(values, count, static_cast<LONG>(_identity.value >> 32u)) &&
+               AppendRuntimeIdValue(values, count, static_cast<LONG>(_publication)) &&
+               AppendRuntimeIdValue(values, count, static_cast<LONG>(_publication >> 32u)) &&
+               AppendRuntimeIdValue(values, count, static_cast<LONG>(_revision)) && AppendRuntimeIdValue(values, count, static_cast<LONG>(_revision >> 32u)) &&
+               AppendRuntimeIdValue(values, count, static_cast<LONG>(_index))))
             return E_INVALIDARG;
         return BuildRuntimeId(result, std::span(values.data(), count));
     }
@@ -226,7 +226,7 @@ public:
                 const double scale = 1.0 / snapshot->pixelsToDipScale;
                 POINT first{static_cast<LONG>(std::lround(bounds->left * scale)), static_cast<LONG>(std::lround(bounds->top * scale))};
                 POINT last{static_cast<LONG>(std::lround(bounds->right * scale)), static_cast<LONG>(std::lround(bounds->bottom * scale))};
-                if (ClientToScreen(hwnd_, &first) && ClientToScreen(hwnd_, &last))
+                if (ClientToScreen(_hwnd, &first) && ClientToScreen(_hwnd, &last))
                     *result = {static_cast<double>(first.x),
                                static_cast<double>(first.y),
                                static_cast<double>(last.x - first.x),
@@ -251,14 +251,14 @@ public:
         *result = nullptr;
         if (! CaptureSnapshot())
             return UIA_E_ELEMENTNOTAVAILABLE;
-        if (target_->embedded)
+        if (_target->embedded)
         {
-            if (target_->threadId != GetCurrentThreadId())
+            if (_target->threadId != GetCurrentThreadId())
                 return RPC_E_WRONG_THREAD;
-            const auto site = target_->site;
+            const auto site = _target->site;
             return site ? site->FragmentRoot(result) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
         }
-        auto root = AcquireCanonicalRootProvider(target_.get());
+        auto root = AcquireCanonicalRootProvider(_target.get());
         return root ? root.query_to(result) : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
     HRESULT STDMETHODCALLTYPE SetFocus() noexcept override
@@ -276,7 +276,7 @@ public:
         const auto* record  = Record(snapshot);
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
-        *result = AnnotationType(record->controlRichText->annotations[index_].kind);
+        *result = AnnotationType(record->controlRichText->annotations[_index].kind);
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE get_AnnotationTypeName(BSTR* result) noexcept override
@@ -289,7 +289,7 @@ public:
         const auto* record  = Record(snapshot);
         if (! record)
             return UIA_E_ELEMENTNOTAVAILABLE;
-        const auto text = AnnotationName(*record, record->controlRichText->annotations[index_].kind);
+        const auto text = AnnotationName(*record, record->controlRichText->annotations[_index].kind);
         *result         = SysAllocStringLen(text.data(), static_cast<UINT>(text.size()));
         return *result ? S_OK : E_OUTOFMEMORY;
     }
@@ -311,24 +311,24 @@ public:
         *result = nullptr;
         if (! CaptureSnapshot())
             return UIA_E_ELEMENTNOTAVAILABLE;
-        auto peer = CreateControlElement(target_.get(), hwnd_, path_, identity_);
+        auto peer = CreateControlElement(_target.get(), _hwnd, _path, _identity);
         *result   = peer.detach();
         return *result ? S_OK : static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     }
     [[nodiscard]] bool Matches(const AccessibilityControlNavigationSnapshot& record) const noexcept
     {
-        const auto document = document_.lock();
-        return record.HasCurrentRichSemantic() && document && document == record.RichSemantic() && revision_ == record.RichSemanticRevision() &&
-               SameControlIdentity(identity_, CaptureControlIdentity(record)) && AreControlPathsEqual(path_, record.path) &&
-               index_ < record.controlRichText->annotations.size();
+        const auto document = _document.lock();
+        return record.HasCurrentRichSemantic() && document && document == record.RichSemantic() && _revision == record.RichSemanticRevision() &&
+               SameControlIdentity(_identity, CaptureControlIdentity(record)) && AreControlPathsEqual(_path, record.path) &&
+               _index < record.controlRichText->annotations.size();
     }
     [[nodiscard]] RichText::MarkdownRange Source(const AccessibilityControlNavigationSnapshot& record) const noexcept
     {
-        return record.controlRichText->annotations[index_].source;
+        return record.controlRichText->annotations[_index].source;
     }
     [[nodiscard]] bool BelongsTo(WindowHostAccessibilityTarget* target, HWND hwnd, const AccessibilityControlNavigationSnapshot& record) const noexcept
     {
-        return target_.get() == target && hwnd_ == hwnd && Matches(record);
+        return _target.get() == target && _hwnd == hwnd && Matches(record);
     }
 
 private:
@@ -344,18 +344,18 @@ private:
     }
     std::shared_ptr<const AccessibilitySnapshot> CaptureSnapshot() const noexcept
     {
-        const auto snapshot = GuardedElementSnapshot(target_.get(), hwnd_, {}, &path_, identity_);
+        const auto snapshot = GuardedElementSnapshot(_target.get(), _hwnd, {}, &_path, _identity);
         const auto* record  = Record(snapshot);
         return record && Matches(*record) ? snapshot : nullptr;
     }
     const AccessibilityControlNavigationSnapshot* Record(const std::shared_ptr<const AccessibilitySnapshot>& snapshot) const noexcept
     {
-        return snapshot ? FindControlNavigationRecord(*snapshot, path_) : nullptr;
+        return snapshot ? FindControlNavigationRecord(*snapshot, _path) : nullptr;
     }
     std::optional<D2D1_RECT_F> Bounds(const AccessibilitySnapshot& snapshot, const AccessibilityControlNavigationSnapshot& record) const noexcept
     {
-        auto bounds     = record.controlRichText->annotations[index_].bounds;
-        const auto clip = FindSnapshotFragmentBounds(snapshot, AccessibilityFragmentKind::Control, path_, 0u, 0u, 0u);
+        auto bounds     = record.controlRichText->annotations[_index].bounds;
+        const auto clip = FindSnapshotFragmentBounds(snapshot, AccessibilityFragmentKind::Control, _path, 0u, 0u, 0u);
         if (! bounds || ! clip)
             return std::nullopt;
         bounds->left   = std::max(bounds->left, clip->left);
@@ -364,14 +364,14 @@ private:
         bounds->bottom = std::min(bounds->bottom, clip->bottom);
         return bounds->left < bounds->right && bounds->top < bounds->bottom ? bounds : std::nullopt;
     }
-    std::atomic<ULONG> references_{1u};
-    wil::com_ptr_nothrow<WindowHostAccessibilityTarget> target_;
-    HWND hwnd_{};
-    ControlPath path_;
-    AccessibilityControlIdentity identity_;
-    std::weak_ptr<const RichText::SemanticDocument> document_;
-    uint64_t publication_{}, revision_{};
-    size_t index_{};
+    std::atomic<ULONG> _references{1u};
+    wil::com_ptr_nothrow<WindowHostAccessibilityTarget> _target;
+    HWND _hwnd{};
+    ControlPath _path;
+    AccessibilityControlIdentity _identity;
+    std::weak_ptr<const RichText::SemanticDocument> _document;
+    uint64_t _publication{}, _revision{};
+    size_t _index{};
 };
 wil::com_ptr_nothrow<IRawElementProviderSimple> CreateFirstAnnotation(WindowHostAccessibilityTarget* target,
                                                                       HWND hwnd,

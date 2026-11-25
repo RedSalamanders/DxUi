@@ -520,12 +520,12 @@ std::optional<std::size_t> FindExitCodeBlock(const MarkdownSyntax& syntax, Selec
     return std::nullopt;
 }
 MarkdownCommandPlan::MarkdownCommandPlan(const SourceSnapshot& source, std::uint64_t revision, std::shared_ptr<const MarkdownSyntax> syntax, Selection before)
-    : source_(source),
-      revision_(revision),
-      syntax_(std::move(syntax)),
-      before_(before),
-      after_(before),
-      edits_(0u)
+    : _source(source),
+      _revision(revision),
+      _syntax(std::move(syntax)),
+      _before(before),
+      _after(before),
+      _edits(0u)
 {
 }
 namespace Detail
@@ -858,8 +858,8 @@ struct MarkdownCommandPlanner
 
     MarkdownCommandPlanner(const SourceSnapshot& source, std::uint64_t revision, std::shared_ptr<const MarkdownSyntax> syntax, Selection selection)
         : plan(source, revision, std::move(syntax), selection),
-          text(plan.syntax_ ? plan.syntax_->Source() : std::wstring_view{}),
-          nodes(plan.syntax_->Nodes()),
+          text(plan._syntax ? plan._syntax->Source() : std::wstring_view{}),
+          nodes(plan._syntax->Nodes()),
           lines(0u),
           opaqueInlines(0u)
     {
@@ -883,7 +883,7 @@ struct MarkdownCommandPlanner
             }
             first = end;
         }
-        for (const auto& node : plan.syntax_->Inlines())
+        for (const auto& node : plan._syntax->Inlines())
             if (node.kind == MarkdownInlineKind::Code || node.kind == MarkdownInlineKind::Html)
                 opaqueInlines.push_back(node.source);
         std::sort(opaqueInlines.begin(), opaqueInlines.end(), [](auto a, auto b) { return a.first < b.first; });
@@ -922,7 +922,7 @@ struct MarkdownCommandPlanner
     {
         if (failure != SourceResult::Success)
             return;
-        if (first > last || ! plan.source_.IsBoundary(first) || ! plan.source_.IsBoundary(last))
+        if (first > last || ! plan._source.IsBoundary(first) || ! plan._source.IsBoundary(last))
         {
             failure = SourceResult::InvalidRange;
             return;
@@ -938,7 +938,7 @@ struct MarkdownCommandPlanner
             return;
         }
         if (Slice(first, last) != replacement)
-            plan.edits_.emplace_back(MarkdownRange{first, last}, replacement);
+            plan._edits.emplace_back(MarkdownRange{first, last}, replacement);
     }
     std::size_t NodeAt(Kind kind, std::size_t at) const
     {
@@ -1105,7 +1105,7 @@ struct MarkdownCommandPlanner
         // paragraph. Do not silently reinterpret or reformat its label.
         if (Space(text[first]))
             return false;
-        const auto& token = plan.syntax_->Inlines()[firstInline];
+        const auto& token = plan._syntax->Inlines()[firstInline];
         if (token.kind == MarkdownInlineKind::Text)
         {
             if (std::wstring_view(L"-+*#><[_`|").find(text[first]) != std::wstring_view::npos)
@@ -1121,11 +1121,11 @@ struct MarkdownCommandPlanner
     std::vector<std::size_t> SelectedItems() const
     {
         std::vector<std::size_t> result(0u);
-        const auto first = NodeAt(Kind::ListItem, plan.before_.Start());
+        const auto first = NodeAt(Kind::ListItem, plan._before.Start());
         if (first == MarkdownNoNode)
             return result;
-        auto end = plan.before_.End();
-        if (end > plan.before_.Start() && Line(end).first == end)
+        auto end = plan._before.End();
+        if (end > plan._before.Start() && Line(end).first == end)
             --end;
         for (auto i = first; i != MarkdownNoNode; i = nodes[i].nextSibling)
         {
@@ -1288,18 +1288,18 @@ struct MarkdownCommandPlanner
                         ItemPrefix current;
                         if (! Prefix(items[index], current))
                         {
-                            plan.edits_.clear();
+                            plan._edits.clear();
                             return;
                         }
                         if (index == 0u)
                             Add(parentPrefix.first, current.first, L"");
                         if (! ShiftItem(items[index], -static_cast<int>(nodes[parent].contentIndent), false, owner, index == 0u))
                         {
-                            plan.edits_.clear();
+                            plan._edits.clear();
                             return;
                         }
                     }
-                    plan.applicable_ = true;
+                    plan._applicable = true;
                     return;
                 }
                 delta            = static_cast<int>(parentIndent) - static_cast<int>(childIndent);
@@ -1307,10 +1307,10 @@ struct MarkdownCommandPlanner
                 for (const auto item : items)
                     if (! ShiftItem(item, delta, false, owner))
                     {
-                        plan.edits_.clear();
+                        plan._edits.clear();
                         return;
                     }
-                plan.applicable_ = true;
+                plan._applicable = true;
                 return;
             }
         }
@@ -1324,10 +1324,10 @@ struct MarkdownCommandPlanner
         for (const auto item : items)
             if (! ShiftItem(item, delta, remove, outdent && ! remove ? parent : MarkdownNoNode))
             {
-                plan.edits_.clear();
+                plan._edits.clear();
                 return;
             }
-        plan.applicable_ = true;
+        plan._applicable = true;
     }
     bool NoteContinuation(std::wstring& prefix, const PhysicalLine& line, std::size_t source) const
     {
@@ -1347,9 +1347,9 @@ struct MarkdownCommandPlanner
             failure = SourceResult::InvalidSource;
             return;
         }
-        const auto first = plan.before_.Start(), last = plan.before_.End();
+        const auto first = plan._before.Start(), last = plan._before.End();
         const auto& line = Line(first);
-        if (! IsSingleLineCommandSelection(*plan.syntax_, plan.before_))
+        if (! IsSingleLineCommandSelection(*plan._syntax, plan._before))
             return;
         for (const auto kind : {Kind::FencedCode, Kind::IndentedCode, Kind::HtmlBlock, Kind::FrontMatter})
         {
@@ -1371,9 +1371,9 @@ struct MarkdownCommandPlanner
             std::wstring inserted(Eol(line));
             inserted += prefix;
             Add(first, last, inserted);
-            plan.after_       = {first + inserted.size(), first + inserted.size()};
+            plan._after       = {first + inserted.size(), first + inserted.size()};
             explicitSelection = true;
-            plan.applicable_  = true;
+            plan._applicable  = true;
             return;
         }
         const auto item = NodeAt(Kind::ListItem, first);
@@ -1466,7 +1466,7 @@ struct MarkdownCommandPlanner
                         if (marker >= line.first && marker < at)
                         {
                             Add(marker, at, L"");
-                            plan.applicable_ = true;
+                            plan._applicable = true;
                             return;
                         }
                     }
@@ -1484,9 +1484,9 @@ struct MarkdownCommandPlanner
             inserted += prefix;
         }
         Add(first, last, inserted);
-        plan.after_       = {first + inserted.size(), first + inserted.size()};
+        plan._after       = {first + inserted.size(), first + inserted.size()};
         explicitSelection = true;
-        plan.applicable_  = true;
+        plan._applicable  = true;
     }
     void Heading(unsigned level)
     {
@@ -1495,14 +1495,14 @@ struct MarkdownCommandPlanner
             failure = SourceResult::InvalidSource;
             return;
         }
-        if (! CanSetHeading(*plan.syntax_, plan.before_, level))
+        if (! CanSetHeading(*plan._syntax, plan._before, level))
             return;
         if (HasOpaqueSelection())
             return;
-        auto end = plan.before_.End();
-        if (end > plan.before_.Start() && Line(end).first == end)
+        auto end = plan._before.End();
+        if (end > plan._before.Start() && Line(end).first == end)
             --end;
-        const auto active = plan.before_.Start() == plan.before_.End() ? LeafAt(plan.before_.caret) : MarkdownNoNode;
+        const auto active = plan._before.Start() == plan._before.End() ? LeafAt(plan._before.caret) : MarkdownNoNode;
         bool found        = false;
         for (std::size_t i = 1u; i < nodes.size(); ++i)
         {
@@ -1510,16 +1510,16 @@ struct MarkdownCommandPlanner
             const auto kind  = node.block.kind;
             if (kind != Kind::Paragraph && kind != Kind::AtxHeading && kind != Kind::SetextHeading)
                 continue;
-            if (node.block.source.last < plan.before_.Start() || node.block.source.first > end)
+            if (node.block.source.last < plan._before.Start() || node.block.source.first > end)
                 continue;
-            if (plan.before_.Start() == plan.before_.End() && i != active)
+            if (plan._before.Start() == plan._before.End() && i != active)
                 continue;
             if (node.lines.empty())
                 continue;
             const auto item = Ancestor(i, Kind::ListItem);
             if (level && item != MarkdownNoNode && nodes[item].task != MarkdownTask::None)
             {
-                plan.edits_.clear();
+                plan._edits.clear();
                 return;
             }
             found = true;
@@ -1529,7 +1529,7 @@ struct MarkdownCommandPlanner
                 std::size_t start{};
                 if (! OuterOffset(i, underline, start))
                 {
-                    plan.edits_.clear();
+                    plan._edits.clear();
                     return;
                 }
                 while (start < underline.bodyEnd && Space(text[start]))
@@ -1551,7 +1551,7 @@ struct MarkdownCommandPlanner
                 std::size_t start{};
                 if (! OuterOffset(i, line, start))
                 {
-                    plan.edits_.clear();
+                    plan._edits.clear();
                     return;
                 }
                 while (start < line.bodyEnd && Space(text[start]))
@@ -1583,10 +1583,10 @@ struct MarkdownCommandPlanner
         if (! found && EmptyStructuralSite())
         {
             if (level)
-                Add(plan.before_.caret, plan.before_.caret, HeadingMarker(level));
+                Add(plan._before.caret, plan._before.caret, HeadingMarker(level));
             found = true;
         }
-        plan.applicable_ = found;
+        plan._applicable = found;
     }
     void SetList(const MarkdownCommandRequest& request);
     void Quote(MarkdownQuoteAction action);
@@ -1610,24 +1610,24 @@ struct MarkdownCommandPlanner
     std::optional<MarkdownRange> InlineBody(const MarkdownInline& node) const;
     bool InlineSelection(std::size_t& leaf) const
     {
-        leaf = LeafAt(plan.before_.Start());
-        if (leaf == MarkdownNoNode && plan.before_.anchor == plan.before_.caret && Line(plan.before_.caret).first == Line(plan.before_.caret).bodyEnd)
-            return NodeAt(Kind::FencedCode, plan.before_.caret) == MarkdownNoNode && NodeAt(Kind::IndentedCode, plan.before_.caret) == MarkdownNoNode &&
-                   NodeAt(Kind::HtmlBlock, plan.before_.caret) == MarkdownNoNode && NodeAt(Kind::FrontMatter, plan.before_.caret) == MarkdownNoNode;
-        return leaf != MarkdownNoNode && plan.before_.End() <= nodes[leaf].block.content.last;
+        leaf = LeafAt(plan._before.Start());
+        if (leaf == MarkdownNoNode && plan._before.anchor == plan._before.caret && Line(plan._before.caret).first == Line(plan._before.caret).bodyEnd)
+            return NodeAt(Kind::FencedCode, plan._before.caret) == MarkdownNoNode && NodeAt(Kind::IndentedCode, plan._before.caret) == MarkdownNoNode &&
+                   NodeAt(Kind::HtmlBlock, plan._before.caret) == MarkdownNoNode && NodeAt(Kind::FrontMatter, plan._before.caret) == MarkdownNoNode;
+        return leaf != MarkdownNoNode && plan._before.End() <= nodes[leaf].block.content.last;
     }
     bool EmptyStructuralSite() const
     {
-        if (plan.before_.anchor != plan.before_.caret)
+        if (plan._before.anchor != plan._before.caret)
             return false;
         for (const auto kind : {Kind::FencedCode, Kind::IndentedCode, Kind::HtmlBlock, Kind::FrontMatter, Kind::Table})
-            if (NodeAt(kind, plan.before_.caret) != MarkdownNoNode)
+            if (NodeAt(kind, plan._before.caret) != MarkdownNoNode)
                 return false;
-        const auto& line = Line(plan.before_.caret);
+        const auto& line = Line(plan._before.caret);
         if (line.first == line.bodyEnd)
             return true;
-        for (const auto& empty : plan.syntax_->EmptyLines())
-            if (empty.insertion == plan.before_.caret && empty.source.first == line.first)
+        for (const auto& empty : plan._syntax->EmptyLines())
+            if (empty.insertion == plan._before.caret && empty.source.first == line.first)
                 return true;
         return false;
     }
@@ -1637,12 +1637,12 @@ struct MarkdownCommandPlanner
     std::optional<std::wstring> CodeValue(std::size_t leaf, MarkdownRange selected) const
     {
         SemanticValue normalized, output;
-        NormalizeSemanticLeaf(*plan.syntax_, leaf, normalized);
+        NormalizeSemanticLeaf(*plan._syntax, leaf, normalized);
         for (const auto& unit : normalized.units)
             if ((unit.transformed || unit.generated) && ((unit.source.first < selected.first && selected.first < unit.source.last) ||
                                                          (unit.source.first < selected.last && selected.last < unit.source.last)))
                 return std::nullopt;
-        for (const auto& node : plan.syntax_->Inlines())
+        for (const auto& node : plan._syntax->Inlines())
         {
             if (node.source.last <= selected.first || node.source.first >= selected.last)
                 continue;
@@ -1653,7 +1653,7 @@ struct MarkdownCommandPlanner
             if (node.kind == MarkdownInlineKind::Text || node.kind == MarkdownInlineKind::Code)
             {
                 SemanticValue value;
-                ResolveSemanticValue(*plan.syntax_, normalized, node, value);
+                ResolveSemanticValue(*plan._syntax, normalized, node, value);
                 SliceSemanticValue(value, selected, output);
             }
             else if (node.kind == MarkdownInlineKind::SoftBreak || node.kind == MarkdownInlineKind::HardBreak)
@@ -1666,7 +1666,7 @@ struct MarkdownCommandPlanner
     bool HasOpaqueSelection() const
     {
         for (const auto& node : nodes)
-            if (node.block.source.first < plan.before_.End() && node.block.source.last > plan.before_.Start() &&
+            if (node.block.source.first < plan._before.End() && node.block.source.last > plan._before.Start() &&
                 (node.block.kind == Kind::FencedCode || node.block.kind == Kind::IndentedCode || node.block.kind == Kind::HtmlBlock ||
                  node.block.kind == Kind::FrontMatter || node.block.kind == Kind::Table || node.block.kind == Kind::ThematicBreak))
                 return true;
@@ -1704,14 +1704,14 @@ struct MarkdownCommandPlanner
         std::size_t leaf, MarkdownRange selected, std::wstring_view punctuation, bool stageEscapes = false, bool checkAdjacent = true)
     {
         SemanticValue normalized;
-        NormalizeSemanticLeaf(*plan.syntax_, leaf, normalized);
+        NormalizeSemanticLeaf(*plan._syntax, leaf, normalized);
         std::vector<std::size_t> escapes(0u);
-        for (const auto& node : plan.syntax_->Inlines())
+        for (const auto& node : plan._syntax->Inlines())
         {
             if (node.kind != MarkdownInlineKind::Text || node.source.first < nodes[leaf].block.source.first || node.source.last > nodes[leaf].block.source.last)
                 continue;
             SemanticValue value;
-            ResolveSemanticValue(*plan.syntax_, normalized, node, value);
+            ResolveSemanticValue(*plan._syntax, normalized, node, value);
             for (std::size_t i = 0u; i < value.units.size(); ++i)
             {
                 const auto& unit = value.units[i];
@@ -1750,7 +1750,7 @@ struct MarkdownCommandPlanner
     std::size_t MapPosition(std::size_t position) const
     {
         std::size_t previous = 0u, mapped = 0u;
-        for (const auto& edit : plan.edits_)
+        for (const auto& edit : plan._edits)
         {
             if (position < edit.source.first)
                 return mapped + position - previous;
@@ -1764,15 +1764,15 @@ struct MarkdownCommandPlanner
     }
     void RestrictToNote(std::size_t note)
     {
-        if (note == MarkdownNoNode || ! plan.applicable_)
+        if (note == MarkdownNoNode || ! plan._applicable)
             return;
         const auto content = nodes[note].block.content.first;
         const auto end     = nodes[note].block.source.last;
-        for (const auto& edit : plan.edits_)
+        for (const auto& edit : plan._edits)
         {
             if (edit.source.first < content || edit.source.last > end)
             {
-                plan.applicable_ = false;
+                plan._applicable = false;
                 return;
             }
             const auto& boundaryLine = Line(edit.source.first);
@@ -1782,7 +1782,7 @@ struct MarkdownCommandPlanner
             std::size_t outer{};
             if (! OuterOffset(note, line, outer))
             {
-                plan.applicable_ = false;
+                plan._applicable = false;
                 return;
             }
             if (Line(nodes[note].block.source.first).first != line.first)
@@ -1801,7 +1801,7 @@ struct MarkdownCommandPlanner
                 if (column != target ||
                     (edit.source.first < at && ! (edit.source.first == line.first && edit.source.last >= line.end && edit.replacement.empty())))
                 {
-                    plan.applicable_ = false;
+                    plan._applicable = false;
                     return;
                 }
             }
@@ -1817,7 +1817,7 @@ struct MarkdownCommandPlanner
                 if (! remainder.empty() ? ! remainder.starts_with(continuation)
                                         : (edit.source.last < end && ! text.substr(edit.source.last).starts_with(continuation)))
                 {
-                    plan.applicable_ = false;
+                    plan._applicable = false;
                     return;
                 }
             }
@@ -1827,19 +1827,19 @@ struct MarkdownCommandPlanner
     {
         if (failure != SourceResult::Success)
             return std::move(plan);
-        if (! plan.applicable_)
+        if (! plan._applicable)
         {
-            plan.edits_.clear();
+            plan._edits.clear();
             return std::move(plan);
         }
-        std::sort(plan.edits_.begin(), plan.edits_.end(), [](const auto& a, const auto& b) { return a.source.first < b.source.first; });
-        for (std::size_t i = 1u; i < plan.edits_.size(); ++i)
+        std::sort(plan._edits.begin(), plan._edits.end(), [](const auto& a, const auto& b) { return a.source.first < b.source.first; });
+        for (std::size_t i = 1u; i < plan._edits.size(); ++i)
         {
-            if (plan.edits_[i].source.first < plan.edits_[i - 1u].source.last || plan.edits_[i].source.first == plan.edits_[i - 1u].source.first)
+            if (plan._edits[i].source.first < plan._edits[i - 1u].source.last || plan._edits[i].source.first == plan._edits[i - 1u].source.first)
                 Failure::FailContract(E_UNEXPECTED);
         }
         std::size_t removed = 0u, inserted = 0u;
-        for (const auto& edit : plan.edits_)
+        for (const auto& edit : plan._edits)
         {
             removed += edit.source.last - edit.source.first;
             if (edit.replacement.size() > Document::MaximumUnits - inserted)
@@ -1856,18 +1856,18 @@ struct MarkdownCommandPlanner
         }
         const auto length = text.size() - removed + inserted;
         if (! explicitSelection)
-            plan.after_ = {MapPosition(plan.after_.anchor), MapPosition(plan.after_.caret)};
+            plan._after = {MapPosition(plan._after.anchor), MapPosition(plan._after.caret)};
         std::wstring candidate(0u, L' ');
         candidate.reserve(length);
         std::size_t cursor = 0u;
-        for (const auto& edit : plan.edits_)
+        for (const auto& edit : plan._edits)
         {
             candidate += Slice(cursor, edit.source.first);
             candidate += edit.replacement;
             cursor = edit.source.last;
         }
         candidate += Slice(cursor, text.size());
-        if (! IsValidSourceUtf16(candidate) || ! IsEditBoundary(candidate, plan.after_.anchor) || ! IsEditBoundary(candidate, plan.after_.caret))
+        if (! IsValidSourceUtf16(candidate) || ! IsEditBoundary(candidate, plan._after.anchor) || ! IsEditBoundary(candidate, plan._after.caret))
             failure = SourceResult::InvalidRange;
         return std::move(plan);
     }
@@ -1876,12 +1876,12 @@ struct MarkdownCommandPlanner
 
 void MarkdownCommandPlanner::Renumber(const MarkdownCommandRequest& request)
 {
-    const auto item = NodeAt(Kind::ListItem, plan.before_.Start());
+    const auto item = NodeAt(Kind::ListItem, plan._before.Start());
     if (item == MarkdownNoNode)
         return;
     const auto list = nodes[item].parent;
     if (list == MarkdownNoNode || nodes[list].block.kind != Kind::List || (nodes[list].listMarker != L'.' && nodes[list].listMarker != L')') ||
-        plan.before_.End() > nodes[list].block.source.last)
+        plan._before.End() > nodes[list].block.source.last)
         return;
     const auto first = nodes[list].firstChild;
     if (first == MarkdownNoNode)
@@ -1925,12 +1925,12 @@ void MarkdownCommandPlanner::Renumber(const MarkdownCommandRequest& request)
             return;
         Add(prefix.first, prefix.markerEnd - 1u, marker);
     }
-    plan.applicable_ = true;
+    plan._applicable = true;
 }
 
 void MarkdownCommandPlanner::MoveLine(bool up)
 {
-    const auto selection = plan.before_;
+    const auto selection = plan._before;
     MarkdownRange current{}, other{};
     const auto item = NodeAt(Kind::ListItem, selection.Start());
     if (item != MarkdownNoNode)
@@ -2044,10 +2044,10 @@ void MarkdownCommandPlanner::MoveLine(bool up)
     value += Slice(first.first, firstBody);
     value += Slice(secondBody, second.last);
     const auto target = up ? first.first : first.first + secondBody - second.first + first.last - firstBody;
-    plan.after_       = {target + selection.anchor - current.first, target + selection.caret - current.first};
+    plan._after       = {target + selection.anchor - current.first, target + selection.caret - current.first};
     explicitSelection = true;
     Add(first.first, second.last, value);
-    plan.applicable_ = true;
+    plan._applicable = true;
 }
 
 void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
@@ -2063,8 +2063,8 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
         bool quoted;
     };
     std::vector<SelectedLine> selected(0u);
-    auto end = plan.before_.End();
-    if (end > plan.before_.Start() && Line(end).first == end)
+    auto end = plan._before.End();
+    if (end > plan._before.Start() && Line(end).first == end)
         --end;
     for (std::size_t i = 1u; i < nodes.size(); ++i)
     {
@@ -2072,9 +2072,9 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
             nodes[i].block.kind == Kind::Table || nodes[i].block.kind == Kind::ThematicBreak || nodes[i].block.kind == Kind::ReferenceDefinition)
         {
             const auto range      = nodes[i].block.source;
-            const bool intersects = plan.before_.Start() == plan.before_.End()
+            const bool intersects = plan._before.Start() == plan._before.End()
                                         ? range.first <= end && (end < range.last || (end == range.last && end == text.size() && ! nodes[i].block.closed))
-                                        : range.first < plan.before_.End() && range.last > plan.before_.Start();
+                                        : range.first < plan._before.End() && range.last > plan._before.Start();
             if (! intersects)
                 continue;
             for (auto line = std::ranges::lower_bound(lines, range.first, {}, &PhysicalLine::first); line != lines.end() && line->first < range.last; ++line)
@@ -2091,8 +2091,8 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
         for (const auto& content : nodes[i].lines)
         {
             const auto& line = Line(content.source.first);
-            if ((plan.before_.Start() == plan.before_.End() ? ! (line.first <= end && end <= line.bodyEnd)
-                                                            : line.end <= plan.before_.Start() || line.first > end))
+            if ((plan._before.Start() == plan._before.End() ? ! (line.first <= end && end <= line.bodyEnd)
+                                                            : line.end <= plan._before.Start() || line.first > end))
                 continue;
             std::size_t at{};
             if (! OuterOffset(i, line, at))
@@ -2100,11 +2100,11 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
             selected.push_back({line.first, at, Ancestor(i, Kind::BlockQuote) != MarkdownNoNode});
         }
     }
-    for (const auto& empty : plan.syntax_->EmptyLines())
+    for (const auto& empty : plan._syntax->EmptyLines())
     {
         const auto& line = Line(empty.source.first);
         const bool included =
-            plan.before_.Start() == plan.before_.End() ? line.first <= end && end <= line.bodyEnd : line.end > plan.before_.Start() && line.first <= end;
+            plan._before.Start() == plan._before.End() ? line.first <= end && end <= line.bodyEnd : line.end > plan._before.Start() && line.first <= end;
         if (! included)
             continue;
         if (empty.owner >= nodes.size() || empty.insertion < line.first || empty.insertion > line.bodyEnd)
@@ -2115,8 +2115,8 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
     {
         if (action != MarkdownQuoteAction::Outdent && EmptyStructuralSite())
         {
-            Add(plan.before_.caret, plan.before_.caret, L"> ");
-            plan.applicable_ = true;
+            Add(plan._before.caret, plan._before.caret, L"> ");
+            plan._applicable = true;
         }
         return;
     }
@@ -2127,7 +2127,7 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
     for (const auto& line : lines)
     {
         const bool included =
-            plan.before_.Start() == plan.before_.End() ? line.first <= end && end <= line.bodyEnd : line.end > plan.before_.Start() && line.first <= end;
+            plan._before.Start() == plan._before.End() ? line.first <= end && end <= line.bodyEnd : line.end > plan._before.Start() && line.first <= end;
         if (included)
         {
             const auto found = std::ranges::lower_bound(selected, line.first, {}, &SelectedLine::first);
@@ -2151,7 +2151,7 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
             const auto marker = text.rfind(L'>', line.at ? line.at - 1u : 0u);
             if (marker == text.npos || marker < line.first || marker >= line.at)
             {
-                plan.edits_.clear();
+                plan._edits.clear();
                 return;
             }
             auto last = marker + 1u;
@@ -2160,7 +2160,7 @@ void MarkdownCommandPlanner::Quote(MarkdownQuoteAction action)
             Add(marker, last, L"");
         }
     }
-    plan.applicable_ = true;
+    plan._applicable = true;
 }
 
 void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
@@ -2172,15 +2172,15 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
     }
     if (request.command == MarkdownCommand::SetCodeLanguage)
     {
-        const auto target = FindCodeLanguageTarget(*plan.syntax_, plan.before_, request.text);
+        const auto target = FindCodeLanguageTarget(*plan._syntax, plan._before, request.text);
         if (! target)
             return;
         const auto info = nodes[target.value()].block.info;
         Add(info.first, info.last, request.text);
-        plan.applicable_ = true;
+        plan._applicable = true;
         return;
     }
-    const auto first = plan.before_.Start(), last = plan.before_.End();
+    const auto first = plan._before.Start(), last = plan._before.End();
     const auto fenced = NodeAt(Kind::FencedCode, first);
     if (fenced != MarkdownNoNode)
     {
@@ -2218,7 +2218,7 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
                 std::wstring emptyItem(Slice(opening.first, markerEnd));
                 emptyItem += node.block.closed ? Slice(closing.bodyEnd, closing.end) : Slice(opening.bodyEnd, opening.end);
                 Add(opening.first, node.block.closed ? closing.end : opening.end, emptyItem);
-                plan.applicable_ = true;
+                plan._applicable = true;
                 return;
             }
             if (opening.end > bodyEnd)
@@ -2242,7 +2242,7 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
             Add(opening.first, opening.end, L"");
         if (node.block.closed)
             Add(closing.first, closing.end, L"");
-        plan.applicable_ = true;
+        plan._applicable = true;
         return;
     }
     auto end = last;
@@ -2318,18 +2318,18 @@ void MarkdownCommandPlanner::CodeBlock(const MarkdownCommandRequest& request)
         }
         Add(finish, finish, closing);
     }
-    plan.applicable_ = true;
+    plan._applicable = true;
 }
 
 void MarkdownCommandPlanner::HardBreak()
 {
-    const auto first = plan.before_.Start(), last = plan.before_.End();
+    const auto first = plan._before.Start(), last = plan._before.End();
     const auto caret = first;
     const auto leaf  = LeafAt(caret);
     if (leaf == MarkdownNoNode || nodes[leaf].block.kind != Kind::Paragraph || last > nodes[leaf].block.content.last ||
-        ! IsSingleLineCommandSelection(*plan.syntax_, plan.before_))
+        ! IsSingleLineCommandSelection(*plan._syntax, plan._before))
         return;
-    for (const auto& node : plan.syntax_->Inlines())
+    for (const auto& node : plan._syntax->Inlines())
     {
         const bool intersects = first == last ? node.source.first < first && first < node.source.last : node.source.first < last && node.source.last > first;
         if (node.kind == MarkdownInlineKind::Text || ! intersects)
@@ -2350,18 +2350,18 @@ void MarkdownCommandPlanner::HardBreak()
     insertion += Eol(line);
     insertion += prefix;
     Add(first, last, insertion);
-    plan.after_       = {caret + insertion.size(), caret + insertion.size()};
+    plan._after       = {caret + insertion.size(), caret + insertion.size()};
     explicitSelection = true;
-    plan.applicable_  = true;
+    plan._applicable  = true;
 }
 
 void MarkdownCommandPlanner::ExitCode()
 {
-    const auto found = FindExitCodeBlock(*plan.syntax_, plan.before_);
+    const auto found = FindExitCodeBlock(*plan._syntax, plan._before);
     if (! found)
         return;
     const auto& node  = nodes[found.value()];
-    const auto prefix = CodeExitPrefix(*plan.syntax_, found.value()).value();
+    const auto prefix = CodeExitPrefix(*plan._syntax, found.value()).value();
     const auto at     = node.block.source.last;
     const auto eol    = Eol(Line(node.block.source.first));
     const bool hasEnd = at > 0u && (text[at - 1u] == L'\r' || text[at - 1u] == L'\n');
@@ -2378,16 +2378,16 @@ void MarkdownCommandPlanner::ExitCode()
     const auto caret = at + insertion.size();
     insertion += eol;
     Add(at, at, insertion);
-    plan.after_       = {caret, caret};
+    plan._after       = {caret, caret};
     explicitSelection = true;
-    plan.applicable_  = true;
+    plan._applicable  = true;
 }
 
 void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
 {
-    if (! CanInsertMath(*plan.syntax_, plan.before_, request.text, request.mathDisplay))
+    if (! CanInsertMath(*plan._syntax, plan._before, request.text, request.mathDisplay))
         return;
-    const auto first = plan.before_.Start(), last = plan.before_.End();
+    const auto first = plan._before.Start(), last = plan._before.End();
     const auto payload = first == last ? request.text : Slice(first, last);
     const auto closer  = request.mathDisplay ? std::wstring_view(L"\\]") : std::wstring_view(L"\\)");
     const auto& line   = Line(first);
@@ -2395,7 +2395,7 @@ void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
     std::wstring continuation(0u, L' ');
     if (request.mathDisplay)
     {
-        const auto site = FindInlineInsertionSite(*plan.syntax_, plan.before_);
+        const auto site = FindInlineInsertionSite(*plan._syntax, plan._before);
         if (! site || (site.value() != MarkdownNoNode && ! ContinuationPrefix(site.value(), line, first, continuation)))
             return;
     }
@@ -2414,9 +2414,9 @@ void MarkdownCommandPlanner::Math(const MarkdownCommandRequest& request)
     insertion += closer;
     Add(first, last, insertion);
     const auto begin = first + 2u + (request.mathDisplay ? newline.size() + continuation.size() : 0u), end = begin + payload.size();
-    plan.after_       = plan.before_.anchor <= plan.before_.caret ? Selection{begin, end} : Selection{end, begin};
+    plan._after       = plan._before.anchor <= plan._before.caret ? Selection{begin, end} : Selection{end, begin};
     explicitSelection = true;
-    plan.applicable_  = true;
+    plan._applicable  = true;
 }
 
 namespace
@@ -2425,14 +2425,14 @@ std::wstring LiteralMarkdown(std::wstring_view value);
 }
 void MarkdownCommandPlanner::ClearFormatting()
 {
-    if (plan.before_.Start() == plan.before_.End())
+    if (plan._before.Start() == plan._before.End())
         return;
     size_t leaf{};
     if (! InlineSelection(leaf))
         return;
-    const auto first = plan.before_.Start(), last = plan.before_.End();
+    const auto first = plan._before.Start(), last = plan._before.End();
     const MarkdownInline* only = nullptr;
-    for (const auto& node : plan.syntax_->Inlines())
+    for (const auto& node : plan._syntax->Inlines())
     {
         if (node.kind == MarkdownInlineKind::Text || node.source.first >= last || node.source.last <= first)
             continue;
@@ -2453,9 +2453,9 @@ void MarkdownCommandPlanner::ClearFormatting()
         const auto replacement = LiteralMarkdown(Slice(body->first, body->last));
         Add(only->source.first, only->source.last, replacement);
         const auto end    = only->source.first + replacement.size();
-        plan.after_       = plan.before_.anchor <= plan.before_.caret ? Selection{only->source.first, end} : Selection{end, only->source.first};
+        plan._after       = plan._before.anchor <= plan._before.caret ? Selection{only->source.first, end} : Selection{end, only->source.first};
         explicitSelection = true;
-        plan.applicable_  = true;
+        plan._applicable  = true;
         return;
     }
     if (only && (only->kind == MarkdownInlineKind::Strong || only->kind == MarkdownInlineKind::Emphasis || only->kind == MarkdownInlineKind::Strikethrough ||
@@ -2473,7 +2473,7 @@ void MarkdownCommandPlanner::ClearFormatting()
         }
     }
     std::vector<MarkdownRange> removals(0u);
-    for (const auto& node : plan.syntax_->Inlines())
+    for (const auto& node : plan._syntax->Inlines())
     {
         if (node.source.first >= last || node.source.last <= first || node.kind == MarkdownInlineKind::Text)
             continue;
@@ -2493,15 +2493,15 @@ void MarkdownCommandPlanner::ClearFormatting()
             return;
     for (const auto range : removals)
         Add(range.first, range.last, L"");
-    plan.applicable_ = true;
+    plan._applicable = true;
 }
 
 void MarkdownCommandPlanner::ThematicBreak()
 {
-    const auto admission = InspectThematicBreak(*plan.syntax_, plan.before_);
+    const auto admission = InspectThematicBreak(*plan._syntax, plan._before);
     if (! admission)
         return;
-    const auto caret = plan.before_.caret;
+    const auto caret = plan._before.caret;
     std::wstring insertion(0u, L' ');
     for (unsigned i = 0u; i < admission->before; ++i)
         insertion += admission->eol;
@@ -2509,9 +2509,9 @@ void MarkdownCommandPlanner::ThematicBreak()
     for (unsigned i = 0u; i < admission->after; ++i)
         insertion += admission->eol;
     Add(caret, caret, insertion);
-    plan.after_       = {caret + insertion.size(), caret + insertion.size()};
+    plan._after       = {caret + insertion.size(), caret + insertion.size()};
     explicitSelection = true;
-    plan.applicable_  = true;
+    plan._applicable  = true;
 }
 
 void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
@@ -2529,7 +2529,7 @@ void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
         failure = SourceResult::InvalidRange;
         return;
     }
-    if (! IsCommandFeatureEnabled(*plan.syntax_, MarkdownCommand::SetList, MarkdownTextStyle::Strong, request.listKind))
+    if (! IsCommandFeatureEnabled(*plan._syntax, MarkdownCommand::SetList, MarkdownTextStyle::Strong, request.listKind))
         return;
     const auto items = SelectedItems();
     auto number      = request.listStart.value_or(1u);
@@ -2540,26 +2540,26 @@ void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
             ItemPrefix prefix;
             if (! Prefix(item, prefix))
             {
-                plan.edits_.clear();
+                plan._edits.clear();
                 return;
             }
             if (request.listKind == MarkdownListKind::Task &&
                 (nodes[item].firstChild == MarkdownNoNode || nodes[nodes[item].firstChild].block.kind != Kind::Paragraph ||
                  prefix.paragraphContent == MarkdownNoNode))
             {
-                plan.edits_.clear();
+                plan._edits.clear();
                 return;
             }
             if (request.listKind != MarkdownListKind::Task && ! TaskLabelCanUnwrap(item, prefix))
             {
-                plan.edits_.clear();
+                plan._edits.clear();
                 return;
             }
             if (request.listKind == MarkdownListKind::None)
             {
                 if (! ShiftItem(item, -static_cast<int>(nodes[item].contentIndent), true))
                 {
-                    plan.edits_.clear();
+                    plan._edits.clear();
                     return;
                 }
                 continue;
@@ -2585,7 +2585,7 @@ void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
                 const auto delta  = static_cast<int>(Columns(marker, column)) - static_cast<int>(Columns(Slice(prefix.first, prefix.content), column));
                 if (! ShiftFollowing(item, Line(nodes[item].block.source.first), delta))
                 {
-                    plan.edits_.clear();
+                    plan._edits.clear();
                     return;
                 }
             }
@@ -2594,47 +2594,47 @@ void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
             else if (request.listKind != MarkdownListKind::Task && nodes[item].task != MarkdownTask::None)
                 Add(prefix.content, LabelStart(item, prefix), L"");
         }
-        plan.applicable_ = true;
+        plan._applicable = true;
         return;
     }
     if (request.listKind == MarkdownListKind::None)
     {
-        plan.applicable_ = true;
+        plan._applicable = true;
         return;
     }
-    auto end = plan.before_.End();
-    if (end > plan.before_.Start() && Line(end).first == end)
+    auto end = plan._before.End();
+    if (end > plan._before.Start() && Line(end).first == end)
         --end;
     bool found = false;
     for (std::size_t i = 1u; i < nodes.size(); ++i)
     {
         const auto& node = nodes[i];
-        if (node.block.source.last <= plan.before_.Start() || node.block.source.first > end)
+        if (node.block.source.last <= plan._before.Start() || node.block.source.first > end)
             continue;
         if (! TextLeaf(node.block.kind))
             continue;
         if (Ancestor(i, Kind::ListItem) != MarkdownNoNode || node.block.kind == Kind::TableCell ||
             (request.listKind == MarkdownListKind::Task && node.block.kind != Kind::Paragraph))
         {
-            plan.edits_.clear();
+            plan._edits.clear();
             return;
         }
         for (const auto& content : node.lines)
         {
             const auto& line = Line(content.source.first);
-            if (line.end <= plan.before_.Start() || line.first > end)
+            if (line.end <= plan._before.Start() || line.first > end)
                 continue;
             std::size_t at{};
             if (! OuterOffset(i, line, at))
             {
-                plan.edits_.clear();
+                plan._edits.clear();
                 return;
             }
             while (at < line.bodyEnd && Space(text[at]))
                 ++at;
             if (request.listKind == MarkdownListKind::Ordered && number > 999999999u)
             {
-                plan.edits_.clear();
+                plan._edits.clear();
                 return;
             }
             std::wstring marker = ListMarker(request.listKind == MarkdownListKind::Ordered, number);
@@ -2651,14 +2651,14 @@ void MarkdownCommandPlanner::SetList(const MarkdownCommandRequest& request)
         std::wstring marker = ListMarker(request.listKind == MarkdownListKind::Ordered, number);
         if (request.listKind == MarkdownListKind::Task)
             marker += L"[ ] ";
-        Add(plan.before_.caret, plan.before_.caret, marker);
+        Add(plan._before.caret, plan._before.caret, marker);
         found = true;
     }
-    plan.applicable_ = found;
+    plan._applicable = found;
 }
 void MarkdownCommandPlanner::Task()
 {
-    if (! IsCommandFeatureEnabled(*plan.syntax_, MarkdownCommand::ToggleTask, MarkdownTextStyle::Strong, MarkdownListKind::None))
+    if (! IsCommandFeatureEnabled(*plan._syntax, MarkdownCommand::ToggleTask, MarkdownTextStyle::Strong, MarkdownListKind::None))
         return;
     const auto items = SelectedItems();
     if (items.size() > 1u)
@@ -2676,21 +2676,21 @@ void MarkdownCommandPlanner::Task()
             ItemPrefix prefix;
             if (! Prefix(index, prefix))
             {
-                plan.edits_.clear();
+                plan._edits.clear();
                 return;
             }
             const auto task = TaskStart(prefix);
             if (! task)
             {
-                plan.edits_.clear();
+                plan._edits.clear();
                 return;
             }
             Add(task.value() + 1u, task.value() + 2u, nodes[index].task == MarkdownTask::Checked ? L" " : L"x");
         }
-        plan.applicable_ = true;
+        plan._applicable = true;
         return;
     }
-    const auto item = NodeAt(Kind::ListItem, plan.before_.caret);
+    const auto item = NodeAt(Kind::ListItem, plan._before.caret);
     if (item == MarkdownNoNode || nodes[item].task == MarkdownTask::None)
     {
         MarkdownCommandRequest request;
@@ -2706,11 +2706,11 @@ void MarkdownCommandPlanner::Task()
     if (! task)
         return;
     Add(task.value() + 1u, task.value() + 2u, nodes[item].task == MarkdownTask::Checked ? L" " : L"x");
-    plan.applicable_ = true;
+    plan._applicable = true;
 }
 void MarkdownCommandPlanner::Join(bool backwards)
 {
-    const auto found = FindJoinLeaf(*plan.syntax_, plan.before_, backwards);
+    const auto found = FindJoinLeaf(*plan._syntax, plan._before, backwards);
     if (! found)
         return;
     const auto current = found.value();
@@ -2756,7 +2756,7 @@ void MarkdownCommandPlanner::Join(bool backwards)
                 if (marker.first != marker.last)
                     Add(marker.first, marker.last, L"");
             }
-            plan.applicable_ = true;
+            plan._applicable = true;
             return;
         }
     }
@@ -2796,9 +2796,9 @@ void MarkdownCommandPlanner::Join(bool backwards)
     // The entire interval is a proven paragraph boundary, including the next
     // item's own marker/task prefix. Opaque/nested subtrees were rejected above.
     Add(first, last, L" ");
-    plan.after_       = {first, first};
+    plan._after       = {first, first};
     explicitSelection = true;
-    plan.applicable_  = true;
+    plan._applicable  = true;
 }
 std::optional<MarkdownRange> MarkdownCommandPlanner::InlineBody(const MarkdownInline& node) const
 {
@@ -2938,34 +2938,34 @@ std::wstring AttributeSource(std::wstring_view value, SourceResult& failure, boo
 } // namespace
 void MarkdownCommandPlanner::EscapedText(const MarkdownCommandRequest& request)
 {
-    if (! CanInsertEscapedText(*plan.syntax_, plan.before_, request.text))
+    if (! CanInsertEscapedText(*plan._syntax, plan._before, request.text))
         return;
-    const auto first = plan.before_.Start(), last = plan.before_.End();
+    const auto first = plan._before.Start(), last = plan._before.End();
     const auto payload   = first == last ? request.text : Slice(first, last);
     const auto insertion = LiteralMarkdown(payload);
     Add(first, last, insertion);
     const auto end    = first + insertion.size();
-    plan.after_       = {end, end};
+    plan._after       = {end, end};
     explicitSelection = true;
-    plan.applicable_  = true;
+    plan._applicable  = true;
 }
 void MarkdownCommandPlanner::Footnote(const MarkdownCommandRequest& request)
 {
-    if (plan.syntax_->Profile() != MarkdownProfile::RichMarkdown || plan.before_.anchor != plan.before_.caret)
+    if (plan._syntax->Profile() != MarkdownProfile::RichMarkdown || plan._before.anchor != plan._before.caret)
         return;
     if (! ValidFootnoteLabel(request.text))
     {
         failure = SourceResult::InvalidSource;
         return;
     }
-    const auto site = FindInlineInsertionSite(*plan.syntax_, plan.before_);
+    const auto site = FindInlineInsertionSite(*plan._syntax, plan._before);
     if (! site)
         return;
     const auto identity = NormalizeMarkdownLabel(request.text, MarkdownProfile::RichMarkdown);
-    for (const auto& existing : plan.syntax_->Footnotes())
+    for (const auto& existing : plan._syntax->Footnotes())
         if (existing.label == identity)
             return;
-    for (const auto& existing : plan.syntax_->Inlines())
+    for (const auto& existing : plan._syntax->Inlines())
         if (existing.kind == MarkdownInlineKind::FootnoteReference)
         {
             const auto raw = Slice(existing.source.first, existing.source.last);
@@ -2979,7 +2979,7 @@ void MarkdownCommandPlanner::Footnote(const MarkdownCommandRequest& request)
         if (node.block.source.last == text.size() && ((node.block.kind == Kind::FencedCode && ! node.block.closed) ||
                                                       (node.block.kind == Kind::FrontMatter && ! node.block.closed) || node.block.kind == Kind::HtmlBlock))
             return;
-    const auto caret         = plan.before_.caret;
+    const auto caret         = plan._before.caret;
     const auto first         = site.value() == MarkdownNoNode ? caret : nodes[site.value()].block.content.first;
     std::size_t openBrackets = 0u;
     for (auto at = first; at < caret; ++at)
@@ -3036,9 +3036,9 @@ void MarkdownCommandPlanner::Footnote(const MarkdownCommandRequest& request)
         Add(text.size(), text.size(), definition);
     }
     const auto destination = text.size() + reference.size() + (caret == text.size() ? 0u : definition.size());
-    plan.after_            = {destination, destination};
+    plan._after            = {destination, destination};
     explicitSelection      = true;
-    plan.applicable_       = true;
+    plan._applicable       = true;
 }
 void MarkdownCommandPlanner::Image(const MarkdownCommandRequest& request)
 {
@@ -3053,8 +3053,8 @@ void MarkdownCommandPlanner::Image(const MarkdownCommandRequest& request)
     std::size_t leaf{};
     if (! InlineSelection(leaf))
         return;
-    const auto first = plan.before_.Start(), last = plan.before_.End();
-    for (const auto& node : plan.syntax_->Inlines())
+    const auto first = plan._before.Start(), last = plan._before.End();
+    for (const auto& node : plan._syntax->Inlines())
     {
         const bool intersects = first == last ? node.source.first < first && first < node.source.last : node.source.first < last && node.source.last > first;
         if (node.kind == MarkdownInlineKind::Text || ! intersects)
@@ -3081,9 +3081,9 @@ void MarkdownCommandPlanner::Image(const MarkdownCommandRequest& request)
     insertion += L')';
     Add(first, last, insertion);
     const auto end    = first + insertion.size();
-    plan.after_       = {end, end};
+    plan._after       = {end, end};
     explicitSelection = true;
-    plan.applicable_  = true;
+    plan._applicable  = true;
 }
 void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
 {
@@ -3093,20 +3093,20 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
         failure = SourceResult::InvalidSource;
         return;
     }
-    if (! IsCommandFeatureEnabled(*plan.syntax_, MarkdownCommand::ToggleStyle, style, MarkdownListKind::None))
+    if (! IsCommandFeatureEnabled(*plan._syntax, MarkdownCommand::ToggleStyle, style, MarkdownListKind::None))
         return;
     std::size_t leaf{};
     if (! InlineSelection(leaf))
         return;
-    if (style == MarkdownTextStyle::Code && Line(plan.before_.Start()).first != Line(plan.before_.End()).first)
+    if (style == MarkdownTextStyle::Code && Line(plan._before.Start()).first != Line(plan._before.End()).first)
         return;
     const auto kind                 = style == MarkdownTextStyle::Strong          ? MarkdownInlineKind::Strong
                                       : style == MarkdownTextStyle::Emphasis      ? MarkdownInlineKind::Emphasis
                                       : style == MarkdownTextStyle::Strikethrough ? MarkdownInlineKind::Strikethrough
                                                                                   : MarkdownInlineKind::Code;
     const MarkdownInline* enclosing = nullptr;
-    for (const auto& node : plan.syntax_->Inlines())
-        if (node.kind == kind && node.source.first <= plan.before_.Start() && node.source.last >= plan.before_.End() &&
+    for (const auto& node : plan._syntax->Inlines())
+        if (node.kind == kind && node.source.first <= plan._before.Start() && node.source.last >= plan._before.End() &&
             (! enclosing || node.source.last - node.source.first < enclosing->source.last - enclosing->source.first))
             enclosing = &node;
     if (enclosing)
@@ -3117,24 +3117,24 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
         if (style == MarkdownTextStyle::Code)
         {
             SemanticValue normalized;
-            NormalizeSemanticLeaf(*plan.syntax_, leaf, normalized);
+            NormalizeSemanticLeaf(*plan._syntax, leaf, normalized);
             for (const auto& unit : normalized.units)
-                if ((unit.source.first < plan.before_.Start() && plan.before_.Start() < unit.source.last) ||
-                    (unit.source.first < plan.before_.End() && plan.before_.End() < unit.source.last))
+                if ((unit.source.first < plan._before.Start() && plan._before.Start() < unit.source.last) ||
+                    (unit.source.first < plan._before.End() && plan._before.End() < unit.source.last))
                     return;
         }
-        for (const auto& node : plan.syntax_->Inlines())
+        for (const auto& node : plan._syntax->Inlines())
             if ((node.kind == MarkdownInlineKind::Html || node.kind == MarkdownInlineKind::Image) && node.source.first < body->last &&
                 node.source.last > body->first)
                 return;
-        auto first = plan.before_.Start(), last = plan.before_.End();
+        auto first = plan._before.Start(), last = plan._before.End();
         if (first == last || (first <= body->first && last >= body->last))
         {
             if (style == MarkdownTextStyle::Code)
             {
                 SemanticValue normalized, value;
-                NormalizeSemanticLeaf(*plan.syntax_, leaf, normalized);
-                ResolveSemanticValue(*plan.syntax_, normalized, *enclosing, value);
+                NormalizeSemanticLeaf(*plan._syntax, leaf, normalized);
+                ResolveSemanticValue(*plan._syntax, normalized, *enclosing, value);
                 for (const auto& unit : value.units)
                     if ((unit.source.first < first && first < unit.source.last) || (unit.source.first < last && last < unit.source.last))
                         return;
@@ -3149,11 +3149,11 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
                         ++count;
                     caret += LiteralMarkdown(std::wstring_view(value.text).substr(0u, count)).size();
                 }
-                plan.after_       = first == last                               ? Selection{caret, caret}
-                                    : plan.before_.anchor <= plan.before_.caret ? Selection{begin, end}
+                plan._after       = first == last                               ? Selection{caret, caret}
+                                    : plan._before.anchor <= plan._before.caret ? Selection{begin, end}
                                                                                 : Selection{end, begin};
                 explicitSelection = true;
-                plan.applicable_  = true;
+                plan._applicable  = true;
                 return;
             }
             // Removing delimiters can expose a literal heading/list/pipe/etc.
@@ -3162,14 +3162,14 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
             static_cast<void>(InlineSpelling(leaf, *body, L"!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", true, false));
             Add(enclosing->source.first, body->first, L"");
             Add(body->last, enclosing->source.last, L"");
-            plan.applicable_ = true;
+            plan._applicable = true;
             return;
         }
         if (first < body->first || last > body->last)
             return;
         if (style == MarkdownTextStyle::Code && Line(body->first).first != Line(body->last).first)
             return;
-        for (const auto& node : plan.syntax_->Inlines())
+        for (const auto& node : plan._syntax->Inlines())
             if (&node != enclosing && node.kind != MarkdownInlineKind::Text && node.source.first >= body->first && node.source.last <= body->last &&
                 node.source.first < last && node.source.last > first && (first > node.source.first || last < node.source.last))
                 return;
@@ -3185,19 +3185,19 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
         replacement += right;
         Add(enclosing->source.first, enclosing->source.last, replacement);
         const auto begin = enclosing->source.first + left.size(), end = begin + middle.size();
-        plan.after_       = plan.before_.anchor <= plan.before_.caret ? Selection{begin, end} : Selection{end, begin};
+        plan._after       = plan._before.anchor <= plan._before.caret ? Selection{begin, end} : Selection{end, begin};
         explicitSelection = true;
-        plan.applicable_  = true;
+        plan._applicable  = true;
         return;
     }
-    for (const auto& node : plan.syntax_->Inlines())
-        if ((node.kind == MarkdownInlineKind::Html || node.kind == MarkdownInlineKind::Image) && node.source.first < plan.before_.End() &&
-            node.source.last > plan.before_.Start())
+    for (const auto& node : plan._syntax->Inlines())
+        if ((node.kind == MarkdownInlineKind::Html || node.kind == MarkdownInlineKind::Image) && node.source.first < plan._before.End() &&
+            node.source.last > plan._before.Start())
             return;
-    const auto first = plan.before_.Start(), last = plan.before_.End();
-    for (const auto& node : plan.syntax_->Inlines())
-        if (node.kind != MarkdownInlineKind::Text && node.source.first < plan.before_.End() && node.source.last > plan.before_.Start() &&
-            (plan.before_.Start() > node.source.first || plan.before_.End() < node.source.last))
+    const auto first = plan._before.Start(), last = plan._before.End();
+    for (const auto& node : plan._syntax->Inlines())
+        if (node.kind != MarkdownInlineKind::Text && node.source.first < plan._before.End() && node.source.last > plan._before.Start() &&
+            (plan._before.Start() > node.source.first || plan._before.End() < node.source.last))
         {
             const bool eligibleAncestorStyle = InlineStyleDelimiterWidth(node.kind) != 0u;
             const auto body                  = eligibleAncestorStyle ? InlineBody(node) : std::nullopt;
@@ -3208,13 +3208,13 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
             if (! body || first < body->first || last > body->last)
                 return;
         }
-    for (const auto& lexeme : plan.syntax_->Lexemes())
-        if (lexeme.kind != MarkdownLexemeKind::Text && ((lexeme.source.first < plan.before_.Start() && plan.before_.Start() < lexeme.source.last) ||
-                                                        (lexeme.source.first < plan.before_.End() && plan.before_.End() < lexeme.source.last)))
+    for (const auto& lexeme : plan._syntax->Lexemes())
+        if (lexeme.kind != MarkdownLexemeKind::Text && ((lexeme.source.first < plan._before.Start() && plan._before.Start() < lexeme.source.last) ||
+                                                        (lexeme.source.first < plan._before.End() && plan._before.End() < lexeme.source.last)))
             return;
-    for (const auto& node : plan.syntax_->Inlines())
-        if (node.kind == MarkdownInlineKind::Code && node.source.first < plan.before_.End() && node.source.last > plan.before_.Start() &&
-            (plan.before_.Start() > node.source.first || plan.before_.End() < node.source.last))
+    for (const auto& node : plan._syntax->Inlines())
+        if (node.kind == MarkdownInlineKind::Code && node.source.first < plan._before.End() && node.source.last > plan._before.Start() &&
+            (plan._before.Start() > node.source.first || plan._before.End() < node.source.last))
         {
             // Other styles can surround a complete code token but cannot edit
             // its literal interior while claiming a semantic formatting change.
@@ -3229,7 +3229,7 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
         std::wstring replacement(marker);
         replacement += marker;
         Add(first, first, replacement);
-        plan.after_ = {first + marker.size(), first + marker.size()};
+        plan._after = {first + marker.size(), first + marker.size()};
     }
     else
     {
@@ -3271,10 +3271,10 @@ void MarkdownCommandPlanner::Style(MarkdownTextStyle style)
                 prefix = suffix = 0u;
         }
         const auto begin = first + prefix, end = first + replacement.size() - suffix;
-        plan.after_ = plan.before_.anchor <= plan.before_.caret ? Selection{begin, end} : Selection{end, begin};
+        plan._after = plan._before.anchor <= plan._before.caret ? Selection{begin, end} : Selection{end, begin};
     }
     explicitSelection = true;
-    plan.applicable_  = true;
+    plan._applicable  = true;
 }
 void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool remove)
 {
@@ -3283,9 +3283,9 @@ void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool re
         failure = SourceResult::InvalidSource;
         return;
     }
-    auto leaf = LeafAt(plan.before_.Start());
+    auto leaf = LeafAt(plan._before.Start());
     if (leaf == MarkdownNoNode)
-        leaf = NodeAt(Kind::HtmlBlock, plan.before_.Start());
+        leaf = NodeAt(Kind::HtmlBlock, plan._before.Start());
     if (leaf == MarkdownNoNode)
     {
         std::size_t unused{};
@@ -3301,27 +3301,27 @@ void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool re
             replacement += L'\"';
         }
         replacement += L")";
-        const auto at = plan.before_.caret;
+        const auto at = plan._before.caret;
         Add(at, at, replacement);
-        plan.after_       = {at + 1u, at + 1u};
+        plan._after       = {at + 1u, at + 1u};
         explicitSelection = true;
-        plan.applicable_  = true;
+        plan._applicable  = true;
         return;
     }
-    if (plan.before_.End() > nodes[leaf].block.source.last)
+    if (plan._before.End() > nodes[leaf].block.source.last)
         return;
     const MarkdownInline* enclosing = nullptr;
-    for (const auto& node : plan.syntax_->Inlines())
-        if (node.kind == MarkdownInlineKind::Link && node.source.first <= plan.before_.Start() && node.source.last >= plan.before_.End() &&
+    for (const auto& node : plan._syntax->Inlines())
+        if (node.kind == MarkdownInlineKind::Link && node.source.first <= plan._before.Start() && node.source.last >= plan._before.End() &&
             (! enclosing || node.source.last - node.source.first < enclosing->source.last - enclosing->source.first))
             enclosing = &node;
     SemanticValue normalized;
-    NormalizeSemanticLeaf(*plan.syntax_, leaf, normalized);
+    NormalizeSemanticLeaf(*plan._syntax, leaf, normalized);
     NativeHtmlPlan html;
     if (nodes[leaf].block.kind == Kind::HtmlBlock)
         html.Block(normalized);
     else
-        html.Inline(*plan.syntax_, nodes[leaf], normalized);
+        html.Inline(*plan._syntax, nodes[leaf], normalized);
     if (html.present && ! html.valid)
         return;
     for (const auto& tag : html.tags)
@@ -3329,7 +3329,7 @@ void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool re
         if (tag.kind != NativeHtmlKind::A || tag.closing)
             continue;
         const auto& close = html.tags[tag.mate];
-        if (tag.source.first <= plan.before_.Start() && close.source.last >= plan.before_.End())
+        if (tag.source.first <= plan._before.Start() && close.source.last >= plan._before.End())
         {
             if (remove)
             {
@@ -3402,13 +3402,13 @@ void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool re
                     Add(tag.source.last - 1u, tag.source.last - 1u, attribute);
                 }
             }
-            plan.applicable_ = true;
+            plan._applicable = true;
             return;
         }
-        if (tag.source.first < plan.before_.End() && close.source.last > plan.before_.Start())
+        if (tag.source.first < plan._before.End() && close.source.last > plan._before.Start())
             return;
     }
-    MarkdownRange owned{plan.before_.Start(), plan.before_.End()}, label = owned;
+    MarkdownRange owned{plan._before.Start(), plan._before.End()}, label = owned;
     if (enclosing)
     {
         const auto body = InlineBody(*enclosing);
@@ -3421,7 +3421,7 @@ void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool re
     {
         if (remove)
             return;
-        for (const auto& node : plan.syntax_->Inlines())
+        for (const auto& node : plan._syntax->Inlines())
             if (node.kind == MarkdownInlineKind::Link && node.source.first < owned.last && node.source.last > owned.first)
                 return;
             else if (node.kind != MarkdownInlineKind::Text && node.source.first < owned.last && node.source.last > owned.first &&
@@ -3462,13 +3462,13 @@ void MarkdownCommandPlanner::Link(const MarkdownCommandRequest& request, bool re
     }
     Add(owned.first, owned.last, replacement);
     const auto end    = begin + serialized.size();
-    plan.after_       = plan.before_.anchor <= plan.before_.caret ? Selection{begin, end} : Selection{end, begin};
+    plan._after       = plan._before.anchor <= plan._before.caret ? Selection{begin, end} : Selection{end, begin};
     explicitSelection = true;
-    plan.applicable_  = true;
+    plan._applicable  = true;
 }
 void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
 {
-    if (! IsCommandFeatureEnabled(*plan.syntax_, request.command, MarkdownTextStyle::Strong, MarkdownListKind::None))
+    if (! IsCommandFeatureEnabled(*plan._syntax, request.command, MarkdownTextStyle::Strong, MarkdownListKind::None))
         return;
     const auto emptyRow = [](std::size_t columns, bool delimiter)
     {
@@ -3598,16 +3598,16 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
             failure = SourceResult::CapacityExceeded;
             return;
         }
-        const auto& line = Line(plan.before_.Start());
-        if (Line(plan.before_.End()).first != line.first)
+        const auto& line = Line(plan._before.Start());
+        if (Line(plan._before.End()).first != line.first)
             return;
-        const auto leaf = LeafAt(plan.before_.Start());
+        const auto leaf = LeafAt(plan._before.Start());
         auto at         = line.first;
         if (leaf != MarkdownNoNode)
         {
             if (nodes[leaf].block.kind != Kind::Paragraph || nodes[leaf].lines.size() != 1u || ! OuterOffset(leaf, line, at))
                 return;
-            if (plan.before_.Start() > nodes[leaf].block.content.first || plan.before_.End() < nodes[leaf].block.content.last)
+            if (plan._before.Start() > nodes[leaf].block.content.first || plan._before.End() < nodes[leaf].block.content.last)
                 return;
         }
         else
@@ -3617,7 +3617,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 return;
             while (at < line.bodyEnd && (Space(text[at]) || text[at] == L'>'))
                 ++at;
-            if (at != line.bodyEnd || plan.before_.Start() != plan.before_.End() || plan.before_.caret != at)
+            if (at != line.bodyEnd || plan._before.Start() != plan._before.End() || plan._before.caret != at)
                 return;
         }
         std::wstring prefix(Slice(line.first, at));
@@ -3635,7 +3635,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 prefix.append(nodes[item].contentIndent, L' ');
             }
         }
-        if (! NoteContinuation(prefix, line, plan.before_.Start()))
+        if (! NoteContinuation(prefix, line, plan._before.Start()))
             return;
         const auto rowSource = [&](std::size_t index)
         {
@@ -3688,10 +3688,10 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
             failure = SourceResult::CapacityExceeded;
             return;
         }
-        Add(plan.before_.Start(), plan.before_.End(), value);
-        plan.after_       = {plan.before_.Start() + 2u, plan.before_.Start() + 2u};
+        Add(plan._before.Start(), plan._before.End(), value);
+        plan._after       = {plan._before.Start() + 2u, plan._before.Start() + 2u};
         explicitSelection = true;
-        plan.applicable_  = true;
+        plan._applicable  = true;
         return;
     }
     auto cell = request.targetCell;
@@ -3700,8 +3700,8 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         failure = SourceResult::InvalidRange;
         return;
     }
-    auto row   = cell == MarkdownNoNode ? NodeAt(Kind::TableRow, plan.before_.caret) : nodes[cell].parent;
-    auto table = row == MarkdownNoNode ? NodeAt(Kind::Table, plan.before_.caret) : nodes[row].parent;
+    auto row   = cell == MarkdownNoNode ? NodeAt(Kind::TableRow, plan._before.caret) : nodes[cell].parent;
+    auto table = row == MarkdownNoNode ? NodeAt(Kind::Table, plan._before.caret) : nodes[row].parent;
     if (table == MarkdownNoNode)
         return;
     std::vector<std::size_t> rows(0u);
@@ -3711,7 +3711,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         return;
     if (row == MarkdownNoNode)
         row = rows.front();
-    if (plan.before_.Start() < nodes[row].block.source.first || plan.before_.End() > nodes[row].block.source.last)
+    if (plan._before.Start() < nodes[row].block.source.first || plan._before.End() > nodes[row].block.source.last)
         return;
     std::vector<std::size_t> cells(0u), rowCells(0u);
     for (const auto r : rows)
@@ -3730,12 +3730,12 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         for (const auto i : rowCells)
         {
             const auto range = nodes[i].block.content;
-            if (range.first <= plan.before_.caret && (plan.before_.caret <= range.last))
+            if (range.first <= plan._before.caret && (plan._before.caret <= range.last))
             {
                 cell = i;
                 break;
             }
-            if (range.first <= plan.before_.caret)
+            if (range.first <= plan._before.caret)
                 cell = i;
         }
     }
@@ -3797,7 +3797,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         if (physical.end > physical.bodyEnd)
             value += Eol(physical);
         Add(at, at, value);
-        plan.after_       = {caret, caret};
+        plan._after       = {caret, caret};
         explicitSelection = true;
     };
     const auto removeTable = [&]
@@ -3811,7 +3811,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
             replacement.assign(Eol(Line(first)));
         }
         Add(first, nodes[table].block.source.last, replacement);
-        plan.after_       = {first, first};
+        plan._after       = {first, first};
         explicitSelection = true;
     };
     switch (request.command)
@@ -3842,7 +3842,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
             if (request.tableAlignment == MarkdownAlignment::Right || request.tableAlignment == MarkdownAlignment::Center)
                 marker += L':';
             Add(slot.first, slot.last, marker);
-            plan.applicable_ = true;
+            plan._applicable = true;
             return;
         }
         case MarkdownCommand::MoveTableRowUp:
@@ -3853,7 +3853,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 return;
             const auto other = rows[request.command == MarkdownCommand::MoveTableRowUp ? rowIndex - 1u : rowIndex + 1u];
             const auto from = nodes[row].block.content, to = nodes[other].block.content;
-            if (plan.before_.Start() < from.first || plan.before_.End() > from.last)
+            if (plan._before.Start() < from.first || plan._before.End() > from.last)
                 return;
             std::wstring fromReplacement(Slice(to.first, to.last));
             std::wstring toReplacement(Slice(from.first, from.last));
@@ -3895,9 +3895,9 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
             Add(to.first, to.last, toReplacement);
             const auto target =
                 to.first + (from.first < to.first ? fromReplacement.size() + separatorGrowth : 0u) - (from.first < to.first ? (from.last - from.first) : 0u);
-            plan.after_       = {target + plan.before_.anchor - from.first, target + plan.before_.caret - from.first};
+            plan._after       = {target + plan._before.anchor - from.first, target + plan._before.caret - from.first};
             explicitSelection = true;
-            plan.applicable_  = true;
+            plan._applicable  = true;
             return;
         }
         case MarkdownCommand::MoveTableColumnLeft:
@@ -3908,7 +3908,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 return;
             const auto other    = left ? column - 1u : column + 1u;
             const auto selected = nodes[cell].block.content;
-            if (plan.before_.Start() < selected.first || plan.before_.End() > selected.last)
+            if (plan._before.Start() < selected.first || plan._before.End() > selected.last)
                 return;
             std::vector<MarkdownRange> ranges(0u);
             ranges.push_back(nodes[rows.front()].block.content);
@@ -3927,8 +3927,8 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 {
                     if (range.first == selectedRange.first && range.last == selectedRange.last)
                     {
-                        plan.after_       = {static_cast<std::size_t>(static_cast<std::ptrdiff_t>(plan.before_.anchor) + delta),
-                                             static_cast<std::size_t>(static_cast<std::ptrdiff_t>(plan.before_.caret) + delta)};
+                        plan._after       = {static_cast<std::size_t>(static_cast<std::ptrdiff_t>(plan._before.anchor) + delta),
+                                             static_cast<std::size_t>(static_cast<std::ptrdiff_t>(plan._before.caret) + delta)};
                         explicitSelection = true;
                     }
                     continue; // Two implicit empty cells need no spelling.
@@ -3954,19 +3954,19 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                     const auto movedSlots = MarkdownTableCells(replacement, {0u, replacement.size()}, false);
                     const auto newFirst   = movedSlots[other].first;
                     const auto base       = static_cast<std::size_t>(static_cast<std::ptrdiff_t>(range.first) + delta) + newFirst;
-                    plan.after_           = {base + plan.before_.anchor - oldSlot.first, base + plan.before_.caret - oldSlot.first};
+                    plan._after           = {base + plan._before.anchor - oldSlot.first, base + plan._before.caret - oldSlot.first};
                     explicitSelection     = true;
                 }
                 Add(range.first, range.last, replacement);
                 delta += static_cast<std::ptrdiff_t>(replacement.size()) - static_cast<std::ptrdiff_t>(range.last - range.first);
             }
-            plan.applicable_ = true;
+            plan._applicable = true;
             return;
         }
         case MarkdownCommand::NextTableCell:
         case MarkdownCommand::PreviousTableCell:
         {
-            if (plan.before_.anchor != plan.before_.caret)
+            if (plan._before.anchor != plan._before.caret)
                 return;
             const auto index = static_cast<std::size_t>(std::find(cells.begin(), cells.end(), cell) - cells.begin());
             if (request.command == MarkdownCommand::PreviousTableCell && index == 0u)
@@ -3977,8 +3977,8 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
             {
                 const auto target = cells[request.command == MarkdownCommand::NextTableCell ? index + 1u : index - 1u];
                 const auto at     = rawCellPosition(target);
-                plan.after_       = {at, at};
-                plan.afterCell_   = target;
+                plan._after       = {at, at};
+                plan._afterCell   = target;
                 explicitSelection = true;
             }
             break;
@@ -4024,7 +4024,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
             }
             if (request.tableCellCaretOffset)
                 caret = caret - request.text.size() + request.tableCellCaretOffset.value();
-            plan.after_       = {caret, caret};
+            plan._after       = {caret, caret};
             explicitSelection = true;
             break;
         }
@@ -4072,7 +4072,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 auto target       = nodes[promote].firstChild;
                 const auto at     = target == MarkdownNoNode ? nodes[row].block.content.first
                                                              : nodes[row].block.content.first + (rawCellPosition(target) - nodes[promote].block.content.first);
-                plan.after_       = {at, at};
+                plan._after       = {at, at};
                 explicitSelection = true;
             }
             else
@@ -4083,7 +4083,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 for (std::size_t c = 0u; c < column; ++c)
                     target = nodes[target].nextSibling;
                 const auto at = rawCellPosition(target);
-                plan.after_   = {at, at};
+                plan._after   = {at, at};
             }
             break;
         }
@@ -4123,7 +4123,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                                 Add(first, first, r == 1u ? L"| --- | " : L"| | ");
                                 if (r == 0u)
                                 {
-                                    plan.after_       = {first + 2u, first + 2u};
+                                    plan._after       = {first + 2u, first + 2u};
                                     explicitSelection = true;
                                 }
                                 continue;
@@ -4135,7 +4135,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                         static_cast<void>(appendCells(ranges[r], column, r == 1u ? L"---" : L""));
                     if (r == 0u)
                     {
-                        plan.after_       = {slots[column].first + 1u, slots[column].first + 1u};
+                        plan._after       = {slots[column].first + 1u, slots[column].first + 1u};
                         explicitSelection = true;
                     }
                 }
@@ -4156,7 +4156,7 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
                 for (std::size_t c = 0u; c < wanted; ++c)
                     target = nodes[target].nextSibling;
                 const auto at = rawCellPosition(target);
-                plan.after_   = {at, at};
+                plan._after   = {at, at};
             }
             break;
         }
@@ -4188,13 +4188,13 @@ void MarkdownCommandPlanner::Table(const MarkdownCommandRequest& request)
         case ::DxUi::RichText::MarkdownCommand::RenumberList:
         default: return;
     }
-    plan.applicable_ = true;
+    plan._applicable = true;
 }
 void MarkdownCommandPlanner::Delete(std::span<const MarkdownRange> ranges)
 {
     std::vector<MarkdownRange> owned(ranges.begin(), ranges.end());
     for (const auto range : owned)
-        if (range.first > range.last || ! plan.source_.IsBoundary(range.first) || ! plan.source_.IsBoundary(range.last))
+        if (range.first > range.last || ! plan._source.IsBoundary(range.first) || ! plan._source.IsBoundary(range.last))
         {
             failure = SourceResult::InvalidRange;
             return;
@@ -4221,7 +4221,7 @@ void MarkdownCommandPlanner::Delete(std::span<const MarkdownRange> ranges)
     merge();
     std::vector<Wrapper> wrappers(0u);
     std::vector<const MarkdownInline*> codeInlines(0u);
-    for (const auto& node : plan.syntax_->Inlines())
+    for (const auto& node : plan._syntax->Inlines())
         if (node.kind == MarkdownInlineKind::Code)
         {
             // Only a deletion intersecting this source can cover its body.
@@ -4240,7 +4240,7 @@ void MarkdownCommandPlanner::Delete(std::span<const MarkdownRange> ranges)
         if (! TextLeaf(nodes[i].block.kind) && nodes[i].block.kind != Kind::HtmlBlock)
             continue;
         SemanticValue normalized;
-        NormalizeSemanticLeaf(*plan.syntax_, i, normalized);
+        NormalizeSemanticLeaf(*plan._syntax, i, normalized);
         const auto firstCode = std::lower_bound(
             codeInlines.begin(), codeInlines.end(), nodes[i].block.source.first, [](const auto* node, auto first) { return node->source.first < first; });
         for (auto code = firstCode; code != codeInlines.end() && (*code)->source.first < nodes[i].block.source.last; ++code)
@@ -4248,7 +4248,7 @@ void MarkdownCommandPlanner::Delete(std::span<const MarkdownRange> ranges)
             if ((*code)->source.last > nodes[i].block.source.last)
                 continue;
             SemanticValue value;
-            ResolveSemanticValue(*plan.syntax_, normalized, **code, value);
+            ResolveSemanticValue(*plan._syntax, normalized, **code, value);
             if (! value.units.empty())
             {
                 const MarkdownRange body{value.units.front().source.first, value.units.back().source.last};
@@ -4260,7 +4260,7 @@ void MarkdownCommandPlanner::Delete(std::span<const MarkdownRange> ranges)
         if (nodes[i].block.kind == Kind::HtmlBlock)
             html.Block(normalized);
         else
-            html.Inline(*plan.syntax_, nodes[i], normalized);
+            html.Inline(*plan._syntax, nodes[i], normalized);
         if (! html.valid)
             continue;
         for (const auto& tag : html.tags)
@@ -4295,9 +4295,9 @@ void MarkdownCommandPlanner::Delete(std::span<const MarkdownRange> ranges)
         Add(range.first, range.last, L"");
     if (! owned.empty())
     {
-        plan.after_       = {owned.front().first, owned.front().first};
+        plan._after       = {owned.front().first, owned.front().first};
         explicitSelection = true;
-        plan.applicable_  = true;
+        plan._applicable  = true;
     }
 }
 } // namespace Detail

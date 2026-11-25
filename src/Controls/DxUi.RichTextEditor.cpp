@@ -718,14 +718,14 @@ RichText::SourceResult RichTextEditor::TrySetText(std::wstring_view text)
 bool RichTextEditor::ExchangeDocumentState(RichText::Document& document)
 {
     const Failure::Scope failureScope;
-    if (! Editable() || _state->document.transientEntry_ || document.transientEntry_ || MarkdownCommandInputBlocked(GetHost(), this))
+    if (! Editable() || _state->document._transientEntry || document._transientEntry || MarkdownCommandInputBlocked(GetHost(), this))
         return false;
     auto& current = _state->document;
     using std::swap;
-    swap(current.source_, document.source_);
-    swap(current.selection_, document.selection_);
-    swap(current.revision_, document.revision_);
-    swap(current.selectionEpoch_, document.selectionEpoch_);
+    swap(current._source, document._source);
+    swap(current._selection, document._selection);
+    swap(current._revision, document._revision);
+    swap(current._selectionEpoch, document._selectionEpoch);
     current.CountAsEditorSource();
     const auto history = [&](auto& left, auto& right)
     {
@@ -733,8 +733,8 @@ bool RichTextEditor::ExchangeDocumentState(RichText::Document& document)
         swap(left.first, right.first);
         swap(left.count, right.count);
     };
-    history(current.undo_, document.undo_);
-    history(current.redo_, document.redo_);
+    history(current._undo, document._undo);
+    history(current._redo, document._redo);
     // Equal numeric revisions in different documents must never admit a late
     // native/semantic callback belonging to the preceding document binding.
     ++_state->bindingRevision;
@@ -1299,7 +1299,7 @@ bool RichTextEditor::ApplyClipboardBitmapPaste(const TextClipboardContent& conte
         return false;
     const auto lifetime = GetLifetimeToken();
     const auto revision = Revision(), binding = _state->bindingRevision, location = _state->imageLocationRevision;
-    const auto selectionEpoch = _state->document.selectionEpoch_, interaction = host->GetInteractionRevision();
+    const auto selectionEpoch = _state->document._selectionEpoch, interaction = host->GetInteractionRevision();
     const auto invoke = [&]() -> std::optional<std::wstring>
     {
         try
@@ -1317,7 +1317,7 @@ bool RichTextEditor::ApplyClipboardBitmapPaste(const TextClipboardContent& conte
     };
     const auto path = invoke();
     if (lifetime.expired() || GetHost() != host || host->GetFocusControl() != this || Revision() != revision || _state->bindingRevision != binding ||
-        _state->imageLocationRevision != location || _state->document.selectionEpoch_ != selectionEpoch || host->GetInteractionRevision() != interaction ||
+        _state->imageLocationRevision != location || _state->document._selectionEpoch != selectionEpoch || host->GetInteractionRevision() != interaction ||
         GetSelection() != selection || _state->bitmapPasteHandler != handler || ! path || ! CanPasteMarkdownFileReferences(selection) ||
         MarkdownCommandInputBlocked(host, this))
         return false;
@@ -2614,7 +2614,7 @@ bool RichTextEditor::WrapSelectionInMarkdownBlock(RichText::MarkdownBlockKind ki
     const Failure::Scope failureScope;
     using RichText::MarkdownBlockKind;
     const bool quote = kind == MarkdownBlockKind::BlockQuote;
-    if ((! quote && kind != MarkdownBlockKind::FencedCode) || ! Editable() || _state->document.transientEntry_.has_value() ||
+    if ((! quote && kind != MarkdownBlockKind::FencedCode) || ! Editable() || _state->document._transientEntry.has_value() ||
         MarkdownCommandInputBlocked(GetHost(), this) || codeLanguage.size() > 255u || ! RichText::IsValidUtf16(codeLanguage) ||
         codeLanguage.find_first_of(L"\r\n`") != codeLanguage.npos || codeLanguage.find(L'\0') != codeLanguage.npos || (quote && ! codeLanguage.empty()))
         return false;
@@ -2788,14 +2788,14 @@ std::optional<RichTextSourceMove> RichTextEditor::BeginSourceMove() noexcept
     if (! Editable() || MarkdownCommandInputBlocked(GetHost(), this) || selection.Start() == selection.End())
         return std::nullopt;
     RichTextSourceMove move;
-    move.owner_          = this;
-    move.lifetime_       = GetLifetimeToken();
-    move.source_         = Snapshot();
-    move.selection_      = selection;
-    move.revision_       = Revision();
-    move.selectionEpoch_ = _state->document.selectionEpoch_;
-    move.binding_        = _state->bindingRevision;
-    move.gestureEpoch_   = ++_state->sourceMoveEpoch;
+    move._owner          = this;
+    move._lifetime       = GetLifetimeToken();
+    move._source         = Snapshot();
+    move._selection      = selection;
+    move._revision       = Revision();
+    move._selectionEpoch = _state->document._selectionEpoch;
+    move._binding        = _state->bindingRevision;
+    move._gestureEpoch   = ++_state->sourceMoveEpoch;
     return move;
 }
 void RichTextEditor::CancelSourceMove() noexcept
@@ -2811,32 +2811,32 @@ void RichTextEditor::SetOnSourceDragRequested(std::function<void(const RichTextS
 }
 bool RichTextEditor::MoveSelectedSource(const RichTextSourceMove& move, size_t destination)
 {
-    if (move.owner_ != this || move.lifetime_.expired() || ! Editable() || MarkdownCommandInputBlocked(GetHost(), this) || Revision() != move.revision_ ||
-        _state->bindingRevision != move.binding_ || _state->document.selectionEpoch_ != move.selectionEpoch_ || _state->sourceMoveEpoch != move.gestureEpoch_ ||
-        ! Snapshot().IsSameRevision(move.source_) || GetSelection() != move.selection_)
+    if (move._owner != this || move._lifetime.expired() || ! Editable() || MarkdownCommandInputBlocked(GetHost(), this) || Revision() != move._revision ||
+        _state->bindingRevision != move._binding || _state->document._selectionEpoch != move._selectionEpoch || _state->sourceMoveEpoch != move._gestureEpoch ||
+        ! Snapshot().IsSameRevision(move._source) || GetSelection() != move._selection)
         return false;
-    const auto first = move.selection_.Start(), last = move.selection_.End();
-    if (first == last || destination > move.source_.Length() || (destination >= first && destination <= last) || ! move.source_.IsBoundary(first) ||
-        ! move.source_.IsBoundary(last) || ! move.source_.IsBoundary(destination))
+    const auto first = move._selection.Start(), last = move._selection.End();
+    if (first == last || destination > move._source.Length() || (destination >= first && destination <= last) || ! move._source.IsBoundary(first) ||
+        ! move._source.IsBoundary(last) || ! move._source.IsBoundary(destination))
         return false;
-    const auto text = move.source_.Slice(first, last);
+    const auto text = move._source.Slice(first, last);
     const RichText::SourceEdit remove{{first, last}, {}};
     const RichText::SourceEdit insert{{destination, destination}, text};
     const std::array edits = destination < first ? std::array{insert, remove} : std::array{remove, insert};
     const auto target      = destination < first ? destination : destination - (last - first);
-    return ApplySourceEdits(move.source_, move.revision_, edits, {target, target + text.size()});
+    return ApplySourceEdits(move._source, move._revision, edits, {target, target + text.size()});
 }
 bool RichTextEditor::CompleteExternalSourceMove(const RichTextSourceMove& move)
 {
-    if (move.owner_ != this || move.lifetime_.expired() || ! Editable() || MarkdownCommandInputBlocked(GetHost(), this) || Revision() != move.revision_ ||
-        _state->bindingRevision != move.binding_ || _state->document.selectionEpoch_ != move.selectionEpoch_ || _state->sourceMoveEpoch != move.gestureEpoch_ ||
-        ! Snapshot().IsSameRevision(move.source_) || GetSelection() != move.selection_)
+    if (move._owner != this || move._lifetime.expired() || ! Editable() || MarkdownCommandInputBlocked(GetHost(), this) || Revision() != move._revision ||
+        _state->bindingRevision != move._binding || _state->document._selectionEpoch != move._selectionEpoch || _state->sourceMoveEpoch != move._gestureEpoch ||
+        ! Snapshot().IsSameRevision(move._source) || GetSelection() != move._selection)
         return false;
-    const auto first = move.selection_.Start(), last = move.selection_.End();
-    if (first == last || ! move.source_.IsBoundary(first) || ! move.source_.IsBoundary(last))
+    const auto first = move._selection.Start(), last = move._selection.End();
+    if (first == last || ! move._source.IsBoundary(first) || ! move._source.IsBoundary(last))
         return false;
     const RichText::SourceEdit remove{{first, last}, {}};
-    return ApplySourceEdits(move.source_, move.revision_, std::span(&remove, 1u), {first, first});
+    return ApplySourceEdits(move._source, move._revision, std::span(&remove, 1u), {first, first});
 }
 void RichTextEditor::SetSearchQuery(std::wstring_view query, RichText::SourceSearchOptions options)
 {
@@ -3091,7 +3091,7 @@ bool RichTextEditor::PrepareMarkdownCommandState(const RichText::MarkdownCommand
     next->layoutCurrent         = host && LayoutIsCurrent(*host);
     next->geometry              = next->layoutCurrent ? _state->layout.SemanticGeometry() : nullptr;
     next->revision              = Revision();
-    next->selectionEpoch        = _state->document.selectionEpoch_;
+    next->selectionEpoch        = _state->document._selectionEpoch;
     next->bindingRevision       = _state->bindingRevision;
     next->imageLocationRevision = _state->imageLocationRevision;
     next->sourceCaretSite       = _state->sourceCaretSite;
@@ -3214,7 +3214,7 @@ std::optional<RichText::MarkdownCommandState> RichTextEditor::QueryMarkdownComma
         result.available = false;
     else if (const auto* prepared = _state->preparedCommand.get();
              prepared && prepared->Matches(request) && prepared->syntax == document->Syntax() && prepared->revision == Revision() &&
-             prepared->selectionEpoch == _state->document.selectionEpoch_ && prepared->source.IsSameRevision(Snapshot()) &&
+             prepared->selectionEpoch == _state->document._selectionEpoch && prepared->source.IsSameRevision(Snapshot()) &&
              prepared->bindingRevision == _state->bindingRevision && prepared->imageLocationRevision == _state->imageLocationRevision &&
              prepared->sourceCaretSite == _state->sourceCaretSite && prepared->host == GetHost())
     {
@@ -3673,7 +3673,7 @@ void RichTextEditor::SelectionChanged(bool synchronizeTextInput, bool preservePr
     // Bind a caret affinity chosen for exactly this selection change; any other
     // change leaves the bound affinity stale, which reads as Downstream.
     if (const auto pending = std::exchange(_state->pendingUpstreamCaret, std::nullopt);
-        pending && *pending == State::UpstreamCaret{Revision(), _state->document.selectionEpoch_, _state->bindingRevision, GetSelection().caret})
+        pending && *pending == State::UpstreamCaret{Revision(), _state->document._selectionEpoch, _state->bindingRevision, GetSelection().caret})
         _state->upstreamCaret = pending;
     _state->preparedCommand.reset();
     _state->keyboardNavigationDocument.reset();
@@ -4733,7 +4733,7 @@ HRESULT RichTextEditor::UpdateCaretScroll() const
         RichText::CaretGeometry caret{};
         const auto caretSource = state.document.GetSelection().caret;
         RETURN_IF_FAILED(
-            state.layout.TrySourceCaret(caretSource, state.sourceCaretSite, state.CaretAffinityAt(caretSource, state.document.selectionEpoch_), caret));
+            state.layout.TrySourceCaret(caretSource, state.sourceCaretSite, state.CaretAffinityAt(caretSource, state.document._selectionEpoch), caret));
         if (caret.y < state.scrollDip)
             state.scrollDip = caret.y;
         if (caret.y + caret.height > state.scrollDip + height)
@@ -4931,7 +4931,7 @@ bool RichTextEditor::ScrollSourceRangeIntoView(ControlHost& host, size_t sourceS
         RichText::CaretGeometry caret{};
         if (FAILED(_state->layout.TrySourceCaret(sourceStart,
                                                  sourceStart == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode,
-                                                 _state->CaretAffinityAt(sourceStart, _state->document.selectionEpoch_),
+                                                 _state->CaretAffinityAt(sourceStart, _state->document._selectionEpoch),
                                                  caret)))
             return false;
         float top    = caret.y;
@@ -5054,7 +5054,7 @@ std::optional<D2D1_RECT_F> RichTextEditor::GetTextInputCaretRect(const ControlHo
         RichText::CaretGeometry caret{};
         if (FAILED(_state->layout.TrySourceCaret(sourceIndex,
                                                  sourceIndex == GetSelection().caret ? _state->sourceCaretSite : RichText::MarkdownNoNode,
-                                                 _state->CaretAffinityAt(sourceIndex, _state->document.selectionEpoch_),
+                                                 _state->CaretAffinityAt(sourceIndex, _state->document._selectionEpoch),
                                                  caret)))
             return std::nullopt;
         const auto viewport = TextViewport();
@@ -5590,7 +5590,7 @@ void RichTextEditor::Paint(ControlHost& host) const
         if (HasFocus() && IsEnabled() && CaretClockAccess::Shown(host, *this) && state.keyboardNavigationElement == RichText::MarkdownNoNode)
         {
             const auto caret =
-                state.layout.SourceCaret(selection.caret, state.sourceCaretSite, state.CaretAffinityAt(selection.caret, state.document.selectionEpoch_));
+                state.layout.SourceCaret(selection.caret, state.sourceCaretSite, state.CaretAffinityAt(selection.caret, state.document._selectionEpoch));
             const float x = std::clamp(origin.x + caret.x, viewport.left, std::max(viewport.left, viewport.right - 1.0f));
             context->DrawLine(D2D1::Point2F(x, origin.y + caret.y), D2D1::Point2F(x, origin.y + caret.y + caret.height), caretBrush, 1.0f);
         }
@@ -5661,7 +5661,7 @@ size_t RichTextEditor::HitSource(ControlHost& host, D2D1_POINT_2F point) const
     _state->sourceCaretSite = hit.site;
     // A hit past a wrapped line's end keeps the caret on that line if the
     // pointer gesture places the caret there next.
-    _state->ChooseCaretAffinity(hit.position, affinity, _state->document.selectionEpoch_);
+    _state->ChooseCaretAffinity(hit.position, affinity, _state->document._selectionEpoch);
     return hit.position;
 }
 void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool byWord)
@@ -5764,7 +5764,7 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
     // A caret drawn at the end of the upper line belongs to that line for
     // Home, End and vertical movement; End and trailing-edge vertical hits
     // keep it there, every other move uses the default Downstream side.
-    const auto affinity = state.CaretAffinityAt(selection.caret, state.document.selectionEpoch_);
+    const auto affinity = state.CaretAffinityAt(selection.caret, state.document._selectionEpoch);
     const auto onLine   = affinity == RichText::CaretAffinity::Upstream && position > 0u ? state.layout.PreviousCluster(position) : position;
     auto nextAffinity   = RichText::CaretAffinity::Downstream;
     switch (key)
@@ -5799,7 +5799,7 @@ void RichTextEditor::MoveCaret(ControlHost& host, UINT key, bool extend, bool by
         }
     }
     const auto source = byWord && key == VK_HOME ? 0u : byWord && key == VK_END ? state.document.Length() : projection.ToSource(next, trailing);
-    state.ChooseCaretAffinity(source, nextAffinity, state.document.selectionEpoch_);
+    state.ChooseCaretAffinity(source, nextAffinity, state.document._selectionEpoch);
     state.document.SetSelection({extend ? selection.anchor : source, source});
     state.preferredCaretX = preferredX;
     SelectionChanged(true, true);
@@ -5943,7 +5943,7 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
                     const auto previous = _state->typingRun;
                     const auto kind     = backwards ? State::TypingRun::Kind::Backspace : State::TypingRun::Kind::Delete;
                     const bool merge    = previous && previous->kind == kind && previous->revision == Revision() &&
-                                          previous->selectionEpoch == _state->document.selectionEpoch_ && previous->caret == selection.caret &&
+                                          previous->selectionEpoch == _state->document._selectionEpoch && previous->caret == selection.caret &&
                                           now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units + units <= 64u &&
                                           _state->document.CanUndo();
                     bool changed{};
@@ -5952,7 +5952,7 @@ bool RichTextEditor::Erase(ControlHost& host, bool backwards, bool byWord, bool 
                         return false;
                     if (changed)
                         _state->typingRun = State::TypingRun{
-                            kind, Revision(), _state->document.selectionEpoch_, now, plan.After().caret, merge ? previous->units + units : units};
+                            kind, Revision(), _state->document._selectionEpoch, now, plan.After().caret, merge ? previous->units + units : units};
                     else
                         _state->typingRun.reset();
                     _state->sourceCaretSite = RichText::MarkdownNoNode;
@@ -6080,7 +6080,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
             const auto source     = Snapshot();
             const auto now        = GetTickCount64();
             const auto previous   = _state->autoFormatRun;
-            const bool continuing = previous && previous->revision == Revision() && previous->selectionEpoch == _state->document.selectionEpoch_ &&
+            const bool continuing = previous && previous->revision == Revision() && previous->selectionEpoch == _state->document._selectionEpoch &&
                                     previous->caret == selection.caret && now >= previous->lastTick && now - previous->lastTick <= 1000u &&
                                     _state->document.CanUndo();
             const auto start      = continuing ? previous->lineStart : selection.caret;
@@ -6179,7 +6179,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
                     RichText::SourceResult::Success)
                     return false;
                 if (changed && match == AutoFormatMatch::Prefix)
-                    _state->autoFormatRun = State::AutoFormatRun{Revision(), _state->document.selectionEpoch_, now, caret, start, nested, continuationPrefix};
+                    _state->autoFormatRun = State::AutoFormatRun{Revision(), _state->document._selectionEpoch, now, caret, start, nested, continuationPrefix};
                 else
                     _state->autoFormatRun.reset();
                 Changed(changed);
@@ -6349,7 +6349,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
             const auto now      = GetTickCount64();
             const auto previous = _state->typingRun;
             const bool merge    = previous && previous->kind == State::TypingRun::Kind::Insert && previous->revision == Revision() &&
-                                  previous->selectionEpoch == _state->document.selectionEpoch_ && previous->caret == selection.caret &&
+                                  previous->selectionEpoch == _state->document._selectionEpoch && previous->caret == selection.caret &&
                                   now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units + text.size() <= 64u &&
                                   _state->document.CanUndo();
             const auto end      = selection.caret + text.size();
@@ -6359,7 +6359,7 @@ bool RichTextEditor::OnChar(ControlHost& host, wchar_t character, UINT modifiers
             if (changed)
                 _state->typingRun = State::TypingRun{State::TypingRun::Kind::Insert,
                                                      Revision(),
-                                                     _state->document.selectionEpoch_,
+                                                     _state->document._selectionEpoch,
                                                      now,
                                                      end,
                                                      merge ? previous->units + text.size() : text.size()};
@@ -6397,7 +6397,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
         if (_state->taskFocusIntent)
         {
             const auto intent = *_state->taskFocusIntent;
-            if (Revision() != intent.revision || _state->document.selectionEpoch_ != intent.selectionEpoch ||
+            if (Revision() != intent.revision || _state->document._selectionEpoch != intent.selectionEpoch ||
                 (! Editable() && _state->taskTogglePolicy != RichTextTaskTogglePolicy::AlwaysInteractive))
                 _state->taskFocusIntent.reset();
             else if (const auto document = GetAcknowledgedSemanticDocument(host))
@@ -6625,7 +6625,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                 _state->suppressTaskSpace = true;
                 if (Revision() != std::numeric_limits<uint64_t>::max())
                     _state->taskFocusIntent =
-                        State::TaskFocusIntent{document->Elements()[element].taskMarker, Revision() + 1u, _state->document.selectionEpoch_};
+                        State::TaskFocusIntent{document->Elements()[element].taskMarker, Revision() + 1u, _state->document._selectionEpoch};
                 return ToggleSemanticTask(host, document, element);
             }
         }
@@ -6798,13 +6798,13 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                     const auto location       = _state->imageLocationRevision;
                     const auto selection      = GetSelection();
                     const auto focus          = host.GetFocusControl();
-                    const auto selectionEpoch = _state->document.selectionEpoch_, interaction = host.GetInteractionRevision();
+                    const auto selectionEpoch = _state->document._selectionEpoch, interaction = host.GetInteractionRevision();
                     if (shift)
                     {
                         const auto plain = host.ReadTextFromClipboard();
                         if (plain && ! plain->empty() && ! lifetime.expired() && GetHost() == &host && host.GetFocusControl() == focus &&
                             _state->bindingRevision == binding && Revision() == revision && _state->imageLocationRevision == location &&
-                            _state->document.selectionEpoch_ == selectionEpoch && host.GetInteractionRevision() == interaction && GetSelection() == selection)
+                            _state->document._selectionEpoch == selectionEpoch && host.GetInteractionRevision() == interaction && GetSelection() == selection)
                             static_cast<void>(ReplaceSelection(*plain));
                         return true;
                     }
@@ -6814,7 +6814,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                                                   bool(_state->htmlPasteConverter) && _state->markdownRendering && _state->mode == RichText::ViewMode::Rich,
                                                   bool(_state->bitmapPasteHandler) && CanPasteMarkdownFileReferences(selection));
                     if (available && ! lifetime.expired() && GetHost() == &host && host.GetFocusControl() == focus && _state->bindingRevision == binding &&
-                        Revision() == revision && _state->imageLocationRevision == location && _state->document.selectionEpoch_ == selectionEpoch &&
+                        Revision() == revision && _state->imageLocationRevision == location && _state->document._selectionEpoch == selectionEpoch &&
                         host.GetInteractionRevision() == interaction && GetSelection() == selection)
                     {
                         if (! content.filePaths.empty())
@@ -6828,7 +6828,7 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                             const bool transformed = TryPrepareClipboardPaste(content, replacement, &stalePaste);
                             if (stalePaste || lifetime.expired() || GetHost() != &host || host.GetFocusControl() != focus ||
                                 _state->bindingRevision != binding || Revision() != revision || _state->imageLocationRevision != location ||
-                                _state->document.selectionEpoch_ != selectionEpoch || host.GetInteractionRevision() != interaction ||
+                                _state->document._selectionEpoch != selectionEpoch || host.GetInteractionRevision() != interaction ||
                                 GetSelection() != selection)
                                 return true;
                             if (transformed)
@@ -7048,10 +7048,10 @@ bool RichTextEditor::OnKeyDown(ControlHost& host, UINT key, UINT modifiers) noex
                         const auto previous = _state->typingRun;
                         const auto kind     = backwards ? State::TypingRun::Kind::Backspace : State::TypingRun::Kind::Delete;
                         merge = previous && previous->kind == kind && previous->revision == Revision() &&
-                                previous->selectionEpoch == _state->document.selectionEpoch_ && previous->caret == selection.caret &&
+                                previous->selectionEpoch == _state->document._selectionEpoch && previous->caret == selection.caret &&
                                 now >= previous->lastTick && now - previous->lastTick <= 1000u && previous->units + units <= 64u && _state->document.CanUndo();
                         _state->typingRun = State::TypingRun{
-                            kind, Revision() + 1u, _state->document.selectionEpoch_, now, range.first, merge ? previous->units + units : units};
+                            kind, Revision() + 1u, _state->document._selectionEpoch, now, range.first, merge ? previous->units + units : units};
                     }
                     else
                         _state->typingRun.reset();
@@ -7347,7 +7347,7 @@ bool RichTextEditor::OnMouseDown(ControlHost& host, D2D1_POINT_2F point, bool ri
             _state->sourceMoveOrigin         = point;
             _state->sourceMoveSelection      = selection;
             _state->sourceMoveRevision       = Revision();
-            _state->sourceMoveSelectionEpoch = _state->document.selectionEpoch_;
+            _state->sourceMoveSelectionEpoch = _state->document._selectionEpoch;
             _state->sourceMoveBinding        = _state->bindingRevision;
             _state->dragging                 = true;
             host.CaptureMouse(this);
@@ -7782,7 +7782,7 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
         }
         if (_state->sourceMovePress)
         {
-            if (Revision() != _state->sourceMoveRevision || _state->document.selectionEpoch_ != _state->sourceMoveSelectionEpoch ||
+            if (Revision() != _state->sourceMoveRevision || _state->document._selectionEpoch != _state->sourceMoveSelectionEpoch ||
                 _state->bindingRevision != _state->sourceMoveBinding || GetSelection() != _state->sourceMoveSelection || ! Editable())
             {
                 _state->sourceMovePress = _state->dragging = false;
@@ -7797,13 +7797,13 @@ bool RichTextEditor::OnMouseMove(ControlHost& host, D2D1_POINT_2F point, UINT) n
             const auto lifetime       = GetLifetimeToken();
             const auto callback       = _state->onSourceDragRequested;
             const auto selection      = GetSelection();
-            const auto selectionEpoch = _state->document.selectionEpoch_;
+            const auto selectionEpoch = _state->document._selectionEpoch;
             const auto revision       = Revision();
             const auto snapshot       = Snapshot();
             _state->sourceMovePress = _state->dragging = false;
             host.ReleaseMouseCapture();
             if (lifetime.expired() || GetHost() != &host || ! callback || _state->onSourceDragRequested != callback || Revision() != revision ||
-                _state->document.selectionEpoch_ != selectionEpoch || GetSelection() != selection || ! Snapshot().IsSameRevision(snapshot))
+                _state->document._selectionEpoch != selectionEpoch || GetSelection() != selection || ! Snapshot().IsSameRevision(snapshot))
                 return true;
             const auto move = BeginSourceMove();
             if (! move)
@@ -7923,7 +7923,7 @@ bool RichTextEditor::OnMouseUp(ControlHost& host, D2D1_POINT_2F point, bool righ
     if (_state->sourceMovePress)
     {
         const auto lifetime     = GetLifetimeToken();
-        const bool current      = Revision() == _state->sourceMoveRevision && _state->document.selectionEpoch_ == _state->sourceMoveSelectionEpoch &&
+        const bool current      = Revision() == _state->sourceMoveRevision && _state->document._selectionEpoch == _state->sourceMoveSelectionEpoch &&
                                   _state->bindingRevision == _state->sourceMoveBinding && GetSelection() == _state->sourceMoveSelection && Editable();
         _state->sourceMovePress = _state->dragging = false;
         if (! current || ! LayoutIsCurrent(host))

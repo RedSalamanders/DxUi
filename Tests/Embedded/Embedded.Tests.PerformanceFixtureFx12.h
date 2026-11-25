@@ -113,15 +113,15 @@ public:
         {
             case kWarm:
                 if (step > 0u)
-                    MovePointer(context, step % 2u == 1u ? *hoverA_ : *hoverB_);
+                    MovePointer(context, step % 2u == 1u ? *_hoverA : *_hoverB);
                 break;
             case kFull: context.controls.Invalidate(); break;
-            case kHover: MovePointer(context, step % 2u == 0u ? *hoverA_ : *hoverB_); break;
-            case kValue: valueLabel_->SetText(std::format(L"Value {}", step % 2u == 0u ? 1 : 2)); break;
+            case kHover: MovePointer(context, step % 2u == 0u ? *_hoverA : *_hoverB); break;
+            case kValue: _valueLabel->SetText(std::format(L"Value {}", step % 2u == 0u ? 1 : 2)); break;
             case kWheel:
-                if (scroll_)
+                if (_scroll)
                 {
-                    const D2D1_RECT_F bounds = scroll_->GetBounds();
+                    const D2D1_RECT_F bounds = _scroll->GetBounds();
                     const float scale        = context.variant.dpi / 96.0f;
                     DxUi::PointerEvent event{
                         DxUi::PointerAction::Wheel, (bounds.left + bounds.right) * 0.5f * scale, (bounds.top + bounds.bottom) * 0.5f * scale};
@@ -130,15 +130,15 @@ public:
                 }
                 break;
             case kSize:
-                if (sizeLabel_)
-                    sizeLabel_->SetText(step % 2u == 0u ? L"Field 0003 with a caption long enough to move its row" : L"Field 0003");
+                if (_sizeLabel)
+                    _sizeLabel->SetText(step % 2u == 0u ? L"Field 0003 with a caption long enough to move its row" : L"Field 0003");
                 break;
             case kWidth:
-                if (column_)
+                if (_column)
                 {
-                    D2D1_RECT_F bounds = column_->GetBounds();
-                    bounds.right       = columnRight_ - (step % 2u == 0u ? 40.0f : 0.0f);
-                    column_->SetBounds(bounds);
+                    D2D1_RECT_F bounds = _column->GetBounds();
+                    bounds.right       = _columnRight - (step % 2u == 0u ? 40.0f : 0.0f);
+                    _column->SetBounds(bounds);
                 }
                 break;
             default: break;
@@ -174,7 +174,7 @@ private:
                     if (typography)
                     {
                         auto* tree = root.AddChild<DxUi::Tree>();
-                        tree->SetModel(&tinyTree_);
+                        tree->SetModel(&_tinyTree);
                         const auto key = trees++ % kTypographyKeys;
                         static_cast<void>(
                             tree->SetTypographyOverride(DxUi::Tree::TypographyOverride{TypographySize(key), TypographyWeight(key), TypographyWeight(key)}));
@@ -191,18 +191,18 @@ private:
                         const auto key = labels++ % kTypographyKeys;
                         static_cast<void>(label->SetTypographyOverride(DxUi::LabelTypography{TypographySize(key), TypographyWeight(key), 0.0f}));
                     }
-                    if (! valueLabel_)
-                        valueLabel_ = label;
+                    if (! _valueLabel)
+                        _valueLabel = label;
                     control = label;
                     break;
                 }
                 case 3u:
                 {
                     auto* button = root.AddChild<DxUi::Button>(std::format(L"B{}", index));
-                    if (! hoverA_)
-                        hoverA_ = button;
-                    else if (! hoverB_)
-                        hoverB_ = button;
+                    if (! _hoverA)
+                        _hoverA = button;
+                    else if (! _hoverB)
+                        _hoverB = button;
                     control = button;
                     break;
                 }
@@ -242,31 +242,31 @@ private:
     // One ScrollPanel over 2,000 rows of label, text field, checkbox, toggle and button, positioned in content space.
     void BuildForm(DxUi::Panel& root, float width, float height)
     {
-        scroll_ = root.AddChild<DxUi::ScrollPanel>();
-        scroll_->SetBounds(D2D1::RectF(8.0f, 8.0f, width - 8.0f, height - 8.0f));
+        _scroll = root.AddChild<DxUi::ScrollPanel>();
+        _scroll->SetBounds(D2D1::RectF(8.0f, 8.0f, width - 8.0f, height - 8.0f));
         for (size_t row = 0u; row < kFormRows; ++row)
         {
             const float top    = 8.0f + 4.0f + static_cast<float>(row) * kFormRowDip;
             const float bottom = top + kFormRowDip - 4.0f;
-            auto* label        = scroll_->AddChild<DxUi::Label>(std::format(L"Field {:04}", row));
+            auto* label        = _scroll->AddChild<DxUi::Label>(std::format(L"Field {:04}", row));
             label->SetBounds(D2D1::RectF(16.0f, top, 176.0f, bottom));
             if (row == 2u)
-                valueLabel_ = label;
-            scroll_->AddChild<DxUi::TextField>(std::format(L"Value of field {}", row))->SetBounds(D2D1::RectF(184.0f, top, 424.0f, bottom));
-            auto* checkbox = scroll_->AddChild<DxUi::Checkbox>(L"Enabled");
+                _valueLabel = label;
+            _scroll->AddChild<DxUi::TextField>(std::format(L"Value of field {}", row))->SetBounds(D2D1::RectF(184.0f, top, 424.0f, bottom));
+            auto* checkbox = _scroll->AddChild<DxUi::Checkbox>(L"Enabled");
             checkbox->SetChecked(row % 2u == 0u);
             checkbox->SetBounds(D2D1::RectF(432.0f, top, 552.0f, bottom));
-            auto* toggle = scroll_->AddChild<DxUi::Toggle>(L"Sync");
+            auto* toggle = _scroll->AddChild<DxUi::Toggle>(L"Sync");
             toggle->SetChecked(row % 3u == 0u);
             toggle->SetBounds(D2D1::RectF(560.0f, top, 680.0f, bottom));
-            auto* button = scroll_->AddChild<DxUi::Button>(L"Apply");
+            auto* button = _scroll->AddChild<DxUi::Button>(L"Apply");
             button->SetBounds(D2D1::RectF(688.0f, top, 788.0f, bottom));
             if (row == 0u)
-                hoverA_ = button;
+                _hoverA = button;
             else if (row == 1u)
-                hoverB_ = button;
+                _hoverB = button;
         }
-        scroll_->SetContentHeight(static_cast<float>(kFormRows) * kFormRowDip + 8.0f);
+        _scroll->SetContentHeight(static_cast<float>(kFormRows) * kFormRowDip + 8.0f);
     }
 
     // The same rows arranged by the library, as a real long form would be: a column FlexPanel of sections (100 rows each, as
@@ -274,16 +274,16 @@ private:
     // the text field grows. Row 2's label shows "Value 0", so the value phase changes text without changing its size.
     void BuildFormLayout(DxUi::Panel& root, float width, float height, size_t rows)
     {
-        scroll_ = root.AddChild<DxUi::ScrollPanel>();
-        scroll_->SetBounds(D2D1::RectF(8.0f, 8.0f, width - 8.0f, height - 8.0f));
-        column_ = scroll_->AddChild<DxUi::FlexPanel>();
-        static_cast<void>(column_->SetGap(kFormLayoutGapDip));
+        _scroll = root.AddChild<DxUi::ScrollPanel>();
+        _scroll->SetBounds(D2D1::RectF(8.0f, 8.0f, width - 8.0f, height - 8.0f));
+        _column = _scroll->AddChild<DxUi::FlexPanel>();
+        static_cast<void>(_column->SetGap(kFormLayoutGapDip));
         DxUi::FlexPanel* section = nullptr;
         for (size_t row = 0u; row < rows; ++row)
         {
             if (row % kFormLayoutSectionRows == 0u)
             {
-                section = column_->AddChild<DxUi::FlexPanel>();
+                section = _column->AddChild<DxUi::FlexPanel>();
                 static_cast<void>(section->SetGap(kFormLayoutGapDip));
             }
             auto* line = section->AddChild<DxUi::FlexPanel>();
@@ -292,9 +292,9 @@ private:
             auto* label = line->AddChild<DxUi::Label>(row == 2u ? std::wstring(L"Value 0") : std::format(L"Field {:04}", row));
             static_cast<void>(line->SetChildOptions(label, DxUi::FlexChildOptions{.constraints = {.minimumDip = D2D1::SizeF(160.0f, 0.0f)}}));
             if (row == 2u)
-                valueLabel_ = label;
+                _valueLabel = label;
             else if (row == 3u)
-                sizeLabel_ = label;
+                _sizeLabel = label;
             auto* field = line->AddChild<DxUi::TextField>(std::format(L"Value of field {}", row));
             static_cast<void>(line->SetChildOptions(field, DxUi::FlexChildOptions{.constraints = {.minimumDip = D2D1::SizeF(120.0f, 0.0f)}, .grow = 1.0f}));
             auto* checkbox = line->AddChild<DxUi::Checkbox>(L"Enabled");
@@ -303,26 +303,26 @@ private:
             toggle->SetChecked(row % 3u == 0u);
             auto* button = line->AddChild<DxUi::Button>(L"Apply");
             if (row == 0u)
-                hoverA_ = button;
+                _hoverA = button;
             else if (row == 1u)
-                hoverB_ = button;
+                _hoverB = button;
         }
         const size_t sections     = (rows + kFormLayoutSectionRows - 1u) / kFormLayoutSectionRows;
         const float contentHeight = static_cast<float>(rows) * kFormRowDip + static_cast<float>(rows - sections) * kFormLayoutGapDip +
                                     static_cast<float>(sections - 1u) * kFormLayoutGapDip;
-        columnRight_              = width - 24.0f;
-        column_->SetBounds(D2D1::RectF(16.0f, 12.0f, columnRight_, 12.0f + contentHeight));
-        scroll_->SetContentHeight(contentHeight + 16.0f);
+        _columnRight              = width - 24.0f;
+        _column->SetBounds(D2D1::RectF(16.0f, 12.0f, _columnRight, 12.0f + contentHeight));
+        _scroll->SetContentHeight(contentHeight + 16.0f);
     }
 
-    TinyTreeModel tinyTree_;
-    DxUi::ScrollPanel* scroll_ = nullptr;
-    DxUi::Label* valueLabel_   = nullptr;
-    DxUi::Label* sizeLabel_    = nullptr;
-    DxUi::FlexPanel* column_   = nullptr;
-    float columnRight_         = 0.0f;
-    DxUi::Button* hoverA_      = nullptr;
-    DxUi::Button* hoverB_      = nullptr;
+    TinyTreeModel _tinyTree;
+    DxUi::ScrollPanel* _scroll = nullptr;
+    DxUi::Label* _valueLabel   = nullptr;
+    DxUi::Label* _sizeLabel    = nullptr;
+    DxUi::FlexPanel* _column   = nullptr;
+    float _columnRight         = 0.0f;
+    DxUi::Button* _hoverA      = nullptr;
+    DxUi::Button* _hoverB      = nullptr;
 };
 
 inline constexpr Definition kDefinition{

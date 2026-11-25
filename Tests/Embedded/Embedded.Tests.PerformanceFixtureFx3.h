@@ -65,18 +65,18 @@ public:
     {
         DxUi::DebugSetWheelScrollLinesForTest(3u);
         const bool full = context.variant.name == "grouped-full";
-        grouped_.emplace(full ? 200'000u : 20'000u, full ? 10'000u : 1'000u, kColumns, kColumnWidth);
+        _grouped.emplace(full ? 200'000u : 20'000u, full ? 10'000u : 1'000u, kColumns, kColumnWidth);
         auto root = std::make_unique<DxUi::Panel>();
-        grid_     = root->AddChild<DxUi::Grid>();
-        grid_->SetRowHeightDip(kRowHeightDip);
-        grid_->SetHeaderHeightDip(kHeaderHeight);
-        grid_->SetSelectionMode(DxUi::GridSelectionMode::Extended);
-        grid_->SetModel(&rows_);
+        _grid     = root->AddChild<DxUi::Grid>();
+        _grid->SetRowHeightDip(kRowHeightDip);
+        _grid->SetHeaderHeightDip(kHeaderHeight);
+        _grid->SetSelectionMode(DxUi::GridSelectionMode::Extended);
+        _grid->SetModel(&_rows);
         const float scale = context.variant.dpi / 96.0f;
         const D2D1_RECT_F bounds =
             D2D1::RectF(0.0f, 0.0f, static_cast<float>(context.variant.width) / scale, static_cast<float>(context.variant.height) / scale);
         root->SetBounds(bounds);
-        grid_->SetBounds(bounds);
+        _grid->SetBounds(bounds);
         context.controls.SetRoot(std::move(root));
         return S_OK;
     }
@@ -110,25 +110,25 @@ public:
             case kSelectedArrow:
                 if (phase == kArrows && step == 0u)
                 {
-                    context.controls.SetFocusControl(grid_, false);
-                    static_cast<void>(grid_->RequestFocusRow(0u));
+                    context.controls.SetFocusControl(_grid, false);
+                    static_cast<void>(_grid->RequestFocusRow(0u));
                 }
                 key(VK_DOWN);
                 break;
             case kGroupedWheel:
                 if (step == 0u)
-                    grid_->SetModel(&*grouped_);
+                    _grid->SetModel(&*_grouped);
                 wheel(-120.0f);
                 break;
-            case kSelectAll: static_cast<void>(grid_->OnSelectAll(context.controls)); break;
+            case kSelectAll: static_cast<void>(_grid->OnSelectAll(context.controls)); break;
             default: break;
         }
     }
 
 private:
-    LargeGridModel rows_{kRows, kColumns, kColumnWidth};
-    std::optional<UniformGroupedGridModel> grouped_;
-    DxUi::Grid* grid_ = nullptr;
+    LargeGridModel _rows{kRows, kColumns, kColumnWidth};
+    std::optional<UniformGroupedGridModel> _grouped;
+    DxUi::Grid* _grid = nullptr;
 };
 
 inline constexpr Definition kDefinition{

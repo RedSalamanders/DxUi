@@ -71,10 +71,10 @@ Host::~Host()
     const auto result = Uninstall();
     if (FAILED(result))
         DxUi::Failure::FailContract(result);
-    if (stop_)
-        SetEvent(stop_.get());
-    if (thread_)
-        WaitForSingleObject(thread_.get(), INFINITE);
+    if (_stop)
+        SetEvent(_stop.get());
+    if (_thread)
+        WaitForSingleObject(_thread.get(), INFINITE);
 }
 HRESULT Host::StartBesideExecutable() noexcept
 {
@@ -116,40 +116,40 @@ HRESULT Host::StartBesideExecutable() noexcept
 }
 HRESULT Host::Start(std::wstring_view outputPrefix) noexcept
 {
-    if (thread_ || outputPrefix.empty() || outputPrefix.size() + 8u >= prefix_.size() || outputPrefix.find(L'\0') != std::wstring_view::npos)
+    if (_thread || outputPrefix.empty() || outputPrefix.size() + 8u >= _prefix.size() || outputPrefix.find(L'\0') != std::wstring_view::npos)
         return E_INVALIDARG;
     // DbgCore loads PSAPI while enumerating the target's modules. Doing that
     // after a self-dump suspends target threads can wait on their loader work
     // forever. Prepare and retain this system dependency before hooks/workers;
     // the fatal path must not be its first load. Dumps remain best effort.
-    dumpPsApi_.reset(LoadLibraryExW(L"psapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32));
-    if (! dumpPsApi_)
+    _dumpPsApi.reset(LoadLibraryExW(L"psapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32));
+    if (! _dumpPsApi)
         return LastError();
-    std::copy(outputPrefix.begin(), outputPrefix.end(), prefix_.begin());
-    prefix_[outputPrefix.size()] = L'\0';
-    request_.reset(CreateEventW(nullptr, FALSE, FALSE, nullptr));
-    if (! request_)
+    std::copy(outputPrefix.begin(), outputPrefix.end(), _prefix.begin());
+    _prefix[outputPrefix.size()] = L'\0';
+    _request.reset(CreateEventW(nullptr, FALSE, FALSE, nullptr));
+    if (! _request)
         return LastError();
-    stop_.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-    if (! stop_)
+    _stop.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (! _stop)
         return LastError();
-    done_.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-    if (! done_)
+    _done.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (! _done)
         return LastError();
-    thread_.reset(CreateThread(nullptr, 0, WorkerEntry, this, 0, nullptr));
-    if (! thread_)
+    _thread.reset(CreateThread(nullptr, 0, WorkerEntry, this, 0, nullptr));
+    if (! _thread)
         return LastError();
     return S_OK;
 }
 HRESULT Host::Install() noexcept
 {
-    if (! thread_)
+    if (! _thread)
         return E_UNEXPECTED;
-    return hooks_.Install(Report, this);
+    return _hooks.Install(Report, this);
 }
 HRESULT Host::Uninstall() noexcept
 {
-    return hooks_.Uninstall();
+    return _hooks.Uninstall();
 }
 HRESULT Host::UninstallWhenIdle(DWORD timeoutMs, HRESULT (*cleanup)() noexcept) noexcept
 {
@@ -206,7 +206,7 @@ HRESULT Host::UninstallWhenIdle(DWORD timeoutMs, HRESULT (*cleanup)() noexcept) 
 }
 const DxUi::Failure::HostServices* Host::Services() const noexcept
 {
-    return hooks_.Services();
+    return _hooks.Services();
 }
 HRESULT Host::ReportRecord(const DxUi::Failure::Record& record) noexcept
 {
@@ -218,40 +218,40 @@ DWORD WINAPI Host::WorkerEntry(void* context) noexcept
 }
 DWORD Host::Worker() noexcept
 {
-    const HANDLE handles[] = {stop_.get(), request_.get()};
+    const HANDLE handles[] = {_stop.get(), _request.get()};
     for (;;)
     {
         const auto wait = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
         if (wait != WAIT_OBJECT_0 + 1u)
             return wait == WAIT_OBJECT_0 ? 0u : GetLastError();
-        result_ = WriteEvidence();
-        SetEvent(done_.get());
+        _result = WriteEvidence();
+        SetEvent(_done.get());
     }
 }
 HRESULT Host::Report(void* context, const DxUi::Failure::Record& record) noexcept
 {
     auto& host    = *static_cast<Host*>(context);
     LONG expected = 0;
-    if (! host.reporting_.compare_exchange_strong(expected, 1, std::memory_order_acq_rel))
+    if (! host._reporting.compare_exchange_strong(expected, 1, std::memory_order_acq_rel))
         return HRESULT_FROM_WIN32(ERROR_BUSY);
-    host.record_ = record;
+    host._record = record;
     // The input chain may point at transient exception state. The root and its
     // machine context are copied; do not dereference an uncopied nested chain.
-    host.record_.exception.ExceptionRecord = nullptr;
-    if (! ResetEvent(host.done_.get()) || ! SetEvent(host.request_.get()))
+    host._record.exception.ExceptionRecord = nullptr;
+    if (! ResetEvent(host._done.get()) || ! SetEvent(host._request.get()))
         return LastError();
-    const auto wait = WaitForSingleObject(host.done_.get(), ReportTimeoutMs);
+    const auto wait = WaitForSingleObject(host._done.get(), ReportTimeoutMs);
     if (wait == WAIT_TIMEOUT)
         return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
     if (wait != WAIT_OBJECT_0)
         return LastError();
-    return host.result_;
+    return host._result;
 }
 HRESULT Host::WriteEvidence() noexcept
 {
     std::array<wchar_t, 1032> path{};
-    const auto length = std::char_traits<wchar_t>::length(prefix_.data());
-    std::copy_n(prefix_.data(), length, path.data());
+    const auto length = std::char_traits<wchar_t>::length(_prefix.data());
+    std::copy_n(_prefix.data(), length, path.data());
     std::copy_n(L".dmp", 5u, path.data() + length);
     wil::unique_hfile dump(CreateFileW(path.data(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr));
     HRESULT dumpResult = dump ? S_OK : LastError();
@@ -260,8 +260,8 @@ HRESULT Host::WriteEvidence() noexcept
     else if (dump)
     {
         const auto unlock = wil::scope_exit([] { ReleaseSRWLockExclusive(&dbgHelpGate); });
-        EXCEPTION_POINTERS pointers{&record_.exception, &record_.context};
-        MINIDUMP_EXCEPTION_INFORMATION info{record_.threadId, &pointers, FALSE};
+        EXCEPTION_POINTERS pointers{&_record.exception, &_record.context};
+        MINIDUMP_EXCEPTION_INFORMATION info{_record.threadId, &pointers, FALSE};
         if (! MiniDumpWriteDump(GetCurrentProcess(),
                                 GetCurrentProcessId(),
                                 dump.get(),
@@ -276,38 +276,38 @@ HRESULT Host::WriteEvidence() noexcept
     if (! output)
         return LastError();
     Text text;
-    text.Line("protocol=", record_.version);
+    text.Line("protocol=", _record.version);
     text.Line("process=", GetCurrentProcessId());
-    text.Line("thread=", record_.threadId);
-    text.Line("kind=", static_cast<std::uint32_t>(record_.kind));
-    text.Line("flags=", record_.flags, 16);
-    text.Line("result=", static_cast<std::uint32_t>(record_.result), 16);
+    text.Line("thread=", _record.threadId);
+    text.Line("kind=", static_cast<std::uint32_t>(_record.kind));
+    text.Line("flags=", _record.flags, 16);
+    text.Line("result=", static_cast<std::uint32_t>(_record.result), 16);
     text.Line("dump_result=", static_cast<std::uint32_t>(dumpResult), 16);
-    text.Line("allocation_bytes=", record_.requestedBytes);
-    text.Line("line=", record_.line);
+    text.Line("allocation_bytes=", _record.requestedBytes);
+    text.Line("line=", _record.line);
     text.Add("file=");
-    text.Add(std::string_view(record_.file, strnlen_s(record_.file, sizeof(record_.file))));
+    text.Add(std::string_view(_record.file, strnlen_s(_record.file, sizeof(_record.file))));
     text.Add("\r\n");
     text.Add("function=");
-    text.Add(std::string_view(record_.function, strnlen_s(record_.function, sizeof(record_.function))));
+    text.Add(std::string_view(_record.function, strnlen_s(_record.function, sizeof(_record.function))));
     text.Add("\r\n");
-    text.Line("exception_code=", record_.exception.ExceptionCode, 16);
-    text.Line("exception_address=", reinterpret_cast<std::uintptr_t>(record_.exception.ExceptionAddress), 16);
-    text.Line("context_flags=", record_.context.ContextFlags, 16);
+    text.Line("exception_code=", _record.exception.ExceptionCode, 16);
+    text.Line("exception_address=", reinterpret_cast<std::uintptr_t>(_record.exception.ExceptionAddress), 16);
+    text.Line("context_flags=", _record.context.ContextFlags, 16);
 #if defined(_M_X64)
-    text.Line("context_ip=", record_.context.Rip, 16);
-    text.Line("context_sp=", record_.context.Rsp, 16);
+    text.Line("context_ip=", _record.context.Rip, 16);
+    text.Line("context_sp=", _record.context.Rsp, 16);
 #elif defined(_M_ARM64)
-    text.Line("context_ip=", record_.context.Pc, 16);
-    text.Line("context_sp=", record_.context.Sp, 16);
+    text.Line("context_ip=", _record.context.Pc, 16);
+    text.Line("context_sp=", _record.context.Sp, 16);
 #endif
-    for (std::size_t index = 0; index < (std::min)(static_cast<std::size_t>(record_.frameCount), DxUi::Failure::MaximumFrames); ++index)
+    for (std::size_t index = 0; index < (std::min)(static_cast<std::size_t>(_record.frameCount), DxUi::Failure::MaximumFrames); ++index)
     {
-        const auto address = reinterpret_cast<std::uintptr_t>(record_.frames[index]);
+        const auto address = reinterpret_cast<std::uintptr_t>(_record.frames[index]);
         text.Line("frame=", address, 16);
         HMODULE module{};
         if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                               reinterpret_cast<LPCWSTR>(record_.frames[index]),
+                               reinterpret_cast<LPCWSTR>(_record.frames[index]),
                                &module))
         {
             const auto base = reinterpret_cast<std::uintptr_t>(module);

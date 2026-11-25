@@ -104,7 +104,7 @@ public:
 
 private:
     struct Preparation;
-    std::unique_ptr<Preparation> preparation_;
-    std::shared_ptr<const FlowchartLayoutPlan> published_;
+    std::unique_ptr<Preparation> _preparation;
+    std::shared_ptr<const FlowchartLayoutPlan> _published;
 };
 } // namespace DxUi::RichText::Detail

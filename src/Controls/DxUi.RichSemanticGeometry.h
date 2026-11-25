@@ -75,11 +75,11 @@ public:
     [[nodiscard]] std::optional<std::size_t> At(std::size_t display) const noexcept;
     [[nodiscard]] std::size_t SegmentCount() const noexcept
     {
-        return starts_.size();
+        return _starts.size();
     }
 
 private:
-    std::vector<std::size_t> starts_ = std::vector<std::size_t>(0u), elements_ = std::vector<std::size_t>(0u);
+    std::vector<std::size_t> _starts = std::vector<std::size_t>(0u), _elements = std::vector<std::size_t>(0u);
 };
 // Native geometry preparation on the ControlHost owner. This service owns only
 // prepared layouts and indexes; it creates no device/context/HWND/worker/timer.
@@ -102,7 +102,7 @@ public:
     LayoutAdvance Advance(LayoutWorkBudget budget = {});
     HRESULT Result() const noexcept
     {
-        return beginResult_;
+        return _beginResult;
     }
     std::span<const NativeObjectRejection> RejectedNativeObjects() const noexcept;
     void Cancel() noexcept;
@@ -203,12 +203,12 @@ public:
 private:
     struct State;
     struct Preparation;
-    std::unique_ptr<State> state_;
-    std::unique_ptr<Preparation> next_;
-    std::vector<NativeObjectRejection> rejectedNativeObjects_;
-    std::uint64_t generation_{};
-    bool valid_{};
-    HRESULT beginResult_ = S_OK;
+    std::unique_ptr<State> _state;
+    std::unique_ptr<Preparation> _next;
+    std::vector<NativeObjectRejection> _rejectedNativeObjects;
+    std::uint64_t _generation{};
+    bool _valid{};
+    HRESULT _beginResult = S_OK;
     const State& Current() const;
     static HRESULT TryRangeFromState(const State& state, std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output);
 };

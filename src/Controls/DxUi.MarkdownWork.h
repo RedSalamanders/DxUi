@@ -20,17 +20,17 @@ inline void AccountMarkdownWork(std::size_t MarkdownWorkCounts::* counter, std::
 class MarkdownWorkProbe
 {
 public:
-    explicit MarkdownWorkProbe(MarkdownWorkCounts& counts) noexcept : previous_(std::exchange(markdownWorkSink, &counts))
+    explicit MarkdownWorkProbe(MarkdownWorkCounts& counts) noexcept : _previous(std::exchange(markdownWorkSink, &counts))
     {
     }
     ~MarkdownWorkProbe()
     {
-        markdownWorkSink = previous_;
+        markdownWorkSink = _previous;
     }
     MarkdownWorkProbe(const MarkdownWorkProbe&)            = delete;
     MarkdownWorkProbe& operator=(const MarkdownWorkProbe&) = delete;
 
 private:
-    MarkdownWorkCounts* previous_{};
+    MarkdownWorkCounts* _previous{};
 };
 } // namespace DxUi::RichText::Detail

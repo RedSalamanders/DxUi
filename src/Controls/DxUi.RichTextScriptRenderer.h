@@ -61,20 +61,20 @@ public:
                        D2D1_POINT_2F origin,
                        ScriptMetadata& metadata,
                        bool staging) noexcept
-        : target_(target),
-          brush_(brush),
-          layout_(layout),
-          projection_(projection),
-          textOffset_(textOffset),
-          origin_(origin),
-          metadata_(metadata),
-          staging_(staging)
+        : _target(target),
+          _brush(brush),
+          _layout(layout),
+          _projection(projection),
+          _textOffset(textOffset),
+          _origin(origin),
+          _metadata(metadata),
+          _staging(staging)
     {
-        if (target_)
+        if (_target)
         {
-            const auto result = target_->QueryInterface(IID_PPV_ARGS(color_.put()));
+            const auto result = _target->QueryInterface(IID_PPV_ARGS(_color.put()));
             if (FAILED(result) && result != E_NOINTERFACE)
-                result_ = result;
+                _result = result;
         }
     }
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** object) noexcept override
@@ -93,11 +93,11 @@ public:
     }
     ULONG STDMETHODCALLTYPE AddRef() noexcept override
     {
-        return ++references_;
+        return ++_references;
     }
     ULONG STDMETHODCALLTYPE Release() noexcept override
     {
-        return references_ ? --references_ : 0u;
+        return _references ? --_references : 0u;
     }
     HRESULT STDMETHODCALLTYPE IsPixelSnappingDisabled(void*, BOOL* disabled) noexcept override
     {
@@ -111,8 +111,8 @@ public:
         if (! transform)
             return E_POINTER;
         D2D1_MATRIX_3X2_F value = D2D1::Matrix3x2F::Identity();
-        if (target_)
-            target_->GetTransform(&value);
+        if (_target)
+            _target->GetTransform(&value);
         *transform = {value._11, value._12, value._21, value._22, value._31, value._32};
         return S_OK;
     }
@@ -121,8 +121,8 @@ public:
         if (! pixels)
             return E_POINTER;
         FLOAT x = 96.f, y = 96.f;
-        if (target_)
-            target_->GetDpi(&x, &y);
+        if (_target)
+            _target->GetDpi(&x, &y);
         if (x <= 0.f || y <= 0.f)
             return E_INVALIDARG;
         *pixels = x / 96.f;
@@ -138,58 +138,58 @@ public:
     {
         if (! glyphs)
         {
-            result_ = E_INVALIDARG;
+            _result = E_INVALIDARG;
             return S_OK;
         }
         if (! glyphs->glyphCount)
             return S_OK;
-        if (! description || ! description->stringLength || description->textPosition < textOffset_ ||
-            static_cast<std::size_t>(description->textPosition - textOffset_) > projection_.text.size() ||
-            description->stringLength > projection_.text.size() - static_cast<std::size_t>(description->textPosition - textOffset_))
+        if (! description || ! description->stringLength || description->textPosition < _textOffset ||
+            static_cast<std::size_t>(description->textPosition - _textOffset) > _projection.text.size() ||
+            description->stringLength > _projection.text.size() - static_cast<std::size_t>(description->textPosition - _textOffset))
         {
-            if (SUCCEEDED(result_))
-                result_ = DWRITE_E_UNSUPPORTEDOPERATION;
+            if (SUCCEEDED(_result))
+                _result = DWRITE_E_UNSUPPORTEDOPERATION;
             return S_OK;
         }
-        const auto first  = static_cast<std::size_t>(description->textPosition - textOffset_);
+        const auto first  = static_cast<std::size_t>(description->textPosition - _textOffset);
         const auto last   = first + description->stringLength;
         const auto flags  = Flags(description->textPosition);
         const auto script = flags & (Superscript | Subscript);
-        auto run          = std::lower_bound(projection_.runs.begin(), projection_.runs.end(), first, [](const StyleRun& value, std::size_t position) {
+        auto run          = std::lower_bound(_projection.runs.begin(), _projection.runs.end(), first, [](const StyleRun& value, std::size_t position) {
             return value.start + value.length <= position;
         });
-        for (; run != projection_.runs.end() && run->start < last; ++run)
+        for (; run != _projection.runs.end() && run->start < last; ++run)
             if ((run->flags & (Superscript | Subscript)) != script)
             {
-                if (SUCCEEDED(result_))
-                    result_ = DWRITE_E_UNSUPPORTEDOPERATION;
+                if (SUCCEEDED(_result))
+                    _result = DWRITE_E_UNSUPPORTEDOPERATION;
                 return S_OK;
             }
-        if (! staging_ && ! metadata_.uniformSourceLines.empty())
-            y = SnapY(origin_.y + UniformLineAt(metadata_.uniformSourceLines, first).documentBaseline, true);
+        if (! _staging && ! _metadata.uniformSourceLines.empty())
+            y = SnapY(_origin.y + UniformLineAt(_metadata.uniformSourceLines, first).documentBaseline, true);
         y += Offset(flags, glyphs->fontEmSize);
         if (! glyphs->fontFace)
         {
-            result_ = E_INVALIDARG;
+            _result = E_INVALIDARG;
             return S_OK;
         }
-        if (staging_)
+        if (_staging)
         {
             const auto found =
-                std::find_if(metadata_.fonts.begin(), metadata_.fonts.end(), [&](const auto& entry) { return entry.face.get() == glyphs->fontFace; });
-            if (found != metadata_.fonts.end())
+                std::find_if(_metadata.fonts.begin(), _metadata.fonts.end(), [&](const auto& entry) { return entry.face.get() == glyphs->fontFace; });
+            if (found != _metadata.fonts.end())
                 return S_OK;
             wil::com_ptr<IDWriteFontFace2> face;
             const auto faceResult = glyphs->fontFace->QueryInterface(IID_PPV_ARGS(face.put()));
             if (faceResult == E_NOINTERFACE)
             {
-                if (SUCCEEDED(result_))
-                    result_ = DWRITE_E_UNSUPPORTEDOPERATION;
+                if (SUCCEEDED(_result))
+                    _result = DWRITE_E_UNSUPPORTEDOPERATION;
                 return S_OK;
             }
             if (FAILED(faceResult))
             {
-                result_ = faceResult;
+                _result = faceResult;
                 return S_OK;
             }
             try
@@ -197,8 +197,8 @@ public:
                 ScriptFont entry;
                 entry.face  = glyphs->fontFace;
                 entry.color = face->IsColorFont();
-                metadata_.requiresColor |= entry.color;
-                metadata_.fonts.push_back(std::move(entry));
+                _metadata.requiresColor |= entry.color;
+                _metadata.fonts.push_back(std::move(entry));
             }
             catch (const std::bad_alloc&)
             {
@@ -211,20 +211,20 @@ public:
         auto* ink = Brush(effect);
         if (! ink)
         {
-            result_ = E_INVALIDARG;
+            _result = E_INVALIDARG;
             return S_OK;
         }
-        if (color_)
-            color_->DrawGlyphRunWithColorSupport({x, y}, glyphs, description, ink, nullptr, 0u, mode, D2D1_COLOR_BITMAP_GLYPH_SNAP_OPTION_DEFAULT);
+        if (_color)
+            _color->DrawGlyphRunWithColorSupport({x, y}, glyphs, description, ink, nullptr, 0u, mode, D2D1_COLOR_BITMAP_GLYPH_SNAP_OPTION_DEFAULT);
         else
-            target_->DrawGlyphRun({x, y}, glyphs, ink, mode);
+            _target->DrawGlyphRun({x, y}, glyphs, ink, mode);
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE DrawUnderline(void*, FLOAT x, FLOAT y, const DWRITE_UNDERLINE* line, IUnknown* effect) noexcept override
     {
         if (! line)
             return E_INVALIDARG;
-        if (staging_)
+        if (_staging)
         {
             StageDecoration(x, y, line->width);
             return S_OK;
@@ -232,7 +232,7 @@ public:
         auto* ink = Brush(effect);
         if (! ink)
         {
-            result_ = E_INVALIDARG;
+            _result = E_INVALIDARG;
             return S_OK;
         }
         const auto decorationOffset = DecorationOffset(x, y);
@@ -244,7 +244,7 @@ public:
     {
         if (! line)
             return E_INVALIDARG;
-        if (staging_)
+        if (_staging)
         {
             StageDecoration(x, y, line->width);
             return S_OK;
@@ -252,12 +252,12 @@ public:
         auto* ink = Brush(effect);
         if (! ink)
         {
-            result_ = E_INVALIDARG;
+            _result = E_INVALIDARG;
             return S_OK;
         }
         const auto decorationOffset = DecorationOffset(x, y);
         y                           = SnapY(UniformBaseline(y)) + decorationOffset;
-        target_->FillRectangle(D2D1::RectF(x, y + line->offset, x + line->width, y + line->offset + line->thickness), ink);
+        _target->FillRectangle(D2D1::RectF(x, y + line->offset, x + line->width, y + line->offset + line->thickness), ink);
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE
@@ -265,27 +265,27 @@ public:
     {
         if (! object)
             return E_INVALIDARG;
-        if (staging_)
+        if (_staging)
             return S_OK;
         const auto result = object->Draw(context, this, x, y, sideways, rtl, effect);
         if (FAILED(result))
-            result_ = result;
+            _result = result;
         return S_OK;
     }
     HRESULT Result() const noexcept
     {
-        return result_;
+        return _result;
     }
 
 private:
     unsigned Flags(UINT32 position) const noexcept
     {
-        if (position < textOffset_)
+        if (position < _textOffset)
             return 0u;
-        const auto index = static_cast<std::size_t>(position - textOffset_);
+        const auto index = static_cast<std::size_t>(position - _textOffset);
         const auto found =
-            std::upper_bound(projection_.runs.begin(), projection_.runs.end(), index, [](std::size_t value, const StyleRun& run) { return value < run.start; });
-        if (found == projection_.runs.begin())
+            std::upper_bound(_projection.runs.begin(), _projection.runs.end(), index, [](std::size_t value, const StyleRun& run) { return value < run.start; });
+        if (found == _projection.runs.begin())
             return 0u;
         const auto& run = *std::prev(found);
         return index - run.start < run.length ? run.flags : 0u;
@@ -294,22 +294,22 @@ private:
     {
         BOOL trailing{}, inside{};
         DWRITE_HIT_TEST_METRICS metrics{};
-        const auto hit = layout_->HitTestPoint(x - origin_.x + .01f, y - origin_.y, &trailing, &inside, &metrics);
+        const auto hit = _layout->HitTestPoint(x - _origin.x + .01f, y - _origin.y, &trailing, &inside, &metrics);
         if (FAILED(hit))
         {
-            result_ = hit;
+            _result = hit;
             return;
         }
         float size{};
-        const auto sized = layout_->GetFontSize(metrics.textPosition, &size, nullptr);
+        const auto sized = _layout->GetFontSize(metrics.textPosition, &size, nullptr);
         if (FAILED(sized))
         {
-            result_ = sized;
+            _result = sized;
             return;
         }
         try
         {
-            metadata_.decorations.push_back({x - origin_.x, x - origin_.x + width, y - origin_.y, Offset(Flags(metrics.textPosition), size)});
+            _metadata.decorations.push_back({x - _origin.x, x - _origin.x + width, y - _origin.y, Offset(Flags(metrics.textPosition), size)});
         }
         catch (const std::bad_alloc&)
         {
@@ -318,15 +318,15 @@ private:
     }
     float DecorationOffset(float x, float y) const noexcept
     {
-        x -= origin_.x;
-        y -= origin_.y;
+        x -= _origin.x;
+        y -= _origin.y;
         auto line = std::lower_bound(
-            metadata_.decorations.begin(), metadata_.decorations.end(), y - 2.f, [](const auto& span, float baseline) { return span.baseline < baseline; });
+            _metadata.decorations.begin(), _metadata.decorations.end(), y - 2.f, [](const auto& span, float baseline) { return span.baseline < baseline; });
         const ScriptDecoration* best = nullptr;
-        while (line != metadata_.decorations.end() && line->baseline < y + 2.f)
+        while (line != _metadata.decorations.end() && line->baseline < y + 2.f)
         {
             const auto end =
-                std::upper_bound(line, metadata_.decorations.end(), line->baseline, [](float baseline, const auto& span) { return baseline < span.baseline; });
+                std::upper_bound(line, _metadata.decorations.end(), line->baseline, [](float baseline, const auto& span) { return baseline < span.baseline; });
             const auto candidate = std::upper_bound(line, end, x + .02f, [](float position, const auto& span) { return position < span.left; });
             if (candidate != line)
             {
@@ -348,9 +348,9 @@ private:
     float SnapY(float y, bool horizontalSkew = false) const noexcept
     {
         D2D1_MATRIX_3X2_F transform{};
-        target_->GetTransform(&transform);
+        _target->GetTransform(&transform);
         FLOAT dpiX{}, dpiY{};
-        target_->GetDpi(&dpiX, &dpiY);
+        _target->GetDpi(&dpiX, &dpiY);
         const auto scale     = transform._22 * dpiY / 96.f;
         const auto translate = transform._32 * dpiY / 96.f;
         return transform._12 == 0.f && (horizontalSkew || transform._21 == 0.f) && std::isfinite(scale) && scale > 0.f && std::isfinite(translate)
@@ -360,9 +360,9 @@ private:
     void Stroke(float x, float y, float width, float thickness, ID2D1Brush* ink) noexcept
     {
         D2D1_MATRIX_3X2_F transform{};
-        target_->GetTransform(&transform);
+        _target->GetTransform(&transform);
         FLOAT dpiX{}, dpiY{};
-        target_->GetDpi(&dpiX, &dpiY);
+        _target->GetDpi(&dpiX, &dpiY);
         const auto scale     = transform._22 * dpiY / 96.f;
         const auto translate = transform._32 * dpiY / 96.f;
         if (transform._12 == 0.f && transform._21 == 0.f && std::isfinite(scale) && scale > 0.f && std::isfinite(translate))
@@ -370,39 +370,39 @@ private:
             y         = (std::round(y * scale + translate) - translate) / scale;
             thickness = std::max(1.f, std::round(thickness * scale)) / scale;
         }
-        target_->FillRectangle(D2D1::RectF(x, y, x + width, y + thickness), ink);
+        _target->FillRectangle(D2D1::RectF(x, y, x + width, y + thickness), ink);
     }
     ID2D1Brush* Brush(IUnknown* effect) noexcept
     {
-        effectBrush_.reset();
+        _effectBrush.reset();
         if (! effect)
-            return brush_;
-        return SUCCEEDED(effect->QueryInterface(IID_PPV_ARGS(effectBrush_.put()))) ? effectBrush_.get() : nullptr;
+            return _brush;
+        return SUCCEEDED(effect->QueryInterface(IID_PPV_ARGS(_effectBrush.put()))) ? _effectBrush.get() : nullptr;
     }
     float UniformBaseline(float y) const noexcept
     {
-        const auto& lines = metadata_.uniformSourceLines;
+        const auto& lines = _metadata.uniformSourceLines;
         if (lines.empty())
             return y;
-        const auto local = y - origin_.y;
+        const auto local = y - _origin.y;
         auto line =
             std::lower_bound(lines.begin(), lines.end(), local, [](const UniformSourceLine& value, float baseline) { return value.localBaseline < baseline; });
         if (line == lines.end() || (line != lines.begin() && local - std::prev(line)->localBaseline < line->localBaseline - local))
             --line;
-        return origin_.y + line->documentBaseline;
+        return _origin.y + line->documentBaseline;
     }
-    ID2D1RenderTarget* target_{};
-    ID2D1Brush* brush_{};
-    IDWriteTextLayout* layout_{};
-    const Projection& projection_;
-    UINT32 textOffset_{};
-    D2D1_POINT_2F origin_{};
-    wil::com_ptr<ID2D1DeviceContext7> color_;
-    wil::com_ptr<ID2D1Brush> effectBrush_;
-    ULONG references_{1u};
-    HRESULT result_{S_OK};
-    ScriptMetadata& metadata_;
-    bool staging_{};
+    ID2D1RenderTarget* _target{};
+    ID2D1Brush* _brush{};
+    IDWriteTextLayout* _layout{};
+    const Projection& _projection;
+    UINT32 _textOffset{};
+    D2D1_POINT_2F _origin{};
+    wil::com_ptr<ID2D1DeviceContext7> _color;
+    wil::com_ptr<ID2D1Brush> _effectBrush;
+    ULONG _references{1u};
+    HRESULT _result{S_OK};
+    ScriptMetadata& _metadata;
+    bool _staging{};
 };
 #pragma warning(pop)
 } // namespace DxUi::RichText::Detail

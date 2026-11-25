@@ -561,7 +561,7 @@ struct SourceSnapshot::Revision
 SourceSnapshot::SourceSnapshot() noexcept = default;
 const SourceSnapshot::PieceTreeNode* SourceSnapshot::RootNode() const noexcept
 {
-    return state_ ? state_->root.get() : nullptr;
+    return _state ? _state->root.get() : nullptr;
 }
 std::size_t SourceSnapshot::Length() const noexcept
 {
@@ -570,7 +570,7 @@ std::size_t SourceSnapshot::Length() const noexcept
 }
 bool SourceSnapshot::MatchesText(std::wstring_view text) const noexcept
 {
-    if (! state_ || text.size() != Length())
+    if (! _state || text.size() != Length())
         return false;
     std::size_t offset{};
     return PieceTreeNode::VisitRange(RootNode(),
@@ -614,7 +614,7 @@ bool SourceSnapshot::IsBoundary(std::size_t offset) const noexcept
 }
 std::optional<SourceLocation> SourceSnapshot::LocationAt(std::size_t offset) const noexcept
 {
-    if (! state_ || ! IsBoundary(offset))
+    if (! _state || ! IsBoundary(offset))
         return std::nullopt;
     const auto summary = PieceTreeNode::PrefixLines(RootNode(), offset);
     return SourceLocation{summary.breaks, summary.tail};
@@ -622,7 +622,7 @@ std::optional<SourceLocation> SourceSnapshot::LocationAt(std::size_t offset) con
 void SourceSnapshot::NoteSliceCopy(std::size_t units, bool whole) const noexcept
 {
     auto& work = ::DxUi::Detail::Work().rich;
-    if (state_ && state_->lineage->editorSource.load(std::memory_order_relaxed))
+    if (_state && _state->lineage->editorSource.load(std::memory_order_relaxed))
     {
         work.documentBytesCopied += units * sizeof(wchar_t);
         work.documentFlattens += whole ? 1u : 0u;
@@ -669,7 +669,7 @@ wchar_t SourceSnapshot::UnitAt(std::size_t offset) const noexcept
 std::optional<std::size_t> SourceSnapshot::LineStart(std::size_t line) const noexcept
 {
     const auto* root = RootNode();
-    if (! state_)
+    if (! _state)
         return std::nullopt;
     if (! line)
         return 0u;
@@ -693,25 +693,25 @@ std::optional<std::size_t> SourceSnapshot::LineStart(std::size_t line) const noe
 SourceChangeRange SourceSnapshot::ChangedRangeFrom(const SourceSnapshot& previous) const noexcept
 {
     const auto previousLength = previous.Length(), currentLength = Length();
-    if (state_ == previous.state_ || (! previousLength && ! currentLength))
+    if (_state == previous._state || (! previousLength && ! currentLength))
         return {SourceChangeKind::Unchanged, 0u, 0u, 0u};
     const SourceChangeRange fallback{SourceChangeKind::FullReplacement, 0u, previousLength, currentLength};
-    if (! state_ || ! previous.state_ || state_->lineage != previous.state_->lineage)
+    if (! _state || ! previous._state || _state->lineage != previous._state->lineage)
         return fallback;
     constexpr size_t maximumEdits = SnapshotEditPage::Capacity * 4u;
     std::array<SnapshotEdit, maximumEdits> currentEdits{}, previousEdits{};
-    const auto currentCount  = state_->CopyNewestEdits(currentEdits);
-    const auto previousCount = previous.state_->CopyNewestEdits(previousEdits);
+    const auto currentCount  = _state->CopyNewestEdits(currentEdits);
+    const auto previousCount = previous._state->CopyNewestEdits(previousEdits);
     size_t currentSteps = 0u, previousSteps = 0u;
     bool found = false;
     // Numeric ancestry survives expired transient preview objects without
     // retaining their source buffers. Search is bounded to two small windows.
     for (size_t oldStep = 0u; oldStep <= previousCount && ! found; ++oldStep)
     {
-        const auto oldIdentity = oldStep ? previousEdits[oldStep - 1u].previousIdentity : previous.state_->identity;
+        const auto oldIdentity = oldStep ? previousEdits[oldStep - 1u].previousIdentity : previous._state->identity;
         for (size_t newStep = 0u; newStep <= currentCount; ++newStep)
         {
-            const auto newIdentity = newStep ? currentEdits[newStep - 1u].previousIdentity : state_->identity;
+            const auto newIdentity = newStep ? currentEdits[newStep - 1u].previousIdentity : _state->identity;
             if (oldIdentity == newIdentity)
             {
                 previousSteps = oldStep;
@@ -784,31 +784,31 @@ Document::Document(std::wstring_view text)
 }
 void Document::CountAsEditorSource() noexcept
 {
-    editorSource_ = true;
-    if (source_.state_)
-        source_.state_->lineage->editorSource.store(true, std::memory_order_relaxed);
+    _editorSource = true;
+    if (_source._state)
+        _source._state->lineage->editorSource.store(true, std::memory_order_relaxed);
 }
 bool Document::AdoptReadOnlySourceSnapshot(const SourceSnapshot& source, Selection selection) noexcept
 {
-    if (! source.state_ || ! source.IsBoundary(selection.anchor) || ! source.IsBoundary(selection.caret))
+    if (! source._state || ! source.IsBoundary(selection.anchor) || ! source.IsBoundary(selection.caret))
         return false;
-    if (source_.IsSameRevision(source))
+    if (_source.IsSameRevision(source))
     {
-        if (selection_ != selection)
-            ++selectionEpoch_;
-        selection_ = selection; // Same-text selection updates match SetSelection and preserve local revision/history.
+        if (_selection != selection)
+            ++_selectionEpoch;
+        _selection = selection; // Same-text selection updates match SetSelection and preserve local revision/history.
         return true;
     }
-    if (revision_ == std::numeric_limits<std::uint64_t>::max())
+    if (_revision == std::numeric_limits<std::uint64_t>::max())
         return false;
-    source_ = source;
-    if (editorSource_)
-        source_.state_->lineage->editorSource.store(true, std::memory_order_relaxed);
-    selection_ = selection;
-    transientEntry_.reset();
-    undo_.Clear();
-    redo_.Clear();
-    ++revision_; // Local Document revisions remain independent of the source Document.
+    _source = source;
+    if (_editorSource)
+        _source._state->lineage->editorSource.store(true, std::memory_order_relaxed);
+    _selection = selection;
+    _transientEntry.reset();
+    _undo.Clear();
+    _redo.Clear();
+    ++_revision; // Local Document revisions remain independent of the source Document.
     return true;
 }
 SourceResult Document::TryReset(std::wstring_view text)
@@ -825,22 +825,22 @@ SourceResult Document::TryReset(std::wstring_view text)
         root = SourceSnapshot::PieceTreeNode::BuildLeaves(std::span<const SourceSnapshot::PieceTreeNode::Fragment>(&fragment, 1u)).first;
     }
     SourceSnapshot next(std::make_shared<const SourceSnapshot::Revision>(std::move(root), nullptr, 0u, 0u, 0u));
-    source_ = std::move(next);
-    if (editorSource_)
-        source_.state_->lineage->editorSource.store(true, std::memory_order_relaxed);
-    selection_ = {};
-    transientEntry_.reset();
-    undo_.Clear();
-    redo_.Clear();
-    ++revision_;
+    _source = std::move(next);
+    if (_editorSource)
+        _source._state->lineage->editorSource.store(true, std::memory_order_relaxed);
+    _selection = {};
+    _transientEntry.reset();
+    _undo.Clear();
+    _redo.Clear();
+    ++_revision;
     return SourceResult::Success;
 }
 SourceResult Document::TrySetSelection(Selection selection) noexcept
 {
-    if (! source_.IsBoundary(selection.anchor) || ! source_.IsBoundary(selection.caret))
+    if (! _source.IsBoundary(selection.anchor) || ! _source.IsBoundary(selection.caret))
         return SourceResult::InvalidRange;
-    selection_ = selection;
-    ++selectionEpoch_;
+    _selection = selection;
+    ++_selectionEpoch;
     return SourceResult::Success;
 }
 void Document::Reset(std::wstring_view text)
@@ -913,15 +913,15 @@ SourceResult Document::TryReplace(std::size_t begin, std::size_t end, std::wstri
 SourceResult Document::TryReplaceTransient(std::wstring_view text, Selection selection, bool& changed)
 {
     Failure::Scope failureScope;
-    const auto entry         = transientEntry_ ? *transientEntry_ : History{source_, selection_};
+    const auto entry         = _transientEntry ? *_transientEntry : History{_source, _selection};
     const bool restoresEntry = entry.source.MatchesText(text);
     const auto result        = TryReplaceWholeTextImpl(text, selection, false, changed);
     if (result != SourceResult::Success)
         return result;
     if (restoresEntry)
-        transientEntry_.reset();
-    else if (changed && ! transientEntry_)
-        transientEntry_.emplace(entry);
+        _transientEntry.reset();
+    else if (changed && ! _transientEntry)
+        _transientEntry.emplace(entry);
     return SourceResult::Success;
 }
 bool Document::ReplaceTransient(std::wstring_view text, Selection selection)
@@ -956,7 +956,7 @@ SourceResult Document::TryReplaceWholeTextImpl(std::wstring_view text, Selection
     const auto length      = Length();
     const auto commonLimit = std::min(length, text.size());
     size_t prefix          = 0u;
-    SourceSnapshot::PieceTreeNode::VisitRange(source_.RootNode(),
+    SourceSnapshot::PieceTreeNode::VisitRange(_source.RootNode(),
                                               0u,
                                               commonLimit,
                                               [&](std::wstring_view fragment)
@@ -971,11 +971,11 @@ SourceResult Document::TryReplaceWholeTextImpl(std::wstring_view text, Selection
         prefix += matched;
         return matched == fragment.size();
     });
-    while (prefix && (! source_.IsBoundary(prefix) || ! IsEditBoundary(text, prefix)))
+    while (prefix && (! _source.IsBoundary(prefix) || ! IsEditBoundary(text, prefix)))
         --prefix;
     size_t suffix          = 0u;
     const auto suffixLimit = commonLimit - prefix;
-    SourceSnapshot::PieceTreeNode::VisitRangeReverse(source_.RootNode(),
+    SourceSnapshot::PieceTreeNode::VisitRangeReverse(_source.RootNode(),
                                                      length - suffixLimit,
                                                      length,
                                                      [&](std::wstring_view fragment)
@@ -991,7 +991,7 @@ SourceResult Document::TryReplaceWholeTextImpl(std::wstring_view text, Selection
         suffix += matched;
         return matched == fragment.size();
     });
-    while (suffix && (! source_.IsBoundary(length - suffix) || ! IsEditBoundary(text, text.size() - suffix)))
+    while (suffix && (! _source.IsBoundary(length - suffix) || ! IsEditBoundary(text, text.size() - suffix)))
         --suffix;
     // The OS supplies complete text for previews and notifying commits. Retain
     // only the changed interval; untouched buffers/paths and useful incremental
@@ -1012,8 +1012,8 @@ SourceResult Document::TryReplaceImpl(
     const auto result = Validate(text);
     if (result != SourceResult::Success)
         return result;
-    const auto length = source_.Length();
-    if (begin > end || ! source_.IsBoundary(begin) || ! source_.IsBoundary(end))
+    const auto length = _source.Length();
+    if (begin > end || ! _source.IsBoundary(begin) || ! _source.IsBoundary(end))
         return SourceResult::InvalidRange;
     if (text.size() > MaximumUnits - (length - (end - begin)))
         return SourceResult::CapacityExceeded;
@@ -1022,10 +1022,10 @@ SourceResult Document::TryReplaceImpl(
     const auto futureCharacter = [&](size_t offset) noexcept
     {
         if (offset < begin)
-            return source_.CharacterAt(offset);
+            return _source.CharacterAt(offset);
         if (offset < insertedEnd)
             return text[offset - begin];
-        return source_.CharacterAt(end + offset - insertedEnd);
+        return _source.CharacterAt(end + offset - insertedEnd);
     };
     const auto validFutureBoundary = [&](size_t offset) noexcept
     {
@@ -1040,7 +1040,7 @@ SourceResult Document::TryReplaceImpl(
     bool equal      = end - begin == text.size();
     size_t compared = 0u;
     if (equal)
-        SourceSnapshot::PieceTreeNode::VisitRange(source_.RootNode(),
+        SourceSnapshot::PieceTreeNode::VisitRange(_source.RootNode(),
                                                   begin,
                                                   end,
                                                   [&](std::wstring_view fragment)
@@ -1051,9 +1051,9 @@ SourceResult Document::TryReplaceImpl(
         });
     if (equal)
     {
-        if (selection_ != after)
-            ++selectionEpoch_;
-        selection_ = after;
+        if (_selection != after)
+            ++_selectionEpoch;
+        _selection = after;
         return SourceResult::Success;
     }
     SourceSnapshot::PieceTreeNode::Fragment insertion;
@@ -1062,21 +1062,21 @@ SourceResult Document::TryReplaceImpl(
         insertion.buffer = std::make_shared<const SourceSnapshot::PieceTreeNode::Buffer>(text);
         insertion.length = insertion.buffer->text.size();
     }
-    const auto root = source_.state_ ? source_.state_->root : nullptr;
+    const auto root = _source._state ? _source._state->root : nullptr;
     auto nextRoot   = SourceSnapshot::PieceTreeNode::ReplaceRange(root, begin, end, insertion);
-    SourceSnapshot candidate(std::make_shared<const SourceSnapshot::Revision>(std::move(nextRoot), source_.state_.get(), begin, end, insertedEnd));
-    if (recordHistory && (! coalesceHistory || transientEntry_))
-        undo_.PreparePush(); // Fallible allocation precedes the source commit.
-    if (recordHistory && (! coalesceHistory || transientEntry_))
-        undo_.Push(transientEntry_ ? *transientEntry_ : History{source_, selection_});
-    source_ = std::move(candidate);
+    SourceSnapshot candidate(std::make_shared<const SourceSnapshot::Revision>(std::move(nextRoot), _source._state.get(), begin, end, insertedEnd));
+    if (recordHistory && (! coalesceHistory || _transientEntry))
+        _undo.PreparePush(); // Fallible allocation precedes the source commit.
+    if (recordHistory && (! coalesceHistory || _transientEntry))
+        _undo.Push(_transientEntry ? *_transientEntry : History{_source, _selection});
+    _source = std::move(candidate);
     if (recordHistory)
     {
-        redo_.Clear();
-        transientEntry_.reset();
+        _redo.Clear();
+        _transientEntry.reset();
     }
-    selection_ = after;
-    ++revision_;
+    _selection = after;
+    ++_revision;
     changed = true;
     return SourceResult::Success;
 }
@@ -1088,8 +1088,8 @@ SourceResult Document::TryReplaceSelection(std::wstring_view text, bool& changed
         changed = false;
         return SourceResult::CapacityExceeded;
     }
-    const auto end = selection_.Start() + text.size();
-    return TryReplace(selection_.Start(), selection_.End(), text, {end, end}, changed);
+    const auto end = _selection.Start() + text.size();
+    return TryReplace(_selection.Start(), _selection.End(), text, {end, end}, changed);
 }
 bool Document::ReplaceSelection(std::wstring_view text)
 {
@@ -1101,27 +1101,27 @@ bool Document::ReplaceSelection(std::wstring_view text)
 bool Document::Undo()
 {
     Failure::Scope failureScope;
-    if (transientEntry_ || undo_.Empty())
+    if (_transientEntry || _undo.Empty())
         return false;
-    redo_.PreparePush();
-    auto old = undo_.TakeBack();
-    redo_.Push({source_, selection_});
-    source_    = std::move(old.source);
-    selection_ = old.selection;
-    ++revision_;
+    _redo.PreparePush();
+    auto old = _undo.TakeBack();
+    _redo.Push({_source, _selection});
+    _source    = std::move(old.source);
+    _selection = old.selection;
+    ++_revision;
     return true;
 }
 bool Document::Redo()
 {
     Failure::Scope failureScope;
-    if (transientEntry_ || redo_.Empty())
+    if (_transientEntry || _redo.Empty())
         return false;
-    undo_.PreparePush();
-    auto next = redo_.TakeBack();
-    undo_.Push({source_, selection_});
-    source_    = std::move(next.source);
-    selection_ = next.selection;
-    ++revision_;
+    _undo.PreparePush();
+    auto next = _redo.TakeBack();
+    _undo.Push({_source, _selection});
+    _source    = std::move(next.source);
+    _selection = next.selection;
+    ++_revision;
     return true;
 }
 } // namespace DxUi::RichText

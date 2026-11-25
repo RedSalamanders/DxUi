@@ -10,17 +10,17 @@ namespace DxUi::Detail
 class ControlAllocationFailureScope final
 {
 public:
-    explicit ControlAllocationFailureScope(size_t count) noexcept : previous_(SetControlAllocationFailureCountdown(count))
+    explicit ControlAllocationFailureScope(size_t count) noexcept : _previous(SetControlAllocationFailureCountdown(count))
     {
     }
     ~ControlAllocationFailureScope()
     {
-        static_cast<void>(SetControlAllocationFailureCountdown(previous_));
+        static_cast<void>(SetControlAllocationFailureCountdown(_previous));
     }
     ControlAllocationFailureScope(const ControlAllocationFailureScope&)            = delete;
     ControlAllocationFailureScope& operator=(const ControlAllocationFailureScope&) = delete;
 
 private:
-    size_t previous_;
+    size_t _previous;
 };
 } // namespace DxUi::Detail

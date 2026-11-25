@@ -2855,11 +2855,11 @@ class MeasureProbeLedger final
 public:
     MeasureProbeLedger() noexcept
     {
-        previous_ = Detail::SetMeasureProbeObserverForTest(&Observe, this, &previousContext_);
+        _previous = Detail::SetMeasureProbeObserverForTest(&Observe, this, &_previousContext);
     }
     ~MeasureProbeLedger()
     {
-        static_cast<void>(Detail::SetMeasureProbeObserverForTest(previous_, previousContext_, nullptr));
+        static_cast<void>(Detail::SetMeasureProbeObserverForTest(_previous, _previousContext, nullptr));
     }
     MeasureProbeLedger(const MeasureProbeLedger&)            = delete;
     MeasureProbeLedger& operator=(const MeasureProbeLedger&) = delete;
@@ -2889,11 +2889,11 @@ private:
                       std::bit_cast<uint32_t>(probe.constraints.minimumDip.height),
                       maximum(probe.constraints.maximumWidthDip),
                       maximum(probe.constraints.maximumHeightDip)};
-        auto& keys          = ledger.seen_[probe.control];
+        auto& keys          = ledger._seen[probe.control];
         const bool repeated = std::ranges::find(keys, key) != keys.end();
         if (! repeated)
             keys.push_back(key);
-        ledger.controls = ledger.seen_.size();
+        ledger.controls = ledger._seen.size();
         (repeated ? ledger.repeated : ledger.unique) += 1u;
         ledger.executions += probe.executed ? 1u : 0u;
         ledger.repeatedExecutions += repeated && probe.executed ? 1u : 0u;
@@ -2906,9 +2906,9 @@ private:
                                              probe.constraints.minimumDip.height,
                                              keys.size());
     }
-    std::map<const Control*, std::vector<Key>> seen_;
-    Detail::MeasureProbeObserver previous_ = nullptr;
-    void* previousContext_                 = nullptr;
+    std::map<const Control*, std::vector<Key>> _seen;
+    Detail::MeasureProbeObserver _previous = nullptr;
+    void* _previousContext                 = nullptr;
 };
 
 [[nodiscard]] uint64_t PhaseTotal(const PerformanceFixtures::RunRecord& run, std::string_view phase, std::string_view counter)

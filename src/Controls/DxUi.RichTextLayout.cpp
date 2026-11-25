@@ -60,7 +60,7 @@ HRESULT NativeOverhangMetrics(IDWriteTextLayout* layout, DWRITE_OVERHANG_METRICS
 class InvisibleLayoutOrigin final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
 {
 public:
-    explicit InvisibleLayoutOrigin(float height) noexcept : height_(height)
+    explicit InvisibleLayoutOrigin(float height) noexcept : _height(height)
     {
     }
     HRESULT STDMETHODCALLTYPE Draw(void*, IDWriteTextRenderer*, FLOAT, FLOAT, BOOL, BOOL, IUnknown*) noexcept override
@@ -71,7 +71,7 @@ public:
     {
         if (! metrics)
             return E_POINTER;
-        *metrics = {0.0f, height_, height_ * 0.5f, FALSE};
+        *metrics = {0.0f, _height, _height * 0.5f, FALSE};
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE GetOverhangMetrics(DWRITE_OVERHANG_METRICS* metrics) noexcept override
@@ -80,7 +80,7 @@ public:
             return E_POINTER;
         // No ink belongs to this zero-width object. Collapse its ink box at the
         // synthetic line's end so it cannot expand viewport drawing bounds.
-        *metrics = {0.0f, -height_, 0.0f, 0.0f};
+        *metrics = {0.0f, -_height, 0.0f, 0.0f};
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE GetBreakConditions(DWRITE_BREAK_CONDITION* before, DWRITE_BREAK_CONDITION* after) noexcept override
@@ -92,7 +92,7 @@ public:
     }
 
 private:
-    float height_{};
+    float _height{};
 };
 #pragma warning(pop)
 
@@ -122,7 +122,7 @@ struct PreparedLayout::State
     bool positionedExactly = true;
 };
 PreparedLayout::PreparedLayout()
-    : projection_{std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)}
+    : _projection{std::wstring(0u, L'\0'), std::wstring(0u, L'\0'), std::vector<std::size_t>(0u), std::vector<SourceUnit>(0u), std::vector<StyleRun>(0u)}
 {
     // Size constructors propagate Debug STL proxy failures. Retirement never
     // default-constructs containers inside a noexcept callback.
@@ -136,11 +136,11 @@ PreparedLayout& PreparedLayout::operator=(const PreparedLayout& other)
 {
     if (this != &other)
     {
-        auto next = other.state_ ? std::make_unique<State>(*other.state_) : nullptr;
-        Projection projection(other.projection_);
-        projection_ = std::move(projection);
-        state_      = std::move(next);
-        generation_ = other.generation_;
+        auto next = other._state ? std::make_unique<State>(*other._state) : nullptr;
+        Projection projection(other._projection);
+        _projection = std::move(projection);
+        _state      = std::move(next);
+        _generation = other._generation;
     }
     return *this;
 }
@@ -153,22 +153,22 @@ PreparedLayout& PreparedLayout::operator=(PreparedLayout&& other) noexcept
     if (this != &other)
     {
         Clear();
-        projection_.source.swap(other.projection_.source);
-        projection_.text.swap(other.projection_.text);
-        projection_.sourceToDisplay.swap(other.projection_.sourceToDisplay);
-        projection_.units.swap(other.projection_.units);
-        projection_.runs.swap(other.projection_.runs);
-        std::swap(projection_.revision, other.projection_.revision);
-        std::swap(projection_.mode, other.projection_.mode);
-        state_      = std::move(other.state_);
-        generation_ = other.generation_;
+        _projection.source.swap(other._projection.source);
+        _projection.text.swap(other._projection.text);
+        _projection.sourceToDisplay.swap(other._projection.sourceToDisplay);
+        _projection.units.swap(other._projection.units);
+        _projection.runs.swap(other._projection.runs);
+        std::swap(_projection.revision, other._projection.revision);
+        std::swap(_projection.mode, other._projection.mode);
+        _state      = std::move(other._state);
+        _generation = other._generation;
     }
     return *this;
 }
 
 float PreparedLayout::Height() const noexcept
 {
-    return state_ ? state_->height : 0.0f;
+    return _state ? _state->height : 0.0f;
 }
 void PreparedLayout::Prepare(IDWriteFactory* factory, Projection projection, float width, float fontSize)
 {
@@ -506,7 +506,7 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
             return a.baseline < b.baseline || (a.baseline == b.baseline && a.left < b.left);
         });
     }
-    owner.projection_         = std::move(projection);
+    owner._projection         = std::move(projection);
     next->layout              = std::move(layout);
     next->positioning         = std::move(positioning);
     next->clusters            = std::move(clusters);
@@ -521,72 +521,72 @@ HRESULT Detail::PreparedLayoutAccess::Prepare(PreparedLayout& owner,
     next->verticalTranslation = verticalTranslation;
     next->textOffset          = textOffset;
     next->positionedExactly   = positionedExactly;
-    owner.state_.swap(next);
-    ++owner.generation_;
+    owner._state.swap(next);
+    ++owner._generation;
     return S_OK;
 }
 void PreparedLayout::Clear() noexcept
 {
-    if (state_)
+    if (_state)
     {
         // Prepare constructs the empty retirement containers fallibly. Swapping
         // individual buffers here neither allocates nor moves a Debug proxy
         // through a noexcept default/move constructor. Destroy the old graph.
-        projection_.source.swap(state_->retirement.source);
-        projection_.text.swap(state_->retirement.text);
-        projection_.sourceToDisplay.swap(state_->retirement.sourceToDisplay);
-        projection_.units.swap(state_->retirement.units);
-        projection_.runs.swap(state_->retirement.runs);
+        _projection.source.swap(_state->retirement.source);
+        _projection.text.swap(_state->retirement.text);
+        _projection.sourceToDisplay.swap(_state->retirement.sourceToDisplay);
+        _projection.units.swap(_state->retirement.units);
+        _projection.runs.swap(_state->retirement.runs);
     }
-    projection_.revision = 0u;
-    projection_.mode     = ViewMode::Source;
-    state_.reset();
-    ++generation_;
+    _projection.revision = 0u;
+    _projection.mode     = ViewMode::Source;
+    _state.reset();
+    ++_generation;
 }
 std::pair<float, float> PreparedLayout::DrawingVerticalBounds() const
 {
-    if (! state_)
+    if (! _state)
         Failure::FailContract(E_INVALIDARG);
-    return {state_->drawingTop, state_->drawingBottom};
+    return {_state->drawingTop, _state->drawingBottom};
 }
 std::span<const DWRITE_LINE_METRICS> PreparedLayout::LineMetrics() const
 {
-    if (! state_)
+    if (! _state)
         Failure::FailContract(E_INVALIDARG);
-    return state_->lineMetrics;
+    return _state->lineMetrics;
 }
 std::pair<float, float> PreparedLayout::HorizontalTextBounds() const
 {
-    if (! state_)
+    if (! _state)
         Failure::FailContract(E_INVALIDARG);
-    return {state_->textLeft, state_->textWidth};
+    return {_state->textLeft, _state->textWidth};
 }
 float Detail::PreparedLayoutAccess::MinimumTextWidth(const PreparedLayout& owner)
 {
-    if (! owner.state_)
+    if (! owner._state)
         Failure::FailContract(E_INVALIDARG);
     float minimum{};
-    Check(owner.state_->layout->DetermineMinWidth(&minimum), "DetermineMinWidth");
+    Check(owner._state->layout->DetermineMinWidth(&minimum), "DetermineMinWidth");
     if (! std::isfinite(minimum) || minimum < 0.0f)
         Failure::FailContract(E_INVALIDARG);
     return minimum;
 }
 float PreparedLayout::VerticalOrigin() const noexcept
 {
-    return state_ ? state_->verticalOrigin : 0.0f;
+    return _state ? _state->verticalOrigin : 0.0f;
 }
 bool PreparedLayout::PositionedExactly() const noexcept
 {
-    return state_ && state_->positionedExactly;
+    return _state && _state->positionedExactly;
 }
 HRESULT PreparedLayout::TryHitTest(float x, float y, Hit& output) const
 {
-    if (! state_ || ! std::isfinite(x) || ! std::isfinite(y))
+    if (! _state || ! std::isfinite(x) || ! std::isfinite(y))
         return E_INVALIDARG;
     BOOL trailing = FALSE, inside = FALSE;
     DWRITE_HIT_TEST_METRICS metrics{};
-    auto localY       = y - state_->verticalTranslation;
-    const auto& lines = state_->scripts.uniformSourceLines;
+    auto localY       = y - _state->verticalTranslation;
+    const auto& lines = _state->scripts.uniformSourceLines;
     if (! lines.empty())
     {
         const auto after =
@@ -594,14 +594,14 @@ HRESULT PreparedLayout::TryHitTest(float x, float y, Hit& output) const
         const auto& line = after == lines.begin() ? lines.front() : *std::prev(after);
         localY           = line.localTop + (y - line.documentTop);
     }
-    const auto hr = state_->layout->HitTestPoint(x, localY, &trailing, &inside, &metrics);
+    const auto hr = _state->layout->HitTestPoint(x, localY, &trailing, &inside, &metrics);
     if (FAILED(hr))
         return hr;
     const auto actual = static_cast<std::size_t>(metrics.textPosition) + (trailing ? metrics.length : 0u);
-    auto position     = std::min<std::size_t>(actual > state_->textOffset ? actual - state_->textOffset : 0u, Content().text.size());
-    const auto stop   = std::lower_bound(state_->clusters.begin(), state_->clusters.end(), position);
-    if (stop != state_->clusters.end() && *stop != position)
-        position = trailing ? *stop : (stop == state_->clusters.begin() ? 0u : *std::prev(stop));
+    auto position     = std::min<std::size_t>(actual > _state->textOffset ? actual - _state->textOffset : 0u, Content().text.size());
+    const auto stop   = std::lower_bound(_state->clusters.begin(), _state->clusters.end(), position);
+    if (stop != _state->clusters.end() && *stop != position)
+        position = trailing ? *stop : (stop == _state->clusters.begin() ? 0u : *std::prev(stop));
     output = {position, trailing != FALSE, inside != FALSE};
     return S_OK;
 }
@@ -619,7 +619,7 @@ HRESULT PreparedLayout::TryCaret(std::size_t position, CaretGeometry& output) co
 }
 HRESULT PreparedLayout::TryCaret(std::size_t position, CaretAffinity affinity, CaretGeometry& output) const
 {
-    if (! state_ || position > Content().text.size() || (affinity != CaretAffinity::Downstream && affinity != CaretAffinity::Upstream))
+    if (! _state || position > Content().text.size() || (affinity != CaretAffinity::Downstream && affinity != CaretAffinity::Upstream))
         return E_INVALIDARG;
     // Upstream differs only at a soft wrap: an interior visual line start whose
     // preceding unit is no hard break. It is drawn at the trailing edge of the
@@ -628,20 +628,20 @@ HRESULT PreparedLayout::TryCaret(std::size_t position, CaretAffinity affinity, C
     const auto hardBreak = [](wchar_t unit) noexcept
     { return unit == L'\n' || unit == L'\r' || unit == L'\v' || unit == L'\f' || unit == L'\u0085' || unit == L'\u2028' || unit == L'\u2029'; };
     const bool upstream = affinity == CaretAffinity::Upstream && position > 0u && position < text.size() && ! hardBreak(text[position - 1u]) &&
-                          std::binary_search(state_->lines.begin(), state_->lines.end(), position);
+                          std::binary_search(_state->lines.begin(), _state->lines.end(), position);
     const auto anchor   = upstream ? position - 1u : position;
     float x = 0, y = 0;
     DWRITE_HIT_TEST_METRICS metrics{};
-    const auto hr = state_->layout->HitTestTextPosition(static_cast<UINT32>(anchor) + state_->textOffset, upstream ? TRUE : FALSE, &x, &y, &metrics);
+    const auto hr = _state->layout->HitTestTextPosition(static_cast<UINT32>(anchor) + _state->textOffset, upstream ? TRUE : FALSE, &x, &y, &metrics);
     if (FAILED(hr))
         return hr;
-    if (! state_->scripts.uniformSourceLines.empty())
+    if (! _state->scripts.uniformSourceLines.empty())
     {
-        const auto& line = Detail::UniformLineAt(state_->scripts.uniformSourceLines, anchor);
+        const auto& line = Detail::UniformLineAt(_state->scripts.uniformSourceLines, anchor);
         y                = line.documentBaseline - (line.localBaseline - y);
     }
     else
-        y += state_->verticalTranslation;
+        y += _state->verticalTranslation;
     output = {x, y, metrics.height};
     return S_OK;
 }
@@ -664,22 +664,22 @@ CaretGeometry PreparedLayout::Caret(std::size_t position, CaretAffinity affinity
 HRESULT PreparedLayout::TryRange(std::size_t first, std::size_t last, std::vector<D2D1_RECT_F>& output) const
 {
     Failure::Scope failureScope;
-    if (! state_ || first > last || last > Content().text.size())
+    if (! _state || first > last || last > Content().text.size())
         return E_INVALIDARG;
     std::vector<D2D1_RECT_F> rectangles(0u);
     if (first != last)
     {
-        const auto origin = state_->scripts.uniformSourceLines.empty() ? state_->verticalTranslation : 0.0f;
+        const auto origin = _state->scripts.uniformSourceLines.empty() ? _state->verticalTranslation : 0.0f;
         UINT32 count      = 0;
         const auto query =
-            state_->layout->HitTestTextRange(static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, origin, nullptr, 0, &count);
+            _state->layout->HitTestTextRange(static_cast<UINT32>(first) + _state->textOffset, static_cast<UINT32>(last - first), 0, origin, nullptr, 0, &count);
         if (FAILED(query) && query != HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))
             return query;
         std::vector<DWRITE_HIT_TEST_METRICS> metrics(count);
         if (count)
         {
-            const auto hr = state_->layout->HitTestTextRange(
-                static_cast<UINT32>(first) + state_->textOffset, static_cast<UINT32>(last - first), 0, origin, metrics.data(), count, &count);
+            const auto hr = _state->layout->HitTestTextRange(
+                static_cast<UINT32>(first) + _state->textOffset, static_cast<UINT32>(last - first), 0, origin, metrics.data(), count, &count);
             if (FAILED(hr))
                 return hr;
             if (count > metrics.size())
@@ -690,9 +690,9 @@ HRESULT PreparedLayout::TryRange(std::size_t first, std::size_t last, std::vecto
         {
             const auto& item = metrics[index];
             auto top         = item.top;
-            if (! state_->scripts.uniformSourceLines.empty())
+            if (! _state->scripts.uniformSourceLines.empty())
             {
-                const auto& line = Detail::UniformLineAt(state_->scripts.uniformSourceLines, item.textPosition);
+                const auto& line = Detail::UniformLineAt(_state->scripts.uniformSourceLines, item.textPosition);
                 top              = line.documentBaseline - (line.localBaseline - top);
             }
             rectangles.push_back({item.left, top, item.left + item.width, top + item.height});
@@ -712,18 +712,18 @@ std::vector<D2D1_RECT_F> PreparedLayout::Range(std::size_t first, std::size_t la
 }
 HRESULT PreparedLayout::TryPreviousCluster(std::size_t position, std::size_t& output) const
 {
-    if (! state_ || position > Content().text.size())
+    if (! _state || position > Content().text.size())
         return E_INVALIDARG;
-    const auto found = std::lower_bound(state_->clusters.begin(), state_->clusters.end(), position);
-    output           = found == state_->clusters.begin() ? 0u : *std::prev(found);
+    const auto found = std::lower_bound(_state->clusters.begin(), _state->clusters.end(), position);
+    output           = found == _state->clusters.begin() ? 0u : *std::prev(found);
     return S_OK;
 }
 HRESULT PreparedLayout::TryNextCluster(std::size_t position, std::size_t& output) const
 {
-    if (! state_ || position > Content().text.size())
+    if (! _state || position > Content().text.size())
         return E_INVALIDARG;
-    const auto found = std::upper_bound(state_->clusters.begin(), state_->clusters.end(), position);
-    output           = found == state_->clusters.end() ? Content().text.size() : *found;
+    const auto found = std::upper_bound(_state->clusters.begin(), _state->clusters.end(), position);
+    output           = found == _state->clusters.end() ? Content().text.size() : *found;
     return S_OK;
 }
 std::size_t PreparedLayout::PreviousCluster(std::size_t position) const
@@ -744,9 +744,9 @@ std::size_t PreparedLayout::NextCluster(std::size_t position) const
 }
 HRESULT PreparedLayout::TryDeletionRange(std::size_t position, bool backwards, std::pair<std::size_t, std::size_t>& output) const
 {
-    if (! state_ || position > Content().text.size())
+    if (! _state || position > Content().text.size())
         return E_INVALIDARG;
-    const auto range = ::DxUi::GetTextElementDeletionRange(Content().text, position, backwards, state_->clusters);
+    const auto range = ::DxUi::GetTextElementDeletionRange(Content().text, position, backwards, _state->clusters);
     output           = {range.first, range.last};
     return S_OK;
 }
@@ -760,14 +760,14 @@ std::pair<std::size_t, std::size_t> PreparedLayout::DeletionRange(std::size_t po
 }
 HRESULT PreparedLayout::TryLineBoundary(std::size_t position, bool end, std::size_t& output) const
 {
-    if (! state_ || position > Content().text.size())
+    if (! _state || position > Content().text.size())
         return E_INVALIDARG;
-    const auto found = std::upper_bound(state_->lines.begin(), state_->lines.end(), position);
+    const auto found = std::upper_bound(_state->lines.begin(), _state->lines.end(), position);
     if (! end)
-        output = found == state_->lines.begin() ? 0u : *std::prev(found);
+        output = found == _state->lines.begin() ? 0u : *std::prev(found);
     else
     {
-        auto result = found == state_->lines.end() ? Content().text.size() : *found;
+        auto result = found == _state->lines.end() ? Content().text.size() : *found;
         if (result > position && Content().text[result - 1u] == L'\n')
             --result;
         output = result;
@@ -784,14 +784,14 @@ std::size_t PreparedLayout::LineBoundary(std::size_t position, bool end) const
 }
 HRESULT PreparedLayout::TryVisibleRange(float top, float bottom, std::pair<std::size_t, std::size_t>& output) const
 {
-    if (! state_ || ! std::isfinite(top) || ! std::isfinite(bottom) || bottom < top)
+    if (! _state || ! std::isfinite(top) || ! std::isfinite(bottom) || bottom < top)
         return E_INVALIDARG;
     std::optional<std::size_t> first;
     std::size_t last = 0u;
-    for (std::size_t index = 0; index < state_->lines.size(); ++index)
+    for (std::size_t index = 0; index < _state->lines.size(); ++index)
     {
         CaretGeometry caret{};
-        const auto hr = TryCaret(state_->lines[index], caret);
+        const auto hr = TryCaret(_state->lines[index], caret);
         if (FAILED(hr))
             return hr;
         if (caret.y >= bottom)
@@ -799,8 +799,8 @@ HRESULT PreparedLayout::TryVisibleRange(float top, float bottom, std::pair<std::
         if (caret.y + caret.height > top)
         {
             if (! first)
-                first = state_->lines[index];
-            last = index + 1u < state_->lines.size() ? state_->lines[index + 1u] : Content().text.size();
+                first = _state->lines[index];
+            last = index + 1u < _state->lines.size() ? _state->lines[index + 1u] : Content().text.size();
         }
     }
     output = {first.value_or(0u), last};
@@ -816,13 +816,13 @@ std::pair<std::size_t, std::size_t> PreparedLayout::VisibleRange(float top, floa
 }
 bool Detail::PreparedLayoutAccess::ScriptTargetSupported(const PreparedLayout& owner, bool colorTargetAvailable) noexcept
 {
-    if (! owner.state_)
+    if (! owner._state)
         return false;
-    if (! owner.state_->hasScripts && owner.state_->scripts.uniformSourceLines.empty())
+    if (! owner._state->hasScripts && owner._state->scripts.uniformSourceLines.empty())
         return true;
-    if (owner.state_->scripts.unsupported)
+    if (owner._state->scripts.unsupported)
         return false;
-    if (! owner.state_->scripts.requiresColor)
+    if (! owner._state->scripts.requiresColor)
         return true;
     return colorTargetAvailable;
 }
@@ -835,15 +835,15 @@ void PreparedLayout::Draw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POI
 HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2D1_POINT_2F origin, const LinkDrawing* links) const
 {
     Failure::Scope failureScope;
-    if (! target || ! brush || ! state_)
+    if (! target || ! brush || ! _state)
         return E_INVALIDARG;
-    const bool positionedSource = ! state_->scripts.uniformSourceLines.empty();
+    const bool positionedSource = ! _state->scripts.uniformSourceLines.empty();
     if (! positionedSource)
-        origin.y += state_->verticalTranslation;
-    const bool scripts = state_->hasScripts || positionedSource;
-    if (scripts && state_->scripts.unsupported)
+        origin.y += _state->verticalTranslation;
+    const bool scripts = _state->hasScripts || positionedSource;
+    if (scripts && _state->scripts.unsupported)
         return DWRITE_E_UNSUPPORTEDOPERATION;
-    if (scripts && state_->scripts.requiresColor)
+    if (scripts && _state->scripts.requiresColor)
     {
         wil::com_ptr<ID2D1DeviceContext7> color;
         const auto hr = target->QueryInterface(IID_PPV_ARGS(color.put()));
@@ -854,7 +854,7 @@ HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2
     }
     if (! links && ! scripts)
     {
-        target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+        target->DrawTextLayout(origin, _state->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
         return S_OK;
     }
     const LinkDrawing defaultDrawing{};
@@ -865,10 +865,10 @@ HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2
         HRESULT paintResult = S_OK;
         const auto drawn    = Detail::DrawSourceInkIfSupported(target,
                                                                brush,
-                                                               state_->layout.get(),
-                                                               state_->positioning.get(),
-                                                               state_->textOffset,
-                                                               projection_,
+                                                               _state->layout.get(),
+                                                               _state->positioning.get(),
+                                                               _state->textOffset,
+                                                               _projection,
                                                                *links,
                                                                origin,
                                                                Detail::SourceInkColorContextLookup::QueryTarget,
@@ -887,15 +887,15 @@ HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2
     {
         if (drawingEffectAttempted)
         {
-            const auto hr = state_->layout->SetDrawingEffect(nullptr, {state_->textOffset, static_cast<UINT32>(projection_.text.size())});
+            const auto hr = _state->layout->SetDrawingEffect(nullptr, {_state->textOffset, static_cast<UINT32>(_projection.text.size())});
             if (FAILED(hr))
                 Failure::FailContract(hr); // Shared retained layout cannot safely keep a borrowed raster effect.
         }
-        for (const auto& run : projection_.runs)
+        for (const auto& run : _projection.runs)
             if (run.flags & Link)
             {
-                const DWRITE_TEXT_RANGE range{static_cast<UINT32>(run.start) + state_->textOffset, static_cast<UINT32>(run.length)};
-                const auto hr = state_->layout->SetUnderline(TRUE, range);
+                const DWRITE_TEXT_RANGE range{static_cast<UINT32>(run.start) + _state->textOffset, static_cast<UINT32>(run.length)};
+                const auto hr = _state->layout->SetUnderline(TRUE, range);
                 if (FAILED(hr))
                     Failure::FailContract(hr); // Every sharing owner requires the canonical underline state.
             }
@@ -905,12 +905,12 @@ HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2
     if (links->emphasis && links->emphasisBrush)
     {
         const auto first = std::max(links->emphasis->first, links->displayOrigin);
-        const auto last  = std::min(links->emphasis->last, links->displayOrigin + projection_.text.size());
+        const auto last  = std::min(links->emphasis->last, links->displayOrigin + _projection.text.size());
         if (first < last)
         {
             drawingEffectAttempted = true;
-            const auto hr          = state_->layout->SetDrawingEffect(
-                links->emphasisBrush, {static_cast<UINT32>(first - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(last - first)});
+            const auto hr          = _state->layout->SetDrawingEffect(
+                links->emphasisBrush, {static_cast<UINT32>(first - links->displayOrigin) + _state->textOffset, static_cast<UINT32>(last - first)});
             if (FAILED(hr))
                 return hr;
         }
@@ -919,21 +919,21 @@ HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2
                                      links->inkRanges.end(),
                                      links->displayOrigin,
                                      [](const TextInkRange& range, size_t first) { return range.display.last <= first; });
-         ink != links->inkRanges.end() && ink->display.first < links->displayOrigin + projection_.text.size();
+         ink != links->inkRanges.end() && ink->display.first < links->displayOrigin + _projection.text.size();
          ++ink)
     {
         const auto role = static_cast<size_t>(ink->role);
         if (role >= links->inkBrushes.size() || ! links->inkBrushes[role])
             continue;
         const auto first = std::max(ink->display.first, links->displayOrigin);
-        const auto last  = std::min(ink->display.last, links->displayOrigin + projection_.text.size());
+        const auto last  = std::min(ink->display.last, links->displayOrigin + _projection.text.size());
         const auto apply = [&](size_t begin, size_t end) -> HRESULT
         {
             if (begin < end)
             {
                 drawingEffectAttempted = true;
-                return state_->layout->SetDrawingEffect(
-                    links->inkBrushes[role], {static_cast<UINT32>(begin - links->displayOrigin) + state_->textOffset, static_cast<UINT32>(end - begin)});
+                return _state->layout->SetDrawingEffect(
+                    links->inkBrushes[role], {static_cast<UINT32>(begin - links->displayOrigin) + _state->textOffset, static_cast<UINT32>(end - begin)});
             }
             return S_OK;
         };
@@ -953,14 +953,14 @@ HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2
                 return hr;
         }
     }
-    for (const auto& run : projection_.runs)
+    for (const auto& run : _projection.runs)
         if (run.flags & Link)
         {
-            const DWRITE_TEXT_RANGE range{static_cast<UINT32>(run.start) + state_->textOffset, static_cast<UINT32>(run.length)};
+            const DWRITE_TEXT_RANGE range{static_cast<UINT32>(run.start) + _state->textOffset, static_cast<UINT32>(run.length)};
             const auto first = links->displayOrigin + run.start, last = first + run.length;
             const bool underline =
                 (run.flags & Underline) || links->underline || intersects(links->hover, first, last) || intersects(links->caret, first, last);
-            const auto underlineResult = state_->layout->SetUnderline(underline ? TRUE : FALSE, range);
+            const auto underlineResult = _state->layout->SetUnderline(underline ? TRUE : FALSE, range);
             if (FAILED(underlineResult))
                 return underlineResult;
             auto* linkBrush =
@@ -968,22 +968,22 @@ HRESULT PreparedLayout::TryDraw(ID2D1RenderTarget* target, ID2D1Brush* brush, D2
             if (linkBrush)
             {
                 drawingEffectAttempted = true;
-                const auto hr          = state_->layout->SetDrawingEffect(linkBrush, range);
+                const auto hr          = _state->layout->SetDrawingEffect(linkBrush, range);
                 if (FAILED(hr))
                     return hr;
             }
         }
     if (scripts)
     {
-        Detail::ScriptTextRenderer renderer(target, brush, state_->layout.get(), projection_, state_->textOffset, origin, state_->scripts, false);
-        const auto hr = state_->layout->Draw(nullptr, &renderer, origin.x, origin.y);
+        Detail::ScriptTextRenderer renderer(target, brush, _state->layout.get(), _projection, _state->textOffset, origin, _state->scripts, false);
+        const auto hr = _state->layout->Draw(nullptr, &renderer, origin.x, origin.y);
         if (FAILED(hr))
             return hr;
         if (FAILED(renderer.Result()))
             return renderer.Result();
     }
     else
-        target->DrawTextLayout(origin, state_->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+        target->DrawTextLayout(origin, _state->layout.get(), brush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
     return S_OK;
 }
 } // namespace DxUi::RichText

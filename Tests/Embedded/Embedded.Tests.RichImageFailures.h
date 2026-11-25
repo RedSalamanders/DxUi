@@ -309,17 +309,17 @@ namespace RichImageFailureTests
 class RasterCalls final
 {
 public:
-    RasterCalls() noexcept : previous_(DxUi::RichText::Detail::testRichImageRasterCalls), previousFixture_(active_)
+    RasterCalls() noexcept : _previous(DxUi::RichText::Detail::testRichImageRasterCalls), _previousFixture(active_)
     {
-        calls_.createBitmap                              = &Create;
-        calls_.copyBitmap                                = &Copy;
+        _calls.createBitmap                              = &Create;
+        _calls.copyBitmap                                = &Copy;
         active_                                          = this;
-        DxUi::RichText::Detail::testRichImageRasterCalls = &calls_;
+        DxUi::RichText::Detail::testRichImageRasterCalls = &_calls;
     }
     ~RasterCalls()
     {
-        DxUi::RichText::Detail::testRichImageRasterCalls = previous_;
-        active_                                          = previousFixture_;
+        DxUi::RichText::Detail::testRichImageRasterCalls = _previous;
+        active_                                          = _previousFixture;
     }
     RasterCalls(const RasterCalls&)            = delete;
     RasterCalls& operator=(const RasterCalls&) = delete;
@@ -347,9 +347,9 @@ private:
             return active_->failure;
         return bitmap->CopyFromMemory(&rect, pixels, stride);
     }
-    DxUi::RichText::Detail::RichImageRasterCalls calls_;
-    const DxUi::RichText::Detail::RichImageRasterCalls* previous_;
-    RasterCalls* previousFixture_;
+    DxUi::RichText::Detail::RichImageRasterCalls _calls;
+    const DxUi::RichText::Detail::RichImageRasterCalls* _previous;
+    RasterCalls* _previousFixture;
     inline static thread_local RasterCalls* active_{};
 };
 } // namespace RichImageFailureTests

@@ -106,7 +106,7 @@ HRESULT CopyImageBitmap(ID2D1Bitmap* bitmap, const D2D1_RECT_U& rectangle, const
 class SemanticObjectPlaceholder final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IDWriteInlineObject>
 {
 public:
-    explicit SemanticObjectPlaceholder(DWRITE_INLINE_OBJECT_METRICS metrics) noexcept : metrics_(metrics)
+    explicit SemanticObjectPlaceholder(DWRITE_INLINE_OBJECT_METRICS metrics) noexcept : _metrics(metrics)
     {
     }
     HRESULT STDMETHODCALLTYPE Draw(void*, IDWriteTextRenderer*, FLOAT, FLOAT, BOOL, BOOL, IUnknown*) noexcept override
@@ -117,7 +117,7 @@ public:
     {
         if (! metrics)
             return E_POINTER;
-        *metrics = metrics_;
+        *metrics = _metrics;
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE GetOverhangMetrics(DWRITE_OVERHANG_METRICS* metrics) noexcept override
@@ -136,7 +136,7 @@ public:
     }
 
 private:
-    DWRITE_INLINE_OBJECT_METRICS metrics_;
+    DWRITE_INLINE_OBJECT_METRICS _metrics;
 };
 #pragma warning(pop)
 // Existing identity/RAII/reference traits intentionally delete these implicit operations.
@@ -2488,7 +2488,7 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
                                                         ID2D1RenderTarget* raster)
 {
     const Failure::Scope failureScope;
-    beginResult_            = S_OK;
+    _beginResult            = S_OK;
     const auto validSpacing = [](const std::optional<float>& value, float maximum) noexcept
     { return ! value || (std::isfinite(value.value()) && value.value() >= 0.0f && value.value() <= maximum); };
     const auto validFontName = [](std::wstring_view name, bool emptyAllowed) noexcept
@@ -2496,7 +2496,7 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     if (! validFontName(options.fontFamily, false) || ! validFontName(options.codeFontFamily, false) || ! validFontName(options.mathFontFamily, false) ||
         ! validFontName(options.locale, true))
     {
-        beginResult_ = E_INVALIDARG;
+        _beginResult = E_INVALIDARG;
         return LayoutPreparationStatus::Failed;
     }
     if (! factory || ! document || ! std::isfinite(options.widthDip) || options.widthDip <= 0.0f || ! std::isfinite(options.fontSizeDip) ||
@@ -2507,20 +2507,20 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
         ! validSpacing(options.listItemSpacingDip, 256.0f) || (options.semanticSpacing && ! options.semanticSpacing->IsValid()) ||
         (options.markdownPresentation != MarkdownPresentationStyle::Default && options.markdownPresentation != MarkdownPresentationStyle::Subtle))
     {
-        beginResult_ = E_INVALIDARG;
+        _beginResult = E_INVALIDARG;
         return LayoutPreparationStatus::Failed;
     }
     const auto diagrams    = SemanticExtensionAccess::Diagrams(*document);
     const auto nativeCount = diagrams.size() + SemanticExtensionAccess::Maths(*document).size();
     if (nativeCount > RichImageResources::MaximumPlacements || (images && images->placements.size() > RichImageResources::MaximumPlacements - nativeCount))
     {
-        beginResult_ = E_BOUNDS;
+        _beginResult = E_BOUNDS;
         return LayoutPreparationStatus::Failed;
     }
     const auto maths = SemanticExtensionAccess::Maths(*document);
     if (((images && ! images->placements.empty()) || ! maths.empty()) && ! raster)
     {
-        beginResult_ = E_INVALIDARG;
+        _beginResult = E_INVALIDARG;
         return LayoutPreparationStatus::Failed;
     }
     std::size_t retainedBytes{};
@@ -2530,7 +2530,7 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
             const auto& resource = images->placements[index];
             if (! resource.image || resource.element >= document->Elements().size() || document->Elements()[resource.element].role != SemanticRole::Image)
             {
-                beginResult_ = E_INVALIDARG;
+                _beginResult = E_INVALIDARG;
                 return LayoutPreparationStatus::Failed;
             }
             const auto prior = std::find_if(images->placements.begin(),
@@ -2540,7 +2540,7 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
             {
                 if (resource.image->RetainedBytes() > RichImageResources::MaximumDecodedBytes - retainedBytes)
                 {
-                    beginResult_ = E_BOUNDS;
+                    _beginResult = E_BOUNDS;
                     return LayoutPreparationStatus::Failed;
                 }
                 retainedBytes += resource.image->RetainedBytes();
@@ -2556,10 +2556,10 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     }
     if (! diagrams.empty() && ! drawing)
     {
-        beginResult_ = E_INVALIDARG;
+        _beginResult = E_INVALIDARG;
         return LayoutPreparationStatus::Failed;
     }
-    rejectedNativeObjects_.clear();
+    _rejectedNativeObjects.clear();
     const auto same = [&](const State& state)
     {
         return state.factory.get() == factory && state.document == document && SameOptions(state.options, options) && state.imageResources == images &&
@@ -2568,12 +2568,12 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
                (! state.native || (state.native->drawing.get() == drawing && state.native->epochs == epochs &&
                                    (! state.native->targetBound || state.native->targetIdentity == raster)));
     };
-    if (next_ && same(*next_->state))
+    if (_next && same(*_next->state))
         return LayoutPreparationStatus::Pending;
-    if (state_ && same(*state_))
+    if (_state && same(*_state))
     {
-        next_.reset();
-        valid_ = true;
+        _next.reset();
+        _valid = true;
         return LayoutPreparationStatus::Complete;
     }
     // Completion/frame publication replaces the immutable snapshot. Prepared
@@ -2586,31 +2586,31 @@ LayoutPreparationStatus PreparedSemanticGeometry::Begin(IDWriteFactory* factory,
     // published. The oracle's fresh scene carries nothing.
     const bool carry                          = ! IsFreshPreparationForTest();
     const NativeImageGeometry* previousImages = nullptr;
-    if (carry && state_ && state_->images && state_->factory.get() == factory && state_->images->targetIdentity == raster && state_->imageEpochs == epochs)
+    if (carry && _state && _state->images && _state->factory.get() == factory && _state->images->targetIdentity == raster && _state->imageEpochs == epochs)
     {
-        LayoutOptions priorOptions = state_->options;
+        LayoutOptions priorOptions = _state->options;
         priorOptions.widthDip      = options.widthDip;
         if (SameOptions(priorOptions, options))
-            previousImages = state_->images.get();
+            previousImages = _state->images.get();
     }
     // Carried formulas compare their sources through views of the previous document's element names: that document must
     // be the one the published State keeps alive for the whole preparation (it is released only after publication).
-    if (previousImages && previousImages->owner != state_->document.get())
+    if (previousImages && previousImages->owner != _state->document.get())
         Failure::FailContract(E_UNEXPECTED);
     const auto* previous =
-        state_ && state_->factory.get() == factory && state_->imageEpochs == epochs && SameOptions(state_->options, options) ? state_.get() : nullptr;
-    const auto* previousNative = carry && state_ && state_->factory.get() == factory && state_->native && state_->native->drawing.get() == drawing &&
-                                         state_->native->epochs == epochs && state_->options.fontFamily == options.fontFamily &&
-                                         state_->options.fontSizeDip == options.fontSizeDip && state_->options.locale == options.locale &&
-                                         state_->options.readingDirection == options.readingDirection &&
-                                         state_->options.diagramLabelWidthDip == options.diagramLabelWidthDip &&
-                                         state_->options.autoParagraphDirection == options.autoParagraphDirection &&
-                                         state_->options.mathAbsoluteUnitScale == options.mathAbsoluteUnitScale
-                                     ? state_.get()
+        _state && _state->factory.get() == factory && _state->imageEpochs == epochs && SameOptions(_state->options, options) ? _state.get() : nullptr;
+    const auto* previousNative = carry && _state && _state->factory.get() == factory && _state->native && _state->native->drawing.get() == drawing &&
+                                         _state->native->epochs == epochs && _state->options.fontFamily == options.fontFamily &&
+                                         _state->options.fontSizeDip == options.fontSizeDip && _state->options.locale == options.locale &&
+                                         _state->options.readingDirection == options.readingDirection &&
+                                         _state->options.diagramLabelWidthDip == options.diagramLabelWidthDip &&
+                                         _state->options.autoParagraphDirection == options.autoParagraphDirection &&
+                                         _state->options.mathAbsoluteUnitScale == options.mathAbsoluteUnitScale
+                                     ? _state.get()
                                      : nullptr;
     auto next                  = std::make_unique<Preparation>(
         std::move(document), factory, options, drawing, epochs, std::move(images), raster, previousImages, previous, previousNative);
-    next_.swap(next);
+    _next.swap(next);
     return LayoutPreparationStatus::Pending;
 }
 LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
@@ -2618,26 +2618,26 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
     const Failure::Scope failureScope;
     if (! budget.maximumLayouts || ! budget.maximumBlockSteps || budget.maximumUploadBytes < 4u)
         return {LayoutPreparationStatus::Failed, 0u, 0u, 0u, E_INVALIDARG};
-    if (! next_)
+    if (! _next)
         return {};
     LayoutAdvance result{LayoutPreparationStatus::Pending};
     try
     {
         while (result.blockSteps < budget.maximumBlockSteps)
         {
-            auto& work = *next_;
+            auto& work = *_next;
             if (FAILED(work.nativeFailure))
             {
                 result.status = LayoutPreparationStatus::Failed;
                 result.result = work.nativeFailure;
-                next_.reset();
+                _next.reset();
                 return result;
             }
             if (work.state->nativeCapacityRejected)
             {
                 result.status = LayoutPreparationStatus::Failed;
                 result.result = E_BOUNDS;
-                next_.reset();
+                _next.reset();
                 return result;
             }
             if (work.phase == Preparation::Phase::IndexReuse)
@@ -2774,7 +2774,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 {
                     result.status = LayoutPreparationStatus::Failed;
                     result.result = E_BOUNDS;
-                    next_.reset();
+                    _next.reset();
                     return result;
                 }
             }
@@ -2787,7 +2787,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 {
                     result.status = LayoutPreparationStatus::Failed;
                     result.result = work.nativeFailure;
-                    next_.reset();
+                    _next.reset();
                     return result;
                 }
                 ++result.layoutsPrepared;
@@ -2852,7 +2852,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     {
                         result.status = LayoutPreparationStatus::Failed;
                         result.result = FAILED(placement.paint->Result()) ? placement.paint->Result() : E_FAIL;
-                        next_.reset();
+                        _next.reset();
                         return result;
                     }
                     ++result.blockSteps;
@@ -2868,7 +2868,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     {
                         result.status = LayoutPreparationStatus::Failed;
                         result.result = FAILED(advance.result) ? advance.result : E_FAIL;
-                        next_.reset();
+                        _next.reset();
                         return result;
                     }
                     if (advance.status == LayoutPreparationStatus::Complete && ! placement.paint->Ready())
@@ -2899,7 +2899,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                         {
                             result.status = LayoutPreparationStatus::Failed;
                             result.result = placement.palette->Result();
-                            next_.reset();
+                            _next.reset();
                             return result;
                         }
                         ++result.blockSteps;
@@ -2912,7 +2912,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                         {
                             result.status = LayoutPreparationStatus::Failed;
                             result.result = placement.palette->Result();
-                            next_.reset();
+                            _next.reset();
                             return result;
                         }
                         ++result.blockSteps;
@@ -2941,7 +2941,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     {
                         result.status = LayoutPreparationStatus::Failed;
                         result.result = work.state->images->nativeResult;
-                        next_.reset();
+                        _next.reset();
                         return result;
                     }
                     if (progress == NativeImageGeometry::MathProgress::Complete)
@@ -2966,7 +2966,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 {
                     result.status = LayoutPreparationStatus::Failed;
                     result.result = upload.result;
-                    next_.reset();
+                    _next.reset();
                     return result;
                 }
                 if (upload.unsupported)
@@ -3019,7 +3019,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                         {
                             result.status = LayoutPreparationStatus::Failed;
                             result.result = prepareResult;
-                            next_.reset();
+                            _next.reset();
                             return result;
                         }
                         (*work.state->codeLabels)[index] = std::move(label);
@@ -3037,7 +3037,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 {
                     result.status = LayoutPreparationStatus::Failed;
                     result.result = work.nativeFailure;
-                    next_.reset();
+                    _next.reset();
                     return result;
                 }
             }
@@ -3053,7 +3053,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                 {
                     result.status = LayoutPreparationStatus::Failed;
                     result.result = work.nativeFailure;
-                    next_.reset();
+                    _next.reset();
                     return result;
                 }
             }
@@ -3096,7 +3096,7 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
                     {
                         result.status = LayoutPreparationStatus::Failed;
                         result.result = prepareResult;
-                        next_.reset();
+                        _next.reset();
                         return result;
                     }
                     const bool rtl = box.rtl;
@@ -3354,27 +3354,27 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
             {
                 if (! work.state->rejected.empty())
                 {
-                    rejectedNativeObjects_.swap(work.state->rejected);
-                    next_.reset();
+                    _rejectedNativeObjects.swap(work.state->rejected);
+                    _next.reset();
                     result.status = LayoutPreparationStatus::Idle;
                     return result;
                 }
                 work.state->BuildHoverIndex();
-                state_ = std::move(work.state);
-                next_.reset();
-                valid_ = true;
-                ++generation_;
+                _state = std::move(work.state);
+                _next.reset();
+                _valid = true;
+                ++_generation;
                 result.status = LayoutPreparationStatus::Complete;
                 ++result.blockSteps;
                 return result;
             }
             ++result.blockSteps;
         }
-        if (next_ && FAILED(next_->nativeFailure))
+        if (_next && FAILED(_next->nativeFailure))
         {
             result.status = LayoutPreparationStatus::Failed;
-            result.result = next_->nativeFailure;
-            next_.reset();
+            result.result = _next->nativeFailure;
+            _next.reset();
         }
     }
     catch (const std::bad_alloc&)
@@ -3389,68 +3389,68 @@ LayoutAdvance PreparedSemanticGeometry::Advance(LayoutWorkBudget budget)
 }
 std::span<const NativeObjectRejection> PreparedSemanticGeometry::RejectedNativeObjects() const noexcept
 {
-    return rejectedNativeObjects_;
+    return _rejectedNativeObjects;
 }
 void PreparedSemanticGeometry::Cancel() noexcept
 {
-    next_.reset();
+    _next.reset();
 }
 void PreparedSemanticGeometry::Invalidate() noexcept
 {
     Cancel();
-    valid_ = false;
+    _valid = false;
 }
 void PreparedSemanticGeometry::Clear() noexcept
 {
     Cancel();
-    state_.reset();
-    valid_ = false;
+    _state.reset();
+    _valid = false;
 }
 bool PreparedSemanticGeometry::Ready() const noexcept
 {
-    return valid_ && static_cast<bool>(state_);
+    return _valid && static_cast<bool>(_state);
 }
 bool PreparedSemanticGeometry::Pending() const noexcept
 {
-    return static_cast<bool>(next_);
+    return static_cast<bool>(_next);
 }
 std::uint64_t PreparedSemanticGeometry::Generation() const noexcept
 {
-    return generation_;
+    return _generation;
 }
 std::uint64_t PreparedSemanticGeometry::Revision() const noexcept
 {
-    return state_ ? state_->document->Syntax()->Revision() : 0u;
+    return _state ? _state->document->Syntax()->Revision() : 0u;
 }
 float PreparedSemanticGeometry::Height() const noexcept
 {
-    return state_ ? state_->height : 0.0f;
+    return _state ? _state->height : 0.0f;
 }
 float PreparedSemanticGeometry::Width() const noexcept
 {
-    return state_ ? state_->width : 0.0f;
+    return _state ? _state->width : 0.0f;
 }
 bool PreparedSemanticGeometry::HasMarkedText() const noexcept
 {
-    return state_ && state_->markedText;
+    return _state && _state->markedText;
 }
 std::size_t PreparedSemanticGeometry::BoxCount() const noexcept
 {
-    return state_ ? state_->boxes.size() : 0u;
+    return _state ? _state->boxes.size() : 0u;
 }
 std::size_t PreparedSemanticGeometry::ReusedBoxCount() const noexcept
 {
-    return state_ ? state_->reusedBoxes : 0u;
+    return _state ? _state->reusedBoxes : 0u;
 }
 bool PreparedSemanticGeometry::HasNativeObjects() const noexcept
 {
-    return state_ && (state_->native || state_->images);
+    return _state && (_state->native || _state->images);
 }
 const PreparedSemanticGeometry::State& PreparedSemanticGeometry::Current() const
 {
     if (! Ready())
         Failure::FailContract(E_UNEXPECTED);
-    return *state_;
+    return *_state;
 }
 const SemanticDocument& PreparedSemanticGeometry::Document() const
 {
@@ -3505,15 +3505,15 @@ void HoverSpanIndex::Build(std::span<const HoverSpan> spans, HoverSpanPick pick)
             elements.push_back(element);
         }
     }
-    starts_.swap(starts);
-    elements_.swap(elements);
+    _starts.swap(starts);
+    _elements.swap(elements);
 }
 std::optional<std::size_t> HoverSpanIndex::At(std::size_t display) const noexcept
 {
-    const auto found = std::ranges::upper_bound(starts_, display);
-    if (found == starts_.begin())
+    const auto found = std::ranges::upper_bound(_starts, display);
+    if (found == _starts.begin())
         return std::nullopt;
-    const auto element = elements_[static_cast<std::size_t>(found - starts_.begin()) - 1u];
+    const auto element = _elements[static_cast<std::size_t>(found - _starts.begin()) - 1u];
     return element == std::numeric_limits<std::size_t>::max() ? std::nullopt : std::optional<std::size_t>(element);
 }
 std::optional<std::size_t> PreparedSemanticGeometry::HoverTitleElement(std::size_t displayOffset) const
@@ -3529,7 +3529,7 @@ HRESULT PreparedSemanticGeometry::TryCaret(std::size_t offset, CaretGeometry& ou
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *_state;
     if (offset > state.document->Map().Display().size() || state.boxes.empty())
         return E_INVALIDARG;
     const auto& box = state.BoxAt(offset);
@@ -3555,9 +3555,9 @@ HRESULT PreparedSemanticGeometry::TryHitTest(float x, float y, Hit& output) cons
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    if (! std::isfinite(x) || ! std::isfinite(y) || state_->boxes.empty())
+    if (! std::isfinite(x) || ! std::isfinite(y) || _state->boxes.empty())
         return E_INVALIDARG;
-    const auto& state  = *state_;
+    const auto& state  = *_state;
     const auto& chosen = *state.boxes[state.NearestBox(x, y)];
     Hit hit{};
     const HRESULT hr = chosen.layout.TryHitTest(x - chosen.x, y - chosen.y, hit);
@@ -3581,7 +3581,7 @@ HRESULT PreparedSemanticGeometry::TrySourceCaret(std::size_t source, std::size_t
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *_state;
     if (! IsEditBoundary(state.document->Map().Source(), source) || state.boxes.empty())
         return E_INVALIDARG;
     const auto& box    = *state.boxes[state.SourceBox(source, site)];
@@ -3612,9 +3612,9 @@ HRESULT PreparedSemanticGeometry::TryHitTestSource(float x, float y, SourceCaret
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    if (! std::isfinite(x) || ! std::isfinite(y) || state_->boxes.empty())
+    if (! std::isfinite(x) || ! std::isfinite(y) || _state->boxes.empty())
         return E_INVALIDARG;
-    const auto& state = *state_;
+    const auto& state = *_state;
     const auto index  = state.NearestBox(x, y);
     const auto& box   = *state.boxes[index];
     if (box.sourceCaret)
@@ -3644,7 +3644,7 @@ HRESULT PreparedSemanticGeometry::TryAdjacentSourceLine(std::size_t source, std:
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *_state;
     if (! IsEditBoundary(state.document->Map().Source(), source) || state.boxes.empty())
         return E_INVALIDARG;
     if (! std::isfinite(x))
@@ -3710,7 +3710,7 @@ HRESULT PreparedSemanticGeometry::TryStepSource(std::size_t source, std::size_t 
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *_state;
     if (! IsEditBoundary(state.document->Map().Source(), source) || state.boxes.empty())
         return E_INVALIDARG;
     const auto index = state.SourceBox(source, site);
@@ -3826,7 +3826,7 @@ HRESULT PreparedSemanticGeometry::TrySourceLineBoundary(std::size_t source, std:
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *_state;
     if (! IsEditBoundary(state.document->Map().Source(), source) || state.boxes.empty())
         return E_INVALIDARG;
     const auto index = state.SourceBox(source, site);
@@ -3883,7 +3883,7 @@ HRESULT PreparedSemanticGeometry::TryVisibleSourceRange(float top, float bottom,
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *_state;
     if (! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom)
         return E_INVALIDARG;
     const auto& map   = state.document->Map();
@@ -3980,7 +3980,7 @@ HRESULT PreparedSemanticGeometry::TryRange(std::size_t first, std::size_t last, 
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    return TryRangeFromState(*state_, first, last, output);
+    return TryRangeFromState(*_state, first, last, output);
 }
 std::vector<D2D1_RECT_F> PreparedSemanticGeometry::Range(std::size_t first, std::size_t last) const
 {
@@ -3995,7 +3995,7 @@ HRESULT PreparedSemanticGeometry::TrySourceRange(MarkdownRange source, std::vect
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *_state;
     const auto& text  = state.document->Map().Source();
     if (source.first > source.last || ! IsEditBoundary(text, source.first) || ! IsEditBoundary(text, source.last))
         return E_INVALIDARG;
@@ -4029,9 +4029,9 @@ HRESULT PreparedSemanticGeometry::TryElementBounds(std::size_t element, std::opt
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    if (element >= state_->bounds.size())
+    if (element >= _state->bounds.size())
         return E_INVALIDARG;
-    output = state_->bounds[element];
+    output = _state->bounds[element];
     return S_OK;
 }
 std::optional<D2D1_RECT_F> PreparedSemanticGeometry::ElementBounds(std::size_t element) const
@@ -4047,7 +4047,7 @@ HRESULT PreparedSemanticGeometry::TryPreviousCluster(std::size_t offset, std::si
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *_state;
     if (offset > state.document->Map().Display().size() || state.boxes.empty())
         return E_INVALIDARG;
     const auto& box      = state.BoxAt(offset);
@@ -4079,7 +4079,7 @@ HRESULT PreparedSemanticGeometry::TryVisibleCodeElements(float top, float bottom
         return E_UNEXPECTED;
     if (! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom)
         return E_INVALIDARG;
-    const auto& state = *state_;
+    const auto& state = *_state;
     std::vector<std::size_t> result(0u);
     const auto elements = state.document->Elements();
     state.paintElements.ForEach(top,
@@ -4105,7 +4105,7 @@ HRESULT PreparedSemanticGeometry::TryNextCluster(std::size_t offset, std::size_t
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *_state;
     if (offset > state.document->Map().Display().size() || state.boxes.empty())
         return E_INVALIDARG;
     const auto& box  = state.BoxAt(offset);
@@ -4134,7 +4134,7 @@ HRESULT PreparedSemanticGeometry::TryDeletionRange(std::size_t offset, bool back
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& map = state_->document->Map();
+    const auto& map = _state->document->Map();
     if (offset > map.Display().size())
         return E_INVALIDARG;
     const auto leading  = map.SnapDisplayBoundary(offset, MappingAffinity::Leading);
@@ -4164,7 +4164,7 @@ HRESULT PreparedSemanticGeometry::TryLineBoundary(std::size_t offset, bool end, 
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *_state;
     if (offset > state.document->Map().Display().size() || state.boxes.empty())
         return E_INVALIDARG;
     const auto& box  = state.BoxAt(offset);
@@ -4189,7 +4189,7 @@ HRESULT PreparedSemanticGeometry::TryVisibleRange(float top, float bottom, std::
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *_state;
     if (! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom)
         return E_INVALIDARG;
     std::size_t first = state.document->Map().Display().size(), last = 0u;
@@ -4235,7 +4235,7 @@ HRESULT PreparedSemanticGeometry::TryDraw(ID2D1RenderTarget* target,
     const Failure::Scope failureScope;
     if (! Ready())
         return E_UNEXPECTED;
-    const auto& state = *state_;
+    const auto& state = *_state;
     if (! target || ! text || ! decoration || ! std::isfinite(top) || ! std::isfinite(bottom) || top > bottom || ! std::isfinite(imageOpacity) ||
         imageOpacity < 0.0f || imageOpacity > 1.0f)
         return E_INVALIDARG;

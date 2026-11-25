@@ -197,7 +197,7 @@ public:
     {
         size_t count = 0u;
         for (size_t folder = 0u; folder < kChildren.size(); ++folder)
-            count += 1u + (expanded_[folder] ? kChildren[folder] : 0u);
+            count += 1u + (_expanded[folder] ? kChildren[folder] : 0u);
         return count;
     }
     void GetVisibleItem(size_t visibleIndex, DxUi::TreeItemData& item) const override
@@ -211,11 +211,11 @@ public:
                 item.text        = L"Folder " + std::to_wstring(folder + 1u);
                 item.iconText    = L"F";
                 item.hasChildren = true;
-                item.expanded    = expanded_[folder];
+                item.expanded    = _expanded[folder];
                 return;
             }
             --visibleIndex;
-            if (! expanded_[folder])
+            if (! _expanded[folder])
                 continue;
             if (visibleIndex < kChildren[folder])
             {
@@ -234,13 +234,13 @@ public:
     {
         for (size_t folder = 0u; folder < kChildren.size(); ++folder)
             if (FolderId(folder) == itemId)
-                expanded_[folder] = expanded;
-        if (tree_)
-            tree_->NotifyDataChanged();
+                _expanded[folder] = expanded;
+        if (_tree)
+            _tree->NotifyDataChanged();
     }
     void Bind(DxUi::Tree* tree) noexcept
     {
-        tree_ = tree;
+        _tree = tree;
     }
     [[nodiscard]] static constexpr uint64_t FolderId(size_t folder) noexcept
     {
@@ -248,8 +248,8 @@ public:
     }
 
 private:
-    std::array<bool, 3> expanded_{true, true, true};
-    DxUi::Tree* tree_ = nullptr;
+    std::array<bool, 3> _expanded{true, true, true};
+    DxUi::Tree* _tree = nullptr;
 };
 
 // One scripted case: the action at each 60 Hz step of a 400 ms window, frame hashes of the Tree's area.

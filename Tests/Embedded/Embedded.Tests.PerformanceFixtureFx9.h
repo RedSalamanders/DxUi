@@ -58,12 +58,12 @@ inline constexpr std::array kSources{std::string_view("Tests/Embedded/Embedded.T
 class SyntheticGridModel final : public DxUi::IGridModel
 {
 public:
-    explicit SyntheticGridModel(size_t rows) noexcept : rows_(rows)
+    explicit SyntheticGridModel(size_t rows) noexcept : _rows(rows)
     {
     }
     [[nodiscard]] size_t GetRowCount() const noexcept override
     {
-        return rows_;
+        return _rows;
     }
     [[nodiscard]] size_t GetColumnCount() const noexcept override
     {
@@ -95,7 +95,7 @@ public:
     }
     [[nodiscard]] std::optional<size_t> FindRowByStableId(uint64_t id) const noexcept override
     {
-        return id < rows_ ? std::optional<size_t>(static_cast<size_t>(id)) : std::nullopt;
+        return id < _rows ? std::optional<size_t>(static_cast<size_t>(id)) : std::nullopt;
     }
     [[nodiscard]] uint64_t GetStableRowId(size_t row) const noexcept override
     {
@@ -103,7 +103,7 @@ public:
     }
 
 private:
-    size_t rows_ = 0u;
+    size_t _rows = 0u;
 };
 
 // A fully expanded tree in preorder: every 50 rows one folder, then seven groups of one group row and six items.
@@ -151,17 +151,17 @@ class Scene final : public Scenario
 public:
     HRESULT Build(Context& context) override
     {
-        grid_.emplace(context.variant.name == "rows-1m" ? kMillionRows : kGridRows);
+        _grid.emplace(context.variant.name == "rows-1m" ? kMillionRows : kGridRows);
         const float width  = static_cast<float>(context.variant.width) * 96.0f / context.variant.dpi;
         const float height = static_cast<float>(context.variant.height) * 96.0f / context.variant.dpi;
         const float split  = std::floor(width * 0.66f);
         auto root          = std::make_unique<DxUi::Panel>();
-        gridControl_       = root->AddChild<DxUi::Grid>();
-        gridControl_->SetBounds(D2D1::RectF(8.0f, 8.0f, split - 4.0f, height - 8.0f));
-        gridControl_->SetModel(&*grid_);
-        treeControl_ = root->AddChild<DxUi::Tree>();
-        treeControl_->SetBounds(D2D1::RectF(split + 4.0f, 8.0f, width - 8.0f, height - 8.0f));
-        treeControl_->SetModel(&tree_);
+        _gridControl       = root->AddChild<DxUi::Grid>();
+        _gridControl->SetBounds(D2D1::RectF(8.0f, 8.0f, split - 4.0f, height - 8.0f));
+        _gridControl->SetModel(&*_grid);
+        _treeControl = root->AddChild<DxUi::Tree>();
+        _treeControl->SetBounds(D2D1::RectF(split + 4.0f, 8.0f, width - 8.0f, height - 8.0f));
+        _treeControl->SetModel(&_tree);
         context.controls.SetRoot(std::move(root));
         return S_OK;
     }
@@ -171,16 +171,16 @@ public:
         {
             switch (step)
             {
-                case 0u: gridControl_->EnsureRowVisible(grid_->GetRowCount() / 2u); break;
-                case 1u: Wheel(context, *gridControl_); break;
-                case 2u: Wheel(context, *treeControl_); break;
+                case 0u: _gridControl->EnsureRowVisible(_grid->GetRowCount() / 2u); break;
+                case 1u: Wheel(context, *_gridControl); break;
+                case 2u: Wheel(context, *_treeControl); break;
                 default: break;
             }
             return;
         }
         if (phase == kHoverPhase)
         {
-            const D2D1_RECT_F bounds = gridControl_->GetBounds();
+            const D2D1_RECT_F bounds = _gridControl->GetBounds();
             const float scale        = context.variant.dpi / 96.0f;
             const float y            = (bounds.top + bounds.bottom) * 0.5f + (step % 2u == 0u ? 0.0f : 40.0f);
             static_cast<void>(context.port.Pointer({DxUi::PointerAction::Move, (bounds.left + 120.0f) * scale, y * scale}));
@@ -190,8 +190,8 @@ public:
         {
             if (step == 0u)
             {
-                context.controls.SetFocusControl(treeControl_, false);
-                treeControl_->SetFocusedItemId(static_cast<uint64_t>(treeControl_->GetFirstVisibleItemIndex()));
+                context.controls.SetFocusControl(_treeControl, false);
+                _treeControl->SetFocusedItemId(static_cast<uint64_t>(_treeControl->GetFirstVisibleItemIndex()));
                 return;
             }
             const UINT key = kTreeKeys[(step - 1u) % kTreeKeys.size()];
@@ -202,9 +202,9 @@ public:
         // 8, 8, 9 ms: three frames per 25 ms, so 1,200 steps are exactly 10 s of the fixture clock.
         context.port.AdvanceTime(step % 3u == 2u ? 9u : 8u);
         if (phase == kGridPhase)
-            Wheel(context, *gridControl_);
+            Wheel(context, *_gridControl);
         else if (phase == kTreePhase)
-            Wheel(context, *treeControl_);
+            Wheel(context, *_treeControl);
     }
 
 private:
@@ -218,10 +218,10 @@ private:
         static_cast<void>(context.port.Pointer(event));
     }
 
-    std::optional<SyntheticGridModel> grid_;
-    SyntheticTreeModel tree_;
-    DxUi::Grid* gridControl_ = nullptr;
-    DxUi::Tree* treeControl_ = nullptr;
+    std::optional<SyntheticGridModel> _grid;
+    SyntheticTreeModel _tree;
+    DxUi::Grid* _gridControl = nullptr;
+    DxUi::Tree* _treeControl = nullptr;
 };
 
 inline constexpr Definition kDefinition{

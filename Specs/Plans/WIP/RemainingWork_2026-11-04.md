@@ -488,6 +488,10 @@ No consumer lock moves.
   Focused TSF, popup input and OLE drop retain their native input contracts. Run the leased input replays on
   the admitted native Release source under D21.
 
+- [x] **H-27 private member naming.** Private and protected non-static fields use `_camelCase`.
+  The root `.clang-tidy` defines the naming and reserved-identifier checks. Public data fields retain
+  their naming and layout contracts.
+
 Rows already at their target in DxUi: H-05 (`DxUi::Debug`) and H-14 (`PostedPayload.h`) are the owner's chosen
 families. Both are private (`src/Support/`), so consumers can adopt them only after DxUi publishes them; that is
 part of the API 6 adoption (RedHome decision D20), not of this section.

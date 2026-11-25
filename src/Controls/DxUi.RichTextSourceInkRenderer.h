@@ -36,13 +36,13 @@ public:
                       UINT32 textOffset,
                       std::wstring_view layoutText,
                       ID2D1DeviceContext7* colorContext = nullptr) noexcept
-        : target_(target),
-          baseBrush_(baseBrush),
-          drawing_(drawing),
-          positioning_(positioning),
-          textOffset_(textOffset),
-          layoutText_(layoutText),
-          colorContext_(colorContext)
+        : _target(target),
+          _baseBrush(baseBrush),
+          _drawing(drawing),
+          _positioning(positioning),
+          _textOffset(textOffset),
+          _layoutText(layoutText),
+          _colorContext(colorContext)
     {
         BuildInkSpans();
     }
@@ -70,13 +70,13 @@ public:
     }
     ULONG STDMETHODCALLTYPE AddRef() noexcept override
     {
-        return ++references_;
+        return ++_references;
     }
     ULONG STDMETHODCALLTYPE Release() noexcept override
     {
-        if (references_ != 0u)
-            --references_;
-        return references_;
+        if (_references != 0u)
+            --_references;
+        return _references;
     }
 
     HRESULT STDMETHODCALLTYPE IsPixelSnappingDisabled(void*, BOOL* disabled) noexcept override
@@ -91,7 +91,7 @@ public:
         if (! transform)
             return E_POINTER;
         D2D1_MATRIX_3X2_F current{};
-        target_->GetTransform(&current);
+        _target->GetTransform(&current);
         *transform = {current._11, current._12, current._21, current._22, current._31, current._32};
         return S_OK;
     }
@@ -100,7 +100,7 @@ public:
         if (! pixelsPerDip)
             return E_POINTER;
         FLOAT dpiX{}, dpiY{};
-        target_->GetDpi(&dpiX, &dpiY);
+        _target->GetDpi(&dpiX, &dpiY);
         if (! std::isfinite(dpiX) || ! std::isfinite(dpiY) || dpiX <= 0.0f || dpiY <= 0.0f || dpiX != dpiY)
             return E_NOTIMPL;
         *pixelsPerDip = dpiX / 96.0f;
@@ -121,24 +121,24 @@ public:
         bool monospaced{};
         if (effect || ! Eligible(run, description, glyphRoles, monospaced, useColor))
             return Reject();
-        if (! painting_)
+        if (! _painting)
         {
-            requiresColorContext_ = requiresColorContext_ || useColor;
+            _requiresColorContext = _requiresColorContext || useColor;
             return S_OK;
         }
 
         if (useColor)
         {
-            if (! colorContext_)
+            if (! _colorContext)
                 return Reject();
-            colorContext_->DrawGlyphRunWithColorSupport(
+            _colorContext->DrawGlyphRunWithColorSupport(
                 {x, y}, run, description, BrushForRole(glyphRoles[0]), nullptr, 0u, measuringMode, D2D1_COLOR_BITMAP_GLYPH_SNAP_OPTION_DEFAULT);
             return S_OK;
         }
 
         if (! monospaced)
         {
-            target_->DrawGlyphRun({x, y}, run, BrushForRole(glyphRoles[0]), measuringMode);
+            _target->DrawGlyphRun({x, y}, run, BrushForRole(glyphRoles[0]), measuringMode);
             return S_OK;
         }
 
@@ -158,7 +158,7 @@ public:
             part.glyphIndices     = ink->glyphIndices + first;
             part.glyphAdvances    = ink->glyphAdvances + first;
             part.glyphOffsets     = ink->glyphOffsets ? ink->glyphOffsets + first : nullptr;
-            target_->DrawGlyphRun({partX, y}, &part, drawBrush, measuringMode);
+            _target->DrawGlyphRun({partX, y}, &part, drawBrush, measuringMode);
             for (UINT32 index = first; index < last; ++index)
                 partX += ink->glyphAdvances[index];
             first = last;
@@ -175,24 +175,24 @@ public:
     }
     HRESULT STDMETHODCALLTYPE DrawInlineObject(void*, FLOAT, FLOAT, IDWriteInlineObject* object, BOOL sideways, BOOL, IUnknown* effect) noexcept override
     {
-        return object == positioning_ && positioning_ && ! sideways && ! effect ? S_OK : Reject();
+        return object == _positioning && _positioning && ! sideways && ! effect ? S_OK : Reject();
     }
 
     bool Accepted() const noexcept
     {
-        return accepted_;
+        return _accepted;
     }
     void BeginPaint() noexcept
     {
-        painting_ = true;
+        _painting = true;
     }
     bool RequiresColorContext() const noexcept
     {
-        return requiresColorContext_;
+        return _requiresColorContext;
     }
     void SetColorContext(ID2D1DeviceContext7* context) noexcept
     {
-        colorContext_ = context;
+        _colorContext = context;
     }
 
 private:
@@ -203,12 +203,12 @@ private:
     };
     HRESULT Reject() noexcept
     {
-        accepted_ = false;
+        _accepted = false;
         return E_NOTIMPL;
     }
     bool IsPositioningPrefixLineFeed(const DWRITE_GLYPH_RUN* run, const DWRITE_GLYPH_RUN_DESCRIPTION* description, IUnknown* effect) const noexcept
     {
-        return positioning_ && textOffset_ == 2u && run && ! run->glyphCount && ! run->isSideways && ! effect && description && description->string &&
+        return _positioning && _textOffset == 2u && run && ! run->glyphCount && ! run->isSideways && ! effect && description && description->string &&
                description->textPosition == 1u && description->stringLength == 1u && description->string[0] == L'\n';
     }
     bool IsNonpaintingSourceLineBreak(const DWRITE_GLYPH_RUN* run, const DWRITE_GLYPH_RUN_DESCRIPTION* description, IUnknown* effect) const noexcept
@@ -217,54 +217,54 @@ private:
         // map. They advance no ink; verify the exact source interval before
         // accepting them so other empty or malformed runs still fall back.
         if (! run || run->glyphCount || run->isSideways || (run->bidiLevel & 1u) || effect || ! description || ! description->string ||
-            description->textPosition < textOffset_)
+            description->textPosition < _textOffset)
             return false;
-        const auto first  = static_cast<std::size_t>(description->textPosition - textOffset_);
+        const auto first  = static_cast<std::size_t>(description->textPosition - _textOffset);
         const auto length = static_cast<std::size_t>(description->stringLength);
-        if (first > layoutText_.size() || length > layoutText_.size() - first)
+        if (first > _layoutText.size() || length > _layoutText.size() - first)
             return false;
         const std::wstring_view text(description->string, length);
-        return (text == L"\n" || text == L"\r" || text == L"\r\n") && text == layoutText_.substr(first, length);
+        return (text == L"\n" || text == L"\r" || text == L"\r\n") && text == _layoutText.substr(first, length);
     }
     void BuildInkSpans() noexcept
     {
-        if (! drawing_ || drawing_->inkExclusion || drawing_->displayOrigin > (std::numeric_limits<std::size_t>::max)() - layoutText_.size())
+        if (! _drawing || _drawing->inkExclusion || _drawing->displayOrigin > (std::numeric_limits<std::size_t>::max)() - _layoutText.size())
         {
-            accepted_ = false;
+            _accepted = false;
             return;
         }
-        const std::size_t displayEnd = drawing_->displayOrigin + layoutText_.size();
+        const std::size_t displayEnd = _drawing->displayOrigin + _layoutText.size();
         auto ink =
-            std::lower_bound(drawing_->inkRanges.begin(), drawing_->inkRanges.end(), drawing_->displayOrigin, [](const TextInkRange& range, std::size_t first) {
+            std::lower_bound(_drawing->inkRanges.begin(), _drawing->inkRanges.end(), _drawing->displayOrigin, [](const TextInkRange& range, std::size_t first) {
             return range.display.last <= first;
         });
         std::size_t previousEnd = 0u;
         bool havePrevious       = false;
-        for (; ink != drawing_->inkRanges.end() && ink->display.first < displayEnd; ++ink)
+        for (; ink != _drawing->inkRanges.end() && ink->display.first < displayEnd; ++ink)
         {
             if (ink->display.first >= ink->display.last || (havePrevious && ink->display.first < previousEnd))
             {
-                accepted_ = false;
+                _accepted = false;
                 return;
             }
             previousEnd     = ink->display.last;
             havePrevious    = true;
             const auto role = static_cast<std::size_t>(ink->role);
-            if (role >= drawing_->inkBrushes.size() || ! drawing_->inkBrushes[role])
+            if (role >= _drawing->inkBrushes.size() || ! _drawing->inkBrushes[role])
                 continue;
-            const auto first = (std::max)(ink->display.first, drawing_->displayOrigin);
+            const auto first = (std::max)(ink->display.first, _drawing->displayOrigin);
             const auto last  = (std::min)(ink->display.last, displayEnd);
             if (first >= last)
                 continue;
-            if (inkSpanCount_ == inkSpans_.size())
+            if (_inkSpanCount == _inkSpans.size())
             {
-                accepted_ = false;
+                _accepted = false;
                 return;
             }
-            inkSpans_[inkSpanCount_++] = {first - drawing_->displayOrigin, last - drawing_->displayOrigin, static_cast<int>(role)};
+            _inkSpans[_inkSpanCount++] = {first - _drawing->displayOrigin, last - _drawing->displayOrigin, static_cast<int>(role)};
         }
-        if (! inkSpanCount_)
-            accepted_ = false;
+        if (! _inkSpanCount)
+            _accepted = false;
     }
     bool Eligible(const DWRITE_GLYPH_RUN* run,
                   const DWRITE_GLYPH_RUN_DESCRIPTION* description,
@@ -276,11 +276,11 @@ private:
         useColor   = false;
         if (! run || ! description || ! run->fontFace || run->isSideways || (run->bidiLevel & 1u) || ! run->glyphCount || run->glyphCount > 256u ||
             ! run->glyphIndices || ! run->glyphAdvances || ! description->string || ! description->stringLength || description->stringLength > 512u ||
-            ! description->clusterMap || description->textPosition < textOffset_ ||
-            static_cast<std::size_t>(description->textPosition - textOffset_) + description->stringLength > layoutText_.size())
+            ! description->clusterMap || description->textPosition < _textOffset ||
+            static_cast<std::size_t>(description->textPosition - _textOffset) + description->stringLength > _layoutText.size())
             return false;
-        const auto textOffset = static_cast<std::size_t>(description->textPosition - textOffset_);
-        if (std::wstring_view(description->string, description->stringLength) != layoutText_.substr(textOffset, description->stringLength))
+        const auto textOffset = static_cast<std::size_t>(description->textPosition - _textOffset);
+        if (std::wstring_view(description->string, description->stringLength) != _layoutText.substr(textOffset, description->stringLength))
             return false;
         wil::com_ptr<IDWriteFontFace1> face1;
         wil::com_ptr<IDWriteFontFace2> face2;
@@ -343,10 +343,10 @@ private:
     }
     int RoleFor(UINT32 absoluteTextPosition) const noexcept
     {
-        const std::size_t displayPosition = absoluteTextPosition - textOffset_;
-        for (std::size_t index = 0; index < inkSpanCount_; ++index)
+        const std::size_t displayPosition = absoluteTextPosition - _textOffset;
+        for (std::size_t index = 0; index < _inkSpanCount; ++index)
         {
-            const auto& span = inkSpans_[index];
+            const auto& span = _inkSpans[index];
             if (span.first > displayPosition)
                 break;
             if (span.first <= displayPosition && displayPosition < span.last)
@@ -356,22 +356,22 @@ private:
     }
     ID2D1Brush* BrushForRole(int role) const noexcept
     {
-        return role >= 0 ? drawing_->inkBrushes[static_cast<std::size_t>(role)] : baseBrush_;
+        return role >= 0 ? _drawing->inkBrushes[static_cast<std::size_t>(role)] : _baseBrush;
     }
 
-    ID2D1RenderTarget* target_{};
-    ID2D1Brush* baseBrush_{};
-    const LinkDrawing* drawing_{};
-    IDWriteInlineObject* positioning_{};
-    UINT32 textOffset_{};
-    std::wstring_view layoutText_;
-    ID2D1DeviceContext7* colorContext_{};
-    std::array<InkSpan, 32> inkSpans_{};
-    std::size_t inkSpanCount_{};
-    ULONG references_{1u};
-    bool painting_{};
-    bool requiresColorContext_{};
-    bool accepted_{true};
+    ID2D1RenderTarget* _target{};
+    ID2D1Brush* _baseBrush{};
+    const LinkDrawing* _drawing{};
+    IDWriteInlineObject* _positioning{};
+    UINT32 _textOffset{};
+    std::wstring_view _layoutText;
+    ID2D1DeviceContext7* _colorContext{};
+    std::array<InkSpan, 32> _inkSpans{};
+    std::size_t _inkSpanCount{};
+    ULONG _references{1u};
+    bool _painting{};
+    bool _requiresColorContext{};
+    bool _accepted{true};
 };
 
 enum class SourceInkColorContextLookup : uint8_t

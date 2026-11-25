@@ -73,25 +73,25 @@ public:
     HRESULT Build(Context& context) override
     {
         auto root = std::make_unique<DxUi::Panel>();
-        combo_    = root->AddChild<DxUi::ComboBox>();
-        combo_->SetEditable(true);
-        combo_->SetAutoOpenOnTextInput(false);
-        combo_->SetItems(MakeItems(kItems));
-        combo_->SetBounds(D2D1::RectF(16.0f, 16.0f, 336.0f, 48.0f));
+        _combo    = root->AddChild<DxUi::ComboBox>();
+        _combo->SetEditable(true);
+        _combo->SetAutoOpenOnTextInput(false);
+        _combo->SetItems(MakeItems(kItems));
+        _combo->SetBounds(D2D1::RectF(16.0f, 16.0f, 336.0f, 48.0f));
         if (context.variant.name == "history")
         {
             std::wstring text(kHistoryUnits, L'a');
             for (size_t index = 0u; index < text.size(); ++index)
                 text[index] = (index % 8u) == 7u ? L' ' : static_cast<wchar_t>(L'a' + (index % 26u));
-            combo_->SetText(std::move(text));
-            history_.reserve(TextHistoryEdits::kEdits);
+            _combo->SetText(std::move(text));
+            _history.reserve(TextHistoryEdits::kEdits);
         }
-        fit_ = root->AddChild<DxUi::ComboBox>();
-        fit_->SetEditable(true);
-        fit_->SetAutoOpenOnTextInput(false);
-        fit_->SetMaxVisibleItems(kFitItems);
-        fit_->SetItems(MakeItems(kFitItems));
-        fit_->SetBounds(D2D1::RectF(400.0f, 16.0f, 720.0f, 48.0f));
+        _fit = root->AddChild<DxUi::ComboBox>();
+        _fit->SetEditable(true);
+        _fit->SetAutoOpenOnTextInput(false);
+        _fit->SetMaxVisibleItems(kFitItems);
+        _fit->SetItems(MakeItems(kFitItems));
+        _fit->SetBounds(D2D1::RectF(400.0f, 16.0f, 720.0f, 48.0f));
         context.controls.SetRoot(std::move(root));
         return S_OK;
     }
@@ -112,24 +112,24 @@ public:
         switch (phase)
         {
             case kOpen:
-                context.controls.SetFocusControl(combo_, false);
+                context.controls.SetFocusControl(_combo, false);
                 key(VK_F4);
                 break;
-            case kHover: hoverRow(*combo_, step % 8u); break;
+            case kHover: hoverRow(*_combo, step % 8u); break;
             case kClose:
             case kFitClose: key(VK_ESCAPE); break;
             case kType: static_cast<void>(context.port.Character(kTyped[step % kTyped.size()])); break;
             case kFitOpen:
-                context.controls.SetFocusControl(fit_, false);
+                context.controls.SetFocusControl(_fit, false);
                 key(VK_F4);
                 break;
-            case kFitHover: hoverRow(*fit_, (step * 5u) % kFitItems); break;
+            case kFitHover: hoverRow(*_fit, (step * 5u) % kFitItems); break;
             case kHistory:
                 if (context.variant.name != "history")
                     break;
                 if (step == 0u)
-                    context.controls.SetFocusControl(combo_, false);
-                TextHistoryEdits::Apply(context, *combo_, step, history_);
+                    context.controls.SetFocusControl(_combo, false);
+                TextHistoryEdits::Apply(context, *_combo, step, _history);
                 break;
             default: break;
         }
@@ -137,17 +137,17 @@ public:
     // The history variant's edits, in order (W9.3 gate).
     [[nodiscard]] const std::vector<TextHistoryEdits::Record>& History() const noexcept
     {
-        return history_;
+        return _history;
     }
     [[nodiscard]] DxUi::ComboBox& Combo() const noexcept
     {
-        return *combo_;
+        return *_combo;
     }
 
 private:
-    DxUi::ComboBox* combo_ = nullptr;
-    DxUi::ComboBox* fit_   = nullptr;
-    std::vector<TextHistoryEdits::Record> history_;
+    DxUi::ComboBox* _combo = nullptr;
+    DxUi::ComboBox* _fit   = nullptr;
+    std::vector<TextHistoryEdits::Record> _history;
 };
 
 inline constexpr Definition kDefinition{

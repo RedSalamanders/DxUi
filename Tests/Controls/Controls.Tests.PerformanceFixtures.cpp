@@ -37,15 +37,15 @@ public:
     // fixture runs (UiaClientsAreListening changes as other processes start and stop listening): the state of a developer
     // desktop and of the retained window receipts. With foreign messages kept from the host (ObserveMessage), the host
     // publishes its snapshot exactly when the fixture's own changes ask for it.
-    WindowInstance() : listenersBefore_(DxUi::DebugGetAccessibilitySystemListenersForTest())
+    WindowInstance() : _listenersBefore(DxUi::DebugGetAccessibilitySystemListenersForTest())
     {
         DxUi::DebugSetAccessibilitySystemListenersForTest(true);
     }
     ~WindowInstance() override
     {
-        context_.reset();
-        window_.reset();
-        DxUi::DebugSetAccessibilitySystemListenersForTest(listenersBefore_);
+        _context.reset();
+        _window.reset();
+        DxUi::DebugSetAccessibilitySystemListenersForTest(_listenersBefore);
     }
     WindowInstance(const WindowInstance&)            = delete;
     WindowInstance& operator=(const WindowInstance&) = delete;
@@ -54,36 +54,36 @@ public:
 
     void Instantiate(const Definition& definition)
     {
-        definition_ = &definition;
-        scenario_   = definition.create();
+        _definition = &definition;
+        _scenario   = definition.create();
     }
     void Create(const Variant& variant)
     {
-        window_.emplace(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
-        window_->SetMessageObserver(&WindowInstance::ObserveMessage, this);
+        _window.emplace(DxUi::WindowHost::PresentationMode::HwndSwapChain, true);
+        _window->SetMessageObserver(&WindowInstance::ObserveMessage, this);
         // The host's animation clock is the fixture clock from the start: a delay scheduled before the first tick (a tooltip's
         // show delay) is measured on it, never on GetTickCount64.
-        window_->Host().DebugSetAnimationClockForTest(now_);
+        _window->Host().DebugSetAnimationClockForTest(_now);
         auto theme          = DxUi::MakeDefaultThemePalette(true);
-        theme.reducedMotion = definition_->reducedMotion;
-        window_->Host().SetTheme(theme);
-        window_->AllowOuterSizeBeyondDesktop(SIZE{8192, 8192});
+        theme.reducedMotion = _definition->reducedMotion;
+        _window->Host().SetTheme(theme);
+        _window->AllowOuterSizeBeyondDesktop(SIZE{8192, 8192});
         Resize(variant.width, variant.height, variant.dpi);
-        context_.emplace(Context{Host::Window, variant, window_->Host(), *this});
-        RequireSucceeded(scenario_->Build(*context_), "the performance fixture builds on the window host");
-        ShowWindow(window_->Hwnd(), SW_SHOWNOACTIVATE);
+        _context.emplace(Context{Host::Window, variant, _window->Host(), *this});
+        RequireSucceeded(_scenario->Build(*_context), "the performance fixture builds on the window host");
+        ShowWindow(_window->Hwnd(), SW_SHOWNOACTIVATE);
     }
     [[nodiscard]] DxUi::WindowHost& Host() noexcept
     {
-        return window_->Host();
+        return _window->Host();
     }
     [[nodiscard]] HWND Hwnd() const noexcept
     {
-        return window_->Hwnd();
+        return _window->Hwnd();
     }
     void Step(size_t phase, size_t step)
     {
-        scenario_->Step(*context_, phase, step);
+        _scenario->Step(*_context, phase, step);
     }
     void Frame()
     {
@@ -101,7 +101,7 @@ public:
                 Note("dropped queued WM_MOUSELEAVE");
                 continue;
             }
-            if (events_)
+            if (_events)
                 Note("dequeued " + MessageName(message.message) +
                      (message.hwnd == Hwnd() ? " for the host window"
                       : message.hwnd         ? " for another window"
@@ -123,19 +123,19 @@ public:
     // validated unpainted and recorded.
     void PaintIfTheHostInvalidated(bool updateWindow)
     {
-        const HWND hwnd = window_->Hwnd();
+        const HWND hwnd = _window->Hwnd();
         RECT invalid{};
         if (GetUpdateRect(hwnd, &invalid, FALSE) == FALSE)
             return;
-        const uint64_t invalidations = window_->Host().DebugGetInvalidateCount();
-        if (invalidations == paintedInvalidations_)
+        const uint64_t invalidations = _window->Host().DebugGetInvalidateCount();
+        if (invalidations == _paintedInvalidations)
         {
             Note(std::format(
                 "a region the host did not invalidate ({},{})-({},{}) validated unpainted", invalid.left, invalid.top, invalid.right, invalid.bottom));
             static_cast<void>(ValidateRect(hwnd, nullptr));
             return;
         }
-        paintedInvalidations_ = invalidations;
+        _paintedInvalidations = invalidations;
         if (updateWindow)
             Note(std::format("UpdateWindow paints an invalid region ({},{})-({},{})", invalid.left, invalid.top, invalid.right, invalid.bottom));
         static_cast<void>(UpdateWindow(hwnd));
@@ -145,25 +145,25 @@ public:
     // differ between two runs names the event that was in one run and not in the other.
     void BeginStepEvents(std::vector<std::string>& events)
     {
-        events_ = &events;
-        if (const bool listening = UiaClientsAreListening() != FALSE; listening != uiaListening_)
+        _events = &events;
+        if (const bool listening = UiaClientsAreListening() != FALSE; listening != _uiaListening)
         {
-            uiaListening_ = listening;
+            _uiaListening = listening;
             Note(listening ? "UI Automation clients started listening (UiaClientsAreListening)" : "UI Automation clients stopped listening");
         }
-        snapshotBuilds_ = DxUi::DebugGetAccessibilitySnapshotBuildCountForTest();
+        _snapshotBuilds = DxUi::DebugGetAccessibilitySnapshotBuildCountForTest();
     }
     void EndStepEvents()
     {
-        if (! events_)
+        if (! _events)
             return;
-        if (const uint64_t builds = DxUi::DebugGetAccessibilitySnapshotBuildCountForTest() - snapshotBuilds_; builds != 0u)
+        if (const uint64_t builds = DxUi::DebugGetAccessibilitySnapshotBuildCountForTest() - _snapshotBuilds; builds != 0u)
             Note(std::format("{} accessibility snapshot build(s), any thread", builds));
-        const auto wake = window_->Host().DebugGetFrameScheduleWakeForTest();
+        const auto wake = _window->Host().DebugGetFrameScheduleWakeForTest();
         if (wake.kind != 0u)
             Note(std::format(
-                "frame schedule waits: kind {} due {}", wake.kind, wake.dueTickMs >= now_ ? std::format("now+{}", wake.dueTickMs - now_) : "earlier"));
-        events_ = nullptr;
+                "frame schedule waits: kind {} due {}", wake.kind, wake.dueTickMs >= _now ? std::format("now+{}", wake.dueTickMs - _now) : "earlier"));
+        _events = nullptr;
     }
 
     bool Pointer(const DxUi::PointerEvent& event) override
@@ -207,23 +207,23 @@ public:
     }
     void AdvanceTime(uint64_t milliseconds) override
     {
-        now_ += milliseconds;
-        window_->Host().DebugSetAnimationClockForTest(now_);
-        const bool pending = window_->Host().DebugAnimationTickForTest(now_);
+        _now += milliseconds;
+        _window->Host().DebugSetAnimationClockForTest(_now);
+        const bool pending = _window->Host().DebugAnimationTickForTest(_now);
         Note(std::format("fixture tick (+{} ms){}", milliseconds, pending ? ", animation still pending" : ""));
     }
     // The client area becomes `width` x `height` device pixels at `dpi`, the DPI delivered as Windows would deliver it.
     void Resize(UINT width, UINT height, float dpi) override
     {
-        const HWND hwnd = window_->Hwnd();
+        const HWND hwnd = _window->Hwnd();
         RECT outer{};
         GetWindowRect(hwnd, &outer);
-        if (window_->Host().GetDpi() != dpi)
+        if (_window->Host().GetDpi() != dpi)
         {
             const auto value = static_cast<WORD>(std::lround(dpi));
             bool handled     = false;
-            static_cast<void>(window_->Host().HandleMessage(hwnd, WM_DPICHANGED, MAKEWPARAM(value, value), reinterpret_cast<LPARAM>(&outer), handled));
-            Require(window_->Host().GetDpi() == dpi, "the window host takes the fixture's DPI");
+            static_cast<void>(_window->Host().HandleMessage(hwnd, WM_DPICHANGED, MAKEWPARAM(value, value), reinterpret_cast<LPARAM>(&outer), handled));
+            Require(_window->Host().GetDpi() == dpi, "the window host takes the fixture's DPI");
         }
         RECT client{};
         GetWindowRect(hwnd, &outer);
@@ -240,7 +240,7 @@ public:
     }
     [[nodiscard]] uint64_t NowMs() const noexcept override
     {
-        return now_;
+        return _now;
     }
 
 private:
@@ -282,8 +282,8 @@ private:
     }
     void Note(std::string event)
     {
-        if (events_)
-            events_->push_back(std::move(event));
+        if (_events)
+            _events->push_back(std::move(event));
     }
     // A message another thread sends is the desktop's, never the fixture's: a UI Automation client's WM_GETOBJECT (which
     // would publish the host's accessibility snapshot in the middle of a step and split the step's one coalesced
@@ -295,7 +295,7 @@ private:
         auto& self         = *static_cast<WindowInstance*>(context);
         const DWORD send   = InSendMessageEx(nullptr);
         const bool foreign = (send & (ISMEX_SEND | ISMEX_NOTIFY | ISMEX_CALLBACK)) != 0u;
-        if (self.events_)
+        if (self._events)
         {
             // Every message is recorded, the step's own input included: both runs send that input, so only a difference shows.
             std::string origin = foreign ? " from another thread, answered without the host" : "";
@@ -306,17 +306,17 @@ private:
         return foreign;
     }
 
-    const Definition* definition_ = nullptr;
+    const Definition* _definition = nullptr;
     // Declared before the window it may own models for, so the window and its host are destroyed first.
-    std::unique_ptr<Scenario> scenario_;
-    std::optional<AttachedHostWindow> window_;
-    std::optional<Context> context_;
-    uint64_t now_ = kClockOriginMs;
-    std::optional<bool> listenersBefore_;
-    uint64_t paintedInvalidations_    = 0u;
-    std::vector<std::string>* events_ = nullptr;
-    std::optional<bool> uiaListening_;
-    uint64_t snapshotBuilds_ = 0u;
+    std::unique_ptr<Scenario> _scenario;
+    std::optional<AttachedHostWindow> _window;
+    std::optional<Context> _context;
+    uint64_t _now = kClockOriginMs;
+    std::optional<bool> _listenersBefore;
+    uint64_t _paintedInvalidations    = 0u;
+    std::vector<std::string>* _events = nullptr;
+    std::optional<bool> _uiaListening;
+    uint64_t _snapshotBuilds = 0u;
 };
 
 [[nodiscard]] PROCESS_MEMORY_COUNTERS_EX ProcessMemory()

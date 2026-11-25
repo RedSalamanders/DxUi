@@ -366,27 +366,27 @@ struct TabPaintProbeState
 class TabPaintProbePanel final : public DxUi::Panel
 {
 public:
-    explicit TabPaintProbePanel(TabPaintProbeState& state) noexcept : state_(&state)
+    explicit TabPaintProbePanel(TabPaintProbeState& state) noexcept : _state(&state)
     {
     }
     void Paint(DxUi::ControlHost& host) const override
     {
         const auto layouts    = DxUi::testSingleLineMeasureLayoutCreations;
-        const auto builds     = state_->tabs->DebugGetHeaderLayoutBuildCount();
-        const auto geometries = state_->tabs->DebugGetHeaderGeometryBuildCount();
+        const auto builds     = _state->tabs->DebugGetHeaderLayoutBuildCount();
+        const auto geometries = _state->tabs->DebugGetHeaderGeometryBuildCount();
         allocations           = 0u;
         countAllocations      = true;
         Panel::Paint(host);
         countAllocations = false;
-        ++state_->paints;
-        state_->allocationsDuringPaint += allocations;
-        state_->layoutsDuringPaint += DxUi::testSingleLineMeasureLayoutCreations - layouts;
-        state_->headerBuildsDuringPaint += state_->tabs->DebugGetHeaderLayoutBuildCount() - builds;
-        state_->geometryBuildsDuringPaint += state_->tabs->DebugGetHeaderGeometryBuildCount() - geometries;
+        ++_state->paints;
+        _state->allocationsDuringPaint += allocations;
+        _state->layoutsDuringPaint += DxUi::testSingleLineMeasureLayoutCreations - layouts;
+        _state->headerBuildsDuringPaint += _state->tabs->DebugGetHeaderLayoutBuildCount() - builds;
+        _state->geometryBuildsDuringPaint += _state->tabs->DebugGetHeaderGeometryBuildCount() - geometries;
     }
 
 private:
-    TabPaintProbeState* state_;
+    TabPaintProbeState* _state;
 };
 #pragma warning(pop)
 static void TestEmbeddedTabHeaderPreparationAvoidsPaintWork(GraphicsFixture& gpu)

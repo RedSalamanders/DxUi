@@ -42,6 +42,8 @@ and cherry-pick them unless they apply only to API 4, and never open a pull requ
 
 - Use Unicode, `stdcpplatest`, `/Wall`, `/permissive-`, SDL and zero warnings, with /WX disabled. Discover Visual Studio; do not
   hard-code a developer installation. Keep x64/ARM64 Debug/Release/ASan Debug buildable.
+- Use `_camelCase` for private and protected non-static fields. Keep public data fields in `camelCase`.
+  The root `.clang-tidy` checks field naming and reserved identifiers using the target's compile options.
 - Use WIL for owned COM/Windows resources when those targets are extracted. Borrow synchronously and retain only
   with explicit ownership. No manual Release/Destroy of an owned resource. No exceptions through Windows/COM or
   callback boundaries. Follow [the failure policy](Specs/Core/Core_FailureHandling.md): expected refusal uses checked
