@@ -5,6 +5,21 @@
     <Error Condition="!$([System.String]::Copy('$(VCToolsVersion)').StartsWith('$(RequiredMsvcToolsVersion).'))"
            Text="$(MSBuildProjectName) requires MSVC build tools $(RequiredMsvcToolsVersion).x; selected $(VCToolsVersion). Install the required C++ tools and select that default toolset." />
   </Target>
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)'=='.vcxproj' and '$(Configuration)'=='Release' and '$(NativeBuildReleaseOptimization)'=='true'">
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(MSBuildProjectExtension)'=='.vcxproj' and '$(Configuration)'=='Release' and '$(NativeBuildReleaseOptimization)'=='true'">
+    <ClCompile>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+    </ClCompile>
+    <Link>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <Lib><LinkTimeCodeGeneration>true</LinkTimeCodeGeneration></Lib>
+  </ItemDefinitionGroup>
   <!-- Shared first-party policy. Full identities remain in dependency receipts.
        Owner: repository build maintainers; review by 2027-01-31.
        4514/4710/4711 are optimizer-dependent inline remarks, 4820 is ABI padding,
