@@ -100,6 +100,7 @@ static HRESULT PrepareRichEmbeddedContent(DxUi::EmbeddedHost& view, UINT width, 
 #include "Embedded.Tests.PointerHit.h"
 // After the performance fixtures: the W2.1 gate drives FX5.
 #include "Embedded.Tests.AccessibilityBuildCost.h"
+#include "Embedded.Tests.CaretFlipRegions.h"
 #include "Embedded.Tests.IncrementalPublication.h"
 #include "Embedded.Tests.PaintRegions.h"
 #include "Embedded.Tests.RetainedTextLayouts.h"
@@ -2218,6 +2219,12 @@ __declspec(noinline) static int RunFunctionalTests()
         PaintRegionTests::RunAll(gpu);
         return 0;
     }
+    // Plan W4.7 alone: a caret blink flip repaints only the caret's ink.
+    if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-caret-flip-regions")
+    {
+        CaretFlipRegionTests::Run(gpu);
+        return 0;
+    }
     if (__argc == 2 && std::wstring_view(__wargv[1]) == L"--test-rich-incremental-preparation")
     {
         MarkdownSourceCorrelationTests::LexicalEdits(Check);
@@ -2433,6 +2440,7 @@ __declspec(noinline) static int RunFunctionalTests()
     TextFieldPaintTests::Run(gpu);
     RetainedTextLayoutTests::Run(gpu);
     PaintRegionTests::RunAll(gpu);
+    CaretFlipRegionTests::Run(gpu);
     EmbeddedPointerHit::TestPointerHitFx14AndFx2HitTestOncePerMove();
     EmbeddedPointerHit::TestPointerHitFx10PreparesNoPlainLabelAndSearchesNoTree();
     EmbeddedPointerHit::TestPointerHitEmbeddedDifferentialMatchesTheUncachedHitTest(gpu);

@@ -928,7 +928,7 @@ close as each one says below.
     and new ink bounds; `W0.5` 0 differences after every partial frame.
   - **Needs**: `W4.1`, `W0.7`. **Size**: M.
 
-- [ ] **W4.7 Embedded partial preparation.**
+- [x] **W4.7 Embedded partial preparation.**
   - **Changed by the `W4.0` no-go** (23 November 2026): stays open and runs on the region of `W4.10`. Per region
     rectangle it paints the controls that intersect it; there are no retained lists to replay, so its gate counts
     `Paint` executions where it says replays.

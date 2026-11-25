@@ -1584,6 +1584,28 @@ void PaintExtentAccess::Invalidate(ControlHost& host, const Control& control) no
     host.RequestRegionFrame();
 }
 
+void PaintExtentAccess::InvalidateInk(ControlHost& host, const Control& control, const D2D1_RECT_F& inkDip) noexcept
+{
+    D2D1_RECT_F own{};
+    if (! Detail::PaintRegionsEnabled() || control._host != &host || (control._paintFlags & kClipsText) == 0u || inkDip.right < inkDip.left ||
+        inkDip.bottom < inkDip.top || ! OwnExtent(host, control, own))
+    {
+        Invalidate(host, control);
+        return;
+    }
+    // What the control draws lies inside its own extent; the ink is mapped through its ancestors as the extent is.
+    D2D1_RECT_F rect = D2D1::RectF(
+        (std::max)(inkDip.left, own.left), (std::max)(inkDip.top, own.top), (std::min)(inkDip.right, own.right), (std::min)(inkDip.bottom, own.bottom));
+    if (! IsEmptyExtent(rect) && ! MapToView(host, control._parent, false, rect))
+    {
+        Invalidate(host, control);
+        return;
+    }
+    if (! host._paintRegion.full && ! IsEmptyExtent(rect))
+        AddDip(host, rect);
+    host.RequestRegionFrame();
+}
+
 void PaintExtentAccess::AddHoverChange(ControlHost& host, const Control& control) noexcept
 {
     AddToRegion(host, control, true);
@@ -2130,6 +2152,15 @@ void Control::Invalidate(ControlHost& host) const
     // A control that reports every change of its record repaints with nothing undeclared for UI Automation (W8.2).
     const AttestedInvalidation reported(&host, ReportsOwnAccessibilityChanges(*this));
     PaintExtentAccess::Invalidate(host, *this);
+}
+
+void InvalidateCaretFlip(ControlHost& host, const Control& control, const D2D1_RECT_F* inkDip) noexcept
+{
+    const AttestedInvalidation reported(&host, ReportsOwnAccessibilityChanges(control));
+    if (inkDip)
+        PaintExtentAccess::InvalidateInk(host, control, *inkDip);
+    else
+        PaintExtentAccess::Invalidate(host, control);
 }
 
 void Control::RequestInvalidate() const noexcept

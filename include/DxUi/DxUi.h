@@ -4370,6 +4370,10 @@ private:
     std::optional<size_t> _selectionAnchorIndex;
     std::optional<float> _preferredMultilineXOffsetDip;
     mutable float _horizontalScrollDip = 0.0f;
+    // The ink the last Paint drew for the caret, or would draw while it is hidden (control coordinates). Unknown until a Paint
+    // computes it and after one that does not (unfocused): a blink flip then repaints the whole control (W4.7).
+    mutable D2D1_RECT_F _caretInkDip = {};
+    mutable bool _caretInkKnown      = false;
     friend struct RetainedCacheAccess;
     mutable SingleLineTextLayoutCache _singleLineLayoutCache;
     // True once the single-line cache took text while the field was masked: its next drop wipes it even if unmasked since.
@@ -4636,6 +4640,9 @@ private:
     size_t _popupScrollIndex                   = 0u;
     uint64_t _lastTypeaheadTickMs              = 0u;
     mutable float _editableHorizontalScrollDip = 0.0f;
+    // As TextField::_caretInkDip (W4.7).
+    mutable D2D1_RECT_F _caretInkDip = {};
+    mutable bool _caretInkKnown      = false;
     friend struct RetainedCacheAccess;
     mutable SingleLineTextLayoutCache _singleLineLayoutCache;
     mutable D2D1_RECT_F _popupBounds      = D2D1::RectF();

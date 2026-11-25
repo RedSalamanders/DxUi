@@ -600,6 +600,10 @@ struct PaintExtentAccess final
     static void AddToRegion(ControlHost& host, const Control& control, bool subtree) noexcept;
     // The attributed invalidation: AddToRegion, then a frame request.
     static void Invalidate(ControlHost& host, const Control& control) noexcept;
+    // A blink flip of an editor's caret (W4.7): adds only `inkDip` (the caret's ink in `control`'s coordinates) to the region and
+    // requests a frame. Falls back to Invalidate where the ink cannot be trusted: a control that is not a library editor whose
+    // text cannot escape (`kClipsText`), an unbounded or undeclared extent (an open ComboBox popup), regions switched off.
+    static void InvalidateInk(ControlHost& host, const Control& control, const D2D1_RECT_F& inkDip) noexcept;
     // Hover moved onto or off `control` (it and what it paints below it), and every ancestor that paints the hover of a
     // control inside it (kPaintsInnerHover). Requests no frame.
     static void AddHoverChange(ControlHost& host, const Control& control) noexcept;
@@ -1380,6 +1384,9 @@ void ResetAccessibilityRecordMarks(const ControlHost& host) noexcept;
 // for kGeometrySettleMs) or whose interval passed becomes due, and the host posts its flush; with `now`, whatever the time
 // (a wake that finds the host hidden, which then holds no wake for it). An embedded view decides at its next update.
 void SettleAccessibilityGeometry(ControlHost& host, uint64_t nowTickMs, bool now = false) noexcept;
+// The invalidation of a caret blink flip (W4.7), the same on both hosts: `inkDip`, when the editor knows the ink its last Paint drew
+// for the caret (in its own coordinates), is all the paint region takes; null repaints the control's extent as Invalidate does.
+void InvalidateCaretFlip(ControlHost& host, const Control& control, const D2D1_RECT_F* inkDip) noexcept;
 // Exact library types that report every change of their own record through marks and declare their own invalidations: a
 // handled input event on one of them needs no whole-window republish, and its invalidations are declared ones.
 [[nodiscard]] bool ReportsOwnAccessibilityChanges(const Control& control) noexcept;

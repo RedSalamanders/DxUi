@@ -840,6 +840,7 @@ void ComboBox::SetOnPopupRequested(std::function<bool()> onPopupRequested)
 
 void ComboBox::Paint(ControlHost& host) const
 {
+    _caretInkKnown            = false; // known again only where this paint works the caret's ink out
     const ThemePalette& theme = host.GetTheme();
     const ComboBoxVisualStyle style =
         ResolveComboBoxVisualStyle(theme, _variant, IsEnabled(), IsHovered(), _open, HasFocus(), HasFocus() && host.IsKeyboardFocusVisible());
@@ -917,18 +918,22 @@ void ComboBox::Paint(ControlHost& host) const
         DrawTextInputUnderlineRects(host, BuildNativeCompositionUnderlineRects(host, *this, true), theme.accent);
     }
 
-    if (_editable && HasFocus() && CaretClockAccess::Shown(host, *this))
+    if (_editable && HasFocus())
     {
         const float caretMaxX = std::max(textRect.left, textRect.right - 1.0f);
         const float caretX    = std::clamp(textRect.left + editableCaretOffsetDip - _editableHorizontalScrollDip, textRect.left, caretMaxX);
-        if (auto* dc = host.GetDeviceContext())
+        const float snappedX  = SnapDipToPixel(host, caretX);
+        const float topY      = SnapDipToPixel(host, textRect.top + 2.0f);
+        const float bottomY   = SnapDipToPixel(host, textRect.bottom - 2.0f);
+        // A 1 DIP line centred on the snapped x with flat caps; worked out while the caret is hidden too (W4.7).
+        _caretInkDip   = D2D1::RectF(snappedX - 0.5f, (std::min)(topY, bottomY), snappedX + 0.5f, (std::max)(topY, bottomY));
+        _caretInkKnown = true;
+        if (CaretClockAccess::Shown(host, *this))
         {
-            if (auto* brush = host.GetSolidBrush(style.caret))
+            if (auto* dc = host.GetDeviceContext())
             {
-                dc->DrawLine(D2D1::Point2F(SnapDipToPixel(host, caretX), SnapDipToPixel(host, textRect.top + 2.0f)),
-                             D2D1::Point2F(SnapDipToPixel(host, caretX), SnapDipToPixel(host, textRect.bottom - 2.0f)),
-                             brush,
-                             1.0f);
+                if (auto* brush = host.GetSolidBrush(style.caret))
+                    dc->DrawLine(D2D1::Point2F(snappedX, topY), D2D1::Point2F(snappedX, bottomY), brush, 1.0f);
             }
         }
     }
@@ -1986,8 +1991,8 @@ bool ComboBox::Tick(ControlHost& host, uint64_t nowTickMs)
     // caret clock flips the phase and arms the next flip.
     if (_editable && HasFocus() && CaretClockAccess::Tick(host, *this, nowTickMs))
     {
-        // Only a blink-phase flip changes pixels; a tick within one phase leaves the surface clean.
-        Invalidate(host);
+        // Only a blink-phase flip changes pixels, and only the caret's (W4.7); a tick within one phase leaves the surface clean.
+        InvalidateCaretFlip(host, *this, _caretInkKnown ? &_caretInkDip : nullptr);
     }
     return false;
 }

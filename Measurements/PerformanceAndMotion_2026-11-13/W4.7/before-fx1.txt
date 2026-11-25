@@ -1,0 +1,48 @@
+    FX1 editable step 6: caret shown -> hidden paint region rectangle(s) 1, 12388 pixels painted, ink 2x20 px, bound 88 px, Paint executions 2
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 editable step 11: caret hidden -> shown paint region rectangle(s) 1, 12388 pixels painted, ink 2x20 px, bound 88 px, Paint executions 2
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 editable step 16: caret shown -> hidden paint region rectangle(s) 1, 12388 pixels painted, ink 2x20 px, bound 88 px, Paint executions 2
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 editable step 22: caret hidden -> shown paint region rectangle(s) 1, 12388 pixels painted, ink 2x20 px, bound 88 px, Paint executions 2
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 editable step 27: caret shown -> hidden paint region rectangle(s) 1, 12388 pixels painted, ink 2x20 px, bound 88 px, Paint executions 2
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 editable step 32: caret hidden -> shown paint region rectangle(s) 1, 12388 pixels painted, ink 2x20 px, bound 88 px, Paint executions 2
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 editable step 38: caret shown -> hidden paint region rectangle(s) 1, 12388 pixels painted, ink 2x20 px, bound 88 px, Paint executions 2
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 editable step 43: caret hidden -> shown paint region rectangle(s) 1, 12388 pixels painted, ink 2x20 px, bound 88 px, Paint executions 2
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 editable step 48: caret shown -> hidden paint region rectangle(s) 1, 12388 pixels painted, ink 2x20 px, bound 88 px, Paint executions 2
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 editable step 53: caret hidden -> shown paint region rectangle(s) 1, 12388 pixels painted, ink 2x20 px, bound 88 px, Paint executions 2
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+  FX1 editable: 10 caret flips, 123880 pixels painted in all (12388 on average, 12388 at most), the bound sums to 880
+  FX1 readonly: 0 caret flips, 0 pixels painted in all (0 on average, 0 at most), the bound sums to 0
+    FX1 multiline step 2: caret shown -> hidden paint region rectangle(s) 0, 480000 pixels painted, ink 1x17 px, bound 57 px, Paint executions 4
+    NOT MET: W4.7: an FX1 caret flip repaints one region rectangle, not the whole view
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 multiline step 3: caret hidden -> shown paint region rectangle(s) 0, 480000 pixels painted, ink 1x17 px, bound 57 px, Paint executions 4
+    NOT MET: W4.7: an FX1 caret flip repaints one region rectangle, not the whole view
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 multiline step 4: caret shown -> hidden paint region rectangle(s) 0, 480000 pixels painted, ink 1x17 px, bound 57 px, Paint executions 4
+    NOT MET: W4.7: an FX1 caret flip repaints one region rectangle, not the whole view
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 multiline step 5: caret hidden -> shown paint region rectangle(s) 0, 480000 pixels painted, ink 1x17 px, bound 57 px, Paint executions 4
+    NOT MET: W4.7: an FX1 caret flip repaints one region rectangle, not the whole view
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 multiline step 6: caret shown -> hidden paint region rectangle(s) 0, 480000 pixels painted, ink 1x17 px, bound 57 px, Paint executions 4
+    NOT MET: W4.7: an FX1 caret flip repaints one region rectaFAIL: W4.7: the caret clock flips within a blink phase of fixture time
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 multiline step 7: caret hidden -> shown paint region rectangle(s) 0, 480000 pixels painted, ink 1x17 px, bound 57 px, Paint executions 4
+    NOT MET: W4.7: an FX1 caret flip repaints one region rectangle, not the whole view
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 multiline step 8: caret shown -> hidden paint region rectangle(s) 0, 480000 pixels painted, ink 1x17 px, bound 57 px, Paint executions 4
+    NOT MET: W4.7: an FX1 caret flip repaints one region rectangle, not the whole view
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+    FX1 multiline step 9: caret hidden -> shown paint region rectangle(s) 0, 480000 pixels painted, ink 1x17 px, bound 57 px, Paint executions 4
+    NOT MET: W4.7: an FX1 caret flip repaints one region rectangle, not the whole view
+    NOT MET: W4.7 (gate): pixels written per FX1 caret flip <= the caret's ink bounds + 2 px
+  FX1 multiline: 8 caret flips, 3840000 pixels painted in all (480000 on average, 480000 at most), the bound sums to 456
+PASS W4.7 FX1: 18 caret flips, 3963880 pixels painted in all against a bound of 1336 (8 whole-view repaints)

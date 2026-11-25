@@ -1298,6 +1298,15 @@ view, or on any invalidation it cannot attribute, the region is the whole view. 
   descendants, mapped through its ancestors to the view: translated by each `ScrollPanel`'s offset and clipped to its
   viewport (not for overlay content, a `PopupLayer`'s children or a panel that holds some, which no viewport clips), then
   clipped to the view, so an invalidation of a control scrolled out of view adds nothing;
+- a caret blink flip (plan item `W4.7`) of a focused `TextField`, editable `ComboBox` or `RichTextEditor` adds only the ink of
+  the caret: each `Paint` of such an exact library editor records the rectangle the control draws for its caret (the
+  one-DIP line at its snapped position, inside the clip it is drawn under), in the control's coordinates and also while the
+  caret is hidden, and the blink tick adds it through the same mapping as an extent. It is the whole control's extent when no
+  paint has recorded it (the paint did not run since focus, the rich editor shows a focused rendered element instead of
+  the caret, its layout is not current), when the extent is unbounded (an open `ComboBox` popup), and for a control derived
+  from a library editor. A flip changes nothing else the editor draws; everything that moves or resizes the caret (typing,
+  selection, scroll, layout, focus) invalidates the control as before. Both hosts take the rectangle; only the embedded host
+  paints the region until `W4.9`;
 - `SetBounds` adds the control's extent at its old bounds and at its new ones; a hover change adds the old and the new
   hovered control (the host's, and a `ScrollPanel`'s inner hover), which no control invalidates for, and every ancestor of
   them whose `Paint` draws a hover below it (`TagPicker`, from its inner `ComboBox`); a `ScrollPanel`'s offset change adds

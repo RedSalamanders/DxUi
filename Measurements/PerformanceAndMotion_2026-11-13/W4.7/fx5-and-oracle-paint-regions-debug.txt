@@ -1,0 +1,149 @@
+  reach Label: at most -0.70 DIP outside its bounds, normal at 96 DPI (left -0.70 top -6.40 right -28.30 bottom -3.60)
+  reach Label (wrapped, overflowing): at most -1000.00 DIP outside its bounds, 
+  reach Separator: at most -1.40 DIP outside its bounds, normal at 96 DPI (left -79.70 top -1.40 right -79.30 bottom -1.60)
+  reach Button: at most 3.70 DIP outside its bounds, focused, focus visible at 96 DPI (left 3.30 top 3.60 right 3.70 bottom 3.40)
+  reach Button (short): at most 3.70 DIP outside its bounds, focused, focus visible at 96 DPI (left 3.30 top 3.60 right 3.70 bottom 3.40)
+  reach Toggle: at most 2.70 DIP outside its bounds, focused, focus visible at 96 DPI (left 2.30 top 2.60 right 2.70 bottom 2.40)
+  reach Toggle (short): at most -1000.00 DIP outside its bounds, 
+  reach Checkbox: at most 2.70 DIP outside its bounds, focused, focus visible at 96 DPI (left 2.30 top 2.60 right 2.70 bottom 2.40)
+  reach Checkbox (indeterminate, short): at most -1000.00 DIP outside its bounds, 
+  reach RadioButton: at most 2.70 DIP outside its bounds, focused, focus visible at 96 DPI (left 2.30 top 2.60 right 2.70 bottom 2.40)
+  reach RadioButtons: at most -1000.00 DIP outside its bounds, 
+  reach ProgressBar: at most 1.30 DIP outside its bounds, normal at 96 DPI (left 1.30 top -6.40 right 0.70 bottom -5.60)
+  reach ProgressBar (indeterminate, short): at most 1.40 DIP outside its bounds, normal at 96 DPI (left 1.30 top 0.60 right 0.70 bottom 1.40)
+  reach PageIndicator (5): at most 0.60 DIP outside its bounds, focused, focus visible at 96 DPI (left -21.70 top 0.60 right -28.30 bottom 0.40)
+  reach PageIndicator (16 in 120): at most 55.70 DIP outside its bounds, focused, focus visible at 96 DPI (left 48.30 top 0.60 right 55.70 bottom 0.40)
+  reach PageIndicator (16 in 60, 8 tall): at most 85.44 DIP outside its bounds, focused, focus visible at 168 DPI (left 85.44 top 6.31 right 77.99 bottom 6.26)
+  reach ThroughputGraph: at most 0.70 DIP outside its bounds, normal at 96 DPI (left 0.30 top 0.60 right 0.70 bottom 0.40)
+  reach Slider: at most 3.50 DIP outside its bounds, focused, focus visible at 120 DPI (left 3.50 top -1.00 right -12.30 bottom -0.60)
+  reach Slider (12 tall, ticks, value 100): at most 4.60 DIP outside its bounds, hovered at 96 DPI (left -10.70 top 4.60 right -1.30 bottom 4.40)
+  reach Slider (vertical, 10 wide, ticks): at most 5.70 DIP outside its bounds, hovered at 96 DPI (left 5.30 top -11.40 right 5.70 bottom -10.60)
+  reach Toolbar: at most 56.30 DIP outside its bounds, normal at 96 DPI (left 56.30 top 36.60 right 0.70 bottom 0.40)
+  reach MenuBar: at most 0.70 DIP outside its bounds, normal at 96 DPI (left 0.30 top 0.60 right 0.70 bottom 0.40)
+  reach TabControl (8 tabs in 160): at most 1.30 DIP outside its bounds, normal at 96 DPI (left 1.30 top 0.60 right 0.70 bottom 0.40)
+  reach ColorSwatch: at most 1.40 DIP outside its bounds, normal at 96 DPI (left 1.30 top 0.60 right 0.70 bottom 1.40)
+  reach RichTextEditor: at most 1.40 DIP outside its bounds, normal at 96 DPI (left 1.30 top 0.60 right 0.70 bottom 1.40)
+  reach TextField: at most 1.40 DIP outside its bounds, normal at 96 DPI (left 1.30 top 0.60 right 0.70 bottom 1.40)
+  reach TextField (short): at most 1.40 DIP outside its bounds, normal at 96 DPI (left 1.30 top 0.60 right 0.70 bottom 1.40)
+  reach ComboBox: at most 1.40 DIP outside its bounds, hovered at 96 DPI (left 0.30 top 0.60 right 0.70 bottom 1.40)
+  reach TagPicker: at most 1.40 DIP outside its bounds, normal at 96 DPI (left 1.30 top 0.60 right 0.70 bottom 1.40)
+  reach StatusStrip: at most 0.70 DIP outside its bounds, normal at 96 DPI (left 0.30 top 0.60 right 0.70 bottom 0.40)
+  reach Splitter: at most 3.70 DIP outside its bounds, focused, focus visible at 96 DPI (left 1.30 top 3.60 right 3.70 bottom 3.40)
+  reach NumericStepper: at most 1.40 DIP outside its bounds, normal at 96 DPI (left 1.30 top 0.60 right -0.30 bottom 1.40)
+  reach ColorPicker: at most -1.70 DIP outside its bounds, normal at 96 DPI (left -1.70 top -6.40 right -7.30 bottom -7.60)
+  reach ColorPicker (200x160): at most -1000.00 DIP outside its bounds, 
+  reach Tree: at most 1.40 DIP outside its bounds, normal at 96 DPI (left 1.30 top 0.60 right 0.70 bottom 1.40)
+  reach Grid: at most 1.40 DIP outside its bounds, normal at 96 DPI (left 1.30 top 0.60 right 0.70 bottom 1.40)
+  reach CardPanel: at most 1.40 DIP outside its bounds, normal at 96 DPI (left 1.30 top 0.60 right 0.70 bottom 1.40)
+  reach FormField: at most -0.70 DIP outside its bounds, normal at 96 DPI (left -0.70 top -5.40 right -166.30 bottom -17.60)
+  reach Panel (a Button child): at most 50.30 DIP outside its bounds, normal at 96 DPI (left 50.30 top 30.60 right -110.30 bottom -58.60)
+  reach StackPanel: at most -1000.00 DIP outside its bounds, 
+  reach FlexPanel: at most -1000.00 DIP outside its bounds, 
+  reach FormPanel: at most -1000.00 DIP outside its bounds, 
+  reach ScrollPanel (rows): at most 0.70 DIP outside its bounds, normal at 96 DPI (left 0.30 top 0.60 right 0.70 bottom 0.40)
+  reach PopupLayer (a Button child): at most 50.30 DIP outside its bounds, normal at 96 DPI (left 50.30 top 30.60 right -110.30 bottom -58.60)
+  reach PageHost: at most -1000.00 DIP outside its bounds, 
+PASS W4.10 declared reach covers every pixel: 1160 cases of 45 control kinds at 96, 120, 144, 168 and 192 DPI (190 unbounded cases skipped)
+    painted class DxUi::CardPanel [8.0, 8.0, 312.0, 86.0]
+    painted class DxUi::Toggle [174.0, 10.0, 304.0, 38.0]
+    painted class DxUi::Slider [16.0, 38.0, 304.0, 66.0]
+  FX5 hover step 0: 1 region rectangles, 4 Paint executions (2 leaves), 19 culled, 4624 pixels, 2 C++ allocations
+  FX5 hover step 1: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 2: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 3: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 4: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 5: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 6: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 7: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 8: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 9: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 10: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 11: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 12: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 13: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 14: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 15: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 16: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 17: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 18: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover step 19: 2 region rectangles, 8 Paint executions (4 leaves), 38 culled, 9248 pixels, 2 C++ allocations
+  FX5 hover C++ allocations per frame (G3): 2 with regions, 25 with regions off
+PASS W4.10 FX5 hover: per changed toggle the root, its card, the toggle and the slider its reach meets (4 Paint executions per rectangle; G2's literal <= 2 is not met)
+  FX5 whole frame after 60 region frames: 0 text layouts, 0 resources created, 0 table misses
+PASS W4.10 region frames keep the caches of the controls outside them
+  FX12 form-10k scrolled: at most 175 child paints for 175 children in the viewport (of 10,000 controls) over 6 frames
+  FX12 form-layout-10k scrolled: at most 182 child paints for 182 children in the viewport (of 10,000 controls) over 6 frames
+PASS W4.10 FX12 scrolled: child paints <= visible children + one row
+  enclosed clip: 1 rectangle, 1 inner clips skipped, 5 paints, 37 culled
+PASS W4.10 enclosed clips emit no inner PushAxisAlignedClip
+  a library control repaints its region: region, 1 rectangles
+  W4.10: an undeclared consumer control repaints the whole view: whole view, 0 rectangles
+  W4.10: a declared consumer control repaints its region: region, 1 rectangles
+  W4.10: a declared consumer control's shrinking reach repaints its region: region, 1 rectangles
+  W4.10: a library control below an undeclared consumer panel repaints the whole view: whole view, 0 rectangles
+  W4.10: text that newly escapes its control repaints the whole view in the same preparation: whole view, 1 rectangles
+  W4.10: a control whose ink escaped repaints the whole view when it changes: whole view, 0 rectangles
+  W4.10: once it fits again, regions resume: region, 1 rectangles
+PASS W4.10 undeclared, declared and escaping controls
+  parity embedded 96 DPI region-edges seed 0x0000005EED0410ED: 8 steps, 0 differences
+  parity embedded 120 DPI region-edges seed 0x0000005EED0410ED: 8 steps, 0 differences
+  parity embedded 168 DPI region-edges seed 0x0000005EED0410ED: 8 steps, 0 differences
+  parity embedded overfull-page-indicator seed 0x0000000004100001: 6 steps, 0 differences
+  parity embedded thin-slider seed 0x0000000004100001: 6 steps, 0 differences
+PASS W4.10 region edges: a one-pixel extent edge, a reach taken away, a moved control, an overfull PageIndicator and a 12 DIP Slider, 0 differences
+PASS W4.10 the clip-miss predicate at the extent edge, 96, 120 and 168 DPI
+  undeclared composing panel: 0 culled, 0 pixels differ from regions off
+  undeclared composing panel around a library Panel: 0 culled, 0 pixels differ from regions off
+PASS W4.10 an undeclared panel that paints its children elsewhere loses none of them
+  parity embedded 96 DPI small-color-picker seed 0x0000000004101001: 8 steps, 0 differences
+  parity embedded 96 DPI small-color-picker seed 0x0000000004101002: 8 steps, 0 differences
+  parity embedded 168 DPI small-color-picker seed 0x0000000004101001: 8 steps, 0 differences
+  parity embedded 168 DPI small-color-picker seed 0x0000000004101002: 8 steps, 0 differences
+  ColorPicker 200 x 160: 0 region rectangles, 70 whole repaints, 16 ink escapes over the two scripts (incremental and fresh scenes)
+PASS W4.10 a ColorPicker smaller than its parts stays right (its changes repaint the whole view)
+  parity embedded regions seed 0x0000005EED0410A1: 48 steps, 0 differences
+  parity embedded regions seed 0x0000005EED0410B2: 48 steps, 0 differences
+  parity embedded regions seed 0x0000005EED0410C3: 48 steps, 0 differences
+  parity embedded regions-dpi seed 0x0000005EED0410D4: 32 steps, 0 differences
+  parity embedded regions-dpi seed 0x0000005EED0410E5: 32 steps, 0 differences
+  parity embedded regions-dpi seed 0x0000005EED0410F6: 32 steps, 0 differences
+  parity embedded regions-dpi seed 0x0000000004102001: 32 steps, 0 differences
+  parity embedded regions-dpi seed 0x0000000004102002: 32 steps, 0 differences
+  parity embedded regions-dpi seed 0x0000000004102003: 32 steps, 0 differences
+  regions oracle: 160 region rectangles and 528 whole repaints, 5178 children culled, 18 ink escapes
+PASS W4.10 regions oracle: 0 differences after every partial frame
+  parity embedded selector-neighbour seed 0x0000000004100003: 3 steps, 0 differences
+  parity embedded selector-off-view seed 0x0000000004100003: 3 steps, 0 differences
+  parity embedded tabcontrol-ring seed 0x0000000004100003: 3 steps, 0 differences
+  parity embedded tagpicker-hover seed 0x0000000004100003: 6 steps, 0 differences
+  parity embedded scrolled-tagpicker-hover seed 0x0000000004100003: 6 steps, 0 differences
+  parity embedded scrolled-popup-layer seed 0x0000000004100003: 8 steps, 0 differences
+PASS W4.10 review round 3 scripts: Selector focus ring (E1, H1), TabControl ring outside the control (E2), TagPicker inner hover (B1), a PopupLayer in a scrolled ScrollPanel (B3), 0 differences
+  parity embedded page-host-culling seed 0x0000000004100001: 5 steps, 0 differences
+  page-host culling: 4 region rectangles, 10 culled
+PASS W4.10 PageHost pages follow the culling rules (undeclared page, a reach into the view, a transition in flight)
+  120.75 DPI, flip 1: 1 region rectangle, 0 differences
+  120.75 DPI, flip 2: 1 region rectangle, 0 differences
+  150.5 DPI, flip 1: 1 region rectangle, 0 differences
+  150.5 DPI, flip 2: 1 region rectangle, 0 differences
+  144 DPI, flip 1: 1 region rectangle, 0 differences
+  144 DPI, flip 2: 1 region rectangle, 0 differences
+PASS W4.10 fractional DPI: regions at 120.75, 150.5 and 144 DPI equal whole repaints
+  D1 nested viewports, 96 DPI: 0 culled, 0 clips skipped, 0 differences against regions and culling off
+  D1 nested viewports, 168 DPI: 0 culled, 0 clips skipped, 0 differences against regions and culling off
+  D1 nested viewports, 150.5 DPI: 0 culled, 0 clips skipped, 0 differences against regions and culling off
+  aligned nested viewports: 0 culled, 2 clips skipped, 0 differences against regions and culling off
+  F1 undeclared overlay composer: 0 culled, 0 clips skipped, 0 differences against regions and culling off
+  E1/H1 focused Selector outside the view: 0 culled, 0 clips skipped, 0 differences against regions and culling off
+PASS W4.10 whole frames with culling equal regions off (nested fractional viewports, an undeclared overlay composer, a focused Selector outside the view)
+PASS W4.10 Button reach: 576 cases (8 variants, 6 appearances, normal, hovered, pressed, focus visible; 96, 120 and 168 DPI)
+PASS W4.10 TabControl focus reach: 36 cases (every selection of 8 tabs in 160 DIP and of 3, one long title)
+PASS W4.10 reach mid-animation, right to left and in high contrast: 6870 samples of 45 control kinds (1230 unbounded samples skipped)
+  parity embedded uncovered-states seed 0x0000000004103001: 24 steps, 0 differences
+  parity embedded uncovered-states seed 0x0000000004103002: 24 steps, 0 differences
+  parity embedded uncovered-states-high-contrast seed 0x0000000004103001: 24 steps, 0 differences
+  parity embedded uncovered-states-high-contrast seed 0x0000000004103002: 24 steps, 0 differences
+  uncovered states: 44 region rectangles, 176 culled, 56 ink escapes
+PASS W4.10 right-to-left wrapped flex, form, emoji, hyperlink underline, text field, high contrast and motion: 0 differences
+[W4.10-VERIFY] Embedded: verified 1989, mismatches 0
+[W8.2-VERIFY] Embedded: verified 35, mismatches 0

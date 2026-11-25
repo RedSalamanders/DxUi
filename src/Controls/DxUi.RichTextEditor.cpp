@@ -622,7 +622,11 @@ struct RichTextEditor::State
     size_t lastAdvanceImageWork{};
     float layoutWidth = 0;
     float scrollDip   = 0;
-    bool revealCaret  = true;
+    // The ink the last Paint drew for the caret, or would draw while it is hidden (control coordinates); unknown until a Paint
+    // computes it and after one that does not (W4.7).
+    D2D1_RECT_F caretInkDip{};
+    bool caretInkKnown = false;
+    bool revealCaret   = true;
     struct ViewportAnchor
     {
         RichText::SourceSnapshot source;
@@ -5330,6 +5334,7 @@ bool RichTextEditor::ImportTextInputView(ControlHost& host, std::wstring_view te
 }
 void RichTextEditor::Paint(ControlHost& host) const
 {
+    _state->caretInkKnown = false; // known again only where this paint works the caret's ink out
     // Hosts can paint a concrete control directly as their root. A hidden root
     // must not recreate the layout retired by OnHidden or expose its text.
     if (! IsVisible())
@@ -5656,12 +5661,19 @@ void RichTextEditor::Paint(ControlHost& host) const
             state.keyboardNavigationDocument.lock() == GetAcknowledgedSemanticDocument(host))
             if (const auto bounds = GetSemanticElementBounds(host, state.keyboardNavigationElement))
                 context->DrawRectangle(*bounds, host.GetSolidBrush(host.GetTheme().focusStroke), 1.0f);
-        if (HasFocus() && IsEnabled() && CaretClockAccess::Shown(host, *this) && state.keyboardNavigationElement == RichText::MarkdownNoNode)
+        if (HasFocus() && IsEnabled() && state.keyboardNavigationElement == RichText::MarkdownNoNode)
         {
             const auto caret =
                 state.layout.SourceCaret(selection.caret, state.sourceCaretSite, state.CaretAffinityAt(selection.caret, state.document.selectionEpoch_));
             const float x = std::clamp(origin.x + caret.x, viewport.left, std::max(viewport.left, viewport.right - 1.0f));
-            context->DrawLine(D2D1::Point2F(x, origin.y + caret.y), D2D1::Point2F(x, origin.y + caret.y + caret.height), caretBrush, 1.0f);
+            // A 1 DIP line centred on x with flat caps, under the viewport clip; worked out while the caret is hidden too (W4.7).
+            state.caretInkDip   = D2D1::RectF(std::max(x - 0.5f, viewport.left),
+                                              std::max(std::min(origin.y + caret.y, origin.y + caret.y + caret.height), viewport.top),
+                                              std::min(x + 0.5f, viewport.right),
+                                              std::min(std::max(origin.y + caret.y, origin.y + caret.y + caret.height), viewport.bottom));
+            state.caretInkKnown = true;
+            if (CaretClockAccess::Shown(host, *this))
+                context->DrawLine(D2D1::Point2F(x, origin.y + caret.y), D2D1::Point2F(x, origin.y + caret.y + caret.height), caretBrush, 1.0f);
         }
     }
     if (state.mode == RichText::ViewMode::Source && appearance.sourceLineNumbers &&
@@ -5718,7 +5730,7 @@ bool RichTextEditor::Tick(ControlHost& host, uint64_t nowTickMs)
     // The host's caret clock flips the phase on the host's (or the application's) clock and arms the next flip. No uptime,
     // private timer or thread is introduced by this control.
     if (HasFocus() && IsVisible() && CaretClockAccess::Tick(host, *this, nowTickMs))
-        RequestInvalidate();
+        InvalidateCaretFlip(host, *this, state.caretInkKnown ? &state.caretInkDip : nullptr); // only the caret's ink changed (W4.7)
     return false;
 }
 size_t RichTextEditor::HitSource(ControlHost& host, D2D1_POINT_2F point) const

@@ -1970,6 +1970,7 @@ void TextField::OnBoundsChanged() noexcept
 
 void TextField::Paint(ControlHost& host) const
 {
+    _caretInkKnown = false; // known again only where this paint works the caret's ink out
     const TextFieldVisualStyle style =
         ResolveTextFieldVisualStyle(host.GetTheme(), IsEnabled(), IsHovered(), HasFocus(), HasFocus() && host.IsKeyboardFocusVisible(), _caretColorOverride);
     constexpr float kTextFieldCornerRadiusDip = 4.0f;
@@ -2042,7 +2043,8 @@ void TextField::Paint(ControlHost& host) const
         DrawNativeCompositionUnderlines(host, *this, style.text, host.GetTheme().accent);
     }
 
-    if (HasFocus() && CaretClockAccess::Shown(host, *this))
+    // The caret's ink is worked out while it is hidden too, so a blink flip that shows it knows what to repaint (W4.7).
+    if (HasFocus())
     {
         D2D1_RECT_F caretRect = D2D1::RectF();
         if (_multiline)
@@ -2067,19 +2069,35 @@ void TextField::Paint(ControlHost& host) const
             const float caretX      = std::clamp(textRect.left + caretOffset - _horizontalScrollDip, textRect.left, caretMaxX);
             caretRect               = D2D1::RectF(caretX, textRect.top + 2.0f, caretX + 1.0f, textRect.bottom - 2.0f);
         }
-        if (auto* dc = host.GetDeviceContext())
+        const D2D1_RECT_F snappedCaretRect = SnapRectToPixel(host, caretRect);
+        // A multiline caret on a partly visible line, or scrolled out by the wheel, reaches past the text viewport;
+        // only its part inside the viewport is drawn.
+        const D2D1_RECT_F caretClip = SnapRectToPixel(host, textRect);
+        // The line is 1 DIP wide, centred on the snapped x, with flat caps: its ink is that box, inside the clip when there is one.
+        D2D1_RECT_F ink = D2D1::RectF(snappedCaretRect.left - 0.5f,
+                                      (std::min)(snappedCaretRect.top, snappedCaretRect.bottom),
+                                      snappedCaretRect.left + 0.5f,
+                                      (std::max)(snappedCaretRect.top, snappedCaretRect.bottom));
+        if (_multiline)
+            ink = D2D1::RectF((std::max)(ink.left, caretClip.left),
+                              (std::max)(ink.top, caretClip.top),
+                              (std::min)(ink.right, caretClip.right),
+                              (std::min)(ink.bottom, caretClip.bottom));
+        _caretInkDip   = ink;
+        _caretInkKnown = true;
+        if (CaretClockAccess::Shown(host, *this))
         {
-            if (auto* brush = host.GetSolidBrush(style.caret))
+            if (auto* dc = host.GetDeviceContext())
             {
-                const D2D1_RECT_F snappedCaretRect = SnapRectToPixel(host, caretRect);
-                // A multiline caret on a partly visible line, or scrolled out by the wheel, reaches past the text viewport;
-                // only its part inside the viewport is drawn.
-                if (_multiline)
-                    dc->PushAxisAlignedClip(SnapRectToPixel(host, textRect), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-                dc->DrawLine(
-                    D2D1::Point2F(snappedCaretRect.left, snappedCaretRect.top), D2D1::Point2F(snappedCaretRect.left, snappedCaretRect.bottom), brush, 1.0f);
-                if (_multiline)
-                    dc->PopAxisAlignedClip();
+                if (auto* brush = host.GetSolidBrush(style.caret))
+                {
+                    if (_multiline)
+                        dc->PushAxisAlignedClip(caretClip, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+                    dc->DrawLine(
+                        D2D1::Point2F(snappedCaretRect.left, snappedCaretRect.top), D2D1::Point2F(snappedCaretRect.left, snappedCaretRect.bottom), brush, 1.0f);
+                    if (_multiline)
+                        dc->PopAxisAlignedClip();
+                }
             }
         }
     }
@@ -2125,8 +2143,9 @@ bool TextField::Tick(ControlHost& host, uint64_t nowTickMs)
     // The caret is the field's only tick: the host's caret clock flips its phase and arms the next flip.
     if (HasFocus() && CaretClockAccess::Tick(host, *this, nowTickMs))
     {
-        // Only a blink-phase flip changes pixels; a tick within one phase leaves the surface clean.
-        Invalidate(host);
+        // Only a blink-phase flip changes pixels, and only the caret's: the ink of the last paint, or the whole field when no
+        // paint has computed it (W4.7). A tick within one phase leaves the surface clean.
+        InvalidateCaretFlip(host, *this, _caretInkKnown ? &_caretInkDip : nullptr);
     }
     return false;
 }

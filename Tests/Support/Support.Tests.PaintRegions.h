@@ -494,6 +494,86 @@ template <typename Scene> [[nodiscard]] ParityScript<Scene> ThinSliderScript()
     return {"thin-slider", kProbeSeed, 6u, &BuildThinSlider<Scene>, &StepThinSlider<Scene>};
 }
 
+// Script "caret-flips" (W4.7): a blink flip repaints only the caret's ink. A TextField, a multiline TextField, an editable ComboBox
+// and a RichTextEditor, motion on, the caret blinking at 530 ms without a timeout. Six steps per editor in turn: focus it, two
+// flips, a typed character (the whole control repaints, the caret moves), two flips; then the next editor. Every flip frame of
+// the incremental scene is compared with a whole fresh one.
+enum CaretSlot : size_t
+{
+    kCaretRoot,
+    kCaretField,
+    kCaretMultiline,
+    kCaretCombo,
+    kCaretRich,
+};
+template <typename Scene> void BuildCaretScene(Scene& scene)
+{
+    DxUi::ThemePalette theme = ParityTheme(false);
+    theme.reducedMotion      = false; // a caret blinks only with motion on
+    scene.Host().SetTheme(theme);
+    scene.Host().DebugSetCaretBlinkSettingsForTest(DxUi::ControlHost::CaretBlinkSettingsForTest{530u, 0u});
+    auto root         = std::make_unique<DxUi::Panel>();
+    auto& slots       = scene.slots;
+    slots[kCaretRoot] = root.get();
+    auto* field       = root->AddChild<DxUi::TextField>(L"Single line שלום");
+    field->SetBounds(D2D1::RectF(12, 12, 300, 44));
+    slots[kCaretField] = field;
+    auto* multiline    = root->AddChild<DxUi::TextField>();
+    multiline->SetMultiline(true);
+    multiline->SetText(L"first line\nsecond\n\nfourth line of the text");
+    multiline->SetBounds(D2D1::RectF(12, 56, 300, 136));
+    slots[kCaretMultiline] = multiline;
+    auto* combo            = root->AddChild<DxUi::ComboBox>();
+    combo->SetEditable(true);
+    combo->SetText(L"Editable combo box");
+    combo->SetBounds(D2D1::RectF(12, 148, 300, 180));
+    slots[kCaretCombo] = combo;
+    auto* rich         = root->AddChild<DxUi::RichTextEditor>();
+    rich->SetText(L"Rich editor text\nsecond line");
+    rich->SetBounds(D2D1::RectF(12, 192, 300, 300));
+    slots[kCaretRich] = rich;
+    scene.SetRoot(std::move(root));
+}
+template <typename Scene> void StepCaretFlips(Scene& scene, Rng& rng, size_t step)
+{
+    constexpr std::array<size_t, 4u> editors{kCaretField, kCaretMultiline, kCaretCombo, kCaretRich};
+    const size_t phase    = (step - 1u) % 6u;
+    DxUi::Control* editor = scene.slots[editors[((step - 1u) / 6u) % editors.size()]];
+    switch (phase)
+    {
+        case 0u:
+            NoteStep("focus the next editor");
+            scene.Host().SetFocusControl(editor, false);
+            break;
+        case 3u:
+            NoteStep("type (the caret moves)");
+            scene.Character(L"xyzא"[rng.Below(4u)]);
+            break;
+        default:
+            NoteStep("blink flip");
+            scene.Advance(530u);
+            break;
+    }
+}
+template <typename Scene> [[nodiscard]] ParityScript<Scene> CaretFlipScript()
+{
+    return {"caret-flips", kProbeSeed, 24u, &BuildCaretScene<Scene>, &StepCaretFlips<Scene>};
+}
+template <UINT Dpi, typename Scene> void StepCaretFlipsAtDpi(Scene& scene, Rng& rng, size_t step)
+{
+    if (step == 1u)
+    {
+        NoteStep("dpi");
+        scene.SetDpi(Dpi);
+        return;
+    }
+    StepCaretFlips(scene, rng, step - 1u);
+}
+template <UINT Dpi, typename Scene> [[nodiscard]] ParityScript<Scene> CaretFlipDpiScript()
+{
+    return {"caret-flips-dpi", kProbeSeed, 25u, &BuildCaretScene<Scene>, &StepCaretFlipsAtDpi<Dpi, Scene>};
+}
+
 // Script "page-host-culling" (W4.10 round 3, X1): what a PageHost paints follows the culling rules of a panel's children.
 // - An undeclared consumer page that paints its children into a command list and draws it 200 DIP lower: its Button above
 //   the view (outside every paint clip) is drawn inside it and must not be culled; nothing below an undeclared page is.

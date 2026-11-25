@@ -125,6 +125,7 @@
   "Tests/Embedded/Embedded.Tests.AssignSetters.h",
   "Tests/Embedded/Embedded.Tests.BenchmarkInstrument.h",
   "Tests/Embedded/Embedded.Tests.BenchmarkMain.h",
+  "Tests/Embedded/Embedded.Tests.CaretFlipRegions.h",
   "Tests/Embedded/Embedded.Tests.CleanPrepareTimerDiagnostic.h",
   "Tests/Embedded/Embedded.Tests.ChunkPlacementFx8.h",
   "Tests/Embedded/Embedded.Tests.CodeBlocksFx8.h",

@@ -254,6 +254,8 @@ void TestNativeIncrementalParityPaintRegions()
     const DxUi::Detail::WorkCounterScope scope;
     RunParityScript(PaintRegionScript::RegionScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
     RunParityScript(PaintRegionScript::RegionDpiScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
+    // W4.7: blink flips between edits (the window host's flips still paint whole frames until W4.9 presents the region).
+    RunParityScript(PaintRegionScript::CaretFlipScript<NativeParityScene>(), MakeNativeScene, "native", kReplay);
     const DxUi::Detail::WorkCounters work = scope.Delta();
     std::cout << "  native regions oracle: " << work.frame.paintCulled << " children culled, " << work.frame.inkEscapes << " ink escapes\n";
     Require(work.frame.paintCulled > 0u, "W4.10: the native regions oracle compares frames that culled children");
