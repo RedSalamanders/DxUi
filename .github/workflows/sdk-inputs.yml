@@ -30,9 +30,9 @@ concurrency:
 jobs:
   inputs:
     if: github.ref == 'refs/heads/main'
-    uses: RedSalamanders/.github/.github/workflows/sdk-inputs.yml@4bcae89e6753fd90692aa64a0ac1095ca5283c33
+    uses: RedSalamanders/.github/.github/workflows/sdk-inputs.yml@a6fbe82d83ece48b822ee656a69bdc16921bbc03
     with:
-      engine_ref: 4bcae89e6753fd90692aa64a0ac1095ca5283c33
+      engine_ref: a6fbe82d83ece48b822ee656a69bdc16921bbc03
       source_commit: ${{ inputs.source_commit }}
       platform: ${{ inputs.platform }}
       sdk_contract: ${{ inputs.sdk_contract }}
