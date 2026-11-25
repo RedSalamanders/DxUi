@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Build: Check private and protected field names and reserved identifiers with the root `.clang-tidy` configuration.
 - Match real pointer fixture moves to their cursor queries by client point and hit revision.
 - Verify that the slider advances on the dispatcher timeline within the measured logical interval after a stall.
 - Enable the common MSVC parallel compilation setting and apply the requested worker count to MSBuild and the compiler.

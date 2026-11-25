@@ -1,1 +1,0 @@
-- Build: Check private and protected field names and reserved identifiers with the root `.clang-tidy` configuration.
