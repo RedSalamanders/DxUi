@@ -298,8 +298,8 @@ HRESULT Host::WriteEvidence() noexcept
     text.Line("context_ip=", _record.context.Rip, 16);
     text.Line("context_sp=", _record.context.Rsp, 16);
 #elif defined(_M_ARM64)
-    text.Line("context_ip=", record_.context.Pc, 16);
-    text.Line("context_sp=", record_.context.Sp, 16);
+    text.Line("context_ip=", _record.context.Pc, 16);
+    text.Line("context_sp=", _record.context.Sp, 16);
 #endif
     for (std::size_t index = 0; index < (std::min)(static_cast<std::size_t>(_record.frameCount), DxUi::Failure::MaximumFrames); ++index)
     {
