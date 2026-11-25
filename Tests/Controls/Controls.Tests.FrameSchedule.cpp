@@ -100,6 +100,21 @@ template <class Condition> [[nodiscard]] bool PumpUntil(uint64_t limitMs, Condit
     return reached();
 }
 
+// Pumps this thread's messages until `reached` holds, with no wall-time bound of its own: how long a condition takes depends on
+// the machine, so a condition that never comes ends the run at the test watchdog, which names the test.
+template <class Condition> void PumpUntilReached(Condition&& reached)
+{
+    while (! reached())
+    {
+        MSG message{};
+        while (PeekMessageW(&message, nullptr, 0u, 0u, PM_REMOVE))
+            static_cast<void>(DispatchQueuedMessageForTest(message));
+        if (reached())
+            return;
+        static_cast<void>(MsgWaitForMultipleObjectsEx(0u, nullptr, 50u, QS_ALLINPUT, MWMO_INPUTAVAILABLE));
+    }
+}
+
 // A port for building a fixture scene outside its runner: the scene's Build and its focus step never use it.
 class IdlePort final : public PerformanceFixtures::HostPort
 {
@@ -943,6 +958,7 @@ void TestFrameScheduleClockContinuesWhenThePeriodicTimerStops()
     {
         size_t ticks        = 0u;
         uint64_t lastTickMs = 0u;
+        uint64_t lastRealMs = 0u; // uptime when the last tick ran
     } hitch;
     const uint64_t subscription = dispatcher.Subscribe(
         [](void* context, uint64_t nowTickMs) noexcept
@@ -951,16 +967,25 @@ void TestFrameScheduleClockContinuesWhenThePeriodicTimerStops()
         if (++state.ticks == 2u)
             Sleep(1'000u); // a one-second hitch: the timeline adds only the clamp
         state.lastTickMs = nowTickMs;
+        state.lastRealMs = GetTickCount64();
         return state.ticks < 5u;
     },
         &hitch);
     Require(subscription != 0u, "a tick subscriber runs the periodic timer");
-    Require(PumpUntil(5'000u, [&hitch] { return hitch.ticks >= 5u; }), "the periodic timer ticks past the hitch");
-    PumpFor(30u);
+    // Both waits are on the condition, bounded only by the test watchdog: how long a busy machine takes to tick or to stop the
+    // timer is not what is under test.
+    PumpUntilReached([&hitch] { return hitch.ticks >= 5u; });
+    PumpUntilReached([&dispatcher] { return ! dispatcher.DebugIsPeriodicTimerRunningForTest(); });
     Require(! dispatcher.DebugIsPeriodicTimerRunningForTest(), "the periodic timer stops");
+    const auto wake          = window.Host().DebugGetFrameScheduleWakeForTest();
     const uint64_t afterStop = dispatcher.GetCurrentTickMs();
-    Require(afterStop >= hitch.lastTickMs && afterStop - hitch.lastTickMs < 200u, "the clock continues from the last periodic tick");
-    const auto wake = window.Host().DebugGetFrameScheduleWakeForTest();
+    const uint64_t realNowMs = GetTickCount64();
+    // The hitch left the timeline well behind uptime (it added only the 50 ms clamp of the one second), so a clock that jumped to
+    // uptime would stand that far ahead of the last tick. A clock that continues stands ahead of it by only the real time that
+    // passed since that tick, whatever a busy machine made of that time (plus one system tick of GetTickCount64 granularity).
+    Require(hitch.lastRealMs >= hitch.lastTickMs + 500u, "the hitch left the timeline well behind uptime");
+    Require(afterStop >= hitch.lastTickMs && afterStop - hitch.lastTickMs <= realNowMs - hitch.lastRealMs + 32u,
+            "the clock continues from the last periodic tick");
     Require(wake.kind == 2u && wake.dueTickMs > afterStop, "the caret's next flip is still ahead: its phase is kept");
     window.Host().SetFocusControl(nullptr, false);
 }
