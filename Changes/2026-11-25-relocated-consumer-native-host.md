@@ -1,1 +1,0 @@
-- Select the pinned compiler host in the relocated consumer before MSVC resolves the toolset.
