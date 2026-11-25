@@ -646,12 +646,18 @@ void TestNativeTransitionStartsOnTheDispatcherTimelineAfterAStall()
     const uint64_t clampMs = dispatcher.DebugGetHitchClampUsForTest() / 1'000u;
     Sleep(static_cast<DWORD>(4u * clampMs));
     Require(ticks.WaitForTick(), "the dispatcher ticks after the stall");
-    Require(GetTickCount64() > window.Host().GetAnimationTickMs() + clampMs, "the stall left the dispatcher's clock behind uptime");
+    const uint64_t startTick     = window.Host().GetAnimationTickMs();
+    const uint64_t uptimeAtStart = GetTickCount64();
+    Require(uptimeAtStart > startTick + clampMs, "the stall left the dispatcher's clock behind uptime");
 
     const double beforeValue = slider->DebugGetDisplayedValue();
     Require(slider->OnKeyDown(window.Host(), VK_RIGHT, 0) && slider->DebugGetDisplayedValue() == beforeValue, "a keyboard step starts a value animation");
-    Require(ticks.WaitForTick(), "the dispatcher ticks once more");
-    Require(slider->DebugGetDisplayedValue() > beforeValue, "the next tick moves the thumb: the start and the ticks share one clock");
+    // Observe the host's animation within one logical clamp interval, before the uptime recorded at the key press.
+    const bool reachedOutcome =
+        DispatchMessagesUntil([&] { return slider->DebugGetDisplayedValue() > beforeValue || window.Host().GetAnimationTickMs() >= startTick + clampMs; });
+    Require(reachedOutcome, "the dispatcher advanced through the animation observation interval");
+    Require(slider->DebugGetDisplayedValue() > beforeValue && window.Host().GetAnimationTickMs() < uptimeAtStart,
+            "the thumb moves before the dispatcher reaches uptime at the key press");
 }
 
 // The test tick ends a settled host's dispatcher subscription exactly as a dispatcher tick does: a dispatcher callback that
