@@ -79,9 +79,10 @@ $apiRevision=(Get-Content -LiteralPath (Join-Path $checkout 'capabilities.json')
 $pin=[ordered]@{repository='https://github.com/RedSalamanders/DxUi';commit=$revision;apiRevision=$apiRevision;targets=@('DxUi')}
 function Write-Lock { $pin | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $lock -Encoding utf8 }
 Write-Lock
-# Prevent ancestor repository properties from contaminating this external consumer.
-'<Project />' | Set-Content (Join-Path $consumer 'Directory.Build.props')
-'<Project />' | Set-Content (Join-Path $consumer 'Directory.Build.targets')
+# Use the pinned native-host default in the isolated consumer before Microsoft.Cpp.props resolves tools.
+$earlyPolicy = [Security.SecurityElement]::Escape((Join-Path $checkout 'Build/NativeBuildPolicy.props'))
+"<Project><Import Project=`"$earlyPolicy`" /></Project>" | Set-Content -LiteralPath (Join-Path $consumer 'Directory.Build.props')
+'<Project />' | Set-Content -LiteralPath (Join-Path $consumer 'Directory.Build.targets')
 foreach($name in @('EmbeddedScene.h','EmbeddedTextClient.h','GraphicsFixture.h','RichImageLoader.h','Main.cpp')) {
     $sampleDirectory=Join-Path $consumer 'Samples/EmbeddedControls'
     New-Item -ItemType Directory -Path $sampleDirectory -Force | Out-Null

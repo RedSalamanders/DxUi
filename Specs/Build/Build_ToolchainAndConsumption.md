@@ -377,6 +377,10 @@ takes any triplet file as its source, such as a sanitizer overlay (one that name
 
 External consumers import `Build/DxUi.Consumer.props` after Microsoft.Cpp.props and `.targets` after
 Microsoft.Cpp.targets. Set DxUiRoot, DxUiConsumerLockFile and DxUiConsumerOutputRoot before those imports.
+The restored compiler-host identity and the consumer project must agree. To use the pinned native-host
+default, import `Build/NativeBuildPolicy.props` from the consumer's `Directory.Build.props` before
+Microsoft.Cpp.props selects the tools. The relocated fixture uses this public import for its application
+and module projects.
 Compile with Unicode, stdcpplatest, v145 and the matching /MDd or /MD runtime. The public example's source includes
 only public DxUi headers and ordinary Windows/WIL headers; it never reaches src. Diagnostic hook availability is
 fixed in Configuration.h and must not be overridden by consumers.
@@ -550,7 +554,8 @@ The consumer interface is what a consumer may call or import from its pinned che
   `Tools/validate_consumer.ps1`.
 - **Module functions**, with their parameters: `Get-DxUiConsumerBuildIdentity`, `Show-DxUiUpdateNotice`,
   `Get-DxUiVisualStudioInstallation`, `Get-DxUiDefaultToolset` and `Update-DxUiVcpkgOverlayTriplet`.
-- **MSBuild files**: `Build/DxUi.Consumer.props` and `.targets`, `Build/DxUi.AddressSanitizer.targets` and `src/DxUi.vcxproj`.
+- **MSBuild files**: `Build/DxUi.Consumer.props` and `.targets`, `Build/DxUi.AddressSanitizer.targets`,
+  `Build/NativeBuildPolicy.props` and `src/DxUi.vcxproj`.
 - **Public headers**: the `include/DxUi` root.
 
 `validate-dependencies.ps1` fails if any of the following holds:

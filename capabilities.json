@@ -72,7 +72,7 @@
         "Update-DxUiVcpkgOverlayTriplet": ["StockTripletPath", "Toolset", "OutputDirectory"]
       }
     },
-    "msbuild": ["Build/DxUi.Consumer.props", "Build/DxUi.Consumer.targets", "Build/DxUi.AddressSanitizer.targets", "src/DxUi.vcxproj"],
+    "msbuild": ["Build/DxUi.Consumer.props", "Build/DxUi.Consumer.targets", "Build/DxUi.AddressSanitizer.targets", "Build/NativeBuildPolicy.props", "src/DxUi.vcxproj"],
     "headers": ["include/DxUi"]
   },
   "supported": [
