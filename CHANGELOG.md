@@ -4,6 +4,7 @@ Entries are generated from [Changes](Changes/README.md). Existing release notes 
 
 ## Unreleased
 
+- Share DxUi's Release compiler and linker settings through an explicit native build policy opt-in.
 - Select the pinned compiler host in the relocated consumer before MSVC resolves the toolset.
 - Use the native MSVC compiler host for DxUi source builds on x64 and ARM64 Windows while preserving explicit overrides.
 - Share the existing MSVC family guard through the pinned native build policy.
