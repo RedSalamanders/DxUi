@@ -1,1 +1,0 @@
-- Use the shared engine's strict build summary check for DxUi builds, SDK smoke tests and paired diagnostic runs.
