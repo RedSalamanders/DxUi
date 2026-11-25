@@ -130,14 +130,6 @@ HRESULT PreparedLayout::PrepareOwned(IDWriteFactory* factory, Projection& projec
         return E_INVALIDARG;
     return Detail::PreparedLayoutAccess::Prepare(*this, factory, projection, options);
 }
-float PreparedLayout::VerticalOrigin() const noexcept
-{
-    return 0.0f;
-}
-bool PreparedLayout::PositionedExactly() const noexcept
-{
-    return static_cast<bool>(state_);
-}
 void Detail::PreparedLayoutAccess::AccumulateLineSpacing(DocumentLineSpacing& spacing, std::span<const StyleRun> runs, const LayoutOptions& options) noexcept
 {
     for (const auto& run : runs)

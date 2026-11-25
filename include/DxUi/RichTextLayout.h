@@ -174,10 +174,7 @@ private:
     std::pair<float, float> HorizontalTextBounds() const;
     std::span<const DWRITE_LINE_METRICS> LineMetrics() const;
     // Every layout is laid out at its own origin (W7.3): verticalOrigin must be 0, anything else is E_INVALIDARG.
-    // VerticalOrigin() and PositionedExactly() below remain for compatibility and have no callers.
     HRESULT PrepareOwned(IDWriteFactory* factory, Projection& projection, const LayoutOptions& options, float verticalOrigin = 0.0f);
-    float VerticalOrigin() const noexcept;
-    bool PositionedExactly() const noexcept;
     struct State;
     // Keep the returned member object stable across preparation and retirement.
     Projection projection_;
